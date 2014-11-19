@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <metadata xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+    <id>@project@</id>
+    <version>@build.number@</version>
+    <authors>@authors@</authors>
+    <owners>@authors@</owners>
+    <licenseUrl>http://github.com/buybackoff/Spreads/blob/master/LICENSE.txt</licenseUrl>
+    <projectUrl>https://github.com/buybackoff/Spreads</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/buybackoff/Spreads/master/docs/files/img/logo.png</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <summary>@summary@</summary>
+    <description>@description@</description>
+    <releaseNotes>@releaseNotes@</releaseNotes>
+    <copyright>Copyright 2014</copyright>
+    <tags>@tags@</tags>
+    <dependencies />
+  </metadata>
+  <files>
+    <file src="..\bin\Spreads.dll" target="lib/net45" />
+    <file src="..\bin\Spreads.pdb" target="lib/net45" />
+  </files>
+</package>
