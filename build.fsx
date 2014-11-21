@@ -152,8 +152,8 @@ Target "NuGet" (fun _ ->
         { p with
             Authors = authors
             Project = project + "." + "Period"
-            Summary = "Compact and fast data structure for time periods, for humans"
-            Description = "Compact and fast data structure for time periods, for humans"
+            Summary = "Compact and fast data structure for time periods"
+            Description = "Compact and fast data structure for time periods"
             Version = release.NugetVersion
             ReleaseNotes = ""
             Tags = tags

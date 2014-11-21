@@ -1,4 +1,4 @@
-﻿namespace Spreads.Period
+﻿namespace Spreads
 
 open System
 open System.Collections
@@ -6,432 +6,438 @@ open System.Collections.Generic
 open System.Linq
 open System.Diagnostics
 
-// main TODO - remove DateTimeOffset usage in constructor when supplying parts, it is a performance bottleneck
-
-/// Resolution unit of TimePeriod
-type Frequency = // compare to inverted nonlinear Hz,kHz,MHz etc
-| Tick = 0
-| Millisecond = 1   //          10 000 ticks
-| Second = 2        //      10 000 000 ticks
-| Minute = 3        //     600 000 000 ticks
-| Hour = 4          //  36 000 000 000 ticks
-| Day = 5           // 864 000 000 000 ticks
-| Month = 6         // variable
-| Year = 7
+/// Base unit of TimePeriod
+type UnitPeriod =
+  | Tick = 0          //               100 nanosec
+  | Millisecond = 1   //              10 000 ticks
+  | Second = 2        //          10 000 000 ticks
+  | Minute = 3        //         600 000 000 ticks
+  | Hour = 4          //      36 000 000 000 ticks
+  | Day = 5           //     864 000 000 000 ticks
+  | Month = 6         //                  Variable
+  | Eternity = 7      //                  Infinity
 
 
-/// TimeFrame is a length of a TimePeriod measured in number of frequency units (periods)
-/// E.g. a quarter is 3M TimeFrame - frequency is a month, 3 units of frequency (cycles)
-/// TODO: better naming for TimeFrame?
-[<Struct>]
 [<CustomComparison;CustomEquality>]
-type TimeFrame
-    private(value:uint16) = // internal used in TimePeriod
+type TimePeriod =
+  struct 
+    val internal value : int64
+    internal new(value:int64) = {value = value}
+  end
+  override x.Equals(yobj) =
+    match yobj with
+    | :? TimePeriod as y -> (x.value = y.value)
+    | _ -> false
+  override x.GetHashCode() = x.value.GetHashCode()
+  override x.ToString() = x.value.ToString()
+  interface System.IComparable<TimePeriod> with
+    member x.CompareTo y = x.value.CompareTo(y.value)
+  interface System.IComparable with
+    member x.CompareTo other = 
+      match other with
+      | :? TimePeriod as y -> x.value.CompareTo(y.value)
+      | _ -> invalidArg "other" "Cannot compare values of different types"
 
-    static member FromValue(value:uint16) = TimeFrame(value)
+type TimePeriodAddress =
+  struct
+    val BucketIndex : TimePeriod
+    val SubIndex : uint16
+    new (bi,si) = {BucketIndex = bi; SubIndex = si}
+  end
+  member x.ToKey() = ()
 
-    new(frequency:Frequency, cycles:uint16) =
-        let value = (uint16 ( ((int frequency) &&& 7) <<< 12) ) ||| (cycles &&& 4095us)
-        TimeFrame(value)
+module internal TimePeriodModule =
+  //#region Constants
+  /// Ticks of DateTime(1900, 1, 1)
+  [<Literal>]
+  let zeroTicks = 599266080000000000L
+  [<Literal>]
+  let ticksPerMillisecond = 10000L
+  [<Literal>]
+  let ticksPerSecond = 10000000L
+  [<Literal>]
+  let ticksPerMinute = 600000000L
+  [<Literal>]
+  let ticksPerHour = 36000000000L
+  [<Literal>]
+  let ticksPerDay = 864000000000L
 
-    member internal this.Value = value
+  [<Literal>]
+  let msecPerDay = 86400000L
+  [<Literal>]
+  let msecPerHour = 3600000L
+  [<Literal>]
+  let msecPerMinute = 60000L
+  [<Literal>]
+  let msecPerSec = 1000L
 
-    member this.Frequency 
-        with get() : Frequency = 
-            LanguagePrimitives.EnumOfValue (int( (value >>> 12) &&& 7us )) 
-    member this.Cycles = 
-        value &&& 4095us
+  [<Literal>]
+  let msecOffset = 6
+  [<Literal>]
+  let daysOffset = 33
+  [<Literal>]
+  let monthsOffset = 38
+  [<Literal>]
+  let lengthOffset = 50
+  [<Literal>]
+  let unitPeriodOffset = 60
+  [<Literal>]
+  let tickOffset = 6
 
-    override this.Equals(other) = value.Equals((other :?> TimeFrame).Value)
-    override x.GetHashCode() = int(value)
+  [<Literal>]
+  let ticksMask = 9223372036854775744L // ((1L <<< 57) - 1L) <<< 6
+  [<Literal>]
+  let msecMask = 8589934528L // ((1L <<< 27)  - 1L) <<< 6
+  [<Literal>]
+  let daysMask = 266287972352L // ((1L <<< 5) - 1L) <<< 33
+  [<Literal>]
+  let monthsMask =  1125625028935680L // ((1L <<< 12) - 1L) <<< 38
+  [<Literal>]
+  let lengthMask = 1151795604700004352L // ((1L <<< 10) -1L) <<< 50
+  [<Literal>]
+  let unitPeriodMask = 8070450532247928832L // ((1L <<< 3) - 1L) <<< 60
+  
+  //#endregion
+   
+  let inline getMsecInDay value = (value &&& msecMask) >>> msecOffset
+  let inline setMsecInDay msecs value = 
+    (msecs <<< msecOffset) ||| (value &&& ~~~msecMask)
 
-    interface IComparable<TimeFrame> with
-        member this.CompareTo(other:TimeFrame) = value.CompareTo(other.Value)
+  let inline getDays value = (value &&& daysMask) >>> daysOffset
+  let inline setDays days value = (days <<< daysOffset) ||| (value &&& ~~~daysMask)
 
-    interface IComparable with
-        member this.CompareTo(other:obj) = value.CompareTo((other :?> TimeFrame).Value)
+  // 0 based as count from 1/1/1900 as 0
+  let inline getMonths value = (value &&& monthsMask) >>> monthsOffset
+  let inline setMonths months value = (months <<< monthsOffset) ||| (value &&& ~~~monthsMask)
 
-    interface IEquatable<TimeFrame> with
-        member this.Equals(other:TimeFrame) = value.Equals(other.Value)
+  let inline getLength value = (value &&& lengthMask) >>> lengthOffset
+  let inline setLength length value = (length <<< lengthOffset) ||| (value &&& ~~~lengthMask)
 
+  let inline isTick (value) : bool = (1L = (value >>> 63))
+  let inline getTicks (value) = (value &&& ticksMask) >>> tickOffset
+  let inline setTicks ticks value = (ticks <<< tickOffset) ||| (value &&& ~~~ticksMask)
 
-/// This error is thrown when two TimePeriods with different TimeFrames are compared
-/// Such behavior prevents creating sorted collections of TimePeriods with different TimeFrames
-type TimePeriodFrameMismatchException() =
-    inherit Exception("Could not compare TimePeriods with different frames")
-
-type internal int48 = int64
-
-module TimePeriodModule =
-    // Variables:
-    // tpv - time period value : int64
-    // freq - value of Frequency enum :int
-    // ticks - DateTimeOffset ticks representation : int64
-    // timeFrame - last 16 bits of tpv as uint16
-    
-    //#region Constants
-
-    [<Literal>]
-    let ticksPerMillisecond = 10000L
-    [<Literal>]
-    let ticksPerSecond = 10000000L
-    [<Literal>]
-    let ticksPerMinute = 600000000L
-    [<Literal>]
-    let ticksPerHour = 36000000000L
-    [<Literal>]
-    let ticksPerDay = 864000000000L
-
-    [<Literal>]
-    let millisecondsOffset = 0
-    [<Literal>]
-    let secondsOffset = 10
-    [<Literal>]
-    let minutesOffset = 16
-    [<Literal>]
-    let hoursOffset = 22
-    [<Literal>]
-    let daysOffset = 27
-    [<Literal>]
-    let monthsOffset = 32
-    [<Literal>]
-    let yearsOffset = 36
-    [<Literal>]
-    let timeFrameOffset = 48
-    [<Literal>]
-    let periodsOffset = 48
-    [<Literal>]
-    let freqOffset = 60
-
-    [<Literal>]
-    let ticksMask = 1152921504606846975L //(1UL <<< 60) - 1UL
-    [<Literal>]
-    let ticksBucketMask = 65535L //(1UL <<< 16) - 1UL
-    [<Literal>]
-    let partsMask = 281474976710655L //(1UL <<< 48) - 1UL
-    [<Literal>]
-    let timeFrameMask = 65535L //(1UL <<< 16) - 1UL
-    [<Literal>] 
-    let millisecondsMask = 1023L //(1UL <<< 10) - 1UL
-    [<Literal>] // ms in a second
-    let millisecondsBucketMask = 65535L //(1UL <<< (10 + 6)) - 1UL
-    [<Literal>] 
-    let secondsMask = 63L // (1UL <<< 6) - 1UL
-    [<Literal>] // seconds in an hour
-    let secondsBucketMask = 4095L // (1UL <<< (6+6)) - 1UL
-    [<Literal>] 
-    let minutesMask = 63L // (1UL <<< 6) - 1UL
-    [<Literal>] // minutes in a day
-    let minutesBucketMask = 63L // (1UL <<< (6+5)) - 1UL
-    [<Literal>] 
-    let hoursMask = 31L // (1UL <<< 5) - 1UL
-    [<Literal>] 
-    let daysMask = 31L // (1UL <<< 5) - 1UL
-    [<Literal>] 
-    let monthsMask = 15L // (1UL <<< 4) - 1UL
-    [<Literal>] 
-    let yearsMask = 4095L // (1UL <<< 12) - 1UL
-    [<Literal>] 
-    let periodsMask = 4095L // (1UL <<< 12) - 1UL
-    [<Literal>] 
-    let freqMask = 7L // (1UL <<< 3) - 1UL
-    //#endregion Constants
-
-    let isTick (tpv:int64) : bool = (0L = (tpv >>> freqOffset))
-
-    let ticks (tpv:int64) : int64 = 
-        Debug.Assert((isTick tpv))
-        int64(tpv &&& ticksMask)
-
-    //#region Parts
-
-    let internal partsValue (tpv:int64) : int48 = 
-        Debug.Assert(not (isTick tpv))
-        int64(tpv &&& partsMask)
-
-    let milliseconds (tpv:int64) : int = 
-        Debug.Assert(not (isTick tpv))
-        int(millisecondsMask &&& (tpv >>> millisecondsOffset))
-    
-    let seconds (tpv:int64) : int = 
-        Debug.Assert(not (isTick tpv))
-        int(secondsMask &&& (tpv >>> secondsOffset))
-
-    let minutes (tpv:int64) : int = 
-        Debug.Assert(not (isTick tpv))
-        int(minutesMask &&& (tpv >>> minutesOffset))
-
-    let hours (tpv:int64) : int = 
-        Debug.Assert(not (isTick tpv))
-        int(hoursMask &&& (tpv >>> hoursOffset))
-
-    let days (tpv:int64) : int = 
-        Debug.Assert(not (isTick tpv))
-        int(daysMask &&& (tpv >>> daysOffset))
-
-    let months (tpv:int64) : int = 
-        Debug.Assert(not (isTick tpv))
-        int(monthsMask &&& (tpv >>> monthsOffset))
-
-    let years (tpv:int64) : int = 
-        Debug.Assert(not (isTick tpv))
-        int(yearsMask &&& (tpv >>> yearsOffset))
-
-    let internal timeFrameValue (tpv:int64) : uint16 = 
-        Debug.Assert(not (isTick tpv))
-        uint16(timeFrameMask &&& (tpv >>> timeFrameOffset))
-
-    let periods (tpv:int64) : int = 
-        Debug.Assert(not (isTick tpv))
-        int(periodsMask &&& (tpv >>> periodsOffset))
-
-    let internal freq (tpv:int64) : int = 
-        int(freqMask &&& (tpv >>> freqOffset))
-
-    let frequency (tpv:int64) : Frequency =
-        LanguagePrimitives.EnumOfValue <| freq tpv
-
-    //#endregion
+  let inline getUnitPeriod value = 
+    if isTick value then 0L
+    else (value &&& unitPeriodMask) >>> unitPeriodOffset
+  let inline setUnitPeriod unitPeriod value = 
+    if isTick value then value
+    else (unitPeriod <<< unitPeriodOffset) ||| (value &&& ~~~unitPeriodMask) 
 
 
-    /// Assume that inputs are not checked for logic
-    let ofPartsUnsafe 
-        (freq:int) (periods:int) 
-        (year:int) (month:int) (day:int) 
-        (hour:int) (minute:int) (second:int) (millisecond:int) : int64 =
-            let mutable value : int64 = 0L
-            value <- value ||| ( (int64(freq) &&& freqMask) <<< freqOffset )
-            value <- value ||| ( (int64(periods) &&& periodsMask) <<< periodsOffset )
-            value <- value ||| ( (int64(year) &&& yearsMask) <<< yearsOffset )
-            value <- value ||| ( (int64(month) &&& monthsMask) <<< monthsOffset )
-            value <- value ||| ( (int64(day) &&& daysMask) <<< daysOffset )
-            value <- value ||| ( (int64(hour) &&& hoursMask) <<< hoursOffset )
-            value <- value ||| ( (int64(minute) &&& minutesMask) <<< minutesOffset )
-            value <- value ||| ( (int64(second) &&& secondsMask) <<< secondsOffset )
-            value <- value ||| ( (int64(millisecond) &&& millisecondsMask) <<< millisecondsOffset )
-            value
+  let inline isActual value : bool = (value &&& 1L) = 1L
+  let inline getPeriod value = (value &&& (lengthMask ||| unitPeriodMask )) >>> lengthOffset
+  let inline setPeriod period value = (period <<< lengthOffset) ||| (value &&& ~~~(lengthMask ||| unitPeriodMask ))
 
 
-//    let private partsToDTO (year:int) (month:int) (day:int) 
-//        (hour:int) (minute:int) (second:int) (millisecond:int) : DateTimeOffset =
-//            DateTimeOffset(year, month, day, hour, minute, second, millisecond, TimeSpan.Zero)
+  let inline milliseconds (tpv:int64) : int64 = 
+    Debug.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
+    getMsecInDay(tpv) % 1000L
+  let inline seconds (tpv:int64) : int64 = 
+    Debug.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
+    (getMsecInDay(tpv) / msecPerSec) % 60L
+  let inline minutes (tpv:int64) : int64 = 
+    Debug.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
+    (getMsecInDay(tpv) / msecPerMinute) % 60L
+  let inline hours (tpv:int64) : int64 = 
+    Debug.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
+    (getMsecInDay(tpv) / msecPerHour) % 24L
+  let inline days (tpv:int64) : int64 = 
+    Debug.Assert(not (isTick tpv))
+    (getDays(tpv)) + 1L
+  // 1 based like in calendar
+  let inline months (tpv:int64) : int64 = 
+    Debug.Assert(not (isTick tpv))
+    (getMonths(tpv) % 12L) + 1L
+  let inline years (tpv:int64) : int64 = 
+    Debug.Assert(not (isTick tpv))
+    (getMonths(tpv) / 12L) + 1900L
+  let inline length (tpv:int64) : int64 = 
+    Debug.Assert(not (isTick tpv))
+    getLength(tpv)
+  let inline unitPeriod (tpv:int64) : UnitPeriod =
+    LanguagePrimitives.EnumOfValue <| int (getUnitPeriod tpv)
 
-    let internal partsValueToDTO (partsValue:int48) : DateTimeOffset =
-            DateTimeOffset(years partsValue, months partsValue, days partsValue, 
-                hours partsValue, minutes partsValue, seconds partsValue, milliseconds partsValue, TimeSpan.Zero)
-    
-    let internal DTOtoPartsValue (dto:DateTimeOffset) : int48 =
-        ofPartsUnsafe 0 0 dto.Year dto.Month dto.Day dto.Hour dto.Minute dto.Second dto.Millisecond
-    
+  /// Assume that inputs are not checked for logic
+  let ofPartsUnsafe 
+    (unitPeriod:UnitPeriod) (length:int) 
+    (year:int) (month:int) (day:int) 
+    (hour:int) (minute:int) (second:int) (millisecond:int) : int64 =
+      match unitPeriod with
+      | UnitPeriod.Tick -> 
+        let mutable value : int64 = 1L <<< 63
+        value <- value |> setTicks (DateTime(year, month, day, hour, minute, second, millisecond).Ticks - zeroTicks)
+        value
+      | _ ->
+        let mutable value : int64 = 0L
+        value <- value |> setUnitPeriod (int64 unitPeriod)
+        value <- value |> setLength (int64 length)
+        value <- value |> setMonths (int64((year - 1900) * 12 + (month-1)))
+        value <- value |> setDays (int64(day - 1))
+        let millisInDay = 
+          (int64 hour) * msecPerHour + (int64 minute) * msecPerMinute 
+          + (int64 second) * msecPerSec + (int64 millisecond)
+        value <- value |> setMsecInDay millisInDay
+        value
+        
+  /// Convert datetime to TimePeriod with Windows built-in time zone infos
+  /// Windows updates TZ info with OS update patches, could also use NodaTime for this
+  let ofStartDateTimeWithZoneUnsafe (unitPeriod:UnitPeriod) (length:int)  (startDate:DateTime) (tzi:TimeZoneInfo) =
+    // number of 30 minutes intervals, with 24 = UTC/zero offset
+    // TODO test with India
+    let startDtUtc =  DateTimeOffset(startDate,tzi.GetUtcOffset(startDate))
+    match unitPeriod with
+      | UnitPeriod.Tick -> 
+        let mutable value : int64 = 1L <<< 63
+        value <- value |> setTicks (startDtUtc.Ticks - zeroTicks)
+        value
+      | _ ->
+        let mutable value : int64 = 0L
+        value <- value |> setUnitPeriod (int64 unitPeriod)
+        value <- value |> setLength (int64 length)
+        value <- value |> setMonths (int64 <| (startDtUtc.Year - 1900) * 12 + (startDtUtc.Month - 1))
+        value <- value |> setDays (int64 <| startDtUtc.Day - 1)
+        value <- value |> setMsecInDay (int64 <| startDtUtc.TimeOfDay.TotalMilliseconds)
+        value
 
-    //#region Changes to partsValue
-
-    let internal addMillisecondsToPartsValue (partsValue:int48) (milliseconds:int) : int48 =
-        DTOtoPartsValue ((partsValueToDTO partsValue).AddTicks(int64(milliseconds) * ticksPerMillisecond))
-    
-    let internal addSecondsToPartsValue (partsValue:int48) (seconds:int) : int48 =
-        DTOtoPartsValue ((partsValueToDTO partsValue).AddTicks(int64(seconds) * ticksPerSecond))
-    
-    let internal addMinutesToPartsValue (partsValue:int48) (minutes:int) : int48 =
-        DTOtoPartsValue ((partsValueToDTO partsValue).AddTicks(int64(minutes) * ticksPerMinute))
-
-    let internal addHoursToPartsValue (partsValue:int48) (hours:int) : int48 =
-        DTOtoPartsValue ((partsValueToDTO partsValue).AddTicks(int64(hours) * ticksPerHour))
-
-    let internal addDaysToPartsValue (partsValue:int48) (days:int) : int48 =
-        DTOtoPartsValue ((partsValueToDTO partsValue).AddTicks(int64(days) * ticksPerDay))
-
-    let internal addMonthsToPartsValue (partsValue:int48) (months:int) : int48 =
-        DTOtoPartsValue ((partsValueToDTO partsValue).AddMonths(months))
-
-    let internal addYearsToPartsValue (partsValue:int48) (years:int) : int48 =
-        DTOtoPartsValue ((partsValueToDTO partsValue).AddYears(years))
-
-    //#endregion
-
-
-//    let private partsValueOfPeriodEnd periodStartPartsValue freq periods =
-//        ()
-
-
-    let ofTicksUnsafe (ticks:int64) : int64 = (int64 Frequency.Tick <<< freqOffset) ||| int64(ticks)
-    
-    let internal ofTimeFrameAndPartsValue (tf:TimeFrame) (partsValue:int48) :int64 =
-        (int64(tf.Value) <<< timeFrameOffset) ||| partsValue
-
-    let ofDateTimeOffset (dto:DateTimeOffset) : int64 =
-        ofTicksUnsafe dto.UtcTicks
-
-    let ofDateTimeOffsetStart (freq:uint16) (periods:uint16) (dtoStart:DateTimeOffset) : int64 =
-        Debug.Assert((freq < 7us))
-        Debug.Assert((0us < periods && periods <= 4095us))
-        ofPartsUnsafe (int freq) (int periods) 
-                        dtoStart.Year dtoStart.Month dtoStart.Day 
-                        dtoStart.Hour dtoStart.Minute dtoStart.Second dtoStart.Millisecond
-
-    let internal ofDateTimeOffsetEnd (freq:int) (periods:int) (dtoEnd:DateTimeOffset) : int64 =
-        // TODO (endDTO+1tick)-1Frame
-        raise (NotImplementedException())
+  let ofStartDateTimeOffset (unitPeriod:UnitPeriod) (length:int)  (startDto:DateTimeOffset) =
+    let offsetTS = startDto.Offset.Add(TimeSpan.FromHours(12.0))
+    let offset = int64 (offsetTS.TotalHours * 2.0)
+    match unitPeriod with
+      | UnitPeriod.Tick -> 
+        let mutable value : int64 = 1L <<< 63
+        value <- value |> setTicks (startDto.UtcTicks - zeroTicks)
+        value
+      | _ ->
+        let mutable value : int64 = 0L
+        value <- value |> setUnitPeriod (int64 unitPeriod)
+        value <- value |> setLength (int64 length)
+        value <- value |> setMonths (int64 <| (startDto.UtcDateTime.Year - 1900) * 12 + (startDto.UtcDateTime.Month - 1))
+        value <- value |> setDays (int64 <| startDto.UtcDateTime.Day - 1)
+        value <- value |> setMsecInDay (int64 <| startDto.UtcDateTime.TimeOfDay.TotalMilliseconds)
+        value
             
     
 
-    // shift period by number of frames: next period is +1 frame, previous period is -1 frames, etc
-    let shiftByNumberOfFrames (frames:int) (tpv:int64) : int64 =
-        if frames = 0 then tpv
+  let addPeriods (numPeriods:int64) (tpv:int64) : int64 =
+    if numPeriods = 0L then tpv
+    else
+      let unit = unitPeriod tpv
+      let len = getLength tpv
+      let addDay (numDays:int64) (tpv':int64) : int64 =
+        let date = DateTime(int <| years tpv', int <|months tpv', int <| days tpv').AddDays(float numDays)
+        let withDays = setDays (int64 <| date.Day - 1) tpv'
+        setMonths (int64 <| (date.Year - 1900) * 12 + (date.Month - 1)) withDays
+      let addIntraDay (numPeriods':int64) (tpv':int64) (multiple:int64) : int64 =
+        let msecs = (getMsecInDay tpv') + numPeriods'*len*multiple
+        if msecs >= msecPerDay then
+          let msecsInDay = msecs % msecPerDay
+          let numDays = msecs / msecPerDay
+          let withMsecs = setMsecInDay msecsInDay tpv'
+          addDay numDays withMsecs
+        else if msecs < 0L then
+          let msecsInDay = msecPerDay + (msecs % msecPerDay) // last part is negative, so (+)
+          let numDays = (msecs / msecPerDay) - 1L
+          let withMsecs = setMsecInDay msecsInDay tpv'
+          addDay numDays withMsecs
         else
-            let tf = TimeFrame.FromValue(timeFrameValue tpv)
-            match tf.Frequency with
-            | _ as x when x = Frequency.Tick -> 
-                ofTicksUnsafe (ticks tpv) + int64(frames)
-            | _ as x when x = Frequency.Millisecond ->
-                ofTimeFrameAndPartsValue tf (addMillisecondsToPartsValue (partsValue tpv) frames)
-            | _ as x when x = Frequency.Second ->
-                ofTimeFrameAndPartsValue tf (addSecondsToPartsValue (partsValue tpv) frames)       
-            | _ as x when x = Frequency.Minute ->
-                ofTimeFrameAndPartsValue tf (addMinutesToPartsValue (partsValue tpv) frames)  
-            | _ as x when x = Frequency.Hour ->
-                ofTimeFrameAndPartsValue tf (addHoursToPartsValue (partsValue tpv) frames)          
-            | _ as x when x = Frequency.Day ->
-                ofTimeFrameAndPartsValue tf (addDaysToPartsValue (partsValue tpv) frames)  
-            | _ as x when x = Frequency.Month ->
-                ofTimeFrameAndPartsValue tf (addMonthsToPartsValue (partsValue tpv) frames)        
-            | _ as x when x = Frequency.Year ->
-                ofTimeFrameAndPartsValue tf (addYearsToPartsValue (partsValue tpv) frames) 
-            | _ -> failwith "wrong frequency"
+          setMsecInDay msecs tpv'
+      match unit with
+      | UnitPeriod.Tick -> 
+        let ticks = (getTicks tpv) + numPeriods
+        setTicks ticks tpv
+      | UnitPeriod.Millisecond -> addIntraDay numPeriods tpv 1L
+      | UnitPeriod.Second -> addIntraDay numPeriods tpv msecPerSec
+      | UnitPeriod.Minute -> addIntraDay numPeriods tpv msecPerMinute
+      | UnitPeriod.Hour -> addIntraDay numPeriods tpv msecPerHour     
+      | UnitPeriod.Day -> addDay numPeriods tpv
+      | UnitPeriod.Month ->
+          let months = (getMonths tpv) + len * numPeriods
+          setMonths months tpv
+      | UnitPeriod.Eternity ->  tpv
+      | _ -> failwith "wrong unit period, never hit this"
+
+  let periodStart (tpv:int64) : DateTimeOffset =
+      if isTick tpv then DateTimeOffset(getTicks tpv, TimeSpan.Zero)
+      else 
+        DateTimeOffset(
+          int <| years tpv, 
+          int <| months tpv, 
+          int <| days tpv,0,0,0,0,
+          TimeSpan.Zero).AddMilliseconds(float <| getMsecInDay tpv)
+
+  /// period end is the start of the next period, exclusive (epsilon to the start of the next period)
+  let periodEnd (tpv:int64) : DateTimeOffset =
+      if isTick tpv then DateTimeOffset(getTicks tpv, TimeSpan.Zero)
+      else 
+        periodStart (addPeriods 1L tpv)
+
+  let timeSpan (tpv:int64) : TimeSpan =
+      if isTick tpv then TimeSpan(1L)
+      else TimeSpan((periodEnd tpv).Ticks - (periodStart tpv).Ticks)
+
+  // the bigger a period the less important grouping becomes for a single series (but still needed if there are many short series)
+  // because the total number of points is limited (e.g. in 10 years there are 86,400 hours ~ 10,800 buckets by 8 trading hours or 3,600 buckets by 24 hours)
+  // and the bigger bucket density should be expected
+  // 100 000 buckets take 2.8 Mb (key + pointer + array overhead per bucket)
+  // 1Gb of data = 100 Mn items in buckets (10 bytes per item: 2 key + 8 value)
+  // 1Gb ~ 10 seconds of data per every tick, 1526 buckets 43kb
+  // 1Gb ~ 28 hours of millisecondly data, 1667 buckets 47kb
+  // 1Gb ~ 38 months of secondly data, 27778 buckets 0.78Mb
+  // 1Gb ~ 192 years of minutely data, 69444 buckets 1.94Mb
+  let addressBucketHash (tpv:int64) (targetUnit:UnitPeriod): int64 =
+    let periodOnly tpv' = (tpv' &&& (~~~(msecMask ||| daysMask ||| monthsMask)))
+    let originalUnit = unitPeriod tpv
+    if targetUnit < originalUnit then invalidOp "Cannot map period to smaller base periods that original"
+    if targetUnit > originalUnit then raise (NotImplementedException("TODO"))
+    match targetUnit with
+    | UnitPeriod.Tick ->
+      // clear 6 offset bits and take 16 bits, 65536 ticks per bucket if dense or less
+      (tpv >>> 22) <<< 22 
+    | UnitPeriod.Millisecond ->
+      // group by minute; 60000 ms in a minute
+      // clear msecs and add minutes
+      (tpv &&& ~~~msecMask) + (getMsecInDay tpv)/(msecPerMinute)  
+    | UnitPeriod.Second ->
+      // group by hour; 3600 seconds in an hour
+      (tpv &&& ~~~msecMask) + (getMsecInDay tpv)/(msecPerHour)
+    | UnitPeriod.Minute ->
+      // group by day; 1440 minutes in a day
+      (tpv &&& ~~~msecMask) // NB: different with Hours because period bits are different
+    | UnitPeriod.Hour ->
+      //group by day; max 24 in a day 
+      (tpv &&& ~~~msecMask)
+    | UnitPeriod.Day -> 
+      // group by month
+      (tpv >>> monthsOffset) <<< monthsOffset
+    | _ -> 
+      // months are all in one place
+      periodOnly (tpv)
+
+  let addressSubIndex (tpv:int64) (targetUnit:UnitPeriod): uint16 =
+    let originalUnit = unitPeriod tpv
+    if targetUnit < originalUnit then invalidOp "Cannot map period to smaller base periods that original"
+    if targetUnit > originalUnit then raise (NotImplementedException("TODO"))
+    match targetUnit with
+    | UnitPeriod.Tick ->
+      uint16 <| ((tpv >>> 6) &&& ((1L <<< 16) - 1L))
+    | UnitPeriod.Millisecond ->
+      // group by minute; 60000 ms in a minute
+      // msec in a minute
+      uint16 <| ((getMsecInDay tpv) % (msecPerMinute)) 
+    | UnitPeriod.Second ->
+      // second in hour
+      uint16 <| ((getMsecInDay tpv) % (msecPerHour))/msecPerSec
+    | UnitPeriod.Minute ->
+      // minute in a day
+      uint16 <| (getMsecInDay tpv)/(msecPerMinute)
+    | UnitPeriod.Hour ->
+      // hour in a day
+      uint16 <| (getMsecInDay tpv)/(msecPerHour)
+    | UnitPeriod.Day ->
+      // day in a month
+      uint16 <| days tpv
+    | _ -> 
+      // months are all in one place
+      uint16 (months tpv)
+
+  let addressToTimePeriod (bucket:int64) (subIndex:uint16) : int64 =
+    let unit = unitPeriod bucket
+    let sub = int64 subIndex
+    match unit with
+    | UnitPeriod.Tick -> ((bucket >>> 6) + sub) <<< 6
+    | UnitPeriod.Millisecond -> ((bucket >>> 6) + sub) <<< 6
+    | UnitPeriod.Second -> ((bucket >>> 6) + sub * msecPerSec) <<< 6
+    | UnitPeriod.Minute -> ((bucket >>> 6) + sub * msecPerMinute) <<< 6
+    | UnitPeriod.Hour -> ((bucket >>> 6) + sub * msecPerHour) <<< 6
+    | UnitPeriod.Day -> ((bucket >>> daysOffset) + sub) <<< daysOffset
+    | _ -> ((bucket >>> monthsOffset) + sub) <<< monthsOffset
+
+open TimePeriodModule
+
+type TimePeriodAddress with
+  /// Use this in aggregations when one only needs the hash
+  static member GetAddress(tp:TimePeriod, unitPeriod:UnitPeriod):TimePeriodAddress = 
+    TimePeriodAddress(TimePeriod(addressBucketHash tp.value unitPeriod),
+      addressSubIndex tp.value unitPeriod)
 
 
-    let periodStart (tpv:int64) : DateTimeOffset =
-        if isTick tpv then DateTimeOffset(ticks tpv, TimeSpan.Zero)
-        else partsValueToDTO (partsValue tpv)
+type TimePeriod with
+  member this.Period with get(): UnitPeriod * int = unitPeriod this.value, int <| length this.value
+  member this.Start with get(): DateTimeOffset = periodStart this.value
+  member this.End with get() : DateTimeOffset = periodEnd this.value
+  member this.TimeSpan with get() : TimeSpan = timeSpan this.value
+  member this.Next with get() : TimePeriod = TimePeriod(addPeriods 1L this.value)
+  member this.Previous with get() : TimePeriod = TimePeriod(addPeriods -1L this.value)
 
-    /// period end is one tick before the start of the next period
-    let periodEnd (tpv:int64) : DateTimeOffset =
-        if isTick tpv then DateTimeOffset(ticks tpv, TimeSpan.Zero)
-        else (partsValueToDTO (partsValue (shiftByNumberOfFrames 1 tpv))).AddTicks(-1L)
+  member internal this.Address 
+    with get() : TimePeriodAddress = 
+      TimePeriodAddress.GetAddress(this, unitPeriod this.value)
 
-    let timeSpan (tpv:int64) : TimeSpan =
-        if isTick tpv then TimeSpan(1L)
-        else TimeSpan((periodEnd tpv).Ticks - (periodStart tpv).Ticks + 1L)
+  static member op_Explicit(value:int64) : TimePeriod =  TimePeriod(value)
+  static member op_Explicit(timePeriod:TimePeriod) : int64  = timePeriod.value
 
-    // the bigger the frame the less important grouping becomes for a single series (but still needed if there are many short series)
-    // because the total number of points is limited (e.g. in 10 years there are 86,400 hours ~ 10,800 buckets by 8 trading hours or 3,600 buckets by 24 hours)
-    // and the bigger bucket density should be expected
-    // 100 000 buckets take 2.8 Mb (key + pointer + array overhead per bucket)
-    // 1Gb of data = 100 Mn items in buckets (10 bytes per item: 2 key + 8 value)
-    // 1Gb ~ 10 seconds of data per every tick, 1526 buckets 43kb
-    // 1Gb ~ 28 hours of millisecondly data, 1667 buckets 47kb
-    // 1Gb ~ 38 months of secondly data, 27778 buckets 0.78Mb
-    // 1Gb ~ 192 years of minutely data, 69444 buckets 1.94Mb
-    let bucketHash (tpv:int64) : int64 =
-        let tf = TimeFrame.FromValue(timeFrameValue tpv)
-        match tf.Frequency with
-        | _ as x when x = Frequency.Tick -> 
-            (tpv >>> 16) <<< 16 // 65536 ticks per bucket
-        | _ as x when x = Frequency.Millisecond ->
-            (tpv >>> minutesOffset) <<< minutesOffset  // group by minute; 60000 ms in a minute
-        | _ as x when x = Frequency.Second ->
-            (tpv >>> hoursOffset) <<< hoursOffset // group by hour; 3600 seconds in an hour
-        | _ as x when x = Frequency.Minute ->
-            (tpv >>> daysOffset) <<< daysOffset // group by day; 1440 minutes in a day
-        | _ as x when x = Frequency.Hour ->
-            (tpv >>> daysOffset) <<< daysOffset // group by day; 24 in a day         
-        | _ as x when x = Frequency.Day ->
-            (tpv >>> monthsOffset) <<< monthsOffset // group by month; 28-31 day in a month
-        | _ as x when x = Frequency.Month ->
-            (tpv >>> yearsOffset) <<< yearsOffset // group by year; 12 months in a year       
-        | _ as x when x = Frequency.Year ->
-            (tpv >>> timeFrameOffset) <<< timeFrameOffset // group by time frame, up to 4095 years
-        | _ -> failwith "wrong frequency"
+  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
+  /// as in financial statements: "for 12 months ended on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endTime:DateTimeOffset) =
+    {value =
+      ofStartDateTimeOffset unitPeriod (int numberOfUnitPeriods) endTime
+      |> addPeriods -1L}
+  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
+  /// as in financial statements: "for 12 months ended on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endTime:DateTime, tzi:TimeZoneInfo) =
+    {value =
+      ofStartDateTimeWithZoneUnsafe unitPeriod (int numberOfUnitPeriods) endTime tzi
+      |> addPeriods -1L}
 
-    let bucketSubIndex (tpv:int64) : uint16 =
-        let tf = TimeFrame.FromValue(timeFrameValue tpv)
-        match tf.Frequency with
-        | _ as x when x = Frequency.Tick -> 
-            uint16(tpv &&& ticksBucketMask) // 65536 ticks per bucket
-        | _ as x when x = Frequency.Millisecond ->
-            uint16(tpv &&& millisecondsBucketMask) // group by minute; 60000 ms in a minute
-        | _ as x when x = Frequency.Second ->
-            uint16( (minutes tpv)*60 + (seconds tpv) ) // group by hour; 3600 seconds in an hour
-        | _ as x when x = Frequency.Minute ->
-            uint16( (hours tpv)*60 + (minutes tpv) ) // group by day; 1440 minutes in a day
-        | _ as x when x = Frequency.Hour ->
-            uint16(hours tpv) // group by day; 24 in a day         
-        | _ as x when x = Frequency.Day ->
-            uint16(days tpv) // group by month; 28-31 day in a month
-        | _ as x when x = Frequency.Month ->
-            uint16(months tpv) // group by year; 12 months in a year       
-        | _ as x when x = Frequency.Year ->
-            uint16(years tpv) // group by time frame, up to 4095 years
-        | _ -> failwith "wrong frequency"
+  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
+  /// as in financial statements: "for 12 months ended on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endYear:int, endMonth:int, endDay:int, 
+      endHour:int, endMinute:int, endSecond:int, endMillisecond:int) =
+        {value =
+          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) endYear endMonth endDay endHour endMinute endSecond endMillisecond
+          |> addPeriods -1L}
 
-    let bucketIndex (bucket:int64) (subIndex:uint16) : int64 =
-        let tf = TimeFrame.FromValue(timeFrameValue bucket)
-        let pv = partsValue bucket
-        match tf.Frequency with
-        | _ as x when x = Frequency.Tick -> 
-            bucket ||| int64(subIndex)
-        | _ as x when x = Frequency.Millisecond ->
-            ofTimeFrameAndPartsValue tf (addMillisecondsToPartsValue pv (int subIndex))
-        | _ as x when x = Frequency.Second ->
-            ofTimeFrameAndPartsValue tf (addSecondsToPartsValue pv (int subIndex))
-        | _ as x when x = Frequency.Minute ->
-            ofTimeFrameAndPartsValue tf (addMinutesToPartsValue pv (int subIndex))
-        | _ as x when x = Frequency.Hour ->
-            ofTimeFrameAndPartsValue tf (addHoursToPartsValue pv (int subIndex))
-        | _ as x when x = Frequency.Day ->
-            ofTimeFrameAndPartsValue tf (addDaysToPartsValue pv (int subIndex))
-        | _ as x when x = Frequency.Month ->
-            ofTimeFrameAndPartsValue tf (addMonthsToPartsValue pv (int subIndex))
-        | _ as x when x = Frequency.Year ->
-            ofTimeFrameAndPartsValue tf (addYearsToPartsValue pv (int subIndex))
-        | _ -> failwith "wrong frequency"
-
-    //let inline AddTick
-     //let inline periodEnd 
+  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
+  /// as in financial statements: "for 12 months ended on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endYear:int, endMonth:int, endDay:int, 
+      endHour:int, endMinute:int, endSecond:int) =
+        {value =
+          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) endYear endMonth endDay endHour endMinute endSecond 0
+          |> addPeriods -1L}
+  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
+  /// as in financial statements: "for 12 months ended on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endYear:int, endMonth:int, endDay:int, 
+      endHour:int, endMinute:int) =
+        {value =
+          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) endYear endMonth endDay endHour endMinute 0 0
+          |> addPeriods -1L}
+  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
+  /// as in financial statements: "for 12 months ended on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endYear:int, endMonth:int, endDay:int, 
+      endHour:int) =
+        {value =
+          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) endYear endMonth endDay endHour 0 0 0
+          |> addPeriods -1L}
+  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
+  /// as in financial statements: "for 12 months ended on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endYear:int, endMonth:int, endDay:int) =
+        {value =
+          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) endYear endMonth endDay 0 0 0 0
+          |> addPeriods -1L}
+  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
+  /// as in financial statements: "for 12 months ended on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endYear:int, endMonth:int) =
+        {value =
+          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) endYear endMonth 0 0 0 0 0
+          |> addPeriods -1L}
+  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
+  /// as in financial statements: "for 12 months ended on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endYear:int) =
+        {value =
+          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) endYear 0 0 0 0 0 0
+          |> addPeriods -1L}
 
 
-[<Struct>]
-//TODO[<CustomComparison;CustomEquality>]
-type TimePeriod
-    private(value:int64) = // internal used in TimePeriodIntConverter()
-    
-    member internal this.Value = value
-
-    member this.TimeFrame with get():TimeFrame = TimeFrame.FromValue(TimePeriodModule.timeFrameValue value)
-
-    member this.Start with get() = TimePeriodModule.periodStart value
-
-    member this.End with get() : DateTimeOffset = TimePeriodModule.periodEnd value
-
-    member this.TimeSpan with get() : TimeSpan = TimePeriodModule.timeSpan value
-
-    member this.Next with get() : TimePeriod = TimePeriod(TimePeriodModule.shiftByNumberOfFrames 1 value)
-
-    member this.Previous with get() : TimePeriod = TimePeriod(TimePeriodModule.shiftByNumberOfFrames -1 value)
-
-    member this.AddFrames(frames:int) : TimePeriod = TimePeriod(TimePeriodModule.shiftByNumberOfFrames frames value)
 
 
-    //#region Buckets
-    member internal this.BucketHash 
-        with get() : TimePeriod = 
-            TimePeriod(TimePeriodModule.bucketHash value)
-    member internal this.BucketSubKey 
-        with get() : uint16 = TimePeriodModule.bucketSubIndex value
-    static member internal BucketKey(bucket:TimePeriod, subIndex:uint16) : TimePeriod =
-        TimePeriod(TimePeriodModule.bucketIndex bucket.Value subIndex)
-    //#endregion
-
-    // Constructors
-
-    new(frequency:Frequency, cycles:uint16, start:DateTimeOffset) =
-        TimePeriod(TimePeriodModule.ofDateTimeOffsetStart (uint16 frequency) cycles start)
-
-    // Creators
-    static member internal FromValue(value:int64) = 
-        TimePeriod(value)
-//    static member FromDateTime = ()
-//    static member FromDateTimeOffset = ()
-//    static member FromTicks = ()
-//    static member FromStart = () // same as the only constructor
-//    static member FromEnd = ()
