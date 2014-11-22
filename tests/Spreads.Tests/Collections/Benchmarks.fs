@@ -220,6 +220,12 @@ module CollectionsBenchmarks =
         if res <> i then failwith "SCGSortedList failed"
         ()
     )
+    perf count "SCGSortedList Iterate" (fun _ ->
+      for i in sl.Value do
+        let res = i.Value
+        if res <> i.Value then failwith "SCGSortedList failed"
+        ()
+    )
     sl := SortedList()
     let count = count / 10L
     perf count "SCGSortedList Add Reverse" (fun _ ->
@@ -236,6 +242,73 @@ module CollectionsBenchmarks =
   [<Test>]
   let SCGSortedList_run() = SCGSortedList(1000000L)
 
+
+
+  let SortedListTests(count:int64) =
+    let sl = ref (Spreads.Collections.Extra.SortedList())
+    perf count "SortedList Add" (fun _ ->
+      for i in 0L..count do
+        sl.Value.Add(i, i)
+    )
+    perf count "SortedList Read" (fun _ ->
+      for i in 0L..count do
+        let res = sl.Value.Item(i)
+        if res <> i then failwith "SortedList failed"
+        ()
+    )
+    perf count "SortedList Iterate" (fun _ ->
+      for i in sl.Value do
+        let res = i.Value
+        if res <> i.Value then failwith "SortedList failed"
+        ()
+    )
+    sl := Spreads.Collections.Extra.SortedList()
+    let count = count / 10L
+    perf count "SortedList Add Reverse" (fun _ ->
+      for i in 0L..count do
+        sl.Value.Add(count - i, i)
+    )
+    perf count "SortedList Read Reverse" (fun _ ->
+      for i in 0L..count do
+        let res = sl.Value.Item(count - i)
+        if res <> i then failwith "SortedList failed"
+        ()
+    )
+    Console.WriteLine("----------------")
+  [<Test>]
+  let SortedList_run() = SortedListTests(1000000L)
+
+
+  let SCISortedMap(count:int64) =
+    let shm = ref (System.Collections.Immutable.ImmutableSortedDictionary.Empty)
+    perf count "SCISortedMap Add" (fun _ ->
+      for i in 0L..count do
+        shm := shm.Value.Add(i, i)
+    )
+    perf count "SCISortedMap Read" (fun _ ->
+      for i in 0L..count do
+        let res = shm.Value.Item(i)
+        if res <> i then failwith "SCISortedMap failed"
+        ()
+    )
+    shm := (System.Collections.Immutable.ImmutableSortedDictionary.Empty)
+    let count = count / 10L
+    perf count "SCISortedMap Add Reverse" (fun _ ->
+      for i in 0L..count do
+        shm := shm.Value.Add(count - i, i)
+    )
+    perf count "SCISortedMap Read Reverse" (fun _ ->
+      for i in 0L..count do
+        let res = shm.Value.Item(count - i)
+        if res <> i then failwith "SCISortedMap failed"
+        ()
+    )
+    Console.WriteLine("----------------")
+  [<Test>]
+  let SCISortedMap_run() = SCISortedMap(1000000L)
+
+
+
   let SortedMapTest(count:int64) =
     let smap = ref (SortedMap())
     perf count "SortedMap Add" (fun _ ->
@@ -246,6 +319,12 @@ module CollectionsBenchmarks =
       for i in 0L..count do
         let res = smap.Value.Item(i)
         if res <> i then failwith "SortedMap failed"
+        ()
+    )
+    perf count "SortedMap Iterate" (fun _ ->
+      for i in smap.Value do
+        let res = i.Value
+        if res <> i.Value then failwith "SortedMap failed"
         ()
     )
     smap := SortedMap()
@@ -265,33 +344,33 @@ module CollectionsBenchmarks =
   let SortedMap_run() = SortedMapTest(1000000L)
 
 
-  let MapDequeTest(count:int64) =
-    let mdq = ref (MapDeque())
-    perf count "MapDeque Add" (fun _ ->
-      for i in 0L..count do
-        mdq.Value.Add(i, i)
-    )
-    perf count "MapDeque Read" (fun _ ->
-      for i in 0L..count do
-        let res = mdq.Value.Item(i)
-        if res <> i then failwith "MapDeque failed"
-        ()
-    )
-    mdq := MapDeque()
-    let count = count / 10L
-    perf count "MapDeque Add Reverse" (fun _ ->
-      for i in 0L..count do
-        mdq.Value.Add(count - i, i)
-    )
-    perf count "MapDeque Read Reverse" (fun _ ->
-      for i in 0L..count do
-        let res = mdq.Value.Item(count - i)
-        if res <> i then failwith "MapDeque failed"
-        ()
-    )
-    Console.WriteLine("----------------")
-  [<Test>]
-  let MapDeque_run() = MapDequeTest(1000000L)
+//  let MapDequeTest(count:int64) =
+//    let mdq = ref (MapDeque())
+//    perf count "MapDeque Add" (fun _ ->
+//      for i in 0L..count do
+//        mdq.Value.Add(i, i)
+//    )
+//    perf count "MapDeque Read" (fun _ ->
+//      for i in 0L..count do
+//        let res = mdq.Value.Item(i)
+//        if res <> i then failwith "MapDeque failed"
+//        ()
+//    )
+//    mdq := MapDeque()
+//    let count = count / 10L
+//    perf count "MapDeque Add Reverse" (fun _ ->
+//      for i in 0L..count do
+//        mdq.Value.Add(count - i, i)
+//    )
+//    perf count "MapDeque Read Reverse" (fun _ ->
+//      for i in 0L..count do
+//        let res = mdq.Value.Item(count - i)
+//        if res <> i then failwith "MapDeque failed"
+//        ()
+//    )
+//    Console.WriteLine("----------------")
+//  [<Test>]
+//  let MapDeque_run() = MapDequeTest(1000000L)
 
   let SHM(count:int64) =
     let shm = ref (SortedHashMap(Int64HashComparer(256us)))
@@ -305,6 +384,13 @@ module CollectionsBenchmarks =
         if res <> i then failwith "SHM failed"
         ()
     )
+    perf count "SHM Iterate" (fun _ ->
+      for i in shm.Value do
+        let res = i.Value
+        if res <> i.Value then failwith "SHM failed"
+        ()
+    )
+
     shm := (SortedHashMap(Int64HashComparer(256us)))
     let count = count / 10L
     perf count "SHM<1024> Add Reverse" (fun _ ->
@@ -321,6 +407,25 @@ module CollectionsBenchmarks =
   [<Test>]
   let SHM_run() = SHM(1000000L)
 
+
+
+  let SortedDequeTest(count:int64) =
+    let vec = ref (Extra.SortedDeque<int64>())
+    perf count "SortedDeque Add" (fun _ ->
+      for i in 0L..count do
+        vec.Value.Add(i)
+    )
+    perf count "SortedDeque Read" (fun _ ->
+      for i in 0L..count do
+        let res = vec.Value.Item(i)
+        if res <> i then failwith "SortedDeque failed"
+        ()
+    )
+    Console.WriteLine("----------------")
+  [<Test>]
+  let SortedDeque_run() = SortedDequeTest(1000000L)
+
+
   [<Test>]
   let ``Run all``() =
     Console.WriteLine("VECTORS")
@@ -331,12 +436,15 @@ module CollectionsBenchmarks =
     FSXDeque_run()
     DeedleDeque_run()
 
-    Console.WriteLine("MAPS/SERIES")
+    Console.WriteLine("MAPS")
     DeedleSeries_run()
     FSXHashMap_run()
     IntMap64_run()
     MapTree_run()
     SCGSortedList_run()
+    SCISortedMap_run()
+    SortedDeque_run()
+    SortedList_run()
     SortedMap_run()
     //MapDeque_run() // bugs!
     SHM_run()

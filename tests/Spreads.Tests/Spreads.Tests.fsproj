@@ -126,6 +126,16 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Period\Period.fsproj">
+      <Name>Period</Name>
+      <Project>{2b1beca9-01c0-4c39-8bf8-f1b9b7aefbbf}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\SortedList\SortedList.csproj">
+      <Name>SortedList</Name>
+      <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\..\src\Spreads\Spreads.fsproj">
       <Name>Spreads</Name>
       <Project>{7e90d6ce-a10b-4858-a5bc-41df7250cbca}</Project>
