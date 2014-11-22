@@ -1,10 +1,10 @@
 module Spreads.Tests
 
-open Spreads
+//open Spreads
 open NUnit.Framework
 
 [<Test>]
-let ``hello returns 42`` () =
-  let result = Library.hello 42
+let ``hello returns 43`` () =
+  let result = 43 //Library.hello 43
   printfn "%i" result
   Assert.AreEqual(42,result)
