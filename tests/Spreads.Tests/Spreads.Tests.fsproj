@@ -66,9 +66,11 @@
   -->
   <!--<Import Project="..\..\.paket\paket.targets" />-->
   <ItemGroup>
-    <Compile Include="Tests.fs" />
     <Content Include="packages.config" />
     <Content Include="app.config" />
+    <Compile Include="Collections\IntMap64Tests.fs" />
+    <Compile Include="Collections\MapTreeTests.fs" />
+    <Compile Include="Collections\SortedMapTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Deedle">
