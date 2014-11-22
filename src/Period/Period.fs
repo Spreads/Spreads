@@ -38,13 +38,17 @@ type TimePeriod =
       | :? TimePeriod as y -> x.value.CompareTo(y.value)
       | _ -> invalidArg "other" "Cannot compare values of different types"
 
+  static member op_Explicit(value:int64) : TimePeriod =  TimePeriod(value)
+  static member op_Explicit(timePeriod:TimePeriod) : int64  = timePeriod.value
+
+
 type TimePeriodAddress =
   struct
     val BucketIndex : TimePeriod
     val SubIndex : uint16
     new (bi,si) = {BucketIndex = bi; SubIndex = si}
   end
-  member x.ToKey() = ()
+
 
 module internal TimePeriodModule =
   //#region Constants
@@ -258,23 +262,23 @@ module internal TimePeriodModule =
       | _ -> failwith "wrong unit period, never hit this"
 
   let periodStart (tpv:int64) : DateTimeOffset =
-      if isTick tpv then DateTimeOffset(getTicks tpv, TimeSpan.Zero)
-      else 
-        DateTimeOffset(
-          int <| years tpv, 
-          int <| months tpv, 
-          int <| days tpv,0,0,0,0,
-          TimeSpan.Zero).AddMilliseconds(float <| getMsecInDay tpv)
+    if isTick tpv then DateTimeOffset(getTicks tpv, TimeSpan.Zero)
+    else 
+      DateTimeOffset(
+        int <| years tpv, 
+        int <| months tpv, 
+        int <| days tpv,0,0,0,0,
+        TimeSpan.Zero).AddMilliseconds(float <| getMsecInDay tpv)
 
   /// period end is the start of the next period, exclusive (epsilon to the start of the next period)
   let periodEnd (tpv:int64) : DateTimeOffset =
-      if isTick tpv then DateTimeOffset(getTicks tpv, TimeSpan.Zero)
-      else 
-        periodStart (addPeriods 1L tpv)
+    if isTick tpv then DateTimeOffset(getTicks tpv, TimeSpan.Zero)
+    else 
+      periodStart (addPeriods 1L tpv)
 
   let timeSpan (tpv:int64) : TimeSpan =
-      if isTick tpv then TimeSpan(1L)
-      else TimeSpan((periodEnd tpv).Ticks - (periodStart tpv).Ticks)
+    if isTick tpv then TimeSpan(1L)
+    else TimeSpan((periodEnd tpv).Ticks - (periodStart tpv).Ticks)
 
   // the bigger a period the less important grouping becomes for a single series (but still needed if there are many short series)
   // because the total number of points is limited (e.g. in 10 years there are 86,400 hours ~ 10,800 buckets by 8 trading hours or 3,600 buckets by 24 hours)
@@ -341,7 +345,7 @@ module internal TimePeriodModule =
       // months are all in one place
       uint16 (months tpv)
 
-  let addressToTimePeriod (bucket:int64) (subIndex:uint16) : int64 =
+  let addressToTimePeriodValue (bucket:int64) (subIndex:uint16) : int64 =
     let unit = unitPeriod bucket
     let sub = int64 subIndex
     match unit with
@@ -356,6 +360,10 @@ module internal TimePeriodModule =
 open TimePeriodModule
 
 type TimePeriodAddress with
+  member x.ToTimePeriod() = TimePeriod(addressToTimePeriodValue x.BucketIndex.value x.SubIndex)
+  
+  static member ToTimePeriod(bucketIndex : TimePeriod, subIndex) = TimePeriod(addressToTimePeriodValue (int64 bucketIndex) subIndex)
+
   /// Use this in aggregations when one only needs the hash
   static member GetAddress(tp:TimePeriod, unitPeriod:UnitPeriod):TimePeriodAddress = 
     TimePeriodAddress(TimePeriod(addressBucketHash tp.value unitPeriod),
@@ -374,69 +382,64 @@ type TimePeriod with
     with get() : TimePeriodAddress = 
       TimePeriodAddress.GetAddress(this, unitPeriod this.value)
 
-  static member op_Explicit(value:int64) : TimePeriod =  TimePeriod(value)
-  static member op_Explicit(timePeriod:TimePeriod) : int64  = timePeriod.value
-
-  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
-  /// as in financial statements: "for 12 months ended on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endTime:DateTimeOffset) =
+  /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
+  /// as in financial statements: "for 12 months started on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startTime:DateTimeOffset) =
     {value =
-      ofStartDateTimeOffset unitPeriod (int numberOfUnitPeriods) endTime
-      |> addPeriods -1L}
-  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
-  /// as in financial statements: "for 12 months ended on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endTime:DateTime, tzi:TimeZoneInfo) =
+      ofStartDateTimeOffset unitPeriod (int numberOfUnitPeriods) startTime}
+  /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
+  /// as in financial statements: "for 12 months started on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startTime:DateTime, tzi:TimeZoneInfo) =
     {value =
-      ofStartDateTimeWithZoneUnsafe unitPeriod (int numberOfUnitPeriods) endTime tzi
-      |> addPeriods -1L}
+      ofStartDateTimeWithZoneUnsafe unitPeriod (int numberOfUnitPeriods) startTime tzi}
 
-  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
-  /// as in financial statements: "for 12 months ended on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endYear:int, endMonth:int, endDay:int, 
-      endHour:int, endMinute:int, endSecond:int, endMillisecond:int) =
+  /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
+  /// as in financial statements: "for 12 months started on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startYear:int, startMonth:int, startDay:int, 
+      startHour:int, startMinute:int, startSecond:int, startMillisecond:int) =
         {value =
-          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) endYear endMonth endDay endHour endMinute endSecond endMillisecond
-          |> addPeriods -1L}
+          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth startDay startHour startMinute startSecond startMillisecond
+        }
 
-  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
-  /// as in financial statements: "for 12 months ended on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endYear:int, endMonth:int, endDay:int, 
-      endHour:int, endMinute:int, endSecond:int) =
+  /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
+  /// as in financial statements: "for 12 months started on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startYear:int, startMonth:int, startDay:int, 
+      startHour:int, startMinute:int, startSecond:int) =
         {value =
-          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) endYear endMonth endDay endHour endMinute endSecond 0
-          |> addPeriods -1L}
-  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
-  /// as in financial statements: "for 12 months ended on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endYear:int, endMonth:int, endDay:int, 
-      endHour:int, endMinute:int) =
+          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth startDay startHour startMinute startSecond 0
+        }
+  /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
+  /// as in financial statements: "for 12 months started on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startYear:int, startMonth:int, startDay:int, 
+      startHour:int, startMinute:int) =
         {value =
-          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) endYear endMonth endDay endHour endMinute 0 0
-          |> addPeriods -1L}
-  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
-  /// as in financial statements: "for 12 months ended on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endYear:int, endMonth:int, endDay:int, 
-      endHour:int) =
+          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth startDay startHour startMinute 0 0
+        }
+  /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
+  /// as in financial statements: "for 12 months started on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startYear:int, startMonth:int, startDay:int, 
+      startHour:int) =
         {value =
-          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) endYear endMonth endDay endHour 0 0 0
-          |> addPeriods -1L}
-  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
-  /// as in financial statements: "for 12 months ended on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endYear:int, endMonth:int, endDay:int) =
+          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth startDay startHour 0 0 0
+        }
+  /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
+  /// as in financial statements: "for 12 months started on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startYear:int, startMonth:int, startDay:int) =
         {value =
-          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) endYear endMonth endDay 0 0 0 0
-          |> addPeriods -1L}
-  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
-  /// as in financial statements: "for 12 months ended on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endYear:int, endMonth:int) =
+          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth startDay 0 0 0 0
+        }
+  /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
+  /// as in financial statements: "for 12 months started on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startYear:int, startMonth:int) =
         {value =
-          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) endYear endMonth 0 0 0 0 0
-          |> addPeriods -1L}
-  /// Read this as "numberOfUnitPeriods unitPeriods ended on endTime",
-  /// as in financial statements: "for 12 months ended on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, endYear:int) =
-        {value =
-          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) endYear 0 0 0 0 0 0
-          |> addPeriods -1L}
+          ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth 0 0 0 0 0
+        }
+  /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
+  /// as in financial statements: "for 12 months started on 12/31/2015"
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startYear:int) =
+    {value =
+      ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear 0 0 0 0 0 0
+    }
 
 
 
