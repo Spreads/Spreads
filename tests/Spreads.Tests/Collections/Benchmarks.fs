@@ -223,7 +223,6 @@ module CollectionsBenchmarks =
     perf count "SCGSortedList Iterate" (fun _ ->
       for i in sl.Value do
         let res = i.Value
-        if res <> i.Value then failwith "SCGSortedList failed"
         ()
     )
     sl := SortedList()
@@ -309,40 +308,6 @@ module CollectionsBenchmarks =
 
 
 
-  let SortedMapTest(count:int64) =
-    let smap = ref (SortedMap())
-    perf count "SortedMap Add" (fun _ ->
-      for i in 0L..count do
-        smap.Value.Add(i, i)
-    )
-    perf count "SortedMap Read" (fun _ ->
-      for i in 0L..count do
-        let res = smap.Value.Item(i)
-        if res <> i then failwith "SortedMap failed"
-        ()
-    )
-    perf count "SortedMap Iterate" (fun _ ->
-      for i in smap.Value do
-        let res = i.Value
-        if res <> i.Value then failwith "SortedMap failed"
-        ()
-    )
-    smap := SortedMap()
-    let count = count / 10L
-    perf count "SortedMap Add Reverse" (fun _ ->
-      for i in 0L..count do
-        smap.Value.Add(count - i, i)
-    )
-    perf count "SortedMap Read Reverse" (fun _ ->
-      for i in 0L..count do
-        let res = smap.Value.Item(count - i)
-        if res <> i then failwith "SortedMap failed"
-        ()
-    )
-    Console.WriteLine("----------------")
-  [<Test>]
-  let SortedMap_run() = SortedMapTest(1000000L)
-
 
 //  let MapDequeTest(count:int64) =
 //    let mdq = ref (MapDeque())
@@ -372,11 +337,52 @@ module CollectionsBenchmarks =
 //  [<Test>]
 //  let MapDeque_run() = MapDequeTest(1000000L)
 
+
+
+  let SortedMapTest(count:int64) =
+    let smap = ref (SortedMap())
+    for i in 0..9 do
+      smap := SortedMap()
+      perf count "SortedMap Add" (fun _ ->
+        for i in 0L..count do
+          smap.Value.Add(i, i)
+      )
+    for i in 0..9 do
+      perf count "SortedMap Read" (fun _ ->
+        for i in 0L..count do
+          let res = smap.Value.Item(i)
+          if res <> i then failwith "SortedMap failed"
+          ()
+      )
+    for i in 0..9 do
+      perf count "SortedMap Iterate" (fun _ ->
+        for i in smap.Value do
+          let res = i.Value
+          ()
+      )
+//    smap := SortedMap()
+//    let count = count / 10L
+//    perf count "SortedMap Add Reverse" (fun _ ->
+//      for i in 0L..count do
+//        smap.Value.Add(count - i, i)
+//    )
+//    perf count "SortedMap Read Reverse" (fun _ ->
+//      for i in 0L..count do
+//        let res = smap.Value.Item(count - i)
+//        if res <> i then failwith "SortedMap failed"
+//        ()
+//    )
+    Console.WriteLine("----------------")
+  [<Test>]
+  let SortedMap_run() = SortedMapTest(1000000L)
+
+
+  [<TestCase(10000000)>]
   let SHM(count:int64) =
-    let shm = ref (SortedHashMap(Int64HashComparer(256us)))
+    let shm = ref (SortedHashMap(Int64HashComparer(1024us)))
     perf count "SHM<1024> Add" (fun _ ->
       for i in 0L..count do
-        shm.Value.Add(i, i)
+        shm.Value.AddLast(i, i)
     )
     perf count "SHM Read" (fun _ ->
       for i in 0L..count do
@@ -390,8 +396,7 @@ module CollectionsBenchmarks =
         if res <> i.Value then failwith "SHM failed"
         ()
     )
-
-    shm := (SortedHashMap(Int64HashComparer(256us)))
+    shm := (SortedHashMap(Int64HashComparer(1024us)))
     let count = count / 10L
     perf count "SHM<1024> Add Reverse" (fun _ ->
       for i in 0L..count do
@@ -403,27 +408,53 @@ module CollectionsBenchmarks =
         if res <> i then failwith "SHM failed"
         ()
     )
+    let shmt = ref (SortedHashMap(TimePeriodHashComparer()))
+    let count = count * 10L
+    let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
+    perf count "SHM Time Period Add" (fun _ ->
+      for i in 0..(int count) do
+        shmt.Value.Add(TimePeriod(UnitPeriod.Second, 1, 
+                          initDTO.AddSeconds(float i)), i)
+    )
+    perf count "SHM Time Period Read" (fun _ ->
+      for i in 0..(int count) do
+        let res = shmt.Value.Item(TimePeriod(UnitPeriod.Millisecond, 1, 
+                      initDTO.AddSeconds(float i)))
+        ()
+    )
     Console.WriteLine("----------------")
   [<Test>]
   let SHM_run() = SHM(1000000L)
 
 
 
-  let SortedDequeTest(count:int64) =
-    let vec = ref (Extra.SortedDeque<int64>())
-    perf count "SortedDeque Add" (fun _ ->
-      for i in 0L..count do
-        vec.Value.Add(i)
-    )
-    perf count "SortedDeque Read" (fun _ ->
-      for i in 0L..count do
-        let res = vec.Value.Item(i)
-        if res <> i then failwith "SortedDeque failed"
-        ()
-    )
-    Console.WriteLine("----------------")
-  [<Test>]
-  let SortedDeque_run() = SortedDequeTest(1000000L)
+//  let SortedDequeTest(count:int64) =
+//    let vec = ref (Extra.SortedDeque<int64>())
+//    perf count "SortedDeque Add" (fun _ ->
+//      for i in 0L..count do
+//        vec.Value.AddLast(i)
+//    )
+//    perf count "SortedDeque Read" (fun _ ->
+//      for i in 0L..count do
+//        let res = vec.Value.Item(i)
+//        if res <> i then failwith "SortedDeque failed"
+//        ()
+//    )
+//    vec := (Extra.SortedDeque<int64>())
+//    perf count "SortedDeque Reverse" (fun _ ->
+//      for i in 0L..count do
+//        vec.Value.Add(count - i)
+//    )
+//    perf count "SortedDeque Read reverse" (fun _ ->
+//      for i in 0L..count do
+//        let res = vec.Value.Item(count - i)
+//        if res <> i then failwith "SortedDeque failed"
+//        ()
+//    )
+//
+//    Console.WriteLine("----------------")
+//  [<Test>]
+//  let SortedDeque_run() = SortedDequeTest(1000000L)
 
 
   [<Test>]
@@ -443,9 +474,8 @@ module CollectionsBenchmarks =
     MapTree_run()
     SCGSortedList_run()
     SCISortedMap_run()
-    SortedDeque_run()
+    //SortedDeque_run()
     SortedList_run()
     SortedMap_run()
     //MapDeque_run() // bugs!
     SHM_run()
-    Console.WriteLine("Profile SHM! Performance must be above 5M/sec, see the test ``Nested sorted list - optimized`` in SortedMapTests")

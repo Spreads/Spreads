@@ -17,7 +17,6 @@ type UnitPeriod =
   | Month = 6         //                  Variable
   | Eternity = 7      //                  Infinity
 
-
 [<CustomComparison;CustomEquality>]
 type TimePeriod =
   struct 
@@ -163,7 +162,7 @@ module internal TimePeriodModule =
     LanguagePrimitives.EnumOfValue <| int (getUnitPeriod tpv)
 
   /// Assume that inputs are not checked for logic
-  let ofPartsUnsafe 
+  let ofPartsUnsafe // TODO make a copy of it ofPartsSafe with arg checks and use it in the ctors.
     (unitPeriod:UnitPeriod) (length:int) 
     (year:int) (month:int) (day:int) 
     (hour:int) (minute:int) (second:int) (millisecond:int) : int64 =
@@ -205,8 +204,6 @@ module internal TimePeriodModule =
         value
 
   let ofStartDateTimeOffset (unitPeriod:UnitPeriod) (length:int)  (startDto:DateTimeOffset) =
-    let offsetTS = startDto.Offset.Add(TimeSpan.FromHours(12.0))
-    let offset = int64 (offsetTS.TotalHours * 2.0)
     match unitPeriod with
       | UnitPeriod.Tick -> 
         let mutable value : int64 = 1L <<< 63
@@ -309,7 +306,7 @@ module internal TimePeriodModule =
       // group by day; 1440 minutes in a day
       (tpv &&& ~~~msecMask) // NB: different with Hours because period bits are different
     | UnitPeriod.Hour ->
-      //group by day; max 24 in a day 
+      // group by day; max 24 in a day 
       (tpv &&& ~~~msecMask)
     | UnitPeriod.Day -> 
       // group by month
@@ -384,18 +381,18 @@ type TimePeriod with
 
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
   /// as in financial statements: "for 12 months started on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startTime:DateTimeOffset) =
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startTime:DateTimeOffset) =
     {value =
       ofStartDateTimeOffset unitPeriod (int numberOfUnitPeriods) startTime}
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
   /// as in financial statements: "for 12 months started on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startTime:DateTime, tzi:TimeZoneInfo) =
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startTime:DateTime, tzi:TimeZoneInfo) =
     {value =
       ofStartDateTimeWithZoneUnsafe unitPeriod (int numberOfUnitPeriods) startTime tzi}
 
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
   /// as in financial statements: "for 12 months started on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startYear:int, startMonth:int, startDay:int, 
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startYear:int, startMonth:int, startDay:int, 
       startHour:int, startMinute:int, startSecond:int, startMillisecond:int) =
         {value =
           ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth startDay startHour startMinute startSecond startMillisecond
@@ -403,40 +400,40 @@ type TimePeriod with
 
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
   /// as in financial statements: "for 12 months started on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startYear:int, startMonth:int, startDay:int, 
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startYear:int, startMonth:int, startDay:int, 
       startHour:int, startMinute:int, startSecond:int) =
         {value =
           ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth startDay startHour startMinute startSecond 0
         }
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
   /// as in financial statements: "for 12 months started on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startYear:int, startMonth:int, startDay:int, 
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startYear:int, startMonth:int, startDay:int, 
       startHour:int, startMinute:int) =
         {value =
           ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth startDay startHour startMinute 0 0
         }
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
   /// as in financial statements: "for 12 months started on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startYear:int, startMonth:int, startDay:int, 
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startYear:int, startMonth:int, startDay:int, 
       startHour:int) =
         {value =
           ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth startDay startHour 0 0 0
         }
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
   /// as in financial statements: "for 12 months started on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startYear:int, startMonth:int, startDay:int) =
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startYear:int, startMonth:int, startDay:int) =
         {value =
           ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth startDay 0 0 0 0
         }
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
   /// as in financial statements: "for 12 months started on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startYear:int, startMonth:int) =
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startYear:int, startMonth:int) =
         {value =
           ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth 0 0 0 0 0
         }
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
   /// as in financial statements: "for 12 months started on 12/31/2015"
-  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:uint16, startYear:int) =
+  new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startYear:int) =
     {value =
       ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear 0 0 0 0 0 0
     }
