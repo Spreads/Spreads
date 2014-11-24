@@ -41,14 +41,6 @@ type TimePeriod =
   static member op_Explicit(timePeriod:TimePeriod) : int64  = timePeriod.value
 
 
-type TimePeriodAddress =
-  struct
-    val BucketIndex : TimePeriod
-    val SubIndex : uint16
-    new (bi,si) = {BucketIndex = bi; SubIndex = si}
-  end
-
-
 module internal TimePeriodModule =
   //#region Constants
   /// Ticks of DateTime(1900, 1, 1)
@@ -91,6 +83,8 @@ module internal TimePeriodModule =
   let ticksMask = 9223372036854775744L // ((1L <<< 57) - 1L) <<< 6
   [<Literal>]
   let msecMask = 8589934528L // ((1L <<< 27)  - 1L) <<< 6
+  [<Literal>]
+  let msecMaskWithUnused = 8589934591L // ((1L <<< (27+6))  - 1L)
   [<Literal>]
   let daysMask = 266287972352L // ((1L <<< 5) - 1L) <<< 33
   [<Literal>]
@@ -162,7 +156,7 @@ module internal TimePeriodModule =
     LanguagePrimitives.EnumOfValue <| int (getUnitPeriod tpv)
 
   /// Assume that inputs are not checked for logic
-  let ofPartsUnsafe // TODO make a copy of it ofPartsSafe with arg checks and use it in the ctors.
+  let inline ofPartsUnsafe // TODO make a copy of it ofPartsSafe with arg checks and use it in the ctors.
     (unitPeriod:UnitPeriod) (length:int) 
     (year:int) (month:int) (day:int) 
     (hour:int) (minute:int) (second:int) (millisecond:int) : int64 =
@@ -185,7 +179,7 @@ module internal TimePeriodModule =
         
   /// Convert datetime to TimePeriod with Windows built-in time zone infos
   /// Windows updates TZ info with OS update patches, could also use NodaTime for this
-  let ofStartDateTimeWithZoneUnsafe (unitPeriod:UnitPeriod) (length:int)  (startDate:DateTime) (tzi:TimeZoneInfo) =
+  let inline ofStartDateTimeWithZoneUnsafe (unitPeriod:UnitPeriod) (length:int)  (startDate:DateTime) (tzi:TimeZoneInfo) =
     // number of 30 minutes intervals, with 24 = UTC/zero offset
     // TODO test with India
     let startDtUtc =  DateTimeOffset(startDate,tzi.GetUtcOffset(startDate))
@@ -203,7 +197,7 @@ module internal TimePeriodModule =
         value <- value |> setMsecInDay (int64 <| startDtUtc.TimeOfDay.TotalMilliseconds)
         value
 
-  let ofStartDateTimeOffset (unitPeriod:UnitPeriod) (length:int)  (startDto:DateTimeOffset) =
+  let inline ofStartDateTimeOffset (unitPeriod:UnitPeriod) (length:int)  (startDto:DateTimeOffset) =
     match unitPeriod with
       | UnitPeriod.Tick -> 
         let mutable value : int64 = 1L <<< 63
@@ -220,7 +214,7 @@ module internal TimePeriodModule =
             
     
 
-  let addPeriods (numPeriods:int64) (tpv:int64) : int64 =
+  let inline addPeriods (numPeriods:int64) (tpv:int64) : int64 =
     if numPeriods = 0L then tpv
     else
       let unit = unitPeriod tpv
@@ -258,7 +252,7 @@ module internal TimePeriodModule =
       | UnitPeriod.Eternity ->  tpv
       | _ -> failwith "wrong unit period, never hit this"
 
-  let periodStart (tpv:int64) : DateTimeOffset =
+  let inline periodStart (tpv:int64) : DateTimeOffset =
     if isTick tpv then DateTimeOffset(getTicks tpv, TimeSpan.Zero)
     else 
       DateTimeOffset(
@@ -268,12 +262,12 @@ module internal TimePeriodModule =
         TimeSpan.Zero).AddMilliseconds(float <| getMsecInDay tpv)
 
   /// period end is the start of the next period, exclusive (epsilon to the start of the next period)
-  let periodEnd (tpv:int64) : DateTimeOffset =
+  let inline periodEnd (tpv:int64) : DateTimeOffset =
     if isTick tpv then DateTimeOffset(getTicks tpv, TimeSpan.Zero)
     else 
       periodStart (addPeriods 1L tpv)
 
-  let timeSpan (tpv:int64) : TimeSpan =
+  let inline timeSpan (tpv:int64) : TimeSpan =
     if isTick tpv then TimeSpan(1L)
     else TimeSpan((periodEnd tpv).Ticks - (periodStart tpv).Ticks)
 
@@ -286,28 +280,30 @@ module internal TimePeriodModule =
   // 1Gb ~ 28 hours of millisecondly data, 1667 buckets 47kb
   // 1Gb ~ 38 months of secondly data, 27778 buckets 0.78Mb
   // 1Gb ~ 192 years of minutely data, 69444 buckets 1.94Mb
-  let addressBucketHash (tpv:int64) (targetUnit:UnitPeriod): int64 =
+  let inline bucketHash (tpv:int64) (targetUnit:UnitPeriod): int64 =
     let periodOnly tpv' = (tpv' &&& (~~~(msecMask ||| daysMask ||| monthsMask)))
     let originalUnit = unitPeriod tpv
     if targetUnit < originalUnit then invalidOp "Cannot map period to smaller base periods that original"
-    if targetUnit > originalUnit then raise (NotImplementedException("TODO"))
+    if targetUnit > originalUnit then 
+      Printf.sprintf "%s" ("target" + (int targetUnit).ToString()) 
+      Printf.sprintf "%s" ("originalUnit" +  (int originalUnit).ToString()) 
+      raise (NotImplementedException("TODO targetUnit > originalUnit"))
     match targetUnit with
     | UnitPeriod.Tick ->
-      // clear 6 offset bits and take 16 bits, 65536 ticks per bucket if dense or less
-      (tpv >>> 22) <<< 22 
+      // group by 10Mn ticks
+      ((( (tpv &&& ticksMask) >>> 6) / 10000000L) <<< 6) ||| (1L <<< 63)
     | UnitPeriod.Millisecond ->
       // group by minute; 60000 ms in a minute
-      // clear msecs and add minutes
-      (tpv &&& ~~~msecMask) + (getMsecInDay tpv)/(msecPerMinute)  
+      (tpv &&& ~~~msecMaskWithUnused) ||| ( (getMsecInDay tpv)/(msecPerMinute)  <<< msecOffset )
     | UnitPeriod.Second ->
       // group by hour; 3600 seconds in an hour
-      (tpv &&& ~~~msecMask) + (getMsecInDay tpv)/(msecPerHour)
+      (tpv &&& ~~~msecMaskWithUnused) ||| ( (getMsecInDay tpv)/(msecPerHour) <<< msecOffset )
     | UnitPeriod.Minute ->
       // group by day; 1440 minutes in a day
-      (tpv &&& ~~~msecMask) // NB: different with Hours because period bits are different
+      (tpv &&& ~~~msecMaskWithUnused) // NB: different with Hours because period bits are different
     | UnitPeriod.Hour ->
-      // group by day; max 24 in a day 
-      (tpv &&& ~~~msecMask)
+      // group by month, max 744 hours in a month
+      (tpv &&& ~~~(msecMaskWithUnused ||| daysMask))
     | UnitPeriod.Day -> 
       // group by month
       (tpv >>> monthsOffset) <<< monthsOffset
@@ -315,56 +311,8 @@ module internal TimePeriodModule =
       // months are all in one place
       periodOnly (tpv)
 
-  let addressSubIndex (tpv:int64) (targetUnit:UnitPeriod): uint16 =
-    let originalUnit = unitPeriod tpv
-    if targetUnit < originalUnit then invalidOp "Cannot map period to smaller base periods that original"
-    if targetUnit > originalUnit then raise (NotImplementedException("TODO"))
-    match targetUnit with
-    | UnitPeriod.Tick ->
-      uint16 <| ((tpv >>> 6) &&& ((1L <<< 16) - 1L))
-    | UnitPeriod.Millisecond ->
-      // group by minute; 60000 ms in a minute
-      // msec in a minute
-      uint16 <| ((getMsecInDay tpv) % (msecPerMinute)) 
-    | UnitPeriod.Second ->
-      // second in hour
-      uint16 <| ((getMsecInDay tpv) % (msecPerHour))/msecPerSec
-    | UnitPeriod.Minute ->
-      // minute in a day
-      uint16 <| (getMsecInDay tpv)/(msecPerMinute)
-    | UnitPeriod.Hour ->
-      // hour in a day
-      uint16 <| (getMsecInDay tpv)/(msecPerHour)
-    | UnitPeriod.Day ->
-      // day in a month
-      uint16 <| days tpv
-    | _ -> 
-      // months are all in one place
-      uint16 (months tpv)
-
-  let addressToTimePeriodValue (bucket:int64) (subIndex:uint16) : int64 =
-    let unit = unitPeriod bucket
-    let sub = int64 subIndex
-    match unit with
-    | UnitPeriod.Tick -> ((bucket >>> 6) + sub) <<< 6
-    | UnitPeriod.Millisecond -> ((bucket >>> 6) + sub) <<< 6
-    | UnitPeriod.Second -> ((bucket >>> 6) + sub * msecPerSec) <<< 6
-    | UnitPeriod.Minute -> ((bucket >>> 6) + sub * msecPerMinute) <<< 6
-    | UnitPeriod.Hour -> ((bucket >>> 6) + sub * msecPerHour) <<< 6
-    | UnitPeriod.Day -> ((bucket >>> daysOffset) + sub) <<< daysOffset
-    | _ -> ((bucket >>> monthsOffset) + sub) <<< monthsOffset
 
 open TimePeriodModule
-
-type TimePeriodAddress with
-  member x.ToTimePeriod() = TimePeriod(addressToTimePeriodValue x.BucketIndex.value x.SubIndex)
-  
-  static member ToTimePeriod(bucketIndex : TimePeriod, subIndex) = TimePeriod(addressToTimePeriodValue (int64 bucketIndex) subIndex)
-
-  /// Use this in aggregations when one only needs the hash
-  static member GetAddress(tp:TimePeriod, unitPeriod:UnitPeriod):TimePeriodAddress = 
-    TimePeriodAddress(TimePeriod(addressBucketHash tp.value unitPeriod),
-      addressSubIndex tp.value unitPeriod)
 
 
 type TimePeriod with
@@ -375,9 +323,7 @@ type TimePeriod with
   member this.Next with get() : TimePeriod = TimePeriod(addPeriods 1L this.value)
   member this.Previous with get() : TimePeriod = TimePeriod(addPeriods -1L this.value)
 
-  member internal this.Address 
-    with get() : TimePeriodAddress = 
-      TimePeriodAddress.GetAddress(this, unitPeriod this.value)
+  static member SortableHash(tp:TimePeriod) = TimePeriod(bucketHash (tp.value) (unitPeriod (tp.value)))
 
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
   /// as in financial statements: "for 12 months started on 12/31/2015"
