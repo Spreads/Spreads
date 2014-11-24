@@ -290,8 +290,8 @@ module internal TimePeriodModule =
       raise (NotImplementedException("TODO targetUnit > originalUnit"))
     match targetUnit with
     | UnitPeriod.Tick ->
-      // group by 10Mn ticks
-      ((( (tpv &&& ticksMask) >>> 6) / 10000000L) <<< 6) ||| (1L <<< 63)
+      // group by some large number of ticks
+      ((( (tpv &&& ticksMask) >>> 6) / 60000L) <<< 6) ||| (1L <<< 63)
     | UnitPeriod.Millisecond ->
       // group by minute; 60000 ms in a minute
       (tpv &&& ~~~msecMaskWithUnused) ||| ( (getMsecInDay tpv)/(msecPerMinute)  <<< msecOffset )
@@ -310,6 +310,44 @@ module internal TimePeriodModule =
     | _ -> 
       // months are all in one place
       periodOnly (tpv)
+  let addressSubIndex (tpv:int64) (targetUnit:UnitPeriod): uint16 =
+    let originalUnit = unitPeriod tpv
+    if targetUnit < originalUnit then invalidOp "Cannot map period to smaller base periods that original"
+    if targetUnit > originalUnit then raise (NotImplementedException("TODO"))
+    match targetUnit with
+    | UnitPeriod.Tick ->
+      uint16 <| ((tpv >>> 6) &&& ((1L <<< 16) - 1L))
+    | UnitPeriod.Millisecond ->
+      // group by minute; 60000 ms in a minute
+      // msec in a minute
+      uint16 <| ((getMsecInDay tpv) % (msecPerMinute)) 
+    | UnitPeriod.Second ->
+      // second in hour
+      uint16 <| ((getMsecInDay tpv) % (msecPerHour))/msecPerSec
+    | UnitPeriod.Minute ->
+      // minute in a day
+      uint16 <| (getMsecInDay tpv)/(msecPerMinute)
+    | UnitPeriod.Hour ->
+      // hour in a month
+      uint16 <| ((getMsecInDay tpv)/(msecPerHour) + (getDays tpv) * 24L )
+    | UnitPeriod.Day ->
+      // day in a month
+      uint16 <| days tpv
+    | _ -> 
+      // months are all in one place
+      uint16 (months tpv)
+
+  let addressToTimePeriodValue (bucket:int64) (subIndex:uint16) : int64 =
+    let unit = unitPeriod bucket
+    let sub = int64 subIndex
+    match unit with
+    | UnitPeriod.Tick -> ((bucket >>> 6) + sub) <<< 6
+    | UnitPeriod.Millisecond -> ((bucket >>> 6) + sub) <<< 6
+    | UnitPeriod.Second -> ((bucket >>> 6) + sub * msecPerSec) <<< 6
+    | UnitPeriod.Minute -> ((bucket >>> 6) + sub * msecPerMinute) <<< 6
+    | UnitPeriod.Hour -> setDays (sub/24L) ((bucket >>> 6) + (sub % 24L) * msecPerHour) <<< 6
+    | UnitPeriod.Day -> ((bucket >>> daysOffset) + sub) <<< daysOffset
+    | _ -> ((bucket >>> monthsOffset) + sub) <<< monthsOffset
 
 
 open TimePeriodModule
@@ -323,7 +361,9 @@ type TimePeriod with
   member this.Next with get() : TimePeriod = TimePeriod(addPeriods 1L this.value)
   member this.Previous with get() : TimePeriod = TimePeriod(addPeriods -1L this.value)
 
-  static member SortableHash(tp:TimePeriod) = TimePeriod(bucketHash (tp.value) (unitPeriod (tp.value)))
+  static member Hash(tp:TimePeriod) = TimePeriod(bucketHash (tp.value) (unitPeriod (tp.value)))
+  static member SubKey(tp:TimePeriod) = addressSubIndex (tp.value) (unitPeriod (tp.value))
+  static member Key(bucket:TimePeriod, subIndex:uint16) = TimePeriod(addressToTimePeriodValue (bucket.value) subIndex)
 
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
   /// as in financial statements: "for 12 months started on 12/31/2015"
