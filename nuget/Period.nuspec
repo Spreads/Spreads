@@ -13,10 +13,12 @@
     <releaseNotes>@releaseNotes@</releaseNotes>
     <copyright>Copyright 2014</copyright>
     <tags>@tags@</tags>
-    <dependencies />
+    <dependencies>
+      <dependency id="FSharp.Core.Microsoft.Signed" version="3.1.1.1" />
+    </dependencies>
   </metadata>
   <files>
-    <file src="..\bin\Period.dll" target="lib/portable-net45+netcore45+wp8+MonoAndroid1+MonoTouch1" />
-    <file src="..\bin\Period.pdb" target="lib/portable-net45+netcore45+wp8+MonoAndroid1+MonoTouch1" />
+    <file src="..\bin\Spreads.Period.dll" target="lib/portable-net45+netcore45+wp8+MonoAndroid1+MonoTouch1" />
+    <file src="..\bin\Spreads.Period.pdb" target="lib/portable-net45+netcore45+wp8+MonoAndroid1+MonoTouch1" />
   </files>
 </package>

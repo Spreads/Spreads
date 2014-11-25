@@ -265,7 +265,7 @@ Target "All" DoNothing
   =?> ("ReleaseDocs",isLocalBuild && not isMono)
 
 "All" 
-  ==> "RunTests"
+  //==> "RunTests"
   ==> "NuGet"
   ==> "Pack"
 
@@ -283,4 +283,4 @@ Target "All" DoNothing
 "Pack"
   ==> "Release"
 
-RunTargetOrDefault "All"
+RunTargetOrDefault "Pack"

@@ -163,7 +163,7 @@ module CollectionsBenchmarks =
 
 
   let DeedleDeque(count:int64) =
-    let deque = ref (DeedleDeque.Deque())
+    let deque = ref (Deque())
     perf count "DeedleDeque Add" (fun _ ->
       for i in 0L..count do
         deque.Value.Add i
@@ -174,7 +174,7 @@ module CollectionsBenchmarks =
         if res <> i then failwith "DeedleDeque failed"
         ()
     )
-    deque := DeedleDeque.Deque()
+    deque := Deque()
     Console.WriteLine("----------------")
   [<Test>]
   let DeedleDeque_run() = DeedleDeque(1000000L)

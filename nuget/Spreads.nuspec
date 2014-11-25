@@ -14,7 +14,10 @@
     <releaseNotes>@releaseNotes@</releaseNotes>
     <copyright>Copyright 2014</copyright>
     <tags>@tags@</tags>
-    <dependencies />
+    <dependencies>
+      <dependency id="FSharp.Core.Microsoft.Signed" version="3.1.1.1" />
+      <dependency id="Spreads.Period" version="[@build.number@]" />
+    </dependencies>
   </metadata>
   <files>
     <file src="..\bin\Spreads.dll" target="lib/net45" />

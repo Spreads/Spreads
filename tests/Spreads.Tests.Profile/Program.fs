@@ -21,15 +21,31 @@ let main argv =
 //
   let count = 1000000L
   for n in 0..9 do
-    let shmt = ref (SortedHashMap(TimePeriodSortableHasher()))
-    let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
-    for i in 0..(int count) do
-      shmt.Value.AddLast(TimePeriod(UnitPeriod.Second, 1, 
-                          initDTO.AddSeconds(float i)), i)
-    for i in 0..(int count) do
-      let res = shmt.Value.Item(TimePeriod(UnitPeriod.Second, 1, 
-                    initDTO.AddSeconds(float i)))
+
+    let shm = ref (SortedHashMap(Int64SortableHasher(1024)))
+    for i in 0L..count do
+      shm.Value.Add(i, i)
+
+    for i in 0L..count do
+      let res = shm.Value.Item(i)
+      if res <> i then failwith "SHM failed"
       ()
+
+    for i in shm.Value do
+      let res = i.Value
+      if res <> i.Value then failwith "SHM failed"
+      ()
+
+//
+//    let shmt = ref (SortedHashMap(TimePeriodSortableHasher()))
+//    let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
+//    for i in 0..(int count) do
+//      shmt.Value.AddLast(TimePeriod(UnitPeriod.Second, 1, 
+//                          initDTO.AddSeconds(float i)), i)
+//    for i in 0..(int count) do
+//      let res = shmt.Value.Item(TimePeriod(UnitPeriod.Second, 1, 
+//                    initDTO.AddSeconds(float i)))
+//      ()
     Console.WriteLine(n.ToString())
 
 //  let shmt = ref (SortedHashMap(TimePeriodSortableHasher()))
