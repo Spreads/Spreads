@@ -7,7 +7,3 @@
 * Added TimePeriod structure in a separate PCL library;
 * Updated collections, optimized SortedMap and SortedHashMap and added benchmarks to test their performance;
 * NuGet packages could be already used for collections specifically designed for streaming time series. Benchmarks in the commit comment show differences in speed and memory.
-
-TODOs for next release:
-* Series with runtime implementation choice, benchmark overhead of wrapping maps inside series;
-* Basic operations on series, e.g. map, join, etc.
