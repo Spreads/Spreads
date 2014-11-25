@@ -241,7 +241,37 @@ module CollectionsBenchmarks =
   [<Test>]
   let SCGSortedList_run() = SCGSortedList(1000000L)
 
-
+  let SCGDictionary(count:int64) =
+    let sl = ref (Dictionary())
+    perf count "SCGDictionary Add" (fun _ ->
+      for i in 0L..count do
+        sl.Value.Add(i, i)
+    )
+    perf count "SCGDictionary Read" (fun _ ->
+      for i in 0L..count do
+        let res = sl.Value.Item(i)
+        if res <> i then failwith "SCGDictionary failed"
+        ()
+    )
+    perf count "SCGDictionary Iterate" (fun _ ->
+      for i in sl.Value do
+        let res = i.Value
+        ()
+    )
+    sl := Dictionary()
+    perf count "SCGDictionary Add Reverse" (fun _ ->
+      for i in 0L..count do
+        sl.Value.Add(count - i, i)
+    )
+    perf count "SCGDictionary Read Reverse" (fun _ ->
+      for i in 0L..count do
+        let res = sl.Value.Item(count - i)
+        if res <> i then failwith "SCGDictionary failed"
+        ()
+    )
+    Console.WriteLine("----------------")
+  [<Test>]
+  let SCGDictionary_run() = SCGDictionary(1000000L)
 
   let SortedListTests(count:int64) =
     let sl = ref (Spreads.Collections.Extra.SortedList())
@@ -408,7 +438,7 @@ module CollectionsBenchmarks =
         if res <> i then failwith "SHM failed"
         ()
     )
-    for i in 0..4 do
+    for i in 0..9 do
       let shmt = ref (SortedHashMap(TimePeriodSortableHasher()))
       let count = count * 10L
       let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
