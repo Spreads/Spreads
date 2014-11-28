@@ -13,6 +13,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{BF60
 		README.md = README.md
 		RELEASE_NOTES.md = RELEASE_NOTES.md
 		nuget\Spreads.nuspec = nuget\Spreads.nuspec
+		TODO.md = TODO.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{83F16175-43B1-4C90-A1EE-8E351C33435D}"
@@ -85,5 +86,8 @@ Global
 		{E789C72A-5CFD-436B-8EF1-61AA2852A89F} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{8A7E46B1-DC07-4001-A319-EA4F2E5AE323} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{D371BD54-788A-4B9F-83A3-306E1AE62732} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
 	EndGlobalSection
 EndGlobal

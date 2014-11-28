@@ -17,18 +17,6 @@ open Deedle
 /// for each collection
 module CollectionsBenchmarks =
   
-  /// run f and measure ops per second
-  let perf (count:int64) (message:string) (f:unit -> unit) : unit = // int * int =
-    GC.Collect(3, GCCollectionMode.Forced, true)
-    let startMem = GC.GetTotalMemory(false)
-    let sw = Stopwatch.StartNew()
-    f()
-    sw.Stop()
-    let endtMem = GC.GetTotalMemory(true)
-    let p = (1000L * count/sw.ElapsedMilliseconds)
-    //int p, int((endtMem - startMem)/1024L)
-    Console.WriteLine(message + ", #{0}, ops: {1}, mem/item: {2}", 
-      count.ToString(), p.ToString(), ((endtMem - startMem)/count).ToString())
 
 
   let IntMap64(count:int64) =
@@ -464,33 +452,33 @@ module CollectionsBenchmarks =
 
 
 
-//  let SortedDequeTest(count:int64) =
-//    let vec = ref (Extra.SortedDeque<int64>())
-//    perf count "SortedDeque Add" (fun _ ->
-//      for i in 0L..count do
-//        vec.Value.AddLast(i)
-//    )
-//    perf count "SortedDeque Read" (fun _ ->
-//      for i in 0L..count do
-//        let res = vec.Value.Item(i)
-//        if res <> i then failwith "SortedDeque failed"
-//        ()
-//    )
-//    vec := (Extra.SortedDeque<int64>())
-//    perf count "SortedDeque Reverse" (fun _ ->
-//      for i in 0L..count do
-//        vec.Value.Add(count - i)
-//    )
-//    perf count "SortedDeque Read reverse" (fun _ ->
-//      for i in 0L..count do
-//        let res = vec.Value.Item(count - i)
-//        if res <> i then failwith "SortedDeque failed"
-//        ()
-//    )
-//
-//    Console.WriteLine("----------------")
-//  [<Test>]
-//  let SortedDeque_run() = SortedDequeTest(1000000L)
+  let SortedDequeTest(count:int64) =
+    let vec = ref (Extra.SortedDeque<int64>())
+    perf count "SortedDeque Add" (fun _ ->
+      for i in 0L..count do
+        vec.Value.AddLast(i)
+    )
+    perf count "SortedDeque Read" (fun _ ->
+      for i in 0L..count do
+        let res = vec.Value.Item(i)
+        if res <> i then failwith "SortedDeque failed"
+        ()
+    )
+    vec := (Extra.SortedDeque<int64>())
+    perf count "SortedDeque Reverse" (fun _ ->
+      for i in 0L..count do
+        vec.Value.Add(count - i)
+    )
+    perf count "SortedDeque Read reverse" (fun _ ->
+      for i in 0L..count do
+        let res = vec.Value.Item(count - i)
+        if res <> i then failwith "SortedDeque failed"
+        ()
+    )
+
+    Console.WriteLine("----------------")
+  [<Test>]
+  let SortedDeque_run() = SortedDequeTest(100000L)
 
 
   [<Test>]
