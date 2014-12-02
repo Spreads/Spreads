@@ -9,9 +9,9 @@ open Spreads.Collections.Experimental
 
 module Buckets =
 
-  [<TestCase(100000)>]
+  [<TestCase(10000)>]
   let ``Could store N sorted maps with 1000 elements to MMDic``(count:int64) =
-    let storage = MMBucketStorage.Instance :> IBucketStorage<int64,int64>
+    let storage = MemoryMappedBucketStorage.Instance :> IBucketStorage<int64,int64>
     let count = count
     perf count "Could write N sorted maps with 1000 elements to MMDic" (fun _ ->
       for n in 1L..count do

@@ -128,29 +128,29 @@ module internal TimePeriodModule =
 
 
   let inline milliseconds (tpv:int64) : int64 = 
-    Debug.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
+    Trace.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
     getMsecInDay(tpv) % 1000L
   let inline seconds (tpv:int64) : int64 = 
-    Debug.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
+    Trace.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
     (getMsecInDay(tpv) / msecPerSec) % 60L
   let inline minutes (tpv:int64) : int64 = 
-    Debug.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
+    Trace.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
     (getMsecInDay(tpv) / msecPerMinute) % 60L
   let inline hours (tpv:int64) : int64 = 
-    Debug.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
+    Trace.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
     (getMsecInDay(tpv) / msecPerHour) % 24L
   let inline days (tpv:int64) : int64 = 
-    Debug.Assert(not (isTick tpv))
+    Trace.Assert(not (isTick tpv))
     (getDays(tpv)) + 1L
   // 1 based like in calendar
   let inline months (tpv:int64) : int64 = 
-    Debug.Assert(not (isTick tpv))
+    Trace.Assert(not (isTick tpv))
     (getMonths(tpv) % 12L) + 1L
   let inline years (tpv:int64) : int64 = 
-    Debug.Assert(not (isTick tpv))
+    Trace.Assert(not (isTick tpv))
     (getMonths(tpv) / 12L) + 1900L
   let inline length (tpv:int64) : int64 = 
-    Debug.Assert(not (isTick tpv))
+    Trace.Assert(not (isTick tpv))
     getLength(tpv)
   let inline unitPeriod (tpv:int64) : UnitPeriod =
     LanguagePrimitives.EnumOfValue <| int (getUnitPeriod tpv)

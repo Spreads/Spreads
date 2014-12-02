@@ -1,6 +1,4 @@
 TODO
-
-* Store non-immediate TODOs in a separate file
 * Make no assumption about data and implementation. Only TimePeriod has universal SortableHasher, 
 DT/DTO require UnitPeriod and length, other types require explicit bucket size.
 * Benchmark series and specifically overhead of wrapping maps inside series.
@@ -20,4 +18,7 @@ MEDIUM
 
 LOW
 
+* Test SpinLocks instead of locks - could be relevant for AddLast() buckets. One insert is c.375 CPU cycles, while thread switching 
+could tyake 2-10k cycles according to SO. http://stackoverflow.com/a/14613190/801189
+* MoveNext/MoveAt should use hints, which act like external prevHash/Idx caches
 * TimePeriod direct parsing from string
