@@ -17,6 +17,7 @@ type UnitPeriod =
   | Month = 6         //                  Variable
   | Eternity = 7      //                  Infinity
 
+
 [<CustomComparison;CustomEquality>]
 type TimePeriod =
   struct 
@@ -39,7 +40,7 @@ type TimePeriod =
 
   static member op_Explicit(value:int64) : TimePeriod =  TimePeriod(value)
   static member op_Explicit(timePeriod:TimePeriod) : int64  = timePeriod.value
-
+  
 
 module internal TimePeriodModule =
   //#region Constants
@@ -128,29 +129,29 @@ module internal TimePeriodModule =
 
 
   let inline milliseconds (tpv:int64) : int64 = 
-    Trace.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
+    Debug.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
     getMsecInDay(tpv) % 1000L
   let inline seconds (tpv:int64) : int64 = 
-    Trace.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
+    Debug.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
     (getMsecInDay(tpv) / msecPerSec) % 60L
   let inline minutes (tpv:int64) : int64 = 
-    Trace.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
+    Debug.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
     (getMsecInDay(tpv) / msecPerMinute) % 60L
   let inline hours (tpv:int64) : int64 = 
-    Trace.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
+    Debug.Assert(not (isTick tpv) && getMsecInDay(tpv) < msecPerDay)
     (getMsecInDay(tpv) / msecPerHour) % 24L
   let inline days (tpv:int64) : int64 = 
-    Trace.Assert(not (isTick tpv))
+    Debug.Assert(not (isTick tpv))
     (getDays(tpv)) + 1L
   // 1 based like in calendar
   let inline months (tpv:int64) : int64 = 
-    Trace.Assert(not (isTick tpv))
+    Debug.Assert(not (isTick tpv))
     (getMonths(tpv) % 12L) + 1L
   let inline years (tpv:int64) : int64 = 
-    Trace.Assert(not (isTick tpv))
+    Debug.Assert(not (isTick tpv))
     (getMonths(tpv) / 12L) + 1900L
   let inline length (tpv:int64) : int64 = 
-    Trace.Assert(not (isTick tpv))
+    Debug.Assert(not (isTick tpv))
     getLength(tpv)
   let inline unitPeriod (tpv:int64) : UnitPeriod =
     LanguagePrimitives.EnumOfValue <| int (getUnitPeriod tpv)
@@ -360,6 +361,9 @@ type TimePeriod with
   member this.TimeSpan with get() : TimeSpan = timeSpan this.value
   member this.Next with get() : TimePeriod = TimePeriod(addPeriods 1L this.value)
   member this.Previous with get() : TimePeriod = TimePeriod(addPeriods -1L this.value)
+
+  static member op_Explicit(timePeriod:TimePeriod) : DateTimeOffset = timePeriod.Start
+  static member op_Explicit(timePeriod:TimePeriod) : DateTime = timePeriod.Start.DateTime
 
   static member Hash(tp:TimePeriod) = TimePeriod(bucketHash (tp.value) (unitPeriod (tp.value)))
   static member SubKey(tp:TimePeriod) = addressSubIndex (tp.value) (unitPeriod (tp.value))
