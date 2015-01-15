@@ -1,7 +1,7 @@
 ﻿namespace System
 open System.Reflection
 
-[<assembly: AssemblyTitleAttribute("Period")>]
+[<assembly: AssemblyTitleAttribute("Spreads")>]
 [<assembly: AssemblyProductAttribute("Spreads")>]
 [<assembly: AssemblyDescriptionAttribute("Series and Panels for Reactive and Exploratory Analysis of Data Streams")>]
 [<assembly: AssemblyVersionAttribute("0.0.3")>]

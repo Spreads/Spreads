@@ -88,7 +88,7 @@ type SortedMapTests() =
 
             let mutable sum = 0.0
             for i in 0L..lim do
-                sum <- sm.ValuesArray.[int(i)]
+                sum <- sm.values.[int(i)]
         
             watch.Stop()
             Console.WriteLine(">Indexed reads per sec: " + (1000L * int64(lim)/watch.ElapsedMilliseconds).ToString())
@@ -98,7 +98,7 @@ type SortedMapTests() =
 
             let mutable sum = 0.0
             for i in 0L..lim do
-                sm.ValuesArray.[int(i)] <- float(i)
+                sm.values.[int(i)] <- float(i)
         
             watch.Stop()
             Console.WriteLine(">Indexed sets per sec: " + (1000L * int64(lim)/watch.ElapsedMilliseconds).ToString())

@@ -397,7 +397,7 @@ module CollectionsBenchmarks =
 
   [<TestCase(10000000)>]
   let SHM(count:int64) =
-    let shm = ref (SortedHashMap(Int64SortableHasher(1024)))
+    let shm = ref (SortedHashMap(Int64MonotonicHasher(1024us)))
     perf count "SHM<1024> Add" (fun _ ->
       for i in 0L..count do
         shm.Value.Add(i, i)
@@ -414,7 +414,7 @@ module CollectionsBenchmarks =
         if res <> i.Value then failwith "SHM failed"
         ()
     )
-    shm := (SortedHashMap(Int64SortableHasher(1024)))
+    shm := (SortedHashMap(Int64MonotonicHasher(1024us)))
     let count = count / 10L
     perf count "SHM<1024> Add Reverse" (fun _ ->
       for i in 0L..count do
@@ -427,7 +427,7 @@ module CollectionsBenchmarks =
         ()
     )
     for i in 0..9 do
-      let shmt = ref (SortedHashMap(TimePeriodSortableHasher()))
+      let shmt = ref (SortedHashMap(TimePeriodMonotonicHasher()))
       let count = count * 10L
       let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
       perf count "SHM Time Period Add" (fun _ ->

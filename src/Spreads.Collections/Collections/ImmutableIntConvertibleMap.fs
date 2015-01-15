@@ -1,0 +1,189 @@
+﻿namespace Spreads.Collections
+
+open System
+open System.Collections
+open System.Collections.Generic
+open System.Linq
+open System.Runtime.InteropServices
+
+open Spreads
+open Spreads.Collections
+
+
+[<SerializableAttribute>]
+type internal IIntConverter<'T> =
+    abstract ToInt64: t:'T -> int64
+    abstract FromInt64: i:int64 -> 'T
+
+
+[<SerializableAttribute>]
+type internal DateTimeIntConverter() =
+    interface IIntConverter<DateTime> with
+        member x.ToInt64(t) = t.Ticks
+        member x.FromInt64(i) = DateTime(i)
+
+
+[<SerializableAttribute>]
+type internal DateTimeOffsetIntConverter() =
+    let mutable offset = None
+    interface IIntConverter<DateTimeOffset> with
+        member x.ToInt64(t) = 
+            if offset.IsNone then offset <- Some(t.Offset)
+            if TimeSpan.Equals(t.Offset, offset.Value) then
+                t.UtcTicks
+            else
+                raise (ArgumentException(""))
+        member x.FromInt64(i) = DateTimeOffset(i, offset.Value)
+
+
+[<SerializableAttribute>]
+type internal TimePeriodIntConverter() =
+    interface IIntConverter<TimePeriod> with
+        member x.ToInt64(t) = int64 t
+        member x.FromInt64(i) = TimePeriod(i)
+
+
+[<AllowNullLiteral>]
+[<SerializableAttribute>]
+type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
+    internal(map:ImmutableIntMap64<'V>,conv:IIntConverter<'K>) =
+
+    let map = map
+
+    member internal this.Map = map
+
+
+    member this.GetEnumerator() = 
+        (map.ToArray()
+        |> Array.map (fun kv -> KeyValuePair(conv.FromInt64(kv.Key),kv.Value)) :> (KeyValuePair<'K, 'V>) seq).GetEnumerator()
+
+
+    interface IEnumerable<KeyValuePair<'K, 'V>> with
+            member m.GetEnumerator() = m.GetEnumerator()
+
+    interface System.Collections.IEnumerable with
+        member m.GetEnumerator() = m.GetEnumerator() :> System.Collections.IEnumerator
+
+
+    interface IImmutableSortedMap<'K, 'V> with
+        member this.IsEmpty = map.IsEmpty
+        //member this.Count = int map.Size
+        member this.IsIndexed with get() = (map :> IImmutableSortedMap<int64,'V>).IsIndexed
+
+        member this.First
+            with get() = 
+                let f = map.First
+                KeyValuePair(conv.FromInt64(f.Key), f.Value)
+
+        member this.Last
+            with get() = 
+                let l = map.First
+                KeyValuePair(conv.FromInt64(l.Key), l.Value)
+
+        member this.Item
+            with get (k) : 'V = map.Item(conv.ToInt64(k))
+
+        [<ObsoleteAttribute("Naive impl, optimize if used often")>]
+        member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)
+        [<ObsoleteAttribute("Naive impl, optimize if used often")>]
+        member this.Values with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Value)
+
+
+        member this.TryFind(k, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+            res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
+            let tr = map.TryFind(conv.ToInt64(k), direction)
+            if (fst tr) then
+                let kvp = snd tr
+                res <- KeyValuePair(conv.FromInt64(kvp.Key), kvp.Value)
+                true
+            else
+                false
+
+        member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+            try
+                res <- (this :> IImmutableSortedMap<'K, 'V>).First
+                true
+            with
+            | _ -> 
+                res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
+                false
+            
+        member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+            try
+                res <- (this :> IImmutableSortedMap<'K, 'V>).Last
+                true
+            with
+            | _ -> 
+                res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
+                false
+        
+        member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
+            let success, pair = (this :> IImmutableSortedMap<'K, 'V>).TryFind(k, Lookup.EQ)
+            if success then 
+                value <- pair.Value
+                true
+            else false
+
+        member this.GetPointer() = new BasePointer<'K, 'V>(this) :> IPointer<'K, 'V>
+
+//        member this.Count with get() = int map.Size
+        member this.Size with get() = map.Size
+
+        member this.SyncRoot with get() = map.SyncRoot
+
+        member this.Add(key, value):IImmutableSortedMap<'K, 'V> =
+            ImmutableIntConvertableMap(map.Add(conv.ToInt64(key), value), conv) :> IImmutableSortedMap<'K, 'V>
+
+        member this.AddFirst(key, value):IImmutableSortedMap<'K, 'V> =
+            ImmutableIntConvertableMap(map.AddFirst(conv.ToInt64(key), value), conv) :> IImmutableSortedMap<'K, 'V>
+
+        member this.AddLast(key, value):IImmutableSortedMap<'K, 'V> =
+            ImmutableIntConvertableMap(map.AddLast(conv.ToInt64(key), value), conv) :> IImmutableSortedMap<'K, 'V>
+
+        member this.Remove(key):IImmutableSortedMap<'K, 'V> =
+            ImmutableIntConvertableMap(map.Remove(conv.ToInt64(key)), conv) :> IImmutableSortedMap<'K, 'V>
+
+        member this.RemoveLast([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableSortedMap<'K, 'V> =
+            let m,kvp = map.RemoveLast()
+            value <- KeyValuePair(conv.FromInt64(kvp.Key), kvp.Value)
+            ImmutableIntConvertableMap(m, conv) :> IImmutableSortedMap<'K, 'V>
+
+        member this.RemoveFirst([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableSortedMap<'K, 'V> =
+            let m,kvp = map.RemoveFirst()
+            value <- KeyValuePair(conv.FromInt64(kvp.Key), kvp.Value)
+            ImmutableIntConvertableMap(m, conv) :> IImmutableSortedMap<'K, 'V>
+
+        member this.RemoveMany(key,direction:Lookup):IImmutableSortedMap<'K, 'V> =
+            ImmutableIntConvertableMap(map.RemoveMany(conv.ToInt64(key), direction), conv) :> IImmutableSortedMap<'K, 'V>
+
+
+[<AllowNullLiteral>]
+[<SerializableAttribute>]
+type ImmutableDateTimeMap<'V>
+    private(map:ImmutableIntMap64<'V>) =
+    inherit ImmutableIntConvertableMap<DateTime, 'V>(map, DateTimeIntConverter())
+
+
+    static member Empty = ImmutableDateTimeMap<'V>(ImmutableIntMap64<'V>.Empty)
+    static member Create() = ImmutableDateTimeMap<'V>.Empty
+
+
+[<AllowNullLiteral>]
+[<SerializableAttribute>]
+type ImmutableDateTimeOffsetMap<'V>
+    private(map:ImmutableIntMap64<'V>) =
+    inherit ImmutableIntConvertableMap<DateTimeOffset, 'V>(map, DateTimeOffsetIntConverter())
+
+
+    static member Empty = ImmutableDateTimeOffsetMap<'V>(ImmutableIntMap64<'V>.Empty)
+    static member Create() = ImmutableDateTimeOffsetMap<'V>.Empty
+
+
+[<AllowNullLiteral>]
+[<SerializableAttribute>]
+type ImmutableTimePeriodMap<'V>
+    private(map:ImmutableIntMap64<'V>) =
+    inherit ImmutableIntConvertableMap<TimePeriod, 'V>(map, TimePeriodIntConverter())
+
+    static member Empty = ImmutableTimePeriodMap<'V>(ImmutableIntMap64<'V>.Empty)
+    static member Create() = ImmutableTimePeriodMap<'V>.Empty

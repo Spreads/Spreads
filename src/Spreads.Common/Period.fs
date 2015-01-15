@@ -5,6 +5,7 @@ open System.Collections
 open System.Collections.Generic
 open System.Linq
 open System.Diagnostics
+open System.Runtime.InteropServices
 
 /// Base unit of TimePeriod
 type UnitPeriod =
@@ -18,9 +19,9 @@ type UnitPeriod =
   | Eternity = 7      //                  Infinity
 
 
-[<CustomComparison;CustomEquality>]
+[<CustomComparison;CustomEquality;StructLayout(LayoutKind.Sequential)>]
 type TimePeriod =
-  struct 
+  struct
     val internal value : int64
     internal new(value:int64) = {value = value}
   end
@@ -68,33 +69,36 @@ module internal TimePeriodModule =
   let msecPerSec = 1000L
 
   [<Literal>]
-  let msecOffset = 6
+  let msecOffset = 0
   [<Literal>]
-  let daysOffset = 33
+  let daysOffset = 27
   [<Literal>]
-  let monthsOffset = 38
+  let monthsOffset = 32
   [<Literal>]
-  let lengthOffset = 50
+  let lengthOffset = 44
   [<Literal>]
-  let unitPeriodOffset = 60
+  let unitPeriodOffset = 54
   [<Literal>]
-  let tickOffset = 6
+  let tickOffset = 0
+  [<Literal>]
+  let utcOffsetOffset = 57
 
   [<Literal>]
-  let ticksMask = 9223372036854775744L // ((1L <<< 57) - 1L) <<< 6
+  let ticksMask = 144115188075855871L // ((1L <<< 57) - 1L) <<< 0
   [<Literal>]
-  let msecMask = 8589934528L // ((1L <<< 27)  - 1L) <<< 6
+  let msecMask = 134217727L // ((1L <<< 27)  - 1L) <<< 0
   [<Literal>]
-  let msecMaskWithUnused = 8589934591L // ((1L <<< (27+6))  - 1L)
+  let msecMaskWithUnused = 134217727L // ((1L <<< (27+0))  - 1L)
   [<Literal>]
-  let daysMask = 266287972352L // ((1L <<< 5) - 1L) <<< 33
+  let daysMask = 4160749568L // ((1L <<< 5) - 1L) <<< 27
   [<Literal>]
-  let monthsMask =  1125625028935680L // ((1L <<< 12) - 1L) <<< 38
+  let monthsMask =  17587891077120L // ((1L <<< 12) - 1L) <<< 32
   [<Literal>]
-  let lengthMask = 1151795604700004352L // ((1L <<< 10) -1L) <<< 50
+  let lengthMask = 17996806323437568L // ((1L <<< 10) - 1L) <<< 44
   [<Literal>]
-  let unitPeriodMask = 8070450532247928832L // ((1L <<< 3) - 1L) <<< 60
-  
+  let unitPeriodMask = 126100789566373888L // ((1L <<< 3) - 1L) <<< 54
+  [<Literal>]
+  let utcOffsetMask = 9079256848778919936L // ((1L <<< 6) - 1L) <<< 57
   //#endregion
    
   let inline getMsecInDay value = (value &&& msecMask) >>> msecOffset
@@ -178,6 +182,7 @@ module internal TimePeriodModule =
         value <- value |> setMsecInDay millisInDay
         value
         
+  /// TODO WTF? I do not understand my own code here on the second re-read
   /// Convert datetime to TimePeriod with Windows built-in time zone infos
   /// Windows updates TZ info with OS update patches, could also use NodaTime for this
   let inline ofStartDateTimeWithZoneUnsafe (unitPeriod:UnitPeriod) (length:int)  (startDate:DateTime) (tzi:TimeZoneInfo) =
@@ -350,6 +355,64 @@ module internal TimePeriodModule =
     | UnitPeriod.Day -> ((bucket >>> daysOffset) + sub) <<< daysOffset
     | _ -> ((bucket >>> monthsOffset) + sub) <<< monthsOffset
 
+  // tpv2 - tpv1
+  let rec intDiff (tpv2:int64) (tpv1:int64): int64 =
+    if tpv1 > tpv2 then
+      -(intDiff tpv2 tpv1)
+    else
+      let originalUnit1 = unitPeriod tpv1
+      let originalUnit2 = unitPeriod tpv2
+      if originalUnit1 <> originalUnit2 then raise (new ArgumentException("TimePeriods must have same unit periods to calcualte intDiff"))
+      match originalUnit1 with
+      | UnitPeriod.Tick ->
+        (getTicks tpv2) - (getTicks tpv1)
+      | UnitPeriod.Millisecond ->
+        if (getMonths tpv1) <> (getMonths tpv2) then // slow
+          let dt1 = periodStart tpv1
+          let dt2 = periodStart tpv2
+          let diff = dt2.Ticks - dt1.Ticks
+          diff / ticksPerMillisecond
+        else
+          ((getMsecInDay tpv2) - (getMsecInDay tpv1)) 
+          + ((getDays tpv2) - (getDays tpv1))*msecPerDay
+      | UnitPeriod.Second ->
+        if (getMonths tpv1) <> (getMonths tpv2) then // slow
+          let dt1 = periodStart tpv1
+          let dt2 = periodStart tpv2
+          let diff = dt2.Ticks - dt1.Ticks
+          diff / ticksPerSecond
+        else
+          (((getMsecInDay tpv2) - (getMsecInDay tpv1)) 
+          + ((getDays tpv2) - (getDays tpv1))* msecPerDay) / msecPerSec
+      | UnitPeriod.Minute ->
+        if (getMonths tpv1) <> (getMonths tpv2) then // slow
+          let dt1 = periodStart tpv1
+          let dt2 = periodStart tpv2
+          let diff = dt2.Ticks - dt1.Ticks
+          diff / ticksPerMinute
+        else
+          (((getMsecInDay tpv2) - (getMsecInDay tpv1)) 
+          + ((getDays tpv2) - (getDays tpv1))* msecPerDay) / msecPerMinute
+      | UnitPeriod.Hour ->
+        if (getMonths tpv1) <> (getMonths tpv2) then // slow
+          let dt1 = periodStart tpv1
+          let dt2 = periodStart tpv2
+          let diff = dt2.Ticks - dt1.Ticks
+          diff / ticksPerHour
+        else
+          (((getMsecInDay tpv2) - (getMsecInDay tpv1)) 
+          + ((getDays tpv2) - (getDays tpv1))* msecPerDay) / msecPerHour
+      | UnitPeriod.Day ->
+        if (getMonths tpv1) <> (getMonths tpv2) then // slow
+          let dt1 = periodStart tpv1
+          let dt2 = periodStart tpv2
+          let diff = dt2.Ticks - dt1.Ticks
+          diff / ticksPerDay
+        else
+          (getDays tpv2) - (getDays tpv1)
+      | _ -> 
+        (getMonths tpv2) - (getMonths tpv1)
+
 
 open TimePeriodModule
 
@@ -362,26 +425,36 @@ type TimePeriod with
   member this.Next with get() : TimePeriod = TimePeriod(addPeriods 1L this.value)
   member this.Previous with get() : TimePeriod = TimePeriod(addPeriods -1L this.value)
 
+  /// This - other
+  member this.Diff(other:TimePeriod) = intDiff this.value other.value
+  member this.Add(diff:int64) = TimePeriod(addPeriods diff this.value)
+
   static member op_Explicit(timePeriod:TimePeriod) : DateTimeOffset = timePeriod.Start
   static member op_Explicit(timePeriod:TimePeriod) : DateTime = timePeriod.Start.DateTime
 
+
+  static member (-) (tp1 : TimePeriod, tp2 : TimePeriod) : int64 = intDiff tp1.value tp2.value 
+
+  [<ObsoleteAttribute>]
   static member Hash(tp:TimePeriod) = TimePeriod(bucketHash (tp.value) (unitPeriod (tp.value)))
+  [<ObsoleteAttribute>]
   static member SubKey(tp:TimePeriod) = addressSubIndex (tp.value) (unitPeriod (tp.value))
+  [<ObsoleteAttribute>]
   static member Key(bucket:TimePeriod, subIndex:uint16) = TimePeriod(addressToTimePeriodValue (bucket.value) subIndex)
 
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
-  /// as in financial statements: "for 12 months started on 12/31/2015"
+  /// as in financial statements: "for 12 months started on 1/1/2015"
   new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startTime:DateTimeOffset) =
     {value =
       ofStartDateTimeOffset unitPeriod (int numberOfUnitPeriods) startTime}
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
-  /// as in financial statements: "for 12 months started on 12/31/2015"
+  /// as in financial statements: "for 12 months started on 1/1/2015"
   new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startTime:DateTime, tzi:TimeZoneInfo) =
     {value =
       ofStartDateTimeWithZoneUnsafe unitPeriod (int numberOfUnitPeriods) startTime tzi}
 
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
-  /// as in financial statements: "for 12 months started on 12/31/2015"
+  /// as in financial statements: "for 12 months started on 1/1/2015"
   new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startYear:int, startMonth:int, startDay:int, 
       startHour:int, startMinute:int, startSecond:int, startMillisecond:int) =
         {value =
@@ -389,44 +462,49 @@ type TimePeriod with
         }
 
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
-  /// as in financial statements: "for 12 months started on 12/31/2015"
+  /// as in financial statements: "for 12 months started on 1/1/2015"
   new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startYear:int, startMonth:int, startDay:int, 
       startHour:int, startMinute:int, startSecond:int) =
         {value =
           ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth startDay startHour startMinute startSecond 0
         }
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
-  /// as in financial statements: "for 12 months started on 12/31/2015"
+  /// as in financial statements: "for 12 months started on 1/1/2015"
   new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startYear:int, startMonth:int, startDay:int, 
       startHour:int, startMinute:int) =
         {value =
           ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth startDay startHour startMinute 0 0
         }
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
-  /// as in financial statements: "for 12 months started on 12/31/2015"
+  /// as in financial statements: "for 12 months started on 1/1/2015"
   new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startYear:int, startMonth:int, startDay:int, 
       startHour:int) =
         {value =
           ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth startDay startHour 0 0 0
         }
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
-  /// as in financial statements: "for 12 months started on 12/31/2015"
+  /// as in financial statements: "for 12 months started on 1/1/2015"
   new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startYear:int, startMonth:int, startDay:int) =
         {value =
           ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth startDay 0 0 0 0
         }
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
-  /// as in financial statements: "for 12 months started on 12/31/2015"
+  /// as in financial statements: "for 12 months started on 1/1/2015"
   new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startYear:int, startMonth:int) =
         {value =
           ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear startMonth 0 0 0 0 0
         }
   /// Read this as "numberOfUnitPeriods unitPeriods started on startTime",
-  /// as in financial statements: "for 12 months started on 12/31/2015"
+  /// as in financial statements: "for 12 months started on 1/1/2015"
   new(unitPeriod:UnitPeriod, numberOfUnitPeriods:int, startYear:int) =
     {value =
       ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear 0 0 0 0 0 0
     }
+
+//  new(value:obj) = 
+//    
+//    match value with 
+//    | :? int64 as i -> TimePeriod(i)
 
 
 

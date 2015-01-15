@@ -91,20 +91,8 @@
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="Hopac">
-      <HintPath>..\..\packages\Hopac.0.0.0.31\lib\net45\Hopac.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Hopac.Core">
-      <HintPath>..\..\packages\Hopac.0.0.0.31\lib\net45\Hopac.Core.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Hopac.Extra">
-      <HintPath>..\..\packages\Hopac.Extra.0.0.0.6\lib\net45\Hopac.Extra.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="MMDataStructures">
-      <HintPath>..\..\packages\MMDataStructures.0.4.0\lib\net45\MMDataStructures.dll</HintPath>
+    <Reference Include="FsPickler">
+      <HintPath>..\..\packages\FsPickler.1.0.6\lib\net45\FsPickler.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="mscorlib" />
@@ -120,9 +108,9 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Period\Period.fsproj">
-      <Name>Period</Name>
-      <Project>{2b1beca9-01c0-4c39-8bf8-f1b9b7aefbbf}</Project>
+    <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj">
+      <Name>Spreads.Collections</Name>
+      <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
       <Private>True</Private>
     </ProjectReference>
     <ProjectReference Include="..\..\src\Spreads\Spreads.fsproj">

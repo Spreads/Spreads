@@ -28,3 +28,17 @@ for i in 0..1000000 do
 for i in 0..1000000 do
   let d = DateTime(1900, 1, 1).AddMonths(1049)
   ()
+
+open System
+open System.Collections.Generic
+#time "on"
+GC.GetTotalMemory(false)
+let wrArr = [| WeakReference(Array.init 10000000 id) |]
+GC.GetTotalMemory(false)
+GC.Collect(2, GCCollectionMode.Forced, true)
+if wrArr.[0].IsAlive then Console.WriteLine "Alive" else Console.WriteLine "Dead" 
+
+Console.ReadKey()
+
+
+

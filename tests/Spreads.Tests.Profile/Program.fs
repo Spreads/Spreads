@@ -50,9 +50,9 @@ type TestStruct =
 
 [<EntryPoint>]
 let main argv = 
-  Spreads.Tests.Experimental.Buckets
-    .``Could store N sorted maps with 1000 elements to MMDic``(10000L)
-  Console.ReadKey()
+//  Spreads.Tests.Experimental.Buckets
+//    .``Could store N sorted maps with 1000 elements to MMDic``(10000L)
+  //Console.ReadKey()
   //Spreads.Tests.Collections.Benchmarks.CollectionsBenchmarks.SortedDeque_run()
 //  let count = 1000000L
 //  let ss = SortedSet()

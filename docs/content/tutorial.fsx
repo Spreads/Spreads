@@ -7,6 +7,12 @@
 Spreads tutorial
 ========================
 
+Maps are data structures, just an implementation detail.
+
+Series are materialized data, they are IObservable
+...
+
+
 *)
 #r "Spreads.dll"
 open Spreads

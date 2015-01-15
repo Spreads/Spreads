@@ -97,36 +97,16 @@
       <HintPath>..\..\packages\FSharpx.Collections.Experimental.1.9.3\lib\net35\FSharpx.Collections.Experimental.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="FsPickler">
+      <HintPath>..\..\packages\FsPickler.1.0.6\lib\net45\FsPickler.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="FsUnit.NUnit">
       <HintPath>..\..\packages\FsUnit.1.3.0.1\Lib\Net40\FsUnit.NUnit.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Hopac">
-      <HintPath>..\..\packages\Hopac.0.0.0.31\lib\net45\Hopac.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Hopac.Core">
-      <HintPath>..\..\packages\Hopac.0.0.0.31\lib\net45\Hopac.Core.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Hopac.Extra">
-      <HintPath>..\..\packages\Hopac.Extra.0.0.0.6\lib\net45\Hopac.Extra.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="MMDataStructures">
-      <HintPath>..\..\packages\MMDataStructures.0.4.0\lib\net45\MMDataStructures.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="nunit.framework">
       <HintPath>..\..\packages\NUnit.2.6.3\lib\nunit.framework.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Period">
-      <HintPath>..\..\packages\Spreads.Period.0.0.2-alpha\lib\portable-net45+netcore45+wp8+MonoAndroid1+MonoTouch1\Period.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Spreads.Period">
-      <HintPath>..\..\packages\Spreads.Period.0.0.3-alpha\lib\portable-net45+netcore45+wp8+MonoAndroid1+MonoTouch1\Spreads.Period.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System.Collections.Immutable">
@@ -144,6 +124,16 @@
     <ProjectReference Include="..\..\src\SortedList\SortedList.csproj">
       <Name>SortedList</Name>
       <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj">
+      <Name>Spreads.Collections</Name>
+      <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Spreads.Common\Spreads.Common.fsproj">
+      <Name>Spreads.Common</Name>
+      <Project>{2b1beca9-01c0-4c39-8bf8-f1b9b7aefbbf}</Project>
       <Private>True</Private>
     </ProjectReference>
     <ProjectReference Include="..\..\src\Spreads\Spreads.fsproj">
