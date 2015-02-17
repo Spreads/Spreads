@@ -50,6 +50,7 @@ type TestStruct =
 
 [<EntryPoint>]
 let main argv = 
+  Spreads.Tests.Collections.Benchmarks.CollectionsBenchmarks.SortedMapRegularTest(10000000L)
 //  Spreads.Tests.Experimental.Buckets
 //    .``Could store N sorted maps with 1000 elements to MMDic``(10000L)
   //Console.ReadKey()
@@ -136,6 +137,6 @@ let main argv =
 //      let res = ii.Value
 //      ()
 //    Console.WriteLine(i.ToString())
-
+  Console.ReadLine();
   printfn "%A" argv
   0 // return an integer exit code

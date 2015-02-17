@@ -279,18 +279,18 @@ module CollectionsBenchmarks =
         if res <> i.Value then failwith "SortedList failed"
         ()
     )
-    sl := Spreads.Collections.Extra.SortedList()
-    let count = count / 10L
-    perf count "SortedList Add Reverse" (fun _ ->
-      for i in 0L..count do
-        sl.Value.Add(count - i, i)
-    )
-    perf count "SortedList Read Reverse" (fun _ ->
-      for i in 0L..count do
-        let res = sl.Value.Item(count - i)
-        if res <> i then failwith "SortedList failed"
-        ()
-    )
+//    sl := Spreads.Collections.Extra.SortedList()
+//    let count = count / 10L
+//    perf count "SortedList Add Reverse" (fun _ ->
+//      for i in 0L..count do
+//        sl.Value.Add(count - i, i)
+//    )
+//    perf count "SortedList Read Reverse" (fun _ ->
+//      for i in 0L..count do
+//        let res = sl.Value.Item(count - i)
+//        if res <> i then failwith "SortedList failed"
+//        ()
+//    )
     Console.WriteLine("----------------")
   [<Test>]
   let SortedList_run() = SortedListTests(1000000L)
@@ -372,27 +372,71 @@ module CollectionsBenchmarks =
           if res <> i then failwith "SortedMap failed"
           ()
       )
-    for i in 0..4 do
+    for i in 0..9 do
       perf count "SortedMap Iterate" (fun _ ->
         for i in smap.Value do
           let res = i.Value
           ()
       )
-    smap := SortedMap()
-    let count = count / 10L
-    perf count "SortedMap Add Reverse" (fun _ ->
-      for i in 0L..count do
-        smap.Value.Add(count - i, i)
-    )
-    perf count "SortedMap Read Reverse" (fun _ ->
-      for i in 0L..count do
-        let res = smap.Value.Item(count - i)
-        if res <> i then failwith "SortedMap failed"
-        ()
-    )
+//    smap := SortedMap()
+//    let count = count / 10L
+//    perf count "SortedMap Add Reverse" (fun _ ->
+//      for i in 0L..count do
+//        smap.Value.Add(count - i, i)
+//    )
+//    perf count "SortedMap Read Reverse" (fun _ ->
+//      for i in 0L..count do
+//        let res = smap.Value.Item(count - i)
+//        if res <> i then failwith "SortedMap failed"
+//        ()
+//    )
     Console.WriteLine("----------------")
   [<Test>]
   let SortedMap_run() = SortedMapTest(1000000L)
+
+  let SortedMapRegularTest(count:int64) =
+    let dc : IDiffCalculator<int64> =
+      { new IDiffCalculator<int64> with
+          member x.Add(k, diff) = k + (int64 diff)
+          member x.Diff(a, b) = int <| a - b
+        interface IComparer<int64> with
+          member c.Compare(a,b) = int <| a - b
+      }
+    let smap = ref (Spreads.Collections.Experimental.SortedMap(comparer = (dc :?> IComparer<int64>)))
+    for i in 0..4 do
+      smap := Spreads.Collections.Experimental.SortedMap(comparer = (dc :?> IComparer<int64>))
+      perf count "SortedMapRegular Add" (fun _ ->
+        for i in 0L..count do
+          smap.Value.Add(i, i)
+      )
+//    for i in 0..4 do
+//      perf count "SortedMapRegular Read" (fun _ ->
+//        for i in 0L..count do
+//          let res = smap.Value.Item(i)
+//          if res <> i then failwith "SortedMap failed"
+//          ()
+//      )
+    for i in 0..9 do
+      perf count "SortedMapRegular Iterate" (fun _ ->
+        for i in smap.Value do
+          let res = i.Value
+          ()
+      )
+//    smap := Spreads.Collections.Experimental.SortedMap(comparer = (dc :?> IComparer<int64>))
+//    let count = count / 10L
+//    perf count "SortedMapRegular Add Reverse" (fun _ ->
+//      for i in 0L..count do
+//        smap.Value.Add(count - i, i)
+//    )
+//    perf count "SortedMapRegular Read Reverse" (fun _ ->
+//      for i in 0L..count do
+//        let res = smap.Value.Item(count - i)
+//        if res <> i then failwith "SortedMap failed"
+//        ()
+//    )
+    Console.WriteLine("----------------")
+  [<Test>]
+  let SortedMapRegular_run() = SortedMapRegularTest(1000000L)
 
 
   [<TestCase(10000000)>]
@@ -483,23 +527,24 @@ module CollectionsBenchmarks =
 
   [<Test>]
   let ``Run all``() =
-    Console.WriteLine("VECTORS")
-    FSXVector_run()
-    SCGList_run()
-
-    Console.WriteLine("DEQUE")
-    FSXDeque_run()
-    DeedleDeque_run()
+//    Console.WriteLine("VECTORS")
+//    FSXVector_run()
+//    SCGList_run()
+//
+//    Console.WriteLine("DEQUE")
+//    FSXDeque_run()
+//    DeedleDeque_run()
 
     Console.WriteLine("MAPS")
     DeedleSeries_run()
-    FSXHashMap_run()
-    IntMap64_run()
-    MapTree_run()
+//    FSXHashMap_run()
+//    IntMap64_run()
+//    MapTree_run()
     SCGSortedList_run()
-    SCISortedMap_run()
+//    SCISortedMap_run()
     //SortedDeque_run()
     SortedList_run()
     SortedMap_run()
+    SortedMapRegular_run()
     //MapDeque_run() // bugs!
     SHM_run()

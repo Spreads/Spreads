@@ -35,45 +35,6 @@
     <DocumentationFile>
     </DocumentationFile>
   </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Attributes.fs" />
-    <Compile Include="Collections\Collections.fs" />
-    <Compile Include="Collections\BoundedDictionary.fs" />
-    <Compile Include="Collections\ImmutableIntMap64.fs" />
-    <Compile Include="Collections\ImmutableIntMap64U.fs" />
-    <Compile Include="Collections\ImmutableIntMap32.fs" />
-    <Compile Include="Collections\ImmutableIntMap32U.fs" />
-    <Compile Include="Collections\ImmutableIntConvertibleMap.fs" />
-    <Compile Include="Collections\ImmutableSortedMap.fs" />
-    <Compile Include="Collections\MutatorWrapper.fs" />
-    <Compile Include="Collections\MapDeque.fs" />
-    <Compile Include="Collections\SortedDeque.fs" />
-    <Compile Include="Collections\SortedMap.fs" />
-    <Compile Include="Collections\IndexedMap.fs" />
-    <Compile Include="Collections\MonotonicHasher.fs" />
-    <Compile Include="Collections\SortedHashMap.fs" />
-    <Compile Include="Collections\MiscInterfaces.fs" />
-    <Compile Include="Collections\Heap.fsi" />
-    <Compile Include="Collections\Heap.fs" />
-    <Compile Include="Collections\Deque.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Spreads.Common\Spreads.Common.fsproj">
-      <Name>Spreads.Common</Name>
-      <Project>{2b1beca9-01c0-4c39-8bf8-f1b9b7aefbbf}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-  </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
   </PropertyGroup>
@@ -90,6 +51,44 @@
     </Otherwise>
   </Choose>
   <Import Project="$(FSharpTargetsPath)" />
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Attributes.fs" />
+    <Compile Include="Collections\Collections.fs" />
+    <Compile Include="Collections\BoundedDictionary.fs" />
+    <Compile Include="Collections\ImmutableIntMap64.fs" />
+    <Compile Include="Collections\ImmutableIntMap64U.fs" />
+    <Compile Include="Collections\ImmutableIntMap32.fs" />
+    <Compile Include="Collections\ImmutableIntMap32U.fs" />
+    <Compile Include="Collections\ImmutableIntConvertibleMap.fs" />
+    <Compile Include="Collections\ImmutableSortedMap.fs" />
+    <Compile Include="Collections\MutatorWrapper.fs" />
+    <Compile Include="Collections\MapDeque.fs" />
+    <Compile Include="Collections\SortedDeque.fs" />
+    <Compile Include="Collections\SortedMap.fs" />
+    <Compile Include="Collections\SortedMap.Experimental.fs" />
+    <Compile Include="Collections\IndexedMap.fs" />
+    <Compile Include="Collections\MonotonicHasher.fs" />
+    <Compile Include="Collections\SortedHashMap.fs" />
+    <Compile Include="Collections\MiscInterfaces.fs" />
+    <Compile Include="Collections\Heap.fsi" />
+    <Compile Include="Collections\Heap.fs" />
+    <Compile Include="Collections\Deque.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
+    <ProjectReference Include="..\Spreads.Common\Spreads.Common.fsproj">
+      <Name>Spreads.Common</Name>
+      <Project>{2b1beca9-01c0-4c39-8bf8-f1b9b7aefbbf}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+  </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

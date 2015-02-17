@@ -55,13 +55,14 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Attributes.fs" />
-    <Compile Include="Period.fs" />
     <Compile Include="Types.fs" />
-    <Compile Include="Utils.fs" />
     <Compile Include="Enums.fs" />
     <Compile Include="OptionalValue.fs" />
     <Compile Include="Interfaces.fs" />
+    <Compile Include="Period.fs" />
+    <Compile Include="Serializer.fs" />
     <Compile Include="BasePointer.fs" />
+    <Compile Include="Utils.fs" />
     <Content Include="packages.config" />
     <None Include="Script1.fsx" />
   </ItemGroup>

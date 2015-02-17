@@ -16,6 +16,7 @@ type UnitPeriod =
   | Hour = 4          //      36 000 000 000 ticks
   | Day = 5           //     864 000 000 000 ticks
   | Month = 6         //                  Variable
+  /// Static or constant
   | Eternity = 7      //                  Infinity
 
 
@@ -46,8 +47,8 @@ type TimePeriod =
 module internal TimePeriodModule =
   //#region Constants
   /// Ticks of DateTime(1900, 1, 1)
-  [<Literal>]
-  let zeroTicks = 599266080000000000L
+//  [<Literal>]
+//  let zeroTicks = 599266080000000000L
   [<Literal>]
   let ticksPerMillisecond = 10000L
   [<Literal>]
@@ -81,10 +82,10 @@ module internal TimePeriodModule =
   [<Literal>]
   let tickOffset = 0
   [<Literal>]
-  let utcOffsetOffset = 57
+  let tickFlagOffset = 62
 
   [<Literal>]
-  let ticksMask = 144115188075855871L // ((1L <<< 57) - 1L) <<< 0
+  let ticksMask = 4611686018427387903L // ((1L <<< 62) - 1L) <<< 0
   [<Literal>]
   let msecMask = 134217727L // ((1L <<< 27)  - 1L) <<< 0
   [<Literal>]
@@ -115,7 +116,7 @@ module internal TimePeriodModule =
   let inline getLength value = (value &&& lengthMask) >>> lengthOffset
   let inline setLength length value = (length <<< lengthOffset) ||| (value &&& ~~~lengthMask)
 
-  let inline isTick (value) : bool = (1L = (value >>> 63))
+  let inline isTick (value) : bool = (1L = (value >>> tickFlagOffset))
   let inline getTicks (value) = (value &&& ticksMask) >>> tickOffset
   let inline setTicks ticks value = (ticks <<< tickOffset) ||| (value &&& ~~~ticksMask)
 
@@ -167,8 +168,8 @@ module internal TimePeriodModule =
     (hour:int) (minute:int) (second:int) (millisecond:int) : int64 =
       match unitPeriod with
       | UnitPeriod.Tick -> 
-        let mutable value : int64 = 1L <<< 63
-        value <- value |> setTicks (DateTime(year, month, day, hour, minute, second, millisecond).Ticks - zeroTicks)
+        let mutable value : int64 = 1L <<< tickFlagOffset
+        value <- value |> setTicks (DateTime(year, month, day, hour, minute, second, millisecond).Ticks) // (... - zeroTicks)
         value
       | _ ->
         let mutable value : int64 = 0L
@@ -191,8 +192,8 @@ module internal TimePeriodModule =
     let startDtUtc =  DateTimeOffset(startDate,tzi.GetUtcOffset(startDate))
     match unitPeriod with
       | UnitPeriod.Tick -> 
-        let mutable value : int64 = 1L <<< 63
-        value <- value |> setTicks (startDtUtc.Ticks - zeroTicks)
+        let mutable value : int64 = 1L <<< tickFlagOffset
+        value <- value |> setTicks startDtUtc.Ticks // (startDtUtc.Ticks - zeroTicks)
         value
       | _ ->
         let mutable value : int64 = 0L
@@ -206,8 +207,8 @@ module internal TimePeriodModule =
   let inline ofStartDateTimeOffset (unitPeriod:UnitPeriod) (length:int)  (startDto:DateTimeOffset) =
     match unitPeriod with
       | UnitPeriod.Tick -> 
-        let mutable value : int64 = 1L <<< 63
-        value <- value |> setTicks (startDto.UtcTicks - zeroTicks)
+        let mutable value : int64 = 1L <<< tickFlagOffset
+        value <- value |> setTicks startDto.UtcTicks //(startDto.UtcTicks - zeroTicks)
         value
       | _ ->
         let mutable value : int64 = 0L
@@ -296,8 +297,8 @@ module internal TimePeriodModule =
       raise (NotImplementedException("TODO targetUnit > originalUnit"))
     match targetUnit with
     | UnitPeriod.Tick ->
-      // group by some large number of ticks
-      ((( (tpv &&& ticksMask) >>> 6) / 60000L) <<< 6) ||| (1L <<< 63)
+      // group ticks by second
+      ((( (tpv &&& ticksMask) >>> tickOffset) / ticksPerSecond) <<< tickOffset) ||| (1L <<< tickFlagOffset)
     | UnitPeriod.Millisecond ->
       // group by minute; 60000 ms in a minute
       (tpv &&& ~~~msecMaskWithUnused) ||| ( (getMsecInDay tpv)/(msecPerMinute)  <<< msecOffset )

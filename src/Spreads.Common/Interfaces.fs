@@ -6,6 +6,18 @@ open System.Collections.Generic
 open System.Runtime.InteropServices
 open System.Threading.Tasks
 
+/// <summary>
+/// Diff calculator for any type that supports int64 distance between its values
+/// </summary>
+[<AllowNullLiteral>]
+type IDiffCalculator<'T>= // when 'T : comparison
+  inherit IComparer<'T>
+  abstract Diff : a:'T * b:'T -> int
+  abstract Add : 'T * diff:int -> 'T
+
+
+
+
 // TODO IPointer must implement ISortableSeries
 // TODO Pointer should be a struct
 
