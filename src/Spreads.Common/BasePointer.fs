@@ -10,10 +10,11 @@ open Spreads
 
 /// Uses IReadOnlySortedMap's TryFind method, doesn't know anything about underlying sequence
 type BasePointer<'K,'V when 'K : comparison>
-  (map:IReadOnlySortedMap<'K,'V>) =
+  (map:IReadOnlySortedMap<'K,'V>) as this =
 
   [<DefaultValue>] 
   val mutable private currentPosition : bool * KeyValuePair<'K,'V>
+
   let mutable isReset = true
 
   let disposable = ref {new IDisposable with member __.Dispose() = ()}
@@ -33,6 +34,7 @@ type BasePointer<'K,'V when 'K : comparison>
     let res = TaskCompletionSource(Unchecked.defaultof<KVP<'K,'V>>)
     res.SetException(e)
     res.Task
+
 
 //    abstract NextAsync: unit -> Task<KVP<'K,'V>>
 //    abstract Source : IReadOnlySortedMap<'K,'V> with get

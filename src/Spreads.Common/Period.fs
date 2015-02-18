@@ -19,7 +19,7 @@ type UnitPeriod =
   /// Static or constant
   | Eternity = 7      //                  Infinity
 
-
+#nowarn "9" // no overlap of fields here
 [<CustomComparison;CustomEquality;StructLayout(LayoutKind.Sequential)>]
 type TimePeriod =
   struct
@@ -64,6 +64,8 @@ module internal TimePeriodModule =
   let msecPerDay = 86400000L
   [<Literal>]
   let msecPerHour = 3600000L
+  [<Literal>]
+  let msecPer15Min = 900000L
   [<Literal>]
   let msecPerMinute = 60000L
   [<Literal>]
@@ -287,26 +289,26 @@ module internal TimePeriodModule =
   // 1Gb ~ 28 hours of millisecondly data, 1667 buckets 47kb
   // 1Gb ~ 38 months of secondly data, 27778 buckets 0.78Mb
   // 1Gb ~ 192 years of minutely data, 69444 buckets 1.94Mb
-  let inline bucketHash (tpv:int64) (targetUnit:UnitPeriod): int64 =
+  let bucketHash (tpv:int64) (targetUnit:UnitPeriod): int64 = //TODO inline
     let periodOnly tpv' = (tpv' &&& (~~~(msecMask ||| daysMask ||| monthsMask)))
     let originalUnit = unitPeriod tpv
     if targetUnit < originalUnit then invalidOp "Cannot map period to smaller base periods that original"
     if targetUnit > originalUnit then 
-      Printf.sprintf "%s" ("target" + (int targetUnit).ToString()) 
-      Printf.sprintf "%s" ("originalUnit" +  (int originalUnit).ToString()) 
+      Printf.sprintf "%s" ("target" + (int targetUnit).ToString()) |> ignore
+      Printf.sprintf "%s" ("originalUnit" +  (int originalUnit).ToString()) |> ignore
       raise (NotImplementedException("TODO targetUnit > originalUnit"))
     match targetUnit with
     | UnitPeriod.Tick ->
       // group ticks by second
-      ((( (tpv &&& ticksMask) >>> tickOffset) / ticksPerSecond) <<< tickOffset) ||| (1L <<< tickFlagOffset)
+      (((( (tpv &&& ticksMask) >>> tickOffset) / ticksPerSecond) * ticksPerSecond) <<< tickOffset) ||| (1L <<< tickFlagOffset)
     | UnitPeriod.Millisecond ->
-      // group by minute; 60000 ms in a minute
-      (tpv &&& ~~~msecMaskWithUnused) ||| ( (getMsecInDay tpv)/(msecPerMinute)  <<< msecOffset )
+      // group by second; 1000 ms in a second
+      (tpv &&& ~~~msecMaskWithUnused) ||| ( ((getMsecInDay tpv)/(msecPerSec)) * msecPerSec  )
     | UnitPeriod.Second ->
-      // group by hour; 3600 seconds in an hour
-      (tpv &&& ~~~msecMaskWithUnused) ||| ( (getMsecInDay tpv)/(msecPerHour) <<< msecOffset )
+      // group by 15 minutes; 900 seconds in 15 minutes
+      (tpv &&& ~~~msecMaskWithUnused) ||| ( ((getMsecInDay tpv)/(msecPer15Min)) * msecPer15Min )
     | UnitPeriod.Minute ->
-      // group by day; 1440 minutes in a day
+      // group by day; 1440 minutes in a full day, 600 minutes in 10 hours
       (tpv &&& ~~~msecMaskWithUnused) // NB: different with Hours because period bits are different
     | UnitPeriod.Hour ->
       // group by month, max 744 hours in a month
@@ -359,7 +361,7 @@ module internal TimePeriodModule =
   // tpv2 - tpv1
   let rec intDiff (tpv2:int64) (tpv1:int64): int64 =
     if tpv1 > tpv2 then
-      -(intDiff tpv2 tpv1)
+      -(intDiff tpv1 tpv2)
     else
       let originalUnit1 = unitPeriod tpv1
       let originalUnit2 = unitPeriod tpv2
@@ -414,7 +416,6 @@ module internal TimePeriodModule =
       | _ -> 
         (getMonths tpv2) - (getMonths tpv1)
 
-
 open TimePeriodModule
 
 
@@ -436,8 +437,8 @@ type TimePeriod with
 
   static member (-) (tp1 : TimePeriod, tp2 : TimePeriod) : int64 = intDiff tp1.value tp2.value 
 
-  [<ObsoleteAttribute>]
   static member Hash(tp:TimePeriod) = TimePeriod(bucketHash (tp.value) (unitPeriod (tp.value)))
+
   [<ObsoleteAttribute>]
   static member SubKey(tp:TimePeriod) = addressSubIndex (tp.value) (unitPeriod (tp.value))
   [<ObsoleteAttribute>]
@@ -502,11 +503,15 @@ type TimePeriod with
       ofPartsUnsafe unitPeriod (int numberOfUnitPeriods) startYear 0 0 0 0 0 0
     }
 
-//  new(value:obj) = 
-//    
-//    match value with 
-//    | :? int64 as i -> TimePeriod(i)
 
+type TimePeriodComparer() =
+  member x.Compare(a:TimePeriod,b:TimePeriod) = a.value.CompareTo(b.value)
+  member x.Diff(a:TimePeriod,b:TimePeriod) = int <| a.Diff(b)
+  member x.Add(a:TimePeriod,diff:int) = a.Add(int64 diff)
+  member x.Hash(tp) = TimePeriod.Hash(tp)
 
-
-
+  interface ISpreadsComparer<TimePeriod> with
+    member x.Compare(a,b) = a.value.CompareTo(b.value)
+    member x.Diff(a,b) = int <| a.Diff(b)
+    member x.Add(a,diff) = a.Add(int64 diff)
+    member x.Hash(tp) = TimePeriod.Hash(tp)

@@ -7,16 +7,21 @@ open System.Runtime.InteropServices
 open System.Threading.Tasks
 
 /// <summary>
-/// Diff calculator for any type that supports int64 distance between its values
+/// IComparer<'T> with additional methods for regular keys
 /// </summary>
 [<AllowNullLiteral>]
-type IDiffCalculator<'T>= // when 'T : comparison
-  inherit IComparer<'T>
-  abstract Diff : a:'T * b:'T -> int
-  abstract Add : 'T * diff:int -> 'T
-
-
-
+type ISpreadsComparer<'K>= // when 'K : comparison
+  inherit IComparer<'K>
+  /// Returns int32 distance between two values when they are stored in 
+  /// a regular sorted map. Regular means continuous integers or days or seonds, etc.
+  /// This method could be used for IComparer<'K>.Compare implementation.
+  abstract Diff : a:'K * b:'K -> int
+  /// If Diff(A,B) = X, then Add(A,X) = B, this is a mirrow method for Diff
+  abstract Add : 'K * diff:int -> 'K
+  /// Generates an order-preserving hash.
+  /// The hashes are used as bucket keys and should be a 
+  /// http://en.wikipedia.org/wiki/Monotonic_function
+  abstract Hash: k:'K -> 'K
 
 // TODO IPointer must implement ISortableSeries
 // TODO Pointer should be a struct
@@ -27,7 +32,7 @@ type IDiffCalculator<'T>= // when 'T : comparison
 /// positions and relative LT/LE/GT/GE moves.
 /// Pointer is resilient to changes in an underlying sequence during movements, e.g. the
 ///  sequence could grow during move next.
-/// DefaultPointer class uses TryFind method of IReadOnlySortedMap interface for navigation with O(log n) 
+/// DefaultPointer class uses TryFind method of IReadOnlySortedMap interface for navigation with O(log n)
 /// complexity of each movement (however optimizations are possible, e.g. in SortedMap class)
 [<AllowNullLiteral>]
 type IPointer<'K,'V when 'K : comparison> =
@@ -60,6 +65,7 @@ and
     inherit IEnumerable
     /// True if this.size = 0
     abstract IsEmpty: bool with get
+    [<Obsolete("IReadOnlySortedMap should not have this, the interface is endless")>]
     abstract Size: int64 with get
     /// If true then elements are sorted by order of addition (index) and not by keys
     abstract IsIndexed : bool with get
