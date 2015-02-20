@@ -15,10 +15,9 @@ open Spreads.Collections
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
 type SortedHashMap<'K,'V when 'K : comparison>
-  internal(monotonicHasher:IMonotonicHasher<'K>) =
+  internal(spreadsComparer:ISpreadsComparer<'K>) =
     
-  let mutable hasher : IMonotonicHasher<'K> = monotonicHasher
-  let comparer : IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+  let comparer : ISpreadsComparer<'K> = spreadsComparer
 
   // TODO replace outer with MapDeque, see comments in MapDeque.fs
   let outerMap = SortedMap<'K, SortedMap<'K,'V>>(comparer)
@@ -51,7 +50,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
           || not (outerMap.values |> Seq.exists (fun inner -> inner <> null && inner.size > 0))
 
   member internal this.IsSynchronized 
-      with get() = outerMap.isSynchronized
+      with get() = outerMap.IsSynchronized
 
   member internal this.SyncRoot with get() = outerMap.SyncRoot
 
@@ -59,9 +58,9 @@ type SortedHashMap<'K,'V when 'K : comparison>
   // 
   member this.Item 
     with get key =
-      let hash = hasher.Hash(key)
+      let hash = comparer.Hash(key)
       let subKey = key
-      let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+      let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
       try
         let c = comparer.Compare(hash, prevHash)
         if c = 0 && prevBucketIsSet then
@@ -81,9 +80,9 @@ type SortedHashMap<'K,'V when 'K : comparison>
       finally
           exitLockIf this.SyncRoot entered
     and set key value =
-      let hash = hasher.Hash(key)
+      let hash = comparer.Hash(key)
       let subKey = key
-      let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+      let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
       try
         let c = comparer.Compare(hash, prevHash)
         if c = 0 && prevBucketIsSet then // avoid generic equality and null compare
@@ -103,7 +102,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
               // is full. For regular UnitPeriods (all but ticks) the buckets
               // should be equal in most cases
               let averageSize = try size / (int64 outerMap.size) with | _ -> 4L // 4L in default
-              let newSm = SortedMap(int averageSize)
+              let newSm = SortedMap(int averageSize, comparer)
               outerMap.SetWithIndex(hash, newSm), newSm
           let s1 = bucket.size
           bucket.[subKey] <- value
@@ -119,7 +118,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
     
   member this.First
     with get() = 
-      let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+      let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
       try
         if this.IsEmpty then raise (InvalidOperationException("Could not get the first element of an empty map"))
         let bucket = outerMap.First
@@ -129,7 +128,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
 
   member this.Last
     with get() = 
-      let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+      let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
       try
         if this.IsEmpty then raise (InvalidOperationException("Could not get the first element of an empty map"))
         let bucket = outerMap.Last
@@ -151,7 +150,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
     { new BasePointer<'K,'V>(this) with
       override p.Current with get() = KeyValuePair(currentKey.Value, currentValue.Value)
       override p.MoveNext() = 
-        let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+        let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
         try
           if isReset.Value then p.MoveFirst()
           else
@@ -176,7 +175,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
           exitLockIf this.SyncRoot entered
 
       override p.MovePrevious() = 
-        let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+        let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
         try
           if isReset.Value then p.MoveLast()
           else
@@ -201,9 +200,9 @@ type SortedHashMap<'K,'V when 'K : comparison>
           exitLockIf this.SyncRoot entered
 
       override p.MoveAt(key:'K, direction:Lookup) = 
-        let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+        let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
         try
-          let newHash = hasher.Hash(key)
+          let newHash = comparer.Hash(key)
           let newSubIdx = key
           let c = comparer.Compare(newHash, outer.Value.CurrentKey)
           let res =
@@ -259,7 +258,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
           exitLockIf this.SyncRoot entered
 
       override p.MoveFirst() = 
-        let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+        let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
         try
           if this.IsEmpty then false
           else p.MoveAt(this.First.Key, Lookup.EQ)
@@ -267,7 +266,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
           exitLockIf this.SyncRoot entered
 
       override p.MoveLast() = 
-        let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+        let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
         try
           if this.IsEmpty then false
           else p.MoveAt(this.Last.Key, Lookup.EQ)
@@ -291,9 +290,9 @@ type SortedHashMap<'K,'V when 'K : comparison>
 
 
   member internal this.TryFindWithIndex(key:'K,direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>, ?hint:(int*int)) : int*int =
-    let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+    let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
     try
-      let hash = hasher.Hash(key)
+      let hash = comparer.Hash(key)
       let subKey = key
       let hintWorked =
         // when we will be getting rows from a panel in most of the cases indexes in columns will match
@@ -357,11 +356,11 @@ type SortedHashMap<'K,'V when 'K : comparison>
       exitLockIf this.SyncRoot entered
 
   member this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-    let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+    let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
     try
       result <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
         
-      let hash = hasher.Hash(key)
+      let hash = comparer.Hash(key)
       let subKey = key
       let c = comparer.Compare(hash, prevHash)
 
@@ -437,9 +436,9 @@ type SortedHashMap<'K,'V when 'K : comparison>
       false
 
   member this.Add(key, value):unit =
-    let hash = hasher.Hash(key)
+    let hash = comparer.Hash(key)
     let subKey = key
-    let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+    let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
     try
       // the most common scenario is to hit the previous bucket 
       if prevBucketIsSet && comparer.Compare(hash, prevHash) = 0 then
@@ -453,7 +452,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
           if i >= 0 then 
             i, bucketKvp.Value
           else
-            let newSm = SortedMap()
+            let newSm = SortedMap(comparer)
             outerMap.SetWithIndex(hash, newSm), newSm
         bucket.Add(subKey, value)
         size <- size + 1L
@@ -466,9 +465,9 @@ type SortedHashMap<'K,'V when 'K : comparison>
 
   // TODO add last to empty fails
   member this.AddLast(key, value):unit =
-    let hash = hasher.Hash(key)
+    let hash = comparer.Hash(key)
     let subKey = key
-    let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+    let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
     try
       let lastOuter = outerMap.size - 1
       let c = 
@@ -485,7 +484,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
           //prevBucketIsSet <- true
       elif c > 0 then // have to create new bucket for the value
           let i, bucket = 
-              let newSm = SortedMap()
+              let newSm = SortedMap(comparer)
               outerMap.SetWithIndex(hash, newSm), newSm
           bucket.[subKey] <- value // the only value in the new bucket
           size <- size + 1L
@@ -501,9 +500,9 @@ type SortedHashMap<'K,'V when 'K : comparison>
 
 
   member this.AddFirst(key, value):unit =
-    let hash = hasher.Hash(key)
+    let hash = comparer.Hash(key)
     let subKey = key
-    let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+    let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
     try
       let c = 
         if outerMap.IsEmpty then -1
@@ -519,7 +518,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
         //prevBucketIsSet <- true
       elif c < 0 then // have to create new bucket for the value
         let i, bucket = 
-          let newSm = SortedMap()
+          let newSm = SortedMap(comparer)
           outerMap.SetWithIndex(hash, newSm), newSm
         bucket.[subKey] <- value // the only value in the new bucket
         Trace.Assert(0 = i)
@@ -540,9 +539,9 @@ type SortedHashMap<'K,'V when 'K : comparison>
   // NB first/last optimization is possible, but removes are rare in the primary use case
 
   member this.Remove(key):bool =
-    let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+    let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
     try
-      let hash = hasher.Hash(key)
+      let hash = comparer.Hash(key)
       let subKey = key          
       let c = comparer.Compare(hash, prevHash)
       if c = 0 && prevBucketIsSet then
@@ -567,7 +566,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
       exitLockIf this.SyncRoot entered
 
   member this.RemoveFirst([<Out>]result: byref<KeyValuePair<'K, 'V>>):bool =
-    let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+    let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
     try
       result <- this.First
       let ret' = this.Remove(result.Key)
@@ -578,7 +577,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
 
 
   member this.RemoveLast([<Out>]result: byref<KeyValuePair<'K, 'V>>):bool =
-    let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+    let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
     try
       result <- this.Last
       let ret' = this.Remove(result.Key)
@@ -589,13 +588,13 @@ type SortedHashMap<'K,'V when 'K : comparison>
 
   /// Removes all elements that are to `direction` from `key`
   member this.RemoveMany(key:'K,direction:Lookup):bool =
-    let entered = enterLockIf this.SyncRoot outerMap.isSynchronized
+    let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
     try
       match direction with
       | Lookup.EQ -> 
         this.Remove(key)
       | Lookup.LT | Lookup.LE ->
-        let hash = hasher.Hash(key)
+        let hash = comparer.Hash(key)
         let subKey = key
         let hasPivot, pivot = this.TryFind(key, direction)
         if hasPivot then
@@ -609,7 +608,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
           elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
           else false
       | Lookup.GT | Lookup.GE ->
-        let hash = hasher.Hash(key)
+        let hash = comparer.Hash(key)
         let subKey = key
         let hasPivot, pivot = this.TryFind(key, direction)
         if hasPivot then

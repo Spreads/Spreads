@@ -65,10 +65,10 @@
     <Compile Include="Collections\MutatorWrapper.fs" />
     <Compile Include="Collections\MapDeque.fs" />
     <Compile Include="Collections\SortedDeque.fs" />
+    <Compile Include="Collections\SortedMap.Obsolete.fs" />
     <Compile Include="Collections\SortedMap.fs" />
-    <Compile Include="Collections\SortedMap.Experimental.fs" />
     <Compile Include="Collections\IndexedMap.fs" />
-    <Compile Include="Collections\MonotonicHasher.fs" />
+    <Compile Include="Collections\SpreadsComparer.fs" />
     <Compile Include="Collections\SortedHashMap.fs" />
     <Compile Include="Collections\MiscInterfaces.fs" />
     <Compile Include="Collections\Heap.fsi" />
