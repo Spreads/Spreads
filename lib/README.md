@@ -9,3 +9,7 @@ NOTE:
 This file is a placeholder, used to preserve directory structure in Git.
 
 This file does not need to be edited.
+
+
+
+Binaries here are compressed and are ready to be packed with Bootstrapper.

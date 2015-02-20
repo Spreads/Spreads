@@ -12,12 +12,16 @@ namespace Bootstrapper {
     public static class Bootstrapper {
 
         public static void Main() {
+
+            Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\libspreadsdb\w32\libspreadsdb.dll");
+            Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\libspreadsdb\w64\libspreadsdb.dll");
+
             //Loader.CompressFolder(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\msvcrt\x32");
             //Loader.ExtractFolder(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\msvcrt\x64.zip", @"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\msvcrt");
 
 
-            var json = Newtonsoft.Json.JsonConvert.SerializeObject(new[] { 1, 2, 3, 4, 5 });
-            Console.WriteLine("Running Bootstrapper: " + json);
+            //var json = Newtonsoft.Json.JsonConvert.SerializeObject(new[] { 1, 2, 3, 4, 5 });
+            //Console.WriteLine("Running Bootstrapper: " + json);
             //YepppTest.Run();
             Console.ReadLine();
         }
@@ -40,7 +44,7 @@ namespace Bootstrapper {
         static Bootstrapper() {
 
             Bootstrapper.Bootstrap<Loader>(
-                new[] { "yeppp" },
+                null, //new[] { "yeppp" },
                 new[] { "Newtonsoft.Json.dll" },
                 null,
                 null,

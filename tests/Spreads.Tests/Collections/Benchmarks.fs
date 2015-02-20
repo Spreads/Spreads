@@ -395,16 +395,11 @@ module CollectionsBenchmarks =
   let SortedMap_run() = SortedMapTest(1000000L)
 
   let SortedMapRegularTest(count:int64) =
-    let dc : IDiffCalculator<int64> =
-      { new IDiffCalculator<int64> with
-          member x.Add(k, diff) = k + (int64 diff)
-          member x.Diff(a, b) = int <| a - b
-        interface IComparer<int64> with
-          member c.Compare(a,b) = int <| a - b
-      }
-    let smap = ref (Spreads.Collections.Experimental.SortedMap(comparer = (dc :?> IComparer<int64>)))
+    let dc : ISpreadsComparer<int64> = SpreadsComparerInt64() :> ISpreadsComparer<int64> 
+
+    let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
     for i in 0..4 do
-      smap := Spreads.Collections.Experimental.SortedMap(comparer = (dc :?> IComparer<int64>))
+      smap := Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>))
       perf count "SortedMapRegular Add" (fun _ ->
         for i in 0L..count do
           smap.Value.Add(i, i)
@@ -422,7 +417,7 @@ module CollectionsBenchmarks =
           let res = i.Value
           ()
       )
-//    smap := Spreads.Collections.Experimental.SortedMap(comparer = (dc :?> IComparer<int64>))
+//    smap := Spreads.Collections.SortedMap(comparer = (dc :?> IComparer<int64>))
 //    let count = count / 10L
 //    perf count "SortedMapRegular Add Reverse" (fun _ ->
 //      for i in 0L..count do
@@ -441,7 +436,7 @@ module CollectionsBenchmarks =
 
   [<TestCase(10000000)>]
   let SHM(count:int64) =
-    let shm = ref (SortedHashMap(Int64MonotonicHasher(1024us)))
+    let shm = ref (SortedHashMap(SpreadsComparerInt64()))
     perf count "SHM<1024> Add" (fun _ ->
       for i in 0L..count do
         shm.Value.Add(i, i)
@@ -458,7 +453,7 @@ module CollectionsBenchmarks =
         if res <> i.Value then failwith "SHM failed"
         ()
     )
-    shm := (SortedHashMap(Int64MonotonicHasher(1024us)))
+    shm := (SortedHashMap(SpreadsComparerInt64()))
     let count = count / 10L
     perf count "SHM<1024> Add Reverse" (fun _ ->
       for i in 0L..count do
@@ -471,7 +466,7 @@ module CollectionsBenchmarks =
         ()
     )
     for i in 0..9 do
-      let shmt = ref (SortedHashMap(TimePeriodMonotonicHasher()))
+      let shmt = ref (SortedHashMap(TimePeriodComparer()))
       let count = count * 10L
       let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
       perf count "SHM Time Period Add" (fun _ ->
@@ -494,7 +489,76 @@ module CollectionsBenchmarks =
   [<Test>]
   let SHM_run() = SHM(1000000L)
 
+  
 
+  [<TestCase(10000000)>]
+  let SHM_regular(count:int64) =
+    //let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :?> IComparer<int64>)))
+
+    let shm = ref (SortedHashMap(SpreadsComparerInt64()))
+    for i in 0..9 do
+      shm := SortedHashMap(SpreadsComparerInt64())
+      perf count "SHM<1024> Add" (fun _ ->
+        for i in 0L..count do
+          shm.Value.Add(i, i)
+      )
+
+    for i in 0..9 do
+      perf count "SHM Read" (fun _ ->
+        for i in 0L..count do
+          let res = shm.Value.Item(i)
+          if res <> i then failwith "SHM failed"
+          ()
+      )
+    for i in 0..9 do
+      perf count "SHM Iterate" (fun _ ->
+        for i in shm.Value do
+          let res = i.Value
+          if res <> i.Value then failwith "SHM failed"
+          ()
+      )
+    
+    let count = count / 10L
+    for i in 0..9 do
+      shm := (SortedHashMap(SpreadsComparerInt64()))
+      perf count "SHM<1024> Add Reverse" (fun _ ->
+        for i in 0L..count do
+          shm.Value.Add(count - i, i)
+      )
+    for i in 0..9 do
+      perf count "SHM Read Reverse" (fun _ ->
+        for i in 0L..count do
+          let res = shm.Value.Item(count - i)
+          if res <> i then failwith "SHM failed"
+          ()
+      )
+    
+    let shmt = ref (SortedHashMap(TimePeriodComparer()))
+    let count = count * 10L
+    let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
+    for i in 0..9 do
+      shmt := (SortedHashMap(TimePeriodComparer()))
+      perf count "SHM Time Period Add" (fun _ ->
+        for i in 0..(int count) do
+          shmt.Value.AddLast(TimePeriod(UnitPeriod.Second, 1, 
+                            initDTO.AddSeconds(float i)), int64 i)
+      )
+    for i in 0..9 do
+      perf count "SHM Time Period Read" (fun _ ->
+        for i in 0..(int count) do
+          let res = shmt.Value.Item(TimePeriod(UnitPeriod.Second, 1, 
+                        initDTO.AddSeconds(float i)))
+          ()
+      )
+    for i in 0..9 do
+      perf count "SHM Time Period Iterate" (fun _ ->
+        for i in shmt.Value do
+          let res = i.Value
+          ()
+      )
+    Console.WriteLine("----------------")
+  [<Test>]
+  let SHM_regular_run() = SHM_regular(1000000L)
 
   let SortedDequeTest(count:int64) =
     let vec = ref (Extra.SortedDeque<int64>())
@@ -536,15 +600,16 @@ module CollectionsBenchmarks =
 //    DeedleDeque_run()
 
     Console.WriteLine("MAPS")
-    DeedleSeries_run()
+//    DeedleSeries_run()
 //    FSXHashMap_run()
 //    IntMap64_run()
 //    MapTree_run()
-    SCGSortedList_run()
+//    SCGSortedList_run()
 //    SCISortedMap_run()
     //SortedDeque_run()
-    SortedList_run()
-    SortedMap_run()
-    SortedMapRegular_run()
+    //SortedList_run()
+//    SortedMap_run()
+    //SortedMapRegular_run()
     //MapDeque_run() // bugs!
-    SHM_run()
+    //SHM_run()
+    SHM_regular_run()

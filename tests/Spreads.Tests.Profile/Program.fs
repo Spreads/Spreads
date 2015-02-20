@@ -50,7 +50,7 @@ type TestStruct =
 
 [<EntryPoint>]
 let main argv = 
-  Spreads.Tests.Collections.Benchmarks.CollectionsBenchmarks.SortedMapRegularTest(10000000L)
+  Spreads.Tests.Collections.Benchmarks.CollectionsBenchmarks.SHM_regular_run() // .SortedMapRegularTest(10000000L)
 //  Spreads.Tests.Experimental.Buckets
 //    .``Could store N sorted maps with 1000 elements to MMDic``(10000L)
   //Console.ReadKey()
