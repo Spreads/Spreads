@@ -13,8 +13,8 @@ namespace Bootstrapper {
 
         public static void Main() {
 
-            Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\libspreadsdb\w32\libspreadsdb.dll");
-            Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\libspreadsdb\w64\libspreadsdb.dll");
+            Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\SpreadsDB\src\libspreadsdb\out\w64\bin\libspreadsdb.dll");
+            Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\SpreadsDB\src\libspreadsdb\out\w32\bin\libspreadsdb.dll");
 
             //Loader.CompressFolder(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\msvcrt\x32");
             //Loader.ExtractFolder(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\msvcrt\x64.zip", @"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\msvcrt");

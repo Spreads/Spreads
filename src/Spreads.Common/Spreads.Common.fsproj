@@ -65,6 +65,7 @@
     <Compile Include="Utils.fs" />
     <Content Include="packages.config" />
     <None Include="Script1.fsx" />
+    <Compile Include="Selectors.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">

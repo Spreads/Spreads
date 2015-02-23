@@ -23,10 +23,44 @@ type ISpreadsComparer<'K>= // when 'K : comparison
   /// http://en.wikipedia.org/wiki/Monotonic_function
   abstract Hash: k:'K -> 'K
 
-// TODO IPointer must implement ISortableSeries
-// TODO Pointer should be a struct
 
-// IPointer is similar to a cursor in ESENT/ISAM
+type IKeyedValue<'K, 'V when 'K : comparison>=
+  inherit IComparer<IKeyedValue<'K, 'V>>
+  abstract Key : 'K with get
+  abstract Value : 'V with get
+
+
+[<Obsolete("Not sure this abstraction needed")>]
+[<AllowNullLiteral>]
+type IPointer<'K when 'K : comparison> =
+    inherit IEnumerator<'K>
+    abstract MoveAt: index:'K * direction:Lookup -> bool
+    abstract MoveFirst: unit -> bool
+    abstract MoveLast: unit -> bool
+    abstract MovePrevious: unit -> bool
+    abstract CurrentKey:'K with get
+    abstract MoveGetNextAsync: unit -> Task<'K>
+    abstract Source : IReadOnlySortedKeys<'K> with get
+and
+  [<Obsolete("Not sure this abstraction needed")>]
+  [<AllowNullLiteral>]
+  IReadOnlySortedKeys<'K when 'K : comparison> =
+    inherit IEnumerable<'K>
+    inherit IEnumerable
+    abstract IsEmpty: bool with get
+    [<Obsolete("IReadOnlySortedMap should not have this, the interface is endless")>]
+    abstract Size: int64 with get
+    abstract IsIndexed : bool with get
+    abstract First : 'K with get
+    abstract Last : unit -> 'K with get
+    abstract Item : 'K -> 'K with get
+    abstract Keys : IEnumerable<'K> with get
+    abstract TryFind: key:'K * direction:Lookup * [<Out>] value: byref<'K> -> bool
+    abstract TryGetFirst: [<Out>] value: byref<KVP<'K, 'V>> -> bool
+    abstract TryGetLast: [<Out>] value: byref<KVP<'K, 'V>> -> bool
+    abstract TryGetValue: key:'K * [<Out>] value: byref<'V> -> bool
+    abstract GetPointer : unit -> IPointer<'K>
+    abstract SyncRoot : obj with get
 
 /// IPointer is an advanced enumerator supporting moves to first, last, previous, next, exact 
 /// positions and relative LT/LE/GT/GE moves.

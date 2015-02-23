@@ -74,6 +74,7 @@
     <Compile Include="Collections\Heap.fsi" />
     <Compile Include="Collections\Heap.fs" />
     <Compile Include="Collections\Deque.fs" />
+    <Compile Include="ObjectPool.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />
