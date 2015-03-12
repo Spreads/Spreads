@@ -22,12 +22,22 @@ type ISpreadsComparer<'K>= // when 'K : comparison
   /// The hashes are used as bucket keys and should be a 
   /// http://en.wikipedia.org/wiki/Monotonic_function
   abstract Hash: k:'K -> 'K
+  /// <summary>
+  /// Get UInt64 representation of a key.
+  /// In general, (a.AsUInt64 - b.AsUInt64) is not equal to ISpreadsComparer.Diff(a,b), e.g. for non-tick TimePeriod.
+  /// </summary>
+  abstract AsUInt64: k:'K -> uint64
+  /// <summary>
+  /// Get a key from its UInt64 representation.
+  /// In general, (a.AsUInt64 - b.AsUInt64) is not equal to ISpreadsComparer.Diff(a,b), e.g. for non-tick TimePeriod.
+  /// </summary>
+  abstract FromUInt64: uint64 -> 'K
 
 
-type IKeyedValue<'K, 'V when 'K : comparison>=
-  inherit IComparer<IKeyedValue<'K, 'V>>
-  abstract Key : 'K with get
-  abstract Value : 'V with get
+//type IKeyedValue<'K, 'V when 'K : comparison>=
+//  inherit IComparer<IKeyedValue<'K, 'V>>
+//  abstract Key : 'K with get
+//  abstract Value : 'V with get
 
 
 [<Obsolete("Not sure this abstraction needed")>]
@@ -42,7 +52,7 @@ type IPointer<'K when 'K : comparison> =
     abstract MoveGetNextAsync: unit -> Task<'K>
     abstract Source : IReadOnlySortedKeys<'K> with get
 and
-  [<Obsolete("Not sure this abstraction needed")>]
+  [<Obsolete("Not sure this abstraction needed, rename to SortedSet")>]
   [<AllowNullLiteral>]
   IReadOnlySortedKeys<'K when 'K : comparison> =
     inherit IEnumerable<'K>

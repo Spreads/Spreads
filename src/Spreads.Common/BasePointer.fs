@@ -108,7 +108,7 @@ type BasePointer<'K,'V when 'K : comparison>
           let synchronize(kvp:KVP<'K,'V>) =
             // we must know if observer has missed value
             // untill we know that observer is synced we must lookup the next value
-            // and then move back to return the current state (otherwise tryAdvance will skip values)
+            // and then move back to return the current state (otherwise MoveGetNextAsync will skip values)
             if not !isObserverSynced then
               let couldMove = this.MoveNext()
 #if PRERELEASE

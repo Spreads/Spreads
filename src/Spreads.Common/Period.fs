@@ -515,3 +515,5 @@ type TimePeriodComparer() =
     member x.Diff(a,b) = int <| a.Diff(b)
     member x.Add(a,diff) = a.Add(int64 diff)
     member x.Hash(tp) = TimePeriod.Hash(tp)
+    member x.AsUInt64(tp) = tp.value |> uint64
+    member x.FromUInt64(value) = new TimePeriod(value |> int64)
