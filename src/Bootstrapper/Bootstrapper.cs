@@ -13,12 +13,24 @@ namespace Bootstrapper {
 
         public static void Main() {
 
+            // NetMQ
             //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\AsyncIO.dll");
             //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\NetMQ.dll");
 
+            // RX
+            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\System.Reactive.Core.dll");
+            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\System.Reactive.Interfaces.dll");
+            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\System.Reactive.Linq.dll");
+            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\System.Reactive.PlatformServices.dll");
+
+
+            // Blosc
+            Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\libblosc\win\x64\libblosc.dll");
+            Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\libblosc\win\x32\libblosc.dll");
+
+
             //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\SpreadsDB\src\libspreadsdb\out\w64\bin\libspreadsdb.dll");
             //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\SpreadsDB\src\libspreadsdb\out\w32\bin\libspreadsdb.dll");
-
             //Loader.CompressFolder(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\msvcrt\x32");
             //Loader.ExtractFolder(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\msvcrt\x64.zip", @"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\msvcrt");
 
@@ -48,7 +60,9 @@ namespace Bootstrapper {
 
             Bootstrapper.Bootstrap<Loader>(
                 null, //new[] { "yeppp" },
-                new[] { "Newtonsoft.Json.dll" },
+                new[] { "Newtonsoft.Json.dll",
+                    "AsyncIO.dll", "NetMQ.dll",
+                    "System.Reactive.Core.dll", "System.Reactive.Interfaces.dll", "System.Reactive.Linq.dll", "System.Reactive.PlatformServices.dll" },
                 null,
                 null,
                 () => {

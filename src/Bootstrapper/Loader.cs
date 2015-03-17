@@ -225,23 +225,27 @@ namespace Bootstrapper {
                 throw new ArgumentException("wrong resource name");
             }
 
-
-            Assembly assembly = typeof(T).Assembly;
-            using (Stream resourceStream = assembly.GetManifestResourceStream(resource)) {
-                using (DeflateStream deflateStream = new DeflateStream(resourceStream, CompressionMode.Decompress)) {
-                    using (
-                        FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write,
-                            FileShare.ReadWrite)) {
-                        byte[] buffer = new byte[1048576];
-                        int bytesRead;
-                        do {
-                            bytesRead = deflateStream.Read(buffer, 0, buffer.Length);
-                            if (bytesRead != 0)
-                                fileStream.Write(buffer, 0, bytesRead);
+            try {
+                Assembly assembly = typeof (T).Assembly;
+                using (Stream resourceStream = assembly.GetManifestResourceStream(resource)) {
+                    using (DeflateStream deflateStream = new DeflateStream(resourceStream, CompressionMode.Decompress)) {
+                        using (
+                            FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write,
+                                FileShare.ReadWrite)) {
+                            byte[] buffer = new byte[1048576];
+                            int bytesRead;
+                            do {
+                                bytesRead = deflateStream.Read(buffer, 0, buffer.Length);
+                                if (bytesRead != 0)
+                                    fileStream.Write(buffer, 0, bytesRead);
+                            }
+                            while (bytesRead != 0);
                         }
-                        while (bytesRead != 0);
                     }
                 }
+            }
+            catch {
+                
             }
             return path;
         }

@@ -8,7 +8,7 @@
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>fi.im</RootNamespace>
-    <AssemblyName>fi.im.Bootstrapper</AssemblyName>
+    <AssemblyName>Bootstrapper</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
@@ -70,14 +70,40 @@
       <Link>Newtonsoft.Json.dll</Link>
       <LogicalName>Newtonsoft.Json.dll</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\Common\AsyncIO.dll">
+      <Link>AsyncIO.dll</Link>
+      <LogicalName>AsyncIO.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\Common\NetMQ.dll">
+      <Link>NetMQ.dll</Link>
+      <LogicalName>NetMQ.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\Common\System.Reactive.Core.dll">
+      <Link>System.Reactive.Core.dll</Link>
+      <LogicalName>System.Reactive.Core.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\Common\System.Reactive.Interfaces.dll">
+      <Link>System.Reactive.Interfaces.dll</Link>
+      <LogicalName>System.Reactive.Interfaces.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\Common\System.Reactive.Linq.dll">
+      <Link>System.Reactive.Linq.dll</Link>
+      <LogicalName>System.Reactive.Linq.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\Common\System.Reactive.PlatformServices.dll">
+      <Link>System.Reactive.PlatformServices.dll</Link>
+      <LogicalName>System.Reactive.PlatformServices.dll</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\lib\msvcrt\x32\msvcrt.zip">
+    <EmbeddedResource Include="..\..\lib\msvcrt\x32\msvcrt.zip">
       <Link>native\win\x32\msvcrt.zip</Link>
-    </None>
-    <None Include="..\..\lib\msvcrt\x64\msvcrt.zip">
+      <LogicalName>win/x32/msvcrt.zip</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\msvcrt\x64\msvcrt.zip">
       <Link>native\win\x64\msvcrt.zip</Link>
-    </None>
+      <LogicalName>win/x64/msvcrt.zip</LogicalName>
+    </EmbeddedResource>
     <None Include="app.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

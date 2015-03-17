@@ -3,6 +3,7 @@
 // --------------------------------------------------------------------------------------
 
 #r @"packages/FAKE/tools/FakeLib.dll"
+#r @"src/Bootstrapper/bin/Debug/fi.im.Bootstrapper.exe"
 
 open Fake
 open Fake.Git
@@ -107,6 +108,13 @@ Target "Clean" (fun _ ->
 Target "CleanDocs" (fun _ ->
     CleanDirs ["docs/output"]
 )
+
+Target "CompressResourceDlls" (fun _ ->
+    !! solutionFile
+    |> MSBuildRelease "" "Rebuild"
+    |> ignore
+)
+
 
 // --------------------------------------------------------------------------------------
 // Build library & test project
