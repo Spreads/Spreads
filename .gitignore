@@ -194,3 +194,12 @@ docs/content/release-notes.md
 !libblosc.dll
 !libspreadsdb.dll
 !libyeppp.dll
+!lib/Common/*.dll
+!lib/msvcrt/x32/
+!lib/msvcrt/x64/
+!lib/msvcrt/x32/*.zip
+!lib/msvcrt/x64/*.zip
+!lib/libyeppp/win/x32/
+!lib/libyeppp/win/x64/
+!lib/libyeppp/win/x32/*.dll
+!lib/libyeppp/win/x64/*.dll
