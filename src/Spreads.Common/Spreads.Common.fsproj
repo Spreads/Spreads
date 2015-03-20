@@ -73,15 +73,16 @@
     <Compile Include="Serializer.fs" />
     <Compile Include="BasePointer.fs" />
     <Compile Include="Utils.fs" />
-    <Content Include="packages.config" />
     <None Include="Script1.fsx" />
     <Compile Include="Selectors.fs" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <Reference Include="FSharp.Core">
+      <HintPath>..\..\packages\FSharp.Core.3.1.2.1\lib\net40\FSharp.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
