@@ -105,34 +105,49 @@ namespace Bootstrapper {
         /// <summary>
         /// in AppData and AppDataLocal
         /// </summary>
-        private const string rootFolder = "fi.im";
+        private const string rootFolder = "Spreads";
         private const string configSubFolder = "config";
         private const string appSubFolder = "bin";
         private const string dataSubFolder = "data";
+        // TODO next two only in user interactive mode
         private const string docFolder = "Docs";
         private const string gplFolder = "Libraries";
 
+        private static string _baseFolder = Environment.UserInteractive
+                ? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
+                : Bootstrapper.AssemblyDirectory;
+
+        private static string _dataFolder = Path.Combine(Bootstrapper.BaseFolder, rootFolder, dataSubFolder);
+
+        internal static string BaseFolder {
+            get {
+                return _baseFolder;
+            }
+            set {
+                _baseFolder = value;
+            }
+        }
+
         internal static string ConfigFolder {
             get {
-                return Path.Combine(
-              Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                return Path.Combine(Bootstrapper.BaseFolder,
               rootFolder, configSubFolder);
             }
         }
 
         internal static string AppFolder {
             get {
-                return Path.Combine(
-              Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-              rootFolder, appSubFolder);
+                return Path.Combine(Bootstrapper.BaseFolder,
+                                rootFolder, appSubFolder);
             }
         }
 
         internal static string DataFolder {
             get {
-                return Path.Combine(
-              Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-              rootFolder, dataSubFolder);
+                return _dataFolder;
+            }
+            set {
+                _dataFolder = value;
             }
         }
 
@@ -197,6 +212,14 @@ namespace Bootstrapper {
             DisposeAction = disposeAction;
         }
 
+        public static string AssemblyDirectory {
+            get {
+                string codeBase = Assembly.GetExecutingAssembly().CodeBase;
+                UriBuilder uri = new UriBuilder(codeBase);
+                string path = Uri.UnescapeDataString(uri.Path);
+                return Path.GetDirectoryName(path);
+            }
+        }
 
         private class Disposer : IDisposable {
             public void Dispose() {
