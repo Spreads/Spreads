@@ -9,15 +9,22 @@ open System.Runtime.InteropServices
 
 /// Base unit of TimePeriod
 type UnitPeriod =
-  | Tick = 0          //               100 nanosec
-  | Millisecond = 1   //              10 000 ticks
-  | Second = 2        //          10 000 000 ticks
-  | Minute = 3        //         600 000 000 ticks
-  | Hour = 4          //      36 000 000 000 ticks
-  | Day = 5           //     864 000 000 000 ticks
-  | Month = 6         //                  Variable
-  /// Static or constant
-  | Eternity = 7      //                  Infinity
+  /// 100 nanosec
+  | Tick = 0 
+  /// 10 000 ticks    
+  | Millisecond = 1
+  /// 10 000 000 ticks
+  | Second = 2
+  /// 600 000 000 ticks
+  | Minute = 3
+  /// 36 000 000 000 ticks        
+  | Hour = 4
+  /// 864 000 000 000 ticks
+  | Day = 5
+  /// Variable length
+  | Month = 6
+  /// Infinity, used for static or constant values
+  | Eternity = 7
 
 #nowarn "9" // no overlap of fields here
 [<CustomComparison;CustomEquality;StructLayout(LayoutKind.Sequential)>]

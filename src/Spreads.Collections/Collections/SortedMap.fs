@@ -49,7 +49,7 @@ type SortedMap<'K,'V when 'K : comparison>
     else Unchecked.defaultof<ISpreadsComparer<'K>>
 
   [<NonSerializedAttribute;VolatileFieldAttribute>]
-  let mutable isRegularKeys : bool = true
+  let mutable isRegularKeys : bool = isKeyDiffable
   // TODO off by one in remove not checked, in insert is OK
   let mutable rkLast = Unchecked.defaultof<'K>
   let rkKeyAtIndex idx = diffCalc.Add(this.keys.[0], idx)

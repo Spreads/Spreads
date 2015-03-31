@@ -9,8 +9,12 @@ open System.Threading.Tasks
 /// <summary>
 /// IComparer<'T> with additional methods for regular keys
 /// </summary>
+// TODO rename it to key comparer
 [<AllowNullLiteral>]
 type ISpreadsComparer<'K>= // when 'K : comparison
+
+  // 
+
   inherit IComparer<'K>
   /// Returns int32 distance between two values when they are stored in 
   /// a regular sorted map. Regular means continuous integers or days or seonds, etc.
