@@ -446,6 +446,7 @@ type TimePeriod with
 
   static member Hash(tp:TimePeriod) = TimePeriod(bucketHash (tp.value) (unitPeriod (tp.value)))
 
+  // TODO this was used with bad bucketing logic, check that there is no remaining dependencies and delete it
   [<ObsoleteAttribute>]
   static member SubKey(tp:TimePeriod) = addressSubIndex (tp.value) (unitPeriod (tp.value))
   [<ObsoleteAttribute>]
