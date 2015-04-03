@@ -62,7 +62,10 @@ namespace Bootstrapper {
                 null, //new[] { "yeppp" },
                 new[] { "Newtonsoft.Json.dll",
                     "AsyncIO.dll", "NetMQ.dll",
-                    "System.Reactive.Core.dll", "System.Reactive.Interfaces.dll", "System.Reactive.Linq.dll", "System.Reactive.PlatformServices.dll" },
+                    "System.Reactive.Core.dll",
+                    "System.Reactive.Interfaces.dll",
+                    "System.Reactive.Linq.dll",
+                    "System.Reactive.PlatformServices.dll" },
                 null,
                 null,
                 () => {
@@ -188,10 +191,12 @@ namespace Bootstrapper {
                 foreach (var managedName in managedLibNames) {
                     Trace.Assert(managedName.EndsWith(".dll"));
                     Loader.ExtractResource<T>(managedName);
+                    var assemblyFileName = Path.Combine(Bootstrapper.AppFolder, managedName);
+                    var assembly = Assembly.LoadFrom(assemblyFileName);
                 }
             }
-            AppDomain.CurrentDomain.AssemblyResolve +=
-                new ResolveEventHandler(Loader.ResolveManagedAssembly);
+            //AppDomain.CurrentDomain.AssemblyResolve +=
+            //    new ResolveEventHandler(Loader.ResolveManagedAssembly);
 
             if (resourceNames != null) {
                 foreach (var resourceName in resourceNames) {
