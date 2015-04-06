@@ -190,6 +190,10 @@ namespace Bootstrapper {
             if (managedLibNames != null) {
                 foreach (var managedName in managedLibNames) {
                     Trace.Assert(managedName.EndsWith(".dll"));
+                    //if (!Environment.UserInteractive)
+                    //{
+                    //    Debugger.Launch();
+                    //}
                     Loader.ExtractResource<T>(managedName);
                     var assemblyFileName = Path.Combine(Bootstrapper.AppFolder, managedName);
                     var assembly = Assembly.LoadFrom(assemblyFileName);
