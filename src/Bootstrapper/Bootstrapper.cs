@@ -9,9 +9,16 @@ using System.Reflection;
 
 namespace Bootstrapper {
 
-    public static class Bootstrapper {
+
+    public static class Program {
+
+        // when running as console app, init Bootstrapper
+        static Program() {
+            Console.WriteLine(Bootstrapper.Instance.AppFolder);
+        }
 
         public static void Main() {
+
 
             // NetMQ
             //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\AsyncIO.dll");
@@ -23,10 +30,9 @@ namespace Bootstrapper {
             //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\System.Reactive.Linq.dll");
             //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\System.Reactive.PlatformServices.dll");
 
-
             // Blosc
-            Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\libblosc\win\x64\libblosc.dll");
-            Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\libblosc\win\x32\libblosc.dll");
+            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\libblosc\win\x64\libblosc.dll");
+            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\libblosc\win\x32\libblosc.dll");
 
 
             //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\SpreadsDB\src\libspreadsdb\out\w64\bin\libspreadsdb.dll");
@@ -35,10 +41,22 @@ namespace Bootstrapper {
             //Loader.ExtractFolder(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\msvcrt\x64.zip", @"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\msvcrt");
 
 
-            //var json = Newtonsoft.Json.JsonConvert.SerializeObject(new[] { 1, 2, 3, 4, 5 });
-            //Console.WriteLine("Running Bootstrapper: " + json);
+
+            var json = Newtonsoft.Json.JsonConvert.SerializeObject(new[] { 1, 2, 3, 4, 5 });
+            Console.WriteLine("Running Bootstrapper: " + json);
             //YepppTest.Run();
+
             Console.ReadLine();
+        }
+    }
+
+    public class Bootstrapper {
+
+        private static readonly Bootstrapper instance = new Bootstrapper();
+        public static Bootstrapper Instance {
+            get {
+                return instance;
+            }
         }
 
         // Bootstrapper extracts dlls embedded as resource to the app folder.
@@ -54,14 +72,14 @@ namespace Bootstrapper {
         // Documents/Modules - distributes LGPL libraries + user libraries. 
         //                      All are loaded to app domain
 
-
-        // Botstrap self
         static Bootstrapper() {
 
-            Bootstrapper.Bootstrap<Loader>(
+
+            instance.Bootstrap<Loader>(
                 null, //new[] { "yeppp" },
                 new[] { "Newtonsoft.Json.dll",
-                    "AsyncIO.dll", "NetMQ.dll",
+                    "AsyncIO.dll",
+                    "NetMQ.dll",
                     "System.Reactive.Core.dll",
                     "System.Reactive.Interfaces.dll",
                     "System.Reactive.Linq.dll",
@@ -69,40 +87,68 @@ namespace Bootstrapper {
                 null,
                 null,
                 () => {
-                    if (!Directory.Exists(AppFolder)) {
-                        Directory.CreateDirectory(AppFolder);
-                    }
-
-                    if (!Directory.Exists(Path.Combine(AppFolder, "x32"))) {
-                        Directory.CreateDirectory(Path.Combine(AppFolder, "x32"));
-                    }
-
-                    if (!Directory.Exists(Path.Combine(AppFolder, "x64"))) {
-                        Directory.CreateDirectory(Path.Combine(AppFolder, "x64"));
-                    }
-
-                    if (!Directory.Exists(AppFolder)) {
-                        Directory.CreateDirectory(AppFolder);
-                    }
-
-                    if (!Directory.Exists(ConfigFolder)) {
-                        Directory.CreateDirectory(ConfigFolder);
-                    }
-
-                    if (!Directory.Exists(DataFolder)) {
-                        Directory.CreateDirectory(DataFolder);
-                    }
-
-                    if (!Directory.Exists(TempFolder)) {
-                        Directory.CreateDirectory(TempFolder);
-                    }
-                }, 
-                () => {
-                    //Yeppp.Library.Init();
+#if DEBUG
+                    Console.WriteLine("Pre-copy action");
+#endif
                 },
                 () => {
-                    //Yeppp.Library.Release();
+                //Yeppp.Library.Init();
+#if DEBUG
+                Console.WriteLine("Post-copy action");
+#endif
+                },
+                () => {
+                //Yeppp.Library.Release();
+            });
+
+            AppDomain.CurrentDomain.AssemblyResolve +=
+                new ResolveEventHandler((object sender, ResolveEventArgs args) => {
+                    var an = new AssemblyName(args.Name);
+                    return instance.managedLibraries[an.Name + ".dll"];
                 });
+            //new ResolveEventHandler(Loader.ResolveManagedAssembly);
+        }
+
+
+        private string _baseFolder;
+        private string _dataFolder;
+
+        // Botstrap self
+        private Bootstrapper() {
+
+            _baseFolder = Environment.UserInteractive
+                ? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
+                : Instance.AssemblyDirectory;
+
+            _dataFolder = Path.Combine(_baseFolder, rootFolder, dataSubFolder);
+
+            if (!Directory.Exists(AppFolder)) {
+                Directory.CreateDirectory(AppFolder);
+            }
+
+            if (!Directory.Exists(Path.Combine(AppFolder, "x32"))) {
+                Directory.CreateDirectory(Path.Combine(AppFolder, "x32"));
+            }
+
+            if (!Directory.Exists(Path.Combine(AppFolder, "x64"))) {
+                Directory.CreateDirectory(Path.Combine(AppFolder, "x64"));
+            }
+
+            if (!Directory.Exists(AppFolder)) {
+                Directory.CreateDirectory(AppFolder);
+            }
+
+            if (!Directory.Exists(ConfigFolder)) {
+                Directory.CreateDirectory(ConfigFolder);
+            }
+
+            if (!Directory.Exists(DataFolder)) {
+                Directory.CreateDirectory(DataFolder);
+            }
+
+            if (!Directory.Exists(TempFolder)) {
+                Directory.CreateDirectory(TempFolder);
+            }
         }
 
         /// <summary>
@@ -116,13 +162,18 @@ namespace Bootstrapper {
         private const string docFolder = "Docs";
         private const string gplFolder = "Libraries";
 
-        private static string _baseFolder = Environment.UserInteractive
-                ? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
-                : Bootstrapper.AssemblyDirectory;
 
-        private static string _dataFolder = Path.Combine(Bootstrapper.BaseFolder, rootFolder, dataSubFolder);
 
-        internal static string BaseFolder {
+        public string AssemblyDirectory {
+            get {
+                string codeBase = Assembly.GetExecutingAssembly().CodeBase;
+                UriBuilder uri = new UriBuilder(codeBase);
+                string path = Uri.UnescapeDataString(uri.Path);
+                return Path.GetDirectoryName(path);
+            }
+        }
+
+        internal string BaseFolder {
             get {
                 return _baseFolder;
             }
@@ -131,21 +182,19 @@ namespace Bootstrapper {
             }
         }
 
-        internal static string ConfigFolder {
+        internal string ConfigFolder {
             get {
-                return Path.Combine(Bootstrapper.BaseFolder,
-              rootFolder, configSubFolder);
+                return Path.Combine(_baseFolder, rootFolder, configSubFolder);
             }
         }
 
-        internal static string AppFolder {
+        internal string AppFolder {
             get {
-                return Path.Combine(Bootstrapper.BaseFolder,
-                                rootFolder, appSubFolder);
+                return Path.Combine(_baseFolder, rootFolder, appSubFolder);
             }
         }
 
-        internal static string DataFolder {
+        internal string DataFolder {
             get {
                 return _dataFolder;
             }
@@ -154,8 +203,8 @@ namespace Bootstrapper {
             }
         }
 
-        private static string _tmpFolder = null;
-        internal static string TempFolder {
+        private string _tmpFolder = null;
+        internal string TempFolder {
             get {
                 if (_tmpFolder == null) {
                     _tmpFolder = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
@@ -165,13 +214,16 @@ namespace Bootstrapper {
         }
 
         // keep references to avoid GC
-        internal static List<NativeLibrary> loadedLibraries = new List<NativeLibrary>();
-        private static Disposer disposer = new Disposer();
-        private static Action DisposeAction;
+        internal Dictionary<string, NativeLibrary> nativeLibraries = new Dictionary<string, NativeLibrary>();
+        // thi will block other dlls with the same name from loading
+        // TODO do not store managed, return to resolve method
+        internal Dictionary<string, Assembly> managedLibraries = new Dictionary<string, Assembly>();
+        private List<Action> DisposeActions = new List<Action>();
+
         /// <summary>
         /// From assembly with type T load libraries
         /// </summary>
-        public static void Bootstrap<T>(string[] nativeLibNames = null,
+        public void Bootstrap<T>(string[] nativeLibNames = null,
             string[] managedLibNames = null,
             string[] resourceNames = null,
             string[] serviceNames = null, // ensure these .exes are running
@@ -183,24 +235,22 @@ namespace Bootstrapper {
 
             if (nativeLibNames != null) {
                 foreach (var nativeName in nativeLibNames) {
-                    loadedLibraries.Add(Loader.LoadNativeLibrary<T>(nativeName));
+                    if (nativeLibraries.ContainsKey(nativeName)) continue;
+                    nativeLibraries.Add(nativeName, Loader.LoadNativeLibrary<T>(nativeName));
                 }
             }
 
             if (managedLibNames != null) {
                 foreach (var managedName in managedLibNames) {
+                    if (managedLibraries.ContainsKey(managedName)) continue;
                     Trace.Assert(managedName.EndsWith(".dll"));
-                    //if (!Environment.UserInteractive)
-                    //{
+                    //if (!Environment.UserInteractive){
                     //    Debugger.Launch();
                     //}
-                    Loader.ExtractResource<T>(managedName);
-                    var assemblyFileName = Path.Combine(Bootstrapper.AppFolder, managedName);
-                    var assembly = Assembly.LoadFrom(assemblyFileName);
+                    managedLibraries.Add(managedName, Loader.LoadManagedDll<T>(managedName));
                 }
             }
-            //AppDomain.CurrentDomain.AssemblyResolve +=
-            //    new ResolveEventHandler(Loader.ResolveManagedAssembly);
+
 
             if (resourceNames != null) {
                 foreach (var resourceName in resourceNames) {
@@ -218,32 +268,23 @@ namespace Bootstrapper {
 
             if (postCopyAction != null) postCopyAction.Invoke();
 
-            DisposeAction = disposeAction;
+            DisposeActions.Add(disposeAction);
         }
 
-        public static string AssemblyDirectory {
-            get {
-                string codeBase = Assembly.GetExecutingAssembly().CodeBase;
-                UriBuilder uri = new UriBuilder(codeBase);
-                string path = Uri.UnescapeDataString(uri.Path);
-                return Path.GetDirectoryName(path);
-            }
-        }
 
-        private class Disposer : IDisposable {
-            public void Dispose() {
-                if(Bootstrapper.DisposeAction != null) Bootstrapper.DisposeAction.Invoke();
-                foreach (var loadedLibrary in Bootstrapper.loadedLibraries) {
-                    if (loadedLibrary != null) loadedLibrary.Dispose();
-                }
-                try {
-                    Directory.Delete(Bootstrapper.TempFolder, true);
-                } catch {
+
+        ~Bootstrapper() {
+            if (DisposeActions.Count > 0) {
+                foreach (var action in DisposeActions) {
+                    action.Invoke();
                 }
             }
-
-            ~Disposer() {
-                Dispose();
+            foreach (var loadedLibrary in nativeLibraries) {
+                if (loadedLibrary.Value != null) loadedLibrary.Value.Dispose();
+            }
+            try {
+                Directory.Delete(Instance.TempFolder, true);
+            } catch {
             }
         }
     }

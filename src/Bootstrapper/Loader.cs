@@ -136,7 +136,7 @@ namespace Bootstrapper {
         internal static Assembly ResolveManagedAssembly(object sender,
                                                       ResolveEventArgs args) {
             var assemblyname = new AssemblyName(args.Name).Name;
-            var assemblyFileName = Path.Combine(Bootstrapper.AppFolder, assemblyname + ".dll");
+            var assemblyFileName = Path.Combine(Bootstrapper.Instance.AppFolder, assemblyname + ".dll");
             var assembly = Assembly.LoadFrom(assemblyFileName);
             return assembly;
         }
@@ -177,7 +177,7 @@ namespace Bootstrapper {
         public static string ExtractNativeResource<T>(string resource) {
             var split = resource.Split('/');
             // each process will have its own temp folder
-            string path = Path.Combine(Bootstrapper.TempFolder, split.Last());
+            string path = Path.Combine(Bootstrapper.Instance.TempFolder, split.Last());
 
             try {
             Assembly assembly = typeof(T).Assembly;
@@ -211,16 +211,16 @@ namespace Bootstrapper {
             string path = null;
             if (split.Length == 1) {
                 // name.extension
-                path = Path.Combine(Bootstrapper.AppFolder, split[0]);
+                path = Path.Combine(Bootstrapper.Instance.AppFolder, split[0]);
             } else if (split.Length == 2 && (split[0].StartsWith("x") || split[0].StartsWith("ar"))) {
                 // arch.name.extension
-                path = Path.Combine(Bootstrapper.AppFolder, split[0], split[1]);
+                path = Path.Combine(Bootstrapper.Instance.AppFolder, split[0], split[1]);
             } else if (split.Length == 2) {
                 // os.name.extension
-                path = Path.Combine(Bootstrapper.AppFolder, split[1]);
+                path = Path.Combine(Bootstrapper.Instance.AppFolder, split[1]);
             } else if (split.Length == 3) {
                 // os.arch.name.extension, ignore os
-                path = Path.Combine(Bootstrapper.AppFolder, split[1], split[2]);
+                path = Path.Combine(Bootstrapper.Instance.AppFolder, split[1], split[2]);
             } else {
                 throw new ArgumentException("wrong resource name");
             }
@@ -248,6 +248,46 @@ namespace Bootstrapper {
                 
             }
             return path;
+        }
+
+
+        public static Assembly LoadManagedDll<T>(string name)
+        {
+            // [os/][arch/]name.extension
+            var split = name.Split('/');
+            string path = null;
+            if (split.Length == 1)
+            {
+                // name.extension
+                path = Path.Combine(Bootstrapper.Instance.AppFolder, split[0]);
+            }
+            else
+            {
+                throw new ArgumentException("wrong resource name");
+            }
+
+            Assembly assembly = typeof(T).Assembly;
+            using (Stream resourceStream = assembly.GetManifestResourceStream(name))
+            {
+                using (DeflateStream deflateStream = new DeflateStream(resourceStream, CompressionMode.Decompress))
+                {
+                    using (
+                        MemoryStream ms = new MemoryStream())
+                    {
+                        byte[] buffer = new byte[1048576];
+                        int bytesRead;
+                        do
+                        {
+                            bytesRead = deflateStream.Read(buffer, 0, buffer.Length);
+                            if (bytesRead != 0)
+                                ms.Write(buffer, 0, bytesRead);
+                        }
+                        while (bytesRead != 0);
+                        var bytes = ms.ToArray();
+                        return Assembly.Load(bytes);
+                    }
+                }
+            }
         }
 
 

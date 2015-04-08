@@ -1059,12 +1059,32 @@ type SortedMap<'K,'V when 'K : comparison>
   new(dictionary:IDictionary<'K,'V>,comparer:IComparer<'K>) = SortedMap(Some(dictionary), Some(dictionary.Count), Some(comparer))
   new(capacity:int,comparer:IComparer<'K>) = SortedMap(None, Some(capacity), Some(comparer))
 
-  static member internal OfKeysAndValues(size:int, keys:'K[],values:'V[]) =
+  // TODO move size to end
+  [<ObsoleteAttribute>]
+  static member OfKeysAndValues(size:int, keys:'K[], values:'V[]) =
     let sm = new SortedMap<'K,'V>()
     sm.size <- size
     sm.keys <- keys
     sm.values <- values
     sm
+
+  static member OfSortedKeysAndValues(keys:'K[], values:'V[], size:int) =
+    if keys.Length < size then raise (new ArgumentException("Keys array is smaller than provided size"))
+    if values.Length < size then raise (new ArgumentException("Values array is smaller than provided size"))
+    let sm = new SortedMap<'K,'V>()
+    let comparer = sm.Comparer
+    for i in 1..keys.Length-1 do
+      if comparer.Compare(keys.[i-1], keys.[i]) >= 0 then raise (new ArgumentException("Keys are not sorted"))
+    sm.size <- size
+    sm.keys <- keys
+    sm.values <- values
+    sm
+
+  static member OfSortedKeysAndValues(keys:'K[], values:'V[]) =
+    if keys.Length <> values.Length then raise (new ArgumentException("Keys and values arrays are of different sizes"))
+    SortedMap.OfSortedKeysAndValues(keys, values, keys.Length)
+
+
 
   static member internal KeyAreEqual(smA:SortedMap<'K,_>,smB:SortedMap<'K,_>) =
     if not (smA.size = smB.size) then false
