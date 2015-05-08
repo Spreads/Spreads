@@ -1,12 +1,12 @@
 ﻿namespace System
 open System.Reflection
 
-[<assembly: AssemblyTitleAttribute("Spreads")>]
+[<assembly: AssemblyTitleAttribute("Spreads.Common")>]
 [<assembly: AssemblyProductAttribute("Spreads")>]
-[<assembly: AssemblyDescriptionAttribute("Series and Panels for Reactive and Exploratory Analysis of Data Streams")>]
-[<assembly: AssemblyVersionAttribute("0.0.3")>]
-[<assembly: AssemblyFileVersionAttribute("0.0.3")>]
+[<assembly: AssemblyDescriptionAttribute("Spreads")>]
+[<assembly: AssemblyVersionAttribute("0.0.4")>]
+[<assembly: AssemblyFileVersionAttribute("0.0.4")>]
 do ()
 
 module internal AssemblyVersionInformation =
-    let [<Literal>] Version = "0.0.3"
+    let [<Literal>] Version = "0.0.4"

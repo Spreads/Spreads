@@ -2,8 +2,7 @@
 // FAKE build script
 // --------------------------------------------------------------------------------------
 
-#r @"packages/FAKE/tools/FakeLib.dll"
-#r @"src/Bootstrapper/bin/Debug/fi.im.Bootstrapper.exe"
+#r @"C:/tools/BUILD/FAKE/FakeLib.dll"
 
 open Fake
 open Fake.Git
@@ -29,17 +28,17 @@ let project = "Spreads"
 
 // Short summary of the project
 // (used as description in AssemblyInfo and as a short summary for NuGet package)
-let summary = "Series and Panels for Reactive and Exploratory Analysis of Data Streams"
+let summary = "Spreads" //"Series and Panels for Reactive and Exploratory Analysis of Data Streams"
 
 // Longer description of the project
 // (used as a description for NuGet package; line breaks are automatically cleaned up)
-let description = "Series and Panels for Reactive and Exploratory Analysis of Data Streams"
+let description = "Spreads" //"Series and Panels for Reactive and Exploratory Analysis of Data Streams"
 
 // List of author names (for NuGet package)
 let authors = [ "Victor Baybekov" ]
 
 // Tags for your project (for NuGet package)
-let tags = "F# fsharp real-time analysis streams data time series reactive"
+let tags = "Spreads" //"F# fsharp real-time analysis streams data time series reactive"
 
 // File system information 
 let solutionFile  = "Spreads.sln"
@@ -49,7 +48,7 @@ let testAssemblies = "tests/**/bin/Release/*Tests*.dll"
 
 // Git configuration (used for publishing documentation in gh-pages branch)
 // The profile where the project is posted
-let gitOwner = "buybackoff" 
+let gitOwner = "Spreads"
 let gitHome = "https://github.com/" + gitOwner
 
 // The name of the project on GitHub
@@ -141,27 +140,29 @@ Target "RunTests" (fun _ ->
 // Build a NuGet package
 
 Target "NuGet" (fun _ ->
-    NuGet (fun p ->
-        { p with
-            Authors = authors
-            Project = project
-            Summary = summary
-            Description = description
-            Version = release.NugetVersion
-            ReleaseNotes = String.Join(Environment.NewLine, release.Notes)
-            Tags = tags
-            OutputPath = "bin"
-            AccessKey = getBuildParamOrDefault "nugetkey" ""
-            Publish = hasBuildParam "nugetkey"
-            Dependencies = [] })
-        ("nuget/" + project + ".nuspec")
+      // TODO do not publish Spreads and SpreadsDB yet
+//    NuGet (fun p ->
+//        { p with
+//            Authors = authors
+//            Project = project
+//            Summary = summary
+//            Description = description
+//            Version = release.NugetVersion
+//            ReleaseNotes = String.Join(Environment.NewLine, release.Notes)
+//            Tags = tags
+//            OutputPath = "bin"
+//            AccessKey = getBuildParamOrDefault "nugetkey" ""
+//            Publish = hasBuildParam "nugetkey"
+//            Dependencies = [] })
+//        ("nuget/" + project + ".nuspec")
 
+    let packageName = project + "." + "Common"
     NuGet (fun p ->
         { p with
             Authors = authors
-            Project = project + "." + "Period"
-            Summary = "Compact and fast data structure for time periods"
-            Description = "Compact and fast data structure for time periods"
+            Project = packageName
+            Summary = packageName // "TODO"
+            Description = packageName // "TODO"
             Version = release.NugetVersion
             ReleaseNotes = ""
             Tags = tags
@@ -169,7 +170,23 @@ Target "NuGet" (fun _ ->
             AccessKey = getBuildParamOrDefault "nugetkey" ""
             Publish = hasBuildParam "nugetkey"
             Dependencies = [] })
-        ("nuget/" + "Period" + ".nuspec")
+        ("nuget/" + packageName + ".nuspec")
+
+    let packageName = project + "." + "Collections"
+    NuGet (fun p ->
+        { p with
+            Authors = authors
+            Project = packageName
+            Summary = packageName // "TODO"
+            Description = packageName // "TODO"
+            Version = release.NugetVersion
+            ReleaseNotes = ""
+            Tags = tags
+            OutputPath = "bin"
+            AccessKey = getBuildParamOrDefault "nugetkey" ""
+            Publish = hasBuildParam "nugetkey"
+            Dependencies = [] })
+        ("nuget/" + packageName + ".nuspec")
 )
 
 // --------------------------------------------------------------------------------------

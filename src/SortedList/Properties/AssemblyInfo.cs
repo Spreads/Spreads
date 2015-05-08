@@ -3,11 +3,11 @@ using System.Reflection;
 
 [assembly: AssemblyTitleAttribute("SortedList")]
 [assembly: AssemblyProductAttribute("Spreads")]
-[assembly: AssemblyDescriptionAttribute("Series and Panels for Reactive and Exploratory Analysis of Data Streams")]
-[assembly: AssemblyVersionAttribute("0.0.3")]
-[assembly: AssemblyFileVersionAttribute("0.0.3")]
+[assembly: AssemblyDescriptionAttribute("Spreads")]
+[assembly: AssemblyVersionAttribute("0.0.4")]
+[assembly: AssemblyFileVersionAttribute("0.0.4")]
 namespace System {
     internal static class AssemblyVersionInformation {
-        internal const string Version = "0.0.3";
+        internal const string Version = "0.0.4";
     }
 }

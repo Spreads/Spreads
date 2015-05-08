@@ -15,11 +15,12 @@
 	  <copyright>Copyright 2015</copyright>
 	  <tags>@tags@</tags>
     <dependencies>
-	  <dependency id="Spreads.Collections" />
+      <dependency id="FSharp.Core" />
+      <dependency id="Period" />
     </dependencies>
   </metadata>
   <files>
-    <file src="..\bin\Spreads.dll" target="lib/net45" />
-	<!--<file src="..\bin\Spreads.pdb" target="lib/net45" />-->
+    <file src="..\bin\Spreads.Common.dll" target="lib/net45" />
+    <!--<file src="..\bin\Spreads.pdb" target="lib/net45" />-->
   </files>
 </package>
