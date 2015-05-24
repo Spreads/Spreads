@@ -67,14 +67,14 @@ let CouldCalculateDiff() =
                   DateTime.Today, TimeZoneInfo.Local)
   let second = Spreads.TimePeriod(UnitPeriod.Second, 1, 
                   DateTime.Today.AddSeconds(float 1), TimeZoneInfo.Local)
-  let diff = (TimePeriodComparer() :> ISpreadsComparer<TimePeriod>).Diff(second, fisrt)
+  let diff = (TimePeriodComparer() :> IKeyComparer<TimePeriod>).Diff(second, fisrt)
   diff |> should equal 1
 
   let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
   let initTp = TimePeriod(UnitPeriod.Second, 1,initDTO)
   let newTp = TimePeriod(UnitPeriod.Second, 1, 
                         initDTO.AddSeconds(float 1))
-  let diff2 = (TimePeriodComparer() :> ISpreadsComparer<TimePeriod>).Diff(initTp, newTp)
+  let diff2 = (TimePeriodComparer() :> IKeyComparer<TimePeriod>).Diff(initTp, newTp)
   diff2 |> should equal -1
   ()
     
@@ -84,9 +84,9 @@ let CouldCalculateHash() =
   let initTp = TimePeriod(UnitPeriod.Second, 1,initDTO)
   let newTp = TimePeriod(UnitPeriod.Second, 1, 
                         initDTO.AddSeconds(float 3600))
-  let hash = (TimePeriodComparer() :> ISpreadsComparer<TimePeriod>)
+  let hash = (TimePeriodComparer() :> IKeyComparer<TimePeriod>)
               .Hash(initTp)
-  let hash2 = (TimePeriodComparer() :> ISpreadsComparer<TimePeriod>)
+  let hash2 = (TimePeriodComparer() :> IKeyComparer<TimePeriod>)
                 .Hash(newTp)
-  let diff = (TimePeriodComparer() :> ISpreadsComparer<TimePeriod>).Diff(hash2, hash)
+  let diff = (TimePeriodComparer() :> IKeyComparer<TimePeriod>).Diff(hash2, hash)
   diff |> should equal 3600

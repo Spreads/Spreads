@@ -718,7 +718,7 @@ namespace Spreads.Collections
           true
         else false
 
-      member this.GetPointer() = new BasePointer<'K, 'V>(this) :> IPointer<'K, 'V>
+      member this.GetPointer() = new BasePointer<'K, 'V>(this) :> ICursor<'K, 'V>
             
       member this.Size with get() = int64(MapTree.size tree)
 
@@ -808,7 +808,7 @@ namespace Spreads.Collections
         
         member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
             this.TryGetValue(k, &value)
-        member this.GetPointer() = this.GetPointer()
+        member this.GetCursor() = this.GetPointer()
         member this.Item with get k = this.Item(k)
         [<ObsoleteAttribute("Naive impl, optimize if used often")>]
         member this.Keys with get() = this.Keys

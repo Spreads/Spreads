@@ -124,7 +124,7 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
                 true
             else false
 
-        member this.GetPointer() = new BasePointer<'K, 'V>(this) :> IPointer<'K, 'V>
+        member this.GetCursor() = new BasePointer<'K, 'V>(this) :> ICursor<'K, 'V>
 
 //        member this.Count with get() = int map.Size
         member this.Size with get() = map.Size

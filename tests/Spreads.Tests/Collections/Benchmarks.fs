@@ -395,7 +395,7 @@ module CollectionsBenchmarks =
   let SortedMap_run() = SortedMapTest(1000000L)
 
   let SortedMapRegularTest(count:int64) =
-    let dc : ISpreadsComparer<int64> = SpreadsComparerInt64() :> ISpreadsComparer<int64> 
+    let dc : IKeyComparer<int64> = SpreadsComparerInt64() :> IKeyComparer<int64> 
 
     let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
     for i in 0..4 do

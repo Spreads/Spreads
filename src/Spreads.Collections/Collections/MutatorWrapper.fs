@@ -25,7 +25,7 @@ type internal MutatorWrapper<'K,'V  when 'K : comparison>
 
   interface IEnumerable<KeyValuePair<'K,'V>> with
     member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
-      map.GetPointer() :> IEnumerator<KeyValuePair<'K,'V>>
+      map.GetCursor() :> IEnumerator<KeyValuePair<'K,'V>>
 
 
     
@@ -55,7 +55,7 @@ type internal MutatorWrapper<'K,'V  when 'K : comparison>
         false
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
       map.TryGetValue(k, &value)
-    member this.GetPointer() = map.GetPointer()
+    member this.GetCursor() = map.GetCursor()
     member this.Item with get k = map.Item(k)
     [<ObsoleteAttribute("Naive impl, optimize if used often")>]
     member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)

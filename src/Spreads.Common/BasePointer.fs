@@ -3,12 +3,14 @@
 open System
 open System.Collections.Generic
 open System.Runtime.InteropServices
+open System.Threading
 open System.Threading.Tasks
 open System.Diagnostics
 open Spreads
 
 
 /// Uses IReadOnlySortedMap's TryFind method, doesn't know anything about underlying sequence
+/// TODO internal
 type BasePointer<'K,'V when 'K : comparison>
   (map:IReadOnlySortedMap<'K,'V>) as this =
 
@@ -18,18 +20,21 @@ type BasePointer<'K,'V when 'K : comparison>
   let mutable isReset = true
 
   let disposable = ref {new IDisposable with member __.Dispose() = ()}
+  let observer: IObserver<KVP<'K,'V>> = Unchecked.defaultof<IObserver<KVP<'K,'V>>>
   let observerStarted = ref false
   let observedCount = ref 0
   let isObserverSynced = ref false
   let isCompleted = ref false
   let hasException = ref false
   let exc:Exception ref = ref (Unchecked.defaultof<Exception>)
-  let tcs = ref (TaskCompletionSource())
+  let tcs = ref (TaskCompletionSource<bool>())
   let isWaitingForTcs = ref false
+
   let canceledTask() = 
     let res = TaskCompletionSource()
     res.SetCanceled()
     res.Task
+
   let exceptionTask(e:Exception) = 
     let res = TaskCompletionSource(Unchecked.defaultof<KVP<'K,'V>>)
     res.SetException(e)
@@ -90,12 +95,12 @@ type BasePointer<'K,'V when 'K : comparison>
   abstract member Reset : unit -> unit
   override this.Reset() = isReset <- true
 
-  member this.MoveGetNextAsync() =
+  member this.MoveNextAsync() =
+    // TODO AutoResetEvent here, many callers are OK, but they must wait for each other
+    // ARE is not FIFO
+    // Could use a queue or just limit to one caller at time
     match this.MoveNext() with
-    | true ->
-      let kvp = this.Current
-      //hasValues := this.MoveNext()
-      Task.FromResult(kvp)
+    | true -> Task.FromResult(true)      
     | false -> 
       match map with
       | :? IObservable<KVP<'K,'V>> as obs -> 
@@ -133,7 +138,7 @@ type BasePointer<'K,'V when 'K : comparison>
                 lock observedCount ( fun _ ->
                   synchronize(kvp)
                   if !isWaitingForTcs then
-                    tcs.Value.SetResult(kvp)
+                    tcs.Value.SetResult(true)
                     isWaitingForTcs := false
                   else
                     incr observedCount |> ignore                 
@@ -176,7 +181,7 @@ type BasePointer<'K,'V when 'K : comparison>
             Trace.Assert(couldMove)
 #endif
             decr observedCount |> ignore
-            Task.FromResult(this.Current)
+            Task.FromResult(true)
           else // observedCount = 0L, observer is working on tcs in the next OnNext
             if !isCompleted then canceledTask()
             elif !hasException then exceptionTask(!exc)
@@ -188,17 +193,17 @@ type BasePointer<'K,'V when 'K : comparison>
       | _ -> // has no values and will never have because is not IObservable
         canceledTask()
 
-  interface IPointer<'K,'V> with
+  interface ICursor<'K,'V> with
     member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
     member this.MoveFirst():bool = this.MoveFirst()
     member this.MoveLast():bool = this.MoveLast()
     member this.MoveNext():bool = this.MoveNext()
     member this.MovePrevious():bool = this.MovePrevious()
     member this.Current with get(): KeyValuePair<'K, 'V> = this.Current
-    member this.Current with get(): obj = box (this :> IPointer<'K,'V>).Current
+    member this.Current with get(): obj = box (this :> ICursor<'K,'V>).Current
     member this.CurrentKey with get():'K = this.CurrentKey
     member this.CurrentValue with get():'V = this.CurrentValue
     member this.Reset() = this.Reset()
     member this.Dispose() = this.Dispose()
-    member this.MoveGetNextAsync(): Task<KVP<'K,'V>> = this.MoveGetNextAsync()
+    member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = this.MoveNextAsync()
     member this.Source with get() = map

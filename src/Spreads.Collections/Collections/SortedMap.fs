@@ -42,11 +42,11 @@ type SortedMap<'K,'V when 'K : comparison>
 
   // TODO use IDC resolution via KeyHelper.diffCalculators here or befor ctor
   [<NonSerializedAttribute>]
-  let mutable isKeyDiffable : bool = comparer :? ISpreadsComparer<'K>
+  let mutable isKeyDiffable : bool = comparer :? IKeyComparer<'K>
   [<NonSerializedAttribute>]
-  let mutable diffCalc : ISpreadsComparer<'K> = 
-    if isKeyDiffable then comparer :?> ISpreadsComparer<'K> 
-    else Unchecked.defaultof<ISpreadsComparer<'K>>
+  let mutable diffCalc : IKeyComparer<'K> = 
+    if isKeyDiffable then comparer :?> IKeyComparer<'K> 
+    else Unchecked.defaultof<IKeyComparer<'K>>
 
   [<NonSerializedAttribute;VolatileFieldAttribute>]
   let mutable isRegularKeys : bool = isKeyDiffable
@@ -101,7 +101,7 @@ type SortedMap<'K,'V when 'K : comparison>
         Array.Sort(this.keys, this.values, comparer)
         this.size <- dictionary.Value.Count
         if isKeyDiffable then
-          isRegularKeys <- KeyHelper.isRegular this.keys this.size (comparer :?> ISpreadsComparer<'K>)
+          isRegularKeys <- KeyHelper.isRegular this.keys this.size (comparer :?> IKeyComparer<'K>)
         if isRegularKeys then 
           this.keys <- [|this.keys.[0]|]
           // TODO buffer pool for regular/irregular conversions
@@ -191,7 +191,7 @@ type SortedMap<'K,'V when 'K : comparison>
   /// </summary>
   member internal this.CheckRegular() =
     if isKeyDiffable then
-      isRegularKeys <- KeyHelper.isRegular this.keys this.size (comparer :?> ISpreadsComparer<'K>)
+      isRegularKeys <- KeyHelper.isRegular this.keys this.size (comparer :?> IKeyComparer<'K>)
     if isRegularKeys then 
       this.keys <- [|this.keys.[0]|]
 
@@ -772,7 +772,7 @@ type SortedMap<'K,'V when 'K : comparison>
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
 
-  member this.GetPointer() : IPointer<'K,'V> = // rkok
+  member this.GetPointer() : ICursor<'K,'V> = // rkok
     let index = ref -1
     let pVersion = ref version
     let currentKey : 'K ref = ref Unchecked.defaultof<'K>
@@ -907,7 +907,7 @@ type SortedMap<'K,'V when 'K : comparison>
         currentValue := Unchecked.defaultof<'V>
 
       override p.Dispose() = p.Reset()
-    } :> IPointer<'K,'V>
+    } :> ICursor<'K,'V>
 
   /// If size is less than 80% of capacity then reduce capacity to the size
   member this.TrimExcess() =
@@ -993,7 +993,7 @@ type SortedMap<'K,'V when 'K : comparison>
         res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
         false
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
-    member this.GetPointer() = this.GetPointer()
+    member this.GetCursor() = this.GetPointer()
     member this.Item with get k = this.Item(k)
     member this.Keys with get() = this.Keys :> IEnumerable<'K>
     member this.Values with get() = this.values :> IEnumerable<'V>

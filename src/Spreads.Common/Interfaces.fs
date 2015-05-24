@@ -3,18 +3,15 @@
 open System
 open System.Collections
 open System.Collections.Generic
-open System.Runtime.InteropServices
+open System.Threading
 open System.Threading.Tasks
+open System.Runtime.InteropServices
 
 /// <summary>
 /// IComparer<'T> with additional methods for regular keys
 /// </summary>
-// TODO rename it to key comparer
 [<AllowNullLiteral>]
-type ISpreadsComparer<'K>= // when 'K : comparison
-
-  // 
-
+type IKeyComparer<'K>= // when 'K : comparison
   inherit IComparer<'K>
   /// Returns int32 distance between two values when they are stored in 
   /// a regular sorted map. Regular means continuous integers or days or seonds, etc.
@@ -38,43 +35,27 @@ type ISpreadsComparer<'K>= // when 'K : comparison
   abstract FromUInt64: uint64 -> 'K
 
 
-//type IKeyedValue<'K, 'V when 'K : comparison>=
-//  inherit IComparer<IKeyedValue<'K, 'V>>
-//  abstract Key : 'K with get
-//  abstract Value : 'V with get
-
-
-[<Obsolete("Not sure this abstraction needed")>]
 [<AllowNullLiteral>]
-type IPointer<'K when 'K : comparison> =
-    inherit IEnumerator<'K>
-    abstract MoveAt: index:'K * direction:Lookup -> bool
-    abstract MoveFirst: unit -> bool
-    abstract MoveLast: unit -> bool
-    abstract MovePrevious: unit -> bool
-    abstract CurrentKey:'K with get
-    abstract MoveGetNextAsync: unit -> Task<'K>
-    abstract Source : IReadOnlySortedKeys<'K> with get
-and
-  [<Obsolete("Not sure this abstraction needed, rename to SortedSet")>]
-  [<AllowNullLiteral>]
-  IReadOnlySortedKeys<'K when 'K : comparison> =
-    inherit IEnumerable<'K>
-    inherit IEnumerable
-    abstract IsEmpty: bool with get
-    [<Obsolete("IReadOnlySortedMap should not have this, the interface is endless")>]
-    abstract Size: int64 with get
-    abstract IsIndexed : bool with get
-    abstract First : 'K with get
-    abstract Last : unit -> 'K with get
-    abstract Item : 'K -> 'K with get
-    abstract Keys : IEnumerable<'K> with get
-    abstract TryFind: key:'K * direction:Lookup * [<Out>] value: byref<'K> -> bool
-    abstract TryGetFirst: [<Out>] value: byref<KVP<'K, 'V>> -> bool
-    abstract TryGetLast: [<Out>] value: byref<KVP<'K, 'V>> -> bool
-    abstract TryGetValue: key:'K * [<Out>] value: byref<'V> -> bool
-    abstract GetPointer : unit -> IPointer<'K>
-    abstract SyncRoot : obj with get
+type IAsyncEnumerator<'T> =
+  inherit IEnumerator<'T>
+  /// Advances the enumerator to the next element in the sequence, returning the result asynchronously.
+  /// <returns>
+  /// Task containing the result of the operation: true if the enumerator was successfully advanced 
+  /// to the next element; false if the enumerator has passed the end of the sequence.
+  /// </returns>    
+  abstract MoveNextAsync: [<Optional;DefaultParameterValue(null)>]cancellationToken:CancellationToken  -> Task<bool>
+
+[<AllowNullLiteral>]
+type IAsyncEnumerable<'T> =
+  inherit IEnumerable<'T>
+  /// Advances the enumerator to the next element in the sequence, returning the result asynchronously.
+  /// <returns>
+  /// Task containing the result of the operation: true if the enumerator was successfully advanced 
+  /// to the next element; false if the enumerator has passed the end of the sequence.
+  /// </returns>    
+  abstract GetEnumerator: unit -> IAsyncEnumerator<'T>
+
+
 
 /// IPointer is an advanced enumerator supporting moves to first, last, previous, next, exact 
 /// positions and relative LT/LE/GT/GE moves.
@@ -83,8 +64,9 @@ and
 /// DefaultPointer class uses TryFind method of IReadOnlySortedMap interface for navigation with O(log n)
 /// complexity of each movement (however optimizations are possible, e.g. in SortedMap class)
 [<AllowNullLiteral>]
-type IPointer<'K,'V when 'K : comparison> =
-    inherit IEnumerator<KVP<'K, 'V>>
+type ICursor<'K,'V when 'K : comparison> =
+    //inherit IEnumerator<KVP<'K, 'V>>
+    inherit IAsyncEnumerator<KVP<'K, 'V>>
     /// Puts the pointer to the position according to LookupDirection
     abstract MoveAt: index:'K * direction:Lookup -> bool
     abstract MoveFirst: unit -> bool
@@ -92,14 +74,7 @@ type IPointer<'K,'V when 'K : comparison> =
     abstract MovePrevious: unit -> bool
     abstract CurrentKey:'K with get
     abstract CurrentValue:'V with get
-    /// Moves next and returns a pair at the next position.
-    /// Returns a cancelled task if there are no more values.
-    /// If the source map is IObservable and there are no more values
-    /// then the pointer subscribes to the IObservable:
-    /// After OnNext MoveGetNextAsync will return the new value;
-    /// After OnCompleted MoveGetNextAsync will return a cancelled task;
-    /// After OnError MoveGetNextAsync will return a faulted task with an exception from IObservable.
-    abstract MoveGetNextAsync: unit -> Task<KVP<'K,'V>>
+    abstract MoveNextBatchAsync: [<Optional;DefaultParameterValue(null)>]cancellationToken:CancellationToken  -> Task<bool>
     abstract Source : IReadOnlySortedMap<'K,'V> with get
 and
   /// Important! 'Read-only' doesn't mean that the object is immutable or not changing. It only means
@@ -110,6 +85,7 @@ and
   [<AllowNullLiteral>]
   IReadOnlySortedMap<'K,'V when 'K : comparison> =
     inherit IEnumerable<KVP<'K,'V>>
+    //inherit IAsyncEnumerable<KVP<'K,'V>>
     inherit IEnumerable
     /// True if this.size = 0
     abstract IsEmpty: bool with get
@@ -140,10 +116,17 @@ and
     abstract TryGetLast: [<Out>] value: byref<KVP<'K, 'V>> -> bool
     abstract TryGetValue: key:'K * [<Out>] value: byref<'V> -> bool
 
-    /// Get pointer, which is an advanced enumerator supporting moves to first, last, previous, next, exact 
+    /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
     /// positions and relative LT/LE/GT/GE moves
-    abstract GetPointer : unit -> IPointer<'K,'V>
-
+    abstract GetCursor : unit -> ICursor<'K,'V>
+    
+    /// Used for batch processing when it is a priori more performant
+    /// For SortedMap<> it returns the map and its first element as the single key
+    /// For SortedHashMap<> it returns buckets
+    /// For others it will slice and buffer elements according to ISpreadsComparer<'K>.Hash if
+    /// it is implemented for 'K, or by a constant length
+    abstract GetBatchCursor : unit -> IEnumerator<KVP<'K,IReadOnlySortedMap<'K,'V>>>
+    
     abstract SyncRoot : obj with get
 
 

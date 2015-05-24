@@ -518,7 +518,7 @@ type TimePeriodComparer() =
   member x.Add(a:TimePeriod,diff:int) = a.Add(int64 diff)
   member x.Hash(tp) = TimePeriod.Hash(tp)
 
-  interface ISpreadsComparer<TimePeriod> with
+  interface IKeyComparer<TimePeriod> with
     member x.Compare(a,b) = a.value.CompareTo(b.value)
     member x.Diff(a,b) = int <| a.Diff(b)
     member x.Add(a,diff) = a.Add(int64 diff)

@@ -18,7 +18,7 @@ type BaseSpreadsComparer<'K when 'K : comparison>() =
   abstract AsUInt64: k:'K -> uint64
   abstract FromUInt64: uint64 -> 'K
 
-  interface ISpreadsComparer<'K> with
+  interface IKeyComparer<'K> with
     member x.Compare(a,b) = x.Diff(a,b)
     member x.Diff(a,b) = x.Diff(a,b)
     member x.Add(a,diff) = x.Add(a, diff)

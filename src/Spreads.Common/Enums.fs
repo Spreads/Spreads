@@ -1,5 +1,5 @@
 ﻿namespace Spreads
-
+open System
 // TODO (?) rename to Deedle's name and then use D's Lookup directly
 /// Lookup direction on sorted maps
 type Lookup =
@@ -55,6 +55,7 @@ type Lookup =
 *)
 
 /// Options how to substitute missing values and resolve conflicts in zip/join operations for series.
+[<Obsolete>]
 type MissingBehavior =
 /// A missing value is not substituted by anything (inner join). This is the default behavior.
 | Exact = 0

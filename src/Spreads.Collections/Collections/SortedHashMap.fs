@@ -15,9 +15,9 @@ open Spreads.Collections
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
 type SortedHashMap<'K,'V when 'K : comparison>
-  internal(spreadsComparer:ISpreadsComparer<'K>) =
+  internal(spreadsComparer:IKeyComparer<'K>) =
     
-  let comparer : ISpreadsComparer<'K> = spreadsComparer
+  let comparer : IKeyComparer<'K> = spreadsComparer
 
   // TODO replace outer with MapDeque, see comments in MapDeque.fs
   let outerMap = SortedMap<'K, SortedMap<'K,'V>>(comparer)
@@ -136,10 +136,10 @@ type SortedHashMap<'K,'V when 'K : comparison>
       finally
           exitLockIf this.SyncRoot entered
 
-  member this.GetPointer() : IPointer<'K,'V> =
+  member this.GetPointer() : ICursor<'K,'V> =
     let outer = ref (outerMap.GetPointer())
     outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
-    let inner = ref Unchecked.defaultof<IPointer<'K, 'V>> // ref (outer.Value.CurrentValue.GetPointer())
+    let inner = ref Unchecked.defaultof<ICursor<'K, 'V>> // ref (outer.Value.CurrentValue.GetPointer())
     // TODO (perf) pointers must own previous idx/bucket, SHM methods must
     // use *thread local* pointers for all read operations. Currently many readers will
     // conflict by rewriting prevIdx/bucket.
@@ -280,13 +280,13 @@ type SortedHashMap<'K,'V when 'K : comparison>
       override p.Reset() = 
         outer.Value.Reset()
         outer.Value.MoveFirst() |> ignore
-        inner := Unchecked.defaultof<IPointer<'K, 'V>> // outer.Value.CurrentValue.GetPointer()
+        inner := Unchecked.defaultof<ICursor<'K, 'V>> // outer.Value.CurrentValue.GetPointer()
         currentKey := Unchecked.defaultof<'K>
         currentValue := Unchecked.defaultof<'V>
         isReset := true
 
       override p.Dispose() = base.Dispose()
-    } :> IPointer<'K,'V>
+    } :> ICursor<'K,'V>
 
 
   member internal this.TryFindWithIndex(key:'K,direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>, ?hint:(int*int)) : int*int =
@@ -671,7 +671,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
         value <- v
         true
       else false
-    member this.GetPointer() = this.GetPointer()
+    member this.GetCursor() = this.GetPointer()
     member this.Item with get k = this.Item(k)
     [<ObsoleteAttribute("Naive impl, optimize if used often")>]
     member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)

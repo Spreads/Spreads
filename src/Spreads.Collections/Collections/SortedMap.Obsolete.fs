@@ -655,7 +655,7 @@ type SortedMap<'K,'V when 'K : comparison>
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
 
-  member this.GetPointer() : IPointer<'K,'V> =
+  member this.GetPointer() : ICursor<'K,'V> =
     let index = ref -1
     let pVersion = ref version
     let currentKey : 'K ref = ref Unchecked.defaultof<'K>
@@ -788,7 +788,7 @@ type SortedMap<'K,'V when 'K : comparison>
         currentValue := Unchecked.defaultof<'V>
 
       override p.Dispose() = p.Reset()
-    } :> IPointer<'K,'V>
+    } :> ICursor<'K,'V>
 
   /// If size is less than 80% of capacity then reduce capacity to the size
   member this.TrimExcess() =
@@ -874,7 +874,7 @@ type SortedMap<'K,'V when 'K : comparison>
         res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
         false
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
-    member this.GetPointer() = this.GetPointer()
+    member this.GetCursor() = this.GetPointer()
     member this.Item with get k = this.Item(k)
     member this.Keys with get() = this.keys :> IEnumerable<'K>
     member this.Values with get() = this.values :> IEnumerable<'V>

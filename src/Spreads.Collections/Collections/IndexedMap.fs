@@ -149,7 +149,7 @@ type internal IndexedMap<'K,'V when 'K : comparison>
       ()
        
        
-  member this.GetPointer() = new BasePointer<'K,'V>(this) :> IPointer<'K,'V>     
+  member this.GetPointer() = new BasePointer<'K,'V>(this) :> ICursor<'K,'V>     
 
   new() =  IndexedMap(KC<'K,'V>())
 
@@ -207,7 +207,7 @@ type internal IndexedMap<'K,'V when 'K : comparison>
         false
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
       this.TryGetValue(k, &value)
-    member this.GetPointer() = this.GetPointer()
+    member this.GetCursor() = this.GetPointer()
     member this.Item with get k = this.Item(k)
     [<ObsoleteAttribute("Naive impl, optimize if used often")>]
     member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)

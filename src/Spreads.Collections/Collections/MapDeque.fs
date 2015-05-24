@@ -6,6 +6,7 @@ open System.Collections.Generic
 open System.Collections.ObjectModel
 open System.Diagnostics
 open System.Runtime.InteropServices
+open System.Threading
 
 open Spreads
 open Spreads.Collections
@@ -1072,13 +1073,13 @@ type MapDeque<'K,'V when 'K : comparison>
             value <- Unchecked.defaultof<'V>
             false
 
-    member this.GetPointer() : IPointer<'K,'V> =
+    member this.GetPointer() : ICursor<'K,'V> =
         let index = ref -1
         let pVersion = ref this.Version
         let currentKey : 'K ref = ref Unchecked.defaultof<'K>
         let currentValue : 'V ref = ref Unchecked.defaultof<'V>
-        { new IPointer<'K,'V> with
-            member p.MoveGetNextAsync() = failwith "not implemented"
+        { new ICursor<'K,'V> with
+            member p.MoveNextAsync(ct:CancellationToken) = failwith "not implemented"
             member p.Source with get() = failwith "not implemented" //box this :?> IReadOnlySortedMap<'K,'V>
             member p.Current with get() = KeyValuePair(currentKey.Value, currentValue.Value)
 

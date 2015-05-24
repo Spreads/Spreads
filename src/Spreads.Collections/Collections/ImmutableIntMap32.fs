@@ -1188,7 +1188,7 @@ namespace Spreads.Collections
             | _ -> raise (ApplicationException("Wrong lookup direction"))
 
 
-        member this.GetPointer() = new BasePointer<int32,'T>(this) :> IPointer<int32,'T>
+        member this.GetPointer() = new BasePointer<int32,'T>(this) :> ICursor<int32,'T>
             
         member this.Size with get() = IntMap32Tree.size tree
 
@@ -1297,7 +1297,7 @@ namespace Spreads.Collections
                     true
                 else false
 
-            member this.GetPointer() = this.GetPointer()
+            member this.GetCursor() = this.GetPointer()
 
 //            member this.Count with get() = int(this.Size)
             member this.Size with get() = int64(this.Size)
