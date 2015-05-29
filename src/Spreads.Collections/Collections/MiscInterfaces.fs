@@ -11,8 +11,7 @@
 // Spreads combined several files from https://github.com/fsprojects/FSharpx.Collections/
 
 
-// TODO (clean) this was for a stupid panel algo, delete it
-namespace Spreads.Collections.Obsolete
+namespace Spreads.Collections
 
 type IPriorityQueue<'T when 'T : comparison> =
     inherit System.Collections.IEnumerable

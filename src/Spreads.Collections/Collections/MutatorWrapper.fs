@@ -12,7 +12,7 @@ open Spreads.Collections
 [<Serializable>]
 /// Make immutable map behave like a mutable one
 type internal MutatorWrapper<'K,'V  when 'K : comparison>
-  (immutableMap:IImmutableSortedMap<'K,'V>)=
+  (immutableMap:IImmutableOrderedMap<'K,'V>)=
     
   let mutable map = immutableMap
 
@@ -25,11 +25,13 @@ type internal MutatorWrapper<'K,'V  when 'K : comparison>
 
   interface IEnumerable<KeyValuePair<'K,'V>> with
     member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
-      map.GetCursor() :> IEnumerator<KeyValuePair<'K,'V>>
+      map.GetEnumerator() :> IEnumerator<KeyValuePair<'K,'V>>
 
 
     
-  interface IReadOnlySortedMap<'K,'V> with
+  interface IReadOnlyOrderedMap<'K,'V> with
+    member this.GetAsyncEnumerator() = map.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+    member this.GetCursor() = map.GetCursor()
     member this.IsEmpty = map.IsEmpty
     member this.IsIndexed with get() = false
     //member this.Count with get() = int map.Size
@@ -55,7 +57,6 @@ type internal MutatorWrapper<'K,'V  when 'K : comparison>
         false
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
       map.TryGetValue(k, &value)
-    member this.GetCursor() = map.GetCursor()
     member this.Item with get k = map.Item(k)
     [<ObsoleteAttribute("Naive impl, optimize if used often")>]
     member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)
@@ -63,11 +64,11 @@ type internal MutatorWrapper<'K,'V  when 'K : comparison>
     member this.Values with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Value)
 
     member this.SyncRoot with get() = map.SyncRoot
+    
+
+
+  interface IOrderedMap<'K,'V> with
     member this.Size with get() = map.Size
-
-
-
-  interface ISortedMap<'K,'V> with
     member this.Item
       with get (k:'K) : 'V = map.Item(k)
       and set (k:'K) (v:'V) = 

@@ -25,7 +25,6 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF 
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO (low) paket import from GitHub
 
 namespace Spreads
 
@@ -81,7 +80,6 @@ type OptionalValue<'T> private (isPresent:bool, value:'T) =
    
 /// Non-generic type that makes it easier to create `OptionalValue<T>` values
 /// from C# by benefiting the type inference for generic method invocations.
-[<ObsoleteAttribute>]
 type OptionalValue =
   /// Creates an `OptionalValue<T>` from a nullable value of type `T?`
   [<CompilerMessage("This method is not intended for use from F#.", 10001, IsHidden=true, IsError=false)>]
@@ -100,7 +98,7 @@ type OptionalValue =
 
 /// A type alias for the `OptionalValue<T>` type. The type alias can be used
 /// to make F# type definitions that use optional values directly more succinct.
-[<ObsoleteAttribute>]type 'T opt = OptionalValue<'T>
+type 'T opt = OptionalValue<'T>
 
 
 

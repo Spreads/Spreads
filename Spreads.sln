@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.22823.1
+VisualStudioVersion = 14.0.22609.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}"
 EndProject
@@ -13,7 +13,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{BF60
 		README.md = README.md
 		RELEASE_NOTES.md = RELEASE_NOTES.md
 		nuget\Spreads.Collections.nuspec = nuget\Spreads.Collections.nuspec
-		nuget\Spreads.Common.nuspec = nuget\Spreads.Common.nuspec
 		nuget\Spreads.nuspec = nuget\Spreads.nuspec
 		TODO.md = TODO.md
 	EndProjectSection
@@ -43,8 +42,6 @@ EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Spreads.Period.Tests", "tests\Spreads.Period.Tests\Spreads.Period.Tests.fsproj", "{8A7E46B1-DC07-4001-A319-EA4F2E5AE323}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Spreads.Tests.Profile", "tests\Spreads.Tests.Profile\Spreads.Tests.Profile.fsproj", "{D371BD54-788A-4B9F-83A3-306E1AE62732}"
-EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Spreads.Common", "src\Spreads.Common\Spreads.Common.fsproj", "{2B1BECA9-01C0-4C39-8BF8-F1B9B7AEFBBF}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Spreads.Collections", "src\Spreads.Collections\Spreads.Collections.fsproj", "{ACB0DB12-EB65-46E4-98EA-93E5E8AB20F0}"
 EndProject
@@ -107,18 +104,6 @@ Global
 		{D371BD54-788A-4B9F-83A3-306E1AE62732}.Release|x64.ActiveCfg = Release|x64
 		{D371BD54-788A-4B9F-83A3-306E1AE62732}.Release|x64.Build.0 = Release|x64
 		{D371BD54-788A-4B9F-83A3-306E1AE62732}.Release|x86.ActiveCfg = Release|Any CPU
-		{2B1BECA9-01C0-4C39-8BF8-F1B9B7AEFBBF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2B1BECA9-01C0-4C39-8BF8-F1B9B7AEFBBF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2B1BECA9-01C0-4C39-8BF8-F1B9B7AEFBBF}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{2B1BECA9-01C0-4C39-8BF8-F1B9B7AEFBBF}.Debug|x64.Build.0 = Debug|Any CPU
-		{2B1BECA9-01C0-4C39-8BF8-F1B9B7AEFBBF}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{2B1BECA9-01C0-4C39-8BF8-F1B9B7AEFBBF}.Debug|x86.Build.0 = Debug|Any CPU
-		{2B1BECA9-01C0-4C39-8BF8-F1B9B7AEFBBF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2B1BECA9-01C0-4C39-8BF8-F1B9B7AEFBBF}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2B1BECA9-01C0-4C39-8BF8-F1B9B7AEFBBF}.Release|x64.ActiveCfg = Release|Any CPU
-		{2B1BECA9-01C0-4C39-8BF8-F1B9B7AEFBBF}.Release|x64.Build.0 = Release|Any CPU
-		{2B1BECA9-01C0-4C39-8BF8-F1B9B7AEFBBF}.Release|x86.ActiveCfg = Release|Any CPU
-		{2B1BECA9-01C0-4C39-8BF8-F1B9B7AEFBBF}.Release|x86.Build.0 = Release|Any CPU
 		{ACB0DB12-EB65-46E4-98EA-93E5E8AB20F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{ACB0DB12-EB65-46E4-98EA-93E5E8AB20F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ACB0DB12-EB65-46E4-98EA-93E5E8AB20F0}.Debug|x64.ActiveCfg = Debug|Any CPU

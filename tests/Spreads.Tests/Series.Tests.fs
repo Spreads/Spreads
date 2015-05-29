@@ -113,7 +113,7 @@
 //        do
 //            for i in 0L..lim do
 //                //s <- s.AddLast(i, i)
-//                (s :> ISortedMap<int64, int64>).Add(i, i)
+//                (s :> IOrderedMap<int64, int64>).Add(i, i)
 //
 //        let mutable res1 = 0L
 //        /// Functional pointer

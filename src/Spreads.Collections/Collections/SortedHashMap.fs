@@ -136,7 +136,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
       finally
           exitLockIf this.SyncRoot entered
 
-  member this.GetPointer() : ICursor<'K,'V> =
+  member this.GetCursor() : ICursor<'K,'V> =
     let outer = ref (outerMap.GetPointer())
     outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
     let inner = ref Unchecked.defaultof<ICursor<'K, 'V>> // ref (outer.Value.CurrentValue.GetPointer())
@@ -147,7 +147,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
     let currentKey : 'K ref = ref Unchecked.defaultof<'K>
     let currentValue : 'V ref = ref Unchecked.defaultof<'V>
     let isReset = ref true
-    { new BasePointer<'K,'V>(this) with
+    { new ROOMCursor<'K,'V>(this) with
       override p.Current with get() = KeyValuePair(currentKey.Value, currentValue.Value)
       override p.MoveNext() = 
         let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
@@ -628,14 +628,16 @@ type SortedHashMap<'K,'V when 'K : comparison>
   //#region Interfaces
 
   interface IEnumerable with
-    member this.GetEnumerator() = this.GetPointer() :> IEnumerator
+    member this.GetEnumerator() = this.GetCursor() :> IEnumerator
 
   interface IEnumerable<KeyValuePair<'K,'V>> with
     member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
-      this.GetPointer() :> IEnumerator<KeyValuePair<'K,'V>>
+      this.GetCursor() :> IEnumerator<KeyValuePair<'K,'V>>
    
 
-  interface IReadOnlySortedMap<'K,'V> with
+  interface IReadOnlyOrderedMap<'K,'V> with
+    member this.GetAsyncEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+    member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.IsEmpty
     member this.IsIndexed with get() = false
     //member this.Count with get() = size
@@ -671,7 +673,6 @@ type SortedHashMap<'K,'V when 'K : comparison>
         value <- v
         true
       else false
-    member this.GetCursor() = this.GetPointer()
     member this.Item with get k = this.Item(k)
     [<ObsoleteAttribute("Naive impl, optimize if used often")>]
     member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)
@@ -679,9 +680,10 @@ type SortedHashMap<'K,'V when 'K : comparison>
     member this.Values with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Value)
 
     member this.SyncRoot with get() = this.SyncRoot
-    member this.Size with get() = int64(size)
+    
 
-  interface ISortedMap<'K,'V> with
+  interface IOrderedMap<'K,'V> with
+    member this.Size with get() = int64(size)
     member this.Item
       with get k = this.Item(k) 
       and set (k:'K) (v:'V) = this.[k] <- v

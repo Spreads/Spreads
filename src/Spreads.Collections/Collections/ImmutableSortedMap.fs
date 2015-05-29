@@ -718,7 +718,7 @@ namespace Spreads.Collections
           true
         else false
 
-      member this.GetPointer() = new BasePointer<'K, 'V>(this) :> ICursor<'K, 'V>
+      member this.GetPointer() = new ROOMCursor<'K, 'V>(this) :> ICursor<'K, 'V>
             
       member this.Size with get() = int64(MapTree.size tree)
 
@@ -779,7 +779,9 @@ namespace Spreads.Collections
       interface System.Collections.IEnumerable with
         member m.GetEnumerator() = (MapTree.mkIEnumerator tree :> System.Collections.IEnumerator)
 
-      interface IReadOnlySortedMap<'K,'V> with
+      interface IReadOnlyOrderedMap<'K,'V> with
+        member this.GetAsyncEnumerator() = this.GetPointer() :> IAsyncEnumerator<KVP<'K, 'V>>
+        member this.GetCursor() = this.GetPointer()
         member this.IsEmpty = this.IsEmpty
         member this.IsIndexed with get() = false
         //member this.Count with get() = int this.Size
@@ -808,38 +810,37 @@ namespace Spreads.Collections
         
         member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
             this.TryGetValue(k, &value)
-        member this.GetCursor() = this.GetPointer()
         member this.Item with get k = this.Item(k)
         [<ObsoleteAttribute("Naive impl, optimize if used often")>]
         member this.Keys with get() = this.Keys
         [<ObsoleteAttribute("Naive impl, optimize if used often")>]
         member this.Values with get() = this.Values
         member this.SyncRoot with get() = this.SyncRoot
+        
+
+      interface IImmutableOrderedMap<'K, 'V> with
         member this.Size with get() = this.Size
+        member this.Add(key, value):IImmutableOrderedMap<'K, 'V> =
+          this.Add(key, value) :> IImmutableOrderedMap<'K, 'V>
 
-      interface IImmutableSortedMap<'K, 'V> with
+        member this.AddFirst(key, value):IImmutableOrderedMap<'K, 'V> =
+          this.AddFirst(key, value) :> IImmutableOrderedMap<'K, 'V>
 
-        member this.Add(key, value):IImmutableSortedMap<'K, 'V> =
-          this.Add(key, value) :> IImmutableSortedMap<'K, 'V>
+        member this.AddLast(key, value):IImmutableOrderedMap<'K, 'V> =
+          this.AddLast(key, value) :> IImmutableOrderedMap<'K, 'V>
 
-        member this.AddFirst(key, value):IImmutableSortedMap<'K, 'V> =
-          this.AddFirst(key, value) :> IImmutableSortedMap<'K, 'V>
+        member this.Remove(key):IImmutableOrderedMap<'K, 'V> =
+          this.Remove(key) :> IImmutableOrderedMap<'K, 'V>
 
-        member this.AddLast(key, value):IImmutableSortedMap<'K, 'V> =
-          this.AddLast(key, value) :> IImmutableSortedMap<'K, 'V>
-
-        member this.Remove(key):IImmutableSortedMap<'K, 'V> =
-          this.Remove(key) :> IImmutableSortedMap<'K, 'V>
-
-        member this.RemoveLast([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableSortedMap<'K, 'V> =
+        member this.RemoveLast([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableOrderedMap<'K, 'V> =
           let m,v = this.RemoveLast()
           value <- v
-          m :> IImmutableSortedMap<'K, 'V>
+          m :> IImmutableOrderedMap<'K, 'V>
 
-        member this.RemoveFirst([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableSortedMap<'K, 'V> =
+        member this.RemoveFirst([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableOrderedMap<'K, 'V> =
           let m,v = this.RemoveFirst()
           value <- v
-          m :> IImmutableSortedMap<'K, 'V>
+          m :> IImmutableOrderedMap<'K, 'V>
 
-        member this.RemoveMany(key,direction:Lookup):IImmutableSortedMap<'K, 'V> =
-          this.RemoveMany(key, direction) :> IImmutableSortedMap<'K, 'V>
+        member this.RemoveMany(key,direction:Lookup):IImmutableOrderedMap<'K, 'V> =
+          this.RemoveMany(key, direction) :> IImmutableOrderedMap<'K, 'V>

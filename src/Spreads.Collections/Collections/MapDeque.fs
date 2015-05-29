@@ -11,7 +11,7 @@ open System.Threading
 open Spreads
 open Spreads.Collections
 
-// Not used yet
+// Not used yet, could be used for non-persistent bounded capacity maps/series/buffers
 
 // TODO in HashSortedMap, MapDeque should be the outer structure in a streaming case
 // e.g. for a Spread with min capacity there will be no outer arrays resizing at all,
@@ -20,7 +20,7 @@ open Spreads.Collections
 
 // However, the use case is not obvious and only puristic: for daily ms data there are only 540 buckets
 
-// TODO read about LOH. 60k ms buckets will be in LOH, what are the implications? Is it better to have smaller buckets less than 85k in size + bigger outer map?
+// TODO read about LOH. 60k ms buckets will be in LOH, what are the implications? Is it better to have smaller buckets less than 1000 in size + bigger outer map?
 // Note that for seconds max bucket size is 36k and outer map could have 221 days of secondly data before moving to LOH
 // so LOH issue is relevant only for milliseconds
 // For doubles the limit is 1000 elements!
@@ -1073,111 +1073,111 @@ type MapDeque<'K,'V when 'K : comparison>
             value <- Unchecked.defaultof<'V>
             false
 
-    member this.GetPointer() : ICursor<'K,'V> =
-        let index = ref -1
-        let pVersion = ref this.Version
-        let currentKey : 'K ref = ref Unchecked.defaultof<'K>
-        let currentValue : 'V ref = ref Unchecked.defaultof<'V>
-        { new ICursor<'K,'V> with
-            member p.MoveNextAsync(ct:CancellationToken) = failwith "not implemented"
-            member p.Source with get() = failwith "not implemented" //box this :?> IReadOnlySortedMap<'K,'V>
-            member p.Current with get() = KeyValuePair(currentKey.Value, currentValue.Value)
-
-            member p.Current with get() = box p.Current
-
-            member p.MoveNext() = 
-                if pVersion.Value <> this.Version then
-                    raise (InvalidOperationException("IEnumerable changed during MoveNext"))
-                //use lock = makeLock this.SyncRoot
-                if index.Value + 1 < this.Count then
-                    index := index.Value + 1
-                    currentKey := this.Keys.[index.Value]
-                    currentValue := this.Values.[index.Value]
-                    true
-                else
-                    index := this.Count + 1
-                    currentKey := Unchecked.defaultof<'K>
-                    currentValue := Unchecked.defaultof<'V>
-                    false
-
-            member p.Reset() = 
-                if pVersion.Value <> this.Version then
-                    raise (InvalidOperationException("IEnumerable changed during Reset"))
-                index := 0
-                currentKey := Unchecked.defaultof<'K>
-                currentValue := Unchecked.defaultof<'V>
-
-            member p.Dispose() = 
-                index := 0
-                currentKey := Unchecked.defaultof<'K>
-                currentValue := Unchecked.defaultof<'V>
-
-            member p.MoveAt(key:'K, lookup:Lookup) = 
-                if pVersion.Value <> this.Version then
-                    raise (InvalidOperationException("IEnumerable changed during MoveAt"))
-                //use lock = makeLock this.SyncRoot
-                let position, kvp = this.TryFind(key, lookup)
-                if position >= 0 then
-                    index := position
-                    currentKey := this.Keys.[index.Value]
-                    currentValue := this.Values.[index.Value]
-                    true
-                else
-                    index := this.Count + 1
-                    currentKey := Unchecked.defaultof<'K>
-                    currentValue := Unchecked.defaultof<'V>
-                    false
-
-            member p.MoveFirst() = 
-                if pVersion.Value <> this.Version then
-                    raise (InvalidOperationException("IEnumerable changed during MoveFirst"))
-                //use lock = makeLock this.SyncRoot
-                if not this.IsEmpty then
-                    index := 0
-                    currentKey := this.Keys.[index.Value]
-                    currentValue := this.Values.[index.Value]
-                    true
-                else
-                    index := this.Count + 1
-                    currentKey := Unchecked.defaultof<'K>
-                    currentValue := Unchecked.defaultof<'V>
-                    false
-
-            member p.MoveLast() = 
-                if pVersion.Value <> this.Version then
-                    raise (InvalidOperationException("IEnumerable changed during MoveLast"))
-                //use lock = makeLock this.SyncRoot
-                if not this.IsEmpty then
-                    index := this.Count - 1
-                    currentKey := this.Keys.[index.Value]
-                    currentValue := this.Values.[index.Value]
-                    true
-                else
-                    index := this.Count + 1
-                    currentKey := Unchecked.defaultof<'K>
-                    currentValue := Unchecked.defaultof<'V>
-                    false
-
-            member p.MovePrevious() = 
-                if pVersion.Value <> this.Version then
-                    raise (InvalidOperationException("IEnumerable changed during MovePrevious"))
-                //use lock = makeLock this.SyncRoot
-                if index.Value - 1 >= 0 then
-                    index := index.Value - 1
-                    currentKey := this.Keys.[index.Value]
-                    currentValue := this.Values.[index.Value]
-                    true
-                else
-                    index := this.Count + 1
-                    currentKey := Unchecked.defaultof<'K>
-                    currentValue := Unchecked.defaultof<'V>
-                    false
-
-            member p.CurrentKey with get() = currentKey.Value
-
-            member p.CurrentValue with get() = currentValue.Value
-
-        }
+//    member this.GetPointer() : ICursor<'K,'V> =
+//        let index = ref -1
+//        let pVersion = ref this.Version
+//        let currentKey : 'K ref = ref Unchecked.defaultof<'K>
+//        let currentValue : 'V ref = ref Unchecked.defaultof<'V>
+//        { new ICursor<'K,'V> with
+//            member p.MoveNextAsync(ct:CancellationToken) = failwith "not implemented"
+//            member p.Source with get() = failwith "not implemented" //box this :?> IReadOnlyOrderedMap<'K,'V>
+//            member p.Current with get() = KeyValuePair(currentKey.Value, currentValue.Value)
+//
+//            member p.Current with get() = box p.Current
+//
+//            member p.MoveNext() = 
+//                if pVersion.Value <> this.Version then
+//                    raise (InvalidOperationException("IEnumerable changed during MoveNext"))
+//                //use lock = makeLock this.SyncRoot
+//                if index.Value + 1 < this.Count then
+//                    index := index.Value + 1
+//                    currentKey := this.Keys.[index.Value]
+//                    currentValue := this.Values.[index.Value]
+//                    true
+//                else
+//                    index := this.Count + 1
+//                    currentKey := Unchecked.defaultof<'K>
+//                    currentValue := Unchecked.defaultof<'V>
+//                    false
+//
+//            member p.Reset() = 
+//                if pVersion.Value <> this.Version then
+//                    raise (InvalidOperationException("IEnumerable changed during Reset"))
+//                index := 0
+//                currentKey := Unchecked.defaultof<'K>
+//                currentValue := Unchecked.defaultof<'V>
+//
+//            member p.Dispose() = 
+//                index := 0
+//                currentKey := Unchecked.defaultof<'K>
+//                currentValue := Unchecked.defaultof<'V>
+//
+//            member p.MoveAt(key:'K, lookup:Lookup) = 
+//                if pVersion.Value <> this.Version then
+//                    raise (InvalidOperationException("IEnumerable changed during MoveAt"))
+//                //use lock = makeLock this.SyncRoot
+//                let position, kvp = this.TryFind(key, lookup)
+//                if position >= 0 then
+//                    index := position
+//                    currentKey := this.Keys.[index.Value]
+//                    currentValue := this.Values.[index.Value]
+//                    true
+//                else
+//                    index := this.Count + 1
+//                    currentKey := Unchecked.defaultof<'K>
+//                    currentValue := Unchecked.defaultof<'V>
+//                    false
+//
+//            member p.MoveFirst() = 
+//                if pVersion.Value <> this.Version then
+//                    raise (InvalidOperationException("IEnumerable changed during MoveFirst"))
+//                //use lock = makeLock this.SyncRoot
+//                if not this.IsEmpty then
+//                    index := 0
+//                    currentKey := this.Keys.[index.Value]
+//                    currentValue := this.Values.[index.Value]
+//                    true
+//                else
+//                    index := this.Count + 1
+//                    currentKey := Unchecked.defaultof<'K>
+//                    currentValue := Unchecked.defaultof<'V>
+//                    false
+//
+//            member p.MoveLast() = 
+//                if pVersion.Value <> this.Version then
+//                    raise (InvalidOperationException("IEnumerable changed during MoveLast"))
+//                //use lock = makeLock this.SyncRoot
+//                if not this.IsEmpty then
+//                    index := this.Count - 1
+//                    currentKey := this.Keys.[index.Value]
+//                    currentValue := this.Values.[index.Value]
+//                    true
+//                else
+//                    index := this.Count + 1
+//                    currentKey := Unchecked.defaultof<'K>
+//                    currentValue := Unchecked.defaultof<'V>
+//                    false
+//
+//            member p.MovePrevious() = 
+//                if pVersion.Value <> this.Version then
+//                    raise (InvalidOperationException("IEnumerable changed during MovePrevious"))
+//                //use lock = makeLock this.SyncRoot
+//                if index.Value - 1 >= 0 then
+//                    index := index.Value - 1
+//                    currentKey := this.Keys.[index.Value]
+//                    currentValue := this.Values.[index.Value]
+//                    true
+//                else
+//                    index := this.Count + 1
+//                    currentKey := Unchecked.defaultof<'K>
+//                    currentValue := Unchecked.defaultof<'V>
+//                    false
+//
+//            member p.CurrentKey with get() = currentKey.Value
+//
+//            member p.CurrentValue with get() = currentValue.Value
+//
+//        }
 
     //#endregion
 
@@ -1232,8 +1232,7 @@ type MapDeque<'K,'V when 'K : comparison>
                 value <- Unchecked.defaultof<'V>
                 false
 
-        member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
-            this.GetPointer() :> IEnumerator<KeyValuePair<'K,'V>> 
+        member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = this.GetEnumerator()
 
     //#endregion
     

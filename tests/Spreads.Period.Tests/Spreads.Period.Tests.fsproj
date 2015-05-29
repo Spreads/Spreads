@@ -82,13 +82,6 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\Spreads.Common\Spreads.Common.fsproj">
-      <Name>Spreads.Common</Name>
-      <Project>{2b1beca9-01c0-4c39-8bf8-f1b9b7aefbbf}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-  </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

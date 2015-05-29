@@ -1,6 +1,6 @@
 ﻿namespace Spreads.Collections.Experimental
 
-// that was done for a Deedle issue, however even if it is not buggy then it is terribly messy
+// TODO that was done for a Deedle issue - stripped values from SortedDoubleDeque, however even if it is not buggy then it is terribly messy
 // use Deedle's version for simple Deque and finalize the SortedDoubleDeque for keyed case
 
 open System

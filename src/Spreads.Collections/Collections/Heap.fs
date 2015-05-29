@@ -15,7 +15,7 @@
 // Spreads combined several files from https://github.com/fsprojects/FSharpx.Collections/
 
 
-namespace Spreads.Collections.Obsolete
+namespace Spreads.Collections
 
 open System.Collections
 open System.Collections.Generic

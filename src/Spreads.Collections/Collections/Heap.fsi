@@ -11,7 +11,7 @@
 // Spreads combined several files from https://github.com/fsprojects/FSharpx.Collections/
 
 
-namespace Spreads.Collections.Obsolete
+namespace Spreads.Collections
 
 /// Heap is an ordered linear structure where the ordering is either ascending or descending. 
 /// "head" inspects the first element in the ordering, "tail" takes the remaining structure 

@@ -149,7 +149,7 @@ type internal IndexedMap<'K,'V when 'K : comparison>
       ()
        
        
-  member this.GetPointer() = new BasePointer<'K,'V>(this) :> ICursor<'K,'V>     
+  member this.GetPointer() = new ROOMCursor<'K,'V>(this) :> ICursor<'K,'V>     
 
   new() =  IndexedMap(KC<'K,'V>())
 
@@ -181,7 +181,9 @@ type internal IndexedMap<'K,'V when 'K : comparison>
       this.GetPointer() :> IEnumerator<KeyValuePair<'K,'V>>
 
 
-  interface IReadOnlySortedMap<'K,'V> with
+  interface IReadOnlyOrderedMap<'K,'V> with
+    member this.GetAsyncEnumerator() = this.GetPointer() :> IAsyncEnumerator<KVP<'K, 'V>>
+    member this.GetCursor() = this.GetPointer()
     member this.IsEmpty = this.IsEmpty
     member this.IsIndexed with get() = false
     //member this.Count with get() = int this.Size
@@ -207,7 +209,6 @@ type internal IndexedMap<'K,'V when 'K : comparison>
         false
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
       this.TryGetValue(k, &value)
-    member this.GetCursor() = this.GetPointer()
     member this.Item with get k = this.Item(k)
     [<ObsoleteAttribute("Naive impl, optimize if used often")>]
     member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)
@@ -215,9 +216,10 @@ type internal IndexedMap<'K,'V when 'K : comparison>
     member this.Values with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Value)
 
     member this.SyncRoot with get() = this.SyncRoot
-    member this.Size with get() = int64(this.Size)
+    
 
-  interface ISortedMap<'K,'V> with
+  interface IOrderedMap<'K,'V> with
+    member this.Size with get() = int64(this.Size)
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
     member this.Add(k, v) = this.Add(k,v)
     member this.AddLast(k, v) = this.AddLast(k, v)
@@ -233,41 +235,41 @@ type internal IndexedMap<'K,'V when 'K : comparison>
 
     
 
-  interface IImmutableSortedMap<'K,'V> with
-    
+  interface IImmutableOrderedMap<'K,'V> with
+    member this.Size with get() = int64(this.Size)
     /// Immutable addition, returns a new map with added value
-    member this.Add(key, value):IImmutableSortedMap<'K,'V> =
+    member this.Add(key, value):IImmutableOrderedMap<'K,'V> =
       let newMap = this.Clone()
       newMap.Add(key, value)
-      newMap :> IImmutableSortedMap<'K,'V>
+      newMap :> IImmutableOrderedMap<'K,'V>
 
-    member this.AddFirst(key, value):IImmutableSortedMap<'K,'V> =
+    member this.AddFirst(key, value):IImmutableOrderedMap<'K,'V> =
       let newMap = this.Clone()
       newMap.AddFirst(key, value)
-      newMap :> IImmutableSortedMap<'K,'V>
+      newMap :> IImmutableOrderedMap<'K,'V>
 
-    member this.AddLast(key, value):IImmutableSortedMap<'K,'V> =
+    member this.AddLast(key, value):IImmutableOrderedMap<'K,'V> =
       let newMap = this.Clone()
       newMap.AddLast(key, value)
-      newMap :> IImmutableSortedMap<'K,'V>
+      newMap :> IImmutableOrderedMap<'K,'V>
 
-    member this.Remove(key):IImmutableSortedMap<'K,'V> =
+    member this.Remove(key):IImmutableOrderedMap<'K,'V> =
       let newMap = this.Clone()
       newMap.Remove(key) |> ignore
-      newMap :> IImmutableSortedMap<'K,'V>
+      newMap :> IImmutableOrderedMap<'K,'V>
 
-    member this.RemoveLast([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableSortedMap<'K,'V> =
+    member this.RemoveLast([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableOrderedMap<'K,'V> =
       let newMap = this.Clone()
       newMap.RemoveLast(&value) |> ignore
-      newMap :> IImmutableSortedMap<'K,'V>
+      newMap :> IImmutableOrderedMap<'K,'V>
 
-    member this.RemoveFirst([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableSortedMap<'K,'V> =
+    member this.RemoveFirst([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableOrderedMap<'K,'V> =
       let newMap = this.Clone()
       newMap.RemoveFirst(&value) |> ignore
-      newMap :> IImmutableSortedMap<'K,'V>
+      newMap :> IImmutableOrderedMap<'K,'V>
 
-    member this.RemoveMany(key:'K,direction:Lookup):IImmutableSortedMap<'K,'V>=
+    member this.RemoveMany(key:'K,direction:Lookup):IImmutableOrderedMap<'K,'V>=
       let newMap = this.Clone()
       newMap.RemoveMany(key, direction) |> ignore
-      newMap :> IImmutableSortedMap<'K,'V>
+      newMap :> IImmutableOrderedMap<'K,'V>
 

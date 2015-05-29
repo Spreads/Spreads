@@ -296,33 +296,33 @@ module CollectionsBenchmarks =
   let SortedList_run() = SortedListTests(1000000L)
 
 
-  let SCISortedMap(count:int64) =
+  let SCIOrderedMap(count:int64) =
     let shm = ref (System.Collections.Immutable.ImmutableSortedDictionary.Empty)
-    perf count "SCISortedMap Add" (fun _ ->
+    perf count "SCIOrderedMap Add" (fun _ ->
       for i in 0L..count do
         shm := shm.Value.Add(i, i)
     )
-    perf count "SCISortedMap Read" (fun _ ->
+    perf count "SCIOrderedMap Read" (fun _ ->
       for i in 0L..count do
         let res = shm.Value.Item(i)
-        if res <> i then failwith "SCISortedMap failed"
+        if res <> i then failwith "SCIOrderedMap failed"
         ()
     )
     shm := (System.Collections.Immutable.ImmutableSortedDictionary.Empty)
     let count = count / 10L
-    perf count "SCISortedMap Add Reverse" (fun _ ->
+    perf count "SCIOrderedMap Add Reverse" (fun _ ->
       for i in 0L..count do
         shm := shm.Value.Add(count - i, i)
     )
-    perf count "SCISortedMap Read Reverse" (fun _ ->
+    perf count "SCIOrderedMap Read Reverse" (fun _ ->
       for i in 0L..count do
         let res = shm.Value.Item(count - i)
-        if res <> i then failwith "SCISortedMap failed"
+        if res <> i then failwith "SCIOrderedMap failed"
         ()
     )
     Console.WriteLine("----------------")
   [<Test>]
-  let SCISortedMap_run() = SCISortedMap(1000000L)
+  let SCIOrderedMap_run() = SCIOrderedMap(1000000L)
 
 
 
@@ -645,7 +645,7 @@ module CollectionsBenchmarks =
 //    IntMap64_run()
 //    MapTree_run()
 //    SCGSortedList_run()
-//    SCISortedMap_run()
+//    SCIOrderedMap_run()
     //SortedDeque_run()
     //SortedList_run()
     //SortedMap_run()

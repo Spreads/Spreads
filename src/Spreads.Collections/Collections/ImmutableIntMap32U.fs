@@ -1189,7 +1189,7 @@ namespace Spreads.Collections
             | _ -> raise (ApplicationException("Wrong lookup direction"))
 
 
-        member this.GetPointer() = new BasePointer<uint32,'T>(this) :> ICursor<uint32,'T>
+        member this.GetPointer() = new ROOMCursor<uint32,'T>(this) :> ICursor<uint32,'T>
             
         member this.Size with get() = IntMap32UTree.size tree
 
@@ -1247,8 +1247,9 @@ namespace Spreads.Collections
 
    
 
-        interface IImmutableSortedMap<uint32, 'T> with
-            //member this.Count with get() = int this.Size
+        interface IImmutableOrderedMap<uint32, 'T> with
+            member this.GetAsyncEnumerator() = this.GetPointer() :> IAsyncEnumerator<KVP<uint32, 'T>>
+            member this.GetCursor() = this.GetPointer()
             member this.IsEmpty = this.IsEmpty
 
             member this.IsIndexed with get() = false
@@ -1298,35 +1299,33 @@ namespace Spreads.Collections
                     true
                 else false
 
-            member this.GetCursor() = this.GetPointer()
-
 //            member this.Count with get() = int(this.Size)
             member this.Size with get() = int64(this.Size)
 
             member this.SyncRoot with get() = this.SyncRoot
 
-            member this.Add(key, value):IImmutableSortedMap<uint32,'T> =
-                this.Add(key, value) :> IImmutableSortedMap<uint32,'T>
+            member this.Add(key, value):IImmutableOrderedMap<uint32,'T> =
+                this.Add(key, value) :> IImmutableOrderedMap<uint32,'T>
 
-            member this.AddFirst(key, value):IImmutableSortedMap<uint32,'T> =
-                this.AddFirst(key, value) :> IImmutableSortedMap<uint32,'T>
+            member this.AddFirst(key, value):IImmutableOrderedMap<uint32,'T> =
+                this.AddFirst(key, value) :> IImmutableOrderedMap<uint32,'T>
 
-            member this.AddLast(key, value):IImmutableSortedMap<uint32,'T> =
-                this.AddLast(key, value) :> IImmutableSortedMap<uint32,'T>
+            member this.AddLast(key, value):IImmutableOrderedMap<uint32,'T> =
+                this.AddLast(key, value) :> IImmutableOrderedMap<uint32,'T>
 
-            member this.Remove(key):IImmutableSortedMap<uint32,'T> =
-                this.Remove(key) :> IImmutableSortedMap<uint32,'T>
+            member this.Remove(key):IImmutableOrderedMap<uint32,'T> =
+                this.Remove(key) :> IImmutableOrderedMap<uint32,'T>
 
-            member this.RemoveLast([<Out>] value: byref<KeyValuePair<uint32, 'T>>):IImmutableSortedMap<uint32,'T> =
+            member this.RemoveLast([<Out>] value: byref<KeyValuePair<uint32, 'T>>):IImmutableOrderedMap<uint32,'T> =
                 let m,v = this.RemoveLast()
                 value <- v
-                m :> IImmutableSortedMap<uint32,'T>
+                m :> IImmutableOrderedMap<uint32,'T>
 
-            member this.RemoveFirst([<Out>] value: byref<KeyValuePair<uint32, 'T>>):IImmutableSortedMap<uint32,'T> =
+            member this.RemoveFirst([<Out>] value: byref<KeyValuePair<uint32, 'T>>):IImmutableOrderedMap<uint32,'T> =
                 let m,v = this.RemoveFirst()
                 value <- v
-                m :> IImmutableSortedMap<uint32,'T>
+                m :> IImmutableOrderedMap<uint32,'T>
 
-            member this.RemoveMany(key,direction:Lookup):IImmutableSortedMap<uint32,'T>=
-                this.RemoveMany(key, direction) :> IImmutableSortedMap<uint32,'T>
+            member this.RemoveMany(key,direction:Lookup):IImmutableOrderedMap<uint32,'T>=
+                this.RemoveMany(key, direction) :> IImmutableOrderedMap<uint32,'T>
                 

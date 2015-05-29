@@ -1190,7 +1190,7 @@ namespace Spreads.Collections
             | _ -> raise (ApplicationException("Wrong lookup direction"))
 
 
-        member this.GetPointer() = new BasePointer<int64,'T>(this) :> ICursor<int64,'T>
+        member this.GetPointer() = new ROOMCursor<int64,'T>(this) :> ICursor<int64,'T>
             
         member this.Size with get() = IntMap64Tree.size tree
 
@@ -1247,69 +1247,68 @@ namespace Spreads.Collections
                 (m :> _ seq).GetEnumerator() :> IEnumerator
 
 
-        interface IImmutableSortedMap<int64, 'T> with
-            //member this.Count with get() = int this.Size
-            member this.IsEmpty = this.IsEmpty
-            member this.IsIndexed with get() = false
-            member this.First with get() = this.First
-            member this.Last with get() = this.Last
-            member this.Item with get (k) : 'T = this.Item(k)
-            member this.Keys with get() = IntMap64Tree.keys tree :> IEnumerable<int64>
-            member this.Values with get() = IntMap64Tree.values tree :> IEnumerable<'T>
-            member this.TryFind(k, direction:Lookup, [<Out>] result: byref<KeyValuePair<int64, 'T>>) = 
-                this.TryFind(k, direction, &result)
-            member this.TryGetFirst([<Out>] res: byref<KeyValuePair<int64, 'T>>) = 
-                try
-                    res <- this.First
-                    true
-                with
-                | _ -> 
-                    res <- Unchecked.defaultof<KeyValuePair<int64, 'T>>
-                    false
-            member this.TryGetLast([<Out>] res: byref<KeyValuePair<int64, 'T>>) = 
-                try
-                    res <- this.Last
-                    true
-                with
-                | _ -> 
-                    res <- Unchecked.defaultof<KeyValuePair<int64, 'T>>
-                    false
-            member this.TryGetValue(k, [<Out>] value:byref<'T>) = 
-              let success, pair = this.TryFind(k, Lookup.EQ)
-              if success then 
-                value <- pair.Value
-                true
-              else false
-
-            member this.GetCursor() = this.GetPointer()
+        interface IImmutableOrderedMap<int64, 'T> with
+          member this.GetAsyncEnumerator() = this.GetPointer() :> IAsyncEnumerator<KVP<int64, 'T>>
+          member this.GetCursor() = this.GetPointer()
+          member this.IsEmpty = this.IsEmpty
+          member this.IsIndexed with get() = false
+          member this.First with get() = this.First
+          member this.Last with get() = this.Last
+          member this.Item with get (k) : 'T = this.Item(k)
+          member this.Keys with get() = IntMap64Tree.keys tree :> IEnumerable<int64>
+          member this.Values with get() = IntMap64Tree.values tree :> IEnumerable<'T>
+          member this.TryFind(k, direction:Lookup, [<Out>] result: byref<KeyValuePair<int64, 'T>>) = 
+              this.TryFind(k, direction, &result)
+          member this.TryGetFirst([<Out>] res: byref<KeyValuePair<int64, 'T>>) = 
+              try
+                  res <- this.First
+                  true
+              with
+              | _ -> 
+                  res <- Unchecked.defaultof<KeyValuePair<int64, 'T>>
+                  false
+          member this.TryGetLast([<Out>] res: byref<KeyValuePair<int64, 'T>>) = 
+              try
+                  res <- this.Last
+                  true
+              with
+              | _ -> 
+                  res <- Unchecked.defaultof<KeyValuePair<int64, 'T>>
+                  false
+          member this.TryGetValue(k, [<Out>] value:byref<'T>) = 
+            let success, pair = this.TryFind(k, Lookup.EQ)
+            if success then 
+              value <- pair.Value
+              true
+            else false
 
 //            member this.Count with get(): int = int this.Size
-            member this.Size with get() = this.Size
+          member this.Size with get() = this.Size
 
-            member this.SyncRoot with get() = this.SyncRoot
+          member this.SyncRoot with get() = this.SyncRoot
 
-            member this.Add(key, value):IImmutableSortedMap<int64,'T> =
-                this.Add(key, value) :> IImmutableSortedMap<int64,'T>
+          member this.Add(key, value):IImmutableOrderedMap<int64,'T> =
+              this.Add(key, value) :> IImmutableOrderedMap<int64,'T>
 
-            member this.AddFirst(key, value):IImmutableSortedMap<int64,'T> =
-                this.AddFirst(key, value) :> IImmutableSortedMap<int64,'T>
+          member this.AddFirst(key, value):IImmutableOrderedMap<int64,'T> =
+              this.AddFirst(key, value) :> IImmutableOrderedMap<int64,'T>
 
-            member this.AddLast(key, value):IImmutableSortedMap<int64,'T> =
-                this.AddLast(key, value) :> IImmutableSortedMap<int64,'T>
+          member this.AddLast(key, value):IImmutableOrderedMap<int64,'T> =
+              this.AddLast(key, value) :> IImmutableOrderedMap<int64,'T>
 
-            member this.Remove(key):IImmutableSortedMap<int64,'T> =
-                this.Remove(key) :> IImmutableSortedMap<int64,'T>
+          member this.Remove(key):IImmutableOrderedMap<int64,'T> =
+              this.Remove(key) :> IImmutableOrderedMap<int64,'T>
 
-            member this.RemoveLast([<Out>] value: byref<KeyValuePair<int64, 'T>>):IImmutableSortedMap<int64,'T> =
-                let m,v = this.RemoveLast()
-                value <- v
-                m :> IImmutableSortedMap<int64,'T>
+          member this.RemoveLast([<Out>] value: byref<KeyValuePair<int64, 'T>>):IImmutableOrderedMap<int64,'T> =
+              let m,v = this.RemoveLast()
+              value <- v
+              m :> IImmutableOrderedMap<int64,'T>
 
-            member this.RemoveFirst([<Out>] value: byref<KeyValuePair<int64, 'T>>):IImmutableSortedMap<int64,'T> =
-                let m,v = this.RemoveFirst()
-                value <- v
-                m :> IImmutableSortedMap<int64,'T>
+          member this.RemoveFirst([<Out>] value: byref<KeyValuePair<int64, 'T>>):IImmutableOrderedMap<int64,'T> =
+              let m,v = this.RemoveFirst()
+              value <- v
+              m :> IImmutableOrderedMap<int64,'T>
 
-            member this.RemoveMany(key,direction:Lookup):IImmutableSortedMap<int64,'T>=
-                this.RemoveMany(key, direction) :> IImmutableSortedMap<int64,'T>
+          member this.RemoveMany(key,direction:Lookup):IImmutableOrderedMap<int64,'T>=
+              this.RemoveMany(key, direction) :> IImmutableOrderedMap<int64,'T>
                 

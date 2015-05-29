@@ -1,3 +1,7 @@
+#### 0.0.5 - May 29, 2015
+* Delete Spreads.Common project and package and move all files to Spreads.Collection because it is always used
+* Clean and update interfaces
+
 #### 0.0.4 - May 8, 2015
 * Core packages convenient distribution
 
