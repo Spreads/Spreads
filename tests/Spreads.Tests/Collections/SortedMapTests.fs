@@ -58,7 +58,7 @@ type SortedMapTests() =
 
 
             watch <- Stopwatch.StartNew();
-            let ptr = sm.GetPointer()
+            let ptr = sm.GetCursor()
             let mutable sum = 0.0
             for i in 0L..lim do
                 ptr.MoveNext() |> ignore

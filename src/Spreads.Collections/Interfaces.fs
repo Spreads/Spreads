@@ -10,18 +10,16 @@ open System.Runtime.InteropServices
 
 [<AllowNullLiteral>]
 type IAsyncEnumerator<'T> =
-  inherit IEnumerator<'T>
   /// Advances the enumerator to the next element in the sequence, returning the result asynchronously.
   /// <returns>
   /// Task containing the result of the operation: true if the enumerator was successfully advanced 
   /// to the next element; false if the enumerator has passed the end of the sequence.
   /// </returns>    
   abstract MoveNextAsync: cancellationToken:CancellationToken  -> Task<bool>
-
+  abstract Current: 'T with get
 
 [<AllowNullLiteral>]
 type IAsyncEnumerable<'T> =
-  inherit IEnumerable<'T>
   /// Advances the enumerator to the next element in the sequence, returning the result asynchronously.
   /// <returns>
   /// Task containing the result of the operation: true if the enumerator was successfully advanced 
@@ -30,39 +28,22 @@ type IAsyncEnumerable<'T> =
   abstract GetAsyncEnumerator: unit -> IAsyncEnumerator<'T>
 
 
-/// Important! 'Read-only' doesn't mean that the object is immutable or not changing. It only means
-/// that there is no methods to change the map *from* this interface, without any assumptions about 
-/// the implementation. Underlying sequence could be mutable and rapidly changing; to prevent any 
-/// changes use lock (Monitor.Enter) on the SyncRoot property. Doing so will block any changes for 
-/// mutable implementations and won't affect immutable implementations.
+// ISeries doesn't have any mutable properties or mutating methods, but implementation could 
+// be either mutable or immutable
+// Series have a single member that is enough to implement all other inherited interfaces
+
+/// Main interface for data series. Modeled after IAsyncEnumerable from Ix.NET with advanced enumerator that could 
+/// move not only to next values, but to next batches, previous, first, last and a custom excat or relative (LT/LE/GT/GE) position.
 [<AllowNullLiteral>]
-type IReadOnlyOrderedMap<'K,'V when 'K : comparison> =
-  //inherit IEnumerable<KVP<'K,'V>>
-  inherit IAsyncEnumerable<KVP<'K,'V>> 
-  /// True if this.size = 0
-  abstract IsEmpty: bool with get
-  /// If true then elements are sorted by some custom order (e.g. order of addition (index) and not by keys
-  abstract IsIndexed : bool with get
-  /// First element, throws InvalidOperationException if empty
-  abstract First : KVP<'K, 'V> with get
-  /// Last element, throws InvalidOperationException if empty
-  abstract Last : unit -> KVP<'K, 'V> with get
-  /// Values at key, throws KeyNotFoundException if key is not found
-  abstract Item : 'K -> 'V with get
-  abstract Keys : IEnumerable<'K> with get
-  abstract Values : IEnumerable<'V> with get
-  /// The method finds value according to direction, returns false if it could not find such a value
-  /// For indexed series LE/GE directions are invalid (throws InvalidOperationException), while
-  /// LT/GT search is done by index rather than by key and possible only when a key exists.
-  abstract TryFind: key:'K * direction:Lookup * [<Out>] value: byref<KVP<'K, 'V>> -> bool
-  abstract TryGetFirst: [<Out>] value: byref<KVP<'K, 'V>> -> bool
-  abstract TryGetLast: [<Out>] value: byref<KVP<'K, 'V>> -> bool
-  abstract TryGetValue: key:'K * [<Out>] value: byref<'V> -> bool
-  /// Locks any mutations for mutable implementations
-  abstract SyncRoot : obj with get
+type ISeries<'K,'V when 'K : comparison> =
+  inherit IAsyncEnumerable<KVP<'K,'V>>
   /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
-  /// positions and relative LT/LE/GT/GE moves
+  /// positions and relative LT/LE/GT/GE moves.
   abstract GetCursor : unit -> ICursor<'K,'V>
+  // this is a part of interface because it depends on implementation. If using extensions, will have to check for actual implementation
+  // anyway and will have to bother with internals visibility
+  /// Evaluate lazy series. Similar to IEnumerable.ToArray()/ToList() extension methods.
+  //abstract ToMapAsync : cancellationToken:CancellationToken -> Task<IReadOnlyOrderedMap<'K,'V>>
 
 /// ICursor is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
 /// positions and relative LT/LE/GT/GE moves.
@@ -72,23 +53,60 @@ type IReadOnlyOrderedMap<'K,'V when 'K : comparison> =
 /// Supports batches with MoveNextBatchAsync() and CurrentBatch members. Accessing current key
 /// after MoveNextBatchAsync or CurrentBatch after any single key movement results in InvalidOperationException.
 and
-   [<AllowNullLiteral>]
-   ICursor<'K,'V when 'K : comparison> =
+  [<AllowNullLiteral>]
+  ICursor<'K,'V when 'K : comparison> =
     inherit IAsyncEnumerator<KVP<'K, 'V>>
     /// Puts the cursor to the position according to LookupDirection
-    abstract MoveAt: index:'K * direction:Lookup -> bool
-    abstract MoveFirst: unit -> bool
-    abstract MoveLast: unit -> bool
-    abstract MovePrevious: unit -> bool
+    abstract MoveAtAsync: index:'K * direction:Lookup -> Task<bool>
+    abstract MoveFirstAsync: unit -> Task<bool>
+    abstract MoveLastAsync: unit -> Task<bool>
+    abstract MovePreviousAsync: unit -> Task<bool>
     abstract CurrentKey:'K with get
     abstract CurrentValue:'V with get
     /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
+    /// Returns true when a batch is available immediately (async for IO, not for waiting for new values),
+    /// returns false when there is no more immediate values and a consumer should switch to MoveNextAsync().
+    /// NB: Btach processing is synchronous via IEnumerable interface of a batch, real-time is pull-based asynchronous.
     abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>
     /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
     abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get
-    abstract Source : IReadOnlyOrderedMap<'K,'V> with get
+    abstract Source : ISeries<'K,'V> with get
 
-// Main differences between immutable and mutable sorted maps:
+/// Important! 'Read-only' doesn't mean that the object is immutable or not changing. It only means
+/// that there is no methods to change the map *from* this interface, without any assumptions about 
+/// the implementation. Underlying sequence could be mutable and rapidly changing; to prevent any 
+/// changes use lock (Monitor.Enter) on the SyncRoot property. Doing so will block any changes for 
+/// mutable implementations and won't affect immutable implementations.
+and
+  [<AllowNullLiteral>]
+  IReadOnlyOrderedMap<'K,'V when 'K : comparison> =
+    inherit IEnumerable<KVP<'K, 'V>>
+    inherit ISeries<'K,'V>
+    /// True if this.size = 0
+    abstract IsEmpty: bool with get
+    /// If true then elements are sorted by some custom order (e.g. order of addition (index) and not by keys
+    abstract IsIndexed : bool with get
+    /// First element, throws InvalidOperationException if empty
+    abstract First : KVP<'K, 'V> with get
+    /// Last element, throws InvalidOperationException if empty
+    abstract Last : unit -> KVP<'K, 'V> with get
+    /// Values at key, throws KeyNotFoundException if key is not found
+    abstract Item : 'K -> 'V with get
+    abstract Keys : IEnumerable<'K> with get
+    abstract Values : IEnumerable<'V> with get
+    /// The method finds value according to direction, returns false if it could not find such a value
+    /// For indexed series LE/GE directions are invalid (throws InvalidOperationException), while
+    /// LT/GT search is done by index rather than by key and possible only when a key exists.
+    abstract TryFind: key:'K * direction:Lookup * [<Out>] value: byref<KVP<'K, 'V>> -> bool
+    abstract TryGetFirst: [<Out>] value: byref<KVP<'K, 'V>> -> bool
+    abstract TryGetLast: [<Out>] value: byref<KVP<'K, 'V>> -> bool
+    abstract TryGetValue: key:'K * [<Out>] value: byref<'V> -> bool
+    /// Locks any mutations for mutable implementations
+    abstract SyncRoot : obj with get
+
+
+
+// Main differences between immutable and mutable ordered maps:
 // * An immutable map returns a new version of itself on each mutation,
 //   while mutable map changes data in-place;
 // * An immutable map doesn't have an Item setter (impossible to use a return 
@@ -159,16 +177,8 @@ type IImmutableOrderedMap<'K,'V when 'K : comparison> =
 //    end
 
 
-// ISeries doesn't have any mutable properties or mutating methods, but implementation could 
-// be either mutable or immutable
-// Series have a single member that is enough to implement all other inherited interfaces
 
-[<AllowNullLiteral>]
-type ISeries<'K,'V when 'K : comparison> =   
-  //inherit IAsyncEnumerable<KVP<'K,'V>> // TODO move into ROOM?
-  inherit IReadOnlyOrderedMap<'K,'V>
 
-//  abstract WithId: 'TId -> IIdentitySeries<'K,'V,'TId> when 'TId : comparison
 
 //and 
 //  [<AllowNullLiteral>]
@@ -191,7 +201,17 @@ type internal IUpdateable<'K,'V when 'K : comparison> =
 //        member this.OnData = myEvent.Publish
 
 // TODO?? maybe this is enough? All other methods could be done as extensions??
-type Panel<'TRowKey,'TColumnKey, 'TValue when 'TRowKey: comparison and 'TColumnKey : comparison> = ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>>
+type Panel<'TRowKey,'TColumnKey, 'TValue when 'TRowKey: comparison and 'TColumnKey : comparison> = 
+  //ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>> // this is how it could be implemented
+  ISeries<'TRowKey,IReadOnlyOrderedMap<'TColumnKey,'TValue>> // this is how it is used most of the time
+  // panel stores references to series that could be lazy/persistent/(not in memory), while panel's consumer need rows on demand
+
+
+  // TODO data/event stream interface requires a special interface - or it is just an IAsynEnumerable<'T> which then
+  // could be unpacked into series.
+  // DS could be unirdered, with a method like ds.SaveSeries(repo, ds => key, ds => value), same with Rx
+  // out of order KVPs will result only in that active cursors will be repositioned on MoveNext and replay values in the correct order.
+
 
 //and    //TODO?? Panel could be replaced by extension methods on ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>>
 //  [<AllowNullLiteral>]

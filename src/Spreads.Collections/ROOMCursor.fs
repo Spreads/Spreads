@@ -109,22 +109,25 @@ type ROOMCursor<'K,'V when 'K : comparison>
           tcs.Value.Task
         )
       | _ -> Task.FromResult(false) // has no values and will never have because is not IUpdateable
-        
+  
+
+  interface IEnumerator<KVP<'K,'V>> with    
+    member this.Reset() = this.Reset()
+    member this.Dispose() = this.Dispose()
+    member this.MoveNext():bool = this.MoveNext()
+    member this.Current with get(): KVP<'K, 'V> = this.Current
+    member this.Current with get(): obj = this.Current :> obj
 
   interface ICursor<'K,'V> with
     // TODO need some implementation of ROOM to implement the batch
     member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = raise (NotImplementedException())
     member this.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> = raise (NotImplementedException())
-    member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
-    member this.MoveFirst():bool = this.MoveFirst()
-    member this.MoveLast():bool = this.MoveLast()
-    member this.MoveNext():bool = this.MoveNext()
-    member this.MovePrevious():bool = this.MovePrevious()
-    member this.Current with get(): KeyValuePair<'K, 'V> = this.Current
-    member this.Current with get(): obj = box (this :> ICursor<'K,'V>).Current
+    member this.MoveAtAsync(index:'K, lookup:Lookup) = Task.FromResult(this.MoveAt(index, lookup))
+    member this.MoveFirstAsync():Task<bool> = Task.FromResult(this.MoveFirst())
+    member this.MoveLastAsync():Task<bool> = Task.FromResult(this.MoveLast())
+    member this.MovePreviousAsync():Task<bool> = Task.FromResult(this.MovePrevious())
+    member x.Current with get(): KVP<'K,'V> = this.Current
     member this.CurrentKey with get():'K = this.CurrentKey
     member this.CurrentValue with get():'V = this.CurrentValue
-    member this.Reset() = this.Reset()
-    member this.Dispose() = this.Dispose()
     member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = this.MoveNextAsync()
-    member this.Source with get() = map
+    member this.Source with get() = map :> ISeries<'K,'V>

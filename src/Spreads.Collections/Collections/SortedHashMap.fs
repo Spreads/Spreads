@@ -137,7 +137,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
           exitLockIf this.SyncRoot entered
 
   member this.GetCursor() : ICursor<'K,'V> =
-    let outer = ref (outerMap.GetPointer())
+    let outer = ref (outerMap.GetCursor())
     outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
     let inner = ref Unchecked.defaultof<ICursor<'K, 'V>> // ref (outer.Value.CurrentValue.GetPointer())
     // TODO (perf) pointers must own previous idx/bucket, SHM methods must
@@ -161,7 +161,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
               true
             else
               if outer.Value.MoveNext() then // go to the next bucket
-                inner := outer.Value.CurrentValue.GetPointer()
+                inner := outer.Value.CurrentValue.GetCursor()
                 let res = inner.Value.MoveFirst()
                 if res then
                   currentKey := inner.Value.CurrentKey
@@ -186,7 +186,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
               true
             else
               if outer.Value.MovePrevious() then // go to the previous bucket
-                inner := outer.Value.CurrentValue.GetPointer()
+                inner := outer.Value.CurrentValue.GetCursor()
                 let res = inner.Value.MoveLast()
                 if res then
                   currentKey := inner.Value.CurrentKey
@@ -208,7 +208,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
           let res =
             if c <> 0 || !isReset then // not in the current bucket, switch bucket
               if outer.Value.MoveAt(newHash, Lookup.EQ) then // Equal!
-                inner := outer.Value.CurrentValue.GetPointer()
+                inner := outer.Value.CurrentValue.GetCursor()
                 inner.Value.MoveAt(newSubIdx, direction)
               else
                 false
@@ -226,7 +226,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
               | Lookup.LT | Lookup.LE ->
                 // look into previous bucket
                 if outer.Value.MovePrevious() then
-                  inner := outer.Value.CurrentValue.GetPointer()
+                  inner := outer.Value.CurrentValue.GetCursor()
                   let res = inner.Value.MoveAt(newSubIdx, direction)
                   if res then
                     currentKey := inner.Value.CurrentKey
@@ -241,7 +241,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
               | Lookup.GT | Lookup.GE ->
                 // look into next bucket
                 if outer.Value.MoveNext() then
-                  inner := outer.Value.CurrentValue.GetPointer()
+                  inner := outer.Value.CurrentValue.GetCursor()
                   let res = inner.Value.MoveAt(newSubIdx, direction)
                   if res then
                     currentKey := inner.Value.CurrentKey

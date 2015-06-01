@@ -771,7 +771,7 @@ type SortedMap<'K,'V when 'K : comparison>
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
 
-  member this.GetPointer() : ICursor<'K,'V> = // rkok
+  member this.GetCursor()  = // rkok
     let index = ref -1
     let pVersion = ref version
     let currentKey : 'K ref = ref Unchecked.defaultof<'K>
@@ -906,7 +906,7 @@ type SortedMap<'K,'V when 'K : comparison>
         currentValue := Unchecked.defaultof<'V>
 
       override p.Dispose() = p.Reset()
-    } :> ICursor<'K,'V>
+    }
 
   /// If size is less than 80% of capacity then reduce capacity to the size
   member this.TrimExcess() =
@@ -918,11 +918,11 @@ type SortedMap<'K,'V when 'K : comparison>
   //#region Interfaces
 
   interface IEnumerable with
-    member this.GetEnumerator() = this.GetPointer() :> IEnumerator
+    member this.GetEnumerator() = this.GetCursor() :> IEnumerator
 
   interface IEnumerable<KeyValuePair<'K,'V>> with
     member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
-      this.GetPointer() :> IEnumerator<KeyValuePair<'K,'V>>
+      this.GetCursor() :> IEnumerator<KeyValuePair<'K,'V>>
 
   interface ICollection  with
     member this.SyncRoot = syncRoot
@@ -968,8 +968,8 @@ type SortedMap<'K,'V when 'K : comparison>
         false
 
   interface IReadOnlyOrderedMap<'K,'V> with
-    member this.GetAsyncEnumerator() = this.GetPointer() :> IAsyncEnumerator<KVP<'K, 'V>>
-    member this.GetCursor() = this.GetPointer()
+    member this.GetAsyncEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+    member this.GetCursor() = this.GetCursor() :> ICursor<'K,'V>
     member this.IsEmpty = this.size = 0
     member this.IsIndexed with get() = false
     //member this.Count with get() = int this.size

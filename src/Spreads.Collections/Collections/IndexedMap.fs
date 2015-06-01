@@ -149,7 +149,7 @@ type internal IndexedMap<'K,'V when 'K : comparison>
       ()
        
        
-  member this.GetPointer() = new ROOMCursor<'K,'V>(this) :> ICursor<'K,'V>     
+  member this.GetPointer() = new ROOMCursor<'K,'V>(this)
 
   new() =  IndexedMap(KC<'K,'V>())
 
@@ -183,7 +183,7 @@ type internal IndexedMap<'K,'V when 'K : comparison>
 
   interface IReadOnlyOrderedMap<'K,'V> with
     member this.GetAsyncEnumerator() = this.GetPointer() :> IAsyncEnumerator<KVP<'K, 'V>>
-    member this.GetCursor() = this.GetPointer()
+    member this.GetCursor() = this.GetPointer() :> ICursor<'K,'V>
     member this.IsEmpty = this.IsEmpty
     member this.IsIndexed with get() = false
     //member this.Count with get() = int this.Size
