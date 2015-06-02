@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+using Spreads;
 using System;
 using System.Collections.Generic;
 
@@ -10,7 +11,7 @@ namespace System.Linq
 #endif
         TKey,
 #if !NO_VARIANCE
-        out 
+        //out 
 #endif
         TElement> : IAsyncEnumerable<TElement>
     {

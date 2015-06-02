@@ -110,10 +110,12 @@ type ROOMCursor<'K,'V when 'K : comparison>
         )
       | _ -> Task.FromResult(false) // has no values and will never have because is not IUpdateable
   
+  interface IDisposable with
+    member this.Dispose() = this.Dispose()
 
   interface IEnumerator<KVP<'K,'V>> with    
     member this.Reset() = this.Reset()
-    member this.Dispose() = this.Dispose()
+    
     member this.MoveNext():bool = this.MoveNext()
     member this.Current with get(): KVP<'K, 'V> = this.Current
     member this.Current with get(): obj = this.Current :> obj

@@ -135,11 +135,13 @@ type SortedHashMap<'K,'V when 'K : comparison>
         bucket.Value.Last
       finally
           exitLockIf this.SyncRoot entered
+  
+  member this.GetCursor() : ICursor<'K,'V> =  this.GetROOMCursor() :> ICursor<'K,'V>
 
-  member this.GetCursor() : ICursor<'K,'V> =
+  member private this.GetROOMCursor() : ROOMCursor<'K,'V> =
     let outer = ref (outerMap.GetCursor())
     outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
-    let inner = ref Unchecked.defaultof<ICursor<'K, 'V>> // ref (outer.Value.CurrentValue.GetPointer())
+    let inner = ref Unchecked.defaultof<ROOMCursor<'K, 'V>> // ref (outer.Value.CurrentValue.GetPointer())
     // TODO (perf) pointers must own previous idx/bucket, SHM methods must
     // use *thread local* pointers for all read operations. Currently many readers will
     // conflict by rewriting prevIdx/bucket.
@@ -280,13 +282,13 @@ type SortedHashMap<'K,'V when 'K : comparison>
       override p.Reset() = 
         outer.Value.Reset()
         outer.Value.MoveFirst() |> ignore
-        inner := Unchecked.defaultof<ICursor<'K, 'V>> // outer.Value.CurrentValue.GetPointer()
+        inner := Unchecked.defaultof<ROOMCursor<'K, 'V>> // outer.Value.CurrentValue.GetPointer()
         currentKey := Unchecked.defaultof<'K>
         currentValue := Unchecked.defaultof<'V>
         isReset := true
 
       override p.Dispose() = base.Dispose()
-    } :> ICursor<'K,'V>
+    }
 
 
   member internal this.TryFindWithIndex(key:'K,direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>, ?hint:(int*int)) : int*int =
@@ -628,11 +630,11 @@ type SortedHashMap<'K,'V when 'K : comparison>
   //#region Interfaces
 
   interface IEnumerable with
-    member this.GetEnumerator() = this.GetCursor() :> IEnumerator
+    member this.GetEnumerator() = this.GetROOMCursor() :> IEnumerator
 
   interface IEnumerable<KeyValuePair<'K,'V>> with
     member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
-      this.GetCursor() :> IEnumerator<KeyValuePair<'K,'V>>
+      this.GetROOMCursor() :> IEnumerator<KeyValuePair<'K,'V>>
    
 
   interface IReadOnlyOrderedMap<'K,'V> with

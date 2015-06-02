@@ -10,6 +10,7 @@ open System.Runtime.InteropServices
 
 [<AllowNullLiteral>]
 type IAsyncEnumerator<'T> =
+  inherit IDisposable
   /// Advances the enumerator to the next element in the sequence, returning the result asynchronously.
   /// <returns>
   /// Task containing the result of the operation: true if the enumerator was successfully advanced 

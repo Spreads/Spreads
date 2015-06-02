@@ -655,7 +655,8 @@ type SortedMap<'K,'V when 'K : comparison>
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
 
-  member this.GetPointer() : ICursor<'K,'V> =
+  member this.GetPointer() = this.GetROOMCursor() :> ICursor<'K,'V>
+  member private this.GetROOMCursor() : ROOMCursor<'K,'V> =
     let index = ref -1
     let pVersion = ref version
     let currentKey : 'K ref = ref Unchecked.defaultof<'K>
@@ -788,7 +789,7 @@ type SortedMap<'K,'V when 'K : comparison>
         currentValue := Unchecked.defaultof<'V>
 
       override p.Dispose() = p.Reset()
-    } :> ICursor<'K,'V>
+    } 
 
   /// If size is less than 80% of capacity then reduce capacity to the size
   member this.TrimExcess() =
@@ -800,11 +801,11 @@ type SortedMap<'K,'V when 'K : comparison>
   //#region Interfaces
 
   interface IEnumerable with
-    member this.GetEnumerator() = this.GetPointer() :> IEnumerator
+    member this.GetEnumerator() = this.GetROOMCursor() :> IEnumerator
 
   interface IEnumerable<KeyValuePair<'K,'V>> with
     member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
-      this.GetPointer() :> IEnumerator<KeyValuePair<'K,'V>>
+      this.GetROOMCursor() :> IEnumerator<KeyValuePair<'K,'V>>
 
   interface ICollection  with
     member this.SyncRoot = syncRoot
