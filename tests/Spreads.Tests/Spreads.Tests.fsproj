@@ -126,6 +126,11 @@
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
       <Private>True</Private>
     </ProjectReference>
+    <ProjectReference Include="..\..\src\Spreads.Extensions\Spreads.Extensions.csproj">
+      <Name>Spreads.Extensions</Name>
+      <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\..\src\SpreadsDB\SpreadsDB.csproj">
       <Name>SpreadsDB</Name>
       <Project>{4a034d32-98a2-4a6d-9569-d26b5c151ae0}</Project>

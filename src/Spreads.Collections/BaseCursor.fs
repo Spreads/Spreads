@@ -10,7 +10,7 @@ open Spreads
 
 
 /// Uses IReadOnlyOrderedMap's TryFind method, doesn't know anything about underlying sequence
-type ROOMCursor<'K,'V when 'K : comparison>
+type BaseCursor<'K,'V when 'K : comparison>
   (map:IReadOnlyOrderedMap<'K,'V>) as this =
 
   [<DefaultValue>] 
@@ -21,6 +21,7 @@ type ROOMCursor<'K,'V when 'K : comparison>
   let isUpdateable = match map with | :? IUpdateable<'K,'V> -> true | _ -> false
   let observerStarted = ref false
   let tcs = ref (TaskCompletionSource<bool>())
+  let ctr = ref (Unchecked.defaultof<CancellationTokenRegistration>)
   let isWaitingForTcs = ref false
   let sr = Object()
 
@@ -30,13 +31,14 @@ type ROOMCursor<'K,'V when 'K : comparison>
         // right now a client is waiting for a task to complete, there is no more elements in the map
         if !isWaitingForTcs then
           this.currentPosition <- true, kvp
+          (!ctr).Dispose()
           (!tcs).TrySetResult(true)  |> ignore
         else
           // do nothing, MoveNextAsync will try call MoveNext() and it will return the correct result
           ()
       )
     UpdateHandler(impl)
-
+  let cancelHandler = fun () -> (!tcs).TrySetCanceled() |> ignore
 
   abstract MoveAt: index:'K * direction:Lookup -> bool
   override this.MoveAt(index:'K, lookup:Lookup) = 
@@ -92,8 +94,17 @@ type ROOMCursor<'K,'V when 'K : comparison>
   abstract member Reset : unit -> unit
   override this.Reset() = isReset <- true
 
-  member this.MoveNextAsync() =
+  abstract MoveAtAsync: index:'K * direction:Lookup -> Task<bool>
+  abstract MoveFirstAsync: unit -> Task<bool>
+  abstract MoveLastAsync: unit -> Task<bool>
+  abstract MovePreviousAsync: unit -> Task<bool>
+  override this.MoveAtAsync(index:'K, lookup:Lookup) = Task.FromResult(this.MoveAt(index, lookup))
+  override this.MoveFirstAsync():Task<bool> = Task.FromResult(this.MoveFirst())
+  override this.MoveLastAsync():Task<bool> = Task.FromResult(this.MoveLast())
+  override this.MovePreviousAsync():Task<bool> = Task.FromResult(this.MovePrevious())
 
+  abstract member MoveNextAsync : CancellationToken -> Task<bool>
+  override this.MoveNextAsync(ct) =
     match this.MoveNext() with
     | true -> Task.FromResult(true)      
     | false -> 
@@ -105,11 +116,21 @@ type ROOMCursor<'K,'V when 'K : comparison>
             upd.OnData.AddHandler updateHandler
             observerStarted := true
           tcs := TaskCompletionSource()
+          ctr := ct.Register(Action(cancelHandler))
           isWaitingForTcs := true
           tcs.Value.Task
         )
       | _ -> Task.FromResult(false) // has no values and will never have because is not IUpdateable
   
+  abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>
+  abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get
+  override this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = raise (NotImplementedException())
+  override this.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> = raise (NotImplementedException())
+
+  abstract Source : ISeries<'K,'V> with get
+  override this.Source with get() = map :> ISeries<'K,'V>
+
+
   interface IDisposable with
     member this.Dispose() = this.Dispose()
 
@@ -122,14 +143,14 @@ type ROOMCursor<'K,'V when 'K : comparison>
 
   interface ICursor<'K,'V> with
     // TODO need some implementation of ROOM to implement the batch
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = raise (NotImplementedException())
-    member this.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> = raise (NotImplementedException())
-    member this.MoveAtAsync(index:'K, lookup:Lookup) = Task.FromResult(this.MoveAt(index, lookup))
-    member this.MoveFirstAsync():Task<bool> = Task.FromResult(this.MoveFirst())
-    member this.MoveLastAsync():Task<bool> = Task.FromResult(this.MoveLast())
-    member this.MovePreviousAsync():Task<bool> = Task.FromResult(this.MovePrevious())
+    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
+    member this.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatchAsync(cancellationToken)
+    member this.MoveAtAsync(index:'K, lookup:Lookup) = this.MoveAtAsync(index, lookup)
+    member this.MoveFirstAsync():Task<bool> = this.MoveFirstAsync()
+    member this.MoveLastAsync():Task<bool> =  this.MoveLastAsync()
+    member this.MovePreviousAsync():Task<bool> = this.MovePreviousAsync()
     member x.Current with get(): KVP<'K,'V> = this.Current
     member this.CurrentKey with get():'K = this.CurrentKey
     member this.CurrentValue with get():'V = this.CurrentValue
-    member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = this.MoveNextAsync()
-    member this.Source with get() = map :> ISeries<'K,'V>
+    member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = this.MoveNextAsync(cancellationToken)
+    member this.Source with get() = this.Source

@@ -1189,7 +1189,7 @@ namespace Spreads.Collections
             | _ -> raise (ApplicationException("Wrong lookup direction"))
 
 
-        member this.GetPointer() = new ROOMCursor<uint64,'T>(this) :> ICursor<uint64,'T>
+        member this.GetPointer() = new BaseCursor<uint64,'T>(this) :> ICursor<uint64,'T>
             
         member this.Size with get() = IntMap64UTree.size tree
 

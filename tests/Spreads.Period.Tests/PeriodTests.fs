@@ -23,37 +23,37 @@ let perf (count:int64) (message:string) (f:unit -> unit) : unit = // int * int =
 
 
 [<Test>]
-let CreateManyTimePeriodFromDateTime() = 
+let CreateManyPeriodFromDateTime() = 
     let count = 1000000L
     perf count "IntMap64<int64> insert" (fun _ ->
       for i in 0L..count do
-        let tp = Spreads.TimePeriod(UnitPeriod.Millisecond, 1, 
+        let tp = Spreads.Period(UnitPeriod.Millisecond, 1, 
                   DateTime.Today.AddMilliseconds(float i), TimeZoneInfo.Local)
         ()
     )
 
 [<Test>]
-let CreateManyTimePeriodFromDateTimeOffset() = 
+let CreateManyPeriodFromDateTimeOffset() = 
     let count = 10000000L
     let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
-    perf count "TimePeriod from DTO" (fun _ ->
-      let arr = Array.init (int count) (fun i -> Spreads.TimePeriod(UnitPeriod.Millisecond, 1, 
+    perf count "Period from DTO" (fun _ ->
+      let arr = Array.init (int count) (fun i -> Spreads.Period(UnitPeriod.Millisecond, 1, 
                       initDTO.AddMilliseconds(float i)))
 //      for i in 0L..count do
-//        let tp = Spreads.TimePeriod(UnitPeriod.Millisecond, 1, 
+//        let tp = Spreads.Period(UnitPeriod.Millisecond, 1, 
 //                  DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero).AddMilliseconds(float i))
 //        ()
       arr.Length |> ignore
     )
 
 [<Test>]
-let CreateManyTimePeriodFromParts() = 
+let CreateManyPeriodFromParts() = 
     let count = 1000000L
     perf count "IntMap64<int64> insert" (fun _ ->
-      let arr = Array.init (int count) (fun i -> Spreads.TimePeriod(UnitPeriod.Millisecond, 1, 
+      let arr = Array.init (int count) (fun i -> Spreads.Period(UnitPeriod.Millisecond, 1, 
                       2014, 11, 23, i / 3600000, i / 60000, i/1000, i))
 //      for i in 0L..count do
-//        let tp = Spreads.TimePeriod(UnitPeriod.Millisecond, 1, 
+//        let tp = Spreads.Period(UnitPeriod.Millisecond, 1, 
 //                  DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero).AddMilliseconds(float i))
 //        ()
       arr.Length |> ignore
@@ -63,30 +63,28 @@ let CreateManyTimePeriodFromParts() =
 
 [<Test>]
 let CouldCalculateDiff() = 
-  let fisrt = Spreads.TimePeriod(UnitPeriod.Second, 1, 
+  let fisrt = Spreads.Period(UnitPeriod.Second, 1, 
                   DateTime.Today, TimeZoneInfo.Local)
-  let second = Spreads.TimePeriod(UnitPeriod.Second, 1, 
+  let second = Spreads.Period(UnitPeriod.Second, 1, 
                   DateTime.Today.AddSeconds(float 1), TimeZoneInfo.Local)
-  let diff = (TimePeriodComparer() :> IKeyComparer<TimePeriod>).Diff(second, fisrt)
+  let diff =  second.Diff(fisrt)
   diff |> should equal 1
 
   let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
-  let initTp = TimePeriod(UnitPeriod.Second, 1,initDTO)
-  let newTp = TimePeriod(UnitPeriod.Second, 1, 
+  let initTp = Period(UnitPeriod.Second, 1,initDTO)
+  let newTp = Period(UnitPeriod.Second, 1, 
                         initDTO.AddSeconds(float 1))
-  let diff2 = (TimePeriodComparer() :> IKeyComparer<TimePeriod>).Diff(initTp, newTp)
+  let diff2 = initTp.Diff(newTp)
   diff2 |> should equal -1
   ()
     
 [<Test>]
 let CouldCalculateHash() = 
   let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
-  let initTp = TimePeriod(UnitPeriod.Second, 1,initDTO)
-  let newTp = TimePeriod(UnitPeriod.Second, 1, 
+  let initTp = Period(UnitPeriod.Second, 1,initDTO)
+  let newTp = Period(UnitPeriod.Second, 1, 
                         initDTO.AddSeconds(float 3600))
-  let hash = (TimePeriodComparer() :> IKeyComparer<TimePeriod>)
-              .Hash(initTp)
-  let hash2 = (TimePeriodComparer() :> IKeyComparer<TimePeriod>)
-                .Hash(newTp)
-  let diff = (TimePeriodComparer() :> IKeyComparer<TimePeriod>).Diff(hash2, hash)
+  let hash = Period.Hash(initTp)
+  let hash2 = Period.Hash(newTp)
+  let diff = hash2.Diff(hash)
   diff |> should equal 3600

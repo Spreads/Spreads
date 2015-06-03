@@ -149,7 +149,7 @@ type internal IndexedMap<'K,'V when 'K : comparison>
       ()
        
        
-  member this.GetPointer() = new ROOMCursor<'K,'V>(this)
+  member this.GetPointer() = new BaseCursor<'K,'V>(this)
 
   new() =  IndexedMap(KC<'K,'V>())
 
@@ -185,7 +185,7 @@ type internal IndexedMap<'K,'V when 'K : comparison>
     member this.GetAsyncEnumerator() = this.GetPointer() :> IAsyncEnumerator<KVP<'K, 'V>>
     member this.GetCursor() = this.GetPointer() :> ICursor<'K,'V>
     member this.IsEmpty = this.IsEmpty
-    member this.IsIndexed with get() = false
+    member this.IsIndexed with get() = true
     //member this.Count with get() = int this.Size
     member this.First with get() = this.First
     member this.Last with get() = this.Last
@@ -210,9 +210,9 @@ type internal IndexedMap<'K,'V when 'K : comparison>
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
       this.TryGetValue(k, &value)
     member this.Item with get k = this.Item(k)
-    [<ObsoleteAttribute("Naive impl, optimize if used often")>]
+    // TODO Naive impl, optimize if used often
     member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)
-    [<ObsoleteAttribute("Naive impl, optimize if used often")>]
+    // TODO Naive impl, optimize if used often
     member this.Values with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Value)
 
     member this.SyncRoot with get() = this.SyncRoot

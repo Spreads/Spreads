@@ -718,7 +718,7 @@ namespace Spreads.Collections
           true
         else false
 
-      member this.GetPointer() = new ROOMCursor<'K, 'V>(this) :> ICursor<'K, 'V>
+      member this.GetPointer() = new BaseCursor<'K, 'V>(this) :> ICursor<'K, 'V>
             
       member this.Size with get() = int64(MapTree.size tree)
 

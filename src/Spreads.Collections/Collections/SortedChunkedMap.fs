@@ -1,4 +1,4 @@
-﻿namespace Spreads.Collections
+﻿namespace Spreads.Collections.Experimental
 
 open System
 open System.Collections
@@ -12,9 +12,12 @@ open System.Diagnostics
 open Spreads
 open Spreads.Collections
 
+// TODO resolve internal IKeyComparer<'K> by type 'K, if it is not available, 
+
+
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
-type SortedHashMap<'K,'V when 'K : comparison>
+type SortedChunkedMap<'K,'V when 'K : comparison>
   internal(spreadsComparer:IKeyComparer<'K>) =
     
   let comparer : IKeyComparer<'K> = spreadsComparer

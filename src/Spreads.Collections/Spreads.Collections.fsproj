@@ -63,14 +63,16 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Attributes.fs" />
+    
     <Compile Include="Types.fs" />
     <Compile Include="Enums.fs" />
     <Compile Include="OptionalValue.fs" />
     <Compile Include="Interfaces.fs" />
+    <Compile Include="KeyComparer.fs" />
     <Compile Include="Serializer.fs" />
-    <Compile Include="ROOMCursor.fs" />
+    <Compile Include="BaseCursor.fs" />
     <Compile Include="Utils.fs" />
-    <Compile Include="Collections\Collections.fs" />
+	<Compile Include="Collections\Collections.fs" />
     <Compile Include="Collections\BoundedDictionary.fs" />
     <Compile Include="Collections\ImmutableIntMap64.fs" />
     <Compile Include="Collections\ImmutableIntMap64U.fs" />
@@ -85,13 +87,15 @@
     <Compile Include="Collections\SortedMap.fs" />
     <Compile Include="Collections\IndexedMap.fs" />
     <Compile Include="Collections\SpreadsComparer.fs" />
-    <Compile Include="Collections\SortedHashMap.fs" />
     <Compile Include="Collections\MiscInterfaces.fs" />
     <Compile Include="Collections\Heap.fsi" />
     <Compile Include="Collections\Heap.fs" />
     <Compile Include="Collections\Deque.fs" />
+    <Compile Include="Collections\SortedHashMap.fs" />
+	<Compile Include="Collections\SortedChunkedMap.fs" />
     <Compile Include="ObjectPool.fs" />
     <None Include="packages.config" />
+    <Compile Include="Spreads.Series.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">

@@ -656,12 +656,12 @@ type SortedMap<'K,'V when 'K : comparison>
       false
 
   member this.GetPointer() = this.GetROOMCursor() :> ICursor<'K,'V>
-  member private this.GetROOMCursor() : ROOMCursor<'K,'V> =
+  member private this.GetROOMCursor() : BaseCursor<'K,'V> =
     let index = ref -1
     let pVersion = ref version
     let currentKey : 'K ref = ref Unchecked.defaultof<'K>
     let currentValue : 'V ref = ref Unchecked.defaultof<'V>
-    { new ROOMCursor<'K,'V>(this) with
+    { new BaseCursor<'K,'V>(this) with
       override p.Current with get() = KeyValuePair(currentKey.Value, currentValue.Value)
       override p.MoveNext() = 
         let entered = enterLockIf syncRoot  this.isSynchronized

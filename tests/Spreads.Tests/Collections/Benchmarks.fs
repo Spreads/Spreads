@@ -36,21 +36,21 @@ module CollectionsBenchmarks =
   let IntMap64_run() = IntMap64(1000000L)
 
 
-  let DeedleSeries(count:int64) =
-    let deedleSeries = ref (Series.ofObservations([]))
-    perf count "DeedleSeries insert" (fun _ ->
-      for i in 0L..count do
-        deedleSeries := Series.merge !deedleSeries (Series.ofObservations([i => i]))
-    )
-    perf count "DeedleSeries read" (fun _ ->
-      for i in 0L..count do
-        let res = Series.lookup i Deedle.Lookup.Exact !deedleSeries 
-        if res <> i then failwith "DeedleSeries failed"
-        ()
-    )
-    Console.WriteLine("----------------")
-  [<Test>]
-  let DeedleSeries_run() = DeedleSeries(10000L)
+//  let DeedleSeries(count:int64) =
+//    let deedleSeries = ref (Series.ofObservations([]))
+//    perf count "DeedleSeries insert" (fun _ ->
+//      for i in 0L..count do
+//        deedleSeries := Series.merge !deedleSeries (Series.ofObservations([i => i]))
+//    )
+//    perf count "DeedleSeries read" (fun _ ->
+//      for i in 0L..count do
+//        let res = Series.lookup i Deedle.Lookup.Exact !deedleSeries 
+//        if res <> i then failwith "DeedleSeries failed"
+//        ()
+//    )
+//    Console.WriteLine("----------------")
+//  [<Test>]
+//  let DeedleSeries_run() = DeedleSeries(10000L)
 
 
   let FSXVector(count:int64) =
@@ -434,131 +434,134 @@ module CollectionsBenchmarks =
   let SortedMapRegular_run() = SortedMapRegularTest(1000000L)
 
 
-  [<TestCase(10000000)>]
-  let SHM(count:int64) =
-    let shm = ref (SortedHashMap(SpreadsComparerInt64()))
-    perf count "SHM<1024> Add" (fun _ ->
-      for i in 0L..count do
-        shm.Value.Add(i, i)
-    )
-    perf count "SHM Read" (fun _ ->
-      for i in 0L..count do
-        let res = shm.Value.Item(i)
-        if res <> i then failwith "SHM failed"
-        ()
-    )
-    perf count "SHM Iterate" (fun _ ->
-      for i in shm.Value do
-        let res = i.Value
-        if res <> i.Value then failwith "SHM failed"
-        ()
-    )
-    shm := (SortedHashMap(SpreadsComparerInt64()))
-    let count = count / 10L
-    perf count "SHM<1024> Add Reverse" (fun _ ->
-      for i in 0L..count do
-        shm.Value.Add(count - i, i)
-    )
-    perf count "SHM Read Reverse" (fun _ ->
-      for i in 0L..count do
-        let res = shm.Value.Item(count - i)
-        if res <> i then failwith "SHM failed"
-        ()
-    )
-    for i in 0..9 do
-      let shmt = ref (SortedHashMap(TimePeriodComparer()))
-      let count = count * 10L
-      let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
-      perf count "SHM Time Period Add" (fun _ ->
-        for i in 0..(int count) do
-          shmt.Value.AddLast(TimePeriod(UnitPeriod.Second, 1, 
-                            initDTO.AddSeconds(float i)), int64 i)
-      )
-      perf count "SHM Time Period Read" (fun _ ->
-        for i in 0..(int count) do
-          let res = shmt.Value.Item(TimePeriod(UnitPeriod.Second, 1, 
-                        initDTO.AddSeconds(float i)))
-          ()
-      )
-      perf count "SHM Time Period Iterate" (fun _ ->
-        for i in shmt.Value do
-          let res = i.Value
-          ()
-      )
-    Console.WriteLine("----------------")
-  [<Test>]
-  let SHM_run() = SHM(1000000L)
+//  [<TestCase(10000000)>]
+//  let SHM(count:int64) =
+//    let shm = ref (SortedHashMap(SpreadsComparerInt64()))
+//    perf count "SHM<1024> Add" (fun _ ->
+//      for i in 0L..count do
+//        shm.Value.Add(i, i)
+//    )
+//    perf count "SHM Read" (fun _ ->
+//      for i in 0L..count do
+//        let res = shm.Value.Item(i)
+//        if res <> i then failwith "SHM failed"
+//        ()
+//    )
+//    perf count "SHM Iterate" (fun _ ->
+//      for i in shm.Value do
+//        let res = i.Value
+//        if res <> i.Value then failwith "SHM failed"
+//        ()
+//    )
+//    shm := (SortedHashMap(SpreadsComparerInt64()))
+//    let count = count / 10L
+//    perf count "SHM<1024> Add Reverse" (fun _ ->
+//      for i in 0L..count do
+//        shm.Value.Add(count - i, i)
+//    )
+//    perf count "SHM Read Reverse" (fun _ ->
+//      for i in 0L..count do
+//        let res = shm.Value.Item(count - i)
+//        if res <> i then failwith "SHM failed"
+//        ()
+//    )
+//    for i in 0..9 do
+//      let shmt = ref (SortedHashMap(TimePeriodComparer()))
+//      let count = count * 10L
+//      let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
+//      perf count "SHM Time Period Add" (fun _ ->
+//        for i in 0..(int count) do
+//          shmt.Value.AddLast(TimePeriod(UnitPeriod.Second, 1, 
+//                            initDTO.AddSeconds(float i)), int64 i)
+//      )
+//      perf count "SHM Time Period Read" (fun _ ->
+//        for i in 0..(int count) do
+//          let res = shmt.Value.Item(TimePeriod(UnitPeriod.Second, 1, 
+//                        initDTO.AddSeconds(float i)))
+//          ()
+//      )
+//      perf count "SHM Time Period Iterate" (fun _ ->
+//        for i in shmt.Value do
+//          let res = i.Value
+//          ()
+//      )
+//    Console.WriteLine("----------------")
+//  [<Test>]
+//  let SHM_run() = SHM(1000000L)
 
   
 
-  [<TestCase(10000000)>]
-  let SHM_regular(count:int64) =
-    //let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :?> IComparer<int64>)))
+//  [<TestCase(10000000)>]
+//  let SHM_regular(count:int64) =
+//    //let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :?> IComparer<int64>)))
+//
+//    let shm = ref (SortedHashMap(SpreadsComparerInt64()))
+//    for i in 0..9 do
+//      shm := SortedHashMap(SpreadsComparerInt64())
+//      perf count "SHM<1024> Add" (fun _ ->
+//        for i in 0L..count do
+//          shm.Value.Add(i, i)
+//      )
+//
+//    for i in 0..9 do
+//      perf count "SHM Read" (fun _ ->
+//        for i in 0L..count do
+//          let res = shm.Value.Item(i)
+//          if res <> i then failwith "SHM failed"
+//          ()
+//      )
+//    for i in 0..9 do
+//      perf count "SHM Iterate" (fun _ ->
+//        for i in shm.Value do
+//          let res = i.Value
+//          if res <> i.Value then failwith "SHM failed"
+//          ()
+//      )
+//    
+//    let count = count / 10L
+//    for i in 0..9 do
+//      shm := (SortedHashMap(SpreadsComparerInt64()))
+//      perf count "SHM<1024> Add Reverse" (fun _ ->
+//        for i in 0L..count do
+//          shm.Value.Add(count - i, i)
+//      )
+//    for i in 0..9 do
+//      perf count "SHM Read Reverse" (fun _ ->
+//        for i in 0L..count do
+//          let res = shm.Value.Item(count - i)
+//          if res <> i then failwith "SHM failed"
+//          ()
+//      )
+//    
+//    let shmt = ref (SortedHashMap(TimePeriodComparer()))
+//    let count = count * 10L
+//    let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
+//    for i in 0..9 do
+//      shmt := (SortedHashMap(TimePeriodComparer()))
+//      perf count "SHM Time Period Add" (fun _ ->
+//        for i in 0..(int count) do
+//          shmt.Value.AddLast(TimePeriod(UnitPeriod.Second, 1, 
+//                            initDTO.AddSeconds(float i)), int64 i)
+//      )
+//    for i in 0..9 do
+//      perf count "SHM Time Period Read" (fun _ ->
+//        for i in 0..(int count) do
+//          let res = shmt.Value.Item(TimePeriod(UnitPeriod.Second, 1, 
+//                        initDTO.AddSeconds(float i)))
+//          ()
+//      )
+//    for i in 0..9 do
+//      perf count "SHM Time Period Iterate" (fun _ ->
+//        for i in shmt.Value do
+//          let res = i.Value
+//          ()
+//      )
+//    Console.WriteLine("----------------")
 
-    let shm = ref (SortedHashMap(SpreadsComparerInt64()))
-    for i in 0..9 do
-      shm := SortedHashMap(SpreadsComparerInt64())
-      perf count "SHM<1024> Add" (fun _ ->
-        for i in 0L..count do
-          shm.Value.Add(i, i)
-      )
 
-    for i in 0..9 do
-      perf count "SHM Read" (fun _ ->
-        for i in 0L..count do
-          let res = shm.Value.Item(i)
-          if res <> i then failwith "SHM failed"
-          ()
-      )
-    for i in 0..9 do
-      perf count "SHM Iterate" (fun _ ->
-        for i in shm.Value do
-          let res = i.Value
-          if res <> i.Value then failwith "SHM failed"
-          ()
-      )
-    
-    let count = count / 10L
-    for i in 0..9 do
-      shm := (SortedHashMap(SpreadsComparerInt64()))
-      perf count "SHM<1024> Add Reverse" (fun _ ->
-        for i in 0L..count do
-          shm.Value.Add(count - i, i)
-      )
-    for i in 0..9 do
-      perf count "SHM Read Reverse" (fun _ ->
-        for i in 0L..count do
-          let res = shm.Value.Item(count - i)
-          if res <> i then failwith "SHM failed"
-          ()
-      )
-    
-    let shmt = ref (SortedHashMap(TimePeriodComparer()))
-    let count = count * 10L
-    let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
-    for i in 0..9 do
-      shmt := (SortedHashMap(TimePeriodComparer()))
-      perf count "SHM Time Period Add" (fun _ ->
-        for i in 0..(int count) do
-          shmt.Value.AddLast(TimePeriod(UnitPeriod.Second, 1, 
-                            initDTO.AddSeconds(float i)), int64 i)
-      )
-    for i in 0..9 do
-      perf count "SHM Time Period Read" (fun _ ->
-        for i in 0..(int count) do
-          let res = shmt.Value.Item(TimePeriod(UnitPeriod.Second, 1, 
-                        initDTO.AddSeconds(float i)))
-          ()
-      )
-    for i in 0..9 do
-      perf count "SHM Time Period Iterate" (fun _ ->
-        for i in shmt.Value do
-          let res = i.Value
-          ()
-      )
-    Console.WriteLine("----------------")
-  [<Test>]
-  let SHM_regular_run() = SHM_regular(1000000L)
+//
+//  [<Test>]
+//  let SHM_regular_run() = SHM_regular(1000000L)
 
   let SortedDequeTest(count:int64) =
     let vec = ref (Extra.SortedDeque<int64>())
@@ -648,9 +651,9 @@ module CollectionsBenchmarks =
 //    SCIOrderedMap_run()
     //SortedDeque_run()
     //SortedList_run()
-    //SortedMap_run()
+    SortedMap_run()
     //SortedMapRegular_run()
     //MapDeque_run() // bugs!
     //SHM_run()
 //    SHM_regular_run()
-    PersistenSortedMap_run()
+//    PersistenSortedMap_run()
