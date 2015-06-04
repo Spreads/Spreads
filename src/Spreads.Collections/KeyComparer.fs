@@ -2,6 +2,7 @@
 
 open System
 open System.Collections
+open System.Collections.Concurrent
 open System.Collections.Generic
 open System.Threading
 open System.Threading.Tasks
@@ -36,7 +37,11 @@ type internal IKeyComparer<'K>= // when 'K : comparison
 
 
 type internal KeyComparer()=
-  // TODO in static constructor load all imlementations of IKeyComparer and retrieve an instance for ty
+  static let registeredComparers = ConcurrentDictionary<Type, obj>()
+  static do
+    // TODO in static constructor load all imlementations of IKeyComparer and retrieve an instance for ty
+    ()
+  
   static member GetDefault<'K>() = Unchecked.defaultof<IKeyComparer<'K>>
 
 

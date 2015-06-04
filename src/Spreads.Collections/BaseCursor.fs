@@ -94,14 +94,14 @@ type BaseCursor<'K,'V when 'K : comparison>
   abstract member Reset : unit -> unit
   override this.Reset() = isReset <- true
 
-  abstract MoveAtAsync: index:'K * direction:Lookup -> Task<bool>
-  abstract MoveFirstAsync: unit -> Task<bool>
-  abstract MoveLastAsync: unit -> Task<bool>
-  abstract MovePreviousAsync: unit -> Task<bool>
-  override this.MoveAtAsync(index:'K, lookup:Lookup) = Task.FromResult(this.MoveAt(index, lookup))
-  override this.MoveFirstAsync():Task<bool> = Task.FromResult(this.MoveFirst())
-  override this.MoveLastAsync():Task<bool> = Task.FromResult(this.MoveLast())
-  override this.MovePreviousAsync():Task<bool> = Task.FromResult(this.MovePrevious())
+//  abstract MoveAtAsync: index:'K * direction:Lookup -> Task<bool>
+//  abstract MoveFirstAsync: unit -> Task<bool>
+//  abstract MoveLastAsync: unit -> Task<bool>
+//  abstract MovePreviousAsync: unit -> Task<bool>
+//  override this.MoveAtAsync(index:'K, lookup:Lookup) = Task.FromResult(this.MoveAt(index, lookup))
+//  override this.MoveFirstAsync():Task<bool> = Task.FromResult(this.MoveFirst())
+//  override this.MoveLastAsync():Task<bool> = Task.FromResult(this.MoveLast())
+//  override this.MovePreviousAsync():Task<bool> = Task.FromResult(this.MovePrevious())
 
   abstract member MoveNextAsync : CancellationToken -> Task<bool>
   override this.MoveNextAsync(ct) =
@@ -145,11 +145,10 @@ type BaseCursor<'K,'V when 'K : comparison>
     // TODO need some implementation of ROOM to implement the batch
     member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
     member this.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatchAsync(cancellationToken)
-    member this.MoveAtAsync(index:'K, lookup:Lookup) = this.MoveAtAsync(index, lookup)
-    member this.MoveFirstAsync():Task<bool> = this.MoveFirstAsync()
-    member this.MoveLastAsync():Task<bool> =  this.MoveLastAsync()
-    member this.MovePreviousAsync():Task<bool> = this.MovePreviousAsync()
-    member x.Current with get(): KVP<'K,'V> = this.Current
+    member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
+    member this.MoveFirst():bool = this.MoveFirst()
+    member this.MoveLast():bool =  this.MoveLast()
+    member this.MovePrevious():bool = this.MovePrevious()
     member this.CurrentKey with get():'K = this.CurrentKey
     member this.CurrentValue with get():'V = this.CurrentValue
     member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = this.MoveNextAsync(cancellationToken)

@@ -10,6 +10,7 @@ open System.Runtime.InteropServices
 
 [<AllowNullLiteral>]
 type IAsyncEnumerator<'T> =
+  inherit IEnumerator<'T>
   inherit IDisposable
   /// Advances the enumerator to the next element in the sequence, returning the result asynchronously.
   /// <returns>
@@ -17,10 +18,11 @@ type IAsyncEnumerator<'T> =
   /// to the next element; false if the enumerator has passed the end of the sequence.
   /// </returns>    
   abstract MoveNextAsync: cancellationToken:CancellationToken  -> Task<bool>
-  abstract Current: 'T with get
+  //abstract Current: 'T with get
 
 [<AllowNullLiteral>]
 type IAsyncEnumerable<'T> =
+  inherit IEnumerable<'T>
   /// Advances the enumerator to the next element in the sequence, returning the result asynchronously.
   /// <returns>
   /// Task containing the result of the operation: true if the enumerator was successfully advanced 
@@ -58,10 +60,10 @@ and
   ICursor<'K,'V when 'K : comparison> =
     inherit IAsyncEnumerator<KVP<'K, 'V>>
     /// Puts the cursor to the position according to LookupDirection
-    abstract MoveAtAsync: index:'K * direction:Lookup -> Task<bool>
-    abstract MoveFirstAsync: unit -> Task<bool>
-    abstract MoveLastAsync: unit -> Task<bool>
-    abstract MovePreviousAsync: unit -> Task<bool>
+    abstract MoveAt: index:'K * direction:Lookup -> bool
+    abstract MoveFirst: unit -> bool
+    abstract MoveLast: unit -> bool
+    abstract MovePrevious: unit -> bool
     abstract CurrentKey:'K with get
     abstract CurrentValue:'V with get
     /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
@@ -81,7 +83,6 @@ and
 and
   [<AllowNullLiteral>]
   IReadOnlyOrderedMap<'K,'V when 'K : comparison> =
-    inherit IEnumerable<KVP<'K, 'V>>
     inherit ISeries<'K,'V>
     /// True if this.size = 0
     abstract IsEmpty: bool with get
@@ -192,6 +193,7 @@ type IImmutableOrderedMap<'K,'V when 'K : comparison> =
 type internal UpdateHandler<'K,'V when 'K : comparison> = delegate of obj * KVP<'K,'V> -> unit
 [<AllowNullLiteral>]
 type internal IUpdateable<'K,'V when 'K : comparison> =   
+  /// Fired after any data change with key for the first valid data (e.g. after delete, a previous key is returned)
   [<CLIEvent>]
   abstract member OnData : IEvent<UpdateHandler<'K,'V>,KVP<'K,'V>>
 
