@@ -30,6 +30,13 @@ namespace System.Linq
                 return getEnumerator();
             }
 
+            public IEnumerator<T> GetEnumerator() {
+                return getEnumerator() as IEnumerator<T>;
+            }
+
+            IEnumerator IEnumerable.GetEnumerator() {
+                return getEnumerator() as IEnumerator;
+            }
         }
 
         static IAsyncEnumerator<T> Create<T>(Func<CancellationToken, Task<bool>> moveNext, Func<T> current, Action dispose)
@@ -92,6 +99,11 @@ namespace System.Linq
                 }
             }
 
+            object IEnumerator.Current {
+                get {
+                    return _current();
+                }
+            }
 
             public void Dispose()
             {
@@ -101,7 +113,14 @@ namespace System.Linq
                     _dispose();
                 }
             }
-        
+
+            public bool MoveNext() {
+                return _moveNext(CancellationToken.None).Result;
+            }
+
+            public void Reset() {
+                throw new NotImplementedException();
+            }
         }
 
         public static IAsyncEnumerable<TValue> Return<TValue>(TValue value)

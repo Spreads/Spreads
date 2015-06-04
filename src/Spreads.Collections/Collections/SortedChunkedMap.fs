@@ -1,4 +1,4 @@
-﻿namespace Spreads.Collections.Experimental
+﻿namespace Spreads.Collections
 
 open System
 open System.Collections
@@ -36,13 +36,12 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
   let mutable isSync  = false
 
   [<NonSerializedAttribute>]
-  let comparer : IKeyComparer<'K> = 
+  let comparer : IKeyComparer<'K> = c :?> IKeyComparer<'K>
     // TODO logic for fake comparer
-    KeyComparer.GetDefault<'K>()
+    //KeyComparer.GetDefault<'K>()
 
   // TODO replace outer with MapDeque, see comments in MapDeque.fs
   let outerMap = outerFactory(comparer)
-
 
 
   [<OnDeserialized>]
@@ -146,215 +145,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         bucket.Value.Last
       finally
           exitLockIf this.SyncRoot entered
-  
-//  member private this.GetCursor() : ICursor<'K,'V> =
-//    let outer = ref (outerMap.GetCursor())
-//    let inner = ref Unchecked.defaultof<BaseCursor<'K, 'V>>
-//
-//    let currentKey : 'K ref = ref Unchecked.defaultof<'K>
-//    let currentValue : 'V ref = ref Unchecked.defaultof<'V>
-//    let currentBatch : IReadOnlyOrderedMap<'K,'V> ref = ref Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>
-//    let isBatch = ref false
-//    //let isOuterStarted = ref false
-//    let isReset = ref true
-//
-//    { new ICursor<'K,'V> with
-//      member c.MoveNext(): bool = 
-//        let entered = enterLockIf this.SyncRoot this.IsSynchronized
-//        try
-//          if isReset.Value then 
-//            c.MoveFirstAsync().Result
-//          else
-//            let res = inner.Value.MoveNext() // could pass curent key by ref and save some single-dig %
-//            if res then
-//              currentKey := inner.Value.CurrentKey
-//              currentValue := inner.Value.CurrentValue
-//              true
-//            else
-//              let couldMove = outer.Value.MoveNext()
-//              if couldMove then // go to the next bucket
-//                inner := outer.Value.CurrentValue.GetCursor()
-//                let res = inner.Value.MoveFirst()
-//                if res then
-//                  currentKey := inner.Value.CurrentKey
-//                  currentValue := inner.Value.CurrentValue
-//                  true
-//                else
-//                  (raise (ApplicationException("Unexpected - empty bucket")) )
-//              else
-//                false
-//        finally
-//          exitLockIf this.SyncRoot entered
-//      
-//      member x.MoveFirstAsync(): Tasks.Task<bool> = 
-//        failwith "Not implemented yet"
-//      
-//      member x.MoveLastAsync(): Tasks.Task<bool> = 
-//        failwith "Not implemented yet"
-//      
-//      member x.MoveNextBatchAsync(cancellationToken: CancellationToken): Tasks.Task<bool> = 
-//        failwith "Not implemented yet"
-//      
-//      member x.Source: ISeries<'K,'V> = this :> ISeries<'K,'V>
-//      
-//      member c.Current: obj = c.Current :> obj
-//      member c.Current with get() = 
-//        if !isBatch then invalidOp "Current move is MoveNextBatxhAsync, cannot return a single valule"
-//        else KeyValuePair(currentKey.Value, currentValue.Value)
-//      member c.CurrentBatch = 
-//        if !isBatch then !currentBatch
-//        else invalidOp "Current move is single, cannot return a batch"
-//      member c.CurrentKey with get() = !currentKey
-//      member c.CurrentValue with get() = !currentValue
-//
-//      member c.MoveNextAsync(ct) = 
-//        Async.StartAsTask(async {
-//          let entered = enterLockIf this.SyncRoot this.IsSynchronized
-//          try
-//            if isReset.Value then 
-//              return! c.MoveFirstAsync() |> Async.AwaitTask
-//            else
-//              let res = inner.Value.MoveNext() // could pass curent key by ref and save some single-dig %
-//              if res then
-//                currentKey := inner.Value.CurrentKey
-//                currentValue := inner.Value.CurrentValue
-//                return true
-//              else
-//                let! couldMove = outer.Value.MoveNextAsync(ct) |> Async.AwaitTask
-//                if couldMove then // go to the next bucket
-//                  inner := outer.Value.CurrentValue.GetCursor()
-//                  let res = inner.Value.MoveFirst()
-//                  if res then
-//                    currentKey := inner.Value.CurrentKey
-//                    currentValue := inner.Value.CurrentValue
-//                    return true
-//                  else
-//                    return! (raise (ApplicationException("Unexpected - empty bucket")) )
-//                else
-//                  return false
-//          finally
-//            exitLockIf this.SyncRoot entered
-//        }, TaskCreationOptions.None,ct)
-//
-//        
-//      member c.MovePreviousAsync() = 
-//        Async.StartAsTask(async {
-//          let entered = enterLockIf this.SyncRoot this.IsSynchronized
-//          try
-//            if isReset.Value then return! c.MoveLastAsync() |> Async.AwaitTask
-//            else
-//              let res = inner.Value.MovePrevious()
-//              if res then
-//                currentKey := inner.Value.CurrentKey
-//                currentValue := inner.Value.CurrentValue
-//                return true
-//              else
-//                let! couldMove = outer.Value.MovePreviousAsync() |> Async.AwaitTask
-//                if couldMove then // go to the previous bucket
-//                  inner := outer.Value.CurrentValue.GetCursor()
-//                  let res = inner.Value.MoveLast()
-//                  if res then
-//                    currentKey := inner.Value.CurrentKey
-//                    currentValue := inner.Value.CurrentValue
-//                    return true
-//                  else
-//                    return! raise (ApplicationException("Unexpected - empty bucket")) 
-//                else
-//                  return false
-//          finally
-//            exitLockIf this.SyncRoot entered
-//        }, TaskCreationOptions.None,CancellationToken.None)
-//
-//      member c.MoveAtAsync(key:'K, direction:Lookup) = 
-//        Async.StartAsTask(async {
-//          let entered = enterLockIf this.SyncRoot this.IsSynchronized
-//          try
-//            let newHash = comparer.Hash(key)
-//            let newSubIdx = key
-//            let c = comparer.Compare(newHash, outer.Value.CurrentKey)
-//            let res =
-//              if c <> 0 || !isReset then // not in the current bucket, switch bucket
-//                return! async {
-//                  let! couldMove = outer.Value.MoveAtAsync(newHash, Lookup.EQ) |> Async.AwaitTask
-//                  if couldMove then // Equal!
-//                    inner := outer.Value.CurrentValue.GetCursor()
-//                    return! inner.Value.MoveAtAsync(newSubIdx, direction) |> Async.AwaitTask
-//                  else
-//                    return false
-//                }
-//              else
-//                return! inner.Value.MoveAtAsync(newSubIdx, direction)|> Async.AwaitTask
-//                   
-//            isReset := false
-//                    
-//            if res then
-//              currentKey := inner.Value.CurrentKey
-//              currentValue := inner.Value.CurrentValue
-//              return true
-//            else
-//                match direction with
-//                | Lookup.LT | Lookup.LE ->
-//                  // look into previous bucket
-//                  if outer.Value.MovePrevious() then
-//                    inner := outer.Value.CurrentValue.GetCursor()
-//                    let res = inner.Value.MoveAt(newSubIdx, direction)
-//                    if res then
-//                      currentKey := inner.Value.CurrentKey
-//                      currentValue := inner.Value.CurrentValue
-//                      return true
-//                    else
-//                      p.Reset()
-//                      return false
-//                  else
-//                    p.Reset()
-//                    return false 
-//                | Lookup.GT | Lookup.GE ->
-//                  // look into next bucket
-//                  if outer.Value.MoveNext() then
-//                    inner := outer.Value.CurrentValue.GetCursor()
-//                    let res = inner.Value.MoveAt(newSubIdx, direction)
-//                    if res then
-//                      currentKey := inner.Value.CurrentKey
-//                      currentValue := inner.Value.CurrentValue
-//                      return true
-//                    else
-//                      c.Reset()
-//                      return false 
-//                  else
-//                    c.Reset()
-//                    return false 
-//                | _ -> return false // LookupDirection.EQ
-//          finally
-//            exitLockIf this.SyncRoot entered
-//        }, TaskCreationOptions.None,CancellationToken.None)
-//
-//      override p.MoveFirst() = 
-//        let entered = enterLockIf this.SyncRoot this.IsSynchronized
-//        try
-//          if this.IsEmpty then false
-//          else p.MoveAt(this.First.Key, Lookup.EQ)
-//        finally
-//          exitLockIf this.SyncRoot entered
-//
-//      override p.MoveLast() = 
-//        let entered = enterLockIf this.SyncRoot this.IsSynchronized
-//        try
-//          if this.IsEmpty then false
-//          else p.MoveAt(this.Last.Key, Lookup.EQ)
-//        finally
-//          exitLockIf this.SyncRoot entered
-//
-//      member c.Reset() = 
-//        outer.Value.Reset()
-//        outer.Value.MoveFirstAsync() |> ignore
-//        inner := Unchecked.defaultof<BaseCursor<'K, 'V>> // outer.Value.CurrentValue.GetPointer()
-//        currentKey := Unchecked.defaultof<'K>
-//        currentValue := Unchecked.defaultof<'V>
-//        isReset := true
-//
-//      override p.Dispose() = base.Dispose()
-//    }
-//  
+
   member private this.GetROOMCursor() : BaseCursor<'K,'V> =
     let outer = ref (outerMap.GetCursor())
     outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started

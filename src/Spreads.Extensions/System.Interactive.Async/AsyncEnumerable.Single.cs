@@ -1147,6 +1147,13 @@ namespace System.Linq
                 return Classes().SelectMany(x => x.ToAsyncEnumerable()).GetAsyncEnumerator();
             }
 
+            public IEnumerator<T> GetEnumerator() {
+                return GetAsyncEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator() {
+                return GetAsyncEnumerator();
+            }
         }
 
         class ReverseComparer<T> : IComparer<T>
@@ -1500,6 +1507,14 @@ namespace System.Linq
                     () => elements[index],
                     d.Dispose
                 );
+            }
+
+            public IEnumerator<TElement> GetEnumerator() {
+                return GetAsyncEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator() {
+                return GetAsyncEnumerator();
             }
         }
 
