@@ -572,7 +572,7 @@ namespace Spreads.Collections
     [<Serializable>]
     type ImmutableSortedMap<[<EqualityConditionalOn>]'K,[<EqualityConditionalOn;ComparisonConditionalOn>]'V when 'K : comparison >
       internal(comparer: IComparer<'K>, tree: MapTree<'K,'V>) =
- 
+      inherit Series<'K,'V>()
 #if FX_NO_BINARY_SERIALIZATION
 #else
       [<System.NonSerialized>]
@@ -718,7 +718,7 @@ namespace Spreads.Collections
           true
         else false
 
-      member this.GetPointer() = new BaseCursor<'K, 'V>(this) :> ICursor<'K, 'V>
+      override this.GetCursor() = new MapCursor<'K, 'V>(this) :> ICursor<'K, 'V>
             
       member this.Size with get() = int64(MapTree.size tree)
 
@@ -780,8 +780,8 @@ namespace Spreads.Collections
         member m.GetEnumerator() = (MapTree.mkIEnumerator tree :> System.Collections.IEnumerator)
 
       interface IReadOnlyOrderedMap<'K,'V> with
-        member this.GetAsyncEnumerator() = this.GetPointer() :> IAsyncEnumerator<KVP<'K, 'V>>
-        member this.GetCursor() = this.GetPointer()
+        member this.GetAsyncEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+        member this.GetCursor() = this.GetCursor()
         member this.IsEmpty = this.IsEmpty
         member this.IsIndexed with get() = false
         //member this.Count with get() = int this.Size

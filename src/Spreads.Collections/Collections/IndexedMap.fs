@@ -19,6 +19,7 @@ type private KC<'K,'V>()=
 [<SerializableAttribute>]
 type internal IndexedMap<'K,'V when 'K : comparison>
   private(kc:KC<'K,'V>)=
+  inherit Series<'K,'V>()
 
   [<NonSerializedAttribute>]
   let mutable kc = kc
@@ -149,7 +150,7 @@ type internal IndexedMap<'K,'V when 'K : comparison>
       ()
        
        
-  member this.GetPointer() = new BaseCursor<'K,'V>(this)
+  override this.GetCursor() = new MapCursor<'K,'V>(this) :> ICursor<'K,'V>
 
   new() =  IndexedMap(KC<'K,'V>())
 
@@ -174,16 +175,16 @@ type internal IndexedMap<'K,'V when 'K : comparison>
     
     
   interface IEnumerable with
-     member this.GetEnumerator() = this.GetPointer() :> IEnumerator
+     member this.GetEnumerator() = this.GetCursor() :> IEnumerator
 
   interface IEnumerable<KeyValuePair<'K,'V>> with
     member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
-      this.GetPointer() :> IEnumerator<KeyValuePair<'K,'V>>
+      this.GetCursor() :> IEnumerator<KeyValuePair<'K,'V>>
 
 
   interface IReadOnlyOrderedMap<'K,'V> with
-    member this.GetAsyncEnumerator() = this.GetPointer() :> IAsyncEnumerator<KVP<'K, 'V>>
-    member this.GetCursor() = this.GetPointer() :> ICursor<'K,'V>
+    member this.GetAsyncEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+    member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.IsEmpty
     member this.IsIndexed with get() = true
     //member this.Count with get() = int this.Size

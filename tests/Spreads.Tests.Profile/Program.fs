@@ -19,7 +19,7 @@ let perf (count:int64) (message:string) (f:unit -> unit) : unit = // int * int =
   //int p, int((endtMem - startMem)/1024L)
   Console.WriteLine(message + ", #{0}, ops: {1}, mem/item: {2}", 
     count.ToString(), p.ToString(), ((endtMem - startMem)/count).ToString())
-
+  Console.WriteLine("Elapsed ms: " + sw.ElapsedMilliseconds.ToString())
 let rng = Random()
 
 [<CustomComparison;CustomEquality>]
@@ -50,7 +50,33 @@ type TestStruct =
 
 [<EntryPoint>]
 let main argv = 
-  Spreads.Tests.Collections.Benchmarks.CollectionsBenchmarks.SHM_regular_run() // .SortedMapRegularTest(10000000L)
+  for i in 0..4 do
+    perf 10000000L "Sequence expression" (fun _ ->
+      let newVector = [| 
+        for v in 1..10000000 ->
+          v |] 
+      ()
+    )
+  for i in 0..4 do
+    perf 10000000L "Preallocate" (fun _ ->
+      let newVector2 = 
+        let a = Array.zeroCreate 10000000
+        for v in 1..10000000 do
+          a.[v-1] <- v
+        a
+      ()
+    )
+
+  for i in 0..4 do
+    perf 10000000L "List" (fun _ ->
+      let newVector3 = 
+        let a = System.Collections.Generic.List() // do not set capacity
+        for v in 1..10000000 do
+          a.Add(v)
+        a.ToArray()
+      ()
+    )
+  //Spreads.Tests.Collections.Benchmarks.CollectionsBenchmarks.SHM_regular_run() // .SortedMapRegularTest(10000000L)
 //  Spreads.Tests.Experimental.Buckets
 //    .``Could store N sorted maps with 1000 elements to MMDic``(10000L)
   //Console.ReadKey()

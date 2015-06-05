@@ -16,7 +16,7 @@ open Spreads.Collections
 [<SerializableAttribute>]
 type SortedHashMap<'K,'V when 'K : comparison>
   internal(spreadsComparer:IKeyComparer<'K>) =
-    
+  inherit Series<'K,'V>()
   let comparer : IKeyComparer<'K> = spreadsComparer
 
   // TODO replace outer with MapDeque, see comments in MapDeque.fs
@@ -136,12 +136,12 @@ type SortedHashMap<'K,'V when 'K : comparison>
       finally
           exitLockIf this.SyncRoot entered
   
-  member this.GetCursor() : ICursor<'K,'V> =  this.GetROOMCursor() :> ICursor<'K,'V>
+  override this.GetCursor() : ICursor<'K,'V> =  this.GetROOMCursor() :> ICursor<'K,'V>
 
-  member private this.GetROOMCursor() : BaseCursor<'K,'V> =
+  member private this.GetROOMCursor() : MapCursor<'K,'V> =
     let outer = ref (outerMap.GetCursor())
     outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
-    let inner = ref Unchecked.defaultof<BaseCursor<'K, 'V>> // ref (outer.Value.CurrentValue.GetPointer())
+    let inner = ref Unchecked.defaultof<ICursor<'K, 'V>> // ref (outer.Value.CurrentValue.GetPointer())
     // TODO (perf) pointers must own previous idx/bucket, SHM methods must
     // use *thread local* pointers for all read operations. Currently many readers will
     // conflict by rewriting prevIdx/bucket.
@@ -149,7 +149,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
     let currentKey : 'K ref = ref Unchecked.defaultof<'K>
     let currentValue : 'V ref = ref Unchecked.defaultof<'V>
     let isReset = ref true
-    { new BaseCursor<'K,'V>(this) with
+    { new MapCursor<'K,'V>(this) with
       override p.Current with get() = KeyValuePair(currentKey.Value, currentValue.Value)
       override p.MoveNext() = 
         let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
@@ -282,7 +282,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
       override p.Reset() = 
         outer.Value.Reset()
         outer.Value.MoveFirst() |> ignore
-        inner := Unchecked.defaultof<BaseCursor<'K, 'V>> // outer.Value.CurrentValue.GetPointer()
+        inner := Unchecked.defaultof<ICursor<'K, 'V>> // outer.Value.CurrentValue.GetPointer()
         currentKey := Unchecked.defaultof<'K>
         currentValue := Unchecked.defaultof<'V>
         isReset := true

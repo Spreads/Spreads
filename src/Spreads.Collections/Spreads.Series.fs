@@ -7,185 +7,91 @@ open System.Diagnostics
 open System.Runtime.InteropServices
 
 open Spreads
-open Spreads.Collections
 
-// TODO always chunked if SHM will work without IKeyComparer
-
-// TODO extension methods
-// .Push(name) - write ISeries to named persistent series
-// .ObserveFrom(start = null) - turn series into IObservable; this is an extension method available only with Spreads.DB
-
-/// In-memory materialized series
 [<AllowNullLiteral>]
 [<Serializable>]
-type Series<'K,'V when 'K : comparison> 
-  internal(map:IOrderedMap<'K,'V>) =
-
-  let map: IOrderedMap<'K,'V> = map
-
-  member this.Map with get() = map    
-
-  new() =
-    let comparer = KeyComparer.GetDefault<'K>()
-    Series(comparer)
-
-  internal new (comparer:IKeyComparer<'K>) =
-    let map : IOrderedMap<'K,'V> = 
-      if comparer = Unchecked.defaultof<IKeyComparer<'K>> then
-        SortedMap<'K,'V>() :> IOrderedMap<'K,'V>
-      else SortedHashMap<'K,'V>(comparer) :> IOrderedMap<'K,'V>
-    Series(map)
-
-  /// Indexed series preserve order or elements and are not sorted by keys
-  new(indexed:bool) =
-    if not indexed then 
-      Series()
-    else
-      let map = IndexedMap<'K,'V>() :> IOrderedMap<'K,'V>
-      Series(map)
-
-
-  new(input:IEnumerable<KVP<'K,'V>>) =
-    let ser = Series() // will know which kind of map to use from new() ctor
-    let map = ref ser.Map
-    input |> Seq.map (fun kvp -> map.Value.Add(kvp.Key, kvp.Value)) |> ignore
-    Series(map.Value)
-
-  new(input:IEnumerable<KVP<'K,'V>>, indexed:bool) =
-    let ser = Series(indexed) // will know which kind of map to use from new() ctor
-    let map = ref ser.Map
-    input |> Seq.map (fun kvp -> map.Value.Add(kvp.Key, kvp.Value)) |> ignore
-    Series(map.Value)
-  // TODO more standard convenience constructors??
-
-  member this.IsEmpty = map.IsEmpty
-
-  member this.IsIndexed with get() = map.IsIndexed
-
-  member this.First with get() = map.First
-
-  member this.Last with get() = map.Last
-
-  member this.TryFind(k, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-    map.TryFind(k, direction, &result)
-    
-  member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-    try
-      res <- map.First
-      true
-    with
-    | _ -> 
-      res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-      false
-            
-  member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-    try
-      res <- map.Last
-      true
-    with
-    | _ -> 
-      res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-      false
-
-  member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
-    map.TryGetValue(k, &value)
-
-  member this.GetCursor() = map.GetCursor()
-
-  member this.Item
-    with get (k) : 'V = map.Item(k)
-    and set k v = map.[k] <- v
-
-  member this.Keys with get() = map.Keys
-  member this.Values with get() = map.Values
-
-  member this.Size with get() = map.Size
-
-  member this.SyncRoot with get() = map.SyncRoot
-
-  member this.Add(key, value) = map.Add(key, value)
-
-  member this.AddFirst(key, value) = map.AddFirst(key, value)
-
-  member this.AddLast(key, value) = map.AddLast(key, value)
-
-  member this.Remove(key) = map.Remove(key)
-
-  member this.RemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-    let rf = map.RemoveFirst()
-    result <- rf
-    ()
-
-  member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-    let rl = map.RemoveLast()
-    result <- rl
-    ()
-
-  member this.RemoveMany(key:'K,direction:Lookup) = 
-    map.RemoveMany(key, direction) |> ignore
-    ()
+[<AbstractClassAttribute>]
+type Series<'K,'V when 'K : comparison>() as this =
+  abstract GetCursor : unit -> ICursor<'K,'V>
 
   interface IEnumerable<KeyValuePair<'K, 'V>> with
-    member this.GetEnumerator() = map.GetEnumerator()
-
+    member this.GetEnumerator() = this.GetCursor() :> IEnumerator<KeyValuePair<'K, 'V>>
   interface System.Collections.IEnumerable with
-    member this.GetEnumerator() = (map.GetEnumerator() :> System.Collections.IEnumerator)
-   
+    member this.GetEnumerator() = (this.GetCursor() :> System.Collections.IEnumerator)
+  interface ISeries<'K, 'V> with
+    member this.GetCursor() = this.GetCursor()
+    member this.GetAsyncEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+    member this.IsIndexed with get() = this.GetCursor().Source.IsIndexed
+    member this.SyncRoot with get() = this.GetCursor().Source.SyncRoot
+
   interface IReadOnlyOrderedMap<'K,'V> with
-    member this.IsEmpty = map.IsEmpty
+    member this.IsEmpty = not (this.GetCursor().MoveFirst())
     //member this.Count with get() = map.Count
-    member this.IsIndexed with get() = false
-    member this.First with get() = map.First
-    member this.Last with get() = map.Last
+    member this.First with get() = 
+      let c = this.GetCursor()
+      if c.MoveFirst() then c.Current else failwith "Series is empty"
+
+    member this.Last with get() =
+      let c = this.GetCursor()
+      if c.MoveLast() then c.Current else failwith "Series is empty"
+
     member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      map.TryFind(k, direction, &result)
+      let c = this.GetCursor()
+      if c.MoveAt(k, direction) then 
+        result <- c.Current 
+        true
+      else failwith "Series is empty"
+
     member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
       try
-        res <- map.First
+        res <- (this :> IReadOnlyOrderedMap<'K,'V>).First
         true
       with
       | _ -> 
         res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
         false
+
     member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
       try
-        res <- map.Last
+        res <- (this :> IReadOnlyOrderedMap<'K,'V>).Last
         true
       with
       | _ -> 
         res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
         false
+
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
-      map.TryGetValue(k, &value)
-    
-    member this.Item with get k = map.Item(k)
-    member this.Keys with get() = map.Keys
-    member this.Values with get() = map.Values
-    member this.SyncRoot with get() = this.SyncRoot
-    
+      let c = this.GetCursor()
+      if c.IsContinuous then
+        c.TryGetValue(k, &value)
+      else
+        let v = ref Unchecked.defaultof<KVP<'K,'V>>
+        let ok = c.MoveAt(k, Lookup.EQ)
+        if ok then value <- c.CurrentValue else value <- Unchecked.defaultof<'V>
+        ok
 
-  interface IOrderedMap<'K, 'V> with
-    member this.Size with get() = map.Size
-    member this.Item
-      with get (k) : 'V = map.Item(k)
-      and set k v = map.[k] <- v
-    member this.Add(key, value) = map.Add(key, value)
-    member this.AddFirst(key, value) = map.AddFirst(key, value)
-    member this.AddLast(key, value) = map.AddLast(key, value)
-    member this.Remove(key) = map.Remove(key)
-    member this.RemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      map.RemoveFirst(&result)
-    member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      map.RemoveLast(&result)
-    member this.RemoveMany(key:'K,direction:Lookup) = 
-      map.RemoveMany(key, direction) |> ignore
-      ()
-    
-  interface ISeries<'K, 'V> with
-    member this.GetCursor() = map.GetCursor()
-    member this.GetAsyncEnumerator() = map.GetAsyncEnumerator()
+    member this.Item 
+      with get k = 
+        let ok, v = (this :> IReadOnlyOrderedMap<'K,'V>).TryGetValue(k)
+        if ok then v else raise (KeyNotFoundException())
+
+    member this.Keys 
+      with get() =
+        let c = this.GetCursor()
+        seq {
+          while c.MoveNext() do
+            yield c.CurrentKey
+        }
+
+    member this.Values
+      with get() =
+        let c = this.GetCursor()
+        seq {
+          while c.MoveNext() do
+            yield c.CurrentValue
+        }
 
 
 
-
+  member this.XXX = ()
 

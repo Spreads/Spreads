@@ -8,7 +8,8 @@ open System.Threading
 [<AutoOpen>]
 module Utils =
   // locking using use keyword
-  [<ObsoleteAttribute("When performance is *critical*, consider using enter/exit with try/catch because this shortcut allocates new IDisposable")>]
+  //[<ObsoleteAttribute("When performance is *critical*, consider using enter/exit with try/catch because this shortcut allocates new IDisposable")>]
+  // TODO(low) this only remains in misc maps, not in the core ones. Replace later 
   let inline makeLock locker =
     let entered = ref false
     try

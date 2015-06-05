@@ -23,7 +23,8 @@ open Spreads.Collections
 [<SerializableAttribute>]
 type SortedChunkedMap<'K,'V when 'K : comparison>
   internal(outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>, c:IComparer<'K>) =
-  
+  inherit Series<'K,'V>()
+
   [<NonSerializedAttribute>]
   let mutable size = 0L
   [<NonSerializedAttribute>]
@@ -146,10 +147,10 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
       finally
           exitLockIf this.SyncRoot entered
 
-  member private this.GetROOMCursor() : BaseCursor<'K,'V> =
+  override this.GetCursor() : ICursor<'K,'V> =
     let outer = ref (outerMap.GetCursor())
     outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
-    let inner = ref Unchecked.defaultof<BaseCursor<'K, 'V>> // ref (outer.Value.CurrentValue.GetPointer())
+    let inner = ref Unchecked.defaultof<ICursor<'K, 'V>> // ref (outer.Value.CurrentValue.GetPointer())
     // TODO (perf) pointers must own previous idx/bucket, SHM methods must
     // use *thread local* pointers for all read operations. Currently many readers will
     // conflict by rewriting prevIdx/bucket.
@@ -162,7 +163,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     //let isOuterStarted = ref false
 
 
-    { new BaseCursor<'K,'V>(this) with
+    { new MapCursor<'K,'V>(this) with
       override c.Current with get() = 
         if !isBatch then invalidOp "Current move is MoveNextBatxhAsync, cannot return a single valule"
         else KeyValuePair(currentKey.Value, currentValue.Value)
@@ -304,7 +305,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
       override p.Reset() = 
         outer.Value.Reset()
         outer.Value.MoveFirst() |> ignore
-        inner := Unchecked.defaultof<BaseCursor<'K, 'V>> // outer.Value.CurrentValue.GetPointer()
+        inner := Unchecked.defaultof<ICursor<'K, 'V>> // outer.Value.CurrentValue.GetPointer()
         currentKey := Unchecked.defaultof<'K>
         currentValue := Unchecked.defaultof<'V>
         isReset := true
@@ -338,7 +339,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
           finally
             exitLockIf this.SyncRoot entered
         }, TaskCreationOptions.None,CancellationToken.None)
-    }
+    } :> ICursor<'K,'V> 
 
   member this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
@@ -617,16 +618,16 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
   //#region Interfaces
 
   interface IEnumerable with
-    member this.GetEnumerator() = this.GetROOMCursor() :> IEnumerator
+    member this.GetEnumerator() = this.GetCursor() :> IEnumerator
 
   interface IEnumerable<KeyValuePair<'K,'V>> with
     member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
-      this.GetROOMCursor() :> IEnumerator<KeyValuePair<'K,'V>>
+      this.GetCursor() :> IEnumerator<KeyValuePair<'K,'V>>
    
 
   interface IReadOnlyOrderedMap<'K,'V> with
-    member this.GetAsyncEnumerator() = this.GetROOMCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
-    member this.GetCursor() = this.GetROOMCursor() :> ICursor<'K,'V>
+    member this.GetAsyncEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+    member this.GetCursor() = this.GetCursor() :> ICursor<'K,'V>
     member this.IsEmpty = this.IsEmpty
     member this.IsIndexed with get() = false
     //member this.Count with get() = size

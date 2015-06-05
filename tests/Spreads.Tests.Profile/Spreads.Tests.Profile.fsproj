@@ -114,11 +114,6 @@
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
       <Private>True</Private>
     </ProjectReference>
-    <ProjectReference Include="..\..\src\Spreads\Spreads.fsproj">
-      <Name>Spreads</Name>
-      <Project>{7e90d6ce-a10b-4858-a5bc-41df7250cbca}</Project>
-      <Private>True</Private>
-    </ProjectReference>
     <ProjectReference Include="..\Spreads.Tests\Spreads.Tests.fsproj">
       <Name>Spreads.Tests</Name>
       <Project>{e789c72a-5cfd-436b-8ef1-61aa2852a89f}</Project>

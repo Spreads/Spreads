@@ -43,6 +43,10 @@ type ISeries<'K,'V when 'K : comparison> =
   /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
   /// positions and relative LT/LE/GT/GE moves.
   abstract GetCursor : unit -> ICursor<'K,'V>
+  /// If true then elements are sorted by some custom order (e.g. order of addition (index) and not by keys
+  abstract IsIndexed : bool with get
+  /// Locks any mutations for mutable implementations
+  abstract SyncRoot : obj with get
   // this is a part of interface because it depends on implementation. If using extensions, will have to check for actual implementation
   // anyway and will have to bother with internals visibility
   /// Evaluate lazy series. Similar to IEnumerable.ToArray()/ToList() extension methods.
@@ -73,7 +77,18 @@ and
     abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>
     /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
     abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get
+    /// Original series. Note that .Source.GetCursor() is equivalent of .Clone(), which is missing due to this fact
     abstract Source : ISeries<'K,'V> with get
+    /// If true then TryGetValue could return values for any keys, not only for existing keys.
+    /// E.g. previous value, interpolated value, etc.
+    abstract IsContinuous: bool with get
+    /// Gets a calculated value for continuous series without moving the cursor position.
+    /// This method must be called only when IsContinuous is true, otherwise NotSupportedException will be thrown.
+    /// E.g. IContinuousCursor for Repeat() will check if current state allows to get previous value,
+    /// and if not then .Source.GetCursor().MoveAt(key, LE). The TryGetValue method should be optimized
+    /// for sort join case using enumerator, e.g. for repeat it should keep previous value and check if 
+    /// the requested key is between the previous and the current keys, and then return the previous one.
+    abstract TryGetValue: key:'K * [<Out>] value: byref<'V> -> bool
 
 /// Important! 'Read-only' doesn't mean that the object is immutable or not changing. It only means
 /// that there is no methods to change the map *from* this interface, without any assumptions about 
@@ -86,8 +101,6 @@ and
     inherit ISeries<'K,'V>
     /// True if this.size = 0
     abstract IsEmpty: bool with get
-    /// If true then elements are sorted by some custom order (e.g. order of addition (index) and not by keys
-    abstract IsIndexed : bool with get
     /// First element, throws InvalidOperationException if empty
     abstract First : KVP<'K, 'V> with get
     /// Last element, throws InvalidOperationException if empty
@@ -103,9 +116,6 @@ and
     abstract TryGetFirst: [<Out>] value: byref<KVP<'K, 'V>> -> bool
     abstract TryGetLast: [<Out>] value: byref<KVP<'K, 'V>> -> bool
     abstract TryGetValue: key:'K * [<Out>] value: byref<'V> -> bool
-    /// Locks any mutations for mutable implementations
-    abstract SyncRoot : obj with get
-
 
 
 

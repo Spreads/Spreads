@@ -10,7 +10,7 @@ open Spreads
 
 
 /// Uses IReadOnlyOrderedMap's TryFind method, doesn't know anything about underlying sequence
-type BaseCursor<'K,'V when 'K : comparison>
+type MapCursor<'K,'V when 'K : comparison>
   (map:IReadOnlyOrderedMap<'K,'V>) as this =
 
   [<DefaultValue>] 
@@ -124,8 +124,8 @@ type BaseCursor<'K,'V when 'K : comparison>
   
   abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>
   abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get
-  override this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = raise (NotImplementedException())
-  override this.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> = raise (NotImplementedException())
+  override this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = raise (NotSupportedException("IReadOnlyOrderedMap do not support batches, override the method in a map implementation"))
+  override this.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> = raise (NotSupportedException("IReadOnlyOrderedMap do not support batches, override the method in a map implementation"))
 
   abstract Source : ISeries<'K,'V> with get
   override this.Source with get() = map :> ISeries<'K,'V>
@@ -153,3 +153,5 @@ type BaseCursor<'K,'V when 'K : comparison>
     member this.CurrentValue with get():'V = this.CurrentValue
     member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = this.MoveNextAsync(cancellationToken)
     member this.Source with get() = this.Source
+    member this.IsContinuous with get() = false
+    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = raise (NotSupportedException("Maps are not continuous"))

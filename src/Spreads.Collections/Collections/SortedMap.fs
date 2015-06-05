@@ -16,7 +16,7 @@ open Spreads.Collections
 [<SerializableAttribute>]
 type SortedMap<'K,'V when 'K : comparison>
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparer:IComparer<'K> option) as this=
-
+  inherit Series<'K,'V>()
   //#region Main private constructor
     
   // data fields
@@ -122,15 +122,15 @@ type SortedMap<'K,'V when 'K : comparison>
     if index < 0 || index >= this.size then raise (ArgumentOutOfRangeException("index"))
     this.values.[index]
 
-  member inline private this.GetPairByIndexUnchecked(index) = // rkok
+  member  private this.GetPairByIndexUnchecked(index) = // rkok //inline
     if isRegularKeys then 
       KeyValuePair(rkKeyAtIndex index, this.values.[index])
     else KeyValuePair(this.keys.[index], this.values.[index]) 
   
-  member inline private this.CompareToFirst (k:'K) = 
+  member  private this.CompareToFirst (k:'K) =  //inline
      comparer.Compare(k, this.keys.[0])
   
-  member inline private this.CompareToLast (k:'K) = 
+  member  private this.CompareToLast (k:'K) = //inline
      if isRegularKeys then comparer.Compare(k, rkLast) 
      else comparer.Compare(k, this.keys.[this.size-1])
 
@@ -771,12 +771,12 @@ type SortedMap<'K,'V when 'K : comparison>
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
 
-  member this.GetCursor()  = // rkok
+  override this.GetCursor()  = // rkok
     let index = ref -1
     let pVersion = ref version
     let currentKey : 'K ref = ref Unchecked.defaultof<'K>
     let currentValue : 'V ref = ref Unchecked.defaultof<'V>
-    { new BaseCursor<'K,'V>(this) with
+    { new MapCursor<'K,'V>(this) with
       override p.Current with get() = KeyValuePair(currentKey.Value, currentValue.Value)
       override p.MoveNext() = 
         let entered = enterLockIf syncRoot  isSynchronized
@@ -906,7 +906,7 @@ type SortedMap<'K,'V when 'K : comparison>
         currentValue := Unchecked.defaultof<'V>
 
       override p.Dispose() = p.Reset()
-    }
+    } :> ICursor<'K,'V>
 
   /// If size is less than 80% of capacity then reduce capacity to the size
   member this.TrimExcess() =
