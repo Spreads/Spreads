@@ -159,6 +159,8 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     let currentValue : 'V ref = ref Unchecked.defaultof<'V>
     let isReset = ref true
     let currentBatch : IReadOnlyOrderedMap<'K,'V> ref = ref Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>
+    // TODO
+    let nextBatch : Task<IReadOnlyOrderedMap<'K,'V>> ref = ref Unchecked.defaultof<Task<IReadOnlyOrderedMap<'K,'V>>>
     let isBatch = ref false
     //let isOuterStarted = ref false
 

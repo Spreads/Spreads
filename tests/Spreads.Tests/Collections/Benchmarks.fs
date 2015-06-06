@@ -279,6 +279,12 @@ module CollectionsBenchmarks =
         if res <> i.Value then failwith "SortedList failed"
         ()
     )
+    perf count "SortedList Iterate with load" (fun _ ->
+      for i in sl.Value do
+        let res = Math.Exp ( Math.Log(Math.Exp ( Math.Log(Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L)))))))
+        if res <> Math.Exp ( Math.Log(Math.Exp ( Math.Log(Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L))))))) then failwith "SortedList failed"
+        ()
+    )
 //    sl := Spreads.Collections.Extra.SortedList()
 //    let count = count / 10L
 //    perf count "SortedList Add Reverse" (fun _ ->
@@ -558,8 +564,8 @@ module CollectionsBenchmarks =
     )
     perf count "SCM Iterate" (fun _ ->
       for i in shm.Value do
-        let res = i.Value
-        if res <> i.Value then failwith "SCM failed"
+        let res = Math.Exp ( Math.Log(Math.Exp ( Math.Log(Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L)))))))
+        if res <> Math.Exp ( Math.Log(Math.Exp ( Math.Log(Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L))))))) then failwith "SCM failed"
         ()
     )
     shm := (SortedChunkedMap(SpreadsComparerInt64(8192us)))
@@ -754,10 +760,10 @@ module CollectionsBenchmarks =
 //    FSXHashMap_run()
 //    IntMap64_run()
 //    MapTree_run()
-//    SCGSortedList_run()
+    SCGSortedList_run()
 //    SCIOrderedMap_run()
     //SortedDeque_run()
-//    SortedList_run()
+    SortedList_run()
     SortedMap_run()
     SortedMapPeriod_run()
 //    SortedMapDT_run()
