@@ -24,9 +24,10 @@ type CursorSeries<'K,'V when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>
 // 
 
 [<AbstractClassAttribute>]
-type TransformerCursor<'K,'V, 'V2 when 'K : comparison>(source:ISeries<'K,'V>) =
+type TransformerCursor<'K,'V, 'V2 when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) =
   
-  let cursor = source.GetCursor()
+  let cursor = cursorFactory()
+  //let source = cursor.Source
   // safe to call TryUpdateNext/Previous
   let mutable hasValue = false
 
@@ -34,7 +35,7 @@ type TransformerCursor<'K,'V, 'V2 when 'K : comparison>(source:ISeries<'K,'V>) =
   // check if key types are not equal, in that case check if new values are sorted. On first 
   // unsorted value change output to Indexed
 
-  member val IsIndexed = source.IsIndexed with get, set
+  member val IsIndexed = false with get, set //source.IsIndexed 
   /// By default, could move everywhere the source moves
   member val IsContinuous = cursor.IsContinuous with get, set
 //  abstract IsContinuous: bool with get
@@ -44,8 +45,8 @@ type TransformerCursor<'K,'V, 'V2 when 'K : comparison>(source:ISeries<'K,'V>) =
 //  override this.IsBatch with get() = c.IsBatch
 
   /// Source series
-  member this.Source with get() = source
-  member this.SourceCoursor with get() = cursor
+  //member this.InputSource with get() = source
+  member this.InputCursor with get() = cursor
 
   //abstract CurrentKey:'K with get
   //abstract CurrentValue:'V2 with get
@@ -112,8 +113,8 @@ type TransformerCursor<'K,'V, 'V2 when 'K : comparison>(source:ISeries<'K,'V>) =
     member x.IsContinuous: bool = x.IsContinuous
     
     member x.MoveAt(index: 'K, direction: Lookup): bool = 
-      if x.SourceCoursor.MoveAt(index, direction) then
-        let ok, value = x.TryGetValue(x.SourceCoursor.CurrentKey)
+      if x.InputCursor.MoveAt(index, direction) then
+        let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
         if ok then
           x.CurrentKey <- value.Key
           x.CurrentValue <- value.Value
@@ -124,8 +125,8 @@ type TransformerCursor<'K,'V, 'V2 when 'K : comparison>(source:ISeries<'K,'V>) =
           | Lookup.EQ -> false
           | Lookup.GE | Lookup.GT ->
             let found = ref false
-            while x.SourceCoursor.MoveNext() && not !found do
-              let ok, value = x.TryGetValue(x.SourceCoursor.CurrentKey)
+            while x.InputCursor.MoveNext() && not !found do
+              let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
               if ok then 
                 found := true
                 x.CurrentKey <- value.Key
@@ -136,8 +137,8 @@ type TransformerCursor<'K,'V, 'V2 when 'K : comparison>(source:ISeries<'K,'V>) =
             else false
           | Lookup.LE | Lookup.LT ->
             let found = ref false
-            while x.SourceCoursor.MovePrevious() && not !found do
-              let ok, value = x.TryGetValue(x.SourceCoursor.CurrentKey)
+            while x.InputCursor.MovePrevious() && not !found do
+              let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
               if ok then
                 found := true
                 x.CurrentKey <- value.Key
@@ -151,8 +152,8 @@ type TransformerCursor<'K,'V, 'V2 when 'K : comparison>(source:ISeries<'K,'V>) =
       
     
     member x.MoveFirst(): bool = 
-      if x.SourceCoursor.MoveFirst() then
-        let ok, value = x.TryGetValue(x.SourceCoursor.CurrentKey)
+      if x.InputCursor.MoveFirst() then
+        let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
         if ok then
           x.CurrentKey <- value.Key
           x.CurrentValue <- value.Value
@@ -164,8 +165,8 @@ type TransformerCursor<'K,'V, 'V2 when 'K : comparison>(source:ISeries<'K,'V>) =
       else false
     
     member x.MoveLast(): bool = 
-      if x.SourceCoursor.MoveLast() then
-        let ok, value = x.TryGetValue(x.SourceCoursor.CurrentKey)
+      if x.InputCursor.MoveLast() then
+        let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
         if ok then
           x.CurrentKey <- value.Key
           x.CurrentValue <- value.Value
@@ -179,8 +180,8 @@ type TransformerCursor<'K,'V, 'V2 when 'K : comparison>(source:ISeries<'K,'V>) =
     member x.MoveNext(): bool = 
       if hasValue then
         let found = ref false
-        while x.SourceCoursor.MoveNext() && not !found do
-          let ok, value = x.TryUpdateNext(x.SourceCoursor.Current)
+        while x.InputCursor.MoveNext() && not !found do
+          let ok, value = x.TryUpdateNext(x.InputCursor.Current)
           if ok then 
             found := true
             x.CurrentKey <- value.Key
@@ -194,8 +195,8 @@ type TransformerCursor<'K,'V, 'V2 when 'K : comparison>(source:ISeries<'K,'V>) =
     member x.MovePrevious(): bool = 
       if hasValue then
         let found = ref false
-        while x.SourceCoursor.MovePrevious() && not !found do
-          let ok, value = x.TryUpdatePrevious(x.SourceCoursor.Current)
+        while x.InputCursor.MovePrevious() && not !found do
+          let ok, value = x.TryUpdatePrevious(x.InputCursor.Current)
           if ok then 
             found := true
             x.CurrentKey <- value.Key
@@ -234,31 +235,65 @@ type TransformerCursor<'K,'V, 'V2 when 'K : comparison>(source:ISeries<'K,'V>) =
     member x.Clone(): ICursor<'K,'V2> =
       // run-time type of the instance
       let ty = x.GetType()
-      let args = [|source :> obj|]
+      let args = [|cursorFactory :> obj|]
       let clone = Activator.CreateInstance(ty, args) :?> ICursor<'K,'V2> // should not be called too often
-      let movedOk = clone.MoveAt(x.CurrentKey, Lookup.EQ)
-      Debug.Assert(movedOk) // if current key is set then we could move to it
+      if hasValue then clone.MoveAt(x.CurrentKey, Lookup.EQ) |> ignore
+      //Debug.Assert(movedOk) // if current key is set then we could move to it
       clone
 
 
 /// Repeat previous value for all missing keys
-type RepeatCursor<'K,'V  when 'K : comparison>(source:ISeries<'K,'V>) =
-  inherit TransformerCursor<'K,'V,'V>(source)
-    
+type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) as this =
+  inherit TransformerCursor<'K,'V,'V>(cursorFactory)
+  do
+    this.IsContinuous <- true  
+
   override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V>>): bool =
     // naive implementation, easy optimizable 
-    if this.SourceCoursor.MoveAt(key, Lookup.LE) then
-      value <- this.SourceCoursor.Current
+    if this.InputCursor.MoveAt(key, Lookup.LE) then
+      value <- this.InputCursor.Current
       true
     else false
       
+
+/// Repeat previous value for all missing keys
+type Add1Cursor<'K when 'K : comparison>(cursorFactory:unit->ICursor<'K,int>) =
+  inherit TransformerCursor<'K,int,int>(cursorFactory)
+
+  override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,int>>): bool =
+    // add works on any value, so must use TryGetValue instead of MoveAt
+    let ok, value2 = this.InputCursor.TryGetValue(key)
+    if ok then
+      value <- KVP(key, value2 + 1)
+      true
+    else false
 
 
 [<Extension>]
 type SeriesRepeatExtension () =
     [<Extension>]
     static member inline Repeat(source: Series<'K,'V>) : Series<'K,'V> = 
-      CursorSeries(fun _ -> new RepeatCursor<'K,'V>(source) :> ICursor<'K,'V>) :> Series<'K,'V> 
+      CursorSeries(fun _ -> new RepeatCursor<'K,'V>(source.GetCursor) :> ICursor<'K,'V>) :> Series<'K,'V>
+
+//    [<Extension>]
+//    static member inline Add1(source: Series<'K,int>) : Series<'K,int> = 
+//      CursorSeries(fun _ -> 
+//        { new TransformerCursor<'K,int, int>(source.GetCursor) with
+//            member this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,int>>): bool =
+//              // naive implementation, easy optimizable 
+//              if this.InputCursor.MoveAt(key, Lookup.EQ) then
+//                value <- KVP(this.InputCursor.Current.Key, this.InputCursor.Current.Value + 1)
+//                true
+//              else false
+//        }
+//        
+//        :> ICursor<'K,int>
+//        
+//      ) :> Series<'K, int> 
+
+    [<Extension>]
+    static member inline Add1(source: Series<'K,int>) : Series<'K,int> = 
+      CursorSeries(fun _ -> new Add1Cursor<'K>(source.GetCursor) :> ICursor<'K,int>) :> Series<'K,int>
 
 
 // TODO generators

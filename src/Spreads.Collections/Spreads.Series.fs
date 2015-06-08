@@ -91,7 +91,3 @@ type Series<'K,'V when 'K : comparison>() as this =
             yield c.CurrentValue
         }
 
-
-
-  member this.XXX = ()
-

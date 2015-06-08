@@ -28,23 +28,88 @@ type SeriesTestsModule() =
 
         let ok, value = rc.TryGetValue(2)
         ok |> should equal true
+        (repeated :> IReadOnlyOrderedMap<_,_>).TryGetValue(2) |> snd |> should equal 1
         value |> should equal 1
 
         let ok, value = rc.TryGetValue(4)
         ok |> should equal true
+        (repeated :> IReadOnlyOrderedMap<_,_>).TryGetValue(4) |> snd |> should equal 3
         value |> should equal 3
 
         let ok, value = rc.TryGetValue(6)
         ok |> should equal true
+        (repeated :> IReadOnlyOrderedMap<_,_>).TryGetValue(6) |> snd |> should equal 5
         value |> should equal 5
 
         let ok, value = rc.TryGetValue(123)
         ok |> should equal true
+        (repeated :> IReadOnlyOrderedMap<_,_>).TryGetValue(123) |> snd |> should equal 7
         value |> should equal 7
 
         let ok, value = rc.TryGetValue(0)
         ok |> should equal false
 
+    [<Test>]
+    member this.``Could Add1 to series``() =
+        let map = SortedMap<int, int>()
+        map.Add(1,1)
+        map.Add(3,3)
+        map.Add(5,5)
+        map.Add(7,7)
+
+        let add1 = map.Add1()
+
+        let rc = add1.GetCursor()
+
+        let ok, value = rc.TryGetValue(1)
+        ok |> should equal true
+        value |> should equal 2
+
+        let ok, value = rc.TryGetValue(3)
+        ok |> should equal true
+        value |> should equal 4
+
+        let ok, value = rc.TryGetValue(5)
+        ok |> should equal true
+        value |> should equal 6
+
+        let ok, value = rc.TryGetValue(7)
+        ok |> should equal true
+        value |> should equal 8
+
+        let ok, value = rc.TryGetValue(10)
+        ok |> should equal false
+
+
+    [<Test>]
+    member this.``Could Add1 to repeated series``() =
+        let map = SortedMap<int, int>()
+        map.Add(1,1)
+        map.Add(3,3)
+        map.Add(5,5)
+        map.Add(7,7)
+
+        let repeated = map.Repeat().Add1()
+        let rc = repeated.GetCursor()
+
+        let ok, value = rc.TryGetValue(2)
+        ok |> should equal true
+        value |> should equal 2
+
+        let ok, value = rc.TryGetValue(4)
+        ok |> should equal true
+        value |> should equal 4
+
+        let ok, value = rc.TryGetValue(6)
+        ok |> should equal true
+        value |> should equal 6
+
+        let ok, value = rc.TryGetValue(123)
+        ok |> should equal true
+        value |> should equal 8
+
+        let ok, value = rc.TryGetValue(0)
+        ok |> should equal false
 
 //        
 //    [<Test>]

@@ -165,4 +165,4 @@ type MapCursor<'K,'V when 'K : comparison>
     member this.Source with get() = this.Source
     member this.Clone() = this.Clone()
     member this.IsContinuous with get() = this.IsContinuous
-    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = raise (NotSupportedException("Maps are not continuous"))
+    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = map.TryGetValue(key, &value)
