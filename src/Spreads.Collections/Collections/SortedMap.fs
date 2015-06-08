@@ -771,12 +771,16 @@ type SortedMap<'K,'V when 'K : comparison>
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
 
-  override this.GetCursor()  = // rkok
-    let index = ref -1
-    let pVersion = ref version
-    let currentKey : 'K ref = ref Unchecked.defaultof<'K>
-    let currentValue : 'V ref = ref Unchecked.defaultof<'V>
-    { new MapCursor<'K,'V>(this) with
+  override this.GetCursor()  = this.GetCursor(-1, version, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>)
+    
+  member private this.GetCursor(index:int,pVersion:int,currentKey:'K, currentValue:'V)=
+    let index = ref index
+    let pVersion = ref pVersion
+    let currentKey : 'K ref = ref currentKey
+    let currentValue : 'V ref = ref currentValue
+    { 
+    new MapCursor<'K,'V>(this) with
+      override p.Clone() = this.GetCursor(!index,!pVersion,!currentKey,!currentValue)
       override p.Current with get() = KeyValuePair(currentKey.Value, currentValue.Value)
       override p.MoveNext() = 
         let entered = enterLockIf syncRoot  isSynchronized

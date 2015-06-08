@@ -147,25 +147,28 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
       finally
           exitLockIf this.SyncRoot entered
 
-  override this.GetCursor() : ICursor<'K,'V> =
-    let outer = ref (outerMap.GetCursor())
-    outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
-    let inner = ref Unchecked.defaultof<ICursor<'K, 'V>> // ref (outer.Value.CurrentValue.GetPointer())
-    // TODO (perf) pointers must own previous idx/bucket, SHM methods must
-    // use *thread local* pointers for all read operations. Currently many readers will
-    // conflict by rewriting prevIdx/bucket.
 
-    let currentKey : 'K ref = ref Unchecked.defaultof<'K>
-    let currentValue : 'V ref = ref Unchecked.defaultof<'V>
-    let isReset = ref true
-    let currentBatch : IReadOnlyOrderedMap<'K,'V> ref = ref Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>
+  override this.GetCursor() : ICursor<'K,'V> =
+    this.GetCursor(outerMap.GetCursor(), Unchecked.defaultof<ICursor<'K, 'V>>, true, Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>, false)
+
+  member private this.GetCursor(outer:ICursor<'K,SortedMap<'K,'V>>, inner:ICursor<'K,'V>, isReset:bool,currentBatch:IReadOnlyOrderedMap<'K,'V>, isBatch:bool) : ICursor<'K,'V> =
     // TODO
     let nextBatch : Task<IReadOnlyOrderedMap<'K,'V>> ref = ref Unchecked.defaultof<Task<IReadOnlyOrderedMap<'K,'V>>>
-    let isBatch = ref false
-    //let isOuterStarted = ref false
+    
+    let outer = ref outer
+    outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
+    let inner = ref inner
+    let isReset = ref isReset
+    let currentBatch : IReadOnlyOrderedMap<'K,'V> ref = ref currentBatch
+    let isBatch = ref isBatch
 
+    // TODO use inner directly
+    let currentKey : 'K ref = ref inner.Value.CurrentKey // Unchecked.defaultof<'K>
+    let currentValue : 'V ref = ref inner.Value.CurrentValue // Unchecked.defaultof<'V>
 
     { new MapCursor<'K,'V>(this) with
+      override c.Clone() = this.GetCursor(outer.Value.Clone(), inner.Value.Clone(), !isReset, !currentBatch, !isBatch)
+      override c.IsBatch with get() = !isBatch
       override c.Current with get() = 
         if !isBatch then invalidOp "Current move is MoveNextBatxhAsync, cannot return a single valule"
         else KeyValuePair(currentKey.Value, currentValue.Value)

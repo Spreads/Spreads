@@ -130,13 +130,22 @@ type MapCursor<'K,'V when 'K : comparison>
   abstract Source : ISeries<'K,'V> with get
   override this.Source with get() = map :> ISeries<'K,'V>
 
+  abstract Clone: unit -> ICursor<'K,'V>
+  override this.Clone() =
+    let c = new MapCursor<'K,'V>(map)
+    c.currentPosition <- this.currentPosition
+    c :> ICursor<'K,'V>
+
+  abstract IsBatch: bool with get
+  override this.IsBatch with get() = false
+  abstract IsContinuous: bool with get
+  override this.IsContinuous with get() = false
 
   interface IDisposable with
     member this.Dispose() = this.Dispose()
 
   interface IEnumerator<KVP<'K,'V>> with    
     member this.Reset() = this.Reset()
-    
     member this.MoveNext():bool = this.MoveNext()
     member this.Current with get(): KVP<'K, 'V> = this.Current
     member this.Current with get(): obj = this.Current :> obj
@@ -145,6 +154,7 @@ type MapCursor<'K,'V when 'K : comparison>
     // TODO need some implementation of ROOM to implement the batch
     member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
     member this.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatchAsync(cancellationToken)
+    member this.IsBatch with get() = this.IsBatch
     member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
     member this.MoveFirst():bool = this.MoveFirst()
     member this.MoveLast():bool =  this.MoveLast()
@@ -153,5 +163,6 @@ type MapCursor<'K,'V when 'K : comparison>
     member this.CurrentValue with get():'V = this.CurrentValue
     member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = this.MoveNextAsync(cancellationToken)
     member this.Source with get() = this.Source
-    member this.IsContinuous with get() = false
+    member this.Clone() = this.Clone()
+    member this.IsContinuous with get() = this.IsContinuous
     member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = raise (NotSupportedException("Maps are not continuous"))

@@ -77,11 +77,15 @@ and
     abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>
     /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
     abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get
-    /// Original series. Note that .Source.GetCursor() is equivalent of .Clone(), which is missing due to this fact
+    /// True if last successful move was MoveNextBatchAsync and CurrentBatch contains a valid value
+    abstract IsBatch: bool with get
+    /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
     abstract Source : ISeries<'K,'V> with get
     /// If true then TryGetValue could return values for any keys, not only for existing keys.
     /// E.g. previous value, interpolated value, etc.
     abstract IsContinuous: bool with get
+    /// Create a copy of cursor that is positioned at the same place as this cursor.
+    abstract Clone: unit -> ICursor<'K,'V>
     /// Gets a calculated value for continuous series without moving the cursor position.
     /// This method must be called only when IsContinuous is true, otherwise NotSupportedException will be thrown.
     /// E.g. IContinuousCursor for Repeat() will check if current state allows to get previous value,
