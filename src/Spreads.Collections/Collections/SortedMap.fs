@@ -973,7 +973,7 @@ type SortedMap<'K,'V when 'K : comparison>
 
   interface IReadOnlyOrderedMap<'K,'V> with
     member this.GetAsyncEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
-    member this.GetCursor() = this.GetCursor() :> ICursor<'K,'V>
+    member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.size = 0
     member this.IsIndexed with get() = false
     //member this.Count with get() = int this.size

@@ -77,7 +77,7 @@ and
     abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>
     /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
     abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get
-    /// True if last successful move was MoveNextBatchAsync and CurrentBatch contains a valid value
+    /// True if last successful move was MoveNextBatchAsync and CurrentBatch contains a valid value.
     abstract IsBatch: bool with get
     /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
     abstract Source : ISeries<'K,'V> with get

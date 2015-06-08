@@ -77,7 +77,6 @@
     <Compile Include="Utils.fs" />
     <Compile Include="ObjectPool.fs" />
     <Compile Include="Spreads.Series.fs" />
-    <Compile Include="CursorSeries.fs" />
     <Compile Include="Collections\Collections.fs" />
     <Compile Include="Collections\BoundedDictionary.fs" />
     <Compile Include="Collections\ImmutableIntMap64.fs" />
@@ -99,6 +98,7 @@
     <Compile Include="Collections\Deque.fs" />
     <Compile Include="Collections\SortedHashMap.fs" />
     <Compile Include="Collections\SortedChunkedMap.fs" />
+    <Compile Include="CursorSeries.fs" />
     <None Include="packages.config" />
     <None Include="Script1.fsx" />
   </ItemGroup>

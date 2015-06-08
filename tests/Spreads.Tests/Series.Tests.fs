@@ -1,19 +1,51 @@
 ﻿namespace Spreads.Tests.Series
-//
-//
-//open FsUnit
-//open NUnit.Framework
-//
-//open System
-//open System.Linq
-//open System.Collections.Generic
-//open System.Diagnostics
-//open Spreads
-//open Spreads.Collections
-//open System.Threading
-//
-//type SeriesTestsModule() =
-//    
+
+
+open FsUnit
+open NUnit.Framework
+
+open System
+open System.Linq
+open System.Collections.Generic
+open System.Diagnostics
+open Spreads
+open Spreads.Collections
+open System.Threading
+
+type SeriesTestsModule() =
+    
+            
+    [<Test>]
+    member this.``Could repeat series``() =
+        let map = SortedMap<int, int>()
+        map.Add(1,1)
+        map.Add(3,3)
+        map.Add(5,5)
+        map.Add(7,7)
+
+        let repeated = map.Repeat()
+        let rc = repeated.GetCursor()
+
+        let ok, value = rc.TryGetValue(2)
+        ok |> should equal true
+        value |> should equal 1
+
+        let ok, value = rc.TryGetValue(4)
+        ok |> should equal true
+        value |> should equal 3
+
+        let ok, value = rc.TryGetValue(6)
+        ok |> should equal true
+        value |> should equal 5
+
+        let ok, value = rc.TryGetValue(123)
+        ok |> should equal true
+        value |> should equal 7
+
+        let ok, value = rc.TryGetValue(0)
+        ok |> should equal false
+
+
 //        
 //    [<Test>]
 //    member this.``Could get moving window from seq``() =
@@ -32,7 +64,7 @@
 //        watch1.Stop()
 //        Console.WriteLine(">Windowed seq, per sec: " + (1000L * int64(lim)/watch1.ElapsedMilliseconds).ToString())
 //
-//
+
 //    [<Test>]
 //    member this.``Could Add``() =
 //        let lim = 1000000L

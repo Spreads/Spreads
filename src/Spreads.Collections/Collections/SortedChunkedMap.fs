@@ -169,9 +169,10 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     { new MapCursor<'K,'V>(this) with
       override c.Clone() = this.GetCursor(outer.Value.Clone(), inner.Value.Clone(), !isReset, !currentBatch, !isBatch)
       override c.IsBatch with get() = !isBatch
-      override c.Current with get() = 
-        if !isBatch then invalidOp "Current move is MoveNextBatxhAsync, cannot return a single valule"
-        else KeyValuePair(currentKey.Value, currentValue.Value)
+      override c.Current 
+        with get() = 
+          if !isBatch then invalidOp "Current move is MoveNextBatxhAsync, cannot return a single valule"
+          else KeyValuePair(currentKey.Value, currentValue.Value)
       override p.MoveNext() = 
         let entered = enterLockIf this.SyncRoot this.IsSynchronized
         try
@@ -632,7 +633,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
 
   interface IReadOnlyOrderedMap<'K,'V> with
     member this.GetAsyncEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
-    member this.GetCursor() = this.GetCursor() :> ICursor<'K,'V>
+    member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.IsEmpty
     member this.IsIndexed with get() = false
     //member this.Count with get() = size
