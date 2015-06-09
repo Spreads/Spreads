@@ -464,13 +464,13 @@ type SortedMap<'K,'V when 'K : comparison>
         // last optimization gives near 2x performance boost
         let lc = this.CompareToLast key
         if lc = 0 then // key = last key
-            raise (ArgumentException("key already exists"))
+            raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
         elif lc = 1 then // adding last value, Insert won't copy arrays if enough capacity
             this.Insert(this.size, key, value)
         else
             let index = this.IndexOfKeyUnchecked(key)
             if index >= 0 then // contains key 
-                raise (ArgumentException("key already exists"))
+                raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
             else
                 this.Insert(~~~index, key, value)
     finally
@@ -485,7 +485,7 @@ type SortedMap<'K,'V when 'K : comparison>
         let c = this.CompareToLast key
         if c = 1 then 
           this.Insert(this.size, key, value)
-        else raise (ArgumentOutOfRangeException("New key is smaller or equal to the largest existing key"))
+        else raise (ArgumentOutOfRangeException("SortedMap.AddLast: New key is smaller or equal to the largest existing key"))
     finally
       exitLockIf syncRoot entered
 
@@ -498,7 +498,7 @@ type SortedMap<'K,'V when 'K : comparison>
         let c = this.CompareToFirst key
         if c = -1 then
             this.Insert(0, key, value)
-        else raise (ArgumentOutOfRangeException("New key is larger or equal to the smallest existing key"))
+        else raise (ArgumentOutOfRangeException("SortedMap.AddLast: New key is larger or equal to the smallest existing key"))
     finally
       exitLockIf syncRoot entered
     

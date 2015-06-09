@@ -39,6 +39,8 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
   [<NonSerializedAttribute>]
   let comparer : IKeyComparer<'K> = c :?> IKeyComparer<'K>
     // TODO logic for fake comparer
+    // For each key, lookup LE outer key. If the bucket with this key has size < UPPER, add 
+    // new values to this bucket. Else create a new bucket.
     //KeyComparer.GetDefault<'K>()
 
   // TODO replace outer with MapDeque, see comments in MapDeque.fs

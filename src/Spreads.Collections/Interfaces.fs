@@ -149,12 +149,13 @@ type IOrderedMap<'K,'V when 'K : comparison> =
   /// and adds element to this map
   /// throws ArgumentOutOfRangeException if new key is larger than the first
   abstract AddFirst : k:'K*v:'V -> unit
+  /// Add a new map to the end of the current map. Async for IO bound implementations.
+  //abstract AppendAsync: map:IReadOnlyOrderedMap<'K,'V> -> Task<bool>
   /// Remove a key and its value in-place.
   abstract Remove : k:'K -> bool
   abstract RemoveLast: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> unit
   abstract RemoveFirst: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> unit
   abstract RemoveMany: k:'K * direction:Lookup -> unit
-  //abstract TryFindWithIndex: key:'K*direction:Lookup * [<Out>]result: byref<KeyValuePair<'K, 'V>> -> int
 
 
 [<AllowNullLiteral>]
