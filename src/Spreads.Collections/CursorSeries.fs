@@ -25,7 +25,7 @@ type CursorSeries<'K,'V when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>
 
 
 [<AbstractClassAttribute>]
-type TransformerCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) =
+type CursorProjection<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) =
   
   let cursor = cursorFactory()
   //let source = cursor.Source
@@ -161,8 +161,17 @@ type TransformerCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurs
           hasValue <- true
           true
         else
-          // TODO move next until TryGetValue returns true
-          false
+          let found = ref false
+          while x.InputCursor.MoveNext() && not !found do
+            let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
+            if ok then 
+              found := true
+              x.CurrentKey <- value.Key
+              x.CurrentValue <- value.Value
+          if !found then 
+            hasValue <- true
+            true 
+          else false
       else false
     
     member x.MoveLast(): bool = 
@@ -174,8 +183,17 @@ type TransformerCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurs
           hasValue <- true
           true
         else
-          // TODO move previous until TryGetValue returns true
-          false
+          let found = ref false
+          while x.InputCursor.MovePrevious() && not !found do
+            let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
+            if ok then
+              found := true
+              x.CurrentKey <- value.Key
+              x.CurrentValue <- value.Value
+          if !found then 
+            hasValue <- true
+            true 
+          else false
       else false
     
     member x.MoveNext(): bool = 
@@ -243,12 +261,12 @@ type TransformerCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurs
       clone
 
 
-  new(series:ISeries<'K,'V>) = new TransformerCursor<'K,'V,_>(series.GetCursor)
-  new(series:Series<'K,'V>) = new TransformerCursor<'K,'V,_>(series.GetCursor)
+  new(series:ISeries<'K,'V>) = new CursorProjection<'K,'V,_>(series.GetCursor)
+  new(series:Series<'K,'V>) = new CursorProjection<'K,'V,_>(series.GetCursor)
 
 /// Repeat previous value for all missing keys
 type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) as this =
-  inherit TransformerCursor<'K,'V,'V>(cursorFactory)
+  inherit CursorProjection<'K,'V,'V>(cursorFactory)
   do
     this.IsContinuous <- true  
 
@@ -262,7 +280,7 @@ type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V
 
 /// Repeat previous value for all missing keys
 type Add1Cursor<'K when 'K : comparison>(cursorFactory:unit->ICursor<'K,int>) =
-  inherit TransformerCursor<'K,int,int>(cursorFactory)
+  inherit CursorProjection<'K,int,int>(cursorFactory)
 
   override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,int>>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt

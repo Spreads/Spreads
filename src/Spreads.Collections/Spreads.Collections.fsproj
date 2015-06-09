@@ -70,7 +70,7 @@
     <Compile Include="Enums.fs" />
     <Compile Include="OptionalValue.fs" />
     <Compile Include="Interfaces.fs" />
-    <Compile Include="Math.fs" />
+    <Compile Include="MathProvider.fs" />
     <Compile Include="KeyComparer.fs" />
     <Compile Include="Serializer.fs" />
     <Compile Include="MapCursor.fs" />
