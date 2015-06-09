@@ -23,8 +23,9 @@ type CursorSeries<'K,'V when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>
 
 // 
 
+
 [<AbstractClassAttribute>]
-type TransformerCursor<'K,'V, 'V2 when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) =
+type TransformerCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) =
   
   let cursor = cursorFactory()
   //let source = cursor.Source
@@ -241,6 +242,9 @@ type TransformerCursor<'K,'V, 'V2 when 'K : comparison>(cursorFactory:unit->ICur
       //Debug.Assert(movedOk) // if current key is set then we could move to it
       clone
 
+
+  new(series:ISeries<'K,'V>) = new TransformerCursor<'K,'V,_>(series.GetCursor)
+  new(series:Series<'K,'V>) = new TransformerCursor<'K,'V,_>(series.GetCursor)
 
 /// Repeat previous value for all missing keys
 type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) as this =
