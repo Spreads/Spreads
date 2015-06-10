@@ -43,12 +43,12 @@ type ISeries<'K,'V when 'K : comparison> =
   /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
   /// positions and relative LT/LE/GT/GE moves.
   abstract GetCursor : unit -> ICursor<'K,'V>
-  /// If true then elements are sorted by some custom order (e.g. order of addition (index) and not by keys
+  /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys
   abstract IsIndexed : bool with get
   /// Locks any mutations for mutable implementations
   abstract SyncRoot : obj with get
-  // this is a part of interface because it depends on implementation. If using extensions, will have to check for actual implementation
-  // anyway and will have to bother with internals visibility
+  // TODO make an extension method with parameter (subsribe = false). If subscribe = true, the resulting sorted map will be updated 
+  // in background with each new value of the source
   /// Evaluate lazy series. Similar to IEnumerable.ToArray()/ToList() extension methods.
   //abstract ToMapAsync : cancellationToken:CancellationToken -> Task<IReadOnlyOrderedMap<'K,'V>>
 
@@ -59,6 +59,7 @@ type ISeries<'K,'V when 'K : comparison> =
 /// 
 /// Supports batches with MoveNextBatchAsync() and CurrentBatch members. Accessing current key
 /// after MoveNextBatchAsync or CurrentBatch after any single key movement results in InvalidOperationException.
+/// IsBatch property indicates wether the cursor is positioned on a single value or a batch.
 and
   [<AllowNullLiteral>]
   ICursor<'K,'V when 'K : comparison> =

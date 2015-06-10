@@ -18,10 +18,7 @@ type CursorSeries<'K,'V when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>
   inherit Series<'K,'V>()
   override this.GetCursor() = cursorFactory()
 
-/// This is similar to .Single in extensions
-/// Generators are Create
-
-// 
+// cursor factory is like a thunk for Vagabond, could exetute remotely
 
 
 [<AbstractClassAttribute>]
@@ -228,7 +225,6 @@ type CursorProjection<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurso
     
     member x.MoveNextAsync(cancellationToken: Threading.CancellationToken): Task<bool> = 
       failwith "Not implemented yet"
-    
     member x.MoveNextBatchAsync(cancellationToken: Threading.CancellationToken): Task<bool> = 
       failwith "Not implemented yet"
     
