@@ -18,7 +18,7 @@ type CursorSeries<'K,'V when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>
   inherit Series<'K,'V>()
   override this.GetCursor() = cursorFactory()
 
-// cursor factory is like a thunk for Vagabond, could exetute remotely
+// cursor factory is like a thunk for Vagabond, could exetute remotely?
 
 
 [<AbstractClassAttribute>]

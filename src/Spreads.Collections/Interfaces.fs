@@ -77,6 +77,8 @@ and
     /// NB: Btach processing is synchronous via IEnumerable interface of a batch, real-time is pull-based asynchronous.
     abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>
     /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
+    /// The actual implementation of the batch could be mutable and could reference a part of the original series, therefore consumer
+    /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap
     abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get
     /// True if last successful move was MoveNextBatchAsync and CurrentBatch contains a valid value.
     abstract IsBatch: bool with get
@@ -89,11 +91,17 @@ and
     abstract Clone: unit -> ICursor<'K,'V>
     /// Gets a calculated value for continuous series without moving the cursor position.
     /// This method must be called only when IsContinuous is true, otherwise NotSupportedException will be thrown.
-    /// E.g. IContinuousCursor for Repeat() will check if current state allows to get previous value,
+    /// E.g. a continuous cursor for Repeat() will check if current state allows to get previous value,
     /// and if not then .Source.GetCursor().MoveAt(key, LE). The TryGetValue method should be optimized
     /// for sort join case using enumerator, e.g. for repeat it should keep previous value and check if 
     /// the requested key is between the previous and the current keys, and then return the previous one.
     abstract TryGetValue: key:'K * [<Out>] value: byref<'V> -> bool
+
+
+// TODO for chains of batch operation it is a quetion how to minimize allocations:
+// one simple strategy is to check if the batch is SortedMap and check if it is read-only or not
+// that will require changes to SortedMap - a constructor that uses references to keys/values 
+// and not copies them or uses another SM as a source and blocks all write methods.
 
 /// Important! 'Read-only' doesn't mean that the object is immutable or not changing. It only means
 /// that there is no methods to change the map *from* this interface, without any assumptions about 
@@ -110,7 +118,8 @@ and
     abstract First : KVP<'K, 'V> with get
     /// Last element, throws InvalidOperationException if empty
     abstract Last : unit -> KVP<'K, 'V> with get
-    /// Values at key, throws KeyNotFoundException if key is not found
+    /// Values at key, throws KeyNotFoundException if key is not present in the series (even for continuous series).
+    /// Use TryGetValue to get a value between existing keys for continuous series.
     abstract Item : 'K -> 'V with get
     abstract Keys : IEnumerable<'K> with get
     abstract Values : IEnumerable<'V> with get
@@ -120,6 +129,7 @@ and
     abstract TryFind: key:'K * direction:Lookup * [<Out>] value: byref<KVP<'K, 'V>> -> bool
     abstract TryGetFirst: [<Out>] value: byref<KVP<'K, 'V>> -> bool
     abstract TryGetLast: [<Out>] value: byref<KVP<'K, 'V>> -> bool
+    /// See ICursor.TryGetValue comment for the behavior of continuous series.
     abstract TryGetValue: key:'K * [<Out>] value: byref<'V> -> bool
 
 
@@ -157,7 +167,7 @@ type IOrderedMap<'K,'V when 'K : comparison> =
   abstract RemoveLast: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> unit
   abstract RemoveFirst: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> unit
   abstract RemoveMany: k:'K * direction:Lookup -> unit
-
+  // TODO AddMany/Append
 
 [<AllowNullLiteral>]
 type IImmutableOrderedMap<'K,'V when 'K : comparison> =

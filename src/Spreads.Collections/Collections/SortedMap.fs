@@ -1092,14 +1092,16 @@ type SortedMap<'K,'V when 'K : comparison>
 
 
 
-  static member internal KeyAreEqual(smA:SortedMap<'K,_>,smB:SortedMap<'K,_>) =
+  static member internal KeysAreEqual(smA:SortedMap<'K,_>,smB:SortedMap<'K,_>) =
     if not (smA.size = smB.size) then false
     elif smA.IsRegular && smB.IsRegular 
       && smA.Comparer.Equals(smB.Comparer) // TODO test custom comparer equality
       && smA.Comparer.Compare(smA.keys.[0], smB.keys.[0]) = 0 then
       true
     else
-      // TODO memcmp for key arrays from SpreadsDB
-      false
+      System.Linq.Enumerable.SequenceEqual(smA.keys, smB.keys)
+      // TODO memcmp for key arrays from SpreadsDB, or unsafe implementation from SO
+      // TODO make array equality a part of MathProvider
+      //false
   //#endregion
 
