@@ -7,8 +7,7 @@ open System.Runtime.InteropServices
 
 open Spreads
 
-
-
+// this is a simple version of SM without regular keys mess
 
 /// Thread-unsafe (unsynced) array-based sorted map
 /// Implemented as SCG's SortedList with additional methods

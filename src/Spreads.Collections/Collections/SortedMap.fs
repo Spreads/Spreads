@@ -5,9 +5,20 @@ open System.Diagnostics
 open System.Collections
 open System.Collections.Generic
 open System.Runtime.InteropServices
+open System.Threading
+open System.Threading.Tasks
+
 
 open Spreads
 open Spreads.Collections
+
+// Why regular keys? Because we do not care about daily or hourly data, but there are 1440 minutes in a day
+// with the same diff between each consequitive minute. The number is much bigger with seconds and msecs so that
+// memory saving is meaningful, while vectorized calculations benefit from fast comparison of regular keys.
+// Ticks and seconds for illiquid instruments are not regular, but they are never equal among different instruments.
+
+// TODO test rkLast where it is used
+// TODO Test binary & JSON.NET (de)serialization
 
 
 /// Thread-unsafe (unsynced) array-based sorted map
@@ -21,57 +32,76 @@ type SortedMap<'K,'V when 'K : comparison>
     
   // data fields
   [<DefaultValueAttribute>]
-  val mutable internal keys : 'K array // = [||]
+  val mutable internal keys : 'K array
   [<DefaultValueAttribute>]
-  val mutable internal values : 'V array //= [||]
-  [<DefaultValueAttribute>]
-  val mutable internal size : int //= 0
-  [<VolatileFieldAttribute>] // enumeration doesn't locks but checks versions
-  let mutable version = 0
+  val mutable internal values : 'V array
+  [<DefaultValueAttribute>] // if size > 2 and keys.Length = 2 then the keys are regular
+  val mutable internal size : int
+  let mutable version : int = 0 // enumeration doesn't lock but checks version
 
   // util fields
-  let comparer : IComparer<'K> = 
+  [<NonSerializedAttribute>]
+  // This type is logically immutable. This field is only mutated during deserialization. 
+  let mutable comparer : IComparer<'K> = 
     if comparer.IsNone then Comparer<'K>.Default :> IComparer<'K> //LanguagePrimitives.FastGenericComparer
     else comparer.Value
   [<NonSerializedAttribute>]
-  let tyK = typeof<'K>
+  let isKeyReferenceType : bool = not typeof<'K>.IsValueType
   [<NonSerializedAttribute>]
-  let tyV = typeof<'V>
-  [<NonSerializedAttribute>]
-  let isKeyReferenceType : bool = not tyK.IsValueType
-
+  let mutable rkStep : int = 1
   // TODO use IDC resolution via KeyHelper.diffCalculators here or befor ctor
   [<NonSerializedAttribute>]
-  let mutable isKeyDiffable : bool = comparer :? IKeyComparer<'K>
+  let mutable isRegularKeys : bool = comparer :? IKeyComparer<'K>
   [<NonSerializedAttribute>]
   let mutable diffCalc : IKeyComparer<'K> = 
-    if isKeyDiffable then comparer :?> IKeyComparer<'K> 
+    if isRegularKeys then comparer :?> IKeyComparer<'K> 
     else Unchecked.defaultof<IKeyComparer<'K>>
-
-  [<NonSerializedAttribute;VolatileFieldAttribute>]
-  let mutable isRegularKeys : bool = isKeyDiffable
   // TODO off by one in remove not checked, in insert is OK
+  [<NonSerializedAttribute>]
   let mutable rkLast = Unchecked.defaultof<'K>
-  let rkKeyAtIndex idx = diffCalc.Add(this.keys.[0], idx)
-  let rkIndexOfKey key = diffCalc.Diff(key, this.keys.[0])
-  let rkWillRemainRegular newKey = 
-    if this.size = 0 then true
-    else 
-      //      0 || 4    1,2,3
-      let diff = diffCalc.Diff(newKey, this.keys.[0]) 
-      diff <= this.size && diff >= -1
-  let rkMaterialize () =
-    Array.init this.values.Length (fun i -> if i < this.size then diffCalc.Add(this.keys.[0], i) else Unchecked.defaultof<'K>)
-  
-
-  [<NonSerializedAttribute;VolatileFieldAttribute>]
-  let mutable isSynchronized : bool = false // TODO? safer to set true by default
+  [<NonSerializedAttribute>]
+  let mutable isSynchronized : bool = false
   [<NonSerializedAttribute>]
   let syncRoot = new Object()
-
   [<NonSerializedAttribute>]
   let mutable mapKey = ""
 
+
+  // helper functions
+  let rkKeyAtIndex (idx:int) : 'K = diffCalc.Add(this.keys.[0], idx*rkStep)
+  let rkIndexOfKey (key:'K) : int = diffCalc.Diff(key, this.keys.[0])/rkStep
+  let rkWillRemainRegular newKey =  // TODO special check for AddLast/First
+    if this.size = 0 then true
+    else 
+      //      0 || 4    1,2,3
+      let diff = diffCalc.Diff(newKey, this.keys.[0])
+      let idx = diff / rkStep
+      let modIsOk = diff % rkStep = 0
+      modIsOk && idx <= this.size && idx >= -1
+  let rkMaterialize () =
+    Array.init this.values.Length (fun i -> if i < this.size then diffCalc.Add(this.keys.[0], i*rkStep) else Unchecked.defaultof<'K>)
+
+  let rkCheckArray (sortedArray:'K[]) (size:int) (dc:IKeyComparer<'K>) : bool * int * 'K array = 
+    if size > sortedArray.Length then raise (ArgumentException("size is greater than sortedArray length"))
+    if size < 1 then
+      true, 0, [||]
+    elif size < 2 then
+      true, 1, [|sortedArray.[0]|]
+    elif size < 3 then 
+      true, dc.Diff(sortedArray.[1], sortedArray.[0]), [|sortedArray.[0];sortedArray.[1]|]
+    else
+      let firstDiff = dc.Diff(sortedArray.[1], sortedArray.[0])
+      let mutable isReg = true
+      let mutable n = 2
+      while isReg && n < size do
+        let newDiff = dc.Diff(sortedArray.[n], sortedArray.[n-1])
+        if newDiff <> firstDiff then
+          isReg <- false
+        n <- n + 1
+      if isReg then
+        true, firstDiff, [|sortedArray.[0];sortedArray.[1]|]
+      else
+        false, 0, [||]
 
   do
     let tempCap = if capacity.IsSome then capacity.Value else 1
@@ -100,39 +130,62 @@ type SortedMap<'K,'V when 'K : comparison>
         dictionary.Value.Values.CopyTo(this.values, 0)
         Array.Sort(this.keys, this.values, comparer)
         this.size <- dictionary.Value.Count
-        if isKeyDiffable then
-          isRegularKeys <- KeyHelper.isRegular this.keys this.size (comparer :?> IKeyComparer<'K>)
-        if isRegularKeys then 
-          this.keys <- [|this.keys.[0]|]
-          // TODO buffer pool for regular/irregular conversions
-
+        if isRegularKeys then // if could be regular based on initial check of comparer type
+          let isReg, step, firstArr = rkCheckArray this.keys this.size (comparer :?> IKeyComparer<'K>)
+          isRegularKeys <- isReg
+          rkStep <- step
+          if isRegularKeys then 
+            this.keys <- firstArr
+            rkLast <- rkKeyAtIndex (this.size - 1)
   //#endregion
+
+
+#if FX_NO_BINARY_SERIALIZATION
+#else
+  [<System.Runtime.Serialization.OnSerializingAttribute>]
+  member __.OnSerializing(context: System.Runtime.Serialization.StreamingContext) =
+    ignore(context)
+
+  [<System.Runtime.Serialization.OnDeserializedAttribute>]
+  member __.OnDeserialized(context: System.Runtime.Serialization.StreamingContext) =
+    ignore(context)
+    // TODO check if we have a default special IKeyComparer for the type
+    comparer <- Comparer<'K>.Default :> IComparer<'K> //LanguagePrimitives.FastGenericComparer<'K>
+    // TODO assign all fields that are marked with NonSerializable
+    if this.size > this.keys.Length then // regular keys
+      rkLast <- this.GetKeyByIndex(this.size - 1)
+
+#endif
+
 
   //#region Private & Internal members
 
   member private this.Clone() = new SortedMap<'K,'V>(Some(this :> IDictionary<'K,'V>), None, Some(comparer))
 
   member private this.GetKeyByIndex(index) =  // rkok
-    if isRegularKeys then rkKeyAtIndex index
-    else
+    if isRegularKeys then 
       if index < 0 || index >= this.size then raise (ArgumentOutOfRangeException("index"))
+      rkKeyAtIndex index
+    else
       this.keys.[index]
     
   member private this.GetValueByIndex(index) =  // rkok
-    if index < 0 || index >= this.size then raise (ArgumentOutOfRangeException("index"))
+    //if index < 0 || index >= this.size then raise (ArgumentOutOfRangeException("index")) // Array.Item does this already, TODO delete
     this.values.[index]
 
   member  private this.GetPairByIndexUnchecked(index) = // rkok //inline
-    if isRegularKeys then 
+    if isRegularKeys then
       KeyValuePair(rkKeyAtIndex index, this.values.[index])
     else KeyValuePair(this.keys.[index], this.values.[index]) 
   
   member  private this.CompareToFirst (k:'K) =  //inline
-     comparer.Compare(k, this.keys.[0])
+    comparer.Compare(k, this.keys.[0]) // keys.[0] is always the first key
   
   member  private this.CompareToLast (k:'K) = //inline
-     if isRegularKeys then comparer.Compare(k, rkLast) 
-     else comparer.Compare(k, this.keys.[this.size-1])
+    if isRegularKeys then 
+      Debug.Assert(rkLast <> Unchecked.defaultof<'K>)
+      comparer.Compare(k, rkLast) 
+    else comparer.Compare(k, this.keys.[this.size-1])
 
   // key is always new, checks are before this method
   member private this.Insert(index:int, k, v) = // rkok
@@ -146,9 +199,12 @@ type SortedMap<'K,'V when 'K : comparison>
       if this.size = 0 then 
         this.keys.[0] <- k
         rkLast <- k
+      elif this.size = 1 then 
+        this.keys.[0] <- k
+        rkLast <- k
       else
         let diff = diffCalc.Diff(k, this.keys.[0]) 
-        if diff = -1 then this.keys.[0] <- k // change first key and size++
+        if diff = -1 then this.keys.[0] <- k // change first key and size++ at the bottom
         elif diff = this.size then 
           rkLast <- diffCalc.Add(this.keys.[0], this.size) // append, only size++ at the end 
         elif diff > -1 && diff < this.size then
@@ -158,6 +214,7 @@ type SortedMap<'K,'V when 'K : comparison>
           // insertting more than 1 away from end or before start, with a hole
           this.keys <- rkMaterialize() 
           isRegularKeys <- false
+
     if not isRegularKeys then
       if index < this.size then
         Array.Copy(this.keys, index, this.keys, index + 1, this.size - index);
@@ -172,7 +229,7 @@ type SortedMap<'K,'V when 'K : comparison>
   member private this.EnsureCapacity(min) = // rkok
     let mutable num = this.values.Length * 2 
     if num > 2146435071 then num <- 2146435071
-    if num < min then num <- min
+    if num < min then num <- min // either double or min if min > 2xprevious
     this.Capacity <- num
     
   member internal this.IsReadOnly with get() = false
@@ -186,16 +243,8 @@ type SortedMap<'K,'V when 'K : comparison>
 
   member internal this.MapKey with get() = mapKey and set(key:string) = mapKey <- key
 
-  /// <summary>
-  /// Check if keys could be represented as regular and compress them if they could
-  /// </summary>
-  member internal this.CheckRegular() =
-    if isKeyDiffable then
-      isRegularKeys <- KeyHelper.isRegular this.keys this.size (comparer :?> IKeyComparer<'K>)
-    if isRegularKeys then 
-      this.keys <- [|this.keys.[0]|]
-
   member internal this.IsRegular with get() = isRegularKeys
+  member internal this.RegularStep with get() = rkStep
 
   member internal this.SyncRoot with get() = syncRoot
 
@@ -778,8 +827,19 @@ type SortedMap<'K,'V when 'K : comparison>
     let pVersion = ref pVersion
     let currentKey : 'K ref = ref currentKey
     let currentValue : 'V ref = ref currentValue
+    let isBatch = ref false
     { 
     new MapCursor<'K,'V>(this) with
+      override p.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
+        if !index = -1 then this :> IReadOnlyOrderedMap<'K,'V>
+        else raise (InvalidOperationException(""))
+      override p.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> =
+        if !index = -1 then 
+          index := this.Count
+          isBatch := true
+          Task.FromResult(true)
+        else Task.FromResult(false)
+      override p.IsBatch with get() = !isBatch
       override p.Clone() = this.GetCursor(!index,!pVersion,!currentKey,!currentValue)
       override p.Current with get() = KeyValuePair(currentKey.Value, currentValue.Value)
       override p.MoveNext() = 
@@ -797,7 +857,7 @@ type SortedMap<'K,'V when 'K : comparison>
                 currentValue := kvp.Value
                 true
               else  // not found
-                index := this.Count + 1
+                index := this.Count
                 currentKey := Unchecked.defaultof<'K>
                 currentValue := Unchecked.defaultof<'V>
                 false
@@ -810,7 +870,8 @@ type SortedMap<'K,'V when 'K : comparison>
               currentValue := this.values.[!index]
               true
             else
-              index := this.Count + 1
+              Debug.Assert(!index = this.Count)
+              //index := this.Count
               currentKey := Unchecked.defaultof<'K>
               currentValue := Unchecked.defaultof<'V>
               false
@@ -912,9 +973,8 @@ type SortedMap<'K,'V when 'K : comparison>
       override p.Dispose() = p.Reset()
     } :> ICursor<'K,'V>
 
-  /// If size is less than 80% of capacity then reduce capacity to the size
-  member this.TrimExcess() =
-    if this.size < int(float(this.values.Length) * 0.8) then this.Capacity <- this.size
+  /// Make the capacity equal to the size
+  member this.TrimExcess() = this.Capacity <- this.size
 
   //#endregion
 
@@ -1017,9 +1077,6 @@ type SortedMap<'K,'V when 'K : comparison>
       this.RemoveLast(&result) |> ignore // TODO why unit not bool?
     member this.RemoveMany(key:'K,direction:Lookup) = 
       this.RemoveMany(key, direction) |> ignore
-//    member x.TryFindWithIndex(key: 'K, direction: Lookup, result: byref<KeyValuePair<'K,'V>>): int = 
-//      this.TryFindWithIndex(key, direction, &result)
-
     
     
   interface IImmutableOrderedMap<'K,'V> with
@@ -1058,21 +1115,15 @@ type SortedMap<'K,'V when 'K : comparison>
 
   //#region Constructors
 
+  // TODO try resolve KeyComparer for know types
   new() = SortedMap(None, None, None)
-  new(comparer:IComparer<'K>) = SortedMap(None, None, Some(comparer))
   new(dictionary:IDictionary<'K,'V>) = SortedMap(Some(dictionary), Some(dictionary.Count), Some(Comparer<'K>.Default :> IComparer<'K>))
   new(capacity:int) = SortedMap(None, Some(capacity), Some(Comparer<'K>.Default :> IComparer<'K>))
-  new(dictionary:IDictionary<'K,'V>,comparer:IComparer<'K>) = SortedMap(Some(dictionary), Some(dictionary.Count), Some(comparer))
-  new(capacity:int,comparer:IComparer<'K>) = SortedMap(None, Some(capacity), Some(comparer))
+  // do not expose ctors with comparer to public
+  internal new(comparer:IComparer<'K>) = SortedMap(None, None, Some(comparer))
+  internal new(dictionary:IDictionary<'K,'V>,comparer:IComparer<'K>) = SortedMap(Some(dictionary), Some(dictionary.Count), Some(comparer))
+  internal new(capacity:int,comparer:IComparer<'K>) = SortedMap(None, Some(capacity), Some(comparer))
 
-  // TODO move size to end
-  [<ObsoleteAttribute>]
-  static member OfKeysAndValues(size:int, keys:'K[], values:'V[]) =
-    let sm = new SortedMap<'K,'V>()
-    sm.size <- size
-    sm.keys <- keys
-    sm.values <- values
-    sm
 
   static member OfSortedKeysAndValues(keys:'K[], values:'V[], size:int) =
     if keys.Length < size then raise (new ArgumentException("Keys array is smaller than provided size"))
@@ -1091,17 +1142,17 @@ type SortedMap<'K,'V when 'K : comparison>
     SortedMap.OfSortedKeysAndValues(keys, values, keys.Length)
 
 
-
   static member internal KeysAreEqual(smA:SortedMap<'K,_>,smB:SortedMap<'K,_>) =
     if not (smA.size = smB.size) then false
     elif smA.IsRegular && smB.IsRegular 
-      && smA.Comparer.Equals(smB.Comparer) // TODO test custom comparer equality
-      && smA.Comparer.Compare(smA.keys.[0], smB.keys.[0]) = 0 then
+      && smA.RegularStep = smB.RegularStep
+      //&& smA.Comparer.Equals(smB.Comparer) // TODO test custom comparer equality, custom comparers must implement equality
+      && smA.Comparer.Compare(smA.keys.[0], smB.keys.[0]) = 0 then // if steps are equal we could skip checking second elements in keys
       true
     else
       System.Linq.Enumerable.SequenceEqual(smA.keys, smB.keys)
       // TODO memcmp for key arrays from SpreadsDB, or unsafe implementation from SO
       // TODO make array equality a part of MathProvider
       //false
-  //#endregion
+#endregion
 

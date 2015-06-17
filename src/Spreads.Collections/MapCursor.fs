@@ -94,6 +94,7 @@ type MapCursor<'K,'V when 'K : comparison>
   abstract member Reset : unit -> unit
   override this.Reset() = isReset <- true
 
+// Not needed, non-async methods should never block, they return false if there are no immediate values available. Then called should call MoveNextAsync().
 //  abstract MoveAtAsync: index:'K * direction:Lookup -> Task<bool>
 //  abstract MoveFirstAsync: unit -> Task<bool>
 //  abstract MoveLastAsync: unit -> Task<bool>

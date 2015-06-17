@@ -1,4 +1,4 @@
-﻿namespace Spreads.Collections.Extra
+﻿namespace Spreads.Collections.Experimental
 
 open System
 open System.Collections

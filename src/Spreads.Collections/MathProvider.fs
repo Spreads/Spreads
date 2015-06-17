@@ -7,8 +7,8 @@ open System.Threading
 open System.Threading.Tasks
 open System.Runtime.InteropServices
 
-// It is tempting to use ILinearAlgebraProvider from MathNet.Numerics, but there are not so many member to wrap around it 
-// do not want external binary dependencies in this project
+// It is tempting to use ILinearAlgebraProvider from MathNet.Numerics, but there are not so many members to wrap around it;
+// avoid external binary dependencies in this project
 
 
 /// Fast operations on numeric arrays
