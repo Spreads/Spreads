@@ -34,10 +34,10 @@ type SpreadsComparerInt64(bucketSize:uint16) =
 
   member x.BucketSize with get () = bucketSize
   
-  override x.Compare(a,b) = int <| a - b
+  override x.Compare(a,b) = a.CompareTo(b)
   override x.Diff(a,b) = int <| a - b
   override x.Add(a,diff) = a + (int64 diff)
-  override x.Hash(k) = (k / int64(bucketSize)) * int64(bucketSize)
+  override x.Hash(k) = 0L //(k / int64(bucketSize)) * int64(bucketSize)
   override x.AsUInt64(k) = uint64 k
   override x.FromUInt64(value) = int64 value
 
@@ -58,7 +58,7 @@ type SpreadsComparerInt64U(bucketSize:uint16) =
 
   member x.BucketSize with get () = bucketSize
   
-  override x.Compare(a,b) = int <| a - b
+  override x.Compare(a,b) = a.CompareTo(b)
   override x.Diff(a,b) = int <| a - b
   override x.Add(a,diff) = a + (uint64 diff)
   override x.Hash(k) = (k / uint64(bucketSize)) * uint64(bucketSize)
@@ -82,7 +82,7 @@ type SpreadsComparerInt32(bucketSize:uint16) =
 
   member x.BucketSize with get () = bucketSize
   
-  override x.Compare(a,b) = int <| a - b
+  override x.Compare(a,b) = a.CompareTo(b)
   override x.Diff(a,b) = int <| a - b
   override x.Add(a,diff) = a + (int32 diff)
   override x.Hash(k) = (k / int32(bucketSize)) * int32(bucketSize)
@@ -106,7 +106,7 @@ type SpreadsComparerInt32U(bucketSize:uint16) =
 
   member x.BucketSize with get () = bucketSize
   
-  override x.Compare(a,b) = int <| a - b
+  override x.Compare(a,b) = a.CompareTo(b)
   override x.Diff(a,b) = int <| a - b
   override x.Add(a,diff) = a + (uint32 diff)
   override x.Hash(k) = (k / uint32(bucketSize)) * uint32(bucketSize)

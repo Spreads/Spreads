@@ -165,8 +165,8 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     let isBatch = ref isBatch
 
     // TODO use inner directly
-    let currentKey : 'K ref = ref inner.Value.CurrentKey // Unchecked.defaultof<'K>
-    let currentValue : 'V ref = ref inner.Value.CurrentValue // Unchecked.defaultof<'V>
+//    let currentKey : 'K ref = ref inner.Value.CurrentKey // Unchecked.defaultof<'K>
+//    let currentValue : 'V ref = ref inner.Value.CurrentValue // Unchecked.defaultof<'V>
 
     { new MapCursor<'K,'V>(this) with
       override c.Clone() = this.GetCursor(outer.Value.Clone(), inner.Value.Clone(), !isReset, !currentBatch, !isBatch)
@@ -174,7 +174,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
       override c.Current 
         with get() = 
           if !isBatch then invalidOp "Current move is MoveNextBatxhAsync, cannot return a single valule"
-          else KeyValuePair(currentKey.Value, currentValue.Value)
+          else inner.Value.Current
       override p.MoveNext() = 
         let entered = enterLockIf this.SyncRoot this.IsSynchronized
         try
@@ -182,17 +182,13 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
           else
             let res = inner.Value.MoveNext() // could pass curent key by ref and save some single-dig %
             if res then
-              currentKey := inner.Value.CurrentKey
-              currentValue := inner.Value.CurrentValue
-              isBatch := false
+              if !isBatch then isBatch := false
               true
             else
               if outer.Value.MoveNext() then // go to the next bucket
                 inner := outer.Value.CurrentValue.GetCursor()
                 let res = inner.Value.MoveFirst()
                 if res then
-                  currentKey := inner.Value.CurrentKey
-                  currentValue := inner.Value.CurrentValue
                   isBatch := false
                   true
                 else
@@ -209,8 +205,6 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
           else
             let res = inner.Value.MovePrevious()
             if res then
-              currentKey := inner.Value.CurrentKey
-              currentValue := inner.Value.CurrentValue
               isBatch := false
               true
             else
@@ -218,8 +212,6 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
                 inner := outer.Value.CurrentValue.GetCursor()
                 let res = inner.Value.MoveLast()
                 if res then
-                  currentKey := inner.Value.CurrentKey
-                  currentValue := inner.Value.CurrentValue
                   isBatch := false
                   true
                 else
@@ -248,8 +240,6 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
           isReset := false
                     
           if res then
-            currentKey := inner.Value.CurrentKey
-            currentValue := inner.Value.CurrentValue
             isBatch := false
             true
           else
@@ -260,8 +250,6 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
                   inner := outer.Value.CurrentValue.GetCursor()
                   let res = inner.Value.MoveAt(newSubIdx, direction)
                   if res then
-                    currentKey := inner.Value.CurrentKey
-                    currentValue := inner.Value.CurrentValue
                     isBatch := false
                     true
                   else
@@ -276,8 +264,6 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
                   inner := outer.Value.CurrentValue.GetCursor()
                   let res = inner.Value.MoveAt(newSubIdx, direction)
                   if res then
-                    currentKey := inner.Value.CurrentKey
-                    currentValue := inner.Value.CurrentValue
                     isBatch := false
                     true
                   else
@@ -306,17 +292,17 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         finally
           exitLockIf this.SyncRoot entered
 
-      override p.CurrentKey with get() = currentKey.Value
+      override p.CurrentKey with get() = inner.Value.CurrentKey
 
-      override p.CurrentValue with get() = currentValue.Value
+      override p.CurrentValue with get() = inner.Value.CurrentValue
 
       override p.Reset() = 
-        outer.Value.Reset()
-        outer.Value.MoveFirst() |> ignore
-        inner := Unchecked.defaultof<ICursor<'K, 'V>> // outer.Value.CurrentValue.GetPointer()
-        currentKey := Unchecked.defaultof<'K>
-        currentValue := Unchecked.defaultof<'V>
-        isReset := true
+        if not !isReset then
+          outer.Value.Reset()
+          outer.Value.MoveFirst() |> ignore
+          inner.Value.Reset()
+          inner := Unchecked.defaultof<ICursor<'K, 'V>> // outer.Value.CurrentValue.GetPointer()
+          isReset := true
 
       override p.Dispose() = base.Dispose()
 

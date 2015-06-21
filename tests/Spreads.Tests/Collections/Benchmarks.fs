@@ -1,7 +1,6 @@
 ﻿namespace Spreads.Tests.Collections.Benchmarks
 
-open FsUnit
-open NUnit.Framework
+
 
 open System
 open System.Collections.Generic
@@ -12,6 +11,9 @@ open System.Threading
 open System.Threading.Tasks
 
 open Deedle
+
+open FsUnit
+open NUnit.Framework
 
 /// Insert last (most common usage), first (worst case usage) and read (forward and backward)
 /// for each collection
@@ -36,21 +38,27 @@ module CollectionsBenchmarks =
   let IntMap64_run() = IntMap64(1000000L)
 
 
-//  let DeedleSeries(count:int64) =
-//    let deedleSeries = ref (Series.ofObservations([]))
-//    perf count "DeedleSeries insert" (fun _ ->
-//      for i in 0L..count do
-//        deedleSeries := Series.merge !deedleSeries (Series.ofObservations([i => i]))
-//    )
-//    perf count "DeedleSeries read" (fun _ ->
-//      for i in 0L..count do
-//        let res = Series.lookup i Deedle.Lookup.Exact !deedleSeries 
-//        if res <> i then failwith "DeedleSeries failed"
-//        ()
-//    )
-//    Console.WriteLine("----------------")
-//  [<Test>]
-//  let DeedleSeries_run() = DeedleSeries(10000L)
+  let DeedleSeries(count:int64) =
+    let deedleSeries = ref (Series.ofObservations([]))
+    perf count "DeedleSeries insert" (fun _ ->
+      let list1 = new List<int64>()
+      let list2 = new List<int64>()
+      //let arr = Array.zeroCreate ((int count)+1) // System.Collections.Generic.List(count |> int)
+      for i in 0L..count do
+        list1.Add(i)
+        list2.Add(i)
+        //arr.[int i] <- i
+      deedleSeries := Series(list1, list2)
+    )
+    perf count "DeedleSeries read" (fun _ ->
+      for i in 0L..count do
+        let res = Series.lookup i Deedle.Lookup.Exact !deedleSeries 
+        if res <> i then failwith "DeedleSeries failed"
+        ()
+    )
+    Console.WriteLine("----------------")
+  [<Test>]
+  let DeedleSeries_run() = DeedleSeries(1000000L)
 
 
   let FSXVector(count:int64) =
@@ -281,8 +289,8 @@ module CollectionsBenchmarks =
     )
     perf count "SortedList Iterate with load" (fun _ ->
       for i in sl.Value do
-        let res = Math.Exp ( Math.Log(Math.Exp ( Math.Log(Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L)))))))
-        if res <> Math.Exp ( Math.Log(Math.Exp ( Math.Log(Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L))))))) then failwith "SortedList failed"
+        let res = Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L)))
+        if res <> Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L))) then failwith "SortedList failed"
         ()
     )
 //    sl := Spreads.Collections.Extra.SortedList()
@@ -384,6 +392,13 @@ module CollectionsBenchmarks =
           let res = i.Value
           ()
       )
+    for i in 0..9 do
+      perf count "SortedMap Iterate with load" (fun _ ->
+        for i in smap.Value do
+          let res = Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L)))
+          if res <> Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L))) then failwith "SortedList failed"
+          ()
+      )
 //    smap := SortedMap()
 //    let count = count / 10L
 //    perf count "SortedMap Add Reverse" (fun _ ->
@@ -463,17 +478,24 @@ module CollectionsBenchmarks =
         for i in 0L..count do
           smap.Value.Add(i, i)
       )
-//    for i in 0..4 do
-//      perf count "SortedMapRegular Read" (fun _ ->
-//        for i in 0L..count do
-//          let res = smap.Value.Item(i)
-//          if res <> i then failwith "SortedMap failed"
-//          ()
-//      )
+    for i in 0..4 do
+      perf count "SortedMapRegular Read" (fun _ ->
+        for i in 0L..count do
+          let res = smap.Value.Item(i)
+          if res <> i then failwith "SortedMap failed"
+          ()
+      )
     for i in 0..9 do
       perf count "SortedMapRegular Iterate" (fun _ ->
         for i in smap.Value do
           let res = i.Value
+          ()
+      )
+    for i in 0..9 do
+      perf count "SortedMapRegular Iterate with load" (fun _ ->
+        for i in smap.Value do
+          let res = Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L)))
+          if res <> Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L))) then failwith "SortedList failed"
           ()
       )
 //    smap := Spreads.Collections.SortedMap(comparer = (dc :?> IComparer<int64>))
@@ -551,24 +573,36 @@ module CollectionsBenchmarks =
   
   [<TestCase(10000000)>]
   let SCM(count:int64) =
-    let shm = ref (SortedChunkedMap(SpreadsComparerInt64(8192us)))
-    perf count "SCM<1024> Add" (fun _ ->
-      for i in 0L..count do
-        shm.Value.Add(i, i)
-    )
-    perf count "SCM Read" (fun _ ->
-      for i in 0L..count do
-        let res = shm.Value.Item(i)
-        if res <> i then failwith "SCM failed"
-        ()
-    )
-    perf count "SCM Iterate" (fun _ ->
-      for i in shm.Value do
-        let res = Math.Exp ( Math.Log(Math.Exp ( Math.Log(Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L)))))))
-        if res <> Math.Exp ( Math.Log(Math.Exp ( Math.Log(Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L))))))) then failwith "SCM failed"
-        ()
-    )
-    shm := (SortedChunkedMap(SpreadsComparerInt64(8192us)))
+    let batchSize = 10240us //8192us
+    let shm = ref (SortedChunkedMap(SpreadsComparerInt64(batchSize)))
+    for i in 0..9 do
+      shm := (SortedChunkedMap(SpreadsComparerInt64(batchSize)))
+      perf count "SCM<1024> Add" (fun _ ->
+        for i in 0L..count do
+          shm.Value.Add(i, i)
+      )
+    for i in 0..9 do
+      perf count "SCM Read" (fun _ ->
+        for i in 0L..count do
+          let res = shm.Value.Item(i)
+          if res <> i then failwith "SCM failed"
+          ()
+      )
+    for i in 0..9 do
+      perf count "SCM Iterate" (fun _ ->
+        for i in shm.Value do
+          let res = i.Value
+          if res <> i.Value then failwith "SCM failed"
+          ()
+      )
+    for i in 0..9 do
+      perf count "SCM Iterate with load" (fun _ ->
+        for i in shm.Value do
+          let res = Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L)))
+          if res <> Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L))) then failwith "SCM failed"
+          ()
+      )
+    shm := (SortedChunkedMap(SpreadsComparerInt64(batchSize)))
     let count = count / 10L
     perf count "SCM<1024> Add Reverse" (fun _ ->
       for i in 0L..count do
@@ -677,7 +711,7 @@ module CollectionsBenchmarks =
 //  let SHM_regular_run() = SHM_regular(1000000L)
 
   let SortedDequeTest(count:int64) =
-    let vec = ref (Extra.SortedDeque<int64>())
+    let vec = ref (Experimental.SortedDeque<int64>())
     perf count "SortedDeque Add" (fun _ ->
       for i in 0L..count do
         vec.Value.AddLast(i)
@@ -688,7 +722,7 @@ module CollectionsBenchmarks =
         if res <> i then failwith "SortedDeque failed"
         ()
     )
-    vec := (Extra.SortedDeque<int64>())
+    vec := (Experimental.SortedDeque<int64>())
     perf count "SortedDeque Reverse" (fun _ ->
       for i in 0L..count do
         vec.Value.Add(count - i)
@@ -756,20 +790,20 @@ module CollectionsBenchmarks =
 //    DeedleDeque_run()
 
     Console.WriteLine("MAPS")
-//    DeedleSeries_run()
+    DeedleSeries_run()
 //    FSXHashMap_run()
 //    IntMap64_run()
 //    MapTree_run()
-    SCGSortedList_run()
+//    SCGSortedList_run()
 //    SCIOrderedMap_run()
     //SortedDeque_run()
-    SortedList_run()
-    SortedMap_run()
-    SortedMapPeriod_run()
+    //SortedList_run()
+    //SortedMap_run()
+//    SortedMapPeriod_run()
 //    SortedMapDT_run()
     //SortedMapRegular_run()
     //MapDeque_run() // bugs!
-    SHM_run()
+    //SHM_run()
     SCM_run()
 //    SHM_regular_run()
     //PersistenSortedMap_run()
