@@ -8,6 +8,9 @@ open System.Threading
 open System.Threading.Tasks
 open System.Runtime.InteropServices
 
+// diff/add are used for regular keys
+// hash is used for chunking
+
 /// <summary>
 /// IComparer<'K> with additional methods for regular keys
 /// </summary>
@@ -15,7 +18,7 @@ open System.Runtime.InteropServices
 type internal IKeyComparer<'K>= // when 'K : comparison
   inherit IComparer<'K>
   /// Returns int32 distance between two values when they are stored in 
-  /// a regular sorted map. Regular means continuous integers or days or seonds, etc.
+  /// a regular sorted map. Regular means continuous integers or days or seconds, etc.
   /// This method could be used for IComparer<'K>.Compare implementation.
   abstract Diff : a:'K * b:'K -> int
   /// If Diff(A,B) = X, then Add(A,X) = B, this is a mirrow method for Diff
@@ -28,12 +31,12 @@ type internal IKeyComparer<'K>= // when 'K : comparison
   /// Get UInt64 representation of a key.
   /// In general, (a.AsUInt64 - b.AsUInt64) is not equal to ISpreadsComparer.Diff(a,b), e.g. for non-tick TimePeriod.
   /// </summary>
-  abstract AsUInt64: k:'K -> uint64
+  //abstract AsUInt64: k:'K -> uint64
   /// <summary>
   /// Get a key from its UInt64 representation.
   /// In general, (a.AsUInt64 - b.AsUInt64) is not equal to ISpreadsComparer.Diff(a,b), e.g. for non-tick TimePeriod.
   /// </summary>
-  abstract FromUInt64: uint64 -> 'K
+  //abstract FromUInt64: uint64 -> 'K
 
 
 type internal KeyComparer()=

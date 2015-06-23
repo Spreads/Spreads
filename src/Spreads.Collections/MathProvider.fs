@@ -10,6 +10,7 @@ open System.Runtime.InteropServices
 // It is tempting to use ILinearAlgebraProvider from MathNet.Numerics, but there are not so many members to wrap around it;
 // avoid external binary dependencies in this project
 
+// TODO remove from the collections project
 
 /// Fast operations on numeric arrays
 type IVectorMathProvider =

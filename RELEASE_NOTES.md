@@ -1,3 +1,8 @@
+#### 0.0.6 - June 22, 2015
+* Rework regular keys optimization for sorted map - now it supports a custom step
+* Rework cursor logic. Now Series/ISeries are pull-based IAsyncEnumerable-like sequences
+with batching support. A cursor takes the role of IEnumerator and completely defines/generates ISeries.
+
 #### 0.0.5 - May 29, 2015
 * Delete Spreads.Common project and package and move all files to Spreads.Collection because it is always used
 * Clean and update interfaces

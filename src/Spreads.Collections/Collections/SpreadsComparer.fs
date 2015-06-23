@@ -23,8 +23,8 @@ type BaseSpreadsComparer<'K when 'K : comparison>() =
     member x.Diff(a,b) = x.Diff(a,b)
     member x.Add(a,diff) = x.Add(a, diff)
     member x.Hash(k) = x.Hash(k)
-    member x.AsUInt64(k) = x.AsUInt64(k)
-    member x.FromUInt64(value) = x.FromUInt64(value)
+    //member x.AsUInt64(k) = x.AsUInt64(k)
+    //member x.FromUInt64(value) = x.FromUInt64(value)
 
 [<Sealed>]
 type SpreadsComparerInt64(bucketSize:uint16) =

@@ -156,21 +156,21 @@ Target "NuGet" (fun _ ->
 //            Dependencies = [] })
 //        ("nuget/" + project + ".nuspec")
 
-    let packageName = project + "." + "Common"
-    NuGet (fun p ->
-        { p with
-            Authors = authors
-            Project = packageName
-            Summary = packageName // "TODO"
-            Description = packageName // "TODO"
-            Version = release.NugetVersion
-            ReleaseNotes = ""
-            Tags = tags
-            OutputPath = "bin"
-            AccessKey = getBuildParamOrDefault "nugetkey" ""
-            Publish = hasBuildParam "nugetkey"
-            Dependencies = [] })
-        ("nuget/" + packageName + ".nuspec")
+//    let packageName = project + "." + "Common"
+//    NuGet (fun p ->
+//        { p with
+//            Authors = authors
+//            Project = packageName
+//            Summary = packageName // "TODO"
+//            Description = packageName // "TODO"
+//            Version = release.NugetVersion
+//            ReleaseNotes = ""
+//            Tags = tags
+//            OutputPath = "bin"
+//            AccessKey = getBuildParamOrDefault "nugetkey" ""
+//            Publish = hasBuildParam "nugetkey"
+//            Dependencies = [] })
+//        ("nuget/" + packageName + ".nuspec")
 
     let packageName = project + "." + "Collections"
     NuGet (fun p ->
@@ -289,9 +289,10 @@ Target "All" DoNothing
   =?> ("GenerateDocs",isLocalBuild && not isMono)
   =?> ("ReleaseDocs",isLocalBuild && not isMono)
 
-"All" 
-  //==> "RunTests"
-  ==> "NuGet"
+//"All" 
+//  //==> "RunTests"
+//  ==> 
+"NuGet"
   ==> "Pack"
 
 "CleanDocs"
@@ -308,4 +309,4 @@ Target "All" DoNothing
 "Pack"
   ==> "Release"
 
-RunTargetOrDefault "Pack"
+RunTargetOrDefault "NuGet"
