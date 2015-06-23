@@ -107,28 +107,6 @@ type SortedMap<'K,'V when 'K : comparison>
     let step = rkGetStep()
     Array.init this.values.Length (fun i -> if i < this.size then diffCalc.Add(this.keys.[0], i*step) else Unchecked.defaultof<'K>)
 
-  let rkCheckArray (sortedArray:'K[]) (size:int) (dc:IKeyComparer<'K>) : bool * int * 'K array = 
-    if size > sortedArray.Length then raise (ArgumentException("size is greater than sortedArray length"))
-    if size < 1 then
-      true, 0, [|Unchecked.defaultof<'K>;Unchecked.defaultof<'K>|]
-    elif size < 2 then
-      true, 0, [|sortedArray.[0];Unchecked.defaultof<'K>|]
-    elif size < 3 then 
-      true, dc.Diff(sortedArray.[1], sortedArray.[0]), [|sortedArray.[0];sortedArray.[1]|]
-    else
-      let firstDiff = dc.Diff(sortedArray.[1], sortedArray.[0])
-      let mutable isReg = true
-      let mutable n = 2
-      while isReg && n < size do
-        let newDiff = dc.Diff(sortedArray.[n], sortedArray.[n-1])
-        if newDiff <> firstDiff then
-          isReg <- false
-        n <- n + 1
-      if isReg then
-        true, firstDiff, [|sortedArray.[0];sortedArray.[1]|]
-      else
-        false, 0, Unchecked.defaultof<'K[]>
-
   do
     let tempCap = if capacity.IsSome then capacity.Value else 1
     this.keys <- Array.zeroCreate (if couldHaveRegularKeys then 2 else tempCap) // regular keys are the first and the second value, their diff is the step
@@ -158,13 +136,34 @@ type SortedMap<'K,'V when 'K : comparison>
         this.size <- dictionary.Value.Count
         // TODO review
         if couldHaveRegularKeys then // if could be regular based on initial check of comparer type
-          let isReg, step, firstArr = rkCheckArray this.keys this.size (comparer :?> IKeyComparer<'K>)
+          let isReg, step, firstArr = this.rkCheckArray this.keys this.size (comparer :?> IKeyComparer<'K>)
           couldHaveRegularKeys <- isReg
           if couldHaveRegularKeys then 
             this.keys <- firstArr
             rkLast <- rkKeyAtIndex (this.size - 1)
   //#endregion
 
+  member private this.rkCheckArray (sortedArray:'K[]) (size:int) (dc:IKeyComparer<'K>) : bool * int * 'K array = 
+    if size > sortedArray.Length then raise (ArgumentException("size is greater than sortedArray length"))
+    if size < 1 then
+      true, 0, [|Unchecked.defaultof<'K>;Unchecked.defaultof<'K>|]
+    elif size < 2 then
+      true, 0, [|sortedArray.[0];Unchecked.defaultof<'K>|]
+    elif size < 3 then 
+      true, dc.Diff(sortedArray.[1], sortedArray.[0]), [|sortedArray.[0];sortedArray.[1]|]
+    else
+      let firstDiff = dc.Diff(sortedArray.[1], sortedArray.[0])
+      let mutable isReg = true
+      let mutable n = 2
+      while isReg && n < size do
+        let newDiff = dc.Diff(sortedArray.[n], sortedArray.[n-1])
+        if newDiff <> firstDiff then
+          isReg <- false
+        n <- n + 1
+      if isReg then
+        true, firstDiff, [|sortedArray.[0];sortedArray.[1]|]
+      else
+        false, 0, Unchecked.defaultof<'K[]>
 
 #if FX_NO_BINARY_SERIALIZATION
 #else
@@ -1165,7 +1164,7 @@ type SortedMap<'K,'V when 'K : comparison>
 //      newMap.RemoveMany(key, direction) |> ignore
 //      newMap :> IImmutableOrderedMap<'K,'V>
 
-  //#endregion   
+  //#endregion
 
   //#region Constructors
 
@@ -1179,18 +1178,28 @@ type SortedMap<'K,'V when 'K : comparison>
   internal new(dictionary:IDictionary<'K,'V>,comparer:IComparer<'K>) = SortedMap(Some(dictionary), Some(dictionary.Count), Some(comparer))
   internal new(capacity:int,comparer:IComparer<'K>) = SortedMap(None, Some(capacity), Some(comparer))
 
-
-  static member OfSortedKeysAndValues(keys:'K[], values:'V[], size:int) =
+  static member internal OfSortedKeysAndValues(keys:'K[], values:'V[], size:int, comparer:IComparer<'K>) =
     if keys.Length < size then raise (new ArgumentException("Keys array is smaller than provided size"))
     if values.Length < size then raise (new ArgumentException("Values array is smaller than provided size"))
-    let sm = new SortedMap<'K,'V>()
-    let comparer = sm.Comparer
+    let sm = new SortedMap<'K,'V>(comparer)
     for i in 1..keys.Length-1 do
       if comparer.Compare(keys.[i-1], keys.[i]) >= 0 then raise (new ArgumentException("Keys are not sorted"))
+
+    if sm.IsRegular then
+      let isReg, step, firstArr = sm.rkCheckArray keys size (comparer :?> IKeyComparer<'K>)
+      if isReg then
+        sm.keys <- firstArr
+      else sm.keys <- keys
+    else sm.keys <- keys
+
     sm.size <- size
-    sm.keys <- keys
     sm.values <- values
     sm
+
+  static member OfSortedKeysAndValues(keys:'K[], values:'V[], size:int) =
+    let sm = new SortedMap<'K,'V>()
+    let comparer = sm.Comparer
+    SortedMap.OfSortedKeysAndValues(keys, values, keys.Length, comparer)
 
   static member OfSortedKeysAndValues(keys:'K[], values:'V[]) =
     if keys.Length <> values.Length then raise (new ArgumentException("Keys and values arrays are of different sizes"))
