@@ -26,7 +26,7 @@ type MapCursor<'K,'V when 'K : comparison>
   let sr = Object()
 
   let updateHandler : UpdateHandler<'K,'V> =
-    let impl (o:obj) (kvp:KVP<'K,'V>) =
+    let impl _ (kvp:KVP<'K,'V>) =
       lock(sr) (fun _ ->
         // right now a client is waiting for a task to complete, there is no more elements in the map
         if !isWaitingForTcs then

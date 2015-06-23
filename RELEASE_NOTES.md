@@ -1,3 +1,6 @@
+#### 0.0.7 - TODO Next Release
+* Make SortedMap IUpdatable TODO SCM as well
+
 #### 0.0.6 - June 22, 2015
 * Rework regular keys optimization for sorted map - now it supports a custom step
 * Rework cursor logic. Now Series/ISeries are pull-based IAsyncEnumerable-like sequences

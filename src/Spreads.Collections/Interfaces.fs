@@ -216,19 +216,19 @@ type IImmutableOrderedMap<'K,'V when 'K : comparison> =
 //    abstract Identity : 'TId with get
 
 
-type internal UpdateHandler<'K,'V when 'K : comparison> = delegate of obj * KVP<'K,'V> -> unit
+type internal UpdateHandler<'K,'V when 'K : comparison> = Handler<KVP<'K,'V>>
 [<AllowNullLiteral>]
 type internal IUpdateable<'K,'V when 'K : comparison> =   
   /// Fired after any data change with key for the first valid data (e.g. after delete, a previous key is returned)
   [<CLIEvent>]
-  abstract member OnData : IEvent<UpdateHandler<'K,'V>,KVP<'K,'V>>
+  abstract member OnData : IEvent<KVP<'K,'V>>
 
-//type internal MyType<'K,'V when 'K : comparison> () =
-//    let myEvent = new Event<UpdateHandler<'K,'V>,KVP<'K,'V>> ()
-//
-//    interface IUpdateable<'K,'V> with
-//        [<CLIEvent>]
-//        member this.OnData = myEvent.Publish
+type internal MyType<'K,'V when 'K : comparison> () =
+    let myEvent = new Event<KVP<'K,'V>> ()
+
+    interface IUpdateable<'K,'V> with
+        [<CLIEvent>]
+        member this.OnData =  myEvent.Publish
 
 // TODO?? maybe this is enough? All other methods could be done as extensions??
 type Panel<'TRowKey,'TColumnKey, 'TValue when 'TRowKey: comparison and 'TColumnKey : comparison> = 
