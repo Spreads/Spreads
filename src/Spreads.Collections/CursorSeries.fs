@@ -25,11 +25,11 @@ type CursorSeries<'K,'V when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>
 type CursorProjection<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) =
   
   let cursor = cursorFactory()
-  //let source = cursor.Source
-  // safe to call TryUpdateNext/Previous
-  let mutable hasValue = false
 
-  // TODO add key type for the most general case
+  // safe to call TryUpdateNext/Previous
+  let mutable hasInitializedValue = false
+
+  // TODO? add key type for the most general case
   // check if key types are not equal, in that case check if new values are sorted. On first 
   // unsorted value change output to Indexed
 
@@ -55,7 +55,6 @@ type CursorProjection<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurso
   /// Stores current batch for a succesful batch move
   //abstract CurrentBatch : IReadOnlyOrderedMap<'K,'V2> with get
   member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>> with get, set
-
 
   /// For every successful move of the inut coursor creates an output value. If direction is not EQ, continues moves to the direction 
   /// until the state is created
@@ -94,10 +93,10 @@ type CursorProjection<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurso
     else false
 
   member this.Reset() = 
-    hasValue <- false
+    hasInitializedValue <- false
     cursor.Reset()
   member this.Dispose() = 
-    hasValue <- false
+    hasInitializedValue <- false
     cursor.Dispose()
 
   interface ICursor<'K,'V2> with
@@ -116,7 +115,7 @@ type CursorProjection<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurso
         if ok then
           x.CurrentKey <- value.Key
           x.CurrentValue <- value.Value
-          hasValue <- true
+          hasInitializedValue <- true
           true
         else
           match direction with
@@ -130,7 +129,7 @@ type CursorProjection<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurso
                 x.CurrentKey <- value.Key
                 x.CurrentValue <- value.Value
             if !found then 
-              hasValue <- true
+              hasInitializedValue <- true
               true 
             else false
           | Lookup.LE | Lookup.LT ->
@@ -142,7 +141,7 @@ type CursorProjection<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurso
                 x.CurrentKey <- value.Key
                 x.CurrentValue <- value.Value
             if !found then 
-              hasValue <- true
+              hasInitializedValue <- true
               true 
             else false
           | _ -> failwith "wrong lookup value"
@@ -155,7 +154,7 @@ type CursorProjection<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurso
         if ok then
           x.CurrentKey <- value.Key
           x.CurrentValue <- value.Value
-          hasValue <- true
+          hasInitializedValue <- true
           true
         else
           let found = ref false
@@ -166,7 +165,7 @@ type CursorProjection<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurso
               x.CurrentKey <- value.Key
               x.CurrentValue <- value.Value
           if !found then 
-            hasValue <- true
+            hasInitializedValue <- true
             true 
           else false
       else false
@@ -177,7 +176,7 @@ type CursorProjection<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurso
         if ok then
           x.CurrentKey <- value.Key
           x.CurrentValue <- value.Value
-          hasValue <- true
+          hasInitializedValue <- true
           true
         else
           let found = ref false
@@ -188,28 +187,28 @@ type CursorProjection<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurso
               x.CurrentKey <- value.Key
               x.CurrentValue <- value.Value
           if !found then 
-            hasValue <- true
+            hasInitializedValue <- true
             true 
           else false
       else false
     
-    member x.MoveNext(): bool = 
-      if hasValue then
-        let found = ref false
-        while x.InputCursor.MoveNext() && not !found do
+    member x.MoveNext(): bool =
+      if hasInitializedValue then
+        let mutable found = false
+        while x.InputCursor.MoveNext() && not found do
           let ok, value = x.TryUpdateNext(x.InputCursor.Current)
           if ok then 
-            found := true
+            found <- true
             x.CurrentKey <- value.Key
             x.CurrentValue <- value.Value
-        if !found then 
-          hasValue <- true
+        if found then 
+          hasInitializedValue <- true
           true 
         else false
       else (x :> ICursor<'K,'V2>).MoveFirst()
 
     member x.MovePrevious(): bool = 
-      if hasValue then
+      if hasInitializedValue then
         let found = ref false
         while x.InputCursor.MovePrevious() && not !found do
           let ok, value = x.TryUpdatePrevious(x.InputCursor.Current)
@@ -218,7 +217,7 @@ type CursorProjection<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurso
             x.CurrentKey <- value.Key
             x.CurrentValue <- value.Value
         if !found then 
-          hasValue <- true
+          hasInitializedValue <- true
           true 
         else false
       else (x :> ICursor<'K,'V2>).MoveLast()
@@ -252,7 +251,7 @@ type CursorProjection<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICurso
       let ty = x.GetType()
       let args = [|cursorFactory :> obj|]
       let clone = Activator.CreateInstance(ty, args) :?> ICursor<'K,'V2> // should not be called too often
-      if hasValue then clone.MoveAt(x.CurrentKey, Lookup.EQ) |> ignore
+      if hasInitializedValue then clone.MoveAt(x.CurrentKey, Lookup.EQ) |> ignore
       //Debug.Assert(movedOk) // if current key is set then we could move to it
       clone
 

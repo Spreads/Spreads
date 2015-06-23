@@ -516,6 +516,7 @@ type SortedMap<'K,'V when 'K : comparison>
         if lc = 0 then // key = last key
           this.values.[lastIdx] <- v
           version <- version + 1
+          updateEvent.Trigger(KVP(k,v))
           lastIdx
         elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
           this.Insert(this.size, k, v)
@@ -525,7 +526,8 @@ type SortedMap<'K,'V when 'K : comparison>
           if index >= 0 then // contains key 
             this.values.[index] <- v
             version <- version + 1 
-            index          
+            updateEvent.Trigger(KVP(k,v))
+            index     
           else
             this.Insert(~~~index, k, v)
             ~~~index
