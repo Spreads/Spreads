@@ -115,6 +115,11 @@ type internal MutatorWrapper<'K,'V  when 'K : comparison>
           map <- map.RemoveMany(key, direction)
       )
 
+    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>) =
+      // do not need transaction because if the first addition succeeds then all others will be added as well
+      for i in appendMap do
+        (this :> IOrderedMap<'K,'V>).AddLast(i.Key, i.Value)
+
 
 [<Sealed>]
 [<Serializable>]

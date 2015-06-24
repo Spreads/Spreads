@@ -68,6 +68,7 @@
     </Compile>
     <Compile Include="Types.fs" />
     <Compile Include="Enums.fs" />
+    <Compile Include="FastEvents.fs" />
     <Compile Include="OptionalValue.fs" />
     <Compile Include="Interfaces.fs" />
     <Compile Include="MathProvider.fs" />

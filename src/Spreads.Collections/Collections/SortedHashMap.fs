@@ -705,4 +705,8 @@ type SortedHashMap<'K,'V when 'K : comparison>
     member this.RemoveMany(key:'K,direction:Lookup) = 
       this.RemoveMany(key, direction) |> ignore
       ()
+    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>) =
+      for i in appendMap do
+        this.AddLast(i.Key, i.Value)
+
   //#endregoin

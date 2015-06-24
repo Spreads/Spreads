@@ -50,12 +50,17 @@ module CollectionsBenchmarks =
         //arr.[int i] <- i
       deedleSeries := Series(list1, list2)
     )
-    perf count "DeedleSeries read" (fun _ ->
-      for i in 0L..count do
-        let res = Series.lookup i Deedle.Lookup.Exact !deedleSeries 
-        if res <> i then failwith "DeedleSeries failed"
-        ()
+//    perf count "DeedleSeries read" (fun _ ->
+//      for i in 0L..count do
+//        let res = Series.lookup i Deedle.Lookup.Exact !deedleSeries 
+//        if res <> i then failwith "DeedleSeries failed"
+//        ()
+//    )
+    perf count "DeedleSeries Add via Map" (fun _ ->
+      let res = !deedleSeries |> Series.mapValues (fun x -> x + 1L)
+      ()
     )
+
     Console.WriteLine("----------------")
   [<Test>]
   let DeedleSeries_run() = DeedleSeries(1000000L)
@@ -485,12 +490,54 @@ module CollectionsBenchmarks =
           if res <> i then failwith "SortedMap failed"
           ()
       )
+    for i in 0..4 do
+      perf count "SortedMapRegular Read as RO" (fun _ ->
+        let ro = smap.Value.ReadOnly() :> IReadOnlyOrderedMap<int64,int64>
+        for i in 0L..count do
+          let res = ro.Item(i)
+          if res <> i then failwith "SortedMap failed"
+          ()
+      )
+            
+
     for i in 0..9 do
       perf count "SortedMapRegular Iterate" (fun _ ->
         for i in smap.Value do
           let res = i.Value
           ()
       )
+    for i in 0..9 do
+      perf count "SortedMapRegular Iterate as RO" (fun _ ->
+        let ro = smap.Value.ReadOnly() :> IReadOnlyOrderedMap<int64,int64>
+        for i in ro do
+          let res = i.Value
+          ()
+      )
+    for i in 0..9 do
+      perf count "SMR Iterate as RO+Add" (fun _ ->
+        let ro = smap.Value.ReadOnly().Add(123456L) :> IReadOnlyOrderedMap<int64,int64>
+        for i in ro do
+          let res = i.Value
+          ()
+      )
+    for i in 0..9 do
+      perf count "SMR Iterate as RO+Add+ToMap" (fun _ ->
+        let ro = smap.Value.ReadOnly().Add(123456L) :> IReadOnlyOrderedMap<int64,int64>
+        let sm = Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>))
+        for i in ro do
+          let res = i.Value
+          sm.AddLast(i.Key, i.Value)
+          ()
+      )
+
+    for i in 0..9 do
+      perf count "SMR Iterate as RO+Log" (fun _ ->
+        let ro = smap.Value.ReadOnly().Log() :> IReadOnlyOrderedMap<int64,double>
+        for i in ro do
+          let res = i.Value
+          ()
+      )
+
     for i in 0..9 do
       perf count "SortedMapRegular Iterate with load" (fun _ ->
         for i in smap.Value do
@@ -528,8 +575,22 @@ module CollectionsBenchmarks =
         if res <> i then failwith "SHM failed"
         ()
     )
+    perf count "SHM Read as RO" (fun _ ->
+      let ro = shm.Value.ReadOnly() :> IReadOnlyOrderedMap<int64,int64>
+      for i in 0L..count do
+        let res = ro.Item(i)
+        if res <> i then failwith "SHM failed"
+        ()
+    )
     perf count "SHM Iterate" (fun _ ->
       for i in shm.Value do
+        let res = i.Value
+        if res <> i.Value then failwith "SHM failed"
+        ()
+    )
+    perf count "SHM Iterate as RO" (fun _ ->
+      let ro = shm.Value.ReadOnly() :> IReadOnlyOrderedMap<int64,int64>
+      for i in ro do
         let res = i.Value
         if res <> i.Value then failwith "SHM failed"
         ()
@@ -787,7 +848,7 @@ module CollectionsBenchmarks =
 //
 //    Console.WriteLine("DEQUE")
 //    FSXDeque_run()
-//    DeedleDeque_run()
+    DeedleDeque_run()
 
     Console.WriteLine("MAPS")
     DeedleSeries_run()
@@ -797,13 +858,13 @@ module CollectionsBenchmarks =
 //    SCGSortedList_run()
 //    SCIOrderedMap_run()
     //SortedDeque_run()
-    //SortedList_run()
-    //SortedMap_run()
+    SortedList_run()
+    SortedMap_run()
 //    SortedMapPeriod_run()
 //    SortedMapDT_run()
-    //SortedMapRegular_run()
+    SortedMapRegular_run()
     //MapDeque_run() // bugs!
     //SHM_run()
-    SCM_run()
+    //SCM_run()
 //    SHM_regular_run()
     //PersistenSortedMap_run()

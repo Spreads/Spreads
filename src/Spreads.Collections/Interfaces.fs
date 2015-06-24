@@ -167,8 +167,8 @@ type IOrderedMap<'K,'V when 'K : comparison> =
   abstract RemoveLast: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> unit
   abstract RemoveFirst: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> unit
   abstract RemoveMany: k:'K * direction:Lookup -> unit
-  /// And values from newMap to the end of this map
-  //abstract Append: newMap:IReadOnlyOrderedMap<'K,'V> -> unit
+  /// And values from appendMap to the end of this map
+  abstract Append: appendMap:IReadOnlyOrderedMap<'K,'V> -> unit
 
 [<AllowNullLiteral>]
 type IImmutableOrderedMap<'K,'V when 'K : comparison> =

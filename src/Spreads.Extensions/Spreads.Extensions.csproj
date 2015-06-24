@@ -73,6 +73,7 @@
     <Compile Include="System.Interactive.Async\IAsyncGrouping.cs" />
     <Compile Include="System.Interactive.Async\IOrderedAsyncEnumerable.cs" />
     <Compile Include="System.Interactive.Async\TaskExt.cs" />
+    <Compile Include="Types.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>

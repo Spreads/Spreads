@@ -23,6 +23,10 @@ open Spreads.Collections
 // (done, KeyComparer was slow) regular add and iterate are slower than the default, which should not be the case at least for add (do we check for rkLast equality?)
 // TODO tests with regular keys and step > 1, especially for LT/LE/GT/GE lookups
 // TODO cursor tests: all directions, call finished cursor more than once should return false not error.
+// TODO events as they are kill performance, see http://v2matveev.blogspot.ru/2010/06/f-performance-of-events.html... - even the fast events from the blog
+// TODO read only must have internal setter (or forcedReadOnly internal field) that will indicate that the series will never mutate and it is safe to reuse
+// keys array, e.g. for mapValues.
+
 
 /// Mutable sorted IOrderedMap<'K,'V> implementation based on SCG.SortedList<'K,'V>
 [<AllowNullLiteral>]
@@ -51,6 +55,8 @@ type SortedMap<'K,'V when 'K : comparison>
   [<NonSerializedAttribute>]
   let isKeyReferenceType : bool = not typeof<'K>.IsValueType
   [<NonSerializedAttribute>]
+  let mutable cursorCounter : int = 1
+  [<NonSerializedAttribute>]
   let mutable rkStep_ : int = 0 // TODO review all usages
 
   // TODO use IDC resolution via KeyHelper.diffCalculators here or befor ctor
@@ -70,7 +76,7 @@ type SortedMap<'K,'V when 'K : comparison>
   [<NonSerializedAttribute>]
   let mutable mapKey = ""
 
-  let updateEvent = new Event<KVP<'K,'V>>()
+  let updateEvent = new Internals.EventV2<EventHandler<KVP<'K,'V>>,KVP<'K,'V>>()
 
   // helper functions
   let rkGetStep() =
@@ -265,7 +271,7 @@ type SortedMap<'K,'V when 'K : comparison>
       // the 99% use case is when we load data from a sequential stream or deserialize a map with already regularized keys
     version <- version + 1
     this.size <- this.size + 1
-    updateEvent.Trigger(KVP(k,v))
+    if cursorCounter >0 then updateEvent.Trigger(KVP(k,v))
     
   member internal this.IsReadOnly with get() = false
 
@@ -324,6 +330,7 @@ type SortedMap<'K,'V when 'K : comparison>
       Array.Clear(this.keys, 0, this.size)
     Array.Clear(this.values, 0, this.size)
     this.size <- 0
+    ()
 
   member this.Count with get() = this.size
 
@@ -516,7 +523,7 @@ type SortedMap<'K,'V when 'K : comparison>
         if lc = 0 then // key = last key
           this.values.[lastIdx] <- v
           version <- version + 1
-          updateEvent.Trigger(KVP(k,v))
+          if cursorCounter >0 then updateEvent.Trigger(KVP(k,v))
           lastIdx
         elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
           this.Insert(this.size, k, v)
@@ -526,7 +533,7 @@ type SortedMap<'K,'V when 'K : comparison>
           if index >= 0 then // contains key 
             this.values.[index] <- v
             version <- version + 1 
-            updateEvent.Trigger(KVP(k,v))
+            if cursorCounter >0 then updateEvent.Trigger(KVP(k,v))
             index     
           else
             this.Insert(~~~index, k, v)
@@ -621,9 +628,10 @@ type SortedMap<'K,'V when 'K : comparison>
       this.size <- newSize
       version <- version + 1
 
-      // on removal, the next valid value is the previous one and all downstreams must reposition and replay from it
-      if index > 0 then updateEvent.Trigger(this.GetPairByIndexUnchecked(index - 1)) // after removal (index - 1) is unchanged
-      else updateEvent.Trigger(Unchecked.defaultof<_>)
+      if cursorCounter > 0 then 
+        // on removal, the next valid value is the previous one and all downstreams must reposition and replay from it
+        if index > 0 then updateEvent.Trigger(this.GetPairByIndexUnchecked(index - 1)) // after removal (index - 1) is unchanged
+        else updateEvent.Trigger(Unchecked.defaultof<_>)
     finally
       exitLockIf syncRoot entered
 
@@ -1126,6 +1134,10 @@ type SortedMap<'K,'V when 'K : comparison>
       this.RemoveLast(&result) |> ignore // TODO why unit not bool?
     member this.RemoveMany(key:'K,direction:Lookup) = 
       this.RemoveMany(key, direction) |> ignore
+    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>) =
+      // do not need transaction because if the first addition succeeds then all others will be added as well
+      for i in appendMap do
+        this.AddLast(i.Key, i.Value)
     
   interface IUpdateable<'K,'V> with
     [<CLIEvent>]
@@ -1180,12 +1192,13 @@ type SortedMap<'K,'V when 'K : comparison>
   internal new(dictionary:IDictionary<'K,'V>,comparer:IComparer<'K>) = SortedMap(Some(dictionary), Some(dictionary.Count), Some(comparer))
   internal new(capacity:int,comparer:IComparer<'K>) = SortedMap(None, Some(capacity), Some(comparer))
 
-  static member internal OfSortedKeysAndValues(keys:'K[], values:'V[], size:int, comparer:IComparer<'K>) =
+  static member internal OfSortedKeysAndValues(keys:'K[], values:'V[], size:int, comparer:IComparer<'K>, sortChecked:bool) =
     if keys.Length < size then raise (new ArgumentException("Keys array is smaller than provided size"))
     if values.Length < size then raise (new ArgumentException("Values array is smaller than provided size"))
     let sm = new SortedMap<'K,'V>(comparer)
-    for i in 1..keys.Length-1 do
-      if comparer.Compare(keys.[i-1], keys.[i]) >= 0 then raise (new ArgumentException("Keys are not sorted"))
+    if sortChecked then
+      for i in 1..keys.Length-1 do
+        if comparer.Compare(keys.[i-1], keys.[i]) >= 0 then raise (new ArgumentException("Keys are not sorted"))
 
     if sm.IsRegular then
       let isReg, step, firstArr = sm.rkCheckArray keys size (comparer :?> IKeyComparer<'K>)
@@ -1201,7 +1214,7 @@ type SortedMap<'K,'V when 'K : comparison>
   static member OfSortedKeysAndValues(keys:'K[], values:'V[], size:int) =
     let sm = new SortedMap<'K,'V>()
     let comparer = sm.Comparer
-    SortedMap.OfSortedKeysAndValues(keys, values, keys.Length, comparer)
+    SortedMap.OfSortedKeysAndValues(keys, values, keys.Length, comparer, true)
 
   static member OfSortedKeysAndValues(keys:'K[], values:'V[]) =
     if keys.Length <> values.Length then raise (new ArgumentException("Keys and values arrays are of different sizes"))

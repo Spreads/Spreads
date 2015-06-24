@@ -131,29 +131,29 @@ type SortedMapTests() =
             ()
 
 
-    [<Test>]
-    member this.``IImmutableOrderedMap reverse``() =
-
-        let mutable watch = Stopwatch.StartNew();
-        let hsm:IImmutableOrderedMap<int,int> = SortedMap<int, int>() :> IImmutableOrderedMap<int,int>
-        let lim = 5120
-        for i = 0 to lim  do
-            (hsm :?> IOrderedMap<int,int>).Add(i,i)
-            //sm.[i] <- sm.Add()
-        
-        watch.Stop()
-        Console.WriteLine(">Mutable inserts per sec: " + (1000L * int64(lim)/watch.ElapsedMilliseconds).ToString())
-
-        watch <- Stopwatch.StartNew();
-        let mutable hsm:IImmutableOrderedMap<int,int> = SortedMap<int, int>() :> IImmutableOrderedMap<int,int>
-        let lim = 5120
-        for i = 0 to lim  do
-            hsm <- hsm.Add(i,i)
-        
-        watch.Stop()
-        Console.WriteLine(">Immutable inserts per sec: " + (1000L * int64(lim)/watch.ElapsedMilliseconds).ToString())
-
-        ()
+//    [<Test>]
+//    member this.``IImmutableOrderedMap reverse``() =
+//
+//        let mutable watch = Stopwatch.StartNew();
+//        let hsm:IImmutableOrderedMap<int,int> = SortedMap<int, int>() :> IImmutableOrderedMap<int,int>
+//        let lim = 5120
+//        for i = 0 to lim  do
+//            (hsm :?> IOrderedMap<int,int>).Add(i,i)
+//            //sm.[i] <- sm.Add()
+//        
+//        watch.Stop()
+//        Console.WriteLine(">Mutable inserts per sec: " + (1000L * int64(lim)/watch.ElapsedMilliseconds).ToString())
+//
+//        watch <- Stopwatch.StartNew();
+//        let mutable hsm:IImmutableOrderedMap<int,int> = SortedMap<int, int>() :> IImmutableOrderedMap<int,int>
+//        let lim = 5120
+//        for i = 0 to lim  do
+//            hsm <- hsm.Add(i,i)
+//        
+//        watch.Stop()
+//        Console.WriteLine(">Immutable inserts per sec: " + (1000L * int64(lim)/watch.ElapsedMilliseconds).ToString())
+//
+//        ()
 
     [<Test>]
     member this.``Nested sorted list``() =

@@ -57,7 +57,7 @@ type SeriesTestsModule() =
         map.Add(5,5)
         map.Add(7,7)
 
-        let add1 = map.Add1()
+        let add1 = map.Add(1)
 
         let rc = add1.GetCursor()
 
@@ -89,7 +89,7 @@ type SeriesTestsModule() =
         map.Add(5,5)
         map.Add(7,7)
 
-        let repeated = map.Repeat().Add1()
+        let repeated = map.Repeat().Add(1)
         let rc = repeated.GetCursor()
 
         let ok, value = rc.TryGetValue(2)

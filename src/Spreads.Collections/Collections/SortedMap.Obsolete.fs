@@ -897,7 +897,9 @@ type SortedMap<'K,'V when 'K : comparison>
       this.RemoveMany(key, direction) |> ignore
 //    member x.TryFindWithIndex(key: 'K, direction: Lookup, result: byref<KeyValuePair<'K,'V>>): int = 
 //      this.TryFindWithIndex(key, direction, &result)
-
+    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>) =
+      for i in appendMap do
+        this.AddLast(i.Key, i.Value)
     
     
   interface IImmutableOrderedMap<'K,'V> with

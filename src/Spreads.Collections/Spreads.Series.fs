@@ -8,6 +8,13 @@ open System.Runtime.InteropServices
 
 open Spreads
 
+// TODO see benchmark for ReadOnly. Reads are very slow while iterations are not affected (GetCursor() returns original cursor) in release mode. Optimize 
+// reads of this wrapper either here by type-checking the source of the cursor and using direct methods on the source
+// or make cursor thread-static and initialize it only once (now it is called on each method)
+
+// TODO duplicate IReadOnlyOrderedMap methods as an instance method to avoid casting in F#. That will require ovverrides in all children or conflict
+// check how it is used from C# (do tests in C# in general)
+
 [<AllowNullLiteral>]
 [<Serializable>]
 [<AbstractClassAttribute>]
