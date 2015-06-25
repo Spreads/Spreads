@@ -190,9 +190,6 @@ type IImmutableOrderedMap<'K,'V when 'K : comparison> =
 
 
 
-
-
-
 // Types are good, do not drop them. Use marker interfaces only if they really help to achieve something
 //[<AllowNullLiteral>]
 //type IPanel = interface end
@@ -205,10 +202,6 @@ type IImmutableOrderedMap<'K,'V when 'K : comparison> =
 //    interface
 //        inherit IPanel<'K>
 //    end
-
-
-
-
 
 //and 
 //  [<AllowNullLiteral>]
@@ -224,12 +217,11 @@ type internal IUpdateable<'K,'V when 'K : comparison> =
   [<CLIEvent>]
   abstract member OnData : IEvent<KVP<'K,'V>>
 
-type internal MyType<'K,'V when 'K : comparison> () =
-    let myEvent = new Event<KVP<'K,'V>> ()
-
-    interface IUpdateable<'K,'V> with
-        [<CLIEvent>]
-        member this.OnData =  myEvent.Publish
+//type internal MyType<'K,'V when 'K : comparison> () =
+//    let myEvent = new Event<KVP<'K,'V>> ()
+//    interface IUpdateable<'K,'V> with
+//        [<CLIEvent>]
+//        member this.OnData =  myEvent.Publish
 
 // TODO?? maybe this is enough? All other methods could be done as extensions??
 type Panel<'TRowKey,'TColumnKey, 'TValue when 'TRowKey: comparison and 'TColumnKey : comparison> = 
@@ -240,7 +232,7 @@ type Panel<'TRowKey,'TColumnKey, 'TValue when 'TRowKey: comparison and 'TColumnK
 
   // TODO data/event stream interface requires a special interface - or it is just an IAsynEnumerable<'T> which then
   // could be unpacked into series.
-  // DS could be unirdered, with a method like ds.SaveSeries(repo, ds => key, ds => value), same with Rx
+  // DS could be unordered, with a method like ds.SaveSeries(repo, ds => key, ds => value, overwriteDuplicates = false), same with Rx
   // out of order KVPs will result only in that active cursors will be repositioned on MoveNext and replay values in the correct order.
 
 

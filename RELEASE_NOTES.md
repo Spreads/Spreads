@@ -1,5 +1,6 @@
-#### 0.0.7 - TODO Next Release
-* Make SortedMap IUpdatable TODO SCM as well
+#### 0.0.7 - June 25, 2015
+* Make SortedMap IUpdatable (TODO SCM as well)
+* Change Colelctions target from 4.5 to 4.0
 
 #### 0.0.6 - June 22, 2015
 * Rework regular keys optimization for sorted map - now it supports a custom step

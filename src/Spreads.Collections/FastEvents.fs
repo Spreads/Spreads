@@ -3,11 +3,13 @@
 open System
 open System.Linq
 open System.Linq.Expressions
+open Spreads
 
 //thanks to http://v2matveev.blogspot.ru/2010/06/f-performance-of-events.html
 
 // helper type that will perform invocation
 type internal Invoker<'D, 'A> = delegate of 'D * obj * 'A -> unit
+type internal UpdateHandler<'K,'V> = delegate of KVP<'K,'V> -> unit
 
 module internal EventHelper =
   let inline invoker<'D, 'A when 'D :> Delegate and 'D : delegate<'A, unit> and 'D : null> = 

@@ -7,12 +7,62 @@ open System.Threading
 open System.Threading.Tasks
 open System.Diagnostics
 open Spreads
+//
+//[<AbstractClassAttribute>]
+//type Cursor<'K,'V when 'K : comparison>() as this =
+//  [<DefaultValueAttribute>]
+//  val mutable internal currentKey : 'K
+//  [<DefaultValueAttribute>]
+//  val mutable internal currentValue : 'V
+//  //  these two are only interfaces, other
+//  //  inherit System.IDisposable
+//  //  inherit System.Collections.IEnumerator
+//  member inline this.Current with get() = KVP(this.currentKey, this.currentValue)
+//  /// Advances the enumerator to the next element in the sequence, returning the result asynchronously.
+//  /// <returns>
+//  /// Task containing the result of the operation: true if the enumerator was successfully advanced 
+//  /// to the next element; false if the enumerator has passed the end of the sequence.
+//  /// </returns>    
+//  abstract MoveNextAsync: cancellationToken:CancellationToken  -> Task<bool>
+//  /// Puts the cursor to the position according to LookupDirection
+//  abstract MoveAt: index:'K * direction:Lookup -> bool
+//  abstract MoveFirst: unit -> bool
+//  abstract MoveLast: unit -> bool
+//  abstract MovePrevious: unit -> bool
+//  abstract CurrentKey:'K with get
+//  abstract CurrentValue:'V with get
+//  /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
+//  /// Returns true when a batch is available immediately (async for IO, not for waiting for new values),
+//  /// returns false when there is no more immediate values and a consumer should switch to MoveNextAsync().
+//  /// NB: Btach processing is synchronous via IEnumerable interface of a batch, real-time is pull-based asynchronous.
+//  abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>
+//  /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
+//  /// The actual implementation of the batch could be mutable and could reference a part of the original series, therefore consumer
+//  /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap
+//  abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get
+//  /// True if last successful move was MoveNextBatchAsync and CurrentBatch contains a valid value.
+//  abstract IsBatch: bool with get
+//  /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
+//  abstract Source : ISeries<'K,'V> with get
+//  /// If true then TryGetValue could return values for any keys, not only for existing keys.
+//  /// E.g. previous value, interpolated value, etc.
+//  abstract IsContinuous: bool with get
+//  /// Create a copy of cursor that is positioned at the same place as this cursor.
+//  abstract Clone: unit -> ICursor<'K,'V>
+//  /// Gets a calculated value for continuous series without moving the cursor position.
+//  /// This method must be called only when IsContinuous is true, otherwise NotSupportedException will be thrown.
+//  /// E.g. a continuous cursor for Repeat() will check if current state allows to get previous value,
+//  /// and if not then .Source.GetCursor().MoveAt(key, LE). The TryGetValue method should be optimized
+//  /// for sort join case using enumerator, e.g. for repeat it should keep previous value and check if 
+//  /// the requested key is between the previous and the current keys, and then return the previous one.
+//  abstract TryGetValue: key:'K * [<Out>] value: byref<'V> -> bool
+//
 
 
 /// Uses IReadOnlyOrderedMap's TryFind method, doesn't know anything about underlying sequence
 type MapCursor<'K,'V when 'K : comparison>
   (map:IReadOnlyOrderedMap<'K,'V>) as this =
-
+  //inherit Cursor<'K,'V>()
   [<DefaultValue>] 
   val mutable private currentPosition : bool * KeyValuePair<'K,'V>
 

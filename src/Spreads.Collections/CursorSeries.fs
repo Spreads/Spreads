@@ -20,179 +20,182 @@ type CursorSeries<'K,'V when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>
 
 // cursor factory is like a thunk for Vagabond, could exetute remotely?
 
+//
 // could do both map and filter
-type StatelessCursorBind<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>, filterMapFunc:Func<'K,'V,bool*'V2>) =
+// need cursor factory and not a cursor to be able to clone, Series.GetCursor is the factory. NB! But Cursor.Clone() is also cursor factory
+type internal CursorBind<'K,'V,'V2 when 'K : comparison>(cursor:ICursor<'K,'V>, valuesMapFunc:'K->'V->'V2, filterFunc:'K->'V->bool) =
   
-  let cursor = cursorFactory()
   let mutable started = false
+
+  member this.Current with get() : KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
+  member this.CurrentKey with get() : 'K = cursor.CurrentKey
+  member this.CurrentValue with get() :'V2 = valuesMapFunc cursor.CurrentKey cursor.CurrentValue
+
 
   // TODO kind of loop fusion and what nessos does with streams, but to opposite direction
   // TODO test must show that this improves performance
 
-  member val IsIndexed = false with get, set //source.IsIndexed
-  /// By default, could move everywhere the source moves
-  member val IsContinuous = cursor.IsContinuous with get, set
-//  abstract IsContinuous: bool with get
-//  override this.IsContinuous with get() = c.IsContinuous
-  member val IsBatch = cursor.IsBatch with get, set
-//  abstract IsBatch: bool with get
-//  override this.IsBatch with get() = c.IsBatch
-
-  /// Source series
-  //member this.InputSource with get() = source
-  member this.InputCursor with get() = cursor
-
-  //abstract CurrentKey:'K with get
-  //abstract CurrentValue:'V2 with get
-  member val CurrentKey = Unchecked.defaultof<'K> with get, set
-  member val CurrentValue = Unchecked.defaultof<'V2> with get, set
-  member this.Current with get () = KVP(this.CurrentKey, this.CurrentValue)
-
-  /// Stores current batch for a succesful batch move
-  //abstract CurrentBatch : IReadOnlyOrderedMap<'K,'V2> with get
-  member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>> with get, set
-
-  member this.Reset() = cursor.Reset()
-  member this.Dispose() = cursor.Dispose()
-
-  interface ICursor<'K,'V2> with
-
-    member x.Current: KVP<'K,'V2> = KVP(x.CurrentKey, x.CurrentValue)
-    member x.Current: obj = (x :> ICursor<'K,'V2>).Current  :> obj
-    member x.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = x.CurrentBatch
-    member x.CurrentKey: 'K = x.CurrentKey
-    member x.CurrentValue: 'V2 = x.CurrentValue
-    member x.Dispose(): unit = x.Dispose()
-    member x.IsContinuous: bool = x.IsContinuous
-    
-    member x.MoveAt(index: 'K, direction: Lookup): bool = 
-      if x.InputCursor.MoveAt(index, direction) then
-        let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
-        if ok then
-          x.CurrentKey <- x.InputCursor.CurrentKey
-          x.CurrentValue <- value
-          true
-        else
-          match direction with
-          | Lookup.EQ -> false
-          | Lookup.GE | Lookup.GT ->
-            let mutable found = false
-            while x.InputCursor.MoveNext() && not found do
-              let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
-              if ok then 
-                found <- true
-                x.CurrentKey <- x.InputCursor.CurrentKey
-                x.CurrentValue <- value
-            if found then 
-              true 
-            else false
-          | Lookup.LE | Lookup.LT ->
-            let mutable found = false
-            while x.InputCursor.MovePrevious() && not found do
-              let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
-              if ok then
-                found <- true
-                x.CurrentKey <- x.InputCursor.CurrentKey
-                x.CurrentValue <- value
-            if found then 
-              true 
-            else false
-          | _ -> failwith "wrong lookup value"
-      else false
-      
-    
-    member x.MoveFirst(): bool = 
-      if x.InputCursor.MoveFirst() then
-        let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
-        if ok then
-          x.CurrentKey <- x.InputCursor.CurrentKey
-          x.CurrentValue <- value
-          true
-        else
-          let found = ref false
-          while x.InputCursor.MoveNext() && not !found do
-            let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
-            if ok then 
-              found := true
-              x.CurrentKey <- x.InputCursor.CurrentKey
-              x.CurrentValue <- value
-          if !found then 
-            true 
-          else false
-      else false
-    
-    member x.MoveLast(): bool = 
-      if x.InputCursor.MoveLast() then
-        let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
-        if ok then
-          x.CurrentKey <- value.Key
-          x.CurrentValue <- value.Value
-          hasInitializedValue <- true
-          true
-        else
-          let found = ref false
-          while x.InputCursor.MovePrevious() && not !found do
-            let ok, value =filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
-            if ok then
-              found := true
-              x.CurrentKey <- value.Key
-              x.CurrentValue <- value.Value
-          if !found then 
-            hasInitializedValue <- true
-            true 
-          else false
-      else false
-    
-    member x.MoveNext(): bool =
-      if started then
-        let mutable found = false
-        while x.InputCursor.MoveNext() && not found do
-          let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
-          if ok then 
-            found <- true
-            x.CurrentKey <- x.InputCursor.CurrentKey
-            x.CurrentValue <- value
-        if found then 
-          true 
-        else false
-      else (x :> ICursor<'K,'V2>).MoveFirst()
-
-    member x.MovePrevious(): bool = 
-      if started then
-        let found = ref false
-        while x.InputCursor.MovePrevious() && not !found do
-          let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
-          if ok then 
-            found := true
-            x.CurrentKey <- x.InputCursor.CurrentKey
-            x.CurrentValue <- value
-        if !found then 
-          true 
-        else false
-      else (x :> ICursor<'K,'V2>).MoveLast()
-    
-    member x.MoveNextAsync(cancellationToken: Threading.CancellationToken): Task<bool> = 
-      failwith "Not implemented yet"
-    member x.MoveNextBatchAsync(cancellationToken: Threading.CancellationToken): Task<bool> = 
-      failwith "Not implemented yet"
-    
-    member x.IsBatch with get() = x.IsBatch
-    member x.Reset(): unit = x.Reset()
-    member x.Source: ISeries<'K,'V2> = CursorSeries<'K,'V2>((x :> ICursor<'K,'V2>).Clone) :> ISeries<'K,'V2>
-    member x.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool = 
-      let ok, value2 = x.TryGetValue(key)
-      value <- value2.Value
-      ok
-    
-    // TODO review
-    member x.Clone(): ICursor<'K,'V2> =
-      // run-time type of the instance
-      let ty = x.GetType()
-      let args = [|cursorFactory :> obj|]
-      let clone = StatelessCursorBind(cursorFactory, filterMapFunc) :?> ICursor<'K,'V2> 
-      if started then clone.MoveAt(x.CurrentKey, Lookup.EQ) |> ignore
-      //Debug.Assert(movedOk) // if current key is set then we could move to it
-      clone
+//  member val IsIndexed = false with get, set //source.IsIndexed
+//  /// By default, could move everywhere the source moves
+//  member val IsContinuous = cursor.IsContinuous with get, set
+////  abstract IsContinuous: bool with get
+////  override this.IsContinuous with get() = c.IsContinuous
+//  member val IsBatch = cursor.IsBatch with get, set
+////  abstract IsBatch: bool with get
+////  override this.IsBatch with get() = c.IsBatch
+//
+//  /// Source series
+//  //member this.InputSource with get() = source
+//  member this.InputCursor with get() = cursor
+//
+//  
+//  //member this.Current with get () = KVP(this.CurrentKey, this.CurrentValue)
+//
+//  /// Stores current batch for a succesful batch move
+//  //abstract CurrentBatch : IReadOnlyOrderedMap<'K,'V2> with get
+//  member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>> with get, set
+//
+//  member this.Reset() = cursor.Reset()
+//  member this.Dispose() = cursor.Dispose()
+//
+//  interface ICursor<'K,'V2> with
+//
+//    member x.Current: KVP<'K,'V2> = KVP(x.CurrentKey, x.CurrentValue)
+//    member x.Current: obj = (x :> ICursor<'K,'V2>).Current  :> obj
+//    member x.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = x.CurrentBatch
+//    member x.CurrentKey: 'K = x.CurrentKey
+//    member x.CurrentValue: 'V2 = x.CurrentValue
+//    member x.Dispose(): unit = x.Dispose()
+//    member x.IsContinuous: bool = x.IsContinuous
+//    
+//    member x.MoveAt(index: 'K, direction: Lookup): bool = 
+//      if x.InputCursor.MoveAt(index, direction) then
+//        let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
+//        if ok then
+//          x.CurrentKey <- x.InputCursor.CurrentKey
+//          x.CurrentValue <- value
+//          true
+//        else
+//          match direction with
+//          | Lookup.EQ -> false
+//          | Lookup.GE | Lookup.GT ->
+//            let mutable found = false
+//            while x.InputCursor.MoveNext() && not found do
+//              let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
+//              if ok then 
+//                found <- true
+//                x.CurrentKey <- x.InputCursor.CurrentKey
+//                x.CurrentValue <- value
+//            if found then 
+//              true 
+//            else false
+//          | Lookup.LE | Lookup.LT ->
+//            let mutable found = false
+//            while x.InputCursor.MovePrevious() && not found do
+//              let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
+//              if ok then
+//                found <- true
+//                x.CurrentKey <- x.InputCursor.CurrentKey
+//                x.CurrentValue <- value
+//            if found then 
+//              true 
+//            else false
+//          | _ -> failwith "wrong lookup value"
+//      else false
+//      
+//    
+//    member x.MoveFirst(): bool = 
+//      if x.InputCursor.MoveFirst() then
+//        let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
+//        if ok then
+//          x.CurrentKey <- x.InputCursor.CurrentKey
+//          x.CurrentValue <- value
+//          true
+//        else
+//          let found = ref false
+//          while x.InputCursor.MoveNext() && not !found do
+//            let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
+//            if ok then 
+//              found := true
+//              x.CurrentKey <- x.InputCursor.CurrentKey
+//              x.CurrentValue <- value
+//          if !found then 
+//            true 
+//          else false
+//      else false
+//    
+//    member x.MoveLast(): bool = 
+//      if x.InputCursor.MoveLast() then
+//        let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
+//        if ok then
+//          x.CurrentKey <- value.Key
+//          x.CurrentValue <- value.Value
+//          hasInitializedValue <- true
+//          true
+//        else
+//          let found = ref false
+//          while x.InputCursor.MovePrevious() && not !found do
+//            let ok, value =filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
+//            if ok then
+//              found := true
+//              x.CurrentKey <- value.Key
+//              x.CurrentValue <- value.Value
+//          if !found then 
+//            hasInitializedValue <- true
+//            true 
+//          else false
+//      else false
+//    
+//    member x.MoveNext(): bool =
+//      if started then
+//        let mutable found = false
+//        while x.InputCursor.MoveNext() && not found do
+//          let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
+//          if ok then 
+//            found <- true
+//            x.CurrentKey <- x.InputCursor.CurrentKey
+//            x.CurrentValue <- value
+//        if found then 
+//          true 
+//        else false
+//      else (x :> ICursor<'K,'V2>).MoveFirst()
+//
+//    member x.MovePrevious(): bool = 
+//      if started then
+//        let found = ref false
+//        while x.InputCursor.MovePrevious() && not !found do
+//          let ok, value = filterMapFunc.Invoke(x.InputCursor.CurrentKey,x.InputCursor.CurrentValue)
+//          if ok then 
+//            found := true
+//            x.CurrentKey <- x.InputCursor.CurrentKey
+//            x.CurrentValue <- value
+//        if !found then 
+//          true 
+//        else false
+//      else (x :> ICursor<'K,'V2>).MoveLast()
+//    
+//    member x.MoveNextAsync(cancellationToken: Threading.CancellationToken): Task<bool> = 
+//      failwith "Not implemented yet"
+//    member x.MoveNextBatchAsync(cancellationToken: Threading.CancellationToken): Task<bool> = 
+//      failwith "Not implemented yet"
+//    
+//    member x.IsBatch with get() = x.IsBatch
+//    member x.Reset(): unit = x.Reset()
+//    member x.Source: ISeries<'K,'V2> = CursorSeries<'K,'V2>((x :> ICursor<'K,'V2>).Clone) :> ISeries<'K,'V2>
+//    member x.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool = 
+//      let ok, value2 = x.TryGetValue(key)
+//      value <- value2.Value
+//      ok
+//    
+//    // TODO review
+//    member x.Clone(): ICursor<'K,'V2> =
+//      // run-time type of the instance
+//      let ty = x.GetType()
+//      let args = [|cursorFactory :> obj|]
+//      let clone = CursorBind(cursor.Clone(), filterMapFunc) :?> ICursor<'K,'V2> 
+//      if started then clone.MoveAt(x.CurrentKey, Lookup.EQ) |> ignore
+//      //Debug.Assert(movedOk) // if current key is set then we could move to it
+//      clone
 
 
 

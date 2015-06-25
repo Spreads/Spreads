@@ -19,7 +19,8 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="..\bin\Spreads.Collections.dll" target="lib/net45" />
-    <!--<file src="..\bin\Spreads.Collections.pdb" target="lib/net45" />-->
+	  <!-- TODO xml files -->
+	<file src="..\bin\Spreads.Collections.dll" target="lib/net40" />
+	<!--<file src="..\bin\Spreads.Collections.dll" target="lib/net45" />-->
   </files>
 </package>

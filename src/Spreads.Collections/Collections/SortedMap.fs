@@ -76,7 +76,7 @@ type SortedMap<'K,'V when 'K : comparison>
   [<NonSerializedAttribute>]
   let mutable mapKey = ""
 
-  let updateEvent = new Internals.EventV2<EventHandler<KVP<'K,'V>>,KVP<'K,'V>>()
+  let updateEvent = new Internals.EventV2<UpdateHandler<'K,'V>,KVP<'K,'V>>()
 
   // helper functions
   let rkGetStep() =
