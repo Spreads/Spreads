@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
-using Spreads;
 
 namespace System.Linq
 {
@@ -50,11 +49,11 @@ namespace System.Linq
 
         private static IEnumerable<TSource> ToEnumerable_<TSource>(IAsyncEnumerable<TSource> source)
         {
-            using (var e = source.GetAsyncEnumerator())
+            using (var e = source.GetEnumerator())
             {
                 while (true)
                 {
-                    var t = e.MoveNextAsync(CancellationToken.None);
+                    var t = e.MoveNext(CancellationToken.None);
                     t.Wait();
                     if (!t.Result)
                         break;
@@ -269,10 +268,10 @@ namespace System.Linq
             public IDisposable Subscribe(IObserver<T> observer)
             {
                 var ctd = new CancellationTokenDisposable();
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
 
                 var f = default(Action);
-                f = () => e.MoveNextAsync(ctd.Token).ContinueWith(t =>
+                f = () => e.MoveNext(ctd.Token).ContinueWith(t =>
                 {
                     if (t.IsFaulted)
                     {

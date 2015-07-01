@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads;
 
 namespace System.Linq
 {
@@ -20,7 +19,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
 
                 var cts = new CancellationTokenDisposable();
                 var a = new AssignableDisposable { Disposable = e };
@@ -32,7 +31,7 @@ namespace System.Linq
                 {
                     if (!done)
                     {
-                        e.MoveNextAsync(ct).Then(t =>
+                        e.MoveNext(ct).Then(t =>
                         {
                             t.Handle(tcs,
                                 res =>
@@ -50,7 +49,7 @@ namespace System.Linq
                                             var exx = ex_ as TException;
                                             if (exx != null)
                                             {
-                                                err = handler(exx).GetAsyncEnumerator();
+                                                err = handler(exx).GetEnumerator();
                                                 return true;
                                             }
 
@@ -77,7 +76,7 @@ namespace System.Linq
                     }
                     else
                     {
-                        e.MoveNextAsync(ct).Then(t =>
+                        e.MoveNext(ct).Then(t =>
                         {
                             t.Handle(tcs, res =>
                             {
@@ -148,7 +147,7 @@ namespace System.Linq
                         {
                             b = se.MoveNext();
                             if (b)
-                                e = se.Current.GetAsyncEnumerator();
+                                e = se.Current.GetEnumerator();
                         }
                         catch (Exception ex)
                         {
@@ -173,7 +172,7 @@ namespace System.Linq
                         a.Disposable = e;
                     }
 
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs,
                             res =>
@@ -213,7 +212,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
 
                 var cts = new CancellationTokenDisposable();
                 var r = new Disposable(finallyAction);
@@ -222,7 +221,7 @@ namespace System.Linq
                 var f = default(Action<TaskCompletionSource<bool>, CancellationToken>);
                 f = (tcs, ct) =>
                 {
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs, res =>
                         {
@@ -290,7 +289,7 @@ namespace System.Linq
                         {
                             b = se.MoveNext();
                             if (b)
-                                e = se.Current.GetAsyncEnumerator();
+                                e = se.Current.GetEnumerator();
                         }
                         catch (Exception ex)
                         {
@@ -307,7 +306,7 @@ namespace System.Linq
                         a.Disposable = e;
                     }
 
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs,
                             res =>

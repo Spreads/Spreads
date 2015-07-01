@@ -12,6 +12,9 @@ open System.Threading.Tasks
 open Spreads
 open Spreads.Collections
 
+// TODO settable IsSyncronized with check on every mutation
+// TODO Size to Count
+
 // Why regular keys? Because we do not care about daily or hourly data, but there are 1440 (480) minutes in a day (trading hours)
 // with the same diff between each consequitive minute. The number is much bigger with seconds and msecs so that
 // memory saving is meaningful, while vectorized calculations on values benefit from fast comparison of regular keys.
@@ -1090,7 +1093,7 @@ type SortedMap<'K,'V when 'K : comparison>
         false
 
   interface IReadOnlyOrderedMap<'K,'V> with
-    member this.GetAsyncEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+    member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
     member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.size = 0
     member this.IsIndexed with get() = false
@@ -1122,7 +1125,7 @@ type SortedMap<'K,'V when 'K : comparison>
     
 
   interface IOrderedMap<'K,'V> with
-    member this.Size with get() = int64(this.size)
+    member this.Count with get() = int64(this.size)
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
     member this.Add(k, v) = this.Add(k,v)
     member this.AddLast(k, v) = this.AddLast(k, v)

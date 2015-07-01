@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
-using Spreads;
 
 namespace System.Linq
 {
@@ -23,10 +22,10 @@ namespace System.Linq
 
             var acc = seed;
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -87,10 +86,10 @@ namespace System.Linq
             var first = true;
             var acc = default(TSource);
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -171,10 +170,10 @@ namespace System.Linq
 
             var tcs = new TaskCompletionSource<bool>();
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -213,10 +212,10 @@ namespace System.Linq
 
             var tcs = new TaskCompletionSource<bool>();
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -251,8 +250,8 @@ namespace System.Linq
             if (source == null)
                 throw new ArgumentNullException("source");
 
-            var e = source.GetAsyncEnumerator();
-            return e.MoveNextAsync(cancellationToken);
+            var e = source.GetEnumerator();
+            return e.MoveNext(cancellationToken);
         }
 
         public static Task<bool> Contains<TSource>(this IAsyncEnumerable<TSource> source, TSource value, IEqualityComparer<TSource> comparer, CancellationToken cancellationToken)
@@ -280,9 +279,9 @@ namespace System.Linq
 
             var tcs = new TaskCompletionSource<TSource>();
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
-            e.MoveNextAsync(cancellationToken).Then(t =>
+            e.MoveNext(cancellationToken).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -313,9 +312,9 @@ namespace System.Linq
 
             var tcs = new TaskCompletionSource<TSource>();
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
-            e.MoveNextAsync(cancellationToken).Then(t =>
+            e.MoveNext(cancellationToken).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -346,12 +345,12 @@ namespace System.Linq
 
             var tcs = new TaskCompletionSource<TSource>();
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
             var last = default(TSource);
             var hasLast = false;
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -393,12 +392,12 @@ namespace System.Linq
 
             var tcs = new TaskCompletionSource<TSource>();
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
             var last = default(TSource);
             var hasLast = false;
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -440,16 +439,16 @@ namespace System.Linq
 
             var tcs = new TaskCompletionSource<TSource>();
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
-            e.MoveNextAsync(cancellationToken).Then(t =>
+            e.MoveNext(cancellationToken).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
                     if (res)
                     {
                         var result = e.Current;
-                        e.MoveNextAsync(cancellationToken).Then(t1 =>
+                        e.MoveNext(cancellationToken).Then(t1 =>
                         {
                             t1.Handle(tcs, res1 =>
                             {
@@ -485,16 +484,16 @@ namespace System.Linq
 
             var tcs = new TaskCompletionSource<TSource>();
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
-            e.MoveNextAsync(cancellationToken).Then(t =>
+            e.MoveNext(cancellationToken).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
                     if (res)
                     {
                         var result = e.Current;
-                        e.MoveNextAsync(cancellationToken).Then(t1 =>
+                        e.MoveNext(cancellationToken).Then(t1 =>
                         {
                             t1.Handle(tcs, res1 =>
                             {
@@ -532,10 +531,10 @@ namespace System.Linq
 
             var tcs = new TaskCompletionSource<TSource>();
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var next = default(Action<CancellationToken>);
-            next = ct => e.MoveNextAsync(ct).Then(t =>
+            next = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -572,10 +571,10 @@ namespace System.Linq
 
             var tcs = new TaskCompletionSource<TSource>();
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var next = default(Action<CancellationToken>);
-            next = ct => e.MoveNextAsync(ct).Then(t =>
+            next = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -772,10 +771,10 @@ namespace System.Linq
             var count = 0L;
             var sum = 0.0;
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -810,10 +809,10 @@ namespace System.Linq
             var count = 0L;
             var sum = 0.0;
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -851,10 +850,10 @@ namespace System.Linq
             var count = 0L;
             var sum = 0.0;
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -889,10 +888,10 @@ namespace System.Linq
             var count = 0L;
             var sum = 0.0;
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -930,10 +929,10 @@ namespace System.Linq
             var count = 0L;
             var sum = 0.0;
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -968,10 +967,10 @@ namespace System.Linq
             var count = 0L;
             var sum = 0.0;
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -1009,10 +1008,10 @@ namespace System.Linq
             var count = 0L;
             var sum = 0f;
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -1047,10 +1046,10 @@ namespace System.Linq
             var count = 0L;
             var sum = 0f;
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -1088,10 +1087,10 @@ namespace System.Linq
             var count = 0L;
             var sum = 0m;
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -1126,10 +1125,10 @@ namespace System.Linq
             var count = 0L;
             var sum = 0m;
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {
@@ -1941,10 +1940,10 @@ namespace System.Linq
             var current = default(TSource);
             var resKey = default(TKey);
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var f = default(Action<CancellationToken>);
-            f = ct => e.MoveNextAsync(ct).Then(t =>
+            f = ct => e.MoveNext(ct).Then(t =>
             {
                 t.Handle(tcs, res =>
                 {

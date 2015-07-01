@@ -1,3 +1,6 @@
+#### 0.0.8 - July 1, 2015
+* Synch interfaces to Ix-Asyn (but do not add binary dependency, will use Paket to import files from github)
+
 #### 0.0.7 - June 25, 2015
 * Make SortedMap IUpdatable (TODO SCM as well)
 * Change Colelctions target from 4.5 to 4.0

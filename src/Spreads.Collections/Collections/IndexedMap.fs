@@ -183,7 +183,7 @@ type internal IndexedMap<'K,'V when 'K : comparison>
 
 
   interface IReadOnlyOrderedMap<'K,'V> with
-    member this.GetAsyncEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+    member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
     member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.IsEmpty
     member this.IsIndexed with get() = true
@@ -220,7 +220,7 @@ type internal IndexedMap<'K,'V when 'K : comparison>
     
 
   interface IOrderedMap<'K,'V> with
-    member this.Size with get() = int64(this.Size)
+    member this.Count with get() = int64(this.Size)
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
     member this.Add(k, v) = this.Add(k,v)
     member this.AddLast(k, v) = this.AddLast(k, v)

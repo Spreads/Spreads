@@ -1,11 +1,9 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads;
 
 namespace System.Linq
 {
@@ -20,7 +18,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
                 var current = default(TResult);
 
                 var cts = new CancellationTokenDisposable();
@@ -29,7 +27,7 @@ namespace System.Linq
                 return Create(
                     (ct, tcs) =>
                     {
-                        e.MoveNextAsync(cts.Token).Then(t =>
+                        e.MoveNext(cts.Token).Then(t =>
                         {
                             t.Handle(tcs, res =>
                             {
@@ -71,7 +69,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
                 var current = default(TResult);
                 var index = 0;
 
@@ -81,7 +79,7 @@ namespace System.Linq
                 return Create(
                     (ct, tcs) =>
                     {
-                        e.MoveNextAsync(cts.Token).Then(t =>
+                        e.MoveNext(cts.Token).Then(t =>
                         {
                             t.Handle(tcs, res =>
                             {
@@ -131,7 +129,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
 
                 var cts = new CancellationTokenDisposable();
                 var d = Disposable.Create(cts, e);
@@ -139,7 +137,7 @@ namespace System.Linq
                 var f = default(Action<TaskCompletionSource<bool>, CancellationToken>);
                 f = (tcs, ct) =>
                 {
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs, res =>
                         {
@@ -188,7 +186,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
                 var index = 0;
 
                 var cts = new CancellationTokenDisposable();
@@ -197,7 +195,7 @@ namespace System.Linq
                 var f = default(Action<TaskCompletionSource<bool>, CancellationToken>);
                 f = (tcs, ct) =>
                 {
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs, res =>
                         {
@@ -246,7 +244,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
                 var ie = default(IAsyncEnumerator<TResult>);
 
                 var innerDisposable = new AssignableDisposable();
@@ -259,7 +257,7 @@ namespace System.Linq
 
                 inner = (tcs, ct) =>
                 {
-                    ie.MoveNextAsync(ct).Then(t =>
+                    ie.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs, res =>
                         {
@@ -278,7 +276,7 @@ namespace System.Linq
 
                 outer = (tcs, ct) =>
                 {
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs, res =>
                         {
@@ -286,7 +284,7 @@ namespace System.Linq
                             {
                                 try
                                 {
-                                    ie = selector(e.Current).GetAsyncEnumerator();
+                                    ie = selector(e.Current).GetEnumerator();
                                     innerDisposable.Disposable = ie;
 
                                     inner(tcs, ct);
@@ -327,7 +325,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
                 var ie = default(IAsyncEnumerator<TResult>);
 
                 var index = 0;
@@ -342,7 +340,7 @@ namespace System.Linq
 
                 inner = (tcs, ct) =>
                 {
-                    ie.MoveNextAsync(ct).Then(t =>
+                    ie.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs, res =>
                         {
@@ -361,7 +359,7 @@ namespace System.Linq
 
                 outer = (tcs, ct) =>
                 {
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs, res =>
                         {
@@ -369,7 +367,7 @@ namespace System.Linq
                             {
                                 try
                                 {
-                                    ie = selector(e.Current, checked(index++)).GetAsyncEnumerator();
+                                    ie = selector(e.Current, checked(index++)).GetEnumerator();
                                     innerDisposable.Disposable = ie;
 
                                     inner(tcs, ct);
@@ -450,7 +448,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
                 var n = count;
 
                 var cts = new CancellationTokenDisposable();
@@ -462,7 +460,7 @@ namespace System.Linq
                         if (n == 0)
                             return TaskExt.False;
 
-                        e.MoveNextAsync(cts.Token).Then(t =>
+                        e.MoveNext(cts.Token).Then(t =>
                         {
                             t.Handle(tcs, res =>
                             {
@@ -492,7 +490,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
 
                 var cts = new CancellationTokenDisposable();
                 var d = Disposable.Create(cts, e);
@@ -500,7 +498,7 @@ namespace System.Linq
                 return Create(
                     (ct, tcs) =>
                     {
-                        e.MoveNextAsync(cts.Token).Then(t =>
+                        e.MoveNext(cts.Token).Then(t =>
                         {
                             t.Handle(tcs, res =>
                             {
@@ -545,7 +543,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
                 var index = 0;
 
                 var cts = new CancellationTokenDisposable();
@@ -554,7 +552,7 @@ namespace System.Linq
                 return Create(
                     (ct, tcs) =>
                     {
-                        e.MoveNextAsync(cts.Token).Then(t =>
+                        e.MoveNext(cts.Token).Then(t =>
                         {
                             t.Handle(tcs, res =>
                             {
@@ -599,7 +597,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
                 var n = count;
 
                 var cts = new CancellationTokenDisposable();
@@ -609,14 +607,14 @@ namespace System.Linq
                 f = (tcs, ct) =>
                 {
                     if (n == 0)
-                        e.MoveNextAsync(ct).Then(t =>
+                        e.MoveNext(ct).Then(t =>
                         {
                             t.Handle(tcs, x => tcs.TrySetResult(x));
                         });
                     else
                     {
                         --n;
-                        e.MoveNextAsync(ct).Then(t =>
+                        e.MoveNext(ct).Then(t =>
                         {
                             t.Handle(tcs, res =>
                             {
@@ -650,7 +648,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
                 var skipping = true;
 
                 var cts = new CancellationTokenDisposable();
@@ -660,7 +658,7 @@ namespace System.Linq
                 f = (tcs, ct) =>
                 {
                     if (skipping)
-                        e.MoveNextAsync(ct).Then(t =>
+                        e.MoveNext(ct).Then(t =>
                         {
                             t.Handle(tcs, res =>
                             {
@@ -689,7 +687,7 @@ namespace System.Linq
                             });
                         });
                     else
-                        e.MoveNextAsync(ct).Then(t =>
+                        e.MoveNext(ct).Then(t =>
                         {
                             t.Handle(tcs, x => tcs.TrySetResult(x));
                         });
@@ -716,7 +714,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
                 var skipping = true;
                 var index = 0;
 
@@ -727,7 +725,7 @@ namespace System.Linq
                 f = (tcs, ct) =>
                 {
                     if (skipping)
-                        e.MoveNextAsync(ct).Then(t =>
+                        e.MoveNext(ct).Then(t =>
                         {
                             t.Handle(tcs, res =>
                             {
@@ -756,7 +754,7 @@ namespace System.Linq
                             });
                         });
                     else
-                        e.MoveNextAsync(ct).Then(t =>
+                        e.MoveNext(ct).Then(t =>
                         {
                             t.Handle(tcs, x => tcs.TrySetResult(x));
                         });
@@ -783,7 +781,7 @@ namespace System.Linq
             {
                 var done = false;
                 var hasElements = false;
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
                 var current = default(TSource);
 
                 var cts = new CancellationTokenDisposable();
@@ -795,7 +793,7 @@ namespace System.Linq
                     if (done)
                         tcs.TrySetResult(false);
                     else
-                        e.MoveNextAsync(ct).Then(t =>
+                        e.MoveNext(ct).Then(t =>
                         {
                             t.Handle(tcs, res =>
                             {
@@ -870,7 +868,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
                 var stack = default(Stack<TSource>);
 
                 var cts = new CancellationTokenDisposable();
@@ -1062,7 +1060,7 @@ namespace System.Linq
             {
                 return Create(() =>
                 {
-                    var e = equivalenceClasses.GetAsyncEnumerator();
+                    var e = equivalenceClasses.GetEnumerator();
                     var list = new List<IEnumerable<T>>();
                     var e1 = default(IEnumerator<IEnumerable<T>>);
 
@@ -1075,7 +1073,7 @@ namespace System.Linq
 
                     f = (tcs, ct) =>
                     {
-                        e.MoveNextAsync(ct).Then(t =>
+                        e.MoveNext(ct).Then(t =>
                         {
                             t.Handle(tcs, res =>
                             {
@@ -1142,17 +1140,9 @@ namespace System.Linq
                 });
             }
 
-            public IAsyncEnumerator<T> GetAsyncEnumerator()
+            public IAsyncEnumerator<T> GetEnumerator()
             {
-                return Classes().SelectMany(x => x.ToAsyncEnumerable()).GetAsyncEnumerator();
-            }
-
-            public IEnumerator<T> GetEnumerator() {
-                return GetAsyncEnumerator();
-            }
-
-            IEnumerator IEnumerable.GetEnumerator() {
-                return GetAsyncEnumerator();
+                return Classes().SelectMany(x => x.ToAsyncEnumerable()).GetEnumerator();
             }
         }
 
@@ -1186,7 +1176,7 @@ namespace System.Linq
             {
                 var gate = new object();
                 
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
                 var count = 1;
 
                 var map = new Dictionary<TKey, Grouping<TKey, TElement>>(comparer);
@@ -1232,7 +1222,7 @@ namespace System.Linq
                         return task;
                     }
 
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs,
                             res =>
@@ -1457,7 +1447,7 @@ namespace System.Linq
                 this.exception = exception;
             }
 
-            public IAsyncEnumerator<TElement> GetAsyncEnumerator()
+            public IAsyncEnumerator<TElement> GetEnumerator()
             {
                 var index = -1;
 
@@ -1507,14 +1497,6 @@ namespace System.Linq
                     () => elements[index],
                     d.Dispose
                 );
-            }
-
-            public IEnumerator<TElement> GetEnumerator() {
-                return GetAsyncEnumerator();
-            }
-
-            IEnumerator IEnumerable.GetEnumerator() {
-                return GetAsyncEnumerator();
             }
         }
 
@@ -1584,7 +1566,7 @@ namespace System.Linq
         {
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
 
                 var cts = new CancellationTokenDisposable();
                 var d = Disposable.Create(cts, e);
@@ -1594,7 +1576,7 @@ namespace System.Linq
                 var f = default(Action<TaskCompletionSource<bool>, CancellationToken>);
                 f = (tcs, ct) =>
                 {
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         if (!t.IsCanceled)
                         {
@@ -1679,14 +1661,14 @@ namespace System.Linq
 
             var tcs = new TaskCompletionSource<bool>();
 
-            var e = source.GetAsyncEnumerator();
+            var e = source.GetEnumerator();
 
             var i = 0;
 
             var f = default(Action<CancellationToken>);
             f = ct =>
             {
-                e.MoveNextAsync(ct).Then(t =>
+                e.MoveNext(ct).Then(t =>
                 {
                     t.Handle(tcs, res =>
                     {
@@ -1745,7 +1727,7 @@ namespace System.Linq
 
                         try
                         {
-                            e = source.GetAsyncEnumerator();
+                            e = source.GetEnumerator();
                         }
                         catch (Exception ex)
                         {
@@ -1756,7 +1738,7 @@ namespace System.Linq
                         a.Disposable = e;
                     }
 
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs, res =>
                         {
@@ -1807,7 +1789,7 @@ namespace System.Linq
                     {
                         try
                         {
-                            e = source.GetAsyncEnumerator();
+                            e = source.GetEnumerator();
                         }
                         catch (Exception ex)
                         {
@@ -1818,7 +1800,7 @@ namespace System.Linq
                         a.Disposable = e;
                     }
 
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs, res =>
                         {
@@ -1855,7 +1837,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
 
                 var cts = new CancellationTokenDisposable();
                 var d = Disposable.Create(cts, e);
@@ -1863,7 +1845,7 @@ namespace System.Linq
                 var f = default(Action<TaskCompletionSource<bool>, CancellationToken>);
                 f = (tcs, ct) =>
                 {
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs, res =>
                         {
@@ -1924,7 +1906,7 @@ namespace System.Linq
         {
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
 
                 var cts = new CancellationTokenDisposable();
                 var d = Disposable.Create(cts, e);
@@ -1941,7 +1923,7 @@ namespace System.Linq
                 {
                     if (!stopped)
                     {
-                        e.MoveNextAsync(ct).Then(t =>
+                        e.MoveNext(ct).Then(t =>
                         {
                             t.Handle(tcs, res =>
                             {
@@ -2070,7 +2052,7 @@ namespace System.Linq
         {
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
 
                 var cts = new CancellationTokenDisposable();
                 var d = Disposable.Create(cts, e);
@@ -2082,7 +2064,7 @@ namespace System.Linq
                 var f = default(Action<TaskCompletionSource<bool>, CancellationToken>);
                 f = (tcs, ct) =>
                 {
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs, res =>
                         {
@@ -2171,7 +2153,7 @@ namespace System.Linq
 
                             try
                             {
-                                e = src.GetAsyncEnumerator();
+                                e = src.GetEnumerator();
                             }
                             catch (Exception ex)
                             {
@@ -2189,7 +2171,7 @@ namespace System.Linq
                     }
                     else
                     {
-                        e.MoveNextAsync(ct).Then(t =>
+                        e.MoveNext(ct).Then(t =>
                         {
                             t.Handle(tcs, res =>
                             {
@@ -2243,7 +2225,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
 
                 var cts = new CancellationTokenDisposable();
                 var d = Disposable.Create(cts, e);
@@ -2254,7 +2236,7 @@ namespace System.Linq
                 var f = default(Action<TaskCompletionSource<bool>, CancellationToken>);
                 f = (tcs, ct) =>
                 {
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs, res =>
                         {
@@ -2302,7 +2284,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
 
                 var cts = new CancellationTokenDisposable();
                 var d = Disposable.Create(cts, e);
@@ -2314,7 +2296,7 @@ namespace System.Linq
                 var f = default(Action<TaskCompletionSource<bool>, CancellationToken>);
                 f = (tcs, ct) =>
                 {
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs, res =>
                         {
@@ -2371,7 +2353,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
 
                 var cts = new CancellationTokenDisposable();
                 var d = Disposable.Create(cts, e);
@@ -2385,7 +2367,7 @@ namespace System.Linq
                 {
                     if (!done)
                     {
-                        e.MoveNextAsync(ct).Then(t =>
+                        e.MoveNext(ct).Then(t =>
                         {
                             t.Handle(tcs, res =>
                             {
@@ -2442,7 +2424,7 @@ namespace System.Linq
 
             return Create(() =>
             {
-                var e = source.GetAsyncEnumerator();
+                var e = source.GetEnumerator();
 
                 var cts = new CancellationTokenDisposable();
                 var d = Disposable.Create(cts, e);
@@ -2453,7 +2435,7 @@ namespace System.Linq
                 var f = default(Action<TaskCompletionSource<bool>, CancellationToken>);
                 f = (tcs, ct) =>
                 {
-                    e.MoveNextAsync(ct).Then(t =>
+                    e.MoveNext(ct).Then(t =>
                     {
                         t.Handle(tcs, res =>
                         {

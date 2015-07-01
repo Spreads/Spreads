@@ -1,11 +1,9 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads;
 
 namespace System.Linq
 {
@@ -25,17 +23,9 @@ namespace System.Linq
                 this.getEnumerator = getEnumerator;
             }
 
-            public IAsyncEnumerator<T> GetAsyncEnumerator()
+            public IAsyncEnumerator<T> GetEnumerator()
             {
                 return getEnumerator();
-            }
-
-            public IEnumerator<T> GetEnumerator() {
-                return getEnumerator() as IEnumerator<T>;
-            }
-
-            IEnumerator IEnumerable.GetEnumerator() {
-                return getEnumerator() as IEnumerator;
             }
         }
 
@@ -83,7 +73,7 @@ namespace System.Linq
                 _dispose = dispose;
             }
 
-            public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
+            public Task<bool> MoveNext(CancellationToken cancellationToken)
             {
                 if (_disposed)
                     return TaskExt.False;
@@ -99,12 +89,6 @@ namespace System.Linq
                 }
             }
 
-            object IEnumerator.Current {
-                get {
-                    return _current();
-                }
-            }
-
             public void Dispose()
             {
                 if (!_disposed)
@@ -112,14 +96,6 @@ namespace System.Linq
                     _disposed = true;
                     _dispose();
                 }
-            }
-
-            public bool MoveNext() {
-                return _moveNext(CancellationToken.None).Result;
-            }
-
-            public void Reset() {
-                throw new NotImplementedException();
             }
         }
 
@@ -191,7 +167,7 @@ namespace System.Linq
             if (factory == null)
                 throw new ArgumentNullException("factory");
 
-            return Create(() => factory().GetAsyncEnumerator());
+            return Create(() => factory().GetEnumerator());
         }
 
         public static IAsyncEnumerable<TResult> Generate<TState, TResult>(TState initialState, Func<TState, bool> condition, Func<TState, TState> iterate, Func<TState, TResult> resultSelector)
@@ -256,7 +232,7 @@ namespace System.Linq
 
                 try
                 {
-                    e = enumerableFactory(resource).GetAsyncEnumerator();
+                    e = enumerableFactory(resource).GetEnumerator();
                 }
                 catch (Exception)
                 {
@@ -272,7 +248,7 @@ namespace System.Linq
                 return Create(
                     (ct, tcs) =>
                     {
-                        e.MoveNextAsync(cts.Token).Then(t =>
+                        e.MoveNext(cts.Token).Then(t =>
                         {
                             t.Handle(tcs,
                                 res =>

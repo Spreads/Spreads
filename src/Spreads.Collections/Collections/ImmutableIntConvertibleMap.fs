@@ -46,20 +46,20 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
     member internal this.Map = map
 
 
-    member this.GetEnumerator() = 
-        (map.ToArray()
+    member this.GetEnumerator() : IEnumerator<KVP<'K, 'V>> = 
+      ((map :> IEnumerable<_>).ToArray()
         |> Array.map (fun kv -> KeyValuePair(conv.FromInt64(kv.Key),kv.Value)) :> (KeyValuePair<'K, 'V>) seq).GetEnumerator()
 
 
     interface IEnumerable<KeyValuePair<'K, 'V>> with
-            member m.GetEnumerator() = m.GetEnumerator()
+      member m.GetEnumerator() = m.GetEnumerator()
 
     interface System.Collections.IEnumerable with
-        member m.GetEnumerator() = m.GetEnumerator() :> System.Collections.IEnumerator
+      member m.GetEnumerator() = m.GetEnumerator() :> System.Collections.IEnumerator
 
 
     interface IImmutableOrderedMap<'K, 'V> with
-        member this.GetAsyncEnumerator() = new MapCursor<'K, 'V>(this) :> IAsyncEnumerator<KVP<'K, 'V>>
+        member this.GetEnumerator() = new MapCursor<'K, 'V>(this) :> IAsyncEnumerator<KVP<'K, 'V>>
         member this.GetCursor() = new MapCursor<'K, 'V>(this) :> ICursor<'K, 'V>
         member this.IsEmpty = map.IsEmpty
         //member this.Count = int map.Size

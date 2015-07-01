@@ -27,7 +27,7 @@ type Series<'K,'V when 'K : comparison>() as this =
     member this.GetEnumerator() = (this.GetCursor() :> System.Collections.IEnumerator)
   interface ISeries<'K, 'V> with
     member this.GetCursor() = this.GetCursor()
-    member this.GetAsyncEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+    member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
     member this.IsIndexed with get() = this.GetCursor().Source.IsIndexed
     member this.SyncRoot with get() = this.GetCursor().Source.SyncRoot
 

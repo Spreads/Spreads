@@ -201,6 +201,10 @@ type MapCursor<'K,'V when 'K : comparison>
     member this.Current with get(): KVP<'K, 'V> = this.Current
     member this.Current with get(): obj = this.Current :> obj
 
+  interface IAsyncEnumerator<KVP<'K,'V>> with
+    member x.Current: KVP<'K, 'V> = failwith "Not implemented yet"
+    member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = this.MoveNextAsync(cancellationToken) 
+
   interface ICursor<'K,'V> with
     // TODO need some implementation of ROOM to implement the batch
     member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
@@ -212,7 +216,6 @@ type MapCursor<'K,'V when 'K : comparison>
     member this.MovePrevious():bool = this.MovePrevious()
     member this.CurrentKey with get():'K = this.CurrentKey
     member this.CurrentValue with get():'V = this.CurrentValue
-    member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = this.MoveNextAsync(cancellationToken)
     member this.Source with get() = this.Source
     member this.Clone() = this.Clone()
     member this.IsContinuous with get() = this.IsContinuous

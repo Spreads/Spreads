@@ -5,5 +5,5 @@ Design:
 
 
 Premature optimization:
-* Implement SM and SCM cursors as sealed classes with fields instead
+* Implement SM and SCM cursors as sealed structs with fields instead
 of F# object expressions and reference cells. ILSpy shows too much unneeded stuff.

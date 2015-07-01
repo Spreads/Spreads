@@ -114,7 +114,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
               // TODO (!) in a normal flow, we add a new bucket when a previous one 
               // is full. For regular UnitPeriods (all but ticks) the buckets
               // should be equal in most cases
-              let averageSize = try size / (int64 outerMap.Size) with | _ -> 4L // 4L in default
+              let averageSize = try size / (int64 outerMap.Count) with | _ -> 4L // 4L in default
               let newSm = SortedMap(int averageSize, comparer)
               //outerMap.[hash] <- newSm do not store on every update, 
               newSm
@@ -322,7 +322,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
               else return false
             else
               if !isBatch then
-                let! couldMove = outer.Value.MoveNextAsync(ct) |> Async.AwaitTask
+                let! couldMove = outer.Value.MoveNext(ct) |> Async.AwaitTask
                 if couldMove then
                   currentBatch := outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
                   isBatch := true
@@ -450,7 +450,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
       let c =
-        if outerMap.Size = 0L then 1
+        if outerMap.Count = 0L then 1
         else comparer.Compare(hash, outerMap.Last.Key)
       if c = 0 then // last existing bucket
         if prevBucketIsSet && comparer.Compare(hash, prevHash) <> 0 then // switching from previous bucket
@@ -620,7 +620,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
    
 
   interface IReadOnlyOrderedMap<'K,'V> with
-    member this.GetAsyncEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+    member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
     member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.IsEmpty
     member this.IsIndexed with get() = false
@@ -667,7 +667,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     
 
   interface IOrderedMap<'K,'V> with
-    member this.Size with get() = int64(size)
+    member this.Count with get() = int64(size)
     member this.Item
       with get k = this.Item(k) 
       and set (k:'K) (v:'V) = this.[k] <- v

@@ -1,34 +1,30 @@
 ﻿namespace Spreads
 
 open System
+
 open System.Collections
 open System.Collections.Generic
 open System.Threading
 open System.Threading.Tasks
 open System.Runtime.InteropServices
 
-
+/// Asynchronous version of the IEnumerator<T> interface, allowing elements to be retrieved asynchronously.
+[<Interface>]
 [<AllowNullLiteral>]
 type IAsyncEnumerator<'T> =
-  inherit IEnumerator<'T>
-  inherit IDisposable
+  inherit System.IDisposable
+  /// Gets the current element in the iteration.
+  abstract member Current : 'T
   /// Advances the enumerator to the next element in the sequence, returning the result asynchronously.
-  /// <returns>
-  /// Task containing the result of the operation: true if the enumerator was successfully advanced 
-  /// to the next element; false if the enumerator has passed the end of the sequence.
-  /// </returns>    
-  abstract MoveNextAsync: cancellationToken:CancellationToken  -> Task<bool>
-  //abstract Current: 'T with get
+  /// cancellationToken: Cancellation token that can be used to cancel the operation.
+  abstract member MoveNext : cancellationToken:CancellationToken -> Task<bool>
 
+/// Asynchronous version of the IEnumerable<T> interface, allowing elements of the enumerable sequence to be retrieved asynchronously.
+[<Interface>]
 [<AllowNullLiteral>]
 type IAsyncEnumerable<'T> =
-  inherit IEnumerable<'T>
-  /// Advances the enumerator to the next element in the sequence, returning the result asynchronously.
-  /// <returns>
-  /// Task containing the result of the operation: true if the enumerator was successfully advanced 
-  /// to the next element; false if the enumerator has passed the end of the sequence.
-  /// </returns>    
-  abstract GetAsyncEnumerator: unit -> IAsyncEnumerator<'T>
+  /// Gets an asynchronous enumerator over the sequence.
+  abstract member GetEnumerator : unit -> IAsyncEnumerator<'T>
 
 
 // ISeries doesn't have any mutable properties or mutating methods, but implementation could 
@@ -37,8 +33,10 @@ type IAsyncEnumerable<'T> =
 
 /// Main interface for data series. Modeled after IAsyncEnumerable from Ix.NET with advanced enumerator that could 
 /// move not only to next values, but to next batches, previous, first, last and a custom excat or relative (LT/LE/GT/GE) position.
+[<Interface>]
 [<AllowNullLiteral>]
 type ISeries<'K,'V when 'K : comparison> =
+  inherit IEnumerable<KVP<'K,'V>>
   inherit IAsyncEnumerable<KVP<'K,'V>>
   /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
   /// positions and relative LT/LE/GT/GE moves.
@@ -61,8 +59,10 @@ type ISeries<'K,'V when 'K : comparison> =
 /// after MoveNextBatchAsync or CurrentBatch after any single key movement results in InvalidOperationException.
 /// IsBatch property indicates wether the cursor is positioned on a single value or a batch.
 and
+  [<Interface>]
   [<AllowNullLiteral>]
   ICursor<'K,'V when 'K : comparison> =
+    inherit IEnumerator<KVP<'K, 'V>>
     inherit IAsyncEnumerator<KVP<'K, 'V>>
     /// Puts the cursor to the position according to LookupDirection
     abstract MoveAt: index:'K * direction:Lookup -> bool
@@ -81,6 +81,7 @@ and
     /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap
     abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get
     /// True if last successful move was MoveNextBatchAsync and CurrentBatch contains a valid value.
+    [<ObsoleteAttribute>]
     abstract IsBatch: bool with get
     /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
     abstract Source : ISeries<'K,'V> with get
@@ -109,9 +110,11 @@ and
 /// changes use lock (Monitor.Enter) on the SyncRoot property. Doing so will block any changes for 
 /// mutable implementations and won't affect immutable implementations.
 and
+  [<Interface>]
   [<AllowNullLiteral>]
   IReadOnlyOrderedMap<'K,'V when 'K : comparison> =
     inherit ISeries<'K,'V>
+    //inherit IReadOnlyDictionary<'K,'V>
     /// True if this.size = 0
     abstract IsEmpty: bool with get
     /// First element, throws InvalidOperationException if empty
@@ -145,10 +148,12 @@ and
 
 
 /// Mutable ordered map
+[<Interface>]
 [<AllowNullLiteral>]
 type IOrderedMap<'K,'V when 'K : comparison> =
   inherit IReadOnlyOrderedMap<'K,'V>
-  abstract Size: int64 with get
+  //inherit IDictionary<'K,'V>
+  abstract Count: int64 with get
   abstract Item : 'K -> 'V with get,set
   /// Adds new key and value to map, throws if the key already exists
   abstract Add : k:'K*v:'V -> unit
@@ -170,6 +175,7 @@ type IOrderedMap<'K,'V when 'K : comparison> =
   /// And values from appendMap to the end of this map
   abstract Append: appendMap:IReadOnlyOrderedMap<'K,'V> -> unit
 
+[<Interface>]
 [<AllowNullLiteral>]
 type IImmutableOrderedMap<'K,'V when 'K : comparison> =
   inherit IReadOnlyOrderedMap<'K,'V>

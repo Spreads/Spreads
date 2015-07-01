@@ -654,7 +654,7 @@ type SortedMap<'K,'V when 'K : comparison>
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
 
-  member this.GetPointer() = this.GetROOMCursor() :> ICursor<'K,'V>
+  member this.GetCursor() = this.GetROOMCursor() :> ICursor<'K,'V>
   member private this.GetROOMCursor() : MapCursor<'K,'V> =
     let index = ref -1
     let pVersion = ref version
@@ -850,8 +850,8 @@ type SortedMap<'K,'V when 'K : comparison>
         false
 
   interface IReadOnlyOrderedMap<'K,'V> with
-    member this.GetAsyncEnumerator() = this.GetPointer() :> IAsyncEnumerator<KVP<'K, 'V>>
-    member this.GetCursor() = this.GetPointer()
+    member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+    member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.size = 0
     member this.IsIndexed with get() = false
     //member this.Count with get() = int this.size
@@ -883,7 +883,7 @@ type SortedMap<'K,'V when 'K : comparison>
     
 
   interface IOrderedMap<'K,'V> with
-    member this.Size with get() = int64(this.size)
+    member this.Count with get() = int64(this.size)
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
     member this.Add(k, v) = this.Add(k,v)
     member this.AddLast(k, v) = this.AddLast(k, v)

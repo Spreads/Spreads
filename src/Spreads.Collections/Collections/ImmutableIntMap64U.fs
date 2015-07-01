@@ -1189,7 +1189,7 @@ namespace Spreads.Collections
             | _ -> raise (ApplicationException("Wrong lookup direction"))
 
 
-        member this.GetPointer() = new MapCursor<uint64,'T>(this) :> ICursor<uint64,'T>
+        member this.GetCursor() = new MapCursor<uint64,'T>(this) :> ICursor<uint64,'T>
             
         member this.Size with get() = IntMap64UTree.size tree
 
@@ -1247,8 +1247,8 @@ namespace Spreads.Collections
 
 
         interface IImmutableOrderedMap<uint64, 'T> with
-            member this.GetAsyncEnumerator() = this.GetPointer() :> IAsyncEnumerator<KVP<uint64, 'T>>
-            member this.GetCursor() = this.GetPointer()
+            member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<uint64, 'T>>
+            member this.GetCursor() = this.GetCursor()
             member this.IsEmpty = this.IsEmpty
 
             member this.IsIndexed with get() = false

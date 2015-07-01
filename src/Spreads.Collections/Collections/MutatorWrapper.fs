@@ -21,16 +21,16 @@ type internal MutatorWrapper<'K,'V  when 'K : comparison>
   member internal this.SyncRoot with get() = syncRoot
 
   interface IEnumerable with
-    member this.GetEnumerator() = map.GetEnumerator() :> IEnumerator
+    member this.GetEnumerator() = (map :> IEnumerable<_>).GetEnumerator() :> IEnumerator
 
   interface IEnumerable<KeyValuePair<'K,'V>> with
     member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
-      map.GetEnumerator() :> IEnumerator<KeyValuePair<'K,'V>>
+      (map:> IEnumerable<_>).GetEnumerator() :> IEnumerator<KeyValuePair<'K,'V>>
 
 
     
   interface IReadOnlyOrderedMap<'K,'V> with
-    member this.GetAsyncEnumerator() = map.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+    member this.GetEnumerator() = map.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
     member this.GetCursor() = map.GetCursor()
     member this.IsEmpty = map.IsEmpty
     member this.IsIndexed with get() = false
@@ -68,7 +68,7 @@ type internal MutatorWrapper<'K,'V  when 'K : comparison>
 
 
   interface IOrderedMap<'K,'V> with
-    member this.Size with get() = map.Size
+    member this.Count with get() = map.Size
     member this.Item
       with get (k:'K) : 'V = map.Item(k)
       and set (k:'K) (v:'V) = 
