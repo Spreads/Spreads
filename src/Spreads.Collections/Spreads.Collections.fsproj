@@ -99,6 +99,7 @@
     <Compile Include="Collections\Deque.fs" />
     <Compile Include="Collections\SortedHashMap.fs" />
     <Compile Include="Collections\SortedChunkedMap.fs" />
+    <Compile Include="SlowStupidCursor.fs" />
     <Compile Include="CursorSeries.fs" />
     <None Include="packages.config" />
     <None Include="Script1.fsx" />

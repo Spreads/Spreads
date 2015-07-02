@@ -81,12 +81,13 @@ and
     /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap
     abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get
     /// True if last successful move was MoveNextBatchAsync and CurrentBatch contains a valid value.
-    [<ObsoleteAttribute>]
-    abstract IsBatch: bool with get
+//    [<ObsoleteAttribute>]
+//    abstract IsBatch: bool with get
     /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
     abstract Source : ISeries<'K,'V> with get
     /// If true then TryGetValue could return values for any keys, not only for existing keys.
     /// E.g. previous value, interpolated value, etc.
+    [<ObsoleteAttribute("Review if this is really needed as a part of the interface")>]
     abstract IsContinuous: bool with get
     /// Create a copy of cursor that is positioned at the same place as this cursor.
     abstract Clone: unit -> ICursor<'K,'V>

@@ -521,6 +521,30 @@ module CollectionsBenchmarks =
           ()
       )
     for i in 0..9 do
+      perf count "SMR Iterate as RO+Mapp(Add)" (fun _ ->
+        let ro = smap.Value.ReadOnly().Map(fun x -> x + 123456L).Map(fun x -> x - 123456L) :> IReadOnlyOrderedMap<int64,int64>
+        for i in ro do
+          let res = i.Value
+          ()
+      )
+    for i in 0..9 do
+      perf count "SMR Iterate as RO+Filter + Mapp(Add)" (fun _ ->
+        let ro = smap.Value.ReadOnly().Filter(fun x -> x % 2L = 0L).Map(fun x -> x + 123456L) :> IReadOnlyOrderedMap<int64,int64>
+        let mutable count = 0
+        for i in ro do
+          let res = i.Value
+          count <- count + 1
+          ()
+        Console.WriteLine("Filtered number: " + count.ToString())
+      )
+    for i in 0..9 do
+      perf count "SMR Iterate as RO+AddWithBind" (fun _ ->
+        let ro = Spreads.Collections.Experimental.SeriesExtensions.AddWithBind(smap.Value.ReadOnly(), 123456L) :> IReadOnlyOrderedMap<int64,int64>
+        for i in ro do
+          let res = i.Value
+          ()
+      )
+    for i in 0..9 do
       perf count "SMR Iterate as RO+Add+ToMap" (fun _ ->
         let ro = smap.Value.ReadOnly().Add(123456L) :> IReadOnlyOrderedMap<int64,int64>
         let sm = Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>))

@@ -50,32 +50,48 @@ type TestStruct =
 
 [<EntryPoint>]
 let main argv = 
-  for i in 0..4 do
-    perf 10000000L "Sequence expression" (fun _ ->
-      let newVector = [| 
-        for v in 1..10000000 ->
-          v |] 
-      ()
-    )
-  for i in 0..4 do
-    perf 10000000L "Preallocate" (fun _ ->
-      let newVector2 = 
-        let a = Array.zeroCreate 10000000
-        for v in 1..10000000 do
-          a.[v-1] <- v
-        a
-      ()
-    )
+  let count = 1000000L
+  let dc : IKeyComparer<int64> = SpreadsComparerInt64() :> IKeyComparer<int64> 
 
-  for i in 0..4 do
-    perf 10000000L "List" (fun _ ->
-      let newVector3 = 
-        let a = System.Collections.Generic.List() // do not set capacity
-        for v in 1..10000000 do
-          a.Add(v)
-        a.ToArray()
-      ()
-    )
+  let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
+  for i in 0L..count do
+    smap.Value.Add(i, i)
+
+  for i in 0..9 do
+      let mutable res = 0L
+      perf count "SMR Iterate as RO+AddWithBind" (fun _ ->
+        let ro = smap.Value.ReadOnly().AddWithBind(123456L) :> IReadOnlyOrderedMap<int64,int64>
+        for i in ro do
+          res <- i.Value
+          ()
+      )
+      Console.WriteLine(res)
+//  for i in 0..4 do
+//    perf 10000000L "Sequence expression" (fun _ ->
+//      let newVector = [| 
+//        for v in 1..10000000 ->
+//          v |] 
+//      ()
+//    )
+//  for i in 0..4 do
+//    perf 10000000L "Preallocate" (fun _ ->
+//      let newVector2 = 
+//        let a = Array.zeroCreate 10000000
+//        for v in 1..10000000 do
+//          a.[v-1] <- v
+//        a
+//      ()
+//    )
+//
+//  for i in 0..4 do
+//    perf 10000000L "List" (fun _ ->
+//      let newVector3 = 
+//        let a = System.Collections.Generic.List() // do not set capacity
+//        for v in 1..10000000 do
+//          a.Add(v)
+//        a.ToArray()
+//      ()
+//    )
   //Spreads.Tests.Collections.Benchmarks.CollectionsBenchmarks.SHM_regular_run() // .SortedMapRegularTest(10000000L)
 //  Spreads.Tests.Experimental.Buckets
 //    .``Could store N sorted maps with 1000 elements to MMDic``(10000L)
