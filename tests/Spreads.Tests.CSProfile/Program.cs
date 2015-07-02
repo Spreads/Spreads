@@ -26,9 +26,9 @@ namespace Spreads.Tests.CSProfile {
             //}
             //sw.Stop();
             //Console.WriteLine("DateTime: " + sw.ElapsedMilliseconds);
-            var sm = new SortedMap<int, int>() as Series<int,int>;
-            //var sum = sm + sm;
-
+            var sm = new SortedMap<long, long>() as Series<long, long>;
+            var sum = sm + 1L;
+            var check = sm > 1L;
             Console.ReadLine();
         }
     }

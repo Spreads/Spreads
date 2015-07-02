@@ -208,7 +208,7 @@ type MapCursor<'K,'V when 'K : comparison>
   interface ICursor<'K,'V> with
     // TODO need some implementation of ROOM to implement the batch
     member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
-    member this.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatchAsync(cancellationToken)
+    member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatchAsync(cancellationToken)
     //member this.IsBatch with get() = this.IsBatch
     member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
     member this.MoveFirst():bool = this.MoveFirst()

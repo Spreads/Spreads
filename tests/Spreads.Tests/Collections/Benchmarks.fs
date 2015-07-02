@@ -1,6 +1,7 @@
 ﻿namespace Spreads.Tests.Collections.Benchmarks
 
 open System
+open System.Linq
 open System.Collections.Generic
 open System.Diagnostics
 open Spreads
@@ -86,6 +87,18 @@ module CollectionsBenchmarks =
           //sum <- sum + i
           ()
         Console.WriteLine("The sum is " + list3.Count.ToString())
+      )
+
+    for r in 0..4 do
+      perf count "List int64 addition LINQ" (fun _ ->
+        let list4 = list1.Select(fun x -> x + 1L) //.ToArray()
+        Console.WriteLine("The sum is " + list4.Count().ToString())
+      )
+
+    for r in 0..4 do
+      perf count "List int64 addition Seq.map" (fun _ ->
+        let list4 =  list1 |> Seq.map (fun x -> x + 1L) // |> Seq.toArray
+        Console.WriteLine("The sum is " + list4.Count().ToString())
       )
 
     Console.WriteLine("----------------")
@@ -556,10 +569,20 @@ module CollectionsBenchmarks =
       )
     for i in 0..9 do
       perf count "SMR Iterate with plus operator" (fun _ ->
-        let ro = (smap.Value.ReadOnly() + 123456L) :> IReadOnlyOrderedMap<int64,int64>
+        let ro = (((smap.Value.ReadOnly() + 123456L))):> IReadOnlyOrderedMap<int64,int64>
         for i in ro do
           let res = i.Value
           ()
+      )
+    for i in 0..9 do
+      perf count "SMR Iterate with plus LINQ" (fun _ ->
+        let ro = (smap.Value.ReadOnly().Select(fun x -> KVP(x.Key, x.Value + 123456L))) //:> IReadOnlyOrderedMap<int64,int64>
+        let sm = new SortedMap<_,_>(int count)
+        for i in ro do
+          sm.AddLast(i.Key,i.Value)
+          //let res = i.Value
+          ()
+        Console.WriteLine("The count is " + sm.size.ToString())
       )
     for i in 0..9 do
       perf count "SMR Iterate as RO+Filter + Mapp(Add)" (fun _ ->

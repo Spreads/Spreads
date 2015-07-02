@@ -78,7 +78,7 @@ and
     /// Returns true when a batch is available immediately (async for IO, not for waiting for new values),
     /// returns false when there is no more immediate values and a consumer should switch to MoveNextAsync().
     /// NB: Btach processing is synchronous via IEnumerable interface of a batch, real-time is pull-based asynchronous.
-    abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>
+    abstract MoveNextBatch: cancellationToken:CancellationToken  -> Task<bool>
     /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
     /// The actual implementation of the batch could be mutable and could reference a part of the original series, therefore consumer
     /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap

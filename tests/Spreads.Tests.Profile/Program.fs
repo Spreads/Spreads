@@ -60,7 +60,7 @@ let main argv =
   for i in 0..9 do
       let mutable res = 0L
       perf count "SMR Iterate as RO+AddWithBind" (fun _ ->
-        let ro = smap.Value.ReadOnly().AddWithBind(123456L) :> IReadOnlyOrderedMap<int64,int64>
+        let ro = smap.Value.ReadOnly().Add(123456L) :> IReadOnlyOrderedMap<int64,int64>
         for i in ro do
           res <- i.Value
           ()

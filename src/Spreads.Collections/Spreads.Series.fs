@@ -121,11 +121,8 @@ and
               yield c.CurrentValue
           }
 
-    // Operators are essentially a syntax sugar for methods, implement them at a later stage using this indirection rather than pollute 
-    // Series and Maps with what is essentially static methods just because F# has linear code order.
-    // Will only have to redirect map/zip here and define a universal operation in the same way as in Deedle ScalarOperationR/L, etc
-    /// [category:Operators]
-    
+
+    /// Used for implement scalar operators which are essentially a map application
     static member private ScalarOperatorMap<'K,'V,'V2 when 'K : comparison>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>) = 
       let mapF = ref mapFunc.Invoke
       let mapCursor = 
@@ -145,20 +142,50 @@ and
             value <- KVP(previous.Key, mapF.Value(previous.Value))
             true
         }
-      CursorSeries(fun _ -> mapCursor :> ICursor<'K,'V2>) :> Series<'K,'V2>      
+      CursorSeries(fun _ -> mapCursor :> ICursor<'K,'V2>) :> Series<'K,'V2>
 
     static member (+) (source:Series<'K,int64>, addition:int64) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x + addition)
+    static member (~+) (source:Series<'K,int64>) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x)
+    static member (-) (source:Series<'K,int64>, subtraction:int64) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x - subtraction)
+    static member (~-) (source:Series<'K,int64>) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> -x)
+    static member (*) (source:Series<'K,int64>, multiplicator:int64) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x * multiplicator)
+    static member (*) (multiplicator:int64,source:Series<'K,int64>) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> multiplicator * x)
+    static member (/) (source:Series<'K,int64>, divisor:int64) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x / divisor)
+    static member (/) (numerator:int64,source:Series<'K,int64>) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> numerator / x)
+    static member (%) (source:Series<'K,int64>, modulo:int64) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x % modulo)
+    static member ( ** ) (source:Series<'K,int64>, power:int64) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> raise (NotImplementedException("TODO Implement with fold, checked?")))
+    static member (=) (source:Series<'K,int64>, other:int64) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> x = other)
+    static member (>) (source:Series<'K,int64>, other:int64) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> x > other)
+    static member (>) (other:int64, source:Series<'K,int64>) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> other > x)
+
+
+    // TODO zip operators
+
+    // TODO implement for other numeric types by Ctrl+H types
+    static member (+) (source:Series<'K,float>, addition:float) : Series<'K,float> = Series.ScalarOperatorMap(source, fun x -> x + addition)
+    static member (~+) (source:Series<'K,float>) : Series<'K,float> = Series.ScalarOperatorMap(source, fun x -> x)
+    static member (-) (source:Series<'K,float>, subtraction:float) : Series<'K,float> = Series.ScalarOperatorMap(source, fun x -> x - subtraction)
+    static member (~-) (source:Series<'K,float>) : Series<'K,float> = Series.ScalarOperatorMap(source, fun x -> -x)
+    static member (*) (source:Series<'K,float>, multiplicator:float) : Series<'K,float> = Series.ScalarOperatorMap(source, fun x -> x * multiplicator)
+    static member (*) (multiplicator:float,source:Series<'K,float>) : Series<'K,float> = Series.ScalarOperatorMap(source, fun x -> multiplicator * x)
+    static member (/) (source:Series<'K,float>, divisor:float) : Series<'K,float> = Series.ScalarOperatorMap(source, fun x -> x / divisor)
+    static member (/) (numerator:float,source:Series<'K,float>) : Series<'K,float> = Series.ScalarOperatorMap(source, fun x -> numerator / x)
+    static member (%) (source:Series<'K,float>, modulo:float) : Series<'K,float> = Series.ScalarOperatorMap(source, fun x -> x % modulo)
+    static member ( ** ) (source:Series<'K,float>, power:float) : Series<'K,float> = Series.ScalarOperatorMap(source, fun x -> x ** power)
+    static member (>) (source:Series<'K,float>, other:float) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> x > other)
+    //static member op_GreaterThan(source:Series<'K,float>, comparand:float) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> x > comparand)
+
+
 
 and
+  // TODO (perf) base Series() implements IROOM ineficiently, see comments in above type Series() implementation
+  
   /// Wrap Series over ICursor
   [<AllowNullLiteral>]
   [<Serializable>]
   CursorSeries<'K,'V when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) =
       inherit Series<'K,'V>()
       override this.GetCursor() = cursorFactory()
-
-
-
 
 
 // I had an attempt to manually optimize callvirt and object allocation, both failed badly
@@ -173,7 +200,7 @@ and
 //
 // Our benchmark confirms that the slowdown of .Repeat(), .ReadOnly(), .Map(...) and .Filter(...) is quite small 
 
-and
+and // TODO internal
   [<AbstractClassAttribute>]
   CursorBind<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) =
   
@@ -228,7 +255,6 @@ and
     /// If input and this cursor support batches, then process a batch and store it in CurrentBatch
     abstract TryUpdateNextBatch: nextBatch: IReadOnlyOrderedMap<'K,'V> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>> -> bool  
     override this.TryUpdateNextBatch(nextBatch: IReadOnlyOrderedMap<'K,'V>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>>) : bool =
-      failwith "not implemented"
   //    let map = SortedMap<'K,'V2>()
   //    let isFirst = ref true
   //    for kvp in nextBatch do
@@ -243,6 +269,7 @@ and
   //      value <- map :> IReadOnlyOrderedMap<'K,'V2>
   //      true
   //    else false
+      false
 
     member this.Reset() = 
       hasValidState <- false
@@ -377,7 +404,7 @@ and
     
       member x.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = 
         failwith "Not implemented yet"
-      member x.MoveNextBatchAsync(cancellationToken: Threading.CancellationToken): Task<bool> = 
+      member x.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
         failwith "Not implemented yet"
     
       //member x.IsBatch with get() = x.IsBatch
@@ -399,4 +426,221 @@ and
         clone
 
 
+and // TODO internal
+  [<AbstractClassAttribute>]
+  CursorZip<'K,'V1,'V2,'R when 'K : comparison>(cursorFactoryL:unit->ICursor<'K,'V1>, cursorFactoryR:unit->ICursor<'K,'V2>) =
+  
+    let cursorL = cursorFactoryL()
+    let cursorR = cursorFactoryR()
+    let lIsAhead() = CursorHelper.lIsAhead cursorL cursorR
+    // TODO comparer as a part of ICursor interface
+    // if comparers are not equal then throw invaliOp
+    let cmp = Comparer<'K>.Default 
 
+    let mutable hasValidState = false
+
+    member this.Comparer with get() = cmp
+    member this.HasValidState with get() = hasValidState and set (v) = hasValidState <- v
+
+    member val IsContinuous = cursorL.IsContinuous && cursorR.IsContinuous with get, set
+
+    /// Source series
+    member this.InputCursorL with get() : ICursor<'K,'V1> = cursorL
+    member this.InputCursorR with get() : ICursor<'K,'V2> = cursorR
+
+    member val CurrentKey = Unchecked.defaultof<'K> with get, set
+    member val CurrentValue = Unchecked.defaultof<'R> with get, set
+    member this.Current with get () = KVP(this.CurrentKey, this.CurrentValue)
+
+    /// Stores current batch for a succesful batch move. Value is defined only after successful MoveNextBatch
+    member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'R>> with get, set
+
+    /// For every successful move of the inut coursor creates an output value. If direction is not EQ, continues moves to the direction 
+    /// until the state is created
+    abstract TryGetValue: key:'K * [<Out>] value: byref<KVP<'K,'R>> -> bool // * direction: Lookup not needed here
+    // this is the main method to transform input to output, other methods could be implemented via it
+
+    /// Update state with a new value. Should be optimized for incremental update of the current state in custom implementations.
+    abstract TryUpdateNext: next:KVP<'K,ValueTuple<'V1,'V2>> * [<Out>] value: byref<KVP<'K,'R>> -> bool
+    override this.TryUpdateNext(next:KVP<'K,ValueTuple<'V1,'V2>>, [<Out>] value: byref<KVP<'K,'R>>) : bool =
+      // recreate value from scratch
+      this.TryGetValue(next.Key, &value)
+
+    /// Update state with a previous value. Should be optimized for incremental update of the current state in custom implementations.
+    abstract TryUpdatePrevious: previous:KVP<'K,ValueTuple<'V1,'V2>> * [<Out>] value: byref<KVP<'K,'R>> -> bool
+    override this.TryUpdatePrevious(previous:KVP<'K,ValueTuple<'V1,'V2>>, [<Out>] value: byref<KVP<'K,'R>>) : bool =
+      // recreate value from scratch
+      this.TryGetValue(previous.Key, &value)
+
+    /// If input and this cursor support batches, then process a batch and store it in CurrentBatch
+    abstract TryUpdateNextBatch: nextBatchL: IReadOnlyOrderedMap<'K,'V1> * nextBatchR: IReadOnlyOrderedMap<'K,'V2> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'R>> -> bool  
+    override this.TryUpdateNextBatch(nextBatchL: IReadOnlyOrderedMap<'K,'V1>, nextBatchR: IReadOnlyOrderedMap<'K,'V2>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'R>>) : bool =
+      // TODO need a quick check if batching gives great perf improvement, e.g. check if type is SortedMap and compare keys
+      false
+
+    member this.Reset() = 
+      hasValidState <- false
+      cursorL.Reset()
+    member this.Dispose() = 
+      hasValidState <- false
+      cursorL.Dispose()
+
+    interface IEnumerator<KVP<'K,'R>> with    
+      member this.Reset() = this.Reset()
+      member x.MoveNext(): bool =
+        let cl = x.InputCursorL
+        let cr = x.InputCursorR
+        if hasValidState then // both cursors are aligned 
+          let mutable found = false
+          while not found && cr.MoveNext() do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
+            let ok, value = x.TryUpdateNext(x.InputCursorL.Current)
+            if ok then 
+              found <- true
+              x.CurrentKey <- value.Key
+              x.CurrentValue <- value.Value
+          if found then 
+            //hasInitializedValue <- true
+            true
+          else false
+        else (x :> ICursor<'K,'R>).MoveFirst()
+      member this.Current with get(): KVP<'K, 'R> = this.Current
+      member this.Current with get(): obj = this.Current :> obj 
+      member x.Dispose(): unit = x.Dispose()
+
+    interface ICursor<'K,'R> with
+      member x.Current: KVP<'K,'R> = KVP(x.CurrentKey, x.CurrentValue)
+      member x.CurrentBatch: IReadOnlyOrderedMap<'K,'R> = x.CurrentBatch
+      member x.CurrentKey: 'K = x.CurrentKey
+      member x.CurrentValue: 'R = x.CurrentValue
+      member x.IsContinuous: bool = x.IsContinuous
+      member x.MoveAt(index: 'K, direction: Lookup): bool =
+        let cl = x.InputCursorL
+        let cr = x.InputCursorR
+        if x.InputCursorL.MoveAt(index, direction) then
+          let ok, value = x.TryGetValue(x.InputCursorL.CurrentKey)
+          if ok then
+            x.CurrentKey <- value.Key
+            x.CurrentValue <- value.Value
+            hasValidState <- true
+            true
+          else
+            match direction with
+            | Lookup.EQ -> false
+            | Lookup.GE | Lookup.GT ->
+              let mutable found = false
+              while not found && x.InputCursorL.MoveNext() do
+                let ok, value = x.TryGetValue(x.InputCursorL.CurrentKey)
+                if ok then 
+                  found <- true
+                  x.CurrentKey <- value.Key
+                  x.CurrentValue <- value.Value
+              if found then 
+                hasValidState <- true
+                true 
+              else false
+            | Lookup.LE | Lookup.LT ->
+              let mutable found = false
+              while not found && x.InputCursorL.MovePrevious() do
+                let ok, value = x.TryGetValue(x.InputCursorL.CurrentKey)
+                if ok then
+                  found <- true
+                  x.CurrentKey <- value.Key
+                  x.CurrentValue <- value.Value
+              if found then 
+                hasValidState <- true
+                true 
+              else false
+            | _ -> failwith "wrong lookup value"
+        else false
+      
+    
+      member x.MoveFirst(): bool =
+        let cl = x.InputCursorL
+        let cr = x.InputCursorR
+
+        if cl.MoveFirst() && cr.MoveFirst() then
+          let c = cmp.Compare(cl.CurrentKey, cr.CurrentKey)
+
+          let ok, value = x.TryGetValue(x.InputCursorL.CurrentKey)
+          if ok then
+            x.CurrentKey <- value.Key
+            x.CurrentValue <- value.Value
+            hasValidState <- true
+            true
+          else
+            let mutable found = false
+            while not found && x.InputCursorL.MoveNext() do
+              let ok, value = x.TryGetValue(x.InputCursorL.CurrentKey)
+              if ok then 
+                found <- true
+                x.CurrentKey <- value.Key
+                x.CurrentValue <- value.Value
+            if found then 
+              hasValidState <- true
+              true 
+            else false
+        else false
+    
+      member x.MoveLast(): bool = 
+        let cl = x.InputCursorL
+        let cr = x.InputCursorR
+        if x.InputCursorL.MoveLast() then
+          let ok, value = x.TryGetValue(x.InputCursorL.CurrentKey)
+          if ok then
+            x.CurrentKey <- value.Key
+            x.CurrentValue <- value.Value
+            hasValidState <- true
+            true
+          else
+            let mutable found = false
+            while not found && x.InputCursorL.MovePrevious() do
+              let ok, value = x.TryGetValue(x.InputCursorL.CurrentKey)
+              if ok then
+                found <- true
+                x.CurrentKey <- value.Key
+                x.CurrentValue <- value.Value
+            if found then 
+              hasValidState <- true
+              true 
+            else false
+        else false
+
+      member x.MovePrevious(): bool = 
+        let cl = x.InputCursorL
+        let cr = x.InputCursorR
+        if hasValidState then
+          let mutable found = false
+          while not found && x.InputCursorL.MovePrevious() do
+            let ok, value = x.TryUpdatePrevious(x.InputCursorL.Current)
+            if ok then 
+              found <- true
+              x.CurrentKey <- value.Key
+              x.CurrentValue <- value.Value
+          if found then 
+            hasValidState <- true
+            true 
+          else false
+        else (x :> ICursor<'K,'R>).MoveLast()
+    
+      member x.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = 
+        failwith "Not implemented yet"
+      member x.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
+        failwith "Not implemented yet"
+    
+      //member x.IsBatch with get() = x.IsBatch
+      member x.Source: ISeries<'K,'R> = CursorSeries<'K,'R>((x :> ICursor<'K,'R>).Clone) :> ISeries<'K,'R>
+      member x.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool = 
+        let ok, v = x.TryGetValue(key)
+        value <- v.Value
+        ok
+    
+      // TODO review + profile. for value types we could just return this
+      member x.Clone(): ICursor<'K,'R> =
+        // run-time type of the instance, could be derived type
+        let ty = x.GetType()
+        let args = [|cursorFactoryL :> obj;cursorFactoryR :> obj|]
+        // TODO using Activator is a very bad sign, are we doing something wrong here?
+        let clone = Activator.CreateInstance(ty, args) :?> ICursor<'K,'R> // should not be called too often
+        if hasValidState then clone.MoveAt(x.CurrentKey, Lookup.EQ) |> ignore
+        //Debug.Assert(movedOk) // if current key is set then we could move to it
+        clone
