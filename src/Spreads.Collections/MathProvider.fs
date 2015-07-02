@@ -39,3 +39,8 @@ type IVectorMathProvider =
 type VectorMathProvider() =
   /// An implementation of IVectorMathProvider that is used internally for vectorized calculations
   static member val Default = Unchecked.defaultof<IVectorMathProvider> with get, set
+
+
+
+
+

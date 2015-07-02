@@ -77,6 +77,7 @@
     <Compile Include="MapCursor.fs" />
     <Compile Include="Utils.fs" />
     <Compile Include="ObjectPool.fs" />
+    <Compile Include="CursorBind.fs" />
     <Compile Include="Spreads.Series.fs" />
     <Compile Include="Collections\Collections.fs" />
     <Compile Include="Collections\BoundedDictionary.fs" />
@@ -99,10 +100,11 @@
     <Compile Include="Collections\Deque.fs" />
     <Compile Include="Collections\SortedHashMap.fs" />
     <Compile Include="Collections\SortedChunkedMap.fs" />
-    <Compile Include="SlowStupidCursor.fs" />
     <Compile Include="CursorSeries.fs" />
+    <Compile Include="SlowStupidCursor.fs" />
     <None Include="packages.config" />
     <None Include="Script1.fsx" />
+    <Compile Include="Spreads.Series.2.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core, Version=4.3.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
@@ -112,6 +114,7 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
+    <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using Spreads;
+using Spreads.Collections;
 
 namespace Spreads.Tests.CSProfile {
     class Program {
@@ -24,6 +26,9 @@ namespace Spreads.Tests.CSProfile {
             //}
             //sw.Stop();
             //Console.WriteLine("DateTime: " + sw.ElapsedMilliseconds);
+            var sm = new SortedMap<int, int>() as Series<int,int>;
+            //var sum = sm + sm;
+
             Console.ReadLine();
         }
     }

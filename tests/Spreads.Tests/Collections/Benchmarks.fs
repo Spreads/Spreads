@@ -1,7 +1,5 @@
 ﻿namespace Spreads.Tests.Collections.Benchmarks
 
-
-
 open System
 open System.Collections.Generic
 open System.Diagnostics
@@ -40,26 +38,55 @@ module CollectionsBenchmarks =
 
   let DeedleSeries(count:int64) =
     let deedleSeries = ref (Series.ofObservations([]))
-    perf count "DeedleSeries insert" (fun _ ->
-      let list1 = new List<int64>()
-      let list2 = new List<int64>()
-      //let arr = Array.zeroCreate ((int count)+1) // System.Collections.Generic.List(count |> int)
-      for i in 0L..count do
-        list1.Add(i)
-        list2.Add(i)
-        //arr.[int i] <- i
-      deedleSeries := Series(list1, list2)
-    )
+    let mutable list1 = new List<int64>()
+    for r in 0..4 do
+      perf count "DeedleSeries insert" (fun _ ->
+        list1 <- new List<int64>()
+        let list2 = new List<int>()
+        //let arr = Array.zeroCreate ((int count)+1) // System.Collections.Generic.List(count |> int)
+        for i in 0L..count do
+          list1.Add(i)
+          list2.Add(int i)
+          //arr.[int i] <- i
+        deedleSeries := Series(list1, list2)
+      )
+
+    for r in 0..4 do
+      perf count "DeedleSeries build with SeriesBuilder" (fun _ ->
+        let sb = SeriesBuilder<int64, int>()
+        
+        for i in 0L..count do
+          sb.Add(i,int i)
+        deedleSeries := sb.ToSeries()
+      )
+
 //    perf count "DeedleSeries read" (fun _ ->
 //      for i in 0L..count do
 //        let res = Series.lookup i Deedle.Lookup.Exact !deedleSeries 
 //        if res <> i then failwith "DeedleSeries failed"
 //        ()
 //    )
-    perf count "DeedleSeries Add via Map" (fun _ ->
-      let res = !deedleSeries |> Series.mapValues (fun x -> x + 1L)
-      ()
-    )
+    for r in 0..4 do
+      perf count "DeedleSeries Add int via Map" (fun _ ->
+        let res = !deedleSeries |> Series.mapValues (fun x -> x + 1)
+        ()
+      )
+
+    for r in 0..4 do
+      perf count "DeedleSeries Add int via operator" (fun _ ->
+        let res = !deedleSeries + 1 
+        ()
+      )
+
+    for r in 0..4 do
+      perf count "List int64 addition" (fun _ ->
+        let mutable list3 = new List<int64>(int count)
+        for i in list1 do
+          list3.Add(i)
+          //sum <- sum + i
+          ()
+        Console.WriteLine("The sum is " + list3.Count.ToString())
+      )
 
     Console.WriteLine("----------------")
   [<Test>]
@@ -521,8 +548,15 @@ module CollectionsBenchmarks =
           ()
       )
     for i in 0..9 do
-      perf count "SMR Iterate as RO+Mapp(Add)" (fun _ ->
-        let ro = smap.Value.ReadOnly().Map(fun x -> x + 123456L).Map(fun x -> x - 123456L) :> IReadOnlyOrderedMap<int64,int64>
+      perf count "SMR Iterate as RO+Map(Add)" (fun _ ->
+        let ro = smap.Value.ReadOnly().Map(fun x -> x + 123456L) :> IReadOnlyOrderedMap<int64,int64>
+        for i in ro do
+          let res = i.Value
+          ()
+      )
+    for i in 0..9 do
+      perf count "SMR Iterate with plus operator" (fun _ ->
+        let ro = (smap.Value.ReadOnly() + 123456L) :> IReadOnlyOrderedMap<int64,int64>
         for i in ro do
           let res = i.Value
           ()
@@ -537,17 +571,18 @@ module CollectionsBenchmarks =
           ()
         Console.WriteLine("Filtered number: " + count.ToString())
       )
-    for i in 0..9 do
-      perf count "SMR Iterate as RO+AddWithBind" (fun _ ->
-        let ro = Spreads.Collections.Experimental.SeriesExtensions.AddWithBind(smap.Value.ReadOnly(), 123456L) :> IReadOnlyOrderedMap<int64,int64>
-        for i in ro do
-          let res = i.Value
-          ()
-      )
+//    for i in 0..9 do
+//      perf count "SMR Iterate as RO+AddWithBind" (fun _ ->
+//        let ro = Spreads.Collections.Experimental.SeriesExtensions.AddWithBind(smap.Value.ReadOnly(), 123456L) :> IReadOnlyOrderedMap<int64,int64>
+//        for i in ro do
+//          let res = i.Value
+//          ()
+//      )
     for i in 0..9 do
       perf count "SMR Iterate as RO+Add+ToMap" (fun _ ->
         let ro = smap.Value.ReadOnly().Add(123456L) :> IReadOnlyOrderedMap<int64,int64>
         let sm = Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>))
+        
         for i in ro do
           let res = i.Value
           sm.AddLast(i.Key, i.Value)

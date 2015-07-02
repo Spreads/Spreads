@@ -8,6 +8,9 @@ open System.Threading
 open System.Threading.Tasks
 open System.Runtime.InteropServices
 
+// TODO object cursor and object series
+
+
 /// Asynchronous version of the IEnumerator<T> interface, allowing elements to be retrieved asynchronously.
 [<Interface>]
 [<AllowNullLiteral>]
