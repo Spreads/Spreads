@@ -154,8 +154,8 @@ type MapCursor<'K,'V when 'K : comparison>
 //  override this.MoveLastAsync():Task<bool> = Task.FromResult(this.MoveLast())
 //  override this.MovePreviousAsync():Task<bool> = Task.FromResult(this.MovePrevious())
 
-  abstract member MoveNextAsync : CancellationToken -> Task<bool>
-  override this.MoveNextAsync(ct) =
+  abstract member MoveNext : CancellationToken -> Task<bool>
+  override this.MoveNext(ct) =
     match this.MoveNext() with
     | true -> Task.FromResult(true)      
     | false -> 
@@ -203,7 +203,7 @@ type MapCursor<'K,'V when 'K : comparison>
 
   interface IAsyncEnumerator<KVP<'K,'V>> with
     member x.Current: KVP<'K, 'V> = this.Current
-    member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = this.MoveNextAsync(cancellationToken) 
+    member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = this.MoveNext(cancellationToken) 
 
   interface ICursor<'K,'V> with
     // TODO need some implementation of ROOM to implement the batch

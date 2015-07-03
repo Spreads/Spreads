@@ -31,6 +31,7 @@ open Spreads.Collections
 // keys array, e.g. for mapValues.
 
 
+
 /// Mutable sorted IOrderedMap<'K,'V> implementation based on SCG.SortedList<'K,'V>
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
@@ -196,7 +197,7 @@ type SortedMap<'K,'V when 'K : comparison>
 
   member private this.Clone() = new SortedMap<'K,'V>(Some(this :> IDictionary<'K,'V>), None, Some(comparer))
 
-  member private this.GetKeyByIndex(index) =
+  member internal this.GetKeyByIndex(index) =
     if couldHaveRegularKeys && this.size > 1 then 
       if index < 0 || index >= this.size then raise (ArgumentOutOfRangeException("index"))
       rkKeyAtIndex index
@@ -887,10 +888,11 @@ type SortedMap<'K,'V when 'K : comparison>
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
 
-  override this.GetCursor()  = this.GetCursor(-1, version, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>)
+  override this.GetCursor() = this.GetCursor(-1, version, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>)
     
   // TODO replace with a sealed concrete class, there are too many virtual calls and reference cells in the most critical paths like MoveNext
-  member internal this.GetCursor(index:int,cursorVersion:int,currentKey:'K, currentValue:'V)=
+  member internal this.GetCursor(index:int,cursorVersion:int,currentKey:'K, currentValue:'V) =
+    //SortedMapCursor(this, index, cursorVersion, currentKey, currentValue) :> ICursor<'K,'V>
     let index = ref index
     let cursorVersion = ref cursorVersion
     let currentKey : 'K ref = ref currentKey
@@ -1236,3 +1238,183 @@ type SortedMap<'K,'V when 'K : comparison>
       true
     else
       System.Linq.Enumerable.SequenceEqual(smA.keys, smB.keys)
+
+
+
+and
+  SortedMapCursor<'K,'V when 'K : comparison>(sm:SortedMap<'K,'V>,index:int,cursorVersion:int,currentKey:'K, currentValue:'V) =
+    //struct
+    let mutable index : int = index
+    let mutable cursorVersion : int = cursorVersion
+    let mutable currentKey : 'K = currentKey
+    let mutable currentValue : 'V = currentValue
+    let mutable isBatch : bool = false
+    let sm:SortedMap<'K,'V> = sm
+    //  {index = index; cursorVersion = cursorVersion; currentKey = currentKey;currentValue=currentValue;isBatch=false; sm = sm}
+    //end
+   
+    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
+      if index = -1 then sm :> IReadOnlyOrderedMap<'K,'V>
+      else raise (InvalidOperationException(""))
+    member this.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> =
+      if index = -1 then 
+        index <- sm.size
+        isBatch <- true
+        Task.FromResult(true)
+      else Task.FromResult(false)
+    member this.IsBatch with get() = isBatch
+    member this.Clone() = sm.GetCursor(index,cursorVersion,currentKey,currentValue)
+    member this.Current with get() = KeyValuePair(currentKey, currentValue)
+    member this.MoveNext() = 
+      let entered = enterLockIf sm.SyncRoot  sm.IsSynchronized
+      try
+        if index = -1 then this.MoveFirst() // first move when index = -1
+        elif cursorVersion = sm.Version then
+          if index < (sm.size - 1) then
+            index <- index + 1
+            currentKey <- sm.GetKeyByIndex(index)
+            currentValue <- sm.values.[index]
+            true
+          else
+            index <- sm.size
+            currentKey <- Unchecked.defaultof<'K>
+            currentValue <- Unchecked.defaultof<'V>
+            false
+        else  // source change
+          cursorVersion <- sm.Version // update state to new sm.version
+          let position, kvp = sm.TryFindWithIndex(currentKey, Lookup.GT) // reposition cursor after source change
+          if position > 0 then
+            index <- position
+            currentKey <- kvp.Key
+            currentValue <- kvp.Value
+            true
+          else  // not found
+            index <- sm.size
+            currentKey <- Unchecked.defaultof<'K>
+            currentValue <- Unchecked.defaultof<'V>
+            false
+      finally
+        exitLockIf sm.SyncRoot entered
+
+    member this.MovePrevious() = 
+      let entered = enterLockIf sm.SyncRoot  sm.IsSynchronized
+      try
+        if index = -1 then this.MoveLast()  // first move when index = -1
+        elif cursorVersion = sm.Version then
+          if index > 0 && index < sm.size then
+            index <- index - 1
+            currentKey <- sm.GetKeyByIndex(index)
+            currentValue <- sm.values.[index]
+            true
+          else
+            index <- sm.size // 
+            currentKey <- Unchecked.defaultof<'K>
+            currentValue <- Unchecked.defaultof<'V>
+            false
+        else
+          cursorVersion <- sm.Version // update state to new sm.version
+          let position, kvp = sm.TryFindWithIndex(currentKey, Lookup.LT)
+          if position > 0 then
+            index <- position
+            currentKey <- kvp.Key
+            currentValue <- kvp.Value
+            true
+          else  // not found
+            index <- sm.size
+            currentKey <- Unchecked.defaultof<'K>
+            currentValue <- Unchecked.defaultof<'V>
+            false
+      finally
+        exitLockIf sm.SyncRoot entered
+
+    member this.MoveAt(key:'K, lookup:Lookup) = 
+      let entered = enterLockIf sm.SyncRoot  sm.IsSynchronized
+      try
+        let position, kvp = sm.TryFindWithIndex(key, lookup)
+        if position >= 0 then
+          index <- position
+          currentKey <- kvp.Key
+          currentValue <- kvp.Value
+          true
+        else
+          index <- sm.size
+          currentKey <- Unchecked.defaultof<'K>
+          currentValue <- Unchecked.defaultof<'V>
+          false
+      finally
+        exitLockIf sm.SyncRoot entered
+
+    member this.MoveFirst() = 
+      let entered = enterLockIf sm.SyncRoot  sm.IsSynchronized
+      try
+        if sm.size > 0 then
+          index <- 0
+          currentKey <- sm.GetKeyByIndex(index)
+          currentValue <- sm.values.[index]
+          true
+        else
+          index <- sm.size
+          currentKey <- Unchecked.defaultof<'K>
+          currentValue <- Unchecked.defaultof<'V>
+          false
+      finally
+        exitLockIf sm.SyncRoot entered
+
+    member this.MoveLast() = 
+      let entered = enterLockIf sm.SyncRoot  sm.IsSynchronized
+      try
+        if sm.size > 0 then
+          index <- sm.size - 1
+          currentKey <- sm.GetKeyByIndex(index)
+          currentValue <- sm.values.[index]
+          true
+        else
+          index <- sm.size
+          currentKey <- Unchecked.defaultof<'K>
+          currentValue <- Unchecked.defaultof<'V>
+          false
+      finally
+        exitLockIf sm.SyncRoot entered
+
+    member this.MoveNext(ct) = failwith "not implemented"
+
+    member this.CurrentKey with get() = currentKey
+
+    member this.CurrentValue with get() = currentValue
+
+    member this.Reset() = 
+      cursorVersion <- sm.Version // update state to new sm.version
+      index <- -1
+      currentKey <- Unchecked.defaultof<'K>
+      currentValue <- Unchecked.defaultof<'V>
+
+    member this.Dispose() = this.Reset()
+
+    interface IDisposable with
+      member this.Dispose() = this.Dispose()
+
+    interface IEnumerator<KVP<'K,'V>> with    
+      member this.Reset() = this.Reset()
+      member this.MoveNext():bool = this.MoveNext()
+      member this.Current with get(): KVP<'K, 'V> = this.Current
+      member this.Current with get(): obj = this.Current :> obj
+
+    interface IAsyncEnumerator<KVP<'K,'V>> with
+      member this.Current: KVP<'K, 'V> = this.Current
+      member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = this.MoveNext(cancellationToken) 
+
+    interface ICursor<'K,'V> with
+      // TODO need some implementation of ROOM to implement the batch
+      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
+      member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatchAsync(cancellationToken)
+      //member this.IsBatch with get() = this.IsBatch
+      member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
+      member this.MoveFirst():bool = this.MoveFirst()
+      member this.MoveLast():bool =  this.MoveLast()
+      member this.MovePrevious():bool = this.MovePrevious()
+      member this.CurrentKey with get():'K = this.CurrentKey
+      member this.CurrentValue with get():'V = this.CurrentValue
+      member this.Source with get() = sm :> ISeries<'K,'V>
+      member this.Clone() = this.Clone()
+      member this.IsContinuous with get() = false
+      member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = sm.TryGetValue(key, &value)

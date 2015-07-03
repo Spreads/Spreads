@@ -33,7 +33,7 @@ type IVectorMathProvider =
   /// TODO use start and length since we will work with buffer of greater length than payload
   /// 
   abstract AddVectors: x:'T[] * y:'T[] * result:'T[] -> unit
-
+  abstract MapBatch<'K,'V,'V2 when 'K : comparison> : mapF:('V->'V2) * batch: IReadOnlyOrderedMap<'K,'V> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>> -> bool
 
 [<SealedAttribute;AbstractClassAttribute>]
 type VectorMathProvider() =

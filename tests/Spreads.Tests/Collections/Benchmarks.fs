@@ -80,6 +80,13 @@ module CollectionsBenchmarks =
       )
 
     for r in 0..4 do
+      perf count "DeedleSeries Window" (fun _ ->
+        let windows = Series.window 30 !deedleSeries
+        let res = windows.KeyCount
+        ()
+      )
+
+    for r in 0..4 do
       perf count "List int64 addition" (fun _ ->
         let mutable list3 = new List<int64>(int count)
         for i in list1 do

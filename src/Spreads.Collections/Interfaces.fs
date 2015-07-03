@@ -61,6 +61,25 @@ type ISeries<'K,'V when 'K : comparison> =
 /// Supports batches with MoveNextBatchAsync() and CurrentBatch members. Accessing current key
 /// after MoveNextBatchAsync or CurrentBatch after any single key movement results in InvalidOperationException.
 /// IsBatch property indicates wether the cursor is positioned on a single value or a batch.
+/// 
+/// Contracts (RFC):
+/// 1. At the beginning a cursor consumer could call any single synchronous move method or MoveNextBatch. MoveNextBatch could 
+///    be called only on the initial move or after a previous MoveNextBatch() call that returned true. It MUST NOT
+///    be called in any other situation, ICursor implementations MUST return false on any such wrong call.
+/// 2. CurrentBatch contains a batch only after a call to MoveNextBatch() returns true. CurrentBatch is undefined 
+///    in all other cases.
+/// 3. After a call to MoveNextBatch() returns false, the consumer MUST use only single calls. ICursor implementations MUST
+///    ensure that the relative moves MoveNext/Previous start from the last position of the previous batch.
+/// 4. Synchronous moves return true if data is instantly awailable, e.g. in a map data structure in memory or on fast disk DB.
+///    ICursor implementations should not block threads, e.g. if a map is IUpdateable, synchronous MoveNext should not wait for 
+///    an update but return false if there is no data right now.
+/// 5. When synchronous MoveNext or MoveLast return false, the consumer should call async overload of MoveNext. Inside the async
+///    implementation of MoveNext, a cursor must check if the source is IUpdateable and return Task.FromResult(false) immediately.
+/// 6. TODO If the source is updated during a lifetime of a cursor, cursor must recreate its state at its current position
+///    Rewind logic only for async? Throw in all cases other than MoveNext, MoveAt? Or at least on MovePrevious.
+///    Or special behaviour of MoveNext only on appends or changing the last value? On other changes must throw invalidOp (locks are there!)
+///    So if update is before the current position of a cursor, then throw. If after - then this doesn't affect the cursor in any way.
+///    TODO cursor could implement IUpdateable when source does, or pass through to CursorSeries
 and
   [<Interface>]
   [<AllowNullLiteral>]
@@ -91,6 +110,7 @@ and
     /// If true then TryGetValue could return values for any keys, not only for existing keys.
     /// E.g. previous value, interpolated value, etc.
     [<ObsoleteAttribute("Review if this is really needed as a part of the interface")>]
+    // TODO think about renaming to IsCalculated, e.g. if a function has holes (e.g. forecast only by x after the last point)
     abstract IsContinuous: bool with get
     /// Create a copy of cursor that is positioned at the same place as this cursor.
     abstract Clone: unit -> ICursor<'K,'V>

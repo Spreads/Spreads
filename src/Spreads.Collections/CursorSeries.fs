@@ -358,8 +358,10 @@ type SeriesExtensions () =
     static member inline ReadOnly(source: Series<'K,'V>) : Series<'K,'V> = 
       CursorSeries(fun _ -> source.GetCursor()) :> Series<'K,'V>
 
+    /// TODO check if input cursor is MapValuesCursor or FilterValuesCursor cursor and repack them into
+    /// a single mapFilter cursor with nested funcs. Check if this gives any per gain
     [<Extension>]
-    static member inline Map(source: Series<'K,'V>, mapFunc:Func<'V,'V2>) : Series<'K,'V2> = 
+    static member inline Map(source: Series<'K,'V>, mapFunc:Func<'V,'V2>) : Series<'K,'V2> =
       CursorSeries(fun _ -> new MapValuesCursor<'K,'V,'V2>(source.GetCursor, mapFunc.Invoke) :> ICursor<'K,'V2>) :> Series<'K,'V2>
 
     [<Extension>]

@@ -123,12 +123,11 @@ and
 
 
     /// Used for implement scalar operators which are essentially a map application
-    static member private ScalarOperatorMap<'K,'V,'V2 when 'K : comparison>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>) = 
+    static member inline private ScalarOperatorMap<'K,'V,'V2 when 'K : comparison>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>) = 
       let mapF = ref mapFunc.Invoke
       let mapCursor = 
         {new CursorBind<'K,'V,'V2>(source.GetCursor) with
           override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V2>>): bool =
-            // add works on any value, so must use TryGetValue instead of MoveAt
             let ok, value2 = this.InputCursor.TryGetValue(key)
             if ok then
               value <- KVP(key, mapF.Value(value2))
@@ -137,10 +136,11 @@ and
           override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V2>>) : bool =
             value <- KVP(next.Key, mapF.Value(next.Value))
             true
-
           override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V2>>) : bool =
             value <- KVP(previous.Key, mapF.Value(previous.Value))
             true
+          override this.TryUpdateNextBatch(nextBatch: IReadOnlyOrderedMap<'K,'V>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>>) : bool =
+            VectorMathProvider.Default.MapBatch(mapFunc.Invoke, nextBatch, &value)
         }
       CursorSeries(fun _ -> mapCursor :> ICursor<'K,'V2>) :> Series<'K,'V2>
 
@@ -188,19 +188,21 @@ and
       override this.GetCursor() = cursorFactory()
 
 
-// I had an attempt to manually optimize callvirt and object allocation, both failed badly
+// Attempts to manually optimize callvirt and object allocation failed badly
 // They are not needed, however, in most of the cases, e.g. iterations.
+//
 // see https://msdn.microsoft.com/en-us/library/ms973852.aspx
 // ...the virtual and interface method call sites are monomorphic (e.g. per call site, the target method does not change over time), 
 // so the combination of caching the virtual method and interface method dispatch mechanisms (the method table and interface map 
 // pointers and entries) and spectacularly provident branch prediction enables the processor to do an unrealistically effective 
 // job calling through these otherwise difficult-to-predict, data-dependent branches. In practice, a data cache miss on any of the 
 // dispatch mechanism data, or a branch misprediction (be it a compulsory capacity miss or a polymorphic call site), can and will
-//  slow down virtual and interface calls by dozens of cycles.
+// slow down virtual and interface calls by dozens of cycles.
 //
 // Our benchmark confirms that the slowdown of .Repeat(), .ReadOnly(), .Map(...) and .Filter(...) is quite small 
 
 and // TODO internal
+  /// A cursor that could perform map, filter, fold, scan operations on input cursors.
   [<AbstractClassAttribute>]
   CursorBind<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) =
   
@@ -255,20 +257,6 @@ and // TODO internal
     /// If input and this cursor support batches, then process a batch and store it in CurrentBatch
     abstract TryUpdateNextBatch: nextBatch: IReadOnlyOrderedMap<'K,'V> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>> -> bool  
     override this.TryUpdateNextBatch(nextBatch: IReadOnlyOrderedMap<'K,'V>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>>) : bool =
-  //    let map = SortedMap<'K,'V2>()
-  //    let isFirst = ref true
-  //    for kvp in nextBatch do
-  //      if !isFirst then
-  //        isFirst := false
-  //        let ok, newKvp = this.TryGetValue(kvp.Key)
-  //        if ok then map.AddLast(newKvp.Key, newKvp.Value)
-  //      else
-  //        let ok, newKvp = this.TryUpdateNext(kvp)
-  //        if ok then map.AddLast(newKvp.Key, newKvp.Value)
-  //    if map.size > 0 then 
-  //      value <- map :> IReadOnlyOrderedMap<'K,'V2>
-  //      true
-  //    else false
       false
 
     member this.Reset() = 
@@ -427,15 +415,68 @@ and // TODO internal
 
 
 and // TODO internal
+  /// A cursor that joins to cursors. 
   [<AbstractClassAttribute>]
   CursorZip<'K,'V1,'V2,'R when 'K : comparison>(cursorFactoryL:unit->ICursor<'K,'V1>, cursorFactoryR:unit->ICursor<'K,'V2>) =
   
     let cursorL = cursorFactoryL()
     let cursorR = cursorFactoryR()
-    let lIsAhead() = CursorHelper.lIsAhead cursorL cursorR
+    //let lIsAhead() = CursorHelper.lIsAhead cursorL cursorR
     // TODO comparer as a part of ICursor interface
     // if comparers are not equal then throw invaliOp
     let cmp = Comparer<'K>.Default 
+
+    // if continuous, do not move but treat as if cursor is positioned at other (will move next and the next step)
+    // TryGetValue must have optimizations for forward enumeration e.g. for Repeat - keep previous and move one step ahead
+    // if not continuous, then move after k
+    let moveOrGetNextAtK (cursor:ICursor<'K,'V>) (k:'K) : 'V opt =
+      if cursor.IsContinuous then 
+        let ok, v = cursor.TryGetValue(k)
+        if ok then OptionalValue(v)
+        else
+          // weird case when continuous has holes
+          let mutable found = false
+          while not found && cursor.MoveNext() do
+            let c = cmp.Compare(cursor.CurrentKey, k)
+            if c >= 0 then found <- true
+          OptionalValue.Missing
+      else
+        let mutable found = false
+        let mutable ok = false
+        while not found && cursor.MoveNext() do
+          let c = cmp.Compare(cursor.CurrentKey, k)
+          if c > 0 then found <- true
+          if c = 0 then 
+            found <- true
+            ok <- true
+        if ok then
+          OptionalValue(cursor.CurrentValue)
+        else OptionalValue.Missing
+
+    let moveOrGetPrevAtK (cursor:ICursor<'K,'V>) (k:'K) : 'V opt =
+      if cursor.IsContinuous then 
+        let ok, v = cursor.TryGetValue(k)
+        if ok then OptionalValue(v)
+        else
+          // weird case when continuous has holes
+          let mutable found = false
+          while not found && cursor.MovePrevious() do
+            let c = cmp.Compare(cursor.CurrentKey, k)
+            if c >= 0 then found <- true
+          OptionalValue.Missing
+      else
+        let mutable found = false
+        let mutable ok = false
+        while not found && cursor.MovePrevious() do
+          let c = cmp.Compare(cursor.CurrentKey, k)
+          if c > 0 then found <- true
+          if c = 0 then 
+            found <- true
+            ok <- true
+        if ok then
+          OptionalValue(cursor.CurrentValue)
+        else OptionalValue.Missing
+    
 
     let mutable hasValidState = false
 
@@ -455,27 +496,15 @@ and // TODO internal
     /// Stores current batch for a succesful batch move. Value is defined only after successful MoveNextBatch
     member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'R>> with get, set
 
-    /// For every successful move of the inut coursor creates an output value. If direction is not EQ, continues moves to the direction 
-    /// until the state is created
-    abstract TryGetValue: key:'K * [<Out>] value: byref<KVP<'K,'R>> -> bool // * direction: Lookup not needed here
-    // this is the main method to transform input to output, other methods could be implemented via it
-
     /// Update state with a new value. Should be optimized for incremental update of the current state in custom implementations.
-    abstract TryUpdateNext: next:KVP<'K,ValueTuple<'V1,'V2>> * [<Out>] value: byref<KVP<'K,'R>> -> bool
-    override this.TryUpdateNext(next:KVP<'K,ValueTuple<'V1,'V2>>, [<Out>] value: byref<KVP<'K,'R>>) : bool =
-      // recreate value from scratch
-      this.TryGetValue(next.Key, &value)
-
-    /// Update state with a previous value. Should be optimized for incremental update of the current state in custom implementations.
-    abstract TryUpdatePrevious: previous:KVP<'K,ValueTuple<'V1,'V2>> * [<Out>] value: byref<KVP<'K,'R>> -> bool
-    override this.TryUpdatePrevious(previous:KVP<'K,ValueTuple<'V1,'V2>>, [<Out>] value: byref<KVP<'K,'R>>) : bool =
-      // recreate value from scratch
-      this.TryGetValue(previous.Key, &value)
+    abstract TryZip: key:'K * v1:'V1 * v2:'V2 * [<Out>] value: byref<'R> -> bool
+//    override this.TryZip(next:KVP<'K,ValueTuple<'V1,'V2>>, [<Out>] value: byref<KVP<'K,'R>>) : bool =
+//      raise (NotImplementedException("must implement in derived cursor"))
 
     /// If input and this cursor support batches, then process a batch and store it in CurrentBatch
-    abstract TryUpdateNextBatch: nextBatchL: IReadOnlyOrderedMap<'K,'V1> * nextBatchR: IReadOnlyOrderedMap<'K,'V2> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'R>> -> bool  
-    override this.TryUpdateNextBatch(nextBatchL: IReadOnlyOrderedMap<'K,'V1>, nextBatchR: IReadOnlyOrderedMap<'K,'V2>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'R>>) : bool =
-      // TODO need a quick check if batching gives great perf improvement, e.g. check if type is SortedMap and compare keys
+    abstract TryZipNextBatches: nextBatchL: IReadOnlyOrderedMap<'K,'V1> * nextBatchR: IReadOnlyOrderedMap<'K,'V2> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'R>> -> bool  
+    override this.TryZipNextBatches(nextBatchL: IReadOnlyOrderedMap<'K,'V1>, nextBatchR: IReadOnlyOrderedMap<'K,'V2>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'R>>) : bool =
+      // should work only when keys are equal
       false
 
     member this.Reset() = 
@@ -488,6 +517,7 @@ and // TODO internal
     interface IEnumerator<KVP<'K,'R>> with    
       member this.Reset() = this.Reset()
       member x.MoveNext(): bool =
+        // TODO movefirst must try batch. if we are calling MoveNext and the input is in the batch state, then iterate ovet the batch
         let cl = x.InputCursorL
         let cr = x.InputCursorR
         if hasValidState then // both cursors are aligned 
@@ -503,6 +533,7 @@ and // TODO internal
             true
           else false
         else (x :> ICursor<'K,'R>).MoveFirst()
+
       member this.Current with get(): KVP<'K, 'R> = this.Current
       member this.Current with get(): obj = this.Current :> obj 
       member x.Dispose(): unit = x.Dispose()
@@ -554,55 +585,89 @@ and // TODO internal
         else false
       
     
-      member x.MoveFirst(): bool =
-        let cl = x.InputCursorL
-        let cr = x.InputCursorR
+      member this.MoveFirst(): bool =
+        let cl = this.InputCursorL
+        let cr = this.InputCursorR
+        let mutable ok = false
+        let mutable k = Unchecked.defaultof<'K>
+        let mutable vl = Unchecked.defaultof<'V1>
+        let mutable vr = Unchecked.defaultof<'V2>
 
         if cl.MoveFirst() && cr.MoveFirst() then
           let c = cmp.Compare(cl.CurrentKey, cr.CurrentKey)
-
-          let ok, value = x.TryGetValue(x.InputCursorL.CurrentKey)
+          match c with
+          | l_vs_r when l_vs_r = 0 ->
+            k <- cl.CurrentKey
+            vl <- cl.CurrentValue
+            vr <- cr.CurrentValue
+            ok <- true
+          | l_vs_r when l_vs_r > 0 -> // left is ahead
+            // need to get right's value at left's key
+            let vrOpt = moveOrGetNextAtK cr cl.CurrentKey
+            if vrOpt.IsPresent then
+              k <- cl.CurrentKey
+              vl <- cl.CurrentValue
+              vr <- vrOpt.Present
+              ok <- true
+          | _ -> // right is ahead
+            // need to get left's value at right's key
+            let vrOpt = moveOrGetNextAtK cl cr.CurrentKey
+            if vrOpt.IsPresent then
+              k <- cl.CurrentKey
+              vl <- vrOpt.Present
+              vr <- cr.CurrentValue
+              ok <- true
           if ok then
-            x.CurrentKey <- value.Key
-            x.CurrentValue <- value.Value
-            hasValidState <- true
-            true
-          else
-            let mutable found = false
-            while not found && x.InputCursorL.MoveNext() do
-              let ok, value = x.TryGetValue(x.InputCursorL.CurrentKey)
-              if ok then 
-                found <- true
-                x.CurrentKey <- value.Key
-                x.CurrentValue <- value.Value
-            if found then 
-              hasValidState <- true
-              true 
+            let valid, v = this.TryZip(k, vl, vr)
+            if valid then
+              this.CurrentKey <- k
+              this.CurrentValue <- v
+              true
             else false
+          else false
         else false
     
-      member x.MoveLast(): bool = 
-        let cl = x.InputCursorL
-        let cr = x.InputCursorR
-        if x.InputCursorL.MoveLast() then
-          let ok, value = x.TryGetValue(x.InputCursorL.CurrentKey)
+      member this.MoveLast(): bool = 
+        let cl = this.InputCursorL
+        let cr = this.InputCursorR
+        let mutable ok = false
+        let mutable k = Unchecked.defaultof<'K>
+        let mutable vl = Unchecked.defaultof<'V1>
+        let mutable vr = Unchecked.defaultof<'V2>
+
+        if cl.MoveLast() && cr.MoveLast() then
+          // minus, reverse direction
+          let c = -cmp.Compare(cl.CurrentKey, cr.CurrentKey)
+          match c with
+          | l_vs_r when l_vs_r = 0 ->
+            k <- cl.CurrentKey
+            vl <- cl.CurrentValue
+            vr <- cr.CurrentValue
+            ok <- true
+          | l_vs_r when l_vs_r > 0 -> // left is ahead
+            // need to get right's value at left's key
+            let vrOpt = moveOrGetPrevAtK cr cl.CurrentKey
+            if vrOpt.IsPresent then
+              k <- cl.CurrentKey
+              vl <- cl.CurrentValue
+              vr <- vrOpt.Present
+              ok <- true
+          | _ -> // right is ahead
+            // need to get left's value at right's key
+            let vrOpt = moveOrGetPrevAtK cl cr.CurrentKey
+            if vrOpt.IsPresent then
+              k <- cl.CurrentKey
+              vl <- vrOpt.Present
+              vr <- cr.CurrentValue
+              ok <- true
           if ok then
-            x.CurrentKey <- value.Key
-            x.CurrentValue <- value.Value
-            hasValidState <- true
-            true
-          else
-            let mutable found = false
-            while not found && x.InputCursorL.MovePrevious() do
-              let ok, value = x.TryGetValue(x.InputCursorL.CurrentKey)
-              if ok then
-                found <- true
-                x.CurrentKey <- value.Key
-                x.CurrentValue <- value.Value
-            if found then 
-              hasValidState <- true
-              true 
+            let valid, v = this.TryZip(k, vl, vr)
+            if valid then
+              this.CurrentKey <- k
+              this.CurrentValue <- v
+              true
             else false
+          else false
         else false
 
       member x.MovePrevious(): bool = 
@@ -629,12 +694,16 @@ and // TODO internal
     
       //member x.IsBatch with get() = x.IsBatch
       member x.Source: ISeries<'K,'R> = CursorSeries<'K,'R>((x :> ICursor<'K,'R>).Clone) :> ISeries<'K,'R>
-      member x.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool = 
-        let ok, v = x.TryGetValue(key)
-        value <- v.Value
-        ok
+      member this.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool =
+        // this method must not move cursors or position of the current cursor
+        let cl = this.InputCursorL
+        let cr = this.InputCursorR
+        let ok1, v1 = cl.TryGetValue(key)
+        let ok2, v2 = cr.TryGetValue(key)
+        if ok1 && ok2 then
+          this.TryZip(key, v1, v2, &value)
+        else false
     
-      // TODO review + profile. for value types we could just return this
       member x.Clone(): ICursor<'K,'R> =
         // run-time type of the instance, could be derived type
         let ty = x.GetType()
