@@ -79,9 +79,15 @@ module CollectionsBenchmarks =
         ()
       )
 
+//    for r in 0..4 do
+//      perf count "DeedleSeries Window" (fun _ ->
+//        let windows = Series.window 30 !deedleSeries
+//        let res = windows.KeyCount
+//        ()
+//      )
     for r in 0..4 do
-      perf count "DeedleSeries Window" (fun _ ->
-        let windows = Series.window 30 !deedleSeries
+      perf count "DeedleSeries Chunks" (fun _ ->
+        let windows = Series.chunk 30 !deedleSeries
         let res = windows.KeyCount
         ()
       )

@@ -76,7 +76,6 @@
     <Compile Include="Serializer.fs" />
     <Compile Include="MapCursor.fs" />
     <Compile Include="Utils.fs" />
-    <Compile Include="ObjectPool.fs" />
     <Compile Include="CursorBind.fs" />
     <Compile Include="Spreads.Series.fs" />
     <Compile Include="Collections\Collections.fs" />
@@ -100,6 +99,7 @@
     <Compile Include="Collections\Deque.fs" />
     <Compile Include="Collections\SortedHashMap.fs" />
     <Compile Include="Collections\SortedChunkedMap.fs" />
+    <Compile Include="ObjectPool.fs" />
     <Compile Include="CursorSeries.fs" />
     <Compile Include="SlowStupidCursor.fs" />
     <None Include="packages.config" />

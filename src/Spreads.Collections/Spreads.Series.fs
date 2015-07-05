@@ -212,6 +212,7 @@ and // TODO internal
     // this is true for all "vertical" transformations, they start from a certain key and depend on the starting value
     // safe to call TryUpdateNext/Previous
     let mutable hasValidState = false
+    /// True after any successful move and when CurrentKey is defined
     member this.HasValidState with get() = hasValidState and set (v) = hasValidState <- v
 
     // TODO? add key type for the most general case
@@ -237,10 +238,13 @@ and // TODO internal
     member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>> with get, set
 
     /// For every successful move of the inut coursor creates an output value. If direction is not EQ, continues moves to the direction 
-    /// until the state is created
+    /// until the state is created.
+    /// NB: For continuous cases it should be optimized for cases when the key is between current
+    /// and previous, e.g. Repeat() should keep the previous key and do comparison (2 times) instead of 
+    /// searching the source, which if O(log n) for SortedMap or near 20 comparisons for binary search.
+    /// Such lookup between the current and previous is heavilty used in CursorZip.
     abstract TryGetValue: key:'K * [<Out>] value: byref<KVP<'K,'V2>> -> bool // * direction: Lookup not needed here
     // this is the main method to transform input to output, other methods could be implemented via it
-
 
     /// Update state with a new value. Should be optimized for incremental update of the current state in custom implementations.
     abstract TryUpdateNext: next:KVP<'K,'V> * [<Out>] value: byref<KVP<'K,'V2>> -> bool
@@ -498,7 +502,6 @@ and // TODO internal
 
     /// Update state with a new value. Should be optimized for incremental update of the current state in custom implementations.
     abstract TryZip: key:'K * v1:'V1 * v2:'V2 * [<Out>] value: byref<'R> -> bool
-//    override this.TryZip(next:KVP<'K,ValueTuple<'V1,'V2>>, [<Out>] value: byref<KVP<'K,'R>>) : bool =
 //      raise (NotImplementedException("must implement in derived cursor"))
 
     /// If input and this cursor support batches, then process a batch and store it in CurrentBatch
@@ -595,6 +598,15 @@ and // TODO internal
 
         if cl.MoveFirst() && cr.MoveFirst() then
           let c = cmp.Compare(cl.CurrentKey, cr.CurrentKey)
+          // when c = 0 we are happy and just take the values
+          // but when it is not, bit both MoveFirst have returned true
+          // we are in the same situation as in MoveNext after MoveFirst() returning true
+          // - we must check if the ahead cursor is continuous and try to get its value
+          // at the lagged key if it is, move the lagged key ahead and repeat: if it is still
+          // behind, then try to get value of the ahead cursor again but at the new lagged key;
+          // if thew new lagged key equals the ahead key then we are happy again and return;
+          // if the new lagged key is greater, it becomes the ahead cursor and we flip the logic
+          let moveNextFromUnequal (cl:ICursor<'K,'V>) (cr:ICursor<'K,'V>)
           match c with
           | l_vs_r when l_vs_r = 0 ->
             k <- cl.CurrentKey

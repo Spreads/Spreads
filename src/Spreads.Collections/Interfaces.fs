@@ -292,3 +292,17 @@ type Panel<'TRowKey,'TColumnKey, 'TValue when 'TRowKey: comparison and 'TColumnK
     // when adding a column, all rows must be invalidated
 
 
+
+// Initial thoughts
+// First, implement via GC, then any other implementation must confirm any gain via some test benchmark
+// Second, most of the buffer are doubles less than half of L1 cache. Ideally, one or two buffers per
+// core will suffice, but ThreadLocal will work per thread and there could be many threads in the thread pool.
+// Use powers of 2 and SortedMap of stacks, so that the most recently returned buffer is taken next.
+// In most cases the same thread will pick up what it will has released just before.
+
+/// Generic array pool
+type IArrayPool =
+  /// Return a 'T array at least of minimum size
+  abstract Acquire<'T> : minSize:int -> 'T[]
+  /// Return an array to the pool
+  abstract Return<'T> : 'T[] -> unit
