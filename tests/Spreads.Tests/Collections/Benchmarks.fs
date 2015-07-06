@@ -39,6 +39,7 @@ module CollectionsBenchmarks =
 
   let DeedleSeries(count:int64) =
     let deedleSeries = ref (Series.ofObservations([]))
+    let deedleSeries2 = ref (Series.ofObservations([]))
     let mutable list1 = new List<int64>()
     for r in 0..4 do
       perf count "DeedleSeries insert" (fun _ ->
@@ -53,13 +54,14 @@ module CollectionsBenchmarks =
       )
 
     for r in 0..4 do
+      let mutable sb = SeriesBuilder<int64, int>()
       perf count "DeedleSeries build with SeriesBuilder" (fun _ ->
-        let sb = SeriesBuilder<int64, int>()
-        
+        sb <- SeriesBuilder<int64, int>()
         for i in 0L..count do
           sb.Add(i,int i)
         deedleSeries := sb.ToSeries()
       )
+      if r = 0 then deedleSeries2 := sb.ToSeries()
 
 //    perf count "DeedleSeries read" (fun _ ->
 //      for i in 0L..count do
@@ -68,14 +70,30 @@ module CollectionsBenchmarks =
 //        ()
 //    )
     for r in 0..4 do
+      let mutable res = Unchecked.defaultof<_>
       perf count "DeedleSeries Add int via Map" (fun _ ->
-        let res = !deedleSeries |> Series.mapValues (fun x -> x + 1)
+        res <- !deedleSeries |> Series.mapValues (fun x -> x + 1)
         ()
       )
 
     for r in 0..4 do
+      let mutable res = Unchecked.defaultof<_>
       perf count "DeedleSeries Add int via operator" (fun _ ->
-        let res = !deedleSeries + 1 
+        res <- !deedleSeries + 1 
+        ()
+      )
+
+    for r in 0..4 do
+      let mutable res = Unchecked.defaultof<_>
+      perf count "DeedleSeries Add two series" (fun _ ->
+        res <- !deedleSeries + !deedleSeries2
+        ()
+      )
+
+    for r in 0..4 do
+      let mutable res = Unchecked.defaultof<_>
+      perf count "DeedleSeries Zip two series" (fun _ ->
+        res <- (!deedleSeries,!deedleSeries2) ||> Series.zipInner |> Series.mapValues (fun (v,v2) -> v + v2)
         ()
       )
 
@@ -86,9 +104,10 @@ module CollectionsBenchmarks =
 //        ()
 //      )
     for r in 0..4 do
+      let mutable res = Unchecked.defaultof<_>
       perf count "DeedleSeries Chunks" (fun _ ->
-        let windows = Series.chunk 30 !deedleSeries
-        let res = windows.KeyCount
+        res <- Series.chunk 30 !deedleSeries
+        let c = res.KeyCount
         ()
       )
 
@@ -583,6 +602,13 @@ module CollectionsBenchmarks =
     for i in 0..9 do
       perf count "SMR Iterate with plus operator" (fun _ ->
         let ro = (((smap.Value.ReadOnly() + 123456L))):> IReadOnlyOrderedMap<int64,int64>
+        for i in ro do
+          let res = i.Value
+          ()
+      )
+    for i in 0..9 do
+      perf count "SMR Iterate with Zip" (fun _ ->
+        let ro = (((smap.Value.ReadOnly().Zip(smap.Value, fun v v2 -> v + v2)))):> IReadOnlyOrderedMap<int64,int64>
         for i in ro do
           let res = i.Value
           ()
