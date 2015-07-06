@@ -111,6 +111,62 @@ type SeriesTestsModule() =
         let ok, value = rc.TryGetValue(0)
         ok |> should equal false
 
+    [<Test>]
+    member this.``Could Zip equal series``() =
+        let map = SortedMap<int, int>()
+        map.Add(1,1)
+        map.Add(3,3)
+        map.Add(5,5)
+        map.Add(7,7)
+        
+        let zipped = map.Zip(map, fun v v2 -> v + v2)
+        zipped.Count() |> should equal 4
+
+        for kvp in zipped do
+          Console.WriteLine(kvp.Value.ToString())
+          kvp.Value |> should equal (kvp.Key * 2)
+        ()
+
+    [<Test>]
+    member this.``Could Zip unequal series``() =
+        let map = SortedMap<int, int>()
+        map.Add(1,1)
+        map.Add(3,3)
+        map.Add(5,5)
+        map.Add(7,7)
+
+        let map2 = SortedMap<int, int>()
+        map2.Add(1,1)
+        map2.Add(3,3)
+        map2.Add(7,7)
+
+        let zipped = map.Zip(map2, fun v v2 -> v + v2)
+        zipped.Count() |> should equal 3
+        for kvp in zipped do
+          Console.WriteLine(kvp.Value.ToString())
+          kvp.Value |> should equal (kvp.Key * 2)
+        ()
+
+    [<Test>]
+    member this.``Could Zip unequal repeated series``() =
+        let map = SortedMap<int, int>()
+        map.Add(1,1)
+        map.Add(3,3)
+        map.Add(5,5)
+        map.Add(7,7)
+
+        let map2 = SortedMap<int, int>()
+        map2.Add(1,1)
+        map2.Add(3,3)
+        map2.Add(7,7)
+
+        let zipped = map.Zip(map2.Repeat(), fun v v2 -> v + v2)
+        zipped.Count() |> should equal 4
+        for kvp in zipped do
+          Console.WriteLine(kvp.Value.ToString())
+          kvp.Value |> should equal (if kvp.Key = 5 then 5 + 3 else  (kvp.Key * 2))
+        ()
+
 //        
 //    [<Test>]
 //    member this.``Could get moving window from seq``() =

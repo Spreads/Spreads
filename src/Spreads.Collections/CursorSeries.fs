@@ -351,6 +351,16 @@ type LogCursor<'K when 'K : comparison>(cursorFactory:unit->ICursor<'K,int64>) =
 
 
 
+
+type ZipValuesCursor<'K,'V,'V2,'R when 'K : comparison>(cursorFactoryL:unit->ICursor<'K,'V>,cursorFactoryR:unit->ICursor<'K,'V2>, mapF:'V*'V2->'R) =
+  inherit CursorZip<'K,'V,'V2,'R>(cursorFactoryL,cursorFactoryR)
+
+  override this.TryZip(key:'K, v, v2, [<Out>] value: byref<'R>): bool =
+    value <- mapF(v,v2)
+    true
+
+
+
 [<Extension>]
 type SeriesExtensions () =
     /// Wraps any series into CursorSeries that implements only the IReadOnlyOrderedMap interface
@@ -363,6 +373,10 @@ type SeriesExtensions () =
     [<Extension>]
     static member inline Map(source: Series<'K,'V>, mapFunc:Func<'V,'V2>) : Series<'K,'V2> =
       CursorSeries(fun _ -> new MapValuesCursor<'K,'V,'V2>(source.GetCursor, mapFunc.Invoke) :> ICursor<'K,'V2>) :> Series<'K,'V2>
+
+    [<Extension>]
+    static member inline Zip(source: Series<'K,'V>, other: Series<'K,'V2>, mapFunc:Func<'V,'V2,'R>) : Series<'K,'R> =
+      CursorSeries(fun _ -> new ZipValuesCursor<'K,'V,'V2,'R>(source.GetCursor, other.GetCursor, mapFunc.Invoke) :> ICursor<'K,'R>) :> Series<'K,'R>
 
     [<Extension>]
     static member inline Filter(source: Series<'K,'V>, filterFunc:'V->bool) : Series<'K,'V> = 
