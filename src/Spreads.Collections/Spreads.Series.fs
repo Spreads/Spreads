@@ -205,7 +205,9 @@ and // TODO internal
   /// A cursor that could perform map, filter, fold, scan operations on input cursors.
   [<AbstractClassAttribute>]
   CursorBind<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) =
-  
+    
+    // TODO TryGetValue should not change state of the cursor, it looks like now it does, e.g. for repeat
+
     let cursor = cursorFactory()
 
     // TODO make public property, e.g. for random walk generator we must throw if we try to init more than one
@@ -517,25 +519,141 @@ and // TODO internal
       hasValidState <- false
       cursorL.Dispose()
 
+    // https://en.wikipedia.org/wiki/Sort-merge_join
+    member this.MoveNext(skipMoveL:bool, skipMoveR:bool): bool =
+      // TODO movefirst must try batch. if we are calling MoveNext and the input is in the batch state, then iterate over the batch
+
+      // MoveNext is called after previous MoveNext or when MoveFirst() cannot get value after moving both cursors to first positions
+      // we must make a step: if positions are equal, step both and check if they are equal
+      // if positions are not equal, then try to get continuous values or move the laggard forward and repeat the checks
+
+      // there are three possible STARTING STATES before MN
+      // 1. cl.k = cr.k - on the previous move cursors ended up at equal key, but these keys are already consumed.
+      //    must move both keys
+      //    other cases are possible if one or both cursors are continuous
+      // 2. cl.k < cr.k, cl should took cr's value at cl.k, implies that cr IsCont
+      //    must move cl since previous (before this move) cl.k is already consumed
+      // 3. reverse of 2
+      // MN MUST leave cursors in one of these states as well
+
+      let cl = this.InputCursorL
+      let cr = this.InputCursorR
+
+      let mutable ret = false // could have a situation when should stop but the state is valid, e.g. for async move next
+      let mutable shouldStop = false
+
+      let mutable c = cmp.Compare(cl.CurrentKey, cr.CurrentKey)
+      let mutable shouldMoveL = if skipMoveL then false else c <= 0 // left is equal or behind
+      let mutable shouldMoveR = if skipMoveR then false else c >= 0 // right is equal or behind
+
+      while not shouldStop do // Check that all paths set shouldStop to true
+        let lmoved = not shouldMoveL || cl.MoveNext() //if shouldMove = false, lmoved & rmoved = true without moves via short-circuit eval of ||
+        let rmoved = not shouldMoveR || cr.MoveNext()
+
+        match lmoved, rmoved with
+        | false, false ->
+          shouldStop <- true // definetly cannot move forward in any way
+          //this.HasValidState <- // leave it as it was, e.g. move first was ok, but no new values. async could pick up later
+          ret <- false
+        | false, true -> // left was equal or behind but is over now
+          // right has moved, last chance to get a value from left
+          if cl.IsContinuous then
+            let ok, lv = cl.TryGetValue(cr.CurrentKey) // trying to get a value before cl's current key if cl IsCont
+            if ok then
+              let valid, v = this.TryZip(cr.CurrentKey, lv, cr.CurrentValue)
+              if valid then
+                shouldStop <- true
+                ret <- true
+                this.CurrentKey <- cr.CurrentKey
+                this.CurrentValue <- v
+                this.HasValidState <- true
+          // must set shouldMoveL to false, shouldMoveR to true and try again
+          if not shouldStop then
+            shouldMoveL <- false
+            shouldMoveR <- true
+        | true, false ->  
+          // if shouldMoveL was false, right was behind but is over now
+          // if shouldMoveL was true, right was equal
+          if not (shouldMoveL) then // now at a new cl key // || cl.MoveNext()
+            shouldStop <- true // definetly cannot move forward in any way
+            ret <- false
+          if not shouldStop then
+            shouldMoveL <- true //true and remove move here?
+            shouldMoveR <- false
+          
+
+          // if right was ahead, then shouldMoveR = false
+          
+          // left has moved, last chance to get a value from right
+          if cr.IsContinuous then
+            let ok, rv = cr.TryGetValue(cl.CurrentKey) // trying to get a value before cl's current key if cl IsCont
+            if ok then
+              let valid, v = this.TryZip(cl.CurrentKey, cl.CurrentValue, rv)
+              if valid then
+                shouldStop <- true
+                ret <- true
+                this.CurrentKey <- cl.CurrentKey
+                this.CurrentValue <- v
+                this.HasValidState <- true
+          // cl will move on next iteration, cr must stay
+          if not shouldStop then
+            shouldMoveL <- true
+            shouldMoveR <- false
+        | true, true -> // когда оба перешле
+          // now we have potentially valid positioning and should try to get values from it
+          // new c after moves, c will remain if at the updated positions we cannot get result. save this comparison
+          c <- cmp.Compare(cl.CurrentKey, cr.CurrentKey)
+          match c with
+          | l_vs_r when l_vs_r = 0 -> // new keys are equal, try get result from them and iterate if cannot do so
+            // they were equal before, move both
+            let valid, v = this.TryZip(cl.CurrentKey, cl.CurrentValue, cr.CurrentValue)
+            if valid then
+              shouldStop <- true
+              ret <- true
+              this.CurrentKey <- cl.CurrentKey
+              this.CurrentValue <- v
+              this.HasValidState <- true
+            if not shouldStop then // keys were equal and consumed, move both next
+              shouldMoveL <- true
+              shouldMoveR <- true
+          | l_vs_r when l_vs_r > 0 ->
+            // cl is ahead, cr must check if cl IsCont and try to get cl's value at cr's key
+            if cl.IsContinuous then
+              let ok, lv = cl.TryGetValue(cr.CurrentKey) // trying to get a value before cl's current key if cl IsCont
+              if ok then
+                let valid, v = this.TryZip(cr.CurrentKey, lv, cr.CurrentValue)
+                if valid then
+                  shouldStop <- true
+                  ret <- true
+                  this.CurrentKey <- cr.CurrentKey
+                  this.CurrentValue <- v
+                  this.HasValidState <- true
+            // cr will move on next iteration, cl must stay
+            if not shouldStop then
+              shouldMoveL <- false
+              shouldMoveR <- true
+          | _ -> //l_vs_r when l_vs_r < 0
+            // flip side of the second case
+            if cr.IsContinuous then
+              let ok, rv = cr.TryGetValue(cl.CurrentKey) // trying to get a value before cl's current key if cl IsCont
+              if ok then
+                let valid, v = this.TryZip(cl.CurrentKey, cl.CurrentValue, rv)
+                if valid then
+                  shouldStop <- true
+                  ret <- true
+                  this.CurrentKey <- cl.CurrentKey
+                  this.CurrentValue <- v
+                  this.HasValidState <- true
+            // cl will move on next iteration, cr must stay
+            if not shouldStop then
+              shouldMoveL <- true
+              shouldMoveR <- false
+      ret
+
+
     interface IEnumerator<KVP<'K,'R>> with    
       member this.Reset() = this.Reset()
-      member x.MoveNext(): bool =
-        // TODO movefirst must try batch. if we are calling MoveNext and the input is in the batch state, then iterate ovet the batch
-        let cl = x.InputCursorL
-        let cr = x.InputCursorR
-        if hasValidState then // both cursors are aligned 
-          let mutable found = false
-          while not found && cr.MoveNext() do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
-            let ok, value = x.TryUpdateNext(x.InputCursorL.Current)
-            if ok then 
-              found <- true
-              x.CurrentKey <- value.Key
-              x.CurrentValue <- value.Value
-          if found then 
-            //hasInitializedValue <- true
-            true
-          else false
-        else (x :> ICursor<'K,'R>).MoveFirst()
+      member this.MoveNext(): bool = this.MoveNext(true, true)
 
       member this.Current with get(): KVP<'K, 'R> = this.Current
       member this.Current with get(): obj = this.Current :> obj 
@@ -587,17 +705,18 @@ and // TODO internal
             | _ -> failwith "wrong lookup value"
         else false
       
-    
+      // on every move, the lagging one should alway make a step
+
       member this.MoveFirst(): bool =
         let cl = this.InputCursorL
         let cr = this.InputCursorR
-        let mutable ok = false
-        let mutable k = Unchecked.defaultof<'K>
-        let mutable vl = Unchecked.defaultof<'V1>
-        let mutable vr = Unchecked.defaultof<'V2>
+        //let mutable ok = false
+//        let mutable k = Unchecked.defaultof<'K>
+//        let mutable vl = Unchecked.defaultof<'V1>
+//        let mutable vr = Unchecked.defaultof<'V2>
 
         if cl.MoveFirst() && cr.MoveFirst() then
-          let c = cmp.Compare(cl.CurrentKey, cr.CurrentKey)
+          
           // when c = 0 we are happy and just take the values
           // but when it is not, bit both MoveFirst have returned true
           // we are in the same situation as in MoveNext after MoveFirst() returning true
@@ -606,37 +725,79 @@ and // TODO internal
           // behind, then try to get value of the ahead cursor again but at the new lagged key;
           // if thew new lagged key equals the ahead key then we are happy again and return;
           // if the new lagged key is greater, it becomes the ahead cursor and we flip the logic
-          let moveNextFromUnequal (cl:ICursor<'K,'V>) (cr:ICursor<'K,'V>)
-          match c with
-          | l_vs_r when l_vs_r = 0 ->
-            k <- cl.CurrentKey
-            vl <- cl.CurrentValue
-            vr <- cr.CurrentValue
-            ok <- true
-          | l_vs_r when l_vs_r > 0 -> // left is ahead
-            // need to get right's value at left's key
-            let vrOpt = moveOrGetNextAtK cr cl.CurrentKey
-            if vrOpt.IsPresent then
-              k <- cl.CurrentKey
-              vl <- cl.CurrentValue
-              vr <- vrOpt.Present
-              ok <- true
-          | _ -> // right is ahead
-            // need to get left's value at right's key
-            let vrOpt = moveOrGetNextAtK cl cr.CurrentKey
-            if vrOpt.IsPresent then
-              k <- cl.CurrentKey
-              vl <- vrOpt.Present
-              vr <- cr.CurrentValue
-              ok <- true
-          if ok then
-            let valid, v = this.TryZip(k, vl, vr)
-            if valid then
-              this.CurrentKey <- k
-              this.CurrentValue <- v
-              true
-            else false
+          //let moveNextFromUnequal (cl:ICursor<'K,'V>) (cr:ICursor<'K,'V>)
+
+          let mutable found = false
+          while not found do
+            let c = cmp.Compare(cl.CurrentKey, cr.CurrentKey)
+            match c with
+            | l_vs_r when l_vs_r = 0 ->
+              let valid, v = this.TryZip(cl.CurrentKey, cl.CurrentValue, cr.CurrentValue)
+              if valid then
+                found <- true
+                this.CurrentKey <- cl.CurrentKey
+                this.CurrentValue <- v
+                this.HasValidState <- true
+            | l_vs_r when l_vs_r > 0 -> 
+              // cl is ahead, cr must check if cl IsCont and try to get cl's value at cr's key
+              if cl.IsContinuous then
+                let ok, lv = cl.TryGetValue(cr.CurrentKey) // trying to get a value before cl's current key if cl IsCont
+                if ok then
+                  cr.MoveNext
+                  let valid, v = this.TryZip(cl.CurrentKey, cl.CurrentValue, cr.CurrentValue)
+                  if valid then
+                    found <- true
+                    this.CurrentKey <- cl.CurrentKey
+                    this.CurrentValue <- v
+                    this.HasValidState <- true
+              else
+                // need to move cr one step ahead and repeat the loop if cr has values
+                if not (cr.MoveNext()) then
+                  // there are no more values in cr, it is behind - let cl check if cr IsCont and try get its value, e.g. if cr is Repeat
+                  if cr.IsContinuous then
+                    let ok, v = cr.TryGetValue(cl.CurrentKey)
+                    if ok then
+                      let valid, v2 = this.TryZip(cl.CurrentKey, cl.CurrentValue, cr.CurrentValue)
+                      if valid then
+                        found <- true
+                        this.CurrentKey <- cl.CurrentKey
+                        this.CurrentValue <- v
+                        this.HasValidState <- true
+                    else false
+                  // cannot get cr's value after its end
+
+//              // need to get right's value at left's key
+//              let vrOpt = moveOrGetNextAtK cr cl.CurrentKey
+//              if vrOpt.IsPresent then
+//                k <- cl.CurrentKey
+//                vl <- cl.CurrentValue
+//                vr <- vrOpt.Present
+//                ok <- true
+  //          | _ -> // right is ahead
+  //            // need to get left's value at right's key
+  //            let vrOpt = moveOrGetNextAtK cl cr.CurrentKey
+  //            if vrOpt.IsPresent then
+  //              k <- cl.CurrentKey
+  //              vl <- vrOpt.Present
+  //              vr <- cr.CurrentValue
+  //              ok <- true
+  //          if ok then
+  //            let valid, v = this.TryZip(k, vl, vr)
+  //            if valid then
+  //              this.CurrentKey <- k
+  //              this.CurrentValue <- v
+  //              true
+  //            else false
+  //          else false
+            ()
+
+          if found then
+            
+            true
           else false
+            
+
+          
         else false
     
       member this.MoveLast(): bool = 

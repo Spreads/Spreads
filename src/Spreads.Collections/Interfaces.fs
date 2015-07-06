@@ -109,7 +109,7 @@ and
     abstract Source : ISeries<'K,'V> with get
     /// If true then TryGetValue could return values for any keys, not only for existing keys.
     /// E.g. previous value, interpolated value, etc.
-    [<ObsoleteAttribute("Review if this is really needed as a part of the interface")>]
+    //[<ObsoleteAttribute("Review if this is really needed as a part of the interface")>]
     // TODO think about renaming to IsCalculated, e.g. if a function has holes (e.g. forecast only by x after the last point)
     abstract IsContinuous: bool with get
     /// Create a copy of cursor that is positioned at the same place as this cursor.
