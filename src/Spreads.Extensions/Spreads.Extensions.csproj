@@ -45,8 +45,14 @@
       <HintPath>..\..\packages\MathNet.Numerics.3.6.0\lib\net40\MathNet.Numerics.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Newtonsoft.Json, Version=7.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Newtonsoft.Json.7.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.Numerics" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -55,7 +61,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Bootstrapper\ABI.cs" />
+    <Compile Include="Bootstrapper\Bootstrapper.cs" />
+    <Compile Include="Bootstrapper\Loader.cs" />
+    <Compile Include="Bootstrapper\NativeLibrary.cs" />
+    <Compile Include="Bootstrapper\Process.cs" />
+    <Compile Include="Bootstrapper\Version.cs" />
+    <Compile Include="Native\INativeLibraryFacade.cs" />
+    <Compile Include="Native\Native.cs" />
+    <Compile Include="Native\NativeLibraryFacade.cs" />
     <Compile Include="Sandbox.cs" />
+    <Compile Include="Serializer.cs" />
     <Compile Include="SortedList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="System.Interactive.Async\AsyncEnumerable.Aggregates.cs" />
