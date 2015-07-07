@@ -90,3 +90,30 @@ let newVector6 =
   for v in ie 10000000 do
     a.Add(v)
   a.ToArray()
+
+open System
+open System.Collections.Generic
+open System.Runtime.InteropServices
+open System.Runtime.CompilerServices
+
+type TestStruct =
+  struct
+    val Dec : Decimal
+    val Int : int
+    new(d,i) = {Dec = d; Int = i}
+  end
+
+let str = new TestStruct(10M, 1)
+
+let size = Marshal.SizeOf(str)
+GCHandle.Alloc(str, GCHandleType.Pinned);
+let kvp = KeyValuePair("asd", 1)
+let size2 = Marshal.SizeOf(kvp)
+
+let arr = [|str|]
+let mutable ptr = Marshal.AllocHGlobal(size)
+#time "on"
+//let str = new TestStruct(10M, i)
+for i in 0..10000000 do
+  
+  Marshal.StructureToPtr(str,ptr, true)

@@ -9,7 +9,7 @@ open System.Runtime.CompilerServices
 open System.Threading.Tasks
 
 open Spreads
-//open Spreads.Collections
+open Spreads.Collections
 
 
 
@@ -397,6 +397,12 @@ type SeriesExtensions () =
     static member inline Log(source: Series<'K,int64>) : Series<'K,double> = 
       CursorSeries(fun _ -> new LogCursor<'K>(source.GetCursor) :> ICursor<'K,double>) :> Series<'K,double>
 
-
+    /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
+    [<Extension>]
+    static member inline Evaluate(source: Series<'K,'V>) : Series<'K,'V> = 
+      let sm = SortedMap()
+      for kvp in source do
+        sm.AddLast(kvp.Key, kvp.Value)
+      sm :> Series<'K,'V>
 
 // TODO generators
