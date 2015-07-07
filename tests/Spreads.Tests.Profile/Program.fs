@@ -57,12 +57,18 @@ let main argv =
   for i in 0L..count do
     smap.Value.Add(i, i)
 
-  for i in 0..9 do
+  for i in 0..19 do
       let mutable res = 0L
-      perf count "SMR Iterate as RO+AddWithBind" (fun _ ->
-        let ro = smap.Value.ReadOnly().Add(123456L) :> IReadOnlyOrderedMap<int64,int64>
+//      perf count "SMR Iterate as RO+AddWithBind" (fun _ ->
+//        let ro = smap.Value.ReadOnly().Add(123456L) :> IReadOnlyOrderedMap<int64,int64>
+//        for i in ro do
+//          res <- i.Value
+//          ()
+//      )
+      perf count "SMR Iterate with Zip" (fun _ ->
+        let ro = (((smap.Value.ReadOnly().Zip(smap.Value, fun v v2 -> v + v2)))):> IReadOnlyOrderedMap<int64,int64>
         for i in ro do
-          res <- i.Value
+          let res = i.Value
           ()
       )
       Console.WriteLine(res)
