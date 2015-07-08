@@ -20,9 +20,9 @@ type internal IKeyComparer<'K>= // when 'K : comparison
   /// Returns int32 distance between two values when they are stored in 
   /// a regular sorted map. Regular means continuous integers or days or seconds, etc.
   /// This method could be used for IComparer<'K>.Compare implementation.
-  abstract Diff : a:'K * b:'K -> int
+  abstract Diff : a:'K * b:'K -> int64
   /// If Diff(A,B) = X, then Add(A,X) = B, this is a mirrow method for Diff
-  abstract Add : 'K * diff:int -> 'K
+  abstract Add : 'K * diff:int64 -> 'K
   /// Generates an order-preserving hash.
   /// The hashes are used as bucket keys and should be a 
   /// http://en.wikipedia.org/wiki/Monotonic_function

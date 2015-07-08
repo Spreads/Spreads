@@ -12,14 +12,14 @@ open Spreads
 [<AbstractClass>]
 type BaseSpreadsComparer<'K when 'K : comparison>() =
   abstract Compare : a:'K * b:'K -> int
-  abstract Diff : a:'K * b:'K -> int
-  abstract Add : 'K * diff:int -> 'K
+  abstract Diff : a:'K * b:'K -> int64
+  abstract Add : 'K * diff:int64 -> 'K
   abstract Hash: k:'K -> 'K
   abstract AsUInt64: k:'K -> uint64
   abstract FromUInt64: uint64 -> 'K
 
   interface IKeyComparer<'K> with
-    member x.Compare(a,b) = x.Diff(a,b)
+    member x.Compare(a,b) = int (x.Diff(a,b))
     member x.Diff(a,b) = x.Diff(a,b)
     member x.Add(a,diff) = x.Add(a, diff)
     member x.Hash(k) = x.Hash(k)
@@ -35,7 +35,7 @@ type SpreadsComparerInt64(bucketSize:uint16) =
   member x.BucketSize with get () = bucketSize
   
   override x.Compare(a,b) = a.CompareTo(b)
-  override x.Diff(a,b) = int <| a - b
+  override x.Diff(a,b) =  a - b
   override x.Add(a,diff) = a + (int64 diff)
   override x.Hash(k) = 0L //(k / int64(bucketSize)) * int64(bucketSize)
   override x.AsUInt64(k) = uint64 k
@@ -59,7 +59,7 @@ type SpreadsComparerInt64U(bucketSize:uint16) =
   member x.BucketSize with get () = bucketSize
   
   override x.Compare(a,b) = a.CompareTo(b)
-  override x.Diff(a,b) = int <| a - b
+  override x.Diff(a,b) = int64 <| a - b
   override x.Add(a,diff) = a + (uint64 diff)
   override x.Hash(k) = (k / uint64(bucketSize)) * uint64(bucketSize)
   override x.AsUInt64(k) = k
@@ -83,7 +83,7 @@ type SpreadsComparerInt32(bucketSize:uint16) =
   member x.BucketSize with get () = bucketSize
   
   override x.Compare(a,b) = a.CompareTo(b)
-  override x.Diff(a,b) = int <| a - b
+  override x.Diff(a,b) = int64 <| a - b
   override x.Add(a,diff) = a + (int32 diff)
   override x.Hash(k) = (k / int32(bucketSize)) * int32(bucketSize)
   override x.AsUInt64(k) = uint64 k
@@ -107,7 +107,7 @@ type SpreadsComparerInt32U(bucketSize:uint16) =
   member x.BucketSize with get () = bucketSize
   
   override x.Compare(a,b) = a.CompareTo(b)
-  override x.Diff(a,b) = int <| a - b
+  override x.Diff(a,b) = int64 <| a - b
   override x.Add(a,diff) = a + (uint32 diff)
   override x.Hash(k) = (k / uint32(bucketSize)) * uint32(bucketSize)
   override x.AsUInt64(k) = uint64 k

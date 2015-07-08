@@ -399,10 +399,10 @@ type SeriesExtensions () =
 
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
     [<Extension>]
-    static member inline Evaluate(source: Series<'K,'V>) : Series<'K,'V> = 
+    static member inline Evaluate(source: Series<'K,'V>) : SortedMap<'K,'V> = 
       let sm = SortedMap()
       for kvp in source do
         sm.AddLast(kvp.Key, kvp.Value)
-      sm :> Series<'K,'V>
+      sm
 
 // TODO generators

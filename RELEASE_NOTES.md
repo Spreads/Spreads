@@ -1,3 +1,7 @@
+#### 0.0.9 - July 8, 2015
+* Implement CursorBind and CursorZip and arithmetic operators on series. Implement map, filter and repeat (first draft)
+ series transformations with CursorBind.
+
 #### 0.0.8 - July 1, 2015
 * Synch interfaces to Ix-Asyn (but do not add binary dependency, will use Paket to import files from github)
 

@@ -61,7 +61,7 @@ type SortedMap<'K,'V when 'K : comparison>
   [<NonSerializedAttribute>]
   let mutable cursorCounter : int = 1
   [<NonSerializedAttribute>]
-  let mutable rkStep_ : int = 0 // TODO review all usages
+  let mutable rkStep_ : int64 = 0L // TODO review all usages
 
   // TODO use IDC resolution via KeyHelper.diffCalculators here or befor ctor
   [<NonSerializedAttribute>]
@@ -85,18 +85,18 @@ type SortedMap<'K,'V when 'K : comparison>
   // helper functions
   let rkGetStep() =
     Debug.Assert(this.size > 1)
-    if rkStep_ > 0 then rkStep_
+    if rkStep_ > 0L then rkStep_
     elif this.size > 1 then
       rkStep_ <- diffCalc.Diff(this.keys.[1], this.keys.[0])
       rkStep_
     else raise (InvalidOperationException("Cannot calculate regular keys step for a single element in a map"))
-  let rkKeyAtIndex (idx:int) : 'K = diffCalc.Add(this.keys.[0], idx*rkGetStep())
+  let rkKeyAtIndex (idx:int) : 'K = diffCalc.Add(this.keys.[0], (int64 idx)*rkGetStep())
   let rkIndexOfKey (key:'K) : int =
     Debug.Assert(this.size > 1)
     // TODO this doesn't work for LT/LE/GT/GE TryFind
     let diff = diffCalc.Diff(key, this.keys.[0])
-    let modIsOk = diff % rkGetStep() = 0
-    let idx = diff/rkGetStep()
+    let modIsOk = diff % rkGetStep() = 0L
+    let idx : int = int (diff/rkGetStep())
 //    https://msdn.microsoft.com/en-us/library/2cy9f6wb(v=vs.110).aspx
 //    The index of the specified value in the specified array, if value is found.
 //    If value is not found and value is less than one or more elements in array, 
@@ -115,7 +115,7 @@ type SortedMap<'K,'V when 'K : comparison>
 
   let rkMaterialize () =
     let step = rkGetStep()
-    Array.init this.values.Length (fun i -> if i < this.size then diffCalc.Add(this.keys.[0], i*step) else Unchecked.defaultof<'K>)
+    Array.init this.values.Length (fun i -> if i < this.size then diffCalc.Add(this.keys.[0], (int64 i)*step) else Unchecked.defaultof<'K>)
 
   do
     let tempCap = if capacity.IsSome then capacity.Value else 1
@@ -160,7 +160,7 @@ type SortedMap<'K,'V when 'K : comparison>
     elif size < 2 then
       true, 0, [|sortedArray.[0];Unchecked.defaultof<'K>|]
     elif size < 3 then 
-      true, dc.Diff(sortedArray.[1], sortedArray.[0]), [|sortedArray.[0];sortedArray.[1]|]
+      true, int <| dc.Diff(sortedArray.[1], sortedArray.[0]), [|sortedArray.[0];sortedArray.[1]|]
     else
       let firstDiff = dc.Diff(sortedArray.[1], sortedArray.[0])
       let mutable isReg = true
@@ -171,7 +171,7 @@ type SortedMap<'K,'V when 'K : comparison>
           isReg <- false
         n <- n + 1
       if isReg then
-        true, firstDiff, [|sortedArray.[0];sortedArray.[1]|]
+        true, int firstDiff, [|sortedArray.[0];sortedArray.[1]|]
       else
         false, 0, Unchecked.defaultof<'K[]>
 
@@ -243,14 +243,14 @@ type SortedMap<'K,'V when 'K : comparison>
       if this.size > 1 then
         let diff = diffCalc.Diff(k, this.keys.[0])
         let step = rkGetStep()
-        let idx = diff / step
-        let modIsOk = diff % step = 0
+        let idx : int = int (diff / step)
+        let modIsOk = diff % step = 0L
         if modIsOk && idx = -1 then
           this.keys.[1] <- this.keys.[0]
           this.keys.[0] <- k // change first key and size++ at the bottom
           //rkLast is unchanged
         elif modIsOk && idx = this.size then 
-          rkLast <- diffCalc.Add(this.keys.[0], (this.size) * step) // do not subtract -1 from size because size++ happens at the end 
+          rkLast <- diffCalc.Add(this.keys.[0], (int64 this.size) * step) // do not subtract -1 from size because size++ happens at the end 
         elif modIsOk && idx > -1 && idx < this.size then
           // error for regular keys, this means we insert existing key
           raise (new ApplicationException("Existing key check must be done before insert"))
@@ -373,7 +373,7 @@ type SortedMap<'K,'V when 'K : comparison>
                 raise (InvalidOperationException("Collection changed during enumeration"))
               if index.Value < this.size then
                 currentKey := 
-                  if couldHaveRegularKeys then diffCalc.Add(this.keys.[0], (!index)*rkGetStep()) 
+                  if couldHaveRegularKeys then diffCalc.Add(this.keys.[0], (int64 !index)*rkGetStep()) 
                   else this.keys.[!index]
                 index := index.Value + 1
                 true
@@ -482,7 +482,7 @@ type SortedMap<'K,'V when 'K : comparison>
     with get() =
       if this.size = 0 then raise (InvalidOperationException("Could not get the last element of an empty map"))
       if couldHaveRegularKeys then 
-        Debug.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (this.size-1)*rkGetStep())) = 0)
+        Debug.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (int64 (this.size-1))*rkGetStep())) = 0)
         KeyValuePair(rkLast, this.values.[this.size - 1])
       else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
 
@@ -606,7 +606,7 @@ type SortedMap<'K,'V when 'K : comparison>
           this.keys.[0] <- (diffCalc.Add(this.keys.[0], rkGetStep())) // change first key to next and size--
           this.keys.[1] <- (diffCalc.Add(this.keys.[0], rkGetStep())) // add step to the new first value
         elif index = newSize then 
-          rkLast <- diffCalc.Add(this.keys.[0], (newSize-1)*rkGetStep()) // removing last, only size--
+          rkLast <- diffCalc.Add(this.keys.[0], (int64 (newSize-1))*rkGetStep()) // removing last, only size--
         else 
           // removing within range, creating a hole
           this.keys <- rkMaterialize() 
@@ -617,7 +617,7 @@ type SortedMap<'K,'V when 'K : comparison>
           this.keys.[1] <- Unchecked.defaultof<'K>
         elif index = 1 then
           rkLast <- this.keys.[0]
-        rkStep_ <- 0
+        rkStep_ <- 0L
 
       if not couldHaveRegularKeys || this.size = 1 then
         if index < this.size then
@@ -686,12 +686,12 @@ type SortedMap<'K,'V when 'K : comparison>
           this.size <- this.size - (pivotIndex + 1)
           version <- version + 1
           if couldHaveRegularKeys then
-            this.keys.[0] <- (diffCalc.Add(this.keys.[0], pivotIndex+1))
+            this.keys.[0] <- (diffCalc.Add(this.keys.[0], int64 (pivotIndex+1)))
             if this.size > 1 then 
               this.keys.[1] <- (diffCalc.Add(this.keys.[0], rkGetStep())) 
             else
               this.keys.[1] <- Unchecked.defaultof<'K>
-              rkStep_ <- 0
+              rkStep_ <- 0L
           else
             Array.Copy(this.keys, pivotIndex + 1, this.keys, 0, this.size) // move this.values to 
             Array.fill this.keys this.size (this.values.Length - this.size) Unchecked.defaultof<'K>
@@ -706,7 +706,7 @@ type SortedMap<'K,'V when 'K : comparison>
           false
         elif pivotIndex >=0 then // remove elements above and including pivot
           this.size <- pivotIndex
-          rkLast <- diffCalc.Add(this.keys.[0], (this.size-1)*rkGetStep()) // -1 is correct, the size is updated on the previous line
+          rkLast <- diffCalc.Add(this.keys.[0], (int64 (this.size-1))*rkGetStep()) // -1 is correct, the size is updated on the previous line
           if not couldHaveRegularKeys then
             Array.fill this.keys pivotIndex (this.values.Length - pivotIndex) Unchecked.defaultof<'K>
           Array.fill this.values pivotIndex (this.values.Length - pivotIndex) Unchecked.defaultof<'V>

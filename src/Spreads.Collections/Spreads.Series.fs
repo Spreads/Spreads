@@ -687,7 +687,7 @@ and // TODO internal
             // the new key is defined by R
             // regardless of the relative position, try get value from cl if it IsCont
             if cl.IsContinuous then
-              let ok, lv = cl.TryGetValue(cr.CurrentKey) // trying to get a value before cl's current key if cl IsCont
+              let ok, lv = cl.TryGetValue(cr.CurrentKey)
               if ok then
                 let valid, v = this.TryZip(cr.CurrentKey, lv, cr.CurrentValue)
                 if valid then
@@ -712,10 +712,10 @@ and // TODO internal
               this.CurrentValue <- v
               this.HasValidState <- true
           else
-            // the new key is defined by R
-            // regardless of the relative position, try get value from cl if it IsCont
+            // the new key is defined by L
+            // regardless of the relative position, try get value from cr if it IsCont
             if cr.IsContinuous then
-              let ok, rv = cr.TryGetValue(cl.CurrentKey) // trying to get a value before cl's current key if cl IsCont
+              let ok, rv = cr.TryGetValue(cl.CurrentKey)
               if ok then
                 let valid, v = this.TryZip(cl.CurrentKey, cl.CurrentValue, rv)
                 if valid then
