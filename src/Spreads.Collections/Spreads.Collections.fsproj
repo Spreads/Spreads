@@ -91,7 +91,6 @@
     <Compile Include="Collections\SortedDeque.fs" />
     <Compile Include="Collections\SortedMap.Obsolete.fs" />
     <Compile Include="Collections\IndexedMap.fs" />
-    <Compile Include="Collections\SpreadsComparer.fs" />
     <Compile Include="Collections\MiscInterfaces.fs" />
     <Compile Include="Collections\Heap.fsi" />
     <Compile Include="Collections\Heap.fs" />
