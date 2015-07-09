@@ -42,7 +42,7 @@ namespace Spreads.DB.Tests {
                     _datesSmall[i] = DateTime.Today.AddDays(i);
                     _tickSmall[i] = new Tick(DateTime.Today.AddSeconds(i), i, i);
                     if(i < 10) _complexSmall[i] = ComplexObject.Create();
-                    _stringSmall[i] = i.ToString();
+                    _stringSmall[i] = _rng.NextDouble().ToString();
                 }
                 _doublesBig[i] = val;
                 _decsBig[i] = (decimal) val;
@@ -208,8 +208,8 @@ namespace Spreads.DB.Tests {
             Console.WriteLine("string: " + _small);
             CompressDiffMethods<string>(_stringSmall);
 
-            //Console.WriteLine("complex: " + _small);
-            //CompressDiffMethods<ComplexObject>(_complexSmall);
+            Console.WriteLine("complex: " + _small);
+            CompressDiffMethods<ComplexObject>(_complexSmall);
         }
 
         public void CompressDiffMethods<T>(T[] input) {
@@ -234,6 +234,11 @@ namespace Spreads.DB.Tests {
                 if (typeof (T) == typeof (DateTime)) {
                     typeSize = 8;
                 }
+                else if (typeof(T) == typeof(string)) {
+                    typeSize = (input[input.Length - 1] as string).Length;
+                } else if (typeof(T) == typeof(ComplexObject)) {
+                    typeSize = ComplexObject.Create().TextValue.Length + 16000+8000;
+                }
             }
 
             Console.Write("  m: " + method);
@@ -252,7 +257,7 @@ namespace Spreads.DB.Tests {
             var js = new SpreadsJsonSerializer();
             var json = js.SerializeToJson(input);
             //Console.WriteLine(json);
-            //var fromJson = js.DeserializeFromJson<T[]>(json);
+            //var fromJson = js.DeserializeFromJson<T[]>(@"[""0"", ""1""]");
 
             var cspeed = 1000.0*((double) (input.Length*typeSize*rounds)/(1024.0*1024))/
                          ((double) sw.ElapsedMilliseconds); // MB/s
@@ -293,6 +298,10 @@ namespace Spreads.DB.Tests {
             } catch {
                 if (typeof(T) == typeof(DateTime)) {
                     typeSize = 8;
+                } else if (typeof(T) == typeof(string)) {
+                    typeSize = (input[input.Length - 1] as string).Length;
+                } else if (typeof(T) == typeof(ComplexObject)) {
+                    typeSize = ComplexObject.Create().TextValue.Length + 16000 + 8000;
                 }
             }
 

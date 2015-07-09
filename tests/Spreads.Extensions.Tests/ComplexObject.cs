@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Spreads.Collections;
 using Newtonsoft.Json;
 
@@ -8,7 +9,13 @@ namespace Spreads.DB.Tests
         public long[] IntArray { get; set; }
         public SortedMap<DateTime, double> SortedMap { get; set; }
         public string TextValue { get; set; }
-
+        public override bool Equals(object obj)
+        {
+            var co = obj as ComplexObject;
+            if (co == null) return false;
+            return IntArray.SequenceEqual(co.IntArray) && SortedMap.Keys.SequenceEqual(co.SortedMap.Keys)
+                && SortedMap.Values.SequenceEqual(co.SortedMap.Values) && TextValue.Equals(co.TextValue);
+        }
         public static ComplexObject Create()
         {
             var rng = new System.Random();

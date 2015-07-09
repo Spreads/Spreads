@@ -32,7 +32,6 @@ namespace Spreads {
     internal class SpreadsContractResolver : DefaultContractResolver {
         protected override sealed JsonConverter ResolveContractConverter(Type ty) {
 
-            //return new SpreadsJsonConverter();
             // Serialize maps directly
             if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
                 return new SpreadsJsonConverter();
@@ -119,6 +118,65 @@ namespace Spreads {
     }
 
 
+    /// <summary>
+    /// JSON.NET serializer with custom converters for special types
+    /// </summary>
+    internal class SpreadsJsonSerializer : ISerializer {
+        JsonSerializer _serializer;
+        public SpreadsJsonSerializer() {
+            _serializer = new JsonSerializer();
+            _serializer.ContractResolver = new SpreadsContractResolver();
+        }
+
+        public object Deserialize(byte[] bytes, Type type) {
+            MemoryStream ms = new MemoryStream(bytes);
+            using (BsonReader reader = new BsonReader(ms)) {
+                return _serializer.Deserialize(reader, type);
+            }
+        }
+
+        public T Deserialize<T>(byte[] bytes) {
+            MemoryStream ms = new MemoryStream(bytes);
+            using (BsonReader reader = new BsonReader(ms, typeof(T).IsArray, DateTimeKind.Unspecified)) {
+                return _serializer.Deserialize<T>(reader);
+            }
+        }
+
+        public T DeserializeFromJson<T>(string json) {
+            using (var reader = new StringReader(json)) {
+                using (var jsonReader = new JsonTextReader(reader)) {
+                    return _serializer.Deserialize<T>(jsonReader);
+                }
+            }
+        }
+
+        public byte[] Serialize<T>(T value) {
+            MemoryStream ms = new MemoryStream();
+            using (BsonWriter writer = new BsonWriter(ms)) {
+                _serializer.Serialize(writer, value);
+            }
+            return ms.ToArray();
+        }
+
+        public byte[] Serialize(object obj) {
+            MemoryStream ms = new MemoryStream();
+            using (BsonWriter writer = new BsonWriter(ms)) {
+                _serializer.Serialize(writer, obj);
+            }
+            return ms.ToArray();  //Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(obj));
+        }
+
+        public string SerializeToJson<T>(T value) {
+            using (var writer = new StringWriter()) {
+                using (var jsonWriter = new JsonTextWriter(writer)) {
+                    _serializer.Serialize(jsonWriter, value);
+                    return writer.ToString();
+                }
+            }
+        }
+    }
+
+
     //http://stackoverflow.com/questions/10574645/the-fastest-way-to-check-if-a-type-is-blittable
     internal static class BlittableHelper {
         public static object GetDefault(Type type) {
@@ -181,64 +239,7 @@ namespace Spreads {
         //}
     }
 
-    /// <summary>
-    /// JSON.NET serializer with custom converters for special types
-    /// </summary>
-    internal class SpreadsJsonSerializer : ISerializer {
-        JsonSerializer _serializer;
-        public SpreadsJsonSerializer() {
-            _serializer = new JsonSerializer();
-            _serializer.ContractResolver = new SpreadsContractResolver();
-        }
-
-        public object Deserialize(byte[] bytes, Type type) {
-            MemoryStream ms = new MemoryStream(bytes);
-            using (BsonReader reader = new BsonReader(ms)) {
-                return _serializer.Deserialize(reader, type);
-            }
-        }
-
-        public T Deserialize<T>(byte[] bytes) {
-            MemoryStream ms = new MemoryStream(bytes);
-            using (BsonReader reader = new BsonReader(ms)) {
-                return _serializer.Deserialize<T>(reader);
-            }
-        }
-
-        public T DeserializeFromJson<T>(string json) {
-            using (var reader = new StringReader(json)) {
-                using (var jsonReader = new JsonTextReader(reader))
-                {
-                    return _serializer.Deserialize<T>(jsonReader);
-                }
-            }
-        }
-
-        public byte[] Serialize<T>(T value) {
-            MemoryStream ms = new MemoryStream();
-            using (BsonWriter writer = new BsonWriter(ms)) {
-                _serializer.Serialize(writer, value);
-            }
-            return ms.ToArray();
-        }
-        
-        public byte[] Serialize(object obj) {
-            MemoryStream ms = new MemoryStream();
-            using (BsonWriter writer = new BsonWriter(ms)) {
-                _serializer.Serialize(writer, obj);
-            }
-            return ms.ToArray();  //Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(obj));
-        }
-
-        public string SerializeToJson<T>(T value) {
-            using (var writer = new StringWriter()) {
-                using (var jsonWriter = new JsonTextWriter(writer)) {
-                    _serializer.Serialize(jsonWriter, value);
-                    return writer.ToString();
-                }
-            }
-        }
-    }
+    
 
 
 
