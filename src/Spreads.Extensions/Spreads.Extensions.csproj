@@ -31,7 +31,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\..\bin\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;PRERELEASE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -61,15 +61,32 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="..\..\lib\libyeppp\win\x64\yeppp.dll">
+      <Link>native\w64\yeppp.dll</Link>
+      <LogicalName>win/x64/yeppp.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
+      <Link>native\w64\libblosc.dll</Link>
+      <LogicalName>win/x64/libblosc.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\libyeppp\win\x32\yeppp.dll">
+      <Link>native\w32\yeppp.dll</Link>
+      <LogicalName>win/x32/yeppp.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\libblosc\w32\libblosc.dll">
+      <Link>native\w32\libblosc.dll</Link>
+      <LogicalName>win/x32/libblosc.dll</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Attributes.cs" />
     <Compile Include="Bootstrapper\ABI.cs" />
     <Compile Include="Bootstrapper\Bootstrapper.cs" />
     <Compile Include="Bootstrapper\Loader.cs" />
     <Compile Include="Bootstrapper\NativeLibrary.cs" />
     <Compile Include="Bootstrapper\Process.cs" />
     <Compile Include="Bootstrapper\Version.cs" />
-    <Compile Include="Native\INativeLibraryFacade.cs" />
-    <Compile Include="Native\Native.cs" />
-    <Compile Include="Native\NativeLibraryFacade.cs" />
+    <Compile Include="native\NativeMethods.cs" />
     <Compile Include="Sandbox.cs" />
     <Compile Include="Serializer.cs" />
     <Compile Include="SortedList.cs" />
@@ -90,7 +107,43 @@
     <Compile Include="System.Interactive.Async\IOrderedAsyncEnumerable.cs" />
     <Compile Include="System.Interactive.Async\TaskExt.cs" />
     <Compile Include="Types.cs" />
-    <Compile Include="Utils.cs" />
+    <Compile Include="UsefulTypes.cs" />
+    <Compile Include="BytesExtensions.cs" />
+    <Compile Include="Yeppp\core\Add.cs" />
+    <Compile Include="Yeppp\core\DotProduct.cs" />
+    <Compile Include="Yeppp\core\Max.cs" />
+    <Compile Include="Yeppp\core\Min.cs" />
+    <Compile Include="Yeppp\core\Multiply.cs" />
+    <Compile Include="Yeppp\core\Negate.cs" />
+    <Compile Include="Yeppp\core\Subtract.cs" />
+    <Compile Include="Yeppp\core\Sum.cs" />
+    <Compile Include="Yeppp\core\SumAbs.cs" />
+    <Compile Include="Yeppp\core\SumSquares.cs" />
+    <Compile Include="Yeppp\library\ArmCpuIsaFeature.cs" />
+    <Compile Include="Yeppp\library\ArmCpuSimdFeature.cs" />
+    <Compile Include="Yeppp\library\ArmCpuSystemFeature.cs" />
+    <Compile Include="Yeppp\library\CpuArchitecture.cs" />
+    <Compile Include="Yeppp\library\CpuCycleCounterState.cs" />
+    <Compile Include="Yeppp\library\CpuIsaFeature.cs" />
+    <Compile Include="Yeppp\library\CpuMicroarchitecture.cs" />
+    <Compile Include="Yeppp\library\CpuSimdFeature.cs" />
+    <Compile Include="Yeppp\library\CpuSystemFeature.cs" />
+    <Compile Include="Yeppp\library\CpuVendor.cs" />
+    <Compile Include="Yeppp\library\IA64CpuIsaFeature.cs" />
+    <Compile Include="Yeppp\library\Library.cs" />
+    <Compile Include="Yeppp\library\MipsCpuIsaFeature.cs" />
+    <Compile Include="Yeppp\library\MipsCpuSimdFeature.cs" />
+    <Compile Include="Yeppp\library\Version.cs" />
+    <Compile Include="Yeppp\library\X86CpuIsaFeature.cs" />
+    <Compile Include="Yeppp\library\X86CpuSimdFeature.cs" />
+    <Compile Include="Yeppp\library\X86CpuSystemFeature.cs" />
+    <Compile Include="Yeppp\math\Cos.cs" />
+    <Compile Include="Yeppp\math\EvaluatePolynomial.cs" />
+    <Compile Include="Yeppp\math\Exp.cs" />
+    <Compile Include="Yeppp\math\Log.cs" />
+    <Compile Include="Yeppp\math\Sin.cs" />
+    <Compile Include="Yeppp\math\Tan.cs" />
+    <Compile Include="Yeppp\YeppTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

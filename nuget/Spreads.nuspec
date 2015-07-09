@@ -16,6 +16,7 @@
 	  <tags>@tags@</tags>
     <dependencies>
 	  <dependency id="Spreads.Collections" />
+	  <dependency id="Spreads.Extensions" />
     </dependencies>
   </metadata>
   <files>

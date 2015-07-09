@@ -1,3 +1,7 @@
+#### 0.0.10 - July 9, 2015
+* Publish Spreads.Extensions with integrated Ix.NET, Blosc (v1.6) compressor and Yeppp vectorized calculations.
+* Change IKeyComparer interface from int to int64. Diff and Add with default(K) are now equivalent to deprecated AsInt64/FromInt64.
+
 #### 0.0.9 - July 8, 2015
 * Implement CursorBind and CursorZip and arithmetic operators on series. Implement map, filter and repeat (first draft)
  series transformations with CursorBind.

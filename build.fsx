@@ -156,21 +156,7 @@ Target "NuGet" (fun _ ->
 //            Dependencies = [] })
 //        ("nuget/" + project + ".nuspec")
 
-//    let packageName = project + "." + "Common"
-//    NuGet (fun p ->
-//        { p with
-//            Authors = authors
-//            Project = packageName
-//            Summary = packageName // "TODO"
-//            Description = packageName // "TODO"
-//            Version = release.NugetVersion
-//            ReleaseNotes = ""
-//            Tags = tags
-//            OutputPath = "bin"
-//            AccessKey = getBuildParamOrDefault "nugetkey" ""
-//            Publish = hasBuildParam "nugetkey"
-//            Dependencies = [] })
-//        ("nuget/" + packageName + ".nuspec")
+
 
     let packageName = project + "." + "Collections"
     NuGet (fun p ->
@@ -186,6 +172,26 @@ Target "NuGet" (fun _ ->
             AccessKey = getBuildParamOrDefault "nugetkey" ""
             Publish = hasBuildParam "nugetkey"
             Dependencies = [] })
+        ("nuget/" + packageName + ".nuspec")
+
+    let packageName = project + "." + "Extensions"
+    NuGet (fun p ->
+        { p with
+            Authors = authors
+            Project = packageName
+            Summary = packageName // "TODO"
+            Description = packageName // "TODO"
+            Version = release.NugetVersion
+            ReleaseNotes = ""
+            Tags = tags
+            OutputPath = "bin"
+            AccessKey = getBuildParamOrDefault "nugetkey" ""
+            Publish = hasBuildParam "nugetkey"
+            Dependencies = 
+              [ "Spreads.Collections", release.NugetVersion
+                "Newtonsoft.Json", GetPackageVersion "packages" "Newtonsoft.Json"
+                ]
+            })
         ("nuget/" + packageName + ".nuspec")
 )
 

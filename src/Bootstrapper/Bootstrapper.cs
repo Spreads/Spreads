@@ -33,7 +33,8 @@ namespace Bootstrapper {
             // Blosc
             //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\libblosc\win\x64\libblosc.dll");
             //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\libblosc\win\x32\libblosc.dll");
-
+            Loader.CompressResource(@"C:\Users\vbayb_000\Documents\MD\Dev\Projects\c-blosc\build32\blosc\Release\blosc.dll");
+            Loader.CompressResource(@"C:\Users\vbayb_000\Documents\MD\Dev\Projects\c-blosc\build64\blosc\Release\blosc.dll");
 
             //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\SpreadsDB\src\libspreadsdb\out\w64\bin\libspreadsdb.dll");
             //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\SpreadsDB\src\libspreadsdb\out\w32\bin\libspreadsdb.dll");

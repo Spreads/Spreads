@@ -13,6 +13,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{BF60
 		README.md = README.md
 		RELEASE_NOTES.md = RELEASE_NOTES.md
 		nuget\Spreads.Collections.nuspec = nuget\Spreads.Collections.nuspec
+		nuget\Spreads.Extensions.nuspec = nuget\Spreads.Extensions.nuspec
 		nuget\Spreads.nuspec = nuget\Spreads.nuspec
 		TODO.md = TODO.md
 	EndProjectSection
@@ -58,6 +59,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebHost", "src\WebHost\WebHost.csproj", "{E090B020-D603-40C6-932C-D794D82FE975}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Extensions", "src\Spreads.Extensions\Spreads.Extensions.csproj", "{92A26D3B-7D41-4517-B7A4-95CBDD98AD4A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Extensions.Tests", "tests\Spreads.Extensions.Tests\Spreads.Extensions.Tests.csproj", "{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}"
 EndProject
 Global
 	GlobalSection(Performance) = preSolution
@@ -197,6 +200,18 @@ Global
 		{92A26D3B-7D41-4517-B7A4-95CBDD98AD4A}.Release|x64.Build.0 = Release|Any CPU
 		{92A26D3B-7D41-4517-B7A4-95CBDD98AD4A}.Release|x86.ActiveCfg = Release|Any CPU
 		{92A26D3B-7D41-4517-B7A4-95CBDD98AD4A}.Release|x86.Build.0 = Release|Any CPU
+		{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}.Debug|x64.Build.0 = Debug|Any CPU
+		{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}.Debug|x86.Build.0 = Debug|Any CPU
+		{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}.Release|x64.ActiveCfg = Release|Any CPU
+		{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}.Release|x64.Build.0 = Release|Any CPU
+		{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}.Release|x86.ActiveCfg = Release|Any CPU
+		{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -209,5 +224,6 @@ Global
 		{D371BD54-788A-4B9F-83A3-306E1AE62732} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{D2A8AD2E-0450-4E23-8488-06F19DF7882D} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{0AC99249-D4E2-4512-9F62-7F1D636B8BA5} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
+		{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 	EndGlobalSection
 EndGlobal
