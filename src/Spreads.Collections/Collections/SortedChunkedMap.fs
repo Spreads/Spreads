@@ -22,7 +22,7 @@ open Spreads.Collections
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
 type SortedChunkedMap<'K,'V when 'K : comparison>
-  internal(outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>, comparer:IComparer<'K>, ?slicer:Func<'K,'K>) =
+  (outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>, comparer:IComparer<'K>, slicer:Func<'K,'K> opt) =
   inherit Series<'K,'V>()
 
   [<NonSerializedAttribute>]
@@ -42,11 +42,11 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
   [<NonSerializedAttribute>]
   let slicer : IKeySlicer<'K> = 
     match slicer with
-    | Some s -> 
+    | OptionalValue.Present s -> 
         { new IKeySlicer<'K> with
           member x.Hash(k) = s.Invoke k
         }
-    | None ->
+    | OptionalValue.Missing ->
       { new IKeySlicer<'K> with
           member x.Hash(k) =
             // float[1000+] will be in LOH, will need float buffer pool
@@ -173,8 +173,17 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         let bucket = outerMap.Last
         bucket.Value.Last
       finally
-          exitLockIf this.SyncRoot entered
+        exitLockIf this.SyncRoot entered
 
+  // Ensure than current inner map is saved (set) to the outer map
+  member this.Flush() =
+    let entered = enterLockIf this.SyncRoot this.IsSynchronized
+    try
+      if prevBucketIsSet then
+        prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
+        outerMap.[prevHash] <- prevBucket
+    finally
+      exitLockIf this.SyncRoot entered
 
   override this.GetCursor() : ICursor<'K,'V> =
     this.GetCursor(outerMap.GetCursor(), Unchecked.defaultof<ICursor<'K, 'V>>, true, Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>, false)
@@ -610,6 +619,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         if hasPivot then
           outerMap.RemoveMany(hash, Lookup.LT)  // strictly LT
           outerMap.First.Value.RemoveMany(subKey, direction) // same direction
+          // TODO Flush
         else 
           let c = comparer.Compare(key, this.Last.Key)
           if c > 0 then // remove all keys
@@ -624,6 +634,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         if hasPivot then
           outerMap.RemoveMany(hash, Lookup.GT)  // strictly GT
           outerMap.First.Value.RemoveMany(subKey, direction) // same direction
+          // TODO Flush
         else 
           let c = comparer.Compare(key, this.First.Key)
           if c < 0 then // remove all keys
@@ -634,6 +645,50 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
       | _ -> failwith "wrong direction"
     finally
       exitLockIf this.SyncRoot entered
+
+  member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) =
+    if appendMap.IsEmpty then
+      0
+    else
+      let entered = enterLockIf this.SyncRoot this.IsSynchronized
+      try
+        match option with
+        | AppendOption.ThrowOnOverlap _ ->
+          if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+            let mutable c = 0
+            for i in appendMap do
+              c <- c + 1
+              this.AddLast(i.Key, i.Value)
+            c
+          else invalidOp "values overlap with existing"
+        | AppendOption.DropOldOverlap ->
+          if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+            let mutable c = 0
+            for i in appendMap do
+              c <- c + 1
+              this.AddLast(i.Key, i.Value)
+            c
+          else 
+            let removed = this.RemoveMany(appendMap.First.Key, Lookup.GE)
+            Debug.Assert(removed)
+            let mutable c = 0
+            for i in appendMap do
+              c <- c + 1
+              this.AddLast(i.Key, i.Value)
+            c
+        | AppendOption.IgnoreEqualOverlap ->
+          if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+            let mutable c = 0
+            for i in appendMap do
+              c <- c + 1
+              this.AddLast(i.Key, i.Value)
+            c
+          else 
+            raise (NotImplementedException("TODO append impl"))
+        | _ -> failwith "Unknown AppendOption"
+      finally
+        exitLockIf this.SyncRoot entered
+      
 
   //#region Interfaces
 
@@ -703,36 +758,42 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     member this.AddFirst(k, v) = this.AddFirst(k, v)
     member this.Remove(k) = this.Remove(k)
     member this.RemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      let rf = this.RemoveFirst()
-      result <- snd rf
-      ()
+      this.RemoveFirst(&result)
+
     member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      let rl = this.RemoveLast()
-      result <- snd rl
-      ()
+      this.RemoveLast(&result)
+
     member this.RemoveMany(key:'K,direction:Lookup) = 
-      this.RemoveMany(key, direction) |> ignore
-      ()
-    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>) =
-      for i in appendMap do
-        this.AddLast(i.Key, i.Value)
+      this.RemoveMany(key, direction) 
+    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) = this.Append(appendMap, option)
   //#endregion
+
+  
+  new(outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>,comparer:IComparer<'K>) = 
+    SortedChunkedMap(outerFactory, comparer)
 
   /// In-memory sorted chunked map
   new(comparer:IComparer<'K>) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
     SortedChunkedMap(factory, comparer)
 
+  new(outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>,slicer:Func<'K,'K>) = 
+    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+    SortedChunkedMap(outerFactory, comparer, OptionalValue(slicer))
+
   /// In-memory sorted chunked map
   new(slicer:Func<'K,'K>) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
     let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
-    SortedChunkedMap(factory, comparer, slicer)
+    SortedChunkedMap(factory, comparer, OptionalValue(slicer))
+  
+  new(outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>,comparer:IComparer<'K>,slicer:Func<'K,'K>) = 
+    SortedChunkedMap(outerFactory, comparer, OptionalValue(slicer))
 
   /// In-memory sorted chunked map
   new(comparer:IComparer<'K>,slicer:Func<'K,'K>) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
-    SortedChunkedMap(factory, comparer, slicer)
+    SortedChunkedMap(factory, comparer, OptionalValue(slicer))
 
   new() = 
     let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>

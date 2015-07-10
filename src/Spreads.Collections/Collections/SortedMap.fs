@@ -1140,15 +1140,16 @@ type SortedMap<'K,'V when 'K : comparison>
     member this.AddFirst(k, v) = this.AddFirst(k, v)
     member this.Remove(k) = this.Remove(k)
     member this.RemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      this.RemoveFirst(&result) |> ignore // TODO why unit not bool?
+      this.RemoveFirst(&result)
     member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      this.RemoveLast(&result) |> ignore // TODO why unit not bool?
+      this.RemoveLast(&result)
     member this.RemoveMany(key:'K,direction:Lookup) = 
-      this.RemoveMany(key, direction) |> ignore
-    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>) =
+      this.RemoveMany(key, direction)
+    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) =
       // do not need transaction because if the first addition succeeds then all others will be added as well
-      for i in appendMap do
-        this.AddLast(i.Key, i.Value)
+//      for i in appendMap do
+//        this.AddLast(i.Key, i.Value)
+      raise (NotImplementedException("TODO append impl"))
     
   interface IUpdateable<'K,'V> with
     [<CLIEvent>]

@@ -99,27 +99,36 @@ type internal MutatorWrapper<'K,'V  when 'K : comparison>
       )
 
     member this.RemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      use lock = makeLock this.SyncRoot
-      let m,r = map.RemoveFirst()
-      result <- r
-      map <- m
+      try
+        use lock = makeLock this.SyncRoot
+        let m,r = map.RemoveFirst()
+        result <- r
+        map <- m
+        true
+      with | _ -> false
 
     member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      use lock = makeLock this.SyncRoot
-      let m,r = map.RemoveLast()
-      result <- r
-      map <- m
+      try
+        use lock = makeLock this.SyncRoot
+        let m,r = map.RemoveLast()
+        result <- r
+        map <- m
+        true
+      with | _ -> false
 
     member this.RemoveMany(key:'K,direction:Lookup) = 
-      lock this.SyncRoot ( fun () ->
-          map <- map.RemoveMany(key, direction)
-      )
+      try
+        lock this.SyncRoot ( fun () ->
+            map <- map.RemoveMany(key, direction)
+            true
+        )
+      with | _ -> false
 
-    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>) =
+    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) =
       // do not need transaction because if the first addition succeeds then all others will be added as well
-      for i in appendMap do
-        (this :> IOrderedMap<'K,'V>).AddLast(i.Key, i.Value)
-
+//      for i in appendMap do
+//        (this :> IOrderedMap<'K,'V>).AddLast(i.Key, i.Value)
+      raise (NotImplementedException("TODO append impl"))
 
 [<Sealed>]
 [<Serializable>]

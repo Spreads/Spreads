@@ -721,18 +721,16 @@ type SortedHashMap<'K,'V when 'K : comparison>
     member this.AddFirst(k, v) = this.AddFirst(k, v)
     member this.Remove(k) = this.Remove(k)
     member this.RemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      let rf = this.RemoveFirst()
-      result <- snd rf
-      ()
+      this.RemoveFirst(&result)
+
     member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      let rl = this.RemoveLast()
-      result <- snd rl
-      ()
+      this.RemoveLast(&result)
+
     member this.RemoveMany(key:'K,direction:Lookup) = 
-      this.RemoveMany(key, direction) |> ignore
-      ()
-    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>) =
+      this.RemoveMany(key, direction)
+
+    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) =
       for i in appendMap do
         this.AddLast(i.Key, i.Value)
-
+      raise (NotImplementedException("TODO append impl"))
   //#endregoin

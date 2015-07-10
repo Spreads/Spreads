@@ -1,3 +1,14 @@
+#### 0.0.14 - July 10, 2015
+* Change IOrderedMap interface for RemoveXXX (returns bool) and Append (accepts AppendOption parameter)
+* 
+
+#### 0.0.13 - July 10, 2015
+* Add Flush method to SortedChunkedMap to save current state, make constructors with outer factory 
+
+#### 0.0.12 - July 10, 2015
+* Extracted key slicer from IKeyComparer and made it optional. By default, keys are sliced by a fixed upper limit (1000 in this version)
+* Added default implementations of IKeyComparer for (u)int(32|64) and DateTime. SortedMap tries to get them if comparer was not supplied.
+
 #### 0.0.11 - July 9, 2015
 * Serializer/compressor works for generics, value-type arrays and Spreads-specific types
 

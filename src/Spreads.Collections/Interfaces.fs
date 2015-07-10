@@ -193,11 +193,11 @@ type IOrderedMap<'K,'V when 'K : comparison> =
   //abstract AppendAsync: map:IReadOnlyOrderedMap<'K,'V> -> Task<bool>
   /// Remove a key and its value in-place.
   abstract Remove : k:'K -> bool
-  abstract RemoveLast: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> unit
-  abstract RemoveFirst: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> unit
-  abstract RemoveMany: k:'K * direction:Lookup -> unit
+  abstract RemoveLast: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> bool // TODO bool
+  abstract RemoveFirst: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> bool // TODO bool
+  abstract RemoveMany: k:'K * direction:Lookup -> bool // TODO int
   /// And values from appendMap to the end of this map
-  abstract Append: appendMap:IReadOnlyOrderedMap<'K,'V> -> unit
+  abstract Append: appendMap:IReadOnlyOrderedMap<'K,'V> * option:AppendOption -> int // TODO int, bool option for ignoreEqualOverlap, or Enum with 1: thow, 2: ignoreEqual, 3: rewriteOld, 4: ignoreNew (nonsense option, should not do, the first 3 are good)
 
 [<Interface>]
 [<AllowNullLiteral>]

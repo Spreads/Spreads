@@ -890,17 +890,17 @@ type SortedMap<'K,'V when 'K : comparison>
     member this.AddFirst(k, v) = this.AddFirst(k, v)
     member this.Remove(k) = this.Remove(k)
     member this.RemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      this.RemoveFirst(&result) |> ignore // TODO why unit not bool?
+      this.RemoveFirst(&result)
     member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      this.RemoveLast(&result) |> ignore // TODO why unit not bool?
+      this.RemoveLast(&result)
     member this.RemoveMany(key:'K,direction:Lookup) = 
-      this.RemoveMany(key, direction) |> ignore
+      this.RemoveMany(key, direction)
 //    member x.TryFindWithIndex(key: 'K, direction: Lookup, result: byref<KeyValuePair<'K,'V>>): int = 
 //      this.TryFindWithIndex(key, direction, &result)
-    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>) =
-      for i in appendMap do
-        this.AddLast(i.Key, i.Value)
-    
+    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) =
+//      for i in appendMap do
+//        this.AddLast(i.Key, i.Value)
+      raise (NotImplementedException("TODO append impl"))
     
   interface IImmutableOrderedMap<'K,'V> with
     member this.Size with get() = int64(this.size)
