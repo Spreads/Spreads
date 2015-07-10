@@ -187,7 +187,7 @@ docs/content/license.md
 docs/content/release-notes.md
 
 *.ide
-
+*.vs
 *.so
 *.dylib
 
