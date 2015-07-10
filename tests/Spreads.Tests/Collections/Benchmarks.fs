@@ -762,8 +762,30 @@ module CollectionsBenchmarks =
   
   [<TestCase(10000000)>]
   let SCM(count:int64) =
-    let batchSize = 10240us //8192us
+    let batchSize = 1024L //8192us
     let shm = ref (SortedChunkedMap(SpreadsComparerInt64(batchSize)))
+
+    for i in 0..9 do
+      shm := SortedChunkedMap()
+      perf count "SCM<Fake> Add" (fun _ ->
+        for i in 0L..count do
+          shm.Value.Add(i, i)
+      )
+    for i in 0..9 do
+      perf count "SCM<Fake> Read" (fun _ ->
+        for i in 0L..count do
+          let res = shm.Value.Item(i)
+          if res <> i then failwith "SCM failed"
+          ()
+      )
+    for i in 0..9 do
+      perf count "SCM<Fake> Iterate" (fun _ ->
+        for i in shm.Value do
+          let res = i.Value
+          if res <> i.Value then failwith "SCM failed"
+          ()
+      )
+
     for i in 0..9 do
       shm := (SortedChunkedMap(SpreadsComparerInt64(batchSize)))
       perf count "SCM<1024> Add" (fun _ ->
@@ -784,6 +806,7 @@ module CollectionsBenchmarks =
           if res <> i.Value then failwith "SCM failed"
           ()
       )
+
     for i in 0..9 do
       perf count "SCM Iterate with load" (fun _ ->
         for i in shm.Value do
@@ -976,23 +999,23 @@ module CollectionsBenchmarks =
 //
 //    Console.WriteLine("DEQUE")
 //    FSXDeque_run()
-    DeedleDeque_run()
+//    DeedleDeque_run()
 
-    Console.WriteLine("MAPS")
-    DeedleSeries_run()
+//    Console.WriteLine("MAPS")
+//    DeedleSeries_run()
 //    FSXHashMap_run()
 //    IntMap64_run()
 //    MapTree_run()
 //    SCGSortedList_run()
 //    SCIOrderedMap_run()
     //SortedDeque_run()
-    SortedList_run()
-    SortedMap_run()
+//    SortedList_run()
+//    SortedMap_run()
 //    SortedMapPeriod_run()
 //    SortedMapDT_run()
-    SortedMapRegular_run()
+//    SortedMapRegular_run()
     //MapDeque_run() // bugs!
     //SHM_run()
-    //SCM_run()
+    SCM_run()
 //    SHM_regular_run()
     //PersistenSortedMap_run()

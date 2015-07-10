@@ -722,117 +722,120 @@ type SortedMap<'K,'V when 'K : comparison>
   /// -1 if the non-found key is smaller than the first key
   /// -2 if the non-found key is larger than the last key
   /// -3 if the non-found key is within the key range (for EQ direction only)
+  /// -4 empty
   /// Example: (-1) [...current...(-3)...map ...] (-2)
   member internal this.TryFindWithIndex(key:'K,direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>) : int = // rkok
     let entered = enterLockIf syncRoot  isSynchronized
     try
-      // TODO first/last optimization
-      match direction with
-      | Lookup.EQ ->
-        let lastIdx = this.size-1
-        if this.size > 0 && this.CompareToLast(key) = 0 then // key = last key
-          result <-  this.GetPairByIndexUnchecked(lastIdx)
-          lastIdx
-        else
-          let index = this.IndexOfKey(key)
-          if index >= 0 then
-            result <-  this.GetPairByIndexUnchecked(index)
-            index
+      if this.size = 0 then -4
+      else
+        // TODO first/last optimization
+        match direction with
+        | Lookup.EQ ->
+          let lastIdx = this.size-1
+          if this.size > 0 && this.CompareToLast(key) = 0 then // key = last key
+            result <-  this.GetPairByIndexUnchecked(lastIdx)
+            lastIdx
           else
-            let index2 = ~~~index
-            if index2 >= this.Count then // there are no elements larger than key, all this.keys are smaller
-              -2 // the key could be in the next bucket
-            elif index2 = 0 then //it is the index of the first element that is larger than value
-              -1 // all this.keys in the map are larger than the desired key
+            let index = this.IndexOfKey(key)
+            if index >= 0 then
+              result <-  this.GetPairByIndexUnchecked(index)
+              index
             else
-              -3
-      | Lookup.LT ->
-        let lastIdx = this.size-1
-        let lc = if this.size > 0 then this.CompareToLast(key) else -2
-        if lc = 0 then // key = last key
-          result <-  this.GetPairByIndexUnchecked(lastIdx-1) // return item beforelast
-          lastIdx - 1
-        elif lc > 0 then // key greater than the last
-          result <-  this.GetPairByIndexUnchecked(lastIdx) // return the last item 
-          lastIdx
-        else
-          let index = this.IndexOfKey(key)
-          if index > 0 then
-            result <- this.GetPairByIndexUnchecked(index - 1)
-            index - 1
-          elif index = 0 then
-             -1 // 
+              let index2 = ~~~index
+              if index2 >= this.Count then // there are no elements larger than key, all this.keys are smaller
+                -2 // the key could be in the next bucket
+              elif index2 = 0 then //it is the index of the first element that is larger than value
+                -1 // all this.keys in the map are larger than the desired key
+              else
+                -3
+        | Lookup.LT ->
+          let lastIdx = this.size-1
+          let lc = if this.size > 0 then this.CompareToLast(key) else -2
+          if lc = 0 then // key = last key
+            result <-  this.GetPairByIndexUnchecked(lastIdx-1) // return item beforelast
+            lastIdx - 1
+          elif lc > 0 then // key greater than the last
+            result <-  this.GetPairByIndexUnchecked(lastIdx) // return the last item 
+            lastIdx
           else
-            let index2 = ~~~index
-            if index2 >= this.Count then // there are no elements larger than key
-              result <-  this.GetPairByIndexUnchecked(this.Count - 1) // last element is the one that LT key
-              this.Count - 1
-            elif index2 = 0 then
-              -1
-            else //  it is the index of the first element that is larger than value
-              result <-  this.GetPairByIndexUnchecked(index2 - 1)
-              index2 - 1
-      | Lookup.LE ->
-        let lastIdx = this.size-1
-        let lc = if this.size > 0 then this.CompareToLast(key) else -2
-        if lc >= 0 then // key = last key or greater than the last key
-          result <-  this.GetPairByIndexUnchecked(lastIdx)
-          lastIdx
-        else
-          let index = this.IndexOfKey(key)
-          if index >= 0 then
-            result <-  this.GetPairByIndexUnchecked(index) // equal
-            index
+            let index = this.IndexOfKey(key)
+            if index > 0 then
+              result <- this.GetPairByIndexUnchecked(index - 1)
+              index - 1
+            elif index = 0 then
+               -1 // 
+            else
+              let index2 = ~~~index
+              if index2 >= this.Count then // there are no elements larger than key
+                result <-  this.GetPairByIndexUnchecked(this.Count - 1) // last element is the one that LT key
+                this.Count - 1
+              elif index2 = 0 then
+                -1
+              else //  it is the index of the first element that is larger than value
+                result <-  this.GetPairByIndexUnchecked(index2 - 1)
+                index2 - 1
+        | Lookup.LE ->
+          let lastIdx = this.size-1
+          let lc = if this.size > 0 then this.CompareToLast(key) else -2
+          if lc >= 0 then // key = last key or greater than the last key
+            result <-  this.GetPairByIndexUnchecked(lastIdx)
+            lastIdx
           else
-            let index2 = ~~~index
-            if index2 >= this.Count then // there are no elements larger than key
-              result <-  this.GetPairByIndexUnchecked(this.Count - 1)
-              this.Count - 1
-            elif index2 = 0 then
-              -1
-            else //  it is the index of the first element that is larger than value
-              result <-   this.GetPairByIndexUnchecked(index2 - 1)
-              index2 - 1
-      | Lookup.GT ->
-        let lc = if this.size > 0 then comparer.Compare(key, this.keys.[0]) else 2
-        if lc = 0 then // key = first key
-          result <-  this.GetPairByIndexUnchecked(1) // return item after first
-          1
-        elif lc < 0 then
-          result <-  this.GetPairByIndexUnchecked(0) // return first
-          0
-        else
-          let index = this.IndexOfKey(key)
-          if index >= 0 && index < this.Count - 1 then
-            result <- this.GetPairByIndexUnchecked(index + 1)
-            index + 1
-          elif index >= this.Count - 1 then
-            -2
+            let index = this.IndexOfKey(key)
+            if index >= 0 then
+              result <-  this.GetPairByIndexUnchecked(index) // equal
+              index
+            else
+              let index2 = ~~~index
+              if index2 >= this.size then // there are no elements larger than key
+                result <-  this.GetPairByIndexUnchecked(this.size - 1)
+                this.size - 1
+              elif index2 = 0 then
+                -1
+              else //  it is the index of the first element that is larger than value
+                result <-   this.GetPairByIndexUnchecked(index2 - 1)
+                index2 - 1
+        | Lookup.GT ->
+          let lc = if this.size > 0 then comparer.Compare(key, this.keys.[0]) else 2
+          if lc = 0 then // key = first key
+            result <-  this.GetPairByIndexUnchecked(1) // return item after first
+            1
+          elif lc < 0 then
+            result <-  this.GetPairByIndexUnchecked(0) // return first
+            0
           else
-            let index2 = ~~~index
-            if index2 >= this.Count then // there are no elements larger than key
+            let index = this.IndexOfKey(key)
+            if index >= 0 && index < this.Count - 1 then
+              result <- this.GetPairByIndexUnchecked(index + 1)
+              index + 1
+            elif index >= this.Count - 1 then
               -2
-            else //  it is the index of the first element that is larger than value
-              result <- this.GetPairByIndexUnchecked(index2)
-              index2
-      | Lookup.GE ->
-        let lc = if this.size > 0 then comparer.Compare(key, this.keys.[0]) else 2
-        if lc <= 0 then // key = first key or smaller than the first key
-          result <-  this.GetPairByIndexUnchecked(0)
-          0
-        else
-          let index = this.IndexOfKey(key)
-          if index >= 0 && index < this.Count then
-            result <-  this.GetPairByIndexUnchecked(index) // equal
-            index
+            else
+              let index2 = ~~~index
+              if index2 >= this.Count then // there are no elements larger than key
+                -2
+              else //  it is the index of the first element that is larger than value
+                result <- this.GetPairByIndexUnchecked(index2)
+                index2
+        | Lookup.GE ->
+          let lc = if this.size > 0 then comparer.Compare(key, this.keys.[0]) else 2
+          if lc <= 0 then // key = first key or smaller than the first key
+            result <-  this.GetPairByIndexUnchecked(0)
+            0
           else
-            let index2 = ~~~index
-            if index2 >= this.Count then // there are no elements larger than key
-              -2
-            else //  it is the index of the first element that is larger than value
-              result <-   this.GetPairByIndexUnchecked(index2)
-              index2
-      | _ -> raise (ApplicationException("Wrong lookup direction"))
+            let index = this.IndexOfKey(key)
+            if index >= 0 && index < this.Count then
+              result <-  this.GetPairByIndexUnchecked(index) // equal
+              index
+            else
+              let index2 = ~~~index
+              if index2 >= this.Count then // there are no elements larger than key
+                -2
+              else //  it is the index of the first element that is larger than value
+                result <-   this.GetPairByIndexUnchecked(index2)
+                index2
+        | _ -> raise (ApplicationException("Wrong lookup direction"))
     finally
       exitLockIf syncRoot entered
 
