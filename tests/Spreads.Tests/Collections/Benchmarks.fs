@@ -763,23 +763,23 @@ module CollectionsBenchmarks =
   [<TestCase(10000000)>]
   let SCM(count:int64) =
     let batchSize = 1024L //8192us
-    let shm = ref (SortedChunkedMap(SpreadsComparerInt64(batchSize)))
+    let shm = ref (SortedChunkedMap(SpreadsComparerInt64()))
 
     for i in 0..9 do
       shm := SortedChunkedMap()
-      perf count "SCM<Fake> Add" (fun _ ->
+      perf count "SCM<Auto> Add" (fun _ ->
         for i in 0L..count do
           shm.Value.Add(i, i)
       )
     for i in 0..9 do
-      perf count "SCM<Fake> Read" (fun _ ->
+      perf count "SCM<Auto> Read" (fun _ ->
         for i in 0L..count do
           let res = shm.Value.Item(i)
           if res <> i then failwith "SCM failed"
           ()
       )
     for i in 0..9 do
-      perf count "SCM<Fake> Iterate" (fun _ ->
+      perf count "SCM<Auto> Iterate" (fun _ ->
         for i in shm.Value do
           let res = i.Value
           if res <> i.Value then failwith "SCM failed"
@@ -787,7 +787,7 @@ module CollectionsBenchmarks =
       )
 
     for i in 0..9 do
-      shm := (SortedChunkedMap(SpreadsComparerInt64(batchSize)))
+      shm := SortedChunkedMap(SpreadsComparerInt64(), fun x -> x / 10240L)
       perf count "SCM<1024> Add" (fun _ ->
         for i in 0L..count do
           shm.Value.Add(i, i)
@@ -814,7 +814,7 @@ module CollectionsBenchmarks =
           if res <> Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L))) then failwith "SCM failed"
           ()
       )
-    shm := (SortedChunkedMap(SpreadsComparerInt64(batchSize)))
+    shm := (SortedChunkedMap(SpreadsComparerInt64()))
     let count = count / 10L
     perf count "SCM<1024> Add Reverse" (fun _ ->
       for i in 0L..count do

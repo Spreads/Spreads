@@ -54,8 +54,11 @@ type SortedMap<'K,'V when 'K : comparison>
   [<NonSerializedAttribute>]
   // This type is logically immutable. This field is only mutated during deserialization. 
   let mutable comparer : IComparer<'K> = 
-    if comparer.IsNone then Comparer<'K>.Default :> IComparer<'K> //LanguagePrimitives.FastGenericComparer
-    else comparer.Value
+    if comparer.IsNone || Comparer<'K>.Default.Equals(comparer.Value) then
+      let kc = KeyComparer.GetDefault<'K>()
+      if kc = Unchecked.defaultof<_> then Comparer<'K>.Default :> IComparer<'K> 
+      else kc :> IComparer<'K>
+    else comparer.Value // do not try to replace with KeyComparer if a comparer was given
   [<NonSerializedAttribute>]
   let isKeyReferenceType : bool = not typeof<'K>.IsValueType
   [<NonSerializedAttribute>]

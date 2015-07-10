@@ -22,7 +22,7 @@ open Spreads.Collections
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
 type SortedChunkedMap<'K,'V when 'K : comparison>
-  internal(outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>, comparer:IComparer<'K>) =
+  internal(outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>, comparer:IComparer<'K>, ?slicer:Func<'K,'K>) =
   inherit Series<'K,'V>()
 
   [<NonSerializedAttribute>]
@@ -40,26 +40,28 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
   let outerMap = outerFactory(comparer)
 
   [<NonSerializedAttribute>]
-  let keyComparer : IKeyComparer<'K> = 
-    match comparer with
-    | :? IKeyComparer<'K> as kc -> kc
-    | _ ->
-      // float[1000] will be in LOH, will need float buffer pool
-      // for DT/(float|decimal) 1000 irregular values are 16kb, must be compressed to less than 4kb (page size) but close to it, or a multiple (we lose all remainder to 4kb, so big chunks are efficient for storage)
-      // TODO measure typical compressed size of DT/(float|decimal) and adjust the upper limit
-      let chunkUpperLimit = 1000
-      match outerMap with
-//      | :? SortedMap<'K, SortedMap<'K,'V>> as sm -> 
-//        failwith "not implemented: here will be optimized lookup"
-      | _ as om ->
-      // Fake comparer
-      // For each key, lookup LE outer key. If the bucket with this key has size < UPPER, add 
-      // new values to this bucket. Else create a new bucket.
-      { new IKeyComparer<'K> with
-          member xx.Compare(x: 'K, y: 'K): int = comparer.Compare(x,y)
-          member xx.Diff(a,b) = invalidOp "Diff should not be used in SCM"
-          member xx.Add(a,diff) = invalidOp "Add should not be used in SCM"
-          member xx.Hash(k) = 
+  let slicer : IKeySlicer<'K> = 
+    match slicer with
+    | Some s -> 
+        { new IKeySlicer<'K> with
+          member x.Hash(k) = s.Invoke k
+        }
+    | None ->
+      { new IKeySlicer<'K> with
+          member x.Hash(k) =
+            // float[1000+] will be in LOH, will need float buffer pool
+            // for DT/(float|decimal) 1000 irregular values are 16kb, must be compressed to less than 4kb
+            // (page size) but close to it, or a multiple (we lose all remainder to 4kb, so big chunks are efficient for storage)
+            // TODO measure typical compressed size of DT/(float|decimal) and adjust the upper limit
+            // TODO measure when Yeppp et al. performance on batches stops increasing with batch size increase
+            let chunkUpperLimit = 1000
+            match outerMap with
+      //      | :? SortedMap<'K, SortedMap<'K,'V>> as sm -> 
+      //        failwith "not implemented: here will be optimized lookup"
+            | _ as om ->
+            // Fake comparer
+            // For each key, lookup LE outer key. If the bucket with this key has size < UPPER, add 
+            // new values to this bucket. Else create a new bucket.
               if om.IsEmpty then k
               else
                 let ok,kvp = om.TryFind(k, Lookup.LE)
@@ -69,6 +71,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
                   else kvp.Value.keys.[0]
                 else k
       }
+      
 
   [<OnDeserialized>]
   member private this.Init(context:StreamingContext) =
@@ -94,11 +97,11 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
   // 
   member this.Item 
     with get key =
-      let hash = keyComparer.Hash(key)
+      let hash = slicer.Hash(key)
       let subKey = key
       let entered = enterLockIf this.SyncRoot this.IsSynchronized
       try
-        let c = keyComparer.Compare(hash, prevHash)
+        let c = comparer.Compare(hash, prevHash)
         if c = 0 && prevBucketIsSet then
           prevBucket.[subKey] // this could raise keynotfound exeption
         else
@@ -115,11 +118,11 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
       finally
           exitLockIf this.SyncRoot entered
     and set key value =
-      let hash = keyComparer.Hash(key)
+      let hash = slicer.Hash(key)
       let subKey = key
       let entered = enterLockIf this.SyncRoot this.IsSynchronized
       try
-        let c = keyComparer.Compare(hash, prevHash)
+        let c = comparer.Compare(hash, prevHash)
         if c = 0 && prevBucketIsSet then // avoid generic equality and null compare
           let s1 = prevBucket.size
           prevBucket.[subKey] <- value
@@ -247,9 +250,9 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
       override p.MoveAt(key:'K, direction:Lookup) = 
         let entered = enterLockIf this.SyncRoot this.IsSynchronized
         try
-          let newHash = keyComparer.Hash(key)
+          let newHash = slicer.Hash(key)
           let newSubIdx = key
-          let c = keyComparer.Compare(newHash, outer.Value.CurrentKey)
+          let c = comparer.Compare(newHash, outer.Value.CurrentKey)
           let res =
             if c <> 0 || !isReset then // not in the current bucket, switch bucket
               if outer.Value.MoveAt(newHash, Lookup.EQ) then // Equal!
@@ -363,9 +366,9 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     try
       result <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
         
-      let hash = keyComparer.Hash(key)
+      let hash = slicer.Hash(key)
       let subKey = key
-      let c = keyComparer.Compare(hash, prevHash)
+      let c = comparer.Compare(hash, prevHash)
 
       let res, pair =
         if c <> 0 || (not prevBucketIsSet) then // not in the prev bucket, switch bucket to newHash
@@ -438,12 +441,12 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
       false
 
   member this.Add(key, value):unit =
-    let hash = keyComparer.Hash(key)
+    let hash = slicer.Hash(key)
     let subKey = key
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
       // the most common scenario is to hit the previous bucket 
-      if prevBucketIsSet && keyComparer.Compare(hash, prevHash) = 0 then
+      if prevBucketIsSet && comparer.Compare(hash, prevHash) = 0 then
         prevBucket.Add(subKey, value)
         size <- size + 1L
       else
@@ -468,15 +471,15 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
 
   // TODO add last to empty fails
   member this.AddLast(key, value):unit =
-    let hash = keyComparer.Hash(key)
+    let hash = slicer.Hash(key)
     let subKey = key
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
       let c =
         if outerMap.Count = 0L then 1
-        else keyComparer.Compare(hash, outerMap.Last.Key)
+        else comparer.Compare(hash, outerMap.Last.Key)
       if c = 0 then // last existing bucket
-        if prevBucketIsSet && keyComparer.Compare(hash, prevHash) <> 0 then // switching from previous bucket
+        if prevBucketIsSet && comparer.Compare(hash, prevHash) <> 0 then // switching from previous bucket
           prevBucket.Capacity <- prevBucket.Count // trim excess
           outerMap.[prevHash]<- prevBucket
         let sm = outerMap.Last.Value
@@ -505,15 +508,15 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
 
 
   member this.AddFirst(key, value):unit =
-    let hash = keyComparer.Hash(key)
+    let hash = slicer.Hash(key)
     let subKey = key
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
       let c = 
         if outerMap.IsEmpty then -1
-        else keyComparer.Compare(hash, outerMap.First.Key) // avoid generic equality and null compare
+        else comparer.Compare(hash, outerMap.First.Key) // avoid generic equality and null compare
       if c = 0 then // first existing bucket
-        if prevBucketIsSet && keyComparer.Compare(hash, prevHash) <> 0 then // switching from previous bucket
+        if prevBucketIsSet && comparer.Compare(hash, prevHash) <> 0 then // switching from previous bucket
           prevBucket.Capacity <- prevBucket.Count // trim excess
           outerMap.[prevHash]<- prevBucket
         let sm = outerMap.First.Value
@@ -545,9 +548,9 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
   member this.Remove(key):bool =
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
-      let hash = keyComparer.Hash(key)
+      let hash = slicer.Hash(key)
       let subKey = key          
-      let c = keyComparer.Compare(hash, prevHash)
+      let c = comparer.Compare(hash, prevHash)
       if c = 0 && prevBucketIsSet then
         let res = prevBucket.Remove(subKey)
         if res then size <- size - 1L
@@ -601,28 +604,28 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
       | Lookup.EQ -> 
         this.Remove(key)
       | Lookup.LT | Lookup.LE ->
-        let hash = keyComparer.Hash(key)
+        let hash = slicer.Hash(key)
         let subKey = key
         let hasPivot, pivot = this.TryFind(key, direction)
         if hasPivot then
           outerMap.RemoveMany(hash, Lookup.LT)  // strictly LT
           outerMap.First.Value.RemoveMany(subKey, direction) // same direction
         else 
-          let c = keyComparer.Compare(key, this.Last.Key)
+          let c = comparer.Compare(key, this.Last.Key)
           if c > 0 then // remove all keys
             this.Clear()
             true
           elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
           else false
       | Lookup.GT | Lookup.GE ->
-        let hash = keyComparer.Hash(key)
+        let hash = slicer.Hash(key)
         let subKey = key
         let hasPivot, pivot = this.TryFind(key, direction)
         if hasPivot then
           outerMap.RemoveMany(hash, Lookup.GT)  // strictly GT
           outerMap.First.Value.RemoveMany(subKey, direction) // same direction
         else 
-          let c = keyComparer.Compare(key, this.First.Key)
+          let c = comparer.Compare(key, this.First.Key)
           if c < 0 then // remove all keys
             this.Clear()
             true
@@ -719,7 +722,18 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
   new(comparer:IComparer<'K>) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
     SortedChunkedMap(factory, comparer)
-    
+
+  /// In-memory sorted chunked map
+  new(slicer:Func<'K,'K>) = 
+    let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
+    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+    SortedChunkedMap(factory, comparer, slicer)
+
+  /// In-memory sorted chunked map
+  new(comparer:IComparer<'K>,slicer:Func<'K,'K>) = 
+    let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
+    SortedChunkedMap(factory, comparer, slicer)
+
   new() = 
     let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)

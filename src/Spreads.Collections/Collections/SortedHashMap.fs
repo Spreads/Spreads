@@ -15,12 +15,38 @@ open Spreads.Collections
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
 type SortedHashMap<'K,'V when 'K : comparison>
-  internal(spreadsComparer:IKeyComparer<'K>) =
+  internal(spreadsComparer:IKeyComparer<'K>,?slicer:'K->'K) =
   inherit Series<'K,'V>()
   let comparer : IKeyComparer<'K> = spreadsComparer
 
   // TODO replace outer with MapDeque, see comments in MapDeque.fs
   let outerMap = SortedMap<'K, SortedMap<'K,'V>>(comparer)
+
+  [<NonSerializedAttribute>]
+  let slicer : 'K -> 'K = 
+    match slicer with
+    | Some s -> s
+    | None ->
+      // float[1000] will be in LOH, will need float buffer pool
+      // for DT/(float|decimal) 1000 irregular values are 16kb, must be compressed to less than 4kb (page size) but close to it, or a multiple (we lose all remainder to 4kb, so big chunks are efficient for storage)
+      // TODO measure typical compressed size of DT/(float|decimal) and adjust the upper limit
+      let chunkUpperLimit = 1000
+      match outerMap with
+//      | :? SortedMap<'K, SortedMap<'K,'V>> as sm -> 
+//        failwith "not implemented: here will be optimized lookup"
+      | _ as om ->
+      // Fake comparer
+      // For each key, lookup LE outer key. If the bucket with this key has size < UPPER, add 
+      // new values to this bucket. Else create a new bucket.
+      fun k ->
+        if om.IsEmpty then k
+        else
+          let ok,kvp = om.TryFind(k, Lookup.LE)
+          if ok then
+            // k is larger than the last key and the chunk is big enough
+            if comparer.Compare(k,kvp.Value.Last.Key) > 0 && kvp.Value.size >= chunkUpperLimit then k
+            else kvp.Value.keys.[0]
+          else k
 
   [<NonSerializedAttribute>]
   let mutable size = 0L
@@ -58,7 +84,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
   // 
   member this.Item 
     with get key =
-      let hash = comparer.Hash(key)
+      let hash = slicer(key)
       let subKey = key
       let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
       try
@@ -80,7 +106,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
       finally
           exitLockIf this.SyncRoot entered
     and set key value =
-      let hash = comparer.Hash(key)
+      let hash = slicer(key)
       let subKey = key
       let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
       try
@@ -204,7 +230,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
       override p.MoveAt(key:'K, direction:Lookup) = 
         let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
         try
-          let newHash = comparer.Hash(key)
+          let newHash = slicer(key)
           let newSubIdx = key
           let c = comparer.Compare(newHash, outer.Value.CurrentKey)
           let res =
@@ -294,7 +320,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
   member internal this.TryFindWithIndex(key:'K,direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>, ?hint:(int*int)) : int*int =
     let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
     try
-      let hash = comparer.Hash(key)
+      let hash = slicer(key)
       let subKey = key
       let hintWorked =
         // when we will be getting rows from a panel in most of the cases indexes in columns will match
@@ -362,7 +388,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
     try
       result <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
         
-      let hash = comparer.Hash(key)
+      let hash = slicer(key)
       let subKey = key
       let c = comparer.Compare(hash, prevHash)
 
@@ -438,7 +464,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
       false
 
   member this.Add(key, value):unit =
-    let hash = comparer.Hash(key)
+    let hash = slicer(key)
     let subKey = key
     let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
     try
@@ -467,7 +493,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
 
   // TODO add last to empty fails
   member this.AddLast(key, value):unit =
-    let hash = comparer.Hash(key)
+    let hash = slicer(key)
     let subKey = key
     let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
     try
@@ -502,7 +528,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
 
 
   member this.AddFirst(key, value):unit =
-    let hash = comparer.Hash(key)
+    let hash = slicer(key)
     let subKey = key
     let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
     try
@@ -543,7 +569,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
   member this.Remove(key):bool =
     let entered = enterLockIf this.SyncRoot outerMap.IsSynchronized
     try
-      let hash = comparer.Hash(key)
+      let hash = slicer(key)
       let subKey = key          
       let c = comparer.Compare(hash, prevHash)
       if c = 0 && prevBucketIsSet then
@@ -596,7 +622,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
       | Lookup.EQ -> 
         this.Remove(key)
       | Lookup.LT | Lookup.LE ->
-        let hash = comparer.Hash(key)
+        let hash = slicer(key)
         let subKey = key
         let hasPivot, pivot = this.TryFind(key, direction)
         if hasPivot then
@@ -610,7 +636,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
           elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
           else false
       | Lookup.GT | Lookup.GE ->
-        let hash = comparer.Hash(key)
+        let hash = slicer(key)
         let subKey = key
         let hasPivot, pivot = this.TryFind(key, direction)
         if hasPivot then
