@@ -21,7 +21,13 @@ type internal OptimizationSettings() =
   static member val UseNativeOptimizations = false with get, set
   /// Minimum array length for which we could native optimization (when p/invoke cost becomes less than gains from vectorized calcs)
   static member val MinVectorLength = 100 with get, set
-
+  /// 
+  static member val ArrayPool = 
+    {new IArrayPool with
+        member x.ReturnBuffer(arg1: 'T []): unit = ()       
+        member x.TakeBuffer<'T>(size) = Array.zeroCreate<'T> size
+        member x.Clear(): unit = ()
+    } with get, set
 
 // It is tempting to use ILinearAlgebraProvider from MathNet.Numerics, but there are not so many members to wrap around it;
 // avoid external binary dependencies in this project

@@ -158,7 +158,11 @@ and
     abstract TryGetLast: [<Out>] value: byref<KVP<'K, 'V>> -> bool
     /// See ICursor.TryGetValue comment for the behavior of continuous series.
     abstract TryGetValue: key:'K * [<Out>] value: byref<'V> -> bool
-
+    // TODO GetRange depends on implementation and should be a part of this interface 
+    // and not only an extension. It could be implemented in the base class via cursor extension
+    // for all in-memory map implementations, but for IO-bound implementations chatty
+    // MoveNext is not good, while MoveNextBatch is for another purpose
+    // Another option is to preload next values in IO-bound implementations in some predictive way
 
 
 // Main differences between immutable and mutable ordered maps:
@@ -217,7 +221,7 @@ type IImmutableOrderedMap<'K,'V when 'K : comparison> =
   abstract RemoveLast: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> IImmutableOrderedMap<'K,'V>
   abstract RemoveFirst: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> IImmutableOrderedMap<'K,'V>
   abstract RemoveMany: k:'K * direction:Lookup -> IImmutableOrderedMap<'K,'V>
-
+  // not much sense to have a separate append method for immutable maps
 
 
 // Types are good, do not drop them. Use marker interfaces only if they really help to achieve something
@@ -302,7 +306,9 @@ type Panel<'TRowKey,'TColumnKey, 'TValue when 'TRowKey: comparison and 'TColumnK
 
 /// Generic array pool
 type IArrayPool =
-  /// Return a 'T array at least of minimum size
-  abstract Acquire<'T> : minSize:int -> 'T[]
+  /// Return a 'T array of bufferSize
+  abstract TakeBuffer<'T> : bufferSize:int -> 'T[]
   /// Return an array to the pool
-  abstract Return<'T> : 'T[] -> unit
+  abstract ReturnBuffer<'T> : 'T[] -> unit
+  /// Clear the entire pool
+  abstract Clear: unit -> unit
