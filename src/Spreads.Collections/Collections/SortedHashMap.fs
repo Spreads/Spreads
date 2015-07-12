@@ -664,6 +664,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
    
 
   interface IReadOnlyOrderedMap<'K,'V> with
+    member this.Comparer with get() = comparer :> IComparer<'K>
     member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
     member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.IsEmpty

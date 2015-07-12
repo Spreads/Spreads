@@ -9,7 +9,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>Spreads.Collections</RootNamespace>
     <AssemblyName>Spreads.Collections</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <TargetFSharpCoreVersion>4.3.1.0</TargetFSharpCoreVersion>
     <Name>Spreads.Collections</Name>
     <TargetFrameworkProfile />
@@ -73,7 +73,6 @@
     <Compile Include="Interfaces.fs" />
     <Compile Include="MathProvider.fs" />
     <Compile Include="KeyComparer.fs" />
-    <Compile Include="Serializer.fs" />
     <Compile Include="MapCursor.fs" />
     <Compile Include="Utils.fs" />
     <Compile Include="CursorBind.fs" />
@@ -102,13 +101,14 @@
     <Compile Include="ObjectPool.fs" />
     <Compile Include="CursorSeries.fs" />
     <Compile Include="SlowStupidCursor.fs" />
-    <None Include="packages.config" />
     <None Include="Script1.fsx" />
     <Compile Include="MathProviderImpl.fs" />
     <Compile Include="Spreads.Series.2.fs" />
+    <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="FSharp.Core, Version=4.3.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <Reference Include="FSharp.Core">
+      <HintPath>..\..\packages\FSharp.Core.3.1.2.1\lib\net40\FSharp.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="mscorlib" />

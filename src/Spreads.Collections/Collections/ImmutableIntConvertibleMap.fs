@@ -59,6 +59,7 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
 
 
     interface IImmutableOrderedMap<'K, 'V> with
+        member this.Comparer with get() = (this :> IImmutableOrderedMap<'K, 'V>).GetCursor().Comparer
         member this.GetEnumerator() = new MapCursor<'K, 'V>(this) :> IAsyncEnumerator<KVP<'K, 'V>>
         member this.GetCursor() = new MapCursor<'K, 'V>(this) :> ICursor<'K, 'V>
         member this.IsEmpty = map.IsEmpty

@@ -15,9 +15,9 @@ type MathProviderImpl() =
       match batch with
       | :? SortedMap<'K,'V> as sm -> 
         if sm.size > 0 then
-          let values2 = Array.map mapF sm.values // TODO what if values are reference types and capacity > size, could throw on nulls
+          let values2 = Array.Parallel.map mapF sm.values // TODO what if values are reference types and capacity > size, could throw on nulls
           let keys2 = Array.copy sm.keys
-          let sm2 = SortedMap.OfSortedKeysAndValues(keys2, values2, sm.size, sm.Comparer, false)
+          let sm2 = SortedMap.OfSortedKeysAndValues(keys2, values2, sm.size, sm.Comparer, false, sm.IsRegular)
           value <- sm2 :> IReadOnlyOrderedMap<'K,'V2>
           true
         else false

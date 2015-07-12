@@ -24,7 +24,7 @@ open Spreads.Collections
 type SortedChunkedMap<'K,'V when 'K : comparison>
   (outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>, comparer:IComparer<'K>, slicer:Func<'K,'K> opt) =
   inherit Series<'K,'V>()
-
+  // TODO serialize size, add a method to calculate size based on outerMap only
   [<NonSerializedAttribute>]
   let mutable size = 0L
   [<NonSerializedAttribute>]
@@ -49,7 +49,8 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     | OptionalValue.Missing ->
       { new IKeySlicer<'K> with
           member x.Hash(k) =
-            // float[1000+] will be in LOH, will need float buffer pool
+            // on x64, limit for LOH is the same 85kb for float[] (e.g. 10000+)
+            // on x86, float[1000+] will be in LOH, will need float buffer pool
             // for DT/(float|decimal) 1000 irregular values are 16kb, must be compressed to less than 4kb
             // (page size) but close to it, or a multiple (we lose all remainder to 4kb, so big chunks are efficient for storage)
             // TODO measure typical compressed size of DT/(float|decimal) and adjust the upper limit
@@ -130,7 +131,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
           size <- size + int64(s2 - s1)
         else
           if prevBucketIsSet then
-            prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
+            //prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
             outerMap.[prevHash] <- prevBucket // will store bucket if outer is persistent
           let bucket = 
             let ok, bucketKvp = outerMap.TryFind(hash, Lookup.EQ)
@@ -180,7 +181,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
       if prevBucketIsSet then
-        prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
+        //prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
         outerMap.[prevHash] <- prevBucket
     finally
       exitLockIf this.SyncRoot entered
@@ -460,7 +461,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         size <- size + 1L
       else
         if prevBucketIsSet then
-          prevBucket.Capacity <- prevBucket.Count // trim excess
+          //prevBucket.Capacity <- prevBucket.Count // trim excess
           outerMap.[prevHash]<- prevBucket
         let bucket = 
           let ok, bucketKvp = outerMap.TryFind(hash, Lookup.EQ)
@@ -489,7 +490,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         else comparer.Compare(hash, outerMap.Last.Key)
       if c = 0 then // last existing bucket
         if prevBucketIsSet && comparer.Compare(hash, prevHash) <> 0 then // switching from previous bucket
-          prevBucket.Capacity <- prevBucket.Count // trim excess
+          //prevBucket.Capacity <- prevBucket.Count // trim excess
           outerMap.[prevHash]<- prevBucket
         let sm = outerMap.Last.Value
         sm.AddLast(subKey, value)
@@ -500,7 +501,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         prevBucketIsSet <- true
       elif c > 0 then // have to create new bucket for the value
         if prevBucketIsSet then
-          prevBucket.Capacity <- prevBucket.Count // trim excess
+          //prevBucket.Capacity <- prevBucket.Count // trim excess
           outerMap.[prevHash]<- prevBucket
         let bucket = 
             let newSm = SortedMap(comparer)
@@ -526,7 +527,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         else comparer.Compare(hash, outerMap.First.Key) // avoid generic equality and null compare
       if c = 0 then // first existing bucket
         if prevBucketIsSet && comparer.Compare(hash, prevHash) <> 0 then // switching from previous bucket
-          prevBucket.Capacity <- prevBucket.Count // trim excess
+          //prevBucket.Capacity <- prevBucket.Count // trim excess
           outerMap.[prevHash]<- prevBucket
         let sm = outerMap.First.Value
         sm.AddFirst(subKey, value)
@@ -566,7 +567,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         res
       else
         if prevBucketIsSet then 
-          prevBucket.Capacity <- prevBucket.Count // trim excess 
+          //prevBucket.Capacity <- prevBucket.Count // trim excess 
           outerMap.[prevHash]<- prevBucket
         let ok, innerMapKvp = outerMap.TryFind(hash, Lookup.EQ) //.TryGetValue(newHash)
         if ok then 
@@ -646,7 +647,26 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     finally
       exitLockIf this.SyncRoot entered
 
-  member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) =
+  member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) : int =
+    let hasEqOverlap (old:IReadOnlyOrderedMap<'K,'V>) (append:IReadOnlyOrderedMap<'K,'V>) : bool =
+      if comparer.Compare(append.First.Key, old.Last.Key) > 0 then false
+      else
+        let oldC = old.GetCursor()
+        let appC = append.GetCursor();
+        let mutable cont = true
+        let mutable overlapOk = 
+          oldC.MoveAt(append.First.Key, Lookup.EQ) 
+            && appC.MoveFirst() 
+            && oldC.CurrentKey = appC.CurrentKey
+            && Unchecked.equals oldC.CurrentValue appC.CurrentValue
+        while overlapOk && cont do
+          if oldC.MoveNext() then
+            overlapOk <-
+              appC.MoveNext() 
+              && oldC.CurrentKey = appC.CurrentKey
+              && Unchecked.equals oldC.CurrentValue appC.CurrentValue
+          else cont <- false
+        overlapOk
     if appendMap.IsEmpty then
       0
     else
@@ -668,7 +688,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
               c <- c + 1
               this.AddLast(i.Key, i.Value)
             c
-          else 
+          else
             let removed = this.RemoveMany(appendMap.First.Key, Lookup.GE)
             Debug.Assert(removed)
             let mutable c = 0
@@ -683,8 +703,41 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
               c <- c + 1
               this.AddLast(i.Key, i.Value)
             c
-          else 
-            raise (NotImplementedException("TODO append impl"))
+          else
+            let isEqOverlap = hasEqOverlap this appendMap
+            if isEqOverlap then
+              let appC = appendMap.GetCursor();
+              if appC.MoveAt(this.Last.Key, Lookup.GT) then
+                this.AddLast(appC.CurrentKey, appC.CurrentValue)
+                let mutable c = 1
+                while appC.MoveNext() do
+                  this.AddLast(appC.CurrentKey, appC.CurrentValue)
+                  c <- c + 1
+                c
+              else 0
+            else invalidOp "overlapping values are not equal" // TODO unit test
+        | AppendOption.RequireEqualOverlap ->
+          if this.IsEmpty then
+            let mutable c = 0
+            for i in appendMap do
+              c <- c + 1
+              this.AddLast(i.Key, i.Value)
+            c
+          elif comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+            invalidOp "values do not overlap with existing"
+          else
+            let isEqOverlap = hasEqOverlap this appendMap
+            if isEqOverlap then
+              let appC = appendMap.GetCursor();
+              if appC.MoveAt(this.Last.Key, Lookup.GT) then
+                this.AddLast(appC.CurrentKey, appC.CurrentValue)
+                let mutable c = 1
+                while appC.MoveNext() do
+                  this.AddLast(appC.CurrentKey, appC.CurrentValue)
+                  c <- c + 1
+                c
+              else 0
+            else invalidOp "overlapping values are not equal" // TODO unit test
         | _ -> failwith "Unknown AppendOption"
       finally
         exitLockIf this.SyncRoot entered
@@ -701,6 +754,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
    
 
   interface IReadOnlyOrderedMap<'K,'V> with
+    member this.Comparer with get() = comparer
     member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
     member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.IsEmpty
@@ -770,12 +824,12 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
 
   
   new(outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>,comparer:IComparer<'K>) = 
-    SortedChunkedMap(outerFactory, comparer)
+    SortedChunkedMap(outerFactory, comparer, OptionalValue.Missing)
 
   /// In-memory sorted chunked map
   new(comparer:IComparer<'K>) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
-    SortedChunkedMap(factory, comparer)
+    SortedChunkedMap(factory, comparer, OptionalValue.Missing)
 
   new(outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>,slicer:Func<'K,'K>) = 
     let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
@@ -791,11 +845,11 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     SortedChunkedMap(outerFactory, comparer, OptionalValue(slicer))
 
   /// In-memory sorted chunked map
-  new(comparer:IComparer<'K>,slicer:Func<'K,'K>) = 
+  internal new(comparer:IComparer<'K>,slicer:Func<'K,'K>) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
     SortedChunkedMap(factory, comparer, OptionalValue(slicer))
 
   new() = 
     let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
-    SortedChunkedMap(factory, comparer)
+    SortedChunkedMap(factory, comparer, OptionalValue.Missing)

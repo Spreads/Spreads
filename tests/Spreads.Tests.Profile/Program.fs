@@ -19,7 +19,7 @@ let perf (count:int64) (message:string) (f:unit -> unit) : unit = // int * int =
   //int p, int((endtMem - startMem)/1024L)
   Console.WriteLine(message + ", #{0}, ops: {1}, mem/item: {2}", 
     count.ToString(), p.ToString(), ((endtMem - startMem)/count).ToString())
-  Console.WriteLine("Elapsed ms: " + sw.ElapsedMilliseconds.ToString())
+  //Console.WriteLine("Elapsed ms: " + sw.ElapsedMilliseconds.ToString())
 let rng = Random()
 
 [<CustomComparison;CustomEquality>]
@@ -50,6 +50,7 @@ type TestStruct =
 
 [<EntryPoint>]
 let main argv = 
+
   let count = 1000000L
   let dc : IKeyComparer<int64> = SpreadsComparerInt64() :> IKeyComparer<int64> 
 
@@ -57,21 +58,59 @@ let main argv =
   for i in 0L..count do
     smap.Value.Add(i, i)
 
-  for i in 0..19 do
-      let mutable res = 0L
+  
+
+
+  for i in 0..99 do
+    let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
+    perf count "SortedMapRegular Add Double GC" (fun _ ->
+      for i in 0L..count do
+        sdf.Value.Add(i, double i)
+    )
+
+//    perf count "SortedMapRegular Iterate" (fun _ ->
+//        for i in smap.Value do
+//          let res = i.Value
+//          ()
+//      )
+//    perf count "SortedMapRegular Read" (fun _ ->
+//      for i in 0L..count do
+//        let res = smap.Value.Item(i)
+//        if res <> i then failwith "SortedMap failed"
+//        ()
+//    )
+
+//    perf count "SortedMapRegular Read as RO" (fun _ ->
+//      let ro = smap.Value.ReadOnly() :> IReadOnlyOrderedMap<int64,int64>
+//      for i in 0L..count do
+//        let res = ro.Item(i)
+//        if res <> i then failwith "SortedMap failed"
+//        ()
+//    )
+//
+  OptimizationSettings.ArrayPool <- DoubleArrayPool()
+
+  for i in 0..99 do
+    let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
+    perf count "SortedMapRegular Add Double Pool" (fun _ ->
+      for i in 0L..count do
+        sdf.Value.Add(i, double i)
+    )
+
+  //    let mutable res = 0L
 //      perf count "SMR Iterate as RO+AddWithBind" (fun _ ->
 //        let ro = smap.Value.ReadOnly().Add(123456L) :> IReadOnlyOrderedMap<int64,int64>
 //        for i in ro do
 //          res <- i.Value
 //          ()
 //      )
-      perf count "SMR Iterate with Zip" (fun _ ->
-        let ro = (((smap.Value.ReadOnly().Zip(smap.Value, fun v v2 -> v + v2)))):> IReadOnlyOrderedMap<int64,int64>
-        for i in ro do
-          let res = i.Value
-          ()
-      )
-      Console.WriteLine(res)
+      //perf count "SMR Iterate with Zip" (fun _ ->
+//      let ro = (((smap.Value.Zip(smap.Value, fun v v2 -> v + v2)))) :> IReadOnlyOrderedMap<int64,int64>
+//      for i in ro do
+//        let res = i.Value
+//        ()
+//      //)
+//      Console.WriteLine(res)
 //  for i in 0..4 do
 //    perf 10000000L "Sequence expression" (fun _ ->
 //      let newVector = [| 

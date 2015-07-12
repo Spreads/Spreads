@@ -86,6 +86,7 @@ and
   ICursor<'K,'V when 'K : comparison> =
     inherit IEnumerator<KVP<'K, 'V>>
     inherit IAsyncEnumerator<KVP<'K, 'V>>
+    abstract Comparer: IComparer<'K> with get
     /// Puts the cursor to the position according to LookupDirection
     abstract MoveAt: index:'K * direction:Lookup -> bool
     abstract MoveFirst: unit -> bool
@@ -141,6 +142,7 @@ and
     //inherit IReadOnlyDictionary<'K,'V>
     /// True if this.size = 0
     abstract IsEmpty: bool with get
+    abstract Comparer: IComparer<'K> with get
     /// First element, throws InvalidOperationException if empty
     abstract First : KVP<'K, 'V> with get
     /// Last element, throws InvalidOperationException if empty
@@ -297,18 +299,18 @@ type Panel<'TRowKey,'TColumnKey, 'TValue when 'TRowKey: comparison and 'TColumnK
 
 
 
-// Initial thoughts
-// First, implement via GC, then any other implementation must confirm any gain via some test benchmark
-// Second, most of the buffer are doubles less than half of L1 cache. Ideally, one or two buffers per
-// core will suffice, but ThreadLocal will work per thread and there could be many threads in the thread pool.
-// Use powers of 2 and SortedMap of stacks, so that the most recently returned buffer is taken next.
-// In most cases the same thread will pick up what it will has released just before.
-
 /// Generic array pool
 type IArrayPool =
-  /// Return a 'T array of bufferSize
-  abstract TakeBuffer<'T> : bufferSize:int -> 'T[]
+  /// Return a 'T array of bufferCount
+  abstract TakeBuffer<'T> : bufferCount:int -> 'T[]
   /// Return an array to the pool
   abstract ReturnBuffer<'T> : 'T[] -> unit
   /// Clear the entire pool
   abstract Clear: unit -> unit
+
+
+type ISerializer =
+  abstract Serialize: 'T -> byte[]
+  abstract Serialize: obj -> byte[]
+  abstract Deserialize: byte[] -> 'T
+  abstract Deserialize: byte[] * System.Type -> obj

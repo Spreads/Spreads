@@ -36,7 +36,7 @@ open Spreads.Collections
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
 type SortedMap<'K,'V when 'K : comparison>
-  internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparer:IComparer<'K> option) as this=
+  internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
   inherit Series<'K,'V>()
 
   //#region Main internal constructor
@@ -54,11 +54,11 @@ type SortedMap<'K,'V when 'K : comparison>
   [<NonSerializedAttribute>]
   // This type is logically immutable. This field is only mutated during deserialization. 
   let mutable comparer : IComparer<'K> = 
-    if comparer.IsNone || Comparer<'K>.Default.Equals(comparer.Value) then
+    if comparerOpt.IsNone || Comparer<'K>.Default.Equals(comparerOpt.Value) then
       let kc = KeyComparer.GetDefault<'K>()
       if kc = Unchecked.defaultof<_> then Comparer<'K>.Default :> IComparer<'K> 
-      else kc :> IComparer<'K>
-    else comparer.Value // do not try to replace with KeyComparer if a comparer was given
+      else kc
+    else comparerOpt.Value // do not try to replace with KeyComparer if a comparer was given
   [<NonSerializedAttribute>]
   let isKeyReferenceType : bool = not typeof<'K>.IsValueType
   [<NonSerializedAttribute>]
@@ -97,9 +97,12 @@ type SortedMap<'K,'V when 'K : comparison>
   let rkIndexOfKey (key:'K) : int =
     Debug.Assert(this.size > 1)
     // TODO this doesn't work for LT/LE/GT/GE TryFind
+
     let diff = diffCalc.Diff(key, this.keys.[0])
-    let modIsOk = diff % rkGetStep() = 0L
-    let idx : int = int (diff/rkGetStep())
+    let step = rkGetStep()
+    let idxL : int64 = (diff / step)
+    let modIsOk = (diff - step * idxL) = 0L
+    let idx = int idxL
 //    https://msdn.microsoft.com/en-us/library/2cy9f6wb(v=vs.110).aspx
 //    The index of the specified value in the specified array, if value is found.
 //    If value is not found and value is less than one or more elements in array, 
@@ -122,10 +125,10 @@ type SortedMap<'K,'V when 'K : comparison>
 
   do
     let tempCap = if capacity.IsSome then capacity.Value else 1
-    this.keys <- Array.zeroCreate (if couldHaveRegularKeys then 2 else tempCap) // regular keys are the first and the second value, their diff is the step
-    this.values <- Array.zeroCreate tempCap
+    this.keys <- OptimizationSettings.ArrayPool.TakeBuffer (if couldHaveRegularKeys then 2 else tempCap) // regular keys are the first and the second value, their diff is the step
+    this.values <- OptimizationSettings.ArrayPool.TakeBuffer tempCap
 
-    if dictionary.IsSome then
+    if dictionary.IsSome && dictionary.Value.Count > 0 then
       match dictionary.Value with
       | :? SortedMap<'K,'V> as map ->
         let entered = enterLockIf map.SyncRoot map.IsSynchronized
@@ -244,23 +247,29 @@ type SortedMap<'K,'V when 'K : comparison>
     // treat sizes 1,2(after insertion) as non-regular because they are always both regular and not 
     if couldHaveRegularKeys then
       if this.size > 1 then
-        let diff = diffCalc.Diff(k, this.keys.[0])
         let step = rkGetStep()
-        let idx : int = int (diff / step)
-        let modIsOk = diff % step = 0L
-        if modIsOk && idx = -1 then
+        if comparer.Compare(diffCalc.Add(rkLast, step), k) = 0 then
+          // adding next regular, only rkLast changes
+          rkLast <- k
+        elif comparer.Compare(diffCalc.Add(this.keys.[0], -step), k) = 0 then
           this.keys.[1] <- this.keys.[0]
           this.keys.[0] <- k // change first key and size++ at the bottom
           //rkLast is unchanged
-        elif modIsOk && idx = this.size then 
-          rkLast <- diffCalc.Add(this.keys.[0], (int64 this.size) * step) // do not subtract -1 from size because size++ happens at the end 
-        elif modIsOk && idx > -1 && idx < this.size then
-          // error for regular keys, this means we insert existing key
-          raise (new ApplicationException("Existing key check must be done before insert"))
         else
-          // insertting more than 1 away from end or before start, with a hole
-          this.keys <- rkMaterialize() 
-          couldHaveRegularKeys <- false
+          let diff = diffCalc.Diff(k, this.keys.[0])
+//          let mutable rem = 0L
+//          let idxL : int64 = Math.DivRem(diff, step, &rem) //(diff / step)
+//          let modIsOk = rem = 0L // (diff - step * idxL) = 0L
+          let idxL : int64 = (diff / step)
+          let modIsOk = (diff - step * idxL) = 0L // gives 13% boost for add compared to diff % step
+          let idx = int idxL 
+          if modIsOk && idx > -1 && idx < this.size then
+            // error for regular keys, this means we insert existing key
+            raise (new ApplicationException("Existing key check must be done before insert"))
+          else
+            // insertting more than 1 away from end or before start, with a hole
+            this.keys <- rkMaterialize() 
+            couldHaveRegularKeys <- false
       else
         if index < this.size then
           Array.Copy(this.keys, index, this.keys, index + 1, this.size - index);
@@ -315,13 +324,18 @@ type SortedMap<'K,'V when 'K : comparison>
           if couldHaveRegularKeys then
             Debug.Assert(this.keys.Length = 2)
           else
-            let kArr : 'K array = Array.zeroCreate c
+            let kArr : 'K array = OptimizationSettings.ArrayPool.TakeBuffer(c)
             Array.Copy(this.keys, 0, kArr, 0, this.size)
+            let toReturn = this.keys
             this.keys <- kArr
+            OptimizationSettings.ArrayPool.ReturnBuffer(toReturn)
+            
 
-          let vArr : 'V array = Array.zeroCreate c
+          let vArr : 'V array = OptimizationSettings.ArrayPool.TakeBuffer(c)
           Array.Copy(this.values, 0, vArr, 0, this.size)
+          let toReturn = this.values
           this.values <- vArr
+          OptimizationSettings.ArrayPool.ReturnBuffer(toReturn)
         | _ -> ()
       finally
         exitLockIf syncRoot entered
@@ -484,7 +498,7 @@ type SortedMap<'K,'V when 'K : comparison>
   member this.Last
     with get() =
       if this.size = 0 then raise (InvalidOperationException("Could not get the last element of an empty map"))
-      if couldHaveRegularKeys then 
+      if couldHaveRegularKeys && this.size > 1 then 
         Debug.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (int64 (this.size-1))*rkGetStep())) = 0)
         KeyValuePair(rkLast, this.values.[this.size - 1])
       else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
@@ -919,7 +933,7 @@ type SortedMap<'K,'V when 'K : comparison>
       override p.Clone() = this.GetCursor(!index,!cursorVersion,!currentKey,!currentValue)
       override p.Current with get() = KeyValuePair(currentKey.Value, currentValue.Value)
       override p.MoveNext() = 
-        let entered = enterLockIf syncRoot  isSynchronized
+        let entered = enterLockIf syncRoot isSynchronized
         try
           if index.Value = -1 then p.MoveFirst() // first move when index = -1
           elif cursorVersion.Value = version then
@@ -1101,6 +1115,7 @@ type SortedMap<'K,'V when 'K : comparison>
         false
 
   interface IReadOnlyOrderedMap<'K,'V> with
+    member this.Comparer with get() = this.Comparer
     member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
     member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.size = 0
@@ -1154,41 +1169,6 @@ type SortedMap<'K,'V when 'K : comparison>
   interface IUpdateable<'K,'V> with
     [<CLIEvent>]
     member x.OnData: IEvent<KVP<'K,'V>> = updateEvent.Publish
-    
-
-// YAGNI, TODO remove mutable interfaces from immutable maps and vice versa. In case this is needed, construct one from another
-
-//  interface IImmutableOrderedMap<'K,'V> with
-//    member this.Size with get() = int64(this.size)
-//    // Immutable addition, returns a new map with added value
-//    member this.Add(key, value):IImmutableOrderedMap<'K,'V> =
-//      let newMap = this.Clone()
-//      newMap.Add(key, value)
-//      newMap :> IImmutableOrderedMap<'K,'V>
-//    member this.AddFirst(key, value):IImmutableOrderedMap<'K,'V> =
-//      let newMap = this.Clone()
-//      newMap.AddFirst(key, value)
-//      newMap :> IImmutableOrderedMap<'K,'V>
-//    member this.AddLast(key, value):IImmutableOrderedMap<'K,'V> =
-//      let newMap = this.Clone()
-//      newMap.AddLast(key, value)
-//      newMap :> IImmutableOrderedMap<'K,'V>
-//    member this.Remove(key):IImmutableOrderedMap<'K,'V> =
-//      let newMap = this.Clone()
-//      newMap.Remove(key) |> ignore
-//      newMap :> IImmutableOrderedMap<'K,'V>
-//    member this.RemoveLast([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableOrderedMap<'K,'V> =
-//      let newMap = this.Clone()
-//      newMap.RemoveLast(&value) |> ignore
-//      newMap :> IImmutableOrderedMap<'K,'V>
-//    member this.RemoveFirst([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableOrderedMap<'K,'V> =
-//      let newMap = this.Clone()
-//      newMap.RemoveFirst(&value) |> ignore
-//      newMap :> IImmutableOrderedMap<'K,'V>
-//    member this.RemoveMany(key:'K,direction:Lookup):IImmutableOrderedMap<'K,'V>=
-//      let newMap = this.Clone()
-//      newMap.RemoveMany(key, direction) |> ignore
-//      newMap :> IImmutableOrderedMap<'K,'V>
 
   //#endregion
 
@@ -1204,15 +1184,15 @@ type SortedMap<'K,'V when 'K : comparison>
   internal new(dictionary:IDictionary<'K,'V>,comparer:IComparer<'K>) = SortedMap(Some(dictionary), Some(dictionary.Count), Some(comparer))
   internal new(capacity:int,comparer:IComparer<'K>) = SortedMap(None, Some(capacity), Some(comparer))
 
-  static member internal OfSortedKeysAndValues(keys:'K[], values:'V[], size:int, comparer:IComparer<'K>, sortChecked:bool) =
-    if keys.Length < size then raise (new ArgumentException("Keys array is smaller than provided size"))
+  static member internal OfSortedKeysAndValues(keys:'K[], values:'V[], size:int, comparer:IComparer<'K>, sortChecked:bool, isAlreadyRegular) =
+    if keys.Length < size && not isAlreadyRegular then raise (new ArgumentException("Keys array is smaller than provided size"))
     if values.Length < size then raise (new ArgumentException("Values array is smaller than provided size"))
     let sm = new SortedMap<'K,'V>(comparer)
     if sortChecked then
       for i in 1..keys.Length-1 do
         if comparer.Compare(keys.[i-1], keys.[i]) >= 0 then raise (new ArgumentException("Keys are not sorted"))
 
-    if sm.IsRegular then
+    if sm.IsRegular && not isAlreadyRegular then
       let isReg, step, firstArr = sm.rkCheckArray keys size (comparer :?> IKeyComparer<'K>)
       if isReg then
         sm.keys <- firstArr
@@ -1226,11 +1206,11 @@ type SortedMap<'K,'V when 'K : comparison>
   static member OfSortedKeysAndValues(keys:'K[], values:'V[], size:int) =
     let sm = new SortedMap<'K,'V>()
     let comparer = sm.Comparer
-    SortedMap.OfSortedKeysAndValues(keys, values, keys.Length, comparer, true)
+    SortedMap.OfSortedKeysAndValues(keys, values, values.Length, comparer, true, false)
 
   static member OfSortedKeysAndValues(keys:'K[], values:'V[]) =
     if keys.Length <> values.Length then raise (new ArgumentException("Keys and values arrays are of different sizes"))
-    SortedMap.OfSortedKeysAndValues(keys, values, keys.Length)
+    SortedMap.OfSortedKeysAndValues(keys, values, values.Length)
   //#endregion
 
 
@@ -1411,6 +1391,7 @@ and
       member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = this.MoveNext(cancellationToken) 
 
     interface ICursor<'K,'V> with
+      member this.Comparer with get() = sm.Comparer
       // TODO need some implementation of ROOM to implement the batch
       member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
       member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatchAsync(cancellationToken)

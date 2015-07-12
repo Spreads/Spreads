@@ -414,13 +414,12 @@ namespace Spreads {
             // which will normally be ready when values compressor is ready to call its transformer
             Task<byte[]> cKeysTask;
             if (isRegular) {
-                // use sign bit as a flag, regular vs irregular by definition do not expect a third option
-                size = -size;
-                var b1 = SerializeTransform(keys[0], passThrough);
-                var b2 = SerializeTransform(keys[1], passThrough);
-                var bytes = b1.Concat(b2).ToArray();
-                cKeysTask = Task.FromResult(bytes); // SerializeTransform(keys, passThrough));
-            } else {
+				//var b1 = SerializeTransform(keys[0], passThrough);
+				//var b2 = SerializeTransform(keys[1], passThrough);
+				//var bytes = b1.Concat(b2).ToArray();
+				//cKeysTask = Task.FromResult(bytes); // SerializeTransform(keys, passThrough));
+				cKeysTask = Task.Run(() => CompressArray<K, byte[]>(keys, passThrough, 0, 2, 0, shuffle, typeSize, method, Diff));
+			} else {
                 cKeysTask = Task.Run(() => CompressArray<K, byte[]>(keys, passThrough, 0, size, level, shuffle, typeSize, method, Diff));
             }
 
@@ -430,13 +429,13 @@ namespace Spreads {
             //bw.Write(version);
 
             FixedBufferTransformer<TResult> buildReturnArray = (valBytes, valLen, self) => {
-                // Bug! This poiter is not fixed! 
                 var keyBytes = cKeysTask.Result;
                 var keysLen = keyBytes.Length;
                 // int len, int version, int values offset, keys, values
                 var retLen = 4 + 4 + 4 + keysLen + valLen;
                 byte[] ret = new byte[4 + 4 + 4 + keysLen + valLen];
-                Buffer.BlockCopy(BitConverter.GetBytes(size), 0, ret, 0, 4);
+				// use sign bit as a flag, regular vs irregular by definition do not expect a third option
+				Buffer.BlockCopy(BitConverter.GetBytes(isRegular ? -size : size), 0, ret, 0, 4);
                 Buffer.BlockCopy(BitConverter.GetBytes(version), 0, ret, 4, 4);
                 Buffer.BlockCopy(BitConverter.GetBytes(keysLen + 4 + 4 + 4), 0, ret, 8, 4);
                 Buffer.BlockCopy(keyBytes, 0, ret, 12, keysLen);
@@ -500,14 +499,15 @@ namespace Spreads {
             var keyStart = 12;
             //var keysTask = Task.Run(() => DecompressArray<K>(srcPtr, keyStart, true));
             K[] keys = null;
-            if (isRegular)
-            {
-                throw new NotImplementedException("Two values of K");
-            }
-            else
-            {
-                keys = DecompressArray<K>(srcPtr, keyStart, Diff);
-            }
+			keys = DecompressArray<K>(srcPtr, keyStart, Diff);
+			//if (isRegular)
+   //         {
+   //             throw new NotImplementedException("Two values of K");
+   //         }
+   //         else
+   //         {
+   //             keys = DecompressArray<K>(srcPtr, keyStart, Diff);
+   //         }
             
             var values = DecompressArray<V>(srcPtr, valueStart, Diff);
             //var valuesTask = Task.Run(() => DecompressArray<V>(srcPtr, valueStart, true));
@@ -515,7 +515,7 @@ namespace Spreads {
             //keysTask.Wait();
             //Debug.Assert(keysTask.Result.Length == size);
             Debug.Assert(values.Length == size);
-            var sm = SortedMap<K, V>.OfSortedKeysAndValues(keys, values, size); //keysTask.Result
+            var sm = SortedMap<K, V>.OfSortedKeysAndValues(keys, values, size, Comparer<K>.Default, false, isRegular); //keysTask.Result
             sm.Version = version;
             sm.couldHaveRegularKeys = isRegular;
             return sm;

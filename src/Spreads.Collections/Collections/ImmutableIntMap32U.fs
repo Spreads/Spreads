@@ -1248,6 +1248,7 @@ namespace Spreads.Collections
    
 
         interface IImmutableOrderedMap<uint32, 'T> with
+            member this.Comparer with get() = KeyComparer.GetDefault<uint32>()
             member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<uint32, 'T>>
             member this.GetCursor() = this.GetCursor()
             member this.IsEmpty = this.IsEmpty

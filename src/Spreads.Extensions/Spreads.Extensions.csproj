@@ -79,6 +79,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ArrayPool.cs" />
     <Compile Include="Attributes.cs" />
     <Compile Include="Bootstrapper\ABI.cs" />
     <Compile Include="Bootstrapper\Bootstrapper.cs" />
@@ -86,26 +87,28 @@
     <Compile Include="Bootstrapper\NativeLibrary.cs" />
     <Compile Include="Bootstrapper\Process.cs" />
     <Compile Include="Bootstrapper\Version.cs" />
+    <Compile Include="System\Runtime\BufferPool.cs" />
     <Compile Include="native\NativeMethods.cs" />
     <Compile Include="Sandbox.cs" />
     <Compile Include="Serializer.cs" />
     <Compile Include="SortedList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="System.Interactive.Async\AsyncEnumerable.Aggregates.cs" />
-    <Compile Include="System.Interactive.Async\AsyncEnumerable.Conversions.cs" />
-    <Compile Include="System.Interactive.Async\AsyncEnumerable.Creation.cs" />
-    <Compile Include="System.Interactive.Async\AsyncEnumerable.Exceptions.cs" />
-    <Compile Include="System.Interactive.Async\AsyncEnumerable.Generated.cs" />
-    <Compile Include="System.Interactive.Async\AsyncEnumerable.Multiple.cs" />
-    <Compile Include="System.Interactive.Async\AsyncEnumerable.Single.cs" />
-    <Compile Include="System.Interactive.Async\AsyncEnumerator.cs" />
-    <Compile Include="System.Interactive.Async\Disposables.cs" />
-    <Compile Include="System.Interactive.Async\EnumerableGrouping.cs" />
-    <Compile Include="System.Interactive.Async\IAsyncEnumerable.cs" />
-    <Compile Include="System.Interactive.Async\IAsyncEnumerator.cs" />
-    <Compile Include="System.Interactive.Async\IAsyncGrouping.cs" />
-    <Compile Include="System.Interactive.Async\IOrderedAsyncEnumerable.cs" />
-    <Compile Include="System.Interactive.Async\TaskExt.cs" />
+    <Compile Include="System\Runtime\SynchronizedPool.cs" />
+    <Compile Include="System\Interactive.Async\AsyncEnumerable.Aggregates.cs" />
+    <Compile Include="System\Interactive.Async\AsyncEnumerable.Conversions.cs" />
+    <Compile Include="System\Interactive.Async\AsyncEnumerable.Creation.cs" />
+    <Compile Include="System\Interactive.Async\AsyncEnumerable.Exceptions.cs" />
+    <Compile Include="System\Interactive.Async\AsyncEnumerable.Generated.cs" />
+    <Compile Include="System\Interactive.Async\AsyncEnumerable.Multiple.cs" />
+    <Compile Include="System\Interactive.Async\AsyncEnumerable.Single.cs" />
+    <Compile Include="System\Interactive.Async\AsyncEnumerator.cs" />
+    <Compile Include="System\Interactive.Async\Disposables.cs" />
+    <Compile Include="System\Interactive.Async\EnumerableGrouping.cs" />
+    <Compile Include="System\Interactive.Async\IAsyncEnumerable.cs" />
+    <Compile Include="System\Interactive.Async\IAsyncEnumerator.cs" />
+    <Compile Include="System\Interactive.Async\IAsyncGrouping.cs" />
+    <Compile Include="System\Interactive.Async\IOrderedAsyncEnumerable.cs" />
+    <Compile Include="System\Interactive.Async\TaskExt.cs" />
     <Compile Include="Types.cs" />
     <Compile Include="UsefulTypes.cs" />
     <Compile Include="BytesExtensions.cs" />

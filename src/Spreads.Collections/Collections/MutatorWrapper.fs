@@ -26,10 +26,9 @@ type internal MutatorWrapper<'K,'V  when 'K : comparison>
   interface IEnumerable<KeyValuePair<'K,'V>> with
     member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
       (map:> IEnumerable<_>).GetEnumerator() :> IEnumerator<KeyValuePair<'K,'V>>
-
-
-    
+   
   interface IReadOnlyOrderedMap<'K,'V> with
+    member this.Comparer with get() = map.Comparer
     member this.GetEnumerator() = map.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
     member this.GetCursor() = map.GetCursor()
     member this.IsEmpty = map.IsEmpty

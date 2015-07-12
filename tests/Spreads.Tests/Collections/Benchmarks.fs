@@ -453,12 +453,13 @@ module CollectionsBenchmarks =
     for i in 0..4 do
       smap := SortedMap()
       perf count "SortedMap Add" (fun _ ->
-        for i in 0L..count do
+        smap.Value.Add(0L, 0L)
+        for i in 2L..count do
           smap.Value.Add(i, i)
       )
     for i in 0..4 do
       perf count "SortedMap Read" (fun _ ->
-        for i in 0L..count do
+        for i in 2L..count do
           let res = smap.Value.Item(i)
           if res <> i then failwith "SortedMap failed"
           ()
@@ -555,6 +556,23 @@ module CollectionsBenchmarks =
         for i in 0L..count do
           smap.Value.Add(i, i)
       )
+    
+//    for i in 0..19 do
+//      let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
+//      perf count "SortedMapRegular Add Double GC" (fun _ ->
+//        for i in 0L..count do
+//          sdf.Value.Add(i, double i)
+//      )
+//
+//    OptimizationSettings.ArrayPool <- DoubleArrayPool()
+//
+//    for i in 0..19 do
+//      let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
+//      perf count "SortedMapRegular Add Double Pool" (fun _ ->
+//        for i in 0L..count do
+//          sdf.Value.Add(i, double i)
+//      )
+
     for i in 0..4 do
       perf count "SortedMapRegular Read" (fun _ ->
         for i in 0L..count do
@@ -562,7 +580,9 @@ module CollectionsBenchmarks =
           if res <> i then failwith "SortedMap failed"
           ()
       )
+
     for i in 0..4 do
+      //Console.WriteLine("SortedMapRegular Read as RO")
       perf count "SortedMapRegular Read as RO" (fun _ ->
         let ro = smap.Value.ReadOnly() :> IReadOnlyOrderedMap<int64,int64>
         for i in 0L..count do

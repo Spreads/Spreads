@@ -9,13 +9,14 @@ open System.Threading.Tasks
 
 type KVP<'K,'V> = KeyValuePair<'K,'V>
 
-[<AutoOpenAttribute>]
-module internal InternalExtensions = 
-  type Task with
-      static member inline FromResult(result: 'T) : Task<'T> = 
-        let tcs = new TaskCompletionSource<'T>()
-        tcs.SetResult(result)
-        tcs.Task
+// Needed for .NET < 4.5
+//[<AutoOpenAttribute>]
+//module internal InternalExtensions = 
+//  type Task with
+//      static member inline FromResult(result: 'T) : Task<'T> = 
+//        let tcs = new TaskCompletionSource<'T>()
+//        tcs.SetResult(result)
+//        tcs.Task
 
 
 

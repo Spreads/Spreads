@@ -1,12 +1,8 @@
 ﻿namespace Spreads
 
 open System
-open System.Collections
 open System.Collections.Concurrent
 open System.Collections.Generic
-open System.Threading
-open System.Threading.Tasks
-open System.Runtime.InteropServices
 
 /// <summary>
 /// IComparer<'K> with additional methods Diff and Add for regular keys and Hash method for chunking
@@ -16,7 +12,9 @@ type IKeyComparer<'K when 'K : comparison>=
   inherit IComparer<'K>
   /// Returns int64 distance between two values when they are stored in 
   /// a regular sorted map. Regular means continuous integers or days or seconds, etc.
-  /// This method could be used for IComparer<'K>.Compare implementation.
+  /// ## Remarks
+  /// This method could be used for IComparer<'K>.Compare implementation, 
+  /// but must be checked for int overflow (e.g. compare Diff result to 0L instead of int cast).
   abstract Diff : a:'K * b:'K -> int64
   /// If Diff(A,B) = X, then Add(A,X) = B, this is a mirrow method for Diff
   abstract Add : 'K * diff:int64 -> 'K
@@ -37,7 +35,7 @@ type BaseSpreadsComparer<'K when 'K : comparison>() =
   abstract Add : 'K * diff:int64 -> 'K
 
   interface IKeyComparer<'K> with
-    member x.Compare(a,b) = int (x.Diff(a,b))
+    member x.Compare(a,b) = x.Compare(a,b)
     member x.Diff(a,b) = x.Diff(a,b)
     member x.Add(a,diff) = x.Add(a, diff)
 
@@ -182,8 +180,10 @@ type KeyComparer()=
     // TODO add other known numeric types and DateTimeOffset
     ()
 
+  // TODO (very low) IKeyComparable same as IComparable
+
   static member RegisterDefault(keyComparer:IKeyComparer<'K>) =
     registeredComparers.[typeof<'K>] <- keyComparer
-  static member GetDefault<'K when 'K : comparison>() =
+  static member GetDefault<'K when 'K : comparison>() : IComparer<'K> =
     let ok, v = registeredComparers.TryGetValue(typeof<'K>)
-    if ok then v :?> IKeyComparer<'K> else  Unchecked.defaultof<IKeyComparer<'K>>
+    if ok then v :?> IComparer<'K> else Comparer<'K>.Default :> IComparer<'K>

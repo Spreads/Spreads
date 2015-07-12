@@ -780,6 +780,7 @@ namespace Spreads.Collections
         member m.GetEnumerator() = (MapTree.mkIEnumerator tree :> System.Collections.IEnumerator)
 
       interface IReadOnlyOrderedMap<'K,'V> with
+        member this.Comparer with get() = comparer
         member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
         member this.GetCursor() = this.GetCursor()
         member this.IsEmpty = this.IsEmpty

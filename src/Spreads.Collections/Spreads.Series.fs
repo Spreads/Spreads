@@ -56,6 +56,7 @@ and
       member this.SyncRoot with get() = this.GetCursor().Source.SyncRoot
 
     interface IReadOnlyOrderedMap<'K,'V> with
+      member this.Comparer with get() = this.GetCursor().Comparer
       member this.IsEmpty = not (this.GetCursor().MoveFirst())
       //member this.Count with get() = map.Count
       member this.First 
@@ -403,6 +404,7 @@ and // TODO internal
       member x.Dispose(): unit = x.Dispose()
 
     interface ICursor<'K,'V2> with
+      member x.Comparer with get() = cursor.Comparer
       member x.Current: KVP<'K,'V2> = KVP(x.CurrentKey, x.CurrentValue)
       member x.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = x.CurrentBatch
       member x.CurrentKey: 'K = x.CurrentKey
@@ -537,10 +539,13 @@ and // TODO internal
   
     let cursorL = cursorFactoryL()
     let cursorR = cursorFactoryR()
-    //let lIsAhead() = CursorHelper.lIsAhead cursorL cursorR
-    // TODO comparer as a part of ICursor interface
-    // if comparers are not equal then throw invaliOp
-    let cmp = Comparer<'K>.Default 
+    let cmp = 
+      if cursorL.Comparer.Equals(cursorR.Comparer) then cursorL.Comparer
+      else
+        // TODO if cursors are not equal, then fallback on inner join via exact lookup
+        // E.g. (3 7 2 8).Zip(1.Repeat(), (+)) = (4 8 3 9) - makes perfect sense
+        // and/or check if source is indexed
+        invalidOp "Left and right comparers are not equal"
 
     // if continuous, do not move but treat as if cursor is positioned at other (will move next and the next step)
     // TryGetValue must have optimizations for forward enumeration e.g. for Repeat - keep previous and move one step ahead
@@ -790,6 +795,7 @@ and // TODO internal
       member x.Dispose(): unit = x.Dispose()
 
     interface ICursor<'K,'R> with
+      member this.Comparer with get() = cmp
       member x.Current: KVP<'K,'R> = KVP(x.CurrentKey, x.CurrentValue)
       member x.CurrentBatch: IReadOnlyOrderedMap<'K,'R> = x.CurrentBatch
       member x.CurrentKey: 'K = x.CurrentKey
