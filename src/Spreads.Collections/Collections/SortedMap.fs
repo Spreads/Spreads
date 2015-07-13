@@ -101,7 +101,7 @@ type SortedMap<'K,'V when 'K : comparison>
     let diff = diffCalc.Diff(key, this.keys.[0])
     let step = rkGetStep()
     let idxL : int64 = (diff / step)
-    let modIsOk = (diff - step * idxL) = 0L
+    let modulo = (diff - step * idxL)
     let idx = int idxL
 //    https://msdn.microsoft.com/en-us/library/2cy9f6wb(v=vs.110).aspx
 //    The index of the specified value in the specified array, if value is found.
@@ -110,14 +110,26 @@ type SortedMap<'K,'V when 'K : comparison>
 //    element that is larger than value. If value is not found and value is greater 
 //    than any of the elements in array, a negative number which is the bitwise 
 //    complement of (the index of the last element plus 1).
-    if idx < 0 then
-      ~~~0 // -1 for searches, insert will take ~~~
-    elif idx >= this.size then
-      ~~~this.size
-    elif modIsOk then
-      idx
+
+    // TODO test it for diff <> step, bug-prone stuff here
+    if modulo = 0L then
+      if idx < 0 then
+        ~~~0 // -1 for searches, insert will take ~~~
+      elif idx >= this.size then
+        ~~~this.size
+      else
+        idx
+//      elif modIsOk then
+//        idx
+//      else
+//        ~~~(idx+1)
     else
-      ~~~(idx+1)
+      if idx <= 0 && diff < 0L then
+        ~~~0 // -1 for searches, insert will take ~~~
+      elif idx >= this.size then
+        ~~~this.size
+      else
+        ~~~(idx+1)
 
   let rkMaterialize () =
     let step = rkGetStep()

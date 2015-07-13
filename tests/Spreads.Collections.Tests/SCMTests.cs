@@ -92,5 +92,17 @@ namespace Spreads.DB.Tests {
 			Assert.IsTrue(pos > 0);
 		}
 
-	}
+
+        [Test]
+        public void CouldRemoveMany() {
+
+            var scm = new SortedChunkedMap<int, int>();
+            scm.Add(1, 1);
+            var removed = scm.RemoveMany(0, Lookup.GE);
+            Assert.IsTrue(removed);
+            Assert.IsTrue(scm.IsEmpty);
+            Assert.IsTrue(scm.Count == 0);
+        }
+
+    }
 }

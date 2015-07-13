@@ -8,6 +8,7 @@
  */
 
 using System.Runtime.InteropServices;
+using Bootstrap;
 
 namespace Yeppp
 {
@@ -15,7 +16,11 @@ namespace Yeppp
 	/// <summary>Basic arithmetic operations</summary>
 	public partial class Core
 	{
-
+        internal static ABI ABI { get; set; }
+        static Core()
+	    {
+            ABI = Yeppp.Library.ABI;
+        }
 
 		/// <summary>Adds corresponding elements in two signed 8-bit integer arrays. Produces an array of signed 8-bit integer elements.</summary>
 		/// <exception cref="System.NullReferenceException">If xArray, yArray or sumArray is null.</exception>

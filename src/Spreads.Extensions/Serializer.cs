@@ -649,7 +649,7 @@ namespace Spreads {
                             //    length, level1, shuffle1, sizeof(Int64), method1, diff); // NB always false if "if" block is not commented out
 
                             var previous = 0L;
-                            for (int i = start; i < srcDt.Length; i++) {
+                            for (int i = start; i < length; i++) {
                                 var dt = srcDt[i];
                                 var dateData = dt.ToInt64();
                                 newSrc[i - start] = dateData - previous;
@@ -704,9 +704,12 @@ namespace Spreads {
                             return CompressArray<decimal, TResult>(newSrc, bufferTransform, 0, length, level1, shuffle1,
                                 sizeof(long), method1, false); // NB always false
                         } else if (ty == typeof(long) && diff) {
+
+                            
                             long[] newSrc = new long[length];
                             var srcLong = src as long[];
                             newSrc[0] = srcLong[0];
+                            //Yeppp.Core.Subtract_V64sV64s_V64s(srcLong, 1, srcLong, 0, newSrc, 1, length - 1);
                             Parallel.For(1, length, (i) => {
                                 newSrc[i] = srcLong[i] - srcLong[i - 1];// Convert.ToDecimal(src[i]);
                             });
@@ -843,7 +846,7 @@ namespace Spreads {
                     Int64[] newSrc = DecompressArray<Int64>(srcPtr, start, false); // avoid lon[] allocation, calc diffs in the loop
                     DateTime[] dts = new DateTime[newSrc.Length];
                     var previous = 0L;
-                    for (int i = 0; i < dts.Length; i++) {
+                    for (int i = 0; i < newSrc.Length; i++) {
                         var current = newSrc[i] + previous;
                         dts[i] = current.ToDateTime();
                         if (diff) previous = current;

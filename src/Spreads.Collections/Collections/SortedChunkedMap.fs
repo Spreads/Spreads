@@ -85,12 +85,25 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
   member this.Clear() = outerMap.RemoveMany(outerMap.First.Key, Lookup.GE)
 
   member this.Count
-      with get() = size
+      with get() = 
+        let entered = enterLockIf this.SyncRoot this.IsSynchronized
+        try
+          let mutable size' = 0L
+          for okvp in outerMap do
+            size' <- size' + (int64 okvp.Value.size)
+          size <- size'
+          size'
+        finally
+          exitLockIf this.SyncRoot entered
 
   member this.IsEmpty
-      with get() = 
+      with get() =
+        let entered = enterLockIf this.SyncRoot this.IsSynchronized
+        try
           outerMap.IsEmpty 
           || not (outerMap.Values |> Seq.exists (fun inner -> inner <> null && inner.size > 0))
+        finally
+          exitLockIf this.SyncRoot entered
 
   member internal this.IsSynchronized with get() = isSync and set v = isSync <- v
 
@@ -630,50 +643,55 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     try
       if outerMap.Count = 0L then false
       else
-        match direction with
-        | Lookup.EQ -> 
-          this.Remove(key)
-        | Lookup.LT | Lookup.LE ->
-          let hash = slicer.Hash(key)
-          let subKey = key
-          let hasPivot, pivot = this.TryFind(key, direction)
-          if hasPivot then
-            let r1 = outerMap.RemoveMany(hash, Lookup.LT)  // strictly LT
-            let r2 = outerMap.First.Value.RemoveMany(subKey, direction) // same direction
-            if r2 then
-              if outerMap.First.Value.size > 0 then
-                outerMap.[outerMap.First.Key] <- outerMap.First.Value // Flush
-              else 
-                outerMap.Remove(outerMap.First.Key) |> ignore
-            r1 || r2
-            // TODO Flush
-          else 
-            let c = comparer.Compare(key, this.Last.Key)
-            if c > 0 then // remove all keys
-              this.Clear()
-              true
-            elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
-            else false
-        | Lookup.GT | Lookup.GE ->
-          let hash = slicer.Hash(key)
-          let subKey = key
-          let hasPivot, pivot = this.TryFind(key, direction)
-          if hasPivot then
-            if comparer.Compare(key, hash) = 0 && direction = Lookup.GE then
-              outerMap.RemoveMany(hash, Lookup.GE) // remove in one go
-            else
-              let r1 = outerMap.RemoveMany(hash, Lookup.GT)  // strictly GT
-              let lastChunk = outerMap.Last.Value
-              let r2 = lastChunk.RemoveMany(subKey, direction) // same direction
-              outerMap.[outerMap.Last.Key] <- lastChunk // Flush
+        let removed =
+          match direction with
+          | Lookup.EQ -> 
+            this.Remove(key)
+          | Lookup.LT | Lookup.LE ->
+            let hash = slicer.Hash(key)
+            let subKey = key
+            let hasPivot, pivot = this.TryFind(key, direction)
+            if hasPivot then
+              let r1 = outerMap.RemoveMany(hash, Lookup.LT)  // strictly LT
+              let r2 = outerMap.First.Value.RemoveMany(subKey, direction) // same direction
+              if r2 then
+                if outerMap.First.Value.size > 0 then
+                  outerMap.[outerMap.First.Key] <- outerMap.First.Value // Flush
+                else 
+                  outerMap.Remove(outerMap.First.Key) |> ignore
               r1 || r2
-          else 
-            let c = comparer.Compare(key, this.First.Key)
-            if c < 0 then // remove all keys
-              this.Clear()
-            elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
-            else false
-        | _ -> failwith "wrong direction"
+              // TODO Flush
+            else 
+              let c = comparer.Compare(key, this.Last.Key)
+              if c > 0 then // remove all keys
+                this.Clear()
+                true
+              elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
+              else false
+          | Lookup.GT | Lookup.GE ->
+            let hash = slicer.Hash(key)
+            let subKey = key
+            let hasPivot, pivot = this.TryFind(key, direction)
+            if hasPivot then
+              if comparer.Compare(key, hash) = 0 && direction = Lookup.GE then
+                outerMap.RemoveMany(hash, Lookup.GE) // remove in one go
+              else
+                let r1 = outerMap.RemoveMany(hash, Lookup.GT)  // strictly GT
+                let lastChunk = outerMap.Last.Value
+                let r2 = lastChunk.RemoveMany(subKey, direction) // same direction
+                outerMap.[outerMap.Last.Key] <- lastChunk // Flush
+                r1 || r2
+            else 
+              let c = comparer.Compare(key, this.First.Key)
+              if c < 0 then // remove all keys
+                this.Clear()
+              elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
+              else false
+          | _ -> failwith "wrong direction"
+        if removed then // we have Flushed, when needed for partial bucket change, above - just invalidate cache
+          prevBucketIsSet <- false
+          prevBucket <- Unchecked.defaultof<_>
+        removed
     finally
       exitLockIf this.SyncRoot entered
 
@@ -832,7 +850,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     
 
   interface IOrderedMap<'K,'V> with
-    member this.Count with get() = int64(size)
+    member this.Count with get() = this.Count
     member this.Item
       with get k = this.Item(k) 
       and set (k:'K) (v:'V) = this.[k] <- v

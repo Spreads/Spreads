@@ -78,7 +78,7 @@ namespace Yeppp
 	        Init();
 
 	    }
-        private static ABI ABI { get; set; }
+        internal static ABI ABI { get; set; }
         internal static void Init()
 		{
 			Status status = yepLibrary_Init();
