@@ -508,67 +508,26 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
 
   // TODO add last to empty fails
   member this.AddLast(key, value):unit =
-    let hash = slicer.Hash(key)
-    let subKey = key
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
       let c =
         if outerMap.Count = 0L then 1
-        else comparer.Compare(hash, outerMap.Last.Key)
-      if c = 0 then // last existing bucket
-        if prevBucketIsSet && comparer.Compare(hash, prevHash) <> 0 then // switching from previous bucket
-          //prevBucket.Capacity <- prevBucket.Count // trim excess
-          outerMap.[prevHash]<- prevBucket
-        let sm = outerMap.Last.Value
-        sm.AddLast(subKey, value)
-        size <- size + 1L
-        outerMap.[outerMap.Last.Key]<- sm
-        prevHash <- hash
-        prevBucket <-  outerMap.Last.Value
-        prevBucketIsSet <- true
-      elif c > 0 then // have to create new bucket for the value
-        if prevBucketIsSet then
-          //prevBucket.Capacity <- prevBucket.Count // trim excess
-          outerMap.[prevHash]<- prevBucket
-        let newSm = SortedMap(comparer)
-        newSm.[subKey] <- value // the only value in the new bucket
-        outerMap.[hash]<-newSm
-        size <- size + 1L
-        prevHash <- hash
-        prevBucket <- newSm
-        prevBucketIsSet <- true
+        else comparer.Compare(key, this.Last.Key)
+      if c > 0 then
+        this.Add(key, value)
       else raise (ArgumentOutOfRangeException("New key is smaller or equal to the largest existing key"))
     finally
       exitLockIf this.SyncRoot entered
 
 
   member this.AddFirst(key, value):unit =
-    let hash = slicer.Hash(key)
-    let subKey = key
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
       let c = 
         if outerMap.IsEmpty then -1
-        else comparer.Compare(hash, outerMap.First.Key) // avoid generic equality and null compare
-      if c = 0 then // first existing bucket
-        if prevBucketIsSet && comparer.Compare(hash, prevHash) <> 0 then // switching from previous bucket
-          //prevBucket.Capacity <- prevBucket.Count // trim excess
-          outerMap.[prevHash]<- prevBucket
-        let sm = outerMap.First.Value
-        sm.AddFirst(subKey, value)
-        size <- size + 1L
-        outerMap.[outerMap.First.Key]<- sm
-        prevHash <- hash
-        prevBucket <-  outerMap.First.Value
-        prevBucketIsSet <- true
-      elif c < 0 then // have to create new bucket for the value
-        let newSm = SortedMap(comparer)
-        newSm.[subKey] <- value // the only value in the new bucket
-        outerMap.[hash]<-newSm
-        size <- size + 1L
-        prevHash <- hash
-        prevBucket <- newSm
-        prevBucketIsSet <- true
+        else comparer.Compare(key, this.First.Key)
+      if c < 0 then 
+        this.Add(key, value)
       else raise (ArgumentOutOfRangeException("New key is larger or equal to the smallest existing key"))
     finally
       exitLockIf this.SyncRoot entered
@@ -726,7 +685,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
             let mutable c = 0
             for i in appendMap do
               c <- c + 1
-              this.AddLast(i.Key, i.Value)
+              this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
             c
           else invalidOp "values overlap with existing"
         | AppendOption.DropOldOverlap ->
@@ -734,7 +693,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
             let mutable c = 0
             for i in appendMap do
               c <- c + 1
-              this.AddLast(i.Key, i.Value)
+              this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
             c
           else
             let removed = this.RemoveMany(appendMap.First.Key, Lookup.GE)
@@ -742,24 +701,24 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
             let mutable c = 0
             for i in appendMap do
               c <- c + 1
-              this.AddLast(i.Key, i.Value)
+              this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
             c
         | AppendOption.IgnoreEqualOverlap ->
           if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
             let mutable c = 0
             for i in appendMap do
               c <- c + 1
-              this.AddLast(i.Key, i.Value)
+              this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
             c
           else
             let isEqOverlap = hasEqOverlap this appendMap
             if isEqOverlap then
               let appC = appendMap.GetCursor();
               if appC.MoveAt(this.Last.Key, Lookup.GT) then
-                this.AddLast(appC.CurrentKey, appC.CurrentValue)
+                this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                 let mutable c = 1
                 while appC.MoveNext() do
-                  this.AddLast(appC.CurrentKey, appC.CurrentValue)
+                  this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                   c <- c + 1
                 c
               else 0
@@ -769,7 +728,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
             let mutable c = 0
             for i in appendMap do
               c <- c + 1
-              this.AddLast(i.Key, i.Value)
+              this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
             c
           elif comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
             invalidOp "values do not overlap with existing"
@@ -778,16 +737,17 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
             if isEqOverlap then
               let appC = appendMap.GetCursor();
               if appC.MoveAt(this.Last.Key, Lookup.GT) then
-                this.AddLast(appC.CurrentKey, appC.CurrentValue)
+                this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                 let mutable c = 1
                 while appC.MoveNext() do
-                  this.AddLast(appC.CurrentKey, appC.CurrentValue)
+                  this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                   c <- c + 1
                 c
               else 0
             else invalidOp "overlapping values are not equal" // TODO unit test
         | _ -> failwith "Unknown AppendOption"
       finally
+        this.Flush()
         exitLockIf this.SyncRoot entered
       
 

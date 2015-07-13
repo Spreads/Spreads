@@ -49,6 +49,10 @@
       <HintPath>..\..\packages\Newtonsoft.Json.7.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="NodaTime, Version=1.3.0.0, Culture=neutral, PublicKeyToken=4226afe0d9b296d1, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\NodaTime.1.3.1\lib\net35-Client\NodaTime.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.IO.Compression" />
@@ -87,6 +91,8 @@
     <Compile Include="Bootstrapper\NativeLibrary.cs" />
     <Compile Include="Bootstrapper\Process.cs" />
     <Compile Include="Bootstrapper\Version.cs" />
+    <Compile Include="Extensions\DateTimeExtensions.cs" />
+    <Compile Include="Series\ZonedSeries.cs" />
     <Compile Include="System\Runtime\BufferPool.cs" />
     <Compile Include="native\NativeMethods.cs" />
     <Compile Include="Sandbox.cs" />
@@ -111,7 +117,7 @@
     <Compile Include="System\Interactive.Async\TaskExt.cs" />
     <Compile Include="Types.cs" />
     <Compile Include="UsefulTypes.cs" />
-    <Compile Include="BytesExtensions.cs" />
+    <Compile Include="Extensions\BytesExtensions.cs" />
     <Compile Include="Yeppp\core\Add.cs" />
     <Compile Include="Yeppp\core\DotProduct.cs" />
     <Compile Include="Yeppp\core\Max.cs" />

@@ -266,43 +266,61 @@ type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V
     else false
       
 
-type MapValuesCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>, mapF:'V -> 'V2) =
-  inherit CursorBind<'K,'V,'V2>(cursorFactory)
+type MapValuesCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, mapF:Func<'V,'V2>) =
+  inherit CursorBind<'K,'V,'V2>(cursorFactory.Invoke)
 
   override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V2>>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt
     let ok, value2 = this.InputCursor.TryGetValue(key)
     if ok then
-      value <- KVP(key, mapF(value2))
+      value <- KVP(key, mapF.Invoke(value2))
       true
     else false
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V2>>) : bool =
-    value <- KVP(next.Key, mapF(next.Value))
+    value <- KVP(next.Key, mapF.Invoke(next.Value))
     true
 
   override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V2>>) : bool =
-    value <- KVP(previous.Key, mapF(previous.Value))
+    value <- KVP(previous.Key, mapF.Invoke(previous.Value))
     true
 
-
-type FilterValuesCursor<'K,'V when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>, filterFunc:'V -> bool) =
-  inherit CursorBind<'K,'V,'V>(cursorFactory)
+type MapKeysCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, mapK:Func<'K,'K>) =
+  inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
 
   override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V>>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt
     let ok, value2 = this.InputCursor.TryGetValue(key)
-    if ok && filterFunc value2 then
+    if ok then
+      value <- KVP(mapK.Invoke(key), value2)
+      true
+    else false
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
+    value <- KVP(mapK.Invoke(next.Key), next.Value)
+    true
+
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
+    value <- KVP(mapK.Invoke(previous.Key), previous.Value)
+    true
+
+
+type FilterValuesCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Func<'V,bool>) =
+  inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
+
+  override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V>>): bool =
+    // add works on any value, so must use TryGetValue instead of MoveAt
+    let ok, value2 = this.InputCursor.TryGetValue(key)
+    if ok && filterFunc.Invoke value2 then
       value <- KVP(key, value2)
       true
     else false
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
-    if filterFunc next.Value then
+    if filterFunc.Invoke next.Value then
       value <- KVP(next.Key, next.Value)
       true
     else false
 
   override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
-    if filterFunc previous.Value then
+    if filterFunc.Invoke previous.Value then
       value <- KVP(previous.Key, previous.Value)
       true
     else false
@@ -352,14 +370,15 @@ type LogCursor<'K when 'K : comparison>(cursorFactory:unit->ICursor<'K,int64>) =
 
 
 
-type ZipValuesCursor<'K,'V,'V2,'R when 'K : comparison>(cursorFactoryL:unit->ICursor<'K,'V>,cursorFactoryR:unit->ICursor<'K,'V2>, mapF:'V*'V2->'R) =
-  inherit CursorZip<'K,'V,'V2,'R>(cursorFactoryL,cursorFactoryR)
+type ZipValuesCursor<'K,'V,'V2,'R when 'K : comparison>(cursorFactoryL:Func<ICursor<'K,'V>>,cursorFactoryR:Func<ICursor<'K,'V2>>, mapF:Func<'V,'V2,'R>) =
+  inherit CursorZip<'K,'V,'V2,'R>(cursorFactoryL.Invoke,cursorFactoryR.Invoke)
 
   override this.TryZip(key:'K, v, v2, [<Out>] value: byref<'R>): bool =
-    value <- mapF(v,v2)
+    value <- mapF.Invoke(v,v2)
     true
 
 
+// TODO extensions on ISeries but return series, to keep operators working
 
 [<Extension>]
 type SeriesExtensions () =
@@ -372,15 +391,19 @@ type SeriesExtensions () =
     /// a single mapFilter cursor with nested funcs. !!! Check if this gives any per gain !!! 
     [<Extension>]
     static member inline Map(source: Series<'K,'V>, mapFunc:Func<'V,'V2>) : Series<'K,'V2> =
-      CursorSeries(fun _ -> new MapValuesCursor<'K,'V,'V2>(source.GetCursor, mapFunc.Invoke) :> ICursor<'K,'V2>) :> Series<'K,'V2>
+      CursorSeries(fun _ -> new MapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<'K,'V2>) :> Series<'K,'V2>
+
+    [<Extension>]
+    static member inline Map(source: Series<'K,'V>, mapFunc:Func<'K,'K>) : Series<'K,'V> =
+      CursorSeries(fun _ -> new MapKeysCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
     static member inline Zip(source: Series<'K,'V>, other: Series<'K,'V2>, mapFunc:Func<'V,'V2,'R>) : Series<'K,'R> =
-      CursorSeries(fun _ -> new ZipValuesCursor<'K,'V,'V2,'R>(source.GetCursor, other.GetCursor, mapFunc.Invoke) :> ICursor<'K,'R>) :> Series<'K,'R>
+      CursorSeries(fun _ -> new ZipValuesCursor<'K,'V,'V2,'R>(Func<ICursor<'K,'V>>(source.GetCursor), Func<ICursor<'K,'V2>>(other.GetCursor), mapFunc) :> ICursor<'K,'R>) :> Series<'K,'R>
 
     [<Extension>]
-    static member inline Filter(source: Series<'K,'V>, filterFunc:'V->bool) : Series<'K,'V> = 
-      CursorSeries(fun _ -> new FilterValuesCursor<'K,'V>(source.GetCursor, filterFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
+    static member inline Filter(source: Series<'K,'V>, filterFunc:Func<'V,bool>) : Series<'K,'V> = 
+      CursorSeries(fun _ -> new FilterValuesCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), filterFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
     static member inline Repeat(source: Series<'K,'V>) : Series<'K,'V> = 

@@ -190,6 +190,7 @@ Target "NuGet" (fun _ ->
             Dependencies = 
               [ "Spreads.Collections", release.NugetVersion
                 "Newtonsoft.Json", GetPackageVersion "packages" "Newtonsoft.Json"
+                "NodaTime", GetPackageVersion "packages" "NodaTime"
                 ]
             })
         ("nuget/" + packageName + ".nuspec")

@@ -1,8 +1,16 @@
+#### 0.0.19 - July 13, 2015
+* Fix SCM AddLast/AddFirst (they were effectively flushing on each addition), now we just check with this.Last/.First and use this.Add
+* Add MapKeysCursor
+* Add NodaTime to Spreads.Extensions and extension methods to/from UTC
+* Minimize F# types in public API (TODO the goal is to eliminate them completely)
+
+#### 0.0.16 - July 13, 2015
+* Fix Collections: SCM count and SM regular index of key when step <> diff
+
 #### 0.0.15 - July 13, 2015
 * Fix some edge-case bugs in collections (TODO good test coverage)
 * Test SCM with MySQL for outer map: could reach 500k writes and 1.2m sequential
 reads per second on MacBook Air 2012 with MySQL 5.6 Community (default dev settings)
-
 
 #### 0.0.14 - July 10, 2015
 * Change IOrderedMap interface for RemoveXXX (returns bool) and Append (accepts 

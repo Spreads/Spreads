@@ -46,18 +46,4 @@ namespace Spreads {
         }
 
     }
-
-    public static class DateTimeExtensions
-    {
-        public static long ToInt64(this DateTime dt)
-        {
-            return ((Int64)dt.Ticks | ((Int64)dt.Kind << 62));
-        }
-
-        public static DateTime ToDateTime(this long dt) {
-            return new DateTime((long)(dt & ~(3L << 62)), (DateTimeKind)(((ulong)dt) >> 62));
-        }
-
-    }
-
 }
