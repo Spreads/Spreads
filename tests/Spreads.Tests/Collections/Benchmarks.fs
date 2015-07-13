@@ -1033,7 +1033,7 @@ module CollectionsBenchmarks =
 //    SortedMap_run()
 //    SortedMapPeriod_run()
 //    SortedMapDT_run()
-//    SortedMapRegular_run()
+    SortedMapRegular_run()
     //MapDeque_run() // bugs!
     //SHM_run()
     SCM_run()

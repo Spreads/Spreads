@@ -13,16 +13,14 @@ open System.Diagnostics
 open Spreads
 open Spreads.Collections
 
-// TODO resolve internal IKeyComparer<'K> by type 'K, if it is not available, 
-// outerFactory could produce any kind of sorted map. Outer values are set on bucket switch
-// We only use .Hash of IKeyComparer
-
-// TODO implement in C#
+// TODO ensure that on every prevBucket change we check its version and 
+// set to outer if versions differ
+// TODO subscribe to update events on prevBucket and Flush at least every second
 
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
 type SortedChunkedMap<'K,'V when 'K : comparison>
-  (outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>, comparer:IComparer<'K>, slicer:Func<'K,'K> opt) =
+  internal (outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>, comparer:IComparer<'K>, slicer:Func<'K,'K> opt, ?chunkMaxSize:int) as this =
   inherit Series<'K,'V>()
   // TODO serialize size, add a method to calculate size based on outerMap only
   [<NonSerializedAttribute>]
@@ -35,8 +33,13 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
   let mutable prevBucketIsSet  = false
   [<NonSerializedAttribute>]
   let mutable isSync  = false
-
-  // TODO replace outer with MapDeque, see comments in MapDeque.fs
+  [<NonSerializedAttribute>]
+  let chunkUpperLimit : int = 
+    if slicer.IsPresent then 0
+    else
+      if chunkMaxSize.IsSome then chunkMaxSize.Value
+      else OptimizationSettings.SCMDefaultChunkLength
+  // TODO (very low) replace outer with MapDeque, see comments in MapDeque.fs
   let outerMap = outerFactory(comparer)
 
   [<NonSerializedAttribute>]
@@ -55,7 +58,6 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
             // (page size) but close to it, or a multiple (we lose all remainder to 4kb, so big chunks are efficient for storage)
             // TODO measure typical compressed size of DT/(float|decimal) and adjust the upper limit
             // TODO measure when Yeppp et al. performance on batches stops increasing with batch size increase
-            let chunkUpperLimit = 1000
             match outerMap with
       //      | :? SortedMap<'K, SortedMap<'K,'V>> as sm -> 
       //        failwith "not implemented: here will be optimized lookup"
@@ -68,11 +70,11 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
                 let ok,kvp = om.TryFind(k, Lookup.LE)
                 if ok then
                   // k is larger than the last key and the chunk is big enough
+                  Debug.Assert(kvp.Value.size > 0)
                   if comparer.Compare(k,kvp.Value.Last.Key) > 0 && kvp.Value.size >= chunkUpperLimit then k
                   else kvp.Value.keys.[0]
                 else k
       }
-      
 
   [<OnDeserialized>]
   member private this.Init(context:StreamingContext) =
@@ -138,10 +140,11 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
             if ok then 
               bucketKvp.Value
             else
-              // TODO (!) in a normal flow, we add a new bucket when a previous one 
+              // TODO (No, BS) in a normal flow, we add a new bucket when a previous one 
               // is full. For regular UnitPeriods (all but ticks) the buckets
               // should be equal in most cases
-              let averageSize = try size / (int64 outerMap.Count) with | _ -> 4L // 4L in default
+              // outerMap.Count could be VERY slow, do not do this
+              let averageSize = 4L //try size / (int64 outerMap.Count) with | _ -> 4L // 4L in default
               let newSm = SortedMap(int averageSize, comparer)
               //outerMap.[hash] <- newSm do not store on every update, 
               newSm
@@ -181,10 +184,19 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
       if prevBucketIsSet then
-        //prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
-        outerMap.[prevHash] <- prevBucket
+        //&& outerMap.[prevHash].Version <> prevBucket.Version then
+          //prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
+          outerMap.[prevHash] <- prevBucket
     finally
       exitLockIf this.SyncRoot entered
+
+  override x.Finalize() = ()
+    // no locking, no-one has a reference to this
+//    if prevBucketIsSet &&
+//        outerMap.[prevHash].Version <> prevBucket.Version then
+//          //prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
+//          outerMap.[prevHash] <- prevBucket
+    
 
   override this.GetCursor() : ICursor<'K,'V> =
     this.GetCursor(outerMap.GetCursor(), Unchecked.defaultof<ICursor<'K, 'V>>, true, Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>, false)
@@ -354,6 +366,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
               if outer.Value.MoveFirst() then
                 currentBatch := outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
                 isBatch := true
+                isReset := false
                 return true
               else return false
             else
@@ -364,7 +377,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
                   isBatch := true
                   return true
                 else return false
-              else 
+              else
                 return false
           finally
             exitLockIf this.SyncRoot entered
@@ -466,12 +479,13 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         let bucket = 
           let ok, bucketKvp = outerMap.TryFind(hash, Lookup.EQ)
           if ok then 
+            bucketKvp.Value.Add(subKey, value)
             bucketKvp.Value
           else
             let newSm = SortedMap(comparer)
+            newSm.Add(subKey, value)
             outerMap.[hash]<- newSm
             newSm
-        bucket.Add(subKey, value)
         size <- size + 1L
         prevHash <- hash
         prevBucket <-  bucket
@@ -503,14 +517,12 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         if prevBucketIsSet then
           //prevBucket.Capacity <- prevBucket.Count // trim excess
           outerMap.[prevHash]<- prevBucket
-        let bucket = 
-            let newSm = SortedMap(comparer)
-            outerMap.[hash]<-newSm
-            newSm
-        bucket.[subKey] <- value // the only value in the new bucket
+        let newSm = SortedMap(comparer)
+        newSm.[subKey] <- value // the only value in the new bucket
+        outerMap.[hash]<-newSm
         size <- size + 1L
         prevHash <- hash
-        prevBucket <- bucket
+        prevBucket <- newSm
         prevBucketIsSet <- true
       else raise (ArgumentOutOfRangeException("New key is smaller or equal to the largest existing key"))
     finally
@@ -537,14 +549,12 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         prevBucket <-  outerMap.First.Value
         prevBucketIsSet <- true
       elif c < 0 then // have to create new bucket for the value
-        let bucket = 
-          let newSm = SortedMap(comparer)
-          outerMap.[hash]<-newSm
-          newSm
-        bucket.[subKey] <- value // the only value in the new bucket
+        let newSm = SortedMap(comparer)
+        newSm.[subKey] <- value // the only value in the new bucket
+        outerMap.[hash]<-newSm
         size <- size + 1L
         prevHash <- hash
-        prevBucket <- bucket
+        prevBucket <- newSm
         prevBucketIsSet <- true
       else raise (ArgumentOutOfRangeException("New key is larger or equal to the smallest existing key"))
     finally
@@ -563,7 +573,11 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
       let c = comparer.Compare(hash, prevHash)
       if c = 0 && prevBucketIsSet then
         let res = prevBucket.Remove(subKey)
-        if res then size <- size - 1L
+        if res then 
+          size <- size - 1L
+          if prevBucket.size = 0 then
+            outerMap.Remove(prevHash) |> ignore
+            prevBucketIsSet <- false
         res
       else
         if prevBucketIsSet then 
@@ -576,9 +590,13 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
           prevBucket <- bucket
           prevBucketIsSet <- true
           let res = bucket.Remove(subKey)
-          if res then 
+          if res then
             size <- size - 1L
-            outerMap.[prevHash]<- prevBucket
+            if prevBucket.size > 0 then
+              outerMap.[prevHash]<- prevBucket
+            else
+              outerMap.Remove(prevHash) |> ignore
+              prevBucketIsSet <- false
           res
         else
             false
@@ -610,40 +628,52 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
   member this.RemoveMany(key:'K,direction:Lookup):bool =
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
-      match direction with
-      | Lookup.EQ -> 
-        this.Remove(key)
-      | Lookup.LT | Lookup.LE ->
-        let hash = slicer.Hash(key)
-        let subKey = key
-        let hasPivot, pivot = this.TryFind(key, direction)
-        if hasPivot then
-          outerMap.RemoveMany(hash, Lookup.LT)  // strictly LT
-          outerMap.First.Value.RemoveMany(subKey, direction) // same direction
-          // TODO Flush
-        else 
-          let c = comparer.Compare(key, this.Last.Key)
-          if c > 0 then // remove all keys
-            this.Clear()
-            true
-          elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
-          else false
-      | Lookup.GT | Lookup.GE ->
-        let hash = slicer.Hash(key)
-        let subKey = key
-        let hasPivot, pivot = this.TryFind(key, direction)
-        if hasPivot then
-          outerMap.RemoveMany(hash, Lookup.GT)  // strictly GT
-          outerMap.First.Value.RemoveMany(subKey, direction) // same direction
-          // TODO Flush
-        else 
-          let c = comparer.Compare(key, this.First.Key)
-          if c < 0 then // remove all keys
-            this.Clear()
-            true
-          elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
-          else false
-      | _ -> failwith "wrong direction"
+      if outerMap.Count = 0L then false
+      else
+        match direction with
+        | Lookup.EQ -> 
+          this.Remove(key)
+        | Lookup.LT | Lookup.LE ->
+          let hash = slicer.Hash(key)
+          let subKey = key
+          let hasPivot, pivot = this.TryFind(key, direction)
+          if hasPivot then
+            let r1 = outerMap.RemoveMany(hash, Lookup.LT)  // strictly LT
+            let r2 = outerMap.First.Value.RemoveMany(subKey, direction) // same direction
+            if r2 then
+              if outerMap.First.Value.size > 0 then
+                outerMap.[outerMap.First.Key] <- outerMap.First.Value // Flush
+              else 
+                outerMap.Remove(outerMap.First.Key) |> ignore
+            r1 || r2
+            // TODO Flush
+          else 
+            let c = comparer.Compare(key, this.Last.Key)
+            if c > 0 then // remove all keys
+              this.Clear()
+              true
+            elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
+            else false
+        | Lookup.GT | Lookup.GE ->
+          let hash = slicer.Hash(key)
+          let subKey = key
+          let hasPivot, pivot = this.TryFind(key, direction)
+          if hasPivot then
+            if comparer.Compare(key, hash) = 0 && direction = Lookup.GE then
+              outerMap.RemoveMany(hash, Lookup.GE) // remove in one go
+            else
+              let r1 = outerMap.RemoveMany(hash, Lookup.GT)  // strictly GT
+              let lastChunk = outerMap.Last.Value
+              let r2 = lastChunk.RemoveMany(subKey, direction) // same direction
+              outerMap.[outerMap.Last.Key] <- lastChunk // Flush
+              r1 || r2
+          else 
+            let c = comparer.Compare(key, this.First.Key)
+            if c < 0 then // remove all keys
+              this.Clear()
+            elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
+            else false
+        | _ -> failwith "wrong direction"
     finally
       exitLockIf this.SyncRoot entered
 
@@ -822,34 +852,57 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) = this.Append(appendMap, option)
   //#endregion
 
+  // x0
   
-  new(outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>,comparer:IComparer<'K>) = 
-    SortedChunkedMap(outerFactory, comparer, OptionalValue.Missing)
+  new() = 
+    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+    let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
+    SortedChunkedMap(factory, comparer, OptionalValue.Missing)
+  
+  // x1
 
   /// In-memory sorted chunked map
   new(comparer:IComparer<'K>) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
     SortedChunkedMap(factory, comparer, OptionalValue.Missing)
-
-  new(outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>,slicer:Func<'K,'K>) = 
-    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
-    SortedChunkedMap(outerFactory, comparer, OptionalValue(slicer))
-
+  
   /// In-memory sorted chunked map
   new(slicer:Func<'K,'K>) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
     let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
     SortedChunkedMap(factory, comparer, OptionalValue(slicer))
+  new(chunkMaxSize:int) = 
+    let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
+    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+    SortedChunkedMap(factory, comparer, OptionalValue.Missing, chunkMaxSize)
+
+  new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>) = 
+    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+    SortedChunkedMap(outerFactory.Invoke, comparer, OptionalValue.Missing)
   
-  new(outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>,comparer:IComparer<'K>,slicer:Func<'K,'K>) = 
-    SortedChunkedMap(outerFactory, comparer, OptionalValue(slicer))
+  // x2
 
   /// In-memory sorted chunked map
-  internal new(comparer:IComparer<'K>,slicer:Func<'K,'K>) = 
+  new(comparer:IComparer<'K>,slicer:Func<'K,'K>) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
     SortedChunkedMap(factory, comparer, OptionalValue(slicer))
-
-  new() = 
-    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+  new(comparer:IComparer<'K>,chunkMaxSize:int) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
-    SortedChunkedMap(factory, comparer, OptionalValue.Missing)
+    SortedChunkedMap(factory, comparer, OptionalValue.Missing, chunkMaxSize)
+
+  new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,comparer:IComparer<'K>) = 
+    SortedChunkedMap(outerFactory.Invoke, comparer, OptionalValue.Missing)
+
+  new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,slicer:Func<'K,'K>) = 
+    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+    SortedChunkedMap(outerFactory.Invoke, comparer, OptionalValue(slicer))
+  new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,chunkMaxSize:int) = 
+    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+    SortedChunkedMap(outerFactory.Invoke, comparer, OptionalValue.Missing, chunkMaxSize)
+
+  // x3
+
+  new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,comparer:IComparer<'K>,slicer:Func<'K,'K>) = 
+    SortedChunkedMap(outerFactory.Invoke, comparer, OptionalValue(slicer))
+  new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,comparer:IComparer<'K>,chunkMaxSize:int) = 
+    SortedChunkedMap(outerFactory.Invoke, comparer, OptionalValue.Missing, chunkMaxSize)

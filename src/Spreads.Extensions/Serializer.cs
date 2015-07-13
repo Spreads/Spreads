@@ -515,7 +515,7 @@ namespace Spreads {
             //keysTask.Wait();
             //Debug.Assert(keysTask.Result.Length == size);
             Debug.Assert(values.Length == size);
-            var sm = SortedMap<K, V>.OfSortedKeysAndValues(keys, values, size, Comparer<K>.Default, false, isRegular); //keysTask.Result
+            var sm = SortedMap<K, V>.OfSortedKeysAndValues(keys, values, size, KeyComparer.GetDefault<K>(), false, isRegular); //keysTask.Result
             sm.Version = version;
             sm.couldHaveRegularKeys = isRegular;
             return sm;
@@ -611,44 +611,44 @@ namespace Spreads {
                     checked {
                         // this bastards have Auto layout for no reason http://stackoverflow.com/a/21883421/801189
                         if (ty == typeof(DateTime)) {
-                            #region unsafe version, use only if performance boost is proven
+							#region unsafe version, use only if performance boost is proven
 
-                            //typeSize1 = 8;
-                            //var maxLength = length * typeSize1 + 16;
-                            //// TODO dest take from buffer pool here
-                            //var dest = new byte[maxLength];
-                            //var destSize = new UIntPtr((uint)maxLength);
-                            //var dtSrc = (DateTime[])(object)src;
-                            //fixed (DateTime* dtSrcPtr = &dtSrc[start])
-                            //fixed (byte* destPtr = &dest[0])
-                            //{
-                            //    var compSize = NativeMethods.Library.blosc_compress_ctx(
-                            //        new IntPtr(level1), new IntPtr(shuffle1 ? 1 : 0),
-                            //        new UIntPtr((uint)typeSize1),
-                            //        new UIntPtr((uint)(length * typeSize1)),
-                            //        (byte*)dtSrcPtr, destPtr, destSize,
-                            //        method1.ToString(), new UIntPtr((uint)0),
-                            //        numThreads
-                            //        );
-                            //    if (compSize <= 0) throw new ApplicationException("Invalid compression input");
-                            //    var ret = new byte[compSize];
-                            //    Array.Copy(dest, ret, compSize);
-                            //    // TODO dest return to pool here
-                            //    return ret;
-                            //}
+							//typeSize1 = 8;
+							//var maxLength = length * typeSize1 + 16;
+							//// TODO dest take from buffer pool here
+							//var dest = new byte[maxLength];
+							//var destSize = new UIntPtr((uint)maxLength);
+							//var dtSrc = (DateTime[])(object)src;
+							//fixed (DateTime* dtSrcPtr = &dtSrc[start])
+							//fixed (byte* destPtr = &dest[0])
+							//{
+							//	var compSize = NativeMethods.blosc_compress_ctx(
+							//		new IntPtr(level1), new IntPtr(shuffle1 ? 1 : 0),
+							//		new UIntPtr((uint)typeSize1),
+							//		new UIntPtr((uint)(length * typeSize1)),
+							//		(byte*)dtSrcPtr, destPtr, destSize,
+							//		method1.ToString(), new UIntPtr((uint)0),
+							//		NumThreads
+							//		);
+							//	if (compSize <= 0) throw new ApplicationException("Invalid compression input");
+							//	var ret = new byte[compSize];
+							//	Array.Copy(dest, ret, compSize);
+							//	// TODO dest return to pool here
+							//	return ret;
+							//}
 
-                            #endregion
+							#endregion
 
-                            UInt64[] newSrc = new UInt64[length];
-                            var previous = 0UL;
+							Int64[] newSrc = new Int64[length];
+                            var previous = 0L;
                             for (int i = start; i < length; i++) {
                                 var dt = (DateTime)(object)src[i];
-                                var dateData = dt.ToUint64(); // ((UInt64)ticks | ((UInt64)kind << 62));
+                                var dateData = dt.ToInt64(); // ((UInt64)ticks | ((UInt64)kind << 62));
                                 newSrc[i - start] = dateData - previous;
-                                if (diff) previous = dateData;
-                            }
-                            return CompressArray<ulong, TResult>(newSrc, bufferTransform, 0, length, level1, shuffle1, sizeof(ulong), method1,
-                                false); // NB always false
+								if (diff) previous = dateData;
+							}
+                            return CompressArray<long, TResult>(newSrc, bufferTransform, 0, length, level1, shuffle1, sizeof(ulong), method1,
+								false); // NB always false
                         } else if (ty == typeof(DateTimeOffset)) {
                             typeSize1 = 12;
                             throw new NotImplementedException();
@@ -657,7 +657,9 @@ namespace Spreads {
                             // usually we store original data as decimals to avoid precision loss, but if we then request data as doubles
                             // we convert decimals to doubles
                             var srcDbl = src as double[];
-                            if (diff) {
+
+							// save allocation of decimal by precomputing diff and calling CompressArray with diff = false
+							if (diff) {
                                 decimal[] newSrc = new decimal[length];
                                 var previous = 0M;
                                 for (int i = start; i < length; i++) {
@@ -672,7 +674,8 @@ namespace Spreads {
                                 Parallel.For(0, length, (i) => {
                                     newSrc[i] = (decimal)srcDbl[i];// Convert.ToDecimal(src[i]);
                                 });
-                                return CompressArray<decimal, TResult>(newSrc, bufferTransform, 0, length, level1, shuffle1, sizeof(decimal), method1, false);
+                                return CompressArray<decimal, TResult>(newSrc, bufferTransform, 0, 
+									length, level1, shuffle1, sizeof(decimal), method1, false); // NB always false
                             }
 
                         } else if (ty == typeof(decimal) && diff) {
@@ -816,9 +819,9 @@ namespace Spreads {
                 ) {
 
                 if (ty == typeof(DateTime)) {
-                    UInt64[] newSrc = DecompressArray<UInt64>(srcPtr, start, diff);
+                    Int64[] newSrc = DecompressArray<Int64>(srcPtr, start, false); // avoid lon[] allocation, calc diffs in the loop
                     DateTime[] dts = new DateTime[newSrc.Length];
-                    var previous = 0UL;
+                    var previous = 0L;
                     for (int i = 0; i < dts.Length; i++) {
                         var current = newSrc[i] + previous;
                         dts[i] = current.ToDateTime();

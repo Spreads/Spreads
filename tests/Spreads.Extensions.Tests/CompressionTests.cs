@@ -473,18 +473,18 @@ namespace Spreads.DB.Tests {
             var sw = new Stopwatch();
             
 
-            SortedMap<DateTime, double> sl = new SortedMap<DateTime, double>();
+            SortedMap<DateTime, double> sortedMap = new SortedMap<DateTime, double>();
             byte[] bytes = null;
             var rng = new System.Random();
             for (int i = 0; i < 1000; i++)
             {
-                sl.Add(DateTime.Today.AddDays(i), Math.Round(i + rng.NextDouble(), 2));
+                sortedMap.Add(DateTime.Today.AddDays(i), Math.Round(i + rng.NextDouble(), 2));
             }
             sw.Start();
             for (int i = 0; i < 1000; i++)
             {
-                bytes = Serializer.Serialize(sl);
-                sl = Serializer.Deserialize<SortedMap<DateTime, double>>(bytes);
+                bytes = Serializer.Serialize(sortedMap);
+                sortedMap = Serializer.Deserialize<SortedMap<DateTime, double>>(bytes);
             }
             sw.Stop();
             Console.WriteLine("Elapsed msecs: " + sw.ElapsedMilliseconds);

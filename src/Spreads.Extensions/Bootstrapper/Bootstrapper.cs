@@ -267,8 +267,6 @@ namespace Bootstrap {
             DisposeActions.Add(disposeAction);
         }
 
-
-
         ~Bootstrapper() {
             if (DisposeActions.Count > 0) {
                 foreach (var action in DisposeActions) {

@@ -1,6 +1,24 @@
+#### 0.0.15 - July 13, 2015
+* Fix some edge-case bugs in collections (TODO good test coverage)
+* Test SCM with MySQL for outer map: could reach 500k writes and 1.2m sequential
+reads per second on MacBook Air 2012 with MySQL 5.6 Community (default dev settings)
+
+
 #### 0.0.14 - July 10, 2015
-* Change IOrderedMap interface for RemoveXXX (returns bool) and Append (accepts AppendOption parameter)
-* 
+* Change IOrderedMap interface for RemoveXXX (returns bool) and Append (accepts 
+AppendOption parameter)
+* Add generic array pool (adapted from MSFT's BufferPoolManager)
+* Add comparere to IROOM & ICursor interfaces;
+* Do not trim excess on bucket switch in SCM (TODO this should be done by serializer,
+ or check %% of unused capacity)
+* Implement Append for SCM (TODO test it)
+* Optimize regular SortedMap (modulo was slow)
+* Use IArrayPool in SortedMap capacity setter (tested, gain is visible. Together 
+with the previous regular optimization, increased Add benchmark from 10.2 mops to 
+14.4 mops on Air, but pooling was less important than modulo operation!)
+* Fix int overflow bug in BaseKeyComparer.Compare
+* Fix regular SM serialization in the Serializer
+* Add Collections.Tests project with basic tests
 
 #### 0.0.13 - July 10, 2015
 * Add Flush method to SortedChunkedMap to save current state, make constructors with outer factory 

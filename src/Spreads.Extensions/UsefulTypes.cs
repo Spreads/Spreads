@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Spreads {
     public struct Tick : IEquatable<Tick> {
-        private ulong date;
+        private long date;
         private decimal price;
         private int volume;
         public DateTime DateTime {
@@ -14,7 +14,7 @@ namespace Spreads {
                 return date.ToDateTime();
             }
             set {
-                date = value.ToUint64();
+                date = value.ToInt64();
             }
         }
         public decimal Price {
@@ -34,7 +34,7 @@ namespace Spreads {
             }
         }
         public Tick(DateTime dateTime, decimal price, int volume) {
-            this.date = dateTime.ToUint64();
+            this.date = dateTime.ToInt64();
             this.price = price;
             this.volume = volume;
         }
@@ -60,7 +60,7 @@ namespace Spreads {
 
 
     public struct FloatTick : IEquatable<FloatTick> {
-        private ulong date;
+        private long date;
         private double price;
         private int volume;
         public DateTime DateTime {
@@ -68,7 +68,7 @@ namespace Spreads {
                 return date.ToDateTime();
             }
             set {
-                date = value.ToUint64();
+                date = value.ToInt64();
             }
         }
         public double Price {
@@ -88,7 +88,7 @@ namespace Spreads {
             }
         }
         public FloatTick(DateTime dateTime, double price, int volume) {
-            this.date = dateTime.ToUint64();
+            this.date = dateTime.ToInt64();
             this.price = price;
             this.volume = volume;
         }

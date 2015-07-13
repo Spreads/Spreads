@@ -49,13 +49,13 @@ namespace Spreads {
 
     public static class DateTimeExtensions
     {
-        public static ulong ToUint64(this DateTime dt)
+        public static long ToInt64(this DateTime dt)
         {
-            return ((UInt64)dt.Ticks | ((UInt64)dt.Kind << 62));
+            return ((Int64)dt.Ticks | ((Int64)dt.Kind << 62));
         }
 
-        public static DateTime ToDateTime(this ulong dt) {
-            return new DateTime((long)(dt & ~(3UL << 62)), (DateTimeKind)(dt >> 62));
+        public static DateTime ToDateTime(this long dt) {
+            return new DateTime((long)(dt & ~(3L << 62)), (DateTimeKind)(((ulong)dt) >> 62));
         }
 
     }

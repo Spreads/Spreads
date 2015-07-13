@@ -19,8 +19,9 @@ type internal OptimizationSettings() =
   static member val UseCLROptimizations = false with get, set
   /// Use native vectorized calculations if available
   static member val UseNativeOptimizations = false with get, set
-  /// Minimum array length for which we could native optimization (when p/invoke cost becomes less than gains from vectorized calcs)
+  /// Minimum array length for which we could use native optimization (when p/invoke cost becomes less than gains from vectorized calcs)
   static member val MinVectorLength = 100 with get, set
+  static member val SCMDefaultChunkLength = 4096 with get, set
   /// 
   static member val ArrayPool = 
     {new IArrayPool with
