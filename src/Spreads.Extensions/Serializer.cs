@@ -84,8 +84,7 @@ namespace Spreads {
         }
 
         public override void WriteJson(JsonWriter writer, object value,
-            JsonSerializer serializer)
-        {
+            JsonSerializer serializer) {
 
             //var ty = value.GetType();
 
@@ -110,8 +109,8 @@ namespace Spreads {
             //}
 
 
-           // will dispatch to Spreads types
-           var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
+            // will dispatch to Spreads types
+            var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
             writer.WriteValue(bytes);
 
         }
@@ -239,7 +238,7 @@ namespace Spreads {
         //}
     }
 
-    
+
 
 
 
@@ -414,12 +413,12 @@ namespace Spreads {
             // which will normally be ready when values compressor is ready to call its transformer
             Task<byte[]> cKeysTask;
             if (isRegular) {
-				//var b1 = SerializeTransform(keys[0], passThrough);
-				//var b2 = SerializeTransform(keys[1], passThrough);
-				//var bytes = b1.Concat(b2).ToArray();
-				//cKeysTask = Task.FromResult(bytes); // SerializeTransform(keys, passThrough));
-				cKeysTask = Task.Run(() => CompressArray<K, byte[]>(keys, passThrough, 0, 2, 0, shuffle, typeSize, method, Diff));
-			} else {
+                //var b1 = SerializeTransform(keys[0], passThrough);
+                //var b2 = SerializeTransform(keys[1], passThrough);
+                //var bytes = b1.Concat(b2).ToArray();
+                //cKeysTask = Task.FromResult(bytes); // SerializeTransform(keys, passThrough));
+                cKeysTask = Task.Run(() => CompressArray<K, byte[]>(keys, passThrough, 0, 2, 0, shuffle, typeSize, method, Diff));
+            } else {
                 cKeysTask = Task.Run(() => CompressArray<K, byte[]>(keys, passThrough, 0, size, level, shuffle, typeSize, method, Diff));
             }
 
@@ -434,8 +433,8 @@ namespace Spreads {
                 // int len, int version, int values offset, keys, values
                 var retLen = 4 + 4 + 4 + keysLen + valLen;
                 byte[] ret = new byte[4 + 4 + 4 + keysLen + valLen];
-				// use sign bit as a flag, regular vs irregular by definition do not expect a third option
-				Buffer.BlockCopy(BitConverter.GetBytes(isRegular ? -size : size), 0, ret, 0, 4);
+                // use sign bit as a flag, regular vs irregular by definition do not expect a third option
+                Buffer.BlockCopy(BitConverter.GetBytes(isRegular ? -size : size), 0, ret, 0, 4);
                 Buffer.BlockCopy(BitConverter.GetBytes(version), 0, ret, 4, 4);
                 Buffer.BlockCopy(BitConverter.GetBytes(keysLen + 4 + 4 + 4), 0, ret, 8, 4);
                 Buffer.BlockCopy(keyBytes, 0, ret, 12, keysLen);
@@ -499,16 +498,16 @@ namespace Spreads {
             var keyStart = 12;
             //var keysTask = Task.Run(() => DecompressArray<K>(srcPtr, keyStart, true));
             K[] keys = null;
-			keys = DecompressArray<K>(srcPtr, keyStart, Diff);
-			//if (isRegular)
-   //         {
-   //             throw new NotImplementedException("Two values of K");
-   //         }
-   //         else
-   //         {
-   //             keys = DecompressArray<K>(srcPtr, keyStart, Diff);
-   //         }
-            
+            keys = DecompressArray<K>(srcPtr, keyStart, Diff);
+            //if (isRegular)
+            //         {
+            //             throw new NotImplementedException("Two values of K");
+            //         }
+            //         else
+            //         {
+            //             keys = DecompressArray<K>(srcPtr, keyStart, Diff);
+            //         }
+
             var values = DecompressArray<V>(srcPtr, valueStart, Diff);
             //var valuesTask = Task.Run(() => DecompressArray<V>(srcPtr, valueStart, true));
             //Task.WaitAll(keysTask, valuesTask);
@@ -611,44 +610,53 @@ namespace Spreads {
                     checked {
                         // this bastards have Auto layout for no reason http://stackoverflow.com/a/21883421/801189
                         if (ty == typeof(DateTime)) {
-							#region unsafe version, use only if performance boost is proven
+                            #region unsafe version, use only if performance boost is proven
 
-							//typeSize1 = 8;
-							//var maxLength = length * typeSize1 + 16;
-							//// TODO dest take from buffer pool here
-							//var dest = new byte[maxLength];
-							//var destSize = new UIntPtr((uint)maxLength);
-							//var dtSrc = (DateTime[])(object)src;
-							//fixed (DateTime* dtSrcPtr = &dtSrc[start])
-							//fixed (byte* destPtr = &dest[0])
-							//{
-							//	var compSize = NativeMethods.blosc_compress_ctx(
-							//		new IntPtr(level1), new IntPtr(shuffle1 ? 1 : 0),
-							//		new UIntPtr((uint)typeSize1),
-							//		new UIntPtr((uint)(length * typeSize1)),
-							//		(byte*)dtSrcPtr, destPtr, destSize,
-							//		method1.ToString(), new UIntPtr((uint)0),
-							//		NumThreads
-							//		);
-							//	if (compSize <= 0) throw new ApplicationException("Invalid compression input");
-							//	var ret = new byte[compSize];
-							//	Array.Copy(dest, ret, compSize);
-							//	// TODO dest return to pool here
-							//	return ret;
-							//}
+                            //typeSize1 = 8;
+                            //var maxLength = length * typeSize1 + 16;
+                            //// TODO dest take from buffer pool here
+                            //var dest = new byte[maxLength];
+                            //var destSize = new UIntPtr((uint)maxLength);
+                            //var dtSrc = (DateTime[])(object)src;
+                            //fixed (DateTime* dtSrcPtr = &dtSrc[start])
+                            //fixed (byte* destPtr = &dest[0])
+                            //{
+                            //	var compSize = NativeMethods.blosc_compress_ctx(
+                            //		new IntPtr(level1), new IntPtr(shuffle1 ? 1 : 0),
+                            //		new UIntPtr((uint)typeSize1),
+                            //		new UIntPtr((uint)(length * typeSize1)),
+                            //		(byte*)dtSrcPtr, destPtr, destSize,
+                            //		method1.ToString(), new UIntPtr((uint)0),
+                            //		NumThreads
+                            //		);
+                            //	if (compSize <= 0) throw new ApplicationException("Invalid compression input");
+                            //	var ret = new byte[compSize];
+                            //	Array.Copy(dest, ret, compSize);
+                            //	// TODO dest return to pool here
+                            //	return ret;
+                            //}
 
-							#endregion
 
-							Int64[] newSrc = new Int64[length];
+                            #endregion
+                            var srcDt = src as DateTime[];
+                            Int64[] newSrc = new Int64[length];
+
+                            // NB this is slow on benchmarks
+                            //Parallel.For(0, length, (i) => {
+                            //    newSrc[i] = srcDt[i].ToInt64();// Convert.ToDecimal(src[i]);
+                            //});
+                            //return CompressArray<Int64, TResult>(newSrc, bufferTransform, 0,
+                            //    length, level1, shuffle1, sizeof(Int64), method1, diff); // NB always false if "if" block is not commented out
+
                             var previous = 0L;
-                            for (int i = start; i < length; i++) {
-                                var dt = (DateTime)(object)src[i];
-                                var dateData = dt.ToInt64(); // ((UInt64)ticks | ((UInt64)kind << 62));
+                            for (int i = start; i < srcDt.Length; i++) {
+                                var dt = srcDt[i];
+                                var dateData = dt.ToInt64();
                                 newSrc[i - start] = dateData - previous;
-								if (diff) previous = dateData;
-							}
+                                if (diff) previous = dateData;
+                            }
                             return CompressArray<long, TResult>(newSrc, bufferTransform, 0, length, level1, shuffle1, sizeof(ulong), method1,
-								false); // NB always false
+                                false); // NB always false
                         } else if (ty == typeof(DateTimeOffset)) {
                             typeSize1 = 12;
                             throw new NotImplementedException();
@@ -658,44 +666,57 @@ namespace Spreads {
                             // we convert decimals to doubles
                             var srcDbl = src as double[];
 
-							// save allocation of decimal by precomputing diff and calling CompressArray with diff = false
-							if (diff) {
-                                decimal[] newSrc = new decimal[length];
-                                var previous = 0M;
-                                for (int i = start; i < length; i++) {
-                                    var dec = Convert.ToDecimal(srcDbl[i]); // (decimal);
-                                    newSrc[i - start] = dec - previous;
-                                    previous = dec;
-                                }
-                                return CompressArray<decimal, TResult>(newSrc, bufferTransform, 0, length, level1, shuffle1,
-                                    sizeof(decimal), method1, false); // NB always false
-                            } else {
+                            //save allocation of decimal by precomputing diff and calling CompressArray with diff = false
+                            //if (diff) {
+                            //    decimal[] newSrc = new decimal[srcDbl.Length];
+                            //    var previous = 0M;
+                            //    for (int i = start; i < srcDbl.Length; i++) {
+                            //        var dec = Convert.ToDecimal(srcDbl[i]); // (decimal);
+                            //        newSrc[i - start] = dec - previous;
+                            //        previous = dec;
+                            //    }
+                            //    return CompressArray<decimal, TResult>(newSrc, bufferTransform, 0, length, level1, shuffle1,
+                            //        sizeof(decimal), method1, false); // NB always false
+                            //} else {
                                 decimal[] newSrc = new decimal[length];
                                 Parallel.For(0, length, (i) => {
                                     newSrc[i] = (decimal)srcDbl[i];// Convert.ToDecimal(src[i]);
                                 });
-                                return CompressArray<decimal, TResult>(newSrc, bufferTransform, 0, 
-									length, level1, shuffle1, sizeof(decimal), method1, false); // NB always false
-                            }
+                                return CompressArray<decimal, TResult>(newSrc, bufferTransform, 0,
+                                    length, level1, shuffle1, sizeof(decimal), method1, diff); // NB always false if "if" block is not commented out
+                            //}
 
                         } else if (ty == typeof(decimal) && diff) {
                             decimal[] newSrc = new decimal[length];
-                            var previous = 0M;
-                            for (int i = start; i < length; i++) {
-                                var val = Convert.ToDecimal(src[i]);
-                                newSrc[i - start] = val - previous;
-                                previous = val;
-                            }
+                            var srcDec = src as decimal[];
+
+                            newSrc[0] = srcDec[0];
+                            Parallel.For(1, length, (i) => {
+                                newSrc[i] = srcDec[i] - srcDec[i - 1];// Convert.ToDecimal(src[i]);
+                            });
+
+                            //var previous = 0M;
+                            //for (int i = start; i < length; i++) {
+                            //    var val = srcDec[i];
+                            //    newSrc[i - start] = val - previous;
+                            //    previous = val;
+                            //}
                             return CompressArray<decimal, TResult>(newSrc, bufferTransform, 0, length, level1, shuffle1,
                                 sizeof(long), method1, false); // NB always false
                         } else if (ty == typeof(long) && diff) {
                             long[] newSrc = new long[length];
-                            var previous = 0L;
-                            for (int i = start; i < length; i++) {
-                                var val = Convert.ToInt64(src[i]);
-                                newSrc[i - start] = val - previous;
-                                previous = val;
-                            }
+                            var srcLong = src as long[];
+                            newSrc[0] = srcLong[0];
+                            Parallel.For(1, length, (i) => {
+                                newSrc[i] = srcLong[i] - srcLong[i - 1];// Convert.ToDecimal(src[i]);
+                            });
+
+                            //var previous = 0L;
+                            //for (int i = start; i < length; i++) {
+                            //    var val = srcLong[i];
+                            //    newSrc[i - start] = val - previous;
+                            //    previous = val;
+                            //}
                             return CompressArray<long, TResult>(newSrc, bufferTransform, 0, length, level1, shuffle1,
                                 sizeof(long), method1, false); // NB always false
                         } else if (ty == typeof(Tick)) {
@@ -858,9 +879,9 @@ namespace Spreads {
                     //        if (diff) previous = current;
                     //    }
                     //} else {
-                        Parallel.For(0, doubles.Length, (i) => {
-                            doubles[i] = decimal.ToDouble(newSrc[i]);// Convert.ToDouble(newSrc[i]);
-                        });
+                    Parallel.For(0, doubles.Length, (i) => {
+                        doubles[i] = decimal.ToDouble(newSrc[i]);// Convert.ToDouble(newSrc[i]);
+                    });
                     //}
                     return (T[])(object)doubles;
                 } else if (ty == typeof(decimal) && diff) {
