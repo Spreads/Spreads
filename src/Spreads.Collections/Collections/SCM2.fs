@@ -22,7 +22,7 @@ open Spreads.Collections
 
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
-type SortedChunkedMap<'K,'V,'InnerMap when 'K : comparison>
+type SortedChunkedMap<'K,'V when 'K : comparison>
   internal (outerFactory:IComparer<'K>->IOrderedMap<'K, IOrderedMap<'K,'V>>,
             innerFactory:IComparer<'K>->IOrderedMap<'K,'V>, 
             comparer:IComparer<'K>, 

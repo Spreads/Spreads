@@ -257,6 +257,8 @@ type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V
   inherit CursorBind<'K,'V,'V>(cursorFactory)
   do
     this.IsContinuous <- true  
+  // TODO this is wrong implementation on some edge cases
+  // and not optimized (should cache previous value and check if requested key is between it and the current)
 
   override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V>>): bool =
     // naive implementation, easy optimizable 
@@ -264,6 +266,20 @@ type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V
       value <- this.InputCursor.Current
       true
     else false
+
+type FillCursor<'K,'V  when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>, fillValue:'V) as this =
+  inherit CursorBind<'K,'V,'V>(cursorFactory)
+  do
+    this.IsContinuous <- true  
+  // TODO optimize as Repeat
+  override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V>>): bool =
+    // naive implementation, easy optimizable 
+    if this.InputCursor.MoveAt(key, Lookup.EQ) then
+      value <- this.InputCursor.Current
+      true
+    else 
+      value <- KVP(key, fillValue)
+      true
       
 
 type MapValuesCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, mapF:Func<'V,'V2>) =
@@ -304,6 +320,30 @@ type MapKeysCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>
 
 
 type FilterValuesCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Func<'V,bool>) =
+  inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
+
+  let laggedCursor = cursorFactory.Invoke()
+
+  override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V>>): bool =
+    // add works on any value, so must use TryGetValue instead of MoveAt
+    let ok, value2 = this.InputCursor.TryGetValue(key)
+    if ok && filterFunc.Invoke value2 then
+      value <- KVP(key, value2)
+      true
+    else false
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
+    if filterFunc.Invoke next.Value then
+      value <- KVP(next.Key, next.Value)
+      true
+    else false
+
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
+    if filterFunc.Invoke previous.Value then
+      value <- KVP(previous.Key, previous.Value)
+      true
+    else false
+
+type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
   inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
 
   override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V>>): bool =
@@ -408,6 +448,12 @@ type SeriesExtensions () =
     [<Extension>]
     static member inline Repeat(source: Series<'K,'V>) : Series<'K,'V> = 
       CursorSeries(fun _ -> new RepeatCursor<'K,'V>(source.GetCursor) :> ICursor<'K,'V>) :> Series<'K,'V>
+
+    /// Fill missing values with the given value
+    [<Extension>]
+    static member inline Fill(source: Series<'K,'V>, fillValue:'V) : Series<'K,'V> = 
+      CursorSeries(fun _ -> new FillCursor<'K,'V>(source.GetCursor, fillValue) :> ICursor<'K,'V>) :> Series<'K,'V>
+
 
     [<Extension>]
     static member inline Add(source: Series<'K,int>, addition:int) : Series<'K,int> = 

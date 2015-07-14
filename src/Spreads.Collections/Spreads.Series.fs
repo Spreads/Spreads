@@ -350,7 +350,7 @@ and // TODO internal
     //abstract CurrentBatch : IReadOnlyOrderedMap<'K,'V2> with get
     member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>> with get, set
 
-    /// For every successful move of the inut coursor creates an output value. If direction is not EQ, continues moves to the direction 
+    /// For every successful move of the input coursor creates an output value. If direction is not EQ, continues moves to the direction 
     /// until the state is created.
     /// NB: For continuous cases it should be optimized for cases when the key is between current
     /// and previous, e.g. Repeat() should keep the previous key and do comparison (2 times) instead of 
@@ -412,6 +412,10 @@ and // TODO internal
       member x.IsContinuous: bool = x.IsContinuous
       member x.MoveAt(index: 'K, direction: Lookup): bool = 
         if x.InputCursor.MoveAt(index, direction) then
+          // TODO in general, we are doing serach twice here: MoveAt and TGV
+          // in most cases, this is initial step and then move next is fast
+          // but if we are lazy and do not implement movenext, that could have big effect
+          // one solution is to check if key is equal to current in TGV implementations
           let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
           if ok then
             x.CurrentKey <- value.Key
