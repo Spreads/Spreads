@@ -98,6 +98,7 @@
     <Compile Include="Collections\SortedHashMap.fs" />
     <Compile Include="Collections\SortedChunkedMap.fs" />
     <Compile Include="Collections\DataStream.fs" />
+    <Compile Include="Collections\SCM2.fs" />
     <Compile Include="ObjectPool.fs" />
     <Compile Include="CursorSeries.fs" />
     <Compile Include="SlowStupidCursor.fs" />
