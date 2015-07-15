@@ -300,9 +300,11 @@ type MapValuesCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:Func<ICursor<
     value <- KVP(previous.Key, mapF.Invoke(previous.Value))
     true
 
+
 type MapKeysCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, mapK:Func<'K,'K>) =
   inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
-
+  // TODO this is wrong
+  // key is after MapK, the simplest way is to buffer
   override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V>>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt
     let ok, value2 = this.InputCursor.TryGetValue(key)
@@ -345,23 +347,40 @@ type FilterValuesCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'
 
 type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
   inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
+  let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
 
   override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V>>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt
-    let ok, value2 = this.InputCursor.TryGetValue(key)
-    if ok && filterFunc.Invoke value2 then
-      value <- KVP(key, value2)
-      true
+    let ok = this.InputCursor.MoveAt(key, Lookup.EQ)
+    if ok then
+      laggedCursor <- this.InputCursor.Clone()
+      let mutable cont = true
+      let mutable step = 0
+      let mutable lagOk = false
+      while cont do
+        let moved = laggedCursor.MovePrevious()
+        if moved then
+          step <- step + 1
+        else
+          cont <- false
+        if step = int lag then 
+          cont <- true
+          lagOk <- true
+      if lagOk then
+        value <- KVP(key, laggedCursor.CurrentValue)
+        true
+      else false
     else false
+
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
-    if filterFunc.Invoke next.Value then
-      value <- KVP(next.Key, next.Value)
+    if laggedCursor.MoveNext() then
+      value <- KVP(next.Key, laggedCursor.CurrentValue)
       true
     else false
 
   override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
-    if filterFunc.Invoke previous.Value then
-      value <- KVP(previous.Key, previous.Value)
+    if laggedCursor.MovePrevious() then
+      value <- KVP(previous.Key, laggedCursor.CurrentValue)
       true
     else false
 
@@ -420,6 +439,8 @@ type ZipValuesCursor<'K,'V,'V2,'R when 'K : comparison>(cursorFactoryL:Func<ICur
 
 // TODO extensions on ISeries but return series, to keep operators working
 
+// TODO check performance impact of Func instead of FSharpFunc
+
 [<Extension>]
 type SeriesExtensions () =
     /// Wraps any series into CursorSeries that implements only the IReadOnlyOrderedMap interface
@@ -454,6 +475,9 @@ type SeriesExtensions () =
     static member inline Fill(source: Series<'K,'V>, fillValue:'V) : Series<'K,'V> = 
       CursorSeries(fun _ -> new FillCursor<'K,'V>(source.GetCursor, fillValue) :> ICursor<'K,'V>) :> Series<'K,'V>
 
+    [<Extension>]
+    static member inline Lag(source: Series<'K,'V>, lag:uint32) : Series<'K,'V> = 
+      CursorSeries(fun _ -> new LagCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), lag) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
     static member inline Add(source: Series<'K,int>, addition:int) : Series<'K,int> = 
