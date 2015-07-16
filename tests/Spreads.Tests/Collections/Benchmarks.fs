@@ -61,7 +61,11 @@ module CollectionsBenchmarks =
           sb.Add(i,int i)
         deedleSeries := sb.ToSeries()
       )
-      if r = 0 then deedleSeries2 := sb.ToSeries()
+      if r = 0 then 
+        let mutable sb2 = SeriesBuilder<int64, int>()
+        for i in 0L..count+1L do
+          sb2.Add(i,int i)
+        deedleSeries2 := sb2.ToSeries()
 
 //    perf count "DeedleSeries read" (fun _ ->
 //      for i in 0L..count do
@@ -83,7 +87,7 @@ module CollectionsBenchmarks =
         ()
       )
 
-    for r in 0..1 do
+    for r in 0..5 do
       let mutable res = Unchecked.defaultof<_>
       perf count "DeedleSeries Add two series" (fun _ ->
         res <- !deedleSeries + !deedleSeries2
@@ -1022,7 +1026,7 @@ module CollectionsBenchmarks =
 //    DeedleDeque_run()
 
 //    Console.WriteLine("MAPS")
-//    DeedleSeries_run()
+    DeedleSeries_run()
 //    FSXHashMap_run()
 //    IntMap64_run()
 //    MapTree_run()
