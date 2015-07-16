@@ -117,3 +117,20 @@ let mutable ptr = Marshal.AllocHGlobal(size)
 for i in 0..10000000 do
   
   Marshal.StructureToPtr(str,ptr, true)
+
+
+type MyStruct= 
+  struct 
+    val value: int
+    new(value:int, add:int) = {value = value + add}
+  end
+
+let structSize = sizeof<MyStruct>
+
+type MyClass(value:int, add:int)=
+  let value = value + add
+
+  member this.WhatWasAdd() = add
+
+let myclass = new MyClass(1,2)
+myclass.WhatWasAdd()

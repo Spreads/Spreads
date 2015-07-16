@@ -574,7 +574,7 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
           cont <- false
           lagOk <- true
       if lagOk then
-        // freeze values for the range cursor
+        // NB! freeze bounds for the range cursor
         let rangeCursor = new CursorRange<'K,'V>(cursorFactory, Some(activeLaggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None)
         let window = CursorSeries(fun _ -> rangeCursor :> ICursor<'K,'V>) :> Series<'K,'V>
         value <- window
@@ -587,6 +587,7 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
     if laggedCursor.MoveNext() then
       moves <- moves + 1
       if Math.Abs(moves) = int step then
+        // NB! freeze bounds for the range cursor
         let rangeCursor = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(laggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None)
         let window = CursorSeries(fun _ -> rangeCursor :> ICursor<'K,'V>) :> Series<'K,'V>
         value <- window
@@ -599,6 +600,7 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
     if laggedCursor.MovePrevious() then
       moves <- moves - 1
       if Math.Abs(moves) = int step then
+        // NB! freeze bounds for the range cursor
         let rangeCursor = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(laggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None)
         let window = CursorSeries(fun _ -> rangeCursor :> ICursor<'K,'V>) :> Series<'K,'V>
         value <- window
