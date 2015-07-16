@@ -23,9 +23,12 @@ namespace Spreads {
             _tz = originalTimeZone;
         }
 
-        public override ICursor<DateTime, V> GetCursor() {
+        public override ICursor<DateTime, V> GetCursor()
+        {
+            throw new NotImplementedException();
+            // TODO two-way key map is possible for cursor
             // just map keys
-            return new MapKeysCursor<DateTime, V>(_map.GetCursor, dt => dt.ConvertToZoneWithUncpecifiedKind(_tz));
+            //return new MapKeysCursor<DateTime, V>(_map.GetCursor, dt => dt.ConvertToZoneWithUncpecifiedKind(_tz));
         }
 
         public V this[DateTime key] {

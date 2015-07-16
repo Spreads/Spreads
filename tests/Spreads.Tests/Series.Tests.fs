@@ -167,6 +167,86 @@ type SeriesTestsModule() =
           kvp.Value |> should equal (if kvp.Key = 5 then 5 + 3 else  (kvp.Key * 2))
         ()
 
+
+    [<Test>]
+    member this.``Could fold series``() =
+        let map = SortedMap<int, int>()
+        map.Add(1,1)
+        map.Add(3,3)
+        map.Add(5,5)
+        map.Add(7,7)
+        let folder : Func<int,int,int,int>  = Func<int,int,int,int> (fun st k v -> st + v)
+        let sum = map.Fold(0, folder)
+        sum |> should equal (map.Values.Sum())
+
+
+    [<Test>]
+    member this.``Could scan series``() =
+        let map = SortedMap<int, int>()
+        map.Add(1,1)
+        map.Add(3,3)
+        map.Add(5,5)
+        map.Add(7,7)
+
+        let expected = SortedMap<int, int>()
+        expected.Add(1,1)
+        expected.Add(3,4)
+        expected.Add(5,9)
+        expected.Add(7,16)
+
+        let folder : Func<int,int,int,int>  = Func<int,int,int,int> (fun st k v -> st + v)
+        let scan = map.Scan(0, folder)
+        let scan2 = scan.Evaluate()
+
+        scan2.[1] |> should equal expected.[1]
+        scan2.[3] |> should equal expected.[3]
+        scan2.[5] |> should equal expected.[5]
+        scan2.[7] |> should equal expected.[7]
+
+        scan.Last().Value |> should equal expected.[7]
+        let sc = scan.GetCursor()
+        sc.MoveAt(5, Lookup.EQ) |> ignore
+        sc.CurrentValue |> should equal expected.[5]
+
+
+
+    [<Test>]
+    member this.``Could get series lag``() =
+        let map = SortedMap<int, int>()
+        map.Add(1,1)
+        map.Add(3,3)
+        map.Add(5,5)
+        map.Add(7,7)
+
+        let expected = SortedMap<int, int>()
+        expected.Add(5,1)
+        expected.Add(7,3)
+
+        let lag = map.Lag(2u).Evaluate()
+
+        lag.[5] |> should equal expected.[5]
+        lag.[7] |> should equal expected.[7]
+
+
+
+    [<Test>]
+    member this.``Could get series windows``() =
+        let map = SortedMap<int, int>()
+        for i in 0..20 do
+          map.Add(i,i)
+
+        let expected = SortedMap<int, int>()
+        expected.Add(5,1)
+        expected.Add(7,3)
+
+        let windows = map.Window(4u, 2u)
+        let windows2 = windows.ToSortedMap()
+
+        windows2.First.Value.ToSortedMap().Count |> should equal 4
+        windows2.First.Key |> should equal 3
+
+
+
 //        
 //    [<Test>]
 //    member this.``Could get moving window from seq``() =

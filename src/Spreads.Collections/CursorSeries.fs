@@ -253,106 +253,138 @@ open Spreads.Collections
 //
 
 /// Repeat previous value for all missing keys
-type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) as this =
-  inherit CursorBind<'K,'V,'V>(cursorFactory)
+type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>) as this =
+  inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
   do
-    this.IsContinuous <- true  
-  // TODO this is wrong implementation on some edge cases
-  // and not optimized (should cache previous value and check if requested key is between it and the current)
+    this.IsContinuous <- true
+  let mutable previousCursor = Unchecked.defaultof<ICursor<'K,'V>>
 
-  override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V>>): bool =
-    // naive implementation, easy optimizable 
-    if this.InputCursor.MoveAt(key, Lookup.LE) then
-      value <- this.InputCursor.Current
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
+    if isPositioned then
+      value <- this.InputCursor.CurrentValue
       true
-    else false
+    else
+      let c = this.InputCursor.Comparer.Compare(key, this.InputCursor.CurrentKey)
+      //Trace.Assert(c<>0, "isPositioned argument must rule this case out")
+      if c = 0 && this.HasValidState then
+        value <- this.InputCursor.CurrentValue
+        true
+      elif c < 0 then
+        let previousPositioned = 
+          if previousCursor = Unchecked.defaultof<ICursor<'K,'V>> then 
+            previousCursor <- this.InputCursor.Clone()
+            previousCursor.MovePrevious()
+          else previousCursor.MoveAt(this.InputCursor.CurrentKey, Lookup.LT)
+        if previousPositioned then
+          value <- previousCursor.CurrentValue
+          true
+        else
+          false
+      else // c > 0 or cursor not started
+        // naive implementation, CursorZip must hit c < 0 case (TODO check this)
+        let c = this.InputCursor.Clone()
+        if c.MoveAt(key, Lookup.LE) then
+          Debug.Assert(c.CurrentKey <> this.InputCursor.CurrentKey)
+          value <- c.CurrentValue
+          true
+        else false
+
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
+    value <- next.Value
+    true
+
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
+    value <- previous.Value
+    true
+
+  override this.Dispose() = 
+    if previousCursor <> Unchecked.defaultof<ICursor<'K,'V>> then previousCursor.Dispose()
+    base.Dispose()
+
 
 type FillCursor<'K,'V  when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>, fillValue:'V) as this =
   inherit CursorBind<'K,'V,'V>(cursorFactory)
   do
     this.IsContinuous <- true  
   // TODO optimize as Repeat
-  override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V>>): bool =
-    // naive implementation, easy optimizable 
-    if this.InputCursor.MoveAt(key, Lookup.EQ) then
-      value <- this.InputCursor.Current
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
+    if isPositioned then
+      value <- this.InputCursor.CurrentValue
       true
-    else 
-      value <- KVP(key, fillValue)
+    else
+      value <- fillValue
       true
       
 
 type MapValuesCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, mapF:Func<'V,'V2>) =
   inherit CursorBind<'K,'V,'V2>(cursorFactory.Invoke)
 
-  override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V2>>): bool =
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V2>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt
     let ok, value2 = this.InputCursor.TryGetValue(key)
     if ok then
-      value <- KVP(key, mapF.Invoke(value2))
+      value <- mapF.Invoke(value2)
       true
     else false
-  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V2>>) : bool =
-    value <- KVP(next.Key, mapF.Invoke(next.Value))
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'V2>) : bool =
+    value <- mapF.Invoke(next.Value)
     true
 
-  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V2>>) : bool =
-    value <- KVP(previous.Key, mapF.Invoke(previous.Value))
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'V2>) : bool =
+    value <- mapF.Invoke(previous.Value)
     true
 
-
-type MapKeysCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, mapK:Func<'K,'K>) =
-  inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
-  // TODO this is wrong
-  // key is after MapK, the simplest way is to buffer
-  override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V>>): bool =
-    // add works on any value, so must use TryGetValue instead of MoveAt
-    let ok, value2 = this.InputCursor.TryGetValue(key)
-    if ok then
-      value <- KVP(mapK.Invoke(key), value2)
-      true
-    else false
-  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
-    value <- KVP(mapK.Invoke(next.Key), next.Value)
-    true
-
-  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
-    value <- KVP(mapK.Invoke(previous.Key), previous.Value)
-    true
+// this is not possible with cursor, we won't be able 
+//type MapKeysCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, mapK:Func<'K,'K>) =
+//  inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
+//  // TODO this is wrong
+//  // key is after MapK, the simplest way is to buffer
+//  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<KVP<'K,'V>>): bool =
+//    // add works on any value, so must use TryGetValue instead of MoveAt
+//    let ok, value2 = this.InputCursor.TryGetValue(key)
+//    if ok then
+//      value <- KVP(mapK.Invoke(key), value2)
+//      true
+//    else false
+//  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
+//    value <- KVP(mapK.Invoke(next.Key), next.Value)
+//    true
+//
+//  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
+//    value <- KVP(mapK.Invoke(previous.Key), previous.Value)
+//    true
 
 
 type FilterValuesCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Func<'V,bool>) =
   inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
 
-  let laggedCursor = cursorFactory.Invoke()
-
-  override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V>>): bool =
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt
     let ok, value2 = this.InputCursor.TryGetValue(key)
     if ok && filterFunc.Invoke value2 then
-      value <- KVP(key, value2)
+      value <- value2
       true
     else false
-  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
     if filterFunc.Invoke next.Value then
-      value <- KVP(next.Key, next.Value)
+      value <- next.Value
       true
     else false
 
-  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
     if filterFunc.Invoke previous.Value then
-      value <- KVP(previous.Key, previous.Value)
+      value <- previous.Value
       true
     else false
 
+
+// TODO this is probably wrong and untested 
 type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
   inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
 
-  override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,'V>>): bool =
-    // add works on any value, so must use TryGetValue instead of MoveAt
-    let ok = this.InputCursor.MoveAt(key, Lookup.EQ)
-    if ok then
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
+    if isPositioned then
       laggedCursor <- this.InputCursor.Clone()
       let mutable cont = true
       let mutable step = 0
@@ -364,34 +396,53 @@ type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, l
         else
           cont <- false
         if step = int lag then 
-          cont <- true
+          cont <- false
           lagOk <- true
       if lagOk then
-        value <- KVP(key, laggedCursor.CurrentValue)
+        value <- laggedCursor.CurrentValue
         true
       else false
-    else false
+    else
+      let c = this.InputCursor.Clone()
+      if c.MoveAt(key, Lookup.LE) then
+        let mutable cont = true
+        let mutable step = 0
+        let mutable lagOk = false
+        while cont do
+          let moved = c.MovePrevious()
+          if moved then
+            step <- step + 1
+          else
+            cont <- false
+          if step = int lag then 
+            cont <- false
+            lagOk <- true
+        if lagOk then
+          value <- c.CurrentValue
+          true
+        else false
+      else false
 
-  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
     if laggedCursor.MoveNext() then
-      value <- KVP(next.Key, laggedCursor.CurrentValue)
+      value <- laggedCursor.CurrentValue
       true
     else false
 
-  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V>>) : bool =
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
     if laggedCursor.MovePrevious() then
-      value <- KVP(previous.Key, laggedCursor.CurrentValue)
+      value <- laggedCursor.CurrentValue
       true
     else false
 
 type AddIntCursor<'K when 'K : comparison>(cursorFactory:unit->ICursor<'K,int>, addition:int) =
   inherit CursorBind<'K,int,int>(cursorFactory)
 
-  override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,int>>): bool =
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<int>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt
     let ok, value2 = this.InputCursor.TryGetValue(key)
     if ok then
-      value <- KVP(key, value2 + addition)
+      value <- value2 + addition
       true
     else false
 
@@ -400,17 +451,17 @@ type AddIntCursor<'K when 'K : comparison>(cursorFactory:unit->ICursor<'K,int>, 
 type AddInt64Cursor<'K when 'K : comparison>(cursorFactory:unit->ICursor<'K,int64>, addition:int64) =
   inherit CursorBind<'K,int64,int64>(cursorFactory)
 
-  override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,int64>>): bool =
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<int64>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt
     let ok, value2 = this.InputCursor.TryGetValue(key)
     if ok then
-      value <- KVP(key, value2 + addition)
+      value <- value2 + addition
       true
     else false
   // Implementing this increase performance from 20mops to 35 mops
   // TODO map is very optimizable 
-  override this.TryUpdateNext(next:KVP<'K,int64>, [<Out>] value: byref<KVP<'K,int64>>) : bool =
-    value <- KVP(next.Key, next.Value+ addition)
+  override this.TryUpdateNext(next:KVP<'K,int64>, [<Out>] value: byref<int64>) : bool =
+    value <- next.Value+ addition
     true
 
 
@@ -418,11 +469,11 @@ type AddInt64Cursor<'K when 'K : comparison>(cursorFactory:unit->ICursor<'K,int6
 type LogCursor<'K when 'K : comparison>(cursorFactory:unit->ICursor<'K,int64>) =
   inherit CursorBind<'K,int64,double>(cursorFactory)
 
-  override this.TryGetValue(key:'K, [<Out>] value: byref<KVP<'K,double>>): bool =
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<double>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt
     let ok, value2 = this.InputCursor.TryGetValue(key)
     if ok then
-      value <- KVP(key, Math.Exp(Math.Log(Math.Exp(Math.Log(double value2)))))
+      value <- Math.Exp(Math.Log(Math.Exp(Math.Log(double value2))))
       true
     else false
 
@@ -435,6 +486,168 @@ type ZipValuesCursor<'K,'V,'V2,'R when 'K : comparison>(cursorFactoryL:Func<ICur
   override this.TryZip(key:'K, v, v2, [<Out>] value: byref<'R>): bool =
     value <- mapF.Invoke(v,v2)
     true
+
+
+
+
+
+type ScanCursor<'K,'V,'R  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Func<'R,'K,'V,'R>) as this =
+  inherit CursorBind<'K,'V,'R>(cursorFactory.Invoke)
+  do
+    this.IsContinuous <- false // scan is explicitly not continuous
+
+  let mutable moveAtCursor = cursorFactory.Invoke()
+  let mutable buffered = false
+  let mutable state : 'R = init
+  let hasValues, first = if moveAtCursor.MoveFirst() then true, moveAtCursor.CurrentKey else false, Unchecked.defaultof<_>
+
+  let mutable previousCursor = Unchecked.defaultof<ICursor<'K,'V>>
+
+  let mutable buffer = Unchecked.defaultof<SortedMap<'K,'R>>
+
+  let getOrMakeBuffer() = 
+    if not buffered then 
+      buffered <- true
+      // TODO here SortedMap must be subscribed to the source 
+      // and a CTS must be cancelled when disposing this cursor
+      let sm = SortedMap()
+      let source = CursorSeries(cursorFactory.Invoke) 
+      for kvp in source do
+        state <- folder.Invoke(state, kvp.Key, kvp.Value)
+        sm.AddLast(kvp.Key, state)
+      buffer <- sm
+    buffer
+
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'R>): bool =
+    Debug.Assert(hasValues)
+    // move first
+    if not buffered && isPositioned && this.InputCursor.Comparer.Compare(first, key) = 0 then
+      Debug.Assert(Unchecked.equals state init)
+      state <- folder.Invoke(state, key, this.InputCursor.CurrentValue)
+      value <- state
+      true
+    else 
+      getOrMakeBuffer().TryGetValue(key, &value)
+
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
+    if not buffered then
+      state <- folder.Invoke(state, next.Key, next.Value)
+      value <- state
+      true
+    else getOrMakeBuffer().TryGetValue(next.Key, &value)
+      
+
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
+    getOrMakeBuffer().TryGetValue(previous.Key, &value)
+
+  override this.Dispose() = 
+    if previousCursor <> Unchecked.defaultof<ICursor<'K,'V>> then previousCursor.Dispose()
+    base.Dispose()
+
+type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32) =
+  inherit CursorBind<'K,'V,Series<'K,'V>>(cursorFactory.Invoke)
+  let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
+  let mutable moves = 0
+  let mutable lag = 0
+
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<Series<'K,'V>>): bool =
+    let ok, activeCursor = 
+      if isPositioned then
+        laggedCursor <- this.InputCursor.Clone()
+        true, laggedCursor
+      else
+        let c = this.InputCursor.Clone()
+        if c.MoveAt(key, Lookup.LE) then
+          true, c
+        else false, Unchecked.defaultof<_>
+    if ok then
+      let mutable cont = true
+      lag <- 0
+      let mutable lagOk = false
+      while cont do
+        let moved = activeCursor.MovePrevious()
+        if moved then
+          lag <- lag + 1
+        else
+          cont <- false
+        if lag = int width then 
+          cont <- false
+          lagOk <- true
+      if lagOk then
+        let window = CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(activeCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
+        value <- window
+        moves <- 0
+        true
+      else false
+    else false
+
+
+//    if isPositioned then
+//      laggedCursor <- this.InputCursor.Clone()
+//      let mutable cont = true
+//      lag <- 0
+//      let mutable lagOk = false
+//      while cont do
+//        let moved = laggedCursor.MovePrevious()
+//        if moved then
+//          lag <- lag + 1
+//        else
+//          cont <- false
+//        if lag = int width then 
+//          cont <- false
+//          lagOk <- true
+//      if lagOk then
+//        let window = CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(laggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
+//        value <- window
+//        moves <- 0
+//        true
+//      else false
+//    else
+//      let c = this.InputCursor.Clone()
+//      if c.MoveAt(key, Lookup.LE) then
+//        let mutable cont = true
+//        lag <- 0
+//        let mutable lagOk = false
+//        while cont do
+//          let moved = c.MovePrevious()
+//          if moved then
+//            lag <- lag + 1
+//          else
+//            cont <- false
+//          if lag = int width then 
+//            cont <- false
+//            lagOk <- true
+//        if lagOk then
+//          let window = CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(c.CurrentKey), Some(this.InputCursor.CurrentKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
+//          value <- window
+//          moves <- 0
+//          true
+//        else false
+//      else false
+
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<Series<'K,'V>>) : bool =
+    if laggedCursor.MoveNext() then
+      moves <- moves + 1
+      if Math.Abs(moves) = int step then
+        let window = CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(laggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
+        value <- window
+        moves <- 0
+        true
+      else false
+    else false
+
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<Series<'K,'V>>) : bool =
+    if laggedCursor.MovePrevious() then
+      moves <- moves - 1
+      if Math.Abs(moves) = int step then
+        let window = CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(laggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
+        value <- window
+        moves <- 0
+        true
+      else false
+    else false
+
+
 
 
 // TODO extensions on ISeries but return series, to keep operators working
@@ -454,9 +667,9 @@ type SeriesExtensions () =
     static member inline Map(source: Series<'K,'V>, mapFunc:Func<'V,'V2>) : Series<'K,'V2> =
       CursorSeries(fun _ -> new MapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<'K,'V2>) :> Series<'K,'V2>
 
-    [<Extension>]
-    static member inline Map(source: Series<'K,'V>, mapFunc:Func<'K,'K>) : Series<'K,'V> =
-      CursorSeries(fun _ -> new MapKeysCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
+//    [<Extension>]
+//    static member inline Map(source: Series<'K,'V>, mapFunc:Func<'K,'K>) : Series<'K,'V> =
+//      CursorSeries(fun _ -> new MapKeysCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
     static member inline Zip(source: Series<'K,'V>, other: Series<'K,'V2>, mapFunc:Func<'V,'V2,'R>) : Series<'K,'R> =
@@ -468,7 +681,7 @@ type SeriesExtensions () =
 
     [<Extension>]
     static member inline Repeat(source: Series<'K,'V>) : Series<'K,'V> = 
-      CursorSeries(fun _ -> new RepeatCursor<'K,'V>(source.GetCursor) :> ICursor<'K,'V>) :> Series<'K,'V>
+      CursorSeries(fun _ -> new RepeatCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor)) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     /// Fill missing values with the given value
     [<Extension>]
@@ -478,6 +691,10 @@ type SeriesExtensions () =
     [<Extension>]
     static member inline Lag(source: Series<'K,'V>, lag:uint32) : Series<'K,'V> = 
       CursorSeries(fun _ -> new LagCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), lag) :> ICursor<'K,'V>) :> Series<'K,'V>
+
+    [<Extension>]
+    static member inline Window(source: Series<'K,'V>, width:uint32, step:uint32) : Series<'K,Series<'K,'V>> = 
+      CursorSeries(fun _ -> new WindowCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), width, step) :> ICursor<'K,Series<'K,'V>>) :> Series<'K,Series<'K,'V>>
 
     [<Extension>]
     static member inline Add(source: Series<'K,int>, addition:int) : Series<'K,int> = 
@@ -492,10 +709,57 @@ type SeriesExtensions () =
 
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
     [<Extension>]
-    static member inline Evaluate(source: Series<'K,'V>) : SortedMap<'K,'V> = 
+    [<Obsolete("Use `ToSortedMap` method instead")>]
+    static member inline Evaluate(source: Series<'K,'V>) : SortedMap<'K,'V> =
       let sm = SortedMap()
       for kvp in source do
         sm.AddLast(kvp.Key, kvp.Value)
       sm
+
+    /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
+    [<Extension>]
+    static member inline ToSortedMap(source: Series<'K,'V>) : SortedMap<'K,'V> =
+      let sm = SortedMap()
+      for kvp in source do
+        sm.AddLast(kvp.Key, kvp.Value)
+      sm
+
+    [<Extension>]
+    static member inline Fold(source: Series<'K,'V>, init:'R, folder:Func<'R,'K,'V,'R>) : 'R = 
+      let mutable state = init
+      for kvp in source do
+        state <- folder.Invoke(state, kvp.Key, kvp.Value)
+      state
+
+    [<Extension>]
+    static member inline Fold(source: Series<'K,'V>, init:'R, folder:Func<'R,'V,'R>) : 'R = 
+      let mutable state = init
+      for kvp in source do
+        state <- folder.Invoke(state, kvp.Value)
+      state
+
+    [<Extension>]
+    static member inline Fold(source: Series<'K,'V>, init:'R, folder:Func<'R,'K,'R>) : 'R = 
+      let mutable state = init
+      for kvp in source do
+        state <- folder.Invoke(state, kvp.Key)
+      state
+
+    [<Extension>]
+    static member inline Scan(source: Series<'K,'V>, init:'R, folder:Func<'R,'K,'V,'R>) : Series<'K,'R> = 
+      CursorSeries(fun _ -> new ScanCursor<'K,'V,'R>(Func<ICursor<'K,'V>>(source.GetCursor), init, folder) :> ICursor<'K,'R>) :> Series<'K,'R>
+      
+    [<Extension>]
+    static member inline Range(source: Series<'K,'V>, startKey:'K, endKey:'K) : Series<'K,'V> = 
+      CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), Some(startKey), Some(endKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
+      
+    [<Extension>]
+    static member inline After(source: Series<'K,'V>, startKey:'K, lookup:Lookup) : Series<'K,'V> = 
+      CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), Some(startKey), None, Some(lookup), None) :> ICursor<'K,'V>) :> Series<'K,'V>
+
+    [<Extension>]
+    static member inline Before(source: Series<'K,'V>, endKey:'K, lookup:Lookup) : Series<'K,'V> = 
+      CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), None, Some(endKey), None, Some(Lookup.GT)) :> ICursor<'K,'V>) :> Series<'K,'V>
+      
 
 // TODO generators

@@ -1,3 +1,8 @@
+#### 0.0.20 - July 16, 2015
+* Change CursorBind so that TryGetValue/TryUpdateNext/Prev do not move InputCursor and return a single value for provided key, not a KVP
+* Reimplement cursor series and optimize+fix Repeat() series
+* Remove MapKeys CursorBind - it is impossible to do with one-way map, unless we evaluate entire new series into a buffer,
+
 #### 0.0.19 - July 13, 2015
 * Fix SCM AddLast/AddFirst (they were effectively flushing on each addition), now we just check with this.Last/.First and use this.Add
 * Add MapKeysCursor
