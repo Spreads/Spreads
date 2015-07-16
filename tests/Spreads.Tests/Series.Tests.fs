@@ -227,7 +227,56 @@ type SeriesTestsModule() =
         lag.[5] |> should equal expected.[5]
         lag.[7] |> should equal expected.[7]
 
+    [<Test>]
+    member this.``Could get series range``() =
+        let map = SortedMap<int, int>()
+        map.Add(1,1)
+        map.Add(3,3)
+        map.Add(5,5)
+        map.Add(7,7)
 
+        let range = map.Range(3, 5)
+        let range2 = range.ToSortedMap()
+        range2.Count |> should equal 2
+        range2.[3] |> should equal map.[3]
+        range2.[5] |> should equal map.[5]
+        
+        let range = map.Range(0, 2)
+        let range2 = range.ToSortedMap()
+        range2.Count |> should equal 1
+        range2.[1] |> should equal map.[1]
+
+        let range = map.Range(0, 3)
+        let range2 = range.ToSortedMap()
+        range2.Count |> should equal 2
+        range2.[1] |> should equal map.[1]
+        range2.[3] |> should equal map.[3]
+
+        let range = map.Range(0, 6)
+        let range2 = range.ToSortedMap()
+        range2.Count |> should equal 3
+        range2.[1] |> should equal map.[1]
+        range2.[3] |> should equal map.[3]
+        range2.[5] |> should equal map.[5]
+
+        let range = map.Range(6, 10)
+        let range2 = range.ToSortedMap()
+        range2.Count |> should equal 1
+        range2.[7] |> should equal map.[7]
+
+        let range = map.Range(5, 10)
+        let range2 = range.ToSortedMap()
+        range2.Count |> should equal 2
+        range2.[5] |> should equal map.[5]
+        range2.[7] |> should equal map.[7]
+
+        let range = map.Range(0, 10)
+        let range2 = range.ToSortedMap()
+        range2.Count |> should equal 4
+        range2.[1] |> should equal map.[1]
+        range2.[3] |> should equal map.[3]
+        range2.[5] |> should equal map.[5]
+        range2.[7] |> should equal map.[7]
 
     [<Test>]
     member this.``Could get series windows``() =
