@@ -548,10 +548,9 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
   inherit CursorBind<'K,'V,Series<'K,'V>>(cursorFactory.Invoke)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
   let mutable moves = 0
-  let mutable lag = 0
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<Series<'K,'V>>): bool =
-    let ok, activeCursor = 
+    let ok, activeLaggedCursor = 
       if isPositioned then
         laggedCursor <- this.InputCursor.Clone()
         true, laggedCursor
@@ -562,10 +561,11 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
         else false, Unchecked.defaultof<_>
     if ok then
       let mutable cont = true
-      lag <- 0
+      let mutable lag = 1 // NB! current value counts toward the width, lag = 1
+      //lag <- 0
       let mutable lagOk = false
       while cont do
-        let moved = activeCursor.MovePrevious()
+        let moved = activeLaggedCursor.MovePrevious()
         if moved then
           lag <- lag + 1
         else
@@ -574,62 +574,21 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
           cont <- false
           lagOk <- true
       if lagOk then
-        let window = CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(activeCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
+        // freeze values for the range cursor
+        let rangeCursor = new CursorRange<'K,'V>(cursorFactory, Some(activeLaggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None)
+        let window = CursorSeries(fun _ -> rangeCursor :> ICursor<'K,'V>) :> Series<'K,'V>
         value <- window
         moves <- 0
         true
       else false
     else false
 
-
-//    if isPositioned then
-//      laggedCursor <- this.InputCursor.Clone()
-//      let mutable cont = true
-//      lag <- 0
-//      let mutable lagOk = false
-//      while cont do
-//        let moved = laggedCursor.MovePrevious()
-//        if moved then
-//          lag <- lag + 1
-//        else
-//          cont <- false
-//        if lag = int width then 
-//          cont <- false
-//          lagOk <- true
-//      if lagOk then
-//        let window = CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(laggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
-//        value <- window
-//        moves <- 0
-//        true
-//      else false
-//    else
-//      let c = this.InputCursor.Clone()
-//      if c.MoveAt(key, Lookup.LE) then
-//        let mutable cont = true
-//        lag <- 0
-//        let mutable lagOk = false
-//        while cont do
-//          let moved = c.MovePrevious()
-//          if moved then
-//            lag <- lag + 1
-//          else
-//            cont <- false
-//          if lag = int width then 
-//            cont <- false
-//            lagOk <- true
-//        if lagOk then
-//          let window = CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(c.CurrentKey), Some(this.InputCursor.CurrentKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
-//          value <- window
-//          moves <- 0
-//          true
-//        else false
-//      else false
-
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<Series<'K,'V>>) : bool =
     if laggedCursor.MoveNext() then
       moves <- moves + 1
       if Math.Abs(moves) = int step then
-        let window = CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(laggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
+        let rangeCursor = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(laggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None)
+        let window = CursorSeries(fun _ -> rangeCursor :> ICursor<'K,'V>) :> Series<'K,'V>
         value <- window
         moves <- 0
         true
@@ -640,7 +599,8 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
     if laggedCursor.MovePrevious() then
       moves <- moves - 1
       if Math.Abs(moves) = int step then
-        let window = CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(laggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
+        let rangeCursor = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(laggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None)
+        let window = CursorSeries(fun _ -> rangeCursor :> ICursor<'K,'V>) :> Series<'K,'V>
         value <- window
         moves <- 0
         true

@@ -12,3 +12,15 @@ on MoveFirst/Next (i.e. I[Async]Enumerator could and should be lazy, only naviga
 
 Performance:
 * Native math provider for batch operation
+
+
+Comment prefix codes
+* `NB`` means pay attantion to some non-obvious logic
+* `NB!` means pay a lot of attention because this could be a source of potential ot fixed bugs
+* `TODO` (`priority`) means:
+    - no priority, just normal TODO, uncategorized: could be a source of bug, never spend time on (`low`, `very low`) while uncategorized issues exit (mark them low at least)
+    - `high` - first priority,
+    - `low` means could live with it,
+    - `very low` is premature optimization or some puristic unimportant stuff
+    - `performance` there are reasons to believe that performance could be improved at least twice; treat it as `low` 
+* `TODO!` means same as `TODO (high)` + `NB!`
