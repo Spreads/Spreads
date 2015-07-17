@@ -620,13 +620,13 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
 type SeriesExtensions () =
     /// Wraps any series into CursorSeries that implements only the IReadOnlyOrderedMap interface
     [<Extension>]
-    static member inline ReadOnly(source: Series<'K,'V>) : Series<'K,'V> = 
+    static member inline ReadOnly(source: ISeries<'K,'V>) : Series<'K,'V> = 
       CursorSeries(fun _ -> source.GetCursor()) :> Series<'K,'V>
 
     /// TODO check if input cursor is MapValuesCursor or FilterValuesCursor cursor and repack them into
     /// a single mapFilter cursor with nested funcs. !!! Check if this gives any per gain !!! 
     [<Extension>]
-    static member inline Map(source: Series<'K,'V>, mapFunc:Func<'V,'V2>) : Series<'K,'V2> =
+    static member inline Map(source: ISeries<'K,'V>, mapFunc:Func<'V,'V2>) : Series<'K,'V2> =
       CursorSeries(fun _ -> new MapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<'K,'V2>) :> Series<'K,'V2>
 
 //    [<Extension>]
@@ -634,45 +634,45 @@ type SeriesExtensions () =
 //      CursorSeries(fun _ -> new MapKeysCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
-    static member inline Zip(source: Series<'K,'V>, other: Series<'K,'V2>, mapFunc:Func<'V,'V2,'R>) : Series<'K,'R> =
+    static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V2>, mapFunc:Func<'V,'V2,'R>) : Series<'K,'R> =
       CursorSeries(fun _ -> new ZipValuesCursor<'K,'V,'V2,'R>(Func<ICursor<'K,'V>>(source.GetCursor), Func<ICursor<'K,'V2>>(other.GetCursor), mapFunc) :> ICursor<'K,'R>) :> Series<'K,'R>
 
     [<Extension>]
-    static member inline Filter(source: Series<'K,'V>, filterFunc:Func<'V,bool>) : Series<'K,'V> = 
+    static member inline Filter(source: ISeries<'K,'V>, filterFunc:Func<'V,bool>) : Series<'K,'V> = 
       CursorSeries(fun _ -> new FilterValuesCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), filterFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
-    static member inline Repeat(source: Series<'K,'V>) : Series<'K,'V> = 
+    static member inline Repeat(source: ISeries<'K,'V>) : Series<'K,'V> = 
       CursorSeries(fun _ -> new RepeatCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor)) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     /// Fill missing values with the given value
     [<Extension>]
-    static member inline Fill(source: Series<'K,'V>, fillValue:'V) : Series<'K,'V> = 
+    static member inline Fill(source: ISeries<'K,'V>, fillValue:'V) : Series<'K,'V> = 
       CursorSeries(fun _ -> new FillCursor<'K,'V>(source.GetCursor, fillValue) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
-    static member inline Lag(source: Series<'K,'V>, lag:uint32) : Series<'K,'V> = 
+    static member inline Lag(source: ISeries<'K,'V>, lag:uint32) : Series<'K,'V> = 
       CursorSeries(fun _ -> new LagCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), lag) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
-    static member inline Window(source: Series<'K,'V>, width:uint32, step:uint32) : Series<'K,Series<'K,'V>> = 
+    static member inline Window(source: ISeries<'K,'V>, width:uint32, step:uint32) : Series<'K,Series<'K,'V>> = 
       CursorSeries(fun _ -> new WindowCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), width, step) :> ICursor<'K,Series<'K,'V>>) :> Series<'K,Series<'K,'V>>
 
     [<Extension>]
-    static member inline Add(source: Series<'K,int>, addition:int) : Series<'K,int> = 
+    static member inline Add(source: ISeries<'K,int>, addition:int) : Series<'K,int> = 
       CursorSeries(fun _ -> new AddIntCursor<'K>(source.GetCursor,addition) :> ICursor<'K,int>) :> Series<'K,int>
 
     [<Extension>]
-    static member inline Add(source: Series<'K,int64>, addition:int64) : Series<'K,int64> = 
+    static member inline Add(source: ISeries<'K,int64>, addition:int64) : Series<'K,int64> = 
       CursorSeries(fun _ -> new AddInt64Cursor<'K>(source.GetCursor,addition) :> ICursor<'K,int64>) :> Series<'K,int64>
     [<Extension>]
-    static member inline Log(source: Series<'K,int64>) : Series<'K,double> = 
+    static member inline Log(source: ISeries<'K,int64>) : Series<'K,double> = 
       CursorSeries(fun _ -> new LogCursor<'K>(source.GetCursor) :> ICursor<'K,double>) :> Series<'K,double>
 
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
     [<Extension>]
     [<Obsolete("Use `ToSortedMap` method instead")>]
-    static member inline Evaluate(source: Series<'K,'V>) : SortedMap<'K,'V> =
+    static member inline Evaluate(source: ISeries<'K,'V>) : SortedMap<'K,'V> =
       let sm = SortedMap()
       for kvp in source do
         sm.AddLast(kvp.Key, kvp.Value)
@@ -680,47 +680,47 @@ type SeriesExtensions () =
 
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
     [<Extension>]
-    static member inline ToSortedMap(source: Series<'K,'V>) : SortedMap<'K,'V> =
+    static member inline ToSortedMap(source: ISeries<'K,'V>) : SortedMap<'K,'V> =
       let sm = SortedMap()
       for kvp in source do
         sm.AddLast(kvp.Key, kvp.Value)
       sm
 
     [<Extension>]
-    static member inline Fold(source: Series<'K,'V>, init:'R, folder:Func<'R,'K,'V,'R>) : 'R = 
+    static member inline Fold(source: ISeries<'K,'V>, init:'R, folder:Func<'R,'K,'V,'R>) : 'R = 
       let mutable state = init
       for kvp in source do
         state <- folder.Invoke(state, kvp.Key, kvp.Value)
       state
 
     [<Extension>]
-    static member inline Fold(source: Series<'K,'V>, init:'R, folder:Func<'R,'V,'R>) : 'R = 
+    static member inline Fold(source: ISeries<'K,'V>, init:'R, folder:Func<'R,'V,'R>) : 'R = 
       let mutable state = init
       for kvp in source do
         state <- folder.Invoke(state, kvp.Value)
       state
 
     [<Extension>]
-    static member inline Fold(source: Series<'K,'V>, init:'R, folder:Func<'R,'K,'R>) : 'R = 
+    static member inline Fold(source: ISeries<'K,'V>, init:'R, folder:Func<'R,'K,'R>) : 'R = 
       let mutable state = init
       for kvp in source do
         state <- folder.Invoke(state, kvp.Key)
       state
 
     [<Extension>]
-    static member inline Scan(source: Series<'K,'V>, init:'R, folder:Func<'R,'K,'V,'R>) : Series<'K,'R> = 
+    static member inline Scan(source: ISeries<'K,'V>, init:'R, folder:Func<'R,'K,'V,'R>) : Series<'K,'R> = 
       CursorSeries(fun _ -> new ScanCursor<'K,'V,'R>(Func<ICursor<'K,'V>>(source.GetCursor), init, folder) :> ICursor<'K,'R>) :> Series<'K,'R>
       
     [<Extension>]
-    static member inline Range(source: Series<'K,'V>, startKey:'K, endKey:'K) : Series<'K,'V> = 
+    static member inline Range(source: ISeries<'K,'V>, startKey:'K, endKey:'K) : Series<'K,'V> = 
       CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), Some(startKey), Some(endKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
       
     [<Extension>]
-    static member inline After(source: Series<'K,'V>, startKey:'K, lookup:Lookup) : Series<'K,'V> = 
+    static member inline After(source: ISeries<'K,'V>, startKey:'K, lookup:Lookup) : Series<'K,'V> = 
       CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), Some(startKey), None, Some(lookup), None) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
-    static member inline Before(source: Series<'K,'V>, endKey:'K, lookup:Lookup) : Series<'K,'V> = 
+    static member inline Before(source: ISeries<'K,'V>, endKey:'K, lookup:Lookup) : Series<'K,'V> = 
       CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), None, Some(endKey), None, Some(Lookup.GT)) :> ICursor<'K,'V>) :> Series<'K,'V>
       
 

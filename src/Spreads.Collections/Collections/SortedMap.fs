@@ -1187,11 +1187,106 @@ type SortedMap<'K,'V when 'K : comparison>
       this.RemoveLast(&result)
     member this.RemoveMany(key:'K,direction:Lookup) = 
       this.RemoveMany(key, direction)
+
+    // TODO move to type memeber, cheack if IROOM is SM and copy arrays in one go
     member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) =
+      let hasEqOverlap (old:IReadOnlyOrderedMap<'K,'V>) (append:IReadOnlyOrderedMap<'K,'V>) : bool =
+        if comparer.Compare(append.First.Key, old.Last.Key) > 0 then false
+        else
+          let oldC = old.GetCursor()
+          let appC = append.GetCursor();
+          let mutable cont = true
+          let mutable overlapOk = 
+            oldC.MoveAt(append.First.Key, Lookup.EQ) 
+              && appC.MoveFirst() 
+              && oldC.CurrentKey = appC.CurrentKey
+              && Unchecked.equals oldC.CurrentValue appC.CurrentValue
+          while overlapOk && cont do
+            if oldC.MoveNext() then
+              overlapOk <-
+                appC.MoveNext() 
+                && oldC.CurrentKey = appC.CurrentKey
+                && Unchecked.equals oldC.CurrentValue appC.CurrentValue
+            else cont <- false
+          overlapOk
+      if appendMap.IsEmpty then
+        0
+      else
+        let entered = enterLockIf this.SyncRoot this.IsSynchronized
+        try
+          match option with
+          | AppendOption.ThrowOnOverlap _ ->
+            if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+              let mutable c = 0
+              for i in appendMap do
+                c <- c + 1
+                this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+              c
+            else invalidOp "values overlap with existing"
+          | AppendOption.DropOldOverlap ->
+            if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+              let mutable c = 0
+              for i in appendMap do
+                c <- c + 1
+                this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+              c
+            else
+              let removed = this.RemoveMany(appendMap.First.Key, Lookup.GE)
+              Debug.Assert(removed)
+              let mutable c = 0
+              for i in appendMap do
+                c <- c + 1
+                this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+              c
+          | AppendOption.IgnoreEqualOverlap ->
+            if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+              let mutable c = 0
+              for i in appendMap do
+                c <- c + 1
+                this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+              c
+            else
+              let isEqOverlap = hasEqOverlap this appendMap
+              if isEqOverlap then
+                let appC = appendMap.GetCursor();
+                if appC.MoveAt(this.Last.Key, Lookup.GT) then
+                  this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                  let mutable c = 1
+                  while appC.MoveNext() do
+                    this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                    c <- c + 1
+                  c
+                else 0
+              else invalidOp "overlapping values are not equal" // TODO unit test
+          | AppendOption.RequireEqualOverlap ->
+            if this.IsEmpty then
+              let mutable c = 0
+              for i in appendMap do
+                c <- c + 1
+                this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+              c
+            elif comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+              invalidOp "values do not overlap with existing"
+            else
+              let isEqOverlap = hasEqOverlap this appendMap
+              if isEqOverlap then
+                let appC = appendMap.GetCursor();
+                if appC.MoveAt(this.Last.Key, Lookup.GT) then
+                  this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                  let mutable c = 1
+                  while appC.MoveNext() do
+                    this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                    c <- c + 1
+                  c
+                else 0
+              else invalidOp "overlapping values are not equal" // TODO unit test
+          | _ -> failwith "Unknown AppendOption"
+        finally
+          exitLockIf this.SyncRoot entered
       // do not need transaction because if the first addition succeeds then all others will be added as well
 //      for i in appendMap do
 //        this.AddLast(i.Key, i.Value)
-      raise (NotImplementedException("TODO append impl"))
+      //raise (NotImplementedException("TODO append impl"))
     
   interface IUpdateable<'K,'V> with
     [<CLIEvent>]

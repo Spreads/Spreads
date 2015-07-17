@@ -203,7 +203,7 @@ type SeriesTestsModule() =
         scan2.[5] |> should equal expected.[5]
         scan2.[7] |> should equal expected.[7]
 
-        scan.Last().Value |> should equal expected.[7]
+        scan.Last.Value |> should equal expected.[7]
         let sc = scan.GetCursor()
         sc.MoveAt(5, Lookup.EQ) |> ignore
         sc.CurrentValue |> should equal expected.[5]

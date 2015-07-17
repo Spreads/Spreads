@@ -88,7 +88,7 @@ and
     inherit IAsyncEnumerator<KVP<'K, 'V>>
     abstract Comparer: IComparer<'K> with get
     /// Puts the cursor to the position according to LookupDirection
-    abstract MoveAt: index:'K * direction:Lookup -> bool
+    abstract MoveAt: key:'K * direction:Lookup -> bool
     abstract MoveFirst: unit -> bool
     abstract MoveLast: unit -> bool
     abstract MovePrevious: unit -> bool

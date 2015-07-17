@@ -1,4 +1,4 @@
-﻿namespace Spreads.Collections.Obsolete
+﻿namespace Spreads.Collections
 
 open System
 open System.Collections
@@ -659,6 +659,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     finally
       exitLockIf this.SyncRoot entered
 
+  // TODO after checks, should form changed new chunks and use outer append method with rewrite
   member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) : int =
     let hasEqOverlap (old:IReadOnlyOrderedMap<'K,'V>) (append:IReadOnlyOrderedMap<'K,'V>) : bool =
       if comparer.Compare(append.First.Key, old.Last.Key) > 0 then false

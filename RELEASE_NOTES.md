@@ -1,6 +1,8 @@
-#### 0.0.21 - July 17, 2015
-* Implement Fold, Scan, Range, Window (overlapping moving window)
-* TODO incomplete windows?
+#### 0.0.23 - July 17, 2015
+* Extension methods for ISeries interface and not for Series class.
+
+#### 0.0.22 - July 17, 2015
+* Implement Fold, Scan, Range, Window (overlapping moving window). Basic tests on forward-only enumeration.
 
 #### 0.0.20 - July 16, 2015
 * Change CursorBind so that TryGetValue/TryUpdateNext/Prev do not move InputCursor and return a single value for provided key, not a KVP

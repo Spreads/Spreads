@@ -106,6 +106,7 @@
     <Compile Include="MathProviderImpl.fs" />
     <Compile Include="Spreads.Series.2.fs" />
     <Content Include="packages.config" />
+    <Compile Include="Cell.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">

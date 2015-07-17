@@ -44,86 +44,99 @@ and
     
     abstract GetCursor : unit -> ICursor<'K,'V>
 
+    member this.Comparer with get() = this.GetCursor().Comparer
+    member this.IsEmpty = not (this.GetCursor().MoveFirst())
+    //member this.Count with get() = map.Count
+    member this.First 
+      with get() = 
+        let c = this.GetCursor()
+        if c.MoveFirst() then c.Current else failwith "Series is empty"
+
+    member this.Last 
+      with get() =
+        let c = this.GetCursor()
+        if c.MoveLast() then c.Current else failwith "Series is empty"
+
+    member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
+      let c = this.GetCursor()
+      if c.MoveAt(k, direction) then 
+        result <- c.Current 
+        true
+      else failwith "Series is empty"
+
+    member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+      try
+        res <- (this :> IReadOnlyOrderedMap<'K,'V>).First
+        true
+      with
+      | _ -> 
+        res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
+        false
+
+    member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+      try
+        res <- (this :> IReadOnlyOrderedMap<'K,'V>).Last
+        true
+      with
+      | _ -> 
+        res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
+        false
+
+    member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
+      let c = this.GetCursor()
+      if c.IsContinuous then
+        c.TryGetValue(k, &value)
+      else
+        let v = ref Unchecked.defaultof<KVP<'K,'V>>
+        let ok = c.MoveAt(k, Lookup.EQ)
+        if ok then value <- c.CurrentValue else value <- Unchecked.defaultof<'V>
+        ok
+
+    member this.Item 
+      with get k = 
+        let ok, v = (this :> IReadOnlyOrderedMap<'K,'V>).TryGetValue(k)
+        if ok then v else raise (KeyNotFoundException())
+
+    member this.Keys 
+      with get() =
+        let c = this.GetCursor()
+        seq {
+          while c.MoveNext() do
+            yield c.CurrentKey
+        }
+
+    member this.Values
+      with get() =
+        let c = this.GetCursor()
+        seq {
+          while c.MoveNext() do
+            yield c.CurrentValue
+        }
 
     interface IEnumerable<KeyValuePair<'K, 'V>> with
       member this.GetEnumerator() = this.GetCursor() :> IEnumerator<KeyValuePair<'K, 'V>>
     interface System.Collections.IEnumerable with
       member this.GetEnumerator() = (this.GetCursor() :> System.Collections.IEnumerator)
-    interface ISeries<'K, 'V> with
+    interface ISeries<'K,'V> with
       member this.GetCursor() = this.GetCursor()
       member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
       member this.IsIndexed with get() = this.GetCursor().Source.IsIndexed
       member this.SyncRoot with get() = this.GetCursor().Source.SyncRoot
 
     interface IReadOnlyOrderedMap<'K,'V> with
-      member this.Comparer with get() = this.GetCursor().Comparer
-      member this.IsEmpty = not (this.GetCursor().MoveFirst())
+      member this.Comparer with get() = this.Comparer
+      member this.IsEmpty = this.IsEmpty
       //member this.Count with get() = map.Count
-      member this.First 
-        with get() = 
-          let c = this.GetCursor()
-          if c.MoveFirst() then c.Current else failwith "Series is empty"
-
-      member this.Last 
-        with get() =
-          let c = this.GetCursor()
-          if c.MoveLast() then c.Current else failwith "Series is empty"
-
-      member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-        let c = this.GetCursor()
-        if c.MoveAt(k, direction) then 
-          result <- c.Current 
-          true
-        else failwith "Series is empty"
-
-      member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-        try
-          res <- (this :> IReadOnlyOrderedMap<'K,'V>).First
-          true
-        with
-        | _ -> 
-          res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-          false
-
-      member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-        try
-          res <- (this :> IReadOnlyOrderedMap<'K,'V>).Last
-          true
-        with
-        | _ -> 
-          res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-          false
-
-      member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
-        let c = this.GetCursor()
-        if c.IsContinuous then
-          c.TryGetValue(k, &value)
-        else
-          let v = ref Unchecked.defaultof<KVP<'K,'V>>
-          let ok = c.MoveAt(k, Lookup.EQ)
-          if ok then value <- c.CurrentValue else value <- Unchecked.defaultof<'V>
-          ok
-
-      member this.Item 
-        with get k = 
-          let ok, v = (this :> IReadOnlyOrderedMap<'K,'V>).TryGetValue(k)
-          if ok then v else raise (KeyNotFoundException())
-
-      member this.Keys 
-        with get() =
-          let c = this.GetCursor()
-          seq {
-            while c.MoveNext() do
-              yield c.CurrentKey
-          }
-
-      member this.Values
-        with get() =
-          let c = this.GetCursor()
-          seq {
-            while c.MoveNext() do
-              yield c.CurrentValue
-          }
+      member this.First with get() = this.First 
+      member this.Last with get() = this.Last 
+      member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryFind(k, direction, &result)
+      member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = this.TryGetFirst(&res)
+      member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = this.TryGetLast(&res)
+      member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
+      member this.Item with get k = this.[k]
+      member this.Keys with get() = this.Keys 
+      member this.Values with get() = this.Values
+          
 
 
     /// Used for implement scalar operators which are essentially a map application
