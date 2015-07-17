@@ -91,6 +91,7 @@
     <Compile Include="Bootstrapper\NativeLibrary.cs" />
     <Compile Include="Bootstrapper\Process.cs" />
     <Compile Include="Bootstrapper\Version.cs" />
+    <Compile Include="DBExtensions.cs" />
     <Compile Include="Extensions\DateTimeExtensions.cs" />
     <Compile Include="Series\ZonedSeries.cs" />
     <Compile Include="System\Runtime\BufferPool.cs" />
