@@ -970,9 +970,7 @@ type SortedMap<'K,'V when 'K : comparison>
               currentValue := this.values.[!index]
               true
             else
-              index := this.size
-              currentKey := Unchecked.defaultof<'K>
-              currentValue := Unchecked.defaultof<'V>
+              p.Reset()
               false
           else  // source change
             cursorVersion := version // update state to new version
@@ -983,9 +981,7 @@ type SortedMap<'K,'V when 'K : comparison>
               currentValue := kvp.Value
               true
             else  // not found
-              index := this.size
-              currentKey := Unchecked.defaultof<'K>
-              currentValue := Unchecked.defaultof<'V>
+              p.Reset()
               false
         finally
           exitLockIf syncRoot entered
@@ -1001,9 +997,7 @@ type SortedMap<'K,'V when 'K : comparison>
               currentValue := this.values.[index.Value]
               true
             else
-              index := this.size // 
-              currentKey := Unchecked.defaultof<'K>
-              currentValue := Unchecked.defaultof<'V>
+              p.Reset()
               false
           else
             cursorVersion := version // update state to new version
@@ -1014,9 +1008,7 @@ type SortedMap<'K,'V when 'K : comparison>
               currentValue := kvp.Value
               true
             else  // not found
-              index :=  this.size
-              currentKey := Unchecked.defaultof<'K>
-              currentValue := Unchecked.defaultof<'V>
+              p.Reset()
               false
         finally
           exitLockIf syncRoot entered
@@ -1031,9 +1023,7 @@ type SortedMap<'K,'V when 'K : comparison>
             currentValue := kvp.Value
             true
           else
-            index := this.size
-            currentKey := Unchecked.defaultof<'K>
-            currentValue := Unchecked.defaultof<'V>
+            p.Reset()
             false
         finally
           exitLockIf syncRoot entered
@@ -1047,9 +1037,7 @@ type SortedMap<'K,'V when 'K : comparison>
             currentValue := this.values.[index.Value]
             true
           else
-            index := this.size
-            currentKey := Unchecked.defaultof<'K>
-            currentValue := Unchecked.defaultof<'V>
+            p.Reset()
             false
         finally
           exitLockIf syncRoot entered
@@ -1063,9 +1051,7 @@ type SortedMap<'K,'V when 'K : comparison>
             currentValue := this.values.[index.Value]
             true
           else
-            index := this.size
-            currentKey := Unchecked.defaultof<'K>
-            currentValue := Unchecked.defaultof<'V>
+            p.Reset()
             false
         finally
           exitLockIf syncRoot entered

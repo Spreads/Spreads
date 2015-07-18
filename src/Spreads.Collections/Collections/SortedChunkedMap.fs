@@ -303,9 +303,8 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
             else
               inner.Value.MoveAt(newSubIdx, direction)
                    
-          isReset := false
-                    
           if res then
+            isReset := false
             isBatch := false
             true
           else
@@ -317,6 +316,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
                   let res = inner.Value.MoveAt(newSubIdx, direction)
                   if res then
                     isBatch := false
+                    isReset := false
                     true
                   else
                     p.Reset()
@@ -326,11 +326,13 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
                   false 
               | Lookup.GT | Lookup.GE ->
                 // look into next bucket
-                if outer.Value.MoveNext() then
+                let moved = outer.Value.MoveNext() 
+                if moved then
                   inner := outer.Value.CurrentValue.GetCursor()
                   let res = inner.Value.MoveAt(newSubIdx, direction)
                   if res then
                     isBatch := false
+                    isReset := false
                     true
                   else
                     p.Reset()
@@ -366,7 +368,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         if not !isReset then
           outer.Value.Reset()
           outer.Value.MoveFirst() |> ignore
-          inner.Value.Reset()
+          //inner.Value.Reset()
           inner := Unchecked.defaultof<ICursor<'K, 'V>> // outer.Value.CurrentValue.GetPointer()
           isReset := true
 
@@ -834,6 +836,10 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     member this.RemoveMany(key:'K,direction:Lookup) = 
       this.RemoveMany(key, direction) 
     member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) = this.Append(appendMap, option)
+
+  interface IPersistentOrderedMap<'K,'V> with
+    member this.Flush() = this.Flush()
+
   //#endregion
 
   // x0

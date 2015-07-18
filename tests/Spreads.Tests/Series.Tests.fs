@@ -14,6 +14,149 @@ open System.Threading
 
 type SeriesTestsModule() =
     
+    [<Test>]
+    member this.``SM Could TryFind and MoveAt with single value``() =
+        let map = SortedMap<int, int>()
+        map.Add(1,1)
+                // at existing inclusive
+        
+        let ok, value = map.TryFind(1, Lookup.GE);
+        ok |> should equal true
+        value.Value |> should equal 1
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(1, Lookup.GE)
+        moved |> should equal true
+        cursor.CurrentValue |> should equal 1
+
+        let ok, value = map.TryFind(1, Lookup.LE);
+        ok |> should equal true
+        value.Value |> should equal 1
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(1, Lookup.LE)
+        moved |> should equal true
+        cursor.CurrentValue |> should equal 1
+
+
+        // at existing exclusive
+        let ok, value = map.TryFind(1, Lookup.GT);
+        ok |> should equal false
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(1, Lookup.GT)
+        moved |> should equal false
+
+        let ok, value = map.TryFind(1, Lookup.LT);
+        ok |> should equal false
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(1, Lookup.LT)
+        moved |> should equal false
+
+
+        // before existing to its direction
+        let ok, value = map.TryFind(0, Lookup.GT);
+        ok |> should equal true
+        value.Value |> should equal 1
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(0, Lookup.GT)
+        moved |> should equal true
+        cursor.CurrentValue |> should equal 1
+
+        let ok, value = map.TryFind(0, Lookup.GE);
+        ok |> should equal true
+        value.Value |> should equal 1
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(0, Lookup.GE)
+        moved |> should equal true
+        cursor.CurrentValue |> should equal 1
+
+        // after existing to its direction
+        let ok, value = map.TryFind(2, Lookup.LE);
+        ok |> should equal true
+        value.Value |> should equal 1
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(2, Lookup.LE)
+        moved |> should equal true
+        cursor.CurrentValue |> should equal 1
+
+        let ok, value = map.TryFind(2, Lookup.LT);
+        ok |> should equal true
+        value.Value |> should equal 1
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(2, Lookup.LT)
+        moved |> should equal true
+        cursor.CurrentValue |> should equal 1
+
+    [<Test>]
+    member this.``SCM Could TryFind and MoveAt with single value``() =
+        let map = SortedChunkedMap<int, int>()
+        map.Add(1,1)
+
+        // at existing inclusive
+        
+        let ok, value = map.TryFind(1, Lookup.GE);
+        ok |> should equal true
+        value.Value |> should equal 1
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(1, Lookup.GE)
+        moved |> should equal true
+        cursor.CurrentValue |> should equal 1
+
+        let ok, value = map.TryFind(1, Lookup.LE);
+        ok |> should equal true
+        value.Value |> should equal 1
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(1, Lookup.LE)
+        moved |> should equal true
+        cursor.CurrentValue |> should equal 1
+
+
+        // at existing exclusive
+        let ok, value = map.TryFind(1, Lookup.GT);
+        ok |> should equal false
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(1, Lookup.GT)
+        moved |> should equal false
+
+        let ok, value = map.TryFind(1, Lookup.LT);
+        ok |> should equal false
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(1, Lookup.LT)
+        moved |> should equal false
+
+
+        // before existing to its direction
+        let ok, value = map.TryFind(0, Lookup.GT);
+        ok |> should equal true
+        value.Value |> should equal 1
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(0, Lookup.GT)
+        moved |> should equal true
+        cursor.CurrentValue |> should equal 1
+
+        let ok, value = map.TryFind(0, Lookup.GE);
+        ok |> should equal true
+        value.Value |> should equal 1
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(0, Lookup.GE)
+        moved |> should equal true
+        cursor.CurrentValue |> should equal 1
+
+        // after existing to its direction
+        let ok, value = map.TryFind(2, Lookup.LE);
+        ok |> should equal true
+        value.Value |> should equal 1
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(2, Lookup.LE)
+        moved |> should equal true
+        cursor.CurrentValue |> should equal 1
+
+        let ok, value = map.TryFind(2, Lookup.LT);
+        ok |> should equal true
+        value.Value |> should equal 1
+        let cursor = map.GetCursor()
+        let moved = cursor.MoveAt(2, Lookup.LT)
+        moved |> should equal true
+        cursor.CurrentValue |> should equal 1
+
             
     [<Test>]
     member this.``Could repeat series``() =

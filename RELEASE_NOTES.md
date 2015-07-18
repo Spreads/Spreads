@@ -1,3 +1,7 @@
+#### 0.0.24 - July 18, 2015
+* Fix SCM cursor MoveAt GE/GT bug, that was caused by SM cursor index set to size rather than -1 on false move.
+* Add IPersistentOrderedMap with Flush method to interfaces
+
 #### 0.0.23 - July 17, 2015
 * Extension methods for ISeries interface and not for Series class.
 

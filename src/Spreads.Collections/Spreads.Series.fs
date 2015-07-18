@@ -62,7 +62,7 @@ and
       if c.MoveAt(k, direction) then 
         result <- c.Current 
         true
-      else failwith "Series is empty"
+      else false
 
     member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
       try
@@ -959,18 +959,18 @@ type CursorRange<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>,
   let hasFirst, first = 
     if startKey.IsSome then
       let moved = cursor.MoveAt(startKey.Value, firstLookup)
-      moved, cursor.CurrentKey
+      if moved then true, cursor.CurrentKey else false, Unchecked.defaultof<_>
     else
       let moved =  cursor.MoveFirst()
-      moved, cursor.CurrentKey
+      if moved then true, cursor.CurrentKey else false, Unchecked.defaultof<_>
     
   let hasLast, last = 
     if endKey.IsSome then
       let moved = cursor.MoveAt(endKey.Value, lastLookup)
-      moved, cursor.CurrentKey
+      if moved then true, cursor.CurrentKey else false, Unchecked.defaultof<_>
     else
       let moved =  cursor.MoveLast()
-      moved, cursor.CurrentKey
+      if moved then true, cursor.CurrentKey else false, Unchecked.defaultof<_>
 
   let mutable hasValues = hasFirst && hasLast && cursor.Comparer.Compare(first, last) <= 0
 

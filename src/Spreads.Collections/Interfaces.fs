@@ -205,6 +205,13 @@ type IOrderedMap<'K,'V when 'K : comparison> =
   /// And values from appendMap to the end of this map
   abstract Append: appendMap:IReadOnlyOrderedMap<'K,'V> * option:AppendOption -> int // TODO int, bool option for ignoreEqualOverlap, or Enum with 1: thow, 2: ignoreEqual, 3: rewriteOld, 4: ignoreNew (nonsense option, should not do, the first 3 are good)
 
+/// 
+[<Interface>]
+[<AllowNullLiteral>]
+type IPersistentOrderedMap<'K,'V when 'K : comparison> =
+  inherit IOrderedMap<'K,'V>
+  abstract Flush : unit -> unit
+
 [<Interface>]
 [<AllowNullLiteral>]
 type IImmutableOrderedMap<'K,'V when 'K : comparison> =
