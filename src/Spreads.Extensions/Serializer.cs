@@ -330,7 +330,7 @@ namespace Spreads {
             // are called before the serializer is used, so libspreadsdb is loaded.
             ABI = Bootstrapper.ABI;
             // blosc threads
-            NumThreads = 1; //Environment.ProcessorCount;
+	        NumThreads = 1; //Environment.ProcessorCount;
             Diff = true;
             ObjectSerializer = new SpreadsJsonSerializer();
             ArrayCopyToNew = (source, length, self) => {

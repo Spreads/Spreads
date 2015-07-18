@@ -403,7 +403,7 @@ type SortedMap<'K,'V when 'K : comparison>
                 raise (InvalidOperationException("Collection changed during enumeration"))
               if index.Value < this.size then
                 currentKey := 
-                  if couldHaveRegularKeys then diffCalc.Add(this.keys.[0], (int64 !index)*rkGetStep()) 
+                  if couldHaveRegularKeys && this.size > 1 then diffCalc.Add(this.keys.[0], (int64 !index)*rkGetStep()) 
                   else this.keys.[!index]
                 index := index.Value + 1
                 true
