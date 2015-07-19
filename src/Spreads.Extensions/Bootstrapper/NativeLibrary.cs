@@ -8,8 +8,8 @@
 using System;
 
 namespace Bootstrap {
-
-	internal class NativeLibrary : IDisposable
+    // TODO internal
+    public class NativeLibrary : IDisposable
 	{
 
 		private string path;

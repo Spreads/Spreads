@@ -15,7 +15,8 @@ using System.Runtime.InteropServices;
 
 namespace Bootstrap {
 
-    internal interface INativeLibraryLoader {
+    // TODO internal
+    public interface INativeLibraryLoader {
         IntPtr LoadLibrary(string path);
         bool UnloadLibrary(IntPtr library);
         IntPtr FindFunction(IntPtr library, string function);
@@ -111,7 +112,8 @@ namespace Bootstrap {
 
     }
 
-    internal class Loader {
+    // TODO internal
+    public class Loader {
 
         public static NativeLibrary LoadNativeLibrary<T>(string libname) {
             ABI abi = Process.DetectABI();

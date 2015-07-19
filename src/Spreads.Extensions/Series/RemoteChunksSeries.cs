@@ -5,6 +5,7 @@ using Spreads.Collections;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
+using System.Runtime.Caching;
 
 namespace Spreads {
 
@@ -34,7 +35,23 @@ namespace Spreads {
 			}
 		}
 
-		SortedMap<K, V> IOrderedMap<K, SortedMap<K, V>>.this[K key] {
+        SortedMap<K, V> this[K key] {
+            get {
+                return (this as IReadOnlyOrderedMap<K, SortedMap<K, V>>)[key];
+            }
+
+            set {
+                var v = value;
+                var k = ToInt64(key);
+                using (var locker = _remoteLocker(_mapId, k).Result) {
+                    _remoteSaver(_mapId, k, v).Wait();
+                    _localChunksCacheSet(_mapId, k, v);
+                    _localKeysCache[k] = v.Version;
+                }
+            }
+        }
+
+        SortedMap<K, V> IOrderedMap<K, SortedMap<K, V>>.this[K key] {
 			get {
 				return (this as IReadOnlyOrderedMap<K, SortedMap<K, V>>)[key];
 			}
@@ -330,7 +347,97 @@ namespace Spreads {
 			}
 		}
 
-	}
+
+
+        internal class LazyValue : IDisposable {
+            //internal static MemoryCache Cache = MemoryCache.Default; // new MemoryCache("MySQLDateTimeMap");
+            private Int64 _key;
+            private RemoteChunksSeries<K, V> _source;
+            private WeakReference<SortedMap<K, V>> _wr = new WeakReference<SortedMap<K, V>>(null);
+            private static CacheItemPolicy _policy;
+            private int lastSavedVersion = 0;
+
+            static LazyValue() {
+                _policy = new CacheItemPolicy();
+                _policy.SlidingExpiration = TimeSpan.FromMinutes(1);
+                //_policy.RemovedCallback = (CacheEntryRemovedCallback) ((args) =>
+                //{
+                //	if (args.RemovedReason != CacheEntryRemovedReason.Removed)
+                //	{
+                //		var item = args.CacheItem.Value as SortedMap<DateTime, V>;
+                //		Debug.Assert(item != null);
+                //                }
+                //            });
+            }
+
+            public LazyValue(Int64 key, RemoteChunksSeries<K, V> source) {
+                _key = key;
+                _source = source;
+
+            }
+
+            public SortedMap<K, V> Value {
+                get {
+                    SortedMap<K, V> target;
+                    if (_wr.TryGetTarget(out target)) {
+                        // _wr must be alive while target is in cache, do not check cache here
+                        return target;
+                    } else {
+                        var v = _source.LoadChunkAsync(_key).Result;
+                        //Cache.Set(_key, v, _policy);
+                        _wr.SetTarget(v);
+                        lastSavedVersion = v.Version;
+                        return v;
+                    }
+                }
+                set {
+                    var v = value;
+                    if (true) // || lastSavedVersion != v.Version) 
+                    {
+                        var key = _source.FromInt64(_key);
+                        _source[key] = v;
+                        //Cache.Set(_key, v, _policy);
+                        _wr.SetTarget(v);
+                        lastSavedVersion = v.Version;
+                    }
+                }
+            }
+
+            ~LazyValue() {
+                Dispose(false);
+            }
+
+            //Implement IDisposable.
+            public void Dispose() {
+                Dispose(true);
+                GC.SuppressFinalize(this);
+            }
+
+            protected virtual void Dispose(bool disposing) {
+                if (disposing) {
+                    // Free other state (managed objects).
+                }
+                SortedMap<K, V> v;
+                //var cached = Cache[_key];
+                if (_wr.TryGetTarget(out v)) // || cached != null) {
+                    {
+                    //if (v == null) { v = cached as SortedMap<DateTime, V>; }
+                    if (true) // || lastSavedVersion != v.Version)
+                    {
+                        var key = _source.FromInt64(_key);
+                        _source[key] = v;
+                        //Cache.Remove(_key);
+                        _wr = null;
+                        lastSavedVersion = 0;
+                    }
+                } else {
+                    //Debug.Assert(!Cache.Contains(_key));
+                }
+            }
+        }
+
+
+    }
 
 
 }

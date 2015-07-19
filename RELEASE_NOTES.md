@@ -1,3 +1,9 @@
+#### 0.0.26 - July 18, 2015
+* Fix Boostrapper bug in non-interactive mode
+
+#### 0.0.25 - July 18, 2015
+* Minor bug fix in SM cursor
+
 #### 0.0.24 - July 18, 2015
 * Fix SCM cursor MoveAt GE/GT bug, that was caused by SM cursor index set to size rather than -1 on false move.
 * Add IPersistentOrderedMap with Flush method to interfaces

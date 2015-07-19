@@ -74,7 +74,6 @@ namespace Bootstrap {
         //                      All are loaded to app domain
 
         static Bootstrapper() {
-
             ABI = Process.DetectABI();
 
             instance.Bootstrap<Loader>(
@@ -88,14 +87,14 @@ namespace Bootstrap {
 #endif
                 },
                 () => {
-                //Yeppp.Library.Init();
+                    Yeppp.Library.Init();
 #if DEBUG
                 Console.WriteLine("Post-copy action");
 #endif
                 },
                 () => {
-                //Yeppp.Library.Release();
-            });
+                    Yeppp.Library.Release();
+                });
 
             AppDomain.CurrentDomain.AssemblyResolve +=
                 new ResolveEventHandler((object sender, ResolveEventArgs args) => {
@@ -110,11 +109,12 @@ namespace Bootstrap {
         private string _dataFolder;
 
         // Botstrap self
-        private Bootstrapper() {
-
+        public Bootstrapper()
+        {
+            _assemblyDirectory = GetAssemblyDirectory();
             _baseFolder = Environment.UserInteractive
                 ? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
-                : Instance.AssemblyDirectory;
+                : _assemblyDirectory;
 
             _dataFolder = Path.Combine(_baseFolder, rootFolder, dataSubFolder);
 
@@ -159,17 +159,20 @@ namespace Bootstrap {
         private const string gplFolder = "Libraries";
 
 
-
-        public string AssemblyDirectory {
-            get {
-                string codeBase = Assembly.GetExecutingAssembly().CodeBase;
-                UriBuilder uri = new UriBuilder(codeBase);
-                string path = Uri.UnescapeDataString(uri.Path);
-                return Path.GetDirectoryName(path);
-            }
+        public string AssemblyDirectory
+        {
+            get { return _assemblyDirectory; }
         }
 
-        internal string BaseFolder {
+        public static string GetAssemblyDirectory()
+        {
+            string codeBase = Assembly.GetExecutingAssembly().CodeBase;
+            UriBuilder uri = new UriBuilder(codeBase);
+            string path = Uri.UnescapeDataString(uri.Path);
+            return Path.GetDirectoryName(path);
+        }
+
+        public string BaseFolder {
             get {
                 return _baseFolder;
             }
@@ -184,7 +187,7 @@ namespace Bootstrap {
             }
         }
 
-        internal string AppFolder {
+        public string AppFolder {
             get {
                 return Path.Combine(_baseFolder, rootFolder, appSubFolder);
             }
@@ -215,6 +218,7 @@ namespace Bootstrap {
         // TODO do not store managed, return to resolve method
         internal Dictionary<string, Assembly> managedLibraries = new Dictionary<string, Assembly>();
         private List<Action> DisposeActions = new List<Action>();
+        private readonly string _assemblyDirectory;
 
         /// <summary>
         /// From assembly with type T load libraries
