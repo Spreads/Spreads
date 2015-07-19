@@ -51,6 +51,15 @@ namespace Spreads {
             }
         }
 
+	    new public bool IsEmpty
+	    {
+	        get { return _localKeysCache.IsEmpty; }
+	    }
+
+        bool IReadOnlyOrderedMap<K, SortedMap<K, V>>.IsEmpty {
+            get { return _localKeysCache.IsEmpty; }
+        }
+
         SortedMap<K, V> IOrderedMap<K, SortedMap<K, V>>.this[K key] {
 			get {
 				return (this as IReadOnlyOrderedMap<K, SortedMap<K, V>>)[key];

@@ -27,12 +27,13 @@ type BaseSeries internal() =
   // this is ugly, but rewriting the whole structure is uglier // TODO "proper" methods DI
   //static member internal DoInit() =
   static do
-    let moduleInfo = 
-      Reflection.Assembly.GetExecutingAssembly().GetTypes()
-      |> Seq.find (fun t -> t.Name = "Initializer")
-    //let ty = typeof<BaseSeries>
-    let mi = moduleInfo.GetMethod("init", (Reflection.BindingFlags.Static ||| Reflection.BindingFlags.NonPublic) )
-    mi.Invoke(null, [||]) |> ignore
+    ()
+//    let moduleInfo = 
+//      Reflection.Assembly.GetExecutingAssembly().GetTypes()
+//      |> Seq.find (fun t -> t.Name = "Initializer")
+//    //let ty = typeof<BaseSeries>
+//    let mi = moduleInfo.GetMethod("init", (Reflection.BindingFlags.Static ||| Reflection.BindingFlags.NonPublic) )
+//    mi.Invoke(null, [||]) |> ignore
 
 
 and

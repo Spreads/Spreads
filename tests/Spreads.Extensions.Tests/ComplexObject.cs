@@ -5,6 +5,13 @@ using Newtonsoft.Json;
 
 namespace Spreads.DB.Tests
 {
+
+    public class MyTestClass {
+        public string Text { get; set; }
+        public decimal Number { get; set; }
+    }
+
+
     public class ComplexObject {
         public long[] IntArray { get; set; }
         public SortedMap<DateTime, double> SortedMap { get; set; }

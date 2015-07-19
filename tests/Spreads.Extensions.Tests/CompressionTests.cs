@@ -94,8 +94,27 @@ namespace Spreads.DB.Tests {
 			Console.WriteLine("Elapsed: " + sw.ElapsedMilliseconds);
 		}
 
+        [Test]
+        public void CouldCompressAndDecompressSeriesWithCustomObject() {
+            var sm = new SortedMap<DateTime, MyTestClass>();
+            for (int i = 0; i < 100; i++) {
+                var value = new MyTestClass()
+                {
+                    Text = "Text " + i,
+                    Number = i
+                };
+                sm.Add(DateTime.UtcNow.Date.AddSeconds(i + 1).ConvertToUtcWithUncpecifiedKind(""),
+                    value);
+            }
+            var bytes = Serializer.Serialize(sm);
+            var sm2 = Serializer.Deserialize<SortedMap<DateTime, MyTestClass>>(bytes);
 
-		[Test]
+            Assert.AreEqual(sm.Count, sm2.Count);
+        }
+
+
+
+        [Test]
 		public void MarshalDoesRoundsDateTime()
 		{
 			for (int i = 0; i < 1000; i++)

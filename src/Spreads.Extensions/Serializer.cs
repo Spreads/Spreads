@@ -380,6 +380,12 @@ namespace Spreads {
             return CompressMap(src, ArrayCopyToNew, level, shuffle, typeSize, method);
         }
 
+        // TODO dynamic resolution fails sometimes, I don't understand why
+        internal static byte[] CompressMap2<K, V>(SortedMap<K, V> src)
+        {
+            return CompressMap(src);
+        }
+
         internal static TResult CompressMap<K, V, TResult>(SortedMap<K, V> src,
            FixedBufferTransformer<TResult> transformer,
            int? level = null, bool? shuffle = null,
@@ -1359,21 +1365,36 @@ namespace Spreads {
             return CompressBytes(value, transformer, 9, false, 1, CompressionMethod.lz4);
         }
 
-        internal static byte[] SerializeImpl<T>(T value) { //where TStruct : struct
-            var ty = typeof(T);
-            if (ty.IsValueType && (ty.IsLayoutSequential || ty.IsExplicitLayout)) {
+        internal static byte[] SerializeImpl<T>(T value) { //where T : struct
+            var ty = value.GetType(); // typeof(T);
+            if (ty.IsValueType && (ty.IsLayoutSequential || ty.IsExplicitLayout))
+            {
                 unsafe
                 {
                     var typeSize = Marshal.SizeOf(value);
                     var dest = new byte[typeSize];
                     fixed (byte* destPtr = &dest[0])
                     {
-                        Marshal.StructureToPtr(value, (IntPtr)destPtr, false);
+                        Marshal.StructureToPtr(value, (IntPtr) destPtr, false);
                         return dest;
                     }
                 }
-            } else {
-                return SerializeImpl((object)value);
+                //}
+            } else if (ty.IsGenericType &&
+                       ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
+                //if (!true) {
+                    var genericArgs = ty.GetGenericArguments();
+                    var keyType = genericArgs[0];
+                    var valueType = genericArgs[1];
+                    var mi = typeof(Serializer).GetMethod("CompressMap2",
+                        BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
+                    var genericMi = mi.MakeGenericMethod(keyType, valueType);
+                    //genericMethods[ty] = genericMi;
+                    return (byte[])genericMi.Invoke(null, new object[] { (object)value });
+                //}
+            } else
+            {
+                return SerializeImpl((object) value);
             }
         }
 
@@ -1445,6 +1466,49 @@ namespace Spreads {
             dynamic v = value;
             return SerializeImpl(v);
         }
+
+        //internal static object Serialize(object value, Type ty) {
+        //    dynamic r = BlittableHelper.GetDefault(ty);
+        //    if (!object.Equals(r, null)) {
+        //        r = DeserializeImpl(srcPtr, srcSize, r);
+        //    } else {
+        //        MethodInfo genericMi;
+
+        //        if (ty.IsGenericType &&
+        //            ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
+
+        //            var hasSaved = genericMethods.TryGetValue(ty, out genericMi);
+        //            if (!hasSaved) {
+        //                var genericArgs = ty.GetGenericArguments();
+        //                var keyType = genericArgs[0];
+        //                var valueType = genericArgs[1];
+        //                var mi = typeof(Serializer).GetMethod("DecompressMapPtr",
+        //                    BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
+        //                genericMi = mi.MakeGenericMethod(keyType, valueType);
+        //                genericMethods[ty] = genericMi;
+        //            }
+        //            return genericMi.Invoke(null, new object[] { srcPtr });
+        //        } else if (ty.IsArray) {
+        //            var elemType = ty.GetElementType();
+        //            if (elemType == typeof(byte)) {
+        //                return DecompressBytes(srcPtr, srcSize);
+        //            } else {
+        //                var hasSaved = genericMethods.TryGetValue(ty, out genericMi);
+        //                if (!hasSaved) {
+        //                    var mi = typeof(Serializer).GetMethod("DecompressArrayDefault", BindingFlags.Static | BindingFlags.NonPublic);
+        //                    genericMi = mi.MakeGenericMethod(elemType);
+        //                    genericMethods[ty] = genericMi;
+        //                }
+        //                return genericMi.Invoke(null, new object[] { srcPtr });
+        //            }
+        //        } else if (ty == typeof(string)) {
+        //            return DeserializeImpl(srcPtr, srcSize, String.Empty);
+        //        } else {
+        //            return DeserializeImpl(srcPtr, srcSize, ty);
+        //        }
+        //    }
+        //    return r;
+        //}
 
 
         /// <summary>

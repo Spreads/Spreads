@@ -104,7 +104,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         let entered = enterLockIf this.SyncRoot this.IsSynchronized
         try
           outerMap.IsEmpty 
-          || not (outerMap.Values |> Seq.exists (fun inner -> inner <> null && inner.size > 0))
+          //|| not (outerMap.Values |> Seq.exists (fun inner -> inner <> null && inner.size > 0))
         finally
           exitLockIf this.SyncRoot entered
 
