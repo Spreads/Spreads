@@ -1065,14 +1065,14 @@ namespace Spreads {
                         );
                     if (compSize <= 0) throw new ApplicationException("Invalid compression input");
                     // compression adds a header, without the header decompression could detect that a byte array is not compressed
-                    if (compSize >= src.Length) {
-                        // will copy self in case of ArrayCopy
-                        return transformer(src, src.Length, true);
-                    } else {
+                    //if (compSize >= src.Length) {
+                    //    // will copy self in case of ArrayCopy
+                    //    return transformer(src, src.Length, true);
+                    //} else {
                         var ret = new byte[compSize];
                         Array.Copy(dest, ret, compSize);
                         return transformer(dest, compSize);
-                    }
+                    //}
                 }
             }
         }

@@ -16,7 +16,7 @@ open Spreads.Collections
 // TODO ensure that on every prevBucket change we check its version and 
 // set to outer if versions differ
 // TODO subscribe to update events on prevBucket and Flush at least every second
-
+// TODO do not flush unchanged buckets, e.g. when chunkSize = 1 we flush twice
 
 
 
@@ -495,7 +495,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
       else
         if prevBucketIsSet then
           //prevBucket.Capacity <- prevBucket.Count // trim excess
-          outerMap.[prevHash]<- prevBucket
+          outerMap.[prevHash] <- prevBucket
         let bucket = 
           let ok, bucketKvp = outerMap.TryFind(hash, Lookup.EQ)
           if ok then 
