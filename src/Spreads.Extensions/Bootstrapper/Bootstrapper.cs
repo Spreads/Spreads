@@ -50,6 +50,8 @@ namespace Bootstrap {
         }
     }
 
+
+    // TODO internal all members and type if possible
     public class Bootstrapper {
         internal static ABI ABI { get; set; }
 
@@ -109,12 +111,12 @@ namespace Bootstrap {
         private string _dataFolder;
 
         // Botstrap self
-        public Bootstrapper()
-        {
+        public Bootstrapper() {
             _assemblyDirectory = GetAssemblyDirectory();
-            _baseFolder = Environment.UserInteractive
-                ? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
-                : _assemblyDirectory;
+            _baseFolder = //Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                Environment.UserInteractive
+                    ? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
+                    : Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
 
             _dataFolder = Path.Combine(_baseFolder, rootFolder, dataSubFolder);
 
@@ -122,13 +124,13 @@ namespace Bootstrap {
                 Directory.CreateDirectory(AppFolder);
             }
 
-            if (!Directory.Exists(Path.Combine(AppFolder, "x32"))) {
-                Directory.CreateDirectory(Path.Combine(AppFolder, "x32"));
-            }
+            //if (!Directory.Exists(Path.Combine(AppFolder, "x32"))) {
+            //    Directory.CreateDirectory(Path.Combine(AppFolder, "x32"));
+            //}
 
-            if (!Directory.Exists(Path.Combine(AppFolder, "x64"))) {
-                Directory.CreateDirectory(Path.Combine(AppFolder, "x64"));
-            }
+            //if (!Directory.Exists(Path.Combine(AppFolder, "x64"))) {
+            //    Directory.CreateDirectory(Path.Combine(AppFolder, "x64"));
+            //}
 
             if (!Directory.Exists(AppFolder)) {
                 Directory.CreateDirectory(AppFolder);
@@ -159,13 +161,11 @@ namespace Bootstrap {
         private const string gplFolder = "Libraries";
 
 
-        public string AssemblyDirectory
-        {
+        public string AssemblyDirectory {
             get { return _assemblyDirectory; }
         }
 
-        public static string GetAssemblyDirectory()
-        {
+        public static string GetAssemblyDirectory() {
             string codeBase = Assembly.GetExecutingAssembly().CodeBase;
             UriBuilder uri = new UriBuilder(codeBase);
             string path = Uri.UnescapeDataString(uri.Path);
@@ -203,7 +203,7 @@ namespace Bootstrap {
         }
 
         private string _tmpFolder = null;
-        internal string TempFolder {
+        public string TempFolder {
             get {
                 if (_tmpFolder == null) {
                     _tmpFolder = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
@@ -271,15 +271,27 @@ namespace Bootstrap {
             DisposeActions.Add(disposeAction);
         }
 
+        // TODO now it is not working
         ~Bootstrapper() {
             if (DisposeActions.Count > 0) {
                 foreach (var action in DisposeActions) {
-                    action.Invoke();
+                    try {
+                        action.Invoke();
+                    } catch {
+
+                    }
                 }
             }
+
             foreach (var loadedLibrary in nativeLibraries) {
-                if (loadedLibrary.Value != null) loadedLibrary.Value.Dispose();
+                if (loadedLibrary.Value != null) {
+                    try {
+                        loadedLibrary.Value.Dispose();
+                    } catch {
+                    }
+                }
             }
+
             try {
                 Directory.Delete(Instance.TempFolder, true);
             } catch {

@@ -1,5 +1,7 @@
-#### 0.0.26 - July 18, 2015
-* Fix Boostrapper bug in non-interactive mode
+#### 0.0.27 - July 18, 2015
+* Fix Boostrapper bug in non-interactive mode and change default folder
+* Fix (mute) serializer bug (TODO investigate why dynamic overload resolution wasn't working)
+
 
 #### 0.0.25 - July 18, 2015
 * Minor bug fix in SM cursor

@@ -128,7 +128,7 @@ namespace Bootstrap {
             if (resource == null)
                 return null;
 
-            string path = ExtractResource<T>(resource);
+            string path = ExtractNativeResource<T>(resource);
             if (path == null)
                 return null;
 
