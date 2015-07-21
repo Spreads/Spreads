@@ -67,14 +67,25 @@ namespace Spreads {
             }
 
             // Other than maps, we are cool at arrays. For other types JSON.NET is cool
-            if (!ty.IsArray) return serializer.Deserialize(reader, ty);
+	        if (!ty.IsArray)
+	        {
+		        return serializer.Deserialize(reader, ty);
+	        }
 
             var elTy = ty.GetElementType();
             if (BlittableHelper.IsBlittable(elTy)
                 || ty == typeof(DateTimeOffset)
                 || ty == typeof(DateTime)) {
-                // will dispatch to Spreads types
-                return Serializer.Deserialize(bytes, ty);
+				if (bytes == null )
+				{
+					var eq = ((object)false).Equals(reader.Value);
+					if (eq)
+					{
+						return Array.CreateInstance(ty.GetElementType(), 0);
+					}
+				}
+				// will dispatch to Spreads types
+				return Serializer.Deserialize(bytes, ty);
             }
 
             //var bytes = reader.Value as byte[];
@@ -86,34 +97,51 @@ namespace Spreads {
         public override void WriteJson(JsonWriter writer, object value,
             JsonSerializer serializer) {
 
-            //var ty = value.GetType();
+            var ty = value.GetType();
 
-            //if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
-            //    // will dispatch to Spreads types
-            //    var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
-            //    writer.WriteValue(bytes);
-            //}
+			//if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
+			//	// will dispatch to Spreads types
+			//	var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
+			//	writer.WriteValue(bytes);
+			//}
 
-            //// Other than maps, we are cool at arrays. For other types JSON.NET is cool
-            //if (!ty.IsArray) { serializer.Serialize(writer, value); }
+			//// Other than maps, we are cool at arrays. For other types JSON.NET is cool
+			//if (!ty.IsArray) {
+			//	serializer.Serialize(writer, value);
+			//}
 
-            //var elTy = ty.GetElementType();
-            //if (BlittableHelper.IsBlittable(elTy)
-            //    || ty == typeof(DateTimeOffset)
-            //    || ty == typeof(DateTime)) {
-            //    // will dispatch to Spreads types
-            //    var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
-            //    writer.WriteValue(bytes);
-            //} else {
-            //    serializer.Serialize(writer, value);
-            //}
+	        if (ty.IsArray)
+	        {
+		        var elTy = ty.GetElementType();
+		        if (BlittableHelper.IsBlittable(elTy)
+		            || ty == typeof (DateTimeOffset)
+		            || ty == typeof (DateTime))
+		        {
+			        var arr = (Array) value;
+			        if (arr.Length == 0)
+			        {
+				        writer.WriteValue(false);
+			        }
+			        else
+			        {
+				        // will dispatch to Spreads types
+				        var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
+				        writer.WriteValue(bytes);
+			        }
+		        }
+		        else
+		        {
+			        serializer.Serialize(writer, value);
+		        }
+	        }
+	        else
+	        {
 
-
-            // will dispatch to Spreads types
-            var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
-            writer.WriteValue(bytes);
-
-        }
+				// will dispatch to Spreads types
+				var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
+				writer.WriteValue(bytes);
+			}
+            }
     }
 
 
@@ -593,8 +621,8 @@ namespace Spreads {
             int? typeSize = null, CompressionMethod? method = null, bool diff = false) {
 
             if (src == null) throw new ArgumentNullException("src");
-            if (src.Length == 0) throw new ArgumentException("src is empty");
-            if (start < 0 || start > src.Length - 1) throw new ArgumentException("wrong offset");
+            //if (src.Length == 0) throw new ArgumentException("src is empty");
+            if (start < 0 || (src.Length > 0 && start > src.Length - 1)) throw new ArgumentException("wrong offset");
             if (length < 0 || length > src.Length - start) throw new ArgumentException("wrong offset");
             if (length == 0) length = src.Length - start;
 
@@ -751,6 +779,23 @@ namespace Spreads {
                                 return bufferTransform(buffer, compSize);
                             }
                         } else {
+	       //                 if (length == 0)
+	       //                 {
+								//var buf = new byte[16];
+		      //                  fixed (byte* bufferPtr = &buf[0])
+		      //                  {
+			     //                   var compSize = NativeMethods.blosc_compress_ctx(
+				    //                    new IntPtr(level1), new IntPtr(shuffle1 ? 1 : 0),
+				    //                    new UIntPtr((uint) typeSize1),
+				    //                    new UIntPtr((uint) (length*typeSize1)),
+				    //                    IntPtr.Zero, new IntPtr(bufferPtr), (UIntPtr)16,
+				    //                    method1.ToString(), new UIntPtr((uint) 0),
+				    //                    NumThreads
+				    //                    );
+								//	if (compSize <= 0) throw new ApplicationException("Invalid compression input");
+								//	return bufferTransform(buf, compSize);
+								//}
+	       //                 }
                             typeSize1 = Marshal.SizeOf(src[0]);
                             /// Blosc header 16 bytes
                             var maxLength = length * typeSize1 + 16;
@@ -1734,7 +1779,7 @@ namespace Spreads {
         /// Deserialize object
         /// </summary>
         public static object Deserialize(byte[] src, Type ty) {
-            if (src == null) throw new ArgumentNullException("src");
+			if (src == null) return null;// throw new ArgumentNullException("src");
             if (src.Length == 0) throw new ArgumentException("src is empty");
             unsafe
             {

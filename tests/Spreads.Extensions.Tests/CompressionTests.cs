@@ -92,6 +92,56 @@ namespace Spreads.DB.Tests {
 			}
 			sw.Stop();
 			Console.WriteLine("Elapsed: " + sw.ElapsedMilliseconds);
+			// scope, null map
+			{
+				var complexObj = ComplexObject.Create();
+				complexObj.SortedMap = null; // not root, JSON.NET deals with it
+				var bytes = Serializer.Serialize(complexObj);
+				if (write)
+				{
+					Console.WriteLine("Uncompressed size: " + (complexObj.TextValue.Length*2 + 8000 + 16000));
+					Console.WriteLine("Compressed size: " + bytes.Length);
+					write = false;
+				}
+				var complexObj2 = Serializer.Deserialize<ComplexObject>(bytes);
+
+				Assert.IsTrue(complexObj.IntArray.SequenceEqual(complexObj2.IntArray));
+				Assert.AreEqual(complexObj.TextValue, complexObj2.TextValue);
+
+
+			}
+			// scope, null int array
+			{
+				var complexObj = ComplexObject.Create();
+				complexObj.SortedMap = null;
+				complexObj.IntArray = null;
+				complexObj.TextValue = "";
+				var bytes = Serializer.Serialize(complexObj);
+				if (write) {
+					Console.WriteLine("Uncompressed size: " + (complexObj.TextValue.Length * 2 + 8000 + 16000));
+					Console.WriteLine("Compressed size: " + bytes.Length);
+					write = false;
+				}
+				var complexObj2 = Serializer.Deserialize<ComplexObject>(bytes);
+				Assert.IsTrue(complexObj2.IntArray == null);
+				Assert.AreEqual(complexObj.TextValue, complexObj2.TextValue);
+			}
+			//scope, empty int array
+            {
+				var complexObj = ComplexObject.Create();
+				complexObj.SortedMap = null;
+				complexObj.IntArray = new long[0];
+				complexObj.TextValue = "";
+				var bytes = Serializer.Serialize(complexObj);
+				if (write) {
+					Console.WriteLine("Uncompressed size: " + (complexObj.TextValue.Length * 2 + 8000 + 16000));
+					Console.WriteLine("Compressed size: " + bytes.Length);
+					write = false;
+				}
+				var complexObj2 = Serializer.Deserialize<ComplexObject>(bytes);
+				Assert.IsTrue(complexObj.IntArray.SequenceEqual(complexObj2.IntArray));
+				Assert.AreEqual(complexObj.TextValue, complexObj2.TextValue);
+			}
 		}
 
         [Test]
