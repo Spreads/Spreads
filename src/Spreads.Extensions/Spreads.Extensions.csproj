@@ -94,13 +94,13 @@
     <Compile Include="Bootstrapper\Version.cs" />
     <Compile Include="Extensions\DateTimeExtensions.cs" />
     <Compile Include="Extensions\StringExtensions.cs" />
-    <Compile Include="Serializer2.cs" />
+    <Compile Include="Serializer.cs" />
     <Compile Include="Series\RemoteChunksSeries.cs" />
     <Compile Include="Series\ZonedSeries.cs" />
     <Compile Include="System\Runtime\BufferPool.cs" />
     <Compile Include="native\NativeMethods.cs" />
     <Compile Include="Sandbox.cs" />
-    <Compile Include="Serializer.cs" />
+    <Compile Include="Obsolete\Serializer.cs" />
     <Compile Include="SortedList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="System\Runtime\SynchronizedPool.cs" />

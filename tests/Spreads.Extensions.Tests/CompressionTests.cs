@@ -371,7 +371,9 @@ namespace Spreads.DB.Tests {
                          ((double)sw.ElapsedMilliseconds); // MB/s
 
             Assert.AreEqual(decompr.Length, input.Length);
-            for (int i = 0; i < decompr.Length; i++) {
+            for (int i = 0; i < decompr.Length; i++)
+            {
+	            Assert.IsTrue(decompr[i].Equals(input[i]));
                 if (!decompr[i].Equals(input[i])) {
                     Console.WriteLine("In: " + input[i] + "; out: " + decompr[i]);
                 }
@@ -572,8 +574,10 @@ namespace Spreads.DB.Tests {
             for (int i = 0; i < 1000; i++) {
                 sortedMap.Add(DateTime.Today.AddDays(i), Math.Round(i + rng.NextDouble(), 2));
             }
-            sw.Start();
-            for (int i = 0; i < 1000; i++) {
+			sortedMap.Add(DateTime.Today.AddDays(1002), Math.Round(1002 + rng.NextDouble(), 2));
+
+			sw.Start();
+            for (int i = 0; i < 5000; i++) {
                 bytes = Serializer.Serialize(sortedMap);
                 sortedMap = Serializer.Deserialize<SortedMap<DateTime, double>>(bytes);
             }
@@ -690,7 +694,7 @@ namespace Spreads.DB.Tests {
         [Test]
         public void CouldCompressDecimalViaPointer()
         {
-            var bytes = Experimental.Serializer2.SerializeImpl(10M);
+            var bytes = Serializer.SerializeImpl(10M);
             Console.WriteLine(bytes.Length);
         }
 
@@ -736,6 +740,11 @@ namespace Spreads.DB.Tests {
             for (int i = 0; i < 10000000; i++) {
                 Assert.AreEqual(longs1[i], (long)longs2[i]);
             }
+
+
+	        var dt1 = DateTime.Now;
+	        var dt2 = DateTime.FromBinary(dt1.ToBinary());
+	        Assert.AreEqual(dt1, dt2);
         }
     }
 

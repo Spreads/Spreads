@@ -15,32 +15,15 @@ using Newtonsoft.Json.Bson;
 using System.IO;
 using System.Collections.Concurrent;
 
-namespace Spreads {
-
-
-	/// <summary>
-	/// Since we cannot use `fixed` on generic arrays, this interface allows to implement 
-	/// 
-	/// </summary>
-	/// <typeparam name="T"></typeparam>
-	public interface IFixable<T> where T : struct {
-		/// <summary>
-		/// What would &T return
-		/// </summary>
-		IntPtr Address();
-		/// <summary>
-		/// Fix &T[0] and do action on its pointer
-		/// </summary>
-		void DoFixed(T[] array, Action<IntPtr> action);
-	}
+namespace Spreads.Obsolete {
 
 	/// <summary>
 	/// 
 	/// </summary>
 	internal enum CompressionMethod {
 		blosclz = 0,
-		lz4 = 1,
-		lz4hc = 2
+		lz4 = 1
+		//,lz4hc = 2
 		//, zlib = 3
 		//, snappy = 4
 	}
@@ -48,7 +31,6 @@ namespace Spreads {
 	internal class EmptyArray<TElement> {
 		public static readonly TElement[] Instance = new TElement[0];
 	}
-
 
 
 	// TODO! support series by converting them to SortedMap on serializatio and by deserializing as SM and casting to series
@@ -96,21 +78,24 @@ namespace Spreads {
 
 			var elTy = ty.GetElementType();
 			if (BlittableHelper.IsBlittable(elTy)
-				//|| ty == typeof(DateTimeOffset)
+				|| ty == typeof(DateTimeOffset)
 				|| ty == typeof(DateTime)) {
-				//if (bytes == null) {
-				//	return null;
-				//} else if (bytes.Length == 0) {
-				//	return Array.CreateInstance(ty.GetElementType(), 0);
-				//}
+				if (bytes == null) {
+					return null;
+				} else if (bytes.Length == 0) {
+					return Array.CreateInstance(ty.GetElementType(), 0);
+					//var eq = ((object)false).Equals(reader.Value);
+					//if (eq)
+					//{
+					//	return Array.CreateInstance(ty.GetElementType(), 0);
+					//}
+				}
 				// will dispatch to Spreads types
 				return Serializer.Deserialize(bytes, ty);
 			}
 
 			//var bytes = reader.Value as byte[];
 			return serializer.Deserialize(reader, ty);
-
-
 		}
 
 		public override void WriteJson(JsonWriter writer, object value,
@@ -132,16 +117,16 @@ namespace Spreads {
 			if (ty.IsArray) {
 				var elTy = ty.GetElementType();
 				if (BlittableHelper.IsBlittable(elTy)
-					//|| ty == typeof(DateTimeOffset)
+					|| ty == typeof(DateTimeOffset)
 					|| ty == typeof(DateTime)) {
-					//var arr = (Array)value;
-					//if (arr.Length == 0) {
-					//	writer.WriteValue(EmptyArray<byte>.Instance);
-					//} else {
-					// will dispatch to Spreads types
-					var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
-					writer.WriteValue(bytes);
-					//}
+					var arr = (Array)value;
+					if (arr.Length == 0) {
+						writer.WriteValue(EmptyArray<byte>.Instance);
+					} else {
+						// will dispatch to Spreads types
+						var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
+						writer.WriteValue(bytes);
+					}
 				} else {
 					serializer.Serialize(writer, value);
 				}
@@ -179,7 +164,6 @@ namespace Spreads {
 			}
 		}
 
-		[Obsolete]
 		public T DeserializeFromJson<T>(string json) {
 			using (var reader = new StringReader(json)) {
 				using (var jsonReader = new JsonTextReader(reader)) {
@@ -204,7 +188,6 @@ namespace Spreads {
 			return ms.ToArray();  //Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(obj));
 		}
 
-		[Obsolete]
 		public string SerializeToJson<T>(T value) {
 			using (var writer = new StringWriter()) {
 				using (var jsonWriter = new JsonTextWriter(writer)) {
@@ -371,9 +354,7 @@ namespace Spreads {
 			ABI = Bootstrapper.ABI;
 			// blosc threads
 			NumThreads = 1; //Environment.ProcessorCount;
-			CompressionMethod = CompressionMethod.lz4;
 			Diff = true;
-			ZeroByteArray = new byte[] { 0 };
 			ObjectSerializer = new SpreadsJsonSerializer();
 			ArrayCopyToNew = (source, length, self) => {
 				if (self) {
@@ -401,18 +382,6 @@ namespace Spreads {
 		private static ABI ABI { get; set; }
 		private static int NumThreads { get; set; }
 		private static bool Diff { get; set; }
-		private static CompressionMethod CompressionMethod { get; set; }
-		private static byte[] ZeroByteArray { get; set; }
-		// each thread has its own buffer for temp primitive representation in bytes
-		[ThreadStatic]
-		private static byte[] _primitiveBuffer;
-		private static byte[] GetPrivitiveBuffer() {
-			if (_primitiveBuffer == null) {
-				_primitiveBuffer = new byte[16];
-			}
-			return _primitiveBuffer;
-		}
-
 		/// <summary>
 		/// Transform serialization buffer
 		/// </summary>
@@ -431,25 +400,23 @@ namespace Spreads {
 		internal static byte[] CompressMap<K, V>(SortedMap<K, V> src,
 			int? level = null, bool? shuffle = null,
 			int? typeSize = null, CompressionMethod? method = null) {
-			if (src == null) return null;
-			if (src.size == 0) return EmptyArray<byte>.Instance;
-			//return CompressMapSequential(src, level, shuffle, typeSize, method);
 			return CompressMap(src, ArrayCopyToNew, level, shuffle, typeSize, method);
 		}
 
-		// TODO dynamic resolution fails sometimes, I don't understand why, this is a failover with reflection
-		/// <summary>
-		/// Used as unique name to call by reflection
-		/// </summary>
+		// TODO dynamic resolution fails sometimes, I don't understand why
 		internal static byte[] CompressMap2<K, V>(SortedMap<K, V> src) {
 			return CompressMap(src);
 		}
 
-		[Obsolete("Complexity of this yields only very small gain. We are copying arrays at later stage anyway. Find a way to avoid copy")]
-		private static TResult CompressMap<K, V, TResult>(SortedMap<K, V> src,
+		internal static TResult CompressMap<K, V, TResult>(SortedMap<K, V> src,
 		   FixedBufferTransformer<TResult> transformer,
 		   int? level = null, bool? shuffle = null,
 		   int? typeSize = null, CompressionMethod? method = null) {
+			//if(((double)src.values.Length)/((double)src.size) > 1.1)
+			//src.TrimExcess();
+			// Do not trim excess even conditionally, compressor will compress empty region well
+
+			// TODO make sure that decompressor allocates only size, not value length
 
 			int size = (int)src.size;
 			int version = (int)src.Version;
@@ -457,8 +424,7 @@ namespace Spreads {
 			//src.CheckRegular(); // TODO? Need this?
 			var isRegular = src.IsRegular;
 
-			FixedBufferTransformer<Tuple<byte[], int>> passThrough = (source, length, self) => {
-				// NB! here was a real example of leaving fixed region with pointer and GC moving the object
+			FixedBufferTransformer<byte[]> passThrough = (source, length, self) => {
 				//unsafe
 				//{
 				//    fixed (byte* srcPtr = &source[0])
@@ -467,14 +433,9 @@ namespace Spreads {
 				//        return new Tuple<IntPtr, int>((IntPtr)srcPtr, length);
 				//    };
 				//}
-
-				if (self) {
-					return Tuple.Create(source, length);
-				} else {
-					byte[] dest = new byte[length];
-					Array.Copy(source, 0, dest, 0, length);
-					return Tuple.Create(dest, length);
-				}
+				byte[] dest = new byte[length];
+				Array.Copy(source, 0, dest, 0, length);
+				return dest;
 			};
 
 			// NB lowcase internal field access, not properties. Null check if later will use IOrderedMap instead of map
@@ -483,15 +444,15 @@ namespace Spreads {
 
 			// keys compression/serialization will normally be faster then values, start a task
 			// which will normally be ready when values compressor is ready to call its transformer
-			Task<Tuple<byte[], int>> cKeysTask;
+			Task<byte[]> cKeysTask;
 			if (isRegular) {
 				//var b1 = SerializeTransform(keys[0], passThrough);
 				//var b2 = SerializeTransform(keys[1], passThrough);
 				//var bytes = b1.Concat(b2).ToArray();
 				//cKeysTask = Task.FromResult(bytes); // SerializeTransform(keys, passThrough));
-				cKeysTask = Task.Run(() => CompressArray<K, Tuple<byte[], int>>(keys, passThrough, 0, 2, 0, shuffle, typeSize, method, Diff));
+				cKeysTask = Task.Run(() => CompressArray<K, byte[]>(keys, passThrough, 0, 2, 0, shuffle, typeSize, method, Diff));
 			} else {
-				cKeysTask = Task.Run(() => CompressArray<K, Tuple<byte[], int>>(keys, passThrough, 0, size, level, shuffle, typeSize, method, Diff));
+				cKeysTask = Task.Run(() => CompressArray<K, byte[]>(keys, passThrough, 0, size, level, shuffle, typeSize, method, Diff));
 			}
 
 			//var ms = new MemoryStream();
@@ -500,8 +461,8 @@ namespace Spreads {
 			//bw.Write(version);
 
 			FixedBufferTransformer<TResult> buildReturnArray = (valBytes, valLen, self) => {
-				var keyBytes = cKeysTask.Result.Item1;
-				var keysLen = cKeysTask.Result.Item2; //keyBytes.Length;
+				var keyBytes = cKeysTask.Result;
+				var keysLen = keyBytes.Length;
 				// int len, int version, int values offset, keys, values
 				var retLen = 4 + 4 + 4 + keysLen + valLen;
 				byte[] ret = new byte[4 + 4 + 4 + keysLen + valLen];
@@ -522,56 +483,6 @@ namespace Spreads {
 			};
 
 			return CompressArray<V, TResult>(values, buildReturnArray, 0, size, level, shuffle, typeSize, method, Diff);
-		}
-
-
-		private static byte[] CompressMapSequential<K, V>(SortedMap<K, V> src,
-		   int? level = null, bool? shuffle = null,
-		   int? typeSize = null, CompressionMethod? method = null) {
-
-			int size = (int)src.size;
-			int version = (int)src.Version;
-
-			//src.CheckRegular(); // TODO? Need this?
-			var isRegular = src.IsRegular;
-
-			// NB lowcase internal field access, not properties. Null check if later will use IOrderedMap instead of map
-			K[] keys = src.keys as K[] ?? src.Keys.ToArray();
-			V[] values = src.values as V[] ?? src.Values.ToArray();
-
-			// keys compression/serialization will normally be faster then values, start a task
-			// which will normally be ready when values compressor is ready to call its transformer
-			byte[] keyBytes;
-			if (isRegular) {
-				//var b1 = SerializeTransform(keys[0], passThrough);
-				//var b2 = SerializeTransform(keys[1], passThrough);
-				//var bytes = TODO ... simply save two keys
-				// in general, we must prefix key size, with int it is 8 bytes for 2 keys, Blosc overhead is 16 bytes 
-				keyBytes = CompressArray<K>(keys, 0, 2, 0, shuffle, typeSize, method, Diff);
-			} else {
-				keyBytes = CompressArray<K>(keys, 0, size, level, shuffle, typeSize, method, Diff);
-			}
-
-			Task<byte[]> valBytes = Task<byte[]>.Run(() => CompressArray<V>(values, 0, size, level, shuffle, typeSize, method, Diff));
-
-			// int len, int version, int values offset, keys, values
-			var ms = new MemoryStream();
-			var bw = new BinaryWriter(ms);
-			// use sign bit as a flag, regular vs irregular by definition do not expect a third option
-			bw.Write(isRegular ? -size : size);
-			bw.Write(version);
-			bw.Write(keyBytes.Length + 12);
-			bw.Write(keyBytes);
-			bw.Write(valBytes.Result);
-			var ret = ms.ToArray();
-#if PRERELEASE
-			if (!wroteSize) { // debug stuff
-				Console.WriteLine("SortedMap compressed size: " + ret.Length);
-				wroteSize = true;
-			}
-#endif
-
-			return ret;
 		}
 
 
@@ -698,22 +609,21 @@ namespace Spreads {
 		internal static byte[] CompressArray<T>(T[] src, int start = 0, int length = 0,
 			int? level = null, bool? shuffle = null,
 			int? typeSize = null, CompressionMethod? method = null, bool diff = false) {
-			if (src == null) return null;
-			if (src.Length == 0) return EmptyArray<byte>.Instance;
+
 			return CompressArray<T, byte[]>(src, ArrayCopyToNew, start, length, level, shuffle, typeSize, method, diff);
 		}
 
-		private static TResult CompressArray<T, TResult>(T[] src,
+		internal static TResult CompressArray<T, TResult>(T[] src,
 			FixedBufferTransformer<TResult> bufferTransform,
 			int start = 0, int length = 0,
 			int? level = null, bool? shuffle = null,
 			int? typeSize = null, CompressionMethod? method = null, bool diff = false) {
 
 			if (src == null) throw new ArgumentNullException("src");
-			if (src.Length == 0) throw new ArgumentException("src is empty");
+			//if (src.Length == 0) throw new ArgumentException("src is empty");
 			if (start < 0 || (src.Length > 0 && start > src.Length - 1)) throw new ArgumentException("wrong offset");
 			if (length < 0 || length > src.Length - start) throw new ArgumentException("wrong offset");
-			if (length == 0) length = src.Length - start; // default length
+			if (length == 0) length = src.Length - start;
 
 			var level1 = level ?? 9;
 			var shuffle1 = shuffle ?? true;
@@ -774,7 +684,7 @@ namespace Spreads {
 							var previous = 0L;
 							for (int i = start; i < length; i++) {
 								var dt = srcDt[i];
-								var dateData = dt.ToInt64();
+								var dateData = dt.ToBinary();
 								newSrc[i - start] = dateData - previous;
 								if (diff) previous = dateData;
 							}
@@ -1270,10 +1180,10 @@ namespace Spreads {
 		internal static byte[] SerializeImpl<UKey, UValue>(SortedMap<UKey, UValue> map) {
 			return CompressMap(map);
 		}
-		//internal static TResult SerializeTransformImpl<UKey, UValue, TResult>(SortedMap<UKey, UValue> map,
-		//	FixedBufferTransformer<TResult> transformer) {
-		//	return CompressMap(map, transformer);
-		//}
+		internal static TResult SerializeTransformImpl<UKey, UValue, TResult>(SortedMap<UKey, UValue> map,
+			FixedBufferTransformer<TResult> transformer) {
+			return CompressMap(map, transformer);
+		}
 
 		internal static byte[] SerializeImpl<U>(U[] array) {
 			return CompressArray(array);
@@ -1303,14 +1213,13 @@ namespace Spreads {
 			unsafe
 			{
 				var dest = new byte[16];
-				fixed (byte* destPtr = dest)
+				fixed (byte* destPtr = &dest[0])
 				{
-					*((decimal*)destPtr) = value;
+					Marshal.StructureToPtr(value, (IntPtr)destPtr, false);
 					return dest;
 				}
 			}
 		}
-
 		internal static TResult SerializeTransformImpl<TResult>(decimal value,
 			FixedBufferTransformer<TResult> transformer) {
 			var bytes = SerializeImpl(value);
@@ -1383,8 +1292,20 @@ namespace Spreads {
 			}
 		}
 
-
-
+		internal static byte[] SerializeImpl(byte value) {
+			return BitConverter.GetBytes(value);
+		}
+		internal static TResult SerializeTransformImpl<TResult>(byte value,
+			FixedBufferTransformer<TResult> transformer) {
+			var bytes = SerializeImpl(value);
+			unsafe
+			{
+				fixed (byte* bytesPtr = &bytes[0])
+				{
+					return transformer(bytes, bytes.Length, true);
+				}
+			}
+		}
 
 		internal static byte[] SerializeImpl(short value) {
 			return BitConverter.GetBytes(value);
@@ -1417,11 +1338,10 @@ namespace Spreads {
 			}
 		}
 
-
-		internal static byte[] SerializeImpl(byte value) {
+		internal static byte[] SerializeImpl(float value) {
 			return BitConverter.GetBytes(value);
 		}
-		internal static TResult SerializeTransformImpl<TResult>(byte value,
+		internal static TResult SerializeTransformImpl<TResult>(float value,
 			FixedBufferTransformer<TResult> transformer) {
 			var bytes = SerializeImpl(value);
 			unsafe
@@ -1432,7 +1352,6 @@ namespace Spreads {
 				}
 			}
 		}
-
 
 		internal static byte[] SerializeImpl(sbyte value) {
 			return BitConverter.GetBytes(value);
@@ -1449,58 +1368,12 @@ namespace Spreads {
 			}
 		}
 
-
-		internal static byte[] SerializeImpl(bool value) {
-			return BitConverter.GetBytes(value);
-		}
-		internal static TResult SerializeTransformImpl<TResult>(bool value,
-			FixedBufferTransformer<TResult> transformer) {
-			var bytes = SerializeImpl(value);
-			unsafe
-			{
-				fixed (byte* bytesPtr = &bytes[0])
-				{
-					return transformer(bytes, bytes.Length, true);
-				}
-			}
-		}
-
-		internal static byte[] SerializeImpl(char value) {
-			return BitConverter.GetBytes(value);
-		}
-		internal static TResult SerializeTransformImpl<TResult>(char value,
-			FixedBufferTransformer<TResult> transformer) {
-			var bytes = SerializeImpl(value);
-			unsafe
-			{
-				fixed (byte* bytesPtr = &bytes[0])
-				{
-					return transformer(bytes, bytes.Length, true);
-				}
-			}
-		}
-
-
-		internal static byte[] SerializeImpl(float value) {
-			return BitConverter.GetBytes(value);
-		}
-		internal static TResult SerializeTransformImpl<TResult>(float value,
-			FixedBufferTransformer<TResult> transformer) {
-			var bytes = SerializeImpl(value);
-			unsafe
-			{
-				fixed (byte* bytesPtr = &bytes[0])
-				{
-					return transformer(bytes, bytes.Length, true);
-				}
-			}
-		}
-
-
 		internal static byte[] SerializeImpl(DateTime value) {
-			return SerializeImpl(value.ToBinary());
+			var ticks = value.Ticks;
+			var kind = value.Kind;
+			var dateData = ((UInt64)ticks | ((UInt64)kind << 62));
+			return BitConverter.GetBytes(dateData);
 		}
-
 		internal static TResult SerializeTransformImpl<TResult>(DateTime value,
 			FixedBufferTransformer<TResult> transformer) {
 			var bytes = SerializeImpl(value);
@@ -1513,17 +1386,31 @@ namespace Spreads {
 			}
 		}
 
+		internal static byte[] SerializeImpl(DateTimeOffset value) {
+			throw new NotImplementedException();
+		}
+		internal static TResult SerializeTransformImpl<TResult>(DateTimeOffset value,
+			FixedBufferTransformer<TResult> transformer) {
+			var bytes = SerializeImpl(value);
+			unsafe
+			{
+				fixed (byte* bytesPtr = &bytes[0])
+				{
+					return transformer(bytes, bytes.Length, true);
+				}
+			}
+		}
 
 		internal static byte[] SerializeImpl(byte[] value) {
-			return CompressBytes(value, 9, false, 1, CompressionMethod);
+			return CompressBytes(value, 9, false, 1, CompressionMethod.lz4);
 		}
 		internal static TResult SerializeTransformImpl<TResult>(byte[] value,
 			FixedBufferTransformer<TResult> transformer) {
-			return CompressBytes(value, transformer, 9, false, 1, CompressionMethod);
+			return CompressBytes(value, transformer, 9, false, 1, CompressionMethod.lz4);
 		}
 
 		internal static byte[] SerializeImpl<T>(T value) { //where T : struct
-			var ty = value.GetType();
+			var ty = value.GetType(); // typeof(T);
 			if (ty.IsValueType && (ty.IsLayoutSequential || ty.IsExplicitLayout)) {
 				unsafe
 				{
@@ -1531,7 +1418,6 @@ namespace Spreads {
 					var dest = new byte[typeSize];
 					fixed (byte* destPtr = &dest[0])
 					{
-						// TODO avoid Marshal.StructureToPtr? to play safe?
 						Marshal.StructureToPtr(value, (IntPtr)destPtr, false);
 						return dest;
 					}
@@ -1539,8 +1425,6 @@ namespace Spreads {
 				//}
 			} else if (ty.IsGenericType &&
 					   ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
-				// TODO cache this method like in deser
-
 				//if (!true) {
 				var genericArgs = ty.GetGenericArguments();
 				var keyType = genericArgs[0];
@@ -1551,23 +1435,8 @@ namespace Spreads {
 				//genericMethods[ty] = genericMi;
 				return (byte[])genericMi.Invoke(null, new object[] { (object)value });
 				//}
-			} else if (ty.IsGenericType &&
-					   ty.GetGenericTypeDefinition() == typeof(Series<,>)) {
-
-				// TODO cache this method like in deser
-
-				var genericArgs = ty.GetGenericArguments();
-				var keyType = genericArgs[0];
-				var valueType = genericArgs[1];
-				var mi = typeof(SeriesExtensions).GetMethod("ToSortedMap",
-					BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
-				var genericMi = mi.MakeGenericMethod(keyType, valueType);
-				//genericMethods[ty] = genericMi;
-				var sm = genericMi.Invoke(null, new object[] { (object)value });
-
-				return Serialize(sm);
 			} else {
-				return SerializeImplObj((object)value);
+				return SerializeImpl((object)value);
 			}
 		}
 
@@ -1609,7 +1478,7 @@ namespace Spreads {
 		/// <summary>
 		/// Fallback with Json.NET
 		/// </summary>
-		internal static byte[] SerializeImplObj(object value) {
+		internal static byte[] SerializeImpl(object value) {
 			byte[] bytes = ObjectSerializer.Serialize(value);
 			return CompressBytes(bytes, 9, false, 1, CompressionMethod.lz4);
 		}
@@ -1617,7 +1486,7 @@ namespace Spreads {
 
 		internal static TResult SerializeTransformImpl<TResult>(object value,
 			FixedBufferTransformer<TResult> transformer) {
-			var bytes = SerializeImplObj(value);
+			var bytes = SerializeImpl(value);
 			unsafe
 			{
 				fixed (byte* bytesPtr = &bytes[0])
@@ -1627,21 +1496,18 @@ namespace Spreads {
 			}
 		}
 
-		// TODO test dynamic resolution for primitives
-		// or better do not rely on it and use type check
+
 		internal static byte[] Serialize(object value) {
-			if (value == null) throw new ArgumentNullException("value", "Root value cannot be null");
+			if (value == null) throw new ArgumentNullException("value");
 			dynamic v = value;
 			return SerializeImpl(v);
 		}
 
 		public static byte[] Serialize<T>(T value) {
-			if (value == null) throw new ArgumentNullException("value", "Root value cannot be null");
+			if (value == null) throw new ArgumentNullException("value");
 			dynamic v = value;
 			return SerializeImpl(v);
 		}
-
-
 
 		//internal static object Serialize(object value, Type ty) {
 		//    dynamic r = BlittableHelper.GetDefault(ty);
@@ -1690,11 +1556,11 @@ namespace Spreads {
 		/// <summary>
 		/// Serialize value and apply a function to intermediate buffer
 		/// </summary>
-		//internal static TResult SerializeTransform<T, TResult>(T value, FixedBufferTransformer<TResult> transformer) {
-		//	if (value == null) throw new ArgumentNullException("value");
-		//	dynamic v = value;
-		//	return SerializeTransformImpl(v, transformer);
-		//}
+		internal static TResult SerializeTransform<T, TResult>(T value, FixedBufferTransformer<TResult> transformer) {
+			if (value == null) throw new ArgumentNullException("value");
+			dynamic v = value;
+			return SerializeTransformImpl(v, transformer);
+		}
 
 		#endregion
 
@@ -1798,7 +1664,6 @@ namespace Spreads {
 			}
 		}
 
-
 		internal static DateTime DeserializeImpl(IntPtr srcPtr, int srcSize, DateTime result) {
 			unsafe
 			{
@@ -1823,13 +1688,10 @@ namespace Spreads {
 
 		internal static object DeserializeImpl(IntPtr srcPtr, int srcSize, Type type) {
 			byte[] bytes = DecompressBytes(srcPtr, srcSize);
-			// TODO! WTF? must check Blosc header explicitly to find out if the source is in Blosc format
-			// Do not do this magic, just fail
-			Debug.Assert(bytes != null);
-			//if (bytes == null) {
-			//    bytes = new byte[srcSize];
-			//    Marshal.Copy(srcPtr, bytes, 0, srcSize);
-			//}
+			if (bytes == null) {
+				bytes = new byte[srcSize];
+				Marshal.Copy(srcPtr, bytes, 0, srcSize);
+			}
 			return ObjectSerializer.Deserialize(bytes, type);
 		}
 
@@ -1841,6 +1703,12 @@ namespace Spreads {
 					throw new ArgumentOutOfRangeException("Wrong src size");
 				var dest = Marshal.PtrToStructure(srcPtr, ty);
 				return (TSrtuct)dest;
+
+				//} else if (ty == typeof(DateTime)) {
+				//    UInt64 newSrc = Deserialize<UInt64>(srcPtr, 8);
+				//    return (TSrtuct)(object)(new DateTime((long)(newSrc & ~(3UL << 62)), (DateTimeKind)(newSrc >> 62)));
+				//} else if (ty == typeof(DateTimeOffset)) {
+				//    throw new NotImplementedException();
 			} else {
 				return (TSrtuct)DeserializeImpl(srcPtr, srcSize, typeof(TSrtuct));
 			}
@@ -1893,35 +1761,24 @@ namespace Spreads {
 		}
 
 
-		//internal static T Deserialize<T>(IntPtr srcPtr, int srcSize) {
-		//	return (T)Deserialize(srcPtr, srcSize, typeof(T));
-		//}
+		internal static T Deserialize<T>(IntPtr srcPtr, int srcSize) {
+			return (T)Deserialize(srcPtr, srcSize, typeof(T));
+		}
 
 		/// <summary>
 		/// Deserialize object
 		/// </summary>
 		public static T Deserialize<T>(byte[] src) {
-			return (T)Deserialize(src, typeof(T));
+			if (src == null) throw new ArgumentNullException("src");
+			if (src.Length == 0) throw new ArgumentException("src is empty");
 
-			//if (src == null) return default(T); //throw new ArgumentNullException("src");
-			////if (src.Length == 0)
-			////{
-
-			////	if (typeof (T).IsArray)
-			////	{
-			////		var elTy = 
-			////		return 
-			////	}else {
-			////	return throw new ArgumentException("src is empty");
-			////}
-
-			//unsafe
-			//{
-			//	fixed (byte* srcPtr = &src[0])
-			//	{
-			//		return Deserialize<T>((IntPtr)srcPtr, src.Length);
-			//	}
-			//}
+			unsafe
+			{
+				fixed (byte* srcPtr = &src[0])
+				{
+					return Deserialize<T>((IntPtr)srcPtr, src.Length);
+				}
+			}
 		}
 
 		/// <summary>
@@ -1929,18 +1786,7 @@ namespace Spreads {
 		/// </summary>
 		public static object Deserialize(byte[] src, Type ty) {
 			if (src == null) return null;// throw new ArgumentNullException("src");
-			if (src.Length == 0) {
-				if (ty.IsArray) {
-					var elTy = ty.GetElementType();
-					return Array.CreateInstance(ty.GetElementType(), 0);
-				} else if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
-					return Activator.CreateInstance(ty);
-				} else if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(Series<,>)) {
-					throw new NotImplementedException("TODO Call SortedMapConstructor with the same generic types, TODO tests");
-				} else {
-					throw new ArgumentException("src is empty");
-				}
-			}
+			if (src.Length == 0) throw new ArgumentException("src is empty");
 			unsafe
 			{
 				fixed (byte* srcPtr = &src[0])
