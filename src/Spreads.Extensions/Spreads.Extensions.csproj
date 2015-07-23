@@ -94,6 +94,7 @@
     <Compile Include="Bootstrapper\Version.cs" />
     <Compile Include="Extensions\DateTimeExtensions.cs" />
     <Compile Include="Extensions\StringExtensions.cs" />
+    <Compile Include="Serializer2.cs" />
     <Compile Include="Series\RemoteChunksSeries.cs" />
     <Compile Include="Series\ZonedSeries.cs" />
     <Compile Include="System\Runtime\BufferPool.cs" />
@@ -159,6 +160,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="Serializer.md" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj">

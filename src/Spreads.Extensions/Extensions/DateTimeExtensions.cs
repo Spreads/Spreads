@@ -9,7 +9,7 @@ namespace Spreads
     {
         public static long ToInt64(this DateTime dt)
         {
-            return ((Int64)dt.Ticks | ((Int64)dt.Kind << 62));
+            return dt.ToBinary(); // ((Int64)dt.Ticks | ((Int64)dt.Kind << 62)); for local, ToBinary() transforms local to UTC, for other types, it is slightly faster and does the same
         }
 
         public static DateTime ToDateTime(this long dt) {

@@ -50,6 +50,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ComplexObject.cs" />
+    <Compile Include="CompressionTests2.cs" />
     <Compile Include="YepppTests.cs" />
     <Compile Include="CompressionTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -7,12 +7,13 @@ using System.Linq;
 using NUnit.Framework;
 using System.Runtime.InteropServices;
 using Spreads.Collections;
+using Spreads.Experimental;
 using Newtonsoft.Json.Bson;
 using Newtonsoft.Json;
 
 namespace Spreads.DB.Tests {
     [TestFixture]
-    public class CompressionTests {
+    public class CompressionTests2 {
 
         private const int _small = 500;
         private const int _big = 1000;
@@ -84,13 +85,13 @@ namespace Spreads.DB.Tests {
             for (int rounds = 0; rounds < 1000; rounds++) {
 
                 var complexObj = ComplexObject.Create();
-                var bytes = Serializer.Serialize(complexObj);
+                var bytes = Serializer2.Serialize(complexObj);
                 if (write) {
                     Console.WriteLine("Uncompressed size: " + (complexObj.TextValue.Length * 2 + 8000 + 16000));
                     Console.WriteLine("Compressed size: " + bytes.Length);
                     write = false;
                 }
-                var complexObj2 = Serializer.Deserialize<ComplexObject>(bytes);
+                var complexObj2 = Serializer2.Deserialize<ComplexObject>(bytes);
 
                 Assert.IsTrue(complexObj.IntArray.SequenceEqual(complexObj2.IntArray));
                 Assert.AreEqual(complexObj.TextValue, complexObj2.TextValue);
@@ -101,13 +102,13 @@ namespace Spreads.DB.Tests {
             {
                 var complexObj = ComplexObject.Create();
                 complexObj.SortedMap = null; // not root, JSON.NET deals with it
-                var bytes = Serializer.Serialize(complexObj);
+                var bytes = Serializer2.Serialize(complexObj);
                 if (write) {
                     Console.WriteLine("Uncompressed size: " + (complexObj.TextValue.Length * 2 + 8000 + 16000));
                     Console.WriteLine("Compressed size: " + bytes.Length);
                     write = false;
                 }
-                var complexObj2 = Serializer.Deserialize<ComplexObject>(bytes);
+                var complexObj2 = Serializer2.Deserialize<ComplexObject>(bytes);
 
                 Assert.IsTrue(complexObj.IntArray.SequenceEqual(complexObj2.IntArray));
                 Assert.AreEqual(complexObj.TextValue, complexObj2.TextValue);
@@ -120,13 +121,13 @@ namespace Spreads.DB.Tests {
                 complexObj.SortedMap = null;
                 complexObj.IntArray = null;
                 complexObj.TextValue = "";
-                var bytes = Serializer.Serialize(complexObj);
+                var bytes = Serializer2.Serialize(complexObj);
                 if (write) {
                     Console.WriteLine("Uncompressed size: " + (complexObj.TextValue.Length * 2 + 8000 + 16000));
                     Console.WriteLine("Compressed size: " + bytes.Length);
                     write = false;
                 }
-                var complexObj2 = Serializer.Deserialize<ComplexObject>(bytes);
+                var complexObj2 = Serializer2.Deserialize<ComplexObject>(bytes);
                 Assert.IsTrue(complexObj2.IntArray == null);
                 Assert.AreEqual(complexObj.TextValue, complexObj2.TextValue);
             }
@@ -136,13 +137,13 @@ namespace Spreads.DB.Tests {
                 complexObj.SortedMap = null;
                 complexObj.IntArray = new long[0];
                 complexObj.TextValue = "";
-                var bytes = Serializer.Serialize(complexObj);
+                var bytes = Serializer2.Serialize(complexObj);
                 if (write) {
                     Console.WriteLine("Uncompressed size: " + (complexObj.TextValue.Length * 2 + 8000 + 16000));
                     Console.WriteLine("Compressed size: " + bytes.Length);
                     write = false;
                 }
-                var complexObj2 = Serializer.Deserialize<ComplexObject>(bytes);
+                var complexObj2 = Serializer2.Deserialize<ComplexObject>(bytes);
                 Assert.IsTrue(complexObj.IntArray.SequenceEqual(complexObj2.IntArray));
                 Assert.AreEqual(complexObj.TextValue, complexObj2.TextValue);
             }
@@ -160,8 +161,8 @@ namespace Spreads.DB.Tests {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i + 1).ConvertToUtcWithUncpecifiedKind(""),
                     value);
             }
-            var bytes = Serializer.Serialize(sm);
-            var sm2 = Serializer.Deserialize<SortedMap<DateTime, MyTestClass>>(bytes);
+            var bytes = Serializer2.Serialize(sm);
+            var sm2 = Serializer2.Deserialize<SortedMap<DateTime, MyTestClass>>(bytes);
 
             Assert.AreEqual(sm.Count, sm2.Count);
         }
@@ -178,8 +179,8 @@ namespace Spreads.DB.Tests {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i + 1).ConvertToUtcWithUncpecifiedKind(""),
                     value);
             }
-            var bytes = Serializer.Serialize(sm);
-            var sm2 = Serializer.Deserialize<SortedMap<DateTime, MyTestClass>>(bytes);
+            var bytes = Serializer2.Serialize(sm);
+            var sm2 = Serializer2.Deserialize<SortedMap<DateTime, MyTestClass>>(bytes);
 
             Assert.AreEqual(sm.Count, sm2.Count);
         }
@@ -345,7 +346,7 @@ namespace Spreads.DB.Tests {
             sw.Start();
             var rounds = 500;
             for (int i = 0; i < rounds; i++) {
-                compr = Serializer.CompressArray<T>(input, level: 9,
+                compr = Serializer2.CompressArray<T>(input, level: 9,
                     shuffle: shuffle, method: method, diff: true);
             }
             sw.Stop();
@@ -363,7 +364,7 @@ namespace Spreads.DB.Tests {
             sw.Restart();
             T[] decompr = new T[0];
             for (int i = 0; i < rounds; i++) {
-                decompr = Serializer.DecompressArray<T>(compr, diff: true);
+                decompr = Serializer2.DecompressArray<T>(compr, diff: true);
             }
             sw.Stop();
             var delapsed = sw.ElapsedMilliseconds;
@@ -405,7 +406,7 @@ namespace Spreads.DB.Tests {
             sw.Start();
             var rounds = 500;
             for (int i = 0; i < rounds; i++) {
-                compr = Serializer.Serialize(input);
+                compr = Serializer2.Serialize(input);
             }
             sw.Stop();
             var cspeed = 1000.0 * ((double)(input.Length * typeSize * rounds) / (1024.0 * 1024)) /
@@ -417,7 +418,7 @@ namespace Spreads.DB.Tests {
             sw.Restart();
             T[] decompr = new T[0];
             for (int i = 0; i < rounds; i++) {
-                decompr = Serializer.Deserialize<T[]>(compr);
+                decompr = Serializer2.Deserialize<T[]>(compr);
             }
             sw.Stop();
             var delapsed = sw.ElapsedMilliseconds;
@@ -458,8 +459,8 @@ namespace Spreads.DB.Tests {
             sw.Start();
             var rounds = 100000;
             for (int i = 0; i < rounds; i++) {
-                compr = Serializer.CompressArray<T>(input, level: 9, shuffle: shuffle, method: method);
-                decompr = Serializer.DecompressArray<T>(compr);
+                compr = Serializer2.CompressArray<T>(input, level: 9, shuffle: shuffle, method: method);
+                decompr = Serializer2.DecompressArray<T>(compr);
             }
             GC.Collect(3, GCCollectionMode.Forced, true);
             var endMem = GC.GetTotalMemory(true);
@@ -483,12 +484,12 @@ namespace Spreads.DB.Tests {
             double d;
             byte[] bytes;
             for (int i = 0; i < 10000000; i++) {
-                bytes = Serializer.SerializeImpl(1.0);
+                bytes = Serializer2.SerializeImpl(1.0);
                 unsafe
                 {
                     fixed (byte* srcPtr = &bytes[0])
                     {
-                        d = Serializer.DeserializeImpl<double>((IntPtr)srcPtr, bytes.Length, 0.0);
+                        d = Serializer2.DeserializeImpl<double>((IntPtr)srcPtr, bytes.Length, 0.0);
                     }
                 }
             }
@@ -512,8 +513,8 @@ namespace Spreads.DB.Tests {
             double d;
             byte[] bytes;
             for (int i = 0; i < 10000000; i++) {
-                bytes = Serializer.Serialize(1.0);
-                d = Serializer.Deserialize<double>(bytes);
+                bytes = Serializer2.Serialize(1.0);
+                d = Serializer2.Deserialize<double>(bytes);
             }
             sw.Stop();
             Console.WriteLine("Double: " + sw.ElapsedMilliseconds);
@@ -538,9 +539,9 @@ namespace Spreads.DB.Tests {
             //for (int i = 0; i < 1000; i++) {
             //    sl.Add(DateTime.Today.AddDays(i), i);
             //}
-            //bytes = Serializer.Serialize(sl);
+            //bytes = Serializer2.Serialize(sl);
 
-            //sl = Serializer.Deserialize<SortedList<DateTime, double>>(bytes);
+            //sl = Serializer2.Deserialize<SortedList<DateTime, double>>(bytes);
             //sw.Stop();
             //Console.WriteLine("Sorted list: " + sw.ElapsedMilliseconds);
 
@@ -553,9 +554,9 @@ namespace Spreads.DB.Tests {
             for (int i = 0; i < 1000; i++) {
                 sl.Add(i, i);
             }
-            bytes = Serializer.Serialize(sl);
+            bytes = Serializer2.Serialize(sl);
 
-            sl = Serializer.Deserialize<SortedMap<int, int>>(bytes);
+            sl = Serializer2.Deserialize<SortedMap<int, int>>(bytes);
             sw.Stop();
             Console.WriteLine("Sorted list: " + sw.ElapsedMilliseconds);
 
@@ -574,8 +575,8 @@ namespace Spreads.DB.Tests {
             }
             sw.Start();
             for (int i = 0; i < 1000; i++) {
-                bytes = Serializer.Serialize(sortedMap);
-                sortedMap = Serializer.Deserialize<SortedMap<DateTime, double>>(bytes);
+                bytes = Serializer2.Serialize(sortedMap);
+                sortedMap = Serializer2.Deserialize<SortedMap<DateTime, double>>(bytes);
             }
             sw.Stop();
             Console.WriteLine("Elapsed msecs: " + sw.ElapsedMilliseconds);
@@ -595,8 +596,8 @@ namespace Spreads.DB.Tests {
                 }
                 sw.Start();
                 for (int i = 0; i < 1000; i++) {
-                    bytes = Serializer.Serialize(sortedMap);
-                    sortedMap = Serializer.Deserialize<SortedMap<DateTime, string>>(bytes);
+                    bytes = Serializer2.Serialize(sortedMap);
+                    sortedMap = Serializer2.Deserialize<SortedMap<DateTime, string>>(bytes);
                 }
                 sw.Stop();
                 Console.WriteLine("Elapsed msecs: " + sw.ElapsedMilliseconds);
@@ -605,8 +606,8 @@ namespace Spreads.DB.Tests {
             }
             {
                 SortedMap<DateTime, string> sortedMap = new SortedMap<DateTime, string>();
-                var bytes = Serializer.Serialize(sortedMap);
-                sortedMap = Serializer.Deserialize<SortedMap<DateTime, string>>(bytes);
+                var bytes = Serializer2.Serialize(sortedMap);
+                sortedMap = Serializer2.Deserialize<SortedMap<DateTime, string>>(bytes);
             }
         }
 
@@ -620,8 +621,8 @@ namespace Spreads.DB.Tests {
             var rng = new System.Random();
             for (int i = 0; i < 20000; i++) {
                 sortedMap.Add(DateTime.UtcNow.Date.AddSeconds(i), Math.Round(i + rng.NextDouble(), 2));
-                bytes = Serializer.Serialize(sortedMap);
-                var sortedMap2 = Serializer.Deserialize<SortedMap<DateTime, double>>(bytes);
+                bytes = Serializer2.Serialize(sortedMap);
+                var sortedMap2 = Serializer2.Deserialize<SortedMap<DateTime, double>>(bytes);
                 Assert.AreEqual(sortedMap.Count, sortedMap2.Count);
                 unsafe
                 {
@@ -667,8 +668,8 @@ namespace Spreads.DB.Tests {
                     name = i.ToString(),
                     value = i
                 };
-                bytes = Serializer.Serialize(str);
-                var str2 = Serializer.Deserialize<SomeDataStructure>(bytes);
+                bytes = Serializer2.Serialize(str);
+                var str2 = Serializer2.Deserialize<SomeDataStructure>(bytes);
                 Assert.AreEqual(str.value, str2.value);
             }
             sw.Stop();

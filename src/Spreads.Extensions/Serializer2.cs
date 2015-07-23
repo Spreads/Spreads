@@ -15,18 +15,37 @@ using Newtonsoft.Json.Bson;
 using System.IO;
 using System.Collections.Concurrent;
 
-namespace Spreads {
+namespace Spreads.Experimental {
+
+    internal enum ArrayTypeCode {
+        Empty = 0,          // Empty array of any type
+        Object = 1,         // Instance that isn't a value
+        //DBNull = 2,         // Database null value
+        Boolean = 3,        // Boolean
+        Char = 4,           // Unicode character
+        SByte = 5,          // Signed 8-bit integer
+        Byte = 6,           // Unsigned 8-bit integer
+        Int16 = 7,          // Signed 16-bit integer
+        UInt16 = 8,         // Unsigned 16-bit integer
+        Int32 = 9,          // Signed 32-bit integer
+        UInt32 = 10,        // Unsigned 32-bit integer
+        Int64 = 11,         // Signed 64-bit integer
+        UInt64 = 12,        // Unsigned 64-bit integer
+        Single = 13,        // IEEE 32-bit float
+        Double = 14,        // IEEE 64-bit double
+        Decimal = 15,       // Decimal
+        DateTime = 16,      // DateTime
+        String = 18,        // Unicode character string
+    }
 
     /// <summary>
-    /// 
+    /// Supported compressors from Blosc
     /// </summary>
-    internal enum CompressionMethod {
-        blosclz = 0,
-        lz4 = 1
-        //,lz4hc = 2
-        //, zlib = 3
-        //, snappy = 4
-    }
+    //internal enum CompressionMethod {
+    //    blosclz = 0,
+    //    lz4 = 1,
+    //    lz4hc = 2
+    //}
 
     // TODO! support series by converting them to SortedMap on serializatio and by deserializing as SM and casting to series
     internal class SpreadsContractResolver : DefaultContractResolver {
@@ -63,30 +82,27 @@ namespace Spreads {
 
             if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
                 // will dispatch to Spreads types
-                return Serializer.Deserialize(bytes, ty);
+                return Serializer2.Deserialize(bytes, ty);
             }
 
             // Other than maps, we are cool at arrays. For other types JSON.NET is cool
-	        if (!ty.IsArray)
-	        {
-		        return serializer.Deserialize(reader, ty);
-	        }
+            if (!ty.IsArray) {
+                return serializer.Deserialize(reader, ty);
+            }
 
             var elTy = ty.GetElementType();
             if (BlittableHelper.IsBlittable(elTy)
                 || ty == typeof(DateTimeOffset)
                 || ty == typeof(DateTime)) {
-				if (bytes == null )
-				{
+                if (bytes == null) {
                     // bool is not blittable
-					var eq = ((object)false).Equals(reader.Value);
-					if (eq)
-					{
-						return Array.CreateInstance(ty.GetElementType(), 0);
-					}
-				}
-				// will dispatch to Spreads types
-				return Serializer.Deserialize(bytes, ty);
+                    var eq = ((object)false).Equals(reader.Value);
+                    if (eq) {
+                        return Array.CreateInstance(ty.GetElementType(), 0);
+                    }
+                }
+                // will dispatch to Spreads types
+                return Serializer2.Deserialize(bytes, ty);
             }
 
             //var bytes = reader.Value as byte[];
@@ -100,50 +116,41 @@ namespace Spreads {
 
             var ty = value.GetType();
 
-			//if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
-			//	// will dispatch to Spreads types
-			//	var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
-			//	writer.WriteValue(bytes);
-			//}
+            //if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
+            //	// will dispatch to Spreads types
+            //	var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
+            //	writer.WriteValue(bytes);
+            //}
 
-			//// Other than maps, we are cool at arrays. For other types JSON.NET is cool
-			//if (!ty.IsArray) {
-			//	serializer.Serialize(writer, value);
-			//}
+            //// Other than maps, we are cool at arrays. For other types JSON.NET is cool
+            //if (!ty.IsArray) {
+            //	serializer.Serialize(writer, value);
+            //}
 
-	        if (ty.IsArray)
-	        {
-		        var elTy = ty.GetElementType();
-		        if (BlittableHelper.IsBlittable(elTy)
-		            || ty == typeof (DateTimeOffset)
-		            || ty == typeof (DateTime))
-		        {
-			        var arr = (Array) value;
-			        if (arr.Length == 0)
-			        {
+            if (ty.IsArray) {
+                var elTy = ty.GetElementType();
+                if (BlittableHelper.IsBlittable(elTy)
+                    || ty == typeof(DateTimeOffset)
+                    || ty == typeof(DateTime)) {
+                    var arr = (Array)value;
+                    if (arr.Length == 0) {
                         // bool is not blittable
                         writer.WriteValue(false);
-			        }
-			        else
-			        {
-				        // will dispatch to Spreads types
-				        var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
-				        writer.WriteValue(bytes);
-			        }
-		        }
-		        else
-		        {
-			        serializer.Serialize(writer, value);
-		        }
-	        }
-	        else
-	        {
+                    } else {
+                        // will dispatch to Spreads types
+                        var bytes = Serializer2.Serialize(value); // TODO resolvedCall = true
+                        writer.WriteValue(bytes);
+                    }
+                } else {
+                    serializer.Serialize(writer, value);
+                }
+            } else {
 
-				// will dispatch to Spreads types
-				var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
-				writer.WriteValue(bytes);
-			}
+                // will dispatch to Spreads types
+                var bytes = Serializer2.Serialize(value); // TODO resolvedCall = true
+                writer.WriteValue(bytes);
             }
+        }
     }
 
 
@@ -330,15 +337,15 @@ namespace Spreads {
     /// <summary>
     /// Advanced generic serializer and compressor.
     /// </summary>
-    public static class Serializer { // TODO internal
+    public static class Serializer2 { // TODO internal
 
         internal class SerializerInstance : ISerializer {
             byte[] ISerializer.Serialize<T>(T value) {
-                return Serializer.Serialize(value);
+                return Serializer2.Serialize(value);
             }
 
             T ISerializer.Deserialize<T>(byte[] bytes) {
-                return Serializer.Deserialize<T>(bytes);
+                return Serializer2.Deserialize<T>(bytes);
             }
 
 
@@ -354,13 +361,14 @@ namespace Spreads {
         // Uses native Blosc library for 
         // fast and efficient binary compression and fast copying of memory.
 
-        static Serializer() {
+        static Serializer2() {
 
             // Init both bootstrapper and SpreadsDB, this will ensure their static constructors
             // are called before the serializer is used, so libspreadsdb is loaded.
             ABI = Bootstrapper.ABI;
             // blosc threads
-	        NumThreads = 1; //Environment.ProcessorCount;
+            NumThreads = 1; //Environment.ProcessorCount;
+            CompressionMethod = CompressionMethod.lz4;
             Diff = true;
             ObjectSerializer = new SpreadsJsonSerializer();
             ArrayCopyToNew = (source, length, self) => {
@@ -389,6 +397,18 @@ namespace Spreads {
         private static ABI ABI { get; set; }
         private static int NumThreads { get; set; }
         private static bool Diff { get; set; }
+        private static CompressionMethod CompressionMethod { get; set; }
+
+        // each thread has its own buffer for temp primitive representation in bytes
+        [ThreadStatic]
+        private static byte[] _primitiveBuffer;
+        private static byte[] GetPrivitiveBuffer() {
+            if (_primitiveBuffer == null) {
+                _primitiveBuffer = new byte[16];
+            }
+            return _primitiveBuffer;
+        }
+
         /// <summary>
         /// Transform serialization buffer
         /// </summary>
@@ -411,21 +431,14 @@ namespace Spreads {
         }
 
         // TODO dynamic resolution fails sometimes, I don't understand why
-        internal static byte[] CompressMap2<K, V>(SortedMap<K, V> src)
-        {
+        internal static byte[] CompressMap2<K, V>(SortedMap<K, V> src) {
             return CompressMap(src);
         }
 
         internal static TResult CompressMap<K, V, TResult>(SortedMap<K, V> src,
            FixedBufferTransformer<TResult> transformer,
            int? level = null, bool? shuffle = null,
-           int? typeSize = null, CompressionMethod? method = null)
-        {
-            //if(((double)src.values.Length)/((double)src.size) > 1.1)
-            //src.TrimExcess();
-            // Do not trim excess even conditionally, compressor will compress empty region well
-
-            // TODO make sure that decompressor allocates only size, not value length
+           int? typeSize = null, CompressionMethod? method = null) {
 
             int size = (int)src.size;
             int version = (int)src.Version;
@@ -693,7 +706,7 @@ namespace Spreads {
                             var previous = 0L;
                             for (int i = start; i < length; i++) {
                                 var dt = srcDt[i];
-                                var dateData = dt.ToBinary();
+                                var dateData = dt.ToInt64();
                                 newSrc[i - start] = dateData - previous;
                                 if (diff) previous = dateData;
                             }
@@ -720,12 +733,12 @@ namespace Spreads {
                             //    return CompressArray<decimal, TResult>(newSrc, bufferTransform, 0, length, level1, shuffle1,
                             //        sizeof(decimal), method1, false); // NB always false
                             //} else {
-                                decimal[] newSrc = new decimal[length];
-                                Parallel.For(0, length, (i) => {
-                                    newSrc[i] = (decimal)srcDbl[i];// Convert.ToDecimal(src[i]);
-                                });
-                                return CompressArray<decimal, TResult>(newSrc, bufferTransform, 0,
-                                    length, level1, shuffle1, sizeof(decimal), method1, diff); // NB always false if "if" block is not commented out
+                            decimal[] newSrc = new decimal[length];
+                            Parallel.For(0, length, (i) => {
+                                newSrc[i] = (decimal)srcDbl[i];// Convert.ToDecimal(src[i]);
+                            });
+                            return CompressArray<decimal, TResult>(newSrc, bufferTransform, 0,
+                                length, level1, shuffle1, sizeof(decimal), method1, diff); // NB always false if "if" block is not commented out
                             //}
 
                         } else if (ty == typeof(decimal) && diff) {
@@ -747,7 +760,7 @@ namespace Spreads {
                                 sizeof(long), method1, false); // NB always false
                         } else if (ty == typeof(long) && diff) {
 
-                            
+
                             long[] newSrc = new long[length];
                             var srcLong = src as long[];
                             newSrc[0] = srcLong[0];
@@ -787,23 +800,23 @@ namespace Spreads {
                                 return bufferTransform(buffer, compSize);
                             }
                         } else {
-	       //                 if (length == 0)
-	       //                 {
-								//var buf = new byte[16];
-		      //                  fixed (byte* bufferPtr = &buf[0])
-		      //                  {
-			     //                   var compSize = NativeMethods.blosc_compress_ctx(
-				    //                    new IntPtr(level1), new IntPtr(shuffle1 ? 1 : 0),
-				    //                    new UIntPtr((uint) typeSize1),
-				    //                    new UIntPtr((uint) (length*typeSize1)),
-				    //                    IntPtr.Zero, new IntPtr(bufferPtr), (UIntPtr)16,
-				    //                    method1.ToString(), new UIntPtr((uint) 0),
-				    //                    NumThreads
-				    //                    );
-								//	if (compSize <= 0) throw new ApplicationException("Invalid compression input");
-								//	return bufferTransform(buf, compSize);
-								//}
-	       //                 }
+                            //                 if (length == 0)
+                            //                 {
+                            //var buf = new byte[16];
+                            //                  fixed (byte* bufferPtr = &buf[0])
+                            //                  {
+                            //                   var compSize = NativeMethods.blosc_compress_ctx(
+                            //                    new IntPtr(level1), new IntPtr(shuffle1 ? 1 : 0),
+                            //                    new UIntPtr((uint) typeSize1),
+                            //                    new UIntPtr((uint) (length*typeSize1)),
+                            //                    IntPtr.Zero, new IntPtr(bufferPtr), (UIntPtr)16,
+                            //                    method1.ToString(), new UIntPtr((uint) 0),
+                            //                    NumThreads
+                            //                    );
+                            //	if (compSize <= 0) throw new ApplicationException("Invalid compression input");
+                            //	return bufferTransform(buf, compSize);
+                            //}
+                            //                 }
                             typeSize1 = Marshal.SizeOf(src[0]);
                             /// Blosc header 16 bytes
                             var maxLength = length * typeSize1 + 16;
@@ -1122,9 +1135,9 @@ namespace Spreads {
                     //    // will copy self in case of ArrayCopy
                     //    return transformer(src, src.Length, true);
                     //} else {
-                        var ret = new byte[compSize];
-                        Array.Copy(dest, ret, compSize);
-                        return transformer(dest, compSize);
+                    var ret = new byte[compSize];
+                    Array.Copy(dest, ret, compSize);
+                    return transformer(dest, compSize);
                     //}
                 }
             }
@@ -1222,13 +1235,14 @@ namespace Spreads {
             unsafe
             {
                 var dest = new byte[16];
-                fixed (byte* destPtr = &dest[0])
+                fixed (byte* destPtr = dest)
                 {
-                    Marshal.StructureToPtr(value, (IntPtr)destPtr, false);
+                    *((decimal*)destPtr) = value;
                     return dest;
                 }
             }
         }
+
         internal static TResult SerializeTransformImpl<TResult>(decimal value,
             FixedBufferTransformer<TResult> transformer) {
             var bytes = SerializeImpl(value);
@@ -1301,20 +1315,8 @@ namespace Spreads {
             }
         }
 
-        internal static byte[] SerializeImpl(byte value) {
-            return BitConverter.GetBytes(value);
-        }
-        internal static TResult SerializeTransformImpl<TResult>(byte value,
-            FixedBufferTransformer<TResult> transformer) {
-            var bytes = SerializeImpl(value);
-            unsafe
-            {
-                fixed (byte* bytesPtr = &bytes[0])
-                {
-                    return transformer(bytes, bytes.Length, true);
-                }
-            }
-        }
+
+
 
         internal static byte[] SerializeImpl(short value) {
             return BitConverter.GetBytes(value);
@@ -1347,10 +1349,11 @@ namespace Spreads {
             }
         }
 
-        internal static byte[] SerializeImpl(float value) {
+
+        internal static byte[] SerializeImpl(byte value) {
             return BitConverter.GetBytes(value);
         }
-        internal static TResult SerializeTransformImpl<TResult>(float value,
+        internal static TResult SerializeTransformImpl<TResult>(byte value,
             FixedBufferTransformer<TResult> transformer) {
             var bytes = SerializeImpl(value);
             unsafe
@@ -1361,6 +1364,7 @@ namespace Spreads {
                 }
             }
         }
+
 
         internal static byte[] SerializeImpl(sbyte value) {
             return BitConverter.GetBytes(value);
@@ -1377,12 +1381,58 @@ namespace Spreads {
             }
         }
 
-        internal static byte[] SerializeImpl(DateTime value) {
-            var ticks = value.Ticks;
-            var kind = value.Kind;
-            var dateData = ((UInt64)ticks | ((UInt64)kind << 62));
-            return BitConverter.GetBytes(dateData);
+
+        internal static byte[] SerializeImpl(bool value) {
+            return BitConverter.GetBytes(value);
         }
+        internal static TResult SerializeTransformImpl<TResult>(bool value,
+            FixedBufferTransformer<TResult> transformer) {
+            var bytes = SerializeImpl(value);
+            unsafe
+            {
+                fixed (byte* bytesPtr = &bytes[0])
+                {
+                    return transformer(bytes, bytes.Length, true);
+                }
+            }
+        }
+
+        internal static byte[] SerializeImpl(char value) {
+            return BitConverter.GetBytes(value);
+        }
+        internal static TResult SerializeTransformImpl<TResult>(char value,
+            FixedBufferTransformer<TResult> transformer) {
+            var bytes = SerializeImpl(value);
+            unsafe
+            {
+                fixed (byte* bytesPtr = &bytes[0])
+                {
+                    return transformer(bytes, bytes.Length, true);
+                }
+            }
+        }
+
+
+        internal static byte[] SerializeImpl(float value) {
+            return BitConverter.GetBytes(value);
+        }
+        internal static TResult SerializeTransformImpl<TResult>(float value,
+            FixedBufferTransformer<TResult> transformer) {
+            var bytes = SerializeImpl(value);
+            unsafe
+            {
+                fixed (byte* bytesPtr = &bytes[0])
+                {
+                    return transformer(bytes, bytes.Length, true);
+                }
+            }
+        }
+
+
+        internal static byte[] SerializeImpl(DateTime value) {
+            return SerializeImpl(value.ToBinary());
+        }
+
         internal static TResult SerializeTransformImpl<TResult>(DateTime value,
             FixedBufferTransformer<TResult> transformer) {
             var bytes = SerializeImpl(value);
@@ -1395,59 +1445,61 @@ namespace Spreads {
             }
         }
 
-        internal static byte[] SerializeImpl(DateTimeOffset value) {
-            throw new NotImplementedException();
-        }
-        internal static TResult SerializeTransformImpl<TResult>(DateTimeOffset value,
-            FixedBufferTransformer<TResult> transformer) {
-            var bytes = SerializeImpl(value);
-            unsafe
-            {
-                fixed (byte* bytesPtr = &bytes[0])
-                {
-                    return transformer(bytes, bytes.Length, true);
-                }
-            }
-        }
 
         internal static byte[] SerializeImpl(byte[] value) {
-            return CompressBytes(value, 9, false, 1, CompressionMethod.lz4);
+            return CompressBytes(value, 9, false, 1, CompressionMethod);
         }
         internal static TResult SerializeTransformImpl<TResult>(byte[] value,
             FixedBufferTransformer<TResult> transformer) {
-            return CompressBytes(value, transformer, 9, false, 1, CompressionMethod.lz4);
+            return CompressBytes(value, transformer, 9, false, 1, CompressionMethod);
         }
 
         internal static byte[] SerializeImpl<T>(T value) { //where T : struct
-            var ty = value.GetType(); // typeof(T);
-            if (ty.IsValueType && (ty.IsLayoutSequential || ty.IsExplicitLayout))
-            {
+            var ty = value.GetType();
+            if (ty.IsValueType && (ty.IsLayoutSequential || ty.IsExplicitLayout)) {
                 unsafe
                 {
                     var typeSize = Marshal.SizeOf(value);
                     var dest = new byte[typeSize];
                     fixed (byte* destPtr = &dest[0])
                     {
-                        Marshal.StructureToPtr(value, (IntPtr) destPtr, false);
+                        // TODO avoid Marshal.StructureToPtr? to play safe?
+                        Marshal.StructureToPtr(value, (IntPtr)destPtr, false);
                         return dest;
                     }
                 }
                 //}
             } else if (ty.IsGenericType &&
                        ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
+                // TODO cache this method like in deser
+
                 //if (!true) {
-                    var genericArgs = ty.GetGenericArguments();
-                    var keyType = genericArgs[0];
-                    var valueType = genericArgs[1];
-                    var mi = typeof(Serializer).GetMethod("CompressMap2",
-                        BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
-                    var genericMi = mi.MakeGenericMethod(keyType, valueType);
-                    //genericMethods[ty] = genericMi;
-                    return (byte[])genericMi.Invoke(null, new object[] { (object)value });
+                var genericArgs = ty.GetGenericArguments();
+                var keyType = genericArgs[0];
+                var valueType = genericArgs[1];
+                var mi = typeof(Serializer2).GetMethod("CompressMap2",
+                    BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
+                var genericMi = mi.MakeGenericMethod(keyType, valueType);
+                //genericMethods[ty] = genericMi;
+                return (byte[])genericMi.Invoke(null, new object[] { (object)value });
                 //}
-            } else
-            {
-                return SerializeImpl((object) value);
+            } else if (ty.IsGenericType &&
+                       ty.GetGenericTypeDefinition() == typeof(Series<,>)) {
+
+                // TODO cache this method like in deser
+
+                var genericArgs = ty.GetGenericArguments();
+                var keyType = genericArgs[0];
+                var valueType = genericArgs[1];
+                var mi = typeof(SeriesExtensions).GetMethod("ToSortedMap",
+                    BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
+                var genericMi = mi.MakeGenericMethod(keyType, valueType);
+                //genericMethods[ty] = genericMi;
+                var sm = genericMi.Invoke(null, new object[] { (object)value });
+
+                return Serialize(sm);
+            } else {
+                return SerializeImpl((object)value);
             }
         }
 
@@ -1489,7 +1541,7 @@ namespace Spreads {
         /// <summary>
         /// Fallback with Json.NET
         /// </summary>
-        internal static byte[] SerializeImpl(object value) {
+        internal static byte[] SerializeImplObj(object value) {
             byte[] bytes = ObjectSerializer.Serialize(value);
             return CompressBytes(bytes, 9, false, 1, CompressionMethod.lz4);
         }
@@ -1497,7 +1549,7 @@ namespace Spreads {
 
         internal static TResult SerializeTransformImpl<TResult>(object value,
             FixedBufferTransformer<TResult> transformer) {
-            var bytes = SerializeImpl(value);
+            var bytes = SerializeImplObj(value);
             unsafe
             {
                 fixed (byte* bytesPtr = &bytes[0])
@@ -1507,18 +1559,21 @@ namespace Spreads {
             }
         }
 
-
+        // TODO test dynamic resolution for primitives
+        // or better do not rely on it and use type check
         internal static byte[] Serialize(object value) {
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException("value", "Root value cannot be null");
             dynamic v = value;
             return SerializeImpl(v);
         }
 
         public static byte[] Serialize<T>(T value) {
-            if (value == null) throw new ArgumentNullException("value");
+            if (value == null) throw new ArgumentNullException("value", "Root value cannot be null");
             dynamic v = value;
             return SerializeImpl(v);
         }
+
+
 
         //internal static object Serialize(object value, Type ty) {
         //    dynamic r = BlittableHelper.GetDefault(ty);
@@ -1675,6 +1730,7 @@ namespace Spreads {
             }
         }
 
+
         internal static DateTime DeserializeImpl(IntPtr srcPtr, int srcSize, DateTime result) {
             unsafe
             {
@@ -1699,10 +1755,13 @@ namespace Spreads {
 
         internal static object DeserializeImpl(IntPtr srcPtr, int srcSize, Type type) {
             byte[] bytes = DecompressBytes(srcPtr, srcSize);
-            if (bytes == null) {
-                bytes = new byte[srcSize];
-                Marshal.Copy(srcPtr, bytes, 0, srcSize);
-            }
+            // TODO! WTF? must check Blosc header explicitly to find out if the source is in Blosc format
+            // Do not do this magic, just fail
+            Debug.Assert(bytes != null);
+            //if (bytes == null) {
+            //    bytes = new byte[srcSize];
+            //    Marshal.Copy(srcPtr, bytes, 0, srcSize);
+            //}
             return ObjectSerializer.Deserialize(bytes, type);
         }
 
@@ -1714,12 +1773,6 @@ namespace Spreads {
                     throw new ArgumentOutOfRangeException("Wrong src size");
                 var dest = Marshal.PtrToStructure(srcPtr, ty);
                 return (TSrtuct)dest;
-
-            //} else if (ty == typeof(DateTime)) {
-            //    UInt64 newSrc = Deserialize<UInt64>(srcPtr, 8);
-            //    return (TSrtuct)(object)(new DateTime((long)(newSrc & ~(3UL << 62)), (DateTimeKind)(newSrc >> 62)));
-            //} else if (ty == typeof(DateTimeOffset)) {
-            //    throw new NotImplementedException();
             } else {
                 return (TSrtuct)DeserializeImpl(srcPtr, srcSize, typeof(TSrtuct));
             }
@@ -1743,7 +1796,7 @@ namespace Spreads {
                         var genericArgs = ty.GetGenericArguments();
                         var keyType = genericArgs[0];
                         var valueType = genericArgs[1];
-                        var mi = typeof(Serializer).GetMethod("DecompressMapPtr",
+                        var mi = typeof(Serializer2).GetMethod("DecompressMapPtr",
                             BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
                         genericMi = mi.MakeGenericMethod(keyType, valueType);
                         genericMethods[ty] = genericMi;
@@ -1756,7 +1809,7 @@ namespace Spreads {
                     } else {
                         var hasSaved = genericMethods.TryGetValue(ty, out genericMi);
                         if (!hasSaved) {
-                            var mi = typeof(Serializer).GetMethod("DecompressArrayDefault", BindingFlags.Static | BindingFlags.NonPublic);
+                            var mi = typeof(Serializer2).GetMethod("DecompressArrayDefault", BindingFlags.Static | BindingFlags.NonPublic);
                             genericMi = mi.MakeGenericMethod(elemType);
                             genericMethods[ty] = genericMi;
                         }
@@ -1796,7 +1849,7 @@ namespace Spreads {
         /// Deserialize object
         /// </summary>
         public static object Deserialize(byte[] src, Type ty) {
-			if (src == null) return null;// throw new ArgumentNullException("src");
+            if (src == null) return null;// throw new ArgumentNullException("src");
             if (src.Length == 0) throw new ArgumentException("src is empty");
             unsafe
             {
