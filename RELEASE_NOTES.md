@@ -1,3 +1,9 @@
+#### 0.0.29 - July 23, 2015
+* Fix bug when constructing empty SM using OfKeysAndValues
+
+#### 0.0.28 - July 21, 2015
+* Fix serializer edge cases when complex object has null or empty map/collection fields (TODO cover edge cases with tests)
+
 #### 0.0.27 - July 18, 2015
 * Fix Boostrapper bug in non-interactive mode and change default folder
 * Fix (mute) serializer bug (TODO investigate why dynamic overload resolution wasn't working)

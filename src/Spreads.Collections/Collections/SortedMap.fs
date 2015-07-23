@@ -1309,7 +1309,7 @@ type SortedMap<'K,'V when 'K : comparison>
     
     sm.size <- size
     sm.values <- values
-    sm.SetRkLast(sm.GetKeyByIndex(sm.size - 1))
+    if sm.size >0 then sm.SetRkLast(sm.GetKeyByIndex(sm.size - 1))
     sm
 
   static member OfSortedKeysAndValues(keys:'K[], values:'V[], size:int) =

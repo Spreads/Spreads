@@ -74,7 +74,8 @@ let genFSAssemblyInfo (projectPath) =
         Attribute.Product project
         Attribute.Description summary
         Attribute.Version release.AssemblyVersion
-        Attribute.FileVersion release.AssemblyVersion ]
+        Attribute.FileVersion release.AssemblyVersion
+        Attribute.Copyright "(c) Victor Baybekov 2015" ]
 
 let genCSAssemblyInfo (projectPath) =
     let projectName = System.IO.Path.GetFileNameWithoutExtension(projectPath)
@@ -85,7 +86,8 @@ let genCSAssemblyInfo (projectPath) =
         Attribute.Product project
         Attribute.Description summary
         Attribute.Version release.AssemblyVersion
-        Attribute.FileVersion release.AssemblyVersion ]
+        Attribute.FileVersion release.AssemblyVersion
+        Attribute.Copyright "(c) Victor Baybekov 2015" ]
 
 // Generate assembly info files with the right version & up-to-date information
 Target "AssemblyInfo" (fun _ ->
@@ -288,7 +290,7 @@ Target "All" DoNothing
 
 "Clean"
   ==> "RestorePackages"
-  ==> "AssemblyInfo"
+  //==> "AssemblyInfo"
   ==> "Build"
   ==> "All"
   ==> "RunTests"
@@ -299,7 +301,8 @@ Target "All" DoNothing
 //"All" 
 //  //==> "RunTests"
 //  ==> 
-"NuGet"
+"AssemblyInfo"
+  ==> "NuGet"
   ==> "Pack"
 
 "CleanDocs"

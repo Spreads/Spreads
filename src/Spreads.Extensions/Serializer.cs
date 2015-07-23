@@ -28,7 +28,7 @@ namespace Spreads {
         //, snappy = 4
     }
 
-
+    // TODO! support series by converting them to SortedMap on serializatio and by deserializing as SM and casting to series
     internal class SpreadsContractResolver : DefaultContractResolver {
         protected override sealed JsonConverter ResolveContractConverter(Type ty) {
 
@@ -78,6 +78,7 @@ namespace Spreads {
                 || ty == typeof(DateTime)) {
 				if (bytes == null )
 				{
+                    // bool is not blittable
 					var eq = ((object)false).Equals(reader.Value);
 					if (eq)
 					{
@@ -120,7 +121,8 @@ namespace Spreads {
 			        var arr = (Array) value;
 			        if (arr.Length == 0)
 			        {
-				        writer.WriteValue(false);
+                        // bool is not blittable
+                        writer.WriteValue(false);
 			        }
 			        else
 			        {
