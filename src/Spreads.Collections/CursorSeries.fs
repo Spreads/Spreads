@@ -254,7 +254,7 @@ open Spreads.Collections
 
 /// Repeat previous value for all missing keys
 type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>) as this =
-  inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
+  inherit CursorBind<'K,'V,'V>(cursorFactory)
   do
     this.IsContinuous <- true
   let mutable previousCursor = Unchecked.defaultof<ICursor<'K,'V>>
@@ -302,7 +302,7 @@ type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>
     base.Dispose()
 
 
-type FillCursor<'K,'V  when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>, fillValue:'V) as this =
+type FillCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, fillValue:'V) as this =
   inherit CursorBind<'K,'V,'V>(cursorFactory)
   do
     this.IsContinuous <- true  
@@ -317,7 +317,7 @@ type FillCursor<'K,'V  when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>,
       
 
 type MapValuesCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, mapF:Func<'V,'V2>) =
-  inherit CursorBind<'K,'V,'V2>(cursorFactory.Invoke)
+  inherit CursorBind<'K,'V,'V2>(cursorFactory)
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V2>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt
@@ -356,7 +356,7 @@ type MapValuesCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:Func<ICursor<
 
 
 type FilterValuesCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Func<'V,bool>) =
-  inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
+  inherit CursorBind<'K,'V,'V>(cursorFactory)
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt
@@ -380,7 +380,7 @@ type FilterValuesCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'
 
 // TODO this is probably wrong and untested 
 type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
-  inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
+  inherit CursorBind<'K,'V,'V>(cursorFactory)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
@@ -435,7 +435,7 @@ type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, l
       true
     else false
 
-type AddIntCursor<'K when 'K : comparison>(cursorFactory:unit->ICursor<'K,int>, addition:int) =
+type AddIntCursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int>>, addition:int) =
   inherit CursorBind<'K,int,int>(cursorFactory)
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<int>): bool =
@@ -448,7 +448,7 @@ type AddIntCursor<'K when 'K : comparison>(cursorFactory:unit->ICursor<'K,int>, 
 
 
 [<SealedAttribute>]
-type AddInt64Cursor<'K when 'K : comparison>(cursorFactory:unit->ICursor<'K,int64>, addition:int64) =
+type AddInt64Cursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int64>>, addition:int64) =
   inherit CursorBind<'K,int64,int64>(cursorFactory)
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<int64>): bool =
@@ -466,7 +466,7 @@ type AddInt64Cursor<'K when 'K : comparison>(cursorFactory:unit->ICursor<'K,int6
 
 
 /// Repeat previous value for all missing keys
-type LogCursor<'K when 'K : comparison>(cursorFactory:unit->ICursor<'K,int64>) =
+type LogCursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int64>>) =
   inherit CursorBind<'K,int64,double>(cursorFactory)
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<double>): bool =
@@ -492,7 +492,7 @@ type ZipValuesCursor<'K,'V,'V2,'R when 'K : comparison>(cursorFactoryL:Func<ICur
 
 
 type ScanCursor<'K,'V,'R  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Func<'R,'K,'V,'R>) as this =
-  inherit CursorBind<'K,'V,'R>(cursorFactory.Invoke)
+  inherit CursorBind<'K,'V,'R>(cursorFactory)
   do
     this.IsContinuous <- false // scan is explicitly not continuous
 
@@ -511,7 +511,7 @@ type ScanCursor<'K,'V,'R  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V
       // TODO here SortedMap must be subscribed to the source 
       // and a CTS must be cancelled when disposing this cursor
       let sm = SortedMap()
-      let source = CursorSeries(cursorFactory.Invoke) 
+      let source = CursorSeries(cursorFactory) 
       for kvp in source do
         state <- folder.Invoke(state, kvp.Key, kvp.Value)
         sm.AddLast(kvp.Key, state)
@@ -545,7 +545,7 @@ type ScanCursor<'K,'V,'R  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V
     base.Dispose()
 
 type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32) =
-  inherit CursorBind<'K,'V,Series<'K,'V>>(cursorFactory.Invoke)
+  inherit CursorBind<'K,'V,Series<'K,'V>>(cursorFactory)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
   let mutable moves = 0
 
@@ -575,8 +575,10 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
           lagOk <- true
       if lagOk then
         // NB! freeze bounds for the range cursor
-        let rangeCursor = new CursorRange<'K,'V>(cursorFactory, Some(activeLaggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None)
-        let window = CursorSeries(fun _ -> rangeCursor :> ICursor<'K,'V>) :> Series<'K,'V>
+        let startPoint = Some(activeLaggedCursor.CurrentKey)
+        let endPoint = Some(this.InputCursor.CurrentKey)
+        let rangeCursor() = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+        let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
         value <- window
         moves <- 0
         true
@@ -588,8 +590,11 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
       moves <- moves + 1
       if Math.Abs(moves) = int step then
         // NB! freeze bounds for the range cursor
-        let rangeCursor = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(laggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None)
-        let window = CursorSeries(fun _ -> rangeCursor :> ICursor<'K,'V>) :> Series<'K,'V>
+        let startPoint = Some(laggedCursor.CurrentKey)
+        let endPoint = Some(this.InputCursor.CurrentKey)
+        let rangeCursor() = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+        
+        let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
         value <- window
         moves <- 0
         true
@@ -601,8 +606,10 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
       moves <- moves - 1
       if Math.Abs(moves) = int step then
         // NB! freeze bounds for the range cursor
-        let rangeCursor = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), Some(laggedCursor.CurrentKey), Some(this.InputCursor.CurrentKey), None, None)
-        let window = CursorSeries(fun _ -> rangeCursor :> ICursor<'K,'V>) :> Series<'K,'V>
+        let startPoint = Some(laggedCursor.CurrentKey)
+        let endPoint = Some(this.InputCursor.CurrentKey)
+        let rangeCursor() = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+        let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
         value <- window
         moves <- 0
         true
@@ -648,7 +655,7 @@ type SeriesExtensions () =
     /// Fill missing values with the given value
     [<Extension>]
     static member inline Fill(source: ISeries<'K,'V>, fillValue:'V) : Series<'K,'V> = 
-      CursorSeries(fun _ -> new FillCursor<'K,'V>(source.GetCursor, fillValue) :> ICursor<'K,'V>) :> Series<'K,'V>
+      CursorSeries(fun _ -> new FillCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), fillValue) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
     static member inline Lag(source: ISeries<'K,'V>, lag:uint32) : Series<'K,'V> = 
@@ -660,14 +667,15 @@ type SeriesExtensions () =
 
     [<Extension>]
     static member inline Add(source: ISeries<'K,int>, addition:int) : Series<'K,int> = 
-      CursorSeries(fun _ -> new AddIntCursor<'K>(source.GetCursor,addition) :> ICursor<'K,int>) :> Series<'K,int>
+      CursorSeries(fun _ -> new AddIntCursor<'K>(Func<ICursor<'K,int>>(source.GetCursor),addition) :> ICursor<'K,int>) :> Series<'K,int>
 
     [<Extension>]
     static member inline Add(source: ISeries<'K,int64>, addition:int64) : Series<'K,int64> = 
-      CursorSeries(fun _ -> new AddInt64Cursor<'K>(source.GetCursor,addition) :> ICursor<'K,int64>) :> Series<'K,int64>
+      CursorSeries(fun _ -> new AddInt64Cursor<'K>(Func<ICursor<'K,int64>>(source.GetCursor),addition) :> ICursor<'K,int64>) :> Series<'K,int64>
+
     [<Extension>]
     static member inline Log(source: ISeries<'K,int64>) : Series<'K,double> = 
-      CursorSeries(fun _ -> new LogCursor<'K>(source.GetCursor) :> ICursor<'K,double>) :> Series<'K,double>
+      CursorSeries(fun _ -> new LogCursor<'K>(Func<ICursor<'K,int64>>(source.GetCursor)) :> ICursor<'K,double>) :> Series<'K,double>
 
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
     [<Extension>]

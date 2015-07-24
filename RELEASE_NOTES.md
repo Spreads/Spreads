@@ -1,3 +1,7 @@
+#### 0.0.31 - July 24, 2015
+* Change F# functions to Func
+* Stabilize serializer
+
 #### 0.0.29 - July 23, 2015
 * Fix bug when constructing empty SM using OfKeysAndValues
 

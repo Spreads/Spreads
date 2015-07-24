@@ -30,7 +30,7 @@ namespace Spreads.DB.Tests
             var ia = new long[1000];
             for (int i = 0; i < 1000; i++) {
                 ia[i] = i * 1000;
-                sm.Add(DateTime.Today.AddDays(i), Math.Round(i + rng.NextDouble(), 4));
+                sm.Add(DateTime.UtcNow.Date.AddDays(i), Math.Round(i + rng.NextDouble(), 4));
 
             }
             return new ComplexObject

@@ -204,6 +204,10 @@ type SeriesTestsModule() =
 
         let rc = add1.GetCursor()
 
+        let sl = SortedList()
+        sl.Add(1,1)
+        let ok, value = sl.TryGetValue(1)
+
         let ok, value = rc.TryGetValue(1)
         ok |> should equal true
         value |> should equal 2
@@ -364,8 +368,8 @@ type SeriesTestsModule() =
         let expected = SortedMap<int, int>()
         expected.Add(5,1)
         expected.Add(7,3)
-
-        let lag = map.Lag(2u).Evaluate()
+        let lagged = map.Lag(2u)
+        let lag = lagged.Evaluate()
 
         lag.[5] |> should equal expected.[5]
         lag.[7] |> should equal expected.[7]
@@ -434,8 +438,8 @@ type SeriesTestsModule() =
         let windows = map.Window(4u, 2u)
         let windows2 = windows.ToSortedMap()
 
-        windows2.First.Value.ToSortedMap().Count |> should equal 4
-        windows2.First.Key |> should equal 3
+        windows.First.Value.Count() |> should equal 4
+        windows.First.Key |> should equal 3
 
 
 

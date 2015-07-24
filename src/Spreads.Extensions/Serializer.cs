@@ -1799,7 +1799,23 @@ namespace Spreads {
 		}
 
 
-		internal static DateTime DeserializeImpl(IntPtr srcPtr, int srcSize, DateTime result) {
+        internal static char DeserializeImpl(IntPtr srcPtr, int srcSize, char result) {
+            unsafe
+            {
+                if (srcSize > 0 && srcSize != 2) throw new ArgumentOutOfRangeException("Wrong src size");
+                return (*(char*)srcPtr);
+            }
+        }
+
+        internal static bool DeserializeImpl(IntPtr srcPtr, int srcSize, bool result) {
+            unsafe
+            {
+                if (srcSize > 0 && srcSize != 2) throw new ArgumentOutOfRangeException("Wrong src size");
+                return (*(bool*)srcPtr);
+            }
+        }
+
+        internal static DateTime DeserializeImpl(IntPtr srcPtr, int srcSize, DateTime result) {
 			unsafe
 			{
 				if (srcSize > 0 && srcSize != 8) throw new ArgumentOutOfRangeException("Wrong src size");

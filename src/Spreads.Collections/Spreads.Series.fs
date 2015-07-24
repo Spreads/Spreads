@@ -20,6 +20,12 @@ open Spreads
 // TODO check thread safety of the default series implementation. Should we use ThreadLocal for caching cursors that are called via the interfaces?
 
 
+
+//[<AllowNullLiteral>]
+//type  SeriesDebuggerProxy<'K,'V when 'K : comparison>(series:ISeries<'K,'V>) =
+//    member this.Note = "Bebugger should not move cursors TODO write debugger view"
+
+
 [<AllowNullLiteral>]
 [<Serializable>]
 //[<AbstractClassAttribute>]
@@ -40,6 +46,7 @@ and
   [<AllowNullLiteral>]
   [<Serializable>]
   [<AbstractClassAttribute>]
+//  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   Series<'K,'V when 'K : comparison>() =
     inherit BaseSeries()
     
@@ -144,7 +151,7 @@ and
     static member inline private ScalarOperatorMap<'K,'V,'V2 when 'K : comparison>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>) = 
       let mapF = ref mapFunc.Invoke
       let mapCursor = 
-        {new CursorBind<'K,'V,'V2>(source.GetCursor) with
+        {new CursorBind<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor)) with
           override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V2>): bool =
             if isPositioned then
               value <- mapF.Value(this.InputCursor.CurrentValue)
@@ -312,9 +319,10 @@ and
   /// Wrap Series over ICursor
   [<AllowNullLiteral>]
   [<Serializable>]
-  CursorSeries<'K,'V when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) =
+//  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
+  CursorSeries<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>) =
       inherit Series<'K,'V>()
-      override this.GetCursor() = cursorFactory()
+      override this.GetCursor() = cursorFactory.Invoke()
 
 
 // Attempts to manually optimize callvirt and object allocation failed badly
@@ -333,11 +341,12 @@ and
 and // TODO internal
   /// A cursor that could perform map, filter, fold, scan operations on input cursors.
   [<AbstractClassAttribute>]
-  CursorBind<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) =
+//  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
+  CursorBind<'K,'V,'V2 when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>) =
     
     // TODO TryGetValue should not change state of the cursor, it looks like now it does, e.g. for repeat
 
-    let cursor = cursorFactory()
+    let cursor = cursorFactory.Invoke()
 
     // TODO make public property, e.g. for random walk generator we must throw if we try to init more than one
     // this is true for all "vertical" transformations, they start from a certain key and depend on the starting value
@@ -563,7 +572,7 @@ and // TODO internal
         failwith "Not implemented yet"
     
       //member x.IsBatch with get() = x.IsBatch
-      member x.Source: ISeries<'K,'V2> = CursorSeries<'K,'V2>((x :> ICursor<'K,'V2>).Clone) :> ISeries<'K,'V2>
+      member x.Source: ISeries<'K,'V2> = CursorSeries<'K,'V2>(Func<ICursor<'K,'V2>>((x :> ICursor<'K,'V2>).Clone)) :> ISeries<'K,'V2>
       member x.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool = 
         let ok, v = x.TryGetValueChecked(key, false)
         value <- v
@@ -584,6 +593,7 @@ and // TODO internal
 and // TODO internal
   /// A cursor that joins to cursors. 
   [<AbstractClassAttribute>]
+//  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   CursorZip<'K,'V1,'V2,'R when 'K : comparison>(cursorFactoryL:unit->ICursor<'K,'V1>, cursorFactoryR:unit->ICursor<'K,'V2>) =
   
     let cursorL = cursorFactoryL()
@@ -924,7 +934,7 @@ and // TODO internal
         failwith "Not implemented yet"
     
       //member x.IsBatch with get() = x.IsBatch
-      member x.Source: ISeries<'K,'R> = CursorSeries<'K,'R>((x :> ICursor<'K,'R>).Clone) :> ISeries<'K,'R>
+      member x.Source: ISeries<'K,'R> = CursorSeries<'K,'R>(Func<ICursor<'K,'R>>((x :> ICursor<'K,'R>).Clone)) :> ISeries<'K,'R>
       member this.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool =
         // this method must not move cursors or position of the current cursor
         let cl = this.InputCursorL
@@ -947,6 +957,7 @@ and // TODO internal
 
 
 /// Range from start to end key. 
+//[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
 type CursorRange<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, endKey:'K option, startLookup: Lookup option, endLookup:Lookup option) =
     
   let cursor = cursorFactory.Invoke()
@@ -1046,7 +1057,7 @@ type CursorRange<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>,
     member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
       failwith "Not implemented yet"
     
-    member this.Source: ISeries<'K,'V> = CursorSeries<'K,'V2>((this :> ICursor<'K,'V>).Clone) :> ISeries<'K,'V>
+    member this.Source: ISeries<'K,'V> = CursorSeries<'K,'V2>(Func<ICursor<'K,'V>>((this :> ICursor<'K,'V>).Clone)) :> ISeries<'K,'V>
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'V>): bool = 
       if inRange key then
         this.InputCursor.TryGetValue(key, &value)

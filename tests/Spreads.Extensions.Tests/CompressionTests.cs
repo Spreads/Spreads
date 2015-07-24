@@ -622,7 +622,7 @@ namespace Spreads.DB.Tests {
             SortedMap<DateTime, double> sortedMap = new SortedMap<DateTime, double>();
             byte[] bytes = null;
             var rng = new System.Random();
-            for (int i = 0; i < 20000; i++) {
+            for (int i = 0; i < 1000; i++) {
                 sortedMap.Add(DateTime.UtcNow.Date.AddSeconds(i), Math.Round(i + rng.NextDouble(), 2));
                 bytes = Serializer.Serialize(sortedMap);
                 var sortedMap2 = Serializer.Deserialize<SortedMap<DateTime, double>>(bytes);
