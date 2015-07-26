@@ -247,7 +247,7 @@ open Spreads.Collections
 //      // TODO using Activator is a very bad sign, are we doing something wrong here?
 //      let clone = Activator.CreateInstance(ty, args) :?> ICursor<'K,'V2> // should not be called too often
 //      if hasValidState then clone.MoveAt(x.CurrentKey, Lookup.EQ) |> ignore
-//      //Debug.Assert(movedOk) // if current key is set then we could move to it
+//      //Trace.Assert(movedOk) // if current key is set then we could move to it
 //      clone
 //
 //
@@ -284,7 +284,7 @@ type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>
         // naive implementation, CursorZip must hit c < 0 case (TODO check this)
         let c = this.InputCursor.Clone()
         if c.MoveAt(key, Lookup.LE) then
-          Debug.Assert(c.CurrentKey <> this.InputCursor.CurrentKey)
+          Trace.Assert(c.CurrentKey <> this.InputCursor.CurrentKey)
           value <- c.CurrentValue
           true
         else false
@@ -519,10 +519,10 @@ type ScanCursor<'K,'V,'R  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V
     buffer
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'R>): bool =
-    Debug.Assert(hasValues)
+    Trace.Assert(hasValues)
     // move first
     if not buffered && isPositioned && this.InputCursor.Comparer.Compare(first, key) = 0 then
-      Debug.Assert(Unchecked.equals state init)
+      Trace.Assert(Unchecked.equals state init)
       state <- folder.Invoke(state, key, this.InputCursor.CurrentValue)
       value <- state
       true
@@ -647,9 +647,9 @@ type SeriesExtensions () =
     [<Extension>]
     static member inline Filter(source: ISeries<'K,'V>, filterFunc:Func<'V,bool>) : Series<'K,'V> = 
       CursorSeries(fun _ -> new FilterValuesCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), filterFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
-
+      //inline
     [<Extension>]
-    static member inline Repeat(source: ISeries<'K,'V>) : Series<'K,'V> = 
+    static member  Repeat(source: ISeries<'K,'V>) : Series<'K,'V> = 
       CursorSeries(fun _ -> new RepeatCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor)) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     /// Fill missing values with the given value
@@ -658,7 +658,8 @@ type SeriesExtensions () =
       CursorSeries(fun _ -> new FillCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), fillValue) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
-    static member inline Lag(source: ISeries<'K,'V>, lag:uint32) : Series<'K,'V> = 
+    //inline
+    static member  Lag(source: ISeries<'K,'V>, lag:uint32) : Series<'K,'V> = 
       CursorSeries(fun _ -> new LagCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), lag) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
@@ -679,11 +680,15 @@ type SeriesExtensions () =
 
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
     [<Extension>]
+    // inline
     [<Obsolete("Use `ToSortedMap` method instead")>]
-    static member inline Evaluate(source: ISeries<'K,'V>) : SortedMap<'K,'V> =
+    static member  Evaluate(source: ISeries<'K,'V>) : SortedMap<'K,'V> =
       let sm = SortedMap()
-      for kvp in source do
-        sm.AddLast(kvp.Key, kvp.Value)
+      let c = source.GetCursor()
+      while c.MoveNext() do
+      //for kvp in source :> IEnumerable<KVP<'K,'V>> do
+        //sm.AddLast(kvp.Key, kvp.Value)
+        sm.AddLast(c.CurrentKey, c.CurrentValue)
       sm
 
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.

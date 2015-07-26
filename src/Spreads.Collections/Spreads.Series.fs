@@ -386,15 +386,16 @@ and // TODO internal
     abstract TryGetValue: key:'K * isPositioned:bool * [<Out>] value: byref<'V2> -> bool // * direction: Lookup not needed here
     // this is the main method to transform input to output, other methods could be implemented via it
 
-    member inline this.TryGetValueChecked(key:'K, isPositioned:bool, [<Out>] value: byref<'V2>): bool =
-#if PRERELEASE
-      let before = this.InputCursor.CurrentKey
-      let res = this.TryGetValue(key, isPositioned, &value)
-      if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
-      else res
-#else
-      this.TryGetValue(key, &value)
-#endif
+    //inline
+//    member this.TryGetValueChecked(key:'K, isPositioned:bool, [<Out>] value: byref<'V2>): bool =
+//#if PRERELEASE
+//      let before = this.InputCursor.CurrentKey
+//      let res = this.TryGetValue(key, isPositioned, &value)
+//      if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+//      else res
+//#else
+//      this.TryGetValue(key, &value)
+//#endif
 
     /// Update state with a new value. Should be optimized for incremental update of the current state in custom implementations.
     abstract TryUpdateNext: next:KVP<'K,'V> * [<Out>] value: byref<'V2> -> bool
@@ -402,15 +403,15 @@ and // TODO internal
       // recreate value from scratch
       this.TryGetValue(next.Key, true, &value)
 
-    member inline this.TryUpdateNextChecked(next:KVP<'K,'V>, [<Out>] value: byref<'V2>) : bool =
-#if PRERELEASE
-      let before = this.InputCursor.CurrentKey
-      let res = this.TryUpdateNext(next, &value)
-      if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryUpdateNext implementation must not move InputCursor"))
-      else res
-#else
-      this.TryUpdateNext(next, true, &value)
-#endif
+//    member inline this.TryUpdateNextChecked(next:KVP<'K,'V>, [<Out>] value: byref<'V2>) : bool =
+//#if PRERELEASE
+//      let before = this.InputCursor.CurrentKey
+//      let res = this.TryUpdateNext(next, &value)
+//      if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryUpdateNext implementation must not move InputCursor"))
+//      else res
+//#else
+//      this.TryUpdateNext(next, true, &value)
+//#endif
 
     /// Update state with a previous value. Should be optimized for incremental update of the current state in custom implementations.
     abstract TryUpdatePrevious: previous:KVP<'K,'V> * [<Out>] value: byref<'V2> -> bool
@@ -418,15 +419,15 @@ and // TODO internal
       // recreate value from scratch
       this.TryGetValue(previous.Key, true, &value)
 
-    member inline this.TryUpdatePreviousChecked(next:KVP<'K,'V>, [<Out>] value: byref<'V2>) : bool =
-#if PRERELEASE
-      let before = this.InputCursor.CurrentKey
-      let res = this.TryUpdatePrevious(next, &value)
-      if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryUpdatePrevious implementation must not move InputCursor"))
-      else res
-#else
-      TryUpdatePrevious(next, true, &value)
-#endif
+//    member inline this.TryUpdatePreviousChecked(next:KVP<'K,'V>, [<Out>] value: byref<'V2>) : bool =
+//#if PRERELEASE
+//      let before = this.InputCursor.CurrentKey
+//      let res = this.TryUpdatePrevious(next, &value)
+//      if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryUpdatePrevious implementation must not move InputCursor"))
+//      else res
+//#else
+//      TryUpdatePrevious(next, true, &value)
+//#endif
 
     /// If input and this cursor support batches, then process a batch and store it in CurrentBatch
     abstract TryUpdateNextBatch: nextBatch: IReadOnlyOrderedMap<'K,'V> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>> -> bool  
@@ -443,37 +444,51 @@ and // TODO internal
 
     interface IEnumerator<KVP<'K,'V2>> with    
       member this.Reset() = this.Reset()
-      member x.MoveNext(): bool =
+      member this.MoveNext(): bool =
         if hasValidState then
+          let mutable value = Unchecked.defaultof<'V2>
           let mutable found = false
-          while not found && x.InputCursor.MoveNext() do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
-            let ok, value = x.TryUpdateNextChecked(x.InputCursor.Current)
-            if ok then 
+          while not found && this.InputCursor.MoveNext() do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
+#if PRERELEASE
+            let before = this.InputCursor.CurrentKey
+            let ok = this.TryUpdateNext(this.InputCursor.Current, &value)
+            if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+#else
+            let ok = this.TryUpdateNext(this.InputCursor.Current, &value)
+#endif
+            if ok then
               found <- true
-              x.CurrentKey <- x.InputCursor.CurrentKey
-              x.CurrentValue <- value
+              this.CurrentKey <- this.InputCursor.CurrentKey
+              this.CurrentValue <- value
           if found then 
             //hasInitializedValue <- true
             true 
           else false
-        else (x :> ICursor<'K,'V2>).MoveFirst()
+        else (this :> ICursor<'K,'V2>).MoveFirst()
       member this.Current with get(): KVP<'K, 'V2> = this.Current
       member this.Current with get(): obj = this.Current :> obj 
       member x.Dispose(): unit = x.Dispose()
 
     interface ICursor<'K,'V2> with
-      member x.Comparer with get() = cursor.Comparer
-      member x.Current: KVP<'K,'V2> = KVP(x.CurrentKey, x.CurrentValue)
-      member x.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = x.CurrentBatch
-      member x.CurrentKey: 'K = x.CurrentKey
-      member x.CurrentValue: 'V2 = x.CurrentValue
-      member x.IsContinuous: bool = x.IsContinuous
-      member x.MoveAt(index: 'K, direction: Lookup): bool = 
-        if x.InputCursor.MoveAt(index, direction) then
-          let ok, value = x.TryGetValueChecked(x.InputCursor.CurrentKey, true)
+      member this.Comparer with get() = cursor.Comparer
+      member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
+      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = this.CurrentBatch
+      member this.CurrentKey: 'K = this.CurrentKey
+      member this.CurrentValue: 'V2 = this.CurrentValue
+      member this.IsContinuous: bool = this.IsContinuous
+      member this.MoveAt(index: 'K, direction: Lookup): bool = 
+        if this.InputCursor.MoveAt(index, direction) then
+          let mutable value = Unchecked.defaultof<'V2>
+#if PRERELEASE
+          let before = this.InputCursor.CurrentKey
+          let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
+          if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+#else
+          let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
+#endif
           if ok then
-            x.CurrentKey <- x.InputCursor.CurrentKey
-            x.CurrentValue <- value
+            this.CurrentKey <- this.InputCursor.CurrentKey
+            this.CurrentValue <- value
             hasValidState <- true
             true
           else
@@ -481,24 +496,36 @@ and // TODO internal
             | Lookup.EQ -> false
             | Lookup.GE | Lookup.GT ->
               let mutable found = false
-              while not found && x.InputCursor.MoveNext() do
-                let ok, value = x.TryGetValueChecked(x.InputCursor.CurrentKey, true)
+              while not found && this.InputCursor.MoveNext() do
+#if PRERELEASE
+                let before = this.InputCursor.CurrentKey
+                let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
+                if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+#else
+                let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
+#endif
                 if ok then 
                   found <- true
-                  x.CurrentKey <- x.InputCursor.CurrentKey
-                  x.CurrentValue <- value
+                  this.CurrentKey <- this.InputCursor.CurrentKey
+                  this.CurrentValue <- value
               if found then 
                 hasValidState <- true
                 true 
               else false
             | Lookup.LE | Lookup.LT ->
               let mutable found = false
-              while not found && x.InputCursor.MovePrevious() do
-                let ok, value = x.TryGetValueChecked(x.InputCursor.CurrentKey, true)
+              while not found && this.InputCursor.MovePrevious() do
+#if PRERELEASE
+                let before = this.InputCursor.CurrentKey
+                let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
+                if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+#else
+                let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
+#endif
                 if ok then
                   found <- true
-                  x.CurrentKey <- x.InputCursor.CurrentKey
-                  x.CurrentValue <- value
+                  this.CurrentKey <- this.InputCursor.CurrentKey
+                  this.CurrentValue <- value
               if found then 
                 hasValidState <- true
                 true 
@@ -507,86 +534,126 @@ and // TODO internal
         else false
       
     
-      member x.MoveFirst(): bool = 
-        if x.InputCursor.MoveFirst() then
-          let ok, value = x.TryGetValueChecked(x.InputCursor.CurrentKey, true)
+      member this.MoveFirst(): bool = 
+        if this.InputCursor.MoveFirst() then
+          let mutable value = Unchecked.defaultof<'V2>
+#if PRERELEASE
+          let before = this.InputCursor.CurrentKey
+          let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
+          if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+#else
+          let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
+#endif
           if ok then
-            x.CurrentKey <- x.InputCursor.CurrentKey
-            x.CurrentValue <- value
+            this.CurrentKey <- this.InputCursor.CurrentKey
+            this.CurrentValue <- value
             hasValidState <- true
             true
           else
             let mutable found = false
-            while not found && x.InputCursor.MoveNext() do
-              let ok, value = x.TryGetValueChecked(x.InputCursor.CurrentKey, true)
+            while not found && this.InputCursor.MoveNext() do
+#if PRERELEASE
+              let before = this.InputCursor.CurrentKey
+              let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
+              if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+#else
+              let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
+#endif
               if ok then 
                 found <- true
-                x.CurrentKey <- x.InputCursor.CurrentKey
-                x.CurrentValue <- value
+                this.CurrentKey <- this.InputCursor.CurrentKey
+                this.CurrentValue <- value
             if found then 
               hasValidState <- true
               true 
             else false
         else false
     
-      member x.MoveLast(): bool = 
-        if x.InputCursor.MoveLast() then
-          let ok, value = x.TryGetValueChecked(x.InputCursor.CurrentKey, true)
+      member this.MoveLast(): bool = 
+        if this.InputCursor.MoveLast() then
+          let mutable value = Unchecked.defaultof<'V2>
+#if PRERELEASE
+          let before = this.InputCursor.CurrentKey
+          let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
+          if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+#else
+          let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
+#endif
           if ok then
-            x.CurrentKey <- x.InputCursor.CurrentKey
-            x.CurrentValue <- value
+            this.CurrentKey <- this.InputCursor.CurrentKey
+            this.CurrentValue <- value
             hasValidState <- true
             true
           else
             let mutable found = false
-            while not found && x.InputCursor.MovePrevious() do
-              let ok, value = x.TryGetValueChecked(x.InputCursor.CurrentKey, true)
+            while not found && this.InputCursor.MovePrevious() do
+#if PRERELEASE
+              let before = this.InputCursor.CurrentKey
+              let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
+              if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+#else
+              let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
+#endif
               if ok then
                 found <- true
-                x.CurrentKey <- x.InputCursor.CurrentKey
-                x.CurrentValue <- value
+                this.CurrentKey <- this.InputCursor.CurrentKey
+                this.CurrentValue <- value
             if found then 
               hasValidState <- true
               true 
             else false
         else false
 
-      member x.MovePrevious(): bool = 
+      member this.MovePrevious(): bool = 
         if hasValidState then
+          let mutable value = Unchecked.defaultof<'V2>
           let mutable found = false
-          while not found && x.InputCursor.MovePrevious() do
-            let ok, value = x.TryUpdatePreviousChecked(x.InputCursor.Current)
+          while not found && this.InputCursor.MovePrevious() do
+#if PRERELEASE
+            let before = this.InputCursor.CurrentKey
+            let ok = this.TryUpdatePrevious(this.InputCursor.Current, &value)
+            if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+#else
+            let ok = this.TryUpdatePrevious(this.InputCursor.Current, &value)
+#endif
             if ok then 
               found <- true
-              x.CurrentKey <- x.InputCursor.CurrentKey
-              x.CurrentValue <- value
+              this.CurrentKey <- this.InputCursor.CurrentKey
+              this.CurrentValue <- value
           if found then 
             hasValidState <- true
             true 
           else false
-        else (x :> ICursor<'K,'V2>).MoveLast()
+        else (this :> ICursor<'K,'V2>).MoveLast()
     
-      member x.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = 
+      member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = 
         failwith "Not implemented yet"
-      member x.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
+      member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
         failwith "Not implemented yet"
     
-      //member x.IsBatch with get() = x.IsBatch
-      member x.Source: ISeries<'K,'V2> = CursorSeries<'K,'V2>(Func<ICursor<'K,'V2>>((x :> ICursor<'K,'V2>).Clone)) :> ISeries<'K,'V2>
-      member x.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool = 
-        let ok, v = x.TryGetValueChecked(key, false)
+      //member this.IsBatch with get() = this.IsBatch
+      member this.Source: ISeries<'K,'V2> = CursorSeries<'K,'V2>(Func<ICursor<'K,'V2>>((this :> ICursor<'K,'V2>).Clone)) :> ISeries<'K,'V2>
+      member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool = 
+        let mutable v = Unchecked.defaultof<'V2>
+#if PRERELEASE
+        let before = this.InputCursor.CurrentKey
+        let ok = this.TryGetValue(key, false, &v)
+        if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+#else
+        let ok = this.TryGetValue(key, false, &v)
+#endif
         value <- v
         ok
     
       // TODO review + profile. for value types we could just return this
-      member x.Clone(): ICursor<'K,'V2> =
+      member this.Clone(): ICursor<'K,'V2> =
         // run-time type of the instance, could be derived type
-        let ty = x.GetType()
+        let ty = this.GetType()
         let args = [|cursorFactory :> obj|]
         // TODO using Activator is a very bad sign, are we doing something wrong here?
         let clone = Activator.CreateInstance(ty, args) :?> ICursor<'K,'V2> // should not be called too often
-        if hasValidState then clone.MoveAt(x.CurrentKey, Lookup.EQ) |> ignore
-        //Debug.Assert(movedOk) // if current key is set then we could move to it
+        if hasValidState then clone.MoveAt(this.CurrentKey, Lookup.EQ) |> ignore
+        //Trace.Assert(movedOk) // if current key is set then we could move to it
         clone
 
 
@@ -733,12 +800,12 @@ and // TODO internal
         c <- cmp.Compare(cl.CurrentKey, cr.CurrentKey) 
         match lmoved, rmoved with
         | false, false ->
-          Debug.Assert(shouldMoveL || shouldMoveR)
+          Trace.Assert(shouldMoveL || shouldMoveR)
           shouldStop <- true // definetly cannot move forward in any way
           //this.HasValidState <- // leave it as it was, e.g. move first was ok, but no new values. async could pick up later
           ret <- false
         | false, true ->
-          Debug.Assert(shouldMoveR)
+          Trace.Assert(shouldMoveR)
           if c = 0 then
             let valid, v = this.TryZip(cl.CurrentKey, cl.CurrentValue, cr.CurrentValue)
             if valid then
@@ -766,7 +833,7 @@ and // TODO internal
             shouldMoveL <- if shouldMoveL then false else c <= 0
             shouldMoveR <- if shouldMoveL then true else c >= 0
         | true, false ->
-          Debug.Assert(shouldMoveL)
+          Trace.Assert(shouldMoveL)
           if c = 0 then
             let valid, v = this.TryZip(cl.CurrentKey, cl.CurrentValue, cr.CurrentValue)
             if valid then
@@ -952,7 +1019,7 @@ and // TODO internal
         // TODO using Activator is a very bad sign, are we doing something wrong here?
         let clone = Activator.CreateInstance(ty, args) :?> ICursor<'K,'R> // should not be called too often
         if hasValidState then clone.MoveAt(x.CurrentKey, Lookup.EQ) |> ignore
-        //Debug.Assert(movedOk) // if current key is set then we could move to it
+        //Trace.Assert(movedOk) // if current key is set then we could move to it
         clone
 
 

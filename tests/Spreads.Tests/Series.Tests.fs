@@ -18,6 +18,7 @@ type SeriesTestsModule() =
     member this.``SM Could TryFind and MoveAt with single value``() =
         let map = SortedMap<int, int>()
         map.Add(1,1)
+
                 // at existing inclusive
         
         let ok, value = map.TryFind(1, Lookup.GE);
@@ -235,7 +236,7 @@ type SeriesTestsModule() =
         map.Add(3,3)
         map.Add(5,5)
         map.Add(7,7)
-
+        
         let repeated = map.Repeat().Add(1)
         let rc = repeated.GetCursor()
 

@@ -88,7 +88,7 @@ type MapCursor<'K,'V when 'K : comparison>
   abstract Dispose: unit -> unit
   override this.Dispose() =
     if !observerStarted then
-      Debug.Assert(map :? IUpdateable<'K,'V>)
+      Trace.Assert(map :? IUpdateable<'K,'V>)
       (map :?> IUpdateable<'K,'V>).OnData.RemoveHandler(updateHandler)
 
   abstract member Reset : unit -> unit

@@ -73,7 +73,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
                 let ok,kvp = om.TryFind(k, Lookup.LE)
                 if ok then
                   // k is larger than the last key and the chunk is big enough
-                  Debug.Assert(kvp.Value.size > 0)
+                  Trace.Assert(kvp.Value.size > 0)
                   if comparer.Compare(k,kvp.Value.Last.Key) > 0 && kvp.Value.size >= chunkUpperLimit then k
                   else kvp.Value.keys.[0]
                 else k
@@ -705,7 +705,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
             c
           else
             let removed = this.RemoveMany(appendMap.First.Key, Lookup.GE)
-            Debug.Assert(removed)
+            Trace.Assert(removed)
             let mutable c = 0
             for i in appendMap do
               c <- c + 1

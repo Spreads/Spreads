@@ -87,7 +87,7 @@ type SortedMap<'K,'V when 'K : comparison>
 
   // helper functions
   let rkGetStep() =
-    Debug.Assert(this.size > 1)
+    Trace.Assert(this.size > 1)
     if rkStep_ > 0L then rkStep_
     elif this.size > 1 then
       rkStep_ <- diffCalc.Diff(this.keys.[1], this.keys.[0])
@@ -95,7 +95,7 @@ type SortedMap<'K,'V when 'K : comparison>
     else raise (InvalidOperationException("Cannot calculate regular keys step for a single element in a map"))
   let rkKeyAtIndex (idx:int) : 'K = diffCalc.Add(this.keys.[0], (int64 idx)*rkGetStep())
   let rkIndexOfKey (key:'K) : int =
-    Debug.Assert(this.size > 1)
+    Trace.Assert(this.size > 1)
     // TODO this doesn't work for LT/LE/GT/GE TryFind
 
     let diff = diffCalc.Diff(key, this.keys.[0])
@@ -234,7 +234,7 @@ type SortedMap<'K,'V when 'K : comparison>
   
   member private this.CompareToLast (k:'K) = //inline
     if couldHaveRegularKeys && this.size > 1 then 
-      Debug.Assert(rkLast <> Unchecked.defaultof<'K>)
+      Trace.Assert(rkLast <> Unchecked.defaultof<'K>)
       comparer.Compare(k, rkLast)
     else comparer.Compare(k, this.keys.[this.size-1])
 
@@ -252,7 +252,7 @@ type SortedMap<'K,'V when 'K : comparison>
     if this.size = this.values.Length then this.EnsureCapacity(this.size + 1)
     
     // for values it is alway the same operation
-    Debug.Assert(index <= this.size, "index must be <= this.size")
+    Trace.Assert(index <= this.size, "index must be <= this.size")
     if index < this.size then Array.Copy(this.values, index, this.values, index + 1, this.size - index);
     this.values.[index] <- v
 
@@ -335,7 +335,7 @@ type SortedMap<'K,'V when 'K : comparison>
         | c when c < this.size -> raise (ArgumentOutOfRangeException("Small capacity"))
         | c when c > 0 -> 
           if couldHaveRegularKeys then
-            Debug.Assert(this.keys.Length = 2)
+            Trace.Assert(this.keys.Length = 2)
           else
             let kArr : 'K array = OptimizationSettings.ArrayPool.TakeBuffer(c)
             Array.Copy(this.keys, 0, kArr, 0, this.size)
@@ -358,7 +358,7 @@ type SortedMap<'K,'V when 'K : comparison>
   member this.Clear() =
     version <- version + 1
     if couldHaveRegularKeys then
-      Debug.Assert(this.keys.Length = 2)
+      Trace.Assert(this.keys.Length = 2)
       Array.Clear(this.keys, 0, 2)
     else
       Array.Clear(this.keys, 0, this.size)
@@ -512,7 +512,7 @@ type SortedMap<'K,'V when 'K : comparison>
     with get() =
       if this.size = 0 then raise (InvalidOperationException("Could not get the last element of an empty map"))
       if couldHaveRegularKeys && this.size > 1 then 
-        Debug.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (int64 (this.size-1))*rkGetStep())) = 0)
+        Trace.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (int64 (this.size-1))*rkGetStep())) = 0)
         KeyValuePair(rkLast, this.values.[this.size - 1])
       else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
 
@@ -1218,7 +1218,7 @@ type SortedMap<'K,'V when 'K : comparison>
               c
             else
               let removed = this.RemoveMany(appendMap.First.Key, Lookup.GE)
-              Debug.Assert(removed)
+              Trace.Assert(removed)
               let mutable c = 0
               for i in appendMap do
                 c <- c + 1
