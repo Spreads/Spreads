@@ -942,8 +942,8 @@ type SortedMap<'K,'V when 'K : comparison>
     //SortedMapCursor(this, index, cursorVersion, currentKey, currentValue) :> ICursor<'K,'V>
     let index = ref index
     let cursorVersion = ref cursorVersion
-    let currentKey : 'K ref = ref currentKey
-    let currentValue : 'V ref = ref currentValue
+    //let currentKey : 'K ref = ref currentKey
+    //let currentValue : 'V ref = ref currentValue
     let isBatch = ref false
     { 
     new MapCursor<'K,'V>(this) with
@@ -957,8 +957,8 @@ type SortedMap<'K,'V when 'K : comparison>
           Task.FromResult(true)
         else Task.FromResult(false)
       override p.IsBatch with get() = !isBatch
-      override p.Clone() = this.GetCursor(!index,!cursorVersion,!currentKey,!currentValue)
-      override p.Current with get() = KeyValuePair(currentKey.Value, currentValue.Value)
+      override p.Clone() = this.GetCursor(!index,!cursorVersion,p.CurrentKey, p.CurrentValue) //!currentKey,!currentValue)
+      override p.Current with get() = KeyValuePair(p.CurrentKey, p.CurrentValue) // currentKey.Value, currentValue.Value)
       override p.MoveNext() = 
         let entered = enterLockIf syncRoot isSynchronized
         try
@@ -966,19 +966,19 @@ type SortedMap<'K,'V when 'K : comparison>
           elif cursorVersion.Value = version then
             if index.Value < (this.size - 1) then
               index := !index + 1
-              currentKey := this.GetKeyByIndex(index.Value)
-              currentValue := this.values.[!index]
+//              currentKey := this.GetKeyByIndex(index.Value)
+//              currentValue := this.values.[!index]
               true
             else
               p.Reset()
               false
           else  // source change
             cursorVersion := version // update state to new version
-            let position, kvp = this.TryFindWithIndex(currentKey.Value, Lookup.GT) // reposition cursor after source change
+            let position, kvp = this.TryFindWithIndex(p.CurrentKey, Lookup.GT) // reposition cursor after source change //currentKey.Value
             if position > 0 then
               index := position
-              currentKey := kvp.Key
-              currentValue := kvp.Value
+//              currentKey := kvp.Key
+//              currentValue := kvp.Value
               true
             else  // not found
               p.Reset()
@@ -993,19 +993,19 @@ type SortedMap<'K,'V when 'K : comparison>
           elif cursorVersion.Value = version then
             if index.Value > 0 && index.Value < this.size then
               index := index.Value - 1
-              currentKey := this.GetKeyByIndex(index.Value)
-              currentValue := this.values.[index.Value]
+//              currentKey := this.GetKeyByIndex(index.Value)
+//              currentValue := this.values.[index.Value]
               true
             else
               p.Reset()
               false
           else
             cursorVersion := version // update state to new version
-            let position, kvp = this.TryFindWithIndex(currentKey.Value, Lookup.LT)
+            let position, kvp = this.TryFindWithIndex(p.CurrentKey, Lookup.LT) //currentKey.Value
             if position > 0 then
               index := position
-              currentKey := kvp.Key
-              currentValue := kvp.Value
+//              currentKey := kvp.Key
+//              currentValue := kvp.Value
               true
             else  // not found
               p.Reset()
@@ -1019,8 +1019,8 @@ type SortedMap<'K,'V when 'K : comparison>
           let position, kvp = this.TryFindWithIndex(key, lookup)
           if position >= 0 then
             index := position
-            currentKey := kvp.Key
-            currentValue := kvp.Value
+//            currentKey := kvp.Key
+//            currentValue := kvp.Value
             true
           else
             p.Reset()
@@ -1033,8 +1033,8 @@ type SortedMap<'K,'V when 'K : comparison>
         try
           if this.size > 0 then
             index := 0
-            currentKey := this.GetKeyByIndex(index.Value)
-            currentValue := this.values.[index.Value]
+//            currentKey := this.GetKeyByIndex(index.Value)
+//            currentValue := this.values.[index.Value]
             true
           else
             p.Reset()
@@ -1047,8 +1047,8 @@ type SortedMap<'K,'V when 'K : comparison>
         try
           if this.size > 0 then
             index := this.size - 1
-            currentKey := this.GetKeyByIndex(index.Value)
-            currentValue := this.values.[index.Value]
+//            currentKey := this.GetKeyByIndex(index.Value)
+//            currentValue := this.values.[index.Value]
             true
           else
             p.Reset()
@@ -1056,15 +1056,15 @@ type SortedMap<'K,'V when 'K : comparison>
         finally
           exitLockIf syncRoot entered
 
-      override p.CurrentKey with get() = currentKey.Value
+      override p.CurrentKey with get() = this.GetKeyByIndex(index.Value) //currentKey.Value
 
-      override p.CurrentValue with get() = currentValue.Value
+      override p.CurrentValue with get() = this.values.[index.Value] //currentValue.Value
 
       override p.Reset() = 
         cursorVersion := version // update state to new version
         index := -1
-        currentKey := Unchecked.defaultof<'K>
-        currentValue := Unchecked.defaultof<'V>
+//        currentKey := Unchecked.defaultof<'K>
+//        currentValue := Unchecked.defaultof<'V>
 
       override p.Dispose() = p.Reset()
     } :> ICursor<'K,'V>
