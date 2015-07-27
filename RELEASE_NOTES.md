@@ -1,3 +1,7 @@
+#### 0.0.32 - July 24, 2015
+* Fix mscorlib Debug [bug](http://stackoverflow.com/questions/31616816/f-system-typeloadexception-the-generic-type-system-tuple3-was-used-with-an)
+* Remove current key/value fields from SM cursor and use only index
+
 #### 0.0.31 - July 24, 2015
 * Change F# functions to Func
 * Stabilize serializer
@@ -11,7 +15,6 @@
 #### 0.0.27 - July 18, 2015
 * Fix Boostrapper bug in non-interactive mode and change default folder
 * Fix (mute) serializer bug (TODO investigate why dynamic overload resolution wasn't working)
-
 
 #### 0.0.25 - July 18, 2015
 * Minor bug fix in SM cursor
