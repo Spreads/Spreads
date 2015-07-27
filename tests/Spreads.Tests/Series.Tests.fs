@@ -375,6 +375,22 @@ type SeriesTestsModule() =
         lag.[5] |> should equal expected.[5]
         lag.[7] |> should equal expected.[7]
 
+
+    [<Test>]
+    member this.``Could apply ZipLag``() =
+        let map = SortedMap<int, int>()
+        map.Add(1,1)
+        map.Add(3,3)
+        map.Add(5,5)
+        map.Add(7,7)
+
+        let lagged = map.ZipLag(1u, fun c p -> (c - p)*c )
+        let lag = lagged.ToSortedMap()
+
+        lag.[3] |> should equal (2*3)
+        lag.[5] |> should equal (2*5)
+        lag.[7] |> should equal (2*7)
+
     [<Test>]
     member this.``Could get series range``() =
         let map = SortedMap<int, int>()

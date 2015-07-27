@@ -404,7 +404,7 @@ type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, l
       else false
     else
       let c = this.InputCursor.Clone()
-      if c.MoveAt(key, Lookup.LE) then
+      if c.MoveAt(key, Lookup.EQ) then // lag is meaningful for exact match
         let mutable cont = true
         let mutable step = 0
         let mutable lagOk = false
@@ -434,6 +434,66 @@ type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, l
       value <- laggedCursor.CurrentValue
       true
     else false
+
+
+/// Apply lagMapFunc to current and lagged value
+type ZipLagCursor<'K,'V,'R when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapCurrentPrev:Func<'V,'V,'R>) =
+  inherit CursorBind<'K,'V,'R>(cursorFactory)
+  let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
+
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'R>): bool =
+    if isPositioned then
+      laggedCursor <- this.InputCursor.Clone()
+      let mutable cont = true
+      let mutable step = 0
+      let mutable lagOk = false
+      while cont do
+        let moved = laggedCursor.MovePrevious()
+        if moved then
+          step <- step + 1
+        else
+          cont <- false
+        if step = int lag then 
+          cont <- false
+          lagOk <- true
+      if lagOk then
+        value <- mapCurrentPrev.Invoke(this.InputCursor.CurrentValue, laggedCursor.CurrentValue)
+        true
+      else false
+    else
+      let c = this.InputCursor.Clone()
+      if c.MoveAt(key, Lookup.EQ) then
+        let current = c.CurrentValue
+        let mutable cont = true
+        let mutable step = 0
+        let mutable lagOk = false
+        while cont do
+          let moved = c.MovePrevious()
+          if moved then
+            step <- step + 1
+          else
+            cont <- false
+          if step = int lag then 
+            cont <- false
+            lagOk <- true
+        if lagOk then
+          value <- mapCurrentPrev.Invoke(current, c.CurrentValue)
+          true
+        else false
+      else false
+
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
+    if laggedCursor.MoveNext() then
+      value <- mapCurrentPrev.Invoke(this.InputCursor.CurrentValue, laggedCursor.CurrentValue)
+      true
+    else false
+
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
+    if laggedCursor.MovePrevious() then
+      value <- mapCurrentPrev.Invoke(this.InputCursor.CurrentValue, laggedCursor.CurrentValue)
+      true
+    else false
+
 
 type AddIntCursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int>>, addition:int) =
   inherit CursorBind<'K,int,int>(cursorFactory)
@@ -658,9 +718,17 @@ type SeriesExtensions () =
       CursorSeries(fun _ -> new FillCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), fillValue) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
-    //inline
-    static member  Lag(source: ISeries<'K,'V>, lag:uint32) : Series<'K,'V> = 
+    static member inline Lag(source: ISeries<'K,'V>, lag:uint32) : Series<'K,'V> = 
       CursorSeries(fun _ -> new LagCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), lag) :> ICursor<'K,'V>) :> Series<'K,'V>
+
+    /// Apply zipCurrentPrev function to current and lagged values (in this order, current is the first) and return the result
+    [<Extension>]
+    static member inline ZipLag(source: ISeries<'K,'V>, lag:uint32, zipCurrentPrev:Func<'V,'V,'R>) : Series<'K,'R> = 
+      CursorSeries(fun _ -> new ZipLagCursor<'K,'V,'R>(Func<ICursor<'K,'V>>(source.GetCursor), lag, zipCurrentPrev) :> ICursor<'K,'R>) :> Series<'K,'R>
+
+//    [<Extension>]
+//    static member inline Diff(source: ISeries<'K,'V>) : Series<'K,'V> = 
+//      CursorSeries(fun _ -> new LagMapCursor<'K,'V,'V>(Func<ICursor<'K,'V>>(source.GetCursor), 1u, fun c p -> c - p) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
     static member inline Window(source: ISeries<'K,'V>, width:uint32, step:uint32) : Series<'K,Series<'K,'V>> = 
