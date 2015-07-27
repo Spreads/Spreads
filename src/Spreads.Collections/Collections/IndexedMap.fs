@@ -17,7 +17,7 @@ type private KC<'K,'V>()=
 
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
-type internal IndexedMap<'K,'V when 'K : comparison>
+type IndexedMap<'K,'V when 'K : comparison>
   private(kc:KC<'K,'V>)=
   inherit Series<'K,'V>()
 

@@ -1,3 +1,7 @@
+#### 0.0.33 - July 24, 2015
+* Add back current key/value fields to SM cursor (this is actually faster, since we must check index all the time otherwise)
+* Fix operators (cursor factory must always return new cursor)
+
 #### 0.0.32 - July 24, 2015
 * Fix mscorlib Debug [bug](http://stackoverflow.com/questions/31616816/f-system-typeloadexception-the-generic-type-system-tuple3-was-used-with-an)
 * Remove current key/value fields from SM cursor and use only index

@@ -150,7 +150,7 @@ and
     /// Used for implement scalar operators which are essentially a map application
     static member inline private ScalarOperatorMap<'K,'V,'V2 when 'K : comparison>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>) = 
       let mapF = ref mapFunc.Invoke
-      let mapCursor = 
+      let mapCursorFactory() = 
         {new CursorBind<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor)) with
           override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V2>): bool =
             if isPositioned then
@@ -170,20 +170,20 @@ and
             true
           override this.TryUpdateNextBatch(nextBatch: IReadOnlyOrderedMap<'K,'V>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>>) : bool =
             VectorMathProvider.Default.MapBatch(mapFunc.Invoke, nextBatch, &value)
-        }
-      CursorSeries(fun _ -> mapCursor :> ICursor<'K,'V2>) :> Series<'K,'V2>
+        } :> ICursor<'K,'V2>
+      CursorSeries(Func<ICursor<'K,'V2>>(mapCursorFactory)) :> Series<'K,'V2>
 
     /// Used for implement scalar operators which are essentially a map application
     static member inline private BinaryOperatorMap<'K,'V,'V2,'R when 'K : comparison>(source:Series<'K,'V>,other:Series<'K,'V2>, mapFunc:Func<'V,'V2,'R>) = 
-      let zipCursor = 
+      let zipCursorFactory() = 
         {new CursorZip<'K,'V,'V2,'R>(source.GetCursor, other.GetCursor) with
           override this.TryZip(key:'K, v, v2, [<Out>] value: byref<'R>): bool =
             value <- mapFunc.Invoke(v,v2)
             true
           override this.TryZipNextBatches(nextBatchL: IReadOnlyOrderedMap<'K,'V>, nextBatchR: IReadOnlyOrderedMap<'K,'V2>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'R>>) : bool =
             false
-        }
-      CursorSeries(fun _ -> zipCursor :> ICursor<'K,'R>) :> Series<'K,'R>
+        } :> ICursor<'K,'R>
+      CursorSeries(Func<ICursor<'K,'R>>(zipCursorFactory)) :> Series<'K,'R>
 
 
     // int64
