@@ -312,20 +312,34 @@ type FillCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>,
       value <- this.InputCursor.CurrentValue
       true
     else
-      value <- fillValue
+      let ok, value2 = this.InputCursor.TryGetValue(key)
+      if ok then
+        value <- value2
+      else
+        value <- fillValue
       true
+
+  override this.Clone() = 
+    let clone = new FillCursor<'K,'V>(cursorFactory, fillValue) :> ICursor<'K,'V>
+    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    clone
       
 
 type MapValuesCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, mapF:Func<'V,'V2>) =
   inherit CursorBind<'K,'V,'V2>(cursorFactory)
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V2>): bool =
-    // add works on any value, so must use TryGetValue instead of MoveAt
-    let ok, value2 = this.InputCursor.TryGetValue(key)
-    if ok then
-      value <- mapF.Invoke(value2)
+    if isPositioned then
+      value <- mapF.Invoke(this.InputCursor.CurrentValue)
       true
-    else false
+    else
+    // add works on any value, so must use TryGetValue instead of MoveAt
+      let ok, value2 = this.InputCursor.TryGetValue(key)
+      if ok then
+        value <- mapF.Invoke(value2)
+        true
+      else false
+
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'V2>) : bool =
     value <- mapF.Invoke(next.Value)
     true
@@ -333,6 +347,11 @@ type MapValuesCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:Func<ICursor<
   override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'V2>) : bool =
     value <- mapF.Invoke(previous.Value)
     true
+
+  override this.Clone() = 
+    let clone = new MapValuesCursor<'K,'V,'V2>(cursorFactory, mapF) :> ICursor<'K,'V2>
+    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    clone
 
 // this is not possible with cursor, we won't be able 
 //type MapKeysCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, mapK:Func<'K,'K>) =
@@ -377,6 +396,10 @@ type FilterValuesCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'
       true
     else false
 
+  override this.Clone() = 
+    let clone = new FilterValuesCursor<'K,'V>(cursorFactory, filterFunc) :> ICursor<'K,'V>
+    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    clone
 
 // TODO this is probably wrong and untested 
 type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
@@ -435,6 +458,10 @@ type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, l
       true
     else false
 
+  override this.Clone() = 
+    let clone = new LagCursor<'K,'V>(cursorFactory, lag) :> ICursor<'K,'V>
+    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    clone
 
 /// Apply lagMapFunc to current and lagged value
 type ZipLagCursor<'K,'V,'R when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapCurrentPrev:Func<'V,'V,'R>) =
@@ -494,6 +521,10 @@ type ZipLagCursor<'K,'V,'R when 'K : comparison>(cursorFactory:Func<ICursor<'K,'
       true
     else false
 
+  override this.Clone() = 
+    let clone = new ZipLagCursor<'K,'V, 'R>(cursorFactory, lag, mapCurrentPrev) :> ICursor<'K,'R>
+    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    clone
 
 type AddIntCursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int>>, addition:int) =
   inherit CursorBind<'K,int,int>(cursorFactory)
@@ -506,6 +537,10 @@ type AddIntCursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int>>, 
       true
     else false
 
+  override this.Clone() =
+    let clone = new AddIntCursor<'K>(cursorFactory, addition) :> ICursor<'K,int>
+    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    clone
 
 [<SealedAttribute>]
 type AddInt64Cursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int64>>, addition:int64) =
@@ -524,6 +559,10 @@ type AddInt64Cursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int64
     value <- next.Value+ addition
     true
 
+  override this.Clone() = 
+    let clone = new AddInt64Cursor<'K>(cursorFactory, addition) :> ICursor<'K,int64>
+    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    clone
 
 /// Repeat previous value for all missing keys
 type LogCursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int64>>) =
@@ -538,8 +577,6 @@ type LogCursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int64>>) =
     else false
 
 
-
-
 type ZipValuesCursor<'K,'V,'V2,'R when 'K : comparison>(cursorFactoryL:Func<ICursor<'K,'V>>,cursorFactoryR:Func<ICursor<'K,'V2>>, mapF:Func<'V,'V2,'R>) =
   inherit CursorZip<'K,'V,'V2,'R>(cursorFactoryL.Invoke,cursorFactoryR.Invoke)
 
@@ -547,7 +584,10 @@ type ZipValuesCursor<'K,'V,'V2,'R when 'K : comparison>(cursorFactoryL:Func<ICur
     value <- mapF.Invoke(v,v2)
     true
 
-
+  override this.Clone() = 
+    let clone = new ZipValuesCursor<'K,'V,'V2,'R>(cursorFactoryL, cursorFactoryR, mapF) :> ICursor<'K,'R>
+    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    clone
 
 
 
@@ -603,6 +643,11 @@ type ScanCursor<'K,'V,'R  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V
   override this.Dispose() = 
     if previousCursor <> Unchecked.defaultof<ICursor<'K,'V>> then previousCursor.Dispose()
     base.Dispose()
+
+  override this.Clone() = 
+    let clone = new ScanCursor<'K,'V, 'R>(cursorFactory, init, folder) :> ICursor<'K,'R>
+    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    clone
 
 type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32) =
   inherit CursorBind<'K,'V,Series<'K,'V>>(cursorFactory)
@@ -676,6 +721,10 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
       else false
     else false
 
+  override this.Clone() = 
+    let clone = new WindowCursor<'K,'V>(cursorFactory, width, step) :> ICursor<'K,Series<'K,'V>>
+    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    clone
 
 
 

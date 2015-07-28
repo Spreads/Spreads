@@ -1,3 +1,10 @@
+#### 0.0.35 - July 28, 2015
+* Each derived cursor with a constructor that takes anything other than cursorFactory must have its own overriden clone
+method, there is no way to clone it (even is there is a way, tons of reflection is worse than a single line of overriden method)
+* Implemented and tested SMA and StDev (thanks to B.S.)
+* Minor bug fix and refactoring of CursorBind (TODO clone repositioning could be done in CursorBind, abstract method could only 
+return a new cursor in reset state)
+
 #### 0.0.33 - July 24, 2015
 * Add back current key/value fields to SM cursor (this is actually faster, since we must check index all the time otherwise)
 * Fix operators (cursor factory must always return new cursor)

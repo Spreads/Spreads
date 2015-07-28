@@ -97,6 +97,7 @@
     <Compile Include="Extensions\DateTimeExtensions.cs" />
     <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="Serializer.cs" />
+    <Compile Include="Series\CursorSeries.cs" />
     <Compile Include="Series\RemoteChunksSeries.cs" />
     <Compile Include="Series\ZonedSeries.cs" />
     <Compile Include="System\Runtime\BufferPool.cs" />

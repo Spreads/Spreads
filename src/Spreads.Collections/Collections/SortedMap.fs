@@ -382,7 +382,7 @@ type SortedMap<'K,'V when 'K : comparison>
         member x.Clear() = raise (NotSupportedException("Keys collection is read-only"))
         member x.Contains(key) = this.ContainsKey(key)
         member x.CopyTo(array, arrayIndex) = 
-          if couldHaveRegularKeys then
+          if couldHaveRegularKeys && this.size > 2 then
             Array.Copy(rkMaterialize(), 0, array, arrayIndex, this.size)
           else
             Array.Copy(this.keys, 0, array, arrayIndex, this.size)
