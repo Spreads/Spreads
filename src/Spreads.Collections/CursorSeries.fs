@@ -649,10 +649,16 @@ type ScanCursor<'K,'V,'R  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V
     if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
     clone
 
-type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32) =
+
+// TODO this is incomplete implementation. doesn't account for cases when step > width (quite valid case)
+// TODO use Window vs Chunk like in Deedle, there is logical issue with overlapped windows - if we ask for a point x, it could be different then enumerated
+// But the same is tru for chunk - probably we must create a uffer in one go
+type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32, allowIncomplete:bool) =
   inherit CursorBind<'K,'V,Series<'K,'V>>(cursorFactory)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
   let mutable moves = 0
+  // distance from lagged cursor to current
+  let mutable lagDistance = 0
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<Series<'K,'V>>): bool =
     let ok, activeLaggedCursor = 
@@ -665,20 +671,11 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
           true, c
         else false, Unchecked.defaultof<_>
     if ok then
-      let mutable cont = true
+      //let mutable cont = true
       let mutable lag = 1 // NB! current value counts toward the width, lag = 1
-      //lag <- 0
-      let mutable lagOk = false
-      while cont do
-        let moved = activeLaggedCursor.MovePrevious()
-        if moved then
-          lag <- lag + 1
-        else
-          cont <- false
-        if lag = int width then 
-          cont <- false
-          lagOk <- true
-      if lagOk then
+      while lag < int width && activeLaggedCursor.MovePrevious() do
+        lag <- lag + 1
+      if lag = int width then // reached width
         // NB! freeze bounds for the range cursor
         let startPoint = Some(activeLaggedCursor.CurrentKey)
         let endPoint = Some(this.InputCursor.CurrentKey)
@@ -687,24 +684,65 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
         value <- window
         moves <- 0
         true
-      else false
+      else 
+        if allowIncomplete then
+          activeLaggedCursor.MoveAt(key, Lookup.EQ) |> ignore
+          //let mutable cont = true
+          let mutable lag = 1 // NB! current value counts toward the width, lag = 1
+          while lag < int step && activeLaggedCursor.MovePrevious() do
+            lag <- lag + 1
+          if lag = int step then // reached width
+            // NB! freeze bounds for the range cursor
+            let startPoint = Some(activeLaggedCursor.CurrentKey)
+            let endPoint = Some(this.InputCursor.CurrentKey)
+            let rangeCursor() = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+            let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
+            value <- window
+            lagDistance <- lag
+            moves <- 0
+            true
+          else false
+        else
+          false
     else false
 
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<Series<'K,'V>>) : bool =
-    if laggedCursor.MoveNext() then
-      moves <- moves + 1
-      if Math.Abs(moves) = int step then
-        // NB! freeze bounds for the range cursor
-        let startPoint = Some(laggedCursor.CurrentKey)
-        let endPoint = Some(this.InputCursor.CurrentKey)
-        let rangeCursor() = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+    if allowIncomplete then
+      let moved = 
+        if lagDistance < int width then
+          lagDistance <- lagDistance + 1
+          true
+        else
+          laggedCursor.MoveNext()
+      if moved then
+        moves <- moves + 1
+        if Math.Abs(moves) = int step then
+          // NB! freeze bounds for the range cursor
+          let startPoint = Some(laggedCursor.CurrentKey)
+          let endPoint = Some(this.InputCursor.CurrentKey)
+          let rangeCursor() = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
         
-        let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
-        value <- window
-        moves <- 0
-        true
+          let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
+          value <- window
+          moves <- 0
+          true
+        else false
       else false
-    else false
+    else
+      if laggedCursor.MoveNext() then
+        moves <- moves + 1
+        if Math.Abs(moves) = int step then
+          // NB! freeze bounds for the range cursor
+          let startPoint = Some(laggedCursor.CurrentKey)
+          let endPoint = Some(this.InputCursor.CurrentKey)
+          let rangeCursor() = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+        
+          let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
+          value <- window
+          moves <- 0
+          true
+        else false
+      else false
 
   override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<Series<'K,'V>>) : bool =
     if laggedCursor.MovePrevious() then
@@ -722,7 +760,7 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
     else false
 
   override this.Clone() = 
-    let clone = new WindowCursor<'K,'V>(cursorFactory, width, step) :> ICursor<'K,Series<'K,'V>>
+    let clone = new WindowCursor<'K,'V>(cursorFactory, width, step, allowIncomplete) :> ICursor<'K,Series<'K,'V>>
     if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
     clone
 
@@ -781,7 +819,11 @@ type SeriesExtensions () =
 
     [<Extension>]
     static member inline Window(source: ISeries<'K,'V>, width:uint32, step:uint32) : Series<'K,Series<'K,'V>> = 
-      CursorSeries(fun _ -> new WindowCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), width, step) :> ICursor<'K,Series<'K,'V>>) :> Series<'K,Series<'K,'V>>
+      CursorSeries(fun _ -> new WindowCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), width, step, false) :> ICursor<'K,Series<'K,'V>>) :> Series<'K,Series<'K,'V>>
+
+    [<Extension>]
+    static member inline Window(source: ISeries<'K,'V>, width:uint32, step:uint32, returnIncomplete:bool) : Series<'K,Series<'K,'V>> = 
+      CursorSeries(fun _ -> new WindowCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), width, step, returnIncomplete) :> ICursor<'K,Series<'K,'V>>) :> Series<'K,Series<'K,'V>>
 
     [<Extension>]
     static member inline Add(source: ISeries<'K,int>, addition:int) : Series<'K,int> = 

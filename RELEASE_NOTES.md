@@ -1,3 +1,6 @@
+#### 0.0.36 - July 29, 2015
+* Overlapped windows allow incomplete windows
+
 #### 0.0.35 - July 28, 2015
 * Each derived cursor with a constructor that takes anything other than cursorFactory must have its own overriden clone
 method, there is no way to clone it (even is there is a way, tons of reflection is worse than a single line of overriden method)

@@ -459,6 +459,20 @@ type SeriesTestsModule() =
         windows.First.Key |> should equal 3
 
 
+    [<Test>]
+    member this.``Could get series incomplete windows``() =
+        let map = SortedMap<int, int>()
+        for i in 0..20 do
+          map.Add(i,i)
+
+
+        let windows = map.Window(4u, 3u, true)
+        let windows2 = windows.ToSortedMap()
+
+        windows.First.Value.Count() |> should equal 3
+        windows.First.Key |> should equal 2
+        let second = windows.[5]
+        second.Count() |> should equal 4
 
 //        
 //    [<Test>]
