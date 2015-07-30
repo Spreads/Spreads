@@ -377,6 +377,25 @@ type SeriesTestsModule() =
 
 
     [<Test>]
+    member this.``Could get series ZipLag``() =
+        let map = SortedMap<int, int>()
+        map.Add(1,1)
+        map.Add(3,3)
+        map.Add(5,5)
+        map.Add(7,7)
+
+        let expected = SortedMap<int, int>()
+        expected.Add(3,4)
+        expected.Add(5,8)
+        expected.Add(7,12)
+        let lagged = map.ZipLag(1u, fun c p -> c + p)
+        let lag = lagged.Evaluate()
+
+        lag.[3] |> should equal expected.[3]
+        lag.[5] |> should equal expected.[5]
+        lag.[7] |> should equal expected.[7]
+
+    [<Test>]
     member this.``Could apply ZipLag``() =
         let map = SortedMap<int, int>()
         map.Add(1,1)

@@ -1,4 +1,4 @@
-#### 0.0.36 - July 29, 2015
+#### 0.0.37 - July 29, 2015
 * Overlapped windows allow incomplete windows
 
 #### 0.0.35 - July 28, 2015
