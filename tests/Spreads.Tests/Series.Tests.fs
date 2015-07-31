@@ -344,12 +344,13 @@ type SeriesTestsModule() =
 
         let folder : Func<int,int,int,int>  = Func<int,int,int,int> (fun st k v -> st + v)
         let scan = map.Scan(0, folder)
-        let scan2 = scan.Evaluate()
+        //let scan2 = scan.Evaluate()
 
-        scan2.[1] |> should equal expected.[1]
-        scan2.[3] |> should equal expected.[3]
-        scan2.[5] |> should equal expected.[5]
-        scan2.[7] |> should equal expected.[7]
+        scan.[7] |> should equal expected.[7]
+        scan.[1] |> should equal expected.[1]
+        scan.[3] |> should equal expected.[3]
+        scan.[5] |> should equal expected.[5]
+        
 
         scan.Last.Value |> should equal expected.[7]
         let sc = scan.GetCursor()
@@ -481,17 +482,29 @@ type SeriesTestsModule() =
     [<Test>]
     member this.``Could get series incomplete windows``() =
         let map = SortedMap<int, int>()
-        for i in 0..20 do
-          map.Add(i,i)
+        for i in 0..9 do
+          map.Add(i,1)
 
+        let expected = SortedMap<int, int>()
+        expected.Add(0,1)
+        expected.Add(1,2)
+        expected.Add(2,3)
+        expected.Add(3,4)
+        expected.Add(4,4)
+        expected.Add(5,4)
+        expected.Add(6,4)
+        expected.Add(7,4)
+        expected.Add(8,4)
+        expected.Add(9,4)
 
-        let windows = map.Window(4u, 3u, true)
-        let windows2 = windows.ToSortedMap()
+        let windows = map.Window(4u, 1u, true)
+        let windows2 = windows.Map(fun inner -> inner.Values.Sum()).ToSortedMap()
 
-        windows.First.Value.Count() |> should equal 3
-        windows.First.Key |> should equal 2
-        let second = windows.[5]
-        second.Count() |> should equal 4
+        Assert.IsTrue(expected.SequenceEqual(windows2))
+//        windows.First.Value.Count() |> should equal 3
+//        windows.First.Key |> should equal 2
+//        let second = windows.[5]
+//        second.Count() |> should equal 4
 
 //        
 //    [<Test>]
