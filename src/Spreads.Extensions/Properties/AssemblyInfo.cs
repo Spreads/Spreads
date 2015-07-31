@@ -4,11 +4,11 @@ using System.Reflection;
 [assembly: AssemblyTitleAttribute("Spreads.Extensions")]
 [assembly: AssemblyProductAttribute("Spreads")]
 [assembly: AssemblyDescriptionAttribute("Spreads")]
-[assembly: AssemblyVersionAttribute("0.0.37")]
-[assembly: AssemblyFileVersionAttribute("0.0.37")]
+[assembly: AssemblyVersionAttribute("0.0.38")]
+[assembly: AssemblyFileVersionAttribute("0.0.38")]
 [assembly: AssemblyCopyrightAttribute("(c) Victor Baybekov 2015")]
 namespace System {
     internal static class AssemblyVersionInformation {
-        internal const string Version = "0.0.37";
+        internal const string Version = "0.0.38";
     }
 }

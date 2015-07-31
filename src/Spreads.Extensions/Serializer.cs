@@ -959,8 +959,8 @@ namespace Spreads {
 		/// 
 		/// </summary>
 		public static unsafe T[] DecompressArray<T>(byte[] src, int start = 0, bool diff = false) {
-			if (src == null) throw new ArgumentNullException("src");
-			if (src.Length == 0) throw new ArgumentException("src is empty");
+            if (src == null) return null; // throw new ArgumentNullException("src");
+		    if (src.Length == 0) return EmptyArray<T>.Instance; // throw new ArgumentException("src is empty");
 			fixed (byte* srcPtr = &src[start])
 			{
 				return DecompressArray<T>((IntPtr)srcPtr, 0, diff);
@@ -1160,7 +1160,8 @@ namespace Spreads {
 		internal static byte[] CompressBytes(byte[] src,
 			int compressionLevel = 9, bool shuffle = true,
 			int typeSize = 1, CompressionMethod method = CompressionMethod.lz4) {
-			return CompressBytes(src, ArrayCopyToNew, compressionLevel, shuffle, typeSize, method);
+            if (src.Length == 0) return EmptyArray<byte>.Instance;
+            return CompressBytes(src, ArrayCopyToNew, compressionLevel, shuffle, typeSize, method);
 		}
 
 		/// <summary>
@@ -1515,7 +1516,8 @@ namespace Spreads {
 
 
 		internal static byte[] SerializeImpl(byte[] value) {
-			return CompressBytes(value, 9, false, 1, CompressionMethod);
+            if (value.Length == 0) return EmptyArray<byte>.Instance;
+            return CompressBytes(value, 9, false, 1, CompressionMethod);
 		}
 		internal static TResult SerializeTransformImpl<TResult>(byte[] value,
 			FixedBufferTransformer<TResult> transformer) {

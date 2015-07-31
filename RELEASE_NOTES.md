@@ -1,3 +1,6 @@
+#### 0.0.38 - July 31, 2015
+* Fix empty byte array serialization
+
 #### 0.0.37 - July 29, 2015
 * Overlapped windows allow incomplete windows
 
