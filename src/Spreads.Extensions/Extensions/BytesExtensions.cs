@@ -18,7 +18,7 @@ namespace Spreads {
 		/// <param name="a2"></param>
 		/// <returns></returns>
 		public static unsafe bool UnsafeCompare(this byte[] a1, byte[] a2) {
-			if (object.ReferenceEquals(a1, a2)) return true;
+			if (a1 == a2) return true; // reference equality
 			if (a1 == null || a2 == null || a1.Length != a2.Length)
 				return false;
 			fixed (byte* p1 = a1, p2 = a2)
@@ -34,7 +34,7 @@ namespace Spreads {
 			}
 		}
 
-        public static unsafe bool UnsafeCompare(IntPtr p1, IntPtr p2, int length) {
+        public static unsafe bool UnsafeCompare(this IntPtr p1, IntPtr p2, int length) {
                 byte* x1 = (byte*)p1, x2 = (byte*)p2;
                 int l = length;
                 for (int i = 0; i < l / 8; i++, x1 += 8, x2 += 8)

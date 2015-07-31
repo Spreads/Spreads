@@ -703,7 +703,7 @@ namespace Spreads {
 			return CompressArray<T, byte[]>(src, ArrayCopyToNew, start, length, level, shuffle, typeSize, method, diff);
 		}
 
-		private static TResult CompressArray<T, TResult>(T[] src,
+		internal static TResult CompressArray<T, TResult>(T[] src,
 			FixedBufferTransformer<TResult> bufferTransform,
 			int start = 0, int length = 0,
 			int? level = null, bool? shuffle = null,
@@ -950,7 +950,7 @@ namespace Spreads {
 		}
 
 
-		private static unsafe T[] DecompressArrayDefault<T>(IntPtr srcPtr) {
+		internal static unsafe T[] DecompressArrayDefault<T>(IntPtr srcPtr) {
 			return DecompressArray<T>(srcPtr);
 		}
 
@@ -1270,10 +1270,10 @@ namespace Spreads {
 		internal static byte[] SerializeImpl<UKey, UValue>(SortedMap<UKey, UValue> map) {
 			return CompressMap(map);
 		}
-		//internal static TResult SerializeTransformImpl<UKey, UValue, TResult>(SortedMap<UKey, UValue> map,
-		//	FixedBufferTransformer<TResult> transformer) {
-		//	return CompressMap(map, transformer);
-		//}
+		internal static TResult SerializeTransformImpl<UKey, UValue, TResult>(SortedMap<UKey, UValue> map,
+			FixedBufferTransformer<TResult> transformer) {
+			return CompressMap(map, transformer);
+		}
 
 		internal static byte[] SerializeImpl<U>(U[] array) {
 			return CompressArray(array);
@@ -1687,14 +1687,16 @@ namespace Spreads {
 		//}
 
 
+		// this is used in SpreadsDB to write directly to DB pointers
+
 		/// <summary>
 		/// Serialize value and apply a function to intermediate buffer
 		/// </summary>
-		//internal static TResult SerializeTransform<T, TResult>(T value, FixedBufferTransformer<TResult> transformer) {
-		//	if (value == null) throw new ArgumentNullException("value");
-		//	dynamic v = value;
-		//	return SerializeTransformImpl(v, transformer);
-		//}
+		internal static TResult SerializeTransform<T, TResult>(T value, FixedBufferTransformer<TResult> transformer) {
+			if (value == null) throw new ArgumentNullException("value");
+			dynamic v = value;
+			return SerializeTransformImpl(v, transformer);
+		}
 
 		#endregion
 
@@ -1864,6 +1866,11 @@ namespace Spreads {
 
 
 		private static Dictionary<Type, MethodInfo> genericMethods = new Dictionary<Type, MethodInfo>();
+
+		internal static T Deserialize<T>(IntPtr srcPtr, int srcSize)
+		{
+			return (T) Deserialize(srcPtr, srcSize, typeof (T));
+		}
 
 		internal static object Deserialize(IntPtr srcPtr, int srcSize, Type ty) {
 			dynamic r = BlittableHelper.GetDefault(ty);
