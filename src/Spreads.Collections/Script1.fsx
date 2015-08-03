@@ -231,3 +231,7 @@ let linqValue =
       .Where(fun x -> x%2L = 0L)
       .Select(fun x -> x * x)
       .Sum()
+
+
+
+let Parallel asyncs = (Seq.ofArray((Async.RunSynchronously(Async.Parallel(asyncs)))))
