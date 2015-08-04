@@ -1034,7 +1034,7 @@ module CollectionsBenchmarks =
 //    SCIOrderedMap_run()
     //SortedDeque_run()
 //    SortedList_run()
-//    SortedMap_run()
+    SortedMap_run()
 //    SortedMapPeriod_run()
 //    SortedMapDT_run()
     SortedMapRegular_run()

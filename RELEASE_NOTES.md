@@ -1,3 +1,11 @@
+#### 0.0.40 - August 4, 2015
+* Fix remaining cursor clone bug in StDev
+* Fix `MoveNext(ct)` and FastEvents, add simple tests
+
+#### 0.0.39 - August 3, 2015
+* Fix SM remove off by one bug. TODO try..finally probably hide more interesting errors, need a switch to conditionally remove it.
+* Fix another `Cursor.Clone()` stupid bug that was introduced (overlooked) in the previous fix
+
 #### 0.0.38 - July 31, 2015
 * Fix empty byte array serialization
 

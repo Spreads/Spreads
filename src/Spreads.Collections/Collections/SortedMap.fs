@@ -304,7 +304,7 @@ type SortedMap<'K,'V when 'K : comparison>
     
   member internal this.IsReadOnly with get() = false
 
-  member internal this.IsSynchronized 
+  member this.IsSynchronized 
     with get() =  isSynchronized
     and set(synced:bool) = 
       let entered = enterLockIf syncRoot isSynchronized
@@ -579,24 +579,24 @@ type SortedMap<'K,'V when 'K : comparison>
     if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then 
         raise (ArgumentNullException("key"))
     let entered = enterLockIf syncRoot  isSynchronized
-    try
-      if this.size = 0 then
-        this.Insert(0, key, value)
+    //try
+    if this.size = 0 then
+      this.Insert(0, key, value)
+    else
+      // last optimization gives near 2x performance boost
+      let lc = this.CompareToLast key
+      if lc = 0 then // key = last key
+          raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
+      elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
+          this.Insert(this.size, key, value)
       else
-        // last optimization gives near 2x performance boost
-        let lc = this.CompareToLast key
-        if lc = 0 then // key = last key
-            raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
-        elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
-            this.Insert(this.size, key, value)
-        else
-            let index = this.IndexOfKeyUnchecked(key)
-            if index >= 0 then // contains key 
-                raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
-            else
-                this.Insert(~~~index, key, value)
-    finally
-      exitLockIf syncRoot entered
+          let index = this.IndexOfKeyUnchecked(key)
+          if index >= 0 then // contains key 
+              raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
+          else
+              this.Insert(~~~index, key, value)
+    //finally
+    exitLockIf syncRoot entered
 
   member this.AddLast(key, value):unit =
     let entered = enterLockIf syncRoot  isSynchronized
@@ -625,7 +625,7 @@ type SortedMap<'K,'V when 'K : comparison>
       exitLockIf syncRoot entered
     
   member internal this.RemoveAt(index):unit =
-    let entered = enterLockIf syncRoot  isSynchronized
+    let entered = enterLockIf syncRoot isSynchronized
     try
       if index < 0 || index >= this.size then raise (ArgumentOutOfRangeException("index"))
       let newSize = this.size - 1
@@ -651,12 +651,12 @@ type SortedMap<'K,'V when 'K : comparison>
 
       if not couldHaveRegularKeys || this.size = 1 then
         if index < this.size then
-          Array.Copy(this.keys, index + 1, this.keys, index, this.size - index)
-        this.keys.[this.size] <- Unchecked.defaultof<'K>
+          Array.Copy(this.keys, index + 1, this.keys, index, newSize - index) // this.size
+        this.keys.[newSize] <- Unchecked.defaultof<'K>
       
       // values
       if index < newSize then
-        Array.Copy(this.values, index + 1, this.values, index, this.size - index)
+        Array.Copy(this.values, index + 1, this.values, index, newSize - index) //this.size
       this.values.[newSize] <- Unchecked.defaultof<'V>
 
       this.size <- newSize
@@ -970,7 +970,7 @@ type SortedMap<'K,'V when 'K : comparison>
               currentValue := this.values.[!index]
               true
             else
-              p.Reset()
+              //p.Reset() // NB! Do not reset cursor on false MoveNext
               false
           else  // source change
             cursorVersion := version // update state to new version
@@ -981,7 +981,7 @@ type SortedMap<'K,'V when 'K : comparison>
               currentValue := kvp.Value
               true
             else  // not found
-              p.Reset()
+              //p.Reset() // NB! Do not reset cursor on false MoveNext
               false
         finally
           exitLockIf syncRoot entered
@@ -1276,7 +1276,7 @@ type SortedMap<'K,'V when 'K : comparison>
     
   interface IUpdateable<'K,'V> with
     [<CLIEvent>]
-    member x.OnData: IEvent<KVP<'K,'V>> = updateEvent.Publish
+    member x.OnData = updateEvent.Publish //: IDelegateEvent<UpdateHandler<'K,'V>>
 
   //#endregion
 

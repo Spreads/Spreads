@@ -321,7 +321,7 @@ type FillCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>,
 
   override this.Clone() = 
     let clone = new FillCursor<'K,'V>(cursorFactory, fillValue) :> ICursor<'K,'V>
-    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
       
 
@@ -350,7 +350,7 @@ type MapValuesCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:Func<ICursor<
 
   override this.Clone() = 
     let clone = new MapValuesCursor<'K,'V,'V2>(cursorFactory, mapF) :> ICursor<'K,'V2>
-    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
 // this is not possible with cursor, we won't be able 
@@ -398,7 +398,7 @@ type FilterValuesCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'
 
   override this.Clone() = 
     let clone = new FilterValuesCursor<'K,'V>(cursorFactory, filterFunc) :> ICursor<'K,'V>
-    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
 // TODO this is probably wrong and untested 
@@ -409,12 +409,15 @@ type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, l
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
     if isPositioned then
       laggedCursor <- this.InputCursor.Clone()
-      let mutable cont = true
+      let mutable cont = lag > 0u
       let mutable step = 0
-      let mutable lagOk = false
+      let mutable lagOk = lag = 0u
       while cont do
         let moved = laggedCursor.MovePrevious()
         if moved then
+#if PRERELEASE
+          Trace.Assert(laggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+#endif
           step <- step + 1
         else
           cont <- false
@@ -428,12 +431,15 @@ type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, l
     else
       let c = this.InputCursor.Clone()
       if c.MoveAt(key, Lookup.EQ) then // lag is meaningful for exact match
-        let mutable cont = true
+        let mutable cont =  lag > 0u
         let mutable step = 0
-        let mutable lagOk = false
+        let mutable lagOk =  lag = 0u
         while cont do
           let moved = c.MovePrevious()
           if moved then
+#if PRERELEASE
+            Trace.Assert(laggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+#endif
             step <- step + 1
           else
             cont <- false
@@ -448,6 +454,9 @@ type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, l
 
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
     if laggedCursor.MoveNext() then
+#if PRERELEASE
+      Trace.Assert(laggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+#endif
       value <- laggedCursor.CurrentValue
       true
     else false
@@ -460,7 +469,7 @@ type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, l
 
   override this.Clone() = 
     let clone = new LagCursor<'K,'V>(cursorFactory, lag) :> ICursor<'K,'V>
-    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
 /// Apply lagMapFunc to current and lagged value
@@ -471,12 +480,15 @@ type ZipLagCursor<'K,'V,'R when 'K : comparison>(cursorFactory:Func<ICursor<'K,'
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'R>): bool =
     if isPositioned then
       laggedCursor <- this.InputCursor.Clone()
-      let mutable cont = true
+      let mutable cont = lag > 0u
       let mutable step = 0
-      let mutable lagOk = false
+      let mutable lagOk = lag = 0u
       while cont do
         let moved = laggedCursor.MovePrevious()
         if moved then
+#if PRERELEASE
+          Trace.Assert(laggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+#endif
           step <- step + 1
         else
           cont <- false
@@ -491,12 +503,15 @@ type ZipLagCursor<'K,'V,'R when 'K : comparison>(cursorFactory:Func<ICursor<'K,'
       let c = this.InputCursor.Clone()
       if c.MoveAt(key, Lookup.EQ) then
         let current = c.CurrentValue
-        let mutable cont = true
+        let mutable cont =  lag > 0u
         let mutable step = 0
-        let mutable lagOk = false
+        let mutable lagOk = lag = 0u
         while cont do
           let moved = c.MovePrevious()
           if moved then
+#if PRERELEASE
+            Trace.Assert(laggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+#endif
             step <- step + 1
           else
             cont <- false
@@ -511,6 +526,9 @@ type ZipLagCursor<'K,'V,'R when 'K : comparison>(cursorFactory:Func<ICursor<'K,'
 
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
     if laggedCursor.MoveNext() then
+#if PRERELEASE
+      Trace.Assert(laggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+#endif
       value <- mapCurrentPrev.Invoke(this.InputCursor.CurrentValue, laggedCursor.CurrentValue)
       true
     else false
@@ -523,7 +541,7 @@ type ZipLagCursor<'K,'V,'R when 'K : comparison>(cursorFactory:Func<ICursor<'K,'
 
   override this.Clone() = 
     let clone = new ZipLagCursor<'K,'V, 'R>(cursorFactory, lag, mapCurrentPrev) :> ICursor<'K,'R>
-    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
 type AddIntCursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int>>, addition:int) =
@@ -539,7 +557,7 @@ type AddIntCursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int>>, 
 
   override this.Clone() =
     let clone = new AddIntCursor<'K>(cursorFactory, addition) :> ICursor<'K,int>
-    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
 [<SealedAttribute>]
@@ -561,7 +579,7 @@ type AddInt64Cursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int64
 
   override this.Clone() = 
     let clone = new AddInt64Cursor<'K>(cursorFactory, addition) :> ICursor<'K,int64>
-    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
 /// Repeat previous value for all missing keys
@@ -586,7 +604,7 @@ type ZipValuesCursor<'K,'V,'V2,'R when 'K : comparison>(cursorFactoryL:Func<ICur
 
   override this.Clone() = 
     let clone = new ZipValuesCursor<'K,'V,'V2,'R>(cursorFactoryL, cursorFactoryR, mapF) :> ICursor<'K,'R>
-    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
 
@@ -646,7 +664,7 @@ type ScanCursor<'K,'V,'R  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V
 
   override this.Clone() = 
     let clone = new ScanCursor<'K,'V, 'R>(cursorFactory, init, folder) :> ICursor<'K,'R>
-    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
 
@@ -676,6 +694,9 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
       while lag < int width && activeLaggedCursor.MovePrevious() do
         lag <- lag + 1
       if lag = int width then // reached width
+#if PRERELEASE
+        Trace.Assert(activeLaggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+#endif
         // NB! freeze bounds for the range cursor
         let startPoint = Some(activeLaggedCursor.CurrentKey)
         let endPoint = Some(this.InputCursor.CurrentKey)
@@ -692,6 +713,9 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
           while lag < int step && activeLaggedCursor.MovePrevious() do
             lag <- lag + 1
           if lag = int step then // reached width
+#if PRERELEASE
+            Trace.Assert(activeLaggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+#endif
             // NB! freeze bounds for the range cursor
             let startPoint = Some(activeLaggedCursor.CurrentKey)
             let endPoint = Some(this.InputCursor.CurrentKey)
@@ -761,7 +785,7 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
 
   override this.Clone() = 
     let clone = new WindowCursor<'K,'V>(cursorFactory, width, step, allowIncomplete) :> ICursor<'K,Series<'K,'V>>
-    if base.HasValidState then clone.MoveAt(clone.CurrentKey, Lookup.EQ) |> ignore
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
 
@@ -873,7 +897,7 @@ type SeriesExtensions () =
       state
 
     [<Extension>]
-    static member inline Fold(source: ISeries<'K,'V>, init:'R, folder:Func<'R,'K,'R>) : 'R = 
+    static member inline FoldKeys(source: ISeries<'K,'V>, init:'R, folder:Func<'R,'K,'R>) : 'R = 
       let mutable state = init
       for kvp in source do
         state <- folder.Invoke(state, kvp.Key)

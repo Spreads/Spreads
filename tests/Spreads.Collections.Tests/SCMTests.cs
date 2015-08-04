@@ -8,7 +8,7 @@ using NUnit.Framework;
 using System.Runtime.InteropServices;
 using Spreads.Collections;
 
-namespace Spreads.DB.Tests {
+namespace Spreads.Collections.Tests {
 
 	[TestFixture]
 	public class SCMTests {

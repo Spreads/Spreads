@@ -253,12 +253,12 @@ type IImmutableOrderedMap<'K,'V when 'K : comparison> =
 //    abstract Identity : 'TId with get
 
 
-type internal UpdateHandler<'K,'V when 'K : comparison> = Handler<KVP<'K,'V>>
+type internal UpdateHandler<'K,'V when 'K : comparison> = EventHandler<KVP<'K,'V>>
 [<AllowNullLiteral>]
-type internal IUpdateable<'K,'V when 'K : comparison> =   
+type IUpdateable<'K,'V when 'K : comparison> =   
   /// Fired after any data change with key for the first valid data (e.g. after delete, a previous key is returned)
   [<CLIEvent>]
-  abstract member OnData : IEvent<KVP<'K,'V>>
+  abstract member OnData : IDelegateEvent<UpdateHandler<'K,'V>>
 
 //type internal MyType<'K,'V when 'K : comparison> () =
 //    let myEvent = new Event<KVP<'K,'V>> ()

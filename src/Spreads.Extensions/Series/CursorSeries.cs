@@ -111,12 +111,15 @@ namespace Spreads {
 
     public class StandardDeviationCursor<K> : CursorBind<K, double, double> {
         protected ICursor<K, double> _laggedCursor;
+        private readonly Func<ICursor<K, double>> _cursorFactory;
         protected int _period;
         protected double _sum;
         protected double _sumSq;
 
         public StandardDeviationCursor(Func<ICursor<K, double>> cursorFactory, int period)
-            : base(cursorFactory) {
+            : base(cursorFactory)
+        {
+            _cursorFactory = cursorFactory;
             _period = period;
         }
 
@@ -187,6 +190,16 @@ namespace Spreads {
             } else {
                 throw new ApplicationException("Lagged should always move here");
             }
+        }
+
+        public override ICursor<K, double> Clone()
+        {
+            var clone = new StandardDeviationCursor<K>(_cursorFactory, _period);
+            if (base.HasValidState)
+            {
+                clone.MoveAt(base.CurrentKey, Lookup.EQ);
+            }
+            return clone;
         }
     }
 

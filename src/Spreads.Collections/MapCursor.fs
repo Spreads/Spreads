@@ -23,7 +23,7 @@ type MapCursor<'K,'V when 'K : comparison>
   let tcs = ref (TaskCompletionSource<bool>())
   let ctr = ref (Unchecked.defaultof<CancellationTokenRegistration>)
   let isWaitingForTcs = ref false
-  let sr = Object()
+  let sr = Object() // map.SyncRoot // 
 
   let updateHandler : UpdateHandler<'K,'V> =
     let impl _ (kvp:KVP<'K,'V>) =
@@ -106,10 +106,16 @@ type MapCursor<'K,'V when 'K : comparison>
           if not !observerStarted then 
             upd.OnData.AddHandler updateHandler
             observerStarted := true
+          
           tcs := TaskCompletionSource()
           ctr := ct.Register(Action(cancelHandler))
           isWaitingForTcs := true
-          tcs.Value.Task
+          // we are now subsribed, but update event could have beed triggered after match and before subscribtion
+          if this.MoveNext() then
+            isWaitingForTcs := false
+            Task.FromResult(true)
+          else
+            tcs.Value.Task
         )
       | _ -> Task.FromResult(false) // has no values and will never have because is not IUpdateable
   

@@ -130,6 +130,19 @@ type SortedMapTests() =
 
             ()
 
+    [<Test>]
+    member this.``Could remove data from SM``() =
+        let mutable watch = Stopwatch.StartNew();
+        let sm = SortedMap<int64, float>()
+        let lim = 100000L
+        for i in 0L..lim do
+          if i <> 2L then sm.[i] <- float(i) // irregular
+        sm.TrimExcess()
+        let okf, fs = sm.RemoveFirst()
+
+        let okl, ls = sm.RemoveLast()
+
+        ()
 
 //    [<Test>]
 //    member this.``IImmutableOrderedMap reverse``() =

@@ -404,12 +404,60 @@ type SeriesTestsModule() =
         map.Add(5,5)
         map.Add(7,7)
 
-        let lagged = map.ZipLag(1u, fun c p -> (c - p)*c )
+        let lagged = map.Map(fun x -> x).ZipLag(1u, fun c p -> (c - p)*c )
         let lag = lagged.ToSortedMap()
 
         lag.[3] |> should equal (2*3)
         lag.[5] |> should equal (2*5)
         lag.[7] |> should equal (2*7)
+
+    [<Test>]
+    member this.``Could apply ZipLag without evaluation``() =
+      let sm = new SortedMap<DateTime, float>()
+
+      sm.Add(DateTime(2013, 11, 01),1.0)
+      sm.Add(DateTime(2013, 11, 03),1.0)
+      sm.Add(DateTime(2013, 11, 04),-1.0)
+      sm.Add(DateTime(2013, 11, 06),1.0)
+      sm.Add(DateTime(2013, 11, 07),-1.0)
+      sm.Add(DateTime(2013, 11, 08),1.0)
+      sm.Add(DateTime(2013, 11, 10),1.0)
+      let lazyMapSeries = sm.Map(fun x->x)
+      
+      let lazyDiff = lazyMapSeries.ZipLag(1u,fun c p -> c-p)
+      let eagerDiff=sm.ZipLag(1u,fun c p -> c-p)
+
+      eagerDiff.Count
+      for kvp in eagerDiff do
+        printfn "%f" kvp.Value
+
+      printfn ""
+
+      for kvp in lazyDiff do
+        printfn "%f" kvp.Value
+
+    [<Test>]
+    member this.``Could calculate lagged moving maximum``() =
+        let map = SortedMap<int, int>()
+        map.Add(1,1)
+        map.Add(3,3)
+        map.Add(5,5)
+        map.Add(7,7)
+        map.Add(9,9)
+        map.Add(11,11)
+
+        let mMaxLag = 
+          map
+            .Window(uint32 2, 1u, false)
+            .Map(fun (inner:Series<int,int>) -> inner.Values.Max()) // .Fold(0, (fun st x -> if x >= st then x else st)))
+            .Lag(uint32 1u)
+            
+        let mMaxLagEval = mMaxLag.ToSortedMap()
+
+        mMaxLag.[5] |> should equal (3)
+        mMaxLag.[7] |> should equal (5)
+        mMaxLag.[9] |> should equal (7)
+        mMaxLag.[11] |> should equal (9)
 
     [<Test>]
     member this.``Could get series range``() =
