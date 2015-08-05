@@ -314,8 +314,9 @@ type SortedMap<'K,'V when 'K : comparison>
   member internal this.MapKey with get() = mapKey and set(key:string) = mapKey <- key
 
   // external world should not care about this
-  member internal this.IsRegular with get() = couldHaveRegularKeys
-  member internal this.RegularStep with get() = rkGetStep()
+  // TODO internal
+  member this.IsRegular with get() = couldHaveRegularKeys and private set (v) = couldHaveRegularKeys <- v
+  member this.RegularStep with get() = rkGetStep()
 
   member this.SyncRoot with get() = syncRoot
   member this.Version with get() = version and set v = version <- v
@@ -946,7 +947,8 @@ type SortedMap<'K,'V when 'K : comparison>
     let currentValue : 'V ref = ref currentValue
     let isBatch = ref false
     { 
-    new MapCursor<'K,'V>(this) with
+    new BaseCursor<'K,'V>(this) with
+      override this.IsContinuous with get() = false
       override p.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
         if !index = -1 then this :> IReadOnlyOrderedMap<'K,'V>
         else raise (InvalidOperationException(""))
@@ -1300,16 +1302,25 @@ type SortedMap<'K,'V when 'K : comparison>
       for i in 1..keys.Length-1 do
         if comparer.Compare(keys.[i-1], keys.[i]) >= 0 then raise (new ArgumentException("Keys are not sorted"))
 
+    // at this point IsRegular means could be regular
     if sm.IsRegular && not isAlreadyRegular then
       let isReg, step, firstArr = sm.rkCheckArray keys size (sm.Comparer :?> IKeyComparer<'K>)
       if isReg then
         sm.keys <- firstArr
-      else sm.keys <- keys
-    else sm.keys <- keys
+      else 
+        sm.IsRegular <- false
+        sm.keys <- keys
+    elif sm.IsRegular && isAlreadyRegular then
+      Trace.Assert(keys.Length = 2)
+      sm.keys <- keys
+    elif not sm.IsRegular && not isAlreadyRegular then
+      sm.IsRegular <- false
+      sm.keys <- keys
+    else raise (InvalidOperationException("Keys are marked as already regular, but comparer doesn't cupport regular keys"))
     
     sm.size <- size
     sm.values <- values
-    if sm.size >0 then sm.SetRkLast(sm.GetKeyByIndex(sm.size - 1))
+    if sm.size > 0 then sm.SetRkLast(sm.GetKeyByIndex(sm.size - 1))
     sm
 
   static member OfSortedKeysAndValues(keys:'K[], values:'V[], size:int) =

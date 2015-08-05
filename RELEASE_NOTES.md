@@ -1,3 +1,11 @@
+* Add simple SortedMap generation
+
+#### 0.0.43 - August 5, 2015
+* Fix OfSortedKeysAndValues bug with regular keys
+
+#### 0.0.42 - August 4, 2015
+* Fix Repeat cursor logic
+
 #### 0.0.40 - August 4, 2015
 * Fix remaining cursor clone bug in StDev
 * Fix `MoveNext(ct)` and FastEvents, add simple tests

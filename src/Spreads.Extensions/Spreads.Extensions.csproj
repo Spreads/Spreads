@@ -96,6 +96,7 @@
     <Compile Include="Bootstrapper\Version.cs" />
     <Compile Include="Extensions\DateTimeExtensions.cs" />
     <Compile Include="Extensions\StringExtensions.cs" />
+    <Compile Include="Generation\SortedMapGenerator.cs" />
     <Compile Include="Serializer.cs" />
     <Compile Include="Series\CursorSeries.cs" />
     <Compile Include="Series\RemoteChunksSeries.cs" />

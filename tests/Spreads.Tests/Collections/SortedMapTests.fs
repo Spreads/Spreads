@@ -16,6 +16,27 @@ open System.Threading.Tasks
 [<TestFixture>]
 type SortedMapTests() =
 
+    [<Test>]
+    member this.``Could create SM of irregular keys and values``() =
+        let keys = [|1;2;3;5;6;8;9;15|]
+        let values =  [|1;2;3;5;6;8;9;15|]
+        let sm = SortedMap.OfSortedKeysAndValues(keys, values)
+        Assert.IsTrue(sm.Keys.SequenceEqual(keys))
+        Assert.IsTrue(sm.Values.SequenceEqual(values))
+        Assert.IsTrue(not sm.IsRegular)
+        Assert.IsTrue(sm.keys.Length = keys.Length)
+        ()
+
+    [<Test>]
+    member this.``Could create SM of regular keys and values``() =
+        let keys = [|1;2;3;4;5;6;7;8|]
+        let values =  [|1;2;3;4;5;6;7;8|]
+        let sm = SortedMap.OfSortedKeysAndValues(keys, values)
+        Assert.IsTrue(sm.Keys.SequenceEqual(keys))
+        Assert.IsTrue(sm.Values.SequenceEqual(values))
+        Assert.IsTrue(sm.IsRegular)
+        Assert.IsTrue(sm.keys.Length = 2)
+        ()
 
     [<Test>]
     member this.``Sorted list inserts``() =

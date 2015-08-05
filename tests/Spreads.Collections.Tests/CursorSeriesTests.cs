@@ -38,5 +38,66 @@ namespace Spreads.Collections.Tests {
             Console.WriteLine("Window MA, elapsed: {0}, ops: {1}", sw.ElapsedMilliseconds, (int)((double)count / (sw.ElapsedMilliseconds / 1000.0)));
 
         }
+
+
+        [Test]
+        public void CouldRepeatSeries() {
+            var sm = new SortedMap<DateTime, double>();
+            var sm2 = new SortedMap<DateTime, double>();
+
+            var count = 1000000;
+
+            for (int i = 0; i < count; i++) {
+                sm.Add(DateTime.UtcNow.Date.AddSeconds(i*2), i);
+            }
+
+            for (int i = 0; i < count; i++) {
+                sm2.Add(DateTime.UtcNow.Date.AddSeconds(i * 2 + 1), i);
+            }
+
+            var expected = 0.0;
+            for (int i = 0; i < count; i++) {
+                expected += i*2; ;
+            }
+
+            var sw = new Stopwatch();
+            sw.Start();
+            var sum = (sm.Repeat() + sm2).Values.Sum();
+            sw.Stop();
+            Assert.AreEqual(expected, sum);
+            Console.WriteLine("Repeat + zip, elapsed: {0}, ops: {1}", sw.ElapsedMilliseconds, (int)((double)count / (sw.ElapsedMilliseconds / 1000.0)));
+
+        }
+
+
+        [Test]
+        public void CouldZipSeries() {
+            var sm = new SortedMap<DateTime, double>();
+            var sm2 = new SortedMap<DateTime, double>();
+
+            var count = 1000000;
+
+            for (int i = 0; i < count; i++) {
+                sm.Add(DateTime.UtcNow.Date.AddSeconds(i * 2), i);
+            }
+
+            for (int i = 0; i < count; i++) {
+                sm2.Add(DateTime.UtcNow.Date.AddSeconds(i * 2), i);
+            }
+
+            var expected = 0.0;
+            for (int i = 0; i < count; i++) {
+                expected += i * 2; ;
+            }
+
+            var sw = new Stopwatch();
+            sw.Start();
+            var sum = (sm + sm2).Values.Sum();
+            sw.Stop();
+            Assert.AreEqual(expected, sum);
+            Console.WriteLine("Repeat + zip, elapsed: {0}, ops: {1}", sw.ElapsedMilliseconds, (int)((double)count / (sw.ElapsedMilliseconds / 1000.0)));
+
+        }
+
     }
 }

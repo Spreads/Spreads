@@ -257,7 +257,7 @@ type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>
   inherit CursorBind<'K,'V,'V>(cursorFactory)
   do
     this.IsContinuous <- true
-  let mutable previousCursor = Unchecked.defaultof<ICursor<'K,'V>>
+  let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
     if isPositioned then
@@ -270,35 +270,57 @@ type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>
         value <- this.InputCursor.CurrentValue
         true
       elif c < 0 then
-        let previousPositioned = 
-          if previousCursor = Unchecked.defaultof<ICursor<'K,'V>> then 
-            previousCursor <- this.InputCursor.Clone()
-            previousCursor.MovePrevious()
-          else previousCursor.MoveAt(this.InputCursor.CurrentKey, Lookup.LT)
-        if previousPositioned then
-          value <- previousCursor.CurrentValue
-          true
+        // always position lagged cursor one step away from the input current
+        if laggedCursor = Unchecked.defaultof<ICursor<'K,'V>> then 
+            laggedCursor <- this.InputCursor.Clone()
+            if not (laggedCursor.MovePrevious()) then laggedCursor <- Unchecked.defaultof<ICursor<'K,'V>>
+
+        if laggedCursor <> Unchecked.defaultof<ICursor<'K,'V>> then
+          let c2 = this.InputCursor.Comparer.Compare(key, laggedCursor.CurrentKey)
+          if c2 >= 0 then // key is between input and lagged cursor, frequent case for CursorZip
+            value <- laggedCursor.CurrentValue
+            true
+          else
+            let cursor = this.InputCursor.Clone()
+            if cursor.MoveAt(key, Lookup.LE) then
+#if PRERELEASE
+              Trace.Assert(key <> this.InputCursor.CurrentKey)
+#endif
+              value <- cursor.CurrentValue
+              true
+            else false
         else
           false
       else // c > 0 or cursor not started
         // naive implementation, CursorZip must hit c < 0 case (TODO check this)
-        let c = this.InputCursor.Clone()
-        if c.MoveAt(key, Lookup.LE) then
-          Trace.Assert(c.CurrentKey <> this.InputCursor.CurrentKey)
-          value <- c.CurrentValue
+        let cursor = this.InputCursor.Clone()
+        if cursor.MoveAt(key, Lookup.LE) then
+#if PRERELEASE
+          Trace.Assert(key <> this.InputCursor.CurrentKey)
+#endif
+          value <- cursor.CurrentValue
           true
         else false
 
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
+    if laggedCursor = Unchecked.defaultof<ICursor<'K,'V>> then 
+      laggedCursor <- this.InputCursor.Clone()
+      if not (laggedCursor.MovePrevious()) then laggedCursor <- Unchecked.defaultof<ICursor<'K,'V>>
+    let moved = laggedCursor.MoveNext()
+#if PRERELEASE
+    Trace.Assert(moved)
+#endif
     value <- next.Value
     true
 
   override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
+    let moved = laggedCursor.MoveNext()
+    if not moved then laggedCursor <- Unchecked.defaultof<ICursor<'K,'V>>
     value <- previous.Value
     true
 
   override this.Dispose() = 
-    if previousCursor <> Unchecked.defaultof<ICursor<'K,'V>> then previousCursor.Dispose()
+    if laggedCursor <> Unchecked.defaultof<ICursor<'K,'V>> then laggedCursor.Dispose()
     base.Dispose()
 
 

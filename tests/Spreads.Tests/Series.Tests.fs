@@ -169,6 +169,7 @@ type SeriesTestsModule() =
 
         let repeated = map.Repeat()
         let rc = repeated.GetCursor()
+        rc.MoveAt(5, Lookup.EQ) |> ignore
 
         let ok, value = rc.TryGetValue(2)
         ok |> should equal true
