@@ -1,3 +1,4 @@
+#### 0.0.44 - August 7, 2015
 * Add simple SortedMap generation
 
 #### 0.0.43 - August 5, 2015

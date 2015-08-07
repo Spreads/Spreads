@@ -4,11 +4,11 @@ using System.Reflection;
 [assembly: AssemblyTitleAttribute("Bootstrapper")]
 [assembly: AssemblyProductAttribute("Spreads")]
 [assembly: AssemblyDescriptionAttribute("Spreads")]
-[assembly: AssemblyVersionAttribute("0.0.43")]
-[assembly: AssemblyFileVersionAttribute("0.0.43")]
+[assembly: AssemblyVersionAttribute("0.0.44")]
+[assembly: AssemblyFileVersionAttribute("0.0.44")]
 [assembly: AssemblyCopyrightAttribute("(c) Victor Baybekov 2015")]
 namespace System {
     internal static class AssemblyVersionInformation {
-        internal const string Version = "0.0.43";
+        internal const string Version = "0.0.44";
     }
 }
