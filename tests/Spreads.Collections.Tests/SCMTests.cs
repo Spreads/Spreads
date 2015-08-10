@@ -79,7 +79,7 @@ namespace Spreads.Collections.Tests {
 		}
 
 		[Test]
-		public void CouldCOmpareDates()
+		public void CouldCompareDates()
 		{
 			var dtc = KeyComparer.GetDefault<DateTime>();
 			var neg =  dtc.Compare(DateTime.Today.AddDays(-2), DateTime.Today);
@@ -104,5 +104,20 @@ namespace Spreads.Collections.Tests {
             Assert.IsTrue(scm.Count == 0);
         }
 
-    }
+		[Test]
+		public void CouldRemoveFirst() {
+			var scm = new SortedChunkedMap<int, int>();
+			for (int i = 0; i < 10000; i++) {
+				scm.Add(i, i);
+			}
+			KeyValuePair<int, int> result;
+			var removed = scm.RemoveFirst(out result);
+			Assert.IsTrue(removed);
+			Assert.IsTrue(!scm.IsEmpty);
+			Assert.IsTrue(scm.Count == 9999);
+			Assert.IsTrue(scm.First.Key == 2);
+		}
+
+
+	}
 }

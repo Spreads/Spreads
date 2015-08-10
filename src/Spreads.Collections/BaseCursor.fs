@@ -21,7 +21,7 @@ type BaseCursor<'K,'V when 'K : comparison>
   let observerStarted = ref false
   let tcs = ref (TaskCompletionSource<bool>())
   let ctr = ref (Unchecked.defaultof<CancellationTokenRegistration>)
-  let isWaitingForTcs = ref false // NB used only inside lock on sr
+  //let isWaitingForTcs = ref false // NB used only inside lock on sr
   let sr = Object()
   let updateHandler : UpdateHandler<'K,'V> =
     let impl _ (kvp:KVP<'K,'V>) =
@@ -31,9 +31,11 @@ type BaseCursor<'K,'V when 'K : comparison>
           // TODO could be same logic as in MoveNext - reposition to out-of-order value, or could throw
 
         // right now a client is waiting for a task to complete, there is no more elements in the map
-        if !isWaitingForTcs && this.MoveNext() then // NB order 
+        if !tcs <> null && this.MoveNext() then // NB order
+          let tcs' = !tcs
+          tcs := null
           (!ctr).Dispose()
-          let couldSetResult = (!tcs).TrySetResult(true)
+          let couldSetResult = (tcs').TrySetResult(true)
 #if PRERELEASE
           Trace.Assert(couldSetResult)
 #endif
@@ -88,16 +90,18 @@ type BaseCursor<'K,'V when 'K : comparison>
           if not !observerStarted then 
             upd.OnData.AddHandler updateHandler
             observerStarted := true
-          // TODO use interlocked.exchange or whatever to not allocate new one every time, if we return Task.FromResult(true) below
-          tcs := TaskCompletionSource()
-          // MSDN If this token is already in the canceled state, the delegate will be run immediately and synchronously. Any exception the delegate generates will be propagated out of this method call.
-          ctr := ct.Register(Action(fun () -> (!tcs).TrySetCanceled() |> ignore))
-          isWaitingForTcs := true
+          
+          
+          //isWaitingForTcs := true
           // we are now subsribed, but update event could have beed triggered after match and before subscribtion
           if this.MoveNext() && not ct.IsCancellationRequested then
-            isWaitingForTcs := false
+            //isWaitingForTcs := false
             Task.FromResult(true)
           else
+            // TODO use interlocked.exchange or whatever to not allocate new one every time, if we return Task.FromResult(true) below
+            if !tcs = null then tcs := TaskCompletionSource()
+            // MSDN If this token is already in the canceled state, the delegate will be run immediately and synchronously. Any exception the delegate generates will be propagated out of this method call.
+            ctr := ct.Register(Action(fun () -> (!tcs).TrySetCanceled() |> ignore))
             tcs.Value.Task
         )
       | _ -> Task.FromResult(false) // has no values and will never have because is not IUpdateable

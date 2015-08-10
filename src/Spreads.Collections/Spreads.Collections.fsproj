@@ -74,7 +74,7 @@
     <Compile Include="MathProvider.fs" />
     <Compile Include="KeyComparer.fs" />
     <Compile Include="Utils.fs" />
-    <Compile Include="MapCursor.fs" />
+    <Compile Include="BaseCursor.fs" />
     <Compile Include="CursorBind.fs" />
     <Compile Include="Spreads.Series.fs" />
     <Compile Include="Collections\Collections.fs" />

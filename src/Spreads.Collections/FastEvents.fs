@@ -1,9 +1,7 @@
 ﻿namespace Spreads.Internals
 
 open System
-open System.Linq
 open System.Linq.Expressions
-open Spreads
 
 //thanks to http://v2matveev.blogspot.ru/2010/06/f-performance-of-events.html for idea
 

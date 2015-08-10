@@ -227,15 +227,16 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
     outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
     let inner = ref inner
     let isReset = ref isReset
-    let currentBatch : IReadOnlyOrderedMap<'K,'V> ref = ref currentBatch
+    let mutable currentBatch : IReadOnlyOrderedMap<'K,'V> = currentBatch
     let isBatch = ref isBatch
 
     // TODO use inner directly
 //    let currentKey : 'K ref = ref inner.Value.CurrentKey // Unchecked.defaultof<'K>
 //    let currentValue : 'V ref = ref inner.Value.CurrentValue // Unchecked.defaultof<'V>
 
-    { new MapCursor<'K,'V>(this) with
-      override c.Clone() = this.GetCursor(outer.Value.Clone(), inner.Value.Clone(), !isReset, !currentBatch, !isBatch)
+    { new BaseCursor<'K,'V>(this) with
+      override this.IsContinuous with get() = false
+      override c.Clone() = this.GetCursor(outer.Value.Clone(), inner.Value.Clone(), !isReset, currentBatch, !isBatch)
       override c.IsBatch with get() = !isBatch
       override c.Current 
         with get() = 
@@ -375,7 +376,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
       override p.Dispose() = base.Dispose()
 
       override p.CurrentBatch = 
-        if !isBatch then !currentBatch
+        if !isBatch then currentBatch
         else invalidOp "Current move is single, cannot return a batch"
 
       override p.MoveNextBatchAsync(ct) =
@@ -384,7 +385,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
           try
             if isReset.Value then 
               if outer.Value.MoveFirst() then
-                currentBatch := outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
+                currentBatch <- outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
                 isBatch := true
                 isReset := false
                 return true
@@ -393,7 +394,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
               if !isBatch then
                 let! couldMove = outer.Value.MoveNext(ct) |> Async.AwaitTask
                 if couldMove then
-                  currentBatch := outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
+                  currentBatch <- outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
                   isBatch := true
                   return true
                 else return false
@@ -401,7 +402,7 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
                 return false
           finally
             exitLockIf this.SyncRoot entered
-        }, TaskCreationOptions.None,CancellationToken.None)
+        }, TaskCreationOptions.None, ct)
     } :> ICursor<'K,'V> 
 
   member this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
