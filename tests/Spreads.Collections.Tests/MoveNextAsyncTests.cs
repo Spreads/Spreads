@@ -98,7 +98,7 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_StartEmpty() {
-            var count = 100000;
+            var count = 1000000;
             var sw = new Stopwatch();
             sw.Start();
 

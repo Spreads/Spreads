@@ -941,5 +941,13 @@ type SeriesExtensions () =
     static member inline Before(source: ISeries<'K,'V>, endKey:'K, lookup:Lookup) : Series<'K,'V> = 
       CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), None, Some(endKey), None, Some(Lookup.GT)) :> ICursor<'K,'V>) :> Series<'K,'V>
       
+    [<Extension>]
+    static member inline Zip<'K,'V,'R when 'K : comparison>(series: Series<'K,'V> array, resultSelector:Func<'K,'V[],'R>) =
+      CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(resultSelector, series |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
+
+//    [<Extension>]
+//    static member inline Zip(source: ISeries<'K,'V>, resultSelector:Func<'K,'V[],'R>, [<ParamArray>] otherSeries: ISeries<'K,'V> array) : Series<'K,'R> =
+//      CursorSeries(fun _ -> new ZipValuesCursor<'K,'V,'V2,'R>(Func<ICursor<'K,'V>>(source.GetCursor), Func<ICursor<'K,'V2>>(other.GetCursor), mapFunc) :> ICursor<'K,'R>) :> Series<'K,'R>
+
 
 // TODO generators

@@ -29,7 +29,7 @@ open Spreads
 [<AllowNullLiteral>]
 [<Serializable>]
 //[<AbstractClassAttribute>]
-type BaseSeries internal() =
+type Series internal() =
   // this is ugly, but rewriting the whole structure is uglier // TODO "proper" methods DI
   //static member internal DoInit() =
   static do
@@ -48,7 +48,7 @@ and
   [<AbstractClassAttribute>]
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   Series<'K,'V when 'K : comparison>() =
-    inherit BaseSeries()
+    inherit Series()
     
     abstract GetCursor : unit -> ICursor<'K,'V>
 

@@ -137,7 +137,8 @@ type SortedMap<'K,'V when 'K : comparison>
 
   do
     let tempCap = if capacity.IsSome then capacity.Value else 1
-    this.keys <- OptimizationSettings.ArrayPool.TakeBuffer (if couldHaveRegularKeys then 2 else tempCap) // regular keys are the first and the second value, their diff is the step
+    if dictionary.IsNone then // otherwise we will set them in dict processing part
+      this.keys <- OptimizationSettings.ArrayPool.TakeBuffer (if couldHaveRegularKeys then 2 else tempCap) // regular keys are the first and the second value, their diff is the step
     this.values <- OptimizationSettings.ArrayPool.TakeBuffer tempCap
 
     if dictionary.IsSome && dictionary.Value.Count > 0 then
@@ -158,17 +159,25 @@ type SortedMap<'K,'V when 'K : comparison>
           raise (ArgumentException("capacity is less then dictionary this.size"))
         else
           this.Capacity <- dictionary.Value.Count
-        dictionary.Value.Keys.CopyTo(this.keys, 0)
+        let tempKeys = dictionary.Value.Keys |> Seq.toArray
         dictionary.Value.Values.CopyTo(this.values, 0)
-        Array.Sort(this.keys, this.values, comparer)
+        Array.Sort(tempKeys, this.values, comparer)
         this.size <- dictionary.Value.Count
+
         // TODO review
         if couldHaveRegularKeys then // if could be regular based on initial check of comparer type
-          let isReg, step, firstArr = this.rkCheckArray this.keys this.size (comparer :?> IKeyComparer<'K>)
+          let isReg, step, firstArr = this.rkCheckArray tempKeys this.size (comparer :?> IKeyComparer<'K>)
           couldHaveRegularKeys <- isReg
           if couldHaveRegularKeys then 
             this.keys <- firstArr
+            OptimizationSettings.ArrayPool.ReturnBuffer tempKeys
             rkLast <- rkKeyAtIndex (this.size - 1)
+          else
+            this.keys <- tempKeys
+        else
+          this.keys <- tempKeys
+        
+        
   //#endregion
 
   member private this.rkCheckArray (sortedArray:'K[]) (size:int) (dc:IKeyComparer<'K>) : bool * int * 'K array = 

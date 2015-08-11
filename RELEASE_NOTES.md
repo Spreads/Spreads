@@ -1,3 +1,9 @@
+#### 0.0.46 - August 11, 2015
+* ZipNCursor MoveNext single-threaded implementation
+
+#### 0.0.45 - August 10, 2015
+* Add symbols to NuGet
+
 #### 0.0.44 - August 7, 2015
 * Add simple SortedMap generation
 

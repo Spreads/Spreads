@@ -30,6 +30,11 @@ type internal OptimizationSettings() =
         member x.Clear(): unit = ()
     } with get, set
 
+  /// TODO Test if always moving the most lagged series in ZipN increases performance
+  /// Must test on realistic data, e.g. ticks of very liquid vs not liquid trading instruments
+  static member val UsePriorityQueueForZipN = false with get, set
+
+
 // It is tempting to use ILinearAlgebraProvider from MathNet.Numerics, but there are not so many members to wrap around it;
 // avoid external binary dependencies in this project
 

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using Spreads;
 using Spreads.Collections;
+using Spreads.Collections.Tests;
 
 namespace Spreads.Tests.CSProfile {
     class Program {
@@ -26,12 +27,14 @@ namespace Spreads.Tests.CSProfile {
             //}
             //sw.Stop();
             //Console.WriteLine("DateTime: " + sw.ElapsedMilliseconds);
-            var sm = new SortedMap<long, long>() as Series<long, long>;
-            var sum = sm + 1L;
-            var sum2 = sm + sm;
-            var check = sm > 1L;
-            var eq = sm == 1L;
-            var eq2 = sm == sm;
+            //var sm = new SortedMap<long, long>() as Series<long, long>;
+            //var sum = sm + 1L;
+            //var sum2 = sm + sm;
+            //var check = sm > 1L;
+            //var eq = sm == 1L;
+            //var eq2 = sm == sm;
+            new ZipNTests().CouldZipMillionInts();
+
             Console.ReadLine();
         }
     }

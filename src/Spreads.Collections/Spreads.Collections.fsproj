@@ -100,6 +100,7 @@
     <Compile Include="Collections\DataStream.fs" />
     <Compile Include="Collections\SCM2.fs" />
     <Compile Include="ObjectPool.fs" />
+    <Compile Include="ZipNCursor.fs" />
     <Compile Include="CursorSeries.fs" />
     <Compile Include="SlowStupidCursor.fs" />
     <None Include="Script1.fsx" />

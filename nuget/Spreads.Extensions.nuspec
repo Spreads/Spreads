@@ -18,6 +18,6 @@
 	</metadata>
 	<files>
 		<file src="..\bin\Spreads.Extensions.dll" target="lib/net45" />
-		<!--<file src="..\bin\Spreads.Extensions.pdb" target="lib/net45" />-->
+		<file src="..\bin\Spreads.Extensions.pdb" target="lib/net45" />
 	</files>
 </package>
