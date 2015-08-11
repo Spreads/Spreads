@@ -64,6 +64,19 @@ type SimpleSortedDeque<'T when 'T : comparison>
       if idx >= 0 then invalidOp "Item already exists"
       else this.list.Insert(~~~idx, item)
 
+  member this.Remove(item:'T) = 
+    if this.list.Count = 0 then
+      false
+    elif this.comparer.Compare(item, this.list.[0]) = 0 then
+      this.list.RemoveAt(0)
+      true
+    else
+      let idx = this.list.BinarySearch(item, this.comparer)
+      if idx >= 0 then 
+        this.list.RemoveAt(idx)
+        true
+      else false
+
   member this.First with get() = this.list.[0]
   member this.Last with get() = this.list.[this.list.Count - 1]
   member this.Count with get() = this.list.Count

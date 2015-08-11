@@ -192,6 +192,64 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
           else false
       else false
 
+
+    member private this.DoMoveNextNonContPar() =
+      let mutable cont = true
+
+      cursors |> Array.iteri(fun i c ->
+        //let mutable activeCursorIdx = 0
+        // check if we reached the state where all cursors are at the same position
+        while lock this.Source (fun _ -> cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) < 0 && cont) do //
+          //let first = pivotKeysSet.RemoveFirst()
+          let kv = KV(c.CurrentKey, i)
+          
+          let ac = c //cursors.[first.Value]
+          let mutable moved = true
+          let mutable c = 
+            lock this.Source (fun _ ->
+              cmp.Compare(ac.CurrentKey, pivotKeysSet.Last.Key)
+            )
+//          if c < 0 then 
+//            lock this.Source (fun _ ->
+//              pivotKeysSet.list.Remove(kv) |> ignore
+//            )
+          let shouldRemove = c < 0
+          // move active cursor forward while it is before the current max key
+          while c < 0 && moved do
+            moved <- ac.MoveNext()
+            c <- cmp.Compare(ac.CurrentKey, pivotKeysSet.Last.Key)
+          if moved then
+            currentValues.[i] <- ac.CurrentValue
+            lock this.Source (fun _ ->
+              if shouldRemove && pivotKeysSet.Remove(kv) then
+                 () //|> ignore
+              else 
+                Console.WriteLine("Cannot remove")
+              pivotKeysSet.Add(KV(ac.CurrentKey, i)) |> ignore
+            )
+          else
+            // TODO?? what is continuous cursor is not moved but other cursors are just longer, e.g. repeat annual series for daily one
+            cont <- false // cannot move, stop sync move next, leave cursors where they are
+        ()
+      )
+      
+      if cont then
+        if this.FillContinuousValuesAtKey(pivotKeysSet.First.Key) then
+          this.CurrentKey <- pivotKeysSet.First.Key
+          true
+        else 
+          // cannot get contiuous values at this key
+          // move first non-cont cursor to next position
+          let first =  pivotKeysSet.RemoveFirst()
+          let ac = cursors.[first.Value]
+          if ac.MoveNext() then
+            currentValues.[first.Value] <- ac.CurrentValue
+            pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
+            this.DoMoveNextNonContPar() // recursive
+          else false
+      else false
+
+
     member this.MoveNext(): bool =
       if not this.HasValidState then this.MoveFirst()
       else
@@ -205,7 +263,7 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
               true
             else false
           else true
-        if cont then this.DoMoveNextNonCont() // failwith "TODO" // this.DoMoveNext()
+        if cont then this.DoMoveNextNonContPar() // failwith "TODO" // this.DoMoveNext()
         else false
     
     member this.MoveFirst(): bool =
