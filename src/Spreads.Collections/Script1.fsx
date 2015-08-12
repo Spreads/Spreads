@@ -235,3 +235,5 @@ let linqValue =
 
 
 let Parallel asyncs = (Seq.ofArray((Async.RunSynchronously(Async.Parallel(asyncs)))))
+
+

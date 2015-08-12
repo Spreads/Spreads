@@ -162,7 +162,7 @@ namespace Spreads.Collections.Tests {
                 sm1.Add(i, i);
             }
 
-            var series = new[] { sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,};//   sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
+            var series = new[] {sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,};//       sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
 
             sw.Start();
 
@@ -204,29 +204,29 @@ namespace Spreads.Collections.Tests {
                 sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
                 sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
 
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
 
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
 
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
 
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
-                //sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
+                sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,  sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,
             };
 
             sw.Start();

@@ -45,6 +45,9 @@ and
         | _ -> invalidArg "other" "Cannot compare values of different types"
 
 
+// TODO. SimpleSortedDeque with ring buffer will probably be the structure of choice when implemented.
+// FixedMinHeap is much faster for very small number of elements, but much slower starting from 10 elements.
+// In out case we have fixed capacity, so we could create a wrapper that will choose b/w the two during runtime.
 
 [<SerializableAttribute>]
 type SimpleSortedDeque<'T when 'T : comparison>

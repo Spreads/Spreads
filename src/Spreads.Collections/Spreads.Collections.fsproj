@@ -99,6 +99,7 @@
     <Compile Include="Collections\SortedChunkedMap.fs" />
     <Compile Include="Collections\DataStream.fs" />
     <Compile Include="Collections\SCM2.fs" />
+    <Compile Include="Collections\FixedMinHeap.fs" />
     <Compile Include="ObjectPool.fs" />
     <Compile Include="ZipNCursor.fs" />
     <Compile Include="CursorSeries.fs" />

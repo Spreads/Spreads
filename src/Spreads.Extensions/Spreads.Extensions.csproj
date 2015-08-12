@@ -100,6 +100,7 @@
     <Compile Include="Serializer.cs" />
     <Compile Include="Series\CursorSeries.cs" />
     <Compile Include="Series\RemoteChunksSeries.cs" />
+    <Compile Include="Series\ZipNCursor.cs" />
     <Compile Include="Series\ZonedSeries.cs" />
     <Compile Include="System\Runtime\BufferPool.cs" />
     <Compile Include="native\NativeMethods.cs" />
@@ -123,6 +124,7 @@
     <Compile Include="System\Interactive.Async\IAsyncGrouping.cs" />
     <Compile Include="System\Interactive.Async\IOrderedAsyncEnumerable.cs" />
     <Compile Include="System\Interactive.Async\TaskExt.cs" />
+    <Compile Include="System\Threading\Tasks\ZipNTaskScheduler.cs" />
     <Compile Include="Types.cs" />
     <Compile Include="UsefulTypes.cs" />
     <Compile Include="Extensions\BytesExtensions.cs" />
