@@ -83,7 +83,8 @@ type SortedDeque<'T when 'T : comparison>
   new() = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>())
 
   member inline private this.IndexToOffset(index) = (index + this.firstOffset) &&& (this.buffer.Length - 1)
-  member inline private this.OffsetOfElement(element:'T) =
+  // TODO inline
+  member private this.OffsetOfElement(element:'T) =
     let index = 
       if this.firstOffset + this.count > this.buffer.Length then // is split
         let c = this.comparer.Compare(element, this.buffer.[0])
@@ -99,8 +100,9 @@ type SortedDeque<'T when 'T : comparison>
     index
 
   // TODO(!) test for off-by-one bugs
-  member inline private this.InsertAtOffset(offset, element) =
-    let mutable offset = offset
+  // inline
+  member  private this.InsertAtOffset(offset, element) =
+    let mutable offset = offset &&& (this.buffer.Length - 1)
     
     if this.count = 0 || (offset = this.firstOffset + this.count) || offset = this.firstOffset + this.count - this.buffer.Length then // add to the right end
       let destination = offset &&& (this.buffer.Length-1) // ofset could have been equal to length
@@ -134,9 +136,14 @@ type SortedDeque<'T when 'T : comparison>
   member this.Add(element:'T) = 
     // ensure capacity
     if this.count = this.buffer.Length then doubleCapacity()
-    if this.comparer.Compare(element, this.buffer.[this.IndexToOffset (this.count - 1)]) > 0 then
+    if this.count = 0 then
+      this.InsertAtOffset(this.IndexToOffset(this.count), element)
+    elif  this.comparer.Compare(element, this.buffer.[this.IndexToOffset (this.count - 1)]) > 0 then
       // adding to the end
       this.InsertAtOffset(this.IndexToOffset(this.count), element)
+    elif this.comparer.Compare(element, this.buffer.[this.IndexToOffset (0)]) < 0 then
+      // adding to the front
+      this.InsertAtOffset(this.IndexToOffset(0), element)
     else
       let offset = this.OffsetOfElement(element)
       if offset > 0 then invalidOp "Item already exists"
@@ -148,6 +155,11 @@ type SortedDeque<'T when 'T : comparison>
     this.buffer.[offset]
     
   member this.Count with get() = this.count
+
+  member this.Clear() : unit = 
+    Array.Clear(this.buffer, 0, this.buffer.Length)
+    this.firstOffset <- 0
+    this.count <- 0
 
   member this.RemoveFirst() : 'T = 
     let first = this.buffer.[this.firstOffset]

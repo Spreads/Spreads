@@ -88,6 +88,7 @@
     <Compile Include="Collections\MutatorWrapper.fs" />
     <Compile Include="Collections\MapDeque.fs" />
     <Compile Include="Collections\SortedDeque.fs" />
+    <Compile Include="Collections\FixedMinHeap.fs" />
     <Compile Include="Collections\SortedMap.Obsolete.fs" />
     <Compile Include="Collections\IndexedMap.fs" />
     <Compile Include="Collections\MiscInterfaces.fs" />
@@ -99,7 +100,6 @@
     <Compile Include="Collections\SortedChunkedMap.fs" />
     <Compile Include="Collections\DataStream.fs" />
     <Compile Include="Collections\SCM2.fs" />
-    <Compile Include="Collections\FixedMinHeap.fs" />
     <Compile Include="ObjectPool.fs" />
     <Compile Include="ZipNCursor.fs" />
     <Compile Include="CursorSeries.fs" />

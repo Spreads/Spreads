@@ -159,13 +159,17 @@ type SortedMap<'K,'V when 'K : comparison>
           raise (ArgumentException("capacity is less then dictionary this.size"))
         else
           this.Capacity <- dictionary.Value.Count
-        let tempKeys = dictionary.Value.Keys |> Seq.toArray
+        let tempKeys = 
+//          if dictionary.Value.Count = 1 then 
+//            [|(dictionary.Value.Keys |> Seq.toArray).[0]; Unchecked.defaultof<'K>|] // TODO this is very ugly, just to fix an edge case bug
+//          else
+            dictionary.Value.Keys |> Seq.toArray
         dictionary.Value.Values.CopyTo(this.values, 0)
         Array.Sort(tempKeys, this.values, comparer)
         this.size <- dictionary.Value.Count
 
         // TODO review
-        if couldHaveRegularKeys then // if could be regular based on initial check of comparer type
+        if couldHaveRegularKeys && this.size > 1 then // if could be regular based on initial check of comparer type
           let isReg, step, firstArr = this.rkCheckArray tempKeys this.size (comparer :?> IKeyComparer<'K>)
           couldHaveRegularKeys <- isReg
           if couldHaveRegularKeys then 
