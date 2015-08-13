@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Spreads.System.Threading.Tasks {
+namespace System.Threading.Tasks {
 
     // aggressive inlining should help a lot, look into limited concurrency example
     // heaps will help to reach the frontier much faster (subject to we expect to reach it)

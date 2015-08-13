@@ -50,7 +50,7 @@ module CollectionsBenchmarks =
           list1.Add(i)
           list2.Add(int i)
           //arr.[int i] <- i
-        deedleSeries := Series(list1, list2)
+        deedleSeries := Deedle.Series(list1, list2)
       )
 
     for r in 0..1 do
@@ -947,28 +947,28 @@ module CollectionsBenchmarks =
 //  let SHM_regular_run() = SHM_regular(1000000L)
 
   let SortedDequeTest(count:int64) =
-    let vec = ref (Experimental.SortedDeque<int64>())
+    let vec = ref (SortedDeque<int64>())
     perf count "SortedDeque Add" (fun _ ->
       for i in 0L..count do
-        vec.Value.AddLast(i)
+        vec.Value.Add(i)
     )
-    perf count "SortedDeque Read" (fun _ ->
-      for i in 0L..count do
-        let res = vec.Value.Item(i)
-        if res <> i then failwith "SortedDeque failed"
-        ()
-    )
-    vec := (Experimental.SortedDeque<int64>())
+//    perf count "SortedDeque Read" (fun _ ->
+//      for i in 0L..count do
+//        let res = vec.Value.Item(i)
+//        if res <> i then failwith "SortedDeque failed"
+//        ()
+//    )
+    vec := (SortedDeque<int64>())
     perf count "SortedDeque Reverse" (fun _ ->
       for i in 0L..count do
         vec.Value.Add(count - i)
     )
-    perf count "SortedDeque Read reverse" (fun _ ->
-      for i in 0L..count do
-        let res = vec.Value.Item(count - i)
-        if res <> i then failwith "SortedDeque failed"
-        ()
-    )
+//    perf count "SortedDeque Read reverse" (fun _ ->
+//      for i in 0L..count do
+//        let res = vec.Value.Item(count - i)
+//        if res <> i then failwith "SortedDeque failed"
+//        ()
+//    )
 
     Console.WriteLine("----------------")
   [<Test>]

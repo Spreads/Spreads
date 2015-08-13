@@ -61,8 +61,8 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
     //   current key/values are undefined here because a move returned false
 
     // all keys where non-continuous cursors are positioned. they define where resulting keys are present
-    let pivotKeysSet = FixedMinHeap(cursors.Length, KVComparer(cmp, Comparer<int>.Default))
-    let contKeysSet = FixedMinHeap(cursors.Length, KVComparer(cmp, Comparer<int>.Default))
+    let pivotKeysSet = SortedDeque(KVComparer(cmp, Comparer<int>.Default))
+    let contKeysSet = SortedDeque(KVComparer(cmp, Comparer<int>.Default))
 
 
     member this.Comparer with get() = cmp
@@ -164,11 +164,11 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
       let mutable cont = true
       //let mutable activeCursorIdx = 0
       // check if we reached the state where all cursors are at the same position
-      while cmp.Compare(pivotKeysSet.MinValue.Key, pivotKeysSet.MaxValue.Key) < 0 && cont do //
+      while cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) < 0 && cont do //
         // pivotKeysSet is essentially a task queue:
         // we take every cursor that is not at fthe frontier and try to move it forward until it reaches the frontier
         // if we do this in parallel, the frontier could be moving while we are 
-        let first = pivotKeysSet.RemoveMin()
+        let first = pivotKeysSet.RemoveFirst()
         let ac = cursors.[first.Value]
         let mutable moved = true
         let mutable c = -1 // by construction // cmp.Compare(ac.CurrentKey, pivotKeysSet.Max.Key)
@@ -181,27 +181,27 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
 
         while c < 0 && moved do
           moved <- ac.MoveNext()
-          c <- cmp.Compare(ac.CurrentKey, pivotKeysSet.MaxValue.Key)
+          c <- cmp.Compare(ac.CurrentKey, pivotKeysSet.Last.Key)
 
 
         if moved then
           currentValues.[first.Value] <- ac.CurrentValue
-          pivotKeysSet.Insert(KV(ac.CurrentKey, first.Value)) |> ignore
+          pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
         else
           // TODO?? what is continuous cursor is not moved but other cursors are just longer, e.g. repeat annual series for daily one
           cont <- false // cannot move, stop sync move next, leave cursors where they are
       if cont then
-        if this.FillContinuousValuesAtKey(pivotKeysSet.MinValue.Key) then
-          this.CurrentKey <- pivotKeysSet.MinValue.Key
+        if this.FillContinuousValuesAtKey(pivotKeysSet.First.Key) then
+          this.CurrentKey <- pivotKeysSet.First.Key
           true
         else 
           // cannot get contiuous values at this key
           // move first non-cont cursor to next position
-          let first =  pivotKeysSet.RemoveMin()
+          let first =  pivotKeysSet.RemoveFirst()
           let ac = cursors.[first.Value]
           if ac.MoveNext() then
             currentValues.[first.Value] <- ac.CurrentValue
-            pivotKeysSet.Insert(KV(ac.CurrentKey, first.Value)) |> ignore
+            pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
             this.DoMoveNextNonCont() // recursive
           else false
       else false
@@ -268,12 +268,12 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
       if not this.HasValidState then this.MoveFirst()
       else
         let cont =
-          if cmp.Compare(pivotKeysSet.MinValue.Key, pivotKeysSet.MaxValue.Key) = 0 then
-            let first = pivotKeysSet.RemoveMin()
+          if cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) = 0 then
+            let first = pivotKeysSet.RemoveFirst()
             let ac = cursors.[first.Value]
             if ac.MoveNext() then
               currentValues.[first.Value] <- ac.CurrentValue
-              pivotKeysSet.Insert(KV(ac.CurrentKey, first.Value)) |> ignore
+              pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
               true
             else false
           else true
@@ -293,9 +293,9 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
             let movedFirst = x.MoveFirst()
             if movedFirst then
               if continuous.[i] then 
-                contKeysSet.Insert(KV(x.CurrentKey, i)) |> ignore
+                contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
               else
-                pivotKeysSet.Insert(KV(x.CurrentKey, i)) |> ignore
+                pivotKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
               //updateMinMax x.CurrentKey
               currentValues.[i] <- x.CurrentValue
               //hasValue.[i] <- true
@@ -307,11 +307,11 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
           if isContinuous then
             failwith "TODO"
           else
-            if cmp.Compare(pivotKeysSet.MinValue.Key, pivotKeysSet.MaxValue.Key) = 0 
-                  && this.FillContinuousValuesAtKey(pivotKeysSet.MinValue.Key) then
+            if cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) = 0 
+                  && this.FillContinuousValuesAtKey(pivotKeysSet.First.Key) then
               for kvp in pivotKeysSet.AsEnumerable() do
                 currentValues.[kvp.Value] <- cursors.[kvp.Value].CurrentValue
-              this.CurrentKey <- pivotKeysSet.MinValue.Key
+              this.CurrentKey <- pivotKeysSet.First.Key
               valuesOk <- true
               cont <- false 
             else

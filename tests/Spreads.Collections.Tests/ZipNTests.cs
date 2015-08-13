@@ -131,7 +131,7 @@ namespace Spreads.Collections.Tests {
                 sm1.Add(i, i);
             }
 
-            var series = new[] {sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,};//   sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
+            var series = new[] {sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,    sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
 
             sw.Start();
 
@@ -146,6 +146,16 @@ namespace Spreads.Collections.Tests {
             
         }
 
+// SortedDeque rules! At least for this pattern when we remove first and add last
+//Zip series:			5x1	    5x2	    5x10	    5x20	    50*2		1x500
+
+//time in sec			0.6	    1.032	4.364	    8.259	    10		    40
+//mops:									
+//SortedDeque			8.33	9.69	11.46	    12.11	    10.00		12.50
+//% above SL1			78%	    65%	    49%	        49%	        37%		    118%
+//% above FH			-4%	    0%	    70%	        102%	    -2%		    240%
+
+
 
         [Test]
         public void CouldZipMillionIntsBenchmark() {
@@ -158,11 +168,11 @@ namespace Spreads.Collections.Tests {
 
             sm1.Add(0, 0);
 
-            for (int i = 2; i < 5000000; i++) {
+            for (int i = 2; i < 50000000; i++) {
                 sm1.Add(i, i);
             }
 
-            var series = new[] {sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,};//       sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
+            var series = new[] {sm1, sm1,};// sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,};//    sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
 
             sw.Start();
 
