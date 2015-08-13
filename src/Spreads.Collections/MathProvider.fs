@@ -7,6 +7,8 @@ open System.Threading
 open System.Threading.Tasks
 open System.Runtime.InteropServices
 
+// TODO add config class to S.Extensions project, that class will init 
+// all extensions 
 
 [<SealedAttribute;AbstractClassAttribute>]
 type internal OptimizationSettings() =
@@ -29,10 +31,6 @@ type internal OptimizationSettings() =
         member x.TakeBuffer<'T>(size) = Array.zeroCreate<'T> size
         member x.Clear(): unit = ()
     } with get, set
-
-  /// TODO Test if always moving the most lagged series in ZipN increases performance
-  /// Must test on realistic data, e.g. ticks of very liquid vs not liquid trading instruments
-  static member val UsePriorityQueueForZipN = false with get, set
 
 
 // It is tempting to use ILinearAlgebraProvider from MathNet.Numerics, but there are not so many members to wrap around it;
