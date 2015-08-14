@@ -226,6 +226,114 @@ namespace Spreads.Collections.Tests {
         }
 
 
+        [Test]
+        public void CouldMoveAtPositionOfThreeDifferentSeriesWithContinuous() {
+
+            var sm1 = new SortedMap<int, int>(new Dictionary<int, int>()
+                {
+                    { 1, 1},
+                    //{ 2, 2}, // Fill(100)
+                    { 3, 3},
+                    //{ 5, 5}, // Fill(100)
+                    { 7, 7}
+                });
+            var sm2 = new SortedMap<int, int>(new Dictionary<int, int>()
+                {
+                    { 1, 2},
+                    { 2, 4},
+                    { 3, 6},
+                    { 5, 10},
+                    { 7, 14}
+
+                });
+            var sm3 = new SortedMap<int, int>(new Dictionary<int, int>()
+                {
+                    { 1, 3},
+                    { 2, 6},
+                    { 3, 9},
+                    { 5, 15},
+                    { 7, 21}
+                });
+
+            var series = new[] { sm1.Fill(100), sm2, sm3 };
+            var sum = series.Zip((k, varr) => k * varr.Sum());
+
+            var zipNCursor = sum.GetCursor();
+            var movedAtEQ = zipNCursor.MoveAt(3, Lookup.EQ);
+            Assert.IsTrue(movedAtEQ);
+            Assert.AreEqual((3 + 6 + 9) * 3, zipNCursor.CurrentValue);
+
+            var movedAtLE = zipNCursor.MoveAt(2, Lookup.LE);
+            Assert.IsTrue(movedAtLE);
+            Assert.AreEqual((100 + 4 + 6) * 2, zipNCursor.CurrentValue);
+
+            var movedAtGE = zipNCursor.MoveAt(5, Lookup.GE);
+            Assert.IsTrue(movedAtGE);
+            Assert.AreEqual((100 + 10 + 15) * 5, zipNCursor.CurrentValue);
+
+            var movedAtLT = zipNCursor.MoveAt(3, Lookup.LT);
+            Assert.IsTrue(movedAtLT);
+            Assert.AreEqual((100 + 4 + 6) * 2, zipNCursor.CurrentValue);
+
+            var movedAtGT = zipNCursor.MoveAt(3, Lookup.GT);
+            Assert.IsTrue(movedAtGT);
+            Assert.AreEqual((100 + 10 + 15) * 5, zipNCursor.CurrentValue);
+        }
+
+        [Test]
+        public void CouldMoveAtPositionOfThreeDifferentSeriesAllContinuous() {
+
+            var sm1 = new SortedMap<int, int>(new Dictionary<int, int>()
+                {
+                    { 1, 1},
+                    //{ 2, 2}, // Fill(100)
+                    { 3, 3},
+                    //{ 5, 5}, // Fill(100)
+                    { 7, 7}
+                });
+            var sm2 = new SortedMap<int, int>(new Dictionary<int, int>()
+                {
+                    { 1, 2},
+                    { 2, 4},
+                    { 3, 6},
+                    { 5, 10},
+                    { 7, 14}
+
+                });
+            var sm3 = new SortedMap<int, int>(new Dictionary<int, int>()
+                {
+                    { 1, 3},
+                    { 2, 6},
+                    { 3, 9},
+                    { 5, 15},
+                    { 7, 21}
+                });
+
+            var series = new[] { sm1.Fill(100), sm2.Repeat(), sm3.Repeat() };
+            var sum = series.Zip((k, varr) => k * varr.Sum());
+
+            var zipNCursor = sum.GetCursor();
+            var movedAtEQ = zipNCursor.MoveAt(3, Lookup.EQ);
+            Assert.IsTrue(movedAtEQ);
+            Assert.AreEqual((3 + 6 + 9) * 3, zipNCursor.CurrentValue);
+
+            var movedAtLE = zipNCursor.MoveAt(2, Lookup.LE);
+            Assert.IsTrue(movedAtLE);
+            Assert.AreEqual((100 + 4 + 6) * 2, zipNCursor.CurrentValue);
+
+            var movedAtGE = zipNCursor.MoveAt(5, Lookup.GE);
+            Assert.IsTrue(movedAtGE);
+            Assert.AreEqual((100 + 10 + 15) * 5, zipNCursor.CurrentValue);
+
+            var movedAtLT = zipNCursor.MoveAt(3, Lookup.LT);
+            Assert.IsTrue(movedAtLT);
+            Assert.AreEqual((100 + 4 + 6) * 2, zipNCursor.CurrentValue);
+
+            var movedAtGT = zipNCursor.MoveAt(3, Lookup.GT);
+            Assert.IsTrue(movedAtGT);
+            Assert.AreEqual((100 + 10 + 15) * 5, zipNCursor.CurrentValue);
+        }
+
 
         [Test]
         public void CouldZipMillionIntsWithMoveNext()

@@ -58,8 +58,11 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
 
     // all keys where non-continuous cursors are positioned. they define where resulting keys are present
     let pivotKeysSet = SortedDeque(KVComparer(cmp, Comparer<int>.Default))
+    // active continuous cursors
     let contKeysSet = SortedDeque(KVComparer(cmp, Comparer<int>.Default))
-
+    
+    // continuous cursors that failed to move
+    //let staleKeys = List<KV<'K,int>>()// SortedDeque(KVComparer(cmp, Comparer<int>.Default))
 
     /// TODO(perf) Now using TryGetValue without moving cursors. The idea is that continuous series are usually less frequent than
     /// the pivot ones, e.g. daily vs. minutely/secondly data, so the "depth" of binary search is not too big
@@ -79,8 +82,9 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
           c <- c + 1
         cont
 
+    // non-cont
     // this is a single-threaded algotithm that uses a SortedDeque data structure to determine moves priority
-    let rec doMoveNextNonCont() =
+    let rec doMoveNextNonContinuous() =
       let mutable cont = true
       //let mutable activeCursorIdx = 0
       // check if we reached the state where all cursors are at the same position
@@ -119,9 +123,72 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
           if ac.MoveNext() then
             currentValues.[first.Value] <- ac.CurrentValue
             pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
-            doMoveNextNonCont() // recursive
+            doMoveNextNonContinuous() // recursive
           else false
       else false
+
+    // Continuous
+//    let rec doMoveNextContinuous() =
+//      
+//      // frontier is the current key. on each zip move we must move at least one cursor ahead 
+//      // of the current key, and the position of this cursor is the new key
+//
+//      let mutable cont = true
+//      // found all values
+//      let mutable valuesOk = false
+//      //let mutable activeCursorIdx = 0
+//      while cont do 
+//        
+//        let cksEnumerator = contKeysSet.AsEnumerable().GetEnumerator()
+//        let mutable found = false
+//        while not found && cksEnumerator.MoveNext() do // need to update contKeysSet!!!!!!!!!!!!!!!!!!!
+//          let cursor = cursors.[cksEnumerator.Current.Value]
+//          while cmp.Compare(cursor.CurrentKey, this.CurrentKey) <= 0 && not found do
+//            if cursor.MoveNext() // cursor moved
+//              && cmp.Compare(cursor.CurrentKey, this.CurrentKey) > 0  // ahead of the previous key
+//              && fillContinuousValuesAtKey(cursor.CurrentKey) then // and we could get all values at the new position
+//                found <- true
+//                this.CurrentKey <- cursor.CurrentKey
+//                
+//
+//        // we must listen to MoveNextAsync of all stale cursors and do this block only when at least one 
+//        // stale cursor got value
+//        // move stale cursors
+//        let mutable scnt = 0
+//        while scnt < staleKeys.Count do
+//        //for sc in staleKeys do
+//          let sc = cursors.[staleKeys.[scnt].Value]
+//          let couldMove = sc.MoveNext()
+//          if couldMove then
+//            if cmp.Compare(sc.CurrentKey, contKeysSet.First.Key) <= 0 then invalidOp "Out of order value from a stale key"
+//            let toAdd = KV(sc.CurrentKey, staleKeys.[scnt].Value)
+//            staleKeys.RemoveAt(scnt)
+//            contKeysSet.Add(toAdd) |> ignore
+//          else
+//            scnt <- scnt + 1
+//
+//        // if contKeysSet is empty at this point, then all cursors are stale and cannot move.
+//        // need to try get values for the last time at return false if cannot get values
+//        if contKeysSet.Count = 0 then
+//          cont <- false
+//          valuesOk <- false
+//        else
+//          
+//
+//          if moved then
+//            currentValues.[first.Value] <- ac.CurrentValue
+//            contKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
+//          else
+//            staleKeys.Add(KV(ac.CurrentKey, first.Value)) |> ignore
+//        
+//          if fillContinuousValuesAtKey(first.Key) then
+//            valuesOk <- true
+//            cont <- false
+//
+//      if valuesOk then
+//        this.CurrentKey <- contKeysSet.First.Key
+//        true
+//      else false
 
     let rec doMovePrevNonCont() =
       let mutable cont = true
@@ -160,10 +227,11 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
           if ac.MoveNext() then
             currentValues.[first.Value] <- ac.CurrentValue
             pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
-            doMoveNextNonCont() // recursive
+            doMoveNextNonContinuous() // recursive
           else false
       else false
 
+    
 
     member this.Comparer with get() = cmp
     member this.HasValidState with get() = hasValidState and set (v) = hasValidState <- v
@@ -212,7 +280,7 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
               true
             else false
           else true
-        if cont then doMoveNextNonCont()
+        if cont then doMoveNextNonContinuous()
         else false
     
     member x.MovePrevious(): bool = 
@@ -265,7 +333,7 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
               cont <- false 
             else
               // move to max key until min key matches max key so that we can use values
-              valuesOk <- doMoveNextNonCont() //failwith "TODO" //this.DoMoveNext()
+              valuesOk <- doMoveNextNonContinuous() //failwith "TODO" //this.DoMoveNext()
       if valuesOk then 
         this.HasValidState <- true
         true
@@ -351,7 +419,7 @@ type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, 
               | Lookup.LE | Lookup.LT ->
                 valuesOk <- doMovePrevNonCont()
               | Lookup.GE | Lookup.GT ->
-                valuesOk <- doMoveNextNonCont()
+                valuesOk <- doMoveNextNonContinuous()
               | _ -> failwith "Wrong lookup direction, should never be there"
       if valuesOk then 
         this.HasValidState <- true
