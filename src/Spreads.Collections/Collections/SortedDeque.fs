@@ -100,7 +100,7 @@ type SortedDeque<'T when 'T : comparison>
     index
 
   // inline
-  member private this.InsertAtOffset(offset, element) =
+  member private this.InsertAtOffset(offset, element) : unit =
     let mutable offset = offset &&& (this.buffer.Length - 1)
     
     if this.count = 0 || (offset = this.firstOffset + this.count) || offset = this.firstOffset + this.count - this.buffer.Length then // add to the right end
@@ -120,24 +120,56 @@ type SortedDeque<'T when 'T : comparison>
         else // we are at the left part of the split [___    <__._]
           Array.Copy(this.buffer, this.firstOffset, this.buffer, this.firstOffset - 1, (offset - this.firstOffset) + 1)
           this.firstOffset <- this.firstOffset - 1
+          Debug.Assert(this.comparer.Compare(element, this.buffer.[offset - 1]) > 0)
       else
         if this.firstOffset = 0 then // avoid split if possible [>_____     ]
           Debug.Assert(offset < this.count)
           Array.Copy(this.buffer, offset, this.buffer, offset + 1, this.count - offset)
         elif (this.count - (offset - this.firstOffset) <= this.count / 2)  then // [   _______.>__     ]
           if this.firstOffset + this.count = this.buffer.Length then
-            this.buffer.[0] <- this.buffer.[this.buffer.Length - 1]
+            this.buffer.[0] <- this.buffer.[this.buffer.Length - 1] // NB! do not lose the last value
             Array.Copy(this.buffer, offset, this.buffer, offset + 1, this.count - (offset - this.firstOffset) - 1)
           else
-            Array.Copy(this.buffer, offset, this.buffer, offset + 1, this.count - (offset - this.firstOffset)) // keep it separate for more readability, even though it could be combined with the first condition
-          // NB! we are losing values here
-
-        else // test covered
+            Array.Copy(this.buffer, offset, this.buffer, offset + 1, this.count - (offset - this.firstOffset))
+          Debug.Assert(this.comparer.Compare(element, this.buffer.[offset - 1]) > 0)
+        else //[   __<._______     ]
           Array.Copy(this.buffer, this.firstOffset, this.buffer, this.firstOffset - 1, offset - this.firstOffset)
           offset <- offset - 1
           this.firstOffset <- this.firstOffset - 1
+          Debug.Assert(this.comparer.Compare(element, this.buffer.[offset - 1]) > 0)
       this.buffer.[offset] <- element
       this.count <- this.count + 1
+
+  member private this.RemoveAtOffset(offset) : 'T =
+    let mutable offset = offset &&& (this.buffer.Length - 1)
+    let element = this.buffer.[offset]
+    if this.count = 0 then
+      invalidOp "SortedDeque is empty"
+    elif (offset = this.firstOffset + this.count - 1) || offset = this.firstOffset + this.count - this.buffer.Length - 1 then // add to the right end
+      // at the end: this.count <- this.count - 1
+      ()
+    elif offset = this.firstOffset then
+      this.firstOffset <- (this.firstOffset + 1) &&& (this.buffer.Length - 1)
+      // at the end: this.count <- this.count - 1
+    else
+      // unchecked, assume that offset is inside existing range
+      if this.firstOffset + this.count > this.buffer.Length then // is already a split
+        if offset < this.firstOffset then // we are at the left part of the split [__._<    ___]
+          Array.Copy(this.buffer, offset + 1, this.buffer, offset, this.firstOffset + this.count - this.buffer.Length - offset - 1)
+        else // we are at the left part of the split [___    >__._]
+          Array.Copy(this.buffer, this.firstOffset, this.buffer, this.firstOffset + 1, (offset - this.firstOffset))
+          this.firstOffset <- this.firstOffset + 1
+      else
+        if this.firstOffset = 0 then // avoid split if possible [>_____     ]
+          this.firstOffset <- this.firstOffset + 1
+        elif (this.count - (offset - this.firstOffset) <= this.count / 2)  then // [   _______.<__     ]
+          Array.Copy(this.buffer, offset + 1, this.buffer, offset, this.count - (offset - this.firstOffset) - 1)
+        else //[   __>._______     ]
+          Array.Copy(this.buffer, this.firstOffset, this.buffer, this.firstOffset + 1, offset - this.firstOffset - 1)
+          offset <- offset - 1
+          this.firstOffset <- this.firstOffset + 1
+    this.count <- this.count - 1
+    element
 
 
   member this.Add(element:'T) = 
@@ -178,6 +210,14 @@ type SortedDeque<'T when 'T : comparison>
     let last = this.buffer.[this.IndexToOffset(this.count - 1)]
     this.count <- this.count - 1
     last
+
+  member this.Remove(element:'T): unit = 
+    let offset = this.OffsetOfElement(element)
+    if offset < 0 then 
+      let offset' =  this.OffsetOfElement(element) // debug
+      this.RemoveAtOffset(offset') |> ignore
+      invalidOp "Element doesn't exist in the SortedDeque"
+    this.RemoveAtOffset(offset) |> ignore
 
   member internal this.AsEnumerable() =
     seq {

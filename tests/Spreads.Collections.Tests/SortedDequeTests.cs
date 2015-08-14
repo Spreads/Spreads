@@ -118,11 +118,60 @@ namespace Spreads.Collections.Tests {
                     set.Remove(first);
                     Assert.AreEqual(set.Count, sd.Count);
                     Assert.AreEqual(set.Sum(), sd.Sum());
+
+                    var c = 0;
+                    var prev = 0;
+                    foreach (var e in sd)
+                    {
+                        if (c == 0)
+                        {
+                            c++;
+                            prev = e;
+                        }
+                        else
+                        {
+                            Assert.IsTrue(e > prev);
+                            prev = e;
+                        }
+                    }
+
                 }
 
             }
         }
 
+
+        [Test]
+        public void AddRemoveTestWithRemoveElement() {
+            var rng = new System.Random();
+            for (int r = 0; r < 1000; r++) {
+                var sd = new SortedDeque<int>();
+                var set = new HashSet<int>();
+                for (int i = 0; i < 50; i++) {
+                    for (var next = rng.Next(1000); !set.Contains(next);) {
+                        set.Add(next);
+                        sd.Add(next);
+                    }
+                }
+
+                for (int i = 0; i < 1000; i++) {
+                    for (var next = rng.Next(1000); !set.Contains(next);) {
+                        set.Add(next);
+                        sd.Add(next);
+                    }
+
+                    Assert.AreEqual(set.Count, sd.Count);
+                    Assert.AreEqual(set.Sum(), sd.Sum());
+
+                    var first = sd.First;
+                    sd.Remove(first);
+                    set.Remove(first);
+                    Assert.AreEqual(set.Count, sd.Count);
+                    Assert.AreEqual(set.Sum(), sd.Sum());
+                }
+
+            }
+        }
 
         [Test]
         public void RemoveTest() {
@@ -144,6 +193,17 @@ namespace Spreads.Collections.Tests {
                     set.Remove(first);
                     Assert.AreEqual(set.Count, sd.Count);
                     Assert.AreEqual(set.Sum(), sd.Sum());
+                    var c = 0;
+                    var prev = 0;
+                    foreach (var e in sd) {
+                        if (c == 0) {
+                            c++;
+                            prev = e;
+                        } else {
+                            Assert.IsTrue(e > prev);
+                            prev = e;
+                        }
+                    }
                 }
             }
         }
@@ -164,6 +224,17 @@ namespace Spreads.Collections.Tests {
                     }
                     Assert.AreEqual(set.Count, sd.Count);
                     Assert.AreEqual(set.Sum(), sd.Sum());
+                    var c = 0;
+                    var prev = 0;
+                    foreach (var e in sd) {
+                        if (c == 0) {
+                            c++;
+                            prev = e;
+                        } else {
+                            Assert.IsTrue(e > prev);
+                            prev = e;
+                        }
+                    }
                 }
             }
         }

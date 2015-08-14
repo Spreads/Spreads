@@ -65,9 +65,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Collections.Tests", "tests\Spreads.Collections.Tests\Spreads.Collections.Tests.csproj", "{D4857397-4D03-4E25-9332-979BF22E9BB2}"
 EndProject
 Global
-	GlobalSection(Performance) = preSolution
-		HasPerformanceSessions = true
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|x64 = Debug|x64
@@ -129,7 +126,7 @@ Global
 		{D2A8AD2E-0450-4E23-8488-06F19DF7882D}.Debug|x64.Build.0 = Debug|Any CPU
 		{D2A8AD2E-0450-4E23-8488-06F19DF7882D}.Debug|x86.ActiveCfg = Debug|Any CPU
 		{D2A8AD2E-0450-4E23-8488-06F19DF7882D}.Debug|x86.Build.0 = Debug|Any CPU
-		{D2A8AD2E-0450-4E23-8488-06F19DF7882D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D2A8AD2E-0450-4E23-8488-06F19DF7882D}.Release|Any CPU.ActiveCfg = Release|x64
 		{D2A8AD2E-0450-4E23-8488-06F19DF7882D}.Release|x64.ActiveCfg = Release|Any CPU
 		{D2A8AD2E-0450-4E23-8488-06F19DF7882D}.Release|x64.Build.0 = Release|Any CPU
 		{D2A8AD2E-0450-4E23-8488-06F19DF7882D}.Release|x86.ActiveCfg = Release|Any CPU
