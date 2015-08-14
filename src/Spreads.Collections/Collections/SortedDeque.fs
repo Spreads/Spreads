@@ -99,9 +99,8 @@ type SortedDeque<'T when 'T : comparison>
         Array.BinarySearch(this.buffer, this.firstOffset, this.count, element, this.comparer) 
     index
 
-  // TODO(!) test for off-by-one bugs
   // inline
-  member  private this.InsertAtOffset(offset, element) =
+  member private this.InsertAtOffset(offset, element) =
     let mutable offset = offset &&& (this.buffer.Length - 1)
     
     if this.count = 0 || (offset = this.firstOffset + this.count) || offset = this.firstOffset + this.count - this.buffer.Length then // add to the right end
@@ -115,16 +114,24 @@ type SortedDeque<'T when 'T : comparison>
     else
       // unchecked, assume that offset is inside existing range
       if this.firstOffset + this.count > this.buffer.Length then // is already a split
-        if offset < this.firstOffset then // we are at the left part of the split [__._    ___]
+        if offset < this.firstOffset then // we are at the left part of the split [__._>    ___]
           Debug.Assert(offset < this.firstOffset + this.count - this.buffer.Length)
           Array.Copy(this.buffer, offset, this.buffer, offset + 1, this.firstOffset + this.count - this.buffer.Length - offset)
-        else // we are at the left part of the split [___    __._]
-          Array.Copy(this.buffer, this.firstOffset, this.buffer, this.firstOffset - 1, offset - this.firstOffset + 1)
+        else // we are at the left part of the split [___    <__._]
+          Array.Copy(this.buffer, this.firstOffset, this.buffer, this.firstOffset - 1, (offset - this.firstOffset) + 1)
+          this.firstOffset <- this.firstOffset - 1
       else
-        if this.firstOffset = 0 then // avoid split if possible
+        if this.firstOffset = 0 then // avoid split if possible [>_____     ]
+          Debug.Assert(offset < this.count)
           Array.Copy(this.buffer, offset, this.buffer, offset + 1, this.count - offset)
-        elif (this.firstOffset + this.count - offset <= this.count / 2)  then
-          Array.Copy(this.buffer, offset, this.buffer, offset + 1, this.count - offset - this.firstOffset) // keep it separate for more readability, even though it could be combined with the first condition
+        elif (this.count - (offset - this.firstOffset) <= this.count / 2)  then // [   _______.>__     ]
+          if this.firstOffset + this.count = this.buffer.Length then
+            this.buffer.[0] <- this.buffer.[this.buffer.Length - 1]
+            Array.Copy(this.buffer, offset, this.buffer, offset + 1, this.count - (offset - this.firstOffset) - 1)
+          else
+            Array.Copy(this.buffer, offset, this.buffer, offset + 1, this.count - (offset - this.firstOffset)) // keep it separate for more readability, even though it could be combined with the first condition
+          // NB! we are losing values here
+
         else // test covered
           Array.Copy(this.buffer, this.firstOffset, this.buffer, this.firstOffset - 1, offset - this.firstOffset)
           offset <- offset - 1
@@ -172,9 +179,15 @@ type SortedDeque<'T when 'T : comparison>
     this.count <- this.count - 1
     last
 
-  member private this.AsEnumerable() =
+  member internal this.AsEnumerable() =
     seq {
       for i in 0..(this.count - 1) do
+        yield this.buffer.[this.IndexToOffset(i)]
+    }
+
+  member internal this.Reverse() =
+    seq {
+      for i in (this.count - 1)..(-1)..0 do
         yield this.buffer.[this.IndexToOffset(i)]
     }
   

@@ -16,8 +16,7 @@ namespace Spreads.Collections.Tests {
     public class SortedDequeTests {
 
         [Test]
-        public void CouldRemoveFirstAddInTheMiddle()
-        {
+        public void CouldRemoveFirstAddInTheMiddle() {
             var sd = new SortedDeque<int>();
             sd.Add(1);
             sd.Add(3);
@@ -48,11 +47,9 @@ namespace Spreads.Collections.Tests {
         }
 
         [Test]
-        public void CouldAddBehindInitialCapacity()
-        {
+        public void CouldAddBehindInitialCapacity() {
             var sd = new SortedDeque<int>();
-            for (int i = 0; i < 4; i++)
-            {
+            for (int i = 0; i < 4; i++) {
                 sd.Add(i);
             }
 
@@ -69,11 +66,10 @@ namespace Spreads.Collections.Tests {
                 sd.Add(i);
             }
 
-            for (int i = 4; i < 100; i++)
-            {
+            for (int i = 4; i < 100; i++) {
                 sd.RemoveFirst();
                 sd.Add(i);
-                Assert.AreEqual(i-3, sd.First);
+                Assert.AreEqual(i - 3, sd.First);
                 Assert.AreEqual(i, sd.Last);
             }
         }
@@ -86,10 +82,89 @@ namespace Spreads.Collections.Tests {
             }
 
             for (int i = 4; i < 100; i++) {
-                if(i % 2 == 0) sd.RemoveFirst();
+                if (i % 2 == 0) sd.RemoveFirst();
                 sd.Add(i);
                 //Assert.AreEqual(i - 3, sd.First);
                 Assert.AreEqual(i, sd.Last);
+            }
+        }
+
+
+
+
+        [Test]
+        public void AddRemoveTest() {
+            var rng = new System.Random();
+            for (int r = 0; r < 1000; r++) {
+                var sd = new SortedDeque<int>();
+                var set = new HashSet<int>();
+                for (int i = 0; i < 50; i++) {
+                    for (var next = rng.Next(1000); !set.Contains(next);) {
+                        set.Add(next);
+                        sd.Add(next);
+                    }
+                }
+
+                for (int i = 0; i < 1000; i++) {
+                    for (var next = rng.Next(1000); !set.Contains(next);) {
+                        set.Add(next);
+                        sd.Add(next);
+                    }
+
+                    Assert.AreEqual(set.Count, sd.Count);
+                    Assert.AreEqual(set.Sum(), sd.Sum());
+
+                    var first = sd.RemoveFirst();
+                    set.Remove(first);
+                    Assert.AreEqual(set.Count, sd.Count);
+                    Assert.AreEqual(set.Sum(), sd.Sum());
+                }
+
+            }
+        }
+
+
+        [Test]
+        public void RemoveTest() {
+            for (int r = 0; r < 10000; r++) {
+
+
+                var rng = new System.Random();
+
+                var sd = new SortedDeque<int>();
+                var set = new HashSet<int>();
+                for (int i = 0; i < 100; i++) {
+                    for (var next = rng.Next(1000); !set.Contains(next);) {
+                        set.Add(next);
+                        sd.Add(next);
+                    }
+                }
+                while (sd.Count > 0) {
+                    var first = sd.RemoveFirst();
+                    set.Remove(first);
+                    Assert.AreEqual(set.Count, sd.Count);
+                    Assert.AreEqual(set.Sum(), sd.Sum());
+                }
+            }
+        }
+
+
+        [Test]
+        public void AddTest() {
+            for (int r = 0; r < 10000; r++) {
+
+                var rng = new System.Random();
+
+                var sd = new SortedDeque<int>();
+                var set = new HashSet<int>();
+                for (int i = 0; i < 100; i++) {
+                    for (var next = rng.Next(1000); !set.Contains(next);) {
+                        set.Add(next);
+                        sd.Add(next);
+                    }
+                    Assert.AreEqual(set.Count, sd.Count);
+                    Assert.AreEqual(set.Sum(), sd.Sum());
+                }
             }
         }
 
