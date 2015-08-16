@@ -38,7 +38,7 @@ type IAsyncEnumerable<'T> =
 /// move not only to next values, but to next batches, previous, first, last and a custom excat or relative (LT/LE/GT/GE) position.
 [<Interface>]
 [<AllowNullLiteral>]
-type ISeries<'K,'V when 'K : comparison> =
+type ISeries<'K,'V> =
   inherit IEnumerable<KVP<'K,'V>>
   inherit IAsyncEnumerable<KVP<'K,'V>>
   /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
@@ -83,7 +83,7 @@ type ISeries<'K,'V when 'K : comparison> =
 and
   [<Interface>]
   [<AllowNullLiteral>]
-  ICursor<'K,'V when 'K : comparison> =
+  ICursor<'K,'V> =
     inherit IEnumerator<KVP<'K, 'V>>
     inherit IAsyncEnumerator<KVP<'K, 'V>>
     abstract Comparer: IComparer<'K> with get
@@ -137,7 +137,7 @@ and
 and
   [<Interface>]
   [<AllowNullLiteral>]
-  IReadOnlyOrderedMap<'K,'V when 'K : comparison> =
+  IReadOnlyOrderedMap<'K,'V> =
     inherit ISeries<'K,'V>
     //inherit IReadOnlyDictionary<'K,'V>
     /// True if this.size = 0
@@ -180,7 +180,7 @@ and
 /// Mutable ordered map
 [<Interface>]
 [<AllowNullLiteral>]
-type IOrderedMap<'K,'V when 'K : comparison> =
+type IOrderedMap<'K,'V> =
   inherit IReadOnlyOrderedMap<'K,'V>
   //inherit IDictionary<'K,'V>
   abstract Count: int64 with get
@@ -208,13 +208,13 @@ type IOrderedMap<'K,'V when 'K : comparison> =
 /// 
 [<Interface>]
 [<AllowNullLiteral>]
-type IPersistentOrderedMap<'K,'V when 'K : comparison> =
+type IPersistentOrderedMap<'K,'V> =
   inherit IOrderedMap<'K,'V>
   abstract Flush : unit -> unit
 
 [<Interface>]
 [<AllowNullLiteral>]
-type IImmutableOrderedMap<'K,'V when 'K : comparison> =
+type IImmutableOrderedMap<'K,'V> =
   inherit IReadOnlyOrderedMap<'K,'V>
   abstract Size: int64 with get
   /// Unchecked addition, returns a new version of map with new element added
@@ -238,36 +238,36 @@ type IImmutableOrderedMap<'K,'V when 'K : comparison> =
 //type IPanel = interface end
 ///// Marker interface for a panel with
 //[<AllowNullLiteral>]
-//type IPanel<'KC when 'KC : comparison> = interface end
+//type IPanel<'KC> = interface end
 //
 //[<AllowNullLiteral; Obsolete("Rethink it")>]
-//type ISeries<'K when 'K : comparison> = 
+//type ISeries<'K> = 
 //    interface
 //        inherit IPanel<'K>
 //    end
 
 //and 
 //  [<AllowNullLiteral>]
-//  IIdentitySeries<'K,'V,'TId when 'K : comparison and 'TId : comparison> =   
+//  IIdentitySeries<'K,'V,'TId> =   
 //    inherit ISeries<'K,'V>
 //    abstract Identity : 'TId with get
 
 
-type internal UpdateHandler<'K,'V when 'K : comparison> = EventHandler<KVP<'K,'V>>
+type internal UpdateHandler<'K,'V> = EventHandler<KVP<'K,'V>>
 [<AllowNullLiteral>]
-type IUpdateable<'K,'V when 'K : comparison> =   
+type IUpdateable<'K,'V> =
   /// Fired after any data change with key for the first valid data (e.g. after delete, a previous key is returned)
   [<CLIEvent>]
   abstract member OnData : IDelegateEvent<UpdateHandler<'K,'V>>
 
-//type internal MyType<'K,'V when 'K : comparison> () =
+//type internal MyType<'K,'V> () =
 //    let myEvent = new Event<KVP<'K,'V>> ()
 //    interface IUpdateable<'K,'V> with
 //        [<CLIEvent>]
 //        member this.OnData =  myEvent.Publish
 
 // TODO?? maybe this is enough? All other methods could be done as extensions??
-type Panel<'TRowKey,'TColumnKey, 'TValue when 'TRowKey: comparison and 'TColumnKey : comparison> = 
+type Panel<'TRowKey,'TColumnKey, 'TValue> =
   //ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>> // this is how it could be implemented
   ISeries<'TRowKey,IReadOnlyOrderedMap<'TColumnKey,'TValue>> // this is how it is used most of the time
   // panel stores references to series that could be lazy/persistent/(not in memory), while panel's consumer need rows on demand
@@ -281,7 +281,7 @@ type Panel<'TRowKey,'TColumnKey, 'TValue when 'TRowKey: comparison and 'TColumnK
 
 //and    //TODO?? Panel could be replaced by extension methods on ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>>
 //  [<AllowNullLiteral>]
-//  IPanel<'TRowKey,'TColumnKey, 'TValue when 'TRowKey: comparison and 'TColumnKey : comparison> =
+//  IPanel<'TRowKey,'TColumnKey, 'TValue> =
 //    //inherit ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>>
 //    /// 
 //    abstract Columns: ISeries<'TColumnKey, ISeries<'TRowKey,'TValue>> with get

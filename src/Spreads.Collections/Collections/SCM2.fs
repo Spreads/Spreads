@@ -20,7 +20,7 @@ open Spreads.Collections
 
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
-type SortedChunkedMap2<'K,'V when 'K : comparison>
+type SortedChunkedMap2<'K,'V>
   internal (outerFactory:IComparer<'K>->IOrderedMap<'K, IOrderedMap<'K,'V>>,
             innerFactory:IComparer<'K>->IOrderedMap<'K,'V>, 
             comparer:IComparer<'K>, 
@@ -668,13 +668,13 @@ type SortedChunkedMap2<'K,'V when 'K : comparison>
         let mutable overlapOk = 
           oldC.MoveAt(append.First.Key, Lookup.EQ) 
             && appC.MoveFirst() 
-            && oldC.CurrentKey = appC.CurrentKey
+            && comparer.Compare(oldC.CurrentKey, appC.CurrentKey) = 0
             && Unchecked.equals oldC.CurrentValue appC.CurrentValue
         while overlapOk && cont do
           if oldC.MoveNext() then
             overlapOk <-
               appC.MoveNext() 
-              && oldC.CurrentKey = appC.CurrentKey
+              && comparer.Compare(oldC.CurrentKey, appC.CurrentKey) = 0
               && Unchecked.equals oldC.CurrentValue appC.CurrentValue
           else cont <- false
         overlapOk

@@ -8,11 +8,8 @@ open System.Threading.Tasks
 open System.Diagnostics
 open Spreads
 
-// TODO rename it to BaseCursor with only abstract method, to not carry currentPosition
-
-
 [<AbstractClassAttribute>]
-type BaseCursor<'K,'V when 'K : comparison>
+type BaseCursor<'K,'V>
   (source:IReadOnlyOrderedMap<'K,'V>) as this =
 
   // implement default MoveNextAsync logic using only MoveNext
@@ -21,7 +18,6 @@ type BaseCursor<'K,'V when 'K : comparison>
   let observerStarted = ref false
   let tcs = ref (TaskCompletionSource<bool>())
   let ctr = ref (Unchecked.defaultof<CancellationTokenRegistration>)
-  //let isWaitingForTcs = ref false // NB used only inside lock on sr
   let sr = Object()
   let updateHandler : UpdateHandler<'K,'V> =
     let impl _ (kvp:KVP<'K,'V>) =
@@ -148,7 +144,7 @@ type BaseCursor<'K,'V when 'K : comparison>
 
 /// Uses IReadOnlyOrderedMap's TryFind method, doesn't know anything about underlying sequence
 [<ObsoleteAttribute("TODO replace it with BaseCursor")>]
-type MapCursor<'K,'V when 'K : comparison>(map:IReadOnlyOrderedMap<'K,'V>) as this =
+type MapCursor<'K,'V>(map:IReadOnlyOrderedMap<'K,'V>) as this =
   inherit BaseCursor<'K,'V>(map)
   [<DefaultValue>] 
   val mutable private currentPosition : bool * KeyValuePair<'K,'V>
@@ -207,32 +203,4 @@ type MapCursor<'K,'V when 'K : comparison>(map:IReadOnlyOrderedMap<'K,'V>) as th
   override this.IsBatch with get() = false
   override this.IsContinuous with get() = false
 
-//  interface IDisposable with
-//    member this.Dispose() = this.Dispose()
-//
-//  interface IEnumerator<KVP<'K,'V>> with    
-//    member this.Reset() = this.Reset()
-//    member this.MoveNext():bool = this.MoveNext()
-//    member this.Current with get(): KVP<'K, 'V> = this.Current
-//    member this.Current with get(): obj = this.Current :> obj
-//
-//  interface IAsyncEnumerator<KVP<'K,'V>> with
-//    member x.Current: KVP<'K, 'V> = this.Current
-//    member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = this.MoveNext(cancellationToken) 
-//
-//  interface ICursor<'K,'V> with
-//    member this.Comparer with get() = map.Comparer
-//    // TODO need some implementation of ROOM to implement the batch
-//    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
-//    member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatchAsync(cancellationToken)
-//    //member this.IsBatch with get() = this.IsBatch
-//    member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
-//    member this.MoveFirst():bool = this.MoveFirst()
-//    member this.MoveLast():bool =  this.MoveLast()
-//    member this.MovePrevious():bool = this.MovePrevious()
-//    member this.CurrentKey with get():'K = this.CurrentKey
-//    member this.CurrentValue with get():'V = this.CurrentValue
-//    member this.Source with get() = this.Source
-//    member this.Clone() = this.Clone()
-//    member this.IsContinuous with get() = this.IsContinuous
-//    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = map.TryGetValue(key, &value)
+

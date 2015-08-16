@@ -22,9 +22,11 @@ type internal OptimizationSettings() =
   /// Use native vectorized calculations if available
   static member val UseNativeOptimizations = false with get, set
   /// Minimum array length for which we could use native optimization (when p/invoke cost becomes less than gains from vectorized calcs)
-  static member val MinVectorLength = 100 with get, set
+  static member val MinVectorLengthForNative = 100 with get, set
+  /// Default chunk length of SortedChunkedMap
   static member val SCMDefaultChunkLength = 4096 with get, set
-  /// 
+  /// Generic array pool implementation. Default is GC.
+  /// The extension project has an implementation for doubles, and the perf gain is quite visible in benchmarks.
   static member val ArrayPool = 
     {new IArrayPool with
         member x.ReturnBuffer(arg1: 'T []): unit = ()       
@@ -43,7 +45,7 @@ type IVectorMathProvider =
   /// TODO use start and length since we will work with buffer of greater length than payload
   /// 
   abstract AddVectors: x:'T[] * y:'T[] * result:'T[] -> unit
-  abstract MapBatch<'K,'V,'V2 when 'K : comparison> : mapF:('V->'V2) * batch: IReadOnlyOrderedMap<'K,'V> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>> -> bool
+  abstract MapBatch<'K,'V,'V2> : mapF:('V->'V2) * batch: IReadOnlyOrderedMap<'K,'V> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>> -> bool
 
 [<SealedAttribute;AbstractClassAttribute>]
 type VectorMathProvider() =

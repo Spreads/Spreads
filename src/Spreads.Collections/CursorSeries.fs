@@ -25,235 +25,10 @@ open Spreads.Collections
 //
 // Our benchmark confirms that the slowdown of .Repeat(), .ReadOnly(), .Map(...) and .Filter(...) is quite small 
 
-//
-//[<AbstractClassAttribute>]
-//type CursorBind<'K,'V,'V2 when 'K : comparison>(cursorFactory:unit->ICursor<'K,'V>) =
-//  
-//  let cursor = cursorFactory()
-//
-//  // TODO make public property, e.g. for random walk generator we must throw if we try to init more than one
-//  // this is true for all "vertical" transformations, they start from a certain key and depend on the starting value
-//  // safe to call TryUpdateNext/Previous
-//  let mutable hasValidState = false
-//  member this.HasValidState with get() = hasValidState and set (v) = hasValidState <- v
-//
-//  // TODO? add key type for the most general case
-//  // check if key types are not equal, in that case check if new values are sorted. On first 
-//  // unsorted value change output to Indexed
-//
-//  //member val IsIndexed = false with get, set //source.IsIndexed
-//  /// By default, could move everywhere the source moves
-//  member val IsContinuous = cursor.IsContinuous with get, set
-//
-//  /// Source series
-//  //member this.InputSource with get() = source
-//  member this.InputCursor with get() = cursor
-//
-//  //abstract CurrentKey:'K with get
-//  //abstract CurrentValue:'V2 with get
-//  member val CurrentKey = Unchecked.defaultof<'K> with get, set
-//  member val CurrentValue = Unchecked.defaultof<'V2> with get, set
-//  member this.Current with get () = KVP(this.CurrentKey, this.CurrentValue)
-//
-//  /// Stores current batch for a succesful batch move
-//  //abstract CurrentBatch : IReadOnlyOrderedMap<'K,'V2> with get
-//  member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>> with get, set
-//
-//  /// For every successful move of the inut coursor creates an output value. If direction is not EQ, continues moves to the direction 
-//  /// until the state is created
-//  abstract TryGetValue: key:'K * [<Out>] value: byref<KVP<'K,'V2>> -> bool // * direction: Lookup not needed here
-//  // this is the main method to transform input to output, other methods could be implemented via it
-//
-//
-//  /// Update state with a new value. Should be optimized for incremental update of the current state in custom implementations.
-//  abstract TryUpdateNext: next:KVP<'K,'V> * [<Out>] value: byref<KVP<'K,'V2>> -> bool
-//  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V2>>) : bool =
-//    // recreate value from scratch
-//    this.TryGetValue(next.Key, &value)
-//
-//  /// Update state with a previous value. Should be optimized for incremental update of the current state in custom implementations.
-//  abstract TryUpdatePrevious: previous:KVP<'K,'V> * [<Out>] value: byref<KVP<'K,'V2>> -> bool
-//  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<KVP<'K,'V2>>) : bool =
-//    // recreate value from scratch
-//    this.TryGetValue(previous.Key, &value)
-//
-//  /// If input and this cursor support batches, then process a batch and store it in CurrentBatch
-//  abstract TryUpdateNextBatch: nextBatch: IReadOnlyOrderedMap<'K,'V> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>> -> bool  
-//  override this.TryUpdateNextBatch(nextBatch: IReadOnlyOrderedMap<'K,'V>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>>) : bool =
-//    failwith "not implemented"
-////    let map = SortedMap<'K,'V2>()
-////    let isFirst = ref true
-////    for kvp in nextBatch do
-////      if !isFirst then
-////        isFirst := false
-////        let ok, newKvp = this.TryGetValue(kvp.Key)
-////        if ok then map.AddLast(newKvp.Key, newKvp.Value)
-////      else
-////        let ok, newKvp = this.TryUpdateNext(kvp)
-////        if ok then map.AddLast(newKvp.Key, newKvp.Value)
-////    if map.size > 0 then 
-////      value <- map :> IReadOnlyOrderedMap<'K,'V2>
-////      true
-////    else false
-//
-//  member this.Reset() = 
-//    hasValidState <- false
-//    cursor.Reset()
-//  member this.Dispose() = 
-//    hasValidState <- false
-//    cursor.Dispose()
-//
-//  interface IEnumerator<KVP<'K,'V2>> with    
-//    member this.Reset() = this.Reset()
-//    member x.MoveNext(): bool =
-//      if hasValidState then
-//        let mutable found = false
-//        while not found && x.InputCursor.MoveNext() do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
-//          let ok, value = x.TryUpdateNext(x.InputCursor.Current)
-//          if ok then 
-//            found <- true
-//            x.CurrentKey <- value.Key
-//            x.CurrentValue <- value.Value
-//        if found then 
-//          //hasInitializedValue <- true
-//          true 
-//        else false
-//      else (x :> ICursor<'K,'V2>).MoveFirst()
-//    member this.Current with get(): KVP<'K, 'V2> = this.Current
-//    member this.Current with get(): obj = this.Current :> obj 
-//    member x.Dispose(): unit = x.Dispose()
-//
-//  interface ICursor<'K,'V2> with
-//    member x.Current: KVP<'K,'V2> = KVP(x.CurrentKey, x.CurrentValue)
-//    member x.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = x.CurrentBatch
-//    member x.CurrentKey: 'K = x.CurrentKey
-//    member x.CurrentValue: 'V2 = x.CurrentValue
-//    member x.IsContinuous: bool = x.IsContinuous
-//    member x.MoveAt(index: 'K, direction: Lookup): bool = 
-//      if x.InputCursor.MoveAt(index, direction) then
-//        let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
-//        if ok then
-//          x.CurrentKey <- value.Key
-//          x.CurrentValue <- value.Value
-//          hasValidState <- true
-//          true
-//        else
-//          match direction with
-//          | Lookup.EQ -> false
-//          | Lookup.GE | Lookup.GT ->
-//            let mutable found = false
-//            while not found && x.InputCursor.MoveNext() do
-//              let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
-//              if ok then 
-//                found <- true
-//                x.CurrentKey <- value.Key
-//                x.CurrentValue <- value.Value
-//            if found then 
-//              hasValidState <- true
-//              true 
-//            else false
-//          | Lookup.LE | Lookup.LT ->
-//            let mutable found = false
-//            while not found && x.InputCursor.MovePrevious() do
-//              let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
-//              if ok then
-//                found <- true
-//                x.CurrentKey <- value.Key
-//                x.CurrentValue <- value.Value
-//            if found then 
-//              hasValidState <- true
-//              true 
-//            else false
-//          | _ -> failwith "wrong lookup value"
-//      else false
-//      
-//    
-//    member x.MoveFirst(): bool = 
-//      if x.InputCursor.MoveFirst() then
-//        let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
-//        if ok then
-//          x.CurrentKey <- value.Key
-//          x.CurrentValue <- value.Value
-//          hasValidState <- true
-//          true
-//        else
-//          let mutable found = false
-//          while not found && x.InputCursor.MoveNext() do
-//            let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
-//            if ok then 
-//              found <- true
-//              x.CurrentKey <- value.Key
-//              x.CurrentValue <- value.Value
-//          if found then 
-//            hasValidState <- true
-//            true 
-//          else false
-//      else false
-//    
-//    member x.MoveLast(): bool = 
-//      if x.InputCursor.MoveLast() then
-//        let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
-//        if ok then
-//          x.CurrentKey <- value.Key
-//          x.CurrentValue <- value.Value
-//          hasValidState <- true
-//          true
-//        else
-//          let mutable found = false
-//          while not found && x.InputCursor.MovePrevious() do
-//            let ok, value = x.TryGetValue(x.InputCursor.CurrentKey)
-//            if ok then
-//              found <- true
-//              x.CurrentKey <- value.Key
-//              x.CurrentValue <- value.Value
-//          if found then 
-//            hasValidState <- true
-//            true 
-//          else false
-//      else false
-//
-//    member x.MovePrevious(): bool = 
-//      if hasValidState then
-//        let mutable found = false
-//        while not found && x.InputCursor.MovePrevious() do
-//          let ok, value = x.TryUpdatePrevious(x.InputCursor.Current)
-//          if ok then 
-//            found <- true
-//            x.CurrentKey <- value.Key
-//            x.CurrentValue <- value.Value
-//        if found then 
-//          hasValidState <- true
-//          true 
-//        else false
-//      else (x :> ICursor<'K,'V2>).MoveLast()
-//    
-//    member x.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = 
-//      failwith "Not implemented yet"
-//    member x.MoveNextBatchAsync(cancellationToken: Threading.CancellationToken): Task<bool> = 
-//      failwith "Not implemented yet"
-//    
-//    //member x.IsBatch with get() = x.IsBatch
-//    member x.Source: ISeries<'K,'V2> = CursorSeries<'K,'V2>((x :> ICursor<'K,'V2>).Clone) :> ISeries<'K,'V2>
-//    member x.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool = 
-//      let ok, v = x.TryGetValue(key)
-//      value <- v.Value
-//      ok
-//    
-//    // TODO review + profile. for value types we could just return this
-//    member x.Clone(): ICursor<'K,'V2> =
-//      // run-time type of the instance, could be derived type
-//      let ty = x.GetType()
-//      let args = [|cursorFactory :> obj|]
-//      // TODO using Activator is a very bad sign, are we doing something wrong here?
-//      let clone = Activator.CreateInstance(ty, args) :?> ICursor<'K,'V2> // should not be called too often
-//      if hasValidState then clone.MoveAt(x.CurrentKey, Lookup.EQ) |> ignore
-//      //Trace.Assert(movedOk) // if current key is set then we could move to it
-//      clone
-//
-//
+
 
 /// Repeat previous value for all missing keys
-type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>) as this =
+type RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) as this =
   inherit CursorBind<'K,'V,'V>(cursorFactory)
   do
     this.IsContinuous <- true
@@ -284,7 +59,7 @@ type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>
             let cursor = this.InputCursor.Clone()
             if cursor.MoveAt(key, Lookup.LE) then
 #if PRERELEASE
-              Trace.Assert(key <> this.InputCursor.CurrentKey)
+              Trace.Assert(not <| Unchecked.equals key this.InputCursor.CurrentKey)
 #endif
               value <- cursor.CurrentValue
               true
@@ -296,7 +71,7 @@ type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>
         let cursor = this.InputCursor.Clone()
         if cursor.MoveAt(key, Lookup.LE) then
 #if PRERELEASE
-          Trace.Assert(key <> this.InputCursor.CurrentKey)
+          Trace.Assert(not <| Unchecked.equals key this.InputCursor.CurrentKey)
 #endif
           value <- cursor.CurrentValue
           true
@@ -324,7 +99,7 @@ type RepeatCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>
     base.Dispose()
 
 
-type FillCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, fillValue:'V) as this =
+type FillCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, fillValue:'V) as this =
   inherit CursorBind<'K,'V,'V>(cursorFactory)
   do
     this.IsContinuous <- true  
@@ -347,7 +122,7 @@ type FillCursor<'K,'V  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>,
     clone
       
 
-type MapValuesCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, mapF:Func<'V,'V2>) =
+type MapValuesCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>, mapF:Func<'V,'V2>) =
   inherit CursorBind<'K,'V,'V2>(cursorFactory)
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V2>): bool =
@@ -396,7 +171,7 @@ type MapValuesCursor<'K,'V,'V2 when 'K : comparison>(cursorFactory:Func<ICursor<
 //    true
 
 
-type FilterValuesCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Func<'V,bool>) =
+type FilterValuesCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Func<'V,bool>) =
   inherit CursorBind<'K,'V,'V>(cursorFactory)
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
@@ -424,7 +199,7 @@ type FilterValuesCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'
     clone
 
 // TODO this is probably wrong and untested 
-type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
+type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
   inherit CursorBind<'K,'V,'V>(cursorFactory)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
 
@@ -438,7 +213,7 @@ type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, l
         let moved = laggedCursor.MovePrevious()
         if moved then
 #if PRERELEASE
-          Trace.Assert(laggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+          Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
 #endif
           step <- step + 1
         else
@@ -460,7 +235,7 @@ type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, l
           let moved = c.MovePrevious()
           if moved then
 #if PRERELEASE
-            Trace.Assert(laggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+            Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
 #endif
             step <- step + 1
           else
@@ -477,7 +252,7 @@ type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, l
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
     if laggedCursor.MoveNext() then
 #if PRERELEASE
-      Trace.Assert(laggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+      Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
 #endif
       value <- laggedCursor.CurrentValue
       true
@@ -495,7 +270,7 @@ type LagCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, l
     clone
 
 /// Apply lagMapFunc to current and lagged value
-type ZipLagCursor<'K,'V,'R when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapCurrentPrev:Func<'V,'V,'R>) =
+type ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapCurrentPrev:Func<'V,'V,'R>) =
   inherit CursorBind<'K,'V,'R>(cursorFactory)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
 
@@ -509,7 +284,7 @@ type ZipLagCursor<'K,'V,'R when 'K : comparison>(cursorFactory:Func<ICursor<'K,'
         let moved = laggedCursor.MovePrevious()
         if moved then
 #if PRERELEASE
-          Trace.Assert(laggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+          Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
 #endif
           step <- step + 1
         else
@@ -532,7 +307,7 @@ type ZipLagCursor<'K,'V,'R when 'K : comparison>(cursorFactory:Func<ICursor<'K,'
           let moved = c.MovePrevious()
           if moved then
 #if PRERELEASE
-            Trace.Assert(laggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+            Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
 #endif
             step <- step + 1
           else
@@ -549,7 +324,7 @@ type ZipLagCursor<'K,'V,'R when 'K : comparison>(cursorFactory:Func<ICursor<'K,'
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
     if laggedCursor.MoveNext() then
 #if PRERELEASE
-      Trace.Assert(laggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+      Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
 #endif
       value <- mapCurrentPrev.Invoke(this.InputCursor.CurrentValue, laggedCursor.CurrentValue)
       true
@@ -566,7 +341,9 @@ type ZipLagCursor<'K,'V,'R when 'K : comparison>(cursorFactory:Func<ICursor<'K,'
     if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
-type AddIntCursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int>>, addition:int) =
+
+
+type AddIntCursor<'K>(cursorFactory:Func<ICursor<'K,int>>, addition:int) =
   inherit CursorBind<'K,int,int>(cursorFactory)
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<int>): bool =
@@ -583,7 +360,7 @@ type AddIntCursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int>>, 
     clone
 
 [<SealedAttribute>]
-type AddInt64Cursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int64>>, addition:int64) =
+type AddInt64Cursor<'K>(cursorFactory:Func<ICursor<'K,int64>>, addition:int64) =
   inherit CursorBind<'K,int64,int64>(cursorFactory)
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<int64>): bool =
@@ -605,7 +382,7 @@ type AddInt64Cursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int64
     clone
 
 /// Repeat previous value for all missing keys
-type LogCursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int64>>) =
+type LogCursor<'K>(cursorFactory:Func<ICursor<'K,int64>>) =
   inherit CursorBind<'K,int64,double>(cursorFactory)
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<double>): bool =
@@ -617,7 +394,7 @@ type LogCursor<'K when 'K : comparison>(cursorFactory:Func<ICursor<'K,int64>>) =
     else false
 
 
-type ZipValuesCursor<'K,'V,'V2,'R when 'K : comparison>(cursorFactoryL:Func<ICursor<'K,'V>>,cursorFactoryR:Func<ICursor<'K,'V2>>, mapF:Func<'V,'V2,'R>) =
+type ZipValuesCursor<'K,'V,'V2,'R>(cursorFactoryL:Func<ICursor<'K,'V>>,cursorFactoryR:Func<ICursor<'K,'V2>>, mapF:Func<'V,'V2,'R>) =
   inherit CursorZip<'K,'V,'V2,'R>(cursorFactoryL.Invoke,cursorFactoryR.Invoke)
 
   override this.TryZip(key:'K, v, v2, [<Out>] value: byref<'R>): bool =
@@ -631,7 +408,7 @@ type ZipValuesCursor<'K,'V,'V2,'R when 'K : comparison>(cursorFactoryL:Func<ICur
 
 
 
-type ScanCursor<'K,'V,'R  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Func<'R,'K,'V,'R>) as this =
+type ScanCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Func<'R,'K,'V,'R>) as this =
   inherit CursorBind<'K,'V,'R>(cursorFactory)
   do
     this.IsContinuous <- false // scan is explicitly not continuous
@@ -693,7 +470,7 @@ type ScanCursor<'K,'V,'R  when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V
 // TODO this is incomplete implementation. doesn't account for cases when step > width (quite valid case)
 // TODO use Window vs Chunk like in Deedle, there is logical issue with overlapped windows - if we ask for a point x, it could be different then enumerated
 // But the same is tru for chunk - probably we must create a uffer in one go
-type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32, allowIncomplete:bool) =
+type WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32, allowIncomplete:bool) =
   inherit CursorBind<'K,'V,Series<'K,'V>>(cursorFactory)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
   let mutable moves = 0
@@ -717,7 +494,7 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
         lag <- lag + 1
       if lag = int width then // reached width
 #if PRERELEASE
-        Trace.Assert(activeLaggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+        Trace.Assert(laggedCursor.Comparer.Compare(activeLaggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
 #endif
         // NB! freeze bounds for the range cursor
         let startPoint = Some(activeLaggedCursor.CurrentKey)
@@ -736,7 +513,7 @@ type WindowCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>
             lag <- lag + 1
           if lag = int step then // reached width
 #if PRERELEASE
-            Trace.Assert(activeLaggedCursor.CurrentKey<=this.InputCursor.CurrentKey)
+            Trace.Assert(laggedCursor.Comparer.Compare(activeLaggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
 #endif
             // NB! freeze bounds for the range cursor
             let startPoint = Some(activeLaggedCursor.CurrentKey)

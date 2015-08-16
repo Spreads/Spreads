@@ -3,24 +3,20 @@
 open System
 open System.Collections
 open System.Collections.Generic
-open System.Collections.ObjectModel
 open System.Diagnostics
-open System.Runtime.InteropServices
 
-open Spreads
-open Spreads.Collections
-
-type KVComparer<'K,'V when 'K : comparison>(keyComparer:IComparer<'K>, valueComparer:IComparer<'V>) = 
+type KVComparer<'K,'V>(keyComparer:IComparer<'K>, valueComparer:IComparer<'V>) = 
   interface IComparer<KV<'K,'V>> with
     member this.Compare(x: KV<'K, 'V>, y: KV<'K, 'V>): int = 
       let c1 = keyComparer.Compare(x.Key, y.Key)
       if c1 = 0 then valueComparer.Compare(x.Value, y.Value)
       else c1
+  end
 
 and
-  // A shortcut for KeyValuePair
+  /// A comparable KeyValuePair
   [<CustomComparison;CustomEquality>]
-  KV<'K,'V when 'K : comparison> =
+  KV<'K,'V> =
     struct
       val Key : 'K
       val Value : 'V
@@ -28,9 +24,9 @@ and
     end
     override x.Equals(yobj) =
       match yobj with
-      | :? KV<'K,_> as y -> (x.Key = y.Key)
+      | :? KV<'K,_> as y -> (Unchecked.equals x.Key y.Key)
       | _ -> false
-    override x.GetHashCode() = x.Key.GetHashCode()
+    override x.GetHashCode() = Unchecked.hash x.Key
     interface System.IComparable<KV<'K,'V>> with
       member x.CompareTo y = 
         let c1 = Comparer<'K>.Default.Compare(x.Key, y.Key)
@@ -45,12 +41,8 @@ and
         | _ -> invalidArg "other" "Cannot compare values of different types"
 
 
-// TODO. SimpleSortedDeque with ring buffer will probably be the structure of choice when implemented.
-// FixedMinHeap is much faster for very small number of elements, but much slower starting from 10 elements.
-// In out case we have fixed capacity, so we could create a wrapper that will choose b/w the two during runtime.
-
 [<SerializableAttribute>]
-type SortedDeque<'T when 'T : comparison>
+type SortedDeque<'T>
   internal(comparer:IComparer<'T>) as this=
   [<DefaultValue>] val mutable internal comparer : IComparer<'T> 
   [<DefaultValue>] val mutable internal buffer : 'T[]
@@ -59,8 +51,6 @@ type SortedDeque<'T when 'T : comparison>
   do
     this.comparer <- if comparer = null then Comparer<'T>.Default :> IComparer<'T> else comparer
     this.buffer <- Array.zeroCreate 2
-
-  
 
   /// Sets the total number of elements the internal array can hold without resizing.
   let doubleCapacity() = 
@@ -83,7 +73,6 @@ type SortedDeque<'T when 'T : comparison>
   new() = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>())
 
   member inline private this.IndexToOffset(index) = (index + this.firstOffset) &&& (this.buffer.Length - 1)
-  // TODO inline
   member private this.OffsetOfElement(element:'T) =
     let index = 
       if this.firstOffset + this.count > this.buffer.Length then // is split
@@ -239,10 +228,11 @@ type SortedDeque<'T when 'T : comparison>
 
 
 [<SerializableAttribute>]
-type SortedList1<'T when 'T : comparison>
+[<ObsoleteAttribute("SortedDeque is faster")>]
+type SortedList1<'T>
   internal(comparer:IComparer<'T>) as this=
-  [<DefaultValue>] val mutable comparer : IComparer<'T> 
-  [<DefaultValue>] val mutable list : List<'T>
+  [<DefaultValue>] val mutable internal comparer : IComparer<'T> 
+  [<DefaultValue>] val mutable internal list : List<'T>
   do
     this.comparer <- if comparer = null then Comparer<'T>.Default :> IComparer<'T> else comparer
     this.list <- List<'T>()

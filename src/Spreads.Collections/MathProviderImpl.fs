@@ -11,7 +11,7 @@ open Spreads.Collections
 
 type MathProviderImpl() =
   interface IVectorMathProvider with
-    member this.MapBatch<'K,'V,'V2 when 'K : comparison>(mapF: 'V -> 'V2, batch: IReadOnlyOrderedMap<'K,'V>, value: byref<IReadOnlyOrderedMap<'K,'V2>>): bool = 
+    member this.MapBatch<'K,'V,'V2>(mapF: 'V -> 'V2, batch: IReadOnlyOrderedMap<'K,'V>, value: byref<IReadOnlyOrderedMap<'K,'V2>>): bool =
       match batch with
       | :? SortedMap<'K,'V> as sm -> 
         if sm.size > 0 then

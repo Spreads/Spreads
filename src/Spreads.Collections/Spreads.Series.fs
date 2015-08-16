@@ -22,7 +22,7 @@ open Spreads
 
 
 //[<AllowNullLiteral>]
-//type  SeriesDebuggerProxy<'K,'V when 'K : comparison>(series:ISeries<'K,'V>) =
+//type  SeriesDebuggerProxy<'K,'V>(series:ISeries<'K,'V>) =
 //    member this.Note = "Bebugger should not move cursors TODO write debugger view"
 
 
@@ -47,7 +47,7 @@ and
   [<Serializable>]
   [<AbstractClassAttribute>]
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-  Series<'K,'V when 'K : comparison>() =
+  Series<'K,'V>() =
     inherit Series()
     
     abstract GetCursor : unit -> ICursor<'K,'V>
@@ -148,7 +148,7 @@ and
 
 
     /// Used for implement scalar operators which are essentially a map application
-    static member inline private ScalarOperatorMap<'K,'V,'V2 when 'K : comparison>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>) = 
+    static member inline private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>) = 
       let mapF = ref mapFunc.Invoke
       let mapCursorFactory() = 
         {new CursorBind<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor)) with
@@ -175,7 +175,7 @@ and
       CursorSeries(Func<ICursor<'K,'V2>>(mapCursorFactory)) :> Series<'K,'V2>
 
     /// Used for implement scalar operators which are essentially a map application
-    static member inline private BinaryOperatorMap<'K,'V,'V2,'R when 'K : comparison>(source:Series<'K,'V>,other:Series<'K,'V2>, mapFunc:Func<'V,'V2,'R>) = 
+    static member inline private BinaryOperatorMap<'K,'V,'V2,'R>(source:Series<'K,'V>,other:Series<'K,'V2>, mapFunc:Func<'V,'V2,'R>) = 
       let zipCursorFactory() = 
         {new CursorZip<'K,'V,'V2,'R>(source.GetCursor, other.GetCursor) with
           override this.TryZip(key:'K, v, v2, [<Out>] value: byref<'R>): bool =
@@ -321,7 +321,7 @@ and
   [<AllowNullLiteral>]
   [<Serializable>]
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-  CursorSeries<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>) =
+  CursorSeries<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
       inherit Series<'K,'V>()
       override this.GetCursor() = cursorFactory.Invoke()
 
@@ -343,10 +343,8 @@ and // TODO internal
   /// A cursor that could perform map, filter, fold, scan operations on input cursors.
   [<AbstractClassAttribute>]
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-  CursorBind<'K,'V,'V2 when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>) =
+  CursorBind<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
     
-    // TODO TryGetValue should not change state of the cursor, it looks like now it does, e.g. for repeat
-
     let cursor = cursorFactory.Invoke()
 
     // TODO make public property, e.g. for random walk generator we must throw if we try to init more than one
@@ -465,7 +463,7 @@ and // TODO internal
 #if PRERELEASE
           let before = this.InputCursor.CurrentKey
           let ok = this.TryUpdateNext(this.InputCursor.Current, &value)
-          if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+          if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
           let ok = this.TryUpdateNext(this.InputCursor.Current, &value)
 #endif
@@ -485,7 +483,7 @@ and // TODO internal
 #if PRERELEASE
         let before = this.InputCursor.CurrentKey
         let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
-        if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+        if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
         let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
 #endif
@@ -503,7 +501,7 @@ and // TODO internal
 #if PRERELEASE
               let before = this.InputCursor.CurrentKey
               let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
-              if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+              if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
               let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
 #endif
@@ -521,7 +519,7 @@ and // TODO internal
 #if PRERELEASE
               let before = this.InputCursor.CurrentKey
               let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
-              if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+              if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
               let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
 #endif
@@ -543,7 +541,7 @@ and // TODO internal
 #if PRERELEASE
         let before = this.InputCursor.CurrentKey
         let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
-        if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+        if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
         let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
 #endif
@@ -558,7 +556,7 @@ and // TODO internal
 #if PRERELEASE
             let before = this.InputCursor.CurrentKey
             let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
-            if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+            if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
             let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
 #endif
@@ -578,7 +576,7 @@ and // TODO internal
 #if PRERELEASE
         let before = this.InputCursor.CurrentKey
         let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
-        if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+        if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
         let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
 #endif
@@ -593,7 +591,7 @@ and // TODO internal
 #if PRERELEASE
             let before = this.InputCursor.CurrentKey
             let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
-            if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+            if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
             let ok = this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
 #endif
@@ -615,7 +613,7 @@ and // TODO internal
 #if PRERELEASE
           let before = this.InputCursor.CurrentKey
           let ok = this.TryUpdatePrevious(this.InputCursor.Current, &value)
-          if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+          if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
           let ok = this.TryUpdatePrevious(this.InputCursor.Current, &value)
 #endif
@@ -635,7 +633,7 @@ and // TODO internal
 #if PRERELEASE
         let before = this.InputCursor.CurrentKey
         let ok = this.TryGetValue(key, false, &v)
-        if before <> this.InputCursor.CurrentKey then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+        if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
         let ok = this.TryGetValue(key, false, &v)
 #endif
@@ -677,7 +675,7 @@ and // TODO internal
   /// A cursor that joins to cursors. 
   [<AbstractClassAttribute>]
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-  CursorZip<'K,'V1,'V2,'R when 'K : comparison>(cursorFactoryL:unit->ICursor<'K,'V1>, cursorFactoryR:unit->ICursor<'K,'V2>) =
+  CursorZip<'K,'V1,'V2,'R>(cursorFactoryL:unit->ICursor<'K,'V1>, cursorFactoryR:unit->ICursor<'K,'V2>) =
   
     let cursorL = cursorFactoryL()
     let cursorR = cursorFactoryR()
@@ -1045,7 +1043,7 @@ and // TODO internal
 
 /// Range from start to end key. 
 //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-type CursorRange<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, endKey:'K option, startLookup: Lookup option, endLookup:Lookup option) =
+type CursorRange<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, endKey:'K option, startLookup: Lookup option, endLookup:Lookup option) =
     
   let cursor = cursorFactory.Invoke()
   let mutable started = false

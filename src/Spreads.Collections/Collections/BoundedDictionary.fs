@@ -7,7 +7,7 @@ open System.Collections.Concurrent
 open Spreads
 
 [<ObsoleteAttribute("Prefer sorted double deque?")>]
-type internal BoundedDictionary<'K,'V when 'K : comparison>
+type internal BoundedDictionary<'K,'V when 'K : equality>
     (capacity:int) =
 
     // TODO TryAdd/TryTake methods (TryEnqueue/TryDequeue)

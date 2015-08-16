@@ -31,9 +31,8 @@ namespace Spreads
 open System
 open System.Runtime.CompilerServices
 
-// TODO Remove all usages
-// use Options for f# and Try...(out...) pattern for public API
-// do not follow the dichotomy of Optional/Nonoptional
+// TODO rename .Present back to Deedle's .Value and use Paket reference to the original file
+
 [<Struct; CustomEquality; NoComparison>]
 type OptionalValue<'T> private (isPresent:bool, value:'T) = 
   /// Gets a value indicating whether the current `OptionalValue<T>` has a value

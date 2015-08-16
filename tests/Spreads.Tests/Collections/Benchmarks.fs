@@ -497,31 +497,31 @@ module CollectionsBenchmarks =
   [<Test>]
   let SortedMap_run() = SortedMapTest(1000000L)
 
-  let SortedMapPeriodTest(count:int64) =
-    let smap = ref (SortedMap())
-    let sp = Period(UnitPeriod.Tick, 1, DateTimeOffset.UtcNow)
-    for i in 0..4 do
-      smap := SortedMap()
-      perf count "SortedMap Period Add" (fun _ ->
-        for i in 0L..count do
-          smap.Value.Add(sp.Add(i), i)
-      )
-    for i in 0..4 do
-      perf count "SortedMap Period Read" (fun _ ->
-        for i in 0L..count do
-          let res = smap.Value.Item(sp.Add(i))
-          if res <> i then failwith "SortedMap failed"
-          ()
-      )
-    for i in 0..9 do
-      perf count "SortedMap Period Iterate" (fun _ ->
-        for i in smap.Value do
-          let res = i.Value
-          ()
-      )
-    Console.WriteLine("----------------")
-  [<Test>]
-  let SortedMapPeriod_run() = SortedMapPeriodTest(1000000L)
+//  let SortedMapPeriodTest(count:int64) =
+//    let smap = ref (SortedMap())
+//    let sp = Period(UnitPeriod.Tick, 1, DateTimeOffset.UtcNow)
+//    for i in 0..4 do
+//      smap := SortedMap()
+//      perf count "SortedMap Period Add" (fun _ ->
+//        for i in 0L..count do
+//          smap.Value.Add(sp.Add(i), i)
+//      )
+//    for i in 0..4 do
+//      perf count "SortedMap Period Read" (fun _ ->
+//        for i in 0L..count do
+//          let res = smap.Value.Item(sp.Add(i))
+//          if res <> i then failwith "SortedMap failed"
+//          ()
+//      )
+//    for i in 0..9 do
+//      perf count "SortedMap Period Iterate" (fun _ ->
+//        for i in smap.Value do
+//          let res = i.Value
+//          ()
+//      )
+//    Console.WriteLine("----------------")
+//  [<Test>]
+//  let SortedMapPeriod_run() = SortedMapPeriodTest(1000000L)
 
 
   let SortedMapDTTest(count:int64) =

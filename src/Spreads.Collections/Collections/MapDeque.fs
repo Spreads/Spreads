@@ -23,7 +23,7 @@ open Spreads.Collections
 // TODO read about LOH. 60k ms buckets will be in LOH, what are the implications? Is it better to have smaller buckets less than 1000 in size + bigger outer map?
 // Note that for seconds max bucket size is 36k and outer map could have 221 days of secondly data before moving to LOH
 // so LOH issue is relevant only for milliseconds
-// For doubles the limit is 1000 elements!
+// For doubles the limit is 1000 elements (in x86, not in x64)
 
 //[<DebuggerDisplay("Count = {Count}, Capacity = {Capacity}")>]
 [<SerializableAttribute>]

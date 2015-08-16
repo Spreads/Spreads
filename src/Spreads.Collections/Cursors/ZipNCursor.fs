@@ -27,7 +27,7 @@ open Spreads.Collections
 // and will parallelize expensive cursors.
 
 
-type ZipNCursor<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>, [<ParamArray>] cursorFactories:(unit->ICursor<'K,'V>)[]) as this =
+type ZipNCursor<'K,'V,'R>(resultSelector:Func<'K,'V[],'R>, [<ParamArray>] cursorFactories:(unit->ICursor<'K,'V>)[]) as this =
   
     let cursorsFactory() = cursorFactories |> Array.map (fun x -> x())
     let mutable cursors = cursorsFactory()

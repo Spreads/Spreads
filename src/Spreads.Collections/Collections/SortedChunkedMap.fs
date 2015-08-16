@@ -22,7 +22,7 @@ open Spreads.Collections
 
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
-type SortedChunkedMap<'K,'V when 'K : comparison>
+type SortedChunkedMap<'K,'V>
   internal (outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>, comparer:IComparer<'K>, slicer:Func<'K,'K> opt, ?chunkMaxSize:int) as this =
   inherit Series<'K,'V>()
   // TODO serialize size, add a method to calculate size based on outerMap only
@@ -673,13 +673,13 @@ type SortedChunkedMap<'K,'V when 'K : comparison>
         let mutable overlapOk = 
           oldC.MoveAt(append.First.Key, Lookup.EQ) 
             && appC.MoveFirst() 
-            && oldC.CurrentKey = appC.CurrentKey
+            && comparer.Compare(oldC.CurrentKey, appC.CurrentKey) = 0
             && Unchecked.equals oldC.CurrentValue appC.CurrentValue
         while overlapOk && cont do
           if oldC.MoveNext() then
             overlapOk <-
               appC.MoveNext() 
-              && oldC.CurrentKey = appC.CurrentKey
+              && comparer.Compare(oldC.CurrentKey, appC.CurrentKey) = 0
               && Unchecked.equals oldC.CurrentValue appC.CurrentValue
           else cont <- false
         overlapOk

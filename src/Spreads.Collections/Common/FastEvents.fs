@@ -3,10 +3,10 @@
 open System
 open System.Linq.Expressions
 
-//thanks to http://v2matveev.blogspot.ru/2010/06/f-performance-of-events.html for idea
+//thanks to http://v2matveev.blogspot.ru/2010/06/f-performance-of-events.html for the idea
 
 type internal EventV2<'D, 'A when 'D :> Delegate and 'D : delegate<'A, unit> and 'D : null>() = 
-    static let invoker = 
+    static let invoker =
       let d = Expression.Parameter(typeof<'D>, "dlg")
       let sender = Expression.Parameter(typeof<obj>, "sender")
       let arg = Expression.Parameter(typeof<'A>, "arg")

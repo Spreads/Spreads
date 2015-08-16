@@ -35,7 +35,7 @@ open Spreads.Collections
 /// Mutable sorted IOrderedMap<'K,'V> implementation based on SCG.SortedList<'K,'V>
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
-type SortedMap<'K,'V when 'K : comparison>
+type SortedMap<'K,'V>
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
   inherit Series<'K,'V>()
 
@@ -62,7 +62,7 @@ type SortedMap<'K,'V when 'K : comparison>
   [<NonSerializedAttribute>]
   let isKeyReferenceType : bool = not typeof<'K>.IsValueType
   [<NonSerializedAttribute>]
-  let mutable cursorCounter : int = 1
+  let mutable cursorCounter : int = 1 // TODO either delete this or add decrement to cursor disposal
   [<NonSerializedAttribute>]
   let mutable rkStep_ : int64 = 0L // TODO review all usages
 
@@ -247,7 +247,7 @@ type SortedMap<'K,'V when 'K : comparison>
   
   member private this.CompareToLast (k:'K) = //inline
     if couldHaveRegularKeys && this.size > 1 then 
-      Trace.Assert(rkLast <> Unchecked.defaultof<'K>)
+      Debug.Assert(not <| Unchecked.equals rkLast Unchecked.defaultof<'K>)
       comparer.Compare(k, rkLast)
     else comparer.Compare(k, this.keys.[this.size-1])
 
@@ -692,7 +692,7 @@ type SortedMap<'K,'V when 'K : comparison>
     finally
       exitLockIf syncRoot entered
 
-  // TODO first/last optimization
+  // TODO why not just remove from idx 0?
   member this.RemoveFirst([<Out>]result: byref<KVP<'K,'V>>):bool =
     let entered = enterLockIf syncRoot  isSynchronized
     try
@@ -704,7 +704,7 @@ type SortedMap<'K,'V when 'K : comparison>
     finally
       exitLockIf syncRoot entered
 
-  // TODO first/last optimization
+  // TODO why not just remove from idx (size - 1)?
   member this.RemoveLast([<Out>]result: byref<KeyValuePair<'K, 'V>>):bool =
     let entered = enterLockIf syncRoot  isSynchronized
     try
@@ -1201,13 +1201,13 @@ type SortedMap<'K,'V when 'K : comparison>
           let mutable overlapOk = 
             oldC.MoveAt(append.First.Key, Lookup.EQ) 
               && appC.MoveFirst() 
-              && oldC.CurrentKey = appC.CurrentKey
+              && comparer.Compare(oldC.CurrentKey, appC.CurrentKey) = 0
               && Unchecked.equals oldC.CurrentValue appC.CurrentValue
           while overlapOk && cont do
             if oldC.MoveNext() then
               overlapOk <-
                 appC.MoveNext() 
-                && oldC.CurrentKey = appC.CurrentKey
+                && comparer.Compare(oldC.CurrentKey, appC.CurrentKey) = 0
                 && Unchecked.equals oldC.CurrentValue appC.CurrentValue
             else cont <- false
           overlapOk
@@ -1358,10 +1358,11 @@ type SortedMap<'K,'V when 'K : comparison>
       && smA.Comparer.Compare(smA.keys.[0], smB.keys.[0]) = 0 then // if steps are equal we could skip checking second elements in keys
       true
     else
+      // this is very slow to be used in any "optimization", should use BytesExtensions.UnsafeCompare
       System.Linq.Enumerable.SequenceEqual(smA.keys, smB.keys)
 
 
-// NB Object expression with ref cells are surprisingly fast  insteads of custom class
+// NB Object expression with ref cells are surprisingly fast compared to custom class
 //and
 //  SortedMapCursor<'K,'V when 'K : comparison>(sm:SortedMap<'K,'V>,index:int,cursorVersion:int,currentKey:'K, currentValue:'V) =
 //    //struct
