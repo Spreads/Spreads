@@ -328,10 +328,18 @@ namespace Spreads.Collections.Tests {
             var movedAtLT = zipNCursor.MoveAt(3, Lookup.LT);
             Assert.IsTrue(movedAtLT);
             Assert.AreEqual((100 + 4 + 6) * 2, zipNCursor.CurrentValue);
+            movedAtLT = zipNCursor.MoveAt(1, Lookup.LT);
+            Assert.IsTrue(!movedAtLT);
 
             var movedAtGT = zipNCursor.MoveAt(3, Lookup.GT);
             Assert.IsTrue(movedAtGT);
             Assert.AreEqual((100 + 10 + 15) * 5, zipNCursor.CurrentValue);
+            movedAtGT = zipNCursor.MoveAt(7, Lookup.GT);
+            Assert.IsTrue(!movedAtGT);
+            int val;
+            var hasGTValue = zipNCursor.TryGetValue(8, out val);
+            Assert.IsTrue(hasGTValue);
+            Assert.AreEqual((100 + 14 + 21) * 8, val);
         }
 
 
@@ -362,6 +370,64 @@ namespace Spreads.Collections.Tests {
             }
 
             
+        }
+
+        [Test]
+        public void CouldZipMillionIntsWithMoveNextNoncont() {
+            var sw = new Stopwatch();
+
+            var sm1 = new SortedMap<int, int>();
+            var sm2 = new SortedMap<int, int>();
+
+            sm1.Add(0, 0);
+            sm2.Add(0, 0);
+            for (int i = 2; i < 5000000; i=i+2) {
+                sm1.Add(i, i);
+                sm2.Add(i, i);
+            }
+
+            var series = new[] { sm1, sm2};
+
+            sw.Start();
+
+            var sum = series.Zip((k, varr) => varr.Sum()).ToSortedMap();
+
+            sw.Stop();
+            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+            for (int i = 2; i < 5000000; i = i + 2) {
+                Assert.AreEqual(series.Length * i, sum[i]);
+            }
+
+
+        }
+
+
+        [Test]
+        public void CouldZipMillionIntsWithMoveNextContinuous() {
+            var sw = new Stopwatch();
+
+            var sm1 = new SortedMap<int, int>();
+            var sm2 = new SortedMap<int, int>();
+            sm1.Add(0, 0);
+            sm2.Add(0, 0);
+
+            for (int i = 2; i < 5000000; i=i+2) {
+                sm1.Add(i, i);
+                sm2.Add(i+1, i);
+            }
+
+            var series = new[] { sm1.Repeat(), sm2.Repeat(), };
+
+            sw.Start();
+
+            var sum = series.Zip((k, varr) => varr.Sum()).ToSortedMap();
+
+            sw.Stop();
+            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+            for (int i = 2; i < 5000000; i=i+2) {
+                Assert.AreEqual(i*2-2, sum[i]);
+            }
+
         }
 
 
