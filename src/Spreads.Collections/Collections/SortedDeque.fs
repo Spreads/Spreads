@@ -209,16 +209,40 @@ type SortedDeque<'T>
       invalidOp "Element doesn't exist in the SortedDeque"
     this.RemoveAtOffset(offset) |> ignore
 
-  member internal this.AsEnumerable() =
-    seq {
-      for i in 0..(this.count - 1) do
-        yield this.buffer.[this.IndexToOffset(i)]
+  member internal this.AsEnumerable() : IEnumerable<'T>  =
+    { new IEnumerable<'T> with
+        member e.GetEnumerator() =
+          let idx = ref -1
+          { new IEnumerator<'T> with
+              member __.MoveNext() = 
+                if idx.Value < this.count - 1 then
+                  idx := idx.Value + 1
+                  true
+                else false
+              member __.Current with get() : 'T = this.buffer.[this.IndexToOffset(idx.Value)]
+              member __.Current with get() : obj = box __.Current
+              member __.Dispose() = ()
+              member __.Reset() = ()
+          }
+        member this.GetEnumerator() = this.GetEnumerator() :> IEnumerator
     }
 
   member internal this.Reverse() =
-    seq {
-      for i in (this.count - 1)..(-1)..0 do
-        yield this.buffer.[this.IndexToOffset(i)]
+    { new IEnumerable<'T> with
+        member e.GetEnumerator() =
+          let idx = ref (this.count)
+          { new IEnumerator<'T> with
+              member __.MoveNext() = 
+                if idx.Value > 0 then
+                  idx := idx.Value - 1
+                  true
+                else false
+              member __.Current with get() : 'T = this.buffer.[this.IndexToOffset(idx.Value)]
+              member __.Current with get() : obj = box __.Current
+              member __.Dispose() = ()
+              member __.Reset() = ()
+          }
+        member this.GetEnumerator() = this.GetEnumerator() :> IEnumerator
     }
   
   interface IEnumerable with
