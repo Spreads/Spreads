@@ -14,9 +14,7 @@
     <releaseNotes>@releaseNotes@</releaseNotes>
     <copyright>Copyright 2015</copyright>
     <tags>@tags@</tags>
-    <dependencies>
-		<dependency id="FSharp.Core" />
-    </dependencies>
+	@dependencies@
   </metadata>
   <files>
 	  <!-- TODO xml files -->

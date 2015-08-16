@@ -2,7 +2,6 @@
 namespace Spreads
 
 open System
-open System.Collections
 open System.Collections.Generic
 open System.Diagnostics
 open System.Runtime.InteropServices

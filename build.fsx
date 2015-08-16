@@ -173,7 +173,9 @@ Target "NuGet" (fun _ ->
             OutputPath = "bin"
             AccessKey = getBuildParamOrDefault "nugetkey" ""
             Publish = hasBuildParam "nugetkey"
-            Dependencies = [] })
+            Dependencies = 
+              [ "FSharp.Core", GetPackageVersion "packages" "FSharp.Core" ]
+               })
         ("nuget/" + packageName + ".nuspec")
 
     let packageName = project + "." + "Extensions"

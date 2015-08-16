@@ -33,7 +33,7 @@ namespace Spreads.Tests.CSProfile {
             //var check = sm > 1L;
             //var eq = sm == 1L;
             //var eq2 = sm == sm;
-            new ZipNTests().CouldZipMillionIntsBenchmark();
+            new ZipNTests().CouldZipMillionIntsWithMoveNextContinuous();
 
             Console.ReadLine();
         }
