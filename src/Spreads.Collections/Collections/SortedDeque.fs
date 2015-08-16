@@ -52,10 +52,10 @@ and
 [<SerializableAttribute>]
 type SortedDeque<'T when 'T : comparison>
   internal(comparer:IComparer<'T>) as this=
-  [<DefaultValue>] val mutable comparer : IComparer<'T> 
-  [<DefaultValue>] val mutable buffer : 'T[]
-  [<DefaultValue>] val mutable count : int
-  [<DefaultValue>] val mutable firstOffset : int
+  [<DefaultValue>] val mutable internal comparer : IComparer<'T> 
+  [<DefaultValue>] val mutable internal buffer : 'T[]
+  [<DefaultValue>] val mutable internal count : int
+  [<DefaultValue>] val mutable internal firstOffset : int
   do
     this.comparer <- if comparer = null then Comparer<'T>.Default :> IComparer<'T> else comparer
     this.buffer <- Array.zeroCreate 2
@@ -99,7 +99,10 @@ type SortedDeque<'T when 'T : comparison>
         Array.BinarySearch(this.buffer, this.firstOffset, this.count, element, this.comparer) 
     index
 
-  // inline
+  /// Offset is the place where a new element must be if we always shift 
+  /// existing elements to the right. Here, we could shift existing elements
+  /// to the left if doing so is faster, so the new element could end up
+  /// at offset-1 place.
   member private this.InsertAtOffset(offset, element) : unit =
     let mutable offset = offset &&& (this.buffer.Length - 1)
     
@@ -120,6 +123,7 @@ type SortedDeque<'T when 'T : comparison>
         else // we are at the left part of the split [___    <__._]
           Array.Copy(this.buffer, this.firstOffset, this.buffer, this.firstOffset - 1, (offset - this.firstOffset) + 1)
           this.firstOffset <- this.firstOffset - 1
+          offset <- offset - 1
           Debug.Assert(this.comparer.Compare(element, this.buffer.[offset - 1]) > 0)
       else
         if this.firstOffset = 0 then // avoid split if possible [>_____     ]
@@ -160,13 +164,10 @@ type SortedDeque<'T when 'T : comparison>
           Array.Copy(this.buffer, this.firstOffset, this.buffer, this.firstOffset + 1, (offset - this.firstOffset))
           this.firstOffset <- this.firstOffset + 1
       else
-        if this.firstOffset = 0 then // avoid split if possible [>_____     ]
-          this.firstOffset <- this.firstOffset + 1
-        elif (this.count - (offset - this.firstOffset) <= this.count / 2)  then // [   _______.<__     ]
+        if (this.count - (offset - this.firstOffset) <= this.count / 2)  then // [   _______.<__     ]
           Array.Copy(this.buffer, offset + 1, this.buffer, offset, this.count - (offset - this.firstOffset) - 1)
         else //[   __>._______     ]
-          Array.Copy(this.buffer, this.firstOffset, this.buffer, this.firstOffset + 1, offset - this.firstOffset - 1)
-          offset <- offset - 1
+          Array.Copy(this.buffer, this.firstOffset, this.buffer, this.firstOffset + 1, offset - this.firstOffset ) //- 1
           this.firstOffset <- this.firstOffset + 1
     this.count <- this.count - 1
     element

@@ -1,14 +1,6 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
+﻿using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using System.Runtime.InteropServices;
-using Spreads.Collections;
-using System.Threading.Tasks;
-using System.Threading;
 
 namespace Spreads.Collections.Tests {
 
@@ -121,15 +113,11 @@ namespace Spreads.Collections.Tests {
 
                     var c = 0;
                     var prev = 0;
-                    foreach (var e in sd)
-                    {
-                        if (c == 0)
-                        {
+                    foreach (var e in sd) {
+                        if (c == 0) {
                             c++;
                             prev = e;
-                        }
-                        else
-                        {
+                        } else {
                             Assert.IsTrue(e > prev);
                             prev = e;
                         }
@@ -208,6 +196,99 @@ namespace Spreads.Collections.Tests {
             }
         }
 
+        [Test]
+        public void CouldRemoveInTheMiddle() {
+            for (int r = 0; r < 1000; r++) {
+
+                var rng = new System.Random();
+
+                var sd = new SortedDeque<int>();
+                var set = new HashSet<int>();
+                for (int i = 0; i < 100; i++) {
+                    for (var next = rng.Next(1000); !set.Contains(next);) {
+                        set.Add(next);
+                        sd.Add(next);
+                    }
+                }
+                while (sd.Count > 0) {
+                    var midElement = sd.buffer[((sd.firstOffset + sd.count / 2) % sd.buffer.Length)];
+                    sd.Remove(midElement);
+                    set.Remove(midElement);
+                    Assert.AreEqual(set.Count, sd.Count);
+                    Assert.AreEqual(set.Sum(), sd.Sum());
+                    var c = 0;
+                    var prev = 0;
+                    foreach (var e in sd) {
+                        if (c == 0) {
+                            c++;
+                            prev = e;
+                        } else {
+                            Assert.IsTrue(e > prev);
+                            prev = e;
+                        }
+                    }
+                }
+            }
+        }
+
+
+        [Test]
+        public void CouldRemoveInTheMiddleSplit() {
+
+            var rng = new System.Random();
+
+            var sd = new SortedDeque<int>();
+            var set = new HashSet<int>();
+            for (int i = 0; i < 100; i++) {
+                if (i % 2 == 0) {
+                    set.Add(i);
+                    sd.Add(i);
+                } else {
+                    set.Add(-i);
+                    sd.Add(-i);
+                }
+            }
+            {
+                var midElement = sd.buffer[0]; //[.___    ____]
+                sd.Remove(midElement);
+                set.Remove(midElement);
+                Assert.AreEqual(set.Count, sd.Count);
+                Assert.AreEqual(set.Sum(), sd.Sum());
+                var c = 0;
+                var prev = 0;
+                foreach (var e in sd)
+                {
+                    if (c == 0)
+                    {
+                        c++;
+                        prev = e;
+                    }
+                    else
+                    {
+                        Assert.IsTrue(e > prev);
+                        prev = e;
+                    }
+                }
+            }
+            {
+                var midElement = sd.buffer[sd.buffer.Length - 1]; //[___    ____.]
+                sd.Remove(midElement);
+                set.Remove(midElement);
+                Assert.AreEqual(set.Count, sd.Count);
+                Assert.AreEqual(set.Sum(), sd.Sum());
+                var c = 0;
+                var prev = 0;
+                foreach (var e in sd) {
+                    if (c == 0) {
+                        c++;
+                        prev = e;
+                    } else {
+                        Assert.IsTrue(e > prev);
+                        prev = e;
+                    }
+                }
+            }
+        }
 
         [Test]
         public void AddTest() {
