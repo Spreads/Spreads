@@ -357,7 +357,7 @@ namespace Spreads.Collections.Tests {
                 sm1.Add(i, i);
             }
 
-            var series = new[] {sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1,    sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
+            var series = new[] {sm1, sm1, sm1, sm1, sm1,};// sm1, sm1, sm1, sm1, sm1,    sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
 
             sw.Start();
 
@@ -368,9 +368,36 @@ namespace Spreads.Collections.Tests {
             for (int i = 2; i < 5000000; i++) {
                 Assert.AreEqual(series.Length* i, sum[i]);
             }
-
             
         }
+
+
+        [Test]
+        public void CouldZipMillionIntsWithMoveNextContX5() {
+            var sw = new Stopwatch();
+
+            var sm1 = new SortedMap<int, int>();
+            var sm2 = new SortedMap<int, int>();
+            sm1.Add(0, 0);
+            sm2.Add(0, 0);
+
+            for (int i = 2; i < 5000000; i = i + 2) {
+                sm1.Add(i, i);
+                sm2.Add(i + 1, i);
+            }
+
+            var series = new[] { sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat(), sm1.Repeat()};
+
+            sw.Start();
+
+            var sum = series.Zip((k, varr) => varr.Sum()).ToSortedMap();
+
+            sw.Stop();
+            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+            
+
+        }
+
 
         [Test]
         public void CouldZipMillionIntsWithMoveNextNoncont() {

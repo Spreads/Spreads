@@ -236,4 +236,12 @@ let linqValue =
 
 let Parallel asyncs = (Seq.ofArray((Async.RunSynchronously(Async.Parallel(asyncs)))))
 
-
+open System.Threading
+[<Struct; StructLayout(LayoutKind.Explicit, Size = 64)>]
+type MyStruct1 =
+    [<FieldOffset(0)>]
+    val mutable value : int64
+    new(initVal:int64) = { value = initVal }
+    member x.Value
+        with get() = Interlocked.Read(&(x.value))
+        and set(valIn) = Interlocked.Exchange(&(x.value),valIn) |> ignore

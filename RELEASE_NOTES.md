@@ -1,3 +1,6 @@
+#### 0.0.48 - August 17, 2015
+* ZipNCursor preliminary tested and profiled for all non-continuous and all continuous series.
+
 #### 0.0.47 - August 13, 2015
 * Implement SortedDeque, which is much faster than FixedMinHeap or SortedList1 (TODO test off-by-one bugs for all cases in insert)
 * Implement FixedMinHeap and SortedList1

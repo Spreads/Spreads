@@ -129,6 +129,36 @@ type ZipNCursor<'K,'V,'R>(resultSelector:Func<'K,'V[],'R>, [<ParamArray>] cursor
       else false
 
     // Continuous
+    let doMoveNextContinuousSlow(frontier:'K) =
+      
+      // frontier is the current key. on each zip move we must move at least one cursor ahead 
+      // of the current key, and the position of this cursor is the new key
+      //    [---x----x-----x-----x-------x---]
+      //    [-----x--|--x----x-----x-------x-]
+      //    [-x----x-|---x-----x-------x-----]
+
+      // found all values
+      let mutable valuesOk = false
+      let cksEnumerator = contKeysSet.AsEnumerable().GetEnumerator()
+      let mutable found = false
+      while not found && cksEnumerator.MoveNext() do
+        let position = cksEnumerator.Current
+        let cursor = cursors.[position.Value]
+        let mutable moved = true
+        while cmp.Compare(cursor.CurrentKey, frontier) <= 0 && moved && not found do
+          moved <- cursor.MoveNext()
+          if moved then // cursor moved
+            contKeysSet.Remove(position)
+            contKeysSet.Add(KV(cursor.CurrentKey, position.Value))
+            
+            if cmp.Compare(cursor.CurrentKey, frontier) > 0  // ahead of the previous key
+              && fillContinuousValuesAtKey(cursor.CurrentKey) then // and we could get all values at the new position
+              found <- true
+              valuesOk <- true
+              this.CurrentKey <- cursor.CurrentKey
+      valuesOk
+
+    // Continuous
     let doMoveNextContinuous(frontier:'K) =
       
       // frontier is the current key. on each zip move we must move at least one cursor ahead 

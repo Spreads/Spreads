@@ -45,12 +45,15 @@ type RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) as this =
         value <- this.InputCursor.CurrentValue
         true
       elif c < 0 then
+        let mutable laggedCursorOk = true
         // always position lagged cursor one step away from the input current
         if laggedCursor = Unchecked.defaultof<ICursor<'K,'V>> then 
-            laggedCursor <- this.InputCursor.Clone()
-            if not (laggedCursor.MovePrevious()) then laggedCursor <- Unchecked.defaultof<ICursor<'K,'V>>
+          laggedCursor <- this.InputCursor.Clone()
+          if not (laggedCursor.MovePrevious()) then 
+            laggedCursor <- Unchecked.defaultof<ICursor<'K,'V>>
+            laggedCursorOk <- false
 
-        if laggedCursor <> Unchecked.defaultof<ICursor<'K,'V>> then
+        if laggedCursorOk then // NB micro optimization instead of [laggedCursor <> Unchecked.defaultof<ICursor<'K,'V>>] yields couple of %% performance
           let c2 = this.InputCursor.Comparer.Compare(key, laggedCursor.CurrentKey)
           if c2 >= 0 then // key is between input and lagged cursor, frequent case for CursorZip
             value <- laggedCursor.CurrentValue
@@ -81,10 +84,12 @@ type RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) as this =
     if laggedCursor = Unchecked.defaultof<ICursor<'K,'V>> then 
       laggedCursor <- this.InputCursor.Clone()
       if not (laggedCursor.MovePrevious()) then laggedCursor <- Unchecked.defaultof<ICursor<'K,'V>>
-    let moved = laggedCursor.MoveNext()
-#if PRERELEASE
-    Trace.Assert(moved)
-#endif
+    else
+      let moved = laggedCursor.MoveNext()
+      ()
+  #if PRERELEASE
+      //Trace.Assert(moved)
+  #endif
     value <- next.Value
     true
 
