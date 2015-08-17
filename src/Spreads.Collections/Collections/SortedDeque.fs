@@ -209,6 +209,8 @@ type SortedDeque<'T>
       invalidOp "Element doesn't exist in the SortedDeque"
     this.RemoveAtOffset(offset) |> ignore
 
+  member this.Item with get(idx) = this.buffer.[this.IndexToOffset(idx)]
+
   member internal this.AsEnumerable() : IEnumerable<'T>  =
     { new IEnumerable<'T> with
         member e.GetEnumerator() =
@@ -222,7 +224,7 @@ type SortedDeque<'T>
               member __.Current with get() : 'T = this.buffer.[this.IndexToOffset(idx.Value)]
               member __.Current with get() : obj = box __.Current
               member __.Dispose() = ()
-              member __.Reset() = ()
+              member __.Reset() = idx := -1
           }
         member this.GetEnumerator() = this.GetEnumerator() :> IEnumerator
     }
@@ -240,7 +242,7 @@ type SortedDeque<'T>
               member __.Current with get() : 'T = this.buffer.[this.IndexToOffset(idx.Value)]
               member __.Current with get() : obj = box __.Current
               member __.Dispose() = ()
-              member __.Reset() = ()
+              member __.Reset() = idx := this.count
           }
         member this.GetEnumerator() = this.GetEnumerator() :> IEnumerator
     }

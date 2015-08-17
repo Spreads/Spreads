@@ -139,23 +139,46 @@ type ZipNCursor<'K,'V,'R>(resultSelector:Func<'K,'V[],'R>, [<ParamArray>] cursor
 
       // found all values
       let mutable valuesOk = false
-      let cksEnumerator = contKeysSet.AsEnumerable().GetEnumerator()
       let mutable found = false
-      while not found && cksEnumerator.MoveNext() do
-        let position = cksEnumerator.Current
-        let cursor = cursors.[position.Value]
-        let mutable moved = true
-        while cmp.Compare(cursor.CurrentKey, frontier) <= 0 && moved && not found do
-          moved <- cursor.MoveNext()
+      //let cksEnumerator = contKeysSet.AsEnumerable().GetEnumerator()
+      while not found do
+        let mutable firstKeyAfterTheCurrentFrontier = Unchecked.defaultof<'K>
+        let mutable firstKeyAfterTheCurrentFrontierIsSet = false
+        let mutable cidx = 0 // cursor index
+        let mutable step = 0
+        while step < contKeysSet.Count do
+          let initialPosition = contKeysSet.[cidx]
+          let cursor = cursors.[initialPosition.Value]
+          let mutable shouldMove = cmp.Compare(cursor.CurrentKey, frontier) <= 0
+          let mutable moved = false
+          while shouldMove do
+            moved <- cursor.MoveNext()
+            shouldMove <- moved && cmp.Compare(cursor.CurrentKey, frontier) <= 0
           if moved then // cursor moved
-            contKeysSet.Remove(position)
-            contKeysSet.Add(KV(cursor.CurrentKey, position.Value))
-            
-            if cmp.Compare(cursor.CurrentKey, frontier) > 0  // ahead of the previous key
-              && fillContinuousValuesAtKey(cursor.CurrentKey) then // and we could get all values at the new position
-              found <- true
-              valuesOk <- true
-              this.CurrentKey <- cursor.CurrentKey
+            if not firstKeyAfterTheCurrentFrontierIsSet then
+              firstKeyAfterTheCurrentFrontierIsSet <- true
+              firstKeyAfterTheCurrentFrontier <- cursor.CurrentKey
+            elif cmp.Compare(cursor.CurrentKey, firstKeyAfterTheCurrentFrontier) < 0 then
+              // if there is a key that above the frontier but less than previously set
+              firstKeyAfterTheCurrentFrontier <- cursor.CurrentKey
+            let newPosition = KV(cursor.CurrentKey, initialPosition.Value)
+            if contKeysSet.comparer.Compare(newPosition, initialPosition) > 0 then
+              contKeysSet.Remove(initialPosition)
+              contKeysSet.Add(newPosition)
+            else cidx <- cidx + 1
+          else
+            if firstKeyAfterTheCurrentFrontierIsSet && cmp.Compare(cursor.CurrentKey, firstKeyAfterTheCurrentFrontier) < 0 then
+              firstKeyAfterTheCurrentFrontier <- cursor.CurrentKey
+            cidx <- cidx + 1
+          step <- step + 1
+        if firstKeyAfterTheCurrentFrontierIsSet then
+          found <- fillContinuousValuesAtKey(firstKeyAfterTheCurrentFrontier) 
+          if found then 
+            valuesOk <- true
+            this.CurrentKey <- firstKeyAfterTheCurrentFrontier
+        else
+          found <- true // cannot move past existing frontier
+          valuesOk <- false
       valuesOk
       
 
