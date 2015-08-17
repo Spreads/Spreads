@@ -1,4 +1,4 @@
-#### 0.0.48 - August 17, 2015
+#### 0.0.49 - August 17, 2015
 * ZipNCursor preliminary tested and profiled for all non-continuous and all continuous series.
 
 #### 0.0.47 - August 13, 2015

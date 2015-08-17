@@ -184,6 +184,8 @@ namespace Spreads.Collections.Tests {
 
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
             Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds*1.0), 2));
+
+
         }
 
     }

@@ -245,3 +245,5 @@ type MyStruct1 =
     member x.Value
         with get() = Interlocked.Read(&(x.value))
         and set(valIn) = Interlocked.Exchange(&(x.value),valIn) |> ignore
+
+

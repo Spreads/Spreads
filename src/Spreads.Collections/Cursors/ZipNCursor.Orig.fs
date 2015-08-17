@@ -1,4 +1,4 @@
-﻿namespace Spreads
+﻿namespace Spreads.Collections.Experimental
 
 open System
 open System.Linq

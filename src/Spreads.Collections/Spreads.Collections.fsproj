@@ -63,16 +63,20 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Attributes.fs" />
+    <Compile Include="KeyComparer.fs" />
     <Compile Include="Common\Types.fs" />
     <Compile Include="Common\Enums.fs" />
     <Compile Include="Common\FastEvents.fs" />
     <Compile Include="Common\OptionalValue.fs" />
     <Compile Include="Common\ObjectPool.fs" />
     <Compile Include="Common\Utils.fs" />
+    <Compile Include="Common\SortedDeque.fs" />
     <Compile Include="Interfaces.fs" />
     <Compile Include="MathProvider.fs" />
-    <Compile Include="KeyComparer.fs" />
     <Compile Include="BaseCursor.fs" />
+    <Compile Include="..\..\..\..\..\Period\src\Period\Period.fs">
+      <Link>Common\Period.fs</Link>
+    </Compile>
     <Compile Include="Spreads.Series.fs" />
     <Compile Include="Collections\Collections.fs" />
     <Compile Include="Collections\BoundedDictionary.fs" />
@@ -83,7 +87,7 @@
     <Compile Include="Collections\ImmutableIntConvertibleMap.fs" />
     <Compile Include="Collections\ImmutableSortedMap.fs" />
     <Compile Include="Collections\MutatorWrapper.fs" />
-    <Compile Include="Collections\SortedDeque.fs" />
+    <Compile Include="Collections\SortedDeque.Orig.fs" />
     <Compile Include="Collections\MapDeque.fs" />
     <Compile Include="Collections\FixedMinHeap.fs" />
     <Compile Include="Collections\SortedMap.Obsolete.fs" />
@@ -98,7 +102,8 @@
     <Compile Include="Collections\SortedChunkedMap.fs" />
     <Compile Include="Collections\DataStream.fs" />
     <Compile Include="Collections\SCM2.fs" />
-    <Compile Include="Cursors\ZipNCursor.fs" />
+    <Compile Include="Cursors\ZipNCursor.Orig.fs" />
+    <Compile Include="Cursors\RangeCursor.fs" />
     <Compile Include="CursorSeries.fs" />
     <Compile Include="MathProviderImpl.fs" />
     <Compile Include="Spreads.Series.2.fs" />

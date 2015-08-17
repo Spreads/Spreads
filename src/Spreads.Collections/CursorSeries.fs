@@ -400,7 +400,7 @@ type LogCursor<'K>(cursorFactory:Func<ICursor<'K,int64>>) =
 
 
 type ZipValuesCursor<'K,'V,'V2,'R>(cursorFactoryL:Func<ICursor<'K,'V>>,cursorFactoryR:Func<ICursor<'K,'V2>>, mapF:Func<'V,'V2,'R>) =
-  inherit CursorZip<'K,'V,'V2,'R>(cursorFactoryL.Invoke,cursorFactoryR.Invoke)
+  inherit ZipCursor<'K,'V,'V2,'R>(cursorFactoryL.Invoke,cursorFactoryR.Invoke)
 
   override this.TryZip(key:'K, v, v2, [<Out>] value: byref<'R>): bool =
     value <- mapF.Invoke(v,v2)
@@ -504,7 +504,7 @@ type WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:
         // NB! freeze bounds for the range cursor
         let startPoint = Some(activeLaggedCursor.CurrentKey)
         let endPoint = Some(this.InputCursor.CurrentKey)
-        let rangeCursor() = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+        let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
         let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
         value <- window
         moves <- 0
@@ -523,7 +523,7 @@ type WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:
             // NB! freeze bounds for the range cursor
             let startPoint = Some(activeLaggedCursor.CurrentKey)
             let endPoint = Some(this.InputCursor.CurrentKey)
-            let rangeCursor() = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+            let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
             let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
             value <- window
             lagDistance <- lag
@@ -548,7 +548,7 @@ type WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:
           // NB! freeze bounds for the range cursor
           let startPoint = Some(laggedCursor.CurrentKey)
           let endPoint = Some(this.InputCursor.CurrentKey)
-          let rangeCursor() = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+          let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
         
           let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
           value <- window
@@ -563,7 +563,7 @@ type WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:
           // NB! freeze bounds for the range cursor
           let startPoint = Some(laggedCursor.CurrentKey)
           let endPoint = Some(this.InputCursor.CurrentKey)
-          let rangeCursor() = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+          let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
         
           let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
           value <- window
@@ -579,7 +579,7 @@ type WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:
         // NB! freeze bounds for the range cursor
         let startPoint = Some(laggedCursor.CurrentKey)
         let endPoint = Some(this.InputCursor.CurrentKey)
-        let rangeCursor() = new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+        let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
         let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
         value <- window
         moves <- 0
@@ -615,10 +615,7 @@ type SeriesExtensions () =
 //    static member inline Map(source: Series<'K,'V>, mapFunc:Func<'K,'K>) : Series<'K,'V> =
 //      CursorSeries(fun _ -> new MapKeysCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
 
-    [<Extension>]
-    static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V2>, mapFunc:Func<'V,'V2,'R>) : Series<'K,'R> =
-      CursorSeries(fun _ -> new ZipValuesCursor<'K,'V,'V2,'R>(Func<ICursor<'K,'V>>(source.GetCursor), Func<ICursor<'K,'V2>>(other.GetCursor), mapFunc) :> ICursor<'K,'R>) :> Series<'K,'R>
-
+    
     [<Extension>]
     static member inline Filter(source: ISeries<'K,'V>, filterFunc:Func<'V,bool>) : Series<'K,'V> = 
       CursorSeries(fun _ -> new FilterValuesCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), filterFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
@@ -713,19 +710,32 @@ type SeriesExtensions () =
       
     [<Extension>]
     static member inline Range(source: ISeries<'K,'V>, startKey:'K, endKey:'K) : Series<'K,'V> = 
-      CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), Some(startKey), Some(endKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
+      CursorSeries(fun _ -> new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), Some(startKey), Some(endKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
       
     [<Extension>]
     static member inline After(source: ISeries<'K,'V>, startKey:'K, lookup:Lookup) : Series<'K,'V> = 
-      CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), Some(startKey), None, Some(lookup), None) :> ICursor<'K,'V>) :> Series<'K,'V>
+      CursorSeries(fun _ -> new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), Some(startKey), None, Some(lookup), None) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
     static member inline Before(source: ISeries<'K,'V>, endKey:'K, lookup:Lookup) : Series<'K,'V> = 
-      CursorSeries(fun _ -> new CursorRange<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), None, Some(endKey), None, Some(Lookup.GT)) :> ICursor<'K,'V>) :> Series<'K,'V>
-      
+      CursorSeries(fun _ -> new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), None, Some(endKey), None, Some(Lookup.GT)) :> ICursor<'K,'V>) :> Series<'K,'V>
+    
+    [<Extension>]
+    static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V2>, mapFunc:Func<'V,'V2,'R>) : Series<'K,'R> =
+      CursorSeries(fun _ -> new ZipValuesCursor<'K,'V,'V2,'R>(Func<ICursor<'K,'V>>(source.GetCursor), Func<ICursor<'K,'V2>>(other.GetCursor), mapFunc) :> ICursor<'K,'R>) :> Series<'K,'R>
+
     [<Extension>]
     static member inline Zip<'K,'V,'R when 'K : comparison>(series: Series<'K,'V> array, resultSelector:Func<'K,'V[],'R>) =
       CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(resultSelector, series |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
+
+    [<Extension>]
+    static member inline Zip<'K,'V,'R when 'K : comparison>(series: ISeries<'K,'V> array, resultSelector:Func<'K,'V[],'R>) =
+      CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(resultSelector, series |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
+
+    [<Extension>]
+    static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V>, mapFunc:Func<'V,'V,'R>) : Series<'K,'R> =
+      CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(Func<'K,'V[],'R>(fun _ varr -> mapFunc.Invoke(varr.[0], varr.[1])), [|source;other|] |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
+
 
 //    [<Extension>]
 //    static member inline Zip(source: ISeries<'K,'V>, resultSelector:Func<'K,'V[],'R>, [<ParamArray>] otherSeries: ISeries<'K,'V> array) : Series<'K,'R> =
