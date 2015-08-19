@@ -8,6 +8,10 @@ open System.Threading.Tasks
 open System.Diagnostics
 open Spreads
 
+// TODO each cursor should have a task that listens to ARE that is signalled from updateHandler
+// Now, each add operation synchronously sets tcs and synchronously calls MoveNext on cursor
+// The task should be called TcsCompleter and use async ARE/MRE
+
 [<AbstractClassAttribute>]
 type BaseCursor<'K,'V>
   (source:IReadOnlyOrderedMap<'K,'V>) as this =
@@ -17,27 +21,46 @@ type BaseCursor<'K,'V>
   let isUpdateable = match source with | :? IUpdateable<'K,'V> -> true | _ -> false
   let observerStarted = ref false
   let tcs = ref (TaskCompletionSource<bool>())
-  let ctr = ref (Unchecked.defaultof<CancellationTokenRegistration>)
+  let cancellationToken = ref CancellationToken.None
+  //let ctr = ref (Unchecked.defaultof<CancellationTokenRegistration>)
   let sr = Object()
+  let semaphore = new SemaphoreSlim(0,1)
+  let taskCompleter = ref Unchecked.defaultof<Task<bool>>
+  let rec completeTcs() : Async<bool> = 
+    async {
+        let waitTask = semaphore.WaitAsync(!cancellationToken)
+        let! couldProceed = waitTask |> Async.AwaitIAsyncResult
+        if couldProceed &&  !observerStarted && waitTask.IsCompleted then
+          // right now a client is waiting for a task to complete, there is no more elements in the map
+          if !tcs <> null && this.MoveNext() then // NB order
+            let tcs' = !tcs
+            tcs := null
+            //(!ctr).Dispose()
+            let couldSetResult = (tcs').TrySetResult(true)
+  #if PRERELEASE
+            Trace.Assert(couldSetResult)
+  #endif
+            ()
+          else
+            // do nothing, next MoveNext(ct) will try to call MoveNext() and it will return the correct result
+            ()
+          return! completeTcs()
+        else return false // stop loop
+    }
+
   let updateHandler : UpdateHandler<'K,'V> =
     let impl _ (kvp:KVP<'K,'V>) =
       lock(sr) (fun _ ->
         if (this.Comparer.Compare(kvp.Key, this.CurrentKey) <= 0) then 
           invalidOp "Out of order value. TODO handle it"
           // TODO could be same logic as in MoveNext - reposition to out-of-order value, or could throw
-
-        // right now a client is waiting for a task to complete, there is no more elements in the map
-        if !tcs <> null && this.MoveNext() then // NB order
-          let tcs' = !tcs
-          tcs := null
-          (!ctr).Dispose()
-          let couldSetResult = (tcs').TrySetResult(true)
-#if PRERELEASE
-          Trace.Assert(couldSetResult)
-#endif
-          ()
-        else
-          // do nothing, next MoveNext(ct) will try to call MoveNext() and it will return the correct result
+        try 
+          semaphore.Release() |> ignore
+//            let c = semaphore.Release() //|> ignore 
+//            Console.WriteLine("Semaphore released: " + c.ToString())
+        with 
+        | _ -> 
+          //Console.WriteLine("Semaphore faulted")
           ()
       )
     UpdateHandler(impl)
@@ -86,18 +109,29 @@ type BaseCursor<'K,'V>
           if not !observerStarted then 
             upd.OnData.AddHandler updateHandler
             observerStarted := true
-          
-          
+            taskCompleter := completeTcs() |> Async.StartAsTask
+            
           //isWaitingForTcs := true
           // we are now subsribed, but update event could have beed triggered after match and before subscribtion
-          if this.MoveNext() && not ct.IsCancellationRequested then
+
+          let mutable moved = this.MoveNext()
+          if not moved then
+            let spinCountMax = 1000
+            let mutable spinCount = 0
+            while spinCount < spinCountMax do
+              if this.MoveNext() then 
+                spinCount <- spinCountMax
+                moved <- true
+              else spinCount <- spinCount + 1
+          if moved && not ct.IsCancellationRequested then
             //isWaitingForTcs := false
             Task.FromResult(true)
           else
+            cancellationToken := ct
             // TODO use interlocked.exchange or whatever to not allocate new one every time, if we return Task.FromResult(true) below
             if !tcs = null then tcs := TaskCompletionSource()
             // MSDN If this token is already in the canceled state, the delegate will be run immediately and synchronously. Any exception the delegate generates will be propagated out of this method call.
-            ctr := ct.Register(Action(fun () -> (!tcs).TrySetCanceled() |> ignore))
+            //ctr := ct.Register(Action(fun () -> (!tcs).TrySetCanceled() |> ignore))
             tcs.Value.Task
         )
       | _ -> Task.FromResult(false) // has no values and will never have because is not IUpdateable

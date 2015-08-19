@@ -45,9 +45,70 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor() {
-            var count = 1000000;
+            var count = 100000;//00000;
             var sw = new Stopwatch();
+            //var mre = new ManualResetEventSlim(true);
             sw.Start();
+
+            var sm = new SortedMap<DateTime, double>();
+            //sm.IsSynchronized = true;
+            for (int i = 0; i < 5; i++) {
+                sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+            }
+
+            var addTask = Task.Run(async () => {
+                await Task.Delay(50);
+                for (int i = 5; i < count; i++) {
+                    //mre.Wait();
+                    sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                    //await Task.Delay(1);
+                }
+            });
+
+            double sum = 0.0;
+            var sumTask = Task.Run(async () => {
+                var c = sm.GetCursor();
+                while (c.MoveNext()) {
+                    sum += c.CurrentValue;
+                }
+                Assert.AreEqual(10, sum);
+                var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
+
+                await Task.Delay(10);
+                while (await c.MoveNext(CancellationToken.None)) {
+                    //mre.Reset();
+                    sum += c.CurrentValue;
+                    //Console.WriteLine("Current key: {0}", c.CurrentKey);
+                    if (c.CurrentKey == stop) {
+                        break;
+                    }
+                    //mre.Set();
+                }
+                Console.WriteLine("Finished");
+            });
+
+
+            sumTask.Wait();
+            addTask.Wait();
+
+            sw.Stop();
+            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds - 50);
+            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
+
+            double expectedSum = 0.0;
+            for (int i = 0; i < count; i++) {
+                expectedSum += i;
+            }
+            Assert.AreEqual(expectedSum, sum);
+
+        }
+
+
+        [Test]
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_spinwait() {
+            var count = 10000000;
+            var sw = new Stopwatch();
+
 
             var sm = new SortedMap<DateTime, double>();
             //sm.IsSynchronized = true;
@@ -64,15 +125,20 @@ namespace Spreads.Collections.Tests {
             });
 
             double sum = 0.0;
-            var sumTask = Task.Run(async () => {
+            var sumTask = Task.Run(() => {
                 var c = sm.GetCursor();
                 while (c.MoveNext()) {
                     sum += c.CurrentValue;
                 }
                 Assert.AreEqual(10, sum);
                 var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
-                //await Task.Delay(50);
-                while (await c.MoveNext(CancellationToken.None)) {
+
+                sw.Start();
+
+                while (true) {
+                    // spinwait
+                    while (!c.MoveNext()) {
+                    };
                     sum += c.CurrentValue;
                     //Console.WriteLine("Current key: {0}", c.CurrentKey);
                     if (c.CurrentKey == stop) {
@@ -93,6 +159,8 @@ namespace Spreads.Collections.Tests {
             Assert.AreEqual(expectedSum, sum);
 
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds - 50);
+            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
+
         }
 
 
@@ -143,6 +211,8 @@ namespace Spreads.Collections.Tests {
             Assert.AreEqual(expectedSum, sum);
 
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds - 50);
+            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
+
         }
 
         [Test]
@@ -169,8 +239,7 @@ namespace Spreads.Collections.Tests {
             sw.Start();
             double sum = 0.0;
             var c = sm.GetCursor();
-            while (c.CurrentValue < count - 1.0)
-            {
+            while (c.CurrentValue < count - 1.0) {
                 Task.Run(async () => await c.MoveNext(CancellationToken.None)).Wait();
                 sum += c.CurrentValue;
             }
@@ -183,8 +252,7 @@ namespace Spreads.Collections.Tests {
             Assert.AreEqual(expectedSum, sum);
 
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
-            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds*1.0), 2));
-
+            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
 
         }
 
