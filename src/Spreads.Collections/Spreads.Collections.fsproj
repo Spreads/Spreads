@@ -71,12 +71,13 @@
     <Compile Include="Common\ObjectPool.fs" />
     <Compile Include="Common\Utils.fs" />
     <Compile Include="Common\SortedDeque.fs" />
+	  <Compile Include="..\..\..\..\..\Period\src\Period\Period.fs">
+		  <Link>Common\Period.fs</Link>
+	  </Compile>
     <Compile Include="Interfaces.fs" />
     <Compile Include="MathProvider.fs" />
     <Compile Include="BaseCursor.fs" />
-    <Compile Include="..\..\..\..\..\Period\src\Period\Period.fs">
-      <Link>Common\Period.fs</Link>
-    </Compile>
+    
     <Compile Include="Spreads.Series.fs" />
     <Compile Include="Collections\Collections.fs" />
     <Compile Include="Collections\BoundedDictionary.fs" />

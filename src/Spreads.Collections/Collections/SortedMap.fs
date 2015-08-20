@@ -12,6 +12,9 @@ open System.Threading.Tasks
 open Spreads
 open Spreads.Collections
 
+// TODO whenever we add last value, the value must be written to the array before size increment
+
+
 // TODO settable IsSyncronized with check on every mutation
 // TODO Size to Count
 
@@ -262,6 +265,7 @@ type SortedMap<'K,'V>
     // key is always new, checks are before this method
     // already inside a lock statement in a caller method if synchronized
 
+    let mutable keepVersion = false
     if this.size = this.values.Length then this.EnsureCapacity(this.size + 1)
     
     // for values it is alway the same operation
@@ -277,6 +281,7 @@ type SortedMap<'K,'V>
         if comparer.Compare(diffCalc.Add(rkLast, step), k) = 0 then
           // adding next regular, only rkLast changes
           rkLast <- k
+          keepVersion <- true
         elif comparer.Compare(diffCalc.Add(this.keys.[0], -step), k) = 0 then
           this.keys.[1] <- this.keys.[0]
           this.keys.[0] <- k // change first key and size++ at the bottom
@@ -299,19 +304,22 @@ type SortedMap<'K,'V>
       else
         if index < this.size then
           Array.Copy(this.keys, index, this.keys, index + 1, this.size - index);
-        else rkLast <- k
+        else 
+          keepVersion <- true
+          rkLast <- k
         this.keys.[index] <- k
         
     // couldHaveRegularKeys could be set to false inside the previous block even if it was true before
     if not couldHaveRegularKeys then
       if index < this.size then
         Array.Copy(this.keys, index, this.keys, index + 1, this.size - index);
+      else keepVersion <- true
       this.keys.[index] <- k
       // do not check if could regularize back, it is very rare 
       // that an irregular becomes a regular one, and such check is always done on
       // bucket switch in SHM (TODO really? check) and before serialization
       // the 99% use case is when we load data from a sequential stream or deserialize a map with already regularized keys
-    version <- version + 1
+    if not keepVersion then version <- version + 1
     this.size <- this.size + 1
     if cursorCounter >0 then updateEvent.Trigger(KVP(k,v))
     

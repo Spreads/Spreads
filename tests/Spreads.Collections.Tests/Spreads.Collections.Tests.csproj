@@ -49,6 +49,7 @@
   <ItemGroup>
     <Compile Include="CursorSeriesTests.cs" />
     <Compile Include="IROOMTests.cs" />
+    <Compile Include="SortedMapTests.cs" />
     <Compile Include="SortedDequeTests.cs" />
     <Compile Include="ZipNTests.cs" />
     <Compile Include="MoveNextAsyncTests.cs" />

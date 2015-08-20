@@ -8,9 +8,6 @@ open System.Threading.Tasks
 open System.Diagnostics
 open Spreads
 
-// TODO each cursor should have a task that listens to ARE that is signalled from updateHandler
-// Now, each add operation synchronously sets tcs and synchronously calls MoveNext on cursor
-// The task should be called TcsCompleter and use async ARE/MRE
 
 [<AbstractClassAttribute>]
 type BaseCursor<'K,'V>
@@ -21,49 +18,46 @@ type BaseCursor<'K,'V>
   let isUpdateable = match source with | :? IUpdateable<'K,'V> -> true | _ -> false
   let observerStarted = ref false
   let tcs = ref (TaskCompletionSource<bool>())
+  // TODO use CT while waiting on semaphore
   let cancellationToken = ref CancellationToken.None
-  //let ctr = ref (Unchecked.defaultof<CancellationTokenRegistration>)
   let sr = Object()
-  let semaphore = new SemaphoreSlim(0,1)
+  let semaphore = new SemaphoreSlim(0,Int32.MaxValue)
   let taskCompleter = ref Unchecked.defaultof<Task<bool>>
   let rec completeTcs() : Async<bool> = 
     async {
         let waitTask = semaphore.WaitAsync(!cancellationToken)
         let! couldProceed = waitTask |> Async.AwaitIAsyncResult
-        if couldProceed &&  !observerStarted && waitTask.IsCompleted then
-          // right now a client is waiting for a task to complete, there is no more elements in the map
-          if !tcs <> null && this.MoveNext() then // NB order
-            let tcs' = !tcs
-            tcs := null
-            //(!ctr).Dispose()
-            let couldSetResult = (tcs').TrySetResult(true)
-  #if PRERELEASE
-            Trace.Assert(couldSetResult)
-  #endif
-            ()
-          else
-            // do nothing, next MoveNext(ct) will try to call MoveNext() and it will return the correct result
-            ()
+        if couldProceed && !observerStarted && waitTask.IsCompleted then
+          lock(sr) (fun _ ->
+            // right now a client is waiting for a task to complete, there is no more elements in the map
+            let tcsIsNotNull = !tcs <> null
+            let moved = tcsIsNotNull && this.MoveNext()
+            if tcsIsNotNull && moved then // NB order
+              let tcs' = !tcs
+              tcs := null
+              let couldSetResult = (tcs').TrySetResult(true)
+    #if PRERELEASE
+              Trace.Assert(couldSetResult)
+    #endif
+              ()
+            else
+              // do nothing, next MoveNext(ct) will try to call MoveNext() and it will return the correct result
+              ()
+          )
           return! completeTcs()
-        else return false // stop loop
+        else 
+          return false // stop the loop
     }
 
-  let updateHandler : UpdateHandler<'K,'V> =
-    let impl _ (kvp:KVP<'K,'V>) =
-      lock(sr) (fun _ ->
-        if (this.Comparer.Compare(kvp.Key, this.CurrentKey) <= 0) then 
-          invalidOp "Out of order value. TODO handle it"
+  let updateHandler : UpdateHandler<'K,'V> = 
+    UpdateHandler(fun _ (kvp:KVP<'K,'V>) ->
+//        if (this.Comparer.Compare(kvp.Key, this.CurrentKey) < 0) then 
+//          invalidOp "Out of order value. TODO handle it"
           // TODO could be same logic as in MoveNext - reposition to out-of-order value, or could throw
-        try 
-          semaphore.Release() |> ignore
-//            let c = semaphore.Release() //|> ignore 
-//            Console.WriteLine("Semaphore released: " + c.ToString())
-        with 
-        | _ -> 
-          //Console.WriteLine("Semaphore faulted")
-          ()
-      )
-    UpdateHandler(impl)
+        if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
+    )
+      
+    //UpdateHandler(impl)
 
   abstract Comparer: IComparer<'K> with get
   override this.Comparer with get() = source.Comparer
@@ -98,42 +92,40 @@ type BaseCursor<'K,'V>
   abstract member MoveNext : CancellationToken -> Task<bool>
   override this.MoveNext(ct) =
     match this.MoveNext() with
-    | true -> Task.FromResult(true)      
+    | true -> 
+      Task.FromResult(true)      
     | false -> 
       match isUpdateable with
       | true -> 
         let upd = source :?> IUpdateable<'K,'V>
-        // lock with the update handler
-        // if it is not added yet, it won't be called right after we add it and before we try to movenext after we add it
-        lock(sr) (fun _ ->
-          if not !observerStarted then 
-            upd.OnData.AddHandler updateHandler
-            observerStarted := true
-            taskCompleter := completeTcs() |> Async.StartAsTask
-            
-          //isWaitingForTcs := true
-          // we are now subsribed, but update event could have beed triggered after match and before subscribtion
+        if not !observerStarted then 
+          upd.OnData.AddHandler updateHandler
+          observerStarted := true
+          taskCompleter := completeTcs() |> Async.StartAsTask
 
-          let mutable moved = this.MoveNext()
-          if not moved then
-            let spinCountMax = 1000
-            let mutable spinCount = 0
-            while spinCount < spinCountMax do
-              if this.MoveNext() then 
-                spinCount <- spinCountMax
-                moved <- true
-              else spinCount <- spinCount + 1
-          if moved && not ct.IsCancellationRequested then
-            //isWaitingForTcs := false
-            Task.FromResult(true)
-          else
-            cancellationToken := ct
-            // TODO use interlocked.exchange or whatever to not allocate new one every time, if we return Task.FromResult(true) below
-            if !tcs = null then tcs := TaskCompletionSource()
-            // MSDN If this token is already in the canceled state, the delegate will be run immediately and synchronously. Any exception the delegate generates will be propagated out of this method call.
-            //ctr := ct.Register(Action(fun () -> (!tcs).TrySetCanceled() |> ignore))
-            tcs.Value.Task
+        // TODO why spinning doesn't add performance?
+//        let mutable moved = this.MoveNext()
+////        if not moved then
+////          let spinCountMax = 100
+////          let mutable spinCount = 0
+////          while spinCount < spinCountMax do
+////            if this.MoveNext() then 
+////              spinCount <- spinCountMax
+////              moved <- true
+////            else spinCount <- spinCount + 1
+//        if moved && not ct.IsCancellationRequested then
+//          //isWaitingForTcs := false
+//          Task.FromResult(true)
+//        else
+        cancellationToken := ct
+        // TODO use interlocked.exchange or whatever to not allocate new one every time, if we return Task.FromResult(true) below
+        // interlocked.exchange does not short-circuit and allocates value each time
+        //Interlocked.CompareExchange(tcs, TaskCompletionSource(), null) |> ignore
+        lock(sr) (fun _ ->
+          if !tcs = null then tcs := TaskCompletionSource()
         )
+        tcs.Value.Task
+        
       | _ -> Task.FromResult(false) // has no values and will never have because is not IUpdateable
   
   abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>

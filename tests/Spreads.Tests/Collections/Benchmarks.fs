@@ -630,13 +630,13 @@ module CollectionsBenchmarks =
           let res = i.Value
           ()
       )
-    for i in 0..9 do
-      perf count "SMR Iterate with Zip" (fun _ ->
-        let ro = (((smap.Value.ReadOnly().Zip(smap.Value, fun v v2 -> v + v2)))):> IReadOnlyOrderedMap<int64,int64>
-        for i in ro do
-          let res = i.Value
-          ()
-      )
+//    for i in 0..9 do
+//      perf count "SMR Iterate with Zip" (fun _ ->
+//        let ro = (((smap.Value.ReadOnly().Zip(smap.Value, fun v v2 -> v + v2)))):> IReadOnlyOrderedMap<int64,int64>
+//        for i in ro do
+//          let res = i.Value
+//          ()
+//      )
     for i in 0..9 do
       perf count "SMR Add Two with operator" (fun _ ->
         let ro = (smap.Value + smap.Value) :> IReadOnlyOrderedMap<int64,int64>

@@ -19,7 +19,8 @@ namespace Spreads.Collections.Tests {
         public void UpdateEventIsTriggered() {
             var sm = new SortedMap<DateTime, double>();
             (sm as IUpdateable<DateTime, double>).OnData += (s, x) => {
-                Console.WriteLine("Added {0} : {1}", x.Key, x.Value);
+                Console.WriteLine("Added {0} : {1}", x.Key,
+                    x.Value);
             };
 
             sm.Add(DateTime.UtcNow.Date.AddSeconds(0), 0);
@@ -45,24 +46,32 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor() {
-            var count = 100000;//00000;
+            var count = 10000000; //00000;
             var sw = new Stopwatch();
             //var mre = new ManualResetEventSlim(true);
             sw.Start();
 
             var sm = new SortedMap<DateTime, double>();
+            //sm.Add(DateTime.UtcNow.Date.AddSeconds(-2), 0);
+
             //sm.IsSynchronized = true;
             for (int i = 0; i < 5; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
 
             var addTask = Task.Run(async () => {
+
                 await Task.Delay(50);
+                //try {
                 for (int i = 5; i < count; i++) {
                     //mre.Wait();
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                     //await Task.Delay(1);
                 }
+                //} catch(Exception e)
+                //{
+                //    Console.WriteLine(e.Message);
+                //}
             });
 
             double sum = 0.0;
@@ -78,7 +87,6 @@ namespace Spreads.Collections.Tests {
                 while (await c.MoveNext(CancellationToken.None)) {
                     //mre.Reset();
                     sum += c.CurrentValue;
-                    //Console.WriteLine("Current key: {0}", c.CurrentKey);
                     if (c.CurrentKey == stop) {
                         break;
                     }
@@ -87,8 +95,51 @@ namespace Spreads.Collections.Tests {
                 Console.WriteLine("Finished");
             });
 
+            double sum2 = 0.0;
+            var sumTask2 = Task.Run(async () => {
+                var c = sm.GetCursor();
+                while (c.MoveNext()) {
+                    sum2 += c.CurrentValue;
+                }
+                Assert.AreEqual(10, sum2);
+                var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
+
+                await Task.Delay(100);
+                while (await c.MoveNext(CancellationToken.None)) {
+                    //mre.Reset();
+                    sum2 += c.CurrentValue;
+                    if (c.CurrentKey == stop) {
+                        break;
+                    }
+                    //mre.Set();
+                }
+                Console.WriteLine("Finished");
+            });
+
+            double sum3 = 0.0;
+            var sumTask3 = Task.Run(async () => {
+                var c = sm.GetCursor();
+                while (c.MoveNext()) {
+                    sum3 += c.CurrentValue;
+                }
+                Assert.AreEqual(10, sum3);
+                var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
+
+                await Task.Delay(100);
+                while (await c.MoveNext(CancellationToken.None)) {
+                    //mre.Reset();
+                    sum3 += c.CurrentValue;
+                    if (c.CurrentKey == stop) {
+                        break;
+                    }
+                    //mre.Set();
+                }
+                Console.WriteLine("Finished");
+            });
 
             sumTask.Wait();
+            sumTask2.Wait();
+            sumTask3.Wait();
             addTask.Wait();
 
             sw.Stop();
@@ -100,7 +151,8 @@ namespace Spreads.Collections.Tests {
                 expectedSum += i;
             }
             Assert.AreEqual(expectedSum, sum);
-
+            Assert.AreEqual(expectedSum, sum2);
+            Assert.AreEqual(expectedSum, sum3);
         }
 
 
@@ -138,7 +190,8 @@ namespace Spreads.Collections.Tests {
                 while (true) {
                     // spinwait
                     while (!c.MoveNext()) {
-                    };
+                    }
+                    ;
                     sum += c.CurrentValue;
                     //Console.WriteLine("Current key: {0}", c.CurrentKey);
                     if (c.CurrentKey == stop) {
@@ -254,6 +307,38 @@ namespace Spreads.Collections.Tests {
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
             Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
 
+        }
+
+
+
+        internal class TestCompareExchange {
+            public static TestCompareExchange defalt = new TestCompareExchange();
+            public static bool allocated = false;
+            public TestCompareExchange() {
+                allocated = true;
+                Console.WriteLine("I am created");
+            }
+        }
+
+        [Test]
+        public void CompareExchangeAllocatesValue() {
+
+            if (TestCompareExchange.allocated && (new TestCompareExchange()) != null) // the second part after && is not evaluated 
+            {
+
+            }
+            Assert.IsFalse(TestCompareExchange.allocated);
+
+            TestCompareExchange target = null;
+            var original = Interlocked.CompareExchange(ref target, new TestCompareExchange(), (TestCompareExchange)null);
+            Assert.AreEqual(null, original);
+            Assert.IsTrue(TestCompareExchange.allocated);
+
+            TestCompareExchange.allocated = false;
+            target = null;
+            original = Interlocked.CompareExchange(ref target, new TestCompareExchange(), TestCompareExchange.defalt);
+            Assert.AreEqual(null, original);
+            Assert.IsTrue(TestCompareExchange.allocated); // no exchange, but objetc is allocated
         }
 
     }

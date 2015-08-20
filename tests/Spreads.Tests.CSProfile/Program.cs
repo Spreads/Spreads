@@ -33,8 +33,8 @@ namespace Spreads.Tests.CSProfile {
             //var check = sm > 1L;
             //var eq = sm == 1L;
             //var eq2 = sm == sm;
-            new ZipNTests().CouldZipMillionIntsWithMoveNextContX5();
-
+            //new ZipNTests().CouldZipMillionIntsWithMoveNextContX5();
+            new MoveNextAsyncTests().CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
             Console.ReadLine();
         }
     }
