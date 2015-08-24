@@ -31,8 +31,8 @@ type BaseCursor<'K,'V>
           lock(sr) (fun _ ->
             // right now a client is waiting for a task to complete, there is no more elements in the map
             let tcsIsNotNull = !tcs <> null
-            let moved = tcsIsNotNull && this.MoveNext()
-            if tcsIsNotNull && moved then // NB order
+            let moved = tcsIsNotNull && this.MoveNext() // NB order
+            if tcsIsNotNull && moved then 
               let tcs' = !tcs
               tcs := null
               let couldSetResult = (tcs').TrySetResult(true)

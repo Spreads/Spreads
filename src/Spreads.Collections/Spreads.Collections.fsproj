@@ -71,13 +71,12 @@
     <Compile Include="Common\ObjectPool.fs" />
     <Compile Include="Common\Utils.fs" />
     <Compile Include="Common\SortedDeque.fs" />
-	  <Compile Include="..\..\..\..\..\Period\src\Period\Period.fs">
-		  <Link>Common\Period.fs</Link>
-	  </Compile>
+    <Compile Include="..\..\..\..\..\Period\src\Period\Period.fs">
+      <Link>Common\Period.fs</Link>
+    </Compile>
     <Compile Include="Interfaces.fs" />
     <Compile Include="MathProvider.fs" />
     <Compile Include="BaseCursor.fs" />
-    
     <Compile Include="Spreads.Series.fs" />
     <Compile Include="Collections\Collections.fs" />
     <Compile Include="Collections\BoundedDictionary.fs" />
@@ -106,11 +105,13 @@
     <Compile Include="Cursors\ZipNCursor.Orig.fs" />
     <Compile Include="Cursors\RangeCursor.fs" />
     <Compile Include="CursorSeries.fs" />
+    <Compile Include="Panel.fs" />
     <Compile Include="MathProviderImpl.fs" />
     <Compile Include="Spreads.Series.2.fs" />
     <Compile Include="Cell.fs" />
     <None Include="Script1.fsx" />
     <Content Include="packages.config" />
+    <Compile Include="SortedPanel.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">

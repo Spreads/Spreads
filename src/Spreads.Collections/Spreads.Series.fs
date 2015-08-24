@@ -346,6 +346,10 @@ and // TODO internal
   /// A cursor that could perform map, filter, fold, scan operations on input cursors.
   [<AbstractClassAttribute>]
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
+  [<ObsoleteAttribute("TODO Rewrite this as BindCursor to fix not only name, but alos separate state 
+    creation and transformation. Add TryCreateState and TryUpdateState, and then a function that transforms 
+    the state to value should be applied in the value getter. By doing so, we could even inherit from BaseCursor
+    and reuse MoveNext in MoveNextAsync")>]
   CursorBind<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
     
     let cursor = cursorFactory.Invoke()
@@ -604,7 +608,7 @@ and // TODO internal
               this.CurrentValue <- value
           if found then 
             hasValidState <- true
-            true 
+            true
           else false
       else false
 

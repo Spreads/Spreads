@@ -267,9 +267,9 @@ type IUpdateable<'K,'V> =
 //        member this.OnData =  myEvent.Publish
 
 // TODO?? maybe this is enough? All other methods could be done as extensions??
-type Panel<'TRowKey,'TColumnKey, 'TValue> =
+type IPanel<'TRowKey,'TColumnKey, 'TValue> =
   //ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>> // this is how it could be implemented
-  ISeries<'TRowKey,IReadOnlyOrderedMap<'TColumnKey,'TValue>> // this is how it is used most of the time
+  inherit ISeries<'TRowKey,IReadOnlyOrderedMap<'TColumnKey,'TValue>> // this is how it is used most of the time
   // panel stores references to series that could be lazy/persistent/(not in memory), while panel's consumer need rows on demand
 
 
