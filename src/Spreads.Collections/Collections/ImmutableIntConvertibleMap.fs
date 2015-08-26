@@ -65,7 +65,7 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
         member this.IsEmpty = map.IsEmpty
         //member this.Count = int map.Size
         member this.IsIndexed with get() = (map :> IImmutableOrderedMap<int64,'V>).IsIndexed
-
+        member this.IsMutable = (map :> IImmutableOrderedMap<int64,'V>).IsMutable
         member this.First
             with get() = 
                 let f = map.First
@@ -76,8 +76,8 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
                 let l = map.First
                 KeyValuePair(conv.FromInt64(l.Key), l.Value)
 
-        member this.Item
-            with get (k) : 'V = map.Item(conv.ToInt64(k))
+        member this.Item  with get (k) : 'V = map.Item(conv.ToInt64(k))
+        member this.GetAt(idx:int) = this.Skip(Math.Max(0, idx-1)).First().Value
 
         [<ObsoleteAttribute("Naive impl, optimize if used often")>]
         member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)

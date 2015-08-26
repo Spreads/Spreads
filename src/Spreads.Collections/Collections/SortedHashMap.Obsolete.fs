@@ -1,4 +1,4 @@
-﻿namespace Spreads.Collections
+﻿namespace Spreads.Collections.Obsolete
 
 open System
 open System.Collections
@@ -703,6 +703,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
         true
       else false
     member this.Item with get k = this.Item(k)
+    member this.GetAt(idx:int) = this.Skip(Math.Max(0, idx-1)).First().Value
     [<ObsoleteAttribute("Naive impl, optimize if used often")>]
     member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)
     [<ObsoleteAttribute("Naive impl, optimize if used often")>]

@@ -4,10 +4,10 @@ open System.Reflection
 [<assembly: AssemblyTitleAttribute("Deedle")>]
 [<assembly: AssemblyProductAttribute("Spreads")>]
 [<assembly: AssemblyDescriptionAttribute("Spreads")>]
-[<assembly: AssemblyVersionAttribute("0.0.49")>]
-[<assembly: AssemblyFileVersionAttribute("0.0.49")>]
+[<assembly: AssemblyVersionAttribute("0.0.50")>]
+[<assembly: AssemblyFileVersionAttribute("0.0.50")>]
 [<assembly: AssemblyCopyrightAttribute("(c) Victor Baybekov 2015")>]
 do ()
 
 module internal AssemblyVersionInformation =
-    let [<Literal>] Version = "0.0.49"
+    let [<Literal>] Version = "0.0.50"

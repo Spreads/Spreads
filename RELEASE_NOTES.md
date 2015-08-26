@@ -1,3 +1,17 @@
+#### 0.0.50 - August 26, 2015
+* IndexedMap as an unsorted equivalent of SortedMap, when values are ordered by sequence of addition.
+* Add IsMutable property to ISeries. If this value if false, it is safe to reuse keys of the source, which is 
+useful for SortedMap/OrderedMap as rows in panels. We could compare keys by reference and apply batch operations,
+such as add, to values in case keys are equal.
+* In Serializer, store version as negative value for immutable SortedMap. TODO support IndexedMap as a special case in serializer.
+* Add `GetAt : idx:int -> 'V` method to IReadOnlyOrderedMap, which gets a value by index. It is implemented efficiently 
+for indexed series and SortedMap, but default implementation is Linq's [series].Skip(idx-1).Take(1).Value
+* Add Panel base class amd two implementations for column-based and row-based materialized panels. TODO lazy panel with rows as projected series.
+* Add proof-of-concept circular calculation test
+* Make previous SortedChankedMap implementation obsolete and replace it with SCM2, which accepts inner map factory with
+default to SortedMap constructor. TODO? could SCM be indexed, or it does little sense?
+
+
 #### 0.0.49 - August 17, 2015
 * ZipNCursor preliminary tested and profiled for all non-continuous and all continuous series.
 

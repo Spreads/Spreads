@@ -722,7 +722,12 @@ type SeriesExtensions () =
     
     [<Extension>]
     static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V2>, mapFunc:Func<'V,'V2,'R>) : Series<'K,'R> =
-      CursorSeries(fun _ -> new ZipValuesCursor<'K,'V,'V2,'R>(Func<ICursor<'K,'V>>(source.GetCursor), Func<ICursor<'K,'V2>>(other.GetCursor), mapFunc) :> ICursor<'K,'R>) :> Series<'K,'R>
+      // TODO! check this type stuff
+      if typeof<'V> = typeof<'V2> then
+        let mapFunc2 = (box mapFunc) :?> Func<'V,'V,'R>
+        CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(Func<'K,'V[],'R>(fun _ varr -> mapFunc2.Invoke(varr.[0], varr.[1])), [|source;(box other) :?> ISeries<'K,'V>|] |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
+      else
+        CursorSeries(fun _ -> new ZipValuesCursor<'K,'V,'V2,'R>(Func<ICursor<'K,'V>>(source.GetCursor), Func<ICursor<'K,'V2>>(other.GetCursor), mapFunc) :> ICursor<'K,'R>) :> Series<'K,'R>
 
     [<Extension>]
     static member inline Zip<'K,'V,'R when 'K : comparison>(series: Series<'K,'V> array, resultSelector:Func<'K,'V[],'R>) =
@@ -732,9 +737,9 @@ type SeriesExtensions () =
     static member inline Zip<'K,'V,'R when 'K : comparison>(series: ISeries<'K,'V> array, resultSelector:Func<'K,'V[],'R>) =
       CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(resultSelector, series |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
 
-    [<Extension>]
-    static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V>, mapFunc:Func<'V,'V,'R>) : Series<'K,'R> =
-      CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(Func<'K,'V[],'R>(fun _ varr -> mapFunc.Invoke(varr.[0], varr.[1])), [|source;other|] |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
+//    [<Extension>]
+//    static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V>, mapFunc:Func<'V,'V,'R>) : Series<'K,'R> =
+//      CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(Func<'K,'V[],'R>(fun _ varr -> mapFunc.Invoke(varr.[0], varr.[1])), [|source;other|] |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
 
 
 //    [<Extension>]

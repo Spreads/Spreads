@@ -1251,17 +1251,12 @@ namespace Spreads.Collections
             member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<uint64, 'T>>
             member this.GetCursor() = this.GetCursor()
             member this.IsEmpty = this.IsEmpty
-
             member this.IsIndexed with get() = false
-
-            member this.First
-                with get() = this.First
-
-            member this.Last
-                with get() = this.Last
-
-            member this.Item
-                with get (k) : 'T = this.Item(k)
+            member this.IsMutable = false
+            member this.First with get() = this.First
+            member this.Last with get() = this.Last
+            member this.Item with get (k) : 'T = this.Item(k)
+            member this.GetAt(idx:int) : 'T = this.Skip(Math.Max(0, idx-1)).First().Value
             member this.Keys with get() = IntMap64UTree.keys tree :> IEnumerable<uint64>
             member this.Values with get() = IntMap64UTree.values tree :> IEnumerable<'T>
 

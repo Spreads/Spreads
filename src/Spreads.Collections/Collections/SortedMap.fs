@@ -82,6 +82,8 @@ type SortedMap<'K,'V>
   [<NonSerializedAttribute>]
   let mutable isSynchronized : bool = false
   [<NonSerializedAttribute>]
+  let mutable isMutable : bool = true
+  [<NonSerializedAttribute>]
   let syncRoot = new Object()
   [<NonSerializedAttribute>]
   let mutable mapKey = ""
@@ -323,7 +325,14 @@ type SortedMap<'K,'V>
     this.size <- this.size + 1
     if cursorCounter >0 then updateEvent.Trigger(KVP(k,v))
     
-  member internal this.IsReadOnly with get() = false
+  member this.IsMutable 
+    with get() = isMutable
+    and set (value) = 
+      if isMutable then 
+        isMutable <- value
+      else 
+        if isMutable = value then () // NB same as not value
+        else invalidOp "Cannot make immutable map mutable, the setter only supports on-way change from mutable to immutable"
 
   member this.IsSynchronized 
     with get() =  isSynchronized
@@ -1122,7 +1131,7 @@ type SortedMap<'K,'V>
 
   interface IDictionary<'K,'V> with
     member this.Count = this.Count
-    member this.IsReadOnly with get() = this.IsReadOnly
+    member this.IsReadOnly with get() = not this.IsMutable
     member this.Item
       with get key = this.Item(key)
       and set key value = this.[key] <- value
@@ -1157,6 +1166,7 @@ type SortedMap<'K,'V>
     member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.size = 0
     member this.IsIndexed with get() = false
+    member this.IsMutable with get() = this.IsMutable
     member this.First with get() = this.First
     member this.Last with get() = this.Last
     member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
@@ -1179,6 +1189,7 @@ type SortedMap<'K,'V>
         false
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
     member this.Item with get k = this.Item(k)
+    member this.GetAt(idx:int) = this.values.[idx]
     member this.Keys with get() = this.Keys :> IEnumerable<'K>
     member this.Values with get() = this.values :> IEnumerable<'V>
     member this.SyncRoot with get() = syncRoot

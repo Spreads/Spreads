@@ -115,7 +115,7 @@ namespace Spreads.Collections.Tests {
 			Assert.IsTrue(removed);
 			Assert.IsTrue(!scm.IsEmpty);
 			Assert.IsTrue(scm.Count == 9999);
-			Assert.IsTrue(scm.First.Key == 2);
+			Assert.IsTrue(scm.First.Key == 1);
 		}
 
 

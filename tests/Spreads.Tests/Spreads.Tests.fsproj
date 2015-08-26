@@ -75,6 +75,7 @@
     <Compile Include="Collections\Benchmarks.fs" />
     <Compile Include="Series.Tests.fs" />
     <Compile Include="Experimental\BucketOffload.fs" />
+    <Compile Include="CircularTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Deedle">

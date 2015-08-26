@@ -716,7 +716,7 @@ module CollectionsBenchmarks =
 
   [<TestCase(10000000)>]
   let SHM(count:int64) =
-    let shm = ref (SortedHashMap(SpreadsComparerInt64()))
+    let shm = ref (Obsolete.SortedHashMap(SpreadsComparerInt64()))
     perf count "SHM<1024> Add" (fun _ ->
       for i in 0L..count do
         shm.Value.Add(i, i)
@@ -747,7 +747,7 @@ module CollectionsBenchmarks =
         if res <> i.Value then failwith "SHM failed"
         ()
     )
-    shm := (SortedHashMap(SpreadsComparerInt64()))
+    shm := (Obsolete.SortedHashMap(SpreadsComparerInt64()))
     let count = count / 10L
     perf count "SHM<1024> Add Reverse" (fun _ ->
       for i in 0L..count do

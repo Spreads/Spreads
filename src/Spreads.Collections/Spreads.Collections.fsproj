@@ -96,12 +96,12 @@
     <Compile Include="Collections\Heap.fsi" />
     <Compile Include="Collections\Heap.fs" />
     <Compile Include="Collections\Deque.fs" />
-    <Compile Include="Collections\SortedMap.fs" />
     <Compile Include="Collections\IndexedMap.fs" />
-    <Compile Include="Collections\SortedHashMap.fs" />
+    <Compile Include="Collections\SortedMap.fs" />
+    <Compile Include="Collections\SortedHashMap.Obsolete.fs" />
+    <Compile Include="Collections\SortedChunkedMap.Obsolete.fs" />
     <Compile Include="Collections\SortedChunkedMap.fs" />
     <Compile Include="Collections\DataStream.fs" />
-    <Compile Include="Collections\SCM2.fs" />
     <Compile Include="Cursors\ZipNCursor.Orig.fs" />
     <Compile Include="Cursors\RangeCursor.fs" />
     <Compile Include="CursorSeries.fs" />
@@ -112,6 +112,7 @@
     <None Include="Script1.fsx" />
     <Content Include="packages.config" />
     <Compile Include="SortedPanel.fs" />
+    <Compile Include="Circular.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">

@@ -785,6 +785,7 @@ namespace Spreads.Collections
         member this.GetCursor() = this.GetCursor()
         member this.IsEmpty = this.IsEmpty
         member this.IsIndexed with get() = false
+        member this.IsMutable with get() = false
         //member this.Count with get() = int this.Size
         member this.First  with get() = this.First
         member this.Last  with get() = this.Last

@@ -2,6 +2,7 @@
 namespace Spreads
 
 open System
+open System.Linq
 open System.Collections.Generic
 open System.Diagnostics
 open System.Runtime.InteropServices
@@ -49,8 +50,19 @@ and
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   Series<'K,'V>() =
     inherit Series()
+    let mutable sr = Unchecked.defaultof<_> // avoid allocation on each series creation, many of them are lighweight and never need a sync root
     
     abstract GetCursor : unit -> ICursor<'K,'V>
+
+    // TODO! check
+    member this.IsIndexed with get() = this.GetCursor().Source.IsIndexed
+    member this.IsMutable =  this.GetCursor().Source.IsIndexed
+
+    /// Locks any mutations for mutable implementations
+    member this.SyncRoot 
+      with get() = 
+        if sr = Unchecked.defaultof<_> then sr <- Object()
+        sr
 
     member this.Comparer with get() = this.GetCursor().Comparer
     member this.IsEmpty = not (this.GetCursor().MoveFirst())
@@ -129,11 +141,13 @@ and
       member this.GetCursor() = this.GetCursor()
       member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
       member this.IsIndexed with get() = this.GetCursor().Source.IsIndexed
-      member this.SyncRoot with get() = this.GetCursor().Source.SyncRoot
+      member this.IsMutable =  this.GetCursor().Source.IsIndexed
+      member this.SyncRoot with get() = this.SyncRoot
 
     interface IReadOnlyOrderedMap<'K,'V> with
       member this.Comparer with get() = this.Comparer
       member this.IsEmpty = this.IsEmpty
+      
       //member this.Count with get() = map.Count
       member this.First with get() = this.First 
       member this.Last with get() = this.Last 
@@ -142,6 +156,7 @@ and
       member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = this.TryGetLast(&res)
       member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
       member this.Item with get k = this.[k]
+      member this.GetAt(idx:int) = this.Skip(Math.Max(0, idx-1)).First().Value
       member this.Keys with get() = this.Keys 
       member this.Values with get() = this.Values
           
@@ -253,7 +268,7 @@ and
     static member (<=) (source:Series<'K,int>, other:Series<'K,int>) : Series<'K,bool> = Series.BinaryOperatorMap(source, other, fun x y -> x <= y)
     static member (<>) (source:Series<'K,int>, other:Series<'K,int>) : Series<'K,bool> = Series.BinaryOperatorMap(source, other, fun x y -> x <> y)
 
-
+    static member inline (+) (source:Series<'U,'W>, addition:'W) : Series<'U,'W> = Series.ScalarOperatorMap(source, fun x -> x + addition)
     // float
     static member (+) (source:Series<'K,float>, addition:float) : Series<'K,float> = Series.ScalarOperatorMap(source, fun x -> x + addition)
     static member (~+) (source:Series<'K,float>) : Series<'K,float> = Series.ScalarOperatorMap(source, fun x -> x)

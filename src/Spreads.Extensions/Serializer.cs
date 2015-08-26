@@ -456,8 +456,8 @@ namespace Spreads {
 
 			//src.CheckRegular(); // TODO? Need this?
 			var isRegular = src.IsRegular;
-
-			FixedBufferTransformer<Tuple<byte[], int>> passThrough = (source, length, self) => {
+            var isMutable = src.IsMutable;
+            FixedBufferTransformer<Tuple<byte[], int>> passThrough = (source, length, self) => {
 				// NB! here was a real example of leaving fixed region with pointer and GC moving the object
 				//unsafe
 				//{
@@ -507,7 +507,7 @@ namespace Spreads {
 				byte[] ret = new byte[4 + 4 + 4 + keysLen + valLen];
 				// use sign bit as a flag, regular vs irregular by definition do not expect a third option
 				Buffer.BlockCopy(BitConverter.GetBytes(isRegular ? -size : size), 0, ret, 0, 4);
-				Buffer.BlockCopy(BitConverter.GetBytes(version), 0, ret, 4, 4);
+				Buffer.BlockCopy(BitConverter.GetBytes(isMutable ? version : -version ), 0, ret, 4, 4); // immutable are marked with negative version
 				Buffer.BlockCopy(BitConverter.GetBytes(keysLen + 4 + 4 + 4), 0, ret, 8, 4);
 				Buffer.BlockCopy(keyBytes, 0, ret, 12, keysLen);
 				Buffer.BlockCopy(valBytes, 0, ret, 12 + keysLen, valLen);
@@ -534,9 +534,10 @@ namespace Spreads {
 
 			//src.CheckRegular(); // TODO? Need this?
 			var isRegular = src.IsRegular;
+            var isMutable = src.IsMutable;
 
-			// NB lowcase internal field access, not properties. Null check if later will use IOrderedMap instead of map
-			K[] keys = src.keys as K[] ?? src.Keys.ToArray();
+            // NB lowcase internal field access, not properties. Null check if later will use IOrderedMap instead of map
+            K[] keys = src.keys as K[] ?? src.Keys.ToArray();
 			V[] values = src.values as V[] ?? src.Values.ToArray();
 
 			// keys compression/serialization will normally be faster then values, start a task
@@ -559,7 +560,7 @@ namespace Spreads {
 			var bw = new BinaryWriter(ms);
 			// use sign bit as a flag, regular vs irregular by definition do not expect a third option
 			bw.Write(isRegular ? -size : size);
-			bw.Write(version);
+			bw.Write(isMutable ? version : -version);
 			bw.Write(keyBytes.Length + 12);
 			bw.Write(keyBytes);
 			bw.Write(valBytes.Result);
@@ -611,11 +612,17 @@ namespace Spreads {
 		public static SortedMap<K, V> DecompressMapPtr<K, V>(IntPtr srcPtr) {
 			var size = Marshal.ReadInt32(srcPtr, 0); //BitConverter.ToInt32(src, 0);
 			var isRegular = false;
-			if (size < 0) {
+            var isMutable = true;
+            if (size < 0) {
 				size = -size;
 				isRegular = true;
 			}
 			var version = Marshal.ReadInt32(srcPtr, 4); //BitConverter.ToInt32(src, 4);
+		    if (version < 0)
+		    {
+		        version = -version;
+                isMutable = false;
+		    }
 			var valueStart = Marshal.ReadInt32(srcPtr, 8); //BitConverter.ToInt32(src, 8);
 			var keyStart = 12;
 			//var keysTask = Task.Run(() => DecompressArray<K>(srcPtr, keyStart, true));
@@ -635,7 +642,7 @@ namespace Spreads {
 			//Task.WaitAll(keysTask, valuesTask);
 			//keysTask.Wait();
 			//Debug.Assert(keysTask.Result.Length == size);
-			Debug.Assert(values.Length == size);
+			//Debug.Assert(values.Length == size); // TODO should we trim?
 			var sm = SortedMap<K, V>.OfSortedKeysAndValues(keys, values, size, KeyComparer.GetDefault<K>(), false, isRegular); //keysTask.Result
 			sm.Version = version;
 			sm.couldHaveRegularKeys = isRegular;

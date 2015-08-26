@@ -46,6 +46,9 @@ type ISeries<'K,'V> =
   abstract GetCursor : unit -> ICursor<'K,'V>
   /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys
   abstract IsIndexed : bool with get
+  /// True if the underlying collection could be changed, false if the underlying collection is immutable or is complete 
+  /// for adding (e.g. after OnCompleted in Rx) or IsReadOnly in terms of ICollectio/IDictionary or has fixed keys/values (all definitions 4 are the same).
+  abstract IsMutable: bool with get
   /// Locks any mutations for mutable implementations
   abstract SyncRoot : obj with get
   // TODO make an extension method with parameter (subsribe = false). If subscribe = true, the resulting sorted map will be updated 
@@ -129,7 +132,7 @@ and
 // that will require changes to SortedMap - a constructor that uses references to keys/values 
 // and not copies them or uses another SM as a source and blocks all write methods.
 
-/// Important! 'Read-only' doesn't mean that the object is immutable or not changing. It only means
+/// NB! 'Read-only' doesn't mean that the object is immutable or not changing. It only means
 /// that there is no methods to change the map *from* this interface, without any assumptions about 
 /// the implementation. Underlying sequence could be mutable and rapidly changing; to prevent any 
 /// changes use lock (Monitor.Enter) on the SyncRoot property. Doing so will block any changes for 
@@ -147,9 +150,12 @@ and
     abstract First : KVP<'K, 'V> with get
     /// Last element, throws InvalidOperationException if empty
     abstract Last : unit -> KVP<'K, 'V> with get
-    /// Values at key, throws KeyNotFoundException if key is not present in the series (even for continuous series).
+    /// Value at key, throws KeyNotFoundException if key is not present in the series (even for continuous series).
     /// Use TryGetValue to get a value between existing keys for continuous series.
     abstract Item : 'K -> 'V with get
+    /// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
+    /// is Linq's [series].Skip(idx-1).Take(1).Value
+    abstract GetAt : idx:int -> 'V
     abstract Keys : IEnumerable<'K> with get
     abstract Values : IEnumerable<'V> with get
     /// The method finds value according to direction, returns false if it could not find such a value

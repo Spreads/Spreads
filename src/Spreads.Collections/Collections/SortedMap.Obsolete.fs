@@ -855,6 +855,7 @@ type SortedMap<'K,'V when 'K : comparison>
     member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.size = 0
     member this.IsIndexed with get() = false
+    member this.IsMutable with get() = true
     //member this.Count with get() = int this.size
     member this.First with get() = this.First
     member this.Last with get() = this.Last
@@ -878,6 +879,7 @@ type SortedMap<'K,'V when 'K : comparison>
         false
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
     member this.Item with get k = this.Item(k)
+    member this.GetAt(idx:int) = this.values.[idx]
     member this.Keys with get() = this.keys :> IEnumerable<'K>
     member this.Values with get() = this.values :> IEnumerable<'V>
     member this.SyncRoot with get() = syncRoot

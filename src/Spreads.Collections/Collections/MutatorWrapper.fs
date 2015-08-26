@@ -1,6 +1,7 @@
 ﻿namespace Spreads.Collections
 
 open System
+open System.Linq
 open System.Collections
 open System.Collections.Generic
 open System.Runtime.InteropServices
@@ -33,6 +34,7 @@ type internal MutatorWrapper<'K,'V  when 'K : comparison>
     member this.GetCursor() = map.GetCursor()
     member this.IsEmpty = map.IsEmpty
     member this.IsIndexed with get() = false
+    member this.IsMutable with get() = true
     //member this.Count with get() = int map.Size
     member this.First with get() = map.First
     member this.Last with get() = map.Last
@@ -57,6 +59,7 @@ type internal MutatorWrapper<'K,'V  when 'K : comparison>
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
       map.TryGetValue(k, &value)
     member this.Item with get k = map.Item(k)
+    member this.GetAt(idx:int) = this.Skip(Math.Max(0, idx-1)).First().Value
     [<ObsoleteAttribute("Naive impl, optimize if used often")>]
     member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)
     [<ObsoleteAttribute("Naive impl, optimize if used often")>]

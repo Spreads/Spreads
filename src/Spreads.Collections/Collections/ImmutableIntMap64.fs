@@ -1253,9 +1253,11 @@ namespace Spreads.Collections
           member this.GetCursor() = this.GetCursor()
           member this.IsEmpty = this.IsEmpty
           member this.IsIndexed with get() = false
+          member this.IsMutable = false
           member this.First with get() = this.First
           member this.Last with get() = this.Last
           member this.Item with get (k) : 'T = this.Item(k)
+          member this.GetAt(idx:int) : 'T = this.Skip(Math.Max(0, idx-1)).First().Value
           member this.Keys with get() = IntMap64Tree.keys tree :> IEnumerable<int64>
           member this.Values with get() = IntMap64Tree.values tree :> IEnumerable<'T>
           member this.TryFind(k, direction:Lookup, [<Out>] result: byref<KeyValuePair<int64, 'T>>) = 
