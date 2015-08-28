@@ -1,3 +1,6 @@
+#### 0.0.51 - August 27, 2015
+* Revert SortedChunkedMap implementation and add SortedChunkedMap2 with inner factory
+
 #### 0.0.50 - August 26, 2015
 * IndexedMap as an unsorted equivalent of SortedMap, when values are ordered by sequence of addition.
 * Add IsMutable property to ISeries. If this value if false, it is safe to reuse keys of the source, which is 

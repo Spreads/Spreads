@@ -97,7 +97,7 @@ type SortedMap<'K,'V>
     elif this.size > 1 then
       rkStep_ <- diffCalc.Diff(this.keys.[1], this.keys.[0])
       rkStep_
-    else raise (InvalidOperationException("Cannot calculate regular keys step for a single element in a map"))
+    else raise (InvalidOperationException("Cannot calculate regular keys step for a single element in a map or an empty map"))
   let rkKeyAtIndex (idx:int) : 'K = diffCalc.Add(this.keys.[0], (int64 idx)*rkGetStep())
   let rkIndexOfKey (key:'K) : int =
     Trace.Assert(this.size > 1)

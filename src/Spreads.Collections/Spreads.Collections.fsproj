@@ -99,8 +99,8 @@
     <Compile Include="Collections\IndexedMap.fs" />
     <Compile Include="Collections\SortedMap.fs" />
     <Compile Include="Collections\SortedHashMap.Obsolete.fs" />
-    <Compile Include="Collections\SortedChunkedMap.Obsolete.fs" />
     <Compile Include="Collections\SortedChunkedMap.fs" />
+    <Compile Include="Collections\SortedChunkedMap2.fs" />
     <Compile Include="Collections\DataStream.fs" />
     <Compile Include="Cursors\ZipNCursor.Orig.fs" />
     <Compile Include="Cursors\RangeCursor.fs" />

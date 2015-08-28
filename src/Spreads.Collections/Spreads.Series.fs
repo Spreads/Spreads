@@ -6,6 +6,7 @@ open System.Linq
 open System.Collections.Generic
 open System.Diagnostics
 open System.Runtime.InteropServices
+open System.Threading
 open System.Threading.Tasks
 
 open Spreads
@@ -70,12 +71,12 @@ and
     member this.First 
       with get() = 
         let c = this.GetCursor()
-        if c.MoveFirst() then c.Current else failwith "Series is empty"
+        if c.MoveFirst() then c.Current else invalidOp "Series is empty"
 
     member this.Last 
       with get() =
         let c = this.GetCursor()
-        if c.MoveLast() then c.Current else failwith "Series is empty"
+        if c.MoveLast() then c.Current else invalidOp "Series is empty"
 
     member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
       let c = this.GetCursor()
@@ -356,6 +357,226 @@ and
 // slow down virtual and interface calls by dozens of cycles.
 //
 // Our benchmark confirms that the slowdown of .Repeat(), .ReadOnly(), .Map(...) and .Filter(...) is quite small 
+
+and
+  /// Map keys and values to new values
+  internal MapValuesCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> opt)=
+    let cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
+    let f : Func<'V,'V2> = f
+    let fBatch = fBatch
+    // for forward-only enumeration this could be faster with native math
+    // any non-forward move makes this false and we fall back to single items
+    let mutable preferBatches = fBatch.IsPresent
+    let mutable batch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
+    let mutable nextBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
+    let mutable nextBatchTask = Unchecked.defaultof<Task<bool>>
+
+    member this.CurrentKey: 'K = cursor.CurrentKey
+    member this.CurrentValue: 'V2 = f.Invoke(cursor.CurrentValue)
+    member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
+
+    member private this.MapBatch(batch:IReadOnlyOrderedMap<'K,'V>) =
+      if preferBatches then
+        fBatch.Present.Invoke(batch)
+      else
+        let factory = Func<_>(batch.GetCursor)
+        let c() = new MapValuesCursor<'K,'V,'V2>(factory, f, OptionalValue.Missing) :> ICursor<'K,'V2>
+        CursorSeries(Func<_>(c)) :> IReadOnlyOrderedMap<'K,'V2>
+
+    member this.CurrentBatch
+      // TODO any evaluation must happen 
+      with get() : IReadOnlyOrderedMap<'K,'V2> =
+        // to support multiple calls to this.CurrentBatch
+        if batch = Unchecked.defaultof<_> then
+          batch <- this.MapBatch(cursor.CurrentBatch)
+        batch
+
+    member this.MoveNext(): bool = 
+      if not preferBatches then cursor.MoveNext()
+      else
+        preferBatches <- cursor.MoveNextBatch(CancellationToken.None).Result
+        // fBatch is present when we know that batching is significantly faster, therefore
+        // we should evaluate a batch and 
+        failwith "TODO"
+
+    member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> =
+      if nextBatchTask = Unchecked.defaultof<_> then
+        cursor.MoveNextBatch(cancellationToken).ContinueWith(
+            (fun (antecedant : Task<bool>) ->
+              // clean batch holder so that it could be refilled with the new cursor batch
+              batch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
+              nextBatchTask <- Task.Run(fun _ ->
+                true
+              )
+              antecedant.Result
+            ),
+          cancellationToken, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default)
+      else 
+        nextBatchTask.ContinueWith(
+          (fun (antecedant : Task<bool>) ->
+              // clean batch holder so that it could be refilled with the new cursor batch
+              batch <- nextBatch
+              nextBatchTask <- Task.Run(fun _ ->
+                true
+              )
+              antecedant.Result
+          ),
+          cancellationToken, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default)
+
+    member this.Source: ISeries<'K,'V2> = 
+        let factory = Func<_>(cursor.Source.GetCursor)
+        let c() = new MapValuesCursor<'K,'V,'V2>(cursorFactory, f, fBatch) :> ICursor<'K,'V2>
+        CursorSeries(Func<_>(c)) :> ISeries<'K,'V2>
+    member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  
+      let ok, v = cursor.TryGetValue(key)
+      if ok then value <- f.Invoke(v)
+      ok
+      
+    member this.Clone() = new MapCursor<'K,'V,'V2>(Func<_>(cursor.Clone), f) :> ICursor<'K,'V2>
+
+    interface IEnumerator<KVP<'K,'V2>> with    
+      member this.Reset() = cursor.Reset()
+      member this.MoveNext(): bool = this.MoveNext()
+      member this.Current with get(): KVP<'K, 'V2> = this.Current
+      member this.Current with get(): obj = this.Current :> obj 
+      member this.Dispose(): unit = cursor.Dispose()
+
+    interface ICursor<'K,'V2> with
+      member this.Comparer with get() = cursor.Comparer
+      member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
+      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = this.CurrentBatch
+      member this.CurrentKey: 'K = this.CurrentKey
+      member this.CurrentValue: 'V2 = this.CurrentValue
+      member this.IsContinuous: bool = cursor.IsContinuous
+      member this.MoveAt(index: 'K, direction: Lookup): bool = cursor.MoveAt(index, direction) 
+      member this.MoveFirst(): bool = cursor.MoveFirst()
+      member this.MoveLast(): bool = cursor.MoveLast()
+      member this.MovePrevious(): bool = cursor.MovePrevious()
+    
+      member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = cursor.MoveNext(cancellationToken)
+      member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = this.MoveNextBatch(cancellationToken)
+    
+      //member this.IsBatch with get() = this.IsBatch
+      member this.Source: ISeries<'K,'V2> = this.Source
+      member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  this.TryGetValue(key, &value)
+      member this.Clone() = this.Clone()
+
+and
+  /// Map keys and values to new values
+  internal MapCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'K,'V,'V2>)=
+    let cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
+    let f : Func<'K,'V,'V2> = f
+
+    member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
+    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> =
+      let factory = Func<_>(cursor.CurrentBatch.GetCursor)
+      let c() = new MapCursor<'K,'V,'V2>(factory, f) :> ICursor<'K,'V2>
+      CursorSeries(Func<_>(c)) :> IReadOnlyOrderedMap<'K,'V2>
+
+    member this.CurrentKey: 'K = cursor.CurrentKey
+    member this.CurrentValue: 'V2 = f.Invoke(cursor.CurrentKey, cursor.CurrentValue)
+
+    member this.Source: ISeries<'K,'V2> = 
+        let factory = Func<_>(cursor.Source.GetCursor)
+        let c() = new MapCursor<'K,'V,'V2>(cursorFactory, f) :> ICursor<'K,'V2>
+        CursorSeries(Func<_>(c)) :> ISeries<'K,'V2>
+    member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  
+      let ok, v = cursor.TryGetValue(key)
+      if ok then value <- f.Invoke(key, v)
+      ok
+      
+    member this.Clone() = new MapCursor<'K,'V,'V2>(Func<_>(cursor.Clone), f) :> ICursor<'K,'V2>
+
+    interface IEnumerator<KVP<'K,'V2>> with    
+      member this.Reset() = cursor.Reset()
+      member this.MoveNext(): bool = cursor.MoveNext()
+      member this.Current with get(): KVP<'K, 'V2> = this.Current
+      member this.Current with get(): obj = this.Current :> obj 
+      member this.Dispose(): unit = cursor.Dispose()
+
+    interface ICursor<'K,'V2> with
+      member this.Comparer with get() = cursor.Comparer
+      member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
+      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = this.CurrentBatch
+      member this.CurrentKey: 'K = this.CurrentKey
+      member this.CurrentValue: 'V2 = this.CurrentValue
+      member this.IsContinuous: bool = cursor.IsContinuous
+      member this.MoveAt(index: 'K, direction: Lookup): bool = cursor.MoveAt(index, direction) 
+      member this.MoveFirst(): bool = cursor.MoveFirst()
+      member this.MoveLast(): bool = cursor.MoveLast()
+      member this.MovePrevious(): bool = cursor.MovePrevious()
+    
+      member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = cursor.MoveNext(cancellationToken)
+      member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = cursor.MoveNextBatch(cancellationToken)
+    
+      //member this.IsBatch with get() = this.IsBatch
+      member this.Source: ISeries<'K,'V2> = this.Source
+      member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  this.TryGetValue(key, &value)
+      member this.Clone() = this.Clone()
+
+
+and // TODO internal
+  /// A cursor that could perform map, filter, fold, scan operations on input cursors.
+  [<AbstractClassAttribute>]
+  BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
+    let cursor = cursorFactory.Invoke()
+
+    let mutable state = Unchecked.defaultof<'State>
+    let mutable hasValidState = false
+
+    /// True after any successful move and when CurrentKey is defined
+    member this.HasValidState with get() = hasValidState and set (v) = hasValidState <- v
+    //member val IsIndexed = false with get, set //source.IsIndexed
+    /// By default, could move everywhere the source moves
+    member val IsContinuous = cursor.IsContinuous with get, set
+
+    member this.InputCursor with get() : ICursor<'K,'V> = cursor
+    
+    member val CurrentKey = Unchecked.defaultof<'K> with get, set
+    member this.CurrentValue 
+      with get() =
+        if hasValidState then this.EvaluateState state
+        else Unchecked.defaultof<'V2>
+
+    member this.Current with get () = KVP(this.CurrentKey, this.CurrentValue)
+    /// Stores current batch for a succesful batch move
+    //abstract CurrentBatch : IReadOnlyOrderedMap<'K,'V2> with get
+    member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>> with get, set
+
+    member this.State with get() = state
+
+    /// Map state to value
+    abstract EvaluateState: state:'State -> 'V2
+    /// Creates new state at a key.
+    abstract TryCreateState: key:'K * [<Out>] state: byref<'State> -> bool
+    /// Updates state with next value of input
+    abstract TryUpdateStateNext: next:KVP<'K,'V> * value: byref<'State> -> bool
+    /// Updates state with previous value of input
+    abstract TryUpdateStatePrevious: next:KVP<'K,'V> * value: byref<'State> -> bool
+    
+    abstract TryUpdateNextBatch: nextBatch: IReadOnlyOrderedMap<'K,'V> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>> -> bool  
+    override this.TryUpdateNextBatch(nextBatch: IReadOnlyOrderedMap<'K,'V>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>>) : bool =
+//      let mutable batchState = Unchecked.defaultof<'State>
+//      use bc = nextBatch.GetCursor()
+//      if bc.MoveFirst() && this.TryCreateState(bc.CurrentKey, &batchState) then
+//        // TODO (peft) check if nextBatch is sorted map to set size and if it is immutable to reuse keys
+//        let sm = SortedMap()
+//        sm.
+//      else 
+        // TODO this could be done lazily via fold, if we could move bind below fold
+        false
+
+    member this.Reset() = 
+      hasValidState <- false
+      cursor.Reset()
+    abstract Dispose: unit -> unit
+    override this.Dispose() = 
+      hasValidState <- false
+      cursor.Dispose()
+
+    /// Derived class must create a copy of self and, if hasValidState, move the new copy at the current key with MoveAt
+    abstract Clone: unit -> ICursor<'K,'V2>
+
 
 and // TODO internal
   /// A cursor that could perform map, filter, fold, scan operations on input cursors.

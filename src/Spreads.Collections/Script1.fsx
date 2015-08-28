@@ -247,3 +247,14 @@ type MyStruct1 =
         and set(valIn) = Interlocked.Exchange(&(x.value),valIn) |> ignore
 
 
+#time "on"
+
+let asyncCalc = 
+  async {
+    let mutable sum = 0
+    for i in 0..1000000 do
+      do! System.Threading.Tasks.Task.Run(fun _ -> sum <- sum + 1) |> Async.AwaitTask
+    return sum
+  }
+
+let sumAsync = asyncCalc |> Async.RunSynchronously
