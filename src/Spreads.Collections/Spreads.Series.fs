@@ -358,21 +358,35 @@ and
 //
 // Our benchmark confirms that the slowdown of .Repeat(), .ReadOnly(), .Map(...) and .Filter(...) is quite small 
 
+
 and
   /// Map keys and values to new values
-  internal MapValuesCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> opt)=
+  internal BatchCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
+    let foo = "bar"
+
+and
+  // NB Remember that a cursor is single-threaded
+
+  /// Map values to new values
+  internal BatchMapValuesCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> opt)=
     let cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
     let f : Func<'V,'V2> = f
     let fBatch = fBatch
     // for forward-only enumeration this could be faster with native math
     // any non-forward move makes this false and we fall back to single items
     let mutable preferBatches = fBatch.IsPresent
+    let mutable batchStarted = false
     let mutable batch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
+    let mutable batchCursor = Unchecked.defaultof<ICursor<'K,'V2>>
     let mutable nextBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
     let mutable nextBatchTask = Unchecked.defaultof<Task<bool>>
 
-    member this.CurrentKey: 'K = cursor.CurrentKey
-    member this.CurrentValue: 'V2 = f.Invoke(cursor.CurrentValue)
+    member this.CurrentKey: 'K = 
+      if batchStarted then batchCursor.CurrentKey
+      else cursor.CurrentKey
+    member this.CurrentValue: 'V2 = 
+      if batchStarted then batchCursor.CurrentValue
+      else f.Invoke(cursor.CurrentValue)
     member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
 
     member private this.MapBatch(batch:IReadOnlyOrderedMap<'K,'V>) =
@@ -380,7 +394,7 @@ and
         fBatch.Present.Invoke(batch)
       else
         let factory = Func<_>(batch.GetCursor)
-        let c() = new MapValuesCursor<'K,'V,'V2>(factory, f, OptionalValue.Missing) :> ICursor<'K,'V2>
+        let c() = new BatchMapValuesCursor<'K,'V,'V2>(factory, f, fBatch) :> ICursor<'K,'V2>
         CursorSeries(Func<_>(c)) :> IReadOnlyOrderedMap<'K,'V2>
 
     member this.CurrentBatch
@@ -389,23 +403,33 @@ and
         // to support multiple calls to this.CurrentBatch
         if batch = Unchecked.defaultof<_> then
           batch <- this.MapBatch(cursor.CurrentBatch)
+          // at this point, we could move cursor to a new batch
+          // we schedule the next move here because MoveNextBatch could be called 
+          // several time without evaluation
         batch
 
     member this.MoveNext(): bool = 
       if not preferBatches then cursor.MoveNext()
       else
-        preferBatches <- cursor.MoveNextBatch(CancellationToken.None).Result
-        // fBatch is present when we know that batching is significantly faster, therefore
-        // we should evaluate a batch and 
-        failwith "TODO"
+        if batchStarted && batchCursor.MoveNext() then // the hot path with just 2 comparisons 
+          true
+        else
+          preferBatches <- cursor.MoveNextBatch(CancellationToken.None).Result
+          if preferBatches then
+            batchCursor <- this.CurrentBatch.GetCursor() // NB setting batch variable here via this.CurrentBatch
+            batchStarted <- batchCursor.MoveNext()
+            batchStarted
+          else cursor.MoveNext()
 
     member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> =
-      if nextBatchTask = Unchecked.defaultof<_> then
+      if nextBatchTask = Unchecked.defaultof<_> then // there is no outstanding move
         cursor.MoveNextBatch(cancellationToken).ContinueWith(
             (fun (antecedant : Task<bool>) ->
               // clean batch holder so that it could be refilled with the new cursor batch
               batch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
               nextBatchTask <- Task.Run(fun _ ->
+                cursor.MoveNextBatch(cancellationToken)
+                failwith "TODO"
                 true
               )
               antecedant.Result
@@ -425,14 +449,14 @@ and
 
     member this.Source: ISeries<'K,'V2> = 
         let factory = Func<_>(cursor.Source.GetCursor)
-        let c() = new MapValuesCursor<'K,'V,'V2>(cursorFactory, f, fBatch) :> ICursor<'K,'V2>
+        let c() = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, fBatch) :> ICursor<'K,'V2>
         CursorSeries(Func<_>(c)) :> ISeries<'K,'V2>
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  
       let ok, v = cursor.TryGetValue(key)
       if ok then value <- f.Invoke(v)
       ok
       
-    member this.Clone() = new MapCursor<'K,'V,'V2>(Func<_>(cursor.Clone), f) :> ICursor<'K,'V2>
+    member this.Clone() = new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(cursor.Clone), f, fBatch) :> ICursor<'K,'V2>
 
     interface IEnumerator<KVP<'K,'V2>> with    
       member this.Reset() = cursor.Reset()
