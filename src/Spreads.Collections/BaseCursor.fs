@@ -24,36 +24,53 @@ type BaseCursor<'K,'V>
   let semaphore = new SemaphoreSlim(0,Int32.MaxValue)
   let taskCompleter = ref Unchecked.defaultof<Task<bool>>
   let rec completeTcs() : Async<bool> = 
+    
     async {
-        let waitTask = semaphore.WaitAsync(!cancellationToken)
-        let! couldProceed = waitTask |> Async.AwaitIAsyncResult
-        if couldProceed && !observerStarted && waitTask.IsCompleted then
-          lock(sr) (fun _ ->
-            // right now a client is waiting for a task to complete, there is no more elements in the map
-            let tcsIsNotNull = !tcs <> null
-            let moved = tcsIsNotNull && this.MoveNext() // NB order
-            if tcsIsNotNull && moved then 
-              let tcs' = !tcs
-              tcs := null
-              let couldSetResult = (tcs').TrySetResult(true)
-    #if PRERELEASE
-              Trace.Assert(couldSetResult)
-    #endif
-              ()
-            else
-              // do nothing, next MoveNext(ct) will try to call MoveNext() and it will return the correct result
-              ()
-          )
-          return! completeTcs()
-        else 
-          return false // stop the loop
+          let mutable cont = true
+          let waitTask = semaphore.WaitAsync(!cancellationToken)
+          let! couldProceed = waitTask |> Async.AwaitIAsyncResult
+          //Debug.WriteLine("A")
+          if cont && couldProceed && !observerStarted && waitTask.IsCompleted then
+            lock(sr) (fun _ ->
+              // right now a client is waiting for a task to complete, there are no more elements in the map
+              if !tcs <> null then
+                //Debug.WriteLine("B: !tcs <> null")
+                if this.MoveNext() then
+                  let tcs' = !tcs
+                  tcs := null
+                  //Debug.WriteLine("C: Moved")
+                  let couldSetResult = (tcs').TrySetResult(true)
+        #if PRERELEASE
+                  Trace.Assert(couldSetResult)
+        #endif
+                  ()
+                // check if the source became immutable
+                elif not source.IsMutable then 
+                  //Debug.WriteLine("D")
+                  let couldSetResult = (!tcs).TrySetResult(false)
+                  Trace.Assert(couldSetResult)
+                  cont <- false
+              else
+                // do nothing, next MoveNext(ct) will try to call MoveNext() and it will return the correct result
+                ()
+            )
+            return! completeTcs()
+          else
+            Debug.WriteLine("STOP")
+            return false // stop the loop
     }
 
   let updateHandler : UpdateHandler<'K,'V> = 
     UpdateHandler(fun _ (kvp:KVP<'K,'V>) ->
+         
 //        if (this.Comparer.Compare(kvp.Key, this.CurrentKey) < 0) then 
 //          invalidOp "Out of order value. TODO handle it"
           // TODO could be same logic as in MoveNext - reposition to out-of-order value, or could throw
+//        if kvp = Unchecked.defaultof<_> then
+//          lock(sr) (fun _ ->
+//            if !tcs <> null then (!tcs).TrySetResult(false) |> ignore
+//          )
+        //el
         if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
     )
       
@@ -94,9 +111,9 @@ type BaseCursor<'K,'V>
     match this.MoveNext() with
     | true -> 
       Task.FromResult(true)      
-    | false -> 
-      match isUpdateable with
-      | true -> 
+    | false ->
+      match isUpdateable, source.IsMutable with
+      | true, true ->
         let upd = source :?> IUpdateable<'K,'V>
         if not !observerStarted then 
           upd.OnData.AddHandler updateHandler
@@ -122,11 +139,12 @@ type BaseCursor<'K,'V>
         // interlocked.exchange does not short-circuit and allocates value each time
         //Interlocked.CompareExchange(tcs, TaskCompletionSource(), null) |> ignore
         lock(sr) (fun _ ->
-          if !tcs = null then tcs := TaskCompletionSource()
+            if !tcs = null then
+              tcs := TaskCompletionSource()
+            tcs.Value.Task
         )
-        tcs.Value.Task
         
-      | _ -> Task.FromResult(false) // has no values and will never have because is not IUpdateable
+      | _ -> Task.FromResult(false) // has no values and will never have because is not IUpdateable or IsMutable=false
   
   abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>
   abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get

@@ -18,7 +18,7 @@ open Spreads.Collections
 // TODO subscribe to update events on prevBucket and Flush at least every second
 // TODO do not flush unchanged buckets, e.g. when chunkSize = 1 we flush twice
 
-
+// TODO IsMutable property
 
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
@@ -392,13 +392,20 @@ type SortedChunkedMap<'K,'V>
               else return false
             else
               if !isBatch then
-                let! couldMove = outer.Value.MoveNext(ct) |> Async.AwaitTask
+                let couldMove = outer.Value.MoveNext() // ct |> Async.AwaitTask // NB not async move next!
                 if couldMove then
                   currentBatch <- outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
                   isBatch := true
                   return true
-                else return false
+                else 
+                  // no batch, but place cursor at the end of the last batch so that move next won't get null reference exception
+                  inner := outer.Value.CurrentValue.GetCursor()
+                  if not outer.Value.CurrentValue.IsEmpty then inner.Value.MoveLast() |> ignore
+                  return false
               else
+//                // no batch, but place cursor at the end of the last batch so that move next won't get null reference exception
+//                inner := outer.Value.CurrentValue.GetCursor()
+//                if not outer.Value.CurrentValue.IsEmpty then inner.Value.MoveLast() |> ignore
                 return false
           finally
             exitLockIf this.SyncRoot entered

@@ -46,6 +46,11 @@ type IVectorMathProvider =
   /// 
   abstract AddVectors: x:'T[] * y:'T[] * result:'T[] -> unit
   abstract MapBatch<'K,'V,'V2> : mapF:('V->'V2) * batch: IReadOnlyOrderedMap<'K,'V> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>> -> bool
+  abstract AddBatch<'K> : scalar:double * batch: IReadOnlyOrderedMap<'K,double> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,double>> -> bool
+  abstract AddBatch<'K> : left: IReadOnlyOrderedMap<'K,double> * right: IReadOnlyOrderedMap<'K,double> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,double>> -> bool
+
+
+
 
 [<SealedAttribute;AbstractClassAttribute>]
 type VectorMathProvider() =

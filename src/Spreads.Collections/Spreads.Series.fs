@@ -360,15 +360,10 @@ and
 
 
 and
-  /// Map keys and values to new values
-  internal BatchCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
-    let foo = "bar"
-
-and
   // NB Remember that a cursor is single-threaded
 
   /// Map values to new values
-  internal BatchMapValuesCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> opt)=
+  internal BatchMapValuesCursor<'K,'V,'V2> private(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> opt)=
     let cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
     let f : Func<'V,'V2> = f
     let fBatch = fBatch
@@ -378,8 +373,12 @@ and
     let mutable batchStarted = false
     let mutable batch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
     let mutable batchCursor = Unchecked.defaultof<ICursor<'K,'V2>>
+    // we could generalie this to a queue, but only after this implementation works OK with 2 threads
     let mutable nextBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
     let mutable nextBatchTask = Unchecked.defaultof<Task<bool>>
+
+    new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, OptionalValue.Missing)
+    new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>,fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, OptionalValue(fBatch))
 
     member this.CurrentKey: 'K = 
       if batchStarted then batchCursor.CurrentKey
@@ -397,15 +396,29 @@ and
         let c() = new BatchMapValuesCursor<'K,'V,'V2>(factory, f, fBatch) :> ICursor<'K,'V2>
         CursorSeries(Func<_>(c)) :> IReadOnlyOrderedMap<'K,'V2>
 
+    member private this.StartNextBatch() = 
+        Task.Run(fun _ ->
+            cursor.MoveNextBatch(CancellationToken.None)
+              .ContinueWith( (fun (antecedant2 : Task<bool>) -> 
+                  if antecedant2.Result then
+                    nextBatch <- this.MapBatch(cursor.CurrentBatch)
+                    true
+                  else 
+                    nextBatch <- Unchecked.defaultof<_>
+                    false
+                ),
+                CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default).Result
+        )
+
     member this.CurrentBatch
-      // TODO any evaluation must happen 
       with get() : IReadOnlyOrderedMap<'K,'V2> =
-        // to support multiple calls to this.CurrentBatch
+        // to support multiple calls to this.CurrentBatch and allow to move cursor.CurrentBatch
         if batch = Unchecked.defaultof<_> then
           batch <- this.MapBatch(cursor.CurrentBatch)
           // at this point, we could move cursor to a new batch
           // we schedule the next move here because MoveNextBatch could be called 
           // several time without evaluation
+          nextBatchTask <- this.StartNextBatch()
         batch
 
     member this.MoveNext(): bool = 
@@ -414,35 +427,64 @@ and
         if batchStarted && batchCursor.MoveNext() then // the hot path with just 2 comparisons 
           true
         else
-          preferBatches <- cursor.MoveNextBatch(CancellationToken.None).Result
+          preferBatches <- this.MoveNextBatch(CancellationToken.None).Result // TODO check if this or cursor, hangs here!
           if preferBatches then
             batchCursor <- this.CurrentBatch.GetCursor() // NB setting batch variable here via this.CurrentBatch
             batchStarted <- batchCursor.MoveNext()
             batchStarted
-          else cursor.MoveNext()
+          else batchStarted <- false; cursor.MoveNext()
+
+    member this.MoveNext(cancellationToken: Threading.CancellationToken) =
+      // not just cursor.MoveNext(cancellationToken), because this.MoveNext() will set flags
+      // when batching is over 
+      if this.MoveNext() then Task.FromResult(true)
+      else cursor.MoveNext(cancellationToken)
+
+    member private this.ClearBatches() =
+      preferBatches <- false
+      batchStarted <- false
+      if batchCursor <> Unchecked.defaultof<ICursor<'K,'V2>> then batchCursor.Dispose()
+      batch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
+      batchCursor <- Unchecked.defaultof<ICursor<'K,'V2>>
+      nextBatch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
+      nextBatchTask <- Unchecked.defaultof<Task<bool>>
+
+    member this.MoveAt(index: 'K, direction: Lookup): bool =
+      if preferBatches then this.ClearBatches()
+      cursor.MoveAt(index, direction)
+
+    member this.MoveFirst() = 
+      if preferBatches then this.ClearBatches()
+      cursor.MoveFirst()
+
+    member this.MoveLast() = 
+      if preferBatches then this.ClearBatches()
+      cursor.MoveLast()
+
+    member this.MovePrevious() =
+      if preferBatches then 
+        if cursor.Comparer.Compare(cursor.CurrentKey, this.CurrentKey) <> 0 && not <| cursor.MoveAt(this.CurrentKey, Lookup.EQ) then invalidOp "Cannot move cursor "
+        this.ClearBatches()
+      cursor.MovePrevious()
 
     member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> =
       if nextBatchTask = Unchecked.defaultof<_> then // there is no outstanding move
         cursor.MoveNextBatch(cancellationToken).ContinueWith(
             (fun (antecedant : Task<bool>) ->
               // clean batch holder so that it could be refilled with the new cursor batch
+              // only when the cursor.CurrentBatch is consumed we could start the next batch,
+              // therefore the first place where nextBatchTask is set is in this.CurrentBatch
               batch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
-              nextBatchTask <- Task.Run(fun _ ->
-                cursor.MoveNextBatch(cancellationToken)
-                failwith "TODO"
-                true
-              )
               antecedant.Result
             ),
           cancellationToken, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default)
       else 
         nextBatchTask.ContinueWith(
           (fun (antecedant : Task<bool>) ->
-              // clean batch holder so that it could be refilled with the new cursor batch
-              batch <- nextBatch
-              nextBatchTask <- Task.Run(fun _ ->
-                true
-              )
+              // set batch to the result of precalculated next batch
+              if antecedant.Result then
+                batch <- nextBatch
+                nextBatchTask <- this.StartNextBatch()
               antecedant.Result
           ),
           cancellationToken, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default)
@@ -455,29 +497,38 @@ and
       let ok, v = cursor.TryGetValue(key)
       if ok then value <- f.Invoke(v)
       ok
-      
+    
+    member this.Reset() = 
+      preferBatches <- fBatch.IsPresent
+      batchStarted <- false
+      batch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
+      if batchCursor <> Unchecked.defaultof<ICursor<'K,'V2>> then batchCursor.Dispose()
+      batchCursor <- Unchecked.defaultof<ICursor<'K,'V2>>
+      nextBatch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
+      nextBatchTask <- Unchecked.defaultof<Task<bool>>
+      cursor.Reset()
     member this.Clone() = new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(cursor.Clone), f, fBatch) :> ICursor<'K,'V2>
 
     interface IEnumerator<KVP<'K,'V2>> with    
-      member this.Reset() = cursor.Reset()
+      member this.Reset() = this.Reset()
       member this.MoveNext(): bool = this.MoveNext()
       member this.Current with get(): KVP<'K, 'V2> = this.Current
       member this.Current with get(): obj = this.Current :> obj 
-      member this.Dispose(): unit = cursor.Dispose()
+      member this.Dispose(): unit = this.Reset(); batchCursor.Dispose(); cursor.Dispose()
 
     interface ICursor<'K,'V2> with
       member this.Comparer with get() = cursor.Comparer
-      member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
+      member this.Current: KVP<'K,'V2> = this.Current
       member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = this.CurrentBatch
       member this.CurrentKey: 'K = this.CurrentKey
       member this.CurrentValue: 'V2 = this.CurrentValue
       member this.IsContinuous: bool = cursor.IsContinuous
-      member this.MoveAt(index: 'K, direction: Lookup): bool = cursor.MoveAt(index, direction) 
-      member this.MoveFirst(): bool = cursor.MoveFirst()
-      member this.MoveLast(): bool = cursor.MoveLast()
-      member this.MovePrevious(): bool = cursor.MovePrevious()
+      member this.MoveAt(index: 'K, direction: Lookup): bool = this.MoveAt(index, direction) 
+      member this.MoveFirst(): bool = this.MoveFirst()
+      member this.MoveLast(): bool = this.MoveLast()
+      member this.MovePrevious(): bool = this.MovePrevious()
     
-      member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = cursor.MoveNext(cancellationToken)
+      member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = this.MoveNext(cancellationToken)
       member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = this.MoveNextBatch(cancellationToken)
     
       //member this.IsBatch with get() = this.IsBatch
@@ -575,6 +626,8 @@ and // TODO internal
     abstract TryCreateState: key:'K * [<Out>] state: byref<'State> -> bool
     /// Updates state with next value of input
     abstract TryUpdateStateNext: next:KVP<'K,'V> * value: byref<'State> -> bool
+    /// Updates state with next value of input
+    abstract TryUpdateStateNextAsync: next:KVP<'K,'V> * value: byref<'State> -> Task<bool>
     /// Updates state with previous value of input
     abstract TryUpdateStatePrevious: next:KVP<'K,'V> * value: byref<'State> -> bool
     

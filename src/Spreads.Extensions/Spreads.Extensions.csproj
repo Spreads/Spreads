@@ -162,6 +162,7 @@
     <Compile Include="Yeppp\math\Log.cs" />
     <Compile Include="Yeppp\math\Sin.cs" />
     <Compile Include="Yeppp\math\Tan.cs" />
+    <Compile Include="Yeppp\YepppMathProvider.cs" />
     <Compile Include="Yeppp\YeppTest.cs" />
   </ItemGroup>
   <ItemGroup>

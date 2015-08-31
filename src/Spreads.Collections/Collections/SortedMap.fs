@@ -264,6 +264,7 @@ type SortedMap<'K,'V>
 
 
   member private this.Insert(index:int, k, v) = 
+    if not isMutable then invalidOp "SortedMap is not mutable"
     // key is always new, checks are before this method
     // already inside a lock statement in a caller method if synchronized
 
@@ -330,6 +331,7 @@ type SortedMap<'K,'V>
     and set (value) = 
       if isMutable then 
         isMutable <- value
+        if not value && cursorCounter >0 then updateEvent.Trigger(Unchecked.defaultof<_>)
       else 
         if isMutable = value then () // NB same as not value
         else invalidOp "Cannot make immutable map mutable, the setter only supports on-way change from mutable to immutable"
@@ -365,6 +367,7 @@ type SortedMap<'K,'V>
         | c when c = this.values.Length -> ()
         | c when c < this.size -> raise (ArgumentOutOfRangeException("Small capacity"))
         | c when c > 0 -> 
+          if not isMutable then invalidOp "SortedMap is not mutable"
           if couldHaveRegularKeys then
             Trace.Assert(this.keys.Length = 2)
           else
@@ -703,6 +706,7 @@ type SortedMap<'K,'V>
   member this.Remove(key):bool =
     let entered = enterLockIf syncRoot isSynchronized
     try
+      if not isMutable then invalidOp "SortedMap is not mutable"
       let index = this.IndexOfKey(key)
       if index >= 0 then this.RemoveAt(index)
       index >= 0
@@ -736,6 +740,7 @@ type SortedMap<'K,'V>
   member this.RemoveMany(key:'K,direction:Lookup):bool =
     let entered = enterLockIf syncRoot  isSynchronized
     try
+      if not isMutable then invalidOp "SortedMap is not mutable"
       if this.size = 0 then false
       else
         let pivotIndex,_ = this.TryFindWithIndex(key, direction)
@@ -981,11 +986,14 @@ type SortedMap<'K,'V>
     new BaseCursor<'K,'V>(this) with
       override this.IsContinuous with get() = false
       override p.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
-        if !index = -1 then this :> IReadOnlyOrderedMap<'K,'V>
-        else raise (InvalidOperationException(""))
+        if !isBatch && !index = this.size - 1 then
+          this :> IReadOnlyOrderedMap<'K,'V>
+        else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
       override p.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> =
         if !index = -1 then 
-          index := this.size
+          index := this.size - 1 // at the last element of the batch
+          currentKey := this.GetKeyByIndex(index.Value)
+          currentValue := this.values.[!index]
           isBatch := true
           Task.FromResult(true)
         else Task.FromResult(false)

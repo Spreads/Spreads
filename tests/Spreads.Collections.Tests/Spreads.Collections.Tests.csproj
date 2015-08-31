@@ -47,6 +47,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BatchMapValuesCursorTests.cs" />
     <Compile Include="CursorSeriesTests.cs" />
     <Compile Include="IROOMTests.cs" />
     <Compile Include="SortedMapTests.cs" />
@@ -64,6 +65,10 @@
     <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj">
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
       <Name>Spreads.Collections</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Spreads.Extensions\Spreads.Extensions.csproj">
+      <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
+      <Name>Spreads.Extensions</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
