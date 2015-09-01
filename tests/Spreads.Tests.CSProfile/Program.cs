@@ -34,7 +34,8 @@ namespace Spreads.Tests.CSProfile {
             //var eq = sm == 1L;
             //var eq2 = sm == sm;
             //new ZipNTests().CouldZipMillionIntsWithMoveNextContX5();
-            new MoveNextAsyncTests().CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
+            //new MoveNextAsyncTests().CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
+            new BatchMapValuesCursorTests().CouldAddWitDefaultMathProvider();
             Console.ReadLine();
         }
     }

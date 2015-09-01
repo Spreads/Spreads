@@ -92,7 +92,7 @@ type SortedMap<'K,'V>
 
   // helper functions
   let rkGetStep() =
-    Trace.Assert(this.size > 1)
+    Debug.Assert(this.size > 1)
     if rkStep_ > 0L then rkStep_
     elif this.size > 1 then
       rkStep_ <- diffCalc.Diff(this.keys.[1], this.keys.[0])
@@ -1003,11 +1003,17 @@ type SortedMap<'K,'V>
       override p.MoveNext() = 
         let entered = enterLockIf syncRoot isSynchronized
         try
-          if index.Value = -1 then p.MoveFirst() // first move when index = -1
-          elif cursorVersion.Value = version then
+//          if index.Value = -1 then p.MoveFirst() // first move when index = -1
+//          el
+          if cursorVersion.Value = version then
             if index.Value < (this.size - 1) then
               index := !index + 1
-              currentKey := this.GetKeyByIndex(index.Value)
+              currentKey := 
+                //this.GetKeyByIndex(index.Value)
+                if couldHaveRegularKeys && this.size > 1 then 
+                  rkKeyAtIndex index.Value
+                else
+                  this.keys.[index.Value]
               currentValue := this.values.[!index]
               true
             else

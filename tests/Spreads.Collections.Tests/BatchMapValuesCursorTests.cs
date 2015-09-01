@@ -213,7 +213,7 @@ namespace Spreads.Collections.Tests {
         public void CouldAddWithYeppMathProvider() {
 
             var sm = new SortedChunkedMap<DateTime, double>();
-            var count = 100000;
+            var count = 4000;
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -222,7 +222,7 @@ namespace Spreads.Collections.Tests {
             var sw = new Stopwatch();
             sw.Start();
             var sum = 0.0;
-            for (int rounds = 0; rounds < 1000; rounds++) {
+            for (int rounds = 0; rounds < 10000; rounds++) {
                 var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) => v + 3.1415926, YeppMathProviderSample); //
                 while (bmvc.MoveNext()) {
                     sum += bmvc.CurrentValue;
@@ -231,7 +231,7 @@ namespace Spreads.Collections.Tests {
             sw.Stop();
 
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
-            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000 * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
+            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 10000 * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
             Console.WriteLine(sum);
             var c = 0;
             //foreach (var kvp in sm2)
@@ -263,7 +263,7 @@ namespace Spreads.Collections.Tests {
             var sw = new Stopwatch();
             sw.Start();
             var sum = 0.0;
-            for (int rounds = 0; rounds < 1000; rounds++) {
+            for (int rounds = 0; rounds < 10000; rounds++) {
                 var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) => v + 3.1415926, MathProviderSample); //
                 //var bmvc = new MapCursor<DateTime, double, double>(sm.GetCursor, (k,v) => Math.Log(v)) as ICursor<DateTime, double>; //
                 while (bmvc.MoveNext()){
@@ -273,7 +273,7 @@ namespace Spreads.Collections.Tests {
             sw.Stop();
 
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
-            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000 * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
+            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 10000 * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
             Console.WriteLine(sum);
 
             var c = 0;

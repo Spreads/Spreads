@@ -72,7 +72,7 @@ type SortedDeque<'T>
 
   new() = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>())
 
-  member inline private this.IndexToOffset(index) = (index + this.firstOffset) &&& (this.buffer.Length - 1)
+  member inline internal this.IndexToOffset(index) = (index + this.firstOffset) &&& (this.buffer.Length - 1)
   member private this.OffsetOfElement(element:'T) =
     let index = 
       if this.firstOffset + this.count > this.buffer.Length then // is split
@@ -213,7 +213,7 @@ type SortedDeque<'T>
 
   member internal this.AsEnumerable() : IEnumerable<'T>  =
     { new IEnumerable<'T> with
-        member e.GetEnumerator() =
+        member e.GetEnumerator() = //new SortedDequeEnumerator<'T>(-1, this) :> IEnumerator<'T>
           let idx = ref -1
           { new IEnumerator<'T> with
               member __.MoveNext() = 
@@ -252,6 +252,27 @@ type SortedDeque<'T>
   interface IEnumerable<'T> with
     member this.GetEnumerator() = this.AsEnumerable().GetEnumerator()
 
+
+and SortedDequeEnumerator<'T> =
+  struct
+    val mutable idx : int
+    val source :  SortedDeque<'T>
+    new(index,source) = {idx = index; source = source}
+  end
+  member this.MoveNext() = 
+    if this.idx < this.source.count - 1 then
+      this.idx <- this.idx + 1
+      true
+    else false
+  member this.Current with get() : 'T = this.source.buffer.[this.source.IndexToOffset(this.idx)]
+  member this.Dispose() = ()
+  member this.Reset() = this.idx <- -1
+  interface IEnumerator<'T> with
+    member this.MoveNext() = this.MoveNext()
+    member this.Current with get() : 'T = this.Current
+    member this.Current with get() : obj = box this.Current
+    member this.Dispose() = ()
+    member this.Reset() = this.Reset()
 
 [<SerializableAttribute>]
 [<ObsoleteAttribute("SortedDeque is faster")>]

@@ -475,6 +475,12 @@ module CollectionsBenchmarks =
           ()
       )
     for i in 0..9 do
+      perf count "SortedMap Iterate Values" (fun _ ->
+        for i in smap.Value.Values do
+          let res = i
+          ()
+      )
+    for i in 0..9 do
       perf count "SortedMap Iterate with load" (fun _ ->
         for i in smap.Value do
           let res = Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L)))
@@ -958,6 +964,15 @@ module CollectionsBenchmarks =
 //        if res <> i then failwith "SortedDeque failed"
 //        ()
 //    )
+    for r in 0..9 do
+      let mutable sum = 0L
+      perf count "SortedDeque Iterate" (fun _ ->
+        for i in vec.Value do
+          let res = i
+          sum <- sum + i
+          ()
+      )
+
     vec := (SortedDeque<int64>())
     perf count "SortedDeque Reverse" (fun _ ->
       for i in 0L..count do
@@ -972,7 +987,7 @@ module CollectionsBenchmarks =
 
     Console.WriteLine("----------------")
   [<Test>]
-  let SortedDeque_run() = SortedDequeTest(100000L)
+  let SortedDeque_run() = SortedDequeTest(1000000L)
 
 
   let PersistentSortedMapTest(count:int64) =
@@ -1032,8 +1047,8 @@ module CollectionsBenchmarks =
 //    MapTree_run()
 //    SCGSortedList_run()
 //    SCIOrderedMap_run()
-    //SortedDeque_run()
-//    SortedList_run()
+    SortedDeque_run()
+    SortedList_run()
     SortedMap_run()
 //    SortedMapPeriod_run()
 //    SortedMapDT_run()

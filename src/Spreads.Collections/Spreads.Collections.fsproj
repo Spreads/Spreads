@@ -102,6 +102,8 @@
     <Compile Include="Collections\SortedChunkedMap.fs" />
     <Compile Include="Collections\SortedChunkedMap2.fs" />
     <Compile Include="Collections\DataStream.fs" />
+    <Compile Include="Cursors\MapCursor.fs" />
+    <Compile Include="Cursors\BindCursor.fs" />
     <Compile Include="Cursors\ZipNCursor.Orig.fs" />
     <Compile Include="Cursors\RangeCursor.fs" />
     <Compile Include="CursorSeries.fs" />

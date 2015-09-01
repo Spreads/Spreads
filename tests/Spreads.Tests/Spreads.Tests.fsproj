@@ -79,7 +79,7 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Deedle">
-      <HintPath>..\..\packages\Deedle.1.2.1\lib\net40\Deedle.dll</HintPath>
+      <HintPath>..\..\packages\Deedle.1.2.3\lib\net40\Deedle.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="FSharp.Core">
