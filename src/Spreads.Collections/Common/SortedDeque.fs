@@ -1,4 +1,5 @@
-﻿namespace Spreads.Collections
+﻿
+namespace Spreads.Collections
 
 open System
 open System.Collections
@@ -211,23 +212,25 @@ type SortedDeque<'T>
 
   member this.Item with get(idx) = this.buffer.[this.IndexToOffset(idx)]
 
-  member internal this.AsEnumerable() : IEnumerable<'T>  =
-    { new IEnumerable<'T> with
-        member e.GetEnumerator() = //new SortedDequeEnumerator<'T>(-1, this) :> IEnumerator<'T>
-          let idx = ref -1
-          { new IEnumerator<'T> with
-              member __.MoveNext() = 
-                if idx.Value < this.count - 1 then
-                  idx := idx.Value + 1
-                  true
-                else false
-              member __.Current with get() : 'T = this.buffer.[this.IndexToOffset(idx.Value)]
-              member __.Current with get() : obj = box __.Current
-              member __.Dispose() = ()
-              member __.Reset() = idx := -1
-          }
-        member this.GetEnumerator() = this.GetEnumerator() :> IEnumerator
-    }
+//  member internal this.AsEnumerable() : IEnumerable<'T>  =
+//    { new IEnumerable<'T> with
+//        member e.GetEnumerator() = new SortedDequeEnumerator<'T>(-1, this) :> IEnumerator<'T>
+////          let idx = ref -1
+////          { new IEnumerator<'T> with
+////              member __.MoveNext() = 
+////                if idx.Value < this.count - 1 then
+////                  idx := idx.Value + 1
+////                  true
+////                else false
+////              member __.Current with get() : 'T = this.buffer.[this.IndexToOffset(idx.Value)]
+////              member __.Current with get() : obj = box __.Current
+////              member __.Dispose() = ()
+////              member __.Reset() = idx := -1
+////          }
+//        member this.GetEnumerator() = this.GetEnumerator() :> IEnumerator
+//    }
+
+  member this.GetEnumerator() = new SortedDequeEnumerator<'T>(-1, this)
 
   member internal this.Reverse() =
     { new IEnumerable<'T> with
@@ -248,16 +251,16 @@ type SortedDeque<'T>
     }
   
   interface IEnumerable with
-    member this.GetEnumerator() = this.AsEnumerable().GetEnumerator() :> IEnumerator
+    member this.GetEnumerator() = this.GetEnumerator() :> IEnumerator
   interface IEnumerable<'T> with
-    member this.GetEnumerator() = this.AsEnumerable().GetEnumerator()
+    member this.GetEnumerator() = this.GetEnumerator() :> IEnumerator<'T>
 
 
 and SortedDequeEnumerator<'T> =
   struct
     val mutable idx : int
     val source :  SortedDeque<'T>
-    new(index,source) = {idx = index; source = source}
+    internal new(index,source) = {idx = index; source = source}
   end
   member this.MoveNext() = 
     if this.idx < this.source.count - 1 then
@@ -269,7 +272,11 @@ and SortedDequeEnumerator<'T> =
   member this.Reset() = this.idx <- -1
   interface IEnumerator<'T> with
     member this.MoveNext() = this.MoveNext()
-    member this.Current with get() : 'T = this.Current
+//      if this.idx < this.source.count - 1 then
+//        this.idx <- this.idx + 1
+//        true
+//      else false
+    member this.Current with get() : 'T = this.Current //this.source.buffer.[this.source.IndexToOffset(this.idx)]
     member this.Current with get() : obj = box this.Current
     member this.Dispose() = ()
     member this.Reset() = this.Reset()

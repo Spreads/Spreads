@@ -325,8 +325,10 @@ and
   [<Serializable>]
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   CursorSeries<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
-      inherit Series<'K,'V>()
-      override this.GetCursor() = cursorFactory.Invoke()
+    inherit Series<'K,'V>()
+    // TODO (perf)
+    // 
+    override this.GetCursor() = cursorFactory.Invoke()
 
 
 // Attempts to manually optimize callvirt and object allocation failed badly

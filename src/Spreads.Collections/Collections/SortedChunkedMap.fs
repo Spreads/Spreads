@@ -253,7 +253,7 @@ type SortedChunkedMap<'K,'V>
               true
             else
               if outer.Value.MoveNext() then // go to the next bucket
-                inner := outer.Value.CurrentValue.GetCursor()
+                inner := outer.Value.CurrentValue.GetCursor() :> ICursor<_,_>
                 let res = inner.Value.MoveFirst()
                 if res then
                   isBatch := false
@@ -276,7 +276,7 @@ type SortedChunkedMap<'K,'V>
               true
             else
               if outer.Value.MovePrevious() then // go to the previous bucket
-                inner := outer.Value.CurrentValue.GetCursor()
+                inner := outer.Value.CurrentValue.GetCursor() :> ICursor<_,_>
                 let res = inner.Value.MoveLast()
                 if res then
                   isBatch := false
@@ -297,7 +297,7 @@ type SortedChunkedMap<'K,'V>
           let res =
             if c <> 0 || !isReset then // not in the current bucket, switch bucket
               if outer.Value.MoveAt(newHash, Lookup.EQ) then // Equal!
-                inner := outer.Value.CurrentValue.GetCursor()
+                inner := outer.Value.CurrentValue.GetCursor() :> ICursor<_,_>
                 inner.Value.MoveAt(newSubIdx, direction)
               else
                 false
@@ -313,7 +313,7 @@ type SortedChunkedMap<'K,'V>
               | Lookup.LT | Lookup.LE ->
                 // look into previous bucket
                 if outer.Value.MovePrevious() then
-                  inner := outer.Value.CurrentValue.GetCursor()
+                  inner := outer.Value.CurrentValue.GetCursor() :> ICursor<_,_>
                   let res = inner.Value.MoveAt(newSubIdx, direction)
                   if res then
                     isBatch := false
@@ -329,7 +329,7 @@ type SortedChunkedMap<'K,'V>
                 // look into next bucket
                 let moved = outer.Value.MoveNext() 
                 if moved then
-                  inner := outer.Value.CurrentValue.GetCursor()
+                  inner := outer.Value.CurrentValue.GetCursor() :> ICursor<_,_>
                   let res = inner.Value.MoveAt(newSubIdx, direction)
                   if res then
                     isBatch := false
@@ -399,7 +399,7 @@ type SortedChunkedMap<'K,'V>
                   return true
                 else 
                   // no batch, but place cursor at the end of the last batch so that move next won't get null reference exception
-                  inner := outer.Value.CurrentValue.GetCursor()
+                  inner := outer.Value.CurrentValue.GetCursor() :> ICursor<_,_>
                   if not outer.Value.CurrentValue.IsEmpty then inner.Value.MoveLast() |> ignore
                   return false
               else

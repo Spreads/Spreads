@@ -1,3 +1,7 @@
+#### 0.0.52 - September 2, 2015
+* Update SortedMap and SortedDequeue iterator to avoid virtual calls, perf gain is visible in tests. There is
+almost no room for further improvement, we are close to `SCG.SortedList<>` and `SCG.List<>`
+
 #### 0.0.51 - August 27, 2015
 * Revert SortedChunkedMap implementation and add SortedChunkedMap2 with inner factory
 

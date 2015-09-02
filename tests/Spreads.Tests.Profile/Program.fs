@@ -47,26 +47,66 @@ type TestStruct =
       | :? TestStruct as y -> x.value.CompareTo(y.value)
       | _ -> invalidArg "other" "Cannot compare values of different types"
 
+type IInc =
+  abstract Inc : unit -> int
+  abstract Value: int with get
+
+type MyInc =
+  struct 
+    val mutable value : int
+    new(v:int) = {value = v}
+  end
+  member this.Inc() = this.value <- (this.value + 1);this.value
+  member this.Value with get() = this.value
+  interface IInc with
+    member this.Inc() = this.value <- this.value + 1;this.value
+    member this.Value with get() = this.value
+
+[<StructAttribute>]
+type MyInc2 =
+  val mutable v : int
+  new(v:int) = {v = v}
+
+  member this.Inc() = this.v <- this.v + 1;this.v
+  member this.Value with get() = this.v
+
+  interface IInc with
+    member this.Inc() = this.v <- this.v + 1;this.v
+    member this.Value with get() = this.v
+
 
 [<EntryPoint>]
 let main argv = 
+ 
+  let mutable mi = MyInc(0)
+  mi.Inc() |> ignore
+  Console.WriteLine(mi.Value)
+//  let sd = new SortedDeque<int>()
+//  sd.Add(1);
+//  sd.Add(2);
+//  sd.Add(3);
+//  sd.Add(4);
+//
+//  for v in sd do
+//    Console.WriteLine(v);
 
-  let count = 1000000L
-  let dc : IKeyComparer<int64> = SpreadsComparerInt64() :> IKeyComparer<int64> 
 
-  let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
-  for i in 0L..count do
-    smap.Value.Add(i, i)
-
-  
-
-
-  for i in 0..99 do
-    let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
-    perf count "SortedMapRegular Add Double GC" (fun _ ->
-      for i in 0L..count do
-        sdf.Value.Add(i, double i)
-    )
+//  let count = 1000000L
+//  let dc : IKeyComparer<int64> = SpreadsComparerInt64() :> IKeyComparer<int64> 
+//
+//  let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
+//  for i in 0L..count do
+//    smap.Value.Add(i, i)
+//
+//  
+//
+//
+//  for i in 0..99 do
+//    let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
+//    perf count "SortedMapRegular Add Double GC" (fun _ ->
+//      for i in 0L..count do
+//        sdf.Value.Add(i, double i)
+//    )
 
 //    perf count "SortedMapRegular Iterate" (fun _ ->
 //        for i in smap.Value do
@@ -87,15 +127,15 @@ let main argv =
 //        if res <> i then failwith "SortedMap failed"
 //        ()
 //    )
+////
+//  OptimizationSettings.ArrayPool <- DoubleArrayPool()
 //
-  OptimizationSettings.ArrayPool <- DoubleArrayPool()
-
-  for i in 0..99 do
-    let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
-    perf count "SortedMapRegular Add Double Pool" (fun _ ->
-      for i in 0L..count do
-        sdf.Value.Add(i, double i)
-    )
+//  for i in 0..99 do
+//    let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
+//    perf count "SortedMapRegular Add Double Pool" (fun _ ->
+//      for i in 0L..count do
+//        sdf.Value.Add(i, double i)
+//    )
 
   //    let mutable res = 0L
 //      perf count "SMR Iterate as RO+AddWithBind" (fun _ ->

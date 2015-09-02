@@ -260,3 +260,55 @@ let asyncCalc =
 let sumAsync = asyncCalc |> Async.RunSynchronously
 
 
+
+type IInc =
+  abstract Inc : unit -> int
+  abstract Value: int with get
+
+type MyInc =
+  struct 
+    val mutable value : int
+    new(v:int) = {value = v}
+  end
+  member this.Inc() = this.value <- (this.value + 1);this.value
+  member this.Value with get() = this.value
+  interface IInc with
+    member this.Inc() = this.value <- this.value + 1;this.value
+    member this.Value with get() = this.value
+
+[<StructAttribute>]
+type MyInc2 =
+  val mutable v : int
+  new(v:int) = {v = v}
+
+  member this.Inc() = this.v <- this.v + 1;this.v
+  member this.Value with get() = this.v
+
+  interface IInc with
+    member this.Inc() = this.v <- this.v + 1;this.v
+    member this.Value with get() = this.v
+
+let mi = (MyInc(0))
+mi.Inc()
+mi.Value
+
+let mint = MyInc(0) :> IInc
+mint.Inc()
+mint.Value
+
+
+//type MyEnumerator =
+//  struct 
+//    val mutable value : int
+//    new(v:int) = {value = v}
+//  end
+//
+//  interface IEnumerator<int> with
+//    
+
+
+#time "on"
+let now = System.DateTime.Now
+let later = System.DateTime.Now.AddMinutes(1.0)
+for i in 0..1000000 do
+  if now > later then failwith "no way"

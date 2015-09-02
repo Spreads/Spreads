@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using System;
 
 namespace Spreads.Collections.Tests {
 
@@ -320,5 +321,26 @@ namespace Spreads.Collections.Tests {
             }
         }
 
+        [Test]
+        public void CouldCompareDatesManyTimes()
+        {
+            var sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+            var now = DateTime.UtcNow;
+            var later = DateTime.UtcNow.AddSeconds(1.0);
+            for (int i = 0; i < 100000000; i++)
+            {
+                if (now > later)
+                {
+                    throw new ApplicationException("no way");
+                }
+                //later = later.AddTicks(1);
+            }
+
+            sw.Stop();
+            Console.WriteLine(sw.ElapsedMilliseconds);
+        }
+
+
     }
-}
+    }

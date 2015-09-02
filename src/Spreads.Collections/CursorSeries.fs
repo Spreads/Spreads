@@ -23,7 +23,11 @@ open Spreads.Collections
 // dispatch mechanism data, or a branch misprediction (be it a compulsory capacity miss or a polymorphic call site), can and will
 //  slow down virtual and interface calls by dozens of cycles.
 //
-// Our benchmark confirms that the slowdown of .Repeat(), .ReadOnly(), .Map(...) and .Filter(...) is quite small 
+// Our benchmark confirms that the slowdown of .Repeat(), .ReadOnly(), .Map(...) and .Filter(...) is small
+
+// (Continued later) Yet still, enumerating SortedList-like contructs is 4-5 times slow than arrays and 2-3 times slower that 
+// a list of `KVP<DateTime,double>`s. ILs difference is mostly in callvirt, TODO ask SO if callvirt is really the reason
+// and is there a way to increase the speed. Enumerator as a structure will give call vs callvirt - is this is the case when it matters?
 
 
 

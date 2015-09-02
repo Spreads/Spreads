@@ -47,7 +47,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <OutputPath>bin\x64\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;--warnon:52</DefineConstants>
     <Optimize>true</Optimize>
     <DebugType>pdbonly</DebugType>
     <PlatformTarget>x64</PlatformTarget>
@@ -83,6 +83,10 @@
     <ProjectReference Include="..\Spreads.Collections.Tests\Spreads.Collections.Tests.csproj">
       <Project>{d4857397-4d03-4e25-9332-979bf22e9bb2}</Project>
       <Name>Spreads.Collections.Tests</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Spreads.Tests.Profile\Spreads.Tests.Profile.fsproj">
+      <Project>{d371bd54-788a-4b9f-83a3-306e1ae62732}</Project>
+      <Name>Spreads.Tests.Profile</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

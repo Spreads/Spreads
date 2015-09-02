@@ -7,9 +7,54 @@ using Spreads;
 using Spreads.Collections;
 using Spreads.Collections.Tests;
 
+
+public class MyInc
+{
+    public MyInc(int value)
+    {
+        this.value = value;
+    }
+    public int value;
+
+    public int Inc()
+    {
+        this.value = this.value + 1;
+        return this.value;
+    }
+}
+
 namespace Spreads.Tests.CSProfile {
     class Program {
-        static void Main(string[] args) {
+        private static readonly MyInc myinc = new MyInc(0);
+        static void Main(string[] args)
+        {
+
+            //var myinc = new MyInc(0);
+            myinc.Inc();
+            Console.WriteLine(myinc.value);
+
+            //var mi = new MyInc(0);
+            //mi.Inc();
+            //mi.Inc();
+            ////Console.WriteLine(mi.value); // prints 2!
+
+            //var sd = new SortedDeque<int>();
+            //sd.Add(1);
+            //sd.Add(2);
+            //sd.Add(3);
+            //sd.Add(4);
+
+            //foreach (var v in sd) {
+            //    Console.WriteLine(v);
+            //}
+
+            //var en = sd.GetEnumerator();
+
+            //while (en.MoveNext())
+            //{
+            //    Console.WriteLine(en.Current);
+            //}
+
             //var srlzr = new SpreadsDBSerializer();
             //var sw = new Stopwatch();
             //sw.Start();
@@ -35,7 +80,7 @@ namespace Spreads.Tests.CSProfile {
             //var eq2 = sm == sm;
             //new ZipNTests().CouldZipMillionIntsWithMoveNextContX5();
             //new MoveNextAsyncTests().CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
-            new BatchMapValuesCursorTests().CouldAddWitDefaultMathProvider();
+            // new BatchMapValuesCursorTests().CouldAddWitDefaultMathProvider();
             Console.ReadLine();
         }
     }
