@@ -114,7 +114,7 @@ namespace Spreads.Collections.Tests {
         public void CouldMoveNextAsyncWithBatching() {
             var sm = new SortedMap<DateTime, double>();
 
-            var count = 10;
+            var count = 1000;
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -125,7 +125,7 @@ namespace Spreads.Collections.Tests {
                 Thread.Sleep(1000);
                 for (int i = count; i < count * 2; i++) {
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
-                    Thread.Sleep(500);
+                    //Thread.Sleep(50);
                 }
 
                 sm.IsMutable = false; // stop mutating

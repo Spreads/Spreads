@@ -595,5 +595,140 @@ namespace Spreads.Collections.Tests {
             
 
         }
+
+
+        [Test]
+        public void CouldZipNonContinuousInRealTime() {
+
+            var sm1 = new SortedMap<DateTime, double>();
+            var sm2 = new SortedMap<DateTime, double>();
+
+            var count = 1000;
+
+            for (int i = 0; i < count; i++) {
+                sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i*3);
+            }
+            sm1.IsMutable = true; // will mutate after the first batch
+
+            Task.Run(() => {
+                Thread.Sleep(1000);
+                for (int i = count; i < count * 2; i++) {
+                    sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                    //Thread.Sleep(50);
+                }
+
+                sm1.IsMutable = false; // stop mutating
+                //Console.WriteLine("Set immutable");
+            });
+
+            Task.Run(() => {
+                Thread.Sleep(950);
+                for (int i = count; i < count * 2; i++) {
+                    sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i*3);
+                    //Thread.Sleep(50);
+                }
+
+                sm2.IsMutable = false; // stop mutating
+                //Console.WriteLine("Set immutable");
+            });
+
+            // this test measures isolated performance of ZipN, without ToSortedMap
+
+            var sw = new Stopwatch();
+
+
+            var series = new[] { sm1, sm2};
+
+            sw.Start();
+            var totalSum = 0.0;
+            var sumCursor = series.Zip((k, varr) => varr.Sum()).GetCursor();
+            var c = 0;
+            while (c < 5 && sumCursor.MoveNext()) {
+                Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                totalSum += sumCursor.CurrentValue;
+                c++;
+            }
+
+            while (sumCursor.MoveNext(CancellationToken.None).Result) {
+                Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                Console.WriteLine("Value: " + sumCursor.CurrentValue);
+                totalSum += sumCursor.CurrentValue;
+                c++;
+            }
+            sw.Stop();
+            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+            Console.WriteLine("Total sum: {0}", totalSum);
+
+
+        }
+
+
+        [Test]
+        public void CouldZipContinuousInRealTime() {
+
+            var sm1 = new SortedMap<DateTime, double>();
+            var sm2 = new SortedMap<DateTime, double>();
+
+            var count = 1000;
+
+            for (int i = 0; i < count; i++) {
+                sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
+            }
+            sm1.IsMutable = true; // will mutate after the first batch
+
+            Task.Run(() => {
+                Thread.Sleep(1000);
+                for (int i = count; i < count * 2; i++) {
+                    sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                    //Thread.Sleep(50);
+                }
+
+                sm1.IsMutable = false; // stop mutating
+                //Console.WriteLine("Set immutable");
+            });
+
+            Task.Run(() => {
+                Thread.Sleep(950);
+                for (int i = count; i < count * 2; i++) {
+                    sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
+                    //Thread.Sleep(50);
+                }
+
+                sm2.IsMutable = false; // stop mutating
+                //Console.WriteLine("Set immutable");
+            });
+
+            // this test measures isolated performance of ZipN, without ToSortedMap
+
+            var sw = new Stopwatch();
+
+
+            var series = new[] { sm1.Repeat(), sm2.Repeat() };
+
+            sw.Start();
+            var totalSum = 0.0;
+            var sumCursor = series.Zip((k, varr) => varr.Sum()).GetCursor();
+            var c = 0;
+            while (c < 5 && sumCursor.MoveNext()) {
+                Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                totalSum += sumCursor.CurrentValue;
+                c++;
+            }
+
+            while (sumCursor.MoveNext(CancellationToken.None).Result) {
+                Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                Console.WriteLine("Value: " + sumCursor.CurrentValue);
+                totalSum += sumCursor.CurrentValue;
+                c++;
+            }
+            sw.Stop();
+            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+            Console.WriteLine("Total sum: {0}", totalSum);
+
+
+        }
+
     }
 }

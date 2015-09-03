@@ -158,6 +158,35 @@ type  CursorBind<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
         else false
       else this.MoveFirst()
 
+    member this.MoveNext(ct:Threading.CancellationToken): Task<bool> =
+      async {
+        if hasValidState then
+          let mutable value = Unchecked.defaultof<'V2>
+          let mutable found = false
+          let! moved' = this.InputCursor.MoveNext(ct) |> Async.AwaitTask
+          let mutable moved = moved'
+          while not found && moved do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
+  #if PRERELEASE
+            let before = this.InputCursor.CurrentKey
+            let ok = this.TryUpdateNext(this.InputCursor.Current, &value)
+            if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+  #else
+            let ok = this.TryUpdateNext(this.InputCursor.Current, &value)
+  #endif
+            if ok then
+              found <- true
+              this.CurrentKey <- this.InputCursor.CurrentKey
+              this.CurrentValue <- value
+            else
+              let! moved' = this.InputCursor.MoveNext(ct) |> Async.AwaitTask
+              moved <- moved'
+          if found then 
+            //hasInitializedValue <- true
+            return true 
+          else return false
+        else return this.MoveFirst()
+      } |> fun x -> Async.StartAsTask(x, TaskCreationOptions.None, ct)
+
     member this.MoveAt(index: 'K, direction: Lookup): bool = 
       if this.InputCursor.MoveAt(index, direction) then
         let mutable value = Unchecked.defaultof<'V2>
@@ -341,7 +370,7 @@ type  CursorBind<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
       member this.MoveLast(): bool = this.MoveLast()
       member this.MovePrevious(): bool = this.MovePrevious()
     
-      member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = failwith "Not implemented yet"
+      member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = this.MoveNext(cancellationToken)
       member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = failwith "Not implemented yet"
     
       //member this.IsBatch with get() = this.IsBatch
