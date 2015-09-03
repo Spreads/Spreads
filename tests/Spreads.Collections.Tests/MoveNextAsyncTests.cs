@@ -9,11 +9,25 @@ using System.Runtime.InteropServices;
 using Spreads.Collections;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Runtime.CompilerServices;
+
 
 namespace Spreads.Collections.Tests {
 
     [TestFixture]
     public class MoveNextAsyncTests {
+
+        [Test]
+        public void CouldUseAwaiter()
+        {
+
+            var t = Task.Delay(1000);
+            t.Start();
+            var awaiter = t.GetAwaiter();
+            awaiter.OnCompleted(() => Console.WriteLine("I am completed"));
+            awaiter.OnCompleted(() => Console.WriteLine("I am completed"));
+            Thread.Sleep(2000);
+        }
 
         [Test]
         public void UpdateEventIsTriggered() {
@@ -158,61 +172,64 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_spinwait() {
-            var count = 10000000;
-            var sw = new Stopwatch();
+
+            for (int r = 0; r < 10; r++) {
+                var count = 10000000;
+                var sw = new Stopwatch();
 
 
-            var sm = new SortedMap<DateTime, double>();
-            //sm.IsSynchronized = true;
-            for (int i = 0; i < 5; i++) {
-                sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
-            }
-
-            var addTask = Task.Run(async () => {
-                await Task.Delay(50);
-                for (int i = 5; i < count; i++) {
+                var sm = new SortedMap<DateTime, double>();
+                //sm.IsSynchronized = true;
+                for (int i = 0; i < 5; i++) {
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
-                    //await Task.Delay(1);
                 }
-            });
 
-            double sum = 0.0;
-            var sumTask = Task.Run(() => {
-                var c = sm.GetCursor();
-                while (c.MoveNext()) {
-                    sum += c.CurrentValue;
-                }
-                Assert.AreEqual(10, sum);
-                var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
-
-                sw.Start();
-
-                while (true) {
-                    // spinwait
-                    while (!c.MoveNext()) {
+                var addTask = Task.Run(async () => {
+                    await Task.Delay(50);
+                    for (int i = 5; i < count; i++) {
+                        sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                        //await Task.Delay(1);
                     }
-                    ;
-                    sum += c.CurrentValue;
-                    //Console.WriteLine("Current key: {0}", c.CurrentKey);
-                    if (c.CurrentKey == stop) {
-                        break;
+                });
+
+                double sum = 0.0;
+                var sumTask = Task.Run(() => {
+                    var c = sm.GetCursor();
+                    while (c.MoveNext()) {
+                        sum += c.CurrentValue;
                     }
+                    Assert.AreEqual(10, sum);
+                    var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
+
+                    sw.Start();
+
+                    while (true) {
+                        // spinwait
+                        while (!c.MoveNext()) {
+                        }
+                        ;
+                        sum += c.CurrentValue;
+                        //Console.WriteLine("Current key: {0}", c.CurrentKey);
+                        if (c.CurrentKey == stop) {
+                            break;
+                        }
+                    }
+                });
+
+
+                sumTask.Wait();
+                addTask.Wait();
+                sw.Stop();
+
+                double expectedSum = 0.0;
+                for (int i = 0; i < count; i++) {
+                    expectedSum += i;
                 }
-            });
+                Assert.AreEqual(expectedSum, sum);
 
-
-            sumTask.Wait();
-            addTask.Wait();
-            sw.Stop();
-
-            double expectedSum = 0.0;
-            for (int i = 0; i < count; i++) {
-                expectedSum += i;
+                Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds - 50);
+                Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
             }
-            Assert.AreEqual(expectedSum, sum);
-
-            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds - 50);
-            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
 
         }
 

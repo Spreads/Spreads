@@ -37,8 +37,8 @@ namespace Spreads.Collections.Tests {
                     { 3, 9}
                 });
 
-            var series = new[] {sm1, sm2, sm3};
-            var sum = series.Zip((k, varr) => k*varr.Sum());
+            var series = new[] { sm1, sm2, sm3 };
+            var sum = series.Zip((k, varr) => k * varr.Sum());
 
             var zipNCursor = sum.GetCursor();
             var movedFirst = zipNCursor.MoveFirst();
@@ -47,7 +47,7 @@ namespace Spreads.Collections.Tests {
 
             var movedLast = zipNCursor.MoveLast();
             Assert.IsTrue(movedLast);
-            Assert.AreEqual(3*(3+6+9), zipNCursor.CurrentValue);
+            Assert.AreEqual(3 * (3 + 6 + 9), zipNCursor.CurrentValue);
 
         }
 
@@ -80,7 +80,7 @@ namespace Spreads.Collections.Tests {
             var zipNCursor = sum.GetCursor();
             var movedFirst = zipNCursor.MoveFirst();
             Assert.IsTrue(movedFirst);
-            Assert.AreEqual((2+4+6)*2, zipNCursor.CurrentValue);
+            Assert.AreEqual((2 + 4 + 6) * 2, zipNCursor.CurrentValue);
             var movedLast = zipNCursor.MoveLast();
             Assert.IsTrue(movedLast);
             Assert.AreEqual((2 + 4 + 6) * 2, zipNCursor.CurrentValue);
@@ -344,20 +344,18 @@ namespace Spreads.Collections.Tests {
 
 
         [Test]
-        public void CouldZipMillionIntsWithMoveNext()
-        {
+        public void CouldZipMillionIntsWithMoveNext() {
             var sw = new Stopwatch();
-            
+
             var sm1 = new SortedMap<int, int>();
 
             sm1.Add(0, 0);
 
-            for (int i = 2; i < 5000000; i++)
-            {
+            for (int i = 2; i < 5000000; i++) {
                 sm1.Add(i, i);
             }
 
-            var series = new[] {sm1, sm1, sm1, sm1, sm1,};// sm1, sm1, sm1, sm1, sm1,    sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
+            var series = new[] { sm1, sm1, sm1, sm1, sm1, };// sm1, sm1, sm1, sm1, sm1,    sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
 
             sw.Start();
 
@@ -366,9 +364,9 @@ namespace Spreads.Collections.Tests {
             sw.Stop();
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
             for (int i = 2; i < 5000000; i++) {
-                Assert.AreEqual(series.Length* i, sum[i]);
+                Assert.AreEqual(series.Length * i, sum[i]);
             }
-            
+
         }
 
 
@@ -386,7 +384,7 @@ namespace Spreads.Collections.Tests {
                 sm2.Add(i + 1, i);
             }
 
-            var series = new[] { sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat(), sm1.Repeat()};
+            var series = new[] { sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat(), sm1.Repeat() };
 
             sw.Start();
 
@@ -394,7 +392,7 @@ namespace Spreads.Collections.Tests {
 
             sw.Stop();
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
-            
+
 
         }
 
@@ -408,12 +406,12 @@ namespace Spreads.Collections.Tests {
 
             sm1.Add(0, 0);
             sm2.Add(0, 0);
-            for (int i = 2; i < 5000000; i=i+2) {
+            for (int i = 2; i < 5000000; i = i + 2) {
                 sm1.Add(i, i);
                 sm2.Add(i, i);
             }
 
-            var series = new[] { sm1, sm2};
+            var series = new[] { sm1, sm2 };
 
             sw.Start();
 
@@ -438,9 +436,9 @@ namespace Spreads.Collections.Tests {
             sm1.Add(0, 0);
             sm2.Add(0, 0);
 
-            for (int i = 2; i < 5000000; i=i+2) {
+            for (int i = 2; i < 5000000; i = i + 2) {
                 sm1.Add(i, i);
-                sm2.Add(i+1, i);
+                sm2.Add(i + 1, i);
             }
 
             var series = new[] { sm1.Repeat(), sm2.Repeat(), };
@@ -451,8 +449,8 @@ namespace Spreads.Collections.Tests {
 
             sw.Stop();
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
-            for (int i = 2; i < 5000000; i=i+2) {
-                Assert.AreEqual(i*2-2, sum[i]);
+            for (int i = 2; i < 5000000; i = i + 2) {
+                Assert.AreEqual(i * 2 - 2, sum[i]);
             }
 
         }
@@ -470,14 +468,13 @@ namespace Spreads.Collections.Tests {
                 sm1.Add(i, i);
             }
 
-            var series = new[] {sm1, sm1, sm1, sm1, sm1,};// sm1, sm1, sm1, sm1, sm1,        sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
+            var series = new[] { sm1, sm1, sm1, sm1, sm1, };// sm1, sm1, sm1, sm1, sm1,        sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
 
             sw.Start();
 
             var cur = series.Zip((k, varr) => varr.Sum()).GetCursor();
             var totalSum = 0L;
-            while (cur.MovePrevious())
-            {
+            while (cur.MovePrevious()) {
                 totalSum += cur.CurrentValue;
             }
 
@@ -514,14 +511,13 @@ namespace Spreads.Collections.Tests {
                 sm1.Add(i, i);
             }
 
-            var series = new[] {sm1, sm1, sm1, sm1, sm1,};// sm1, sm1, sm1, sm1, sm1,    sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
+            var series = new[] { sm1, sm1, sm1, sm1, sm1, };// sm1, sm1, sm1, sm1, sm1,    sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
 
             sw.Start();
 
             var sum = series.Zip((k, varr) => varr.Sum());
             var totalSum = 0L;
-            foreach (var kvp in sum)
-            {
+            foreach (var kvp in sum) {
                 totalSum += kvp.Value;
             }
             sw.Stop();
@@ -592,7 +588,7 @@ namespace Spreads.Collections.Tests {
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
             Console.WriteLine("Total sum: {0}", totalSum);
             Console.WriteLine("Number of series: {0}", series.Length);
-            
+
 
         }
 
@@ -607,7 +603,7 @@ namespace Spreads.Collections.Tests {
 
             for (int i = 0; i < count; i++) {
                 sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
-                sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i*3);
+                sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
             }
             sm1.IsMutable = true; // will mutate after the first batch
 
@@ -625,7 +621,7 @@ namespace Spreads.Collections.Tests {
             Task.Run(() => {
                 Thread.Sleep(950);
                 for (int i = count; i < count * 2; i++) {
-                    sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i*3);
+                    sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
                     //Thread.Sleep(50);
                 }
 
@@ -638,7 +634,7 @@ namespace Spreads.Collections.Tests {
             var sw = new Stopwatch();
 
 
-            var series = new[] { sm1, sm2};
+            var series = new[] { sm1, sm2 };
 
             sw.Start();
             var totalSum = 0.0;
@@ -663,6 +659,280 @@ namespace Spreads.Collections.Tests {
 
         }
 
+
+        [Test]
+        public void CouldZipManyNonContinuousInRealTime() {
+
+            var sm1 = new SortedMap<DateTime, double>();
+            var sm2 = new SortedMap<DateTime, double>();
+
+            var count = 1000000;
+
+            for (int i = 0; i < count; i++) {
+                sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
+            }
+            sm1.IsMutable = true; // will mutate after the first batch
+
+            Task.Run(() => {
+                Thread.Sleep(1000);
+                for (int i = count; i < count * 2; i++) {
+                    sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                    //Thread.Sleep(50);
+                }
+
+                sm1.IsMutable = false; // stop mutating
+                //Console.WriteLine("Set immutable");
+            });
+
+            Task.Run(() => {
+                Thread.Sleep(950);
+                for (int i = count; i < count * 2; i++) {
+                    sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
+                    //Thread.Sleep(50);
+                }
+
+                sm2.IsMutable = false; // stop mutating
+                //Console.WriteLine("Set immutable");
+            });
+
+            // this test measures isolated performance of ZipN, without ToSortedMap
+
+            var sw = new Stopwatch();
+
+
+            var series = new[] { sm1, sm2 };
+
+            sw.Start();
+            var totalSum = 0.0;
+            var sumCursor = series.Zip((k, varr) => varr.Sum()).GetCursor();
+            var c = 0;
+            while (c < 5 && sumCursor.MoveNext()) {
+                //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                totalSum += sumCursor.CurrentValue;
+                c++;
+            }
+
+            while (sumCursor.MoveNext(CancellationToken.None).Result) {
+                //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                //Console.WriteLine("Value: " + sumCursor.CurrentValue);
+                totalSum += sumCursor.CurrentValue;
+                c++;
+            }
+            sw.Stop();
+            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+            Console.WriteLine("Total sum: {0}", totalSum);
+
+
+        }
+
+
+        [Test]
+        public void CouldZipManyNonContinuousInRealTime2() {
+
+            var sm1 = new SortedMap<DateTime, double>();
+            var sm2 = new SortedMap<DateTime, double>();
+
+            var count = 10000000;//000000;
+            var mid = 1;
+
+            for (int i = 0; i < mid; i++) {
+                sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
+            }
+            sm1.IsMutable = true; // will mutate after the first batch
+
+            Task.Run(() => {
+                Thread.Sleep(100);
+                for (int i = mid; i < count; i++) {
+                    sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                    //Thread.Sleep(50);
+                    //Thread.Sleep(1);
+                }
+
+                sm1.IsMutable = false; // stop mutating
+                //Console.WriteLine("Set immutable");
+            });
+
+            Task.Run(() => {
+                Thread.Sleep(100);
+                for (int i = mid; i < count; i++) {
+                    sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
+                    //Thread.Sleep(50);
+                    //Thread.Sleep(1);
+                }
+
+                sm2.IsMutable = false; // stop mutating
+                //Console.WriteLine("Set immutable");
+            });
+
+            // this test measures isolated performance of ZipN, without ToSortedMap
+
+            var sw = new Stopwatch();
+
+
+            var series = new[] { sm1, sm2 };
+
+            sw.Start();
+            var totalSum = 0.0;
+            var sumCursor = series.Zip((k, varr) => varr.Sum()).GetCursor();
+            var c = 0;
+            //while (sumCursor.MoveNext()) {
+            //    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+            //    totalSum += sumCursor.CurrentValue;
+            //    c++;
+            //}
+
+            Task.Run(async () => {
+                while (await sumCursor.MoveNext(CancellationToken.None)) {
+                    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                    //Console.WriteLine("Value: " + sumCursor.CurrentValue);
+                    totalSum += sumCursor.CurrentValue;
+                    c++;
+                    //if (c % 10000 == 0) {
+                    //    Console.WriteLine(sw.ElapsedMilliseconds);
+                    //}
+                }
+                
+            }).Wait();
+            sw.Stop();
+            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+            Console.WriteLine("Total sum: {0}", totalSum);
+
+            //while (sumCursor.MoveNext(CancellationToken.None).Result) {
+            //    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+            //    //Console.WriteLine("Value: " + sumCursor.CurrentValue);
+            //    totalSum += sumCursor.CurrentValue;
+            //    c++;
+            //    if (c % 10000 == 0) {
+            //        Console.WriteLine(sw.ElapsedMilliseconds);
+            //    }
+            //}
+            //sw.Stop();
+            //Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+            //Console.WriteLine("Total sum: {0}", totalSum);
+
+        }
+
+
+        [Test]
+        public void CouldZipManyContinuousInRealTime2() {
+
+            var sm1 = new SortedMap<DateTime, double>();
+            var sm2 = new SortedMap<DateTime, double>();
+
+            var count = 1000000;
+
+            for (int i = 0; i < 1; i++) {
+                sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
+            }
+            sm1.IsMutable = true; // will mutate after the first batch
+
+            Task.Run(() => {
+                //Thread.Sleep(1000);
+                for (int i = 1; i < count; i++) {
+                    sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                    //Thread.Sleep(50);
+                }
+
+                sm1.IsMutable = false; // stop mutating
+                //Console.WriteLine("Set immutable");
+            });
+
+            Task.Run(() => {
+                //Thread.Sleep(950);
+                for (int i = 1; i < count; i++) {
+                    sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
+                    //Thread.Sleep(50);
+                }
+
+                sm2.IsMutable = false; // stop mutating
+                //Console.WriteLine("Set immutable");
+            });
+
+            // this test measures isolated performance of ZipN, without ToSortedMap
+
+            var sw = new Stopwatch();
+
+
+            var series = new[] { sm1.Repeat(), sm2.Repeat() };
+
+            sw.Start();
+            var totalSum = 0.0;
+            var sumCursor = series.Zip((k, varr) => varr.Sum()).GetCursor();
+            var c = 0;
+            //while (sumCursor.MoveNext()) {
+            //    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+            //    totalSum += sumCursor.CurrentValue;
+            //    c++;
+            //}
+
+            Task.Run(async () => {
+                while (await sumCursor.MoveNext(CancellationToken.None)) {
+                    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                    //Console.WriteLine("Value: " + sumCursor.CurrentValue);
+                    totalSum += sumCursor.CurrentValue;
+                    c++;
+                }
+                sw.Stop();
+                Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+                Console.WriteLine("Total sum: {0}", totalSum);
+            }).Wait();
+
+
+
+        }
+
+
+        [Test]
+        public void CouldZipManyContinuousInRealTime3() {
+
+            var sm1 = new SortedMap<DateTime, double>();
+            var sm2 = new SortedMap<DateTime, double>();
+
+            var count = 1000000;
+
+            for (int i = 0; i < count; i++) {
+                sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
+            }
+            sm1.IsMutable = false; // will mutate after the first batch
+            sm2.IsMutable = false;
+
+
+            // this test measures isolated performance of ZipN, without ToSortedMap
+
+            var sw = new Stopwatch();
+
+
+            var series = new[] { sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat() };
+
+            sw.Start();
+            var totalSum = 0.0;
+            var sumCursor = series.Zip((k, varr) => varr.Sum()).GetCursor();
+            var c = 0;
+            //while (sumCursor.MoveNext()) {
+            //    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+            //    totalSum += sumCursor.CurrentValue;
+            //    c++;
+            //}
+
+            Task.Run(async () => {
+                while (await sumCursor.MoveNext(CancellationToken.None)) {
+                    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                    //Console.WriteLine("Value: " + sumCursor.CurrentValue);
+                    totalSum += sumCursor.CurrentValue;
+                    c++;
+                }
+                sw.Stop();
+                Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+                Console.WriteLine("Total sum: {0}", totalSum);
+            }).Wait();
+
+
+
+        }
 
         [Test]
         public void CouldZipContinuousInRealTime() {
@@ -717,9 +987,81 @@ namespace Spreads.Collections.Tests {
                 c++;
             }
 
+
+            Task.Run(async () => {
+                while (await sumCursor.MoveNext(CancellationToken.None)) {
+                    Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                    Console.WriteLine("Value: " + sumCursor.CurrentValue);
+                    totalSum += sumCursor.CurrentValue;
+                    c++;
+                }
+                sw.Stop();
+                Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+                Console.WriteLine("Total sum: {0}", totalSum);
+            }).Wait();
+
+
+
+        }
+
+
+
+        [Test]
+        public void CouldZipManyContinuousInRealTime() {
+
+            var sm1 = new SortedMap<DateTime, double>();
+            var sm2 = new SortedMap<DateTime, double>();
+
+            var count = 1000000;
+
+            for (int i = 0; i < count; i++) {
+                sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
+            }
+            sm1.IsMutable = true; // will mutate after the first batch
+
+            Task.Run(() => {
+                Thread.Sleep(1000);
+                for (int i = count; i < count * 2; i++) {
+                    sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                    //Thread.Sleep(50);
+                }
+
+                sm1.IsMutable = false; // stop mutating
+                //Console.WriteLine("Set immutable");
+            });
+
+            Task.Run(() => {
+                Thread.Sleep(950);
+                for (int i = count; i < count * 2; i++) {
+                    sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
+                    //Thread.Sleep(50);
+                }
+
+                sm2.IsMutable = false; // stop mutating
+                //Console.WriteLine("Set immutable");
+            });
+
+            // this test measures isolated performance of ZipN, without ToSortedMap
+
+            var sw = new Stopwatch();
+
+
+            var series = new[] { sm1.Repeat(), sm2.Repeat() };
+
+            sw.Start();
+            var totalSum = 0.0;
+            var sumCursor = series.Zip((k, varr) => varr.Sum()).GetCursor();
+            var c = 0;
+            while (c < 5 && sumCursor.MoveNext()) {
+                //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                totalSum += sumCursor.CurrentValue;
+                c++;
+            }
+
             while (sumCursor.MoveNext(CancellationToken.None).Result) {
-                Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
-                Console.WriteLine("Value: " + sumCursor.CurrentValue);
+                //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                //Console.WriteLine("Value: " + sumCursor.CurrentValue);
                 totalSum += sumCursor.CurrentValue;
                 c++;
             }
@@ -729,6 +1071,5 @@ namespace Spreads.Collections.Tests {
 
 
         }
-
     }
 }

@@ -185,7 +185,53 @@ type  CursorBind<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
             return true 
           else return false
         else return this.MoveFirst()
-      } |> fun x -> Async.StartAsTask(x, TaskCreationOptions.None, ct)
+      } |> Async.StartAsTask // fun x -> Async.StartAsTask(x, TaskCreationOptions.None, ct)
+
+
+//    member this.MoveNext2(ct:Threading.CancellationToken): Task<bool> =
+//      let mutable value = Unchecked.defaultof<'V2>
+//      let mutable found = false
+//      let rec loop(cond:bool) =
+//        if cond then
+//          let before = this.InputCursor.CurrentKey
+//          let ok = this.TryUpdateNext(this.InputCursor.Current, &value)
+//          if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+//          let ok = this.TryUpdateNext(this.InputCursor.Current, &value)
+//          if ok then
+//            found <- true
+//            this.CurrentKey <- this.InputCursor.CurrentKey
+//            this.CurrentValue <- value
+//          else
+//            this.InputCursor.MoveNext(ct).ContinueWith(fun (t:Task<bool>) -> 
+//              loop(t.Result).Result
+//            )
+//            //moved <- moved'
+//        else
+//          false
+//        
+//      this.InputCursor.MoveNext(ct).ContinueWith(fun (t:Task<bool>) ->
+//        let mutable moved = t.Result
+//        while not found && moved do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
+//  #if PRERELEASE
+//          let before = this.InputCursor.CurrentKey
+//          let ok = this.TryUpdateNext(this.InputCursor.Current, &value)
+//          if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+//  #else
+//          let ok = this.TryUpdateNext(this.InputCursor.Current, &value)
+//  #endif
+//          if ok then
+//            found <- true
+//            this.CurrentKey <- this.InputCursor.CurrentKey
+//            this.CurrentValue <- value
+//          else
+//            let! moved' = this.InputCursor.MoveNext(ct) |> Async.AwaitTask
+//            moved <- moved'
+//        if found then 
+//          //hasInitializedValue <- true
+//          true 
+//        else false
+//      )
+
 
     member this.MoveAt(index: 'K, direction: Lookup): bool = 
       if this.InputCursor.MoveAt(index, direction) then
@@ -418,7 +464,7 @@ type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
   /// Updates state with next value of input
   abstract TryUpdateStateNext: next:KVP<'K,'V> * value: byref<'State> -> bool
   /// Updates state with next value of input
-  abstract TryUpdateStateNextAsync: next:KVP<'K,'V> * value: byref<'State> -> Task<bool>
+  //abstract TryUpdateStateNextAsync: next:KVP<'K,'V> * value: byref<'State> -> Task<bool>
   /// Updates state with previous value of input
   abstract TryUpdateStatePrevious: next:KVP<'K,'V> * value: byref<'State> -> bool
     
@@ -435,16 +481,16 @@ type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
       false
 
   abstract TryGetValue: key:'K * [<Out>] value: byref<'V2> -> bool 
-  override this.TryGetValue(key, [<Out>] value: byref<'V2>) : bool = 
-    if hasValidState && this.InputCursor.Comparer.Compare(key, this.InputCursor.CurrentKey) = 0 then
-      value <- this.EvaluateState(state)
-      true
-    else
-      let ok, state' = this.TryCreateState(key)
-      if ok then
-        value <- this.EvaluateState(state')
-        true
-      else false
+//  override this.TryGetValue(key, [<Out>] value: byref<'V2>) : bool = 
+//    if hasValidState && this.InputCursor.Comparer.Compare(key, this.InputCursor.CurrentKey) = 0 then
+//      value <- this.EvaluateState(state)
+//      true
+//    else
+//      let ok, state' = this.TryCreateState(key)
+//      if ok then
+//        value <- this.EvaluateState(state')
+//        true
+//      else false
 
   member this.Reset() = 
     hasValidState <- false
@@ -631,24 +677,30 @@ type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
       if hasValidState then
         let mutable found = false
         let mutable moved = false
-        let! moved' = this.InputCursor.MoveNext(cancellationToken) |> Async.AwaitTask
-        moved <- moved'
+        if this.InputCursor.MoveNext() then moved <- true
+        else
+          let! moved' = this.InputCursor.MoveNext(cancellationToken) |> Async.AwaitTask
+          moved <- moved'
         while not found && moved do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
           let ok = this.TryUpdateStateNext(this.InputCursor.Current, &state)
           if ok then
             found <- true
             this.CurrentKey <- this.InputCursor.CurrentKey
           else
-            let! moved' = this.InputCursor.MoveNext(cancellationToken) |> Async.AwaitTask
-            moved <- moved'
+            if this.InputCursor.MoveNext() then moved <- true
+            else
+              let! moved' = this.InputCursor.MoveNext(cancellationToken) |> Async.AwaitTask
+              moved <- moved'
         if found then 
           return true 
         else return false
       else
         let mutable found = false
         let mutable moved = false
-        let! moved' = this.InputCursor.MoveNext(cancellationToken) |> Async.AwaitTask
-        moved <- moved'
+        if this.InputCursor.MoveNext() then moved <- true
+        else
+          let! moved' = this.InputCursor.MoveNext(cancellationToken) |> Async.AwaitTask
+          moved <- moved'
         while not found && moved do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
           let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
           if ok then
@@ -657,13 +709,15 @@ type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
             //this.CurrentValue <- this.EvaluateState(state)
             hasValidState <- true
           else
-            let! moved' = this.InputCursor.MoveNext(cancellationToken) |> Async.AwaitTask
-            moved <- moved'
+            if this.InputCursor.MoveNext() then moved <- true
+            else
+              let! moved' = this.InputCursor.MoveNext(cancellationToken) |> Async.AwaitTask
+              moved <- moved'
         if found then 
           //hasInitializedValue <- true
           return true 
         else return false
-    } |> fun x -> Async.StartAsTask(x, TaskCreationOptions.None, cancellationToken)
+    } |> Async.StartAsTask // fun x -> Async.StartAsTask(x, TaskCreationOptions.None, cancellationToken)
 
 
   member this.TryGetValueChecked(key: 'K, [<Out>] value: byref<'V2>): bool = 

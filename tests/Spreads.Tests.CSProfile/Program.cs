@@ -28,10 +28,10 @@ namespace Spreads.Tests.CSProfile {
         private static readonly MyInc myinc = new MyInc(0);
         static void Main(string[] args)
         {
-
+            new ZipNTests().CouldZipManyNonContinuousInRealTime();
             //var myinc = new MyInc(0);
-            myinc.Inc();
-            Console.WriteLine(myinc.value);
+            //myinc.Inc();
+            //Console.WriteLine(myinc.value);
 
             //var mi = new MyInc(0);
             //mi.Inc();

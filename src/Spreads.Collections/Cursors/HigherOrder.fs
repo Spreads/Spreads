@@ -17,14 +17,14 @@ open Spreads.Collections
 
 
  /// Map keys and values to new values
-type internal MapCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'K,'V,'V2>)=
+type internal MapValuesWithKeysCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'K,'V,'V2>)=
   let cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
   let f : Func<'K,'V,'V2> = f
 
   member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
   member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> =
     let factory = Func<_>(cursor.CurrentBatch.GetCursor)
-    let c() = new MapCursor<'K,'V,'V2>(factory, f) :> ICursor<'K,'V2>
+    let c() = new MapValuesWithKeysCursor<'K,'V,'V2>(factory, f) :> ICursor<'K,'V2>
     CursorSeries(Func<_>(c)) :> IReadOnlyOrderedMap<'K,'V2>
 
   member this.CurrentKey: 'K = cursor.CurrentKey
@@ -32,14 +32,14 @@ type internal MapCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'K
 
   member this.Source: ISeries<'K,'V2> = 
       let factory = Func<_>(cursor.Source.GetCursor)
-      let c() = new MapCursor<'K,'V,'V2>(cursorFactory, f) :> ICursor<'K,'V2>
+      let c() = new MapValuesWithKeysCursor<'K,'V,'V2>(cursorFactory, f) :> ICursor<'K,'V2>
       CursorSeries(Func<_>(c)) :> ISeries<'K,'V2>
   member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  
     let ok, v = cursor.TryGetValue(key)
     if ok then value <- f.Invoke(key, v)
     ok
       
-  member this.Clone() = new MapCursor<'K,'V,'V2>(Func<_>(cursor.Clone), f) :> ICursor<'K,'V2>
+  member this.Clone() = new MapValuesWithKeysCursor<'K,'V,'V2>(Func<_>(cursor.Clone), f) :> ICursor<'K,'V2>
 
   interface IEnumerator<KVP<'K,'V2>> with    
     member this.Reset() = cursor.Reset()

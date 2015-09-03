@@ -988,7 +988,8 @@ type SortedMap<'K,'V>
     let isBatch = ref false
 
     let observerStarted = ref false
-    let tcs = ref (TaskCompletionSource<bool>())
+    // NB prefer struct to TCS class, but performance is very close
+    let mutable tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()) // (TaskCompletionSource<bool>())
     let cancellationToken = ref CancellationToken.None
     let sr = Object()
     let semaphore = new SemaphoreSlim(0,Int32.MaxValue)
@@ -1022,19 +1023,20 @@ type SortedMap<'K,'V>
                   if cont && couldProceed && !observerStarted && waitTask.IsCompleted then
                     lock(sr) (fun _ ->
                       // right now a client is waiting for a task to complete, there are no more elements in the map
-                      if !tcs <> null then
+                      if tcs <> Unchecked.defaultof<_> then
                         if x.MoveNext() then
-                          let tcs' = !tcs
-                          tcs := null
-                          let couldSetResult = (tcs').TrySetResult(true)
-                #if PRERELEASE
-                          Trace.Assert(couldSetResult)
-                #endif
+                          let tcs' = tcs
+                          tcs <- Unchecked.defaultof<_> 
+                          (tcs').SetResult(true)
+//                #if PRERELEASE
+//                          Trace.Assert(couldSetResult)
+//                #endif
                           ()
                         // check if the source became immutable
                         elif not this.IsMutable then 
-                          let couldSetResult = (!tcs).TrySetResult(false)
-                          Trace.Assert(couldSetResult)
+                          //let couldSetResult = 
+                          tcs.SetResult(false)
+                          //Trace.Assert(couldSetResult)
                           cont <- false
                       else
                         // do nothing, next MoveNext(ct) will try to call MoveNext() and it will return the correct result
@@ -1064,9 +1066,9 @@ type SortedMap<'K,'V>
               // Interlocked.CompareExchange(tcs, TaskCompletionSource(), null) |> ignore
               // NB lock is good enough instead of volatile read + interlocked, cannot test visible difference
               lock(sr) (fun _ ->
-                  if !tcs = null then
-                    tcs := TaskCompletionSource()
-                  tcs.Value.Task
+                  if tcs = Unchecked.defaultof<_>  then
+                    tcs <- Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create() // new TaskCompletionSource<bool>() //
+                  tcs.Task
               )
         
             | _ -> Task.FromResult(false) // has no values and will never have because is not IUpdateable or IsMutable=false
