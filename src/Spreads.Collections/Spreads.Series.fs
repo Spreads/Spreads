@@ -528,7 +528,7 @@ and // TODO internal
   /// A cursor that joins to cursors. 
   [<AbstractClassAttribute>]
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-  [<ObsoleteAttribute("Almost certainly this is incorrect implementation, use ZipN and then optimize ZipN for 2")>]
+  [<ObsoleteAttribute("TODO Almost certainly this is incorrect implementation, use slower (5 mops vs 10 mops) ZipN and then optimize ZipN for 2 or rewrite this")>]
   ZipCursor<'K,'V1,'V2,'R>(cursorFactoryL:unit->ICursor<'K,'V1>, cursorFactoryR:unit->ICursor<'K,'V2>) =
   
     let cursorL = cursorFactoryL()
