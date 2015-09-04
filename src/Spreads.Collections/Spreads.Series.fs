@@ -1055,7 +1055,7 @@ and
 
     // direct asynchronization of the above method, any changes must be done above and ported to async here
     let doMoveNextNonContinuousTask(ct:CancellationToken) : Task<bool> =
-      let mutable tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create())
+      let mutable tcs = new TaskCompletionSource<_>() //(Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create())
       let returnTask = tcs.Task // NB! must access this property first
       let mutable firstStep = ref true
       let mutable sourceMoveTask = Unchecked.defaultof<_>
@@ -1078,13 +1078,13 @@ and
             // stop loop //Console.WriteLine("Should not be here")
             //activeCursorLoop()
         else
+          firstStep := false
           let idx = first.Value
           let cursor = ac
           let mutable c = -1
           while c < 0 && cursor.MoveNext() do
             c <- cmp.Compare(cursor.CurrentKey, pivotKeysSet.Last.Key)
           if c >= 0 then
-            firstStep := false
             currentValues.[idx] <- ac.CurrentValue
             pivotKeysSet.Add(KV(ac.CurrentKey, idx)) |> ignore
             loop(true)
@@ -1092,11 +1092,9 @@ and
             // call itself until reached the frontier, then call outer loop
             sourceMoveTask <- cursor.MoveNext(ct)
             //task.Start()
-            let awaiter = sourceMoveTask.GetAwaiter()
-            // NB! do not block, use callback
-            awaiter.OnCompleted(fun _ ->
-              //Console.WriteLine(Thread.CurrentThread.ManagedThreadId.ToString()) // NB different threads
-              firstStep := false // TODO use moved at firstStep level
+            
+            // there is a big chance that this task is already completed
+            let onCompleted() =
               let moved =  sourceMoveTask.Result
               if not moved then
                 tcs.SetResult(false) // the only false exit
@@ -1110,7 +1108,25 @@ and
                   currentValues.[idx] <- cursor.CurrentValue
                   pivotKeysSet.Add(KV(cursor.CurrentKey, idx)) |> ignore
                   loop(true)
-            )
+            
+            if sourceMoveTask.Status = TaskStatus.RanToCompletion then
+              onCompleted()
+            else
+//              Thread.SpinWait(50)
+//              if sourceMoveTask.IsCompleted then
+//                onCompleted()
+//              else
+                let awaiter = sourceMoveTask.GetAwaiter()
+                // NB! do not block, use callback
+                awaiter.OnCompleted(fun _ ->
+                  // TODO! Test all cases
+                  if sourceMoveTask.Status = TaskStatus.RanToCompletion then
+                    onCompleted()
+                  elif sourceMoveTask.Status = TaskStatus.Canceled then
+                    tcs.SetCanceled()
+                  else
+                    tcs.SetException(sourceMoveTask.Exception)
+                )
             ()
 
       // take the oldest cursor and work on it, when it reaches frontline, iterate

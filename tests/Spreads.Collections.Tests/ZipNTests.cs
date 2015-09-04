@@ -730,10 +730,12 @@ namespace Spreads.Collections.Tests {
         [Test]
         public void CouldZipManyNonContinuousInRealTime2() {
 
+
+
             var sm1 = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
-            var count = 10000000;//000000;
+            var count = 10000000; //000000;
             var mid = 1;
 
             for (int i = 0; i < mid; i++) {
@@ -751,7 +753,7 @@ namespace Spreads.Collections.Tests {
                 }
 
                 sm1.IsMutable = false; // stop mutating
-                //Console.WriteLine("Set immutable");
+                                       //Console.WriteLine("Set immutable");
             });
 
             Task.Run(() => {
@@ -763,55 +765,56 @@ namespace Spreads.Collections.Tests {
                 }
 
                 sm2.IsMutable = false; // stop mutating
-                //Console.WriteLine("Set immutable");
+                                       //Console.WriteLine("Set immutable");
             });
 
             // this test measures isolated performance of ZipN, without ToSortedMap
 
-            var sw = new Stopwatch();
+            
 
 
             var series = new[] { sm1, sm2 };
+            for (int r = 0; r < 50; r++) {
+                var sw = new Stopwatch();
+                sw.Start();
+                var totalSum = 0.0;
+                var sumCursor = series.Zip((k, varr) => varr.Sum()).GetCursor();
+                var c = 0;
+                //while (sumCursor.MoveNext()) {
+                //    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                //    totalSum += sumCursor.CurrentValue;
+                //    c++;
+                //}
 
-            sw.Start();
-            var totalSum = 0.0;
-            var sumCursor = series.Zip((k, varr) => varr.Sum()).GetCursor();
-            var c = 0;
-            //while (sumCursor.MoveNext()) {
-            //    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
-            //    totalSum += sumCursor.CurrentValue;
-            //    c++;
-            //}
+                Task.Run(async () => {
+                    while (await sumCursor.MoveNext(CancellationToken.None)) {
+                        //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                        //Console.WriteLine("Value: " + sumCursor.CurrentValue);
+                        totalSum += sumCursor.CurrentValue;
+                        c++;
+                        //if (c % 10000 == 0) {
+                        //    Console.WriteLine(sw.ElapsedMilliseconds);
+                        //}
+                    }
 
-            Task.Run(async () => {
-                while (await sumCursor.MoveNext(CancellationToken.None)) {
-                    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
-                    //Console.WriteLine("Value: " + sumCursor.CurrentValue);
-                    totalSum += sumCursor.CurrentValue;
-                    c++;
-                    //if (c % 10000 == 0) {
-                    //    Console.WriteLine(sw.ElapsedMilliseconds);
-                    //}
-                }
-                
-            }).Wait();
-            sw.Stop();
-            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
-            Console.WriteLine("Total sum: {0}", totalSum);
+                }).Wait();
+                sw.Stop();
+                Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+                Console.WriteLine("Total sum: {0}", totalSum);
 
-            //while (sumCursor.MoveNext(CancellationToken.None).Result) {
-            //    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
-            //    //Console.WriteLine("Value: " + sumCursor.CurrentValue);
-            //    totalSum += sumCursor.CurrentValue;
-            //    c++;
-            //    if (c % 10000 == 0) {
-            //        Console.WriteLine(sw.ElapsedMilliseconds);
-            //    }
-            //}
-            //sw.Stop();
-            //Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
-            //Console.WriteLine("Total sum: {0}", totalSum);
-
+                //while (sumCursor.MoveNext(CancellationToken.None).Result) {
+                //    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                //    //Console.WriteLine("Value: " + sumCursor.CurrentValue);
+                //    totalSum += sumCursor.CurrentValue;
+                //    c++;
+                //    if (c % 10000 == 0) {
+                //        Console.WriteLine(sw.ElapsedMilliseconds);
+                //    }
+                //}
+                //sw.Stop();
+                //Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+                //Console.WriteLine("Total sum: {0}", totalSum);
+            }
         }
 
 
