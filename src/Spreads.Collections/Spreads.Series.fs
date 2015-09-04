@@ -999,6 +999,55 @@ and
           else false
       else false
     
+    // TODO! rewrite as manual
+    let rec doMoveNextNonContinuous2(ct:CancellationToken) : Task<bool> =
+      task {
+        let mutable cont = true
+        // check if we reached the state where all cursors are at the same position
+        while cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) < 0 && cont do
+          // pivotKeysSet is essentially a task queue:
+          // we take every cursor that is not at fthe frontier and try to move it forward until it reaches the frontier
+          // if we do this in parallel, the frontier could be moving while we move cursors
+          let first = pivotKeysSet.RemoveFirst()
+          let ac = cursors.[first.Value]
+          let mutable moved = true
+          let mutable c = -1 // by construction // cmp.Compare(ac.CurrentKey, pivotKeysSet.Max.Key)
+        
+          // move active cursor forward while it is before the current max key
+          // max key of non-cont series is the frontier: we will never get a value before it,
+          // and if any pivot moves ahead of the frontier, then it shifts the frontier 
+          // and the old one becomes unreachable
+
+          // NB this is marginally slower, but how beautiful!
+//          while ac.MoveNext(ct).ContinueWith(fun (t:Task<bool>) -> t.Result && cmp.Compare(ac.CurrentKey, pivotKeysSet.Last.Key) < 0) do
+//            ()
+          while c < 0 && moved do
+            let! moved' = ac.MoveNext(ct)
+            moved <- moved'
+            c <- cmp.Compare(ac.CurrentKey, pivotKeysSet.Last.Key)
+
+          if moved then
+            currentValues.[first.Value] <- ac.CurrentValue
+            pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
+          else
+            cont <- false // cannot move, stop sync move next, leave cursors where they are
+        if cont then
+          if fillContinuousValuesAtKey(pivotKeysSet.First.Key) then
+            this.CurrentKey <- pivotKeysSet.First.Key
+            return true
+          else
+            // cannot get contiuous values at this key
+            // move first non-cont cursor to next position
+            let first =  pivotKeysSet.RemoveFirst()
+            let ac = cursors.[first.Value]
+            if ac.MoveNext() then
+              currentValues.[first.Value] <- ac.CurrentValue
+              pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
+              return! doMoveNextNonContinuous2(ct) // recursive
+            else return false
+        else return false
+      }
+
     // direct asynchronization of the above method, any changes must be done above and ported to async here
     let rec doMoveNextNonContinuousAsync(ct:CancellationToken) : Async<bool> =
       async {
@@ -1053,7 +1102,7 @@ and
         else return false
       }
 
-    // direct asynchronization of the above method, any changes must be done above and ported to async here
+    // manual state machine
     let doMoveNextNonContinuousTask(ct:CancellationToken) : Task<bool> =
       let mutable tcs = new TaskCompletionSource<_>() //(Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create())
       let returnTask = tcs.Task // NB! must access this property first
@@ -1182,6 +1231,56 @@ and
 //      activeCursorLoop()
       loop(true)
       returnTask
+
+//    // TODO (low) this works badly
+//    let doMoveNextNonContinuousTask2(ct:CancellationToken) : Task<bool> =
+//      
+//      let mutable firstStep = ref true
+//
+//      let mutable first = Unchecked.defaultof<_>
+//      let mutable ac = Unchecked.defaultof<_>
+//      let rec loop(isOuter:bool) : Task<bool> =
+//        task {
+//        if isOuter then
+//          if not !firstStep && cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) = 0 && fillContinuousValuesAtKey(pivotKeysSet.First.Key) then
+//            this.CurrentKey <- pivotKeysSet.First.Key
+//            return true // the only true exit
+//          else
+//            // pivotKeysSet is essentially a task queue:
+//            // we take every cursor that is not at fthe frontier and try to move it forward until it reaches the frontier
+//            // if we do this in parallel, the frontier could be moving while we move cursors
+//            first <- pivotKeysSet.RemoveFirst()
+//            ac <- cursors.[first.Value]
+//            return! loop(false)
+//            // stop loop //Console.WriteLine("Should not be here")
+//            //activeCursorLoop()
+//        else
+//          firstStep := false
+//          let idx = first.Value
+//          let cursor = ac
+//          let mutable c = -1
+//          while c < 0 && cursor.MoveNext() do
+//            c <- cmp.Compare(cursor.CurrentKey, pivotKeysSet.Last.Key)
+//          if c >= 0 then
+//            currentValues.[idx] <- ac.CurrentValue
+//            pivotKeysSet.Add(KV(ac.CurrentKey, idx)) |> ignore
+//            return! loop(true)
+//          else
+//            let! moved = cursor.MoveNext(ct)
+//            // there is a big chance that this task is already completed
+//            if not moved then
+//              return false // the only false exit
+//            else
+//              let c = cmp.Compare(cursor.CurrentKey, pivotKeysSet.Last.Key)
+//              if c < 0 then
+//                return! loop(false)
+//              else
+//                currentValues.[idx] <- cursor.CurrentValue
+//                pivotKeysSet.Add(KV(cursor.CurrentKey, idx)) |> ignore
+//                return! loop(true)
+//        }
+//      loop(true)
+    
 
     // Continuous
 //    let doMoveNextContinuousSlow(frontier:'K) =
@@ -1474,6 +1573,8 @@ and
         Trace.Assert(movedOk) // if current key is set then we could move to it
       clone
          
+         
+
 
     member this.MoveNext(): bool =
       if not this.HasValidState then this.MoveFirst()
@@ -1494,6 +1595,28 @@ and
           if cont then doMoveNextNonContinuous()
           else false
     
+    // using task computation expr
+    member this.MoveNextTaskBuilder(ct:CancellationToken): Task<bool> =
+      task {
+        if not this.HasValidState then return this.MoveFirst() // TODO this is potentially blocking, make it async
+        else
+          if isContinuous then
+            return failwith "" //return! doMoveNextContinuousAsync(this.CurrentKey, ct)
+          else
+            let mutable cont = false
+            if cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) = 0 then
+              let first = pivotKeysSet.RemoveFirst()
+              let ac = cursors.[first.Value]
+              let! moved = ac.MoveNext(ct)
+              if moved then
+                currentValues.[first.Value] <- ac.CurrentValue
+                pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
+                cont <- true
+              else cont <- false
+            else cont <- true
+            if cont then return! doMoveNextNonContinuous2(ct)
+            else return false
+      }
 
     member this.MoveNextOld(ct:CancellationToken): Task<bool> =
       async {
@@ -1517,7 +1640,7 @@ and
       } |> Async.StartAsTask // |> fun x -> Async.StartAsTask(x,TaskCreationOptions.None, ct)
     
 
-    
+    // manual
     member this.MoveNext(ct:CancellationToken): Task<bool> =
       if not this.HasValidState then Task.Run(fun _-> this.MoveFirst()) // TODO this is potentially blocking, make it async
       else

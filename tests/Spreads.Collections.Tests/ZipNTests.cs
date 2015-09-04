@@ -774,7 +774,7 @@ namespace Spreads.Collections.Tests {
 
 
             var series = new[] { sm1, sm2 };
-            for (int r = 0; r < 50; r++) {
+            for (int r = 0; r < 5; r++) {
                 var sw = new Stopwatch();
                 sw.Start();
                 var totalSum = 0.0;
