@@ -301,7 +301,8 @@ namespace Spreads.Collections.Tests {
             var count = 100000;
             OptimizationSettings.AlwaysBatch = true;
             for (int i = 0; i < count; i++) {
-                sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                if(i % 99 != 0)
+                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
 
             var sw = new Stopwatch();
