@@ -359,9 +359,7 @@ and
     let mutable batchStarted = false
     let mutable batch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
     let mutable batchCursor = Unchecked.defaultof<ICursor<'K,'V2>>
-    // we could generalie this to a queue, but only after this implementation works OK with 2 threads
-    let mutable nextBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
-    let mutable nextBatchTask = Unchecked.defaultof<Task<bool>>
+    let queue = Queue<Task<_>>()
 
     new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, OptionalValue.Missing)
     new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>,fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, OptionalValue(fBatch))
@@ -387,24 +385,28 @@ and
             cursor.MoveNextBatch(CancellationToken.None)
               .ContinueWith( (fun (antecedant2 : Task<bool>) -> 
                   if antecedant2.Result then
-                    nextBatch <- this.MapBatch(cursor.CurrentBatch)
-                    true
-                  else 
-                    nextBatch <- Unchecked.defaultof<_>
-                    false
+                    // save reference to the batch before moving to next
+                    // NB! this assumes that cursor.CurrentBatch is not mutated in place but is replaced
+                    // TODO check if this assumption is valid
+                    let currentBatch = cursor.CurrentBatch
+                    // NB need to have slightly more than Environment.ProcessorCount, 
+                    // so that finished tasks could yield a core to queued ones (here +1 due to `<=` and not `<`)
+                    // but, need to limit the count if we stopped consuming, to limit memory consumption
+                    if queue.Count <= Environment.ProcessorCount  then
+                      let newTask = this.StartNextBatch()
+                      Trace.Assert(newTask <> Unchecked.defaultof<_>)
+                      lock queue (fun _ -> 
+                        queue.Enqueue(newTask)
+                      )
+                    Some(this.MapBatch(currentBatch))
+                  else
+                    None
                 ),
                 CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default).Result
         )
 
     member this.CurrentBatch
       with get() : IReadOnlyOrderedMap<'K,'V2> =
-        // to support multiple calls to this.CurrentBatch and allow to move cursor.CurrentBatch
-        if batch = Unchecked.defaultof<_> then
-          batch <- this.MapBatch(cursor.CurrentBatch)
-          // at this point, we could move cursor to a new batch
-          // we schedule the next move here because MoveNextBatch could be called 
-          // several time without evaluation
-          nextBatchTask <- this.StartNextBatch()
         batch
 
     member this.MoveNext(): bool = 
@@ -432,8 +434,7 @@ and
       if batchCursor <> Unchecked.defaultof<ICursor<'K,'V2>> then batchCursor.Dispose()
       batch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
       batchCursor <- Unchecked.defaultof<ICursor<'K,'V2>>
-      nextBatch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
-      nextBatchTask <- Unchecked.defaultof<Task<bool>>
+      queue.Clear()
 
     member this.MoveAt(index: 'K, direction: Lookup): bool =
       if preferBatches then this.ClearBatches()
@@ -454,26 +455,31 @@ and
       cursor.MovePrevious()
 
     member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> =
-      if nextBatchTask = Unchecked.defaultof<_> then // there is no outstanding move
-        cursor.MoveNextBatch(cancellationToken).ContinueWith(
-            (fun (antecedant : Task<bool>) ->
-              // clean batch holder so that it could be refilled with the new cursor batch
-              // only when the cursor.CurrentBatch is consumed we could start the next batch,
-              // therefore the first place where nextBatchTask is set is in this.CurrentBatch
-              batch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
-              antecedant.Result
+      if queue.Count = 0 then // there is no outstanding move
+        this.StartNextBatch().ContinueWith(
+            (fun (antecedant : Task<IReadOnlyOrderedMap<'K,'V2> option>) ->
+                if antecedant.Result.IsSome then 
+                  batch <- antecedant.Result.Value
+                  true
+                else false
             ),
           cancellationToken, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default)
-      else 
-        nextBatchTask.ContinueWith(
-          (fun (antecedant : Task<bool>) ->
-              // set batch to the result of precalculated next batch
-              if antecedant.Result then
-                batch <- nextBatch
-                nextBatchTask <- this.StartNextBatch()
-              antecedant.Result
+      else
+        let mutable taskHolder = Unchecked.defaultof<_>
+        lock queue (fun _ -> 
+          taskHolder <- queue.Dequeue()
+        )
+
+        Trace.Assert(taskHolder <> Unchecked.defaultof<_>)
+        taskHolder.ContinueWith(
+          (fun (antecedant : Task<IReadOnlyOrderedMap<'K,'V2> option>) ->
+              if antecedant.Result.IsSome then 
+                batch <- antecedant.Result.Value
+                true
+              else false
           ),
           cancellationToken, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default)
+
 
     member this.Source: ISeries<'K,'V2> = 
         let factory = Func<_>(cursor.Source.GetCursor)
@@ -490,8 +496,7 @@ and
       batch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
       if batchCursor <> Unchecked.defaultof<ICursor<'K,'V2>> then batchCursor.Dispose()
       batchCursor <- Unchecked.defaultof<ICursor<'K,'V2>>
-      nextBatch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
-      nextBatchTask <- Unchecked.defaultof<Task<bool>>
+      queue.Clear()
       cursor.Reset()
     member this.Clone() = new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(cursor.Clone), f, fBatch) :> ICursor<'K,'V2>
 

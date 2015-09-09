@@ -41,5 +41,14 @@ type MathProviderImpl() =
     member this.AddVectors(x:'T[],y:'T[],result:'T[]) : unit = failwith "not implemented"
 
     member this.AddBatch(scalar:double, batch: IReadOnlyOrderedMap<'K,double>, value: byref<IReadOnlyOrderedMap<'K,double>>) =
-      this.MapBatch<'K, double, double>((fun (x:double) -> x + scalar), batch, &value)
+      this.MapBatch<'K, double, double>(
+        (fun (x:double) ->
+            //Thread.SpinWait(50);
+//            let mutable fakeSum = 0
+//            for i in 0..100 do
+//              fakeSum <- fakeSum + i
+//            fakeSum <- 0
+            x + scalar
+        ), 
+        batch, &value)
       

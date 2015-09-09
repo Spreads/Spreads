@@ -995,6 +995,10 @@ type SortedMap<'K,'V>
     let semaphore = new SemaphoreSlim(0,Int32.MaxValue)
     let taskCompleter = ref Unchecked.defaultof<Task<bool>>
     
+    let cursorrkstep = lazy ( rkGetStep())
+//      if couldHaveRegularKeys && this.size > 1 then rkGetStep()
+//      else 0L
+    //diffCalc.Add(this.keys.[0], (int64 idx)*rkGetStep())
 
     let updateHandler : UpdateHandler<'K,'V> = 
       UpdateHandler(fun _ (kvp:KVP<'K,'V>) ->
@@ -1176,10 +1180,17 @@ type SortedMap<'K,'V>
             if cursorVersion.Value = this.version then
               if index.Value < (this.size - 1) then
                 index := !index + 1
+                // ACHTUNG! regular keys were supposed to speed up things, not to slow down by 50%!
                 currentKey := 
                   //this.GetKeyByIndex(index.Value)
+//                  if cursorrkstep = 0L then
+//                    this.keys.[index.Value]
+//                  else 
+//                    diffCalc.Add(this.keys.[0], (int64 index.Value)*cursorrkstep)
                   if couldHaveRegularKeys && this.size > 1 then 
-                    rkKeyAtIndex index.Value
+                    //diffCalc.Add(this.keys.[0], (int64 idx)*rkGetStep())
+                    diffCalc.Add(this.keys.[0], (int64 index.Value)*cursorrkstep.Value)
+                    //rkKeyAtIndex index.Value
                   else
                     this.keys.[index.Value]
                 currentValue := this.values.[!index]
