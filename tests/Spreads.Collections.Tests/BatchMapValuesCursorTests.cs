@@ -254,13 +254,13 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void CouldAddWitDefaultMathProvider() {
-            var sm = new SortedChunkedMap<DateTime, double>(4000);
+            var sm = new SortedMap<DateTime, double>(4000);
             var count = 100000;
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
-
+            sm.IsMutable = false;
             var sw = new Stopwatch();
             sw.Start();
             var sum = 0.0;
@@ -295,6 +295,46 @@ namespace Spreads.Collections.Tests {
         }
 
 
-        
+        [Test]
+        public void CouldAddWitDefaultMathProviderViaOperator() {
+            var sm = new SortedChunkedMap<DateTime, double>(4000);
+            var count = 100000;
+            OptimizationSettings.AlwaysBatch = true;
+            for (int i = 0; i < count; i++) {
+                sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+            }
+
+            var sw = new Stopwatch();
+            sw.Start();
+            var sum = 0.0;
+            for (int rounds = 0; rounds < 1000; rounds++)
+            {
+                var sm2 = sm + 3.1415926;
+                var bmvc = sm2.GetCursor();
+                while (bmvc.MoveNext()) {
+                    sum += bmvc.CurrentValue;
+                }
+
+                //foreach (var kvp in sm2)
+                //{
+                //    sum += kvp.Value;
+                //}
+            }
+            sw.Stop();
+
+            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000 * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
+            Console.WriteLine(sum);
+
+            var c = 0;
+            //foreach (var kvp in sm2) {
+            //    Assert.AreEqual(c + 1, kvp.Value);
+            //    c++;
+            //}
+
+        }
+
+
+
     }
 }

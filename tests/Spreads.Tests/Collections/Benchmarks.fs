@@ -629,6 +629,8 @@ module CollectionsBenchmarks =
           let res = i.Value
           ()
       )
+    let batchSetting = OptimizationSettings.AlwaysBatch
+    OptimizationSettings.AlwaysBatch <- false
     for i in 0..9 do
       perf count "SMR Iterate with plus operator" (fun _ ->
         let ro = (((smap.Value.ReadOnly() + 123456L))):> IReadOnlyOrderedMap<int64,int64>
@@ -636,6 +638,15 @@ module CollectionsBenchmarks =
           let res = i.Value
           ()
       )
+    OptimizationSettings.AlwaysBatch <- true
+    for i in 0..9 do
+      perf count "SMR Iterate with plus operator, batch" (fun _ ->
+        let ro = (((smap.Value.ReadOnly() + 123456L))):> IReadOnlyOrderedMap<int64,int64>
+        for i in ro do
+          let res = i.Value
+          ()
+      )
+    OptimizationSettings.AlwaysBatch <- batchSetting
 //    for i in 0..9 do
 //      perf count "SMR Iterate with Zip" (fun _ ->
 //        let ro = (((smap.Value.ReadOnly().Zip(smap.Value, fun v v2 -> v + v2)))):> IReadOnlyOrderedMap<int64,int64>
@@ -815,6 +826,24 @@ module CollectionsBenchmarks =
           if res <> i.Value then failwith "SCM failed"
           ()
       )
+    let batchSetting = OptimizationSettings.AlwaysBatch
+    OptimizationSettings.AlwaysBatch <- false
+    for i in 0..9 do
+      perf count "SCM<Auto> Iterate with plus operator" (fun _ ->
+        let ro = (((shm.Value.ReadOnly() + 123456L))):> IReadOnlyOrderedMap<int64,int64>
+        for i in ro do
+          let res = i.Value
+          ()
+      )
+    OptimizationSettings.AlwaysBatch <- true
+    for i in 0..9 do
+      perf count "SCM<Auto> Iterate with plus operator, batch" (fun _ ->
+        let ro = (((shm.Value.ReadOnly() + 123456L))):> IReadOnlyOrderedMap<int64,int64>
+        for i in ro do
+          let res = i.Value
+          ()
+      )
+    OptimizationSettings.AlwaysBatch <- batchSetting
 
     for i in 0..9 do
       shm := SortedChunkedMap(SpreadsComparerInt64(), fun x -> x / 10240L)
@@ -1041,18 +1070,18 @@ module CollectionsBenchmarks =
 //    DeedleDeque_run()
 
 //    Console.WriteLine("MAPS")
-    DeedleSeries_run()
+//    DeedleSeries_run()
 //    FSXHashMap_run()
 //    IntMap64_run()
 //    MapTree_run()
 //    SCGSortedList_run()
 //    SCIOrderedMap_run()
     SortedDeque_run()
-    SortedList_run()
+//    SortedList_run()
     SortedMap_run()
 //    SortedMapPeriod_run()
 //    SortedMapDT_run()
-    SortedMapRegular_run()
+///    SortedMapRegular_run()
     //MapDeque_run() // bugs!
     //SHM_run()
     SCM_run()

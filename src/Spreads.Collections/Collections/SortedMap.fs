@@ -1081,17 +1081,29 @@ type SortedMap<'K,'V>
       
         member this.IsContinuous with get() = false
         member p.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
-          if !isBatch && !index = this.size - 1 then
-            this :> IReadOnlyOrderedMap<'K,'V>
-          else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
+          let entered = enterLockIf syncRoot  isSynchronized
+          try
+            // TODO! how to do this correct for mutable case. Looks like impossible without copying
+            if !isBatch then
+              Trace.Assert(!index = this.size - 1)
+              Trace.Assert(not this.IsMutable)
+              this :> IReadOnlyOrderedMap<'K,'V>
+            else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
+          finally
+            exitLockIf syncRoot entered
         member p.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
-          if !index = -1 then 
-            index := this.size - 1 // at the last element of the batch
-            currentKey := this.GetKeyByIndex(index.Value)
-            currentValue := this.values.[!index]
-            isBatch := true
-            Task.FromResult(true)
-          else Task.FromResult(false)
+          let entered = enterLockIf syncRoot  isSynchronized
+          try
+            if (not this.IsMutable) && (!index = -1) then
+              index := this.size - 1 // at the last element of the batch
+              currentKey := this.GetKeyByIndex(index.Value)
+              currentValue := this.values.[!index]
+              isBatch := true
+              Task.FromResult(true)
+            else Task.FromResult(false)
+          finally
+            exitLockIf syncRoot entered
+
         member p.Clone() = this.GetCursor(!index,!cursorVersion, p.CurrentKey, p.CurrentValue) //!currentKey,!currentValue)
         member p.Current with get() : KVP<'K,'V> = KeyValuePair(p.CurrentKey, p.CurrentValue) // currentKey.Value, currentValue.Value)
       

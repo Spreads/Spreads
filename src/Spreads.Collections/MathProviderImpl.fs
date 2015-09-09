@@ -16,17 +16,23 @@ type MathProviderImpl() =
       | :? SortedMap<'K,'V> as sm -> 
         if sm.size > 0 then
           let values2 = Array.map mapF sm.values //  // TODO what if values are reference types and capacity > size, could throw on nulls
-          let keys2 = Array.copy sm.keys
+          // NB when savings on key memory matters most, they are usually already regular
+          // but it still helps to avoid copying, churning caches and just save memory
+          let keys2 =
+            if sm.IsMutable then Array.copy sm.keys
+            else sm.keys // NB borrow keys from the source batch
           let sm2 = SortedMap.OfSortedKeysAndValues(keys2, values2, sm.size, sm.Comparer, false, sm.IsRegular)
+          sm2.IsMutable <- false // NB source was mutable or we have created a copy that is supposed to be accessed as IReadOnlyOrderedMap externally
           value <- sm2 :> IReadOnlyOrderedMap<'K,'V2>
           true
         else false
       | _ ->
+        // TODO! MapBatchCursor (to be lazy) without bacthing function (to avoid circular links)
         let map = SortedMap<'K,'V2>()
         for kvp in batch do
             let newValue = mapF(kvp.Value)
             map.AddLast(kvp.Key, newValue)
-        if map.size > 0 then 
+        if map.size > 0 then
           value <- map :> IReadOnlyOrderedMap<'K,'V2>
           true
         else false
@@ -43,11 +49,6 @@ type MathProviderImpl() =
     member this.AddBatch(scalar:double, batch: IReadOnlyOrderedMap<'K,double>, value: byref<IReadOnlyOrderedMap<'K,double>>) =
       this.MapBatch<'K, double, double>(
         (fun (x:double) ->
-            //Thread.SpinWait(50);
-//            let mutable fakeSum = 0
-//            for i in 0..100 do
-//              fakeSum <- fakeSum + i
-//            fakeSum <- 0
             x + scalar
         ), 
         batch, &value)

@@ -37,12 +37,12 @@ type Series internal() =
   //static member internal DoInit() =
   static do
     ()
-//    let moduleInfo = 
-//      Reflection.Assembly.GetExecutingAssembly().GetTypes()
-//      |> Seq.find (fun t -> t.Name = "Initializer")
-//    //let ty = typeof<BaseSeries>
-//    let mi = moduleInfo.GetMethod("init", (Reflection.BindingFlags.Static ||| Reflection.BindingFlags.NonPublic) )
-//    mi.Invoke(null, [||]) |> ignore
+    let moduleInfo = 
+      Reflection.Assembly.GetExecutingAssembly().GetTypes()
+      |> Seq.find (fun t -> t.Name = "Initializer")
+    //let ty = typeof<BaseSeries>
+    let mi = moduleInfo.GetMethod("init", (Reflection.BindingFlags.Static ||| Reflection.BindingFlags.NonPublic) )
+    mi.Invoke(null, [||]) |> ignore
 
 
 and
@@ -165,10 +165,20 @@ and
 
     // TODO! (perf) add batching where it makes sense
     /// Used for implement scalar operators which are essentially a map application
-    static member inline private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>, ?fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = 
+    // inline
+    static member  private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>, ?fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = 
       let mapF = mapFunc
-      let fBatch = if fBatch.IsSome then OptionalValue(fBatch.Value) else OptionalValue.Missing
-      let mapCursorFactory() = new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(source.GetCursor), mapF, fBatch) :> ICursor<'K,'V2>
+      let fBatch =
+        if fBatch.IsSome then OptionalValue(fBatch.Value) 
+        else 
+          if OptimizationSettings.AlwaysBatch then
+            let fBatch' b =
+              let ok, v = VectorMathProvider.Default.MapBatch(mapFunc.Invoke, b)
+              v
+            OptionalValue(Func<_,_>(fBatch'))
+          else OptionalValue.Missing
+      let mapCursorFactory() = 
+        new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(source.GetCursor), mapF, fBatch) :> ICursor<'K,'V2>
       CursorSeries(Func<ICursor<'K,'V2>>(mapCursorFactory)) :> Series<'K,'V2>
 
     
