@@ -426,6 +426,35 @@ namespace Spreads.Collections.Tests {
 
         }
 
+        [Test]
+        public void CouldZipIntsWithMoveNextContinuous() {
+            var sw = new Stopwatch();
+
+            var sm1 = new SortedMap<int, int>();
+            var sm2 = new SortedMap<int, int>();
+            sm1.Add(0, 0);
+            sm2.Add(0, 0);
+
+            for (int i = 2; i < 50; i = i + 2) {
+                sm1.Add(i, i);
+                sm2.Add(i + 1, i);
+            }
+
+            var series = new[] { sm1.Repeat(), sm2.Repeat(), };
+
+            sw.Start();
+
+            var sum = series.Zip((k, varr) => varr.Sum()).ToSortedMap();
+
+            sw.Stop();
+            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+            for (int i = 2; i < 5000000; i = i + 2) {
+                Assert.AreEqual(i * 2 - 2, sum[i]);
+            }
+
+        }
+
+
 
         [Test]
         public void CouldZipMillionIntsWithMoveNextContinuous() {

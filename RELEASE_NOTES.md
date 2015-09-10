@@ -1,3 +1,14 @@
+#### 0.0.56 - September 10, 2015
+* Fix IndexOfKeyUnchecked bug
+
+#### 0.0.54 - September 9, 2015
+* Real-time SMA
+
+#### 0.0.53 - September 9, 2015
+* SM returns batch only when marked as not mutable (TODO? copy if mutable, or make BatchMapValuesCursor collect values into batches)
+* Simpler and faster BatchMapValuesCursor cursor
+* ZipN MoveNextAsync works and is fast (awaits TPL task via GetAwaiter and completion action vs. F# slow async-to-TPL border)
+
 #### 0.0.52 - September 2, 2015
 * Update SortedMap and SortedDequeue iterator to avoid virtual calls, perf gain is visible in tests. There is
 almost no room for further improvement, we are close to `SCG.SortedList<>` and `SCG.List<>`

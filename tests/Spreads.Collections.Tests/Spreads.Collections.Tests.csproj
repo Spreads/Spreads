@@ -72,6 +72,7 @@
     <Compile Include="BatchMapValuesCursorTests.cs" />
     <Compile Include="CursorSeriesTests.cs" />
     <Compile Include="CursorsTests\RepeatTests.cs" />
+    <Compile Include="IndexedMapTests.cs" />
     <Compile Include="IROOMTests.cs" />
     <Compile Include="SortedMapTests.cs" />
     <Compile Include="SortedDequeTests.cs" />

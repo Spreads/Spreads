@@ -121,6 +121,8 @@ type IndexedMap<'K,'V> // when 'K:equality
 
   member private this.Insert(index:int, k, v) = 
     if this.size = this.values.Length then this.EnsureCapacity(this.size + 1)
+    if index > this.size then
+      Console.WriteLine("debug me") |> ignore
     Trace.Assert(index <= this.size, "index must be <= this.size")
     if index < this.size then
       Array.Copy(this.keys, index, this.keys, index + 1, this.size - index);
@@ -296,11 +298,11 @@ type IndexedMap<'K,'V> // when 'K:equality
     try
       let mutable res = 0
       let mutable found = false
-      while not found do
+      while not found && res < this.keys.Length  do
           if comparer.Compare(key, this.keys.[res]) = 0 then
               found <- true
           else res <- res + 1
-      if found then res else ~~~this.keys.Length // add to the end
+      if found then res else ~~~this.size// add to the end
     finally
       exitLockIf syncRoot entered
 

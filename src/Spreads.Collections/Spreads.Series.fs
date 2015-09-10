@@ -1123,7 +1123,7 @@ and
       let returnTask = tcs.Task // NB! must access this property first
       let mutable firstStep = ref true
       let mutable sourceMoveTask = Unchecked.defaultof<_>
-
+      let mutable lingering = false
       let mutable initialPosition = Unchecked.defaultof<_>
       let mutable ac = Unchecked.defaultof<_>
       let rec loop(isOuter:bool) : unit =
@@ -1136,7 +1136,11 @@ and
             // pivotKeysSet is essentially a task queue:
             // we take every cursor that is not at fthe frontier and try to move it forward until it reaches the frontier
             // if we do this in parallel, the frontier could be moving while we move cursors
+            if lingering then invalidOp "previous position is not added back"
+            if pivotKeysSet.Count = 0 then invalidOp "pivotKeysSet is empty"
+            
             initialPosition <- pivotKeysSet.RemoveFirst()
+            lingering <- true
             ac <- cursors.[initialPosition.Value]
             loop(false)
             // stop loop //Console.WriteLine("Should not be here")
@@ -1148,6 +1152,7 @@ and
           let onMoved() =
             currentValues.[idx] <- cursor.CurrentValue
             pivotKeysSet.Add(KV(cursor.CurrentKey, idx)) |> ignore
+            lingering <- false
             loop(true)
           let mutable c = -1
           while c < 0 && cursor.MoveNext() do
@@ -1169,6 +1174,7 @@ and
               else
                 let c = cmp.Compare(cursor.CurrentKey, pivotKeysSet.Last.Key)
                 if c < 0 then
+                  pivotKeysSet.Add(initialPosition) // TODO! Add/remove only when needed
                   loop(false)
                 else
                   onMoved()
@@ -1186,10 +1192,12 @@ and
                   // TODO! Test all cases
                   if sourceMoveTask.Status = TaskStatus.RanToCompletion then
                     onCompleted()
-                  elif sourceMoveTask.Status = TaskStatus.Canceled then
-                    tcs.SetCanceled()
                   else
-                    tcs.SetException(sourceMoveTask.Exception)
+                    pivotKeysSet.Add(initialPosition) // TODO! Add/remove only when needed
+                    if sourceMoveTask.Status = TaskStatus.Canceled then
+                      tcs.SetCanceled()
+                    else
+                      tcs.SetException(sourceMoveTask.Exception)
                 )
             ()
 
@@ -1722,7 +1730,9 @@ and
                 currentValues.[first.Value] <- ac.CurrentValue
                 pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
                 true
-              else false
+              else 
+                pivotKeysSet.Add(first) // TODO! only replace when needed, do not do this round trip!
+                false
             else true
           if cont then doMoveNextNonContinuous()
           else false

@@ -8,6 +8,125 @@ using System.Threading.Tasks;
 
 namespace Spreads {
 
+    //public struct SMAState
+    //{
+    //    public double sum;
+    //    public int count;
+    //}
+
+    internal class SMACursor<K> : BindCursor<K, double, double, double> {
+        protected ICursor<K, double> _laggedCursor;
+        protected double _sum = 0.0;
+        protected int _count = 0;
+        private readonly Func<ICursor<K, double>> _cursorFactory;
+        protected int _period;
+        private readonly bool _allowIncomplete;
+
+        public SMACursor(Func<ICursor<K, double>> cursorFactory, int period, bool allowIncomplete = false)
+            : base(cursorFactory) {
+            _cursorFactory = cursorFactory;
+            _period = period;
+            _allowIncomplete = allowIncomplete;
+        }
+
+        public override bool TryCreateState(K key, out double state) {
+            state = 0.0;
+
+            _sum = 0.0;
+            _count = 0;
+
+            if (_laggedCursor == null) {
+                _laggedCursor = this.InputCursor.Clone();
+            }
+            if (_laggedCursor.MoveAt(key, Lookup.EQ)) {
+                _sum += _laggedCursor.CurrentValue;
+                _count++;
+
+                while (_count < _period && _laggedCursor.MovePrevious()) {
+                    _sum += _laggedCursor.CurrentValue;
+                    _count++;
+                }
+                if (_count == _period)
+                {
+                    state = _sum/_count;
+                    return true;
+                } else if (_allowIncomplete) {
+                    state = _sum / _count;
+                    _laggedCursor.MoveFirst(); // it was in reset state because tried to move before the first key
+                    return true;
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+
+
+        public override double EvaluateState(double state) {
+            return state;
+        }
+
+
+        public override bool TryGetValue(K key, out double value) {
+            using (var tmpcursor = this.InputCursor.Clone()) {
+                var c = 0;
+                var sum = 0.0;
+                sum += tmpcursor.CurrentValue;
+                c++;
+                while (c < _period && tmpcursor.MovePrevious()) {
+                    sum += tmpcursor.CurrentValue;
+                    c++;
+                }
+                if (c == _period || _allowIncomplete) {
+                    value = sum / (double)c;
+                    return true;
+                } else
+                {
+                    value = 0.0;
+                    return false;
+                }
+            }
+        }
+        
+
+        public override bool TryUpdateStateNext(KeyValuePair<K, double> next, ref double value) {
+            if (_count >= _period) {
+                Trace.Assert(_count == _period, "_count should never be above _period");
+                _sum += next.Value - _laggedCursor.CurrentValue;
+                var laggedMoved = _laggedCursor.MoveNext();
+                if (laggedMoved) {
+                    value = _sum / (double)_count;
+                    return true;
+                } else {
+                    throw new ApplicationException("Lagged should always move here");
+                }
+            } else {
+                _sum += next.Value;
+                _count++;
+                // do not move lagged until
+                value = _sum / (double)_count;
+                return true;
+            }
+        }
+
+        public override bool TryUpdateStatePrevious(KeyValuePair<K, double> next, ref double value) {
+            throw new NotImplementedException("TODO! implement this");
+        }
+
+        public override ICursor<K, double> Clone() {
+            var clone = new SimpleMovingAverageCursor<K>(_cursorFactory, _period, _allowIncomplete);
+            if (base.HasValidState) {
+                clone.MoveAt(base.CurrentKey, Lookup.EQ);
+            }
+            return clone;
+        }
+
+        
+    }
+
+
+
     public class SimpleMovingAverageCursor<K> : CursorBind<K, double, double> {
         protected ICursor<K, double> _laggedCursor;
         protected double _sum;
@@ -44,8 +163,7 @@ namespace Spreads {
                     if (_count == _period) {
                         value = _sum / (double)_count;
                         return true;
-                    } else if (_allowIncomplete)
-                    {
+                    } else if (_allowIncomplete) {
                         _laggedCursor.MoveFirst(); // it was in reset state because tried to move before the first key
                         value = _sum / (double)_count;
                         return true;
@@ -117,8 +235,7 @@ namespace Spreads {
         protected double _sumSq;
 
         public StandardDeviationCursor(Func<ICursor<K, double>> cursorFactory, int period)
-            : base(cursorFactory)
-        {
+            : base(cursorFactory) {
             _cursorFactory = cursorFactory;
             _period = period;
         }
@@ -132,8 +249,7 @@ namespace Spreads {
                 var c = 0;
                 _sum = 0.0;
                 _sumSq = 0.0;
-                if (_laggedCursor.MoveAt(key, Lookup.EQ))
-                {
+                if (_laggedCursor.MoveAt(key, Lookup.EQ)) {
                     var curValue = _laggedCursor.CurrentValue;
                     _sum += curValue;
                     _sumSq += curValue * curValue;
@@ -175,15 +291,13 @@ namespace Spreads {
             }
         }
 
-        public override bool TryUpdateNext(KeyValuePair<K, double> next, out double value)
-        {
+        public override bool TryUpdateNext(KeyValuePair<K, double> next, out double value) {
             var cv = _laggedCursor.CurrentValue;
             _sum += next.Value - cv;
             _sumSq += next.Value * next.Value - cv * cv;
 
             var laggedMoved = _laggedCursor.MoveNext();
-            if (laggedMoved)
-            {
+            if (laggedMoved) {
                 var periodMinusOne = (double)(_period - 1);
                 value = Math.Sqrt(_sumSq / periodMinusOne - _sum * _sum / ((double)_period * (periodMinusOne)));
                 return true;
@@ -192,11 +306,9 @@ namespace Spreads {
             }
         }
 
-        public override ICursor<K, double> Clone()
-        {
+        public override ICursor<K, double> Clone() {
             var clone = new StandardDeviationCursor<K>(_cursorFactory, _period);
-            if (base.HasValidState)
-            {
+            if (base.HasValidState) {
                 clone.MoveAt(base.CurrentKey, Lookup.EQ);
             }
             return clone;
@@ -205,7 +317,7 @@ namespace Spreads {
 
     public static class CursorSeriesExtensions {
         public static Series<K, double> SMA<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false) {
-            return new CursorSeries<K, double>(() => new SimpleMovingAverageCursor<K>(source.GetCursor, period, allowIncomplete));
+            return new CursorSeries<K, double>(() => new SMACursor<K>(source.GetCursor, period, allowIncomplete));
         }
 
         /// <summary>
