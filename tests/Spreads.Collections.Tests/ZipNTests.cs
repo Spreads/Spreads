@@ -1397,7 +1397,7 @@ namespace Spreads.Collections.Tests {
 
             SortedMap<int, int> sum = null;
 
-            for (int round = 0; round < 10; round++)
+            for (int round = 0; round < 1; round++)
             {
                 sw.Restart();
                 var ser = series.Zip((k, varr) => varr.Sum());
@@ -1406,9 +1406,9 @@ namespace Spreads.Collections.Tests {
 
                 sw.Stop();
                 Console.WriteLine("Zip join, elapsed msec: {0}", sw.ElapsedMilliseconds);
-                Console.WriteLine("StateCreation: {0}", RepeatCursor<int, int>.StateCreation);
-                Console.WriteLine("StateHit: {0}", RepeatCursor<int, int>.StateHit);
-                Console.WriteLine("StateMiss: {0}", RepeatCursor<int, int>.StateMiss);
+                //Console.WriteLine("StateCreation: {0}", RepeatCursor<int, int>.StateCreation);
+                //Console.WriteLine("StateHit: {0}", RepeatCursor<int, int>.StateHit);
+                //Console.WriteLine("StateMiss: {0}", RepeatCursor<int, int>.StateMiss);
             }
             
             
@@ -1419,37 +1419,37 @@ namespace Spreads.Collections.Tests {
             //}
             Assert.AreEqual(expectedMap.Count, sum.Count, "Results of sync and expected must be equal");
 
-            //foreach (var kvp in expectedMap) {
-            //    Assert.AreEqual(kvp.Value, sum[kvp.Key]);
-            //}
+            foreach (var kvp in expectedMap) {
+                Assert.AreEqual(kvp.Value, sum[kvp.Key]);
+            }
 
+            for (int round = 0; round < 1; round++)
+            {
+                sw.Restart();
+                var ser = series.Zip((k, varr) => varr.Sum());
 
-            //for (int i = 2; i < 50; i = i + 2) {
-            //    Assert.AreEqual(i * 2 - 2, sum[i]);
-            //}
+                var cur = ser.GetCursor();
 
-            //var cur = ser.GetCursor();
+                var cur2 = cur.Clone();
+                var sum2 = new SortedMap<int, int>();
+                Task.Run(async () =>
+                {
+                    while (await cur2.MoveNext(CancellationToken.None)) {
+                        sum2.Add(cur2.CurrentKey, cur2.CurrentValue);
+                    }
+                }).Wait();
+                
+                sw.Stop();
+                Console.WriteLine("Async Zip join, elapsed msec: {0}", sw.ElapsedMilliseconds);
+                Assert.AreEqual(sum.Count, sum2.Count, "Results of sync and async moves must be equal");
+                foreach (var kvp in expectedMap) {
+                    Assert.AreEqual(kvp.Value, sum2[kvp.Key]);
+                }
 
-            //var cur2 = cur.Clone();
-            //var sum2 = new SortedMap<int, int>();
-            //while (cur2.MoveNext(CancellationToken.None).Result) {
-            //    sum2.Add(cur2.CurrentKey, cur2.CurrentValue);
-            //}
-            //Console.WriteLine("Async zip map:");
-            //foreach (var kvp in sum2) {
-            //    Console.WriteLine(kvp.Key + " ; " + kvp.Value);
-            //}
-            //Assert.AreEqual(sum.Count, sum2.Count, "Results of sync and async moves must be equal");
+               
+            }
 
-            //Assert.IsTrue(cur.MoveNext(CancellationToken.None).Result);
-            //Assert.AreEqual(0, cur.CurrentValue);
-            //var c = 2;
-            //while (cur.MoveNext(CancellationToken.None).Result) {
-            //    Assert.AreEqual(c * 2 - 2, cur.CurrentValue);
-            //    var x = cur.MoveNext(CancellationToken.None).Result;
-            //    c += 2;
-            //}
-
+            Console.WriteLine("");
         }
 
     }

@@ -1420,7 +1420,7 @@ and
             if movedAtLeastOnce then
               let newPosition = KV(cursor.CurrentKey, initialPosition.Value)
               // update positions if the current has changed, regardless of the frontier
-              contKeysSet.RemoveAt(ignoreOffset) |> ignore //(initialPosition)
+              contKeysSet.RemoveAt(ignoreOffset) |> ignore
               contKeysSet.Add(newPosition)
 
             if passedFrontier then
@@ -1721,57 +1721,60 @@ and
         /// ignore this number of leftmost cursors because they could not move
         let mutable ignoreOffset = 0 // NB is reset on each move next, because the sources could be updated between moves
         let mutable leftmostIsAheadOfFrontier = false
-        while (ignoreOffset < contKeysSet.Count) && not leftmostIsAheadOfFrontier do // wrong condition
-          // if we will have to update contKeysSet, we must freeze the initial position
-          let initialPosition = contKeysSet.[ignoreOffset]
-          // the leftmost cursor
-          let cursor = cursors.[initialPosition.Value]
-          Debug.Assert(cmp.Compare(initialPosition.Key, cursor.CurrentKey) = 0)
+        lock contKeysSet (fun _ ->
+          while (ignoreOffset < contKeysSet.Count) && not leftmostIsAheadOfFrontier do // wrong condition
+            // if we will have to update contKeysSet, we must freeze the initial position
+            let initialPosition = contKeysSet.[ignoreOffset]
+            // the leftmost cursor
+            let cursor = cursors.[initialPosition.Value]
+            Debug.Assert(cmp.Compare(initialPosition.Key, cursor.CurrentKey) = 0)
 
-          let shouldMove = cmp.Compare(cursor.CurrentKey, frontier) <= 0
-          let mutable doTryMove = shouldMove
-          let mutable movedAtLeastOnce = false
-          let mutable passedFrontier = not shouldMove
+            let shouldMove = cmp.Compare(cursor.CurrentKey, frontier) <= 0
+            let mutable doTryMove = shouldMove
+            let mutable movedAtLeastOnce = false
+            let mutable passedFrontier = not shouldMove
           
-          while doTryMove do
-            // if we break due to the second condition below, that is possible only after a move
-            passedFrontier <- cursor.MoveNext()
-            movedAtLeastOnce <- movedAtLeastOnce || passedFrontier
-            doTryMove <- passedFrontier && cmp.Compare(cursor.CurrentKey, frontier) <= 0
+            while doTryMove do
+              // if we break due to the second condition below, that is possible only after a move
+              passedFrontier <- cursor.MoveNext()
+              movedAtLeastOnce <- movedAtLeastOnce || passedFrontier
+              doTryMove <- passedFrontier && cmp.Compare(cursor.CurrentKey, frontier) <= 0
 
-          if movedAtLeastOnce || passedFrontier then
-            if movedAtLeastOnce then
-              let newPosition = KV(cursor.CurrentKey, initialPosition.Value)
-              // update positions if the current has changed, regardless of the frontier
-              contKeysSet.Remove(initialPosition)
-              contKeysSet.Add(newPosition)
+            if movedAtLeastOnce || passedFrontier then
+              if movedAtLeastOnce then
+                let newPosition = KV(cursor.CurrentKey, initialPosition.Value)
+                // update positions if the current has changed, regardless of the frontier
+                contKeysSet.Remove(initialPosition)
+                contKeysSet.Add(newPosition)
+              
 
-            if passedFrontier then
-              // here we have the most lefmost position updated (it could be the same cursor, but is doesn't matter)
-              // we should check if the updated leftmost position is ahead of the frontier
-              // if it is, then we should try get values at the key - EXIT inner loop
-              //      if values are OK there, then return
-              //      else move frontier there and continues
-              // iterate the loop
+              if passedFrontier then
+                // here we have the most lefmost position updated (it could be the same cursor, but is doesn't matter)
+                // we should check if the updated leftmost position is ahead of the frontier
+                // if it is, then we should try get values at the key - EXIT inner loop
+                //      if values are OK there, then return
+                //      else move frontier there and continues
+                // iterate the loop
 
-              // compare the new leftmost cursor with the frontier
-              if cmp.Compare(contKeysSet.[ignoreOffset].Key, frontier) > 0 then
-                // could just set ignoreOffset above the deque length
-                leftmostIsAheadOfFrontier <- true // NB inner loop exit
+                // compare the new leftmost cursor with the frontier
+                if cmp.Compare(contKeysSet.[ignoreOffset].Key, frontier) > 0 then
+                  // could just set ignoreOffset above the deque length
+                  leftmostIsAheadOfFrontier <- true // NB inner loop exit
+                else
+                  // should iterate the inner loop
+                  ()
               else
                 // should iterate the inner loop
+                // if the cursor is still the leftmost and cannot move, on the next iteration movedAtLeastOnce will be false
+                // and ignoreOffset will be incremented below
                 ()
             else
-              // should iterate the inner loop
-              // if the cursor is still the leftmost and cannot move, on the next iteration movedAtLeastOnce will be false
-              // and ignoreOffset will be incremented below
+              Debug.Assert(not passedFrontier, "If cursor hasn't moved, I couldn't pass the prontier")
+              // we should ignore this cursor during this ZipN.MoveNext()
+              // it is already the most leftmost, and couldn't move
+              ignoreOffset <- ignoreOffset + 1
               ()
-          else
-            Debug.Assert(not passedFrontier, "If cursor hasn't moved, I couldn't pass the prontier")
-            // we should ignore this cursor during this ZipN.MoveNext()
-            // it is already the most leftmost, and couldn't move
-            ignoreOffset <- ignoreOffset + 1
-            ()
+        ) // lock
 
         // if the leftmost cursor passed the frontier
         if leftmostIsAheadOfFrontier then
@@ -1784,18 +1787,40 @@ and
         else
           // все курсоры перед фронтом должны двигать, после фронта стоять
           // или же, когда нельзя двинуть ни один, 
-//          let continueMoveNext (cur:ICursor<'K,'V>) =
-//            let cur = 
-//            cur.MoveNext(ct).ContinueWith(fun (t:Task<bool>) -> 
-//                if t.Result then
-//                  true
-//                else
-//                  false
-//              )
-          // we cannot move further if we have exited the inner loop but couldn't pass the frontier
-          found <- true
-          valuesOk <- false
+          let continueMoveNext (position:KV<'K,int>) =
+            let cur = cursors.[position.Value]
+            cur.MoveNext(ct).ContinueWith(fun (t:Task<bool>) -> 
+                if t.Result then
+                  if cmp.Compare(cur.CurrentKey, frontier) <= 0 then
+                    invalidOp "Out of order data in ZipN continuous"
+                  lock contKeysSet (fun _ ->
+                    contKeysSet.Remove(position) |> ignore
+                    contKeysSet.Add(KV(cur.CurrentKey, position.Value))
+                    ()
+                  )
+                  true
+                else
+                  lock contKeysSet (fun _ ->
+                    // it will never move again, remove forever
+                    contKeysSet.Remove(position) |> ignore
+                    ()
+                  )
+                  false
+              )
 
+          let tasks = 
+            contKeysSet 
+            |> Seq.filter (fun kv -> cmp.Compare(kv.Key, frontier) <= 0)
+            |> Seq.map (fun kv -> continueMoveNext kv)
+            |> Seq.toArray
+          let! oneMoved = Task.WhenAny(tasks)
+          if contKeysSet.Count = 0 then
+            // we cannot move further if we have exited the inner loop but couldn't pass the frontier
+            found <- true
+            valuesOk <- false
+          else
+            // continue the outer (not found) loop until there is at least one source
+            ()
 
       return valuesOk }
 
