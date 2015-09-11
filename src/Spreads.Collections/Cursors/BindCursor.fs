@@ -513,7 +513,7 @@ type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
           let ok = this.TryUpdateStateNext(this.InputCursor.Current, &state)
           if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
-          let ok = this.TryUpdateStateNext(this.InputCursor.Current, &state))
+          let ok = this.TryUpdateStateNext(this.InputCursor.Current, &state)
 #endif
           if ok then
             found <- true

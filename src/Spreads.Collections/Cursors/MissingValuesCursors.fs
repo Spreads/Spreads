@@ -40,7 +40,9 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) as this =
   static member StateCreation = stateCreation
 
   override this.TryCreateState(key, [<Out>] value: byref<LaggedState<'K,'V>>) : bool =
+#if PRERELEASE
     Interlocked.Increment(&stateCreation) |> ignore
+#endif
     let current = this.InputCursor.Current
     if lookupCursor = Unchecked.defaultof<ICursor<'K,'V>> then lookupCursor <- this.InputCursor.Clone()
     if lookupCursor.MoveAt(key, Lookup.LE) then
@@ -71,15 +73,21 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) as this =
     let previous = this.State.Previous
     let c = this.InputCursor.Comparer.Compare(key, current.Key)
     if c = 0 && this.HasValidState then
+#if PRERELEASE
       Interlocked.Increment(&stateHit) |> ignore
+#endif
       value <- current.Value
       true
     elif c < 0 && this.InputCursor.Comparer.Compare(key, previous.Key) >= 0 then
+#if PRERELEASE
       Interlocked.Increment(&stateHit) |> ignore
+#endif
       value <- previous.Value
       true
     else
+#if PRERELEASE
       Interlocked.Increment(&stateMiss) |> ignore
+#endif
       if lookupCursor = Unchecked.defaultof<ICursor<'K,'V>> then lookupCursor <- this.InputCursor.Clone()
       if lookupCursor.MoveAt(key, Lookup.LE) then
         value <- lookupCursor.CurrentValue

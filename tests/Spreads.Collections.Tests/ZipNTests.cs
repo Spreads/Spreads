@@ -1336,7 +1336,7 @@ namespace Spreads.Collections.Tests {
             var prev1 = 0;
             var prev2 = 0;
 
-            for (int i = 0; i < 100000; i = i + 1)
+            for (int i = 0; i < 1000000; i = i + 1)
             {
                 prev1 = prev1 + rng.Next(1, 11);
                 sm1.Add(prev1, prev1);
@@ -1394,24 +1394,34 @@ namespace Spreads.Collections.Tests {
 
             Console.WriteLine("Manual join, elapsed msec: {0}", sw.ElapsedMilliseconds);
 
-            sw.Restart();
-            var ser = series.Zip((k, varr) => varr.Sum());
 
-            var sum = ser.ToSortedMap();
+            SortedMap<int, int> sum = null;
 
-            sw.Stop();
-            Console.WriteLine("Zip join, elapsed msec: {0}", sw.ElapsedMilliseconds);
-            Console.WriteLine("StateCreation: {0}", RepeatCursor<int, int>.StateCreation);
-            Console.WriteLine("StateHit: {0}", RepeatCursor<int,int>.StateHit);
-            Console.WriteLine("StateMiss: {0}", RepeatCursor<int, int>.StateMiss);
+            for (int round = 0; round < 10; round++)
+            {
+                sw.Restart();
+                var ser = series.Zip((k, varr) => varr.Sum());
+
+                sum = ser.ToSortedMap();
+
+                sw.Stop();
+                Console.WriteLine("Zip join, elapsed msec: {0}", sw.ElapsedMilliseconds);
+                Console.WriteLine("StateCreation: {0}", RepeatCursor<int, int>.StateCreation);
+                Console.WriteLine("StateHit: {0}", RepeatCursor<int, int>.StateHit);
+                Console.WriteLine("StateMiss: {0}", RepeatCursor<int, int>.StateMiss);
+            }
+            
+            
 
             //Console.WriteLine("Sync zip map:");
             //foreach (var kvp in sum) {
             //    Console.WriteLine(kvp.Key + " ; " + kvp.Value);
             //}
             Assert.AreEqual(expectedMap.Count, sum.Count, "Results of sync and expected must be equal");
-            
 
+            //foreach (var kvp in expectedMap) {
+            //    Assert.AreEqual(kvp.Value, sum[kvp.Key]);
+            //}
 
 
             //for (int i = 2; i < 50; i = i + 2) {
