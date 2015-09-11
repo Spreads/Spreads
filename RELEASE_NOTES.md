@@ -1,3 +1,6 @@
+#### 0.0.57 - September 11, 2015
+* Fix doMoveNextContinuous missing values
+
 #### 0.0.56 - September 10, 2015
 * Fix IndexOfKeyUnchecked bug
 

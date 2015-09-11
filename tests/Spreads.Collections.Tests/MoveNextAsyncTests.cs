@@ -22,7 +22,6 @@ namespace Spreads.Collections.Tests {
         {
 
             var t = Task.Delay(1000);
-            t.Start();
             var awaiter = t.GetAwaiter();
             awaiter.OnCompleted(() => Console.WriteLine("I am completed"));
             awaiter.OnCompleted(() => Console.WriteLine("I am completed"));

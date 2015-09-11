@@ -1609,7 +1609,7 @@ type SortedMap<'K,'V>
     if values.Length < size then raise (new ArgumentException("Values array is smaller than provided size"))
     let sm = new SortedMap<'K,'V>(comparer)
     if sortChecked then
-      for i in 1..keys.Length-1 do
+      for i in 1..size-1 do
         if comparer.Compare(keys.[i-1], keys.[i]) >= 0 then raise (new ArgumentException("Keys are not sorted"))
 
     // at this point IsRegular means could be regular
@@ -1636,7 +1636,7 @@ type SortedMap<'K,'V>
   static member OfSortedKeysAndValues(keys:'K[], values:'V[], size:int) =
     let sm = new SortedMap<'K,'V>()
     let comparer = sm.Comparer
-    SortedMap.OfSortedKeysAndValues(keys, values, values.Length, comparer, true, false)
+    SortedMap.OfSortedKeysAndValues(keys, values, size, comparer, true, false)
 
   static member OfSortedKeysAndValues(keys:'K[], values:'V[]) =
     if keys.Length <> values.Length then raise (new ArgumentException("Keys and values arrays are of different sizes"))

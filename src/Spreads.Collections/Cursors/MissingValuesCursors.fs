@@ -6,6 +6,7 @@ open System.Collections.Generic
 open System.Diagnostics
 open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
+open System.Threading
 open System.Threading.Tasks
 
 open Spreads
@@ -29,7 +30,17 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) as this =
   // reused when current state is not enough to find a value
   let mutable lookupCursor = Unchecked.defaultof<ICursor<'K,'V>>
 
+  // perf counters
+  static let mutable stateHit = 0
+  static let mutable stateMiss  = 0
+  static let mutable stateCreation = 0
+
+  static member StateHit = stateHit
+  static member StateMiss = stateMiss
+  static member StateCreation = stateCreation
+
   override this.TryCreateState(key, [<Out>] value: byref<LaggedState<'K,'V>>) : bool =
+    Interlocked.Increment(&stateCreation) |> ignore
     let current = this.InputCursor.Current
     if lookupCursor = Unchecked.defaultof<ICursor<'K,'V>> then lookupCursor <- this.InputCursor.Clone()
     if lookupCursor.MoveAt(key, Lookup.LE) then
@@ -60,12 +71,15 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) as this =
     let previous = this.State.Previous
     let c = this.InputCursor.Comparer.Compare(key, current.Key)
     if c = 0 && this.HasValidState then
+      Interlocked.Increment(&stateHit) |> ignore
       value <- current.Value
       true
     elif c < 0 && this.InputCursor.Comparer.Compare(key, previous.Key) >= 0 then
+      Interlocked.Increment(&stateHit) |> ignore
       value <- previous.Value
       true
     else
+      Interlocked.Increment(&stateMiss) |> ignore
       if lookupCursor = Unchecked.defaultof<ICursor<'K,'V>> then lookupCursor <- this.InputCursor.Clone()
       if lookupCursor.MoveAt(key, Lookup.LE) then
         value <- lookupCursor.CurrentValue
