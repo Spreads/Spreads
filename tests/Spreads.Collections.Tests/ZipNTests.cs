@@ -488,7 +488,6 @@ namespace Spreads.Collections.Tests {
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
             Console.WriteLine("Total sum: {0}", totalSum);
 
-
         }
 
         // SortedDeque rules! At least for this pattern when we remove first and add last
@@ -949,7 +948,7 @@ namespace Spreads.Collections.Tests {
             var sm1 = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
-            var count = 1000;
+            var count = 100;
 
             for (int i = 0; i < count; i++) {
                 sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -961,7 +960,7 @@ namespace Spreads.Collections.Tests {
                 Thread.Sleep(1000);
                 for (int i = count; i < count * 2; i++) {
                     sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
-                    //Thread.Sleep(50);
+                    Thread.Sleep(50);
                 }
 
                 sm1.IsMutable = false; // stop mutating
@@ -972,7 +971,7 @@ namespace Spreads.Collections.Tests {
                 Thread.Sleep(950);
                 for (int i = count; i < count * 2; i++) {
                     sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
-                    //Thread.Sleep(50);
+                    Thread.Sleep(50);
                 }
 
                 sm2.IsMutable = false; // stop mutating
@@ -980,7 +979,7 @@ namespace Spreads.Collections.Tests {
             });
 
             // this test measures isolated performance of ZipN, without ToSortedMap
-
+            Thread.Sleep(1050);
             var sw = new Stopwatch();
 
 
@@ -1198,7 +1197,7 @@ namespace Spreads.Collections.Tests {
         [Test]
         public void NonContinuousZipIsCorrectByRandomCheckMultipleRun()
         {
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 2; i++)
             {
                 NonContinuousZipIsCorrectByRandomCheck();
             }
@@ -1318,7 +1317,7 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void ContinuousZipIsCorrectByRandomCheckMultipleRun() {
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < 2; i++) {
                 ContinuousZipIsCorrectByRandomCheck();
             }
         }
