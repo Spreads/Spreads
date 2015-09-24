@@ -75,6 +75,7 @@
     <Compile Include="..\..\..\..\..\Period\src\Period\Period.fs">
       <Link>Common\Period.fs</Link>
     </Compile>
+    <Compile Include="Common\Exceptions.fs" />
     <Compile Include="Interfaces.fs" />
     <Compile Include="MathProvider.fs" />
     <Compile Include="BaseCursor.fs" />
@@ -89,7 +90,8 @@
     <Compile Include="Collections\ImmutableSortedMap.fs" />
     <Compile Include="Collections\MutatorWrapper.fs" />
     <Compile Include="Collections\SortedDeque.Orig.fs" />
-    <Compile Include="Collections\MapDeque.fs" />
+    <Compile Include="Collections\MapDeque.Obsolete.fs" />
+    <Compile Include="Collections\DequeMap.fs" />
     <Compile Include="Collections\FixedMinHeap.fs" />
     <Compile Include="Collections\SortedMap.Obsolete.fs" />
     <Compile Include="Collections\IndexedMap.Obsolete.fs" />

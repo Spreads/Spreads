@@ -1,3 +1,12 @@
+#### 0.0.60 - September 17, 2015
+* SortedDeque constructor with comparer was internal, now public
+
+#### 0.0.59 - September 14, 2015
+* AsPanel extension
+
+#### 0.0.58 - September 11, 2015
+* ZipN continuous works on existing data. With real-time, results depend on data arrival
+
 #### 0.0.57 - September 11, 2015
 * Fix doMoveNextContinuous missing values
 

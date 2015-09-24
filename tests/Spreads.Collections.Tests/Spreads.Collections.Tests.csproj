@@ -59,6 +59,14 @@
     <Reference Include="nunit.framework">
       <HintPath>..\..\packages\NUnit.2.6.3\lib\nunit.framework.dll</HintPath>
     </Reference>
+    <Reference Include="Spreads.Collections, Version=0.0.58.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\bin\Spreads.Collections.dll</HintPath>
+    </Reference>
+    <Reference Include="Spreads.Extensions, Version=0.0.58.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\bin\Spreads.Extensions.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -85,16 +93,6 @@
   <ItemGroup>
     <None Include="app.config" />
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj">
-      <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
-      <Name>Spreads.Collections</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\src\Spreads.Extensions\Spreads.Extensions.csproj">
-      <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
-      <Name>Spreads.Extensions</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

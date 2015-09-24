@@ -20,6 +20,9 @@ type Panel<'TRowKey,'TColumnKey, 'TValue>() =
   abstract Columns : Series<'TColumnKey, Series<'TRowKey,'TValue>> with get
   abstract Rows : Series<'TRowKey, Series<'TColumnKey,'TValue>> with get
 
+  [<ObsoleteAttribute("Is this needed?")>]
+  static member op_Explicit(columns:Series<'TColumnKey, Series<'TRowKey, 'TValue>>) : Panel<'TRowKey,'TColumnKey, 'TValue> = ColumnPanel(columns) :> Panel<'TRowKey,'TColumnKey, 'TValue>
+
 //  /// Map rows to new rows as Series
 //  abstract RowWise<'TResult> : mapper:Func<Series<'TColumnKey,'TValue>,Series<'TColumnKey,'TResult>> -> Panel<'TRowKey,'TColumnKey, 'TResult>
 //  /// Reduce rows to a value
@@ -43,7 +46,7 @@ type Panel<'TRowKey,'TColumnKey, 'TValue>() =
 // YieldCurve => Splines is on-demand 
 
 
-type ColumnPanel<'TRowKey,'TColumnKey, 'TValue> (columns:Series<'TColumnKey, Series<'TRowKey,'TValue>>) =
+and ColumnPanel<'TRowKey,'TColumnKey, 'TValue> (columns:Series<'TColumnKey, Series<'TRowKey,'TValue>>) =
   inherit Panel<'TRowKey,'TColumnKey, 'TValue>()
   let columnKeys = columns.Keys |> Seq.toArray 
 
@@ -172,3 +175,14 @@ and RowPanel<'TRowKey,'TColumnKey, 'TValue> (rows:Series<'TRowKey, 'TValue[]>, c
   override this.Columns with get() : Series<'TColumnKey, Series<'TRowKey,'TValue>> = raise (NotImplementedException("TODO"))
     //ColumnPanel(this :> IOrderedMap<'TColumnKey, Series<'TRowKey,'TValue>>)
   override this.Rows with get() = this :> Series<'TRowKey, Series<'TColumnKey,'TValue>>
+
+
+
+[<Extension>]
+type PanelExtensions () =
+    /// Create a panel with the source as a single column and the provided column key
+    [<Extension>]
+    static member inline AsPanel(source: Series<'TRowKey,'V>, columnKey:'TColumnKey) : Panel<'TRowKey,'TColumnKey,'V> =
+      let im = IndexedMap<'TColumnKey, Series<'TRowKey,'V>>()
+      im.Add(columnKey, source)
+      ColumnPanel(im :> Series<_,_>) :> Panel<'TRowKey,'TColumnKey,'V>

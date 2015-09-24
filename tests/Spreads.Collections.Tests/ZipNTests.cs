@@ -1197,7 +1197,7 @@ namespace Spreads.Collections.Tests {
         [Test]
         public void NonContinuousZipIsCorrectByRandomCheckMultipleRun()
         {
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < 20; i++)
             {
                 NonContinuousZipIsCorrectByRandomCheck();
             }
@@ -1317,7 +1317,7 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void ContinuousZipIsCorrectByRandomCheckMultipleRun() {
-            for (int i = 0; i < 2; i++) {
+            for (int i = 0; i < 20; i++) {
                 ContinuousZipIsCorrectByRandomCheck();
             }
         }

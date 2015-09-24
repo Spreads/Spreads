@@ -14,6 +14,11 @@ type KVComparer<'K,'V>(keyComparer:IComparer<'K>, valueComparer:IComparer<'V>) =
       else c1
   end
 
+and KVKeyComparer<'K,'V>(keyComparer:IComparer<'K>) = 
+  interface IComparer<KV<'K,'V>> with
+    member this.Compare(x: KV<'K, 'V>, y: KV<'K, 'V>): int = keyComparer.Compare(x.Key, y.Key)
+  end
+
 and
   /// A comparable KeyValuePair
   [<CustomComparison;CustomEquality>]
@@ -43,8 +48,7 @@ and
 
 
 [<SerializableAttribute>]
-type SortedDeque<'T>
-  internal(comparer:IComparer<'T>) as this=
+type SortedDeque<'T>(comparer:IComparer<'T>) as this=
   [<DefaultValue>] val mutable internal comparer : IComparer<'T> 
   [<DefaultValue>] val mutable internal buffer : 'T[]
   [<DefaultValue>] val mutable internal count : int

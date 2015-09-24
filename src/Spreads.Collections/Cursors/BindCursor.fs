@@ -673,13 +673,13 @@ type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
 
   // TODO! this is first draft. At least do via rec function, later implement all binds in C#
   member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> =
-    async{
+    task {
       if hasValidState then
         let mutable found = false
         let mutable moved = false
         if this.InputCursor.MoveNext() then moved <- true
         else
-          let! moved' = this.InputCursor.MoveNext(cancellationToken) |> Async.AwaitTask
+          let! moved' = this.InputCursor.MoveNext(cancellationToken)
           moved <- moved'
         while not found && moved do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
           let ok = this.TryUpdateStateNext(this.InputCursor.Current, &state)
@@ -689,7 +689,7 @@ type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
           else
             if this.InputCursor.MoveNext() then moved <- true
             else
-              let! moved' = this.InputCursor.MoveNext(cancellationToken) |> Async.AwaitTask
+              let! moved' = this.InputCursor.MoveNext(cancellationToken)
               moved <- moved'
         if found then 
           return true 
@@ -699,7 +699,7 @@ type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
         let mutable moved = false
         if this.InputCursor.MoveNext() then moved <- true
         else
-          let! moved' = this.InputCursor.MoveNext(cancellationToken) |> Async.AwaitTask
+          let! moved' = this.InputCursor.MoveNext(cancellationToken)
           moved <- moved'
         while not found && moved do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
           let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
@@ -711,13 +711,13 @@ type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
           else
             if this.InputCursor.MoveNext() then moved <- true
             else
-              let! moved' = this.InputCursor.MoveNext(cancellationToken) |> Async.AwaitTask
+              let! moved' = this.InputCursor.MoveNext(cancellationToken)
               moved <- moved'
         if found then 
           //hasInitializedValue <- true
           return true 
         else return false
-    } |> Async.StartAsTask // fun x -> Async.StartAsTask(x, TaskCreationOptions.None, cancellationToken)
+    }
 
 
   member this.TryGetValueChecked(key: 'K, [<Out>] value: byref<'V2>): bool = 

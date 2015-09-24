@@ -17,7 +17,7 @@ open Spreads.Collections
 // reads of this wrapper either here by type-checking the source of the cursor and using direct methods on the source
 // or make cursor thread-static and initialize it only once (now it is called on each method)
 
-// TODO duplicate IReadOnlyOrderedMap methods as an instance method to avoid casting in F#. That will require ovverrides in all children or conflict
+// TODO duplicate IReadOnlyOrderedMap methods as an instance virtual methods to avoid casting in F#. That will require ovverrides in all children or conflict
 // check how it is used from C# (do tests in C# in general)
 
 // TODO check thread safety of the default series implementation. Should we use ThreadLocal for caching cursors that are called via the interfaces?
@@ -1416,7 +1416,7 @@ and
                 currentValues.[first.Value] <- ac.CurrentValue
                 pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
                 true
-              else 
+              else
                 pivotKeysSet.Add(first) // TODO! only replace when needed, do not do this round trip!
                 false
             else true
