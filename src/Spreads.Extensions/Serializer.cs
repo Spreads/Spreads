@@ -1780,7 +1780,7 @@ namespace Spreads {
 		internal static short DeserializeImpl(IntPtr srcPtr, int srcSize, short result) {
 			unsafe
 			{
-				if (srcSize > 0 && srcSize != 2) throw new ArgumentOutOfRangeException("Wrong src size");
+				if (srcSize > 0 && srcSize != 2) throw new ArgumentOutOfRangeException(nameof(srcSize), "Wrong src size");
 				return (*(short*)srcPtr);
 			}
 		}

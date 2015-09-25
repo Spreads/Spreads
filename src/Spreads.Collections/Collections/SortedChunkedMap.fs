@@ -44,6 +44,7 @@ type SortedChunkedMap<'K,'V>
       else OptimizationSettings.SCMDefaultChunkLength
   // TODO (very low) replace outer with MapDeque, see comments in MapDeque.fs
   let outerMap = outerFactory(comparer)
+  let mutable id = String.Empty
 
   [<NonSerializedAttribute>]
   let slicer : IKeySlicer<'K> = 
@@ -765,7 +766,8 @@ type SortedChunkedMap<'K,'V>
       finally
         this.Flush()
         exitLockIf this.SyncRoot entered
-      
+    
+  member this.Id with get() = id and internal set(newid) = id <- newid
 
   //#region Interfaces
 
@@ -848,7 +850,8 @@ type SortedChunkedMap<'K,'V>
 
   interface IPersistentOrderedMap<'K,'V> with
     member this.Flush() = this.Flush()
-
+    member this.Dispose() = this.Flush()
+    member this.Id with get() = this.Id
   //#endregion
 
   // x0

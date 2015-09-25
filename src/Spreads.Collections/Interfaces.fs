@@ -216,7 +216,9 @@ type IOrderedMap<'K,'V> =
 [<AllowNullLiteral>]
 type IPersistentOrderedMap<'K,'V> =
   inherit IOrderedMap<'K,'V>
+  inherit IDisposable
   abstract Flush : unit -> unit
+  abstract Id : string with get
 
 [<Interface>]
 [<AllowNullLiteral>]
@@ -252,7 +254,7 @@ type IImmutableOrderedMap<'K,'V> =
 //        inherit IPanel<'K>
 //    end
 
-//and 
+//and i
 //  [<AllowNullLiteral>]
 //  IIdentitySeries<'K,'V,'TId> =   
 //    inherit ISeries<'K,'V>
