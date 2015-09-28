@@ -153,6 +153,12 @@ namespace Spreads {
             get { return _map.Count; }
         }
 
+        public string Id {
+            get {
+                throw new NotImplementedException();
+            }
+        }
+
         public void Add(DateTime k, V v) {
             _map.Add(k.ConvertToUtcWithUncpecifiedKind(_tz), v);
         }
@@ -188,10 +194,12 @@ namespace Spreads {
         public void Flush()
         {
             var persistentSource = _map as IPersistentOrderedMap<DateTime, V>;
-            if (persistentSource != null)
-            {
-                persistentSource.Flush();
-            }
+            persistentSource?.Flush();
+        }
+
+        public void Dispose()
+        {
+            this.Flush();
         }
     }
 }

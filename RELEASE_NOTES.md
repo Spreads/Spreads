@@ -1,3 +1,6 @@
+#### 0.0.63 - September 28, 2015
+* Messaging proof of concept interfaces and simple implementation
+
 #### 0.0.60 - September 17, 2015
 * SortedDeque constructor with comparer was internal, now public
 

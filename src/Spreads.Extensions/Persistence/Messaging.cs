@@ -74,31 +74,31 @@ namespace Spreads.Persistence {
 
 
 
-    public delegate void BlobCommandHandler(byte[] blobSeriesCommand);
+    public delegate void BlobCommandHandler(ArraySegment<byte> blobSeriesCommand);
 
     /// <summary>
     /// Sends and recives commands for series repository as byte arrays.
     /// Simplest inefficient messenger to use any transport that supports sending byte arrays
     /// </summary>
     public interface IBinaryMessenger {
-        Task<byte[]> Send(byte[] command);
+        Task<ArraySegment<byte>> Send(ArraySegment<byte> command);
 
         event BlobCommandHandler OnCommand;
     }
 
 
-    public class BlobSeriesNode : ISeriesNode {
+    public class BinarySeriesNode : ISeriesNode {
         private readonly IBinaryMessenger _binaryMessenger;
 
-        public BlobSeriesNode(IBinaryMessenger binaryMessenger) {
+        public BinarySeriesNode(IBinaryMessenger binaryMessenger) {
             _binaryMessenger = binaryMessenger;
             _binaryMessenger.OnCommand += BinaryMessengerOnCommand;
         }
 
 
-        private static BaseCommand ParseCommand(byte[] blobCommand)
+        private static BaseCommand ParseCommand(ArraySegment<byte> blobCommand)
         {
-            var br = new BinaryReader(new MemoryStream(blobCommand));
+            var br = new BinaryReader(new MemoryStream(blobCommand.Array,blobCommand.Offset, blobCommand.Count));
             var cmd = (Command) br.ReadByte();
             var idLen = br.ReadInt32();
             var seriesid = br.ReadString();
@@ -145,7 +145,7 @@ namespace Spreads.Persistence {
             }
         }
 
-        private void BinaryMessengerOnCommand(byte[] blobSeriesCommand)
+        private void BinaryMessengerOnCommand(ArraySegment<byte> blobSeriesCommand)
         {
             var command = ParseCommand(blobSeriesCommand);
             OnCommand?.Invoke(command);
@@ -204,7 +204,7 @@ namespace Spreads.Persistence {
             }
             bw.Flush();
 
-            var response = await _binaryMessenger.Send(ms.ToArray());
+            var response = await _binaryMessenger.Send(new ArraySegment<byte>(ms.ToArray()));
             var responseCommand = ParseCommand(response);
             return responseCommand;
         }

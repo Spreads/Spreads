@@ -211,7 +211,7 @@ type IOrderedMap<'K,'V> =
   /// And values from appendMap to the end of this map
   abstract Append: appendMap:IReadOnlyOrderedMap<'K,'V> * option:AppendOption -> int // TODO int, bool option for ignoreEqualOverlap, or Enum with 1: thow, 2: ignoreEqual, 3: rewriteOld, 4: ignoreNew (nonsense option, should not do, the first 3 are good)
 
-/// 
+/// `Flush` has a standard meaning, e.g. as in Stream, and saves all changes. `Dispose` calls `Flush`. `Id` is unique.
 [<Interface>]
 [<AllowNullLiteral>]
 type IPersistentOrderedMap<'K,'V> =

@@ -7,7 +7,7 @@ namespace Spreads.Persistence {
         /// <summary>
         /// Get writable series that persist changes locally
         /// </summary>
-        IPersistentOrderedMap<K, V> GetOrderedMap<K, V>(string seriesId);
+        IPersistentOrderedMap<K, V> GetPersistentOrderedMap<K, V>(string seriesId);
     }
 
 
@@ -17,6 +17,13 @@ namespace Spreads.Persistence {
     /// </summary>
     public class InMemoryPersistentStore : IPersistentStore
     {
+        private readonly string _prefix;
+
+        public InMemoryPersistentStore(string prefix = "")
+        {
+            _prefix = prefix;
+        }
+
         /// <summary>
         /// In-memory sorted map doesn't need a special flush/dispose
         /// </summary>
@@ -33,12 +40,13 @@ namespace Spreads.Persistence {
         }
 
         private readonly MemoryCache _cache = MemoryCache.Default;
-        public IPersistentOrderedMap<K, V> GetOrderedMap<K, V>(string seriesId)
+        public IPersistentOrderedMap<K, V> GetPersistentOrderedMap<K, V>(string seriesId)
         {
-            var exitsing = _cache[seriesId] as IPersistentOrderedMap<K, V>;
+            var key = "InMemoryPersistentStore:" + _prefix + ":" + seriesId;
+            var exitsing = _cache[key] as IPersistentOrderedMap<K, V>;
             if (exitsing != null) return exitsing;
-            exitsing = new PersistentSortedMap<K, V>(seriesId);
-            _cache[seriesId] = exitsing;
+            exitsing = new PersistentSortedMap<K, V>(seriesId) {IsSynchronized = true};
+            _cache[key] = exitsing;
             return exitsing;
         }
     }
