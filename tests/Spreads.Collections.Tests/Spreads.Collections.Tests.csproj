@@ -82,6 +82,7 @@
     <Compile Include="CursorsTests\RepeatTests.cs" />
     <Compile Include="IndexedMapTests.cs" />
     <Compile Include="IROOMTests.cs" />
+    <Compile Include="SortedChunkedMapTests.cs" />
     <Compile Include="SortedMapTests.cs" />
     <Compile Include="SortedDequeTests.cs" />
     <Compile Include="ZipNTests.cs" />

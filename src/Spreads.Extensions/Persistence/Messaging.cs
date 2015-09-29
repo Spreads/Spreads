@@ -14,7 +14,11 @@ namespace Spreads.Persistence {
         Set,
         Remove,
         Append,
-        Lock
+        Lock,
+        /// <summary>
+        /// There is no more data
+        /// </summary>
+        Complete
     }
 
     public class BaseCommand {
@@ -57,6 +61,12 @@ namespace Spreads.Persistence {
         public AppendOption AppendOption { get; set; }
     }
 
+    public class CompleteCommand : BaseCommand {
+        public CompleteCommand() : base(Command.Complete) {
+
+        }
+    }
+
 
     public delegate void SeriesCommandHandler(BaseCommand seriesCommand);
 
@@ -69,7 +79,8 @@ namespace Spreads.Persistence {
         /// </summary>
         Task<BaseCommand> Send(BaseCommand command);
 
-        event SeriesCommandHandler OnCommand;
+        event SeriesCommandHandler OnNewData;
+        event SeriesCommandHandler OnDataLoad;
     }
 
 
@@ -83,7 +94,8 @@ namespace Spreads.Persistence {
     public interface IBinaryMessenger {
         Task<ArraySegment<byte>> Send(ArraySegment<byte> command);
 
-        event BlobCommandHandler OnCommand;
+        event BlobCommandHandler OnNewData;
+        event BlobCommandHandler OnDataLoad;
     }
 
 
@@ -92,11 +104,12 @@ namespace Spreads.Persistence {
 
         public BinarySeriesNode(IBinaryMessenger binaryMessenger) {
             _binaryMessenger = binaryMessenger;
-            _binaryMessenger.OnCommand += BinaryMessengerOnCommand;
+            _binaryMessenger.OnNewData += BinaryMessengerOnNewData;
+            _binaryMessenger.OnDataLoad += BinaryMessengerOnDataLoad;
         }
 
 
-        private static BaseCommand ParseCommand(ArraySegment<byte> blobCommand)
+        public static BaseCommand ParseCommand(ArraySegment<byte> blobCommand)
         {
             var br = new BinaryReader(new MemoryStream(blobCommand.Array,blobCommand.Offset, blobCommand.Count));
             var cmd = (Command) br.ReadByte();
@@ -140,18 +153,34 @@ namespace Spreads.Persistence {
                 case Command.Lock:
                     throw new NotImplementedException("TODO");
                     break;
+                case Command.Complete:
+                    return new CompleteCommand();
                 default:
                     throw new ArgumentOutOfRangeException();
             }
         }
 
-        private void BinaryMessengerOnCommand(ArraySegment<byte> blobSeriesCommand)
+        private void BinaryMessengerOnNewData(ArraySegment<byte> blobSeriesCommand)
         {
             var command = ParseCommand(blobSeriesCommand);
-            OnCommand?.Invoke(command);
+            OnNewData?.Invoke(command);
+        }
+
+        private void BinaryMessengerOnDataLoad(ArraySegment<byte> blobSeriesCommand) {
+            var command = ParseCommand(blobSeriesCommand);
+            OnDataLoad?.Invoke(command);
         }
 
         public async Task<BaseCommand> Send(BaseCommand command)
+        {
+            var bytes = SerializeCommand(command);
+
+            var response = await _binaryMessenger.Send(new ArraySegment<byte>(bytes));
+            var responseCommand = ParseCommand(response);
+            return responseCommand;
+        }
+
+        public static byte[] SerializeCommand(BaseCommand command)
         {
             var ms = new MemoryStream();
             var bw = new BinaryWriter(ms);
@@ -198,17 +227,20 @@ namespace Spreads.Persistence {
                 case Command.Lock:
                     throw new NotImplementedException("TODO");
                     break;
-
+                case Command.Complete:
+                    var complete = command as CompleteCommand;
+                    Trace.Assert(complete != null);
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException();
+                
             }
             bw.Flush();
-
-            var response = await _binaryMessenger.Send(new ArraySegment<byte>(ms.ToArray()));
-            var responseCommand = ParseCommand(response);
-            return responseCommand;
+            var bytes = ms.ToArray();
+            return bytes;
         }
 
-        public event SeriesCommandHandler OnCommand;
+        public event SeriesCommandHandler OnNewData;
+        public event SeriesCommandHandler OnDataLoad;
     }
 }

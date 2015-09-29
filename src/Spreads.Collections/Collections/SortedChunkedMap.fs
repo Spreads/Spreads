@@ -76,7 +76,7 @@ type SortedChunkedMap<'K,'V>
                   // k is larger than the last key and the chunk is big enough
                   Trace.Assert(kvp.Value.size > 0)
                   if comparer.Compare(k,kvp.Value.Last.Key) > 0 && kvp.Value.size >= chunkUpperLimit then k
-                  else kvp.Value.keys.[0]
+                  else kvp.Key // NB! this was a bug: .Value.keys.[0] -- outer hash key could be smaller that the first key of its inner map
                 else k
       }
 
@@ -109,9 +109,9 @@ type SortedChunkedMap<'K,'V>
         finally
           exitLockIf this.SyncRoot entered
 
-  member internal this.IsSynchronized with get() = isSync and set v = isSync <- v
+  member this.IsSynchronized with get() = isSync and set v = isSync <- v
 
-  member internal this.SyncRoot with get() = outerMap.SyncRoot
+  member this.SyncRoot with get() = outerMap.SyncRoot
 
   // TODO! there must be a smarter locking strategy at buckets level (instead of syncRoot)
   // 
@@ -654,7 +654,10 @@ type SortedChunkedMap<'K,'V>
                 let r1 = outerMap.RemoveMany(hash, Lookup.GT)  // strictly GT
                 let lastChunk = outerMap.Last.Value
                 let r2 = lastChunk.RemoveMany(subKey, direction) // same direction
-                outerMap.[outerMap.Last.Key] <- lastChunk // Flush
+                if lastChunk.IsEmpty then
+                  outerMap.Remove(outerMap.Last.Key) |> ignore
+                else
+                  outerMap.[outerMap.Last.Key] <- lastChunk // Flush
                 r1 || r2
             else 
               let c = comparer.Compare(key, this.First.Key)

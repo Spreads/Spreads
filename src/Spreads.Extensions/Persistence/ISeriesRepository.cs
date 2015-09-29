@@ -47,10 +47,11 @@ namespace Spreads.Persistence {
         public SeriesRepository(IPersistentStore store, ISeriesNode node) {
             _store = store;
             _node = node;
-            _node.OnCommand += _node_OnCommand;
+            _node.OnNewData += _node_OnNewData;
+            _node.OnDataLoad += _node_OnDataLoad;
         }
 
-        private void _node_OnCommand(BaseCommand command)
+        private void _node_OnNewData(BaseCommand command)
         {
             var seriesId = command.SeriesId;
             if (!_series.ContainsKey(seriesId)) return;
@@ -60,6 +61,19 @@ namespace Spreads.Persistence {
                 consumer.ApplyCommand(command);
             }
         }
+
+        private void _node_OnDataLoad(BaseCommand command) {
+            var seriesId = command.SeriesId;
+            if (!_series.ContainsKey(seriesId)) return;
+            ICommandConsumer consumer;
+            if (_series[seriesId].TryGetTarget(out consumer)) {
+                consumer.ApplyCommand(command);
+            }
+        }
+
+        // version 0.0.0.0.1-draft
+        // subscribe must wait for response, by that time 
+
 
         // TODO! a wrapper that replicates any changes to the series by sending command via the series node
 
