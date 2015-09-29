@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Threading;
+using System.Diagnostics;
 
 namespace Spreads.Persistence {
 
@@ -31,9 +32,8 @@ namespace Spreads.Persistence {
     /// <summary>
     /// Non-generic object that knows how to apply a command to itself
     /// </summary>
-    internal interface ICommandConsumer
-    {
-        void ApplyCommand(BaseCommand command);
+    internal interface ICommandConsumer {
+        void ApplyCommand(BaseCommand command, bool couldBeReplay);
     }
 
     public class SeriesRepository : ISeriesRepository {
@@ -44,6 +44,10 @@ namespace Spreads.Persistence {
         private readonly Dictionary<string, WeakReference<ICommandConsumer>> _series =
             new Dictionary<string, WeakReference<ICommandConsumer>>();
 
+        private readonly Dictionary<string, bool> _seriesWaiting = new Dictionary<string, bool>();
+        private readonly Dictionary<string, Queue<BaseCommand>> _seriesCommandBuffer = new Dictionary<string, Queue<BaseCommand>>();
+
+
         public SeriesRepository(IPersistentStore store, ISeriesNode node) {
             _store = store;
             _node = node;
@@ -51,42 +55,75 @@ namespace Spreads.Persistence {
             _node.OnDataLoad += _node_OnDataLoad;
         }
 
-        private void _node_OnNewData(BaseCommand command)
-        {
-            var seriesId = command.SeriesId;
-            if (!_series.ContainsKey(seriesId)) return;
-            ICommandConsumer consumer;
-            if (_series[seriesId].TryGetTarget(out consumer))
-            {
-                consumer.ApplyCommand(command);
+        private void _node_OnNewData(BaseCommand command) {
+            Trace.Assert(_seriesWaiting.ContainsKey(command.SeriesId));
+            Trace.Assert(_seriesCommandBuffer.ContainsKey(command.SeriesId));
+            var queue = _seriesCommandBuffer[command.SeriesId];
+            lock (queue) {
+
+                // not waiting anymore
+                if (_seriesWaiting[command.SeriesId] == false) {
+                    var seriesId = command.SeriesId;
+                    if (!_series.ContainsKey(seriesId)) return;
+                    ICommandConsumer consumer;
+                    if (_series[seriesId].TryGetTarget(out consumer)) {
+                        consumer.ApplyCommand(command, false);
+                    }
+                    return;
+                }
+
+                queue.Enqueue(command);
             }
+
         }
 
         private void _node_OnDataLoad(BaseCommand command) {
+            var completeCommand = command as CompleteCommand;
+            if (completeCommand != null) {
+                var queue = _seriesCommandBuffer[command.SeriesId];
+                lock (queue)
+                {
+                    // TODO! consume buffer
+                    while (queue.Count > 0)
+                    {
+                        var cmd = queue.Dequeue();
+                        var seriesId2 = cmd.SeriesId;
+                        if (!_series.ContainsKey(seriesId2)) return;
+                        ICommandConsumer consumer2;
+                        if (_series[seriesId2].TryGetTarget(out consumer2)) {
+                            consumer2.ApplyCommand(cmd, true);
+                        }
+                    }
+                    _seriesWaiting[command.SeriesId] = false;
+                }
+                return;
+            }
+
             var seriesId = command.SeriesId;
             if (!_series.ContainsKey(seriesId)) return;
             ICommandConsumer consumer;
             if (_series[seriesId].TryGetTarget(out consumer)) {
-                consumer.ApplyCommand(command);
+                consumer.ApplyCommand(command, false);
             }
         }
 
         // version 0.0.0.0.1-draft
         // subscribe must wait for response, by that time 
 
+        private IPersistentOrderedMap<K, V> GetSeries<K, V>(string seriesId, bool writable = false) {
+            seriesId = seriesId.ToLowerInvariant().Trim();
 
-        // TODO! a wrapper that replicates any changes to the series by sending command via the series node
-
-        private IPersistentOrderedMap<K, V> GetSeries<K, V>(string seriesId, bool writable = false)
-        {
             var series = new RepositorySeriesWrapper<K, V>(_store.GetPersistentOrderedMap<K, V>(seriesId), _node);
-            if (writable)
-            {
+            if (writable) {
                 // TODO acquire exclusive global write lock
                 _seriesLocks.Add(series, series.SyncRoot); // TODO! Add lock releaser that will send a lock release command in its finalizer
             }
             _series.Add(series.Id, new WeakReference<ICommandConsumer>(series));
-            
+
+
+            _seriesWaiting[seriesId] = true;
+            _seriesCommandBuffer[seriesId] = new Queue<BaseCommand>();
+
             // subscribe to all updates for the series starting from the last available key
             Task.Run(() => _node.Send(new SubscribeFromCommand()
             {
@@ -98,10 +135,8 @@ namespace Spreads.Persistence {
         }
 
         public IPersistentOrderedMap<K, V> WriteSeries<K, V>(string seriesId) {
-            lock (_seriesLocks)
-            {
+            lock (_seriesLocks) {
                 var writeSeries = GetSeries<K, V>(seriesId, true);
-                
                 return writeSeries;
             }
         }
@@ -137,7 +172,8 @@ namespace Spreads.Persistence {
                 _senderTask = Task.Run(async () => {
                     //var commandList = new List<BaseCommand>();
                     while (true) {
-                        await _semaphore.WaitAsync(250); // TODO ensure this works without timeout
+                        var released = await _semaphore.WaitAsync(50); // TODO ensure this works without timeout
+                        //Trace.Assert(released);
                         BaseCommand command;
                         //commandList.Clear();
                         while (_commandQueue.TryDequeue(out command)) {
@@ -151,24 +187,20 @@ namespace Spreads.Persistence {
             }
 
 
-            public void ApplyCommand(BaseCommand command)
-            {
+            public void ApplyCommand(BaseCommand command, bool couldBeReplay) {
                 var setCommand = command as SetCommand;
-                if (setCommand != null)
-                {
+                if (setCommand != null) {
                     var sm = Serializer.Deserialize<SortedMap<K, V>>(setCommand.SerializedSortedMap);
-                    foreach (var kvp in sm)
-                    {
+                    foreach (var kvp in sm) {
                         _innerMap[kvp.Key] = kvp.Value;
                     }
                     return;
                 }
 
                 var appendCommand = command as AppendCommand;
-                if (appendCommand != null)
-                {
+                if (appendCommand != null) {
                     var sm = Serializer.Deserialize<SortedMap<K, V>>(appendCommand.SerializedSortedMap);
-                    _innerMap.Append(sm, appendCommand.AppendOption);
+                    _innerMap.Append(sm, couldBeReplay ? AppendOption.IgnoreEqualOverlap : appendCommand.AppendOption);
                     return;
                 }
 

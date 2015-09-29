@@ -14,14 +14,10 @@ namespace Spreads.Collections.Tests {
 	[TestFixture]
 	public class SortedMapTests {
 
-
-
 		[SetUp]
 		public void Init() {
 		}
-
 		
-
 		[Test]
 		public void CouldEnumerateGrowingSM() {
             var count = 1000000;
