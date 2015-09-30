@@ -23,12 +23,11 @@ type BaseCursor<'K,'V>
   let sr = Object()
   let semaphore = new SemaphoreSlim(0,Int32.MaxValue)
   let taskCompleter = ref Unchecked.defaultof<Task<bool>>
-  let rec completeTcs() : Async<bool> = 
-    
-    async {
+  let rec completeTcs() : Task<bool> = 
+    task {
           let mutable cont = true
-          let waitTask = semaphore.WaitAsync(!cancellationToken)
-          let! couldProceed = waitTask |> Async.AwaitIAsyncResult
+          let waitTask = semaphore.WaitAsync(!cancellationToken).ContinueWith(fun _ -> true)
+          let! couldProceed = waitTask
           //Debug.WriteLine("A")
           if cont && couldProceed && !observerStarted && waitTask.IsCompleted then
             lock(sr) (fun _ ->
@@ -118,7 +117,7 @@ type BaseCursor<'K,'V>
         if not !observerStarted then 
           upd.OnData.AddHandler updateHandler
           observerStarted := true
-          taskCompleter := completeTcs() |> Async.StartAsTask
+          taskCompleter := completeTcs()
 
         // TODO why spinning doesn't add performance?
 //        let mutable moved = this.MoveNext()

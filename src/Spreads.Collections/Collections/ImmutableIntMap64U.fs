@@ -1239,88 +1239,88 @@ namespace Spreads.Collections
             ImmutableIntMap64U(newTree)
 
         interface IEnumerable<KeyValuePair<uint64, 'T>> with
-            member m.GetEnumerator() = 
-                (tree.ToList().ToArray() 
-                |> Array.map (fun (k,v) -> KeyValuePair(k,v)) :> (KeyValuePair<uint64, 'T>) seq).GetEnumerator()
-            member m.GetEnumerator() =
-                (m :> _ seq).GetEnumerator() :> IEnumerator
+          member m.GetEnumerator() = 
+            (tree.ToList().ToArray() 
+            |> Array.map (fun (k,v) -> KeyValuePair(k,v)) :> (KeyValuePair<uint64, 'T>) seq).GetEnumerator()
+          member m.GetEnumerator() =
+            (m :> _ seq).GetEnumerator() :> IEnumerator
 
 
         interface IImmutableOrderedMap<uint64, 'T> with
-            member this.Comparer with get() = KeyComparer.GetDefault<uint64>()
-            member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<uint64, 'T>>
-            member this.GetCursor() = this.GetCursor()
-            member this.IsEmpty = this.IsEmpty
-            member this.IsIndexed with get() = false
-            member this.IsMutable = false
-            member this.First with get() = this.First
-            member this.Last with get() = this.Last
-            member this.Item with get (k) : 'T = this.Item(k)
-            member this.GetAt(idx:int) : 'T = this.Skip(Math.Max(0, idx-1)).First().Value
-            member this.Keys with get() = IntMap64UTree.keys tree :> IEnumerable<uint64>
-            member this.Values with get() = IntMap64UTree.values tree :> IEnumerable<'T>
+          member this.Comparer with get() = KeyComparer.GetDefault<uint64>()
+          member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<uint64, 'T>>
+          member this.GetCursor() = this.GetCursor()
+          member this.IsEmpty = this.IsEmpty
+          member this.IsIndexed with get() = false
+          member this.IsMutable = false
+          member this.First with get() = this.First
+          member this.Last with get() = this.Last
+          member this.Item with get (k) : 'T = this.Item(k)
+          member this.GetAt(idx:int) : 'T = this.Skip(Math.Max(0, idx-1)).First().Value
+          member this.Keys with get() = IntMap64UTree.keys tree :> IEnumerable<uint64>
+          member this.Values with get() = IntMap64UTree.values tree :> IEnumerable<'T>
 
-            member this.TryFind(k, direction:Lookup, [<Out>] res: byref<KeyValuePair<uint64, 'T>>) = 
-                res <- Unchecked.defaultof<KeyValuePair<uint64, 'T>>
-                let tr = this.TryFind(k, direction)
-                if (fst tr) then
-                    res <- snd tr
-                    true
-                else
-                    false
+          member this.TryFind(k, direction:Lookup, [<Out>] res: byref<KeyValuePair<uint64, 'T>>) = 
+            res <- Unchecked.defaultof<KeyValuePair<uint64, 'T>>
+            let tr = this.TryFind(k, direction)
+            if (fst tr) then
+              res <- snd tr
+              true
+            else
+              false
 
-            member this.TryGetFirst([<Out>] res: byref<KeyValuePair<uint64, 'T>>) = 
-                try
-                    res <- this.First
-                    true
-                with
-                | _ -> 
-                    res <- Unchecked.defaultof<KeyValuePair<uint64, 'T>>
-                    false
+          member this.TryGetFirst([<Out>] res: byref<KeyValuePair<uint64, 'T>>) = 
+            try
+              res <- this.First
+              true
+            with
+            | _ -> 
+              res <- Unchecked.defaultof<KeyValuePair<uint64, 'T>>
+              false
             
-            member this.TryGetLast([<Out>] res: byref<KeyValuePair<uint64, 'T>>) = 
-                try
-                    res <- this.Last
-                    true
-                with
-                | _ -> 
-                    res <- Unchecked.defaultof<KeyValuePair<uint64, 'T>>
-                    false
+          member this.TryGetLast([<Out>] res: byref<KeyValuePair<uint64, 'T>>) = 
+            try
+              res <- this.Last
+              true
+            with
+            | _ -> 
+              res <- Unchecked.defaultof<KeyValuePair<uint64, 'T>>
+              false
         
-            member this.TryGetValue(k, [<Out>] value:byref<'T>) = 
-                let success, pair = this.TryFind(k, Lookup.EQ)
-                if success then 
-                    value <- pair.Value
-                    true
-                else false
+          member this.TryGetValue(k, [<Out>] value:byref<'T>) = 
+            let success, pair = this.TryFind(k, Lookup.EQ)
+            if success then 
+              value <- pair.Value
+              true
+            else false
 
 //            member this.Count with get() = int(this.Size)
-            member this.Size with get() = int64(this.Size)
+          member this.Size with get() = int64(this.Size)
 
-            member this.SyncRoot with get() = this.SyncRoot
+          member this.SyncRoot with get() = this.SyncRoot
 
-            member this.Add(key, value):IImmutableOrderedMap<uint64,'T> =
-                this.Add(key, value) :> IImmutableOrderedMap<uint64,'T>
+          member this.Add(key, value):IImmutableOrderedMap<uint64,'T> =
+            this.Add(key, value) :> IImmutableOrderedMap<uint64,'T>
 
-            member this.AddFirst(key, value):IImmutableOrderedMap<uint64,'T> =
-                this.AddFirst(key, value) :> IImmutableOrderedMap<uint64,'T>
+          member this.AddFirst(key, value):IImmutableOrderedMap<uint64,'T> =
+            this.AddFirst(key, value) :> IImmutableOrderedMap<uint64,'T>
 
-            member this.AddLast(key, value):IImmutableOrderedMap<uint64,'T> =
-                this.AddLast(key, value) :> IImmutableOrderedMap<uint64,'T>
+          member this.AddLast(key, value):IImmutableOrderedMap<uint64,'T> =
+            this.AddLast(key, value) :> IImmutableOrderedMap<uint64,'T>
 
-            member this.Remove(key):IImmutableOrderedMap<uint64,'T> =
-                this.Remove(key) :> IImmutableOrderedMap<uint64,'T>
+          member this.Remove(key):IImmutableOrderedMap<uint64,'T> =
+            this.Remove(key) :> IImmutableOrderedMap<uint64,'T>
 
-            member this.RemoveLast([<Out>] value: byref<KeyValuePair<uint64, 'T>>):IImmutableOrderedMap<uint64,'T> =
-                let m,v = this.RemoveLast()
-                value <- v
-                m :> IImmutableOrderedMap<uint64,'T>
+          member this.RemoveLast([<Out>] value: byref<KeyValuePair<uint64, 'T>>):IImmutableOrderedMap<uint64,'T> =
+            let m,v = this.RemoveLast()
+            value <- v
+            m :> IImmutableOrderedMap<uint64,'T>
 
-            member this.RemoveFirst([<Out>] value: byref<KeyValuePair<uint64, 'T>>):IImmutableOrderedMap<uint64,'T> =
-                let m,v = this.RemoveFirst()
-                value <- v
-                m :> IImmutableOrderedMap<uint64,'T>
+          member this.RemoveFirst([<Out>] value: byref<KeyValuePair<uint64, 'T>>):IImmutableOrderedMap<uint64,'T> =
+            let m,v = this.RemoveFirst()
+            value <- v
+            m :> IImmutableOrderedMap<uint64,'T>
 
-            member this.RemoveMany(key,direction:Lookup):IImmutableOrderedMap<uint64,'T>=
-                this.RemoveMany(key, direction) :> IImmutableOrderedMap<uint64,'T>
+          member this.RemoveMany(key,direction:Lookup):IImmutableOrderedMap<uint64,'T>=
+            this.RemoveMany(key, direction) :> IImmutableOrderedMap<uint64,'T>
                 

@@ -47,7 +47,7 @@ type ISeries<'K,'V> =
   /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys
   abstract IsIndexed : bool with get
   /// True if the underlying collection could be changed, false if the underlying collection is immutable or is complete 
-  /// for adding (e.g. after OnCompleted in Rx) or IsReadOnly in terms of ICollectio/IDictionary or has fixed keys/values (all definitions 4 are the same).
+  /// for adding (e.g. after OnCompleted in Rx) or IsReadOnly in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
   abstract IsMutable: bool with get
   /// Locks any mutations for mutable implementations
   abstract SyncRoot : obj with get
@@ -65,7 +65,7 @@ type ISeries<'K,'V> =
 /// after MoveNextBatchAsync or CurrentBatch after any single key movement results in InvalidOperationException.
 /// IsBatch property indicates wether the cursor is positioned on a single value or a batch.
 /// 
-/// Contracts (RFC):
+/// Contracts:
 /// 1. At the beginning a cursor consumer could call any single synchronous move method or MoveNextBatch. MoveNextBatch could 
 ///    be called only on the initial move or after a previous MoveNextBatch() call that returned true. It MUST NOT
 ///    be called in any other situation, ICursor implementations MUST return false on any such wrong call.
@@ -77,7 +77,7 @@ type ISeries<'K,'V> =
 ///    ICursor implementations should not block threads, e.g. if a map is IUpdateable, synchronous MoveNext should not wait for 
 ///    an update but return false if there is no data right now.
 /// 5. When synchronous MoveNext or MoveLast return false, the consumer should call async overload of MoveNext. Inside the async
-///    implementation of MoveNext, a cursor must check if the source is IUpdateable and return Task.FromResult(false) immediately.
+///    implementation of MoveNext, a cursor must check if the source is IUpdateable and return Task.FromResult(false) immediately if it is not.
 /// 6. TODO If the source is updated during a lifetime of a cursor, cursor must recreate its state at its current position
 ///    Rewind logic only for async? Throw in all cases other than MoveNext, MoveAt? Or at least on MovePrevious.
 ///    Or special behaviour of MoveNext only on appends or changing the last value? On other changes must throw invalidOp (locks are there!)
@@ -190,6 +190,8 @@ type IOrderedMap<'K,'V> =
   inherit IReadOnlyOrderedMap<'K,'V>
   //inherit IDictionary<'K,'V>
   abstract Count: int64 with get
+  /// Incremented after any change to data, including setting of the same value to the same key
+  abstract Version: int64 with get
   abstract Item : 'K -> 'V with get,set
   /// Adds new key and value to map, throws if the key already exists
   abstract Add : k:'K*v:'V -> unit

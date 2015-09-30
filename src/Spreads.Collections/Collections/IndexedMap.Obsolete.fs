@@ -222,6 +222,7 @@ type IndexedMap<'K,'V when 'K : comparison>
     
 
   interface IOrderedMap<'K,'V> with
+    member this.Version with get() = failwith "this is obsolete type kept only for reference, do not use it"
     member this.Count with get() = int64(this.Size)
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
     member this.Add(k, v) = this.Add(k,v)

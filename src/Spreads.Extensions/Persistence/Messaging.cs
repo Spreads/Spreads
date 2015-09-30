@@ -28,6 +28,7 @@ namespace Spreads.Persistence {
         }
         public Command Command { get; }
         public string SeriesId { get; set; }
+        public long Version { get; set; }
     }
 
 
@@ -115,7 +116,8 @@ namespace Spreads.Persistence {
             var cmd = (Command) br.ReadByte();
             var idLen = br.ReadInt32();
             var seriesid = br.ReadString();
-            
+            var version = br.ReadInt64();
+
             switch (cmd)
             {
                 case Command.Unsubscribe:
@@ -126,6 +128,7 @@ namespace Spreads.Persistence {
                     var keyBytes = br.ReadBytes(keyLen);
                     return new SubscribeFromCommand
                     {
+                        Version = version,
                         FromKeyBytes = keyBytes,
                         SeriesId = seriesid
                     };
@@ -134,6 +137,7 @@ namespace Spreads.Persistence {
                     var setBodyBytes = br.ReadBytes(setBodyLen);
                     return new SetCommand()
                     {
+                        Version = version,
                         SeriesId = seriesid,
                         SerializedSortedMap = setBodyBytes
                     };
@@ -146,6 +150,7 @@ namespace Spreads.Persistence {
                     var appendBodyBytes = br.ReadBytes(appendBodyLen);
                     return new AppendCommand()
                     {
+                        Version = version,
                         SeriesId = seriesid,
                         AppendOption = appendOption,
                         SerializedSortedMap = appendBodyBytes
@@ -154,7 +159,11 @@ namespace Spreads.Persistence {
                     throw new NotImplementedException("TODO");
                     break;
                 case Command.Complete:
-                    return new CompleteCommand();
+                    return new CompleteCommand()
+                    {
+                        Version = version,
+                        SeriesId = seriesid
+                    };
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -191,6 +200,7 @@ namespace Spreads.Persistence {
             bw.Write(command.SeriesId.Length);
             // series id
             bw.Write(command.SeriesId);
+            bw.Write(command.Version);
 
             switch (command.Command)
             {

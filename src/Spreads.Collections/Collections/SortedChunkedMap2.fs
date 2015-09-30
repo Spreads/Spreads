@@ -13,6 +13,7 @@ open System.Diagnostics
 open Spreads
 open Spreads.Collections
 
+// TODO this is code duplication with SCM, either obsolete one of them or synchronize carefully
 // TODO ensure that on every prevBucket change we check its version and 
 // set to outer if versions differ
 // TODO subscribe to update events on prevBucket and Flush at least every second
@@ -29,6 +30,8 @@ type internal SortedChunkedMap2<'K,'V>
   // TODO serialize size, add a method to calculate size based on outerMap only
   [<NonSerializedAttribute>]
   let mutable size = 0L
+  [<NonSerializedAttribute>]
+  let mutable version = 0L
   [<NonSerializedAttribute>]
   let mutable prevHash  = Unchecked.defaultof<'K>
   [<NonSerializedAttribute>]
@@ -76,7 +79,7 @@ type internal SortedChunkedMap2<'K,'V>
                   // k is larger than the last key and the chunk is big enough
                   Trace.Assert(kvp.Value.Count > 0L)
                   if comparer.Compare(k,kvp.Value.Last.Key) > 0 && kvp.Value.Count >= int64 chunkUpperLimit then k
-                  else kvp.Value.First.Key
+                  else kvp.Key // NB! this was a bug: .Value.keys.[0] -- outer hash key could be smaller that the first key of its inner map
                 else k
       }
 
@@ -86,7 +89,10 @@ type internal SortedChunkedMap2<'K,'V>
       prevBucket <- Unchecked.defaultof<IOrderedMap<'K,'V>>
       prevBucketIsSet  <- false
 
-  member this.Clear() = outerMap.RemoveMany(outerMap.First.Key, Lookup.GE)
+  member this.Clear() = 
+    if not this.IsEmpty then 
+      let removed = outerMap.RemoveMany(outerMap.First.Key, Lookup.GE)
+      if removed then version <- version + 1L
 
   member this.Count
       with get() = 
@@ -99,6 +105,8 @@ type internal SortedChunkedMap2<'K,'V>
           size'
         finally
           exitLockIf this.SyncRoot entered
+  
+  member this.Version with get() = version
 
   member this.IsEmpty
       with get() =
@@ -146,6 +154,7 @@ type internal SortedChunkedMap2<'K,'V>
         if c = 0 && prevBucketIsSet then // avoid generic equality and null compare
           let s1 = prevBucket.Count
           prevBucket.[subKey] <- value
+          version <- version + 1L
           let s2 = prevBucket.Count
           size <- size + int64(s2 - s1)
         else
@@ -167,6 +176,7 @@ type internal SortedChunkedMap2<'K,'V>
               newSm
           let s1 = bucket.Count
           bucket.[subKey] <- value
+          version <- version + 1L
           let s2 = bucket.Count
           size <- size + int64(s2 - s1)
           prevHash <- hash
@@ -490,6 +500,7 @@ type internal SortedChunkedMap2<'K,'V>
       // the most common scenario is to hit the previous bucket 
       if prevBucketIsSet && comparer.Compare(hash, prevHash) = 0 then
         prevBucket.Add(subKey, value)
+        version <- version + 1L
         size <- size + 1L
       else
         if prevBucketIsSet then
@@ -505,6 +516,7 @@ type internal SortedChunkedMap2<'K,'V>
             newSm.Add(subKey, value)
             outerMap.[hash]<- newSm
             newSm
+        version <- version + 1L
         size <- size + 1L
         prevHash <- hash
         prevBucket <-  bucket
@@ -551,7 +563,8 @@ type internal SortedChunkedMap2<'K,'V>
       let c = comparer.Compare(hash, prevHash)
       if c = 0 && prevBucketIsSet then
         let res = prevBucket.Remove(subKey)
-        if res then 
+        if res then
+          version <- version + 1L
           size <- size - 1L
           if prevBucket.Count = 0L then
             outerMap.Remove(prevHash) |> ignore
@@ -569,6 +582,7 @@ type internal SortedChunkedMap2<'K,'V>
           prevBucketIsSet <- true
           let res = bucket.Remove(subKey)
           if res then
+            version <- version + 1L
             size <- size - 1L
             if prevBucket.Count > 0L then
               outerMap.[prevHash] <- prevBucket
@@ -586,7 +600,6 @@ type internal SortedChunkedMap2<'K,'V>
     try
       result <- this.First
       let ret' = this.Remove(result.Key)
-      if ret' then size <- size - 1L
       ret'
     finally
       exitLockIf this.SyncRoot entered
@@ -597,7 +610,6 @@ type internal SortedChunkedMap2<'K,'V>
     try
       result <- this.Last
       let ret' = this.Remove(result.Key)
-      if ret' then size <- size - 1L
       ret'
     finally
       exitLockIf this.SyncRoot entered
@@ -606,57 +618,59 @@ type internal SortedChunkedMap2<'K,'V>
   member this.RemoveMany(key:'K,direction:Lookup):bool =
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
-      if outerMap.Count = 0L then false
-      else
-        let removed =
-          match direction with
-          | Lookup.EQ -> 
-            this.Remove(key)
-          | Lookup.LT | Lookup.LE ->
-            let hash = slicer.Hash(key)
-            let subKey = key
-            let hasPivot, pivot = this.TryFind(key, direction)
-            if hasPivot then
-              let r1 = outerMap.RemoveMany(hash, Lookup.LT)  // strictly LT
-              let r2 = outerMap.First.Value.RemoveMany(subKey, direction) // same direction
-              if r2 then
-                if outerMap.First.Value.Count > 0L then
-                  outerMap.[outerMap.First.Key] <- outerMap.First.Value // Flush
-                else 
-                  outerMap.Remove(outerMap.First.Key) |> ignore
-              r1 || r2
-              // TODO Flush
-            else 
-              let c = comparer.Compare(key, this.Last.Key)
-              if c > 0 then // remove all keys
-                this.Clear() |> ignore
-                true
-              elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
-              else false
-          | Lookup.GT | Lookup.GE ->
-            let hash = slicer.Hash(key)
-            let subKey = key
-            let hasPivot, pivot = this.TryFind(key, direction)
-            if hasPivot then
-              if comparer.Compare(key, hash) = 0 && direction = Lookup.GE then
-                outerMap.RemoveMany(hash, Lookup.GE) // remove in one go
-              else
-                let r1 = outerMap.RemoveMany(hash, Lookup.GT)  // strictly GT
-                let lastChunk = outerMap.Last.Value
-                let r2 = lastChunk.RemoveMany(subKey, direction) // same direction
-                outerMap.[outerMap.Last.Key] <- lastChunk // Flush
+      let result =
+        if outerMap.Count = 0L then false
+        else
+          let removed =
+            match direction with
+            | Lookup.EQ -> 
+              this.Remove(key)
+            | Lookup.LT | Lookup.LE ->
+              let hash = slicer.Hash(key)
+              let subKey = key
+              let hasPivot, pivot = this.TryFind(key, direction)
+              if hasPivot then
+                let r1 = outerMap.RemoveMany(hash, Lookup.LT)  // strictly LT
+                let r2 = outerMap.First.Value.RemoveMany(subKey, direction) // same direction
+                if r2 then
+                  if outerMap.First.Value.Count > 0L then
+                    outerMap.[outerMap.First.Key] <- outerMap.First.Value // Flush
+                  else 
+                    outerMap.Remove(outerMap.First.Key) |> ignore
                 r1 || r2
-            else 
-              let c = comparer.Compare(key, this.First.Key)
-              if c < 0 then // remove all keys
-                this.Clear()
-              elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
-              else false
-          | _ -> failwith "wrong direction"
-        if removed then // we have Flushed, when needed for partial bucket change, above - just invalidate cache
-          prevBucketIsSet <- false
-          prevBucket <- Unchecked.defaultof<_>
-        removed
+                // TODO Flush
+              else 
+                let c = comparer.Compare(key, this.Last.Key)
+                if c > 0 then // remove all keys
+                  outerMap.RemoveMany(outerMap.First.Key, Lookup.GE)
+                elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
+                else false
+            | Lookup.GT | Lookup.GE ->
+              let hash = slicer.Hash(key)
+              let subKey = key
+              let hasPivot, pivot = this.TryFind(key, direction)
+              if hasPivot then
+                if comparer.Compare(key, hash) = 0 && direction = Lookup.GE then
+                  outerMap.RemoveMany(hash, Lookup.GE) // remove in one go
+                else
+                  let r1 = outerMap.RemoveMany(hash, Lookup.GT)  // strictly GT
+                  let lastChunk = outerMap.Last.Value
+                  let r2 = lastChunk.RemoveMany(subKey, direction) // same direction
+                  outerMap.[outerMap.Last.Key] <- lastChunk // Flush
+                  r1 || r2
+              else 
+                let c = comparer.Compare(key, this.First.Key)
+                if c < 0 then // remove all keys
+                  outerMap.RemoveMany(outerMap.First.Key, Lookup.GE)
+                elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
+                else false
+            | _ -> failwith "wrong direction"
+          if removed then // we have Flushed, when needed for partial bucket change, above - just invalidate cache
+            prevBucketIsSet <- false
+            prevBucket <- Unchecked.defaultof<_>
+          removed
+      if result then version <- version + 1L
+      result
     finally
       exitLockIf this.SyncRoot entered
 
@@ -823,6 +837,7 @@ type internal SortedChunkedMap2<'K,'V>
     
 
   interface IOrderedMap<'K,'V> with
+    member this.Version with get() = int64(this.Version)
     member this.Count with get() = this.Count
     member this.Item
       with get k = this.Item(k) 

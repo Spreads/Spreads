@@ -88,7 +88,7 @@
     <Compile Include="Collections\ImmutableIntMap32U.fs" />
     <Compile Include="Collections\ImmutableIntConvertibleMap.fs" />
     <Compile Include="Collections\ImmutableSortedMap.fs" />
-    <Compile Include="Collections\MutatorWrapper.fs" />
+    <Compile Include="Collections\MutableWrapper.fs" />
     <Compile Include="Collections\SortedDeque.Orig.fs" />
     <Compile Include="Collections\MapDeque.Obsolete.fs" />
     <Compile Include="Collections\DequeMap.fs" />
@@ -105,6 +105,7 @@
     <Compile Include="Collections\SortedChunkedMap.fs" />
     <Compile Include="Collections\SortedChunkedMap2.fs" />
     <Compile Include="Collections\DataStream.fs" />
+    <Compile Include="Collections\Mutations.fs" />
     <None Include="Cursors\Cursors.md" />
     <Compile Include="Cursors\BindCursor.fs" />
     <Compile Include="Cursors\HigherOrder.fs" />
@@ -126,8 +127,11 @@
       <HintPath>..\..\packages\FSharp.Core.4.0.0.1\lib\net40\FSharp.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="FSharp.Data.TypeProviders" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Data.Linq" />
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

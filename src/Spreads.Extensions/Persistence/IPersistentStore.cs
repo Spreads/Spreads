@@ -55,7 +55,9 @@ namespace Spreads.Persistence {
             var key = "InMemoryPersistentStore:" + _prefix + ":" + seriesId;
             var exitsing = _cache[key] as IPersistentOrderedMap<K, V>;
             if (exitsing != null) return exitsing;
-            exitsing = new PersistentSortedMap<K, V>(seriesId, _cache, key) {IsSynchronized = true};
+            var map = new PersistentSortedMap<K, V>(seriesId, _cache, key);
+            map.isSynchronized = true;
+            exitsing = map;
             _cache.Add(new CacheItem(key, exitsing), new CacheItemPolicy() {SlidingExpiration = TimeSpan.FromHours(1)}); // [key] = exitsing;
             return exitsing;
         }

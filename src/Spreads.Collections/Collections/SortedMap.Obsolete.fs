@@ -130,9 +130,9 @@ type SortedMap<'K,'V when 'K : comparison>
     with get() = mapKey
     and set(key:string) = mapKey <- key
 
-  member internal this.SyncRoot with get() = syncRoot
+  member this.SyncRoot with get() = syncRoot
 
-  member internal this.Version with get() = version and set v = version <- v
+  member this.Version with get() = version and set v = version <- v
 
 
   //#endregion
@@ -886,6 +886,7 @@ type SortedMap<'K,'V when 'K : comparison>
     
 
   interface IOrderedMap<'K,'V> with
+    member this.Version with get() = int64(this.Version)
     member this.Count with get() = int64(this.size)
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
     member this.Add(k, v) = this.Add(k,v)

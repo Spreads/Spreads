@@ -713,6 +713,7 @@ type SortedHashMap<'K,'V when 'K : comparison>
     
 
   interface IOrderedMap<'K,'V> with
+    member this.Version with get() = failwith "do not use this type"
     member this.Count with get() = int64(size)
     member this.Item
       with get k = this.Item(k) 

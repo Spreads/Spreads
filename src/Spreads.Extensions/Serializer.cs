@@ -146,7 +146,6 @@ namespace Spreads {
 					serializer.Serialize(writer, value);
 				}
 			} else {
-
 				// will dispatch to Spreads types
 				var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
 				writer.WriteValue(bytes);
@@ -162,7 +161,9 @@ namespace Spreads {
 		JsonSerializer _serializer;
 		public SpreadsJsonSerializer() {
 			_serializer = new JsonSerializer();
-			_serializer.ContractResolver = new SpreadsContractResolver();
+            _serializer.DateFormatHandling = DateFormatHandling.IsoDateFormat;
+		    _serializer.DateTimeZoneHandling = DateTimeZoneHandling.Utc;
+            _serializer.ContractResolver = new SpreadsContractResolver();
 		}
 
 		public object Deserialize(byte[] bytes, Type type) {
@@ -731,8 +732,8 @@ namespace Spreads {
 
 			//try {
 			// we really care about these cases, for other cases JSON.NET is just good enough
-			if (ty.IsValueType &&
-			(ty.IsLayoutSequential || ty.IsExplicitLayout
+			if (ty.IsValueType && !ty.IsGenericType &&
+            (ty.IsLayoutSequential || ty.IsExplicitLayout
 			 || ty == typeof(DateTimeOffset) || ty == typeof(DateTime))
 			) {
 				unsafe
@@ -984,8 +985,8 @@ namespace Spreads {
 			var typeSize1 = 0;
 
 			//try {
-			if (ty.IsValueType &&
-				(ty.IsLayoutSequential || ty.IsExplicitLayout
+			if (ty.IsValueType && !ty.IsGenericType &&
+                (ty.IsLayoutSequential || ty.IsExplicitLayout
 				 || ty == typeof(DateTimeOffset) || ty == typeof(DateTime))
 				) {
 
@@ -1533,7 +1534,7 @@ namespace Spreads {
 
 		internal static byte[] SerializeImpl<T>(T value) { //where T : struct
 			var ty = value.GetType();
-			if (ty.IsValueType && (ty.IsLayoutSequential || ty.IsExplicitLayout)) {
+			if (ty.IsValueType && !ty.IsGenericType && (ty.IsLayoutSequential || ty.IsExplicitLayout)) {
 				unsafe
 				{
 					var typeSize = Marshal.SizeOf(value);
@@ -1863,7 +1864,7 @@ namespace Spreads {
 		internal static TSrtuct DeserializeImpl<TSrtuct>(IntPtr srcPtr,
 			int srcSize, TSrtuct result) where TSrtuct : struct {
 			var ty = typeof(TSrtuct);
-			if (ty.IsLayoutSequential || ty.IsExplicitLayout) {
+			if (!ty.IsGenericType && (ty.IsLayoutSequential || ty.IsExplicitLayout)) {
 				if (srcSize > 0 && srcSize != Marshal.SizeOf(ty))
 					throw new ArgumentOutOfRangeException("Wrong src size");
 				var dest = Marshal.PtrToStructure(srcPtr, ty);

@@ -56,7 +56,7 @@ namespace Spreads.Persistence {
         }
 
         private void _node_OnNewData(BaseCommand command) {
-            Trace.Assert(_seriesWaiting.ContainsKey(command.SeriesId));
+            if (!_seriesWaiting.ContainsKey(command.SeriesId)) return; ;
             Trace.Assert(_seriesCommandBuffer.ContainsKey(command.SeriesId));
             var queue = _seriesCommandBuffer[command.SeriesId];
             lock (queue) {
@@ -71,7 +71,6 @@ namespace Spreads.Persistence {
                     }
                     return;
                 }
-
                 queue.Enqueue(command);
             }
 
@@ -194,6 +193,8 @@ namespace Spreads.Persistence {
                     foreach (var kvp in sm) {
                         _innerMap[kvp.Key] = kvp.Value;
                     }
+                    var asSm = _innerMap as SortedMap<K, V>;
+                    if (asSm != null) asSm.Version = (int)setCommand.Version;
                     return;
                 }
 
@@ -212,60 +213,68 @@ namespace Spreads.Persistence {
                 }
 
                 set {
+                    _innerMap[key] = value;
                     var sm = new SortedMap<K, V>(1) { { key, value } };
                     _commandQueue.Enqueue(new SetCommand()
                     {
+                        Version = _innerMap.Version,
                         SeriesId = _innerMap.Id,
                         SerializedSortedMap = Serializer.Serialize(sm)
                     });
                     _semaphore.Release();
-                    _innerMap[key] = value;
                 }
             }
 
 
             public void Add(K k, V v) {
+                _innerMap.Add(k, v);
                 var sm = new SortedMap<K, V>(1) { { k, v } };
                 _commandQueue.Enqueue(new SetCommand()
                 {
+                    Version = _innerMap.Version,
                     SeriesId = _innerMap.Id,
                     SerializedSortedMap = Serializer.Serialize(sm)
                 });
                 _semaphore.Release();
-                _innerMap.Add(k, v);
+                
             }
 
             public void AddFirst(K k, V v) {
+                _innerMap.AddFirst(k, v);
                 var sm = new SortedMap<K, V>(1) { { k, v } };
                 _commandQueue.Enqueue(new SetCommand()
                 {
+                    Version = _innerMap.Version,
                     SeriesId = _innerMap.Id,
                     SerializedSortedMap = Serializer.Serialize(sm)
                 });
                 _semaphore.Release();
-                _innerMap.AddFirst(k, v);
             }
 
             public void AddLast(K k, V v) {
+                _innerMap.AddLast(k, v);
                 var sm = new SortedMap<K, V>(1) { { k, v } };
                 _commandQueue.Enqueue(new SetCommand()
                 {
+                    Version = _innerMap.Version,
                     SeriesId = _innerMap.Id,
                     SerializedSortedMap = Serializer.Serialize(sm)
                 });
                 _semaphore.Release();
-                _innerMap.AddLast(k, v);
+                
             }
 
             public int Append(IReadOnlyOrderedMap<K, V> appendMap, AppendOption option) {
+                var count = _innerMap.Append(appendMap, option);
                 _commandQueue.Enqueue(new AppendCommand()
                 {
+                    Version = _innerMap.Version,
                     SeriesId = _innerMap.Id,
                     AppendOption = option,
                     SerializedSortedMap = Serializer.Serialize(appendMap.ToSortedMap())
                 });
                 _semaphore.Release();
-                return _innerMap.Append(appendMap, option);
+                return count;
             }
 
             public bool Remove(K k) {
@@ -291,6 +300,8 @@ namespace Spreads.Persistence {
             V IReadOnlyOrderedMap<K, V>.this[K key] => _innerMap[key];
 
             public IComparer<K> Comparer => _innerMap.Comparer;
+
+            public long Version => _innerMap.Version;
 
             public long Count => _innerMap.Count;
 

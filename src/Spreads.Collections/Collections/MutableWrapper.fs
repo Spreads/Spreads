@@ -12,7 +12,7 @@ open Spreads.Collections
 
 [<Serializable>]
 /// Make immutable map behave like a mutable one
-type internal MutatorWrapper<'K,'V  when 'K : comparison>
+type internal MutableWrapper<'K,'V  when 'K : comparison>
   (immutableMap:IImmutableOrderedMap<'K,'V>)=
     
   let mutable map = immutableMap
@@ -70,6 +70,7 @@ type internal MutatorWrapper<'K,'V  when 'K : comparison>
 
 
   interface IOrderedMap<'K,'V> with
+    member this.Version with get() = raise (NotImplementedException("TODO (low) if this type is ever used"))
     member this.Count with get() = map.Size
     member this.Item
       with get (k:'K) : 'V = map.Item(k)
@@ -135,46 +136,46 @@ type internal MutatorWrapper<'K,'V  when 'K : comparison>
 [<Sealed>]
 [<Serializable>]
 type internal MutableIntMap64<'T>(map: ImmutableIntMap64<'T>)=
-  inherit MutatorWrapper<int64,'T>(map)
+  inherit MutableWrapper<int64,'T>(map)
   new() = MutableIntMap64(ImmutableIntMap64<'T>.Empty)
 
 
 [<Sealed>]
 [<Serializable>]
 type internal MutableIntMap64U<'T>(map: ImmutableIntMap64U<'T>)=
-  inherit MutatorWrapper<uint64,'T>(map)
+  inherit MutableWrapper<uint64,'T>(map)
   new() = MutableIntMap64U(ImmutableIntMap64U<'T>.Empty)
 
 
 [<Sealed>]
 [<Serializable>]
 type internal MutableIntMap32<'T>(map: ImmutableIntMap32<'T>)=
-  inherit MutatorWrapper<int32,'T>(map)
+  inherit MutableWrapper<int32,'T>(map)
   new() = MutableIntMap32(ImmutableIntMap32<'T>.Empty)
 
 [<Sealed>]
 [<Serializable>]
 type internal MutableIntMap32U<'T>(map: ImmutableIntMap32U<'T>)=
-  inherit MutatorWrapper<uint32,'T>(map)
+  inherit MutableWrapper<uint32,'T>(map)
   new() = MutableIntMap32U(ImmutableIntMap32U<'T>.Empty)
 
 
 [<Sealed>]
 [<Serializable>]
 type internal MutableDateTimeMap<'T>(map: ImmutableDateTimeMap<'T>)=
-  inherit MutatorWrapper<DateTime,'T>(map)
+  inherit MutableWrapper<DateTime,'T>(map)
   new() = MutableDateTimeMap(ImmutableDateTimeMap<'T>.Empty)
     
 
 [<Sealed>]
 [<Serializable>]
 type internal MutableDateTimeOffsetMap<'T>(map: ImmutableDateTimeOffsetMap<'T>)=
-  inherit MutatorWrapper<DateTimeOffset,'T>(map)
+  inherit MutableWrapper<DateTimeOffset,'T>(map)
   new() = MutableDateTimeOffsetMap(ImmutableDateTimeOffsetMap<'T>.Empty)
 
 
 [<Sealed>]
 [<Serializable>]
 type internal MutableSortedMap<'K,'V  when 'K : comparison>(map: ImmutableSortedMap<'K,'V>)=
-  inherit MutatorWrapper<'K,'V>(map)
+  inherit MutableWrapper<'K,'V>(map)
   new() = MutableSortedMap(ImmutableSortedMap<'K,'V>.Empty)

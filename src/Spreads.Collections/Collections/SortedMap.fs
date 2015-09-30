@@ -13,8 +13,10 @@ open Spreads
 open Spreads.Collections
 
 // TODO inline (manually) regular keys calculation, the performance hit is visible on benchmark: 45 mops vs 66 mops (or prove that this is due to the math)
-// TODO whenever we add last value, the value must be written to the array before size increment
 
+// TODO whenever we add last value, the value must be written to the array before size increment
+// TODO we must increment orderVersion before any array change
+// TODO when not synchronized, a cursor must always throw on orderVersion change, because we change keys/values array??
 
 // TODO settable IsSyncronized with check on every mutation
 // TODO Size to Count
@@ -52,8 +54,13 @@ type SortedMap<'K,'V>
   val mutable internal values : 'V array
   [<DefaultValueAttribute>] // if size > 2 and keys.Length = 2 then the keys are regular
   val mutable internal size : int
+  /// data version
   [<DefaultValueAttribute>] 
   val mutable internal version : int // enumeration doesn't lock but checks this.version
+  
+  /// used for cursors, incremented on any out of order data change that require a cursor either to throw to to recover with repositioning
+  [<NonSerializedAttribute>]
+  let mutable orderVersion : int = 0
 
   // util fields
   [<NonSerializedAttribute>]
@@ -325,9 +332,10 @@ type SortedMap<'K,'V>
       // that an irregular becomes a regular one, and such check is always done on
       // bucket switch in SHM (TODO really? check) and before serialization
       // the 99% use case is when we load data from a sequential stream or deserialize a map with already regularized keys
-    if not keepVersion then this.version <- this.version + 1
+    if not keepVersion then orderVersion <- orderVersion + 1
     this.size <- this.size + 1
-    if cursorCounter >0 then updateEvent.Trigger(KVP(k,v))
+    this.version <- this.version + 1
+    if cursorCounter > 0 then updateEvent.Trigger(KVP(k,v))
     
   member this.IsMutable 
     with get() = isMutable
@@ -354,7 +362,7 @@ type SortedMap<'K,'V>
   member this.RegularStep with get() = rkGetStep()
   member this.RkKeyAtIndex(idx) = rkKeyAtIndex(idx)
   member this.SyncRoot with get() = syncRoot
-  member this.Version with get() = this.version and set v = this.version <- v
+  member this.Version with get() = this.version and internal set v = this.version <- v // NB setter only for deserializer
 
   //#endregion
 
@@ -394,6 +402,7 @@ type SortedMap<'K,'V>
 
   member this.Clear() =
     this.version <- this.version + 1
+    orderVersion <- orderVersion + 1
     if couldHaveRegularKeys then
       Trace.Assert(this.keys.Length = 2)
       Array.Clear(this.keys, 0, 2)
@@ -466,16 +475,16 @@ type SortedMap<'K,'V>
         member x.IsReadOnly with get() = true
         member x.Item 
           with get index : 'V = this.values.[index]
-          and set index value = raise (NotSupportedException("Values colelction is read-only"))
+          and set index value = raise (NotSupportedException("Values collection is read-only"))
         member x.Add(k) = raise (NotSupportedException("Values colelction is read-only"))
         member x.Clear() = raise (NotSupportedException("Values colelction is read-only"))
         member x.Contains(value) = this.ContainsValue(value)
         member x.CopyTo(array, arrayIndex) = 
           Array.Copy(this.values, 0, array, arrayIndex, this.size)
         member x.IndexOf(value:'V) = this.IndexOfValue(value)
-        member x.Insert(index, value) = raise (NotSupportedException("Values colelction is read-only"))
-        member x.Remove(value:'V) = raise (NotSupportedException("Values colelction is read-only"))
-        member x.RemoveAt(index:int) = raise (NotSupportedException("Values colelction is read-only"))
+        member x.Insert(index, value) = raise (NotSupportedException("Values collection is read-only"))
+        member x.Remove(value:'V) = raise (NotSupportedException("Values collection is read-only"))
+        member x.RemoveAt(index:int) = raise (NotSupportedException("Values collection is read-only"))
         member x.GetEnumerator() = x.GetEnumerator() :> IEnumerator
         member x.GetEnumerator() : IEnumerator<'V> = 
           let index = ref 0
@@ -594,6 +603,7 @@ type SortedMap<'K,'V>
         if lc = 0 then // key = last key
           this.values.[lastIdx] <- v
           this.version <- this.version + 1
+          orderVersion <- orderVersion + 1
           if cursorCounter >0 then updateEvent.Trigger(KVP(k,v))
           lastIdx
         elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
@@ -603,7 +613,8 @@ type SortedMap<'K,'V>
           let index = this.IndexOfKeyUnchecked(k)
           if index >= 0 then // contains key 
             this.values.[index] <- v
-            this.version <- this.version + 1 
+            this.version <- this.version + 1
+            orderVersion <- orderVersion + 1
             if cursorCounter >0 then updateEvent.Trigger(KVP(k,v))
             index     
           else
@@ -698,6 +709,7 @@ type SortedMap<'K,'V>
 
       this.size <- newSize
       this.version <- this.version + 1
+      orderVersion <- orderVersion + 1
 
       if cursorCounter > 0 then 
         // on removal, the next valid value is the previous one and all downstreams must reposition and replay from it
@@ -756,6 +768,7 @@ type SortedMap<'K,'V>
           elif pivotIndex >=0 then // remove elements below pivot and pivot
             this.size <- this.size - (pivotIndex + 1)
             this.version <- this.version + 1
+            orderVersion <- orderVersion + 1
             if couldHaveRegularKeys then
               this.keys.[0] <- (diffCalc.Add(this.keys.[0], int64 (pivotIndex+1)))
               if this.size > 1 then 
@@ -789,6 +802,7 @@ type SortedMap<'K,'V>
               Array.fill this.keys pivotIndex (this.values.Length - pivotIndex) Unchecked.defaultof<'K>
             Array.fill this.values pivotIndex (this.values.Length - pivotIndex) Unchecked.defaultof<'V>
             this.version <- this.version + 1
+            orderVersion <- orderVersion + 1
             this.Capacity <- this.size
             true
           else
@@ -974,7 +988,7 @@ type SortedMap<'K,'V>
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
 
-  override this.GetCursor() = this.GetCursor(-1, this.version, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>) :> ICursor<'K,'V> //this.GetCursor(-1, this.version, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>)
+  override this.GetCursor() = this.GetCursor(-1, orderVersion, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>) :> ICursor<'K,'V> //this.GetCursor(-1, this.version, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>)
   // for foreach optimization
   //member this.GetEnumerator() = new SortedMapCursor<'K,'V>(-1, this.version, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>, this)
   // TODO(?) replace with a mutable struct, like in SCG.SortedList<T>, there are too many virtual calls and reference cells in the most critical paths like MoveNext
@@ -1019,11 +1033,11 @@ type SortedMap<'K,'V>
         member x.Comparer: IComparer<'K> = this.Comparer
         member x.TryGetValue(key: 'K, value: byref<'V>): bool = this.TryGetValue(key, &value)
         member x.MoveNext(ct: CancellationToken): Task<bool> = 
-          let rec completeTcs() : Async<bool> = 
-            async {
+          let rec completeTcs() : Task<bool> = 
+            task {
                   let mutable cont = true
-                  let waitTask = semaphore.WaitAsync(!cancellationToken)
-                  let! couldProceed = waitTask |> Async.AwaitIAsyncResult
+                  let waitTask = semaphore.WaitAsync(!cancellationToken).ContinueWith(fun t -> true)
+                  let! couldProceed = waitTask //|> Async.AwaitIAsyncResult
                   if cont && couldProceed && !observerStarted && waitTask.IsCompleted then
                     lock(sr) (fun _ ->
                       // right now a client is waiting for a task to complete, there are no more elements in the map
@@ -1062,7 +1076,7 @@ type SortedMap<'K,'V>
               if not !observerStarted then 
                 upd.OnData.AddHandler updateHandler
                 observerStarted := true
-                taskCompleter := completeTcs() |> Async.StartAsTask
+                taskCompleter := completeTcs()
               
               cancellationToken := ct
               // TODO use interlocked.exchange or whatever to not allocate new one every time, if we return Task.FromResult(true) below
@@ -1111,7 +1125,7 @@ type SortedMap<'K,'V>
           let entered = enterLockIf syncRoot  isSynchronized
           try
             if index.Value = -1 then p.MoveLast()  // first move when index = -1
-            elif cursorVersion.Value = this.version then
+            elif cursorVersion.Value = orderVersion then
               if index.Value > 0 && index.Value < this.size then
                 index := index.Value - 1
                 currentKey := this.GetKeyByIndex(index.Value)
@@ -1121,7 +1135,7 @@ type SortedMap<'K,'V>
                 p.Reset()
                 false
             else
-              cursorVersion := this.version // update state to new this.version
+              cursorVersion := orderVersion // update state to new this.version
               let position, kvp = this.TryFindWithIndex(p.CurrentKey, Lookup.LT) //currentKey.Value
               if position > 0 then
                 index := position
@@ -1189,7 +1203,7 @@ type SortedMap<'K,'V>
           try
   //          if index.Value = -1 then p.MoveFirst() // first move when index = -1
   //          el
-            if cursorVersion.Value = this.version then
+            if cursorVersion.Value = orderVersion then
               if index.Value < (this.size - 1) then
                 index := !index + 1
                 // ACHTUNG! regular keys were supposed to speed up things, not to slow down by 50%!
@@ -1211,7 +1225,7 @@ type SortedMap<'K,'V>
                 //p.Reset() // NB! Do not reset cursor on false MoveNext
                 false
             else  // source change
-              cursorVersion := this.version // update state to new this.version
+              cursorVersion := orderVersion // update state to new this.version
               let position, kvp = this.TryFindWithIndex(currentKey.Value, Lookup.GT) // reposition cursor after source change //currentKey.Value
               if position > 0 then
                 index := position
@@ -1224,7 +1238,7 @@ type SortedMap<'K,'V>
           finally
             exitLockIf syncRoot entered
         member p.Reset() = 
-          cursorVersion := this.version // update state to new this.version
+          cursorVersion := orderVersion // update state to new this.version
           index := -1
           currentKey := Unchecked.defaultof<'K>
           currentValue := Unchecked.defaultof<'V>
@@ -1268,7 +1282,7 @@ type SortedMap<'K,'V>
         try
 //          if index.Value = -1 then p.MoveFirst() // first move when index = -1
 //          el
-          if cursorVersion.Value = this.version then
+          if cursorVersion.Value = orderVersion then
             if index.Value < (this.size - 1) then
               index := !index + 1
               currentKey := 
@@ -1283,7 +1297,7 @@ type SortedMap<'K,'V>
               //p.Reset() // NB! Do not reset cursor on false MoveNext
               false
           else  // source change
-            cursorVersion := this.version // update state to new this.version
+            cursorVersion := orderVersion // update state to new this.version
             let position, kvp = this.TryFindWithIndex(p.CurrentKey, Lookup.GT) // reposition cursor after source change //currentKey.Value
             if position > 0 then
               index := position
@@ -1300,7 +1314,7 @@ type SortedMap<'K,'V>
         let entered = enterLockIf syncRoot  isSynchronized
         try
           if index.Value = -1 then p.MoveLast()  // first move when index = -1
-          elif cursorVersion.Value = this.version then
+          elif cursorVersion.Value = orderVersion then
             if index.Value > 0 && index.Value < this.size then
               index := index.Value - 1
               currentKey := this.GetKeyByIndex(index.Value)
@@ -1310,7 +1324,7 @@ type SortedMap<'K,'V>
               p.Reset()
               false
           else
-            cursorVersion := this.version // update state to new this.version
+            cursorVersion := orderVersion // update state to new this.version
             let position, kvp = this.TryFindWithIndex(p.CurrentKey, Lookup.LT) //currentKey.Value
             if position > 0 then
               index := position
@@ -1371,7 +1385,7 @@ type SortedMap<'K,'V>
       override p.CurrentValue with get() = currentValue.Value //if index.Value >= 0 then this.values.[index.Value] else Unchecked.defaultof<'V> //currentValue.Value
 
       override p.Reset() = 
-        cursorVersion := this.version // update state to new this.version
+        cursorVersion := orderVersion // update state to new this.version
         index := -1
         currentKey := Unchecked.defaultof<'K>
         currentValue := Unchecked.defaultof<'V>
@@ -1473,6 +1487,7 @@ type SortedMap<'K,'V>
     
 
   interface IOrderedMap<'K,'V> with
+    member this.Version with get() = int64(this.Version)
     member this.Count with get() = int64(this.size)
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
     member this.Add(k, v) = this.Add(k,v)
@@ -1487,6 +1502,7 @@ type SortedMap<'K,'V>
       this.RemoveMany(key, direction)
 
     // TODO move to type memeber, cheack if IROOM is SM and copy arrays in one go
+    // TODO atomic append with single version increase, now it is a sequence of remove/add mutations
     member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) =
       let hasEqOverlap (old:IReadOnlyOrderedMap<'K,'V>) (append:IReadOnlyOrderedMap<'K,'V>) : bool =
         if comparer.Compare(append.First.Key, old.Last.Key) > 0 then false
@@ -1658,6 +1674,8 @@ type SortedMap<'K,'V>
       System.Linq.Enumerable.SequenceEqual(smA.keys, smB.keys)
 
 
+
+// NB commented source below is for reference only and to be deleted. if reused, the version is wrong and orderVersion must be used
 //
 //and SortedMapCursor<'K,'V> =
 //    struct

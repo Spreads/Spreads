@@ -87,22 +87,18 @@ and
       else false
 
     member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      try
-        res <- (this :> IReadOnlyOrderedMap<'K,'V>).First
+      let c = this.GetCursor()
+      if c.MoveFirst() then
+        res <- c.Current
         true
-      with
-      | _ -> 
-        res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-        false
+      else false
 
     member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      try
-        res <- (this :> IReadOnlyOrderedMap<'K,'V>).Last
+      let c = this.GetCursor()
+      if c.MoveLast() then
+        res <- c.Current
         true
-      with
-      | _ -> 
-        res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-        false
+      else false
 
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
       let c = this.GetCursor()
@@ -116,8 +112,9 @@ and
 
     member this.Item 
       with get k = 
-        let ok, v = (this :> IReadOnlyOrderedMap<'K,'V>).TryGetValue(k)
-        if ok then v else raise (KeyNotFoundException())
+        let c = this.GetCursor()
+        if c.MoveAt(k, Lookup.EQ) then c.CurrentValue
+        else raise (KeyNotFoundException())
 
     member this.Keys 
       with get() =

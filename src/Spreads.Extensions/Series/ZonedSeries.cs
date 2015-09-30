@@ -153,6 +153,10 @@ namespace Spreads {
             get { return _map.Count; }
         }
 
+        public long Version {
+            get { return _map.Version; }
+        }
+
         public string Id {
             get {
                 throw new NotImplementedException();
