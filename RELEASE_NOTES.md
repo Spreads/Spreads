@@ -1,4 +1,4 @@
-#### 0.0.64 - September 28, 2015
+#### 0.0.66 - September 28, 2015
 * Messaging proof of concept interfaces and simple implementation
 
 #### 0.0.60 - September 17, 2015

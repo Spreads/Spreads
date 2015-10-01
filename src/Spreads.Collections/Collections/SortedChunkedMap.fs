@@ -124,9 +124,9 @@ type SortedChunkedMap<'K,'V>
   // 
   member this.Item 
     with get key =
+      let entered = enterLockIf this.SyncRoot this.IsSynchronized
       let hash = slicer.Hash(key)
       let subKey = key
-      let entered = enterLockIf this.SyncRoot this.IsSynchronized
       try
         let c = comparer.Compare(hash, prevHash)
         if c = 0 && prevBucketIsSet then
@@ -145,9 +145,9 @@ type SortedChunkedMap<'K,'V>
       finally
           exitLockIf this.SyncRoot entered
     and set key value =
+      let entered = enterLockIf this.SyncRoot this.IsSynchronized
       let hash = slicer.Hash(key)
       let subKey = key
-      let entered = enterLockIf this.SyncRoot this.IsSynchronized
       try
         let c = comparer.Compare(hash, prevHash)
         if c = 0 && prevBucketIsSet then // avoid generic equality and null compare
@@ -171,7 +171,7 @@ type SortedChunkedMap<'K,'V>
               // outerMap.Count could be VERY slow, do not do this
               let averageSize = 4L //try size / (int64 outerMap.Count) with | _ -> 4L // 4L in default
               let newSm = SortedMap(int averageSize, comparer)
-              //outerMap.[hash] <- newSm do not store on every update, 
+              outerMap.[hash] <- newSm
               newSm
           let s1 = bucket.size
           bucket.[subKey] <- value
@@ -502,9 +502,9 @@ type SortedChunkedMap<'K,'V>
       false
 
   member this.Add(key, value):unit =
+    let entered = enterLockIf this.SyncRoot this.IsSynchronized
     let hash = slicer.Hash(key)
     let subKey = key
-    let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
       // the most common scenario is to hit the previous bucket 
       if prevBucketIsSet && comparer.Compare(hash, prevHash) = 0 then
