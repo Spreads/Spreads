@@ -20,12 +20,12 @@ namespace Spreads.Persistence {
         /// <summary>
         /// 
         /// </summary>
-        IPersistentOrderedMap<K, V> WriteSeries<K, V>(string seriesId);
+        Task<IPersistentOrderedMap<K, V>> WriteSeries<K, V>(string seriesId);
 
         /// <summary>
         /// Read-only series
         /// </summary>
-        ISeries<K, V> ReadSeries<K, V>(string seriesId);
+        Task<ISeries<K, V>> ReadSeries<K, V>(string seriesId);
     }
 
 
@@ -44,7 +44,7 @@ namespace Spreads.Persistence {
         private readonly Dictionary<string, WeakReference<ICommandConsumer>> _series =
             new Dictionary<string, WeakReference<ICommandConsumer>>();
 
-        private readonly Dictionary<string, bool> _seriesWaiting = new Dictionary<string, bool>();
+        private readonly Dictionary<string, TaskCompletionSource<bool>> _seriesWaiting = new Dictionary<string, TaskCompletionSource<bool>>();
         private readonly Dictionary<string, Queue<BaseCommand>> _seriesCommandBuffer = new Dictionary<string, Queue<BaseCommand>>();
 
 
@@ -62,7 +62,7 @@ namespace Spreads.Persistence {
             lock (queue) {
 
                 // not waiting anymore
-                if (_seriesWaiting[command.SeriesId] == false) {
+                if (_seriesWaiting[command.SeriesId].Task.IsCompleted) {
                     var seriesId = command.SeriesId;
                     if (!_series.ContainsKey(seriesId)) return;
                     ICommandConsumer consumer;
@@ -80,11 +80,9 @@ namespace Spreads.Persistence {
             var completeCommand = command as CompleteCommand;
             if (completeCommand != null) {
                 var queue = _seriesCommandBuffer[command.SeriesId];
-                lock (queue)
-                {
+                lock (queue) {
                     // TODO! consume buffer
-                    while (queue.Count > 0)
-                    {
+                    while (queue.Count > 0) {
                         var cmd = queue.Dequeue();
                         var seriesId2 = cmd.SeriesId;
                         if (!_series.ContainsKey(seriesId2)) return;
@@ -93,7 +91,7 @@ namespace Spreads.Persistence {
                             consumer2.ApplyCommand(cmd, true);
                         }
                     }
-                    _seriesWaiting[command.SeriesId] = false;
+                    _seriesWaiting[command.SeriesId].SetResult(true);
                 }
                 return;
             }
@@ -109,41 +107,48 @@ namespace Spreads.Persistence {
         // version 0.0.0.0.1-draft
         // subscribe must wait for response, by that time 
 
-        private IPersistentOrderedMap<K, V> GetSeries<K, V>(string seriesId, bool writable = false) {
-            seriesId = seriesId.ToLowerInvariant().Trim();
-
-            var series = new RepositorySeriesWrapper<K, V>(_store.GetPersistentOrderedMap<K, V>(seriesId), _node);
-            if (writable) {
-                // TODO acquire exclusive global write lock
-                _seriesLocks.Add(series, series.SyncRoot); // TODO! Add lock releaser that will send a lock release command in its finalizer
-            }
-            _series.Add(series.Id, new WeakReference<ICommandConsumer>(series));
-
-
-            _seriesWaiting[seriesId] = true;
-            _seriesCommandBuffer[seriesId] = new Queue<BaseCommand>();
-
-            // subscribe to all updates for the series starting from the last available key
-            Task.Run(() => _node.Send(new SubscribeFromCommand()
+        private async Task<IPersistentOrderedMap<K, V>> GetSeries<K, V>(string seriesId, bool writable = false) {
+            var tcs = new TaskCompletionSource<bool>();
+            RepositorySeriesWrapper<K, V> series = null;
+            lock (_seriesLocks)
             {
-                SeriesId = series.Id,
-                FromKeyBytes = Serializer.Serialize<K>(series.IsEmpty ? default(K) : series.Last.Key)
+                seriesId = seriesId.ToLowerInvariant().Trim();
 
-            }));
+                series = new RepositorySeriesWrapper<K, V>(_store.GetPersistentOrderedMap<K, V>(seriesId), _node);
+                if (writable)
+                {
+                    // TODO acquire exclusive global write lock
+                    _seriesLocks.Add(series, series.SyncRoot);
+                        // TODO! Add lock releaser that will send a lock release command in its finalizer
+                }
+                _series.Add(series.Id, new WeakReference<ICommandConsumer>(series));
+
+                
+                _seriesWaiting[seriesId] = tcs;
+                _seriesCommandBuffer[seriesId] = new Queue<BaseCommand>();
+
+                // subscribe to all updates for the series starting from the last available key
+                Task.Run(() => _node.Send(new SubscribeFromCommand()
+                {
+                    SeriesId = series.Id,
+                    FromKeyBytes = Serializer.Serialize<K>(series.IsEmpty ? default(K) : series.Last.Key)
+
+                }));
+            }
+            await tcs.Task;
             return series;
         }
 
-        public IPersistentOrderedMap<K, V> WriteSeries<K, V>(string seriesId) {
-            lock (_seriesLocks) {
-                var writeSeries = GetSeries<K, V>(seriesId, true);
-                return writeSeries;
-            }
+        public async Task<IPersistentOrderedMap<K, V>> WriteSeries<K, V>(string seriesId) {
+            var writeSeries = await GetSeries<K, V>(seriesId, true);
+            return writeSeries;
+
         }
 
-        public ISeries<K, V> ReadSeries<K, V>(string seriesId) {
+        public async Task<ISeries<K, V>> ReadSeries<K, V>(string seriesId) {
             // store returns reference to the same object as in the WriteSeries method above
             // TODO! check if there is any writer to the series and make the series synchronized (or do that always if there is any writer?)
-            var readOnlySeries = _store.GetPersistentOrderedMap<K, V>(seriesId).ReadOnly();
+            var readOnlySeries = (await GetSeries<K, V>(seriesId, false)).ReadOnly();
             return readOnlySeries;
         }
 
@@ -205,6 +210,13 @@ namespace Spreads.Persistence {
                     return;
                 }
 
+                var removeCommand = command as RemoveCommand;
+                if (removeCommand != null) {
+                    var key = Serializer.Deserialize<K>(removeCommand.KeyBytes);
+                    var direction = removeCommand.Direction;
+                    _innerMap.RemoveMany(key, direction);
+                    return;
+                }
             }
 
             public V this[K key] {
@@ -236,7 +248,7 @@ namespace Spreads.Persistence {
                     SerializedSortedMap = Serializer.Serialize(sm)
                 });
                 _semaphore.Release();
-                
+
             }
 
             public void AddFirst(K k, V v) {
@@ -261,7 +273,7 @@ namespace Spreads.Persistence {
                     SerializedSortedMap = Serializer.Serialize(sm)
                 });
                 _semaphore.Release();
-                
+
             }
 
             public int Append(IReadOnlyOrderedMap<K, V> appendMap, AppendOption option) {
@@ -278,19 +290,63 @@ namespace Spreads.Persistence {
             }
 
             public bool Remove(K k) {
-                throw new NotImplementedException();
+                var res = _innerMap.Remove(k);
+                if (res) {
+                    _commandQueue.Enqueue(new RemoveCommand()
+                    {
+                        Version = _innerMap.Version,
+                        SeriesId = _innerMap.Id,
+                        Direction = Lookup.EQ,
+                        KeyBytes = Serializer.Serialize(k)
+                    });
+                    _semaphore.Release();
+                }
+                return res;
             }
 
             public bool RemoveFirst(out KeyValuePair<K, V> value) {
-                throw new NotImplementedException();
+                var res = _innerMap.RemoveFirst(out value);
+                if (res) {
+                    _commandQueue.Enqueue(new RemoveCommand()
+                    {
+                        Version = _innerMap.Version,
+                        SeriesId = _innerMap.Id,
+                        Direction = Lookup.EQ,
+                        KeyBytes = Serializer.Serialize(value.Key)
+                    });
+                    _semaphore.Release();
+                }
+                return res;
             }
 
             public bool RemoveLast(out KeyValuePair<K, V> value) {
-                throw new NotImplementedException();
+                var res = _innerMap.RemoveLast(out value);
+                if (res) {
+                    _commandQueue.Enqueue(new RemoveCommand()
+                    {
+                        Version = _innerMap.Version,
+                        SeriesId = _innerMap.Id,
+                        Direction = Lookup.EQ,
+                        KeyBytes = Serializer.Serialize(value.Key)
+                    });
+                    _semaphore.Release();
+                }
+                return res;
             }
 
             public bool RemoveMany(K k, Lookup direction) {
-                throw new NotImplementedException();
+                var res = _innerMap.RemoveMany(k, direction);
+                if (res) {
+                    _commandQueue.Enqueue(new RemoveCommand()
+                    {
+                        Version = _innerMap.Version,
+                        SeriesId = _innerMap.Id,
+                        Direction = direction,
+                        KeyBytes = Serializer.Serialize(k)
+                    });
+                    _semaphore.Release();
+                }
+                return res;
             }
 
 

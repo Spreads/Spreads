@@ -63,5 +63,40 @@ namespace Spreads.Collections.Tests {
 
         }
 
+        [Test]
+        public void CouldMoveAtGE() {
+            var scm = new SortedMap<int, int>(50);
+            for (int i = 0; i < 100; i++) {
+                scm[i] = i;
+            }
+
+            var cursor = scm.GetCursor();
+
+            cursor.MoveAt(-100, Lookup.GE);
+
+            Assert.AreEqual(0, cursor.CurrentKey);
+            Assert.AreEqual(0, cursor.CurrentValue);
+
+            var shouldBeFalse = cursor.MoveAt(-100, Lookup.LE);
+            Assert.IsFalse(shouldBeFalse);
+
+
+        }
+
+
+        [Test]
+        public void CouldMoveAtLE() {
+            var scm = new SortedMap<long, long>();
+            for (long i = int.MaxValue; i < int.MaxValue*4L; i = i + int.MaxValue) {
+                scm[i] = i;
+            }
+
+            var cursor = scm.GetCursor();
+
+            var shouldBeFalse = cursor.MoveAt(0, Lookup.LE);
+            Assert.IsFalse(shouldBeFalse);
+
+        }
+
     }
 }

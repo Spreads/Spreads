@@ -1,4 +1,10 @@
-#### 0.0.66 - September 28, 2015
+#### 0.0.71 - October 1, 2015
+* Async series repo
+
+#### 0.0.69 - October 1, 2015
+* Fix regular keys bug with int overflow
+
+#### 0.0.68 - September 28, 2015
 * Messaging proof of concept interfaces and simple implementation
 
 #### 0.0.60 - September 17, 2015

@@ -117,7 +117,7 @@ type SortedMap<'K,'V>
     let step = rkGetStep()
     let idxL : int64 = (diff / step)
     let modulo = (diff - step * idxL)
-    let idx = int idxL
+    let idx = idxL
 //    https://msdn.microsoft.com/en-us/library/2cy9f6wb(v=vs.110).aspx
 //    The index of the specified value in the specified array, if value is found.
 //    If value is not found and value is less than one or more elements in array, 
@@ -128,23 +128,23 @@ type SortedMap<'K,'V>
 
     // TODO test it for diff <> step, bug-prone stuff here
     if modulo = 0L then
-      if idx < 0 then
+      if idx < 0L then
         ~~~0 // -1 for searches, insert will take ~~~
-      elif idx >= this.size then
+      elif idx >= int64 this.size then
         ~~~this.size
       else
-        idx
+        int idx // > 0 and < size => always withing int range
 //      elif modIsOk then
 //        idx
 //      else
 //        ~~~(idx+1)
     else
-      if idx <= 0 && diff < 0L then
+      if idx <= 0L && diff < 0L then
         ~~~0 // -1 for searches, insert will take ~~~
-      elif idx >= this.size then
+      elif idx >= int64 this.size then
         ~~~this.size
       else
-        ~~~(idx+1)
+        ~~~((int idx)+1)
 
   let rkMaterialize () =
     let step = rkGetStep()

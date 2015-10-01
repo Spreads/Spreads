@@ -11,34 +11,32 @@ using Spreads.Collections;
 
 namespace Spreads.Collections.Tests {
 
-	[TestFixture]
-	public class SortedChunkedMapTests {
+    [TestFixture]
+    public class SortedChunkedMapTests {
 
 
 
-		[SetUp]
-		public void Init() {
-		}
+        [SetUp]
+        public void Init() {
+        }
 
-		
-		[Test]
-		public void CouldRemoveFirst()
-		{
-		    var scm = new SortedChunkedMap<int, int>(50);
-		    for (int i = 0; i < 100; i++)
-		    {
-		        scm.Add(i, i);
-		    }
 
-		    scm.Remove(50);
+        [Test]
+        public void CouldRemoveFirst() {
+            var scm = new SortedChunkedMap<int, int>(50);
+            for (int i = 0; i < 100; i++) {
+                scm.Add(i, i);
+            }
+
+            scm.Remove(50);
             Assert.AreEqual(50, scm.outerMap.Last.Key);
 
             KeyValuePair<int, int> kvp;
-		    scm.RemoveFirst(out kvp);
-		    Assert.AreEqual(0, kvp.Value);
+            scm.RemoveFirst(out kvp);
+            Assert.AreEqual(0, kvp.Value);
             Assert.AreEqual(1, scm.First.Value);
-		    Assert.AreEqual(0, scm.outerMap.First.Key);
-		}
+            Assert.AreEqual(0, scm.outerMap.First.Key);
+        }
 
         [Test]
         public void CouldSetInsteadOfAddWithCorrectChunks() {
@@ -48,9 +46,27 @@ namespace Spreads.Collections.Tests {
             }
 
             Assert.AreEqual(2, scm.outerMap.Count);
-
-            
         }
+
+
+        [Test]
+        public void CouldMoveAtGE() {
+            var scm = new SortedChunkedMap<int, int>(50);
+            for (int i = 0; i < 100; i++) {
+                scm[i] = i;
+            }
+
+            var cursor = scm.GetCursor();
+
+            cursor.MoveAt(-100, Lookup.GE);
+
+            Assert.AreEqual(0, cursor.CurrentKey);
+            Assert.AreEqual(0, cursor.CurrentValue);
+            var shouldBeFalse = cursor.MoveAt(-100, Lookup.LE);
+            Assert.IsFalse(shouldBeFalse);
+
+        }
+
 
     }
 }

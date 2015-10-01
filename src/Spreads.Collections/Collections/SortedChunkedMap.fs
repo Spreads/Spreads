@@ -37,6 +37,8 @@ type SortedChunkedMap<'K,'V>
   [<NonSerializedAttribute>]
   let mutable prevBucketIsSet  = false
   [<NonSerializedAttribute>]
+  let mutable flushedVersion = 0L
+  [<NonSerializedAttribute>]
   let mutable isSync  = false
   [<NonSerializedAttribute>]
   let chunkUpperLimit : int = 
@@ -209,10 +211,11 @@ type SortedChunkedMap<'K,'V>
   member this.Flush() =
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
-      if prevBucketIsSet then
+      if prevBucketIsSet && flushedVersion <> version then
         //&& outerMap.[prevHash].Version <> prevBucket.Version then
           //prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
           outerMap.[prevHash] <- prevBucket
+          flushedVersion <- version
     finally
       exitLockIf this.SyncRoot entered
 

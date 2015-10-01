@@ -68,6 +68,23 @@ namespace Spreads.Persistence {
         }
     }
 
+    public class LockCommand : BaseCommand {
+        public LockCommand() : base(Command.Complete) {
+
+        }
+    }
+
+    public class RemoveCommand : BaseCommand {
+        public RemoveCommand() : base(Command.Remove) {
+
+        }
+
+        public Lookup Direction { get; set; }
+        /// <summary>
+        /// Bytes representation of a key from which a sender of the message want to subscribe to the SeriesId
+        /// </summary>
+        public byte[] KeyBytes { get; set; }
+    }
 
     public delegate void SeriesCommandHandler(BaseCommand seriesCommand);
 
@@ -142,8 +159,16 @@ namespace Spreads.Persistence {
                         SerializedSortedMap = setBodyBytes
                     };
                 case Command.Remove:
-                    throw new NotImplementedException("TODO");
-                    break;
+                    var direction = (Lookup)br.ReadInt32();
+                    var remKeyLen = br.ReadInt32();
+                    var remKeyBytes = br.ReadBytes(remKeyLen);
+                    return new RemoveCommand
+                    {
+                        Direction = direction,
+                        Version = version,
+                        KeyBytes = remKeyBytes,
+                        SeriesId = seriesid
+                    };
                 case Command.Append:
                     var appendOption = (AppendOption) br.ReadByte();
                     var appendBodyLen = br.ReadInt32();
@@ -223,7 +248,11 @@ namespace Spreads.Persistence {
                     break;
 
                 case Command.Remove:
-                    throw new NotImplementedException("TODO");
+                    var remove = command as RemoveCommand;
+                    Trace.Assert(remove != null);
+                    bw.Write((int) remove.Direction);
+                    bw.Write(remove.KeyBytes.Length);
+                    bw.Write(remove.KeyBytes);
                     break;
 
                 case Command.Append:
