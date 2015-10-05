@@ -110,9 +110,9 @@ namespace Spreads {
             }
         }
 
-        public override bool TryUpdateStatePrevious(KeyValuePair<K, double> next, ref double value) {
-            throw new NotImplementedException("TODO! implement this");
-        }
+        //public override bool TryUpdateStatePrevious(KeyValuePair<K, double> next, ref double value) {
+        //    throw new NotImplementedException("TODO! implement this");
+        //}
 
         public override ICursor<K, double> Clone() {
             var clone = new SimpleMovingAverageCursor<K>(_cursorFactory, _period, _allowIncomplete);

@@ -49,6 +49,9 @@ type SortedChunkedMap<'K,'V>
   // TODO (very low) replace outer with MapDeque, see comments in MapDeque.fs
   let outerMap = outerFactory(comparer)
   let mutable id = String.Empty
+  
+  [<NonSerializedAttribute>]
+  let updateEvent = new Internals.EventV2<UpdateHandler<'K,'V>,KVP<'K,'V>>()
 
   [<NonSerializedAttribute>]
   let slicer : IKeySlicer<'K> = 
@@ -790,6 +793,9 @@ type SortedChunkedMap<'K,'V>
   member this.Id with get() = id and internal set(newid) = id <- newid
 
   //#region Interfaces
+  interface IUpdateable<'K,'V> with
+    [<CLIEvent>]
+    member x.OnData = updateEvent.Publish
 
   interface IEnumerable with
     member this.GetEnumerator() = this.GetCursor() :> IEnumerator

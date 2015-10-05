@@ -257,15 +257,11 @@ namespace Spreads.Collections.Tests {
                 Assert.AreEqual(set.Sum(), sd.Sum());
                 var c = 0;
                 var prev = 0;
-                foreach (var e in sd)
-                {
-                    if (c == 0)
-                    {
+                foreach (var e in sd) {
+                    if (c == 0) {
                         c++;
                         prev = e;
-                    }
-                    else
-                    {
+                    } else {
                         Assert.IsTrue(e > prev);
                         prev = e;
                     }
@@ -321,17 +317,52 @@ namespace Spreads.Collections.Tests {
             }
         }
 
+
         [Test]
-        public void CouldCompareDatesManyTimes()
-        {
+        public void AddSequentialTest() {
+            var sd = new SortedDeque<int>();
+            for (var r = 0; r < 1000; r++) {
+                sd.Add(r);
+            }
+        }
+
+
+        [Test]
+        public void AddReverseSequentialTest() {
+            var sd = new SortedDeque<int>();
+            for (var r = 1000; r >= 0; r--) {
+                sd.Add(r);
+            }
+        }
+
+        [Test]
+        public void AddDatesTest() {
+            var sd = new SortedDeque<DateTime>();
+            DateTime dt;
+
+            dt = DateTime.Parse("10 / 2 / 2015 10:29:00 PM");
+            sd.Add(dt);
+            dt = DateTime.Parse("10 / 2 / 2015 2:06:00 PM");
+            sd.Add(dt);
+            dt = DateTime.Parse("10 / 1 / 2015 11:30:00 PM");
+            sd.Add(dt);
+            dt = DateTime.Parse("10 / 2 / 2015 10:30:00 PM");
+            sd.Add(dt);
+            dt = DateTime.Parse("10 / 1 / 2015 11:31:00 PM");
+            sd.Add(dt);
+            dt = DateTime.Parse("10 / 2 / 2015 2:07:00 PM");
+            sd.Add(dt);
+            Assert.AreEqual(6, sd.Count);
+        }
+
+        [Test]
+        public void CouldCompareDatesManyTimes() {
             var sw = new System.Diagnostics.Stopwatch();
             sw.Start();
             var now = DateTime.UtcNow;
             var later = DateTime.UtcNow.AddSeconds(1.0);
-            for (int i = 0; i < 100000000; i++)
-            {
-                if (now > later)
-                {
+            for (int i = 0; i < 100000000; i++) {
+                if (now > later) {
                     throw new ApplicationException("no way");
                 }
                 //later = later.AddTicks(1);
@@ -343,4 +374,4 @@ namespace Spreads.Collections.Tests {
 
 
     }
-    }
+}

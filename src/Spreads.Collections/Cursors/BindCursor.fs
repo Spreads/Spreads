@@ -467,7 +467,8 @@ type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
   //abstract TryUpdateStateNextAsync: next:KVP<'K,'V> * value: byref<'State> -> Task<bool>
   /// Updates state with previous value of input
   abstract TryUpdateStatePrevious: next:KVP<'K,'V> * value: byref<'State> -> bool
-    
+  override this.TryUpdateStatePrevious(next, [<Out>] value) = this.TryCreateState(next.Key, &value)
+
   abstract TryUpdateNextBatch: nextBatch: IReadOnlyOrderedMap<'K,'V> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>> -> bool  
   override this.TryUpdateNextBatch(nextBatch: IReadOnlyOrderedMap<'K,'V>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>>) : bool =
 //      let mutable batchState = Unchecked.defaultof<'State>
@@ -681,7 +682,7 @@ type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
         else
           let! moved' = this.InputCursor.MoveNext(cancellationToken)
           moved <- moved'
-        while not found && moved do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
+        while not found && moved do
           let ok = this.TryUpdateStateNext(this.InputCursor.Current, &state)
           if ok then
             found <- true
@@ -701,7 +702,7 @@ type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
         else
           let! moved' = this.InputCursor.MoveNext(cancellationToken)
           moved <- moved'
-        while not found && moved do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
+        while not found && moved do
           let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
           if ok then
             found <- true

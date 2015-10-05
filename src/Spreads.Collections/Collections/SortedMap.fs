@@ -96,7 +96,7 @@ type SortedMap<'K,'V>
   let syncRoot = new Object()
   [<NonSerializedAttribute>]
   let mutable mapKey = ""
-
+  [<NonSerializedAttribute>]
   let updateEvent = new Internals.EventV2<UpdateHandler<'K,'V>,KVP<'K,'V>>()
 
   // helper functions
@@ -685,7 +685,7 @@ type SortedMap<'K,'V>
           this.keys.[1] <- (diffCalc.Add(this.keys.[0], rkGetStep())) // add step to the new first value
         elif index = newSize then 
           rkLast <- diffCalc.Add(this.keys.[0], (int64 (newSize-1))*rkGetStep()) // removing last, only size--
-        else 
+        else
           // removing within range, creating a hole
           this.keys <- rkMaterialize() 
           couldHaveRegularKeys <- false
