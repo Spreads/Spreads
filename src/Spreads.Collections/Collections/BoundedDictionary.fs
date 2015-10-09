@@ -6,7 +6,7 @@ open System.Collections.Concurrent
 
 open Spreads
 
-[<ObsoleteAttribute("Prefer sorted double deque?")>]
+[<ObsoleteAttribute("Not used now")>]
 type internal BoundedDictionary<'K,'V when 'K : equality>
     (capacity:int) =
 

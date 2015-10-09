@@ -50,7 +50,7 @@ type CircularCalculations(state:IOrderedMap<DateTime, float>) = // state is take
     let smaSm = sma.ToSortedMap()
     let signal = data / sma - 1.0
     let signalSm = signal.ToSortedMap()
-    let func = Func<float,float,float>(fun sgn st -> 
+    let func = Func<DateTime,float,float,float>(fun _ sgn st -> 
         if sgn > 0.0 then
           st - 1.0
         elif sgn < 0.0 then

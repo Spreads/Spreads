@@ -699,13 +699,13 @@ module CollectionsBenchmarks =
           ()
       )
 
-    for i in 0..9 do
-      perf count "SMR Iterate as RO+Log" (fun _ ->
-        let ro = smap.Value.ReadOnly().Log() :> IReadOnlyOrderedMap<int64,double>
-        for i in ro do
-          let res = i.Value
-          ()
-      )
+//    for i in 0..9 do
+//      perf count "SMR Iterate as RO+Log" (fun _ ->
+//        let ro = smap.Value.ReadOnly().Log() :> IReadOnlyOrderedMap<int64,double>
+//        for i in ro do
+//          let res = i.Value
+//          ()
+//      )
 
     for i in 0..9 do
       perf count "SortedMapRegular Iterate with load" (fun _ ->
@@ -1070,7 +1070,8 @@ module CollectionsBenchmarks =
 //    DeedleDeque_run()
 
 //    Console.WriteLine("MAPS")
-//    DeedleSeries_run()
+    DeedleSeries_run()
+    DeedleSeries_run()
 //    FSXHashMap_run()
 //    IntMap64_run()
 //    MapTree_run()
@@ -1081,7 +1082,7 @@ module CollectionsBenchmarks =
     SortedMap_run()
 //    SortedMapPeriod_run()
 //    SortedMapDT_run()
-///    SortedMapRegular_run()
+    SortedMapRegular_run()
     //MapDeque_run() // bugs!
     //SHM_run()
     SCM_run()

@@ -434,4 +434,29 @@ let instance = MyRecType()
 
 instance.DoWork2().Result
 
-      
+//      
+//let ser1 = Series<DateTime,'V1>()
+//let ser2 = Series<DateTime,'V2>()
+//
+//type ValueTuple2<'V1,'V2> =
+//  struct
+//    val Value1 : 'V1
+//    val Value2 : 'V2
+//    new(v1 : 'V1, v2 : 'V2) = {Value1 = v1; Value2 = v2}
+//  end
+//
+//type ValueTuple3<'V1,'V2,'V3> =
+//  struct
+//    val Value1 : 'V1
+//    val Value2 : 'V2
+//    val Value3 : 'V3
+//    new(v1 : 'V1, v2 : 'V2) = {Value1 = v1; Value2 = v2}
+//  end
+//
+//
+//ser1.Map(fun x -> ValueType2(x, Unchecked.defaultof<_>))
+//ser2.Map(fun x -> ValueType2(Unchecked.defaultof<_>, x))
+//
+//let originalLambda = fun (x:'V1) (y:'V2) -> failwith "todo"
+//let f tuppleArr = failwith ""
+//let fakeLambda (tuppleArr:ValueTuple2<'V1,'V2>[]) = originalLambda tuppleArr.[0].Value1 tuppleArr.[1].Value2 

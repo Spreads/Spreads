@@ -6,13 +6,7 @@ open System.Threading
 open System.Collections.Concurrent
 open System.Threading.Tasks
 
-
-
-// TODO Generic buffer pool with dummy implementation just via GC
-// Must have standard lengths, e.g. powers of two, and limit number of objects of any length
-// to number of cores or to 2 and use thread-local storage
-
-
+[<ObsoleteAttribute("Not used now")>]
 type ObjectPool<'T>(objectGenerator:Func<'T>, maxCapacity:int) =
   // in steady state the number of objects could be much higher than 
   // capacity, but at each moment the number of object inside the buffer 

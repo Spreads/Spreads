@@ -11,7 +11,6 @@ open System.Diagnostics
 open System.Runtime.InteropServices
 
 open Spreads
-open Spreads.Collections
 
 [<SerializableAttribute>]
 [<AbstractClassAttribute>]

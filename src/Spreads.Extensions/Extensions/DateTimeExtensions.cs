@@ -65,6 +65,7 @@ namespace Spreads
             if (!_normalizer.TryGetValue(tzTo.ToLowerInvariant(), out tz)) {
                 tz = tzTo;
             }
+            //TODO!implement this
             //tz = tz.ToLowerInvariant();
             if (tz.ToLowerInvariant() == "utc") {
                 if (utcDateTime.Kind == DateTimeKind.Local) throw new ArgumentException("Cannot treat local time as Utc, please specify kind = Utc or Uncpecified");

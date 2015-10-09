@@ -81,10 +81,6 @@ type SeriesExtensions () =
     static member inline Add(source: ISeries<'K,int64>, addition:int64) : Series<'K,int64> = 
       CursorSeries(fun _ -> new AddInt64Cursor<'K>(Func<ICursor<'K,int64>>(source.GetCursor),addition) :> ICursor<'K,int64>) :> Series<'K,int64>
 
-    [<Extension>]
-    static member inline Log(source: ISeries<'K,int64>) : Series<'K,double> = 
-      CursorSeries(fun _ -> new LogCursor<'K>(Func<ICursor<'K,int64>>(source.GetCursor)) :> ICursor<'K,double>) :> Series<'K,double>
-
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
     [<Extension>]
     // inline
@@ -97,6 +93,7 @@ type SeriesExtensions () =
         //sm.AddLast(kvp.Key, kvp.Value)
         sm.AddLast(c.CurrentKey, c.CurrentValue)
       sm
+
 
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
     [<Extension>]
@@ -143,14 +140,16 @@ type SeriesExtensions () =
     static member inline Before(source: ISeries<'K,'V>, endKey:'K, lookup:Lookup) : Series<'K,'V> = 
       CursorSeries(fun _ -> new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), None, Some(endKey), None, Some(Lookup.GT)) :> ICursor<'K,'V>) :> Series<'K,'V>
     
+
     [<Extension>]
-    static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V2>, mapFunc:Func<'V,'V2,'R>) : Series<'K,'R> =
+    static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V2>, mapFunc:Func<'K,'V,'V2,'R>) : Series<'K,'R> =
       // TODO! check this type stuff
       if typeof<'V> = typeof<'V2> then
         let mapFunc2 = (box mapFunc) :?> Func<'V,'V,'R>
         CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(Func<'K,'V[],'R>(fun _ varr -> mapFunc2.Invoke(varr.[0], varr.[1])), [|source;(box other) :?> ISeries<'K,'V>|] |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
       else
-        CursorSeries(fun _ -> new ZipValuesCursor<'K,'V,'V2,'R>(Func<ICursor<'K,'V>>(source.GetCursor), Func<ICursor<'K,'V2>>(other.GetCursor), mapFunc) :> ICursor<'K,'R>) :> Series<'K,'R>
+        CursorSeries(fun _ -> new Zip2Cursor<'K,'V,'V2,'R>(Func<ICursor<'K,'V>>(source.GetCursor), Func<ICursor<'K,'V2>>(other.GetCursor), mapFunc) :> ICursor<'K,'R>) :> Series<'K,'R>
+
 
     [<Extension>]
     static member inline Zip<'K,'V,'R when 'K : comparison>(series: Series<'K,'V> array, resultSelector:Func<'K,'V[],'R>) =
@@ -159,15 +158,6 @@ type SeriesExtensions () =
     [<Extension>]
     static member inline Zip<'K,'V,'R when 'K : comparison>(series: ISeries<'K,'V> array, resultSelector:Func<'K,'V[],'R>) =
       CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(resultSelector, series |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
-
-//    [<Extension>]
-//    static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V>, mapFunc:Func<'V,'V,'R>) : Series<'K,'R> =
-//      CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(Func<'K,'V[],'R>(fun _ varr -> mapFunc.Invoke(varr.[0], varr.[1])), [|source;other|] |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
-
-
-//    [<Extension>]
-//    static member inline Zip(source: ISeries<'K,'V>, resultSelector:Func<'K,'V[],'R>, [<ParamArray>] otherSeries: ISeries<'K,'V> array) : Series<'K,'R> =
-//      CursorSeries(fun _ -> new ZipValuesCursor<'K,'V,'V2,'R>(Func<ICursor<'K,'V>>(source.GetCursor), Func<ICursor<'K,'V2>>(other.GetCursor), mapFunc) :> ICursor<'K,'R>) :> Series<'K,'R>
 
 
 // TODO generators

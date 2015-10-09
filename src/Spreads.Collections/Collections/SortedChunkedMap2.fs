@@ -13,7 +13,6 @@ open System.Diagnostics
 open Spreads
 open Spreads.Collections
 
-// TODO this is code duplication with SCM, either obsolete one of them or synchronize carefully
 // TODO ensure that on every prevBucket change we check its version and 
 // set to outer if versions differ
 // TODO subscribe to update events on prevBucket and Flush at least every second
@@ -21,6 +20,7 @@ open Spreads.Collections
 
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
+[<ObsoleteAttribute("TODO! this is code duplication with SCM, either obsolete one of them or synchronize carefully")>]
 type internal SortedChunkedMap2<'K,'V>
   internal (outerFactory:IComparer<'K>->IOrderedMap<'K, IOrderedMap<'K,'V>>,
             innerFactory:IComparer<'K>->IOrderedMap<'K,'V>, 

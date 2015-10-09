@@ -68,13 +68,13 @@
     <Compile Include="Common\Types.fs" />
     <Compile Include="Common\Enums.fs" />
     <Compile Include="Common\FastEvents.fs" />
+    <Compile Include="Common\Operators.fs" />
     <Compile Include="Common\OptionalValue.fs" />
     <Compile Include="Common\ObjectPool.fs" />
     <Compile Include="Common\Utils.fs" />
+    <Compile Include="Common\Deque.fs" />
     <Compile Include="Common\SortedDeque.fs" />
-    <Compile Include="..\..\..\..\..\Period\src\Period\Period.fs">
-      <Link>Common\Period.fs</Link>
-    </Compile>
+    <Compile Include="Common\FixedMinHeap.fs" />
     <Compile Include="Common\Exceptions.fs" />
     <Compile Include="Interfaces.fs" />
     <Compile Include="MathProvider.fs" />
@@ -89,16 +89,13 @@
     <Compile Include="Collections\ImmutableIntConvertibleMap.fs" />
     <Compile Include="Collections\ImmutableSortedMap.fs" />
     <Compile Include="Collections\MutableWrapper.fs" />
-    <Compile Include="Collections\SortedDeque.Orig.fs" />
     <Compile Include="Collections\MapDeque.Obsolete.fs" />
     <Compile Include="Collections\DequeMap.fs" />
-    <Compile Include="Collections\FixedMinHeap.fs" />
     <Compile Include="Collections\SortedMap.Obsolete.fs" />
     <Compile Include="Collections\IndexedMap.Obsolete.fs" />
-    <Compile Include="Collections\MiscInterfaces.fs" />
-    <Compile Include="Collections\Heap.fsi" />
-    <Compile Include="Collections\Heap.fs" />
-    <Compile Include="Collections\Deque.fs" />
+    <Compile Include="Collections\MiscInterfaces.Obsolete.fs" />
+    <Compile Include="Collections\Heap.Obsolete.fsi" />
+    <Compile Include="Collections\Heap.Obsolete.fs" />
     <Compile Include="Collections\IndexedMap.fs" />
     <Compile Include="Collections\SortedMap.fs" />
     <Compile Include="Collections\SortedHashMap.Obsolete.fs" />
@@ -117,15 +114,13 @@
     <Compile Include="Panel.fs" />
     <Compile Include="MathProviderImpl.fs" />
     <Compile Include="Spreads.Series.2.fs" />
-    <Compile Include="Cell.fs" />
     <None Include="Script1.fsx" />
-    <Content Include="packages.config" />
-    <Compile Include="SortedPanel.fs" />
     <Compile Include="Circular.fs" />
+    <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">
-      <HintPath>..\..\packages\FSharp.Core.4.0.0.1\lib\net40\FSharp.Core.dll</HintPath>
+      <HintPath>..\..\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="FSharp.Data.TypeProviders" />

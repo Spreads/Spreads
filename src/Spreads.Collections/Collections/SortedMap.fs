@@ -38,7 +38,7 @@ open Spreads.Collections
 
 
 
-/// Mutable sorted IOrderedMap<'K,'V> implementation based on SCG.SortedList<'K,'V>
+/// Mutable sorted IOrderedMap<'K,'V> implementation based similar to SCG.SortedList<'K,'V>
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
 type SortedMap<'K,'V>
@@ -666,7 +666,7 @@ type SortedMap<'K,'V>
         this.Insert(0, key, value)
       else
         let c = this.CompareToFirst key
-        if c = -1 then
+        if c < 0 then
             this.Insert(0, key, value)
         else raise (ArgumentOutOfRangeException("SortedMap.AddLast: New key is larger or equal to the smallest existing key"))
     finally
@@ -788,7 +788,7 @@ type SortedMap<'K,'V>
         | Lookup.GT | Lookup.GE ->
           if pivotIndex = -2 then // pivot is not here but to the right, keep all elements
             false
-          elif pivotIndex >=0 then // remove elements above and including pivot
+          elif pivotIndex >= 0 then // remove elements above and including pivot
             this.size <- pivotIndex
             if couldHaveRegularKeys then
               if this.size > 1 then
@@ -992,7 +992,7 @@ type SortedMap<'K,'V>
   // for foreach optimization
   //member this.GetEnumerator() = new SortedMapCursor<'K,'V>(-1, this.version, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>, this)
   // TODO(?) replace with a mutable struct, like in SCG.SortedList<T>, there are too many virtual calls and reference cells in the most critical paths like MoveNext
-  // NB Object expression with ref cells are surprisingly fast insteads of custom class
+  // NB Object expression with ref cells are surprisingly fast insteads of custom class or even a struct
   member internal this.GetCursor(index:int,cursorVersion:int,currentKey:'K, currentValue:'V) =
     //SortedMapCursor(this, index, cursorVersion, currentKey, currentValue) :> ICursor<'K,'V>
     let index = ref index
@@ -1003,7 +1003,7 @@ type SortedMap<'K,'V>
 
     let observerStarted = ref false
     // NB prefer struct to TCS class, but performance is very close
-    let mutable tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()) // (TaskCompletionSource<bool>())
+    let mutable tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()) // (TaskCompletionSource<bool>()) // TODO? actually in some other place TCS was noticably faster, use it instead
     let cancellationToken = ref CancellationToken.None
     let sr = Object()
     let semaphore = new SemaphoreSlim(0,Int32.MaxValue)
@@ -1082,7 +1082,7 @@ type SortedMap<'K,'V>
               // TODO use interlocked.exchange or whatever to not allocate new one every time, if we return Task.FromResult(true) below
               // interlocked.exchange does not short-circuit and allocates value each time
               // Interlocked.CompareExchange(tcs, TaskCompletionSource(), null) |> ignore
-              // NB lock is good enough instead of volatile read + interlocked, cannot test visible difference
+              // NB lock is good enough for now instead of volatile read + interlocked, cannot test visible difference
               lock(sr) (fun _ ->
                   if tcs = Unchecked.defaultof<_>  then
                     tcs <- Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create() // new TaskCompletionSource<bool>() //
@@ -1206,7 +1206,7 @@ type SortedMap<'K,'V>
             if cursorVersion.Value = orderVersion then
               if index.Value < (this.size - 1) then
                 index := !index + 1
-                // ACHTUNG! regular keys were supposed to speed up things, not to slow down by 50%!
+                // ACHTUNG! regular keys were supposed to speed up things, not to slow down by 50%! 
                 currentKey := 
                   //this.GetKeyByIndex(index.Value)
 //                  if cursorrkstep = 0L then
@@ -1250,148 +1250,6 @@ type SortedMap<'K,'V>
               (this :> IUpdateable<'K,'V>).OnData.RemoveHandler(updateHandler)
           )
     }
-
-
-  member internal this.GetCursor2(index:int,cursorVersion:int,currentKey:'K, currentValue:'V) =
-    //SortedMapCursor(this, index, cursorVersion, currentKey, currentValue) :> ICursor<'K,'V>
-    let index = ref index
-    let cursorVersion = ref cursorVersion
-    let currentKey : 'K ref = ref currentKey
-    let currentValue : 'V ref = ref currentValue
-    let isBatch = ref false
-    { 
-    new BaseCursor<'K,'V>(this) with
-      override this.IsContinuous with get() = false
-      override p.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
-        if !isBatch && !index = this.size - 1 then
-          this :> IReadOnlyOrderedMap<'K,'V>
-        else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
-      override p.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> =
-        if !index = -1 then 
-          index := this.size - 1 // at the last element of the batch
-          currentKey := this.GetKeyByIndex(index.Value)
-          currentValue := this.values.[!index]
-          isBatch := true
-          Task.FromResult(true)
-        else Task.FromResult(false)
-      override p.IsBatch with get() = !isBatch
-      override p.Clone() = this.GetCursor(!index,!cursorVersion, p.CurrentKey, p.CurrentValue) //!currentKey,!currentValue)
-      override p.Current with get() = KeyValuePair(p.CurrentKey, p.CurrentValue) // currentKey.Value, currentValue.Value)
-      override p.MoveNext() = 
-        let entered = enterLockIf syncRoot isSynchronized
-        try
-//          if index.Value = -1 then p.MoveFirst() // first move when index = -1
-//          el
-          if cursorVersion.Value = orderVersion then
-            if index.Value < (this.size - 1) then
-              index := !index + 1
-              currentKey := 
-                //this.GetKeyByIndex(index.Value)
-                if couldHaveRegularKeys && this.size > 1 then 
-                  rkKeyAtIndex index.Value
-                else
-                  this.keys.[index.Value]
-              currentValue := this.values.[!index]
-              true
-            else
-              //p.Reset() // NB! Do not reset cursor on false MoveNext
-              false
-          else  // source change
-            cursorVersion := orderVersion // update state to new this.version
-            let position, kvp = this.TryFindWithIndex(p.CurrentKey, Lookup.GT) // reposition cursor after source change //currentKey.Value
-            if position > 0 then
-              index := position
-              currentKey := kvp.Key
-              currentValue := kvp.Value
-              true
-            else  // not found
-              //p.Reset() // NB! Do not reset cursor on false MoveNext
-              false
-        finally
-          exitLockIf syncRoot entered
-
-      override p.MovePrevious() = 
-        let entered = enterLockIf syncRoot  isSynchronized
-        try
-          if index.Value = -1 then p.MoveLast()  // first move when index = -1
-          elif cursorVersion.Value = orderVersion then
-            if index.Value > 0 && index.Value < this.size then
-              index := index.Value - 1
-              currentKey := this.GetKeyByIndex(index.Value)
-              currentValue := this.values.[index.Value]
-              true
-            else
-              p.Reset()
-              false
-          else
-            cursorVersion := orderVersion // update state to new this.version
-            let position, kvp = this.TryFindWithIndex(p.CurrentKey, Lookup.LT) //currentKey.Value
-            if position > 0 then
-              index := position
-              currentKey := kvp.Key
-              currentValue := kvp.Value
-              true
-            else  // not found
-              p.Reset()
-              false
-        finally
-          exitLockIf syncRoot entered
-
-      override p.MoveAt(key:'K, lookup:Lookup) = 
-        let entered = enterLockIf syncRoot  isSynchronized
-        try
-          let position, kvp = this.TryFindWithIndex(key, lookup)
-          if position >= 0 then
-            index := position
-            currentKey := kvp.Key
-            currentValue := kvp.Value
-            true
-          else
-            p.Reset()
-            false
-        finally
-          exitLockIf syncRoot entered
-
-      override p.MoveFirst() = 
-        let entered = enterLockIf syncRoot  isSynchronized
-        try
-          if this.size > 0 then
-            index := 0
-            currentKey := this.GetKeyByIndex(index.Value)
-            currentValue := this.values.[index.Value]
-            true
-          else
-            p.Reset()
-            false
-        finally
-          exitLockIf syncRoot entered
-
-      override p.MoveLast() = 
-        let entered = enterLockIf syncRoot  isSynchronized
-        try
-          if this.size > 0 then
-            index := this.size - 1
-            currentKey := this.GetKeyByIndex(index.Value)
-            currentValue := this.values.[index.Value]
-            true
-          else
-            p.Reset()
-            false
-        finally
-          exitLockIf syncRoot entered
-
-      override p.CurrentKey with get() = currentKey.Value //if index.Value >= 0 then this.GetKeyByIndex(index.Value) else Unchecked.defaultof<'K> //currentKey.Value
-
-      override p.CurrentValue with get() = currentValue.Value //if index.Value >= 0 then this.values.[index.Value] else Unchecked.defaultof<'V> //currentValue.Value
-
-      override p.Reset() = 
-        cursorVersion := orderVersion // update state to new this.version
-        index := -1
-        currentKey := Unchecked.defaultof<'K>
-        currentValue := Unchecked.defaultof<'V>
-
-      override p.Dispose() = p.Reset()
-    } :> ICursor<'K,'V>
 
   /// Make the capacity equal to the size
   member this.TrimExcess() = this.Capacity <- this.size
@@ -1454,7 +1312,7 @@ type SortedMap<'K,'V>
   interface IReadOnlyOrderedMap<'K,'V> with
     member this.Comparer with get() = this.Comparer
     member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
-    member this.GetCursor() = this.GetCursor() :> ICursor<'K,'V>
+    member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.size = 0
     member this.IsIndexed with get() = false
     member this.IsMutable with get() = this.IsMutable

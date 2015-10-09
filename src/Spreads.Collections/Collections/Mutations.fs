@@ -13,6 +13,9 @@ open Spreads
 open Spreads.Collections
 
 
+// TODO this is experimental. Should model mutations as interfaces because they go on wire and could be implemented in any way, from ZMP to SBE to custom binary writer
+
+
 
 type SetMutation<'K,'V> =
   struct

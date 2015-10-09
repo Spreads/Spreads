@@ -15,7 +15,7 @@
 // Spreads combined several files from https://github.com/fsprojects/FSharpx.Collections/
 
 
-namespace Spreads.Collections
+namespace Spreads.Collections.Obsolete  // DO NOT use pure functional data structures where versioning/structural sharing is not really used, they are too slow
 
 open System.Collections
 open System.Collections.Generic

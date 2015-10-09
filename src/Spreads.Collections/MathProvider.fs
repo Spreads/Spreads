@@ -26,7 +26,7 @@ type internal OptimizationSettings() =
   /// Default chunk length of SortedChunkedMap
   static member val SCMDefaultChunkLength = 4096 with get, set
   /// Generic array pool implementation. Default is GC.
-  /// The extension project has an implementation for doubles, and the perf gain is quite visible in benchmarks.
+  /// The extension project has an implementation for doubles, and the performance gain is quite visible in benchmarks.
   static member val ArrayPool = 
     {new IArrayPool with
         member x.ReturnBuffer(arg1: 'T []): unit = ()       

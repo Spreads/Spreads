@@ -34,8 +34,7 @@ type IAsyncEnumerable<'T> =
 // be either mutable or immutable
 // Series have a single member that is enough to implement all other inherited interfaces
 
-/// Main interface for data series. Modeled after IAsyncEnumerable from Ix.NET with advanced enumerator that could 
-/// move not only to next values, but to next batches, previous, first, last and a custom excat or relative (LT/LE/GT/GE) position.
+/// Main interface for data series.
 [<Interface>]
 [<AllowNullLiteral>]
 type ISeries<'K,'V> =
@@ -51,10 +50,6 @@ type ISeries<'K,'V> =
   abstract IsMutable: bool with get
   /// Locks any mutations for mutable implementations
   abstract SyncRoot : obj with get
-  // TODO make an extension method with parameter (subsribe = false). If subscribe = true, the resulting sorted map will be updated 
-  // in background with each new value of the source
-  /// Evaluate lazy series. Similar to IEnumerable.ToArray()/ToList() extension methods.
-  //abstract ToMapAsync : cancellationToken:CancellationToken -> Task<IReadOnlyOrderedMap<'K,'V>>
 
 /// ICursor is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
 /// positions and relative LT/LE/GT/GE moves.
@@ -142,7 +137,7 @@ and
   [<AllowNullLiteral>]
   IReadOnlyOrderedMap<'K,'V> =
     inherit ISeries<'K,'V>
-    //inherit IReadOnlyDictionary<'K,'V>
+    //inherit IReadOnlyDictionary<'K,'V> // TODO (low) later we should implement all .NET family of generic interfaces from ICollection to IDictionary
     /// True if this.size = 0
     abstract IsEmpty: bool with get
     abstract Comparer: IComparer<'K> with get
@@ -213,7 +208,7 @@ type IOrderedMap<'K,'V> =
   /// And values from appendMap to the end of this map
   abstract Append: appendMap:IReadOnlyOrderedMap<'K,'V> * option:AppendOption -> int // TODO int, bool option for ignoreEqualOverlap, or Enum with 1: thow, 2: ignoreEqual, 3: rewriteOld, 4: ignoreNew (nonsense option, should not do, the first 3 are good)
 
-/// `Flush` has a standard meaning, e.g. as in Stream, and saves all changes. `Dispose` calls `Flush`. `Id` is unique.
+/// `Flush` has a standard meaning, e.g. as in Stream, and saves all changes. `Dispose` calls `Flush`. `Id` is globally unique.
 [<Interface>]
 [<AllowNullLiteral>]
 type IPersistentOrderedMap<'K,'V> =
@@ -325,7 +320,7 @@ type IArrayPool =
   /// Clear the entire pool
   abstract Clear: unit -> unit
 
-
+// TODO! use ArraySegment instead of byte[] everywhere where byte[] could be a reusable buffer
 type ISerializer =
   abstract Serialize: 'T -> byte[]
   abstract Serialize: obj -> byte[]

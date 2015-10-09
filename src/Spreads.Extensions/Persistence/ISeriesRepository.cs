@@ -13,7 +13,7 @@ using System.Diagnostics;
 
 namespace Spreads.Persistence {
 
-    // TODO! in CWT we should store lockreleaser with a finlizer that sends release command
+    // TODO! in CWT we should store lockreleaser with a finalizer that sends release command
     // not recommended way to use finalizer, but we could potentially leverage GC in a good way, together with CWT
 
     public interface ISeriesRepository {
@@ -110,20 +110,18 @@ namespace Spreads.Persistence {
         private async Task<IPersistentOrderedMap<K, V>> GetSeries<K, V>(string seriesId, bool writable = false) {
             var tcs = new TaskCompletionSource<bool>();
             RepositorySeriesWrapper<K, V> series = null;
-            lock (_seriesLocks)
-            {
+            lock (_seriesLocks) {
                 seriesId = seriesId.ToLowerInvariant().Trim();
 
                 series = new RepositorySeriesWrapper<K, V>(_store.GetPersistentOrderedMap<K, V>(seriesId), _node);
-                if (writable)
-                {
+                if (writable) {
                     // TODO acquire exclusive global write lock
                     _seriesLocks.Add(series, series.SyncRoot);
-                        // TODO! Add lock releaser that will send a lock release command in its finalizer
+                    // TODO! Add lock releaser that will send a lock release command in its finalizer
                 }
                 _series.Add(series.Id, new WeakReference<ICommandConsumer>(series));
 
-                
+
                 _seriesWaiting[seriesId] = tcs;
                 _seriesCommandBuffer[seriesId] = new Queue<BaseCommand>();
 
@@ -136,6 +134,7 @@ namespace Spreads.Persistence {
                 }));
             }
             await tcs.Task;
+            _series.Remove(series.Id);
             return series;
         }
 
@@ -162,7 +161,7 @@ namespace Spreads.Persistence {
         /// </summary>
         /// <typeparam name="K"></typeparam>
         /// <typeparam name="V"></typeparam>
-        internal class RepositorySeriesWrapper<K, V> : IPersistentOrderedMap<K, V>, ICommandConsumer {
+        internal class RepositorySeriesWrapper<K, V> : Series<K, V>, IPersistentOrderedMap<K, V>, ICommandConsumer {
             private readonly IPersistentOrderedMap<K, V> _innerMap;
             private readonly ISeriesNode _node;
             private readonly Task _senderTask;
@@ -277,13 +276,14 @@ namespace Spreads.Persistence {
             }
 
             public int Append(IReadOnlyOrderedMap<K, V> appendMap, AppendOption option) {
+                // TODO! chunks
                 var count = _innerMap.Append(appendMap, option);
                 _commandQueue.Enqueue(new AppendCommand()
                 {
                     Version = _innerMap.Version,
                     SeriesId = _innerMap.Id,
                     AppendOption = option,
-                    SerializedSortedMap = Serializer.Serialize(appendMap.ToSortedMap())
+                    SerializedSortedMap = Serializer.Serialize(appendMap.ToSortedMap()) // TODO check if already a sorted map
                 });
                 _semaphore.Release();
                 return count;
@@ -391,7 +391,7 @@ namespace Spreads.Persistence {
                 return _innerMap.GetAt(idx);
             }
 
-            public ICursor<K, V> GetCursor() {
+            public override ICursor<K, V> GetCursor() {
                 return _innerMap.GetCursor();
             }
 
@@ -422,6 +422,7 @@ namespace Spreads.Persistence {
             IEnumerator<KeyValuePair<K, V>> IEnumerable<KeyValuePair<K, V>>.GetEnumerator() {
                 return (_innerMap as IEnumerable<KeyValuePair<K, V>>).GetEnumerator();
             }
+
         }
 
     }

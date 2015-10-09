@@ -13,7 +13,6 @@ open Spreads.Collections
 
 
 
-
 // I had an attempt to manually optimize callvirt and object allocation, both failed badly
 // They are not needed, however, in most of the cases, e.g. iterations.
 // see https://msdn.microsoft.com/en-us/library/ms973852.aspx
@@ -26,10 +25,10 @@ open Spreads.Collections
 //
 // Our benchmark confirms that the slowdown of .Repeat(), .ReadOnly(), .Map(...) and .Filter(...) is small
 
-// (Continued later) Yet still, enumerating SortedList-like contructs is 4-5 times slow than arrays and 2-3 times slower that 
+// (Continued later) Yet still, enumerating SortedList-like contructs is 4-5 times slower than arrays and 2-3 times slower that 
 // a list of `KVP<DateTime,double>`s. ILs difference is mostly in callvirt, TODO ask SO if callvirt is really the reason
 // and is there a way to increase the speed. Enumerator as a structure will give call vs callvirt - is this is the case when it matters?
-// (Continued aven later) Removing one callvirt increased performance from 45 mops to 66 mops for SortedMap and from 100 mops to 200 mops for SortedDeque
+// (Continued even later) Removing one callvirt increased performance from 45 mops to 66 mops for SortedMap and from 100 mops to 200 mops for SortedDeque
 
 
 /// Repeat previous value for all missing keys
@@ -161,7 +160,7 @@ type MapValuesCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>, mapF:Func<'V
     if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
-// this is not possible with cursor, we won't be able 
+// this is not possible with cursor
 //type MapKeysCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, mapK:Func<'K,'K>) =
 //  inherit CursorBind<'K,'V,'V>(cursorFactory.Invoke)
 //  // TODO this is wrong
@@ -392,30 +391,16 @@ type AddInt64Cursor<'K>(cursorFactory:Func<ICursor<'K,int64>>, addition:int64) =
     if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
-/// Repeat previous value for all missing keys
-type LogCursor<'K>(cursorFactory:Func<ICursor<'K,int64>>) =
-  inherit CursorBind<'K,int64,double>(cursorFactory)
-
-  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<double>): bool =
-    // add works on any value, so must use TryGetValue instead of MoveAt
-    let ok, value2 = this.InputCursor.TryGetValue(key)
-    if ok then
-      value <- Math.Exp(Math.Log(Math.Exp(Math.Log(double value2))))
-      true
-    else false
 
 
-type ZipValuesCursor<'K,'V,'V2,'R>(cursorFactoryL:Func<ICursor<'K,'V>>,cursorFactoryR:Func<ICursor<'K,'V2>>, mapF:Func<'V,'V2,'R>) =
-  inherit ZipCursor<'K,'V,'V2,'R>(cursorFactoryL.Invoke,cursorFactoryR.Invoke)
-
-  override this.TryZip(key:'K, v, v2, [<Out>] value: byref<'R>): bool =
-    value <- mapF.Invoke(v,v2)
-    true
-
-  override this.Clone() = 
-    let clone = new ZipValuesCursor<'K,'V,'V2,'R>(cursorFactoryL, cursorFactoryR, mapF) :> ICursor<'K,'R>
-    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
-    clone
+/// Repack original types into value tuples. Due to the lazyness this only happens for a current value of cursor. ZipN keeps vArr instance and
+/// rewrites its values. For value types we will always be in L1/stack, for reference types we do not care that much about performance.
+type Zip2Cursor<'K,'V,'V2,'R>(cursorFactoryL:Func<ICursor<'K,'V>>,cursorFactoryR:Func<ICursor<'K,'V2>>, mapF:Func<'K,'V,'V2,'R>) =
+  inherit ZipNCursor<'K,ValueTuple<'V,'V2>,'R>(
+    Func<'K, ValueTuple<'V,'V2>[],'R>(fun (k:'K) (tArr:ValueTuple<'V,'V2>[]) -> mapF.Invoke(k, tArr.[0].Value1, tArr.[1].Value2)), 
+    (fun () -> new BatchMapValuesCursor<_,_,_>(cursorFactoryL, Func<_,_>(fun (x:'V) -> ValueTuple<'V,'V2>(x, Unchecked.defaultof<'V2>)), OptionalValue.Missing) :> ICursor<'K,ValueTuple<'V,'V2>>), 
+    (fun () -> new BatchMapValuesCursor<_,_,_>(cursorFactoryR, Func<_,_>(fun (x:'V2) -> ValueTuple<'V,'V2>(Unchecked.defaultof<'V>, x)), OptionalValue.Missing) :> ICursor<'K,ValueTuple<'V,'V2>>)
+  )
 
 
 
