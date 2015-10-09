@@ -1,3 +1,6 @@
+#### 0.0.72 - October 9, 2015
+* Some clean-up
+
 #### 0.0.71 - October 1, 2015
 * Async series repo
 
