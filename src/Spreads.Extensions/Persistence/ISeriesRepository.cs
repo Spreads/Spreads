@@ -105,7 +105,7 @@ namespace Spreads.Persistence {
         }
 
         // version 0.0.0.0.1-draft
-        // subscribe must wait for response, by that time 
+        // subscribe must wait for response
 
         private async Task<IPersistentOrderedMap<K, V>> GetSeries<K, V>(string seriesId, bool writable = false) {
             var tcs = new TaskCompletionSource<bool>();

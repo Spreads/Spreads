@@ -13,7 +13,7 @@ open Spreads
 open Spreads.Collections
 
 
-// TODO this is experimental. Should model mutations as interfaces because they go on wire and could be implemented in any way, from ZMP to SBE to custom binary writer
+// TODO this is experimental. Should model mutations as interfaces because they go on wire and could be implemented in any way, from ZMQ to SBE to custom binary writer
 
 
 
