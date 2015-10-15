@@ -48,14 +48,14 @@ and
 
 
 [<SerializableAttribute>]
-type SortedDeque<'T>(comparer:IComparer<'T>) as this=
+type SortedDeque<'T>(comparer:IComparer<'T>, capacity:int) as this=
   [<DefaultValue>] val mutable internal comparer : IComparer<'T> 
   [<DefaultValue>] val mutable internal buffer : 'T[]
   [<DefaultValue>] val mutable internal count : int
   [<DefaultValue>] val mutable internal firstOffset : int
   do
     this.comparer <- if comparer = null then Comparer<'T>.Default :> IComparer<'T> else comparer
-    this.buffer <- Array.zeroCreate 2
+    this.buffer <- Array.zeroCreate capacity
 
   /// Sets the total number of elements the internal array can hold without resizing.
   let doubleCapacity() = 
@@ -75,7 +75,8 @@ type SortedDeque<'T>(comparer:IComparer<'T>) as this=
     this.buffer <- copyBuffer newCapacity
     this.firstOffset <- 0
 
-  new() = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>())
+  new() = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>(), 2)
+  new(comparer:IComparer<'T>) = new SortedDeque<'T>(comparer, 2)
 
   member inline internal this.IndexToOffset(index) = (index + this.firstOffset) &&& (this.buffer.Length - 1)
 
@@ -183,6 +184,29 @@ type SortedDeque<'T>(comparer:IComparer<'T>) as this=
       let offset = this.OffsetOfElement(element)
       if offset > 0 then invalidOp "Item already exists"
       else this.InsertAtOffset(~~~offset, element)
+
+  /// Returns the index of added element
+  member this.AddWithIndex(element:'T) = 
+    let mutable index = 0
+    // ensure capacity
+    if this.count = this.buffer.Length then doubleCapacity()
+    if this.count = 0 then
+      this.InsertAtOffset(this.IndexToOffset(this.count), element)
+      // index = 0
+    elif  this.comparer.Compare(element, this.buffer.[this.IndexToOffset (this.count - 1)]) > 0 then
+      // adding to the end
+      index <- this.count
+      this.InsertAtOffset(this.IndexToOffset(index), element)
+    elif this.comparer.Compare(element, this.buffer.[this.IndexToOffset (0)]) < 0 then
+      // adding to the front
+      this.InsertAtOffset(this.IndexToOffset(0), element)
+      // index = 0
+    else
+      let offset = this.OffsetOfElement(element)
+      index <- (this.buffer.Length + offset- this.firstOffset) &&& (this.buffer.Length - 1) // TODO unit test, looks obvious, but just in case
+      if offset > 0 then invalidOp "Item already exists"
+      else this.InsertAtOffset(~~~offset, element)
+    index
 
   member this.First with get() = this.buffer.[this.firstOffset]
   member this.Last with get() = 

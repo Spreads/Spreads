@@ -8,12 +8,28 @@ using System.Threading.Tasks;
 
 namespace Spreads.Persistence {
 
+    // TODO reflect changes in wire format from Excel
+
     [Flags]
     public enum DataEventFlags : byte {
+        
         None = 0,
+        /// <summary>
+        /// If set, indicates that this is a remove event with payload containing keys and directions
+        /// </summary>
         Remove = 1,
+        /// <summary>
+        /// If set, indicates that payload was compressed using Blosc
+        /// </summary>
         Compressed = 2,
+        /// <summary>
+        /// If set, indicates that payload was encrypted. FormatVersion property of a data event should indicate the encryption scheme used.
+        /// </summary>
         Encrypted = 4,
+        /// <summary>
+        /// Data length is variable. First 4 bytes of payload contain data length.
+        /// </summary>
+        VariableLength = 8,
     }
 
     // TODO we either will have to copy data from pointer to represent it as an ArraySegment,
@@ -21,18 +37,22 @@ namespace Spreads.Persistence {
 
     public interface IDataEvent {
         ArraySegment<byte> SeriesId { get; }
+        long SequenceId { get; }
         int DataLength { get; }
         byte FormatVersion { get; }
         DataEventFlags Flags { get; }
         short ElementCount { get; }
-        long SequenceId { get; }
         ArraySegment<byte> Payload { get; }
     }
 
     /// <summary>
     /// DataEvent interface implemented on top of a byte buffer
     /// </summary>
-    public sealed unsafe class BufferDataEvent : IDataEvent {
+    public unsafe struct BufferDataEvent : IDataEvent {
+        
+        // NB struct because its primary use is to wrap existing byte buffer, this could generate a lot of garbage if class not struct. Similar to ArraySegment<>.
+        // 
+
         public byte[] Array { get; private set; }
         public int Offset { get; }
 

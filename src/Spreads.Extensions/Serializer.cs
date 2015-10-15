@@ -23,6 +23,7 @@ namespace Spreads {
 	/// 
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
+	[Obsolete("Smells...")]
 	public interface IFixable<T> where T : struct {
 		/// <summary>
 		/// What would &T return

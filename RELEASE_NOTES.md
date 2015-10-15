@@ -1,3 +1,9 @@
+#### 0.0.74 - October 15, 2015
+* Add AddWithIndex method to SortedDeque
+
+#### 0.0.73 - October 15, 2015
+* Fix bug when `:?>` unsafe cast didn't account for signature change
+
 #### 0.0.72 - October 9, 2015
 * Some clean-up
 

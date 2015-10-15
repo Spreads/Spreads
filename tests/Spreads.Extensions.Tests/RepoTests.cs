@@ -24,7 +24,7 @@ namespace Spreads.Extensions.Tests {
         {
             // repo must return the same instance of series by id
 
-            var repo = 
+            //var repo = 
             
         }
     }
