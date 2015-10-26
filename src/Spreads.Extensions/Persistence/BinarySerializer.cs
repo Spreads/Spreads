@@ -15,6 +15,7 @@ namespace Spreads.Persistence {
         public abstract object DeserializeArrayObject(byte[] bytes);
     }
 
+
     public abstract class BaseTypeSerializer<T> : BaseObjectSerializer {
         public abstract byte[] Serialize(T value);
         public abstract T Deserialize(byte[] bytes);

@@ -195,17 +195,17 @@ type SortedDeque<'T>(comparer:IComparer<'T>, capacity:int) as this=
       // index = 0
     elif  this.comparer.Compare(element, this.buffer.[this.IndexToOffset (this.count - 1)]) > 0 then
       // adding to the end
-      index <- this.count
       this.InsertAtOffset(this.IndexToOffset(index), element)
+      index <- this.count
     elif this.comparer.Compare(element, this.buffer.[this.IndexToOffset (0)]) < 0 then
       // adding to the front
       this.InsertAtOffset(this.IndexToOffset(0), element)
       // index = 0
     else
       let offset = this.OffsetOfElement(element)
-      index <- (this.buffer.Length + offset- this.firstOffset) &&& (this.buffer.Length - 1) // TODO unit test, looks obvious, but just in case
       if offset > 0 then invalidOp "Item already exists"
       else this.InsertAtOffset(~~~offset, element)
+      index <- (this.buffer.Length + offset- this.firstOffset) &&& (this.buffer.Length - 1) // TODO unit test, looks obvious, but just in case
     index
 
   member this.First with get() = this.buffer.[this.firstOffset]

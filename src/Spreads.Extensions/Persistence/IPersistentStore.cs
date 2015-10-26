@@ -4,6 +4,13 @@ using Spreads.Collections;
 
 namespace Spreads.Persistence {
 
+    public interface IBinarySerializable<T>
+    {
+        int Version { get; }
+        ArraySegment<byte> ToBytes(T value, byte version = 0);
+        T FromBytes(ArraySegment<byte> bytes, byte version = 0);
+    }
+
     public interface IPersistentStore {
         /// <summary>
         /// Get writable series that persist changes locally. Always returns a reference to the same object for each seriesId

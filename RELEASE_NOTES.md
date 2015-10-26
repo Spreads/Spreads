@@ -1,4 +1,7 @@
-#### 0.0.74 - October 15, 2015
+#### 0.0.77 - October 16, 2015
+* Fix series repo, add Zip overload without key
+
+#### 0.0.75 - October 15, 2015
 * Add AddWithIndex method to SortedDeque
 
 #### 0.0.73 - October 15, 2015
@@ -161,7 +164,7 @@ reads per second on MacBook Air 2012 with MySQL 5.6 Community (default dev setti
 * Change IOrderedMap interface for RemoveXXX (returns bool) and Append (accepts 
 AppendOption parameter)
 * Add generic array pool (adapted from MSFT's BufferPoolManager)
-* Add comparere to IROOM & ICursor interfaces;
+* Add comparer to IROOM & ICursor interfaces;
 * Do not trim excess on bucket switch in SCM (TODO this should be done by serializer,
  or check %% of unused capacity)
 * Implement Append for SCM (TODO test it)

@@ -27,7 +27,7 @@ namespace Spreads.Persistence {
         /// </summary>
         Encrypted = 4,
         /// <summary>
-        /// Data length is variable. First 4 bytes of payload contain data length.
+        /// Data length is variable. First 4 bytes of payload contain data length. Otherwise data is packed sequentially and its width is known by series id.
         /// </summary>
         VariableLength = 8,
     }

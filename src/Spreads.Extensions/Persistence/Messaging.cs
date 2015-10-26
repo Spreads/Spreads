@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace Spreads.Persistence {
 
+
     public enum Command : byte {
         Unsubscribe = 0,
         Subscribe = 1,
@@ -20,6 +21,9 @@ namespace Spreads.Persistence {
         /// </summary>
         Complete
     }
+
+
+
 
     public class BaseCommand {
         protected BaseCommand(Command command)

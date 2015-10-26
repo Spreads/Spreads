@@ -98,6 +98,7 @@
     <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="Generation\SortedMapGenerator.cs" />
     <Compile Include="Persistence\BinarySerializer.cs" />
+    <Compile Include="Persistence\Commands.cs" />
     <Compile Include="Persistence\DataEvent.cs" />
     <Compile Include="Persistence\IPersistentStore.cs" />
     <Compile Include="Persistence\ISeriesRepository.cs" />

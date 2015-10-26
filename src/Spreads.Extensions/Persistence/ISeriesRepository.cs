@@ -73,7 +73,6 @@ namespace Spreads.Persistence {
                 }
                 queue.Enqueue(command);
             }
-
         }
 
         private void _node_OnDataLoad(BaseCommand command) {
@@ -112,14 +111,19 @@ namespace Spreads.Persistence {
             RepositorySeriesWrapper<K, V> series = null;
             lock (_seriesLocks) {
                 seriesId = seriesId.ToLowerInvariant().Trim();
-
                 series = new RepositorySeriesWrapper<K, V>(_store.GetPersistentOrderedMap<K, V>(seriesId), _node);
+
+                if (_series.ContainsKey(seriesId))
+                {
+                    return series;
+                }
+                
                 if (writable) {
                     // TODO acquire exclusive global write lock
                     _seriesLocks.Add(series, series.SyncRoot);
                     // TODO! Add lock releaser that will send a lock release command in its finalizer
                 }
-                _series.Add(series.Id, new WeakReference<ICommandConsumer>(series));
+                _series.Add(seriesId, new WeakReference<ICommandConsumer>(series));
 
 
                 _seriesWaiting[seriesId] = tcs;
@@ -134,7 +138,6 @@ namespace Spreads.Persistence {
                 }));
             }
             await tcs.Task;
-            _series.Remove(series.Id);
             return series;
         }
 

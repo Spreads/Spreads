@@ -545,7 +545,7 @@ namespace Spreads.Collections.Tests {
 
             sm1.Add(0, 0);
 
-            for (int i = 2; i < 1000; i++) {
+            for (int i = 2; i < 1000000; i++) {
                 sm1.Add(i, i);
             }
 
