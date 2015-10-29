@@ -503,7 +503,6 @@ and
 
     interface ICursor<'K,'V2> with
       member this.Comparer with get() = cursor.Comparer
-      member this.Current: KVP<'K,'V2> = this.Current
       member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = this.CurrentBatch
       member this.CurrentKey: 'K = this.CurrentKey
       member this.CurrentValue: 'V2 = this.CurrentValue
@@ -1622,10 +1621,10 @@ and
     //member x.IsBatch with get() = x.IsBatch
     member x.Source: ISeries<'K,'R> = CursorSeries<'K,'R>(Func<ICursor<'K,'R>>((x :> ICursor<'K,'R>).Clone)) :> ISeries<'K,'R>
 
-    interface IEnumerator<KVP<'K,'R>> with    
+    interface IEnumerator<KVP<'K,'R>> with
       member this.Reset() = this.Reset()
       member this.MoveNext(): bool = this.MoveNext()
-      member this.Current with get(): KVP<'K, 'R> = this.Current
+      member this.Current with get(): KVP<'K, 'R> = KVP(this.CurrentKey, this.CurrentValue)
       member this.Current with get(): obj = this.Current :> obj 
       member x.Dispose(): unit = x.Dispose()
 
@@ -1633,7 +1632,6 @@ and
 
     interface ICursor<'K,'R> with
       member this.Comparer with get() = cmp
-      member x.Current: KVP<'K,'R> = KVP(x.CurrentKey, x.CurrentValue)
       member x.CurrentBatch: IReadOnlyOrderedMap<'K,'R> = x.CurrentBatch
       member x.CurrentKey: 'K = x.CurrentKey
       member x.CurrentValue: 'R = x.CurrentValue

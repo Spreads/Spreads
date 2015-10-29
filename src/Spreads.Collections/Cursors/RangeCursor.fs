@@ -81,7 +81,6 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
 
   interface ICursor<'K,'V> with
     member this.Comparer with get() = cursor.Comparer
-    member this.Current: KVP<'K,'V> = this.Current
     member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
     member this.CurrentKey: 'K = this.CurrentKey
     member this.CurrentValue: 'V = this.CurrentValue

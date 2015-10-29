@@ -158,14 +158,13 @@ type BaseCursor<'K,'V>
   interface IDisposable with
     member this.Dispose() = this.Dispose()
 
-  interface IEnumerator<KVP<'K,'V>> with    
+  interface IEnumerator<KVP<'K,'V>> with
     member this.Reset() = this.Reset()
     member this.MoveNext():bool = this.MoveNext()
     member this.Current with get(): KVP<'K, 'V> = this.Current
     member this.Current with get(): obj = this.Current :> obj
 
   interface IAsyncEnumerator<KVP<'K,'V>> with
-    member x.Current: KVP<'K, 'V> = this.Current
     member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = this.MoveNext(cancellationToken) 
 
   interface ICursor<'K,'V> with

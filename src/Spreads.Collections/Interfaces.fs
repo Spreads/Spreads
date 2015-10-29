@@ -16,8 +16,7 @@ open System.Runtime.InteropServices
 [<AllowNullLiteral>]
 type IAsyncEnumerator<'T> =
   inherit System.IDisposable
-  /// Gets the current element in the iteration.
-  abstract member Current : 'T
+  inherit IEnumerator<'T>
   /// Advances the enumerator to the next element in the sequence, returning the result asynchronously.
   /// cancellationToken: Cancellation token that can be used to cancel the operation.
   abstract member MoveNext : cancellationToken:CancellationToken -> Task<bool>
@@ -26,6 +25,7 @@ type IAsyncEnumerator<'T> =
 [<Interface>]
 [<AllowNullLiteral>]
 type IAsyncEnumerable<'T> =
+  inherit IEnumerable<'T>
   /// Gets an asynchronous enumerator over the sequence.
   abstract member GetEnumerator : unit -> IAsyncEnumerator<'T>
 
@@ -38,7 +38,6 @@ type IAsyncEnumerable<'T> =
 [<Interface>]
 [<AllowNullLiteral>]
 type ISeries<'K,'V> =
-  inherit IEnumerable<KVP<'K,'V>>
   inherit IAsyncEnumerable<KVP<'K,'V>>
   /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
   /// positions and relative LT/LE/GT/GE moves.
@@ -82,7 +81,6 @@ and
   [<Interface>]
   [<AllowNullLiteral>]
   ICursor<'K,'V> =
-    inherit IEnumerator<KVP<'K, 'V>>
     inherit IAsyncEnumerator<KVP<'K, 'V>>
     abstract Comparer: IComparer<'K> with get
     /// Puts the cursor to the position according to LookupDirection
@@ -253,7 +251,7 @@ type IImmutableOrderedMap<'K,'V> =
 
 //and i
 //  [<AllowNullLiteral>]
-//  IIdentitySeries<'K,'V,'TId> =   
+//  IIdentitySeries<'K,'V,'TId> =
 //    inherit ISeries<'K,'V>
 //    abstract Identity : 'TId with get
 

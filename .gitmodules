@@ -1,0 +1,4 @@
+[submodule "lib/Ix.NET"]
+	path = lib/Ix.NET
+	url = https://github.com/Spreads/Ix.NET
+	branch = spreads

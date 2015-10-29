@@ -44,13 +44,12 @@ type internal MapValuesWithKeysCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'
   interface IEnumerator<KVP<'K,'V2>> with    
     member this.Reset() = cursor.Reset()
     member this.MoveNext(): bool = cursor.MoveNext()
-    member this.Current with get(): KVP<'K, 'V2> = this.Current
-    member this.Current with get(): obj = this.Current :> obj 
+    member this.Current with get(): KVP<'K, 'V2> = KVP(this.CurrentKey, this.CurrentValue)
+    member this.Current with get(): obj = KVP(this.CurrentKey, this.CurrentValue) :> obj 
     member this.Dispose(): unit = cursor.Dispose()
 
   interface ICursor<'K,'V2> with
     member this.Comparer with get() = cursor.Comparer
-    member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
     member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = this.CurrentBatch
     member this.CurrentKey: 'K = this.CurrentKey
     member this.CurrentValue: 'V2 = this.CurrentValue

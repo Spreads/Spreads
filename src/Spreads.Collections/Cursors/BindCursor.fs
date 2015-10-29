@@ -400,13 +400,12 @@ type  CursorBind<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
     interface IEnumerator<KVP<'K,'V2>> with    
       member this.Reset() = this.Reset()
       member this.MoveNext(): bool = this.MoveNext()
-      member this.Current with get(): KVP<'K, 'V2> = this.Current
-      member this.Current with get(): obj = this.Current :> obj 
+      member this.Current with get(): KVP<'K, 'V2> = KVP(this.CurrentKey, this.CurrentValue)
+      member this.Current with get(): obj = KVP(this.CurrentKey, this.CurrentValue) :> obj 
       member x.Dispose(): unit = x.Dispose()
 
     interface ICursor<'K,'V2> with
       member this.Comparer with get() = cursor.Comparer
-      member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
       member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = this.CurrentBatch
       member this.CurrentKey: 'K = this.CurrentKey
       member this.CurrentValue: 'V2 = this.CurrentValue
@@ -731,16 +730,15 @@ type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
     ok
 
 
-  interface IEnumerator<KVP<'K,'V2>> with    
+  interface IEnumerator<KVP<'K,'V2>> with
     member this.Reset() = this.Reset()
     member this.MoveNext(): bool = this.MoveNext()
-    member this.Current with get(): KVP<'K, 'V2> = this.Current
-    member this.Current with get(): obj = this.Current :> obj 
+    member this.Current with get(): KVP<'K, 'V2> = KVP(this.CurrentKey, this.CurrentValue)
+    member this.Current with get(): obj = KVP(this.CurrentKey, this.CurrentValue) :> obj 
     member x.Dispose(): unit = x.Dispose()
 
   interface ICursor<'K,'V2> with
     member this.Comparer with get() = cursor.Comparer
-    member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
     member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = this.CurrentBatch
     member this.CurrentKey: 'K = this.CurrentKey
     member this.CurrentValue: 'V2 = this.CurrentValue

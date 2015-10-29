@@ -1119,7 +1119,6 @@ type SortedMap<'K,'V>
             exitLockIf syncRoot entered
 
         member p.Clone() = this.GetCursor(!index,!cursorVersion, p.CurrentKey, p.CurrentValue) //!currentKey,!currentValue)
-        member p.Current with get() : KVP<'K,'V> = KeyValuePair(p.CurrentKey, p.CurrentValue) // currentKey.Value, currentValue.Value)
       
         member p.MovePrevious() = 
           let entered = enterLockIf syncRoot  isSynchronized
