@@ -100,8 +100,10 @@
     <Compile Include="Persistence\BinarySerializer.cs" />
     <Compile Include="Persistence\Commands.cs" />
     <Compile Include="Persistence\DataEvent.cs" />
+    <Compile Include="Persistence\DataEventOld.cs" />
     <Compile Include="Persistence\IPersistentStore.cs" />
     <Compile Include="Persistence\ISeriesRepository.cs" />
+    <Compile Include="Persistence\ISpreadsTransportOld.cs" />
     <Compile Include="Persistence\Messaging.cs" />
     <Compile Include="Persistence\SeriesInfo.cs" />
     <Compile Include="Serializer.cs" />

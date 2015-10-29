@@ -8,29 +8,129 @@ using System.Threading.Tasks;
 
 namespace Spreads.Persistence {
 
+    // NB, TODO max 16 bytes, according to the protocol spec
+
+    public enum SpreadsCommand : byte {
+        Subscribe = 0,
+        Unsubscribe = 1,
+        CreateSeries = 2,
+        UpdateSeries = 3,
+        SeriesDefinition = 4,
+        SetData = 5,
+        RemoveData = 6,
+        CompleteData = 7,
+        AcquireLock = 8,
+        ReleaseLock = 9,
+        Error = 10,
+        Resend = 11,
+        /// <summary>
+        /// A sequence of commands. (No trees, just a sequence. I.e. batch of batches is an error.)
+        /// </summary>
+        Batch = 12,
+    }
+
+
     // TODO reflect changes in wire format from Excel
 
     [Flags]
-    public enum DataEventFlags : byte {
-        
+    public enum SpreadsCommandFlags : byte {
+
         None = 0,
-        /// <summary>
-        /// If set, indicates that this is a remove event with payload containing keys and directions
-        /// </summary>
-        Remove = 1,
         /// <summary>
         /// If set, indicates that payload was compressed using Blosc
         /// </summary>
-        Compressed = 2,
+        Compressed = 1,
         /// <summary>
         /// If set, indicates that payload was encrypted. FormatVersion property of a data event should indicate the encryption scheme used.
         /// </summary>
-        Encrypted = 4,
+        Encrypted = 2,
         /// <summary>
         /// Data length is variable. First 4 bytes of payload contain data length. Otherwise data is packed sequentially and its width is known by series id.
         /// </summary>
-        VariableLength = 8,
+        VariableLength = 4,
     }
+
+    // 4 bytes metadata for each SpreadsCommand
+    public interface IMetaData {
+        SpreadsCommand Command { get; } // 4 bits
+        SpreadsCommandFlags Flags { get; } // 4 bits
+        byte FormatVersion { get; } // 8 bits
+        short ElementCount { get; } // 16 bits
+    }
+
+    // TODO probably should manullay inline this to every command
+
+    public unsafe struct BufferMetaData : IMetaData {
+        public byte[] Array { get; private set; }
+        public int Offset { get; }
+        private const byte flagMask = (byte)15;
+
+        public BufferMetaData(byte[] buffer, int offset = 0) {
+            if (buffer.Length - offset < 4) {
+                throw new ArgumentException("MetaData buffer is smaller that 4 bytes", nameof(buffer));
+            }
+            Array = buffer;
+            Offset = offset;
+        }
+
+        public SpreadsCommand Command {
+            get { throw new NotImplementedException(); } 
+            set
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        
+        // TODO recheck, test this
+        public SpreadsCommandFlags Flags {
+            get {
+                fixed (byte* ptr = &Array[Offset])
+                {
+                    var byteValue = *(ptr);
+                    byteValue = (byte) (byteValue & flagMask);
+                    return (SpreadsCommandFlags) (byteValue);
+                }
+            }
+            set {
+                fixed (byte* ptr = &Array[Offset])
+                {
+                    *ptr = (byte)value;
+                }
+            }
+        }
+
+        public byte FormatVersion {
+            get {
+                fixed (byte* ptr = &Array[Offset])
+                {
+                    return *(ptr + 1);
+                }
+            }
+            set {
+                fixed (byte* ptr = &Array[Offset])
+                {
+                    *(byte*)(ptr + 1) = value;
+                }
+            }
+        }
+
+        public short ElementCount {
+            get {
+                fixed (byte* ptr = &Array[Offset])
+                {
+                    return (short)*(ptr + 2);
+                }
+            }
+            set {
+                fixed (byte* ptr = &Array[Offset])
+                {
+                    *(short*)(ptr + 2) = value;
+                }
+            }
+        }
+    }
+
 
     // TODO we either will have to copy data from pointer to represent it as an ArraySegment,
     // or we should return IntPtr instead of ArraySegment and GC-pin the buffer
@@ -40,7 +140,7 @@ namespace Spreads.Persistence {
         long SequenceId { get; }
         int DataLength { get; }
         byte FormatVersion { get; }
-        DataEventFlags Flags { get; }
+        SpreadsCommandFlags Flags { get; }
         short ElementCount { get; }
         ArraySegment<byte> Payload { get; }
     }
@@ -49,7 +149,7 @@ namespace Spreads.Persistence {
     /// DataEvent interface implemented on top of a byte buffer
     /// </summary>
     public unsafe struct BufferDataEvent : IDataEvent {
-        
+
         // NB struct because its primary use is to wrap existing byte buffer, this could generate a lot of garbage if class not struct. Similar to ArraySegment<>.
         // 
 
@@ -121,11 +221,11 @@ namespace Spreads.Persistence {
         }
 
 
-        public DataEventFlags Flags {
+        public SpreadsCommandFlags Flags {
             get {
                 fixed (byte* ptr = &Array[Offset])
                 {
-                    return (DataEventFlags)(*(ptr + 21));
+                    return (SpreadsCommandFlags)(*(ptr + 21));
                 }
             }
             set {
