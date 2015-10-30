@@ -37,8 +37,7 @@ type AppendOption =
 
 /// Base unit of a period
 type UnitPeriod =
-  | Tick = -1         //               100 nanosec
-  // Unused zero value
+  | Tick = 0          //               100 nanosec
   | Millisecond = 1   //              10 000 ticks
   | Second = 2        //          10 000 000 ticks
   | Minute = 3        //         600 000 000 ticks
@@ -47,3 +46,11 @@ type UnitPeriod =
   | Month = 6         //                  Variable
   /// Static or constant
   | Eternity = 7      //                  Infinity
+
+  // NB
+  // (do not add this, keep this enum representable as 3 bits. 4-8 are probably also OK, but we already have data that use the 2,3,4,5 numbers)
+  // ... MicroSecond = 8   //                  10 ticks 
+  // (this is bad numbering. initial thought was that we do not need sub-millisecond periods
+  // because they are all point of times, or just use ticks - they are just 10x of microseconds. Every subsecond (even sub-day) period is 
+  // representable as a number of ticks, millis are mostly for convenience)
+  // e.g. (2^15)*tick > 3 millisecs, so we could use short for period length and cover all common cases. And long covers all possible cases.

@@ -10,6 +10,10 @@ open System.Runtime.InteropServices
 
 // TODO object cursor and object series
 
+// TODO MoveNext/Previous(n : int) will optimize moves by n steps for SortedMap/SCM and is 
+// trivial to implement with MoveNext(). In the later case, we have an option to MoveAt(where we started)
+// if we could not move ahead enough steps (or leave cursor state undefined on any false move)
+// A bit trickier to implement MoveNextAsync(n:int), but still quite doable via MoveNextAsync() + counter
 
 /// Asynchronous version of the IEnumerator<T> interface, allowing elements to be retrieved asynchronously.
 [<Interface>]
