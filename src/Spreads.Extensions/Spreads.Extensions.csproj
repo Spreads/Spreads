@@ -132,7 +132,7 @@
       <Link>System\Interactive.Async\Strings.cs</Link>
     </Compile>
     <Compile Include="..\..\lib\Ix.NET\Ix.NET\Source\System.Interactive.Async\TaskExt.cs">
-      <Link>System\Interactive.Async\TaskExt.cs</Link>
+      <Link>System\Threading\Tasks\TaskExt.cs</Link>
     </Compile>
     <Compile Include="ArrayPool.cs" />
     <Compile Include="Attributes.cs" />

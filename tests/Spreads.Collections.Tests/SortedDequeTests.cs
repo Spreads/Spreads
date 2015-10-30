@@ -5,8 +5,25 @@ using System;
 
 namespace Spreads.Collections.Tests {
 
+    // should not happen since Add is stable, but must test AddWithIndex and Add if any change happens!
+
     [TestFixture]
     public class SortedDequeTests {
+
+        private bool DequeIsSorted<T>(SortedDeque<T> deque) {
+            bool isFirst = true;
+            T prev = default(T);
+            foreach (var e in deque) {
+                if (isFirst) {
+                    isFirst = false;
+                    prev = e;
+                } else {
+                    if (deque.comparer.Compare(e, prev) < 0) return false;
+                    prev = e;
+                }
+            }
+            return true;
+        }
 
         [Test]
         public void CouldRemoveFirstAddInTheMiddle() {
@@ -40,7 +57,7 @@ namespace Spreads.Collections.Tests {
         }
 
         [Test]
-        public void CouldAddBehindInitialCapacity() {
+        public void CouldAddBeyondInitialCapacity() {
             var sd = new SortedDeque<int>();
             for (int i = 0; i < 4; i++) {
                 sd.Add(i);
@@ -94,14 +111,14 @@ namespace Spreads.Collections.Tests {
                 for (int i = 0; i < 50; i++) {
                     for (var next = rng.Next(1000); !set.Contains(next);) {
                         set.Add(next);
-                        sd.Add(next);
+                        sd.AddWithIndex(next);
                     }
                 }
 
                 for (int i = 0; i < 1000; i++) {
                     for (var next = rng.Next(1000); !set.Contains(next);) {
                         set.Add(next);
-                        sd.Add(next);
+                        sd.AddWithIndex(next);
                     }
 
                     Assert.AreEqual(set.Count, sd.Count);
@@ -111,7 +128,7 @@ namespace Spreads.Collections.Tests {
                     set.Remove(first);
                     Assert.AreEqual(set.Count, sd.Count);
                     Assert.AreEqual(set.Sum(), sd.Sum());
-
+                    Assert.IsTrue(DequeIsSorted(sd));
                     var c = 0;
                     var prev = 0;
                     foreach (var e in sd) {
@@ -139,14 +156,14 @@ namespace Spreads.Collections.Tests {
                 for (int i = 0; i < 50; i++) {
                     for (var next = rng.Next(1000); !set.Contains(next);) {
                         set.Add(next);
-                        sd.Add(next);
+                        sd.AddWithIndex(next);
                     }
                 }
 
                 for (int i = 0; i < 1000; i++) {
                     for (var next = rng.Next(1000); !set.Contains(next);) {
                         set.Add(next);
-                        sd.Add(next);
+                        sd.AddWithIndex(next);
                     }
 
                     Assert.AreEqual(set.Count, sd.Count);
@@ -157,6 +174,7 @@ namespace Spreads.Collections.Tests {
                     set.Remove(first);
                     Assert.AreEqual(set.Count, sd.Count);
                     Assert.AreEqual(set.Sum(), sd.Sum());
+                    Assert.IsTrue(DequeIsSorted(sd));
                 }
 
             }
@@ -174,7 +192,7 @@ namespace Spreads.Collections.Tests {
                 for (int i = 0; i < 100; i++) {
                     for (var next = rng.Next(1000); !set.Contains(next);) {
                         set.Add(next);
-                        sd.Add(next);
+                        sd.AddWithIndex(next);
                     }
                 }
                 while (sd.Count > 0) {
@@ -182,6 +200,7 @@ namespace Spreads.Collections.Tests {
                     set.Remove(first);
                     Assert.AreEqual(set.Count, sd.Count);
                     Assert.AreEqual(set.Sum(), sd.Sum());
+                    Assert.IsTrue(DequeIsSorted(sd));
                     var c = 0;
                     var prev = 0;
                     foreach (var e in sd) {
@@ -208,7 +227,7 @@ namespace Spreads.Collections.Tests {
                 for (int i = 0; i < 100; i++) {
                     for (var next = rng.Next(1000); !set.Contains(next);) {
                         set.Add(next);
-                        sd.Add(next);
+                        sd.AddWithIndex(next);
                     }
                 }
                 while (sd.Count > 0) {
@@ -217,6 +236,7 @@ namespace Spreads.Collections.Tests {
                     set.Remove(midElement);
                     Assert.AreEqual(set.Count, sd.Count);
                     Assert.AreEqual(set.Sum(), sd.Sum());
+                    Assert.IsTrue(DequeIsSorted(sd));
                     var c = 0;
                     var prev = 0;
                     foreach (var e in sd) {
@@ -243,10 +263,10 @@ namespace Spreads.Collections.Tests {
             for (int i = 0; i < 100; i++) {
                 if (i % 2 == 0) {
                     set.Add(i);
-                    sd.Add(i);
+                    sd.AddWithIndex(i);
                 } else {
                     set.Add(-i);
-                    sd.Add(-i);
+                    sd.AddWithIndex(-i);
                 }
             }
             {
@@ -255,6 +275,7 @@ namespace Spreads.Collections.Tests {
                 set.Remove(midElement);
                 Assert.AreEqual(set.Count, sd.Count);
                 Assert.AreEqual(set.Sum(), sd.Sum());
+                Assert.IsTrue(DequeIsSorted(sd));
                 var c = 0;
                 var prev = 0;
                 foreach (var e in sd) {
@@ -273,6 +294,7 @@ namespace Spreads.Collections.Tests {
                 set.Remove(midElement);
                 Assert.AreEqual(set.Count, sd.Count);
                 Assert.AreEqual(set.Sum(), sd.Sum());
+                Assert.IsTrue(DequeIsSorted(sd));
                 var c = 0;
                 var prev = 0;
                 foreach (var e in sd) {
@@ -298,10 +320,11 @@ namespace Spreads.Collections.Tests {
                 for (int i = 0; i < 100; i++) {
                     for (var next = rng.Next(1000); !set.Contains(next);) {
                         set.Add(next);
-                        sd.Add(next);
+                        sd.AddWithIndex(next);
                     }
                     Assert.AreEqual(set.Count, sd.Count);
                     Assert.AreEqual(set.Sum(), sd.Sum());
+                    Assert.IsTrue(DequeIsSorted(sd));
                     var c = 0;
                     var prev = 0;
                     foreach (var e in sd) {
@@ -322,7 +345,7 @@ namespace Spreads.Collections.Tests {
         public void AddSequentialTest() {
             var sd = new SortedDeque<int>();
             for (var r = 0; r < 1000; r++) {
-                sd.Add(r);
+                sd.AddWithIndex(r);
             }
         }
 
@@ -331,7 +354,7 @@ namespace Spreads.Collections.Tests {
         public void AddReverseSequentialTest() {
             var sd = new SortedDeque<int>();
             for (var r = 1000; r >= 0; r--) {
-                sd.Add(r);
+                sd.AddWithIndex(r);
             }
         }
 

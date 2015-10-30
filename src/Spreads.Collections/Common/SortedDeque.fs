@@ -195,8 +195,8 @@ type SortedDeque<'T>(comparer:IComparer<'T>, capacity:int) as this=
       // index = 0
     elif  this.comparer.Compare(element, this.buffer.[this.IndexToOffset (this.count - 1)]) > 0 then
       // adding to the end
-      this.InsertAtOffset(this.IndexToOffset(index), element)
-      index <- this.count
+      this.InsertAtOffset(this.IndexToOffset(this.count), element) // NB!&FML! this.count was index before I found that order of lines was wrong, then order of lines became as now, but index remained instead of count - and we were fucked! (TODO (low) remove this comment to a collection of stupid behavior bugs, which rapidly increases in size!)
+      index <- this.count 
     elif this.comparer.Compare(element, this.buffer.[this.IndexToOffset (0)]) < 0 then
       // adding to the front
       this.InsertAtOffset(this.IndexToOffset(0), element)

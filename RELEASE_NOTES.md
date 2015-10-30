@@ -1,3 +1,10 @@
+#### 0.0.79 - October 30, 2015
+* Fix bug in SortedDeque AddWithIndex (introduced because "it was so trivial that no unit tests were needed"...)
+
+#### 0.0.78 - October 29, 2015
+* Change interfaces IAsyncEnumerable/IAsyncEnumerator now inherit IEnumerable/IEnumerator.
+* Adapt Ix.NET for the Spreads interfaces, add repo as a submodule
+
 #### 0.0.77 - October 16, 2015
 * Fix series repo, add Zip overload without key
 

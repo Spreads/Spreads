@@ -425,10 +425,10 @@ type SeriesTestsModule() =
       sm.Add(DateTime(2013, 11, 10),1.0)
       let lazyMapSeries = sm.Map(fun x->x)
       
-      let lazyDiff = lazyMapSeries.ZipLag(1u,fun c p -> c-p)
-      let eagerDiff=sm.ZipLag(1u,fun c p -> c-p)
+      let lazyDiff = lazyMapSeries.ZipLag(1u, fun c p -> c-p)
+      let eagerDiff=sm.ZipLag(1u, fun c p -> c-p)
 
-      eagerDiff.Count
+      //eagerDiff.Count
       for kvp in eagerDiff do
         printfn "%f" kvp.Value
 
@@ -547,8 +547,8 @@ type SeriesTestsModule() =
         expected.Add(9,4)
 
         let windows = map.Window(4u, 1u, true)
-        let windows2 = windows.Map(fun inner -> inner.Values.Sum()).ToSortedMap()
-
+        let windows2 = windows.Map(fun inner -> inner.Values.Sum()).ToSortedMap() :> _ seq
+        
         Assert.IsTrue(expected.SequenceEqual(windows2))
 //        windows.First.Value.Count() |> should equal 3
 //        windows.First.Key |> should equal 2
