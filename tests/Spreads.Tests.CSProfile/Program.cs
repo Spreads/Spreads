@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using Spreads;
 using Spreads.Collections;
-using Spreads.Collections.Tests;
 
 
 public class MyInc
@@ -28,7 +27,7 @@ namespace Spreads.Tests.CSProfile {
         private static readonly MyInc myinc = new MyInc(0);
         static void Main(string[] args)
         {
-            new ZipNTests().CouldZipManyNonContinuousInRealTime();
+            //new ZipNTests().CouldZipManyNonContinuousInRealTime();
             //var myinc = new MyInc(0);
             //myinc.Inc();
             //Console.WriteLine(myinc.value);

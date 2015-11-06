@@ -1,5 +1,5 @@
 TODO
-* (potential bug) In many places we assume that a comparer returns 1, 0, or -1. However, this is wrong and we should compare the returned value with 0.
+* (potential bug) In some places I mistakenly assumed that a comparer returns 1, 0, or -1. However, this is wrong and we should compare the returned value with 0.
 * Features on par with Deedle/Ix, e.g. aggregate/resample, Panels must support what Frames do when it makes sense
 
 Design & logic:
@@ -32,4 +32,4 @@ Comment prefix codes
 Test
 * For corectness and performance, we must generate random sets and use some well-know correct method, e.g. LINQ or Deedle. Each test that utilizes series functionality
  must be significantly faster than LINQ/Deedle, otherwise it makes no sense to use Spreads.
-* Use Deedle as a benchmark for performance (sorry, Deedle!)
+* Use Deedle as a benchmark for performance

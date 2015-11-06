@@ -1,13 +1,13 @@
 ﻿namespace System
 open System.Reflection
 
-[<assembly: AssemblyTitleAttribute("Deedle")>]
+[<assembly: AssemblyTitleAttribute("Spreads")>]
 [<assembly: AssemblyProductAttribute("Spreads")>]
 [<assembly: AssemblyDescriptionAttribute("Spreads")>]
-[<assembly: AssemblyVersionAttribute("0.0.79")>]
-[<assembly: AssemblyFileVersionAttribute("0.0.79")>]
+[<assembly: AssemblyVersionAttribute("0.1.0")>]
+[<assembly: AssemblyFileVersionAttribute("0.1.0")>]
 [<assembly: AssemblyCopyrightAttribute("(c) Victor Baybekov 2015")>]
 do ()
 
 module internal AssemblyVersionInformation =
-    let [<Literal>] Version = "0.0.79"
+    let [<Literal>] Version = "0.1.0"

@@ -391,35 +391,6 @@ module CollectionsBenchmarks =
   let SortedList_run() = SortedListTests(1000000L)
 
 
-  let SCIOrderedMap(count:int64) =
-    let shm = ref (System.Collections.Immutable.ImmutableSortedDictionary.Empty)
-    perf count "SCIOrderedMap Add" (fun _ ->
-      for i in 0L..count do
-        shm := shm.Value.Add(i, i)
-    )
-    perf count "SCIOrderedMap Read" (fun _ ->
-      for i in 0L..count do
-        let res = shm.Value.Item(i)
-        if res <> i then failwith "SCIOrderedMap failed"
-        ()
-    )
-    shm := (System.Collections.Immutable.ImmutableSortedDictionary.Empty)
-    let count = count / 10L
-    perf count "SCIOrderedMap Add Reverse" (fun _ ->
-      for i in 0L..count do
-        shm := shm.Value.Add(count - i, i)
-    )
-    perf count "SCIOrderedMap Read Reverse" (fun _ ->
-      for i in 0L..count do
-        let res = shm.Value.Item(count - i)
-        if res <> i then failwith "SCIOrderedMap failed"
-        ()
-    )
-    Console.WriteLine("----------------")
-  [<Test>]
-  let SCIOrderedMap_run() = SCIOrderedMap(1000000L)
-
-
 
 
 //  let MapDequeTest(count:int64) =
@@ -1015,48 +986,9 @@ module CollectionsBenchmarks =
 //    )
 
     Console.WriteLine("----------------")
+
   [<Test>]
   let SortedDeque_run() = SortedDequeTest(1000000L)
-
-
-  let PersistentSortedMapTest(count:int64) =
-    let smap = ref (PersistentSortedMap(SpreadsDB.DefaultDbEnvironment, "testDb", 
-      "testMap".CalculateMD5Bytes(), SpreadsComparerInt64()))
-    for i in 0..4 do
-      smap := PersistentSortedMap(SpreadsDB.DefaultDbEnvironment, "testDb", 
-        "testMap".CalculateMD5Bytes(), SpreadsComparerInt64())
-      perf count "PersistentSortedMap Add" (fun _ ->
-        for i in 0L..count do
-          smap.Value.Add(i, i)
-      )
-    for i in 0..4 do
-      perf count "PersistentSortedMap Read" (fun _ ->
-        for i in 0L..count do
-          let res = smap.Value.Item(i)
-          if res <> i then failwith "SortedMap failed"
-          ()
-      )
-    for i in 0..9 do
-      perf count "PersistentSortedMap Iterate" (fun _ ->
-        for i in smap.Value do
-          let res = i.Value
-          ()
-      )
-//    smap := SortedMap()
-//    let count = count / 10L
-//    perf count "SortedMap Add Reverse" (fun _ ->
-//      for i in 0L..count do
-//        smap.Value.Add(count - i, i)
-//    )
-//    perf count "SortedMap Read Reverse" (fun _ ->
-//      for i in 0L..count do
-//        let res = smap.Value.Item(count - i)
-//        if res <> i then failwith "SortedMap failed"
-//        ()
-//    )
-    Console.WriteLine("----------------")
-  [<Test>]
-  let PersistenSortedMap_run() = PersistentSortedMapTest(10000L)
 
 
   [<Test>]

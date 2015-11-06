@@ -116,6 +116,7 @@
     <Compile Include="Spreads.Series.2.fs" />
     <None Include="Script1.fsx" />
     <Compile Include="Circular.fs" />
+    <Content Include="app.config" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

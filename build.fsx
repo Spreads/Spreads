@@ -55,7 +55,7 @@ let gitHome = "https://github.com/" + gitOwner
 let gitName = "Spreads"
 
 // The url for the raw files hosted
-let gitRaw = environVarOrDefault "gitRaw" "https://raw.github.com/buybackoff"
+let gitRaw = environVarOrDefault "gitRaw" "https://raw.github.com/Spreads"
 
 // --------------------------------------------------------------------------------------
 // END TODO: The rest of the file includes standard build steps
@@ -195,6 +195,26 @@ Target "NuGet" (fun _ ->
               [ "Spreads.Collections", release.NugetVersion
                 "Newtonsoft.Json", GetPackageVersion "packages" "Newtonsoft.Json"
                 "NodaTime", GetPackageVersion "packages" "NodaTime"
+                ]
+            })
+        ("nuget/" + packageName + ".nuspec")
+
+    let packageName = project
+    NuGet (fun p ->
+        { p with
+            Authors = authors
+            Project = packageName
+            Summary = packageName // "TODO"
+            Description = packageName // "TODO"
+            Version = release.NugetVersion
+            ReleaseNotes = ""
+            Tags = tags
+            OutputPath = "bin"
+            AccessKey = getBuildParamOrDefault "nugetkey" ""
+            Publish = hasBuildParam "nugetkey"
+            Dependencies = 
+              [ "Spreads.Collections", release.NugetVersion
+                "Spreads.Extensions", release.NugetVersion
                 ]
             })
         ("nuget/" + packageName + ".nuspec")

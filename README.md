@@ -16,10 +16,5 @@ Contains different functionality over Spreads.Collections such as calculations, 
 
 Spreads
 -------
-Contains interfaces for infrastructure related to Spreads.Collections such as storage, network syncronization and implementation
-of infrastructure using injected interfaces.
-
-
-SpreadsDB
----------
-Highly optimized local database for spreads and network for synchronization
+Parent project for NuGet `Spreads` package. Contains references 
+to Spreads.Collections/Extensions and additional functionality.

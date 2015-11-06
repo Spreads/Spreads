@@ -1,3 +1,8 @@
+#### 0.1.0 - November 6, 2015
+* Cleanup unused legacy code
+* Add empty Spreads project and NuGet to install all dependencies
+* First minor version. This is used in production already. Going forward follow semantic versioning rules.
+
 #### 0.0.79 - October 30, 2015
 * Fix bug in SortedDeque AddWithIndex (introduced because "it was so trivial that no unit tests were needed"...)
 

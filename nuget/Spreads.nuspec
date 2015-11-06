@@ -14,13 +14,12 @@
 	  <releaseNotes>@releaseNotes@</releaseNotes>
 	  <copyright>Copyright 2015</copyright>
 	  <tags>@tags@</tags>
-    <dependencies>
-	  <dependency id="Spreads.Collections" />
-	  <dependency id="Spreads.Extensions" />
-    </dependencies>
+	  @dependencies@
   </metadata>
   <files>
-    <file src="..\bin\Spreads.dll" target="lib/net45" />
-	<!--<file src="..\bin\Spreads.pdb" target="lib/net45" />-->
+	  <!-- TODO xml files, omitted for now because they often break builds in VS (file is locked) -->
+	  <file src="..\bin\Spreads.dll" target="lib/net45" />
+	  <file src="..\bin\Spreads.pdb" target="lib/net45" />
+	  <!--<file src="..\bin\Spreads.pdb" target="lib/net45" />-->
   </files>
 </package>

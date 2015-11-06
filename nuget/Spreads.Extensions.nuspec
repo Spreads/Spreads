@@ -17,7 +17,9 @@
 		@dependencies@
 	</metadata>
 	<files>
+		<!-- TODO xml files, omitted for now because they often break builds in VS (file is locked) -->
 		<file src="..\bin\Spreads.Extensions.dll" target="lib/net45" />
 		<file src="..\bin\Spreads.Extensions.pdb" target="lib/net45" />
+		<!--<file src="..\bin\Spreads.Extensions.xml" target="lib/net45" />-->
 	</files>
 </package>

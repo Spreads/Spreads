@@ -76,18 +76,6 @@
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
       <Name>Spreads.Collections</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\src\Spreads\Spreads.fsproj">
-      <Project>{7e90d6ce-a10b-4858-a5bc-41df7250cbca}</Project>
-      <Name>Spreads</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Spreads.Collections.Tests\Spreads.Collections.Tests.csproj">
-      <Project>{d4857397-4d03-4e25-9332-979bf22e9bb2}</Project>
-      <Name>Spreads.Collections.Tests</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Spreads.Tests.Profile\Spreads.Tests.Profile.fsproj">
-      <Project>{d371bd54-788a-4b9f-83a3-306e1ae62732}</Project>
-      <Name>Spreads.Tests.Profile</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

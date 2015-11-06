@@ -42,10 +42,6 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="FSharp.Core, Version=4.3.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.IO.Compression" />
@@ -65,36 +61,6 @@
     <Compile Include="Process.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Version.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="..\..\lib\Common\Newtonsoft.Json.dll">
-      <Link>Newtonsoft.Json.dll</Link>
-      <LogicalName>Newtonsoft.Json.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\Common\AsyncIO.dll">
-      <Link>AsyncIO.dll</Link>
-      <LogicalName>AsyncIO.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\Common\NetMQ.dll">
-      <Link>NetMQ.dll</Link>
-      <LogicalName>NetMQ.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\Common\System.Reactive.Core.dll">
-      <Link>System.Reactive.Core.dll</Link>
-      <LogicalName>System.Reactive.Core.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\Common\System.Reactive.Interfaces.dll">
-      <Link>System.Reactive.Interfaces.dll</Link>
-      <LogicalName>System.Reactive.Interfaces.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\Common\System.Reactive.Linq.dll">
-      <Link>System.Reactive.Linq.dll</Link>
-      <LogicalName>System.Reactive.Linq.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\Common\System.Reactive.PlatformServices.dll">
-      <Link>System.Reactive.PlatformServices.dll</Link>
-      <LogicalName>System.Reactive.PlatformServices.dll</LogicalName>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="..\..\lib\msvcrt\x32\msvcrt.zip">
