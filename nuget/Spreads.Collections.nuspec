@@ -5,8 +5,8 @@
     <version>@build.number@</version>
     <authors>@authors@</authors>
     <owners>@authors@</owners>
-    <licenseUrl>http://github.com/Spreads/Spreads.Collections/blob/master/LICENSE.txt</licenseUrl>
-    <projectUrl>https://github.com/Spreads/Spreads.Collections</projectUrl>
+    <licenseUrl>http://github.com/Spreads/Spreads/blob/master/LICENSE.txt</licenseUrl>
+    <projectUrl>https://github.com/Spreads/Spreads</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/Spreads/Spreads/master/docs/files/img/logo.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <summary>@summary@</summary>
