@@ -17,6 +17,7 @@ namespace Spreads.Persistence {
 
 
     public abstract class BaseTypeSerializer<T> : BaseObjectSerializer {
+
         public abstract byte[] Serialize(T value);
         public abstract T Deserialize(byte[] bytes);
 
@@ -81,7 +82,7 @@ namespace Spreads.Persistence {
     /// <summary>
     /// 
     /// </summary>
-    public unsafe sealed class BinarySerializer // TODO (low) just for fun, test sealed vs struct vs ordinary class on primitives where "dynamic dispatch" is likely to be more expensive that converting to bytes
+    public unsafe sealed class BinarySerializer // TODO (low) just for fun, test sealed vs struct vs ordinary class on primitives where "dynamic dispatch" is likely to be more expensive than converting to bytes
     {
         public Dictionary<Type, BaseObjectSerializer> CustomSerializers { get; } = new Dictionary<Type, BaseObjectSerializer>();
 

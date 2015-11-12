@@ -77,6 +77,7 @@ type SortedDeque<'T>(comparer:IComparer<'T>, capacity:int) as this=
 
   new() = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>(), 2)
   new(comparer:IComparer<'T>) = new SortedDeque<'T>(comparer, 2)
+  new(capacity) = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>(), capacity)
 
   member inline internal this.IndexToOffset(index) = (index + this.firstOffset) &&& (this.buffer.Length - 1)
 

@@ -341,5 +341,14 @@ namespace Spreads {
             }
             return sm;
         }
+
+
+        /// <summary>
+        /// Projects values from source to destination and back
+        /// </summary>
+        public static IPersistentOrderedMap<K, Vdest> Project<K, Vsrc, Vdest>(this IOrderedMap<K, Vsrc> innerMap,
+            Func<Vsrc, Vdest> srcToDest, Func<Vdest, Vsrc> destToSrc) {
+            return new ProjectValuesWrapper<K, Vsrc, Vdest>(innerMap, srcToDest, destToSrc);
+        }
     }
 }

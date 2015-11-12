@@ -1,3 +1,6 @@
+#### 0.1.1 - November 11, 2015
+* Add bi-directional projection
+
 #### 0.1.0 - November 6, 2015
 * Cleanup unused legacy code
 * Add empty Spreads project and NuGet to install all dependencies
