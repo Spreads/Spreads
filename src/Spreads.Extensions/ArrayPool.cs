@@ -10,7 +10,7 @@ namespace Spreads {
 	public class DoubleArrayPool : IArrayPool
 	{
 		private InternalBufferManager<double>.PooledBufferManager _doublePool =
-			new InternalBufferManager<double>.PooledBufferManager(512*1024*1024, 128 * 1024 * 1024);
+			new InternalBufferManager<double>.PooledBufferManager(512*1024*1024, 1024 * 1024);
 
 		public T[] TakeBuffer<T>(int bufferCount)
 		{

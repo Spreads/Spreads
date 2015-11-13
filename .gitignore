@@ -191,8 +191,7 @@ docs/content/release-notes.md
 *.so
 *.dylib
 
-!libblosc.dll
-!libspreadsdb.dll
+
 !libyeppp.dll
 !lib/Common/*.dll
 !lib/msvcrt/x32/

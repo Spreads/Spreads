@@ -53,6 +53,14 @@ type ISeries<'K,'V> =
   abstract IsMutable: bool with get
   /// Locks any mutations for mutable implementations
   abstract SyncRoot : obj with get
+  // TODO think about this
+  // the key point is that not the series is observable, but 
+  // one could observe it starting from some key
+  // or maybe ICursor is IObservable, but pull/push duality tells that 
+  // IObservable is a counterpart to IEnumerable.
+  // may be a totally weird thing: a method Observe(from) on Cursor itself?
+  // cursor 
+  //abstract Observe: start:'K -> IObservable<KVP<'K,'V>>
 
 /// ICursor is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
 /// positions and relative LT/LE/GT/GE moves.
