@@ -154,7 +154,7 @@
     <Compile Include="Persistence\Messaging.cs" />
     <Compile Include="Persistence\SeriesInfo.cs" />
     <Compile Include="Serializer.cs" />
-    <Compile Include="Series\BiProjectionValuesWrapper.cs" />
+    <Compile Include="Series\ProjectValuesWrapper.cs" />
     <Compile Include="Series\CursorSeries.cs" />
     <Compile Include="Series\RemoteChunksSeries.cs" />
     <Compile Include="Series\ZonedSeries.cs" />
