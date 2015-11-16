@@ -12,14 +12,14 @@ namespace Spreads.Persistence {
     public enum Command : byte {
         Unsubscribe = 0,
         Subscribe = 1,
-        Set,
-        Remove,
-        Append,
-        Lock,
+        Set = 2,
+        Remove = 3,
+        Append = 4,
+        Lock =5,
         /// <summary>
         /// There is no more data
         /// </summary>
-        Complete
+        Complete = 6
     }
 
 
@@ -133,68 +133,75 @@ namespace Spreads.Persistence {
 
         public static BaseCommand ParseCommand(ArraySegment<byte> blobCommand)
         {
-            var br = new BinaryReader(new MemoryStream(blobCommand.Array,blobCommand.Offset, blobCommand.Count));
-            var cmd = (Command) br.ReadByte();
-            var idLen = br.ReadInt32();
-            var seriesid = br.ReadString();
-            var version = br.ReadInt64();
-
-            switch (cmd)
+            try
             {
-                case Command.Unsubscribe:
-                    throw new NotImplementedException("TODO");
-                    break;
-                case Command.Subscribe:
-                    var keyLen = br.ReadInt32();
-                    var keyBytes = br.ReadBytes(keyLen);
-                    return new SubscribeFromCommand
-                    {
-                        Version = version,
-                        FromKeyBytes = keyBytes,
-                        SeriesId = seriesid
-                    };
-                case Command.Set:
-                    var setBodyLen = br.ReadInt32();
-                    var setBodyBytes = br.ReadBytes(setBodyLen);
-                    return new SetCommand()
-                    {
-                        Version = version,
-                        SeriesId = seriesid,
-                        SerializedSortedMap = setBodyBytes
-                    };
-                case Command.Remove:
-                    var direction = (Lookup)br.ReadInt32();
-                    var remKeyLen = br.ReadInt32();
-                    var remKeyBytes = br.ReadBytes(remKeyLen);
-                    return new RemoveCommand
-                    {
-                        Direction = direction,
-                        Version = version,
-                        KeyBytes = remKeyBytes,
-                        SeriesId = seriesid
-                    };
-                case Command.Append:
-                    var appendOption = (AppendOption) br.ReadByte();
-                    var appendBodyLen = br.ReadInt32();
-                    var appendBodyBytes = br.ReadBytes(appendBodyLen);
-                    return new AppendCommand()
-                    {
-                        Version = version,
-                        SeriesId = seriesid,
-                        AppendOption = appendOption,
-                        SerializedSortedMap = appendBodyBytes
-                    };
-                case Command.Lock:
-                    throw new NotImplementedException("TODO");
-                    break;
-                case Command.Complete:
-                    return new CompleteCommand()
-                    {
-                        Version = version,
-                        SeriesId = seriesid
-                    };
-                default:
-                    throw new ArgumentOutOfRangeException();
+                var br = new BinaryReader(new MemoryStream(blobCommand.Array, blobCommand.Offset, blobCommand.Count));
+                var cmd = (Command) br.ReadByte();
+                var idLen = br.ReadInt32();
+                var seriesid = br.ReadString();
+                var version = br.ReadInt64();
+
+                switch (cmd)
+                {
+                    case Command.Unsubscribe:
+                        throw new NotImplementedException("TODO");
+                        break;
+                    case Command.Subscribe:
+                        var keyLen = br.ReadInt32();
+                        var keyBytes = br.ReadBytes(keyLen);
+                        return new SubscribeFromCommand
+                        {
+                            Version = version,
+                            FromKeyBytes = keyBytes,
+                            SeriesId = seriesid
+                        };
+                    case Command.Set:
+                        var setBodyLen = br.ReadInt32();
+                        var setBodyBytes = br.ReadBytes(setBodyLen);
+                        return new SetCommand()
+                        {
+                            Version = version,
+                            SeriesId = seriesid,
+                            SerializedSortedMap = setBodyBytes
+                        };
+                    case Command.Remove:
+                        var direction = (Lookup) br.ReadInt32();
+                        var remKeyLen = br.ReadInt32();
+                        var remKeyBytes = br.ReadBytes(remKeyLen);
+                        return new RemoveCommand
+                        {
+                            Direction = direction,
+                            Version = version,
+                            KeyBytes = remKeyBytes,
+                            SeriesId = seriesid
+                        };
+                    case Command.Append:
+                        var appendOption = (AppendOption) br.ReadByte();
+                        var appendBodyLen = br.ReadInt32();
+                        var appendBodyBytes = br.ReadBytes(appendBodyLen);
+                        return new AppendCommand()
+                        {
+                            Version = version,
+                            SeriesId = seriesid,
+                            AppendOption = appendOption,
+                            SerializedSortedMap = appendBodyBytes
+                        };
+                    case Command.Lock:
+                        throw new NotImplementedException("TODO");
+                        break;
+                    case Command.Complete:
+                        return new CompleteCommand()
+                        {
+                            Version = version,
+                            SeriesId = seriesid
+                        };
+                    default:
+                        return null;
+                }
+            }
+            catch
+            {
+                return null;
             }
         }
 

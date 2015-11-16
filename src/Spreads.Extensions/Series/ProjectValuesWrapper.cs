@@ -7,7 +7,7 @@ namespace Spreads {
     /// <summary>
     /// Projects values from source to destination and back
     /// </summary>
-    internal class ProjectValuesWrapper<K, Vsrc, Vdest> : Series<K, Vdest>, IPersistentOrderedMap<K, Vdest> {
+    public class ProjectValuesWrapper<K, Vsrc, Vdest> : Series<K, Vdest>, IPersistentOrderedMap<K, Vdest> {
         private readonly IOrderedMap<K, Vsrc> _innerMap;
         private readonly Func<Vsrc, Vdest> _srcToDest;
         private readonly Func<Vdest, Vsrc> _destToSrc;

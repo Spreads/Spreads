@@ -1,4 +1,4 @@
-#### 0.1.1 - November 11, 2015
+#### 0.1.3 - November 11, 2015
 * Add bi-directional projection
 
 #### 0.1.0 - November 6, 2015
