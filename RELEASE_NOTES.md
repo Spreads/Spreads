@@ -1,3 +1,6 @@
+#### 0.1.4 - November 20, 2015
+* Remove concrete implementations
+
 #### 0.1.3 - November 11, 2015
 * Add bi-directional projection
 

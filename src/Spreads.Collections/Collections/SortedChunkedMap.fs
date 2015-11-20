@@ -790,7 +790,7 @@ type SortedChunkedMap<'K,'V>
         this.Flush()
         exitLockIf this.SyncRoot entered
     
-  member this.Id with get() = id and internal set(newid) = id <- newid
+  member this.Id with get() = id and set(newid) = id <- newid
 
   //#region Interfaces
   interface IUpdateable<'K,'V> with
