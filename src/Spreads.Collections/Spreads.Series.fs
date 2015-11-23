@@ -57,7 +57,7 @@ and
 
     // TODO! check
     member this.IsIndexed with get() = this.GetCursor().Source.IsIndexed
-    member this.IsMutable =  this.GetCursor().Source.IsIndexed
+    member this.IsMutable =  this.GetCursor().Source.IsMutable
 
     /// Locks any mutations for mutable implementations
     member this.SyncRoot 
@@ -138,8 +138,8 @@ and
     interface ISeries<'K,'V> with
       member this.GetCursor() = this.GetCursor()
       member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
-      member this.IsIndexed with get() = this.GetCursor().Source.IsIndexed
-      member this.IsMutable =  this.GetCursor().Source.IsIndexed
+      member this.IsIndexed with get() = this.IsIndexed
+      member this.IsMutable =  this.IsMutable
       member this.SyncRoot with get() = this.SyncRoot
 
     interface IReadOnlyOrderedMap<'K,'V> with

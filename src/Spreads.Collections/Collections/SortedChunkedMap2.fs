@@ -17,6 +17,7 @@ open Spreads.Collections
 // set to outer if versions differ
 // TODO subscribe to update events on prevBucket and Flush at least every second
 
+// TODO Work with SCM initially, them refactor it to interfaces version. Do runtime checks for IPOM, if it is not then assume it is in memory
 
 [<AllowNullLiteral>]
 [<SerializableAttribute>]

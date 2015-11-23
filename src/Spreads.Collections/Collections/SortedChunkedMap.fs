@@ -39,6 +39,10 @@ type SortedChunkedMap<'K,'V>
   [<NonSerializedAttribute>]
   let mutable flushedVersion = 0L
   [<NonSerializedAttribute>]
+  let mutable isMutable : bool = true
+  [<NonSerializedAttribute>]
+  let mutable cursorCounter : int = 1 // TODO either delete this or add decrement to cursor disposal
+  [<NonSerializedAttribute>]
   let mutable isSync  = false
   [<NonSerializedAttribute>]
   let chunkUpperLimit : int = 
@@ -121,6 +125,16 @@ type SortedChunkedMap<'K,'V>
         finally
           exitLockIf this.SyncRoot entered
 
+  member this.IsMutable 
+    with get() = isMutable
+    and set (value) = 
+      if isMutable then 
+        isMutable <- value
+        if not value && cursorCounter > 0 then updateEvent.Trigger(Unchecked.defaultof<_>)
+      else 
+        if isMutable = value then () // NB same as not value
+        else invalidOp "Cannot make immutable map mutable, the setter only supports on-way change from mutable to immutable"
+
   member this.IsSynchronized with get() = isSync and set v = isSync <- v
 
   member this.SyncRoot with get() = outerMap.SyncRoot
@@ -161,6 +175,7 @@ type SortedChunkedMap<'K,'V>
           version <- version + 1L
           let s2 = prevBucket.size
           size <- size + int64(s2 - s1)
+          if cursorCounter > 0 then updateEvent.Trigger(KVP(key,value))
         else
           if prevBucketIsSet then
             //prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
@@ -183,6 +198,7 @@ type SortedChunkedMap<'K,'V>
           version <- version + 1L
           let s2 = bucket.size
           size <- size + int64(s2 - s1)
+          if cursorCounter > 0 then updateEvent.Trigger(KVP(key,value))
           prevHash <- hash
           prevBucket <- bucket
           prevBucketIsSet <- true
@@ -517,6 +533,7 @@ type SortedChunkedMap<'K,'V>
         prevBucket.Add(subKey, value)
         version <- version + 1L
         size <- size + 1L
+        if cursorCounter > 0 then updateEvent.Trigger(KVP(key,value))
       else
         if prevBucketIsSet then
           //prevBucket.Capacity <- prevBucket.Count // trim excess
@@ -533,6 +550,7 @@ type SortedChunkedMap<'K,'V>
             newSm
         version <- version + 1L
         size <- size + 1L
+        if cursorCounter > 0 then updateEvent.Trigger(KVP(key,value))
         prevHash <- hash
         prevBucket <-  bucket
         prevBucketIsSet <- true
@@ -574,7 +592,7 @@ type SortedChunkedMap<'K,'V>
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
       let hash = slicer.Hash(key)
-      let subKey = key          
+      let subKey = key
       let c = comparer.Compare(hash, prevHash)
       if c = 0 && prevBucketIsSet then
         let res = prevBucket.Remove(subKey)
@@ -584,6 +602,7 @@ type SortedChunkedMap<'K,'V>
           if prevBucket.size = 0 then
             outerMap.Remove(prevHash) |> ignore
             prevBucketIsSet <- false
+          if cursorCounter > 0 then updateEvent.Trigger(Unchecked.defaultof<_>)
         res
       else
         if prevBucketIsSet then 
@@ -604,6 +623,7 @@ type SortedChunkedMap<'K,'V>
             else
               outerMap.Remove(prevHash) |> ignore
               prevBucketIsSet <- false
+            if cursorCounter > 0 then updateEvent.Trigger(Unchecked.defaultof<_>)
           res
         else
             false
@@ -811,7 +831,7 @@ type SortedChunkedMap<'K,'V>
     member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.IsEmpty
     member this.IsIndexed with get() = false
-    //member this.Count with get() = size
+    member this.IsMutable with get() = this.IsMutable
     member this.First with get() = this.First
     member this.Last with get() = this.Last
     member this.TryFind(k:'K, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) = 

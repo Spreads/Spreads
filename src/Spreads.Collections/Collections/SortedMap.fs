@@ -609,14 +609,14 @@ type SortedMap<'K,'V>
         elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
           this.Insert(this.size, k, v)
           this.size
-        else   
+        else
           let index = this.IndexOfKeyUnchecked(k)
           if index >= 0 then // contains key 
             this.values.[index] <- v
             this.version <- this.version + 1
             orderVersion <- orderVersion + 1
             if cursorCounter >0 then updateEvent.Trigger(KVP(k,v))
-            index     
+            index
           else
             this.Insert(~~~index, k, v)
             ~~~index

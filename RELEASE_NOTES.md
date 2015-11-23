@@ -1,3 +1,6 @@
+#### 0.1.5 - November 23, 2015
+* Make SCM updateable
+
 #### 0.1.4 - November 20, 2015
 * Remove concrete implementations
 
