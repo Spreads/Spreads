@@ -43,7 +43,7 @@ type SortedChunkedMap<'K,'V>
   [<NonSerializedAttribute>]
   let mutable cursorCounter : int = 1 // TODO either delete this or add decrement to cursor disposal
   [<NonSerializedAttribute>]
-  let mutable isSync  = false
+  let mutable isSync  = true
   [<NonSerializedAttribute>]
   let chunkUpperLimit : int = 
     if slicer.IsPresent then 0
@@ -257,7 +257,7 @@ type SortedChunkedMap<'K,'V>
     
     let outer = ref outer
     outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
-    let inner = ref inner
+    let inner = ref inner //(if inner = Unchecked.defaultof<ICursor<'K, 'V>> then outer.Value.CurrentValue.GetCursor() else inner)
     let isReset = ref isReset
     let mutable currentBatch : IReadOnlyOrderedMap<'K,'V> = currentBatch
     let isBatch = ref isBatch
@@ -393,16 +393,18 @@ type SortedChunkedMap<'K,'V>
         finally
           exitLockIf this.SyncRoot entered
 
-      override p.CurrentKey with get() = inner.Value.CurrentKey
-
-      override p.CurrentValue with get() = inner.Value.CurrentValue
+      // NB These are "undefined" when cursor is in invalid state, but they should not thow
+      // Try/catch adds almost no overhead, even compared to null check, in the normal case. Calling these properties before move is 
+      // an application error and should be logged or raise an assertion failure
+      override p.CurrentKey with get() = try inner.Value.CurrentKey with | _ -> Unchecked.defaultof<_>
+      override p.CurrentValue with get() = try inner.Value.CurrentValue with | _ -> Unchecked.defaultof<_>
 
       override p.Reset() = 
         if not !isReset then
           outer.Value.Reset()
           outer.Value.MoveFirst() |> ignore
           //inner.Value.Reset()
-          inner := Unchecked.defaultof<ICursor<'K, 'V>> // outer.Value.CurrentValue.GetPointer()
+          inner := Unchecked.defaultof<ICursor<'K, 'V>> // outer.Value.CurrentValue.GetCursor() //
           isReset := true
 
       override p.Dispose() = base.Dispose()

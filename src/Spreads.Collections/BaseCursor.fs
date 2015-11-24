@@ -109,7 +109,7 @@ type BaseCursor<'K,'V>
   override this.MoveNext(ct) =
     match this.MoveNext() with
     | true -> 
-      Task.FromResult(true)      
+      Task.FromResult(true)
     | false ->
       match isUpdateable, source.IsMutable with
       | true, true ->

@@ -44,30 +44,37 @@ namespace Spreads.Collections.Tests {
         [Test]
         public void CouldMoveAsyncOnEmptySM() {
             var sm = new SortedMap<DateTime, double>();
-
             var c = sm.GetCursor();
-
             var moveTask = c.MoveNext(CancellationToken.None);
-
             sm.Add(DateTime.UtcNow.Date.AddSeconds(0), 0);
-
             var result = moveTask.Result;
-
             Assert.IsTrue(result);
-
         }
 
         [Test]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor() {
+        public void CouldMoveAsyncOnEmptySCM() {
+            var sm = new SortedChunkedMap<DateTime, double>();
+            var c = sm.GetCursor();
+            var moveTask = c.MoveNext(CancellationToken.None);
+            sm.Add(DateTime.UtcNow.Date.AddSeconds(0), 0);
+            var result = moveTask.Result;
+            Assert.IsTrue(result);
+        }
+
+        [Test]
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor()
+        {
             var count = 10000000; //00000;
             var sw = new Stopwatch();
             //var mre = new ManualResetEventSlim(true);
             sw.Start();
 
-            var sm = new SortedMap<DateTime, double>();
+            //var sm = new SortedMap<DateTime, double>();
+            var sm = new SortedChunkedMap<DateTime, double>();
             //sm.Add(DateTime.UtcNow.Date.AddSeconds(-2), 0);
 
-            //sm.IsSynchronized = true;
+            sm.IsSynchronized = true;
+
             for (int i = 0; i < 5; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
@@ -170,15 +177,19 @@ namespace Spreads.Collections.Tests {
 
 
         [Test]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_spinwait() {
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_spinwait()
+        {
+
+            OptimizationSettings.ArrayPool = new DoubleArrayPool();
+
 
             for (int r = 0; r < 10; r++) {
                 var count = 10000000;
                 var sw = new Stopwatch();
 
 
-                var sm = new SortedMap<DateTime, double>();
-                //sm.IsSynchronized = true;
+                var sm = new SortedChunkedMap<DateTime, double>();
+                sm.IsSynchronized = true;
                 for (int i = 0; i < 5; i++) {
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 }
@@ -239,8 +250,8 @@ namespace Spreads.Collections.Tests {
             var sw = new Stopwatch();
             sw.Start();
 
-            var sm = new SortedMap<DateTime, double>();
-            //sm.IsSynchronized = true;
+            var sm = new SortedChunkedMap<DateTime, double>();
+            sm.IsSynchronized = true;
 
             var addTask = Task.Run(async () => {
                 await Task.Delay(50);
@@ -299,7 +310,7 @@ namespace Spreads.Collections.Tests {
             var count = 1000000;
             var sw = new Stopwatch();
 
-            var sm = new SortedMap<DateTime, double>();
+            var sm = new SortedChunkedMap<DateTime, double>();
             //sm.IsSynchronized = true;
 
             for (int i = 0; i < count; i++) {
@@ -308,6 +319,7 @@ namespace Spreads.Collections.Tests {
             sw.Start();
             double sum = 0.0;
             var c = sm.GetCursor();
+            //c.MoveNext();
             while (c.CurrentValue < count - 1.0) {
                 Task.Run(async () => await c.MoveNext(CancellationToken.None)).Wait();
                 sum += c.CurrentValue;

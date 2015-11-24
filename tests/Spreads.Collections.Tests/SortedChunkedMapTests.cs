@@ -73,7 +73,7 @@ namespace Spreads.Collections.Tests {
         [Test]
         public async void CouldReadReadOnlyChildWhileAddingToParent() {
             // TODO if we change the first element to -1 and add from 0, some weird assertion related to regular keys fails
-            var total = 100;
+            var total = 10000;
             var scm = new SortedChunkedMap<int, int>(50);
             scm.IsSynchronized = true;
             scm.AddLast(1, 1);
@@ -93,7 +93,7 @@ namespace Spreads.Collections.Tests {
             using (var c = reader.GetCursor()) {
                 var couldMove = await c.MoveNext(CancellationToken.None);
                 while (couldMove) {
-                    Console.WriteLine("{0} - {1}", c.CurrentKey, c.CurrentValue);
+                    if (cnt % 100 == 0) Console.WriteLine("{0} - {1}", c.CurrentKey, c.CurrentValue);
                     cnt++;
                     couldMove = await c.MoveNext(CancellationToken.None);
                 }

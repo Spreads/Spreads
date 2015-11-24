@@ -1068,7 +1068,7 @@ type SortedMap<'K,'V>
 
           match x.MoveNext() with
           | true -> 
-            Task.FromResult(true)      
+            Task.FromResult(true)
           | false ->
             match this.IsMutable with
             | true ->
