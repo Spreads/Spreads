@@ -191,6 +191,7 @@ type SortedChunkedMap<'K,'V>
               // outerMap.Count could be VERY slow, do not do this
               let averageSize = 4L //try size / (int64 outerMap.Count) with | _ -> 4L // 4L in default
               let newSm = SortedMap(int averageSize, comparer)
+              newSm.IsSynchronized <- this.IsSynchronized
               outerMap.[hash] <- newSm
               newSm
           let s1 = bucket.size
@@ -284,6 +285,7 @@ type SortedChunkedMap<'K,'V>
               if !isBatch then isBatch := false
               true
             else
+              let currentKey = inner.Value.CurrentKey
               if outer.Value.MoveNext() then // go to the next bucket
                 inner := outer.Value.CurrentValue.GetCursor() :> ICursor<_,_>
                 let res = inner.Value.MoveFirst()
@@ -293,6 +295,7 @@ type SortedChunkedMap<'K,'V>
                 else
                   raise (ApplicationException("Unexpected - empty bucket")) 
               else
+                //p.MoveAt(currentKey, Lookup.GT)
                 false
         finally
           exitLockIf this.SyncRoot entered
@@ -547,6 +550,7 @@ type SortedChunkedMap<'K,'V>
             bucketKvp.Value
           else
             let newSm = SortedMap(comparer)
+            newSm.IsSynchronized <- this.IsSynchronized
             newSm.Add(subKey, value)
             outerMap.[hash]<- newSm
             newSm
