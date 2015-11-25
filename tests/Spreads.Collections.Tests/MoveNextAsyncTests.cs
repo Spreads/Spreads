@@ -83,7 +83,7 @@ namespace Spreads.Collections.Tests {
         [Test]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor()
         {
-            var count = 100000;//000; //00000;
+            var count = 1000000; //00000;
             var sw = new Stopwatch();
             //var mre = new ManualResetEventSlim(true);
             sw.Start();
@@ -106,7 +106,7 @@ namespace Spreads.Collections.Tests {
                     //mre.Wait();
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                     //await Task.Delay(1);
-                    NOP(1000);
+                    NOP(500);
                 }
                 //} catch(Exception e)
                 //{
@@ -119,10 +119,16 @@ namespace Spreads.Collections.Tests {
             var sumTask = Task.Run(async () => {
                 var c = sm.GetCursor();
                 while (c.MoveNext()) {
+                    if ((int)c.CurrentValue != cnt) {
+                        Console.WriteLine("Wrong sequence");
+                    } else {
+                        //Console.WriteLine("Sync move");
+                    }
+                    
                     sum += c.CurrentValue;
                     cnt++;
                 }
-                Assert.AreEqual(10, sum);
+                //Assert.AreEqual(10, sum);
                 var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
 
                 await Task.Delay(10);
@@ -132,9 +138,14 @@ namespace Spreads.Collections.Tests {
                     if (c.CurrentKey == stop) {
                         break;
                     }
-                    if ((int)c.CurrentValue != cnt)
+                    if ((int) c.CurrentValue != cnt)
                     {
-                        Console.WriteLine("Wrong sequence");
+                        //Console.WriteLine("Wrong sequence");
+                        Assert.Fail("Wrong sequence");
+                    }
+                    else
+                    {
+                        //Console.WriteLine("Async move");
                     }
                     cnt++;
                     //mre.Set();
@@ -200,9 +211,9 @@ namespace Spreads.Collections.Tests {
             if(expectedSum != sum) Console.WriteLine("Sum 1 is wrong");
             if (expectedSum != sum2) Console.WriteLine("Sum 2 is wrong");
             if (expectedSum != sum3) Console.WriteLine("Sum 3 is wrong");
-            //Assert.AreEqual(expectedSum, sum, "Sum 1");
-            //Assert.AreEqual(expectedSum, sum2, "Sum 2");
-            //Assert.AreEqual(expectedSum, sum3, "Sum 3");
+            Assert.AreEqual(expectedSum, sum, "Sum 1");
+            Assert.AreEqual(expectedSum, sum2, "Sum 2");
+            Assert.AreEqual(expectedSum, sum3, "Sum 3");
         }
 
 

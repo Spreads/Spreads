@@ -17,7 +17,8 @@ type BaseCursor<'K,'V>
 
   let isUpdateable = match source with | :? IUpdateable<'K,'V> -> true | _ -> false
   let observerStarted = ref false
-  let tcs = ref (TaskCompletionSource<bool>())
+  //let tcs = ref (TaskCompletionSource<bool>())
+  let mutable tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create())
   // TODO use CT while waiting on semaphore
   let cancellationToken = ref CancellationToken.None
   let sr = Object()
@@ -32,25 +33,28 @@ type BaseCursor<'K,'V>
           if cont && couldProceed && !observerStarted && waitTask.IsCompleted then
             lock(sr) (fun _ ->
               // right now a client is waiting for a task to complete, there are no more elements in the map
-              if !tcs <> null then
+              if tcs <> Unchecked.defaultof<_> then
                 //Debug.WriteLine("B: !tcs <> null")
                 if this.MoveNext() then
-                  let tcs' = !tcs
-                  tcs := null
-                  //Debug.WriteLine("C: Moved")
-                  let couldSetResult = (tcs').TrySetResult(true)
+                  let tcs' = tcs
+                  tcs <- Unchecked.defaultof<_>
+                  //Console.WriteLine("C: Moved")
+                  //let couldSetResult = 
+                  (tcs').SetResult(true)
         #if PRERELEASE
-                  Trace.Assert(couldSetResult)
+                  //Trace.Assert(couldSetResult)
         #endif
                   ()
                 // check if the source became immutable
                 elif not source.IsMutable then 
                   //Debug.WriteLine("D")
-                  let couldSetResult = (!tcs).TrySetResult(false)
-                  Trace.Assert(couldSetResult)
+                  //let couldSetResult = 
+                  (tcs).SetResult(false)
+                  //Trace.Assert(couldSetResult)
                   cont <- false
               else
                 // do nothing, next MoveNext(ct) will try to call MoveNext() and it will return the correct result
+                //Console.WriteLine("Not moved")
                 ()
             )
             return! completeTcs()
@@ -107,44 +111,50 @@ type BaseCursor<'K,'V>
 
   abstract member MoveNext : CancellationToken -> Task<bool>
   override this.MoveNext(ct) =
-    match this.MoveNext() with
-    | true -> 
-      Task.FromResult(true)
-    | false ->
-      match isUpdateable, source.IsMutable with
-      | true, true ->
-        let upd = source :?> IUpdateable<'K,'V>
-        if not !observerStarted then 
-          upd.OnData.AddHandler updateHandler
-          observerStarted := true
-          taskCompleter := completeTcs()
+      match this.MoveNext() with
+      | true -> 
+        //Console.WriteLine("From result")
+        Task.FromResult(true)
+      | false ->
+        match isUpdateable, source.IsMutable with
+        | true, true ->
+          let upd = source :?> IUpdateable<'K,'V>
+          if not !observerStarted then 
+            upd.OnData.AddHandler updateHandler
+            observerStarted := true
+            taskCompleter := completeTcs()
 
-        // TODO why spinning doesn't add performance?
-//        let mutable moved = this.MoveNext()
-////        if not moved then
-////          let spinCountMax = 100
-////          let mutable spinCount = 0
-////          while spinCount < spinCountMax do
-////            if this.MoveNext() then 
-////              spinCount <- spinCountMax
-////              moved <- true
-////            else spinCount <- spinCount + 1
-//        if moved && not ct.IsCancellationRequested then
-//          //isWaitingForTcs := false
-//          Task.FromResult(true)
-//        else
-        cancellationToken := ct
-        // TODO use interlocked.exchange or whatever to not allocate new one every time, if we return Task.FromResult(true) below
-        // interlocked.exchange does not short-circuit and allocates value each time
-        //Interlocked.CompareExchange(tcs, TaskCompletionSource(), null) |> ignore
-        lock(sr) (fun _ ->
-            if !tcs = null then
-              tcs := TaskCompletionSource()
-            tcs.Value.Task
-        )
+          // TODO why spinning doesn't add performance?
+  //        let mutable moved = this.MoveNext()
+  ////        if not moved then
+  ////          let spinCountMax = 100
+  ////          let mutable spinCount = 0
+  ////          while spinCount < spinCountMax do
+  ////            if this.MoveNext() then 
+  ////              spinCount <- spinCountMax
+  ////              moved <- true
+  ////            else spinCount <- spinCount + 1
+  //        if moved && not ct.IsCancellationRequested then
+  //          //isWaitingForTcs := false
+  //          Task.FromResult(true)
+  //        else
+          cancellationToken := ct
+          // TODO use interlocked.exchange or whatever to not allocate new one every time, if we return Task.FromResult(true) below
+          // interlocked.exchange does not short-circuit and allocates value each time
+          //Interlocked.CompareExchange(tcs, TaskCompletionSource(), null) |> ignore
         
-      | _ -> Task.FromResult(false) // has no values and will never have because is not IUpdateable or IsMutable=false
-  
+//          if !tcs = null then
+//            tcs := TaskCompletionSource()
+//          tcs.Value.Task
+          // NB it looks like the fact that tcs is a struct is important
+          lock(sr) (fun _ ->
+              if tcs = Unchecked.defaultof<_>  then
+                tcs <- Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create() // new TaskCompletionSource<bool>() //
+              tcs.Task
+          )
+        
+        | _ -> Task.FromResult(false) // has no values and will never have because is not IUpdateable or IsMutable=false
+
   abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>
   abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get
   abstract Source : ISeries<'K,'V> with get
