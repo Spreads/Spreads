@@ -27,6 +27,7 @@ namespace Spreads {
             _cursorFactory = cursorFactory;
             _period = period;
             _allowIncomplete = allowIncomplete;
+            
         }
 
         public override bool TryCreateState(K key, out double state) {
