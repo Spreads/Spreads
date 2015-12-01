@@ -118,6 +118,7 @@
     <Compile Include="Circular.fs" />
     <Content Include="app.config" />
     <Content Include="packages.config" />
+    <None Include="Duality.fsx" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">
