@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace Spreads.Experimental {
 
+    // TODO a lightweight struct for a single value IEnumerable
+
+
     public interface IAsyncEnumerator<out T> : IEnumerator<T> {
         Task<bool> MoveNextAsync(CancellationToken cancellationToken = default(CancellationToken));
     }
@@ -20,7 +23,7 @@ namespace Spreads.Experimental {
     }
 
     public interface ISubscriber<in T> : IObserver<IEnumerable<T>> {
-        void OnSubscribe(ISubscription s);
+        //void OnSubscribe(ISubscription s);
         //void OnCompleted();
         //void OnError(Exception error);
         //void OnNext(T value);
