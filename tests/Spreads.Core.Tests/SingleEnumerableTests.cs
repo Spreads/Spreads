@@ -16,6 +16,25 @@ namespace Spreads.Core.Tests {
         }
     }
 
+    public struct SingleValue<T>
+    {
+        public T Value { get; }
+
+        public SingleValue(T value)
+        {
+            Value = value;
+        }
+    }
+
+
+    public class SingleValueClass<T> {
+        public T Value { get; }
+
+        public SingleValueClass(T value) {
+            Value = value;
+        }
+    }
+
 
     [TestFixture]
     public class SingleEnumerableTests {
@@ -27,6 +46,36 @@ namespace Spreads.Core.Tests {
             long sum = 0;
             for (var i = 0; i < 100000000; i++) {
                 sum += i;
+            }
+            sw.Stop();
+            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
+            Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
+        }
+
+        [Test]
+        public void DirectStructSum() {
+            var sw = new Stopwatch();
+            sw.Start();
+            long sum = 0;
+            for (var i = 0; i < 100000000; i++)
+            {
+                var str = new SingleValue<int>(i);
+                sum += str.Value;
+            }
+            sw.Stop();
+            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
+            Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
+        }
+
+
+        [Test]
+        public void DirectClassSum() {
+            var sw = new Stopwatch();
+            sw.Start();
+            long sum = 0;
+            for (var i = 0; i < 100000000; i++) {
+                var str = new SingleValueClass<int>(i);
+                sum += str.Value;
             }
             sw.Stop();
             Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
@@ -90,6 +139,22 @@ namespace Spreads.Core.Tests {
             long sum = 0;
             for (var i = 0; i < 100000000; i++) {
                 foreach (var single in new SingleSequence<int>(i)) {
+                    sum += single;
+                }
+            }
+            sw.Stop();
+            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
+            Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
+        }
+
+        [Test]
+        public void SingleSequenceStructReusedForEach() {
+            var sw = new Stopwatch();
+            sw.Start();
+            long sum = 0;
+            var st = new SingleSequence<int>(1);
+            for (var i = 0; i < 100000000; i++) {
+                foreach (var single in st) {
                     sum += single;
                 }
             }

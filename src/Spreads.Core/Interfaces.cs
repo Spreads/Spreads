@@ -7,16 +7,48 @@ using System.Threading.Tasks;
 
 namespace Spreads.Experimental {
 
-    // TODO a lightweight struct for a single value IEnumerable
+    // TODO ISeriesSegment that implements IReadOnlyCollection 
 
 
+    /// <summary>
+    /// Extends <c>IEnumerator[out T]</c> to support asynchronous MoveNext with cancellation.
+    /// </summary>
+    /// <remarks>
+    /// Contract: when MoveNext() returns false it means that there are no more elements 
+    /// right now, and a consumer should call MoveNextAsync() to await for a new element, or spin 
+    /// and repeatedly call MoveNext() when a new element is expected very soon. Repeated calls to MoveNext()
+    /// could return true and changes to the underlying sequence, which do not affect enumeration,
+    /// do not invalidate the enumerator.
+    /// 
+    /// <c>Current</c> property follows the parent contracts as described here: https://msdn.microsoft.com/en-us/library/58e146b7(v=vs.110).aspx
+    /// Some implementations guarantee that <c>Current</c> keeps its last value from successfull MoveNext(), 
+    /// but that must be explicitly stated in a data structure documentation (e.g. SortedMap).
+    /// </remarks>
     public interface IAsyncEnumerator<out T> : IEnumerator<T> {
-        Task<bool> MoveNextAsync(CancellationToken cancellationToken = default(CancellationToken));
+        /// <summary>
+        /// Async move next.
+        /// </summary>
+        /// <remarks>
+        /// We often refer to this method as <c>MoveNextAsync</c> when it is used with <c>CancellationToken.None</c> 
+        /// or cancellation token doesn't matter in the context.
+        /// </remarks>
+        /// <param name="cancellationToken">Use <c>CancellationToken.None</c> as default token</param>
+        /// <returns>true when there is a next element in the sequence, false if the sequence is complete and there will be no more elements ever</returns>
+        Task<bool> MoveNext(CancellationToken cancellationToken);
+
     }
 
+    /// <summary>
+    /// Exposes the async enumerator, which supports a sync and async iteration over a collection of a specified type.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public interface IAsyncEnumerable<out T> : IEnumerable<T> {
+        /// <summary>
+        /// Returns an async enumerator.
+        /// </summary>
         new IAsyncEnumerator<T> GetEnumerator();
     }
+
 
     public interface IPublisher<out T> : IObservable<IEnumerable<T>> {
         new ISubscription Subscribe(IObserver<IEnumerable<T>> subscriber);
@@ -117,7 +149,7 @@ namespace Spreads.Experimental {
 
 
 
-    
+
     // ToSeries() as ToDictionary with T => TKey, T => TValue
 
     public abstract class BasePublisher<T> : IPublisher<T> {
@@ -127,7 +159,7 @@ namespace Spreads.Experimental {
         }
     }
 
-    
+
 
     public abstract class BaseSubscriber<T> : ISubscriber<T> {
         public abstract void OnCompleted();
@@ -136,7 +168,7 @@ namespace Spreads.Experimental {
         public abstract void OnSubscribe(ISubscription s);
     }
 
-    
+
 
     public abstract class BaseSubscription : ISubscription {
         public abstract void Request(long n);
@@ -146,7 +178,7 @@ namespace Spreads.Experimental {
         }
     }
 
-    
+
 
 
     public abstract class BaseProcessor<TIn, TOut> : IProcessor<TIn, TOut> {
