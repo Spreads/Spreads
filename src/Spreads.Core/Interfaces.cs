@@ -9,6 +9,7 @@ namespace Spreads.Experimental {
 
     // TODO a lightweight struct for a single value IEnumerable
 
+    // TODO GetPublisher
 
     public interface IAsyncEnumerator<out T> : IEnumerator<T> {
         Task<bool> MoveNextAsync(CancellationToken cancellationToken = default(CancellationToken));
@@ -18,8 +19,8 @@ namespace Spreads.Experimental {
         new IAsyncEnumerator<T> GetEnumerator();
     }
 
-    public interface IPublisher<out T> : IObservable<IEnumerable<T>> {
-        new ISubscription Subscribe(IObserver<IEnumerable<T>> subscriber);
+    public interface IPublisher<out T> : IObservable<T> {
+        new ISubscription Subscribe(IObserver<T> subscriber);
     }
 
     public interface ISubscriber<in T> : IObserver<IEnumerable<T>> {
@@ -120,45 +121,45 @@ namespace Spreads.Experimental {
     
     // ToSeries() as ToDictionary with T => TKey, T => TValue
 
-    public abstract class BasePublisher<T> : IPublisher<T> {
-        public abstract ISubscription Subscribe(IObserver<IEnumerable<T>> subscriber);
-        IDisposable IObservable<IEnumerable<T>>.Subscribe(IObserver<IEnumerable<T>> observer) {
-            return Subscribe(observer);
-        }
-    }
+    //public abstract class BasePublisher<T> : IPublisher<T> {
+    //    public abstract ISubscription Subscribe(IObserver<IEnumerable<T>> subscriber);
+    //    IDisposable IObservable<IEnumerable<T>>.Subscribe(IObserver<IEnumerable<T>> observer) {
+    //        return Subscribe(observer);
+    //    }
+    //}
 
     
 
-    public abstract class BaseSubscriber<T> : ISubscriber<T> {
-        public abstract void OnCompleted();
-        public abstract void OnError(Exception error);
-        public abstract void OnNext(IEnumerable<T> value);
-        public abstract void OnSubscribe(ISubscription s);
-    }
+    //public abstract class BaseSubscriber<T> : ISubscriber<T> {
+    //    public abstract void OnCompleted();
+    //    public abstract void OnError(Exception error);
+    //    public abstract void OnNext(IEnumerable<T> value);
+    //    public abstract void OnSubscribe(ISubscription s);
+    //}
 
     
 
-    public abstract class BaseSubscription : ISubscription {
-        public abstract void Request(long n);
-        public abstract void Cancel();
-        public virtual void Dispose() {
-            Cancel();
-        }
-    }
+    //public abstract class BaseSubscription : ISubscription {
+    //    public abstract void Request(long n);
+    //    public abstract void Cancel();
+    //    public virtual void Dispose() {
+    //        Cancel();
+    //    }
+    //}
 
     
 
 
-    public abstract class BaseProcessor<TIn, TOut> : IProcessor<TIn, TOut> {
-        public abstract void OnCompleted();
-        public abstract void OnError(Exception error);
-        public abstract void OnNext(IEnumerable<TIn> value);
-        public abstract void OnSubscribe(ISubscription s);
-        public abstract ISubscription Subscribe(IObserver<IEnumerable<TOut>> subscriber);
-        IDisposable IObservable<IEnumerable<TOut>>.Subscribe(IObserver<IEnumerable<TOut>> observer) {
-            return Subscribe(observer);
-        }
-    }
+    //public abstract class BaseProcessor<TIn, TOut> : IProcessor<TIn, TOut> {
+    //    public abstract void OnCompleted();
+    //    public abstract void OnError(Exception error);
+    //    public abstract void OnNext(IEnumerable<TIn> value);
+    //    public abstract void OnSubscribe(ISubscription s);
+    //    public abstract ISubscription Subscribe(IObserver<IEnumerable<TOut>> subscriber);
+    //    IDisposable IObservable<IEnumerable<TOut>>.Subscribe(IObserver<IEnumerable<TOut>> observer) {
+    //        return Subscribe(observer);
+    //    }
+    //}
 
 
 
