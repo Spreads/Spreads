@@ -9,7 +9,6 @@ namespace Spreads.Experimental {
 
     // TODO ISeriesSegment that implements IReadOnlyCollection 
 
-    // TODO GetPublisher
 
     /// <summary>
     /// Extends <c>IEnumerator[out T]</c> to support asynchronous MoveNext with cancellation.
@@ -18,7 +17,7 @@ namespace Spreads.Experimental {
     /// Contract: when MoveNext() returns false it means that there are no more elements 
     /// right now, and a consumer should call MoveNextAsync() to await for a new element, or spin 
     /// and repeatedly call MoveNext() when a new element is expected very soon. Repeated calls to MoveNext()
-    /// could return true and changes to the underlying sequence, which do not affect enumeration,
+    /// could eventually return true. Changes to the underlying sequence, which do not affect enumeration,
     /// do not invalidate the enumerator.
     /// 
     /// <c>Current</c> property follows the parent contracts as described here: https://msdn.microsoft.com/en-us/library/58e146b7(v=vs.110).aspx
@@ -50,16 +49,7 @@ namespace Spreads.Experimental {
         new IAsyncEnumerator<T> GetEnumerator();
     }
 
-    public interface IPublisher<out T> : IObservable<T> {
-        new ISubscription Subscribe(IObserver<T> subscriber);
-    }
 
-    public interface ISubscriber<in T> : IObserver<IEnumerable<T>> {
-        //void OnSubscribe(ISubscription s);
-        //void OnCompleted();
-        //void OnError(Exception error);
-        //void OnNext(T value);
-    }
 
     public interface ISubscription : IDisposable {
         /// <summary>
@@ -84,7 +74,38 @@ namespace Spreads.Experimental {
         //void Dispose();
     }
 
-    public interface IDataStream<T> : ISeries<long, T> { }
+    // ISeriesSubscription Request method overloads are duals to cursor move methods
+    // MoveNext()       -> Request(1)
+    // MovePrevious()   -> Request(1, Lookup.LE/LT)
+    // MoveFirst()      -> Request(1, firstKey, Lookup.GE) // first/last keys could be known from cursor
+    // MoveLast()       -> Request(1, lastKey, Lookup.LE)
+    // MoveAt(key, direction) -> Request(1, key, direction)
+
+    public interface ISeriesSubscription<TKey> : ISubscription {
+        void Request(long n, TKey from);
+        void Request(long n, TKey from, Lookup direction);
+        void Request(long n, Lookup direction);
+    }
+
+    public interface ISubscriber<in T> : IObserver<T> {
+        void OnSubscribe(ISubscription s);
+        //void OnCompleted();
+        //void OnError(Exception error);
+        //void OnNext(T value);
+    }
+
+    public interface ISeriesSubscriber<TKey, TValue> : ISubscriber<KeyValuePair<TKey, TValue>> {
+        void OnSubscribe(ISeriesSubscription<TKey> s);
+    }
+
+    public interface IPublisher<out T> : IObservable<T> {
+        // We do not need to expose ISubscription to publisher, only subscriber could request new data
+        // However, publisher could cancel a subscription via Dispose()
+        // new ISubscription Subscribe(IObserver<T> subscriber);
+    }
+
+    public interface IDataStream<T> : IAsyncEnumerable<T>, IPublisher<T> { }
+
 
     /// <summary>
     /// A Processor represents a processing stage—which is both a Subscriber
@@ -97,8 +118,11 @@ namespace Spreads.Experimental {
 
     }
 
+    // TODO This is not final. I am not sure that ICursor should implement ISeriesSubscriber
+    // or ISeriesSubscription, we probably need some composition not inheritance
+    public interface ICursor<TKey, TValue>
+        : IAsyncEnumerator<KeyValuePair<TKey, TValue>>, ISeriesSubscriber<TKey, TValue>, ISeriesSubscription<TKey> {
 
-    public interface ICursor<TKey, TValue> : IAsyncEnumerator<KeyValuePair<TKey, TValue>>, ISubscriber<KeyValuePair<TKey, TValue>> {
         IComparer<TKey> Comparer { get; }
         IReadOnlyOrderedMap<TKey, TValue> CurrentBatch { get; }
         TKey CurrentKey { get; }
@@ -116,17 +140,14 @@ namespace Spreads.Experimental {
     }
 
 
-    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>> {
+    public interface ISeries<TKey, TValue> : IPublisher<KeyValuePair<TKey, TValue>> {
         bool IsIndexed { get; }
         bool IsMutable { get; }
         object SyncRoot { get; }
 
         ICursor<TKey, TValue> GetCursor();
 
-        // we could observe series from any any starting point to any direction
-        // Cursor should implement IPublisher, or IPublisher should be based on a cursor
-
-        IPublisher<KeyValuePair<TKey, TValue>> Observe(TKey from, Lookup direction);
+        // IDisposable Subscribe(IObserver<T> observer);
     }
 
     public interface IReadOnlyOrderedMap<K, V> : ISeries<K, V> {
@@ -141,8 +162,8 @@ namespace Spreads.Experimental {
 
         V GetAt(int idx);
         bool TryFind(K key, Lookup direction, out KeyValuePair<K, V> value);
-        bool TryGetFirst(out KeyValuePair<K, V> value);
-        bool TryGetLast(out KeyValuePair<K, V> value);
+        //bool TryGetFirst(out KeyValuePair<K, V> value);
+        //bool TryGetLast(out KeyValuePair<K, V> value);
         bool TryGetValue(K key, out V value);
     }
 
