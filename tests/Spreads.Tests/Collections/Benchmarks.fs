@@ -740,6 +740,25 @@ module CollectionsBenchmarks =
           ()
       )
 
+    OptimizationSettings.CombineFilterMapDelegates <- false
+    for i in 0..4 do
+      perf count "Series NonOpt Add/divide Chained" (fun _ ->
+        let ro = ((smap.Value + 123456.0)/789.0)*10.0
+        for i in ro do
+          let res = i.Value
+          ()
+      )
+
+    OptimizationSettings.CombineFilterMapDelegates <- true
+    for i in 0..4 do
+      perf count "Series Opt Add/divide Chained" (fun _ ->
+        let ro = ((smap.Value + 123456.0)/789.0)*10.0
+        for i in ro do
+          let res = i.Value
+          ()
+      )
+
+
     for i in 0..4 do
       perf count "LINQ Add/divide Chained" (fun _ ->
         let ro = smap.Value.Select(fun x -> x.Value + 123456.0).Select(fun x -> x/789.0).Select(fun x -> x*10.0)
@@ -828,7 +847,7 @@ module CollectionsBenchmarks =
 //      )
     Console.WriteLine("----------------")
   [<Test>]
-  let SeriesNestedMap_run() = SeriesNestedMap(50000000L)
+  let SeriesNestedMap_run() = SeriesNestedMap(10000000L)
 
 
 

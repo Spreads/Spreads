@@ -171,21 +171,31 @@ and
           
 
     // TODO! (perf) add batching where it makes sense
+    // TODO! (perf) how to use batching with selector combinations?
     /// Used for implement scalar operators which are essentially a map application
-    static member inline private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>, ?fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = 
-      let mapF = mapFunc
-      let fBatch =
-        if fBatch.IsSome then OptionalValue(fBatch.Value) 
-        else 
-          if OptimizationSettings.AlwaysBatch then
-            let fBatch' b =
-              let ok, v = VectorMathProvider.Default.MapBatch(mapFunc.Invoke, b)
-              v
-            OptionalValue(Func<_,_>(fBatch'))
-          else OptionalValue.Missing
-      let mapCursorFactory() = 
-        new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(source.GetCursor), mapF, fBatch) :> ICursor<'K,'V2>
-      CursorSeries(Func<ICursor<'K,'V2>>(mapCursorFactory)) :> Series<'K,'V2>
+    static member private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>, ?fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = 
+      let defaultMap =
+        let mapF = mapFunc
+        let fBatch =
+          if fBatch.IsSome then OptionalValue(fBatch.Value) 
+          else 
+            if OptimizationSettings.AlwaysBatch then
+              let fBatch' b =
+                let ok, v = VectorMathProvider.Default.MapBatch(mapFunc.Invoke, b)
+                v
+              OptionalValue(Func<_,_>(fBatch'))
+            else OptionalValue.Missing
+        new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(source.GetCursor), mapF, fBatch) :> Series<'K,'V2>
+#if PRERELEASE // we could switch off this optimization in prerelease builds
+      if OptimizationSettings.CombineFilterMapDelegates then
+#endif
+        match box source with
+        | :? ICouldMapSeriesValues<'K,'V> as s -> s.Map(mapFunc)
+        | _ ->
+          defaultMap
+#if PRERELEASE
+      else defaultMap
+#endif
 
     // TODO! (perf) optimize ZipN for 2, or reimplement Zip for 'V/'V2->'R, see commented out cursor below
     static member inline private BinaryOperatorMap<'K,'V,'R>(source:Series<'K,'V>,other:Series<'K,'V>, mapFunc:Func<'V,'V,'R>) = 
