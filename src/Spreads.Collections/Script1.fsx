@@ -383,3 +383,43 @@ for i in 0..100000000 do
 let mutable sum2 = 0.0
 for i in 0..100000000 do
   sum2 <- sum2 + slowFunc.Invoke(double i)
+
+
+
+#time "on"
+open System
+type I =
+  abstract Add: int -> int
+
+[<AbstractClassAttribute>]
+type Root() =
+  abstract Add: int -> int
+  interface I with
+    member this.Add(i) = this.Add(i)
+
+[<SealedAttribute>]
+type RootChild() =
+  inherit Root()
+  override this.Add(i) = i + 1
+
+
+type RootImplementer() =
+  //inherit Root()
+  //[<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+  member this.Add(i) = i + 1
+  interface I with
+    member this.Add(i) = this.Add(i) // this is much faster, direct implementation here doesn't matter much (it did matter in SortedDeque though)
+    
+
+let IChild = RootChild() :> I
+let IImplementer = RootImplementer() :> I
+
+
+let mutable acc = 0
+for i in 0..100000000 do
+  acc <- IChild.Add(acc)
+
+
+let mutable acc2 = 0
+for i in 0..100000000 do
+  acc2 <- IImplementer.Add(acc2)

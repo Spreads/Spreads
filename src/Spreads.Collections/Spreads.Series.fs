@@ -36,6 +36,7 @@ open Spreads.Collections
 // TODO limit this optimization to filterMap, do optimized inline helpers for combining filterMap predicates
 [<Interface>]
 [<AllowNullLiteral>]
+[<ObsoleteAttribute("Use SeriesCursor instead")>]
 type internal ICouldMapSeriesValues<'K,'V> =
   abstract member Map: mapFunc:Func<'V,'V2> -> Series<'K,'V2>
 
@@ -344,8 +345,22 @@ and
     // 
     override this.GetCursor() = cursorFactory.Invoke()
     
+
+and
+  // TODO (perf) base Series() implements IROOM inefficiently, see comments in above type Series() implementation
+  
+  /// Wrap Series over ICursor
+  [<AllowNullLiteral>]
+  [<Serializable>]
+  [<AbstractClassAttribute>]
+  SeriesCursor<'K,'V>() =
+    inherit Series<'K,'V>()
+
 //    abstract member Map: mapFunc:Func<'V,'V2> -> Series<'K,'V2>
 //    default this.Map(mapFunc:Func<'V,'V2>) =  Series.ScalarOperatorMap(this, mapFunc)
+
+
+
 
 // Attempts to manually optimize callvirt and object allocation failed badly
 // They are not needed, however, in most of the cases, e.g. iterations.

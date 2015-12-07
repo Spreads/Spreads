@@ -8,7 +8,8 @@ open System.Threading.Tasks
 open System.Diagnostics
 open Spreads
 
-
+// TODO rename back to MapCursor - this is an original cursor backed by some map, it does not represent series itself
+// However, it could inherit from SeriesCursor, but SeriesCursor depends now on Series and not on ISeries
 [<AbstractClassAttribute>]
 type BaseCursor<'K,'V>
   (source:IReadOnlyOrderedMap<'K,'V>) as this =

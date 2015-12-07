@@ -372,6 +372,102 @@ namespace Spreads.Collections.Tests {
 
         }
 
+        [Test]
+        public void CouldZipMillionIntsWithMovePrevious() {
+            var sw = new Stopwatch();
+
+            var sm1 = new SortedMap<int, int>();
+
+            sm1.Add(0, 0);
+
+            for (int i = 2; i < 5000000; i++) {
+                sm1.Add(i, i);
+            }
+
+            var series = new[] { sm1, sm1, sm1, sm1, sm1, };// sm1, sm1, sm1, sm1, sm1,    sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
+
+            sw.Start();
+
+            var sum = series.Zip((k, varr) => varr.Sum());
+            var sumCursor = sum.GetCursor();
+            var pos = 5000000 - 1;
+            while (sumCursor.MovePrevious() && sumCursor.CurrentKey >= 2)
+            {
+                Assert.AreEqual(series.Length * sumCursor.CurrentKey, sumCursor.CurrentValue);
+                pos--;
+            }
+
+            sw.Stop();
+            
+
+        }
+
+
+        [Test]
+        public void CouldZipMillionIntsWithMovePreviousViaLag() {
+            var sw = new Stopwatch();
+
+            var sm1 = new SortedMap<int, int>();
+
+            sm1.Add(0, 0);
+
+            for (int i = 2; i < 5000000; i++) {
+                sm1.Add(i, i);
+            }
+
+            var series = new[] { sm1, sm1, sm1, sm1, sm1, };// sm1, sm1, sm1, sm1, sm1,    sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
+
+            sw.Start();
+
+            var sum = series.Zip((k, varr) => varr.Sum()).Lag(1u);
+            var sumCursor = sum.GetCursor();
+            var pos = 5000000 - 2;
+            while (sumCursor.MovePrevious() && sumCursor.CurrentKey >= 3) {
+                Assert.AreEqual(series.Length * pos, sumCursor.CurrentValue);
+                pos--;
+            }
+
+            sw.Stop();
+
+
+        }
+
+
+        
+        [Test]
+        public void BugFromStrategies() {
+            
+            var sw = new Stopwatch();
+
+            var sm1 = new SortedMap<int, int>();
+            var sm2 = new SortedMap<int, int>();
+
+            sm1.Add(0, 0);
+            sm2.Add(-100500, 0);
+            for (int i = 2; i < 100; i++) {
+                sm1.Add(i, i);
+                if (i%10 == 0)
+                {
+                    sm2.Add(i, i);
+                }
+            }
+
+            var repeated = sm2.Repeat().ToSortedMap();
+            var result = repeated.Zip(sm1, (k, p, d) => p); //.Lag(1u); // .Fill(0)
+
+            var cursor = result.GetCursor();
+            Assert.IsTrue(cursor.MoveNext());
+
+            var clone = cursor.Clone();
+            //Assert.IsTrue(clone.MoveNext());
+            //Assert.IsTrue(clone.MoveNext());
+            
+
+            var sm = result.ToSortedMap();
+            Console.WriteLine(result.Count());
+            
+
+        }
 
         [Test]
         public void CouldZipMillionIntsWithMoveNextContX5() {
@@ -458,6 +554,44 @@ namespace Spreads.Collections.Tests {
             for (int i = 2; i < 5000000; i = i + 2) {
                 Assert.AreEqual(i * 2 - 2, sum[i]);
             }
+
+        }
+
+
+        [Test]
+        public void CouldZipMillionIntsWithMovePreviousContinuous() {
+            var sw = new Stopwatch();
+
+            var sm1 = new SortedMap<int, int>();
+            var sm2 = new SortedMap<int, int>();
+            sm1.Add(0, 0);
+            sm2.Add(0, 0);
+
+            for (int i = 2; i < 5000000; i = i + 2) {
+                sm1.Add(i, i);
+                sm2.Add(i + 1, i);
+            }
+
+            var series = new[] { sm1.Repeat(), sm2.Repeat(), };
+
+            sw.Start();
+
+            var sum = series.Zip((k, varr) => varr.Sum());
+            var sumCursor = sum.GetCursor();
+            var pos = 5000000 - 1;
+            while (sumCursor.MovePrevious() && sumCursor.MovePrevious() && sumCursor.CurrentKey >= 2) {
+                //Assert.AreEqual(pos * 2 - 2, sum[pos]);
+                ////sumCursor.MovePrevious();
+                //pos--;
+                //pos--;
+            }
+
+
+            sw.Stop();
+            //Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+            //for (int i = 2; i < 5000000; i = i + 2) {
+            //    Assert.AreEqual(i * 2 - 2, sum[i]);
+            //}
 
         }
 
@@ -1317,7 +1451,7 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void ContinuousZipIsCorrectByRandomCheckMultipleRun() {
-            for (int i = 0; i < 20; i++) {
+            for (int i = 0; i < 1; i++) {
                 ContinuousZipIsCorrectByRandomCheck();
             }
         }

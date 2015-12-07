@@ -429,7 +429,7 @@ type  CursorBind<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
 // TODO All cursors that are intended to be used with CursorSeries should just inherit Series
 /// A cursor that could perform map, filter, fold, scan or any other projection operations on input cursors.
 [<AbstractClassAttribute>]
-type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
+type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) = // TODO? provide State map/filter in ctor
   let cursor = cursorFactory.Invoke()
 
   let mutable state = Unchecked.defaultof<'State>
@@ -552,13 +552,13 @@ type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
 #else
             let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
 #endif
-            if ok then 
+            if ok then
               found <- true
               this.CurrentKey <- this.InputCursor.CurrentKey
               //this.CurrentValue <- this.EvaluateState(state)
           if found then 
             hasValidState <- true
-            true 
+            true
           else false
         | Lookup.LE | Lookup.LT ->
           let mutable found = false
