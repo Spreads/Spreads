@@ -145,18 +145,17 @@ and
     interface IEnumerable<KeyValuePair<'K, 'V>> with
       member this.GetEnumerator() = this.GetCursor() :> IEnumerator<KeyValuePair<'K, 'V>>
     interface System.Collections.IEnumerable with
-      member this.GetEnumerator() = (this.GetCursor() :> System.Collections.IEnumerator)
-    interface ISeries<'K,'V> with
+      member this.GetEnumerator() = (this.GetCursor() :> System.Collections.IEnumerator)     
+
+    interface IReadOnlyOrderedMap<'K,'V> with
       member this.GetCursor() = this.GetCursor()
       member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+      member this.Comparer with get() = this.Comparer
       member this.IsIndexed with get() = this.IsIndexed
       member this.IsMutable =  this.IsMutable
       member this.SyncRoot with get() = this.SyncRoot
 
-    interface IReadOnlyOrderedMap<'K,'V> with
-      member this.Comparer with get() = this.Comparer
       member this.IsEmpty = this.IsEmpty
-      
       //member this.Count with get() = map.Count
       member this.First with get() = this.First 
       member this.Last with get() = this.Last
@@ -173,7 +172,7 @@ and
     // TODO! (perf) add batching where it makes sense
     // TODO! (perf) how to use batching with selector combinations?
     /// Used for implement scalar operators which are essentially a map application
-    static member private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>, ?fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = 
+    static member inline private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>, ?fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = 
       let defaultMap =
         let mapF = mapFunc
         let fBatch =
@@ -360,11 +359,13 @@ and
 // slow down virtual and interface calls by dozens of cycles.
 //
 // Our benchmark confirms that the slowdown of .Repeat(), .ReadOnly(), .Map(...) and .Filter(...) is quite small 
-
+//
+// However, selector combination as in LINQ gives huge performance boost for chained Map()s
 
 and
   // NB! Remember that a cursor is single-threaded
   /// Map values to new values, batch mapping if that makes sense (for simple operations additional logic overhead is usually bigger than)
+  [<SealedAttribute>]
   internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> opt)=
     inherit Series<'K,'V2>()
     let mutable cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
@@ -554,7 +555,8 @@ and
     
     interface ICouldMapSeriesValues<'K,'V2> with
       member this.Map<'V3>(f2:Func<'V2,'V3>): Series<'K,'V3> = 
-        let func = Func<'V,'V3>(fun x -> f2.Invoke(f.Invoke(x))) // NB (WTF?) this is much slower in the benchmark, but slightly faster with microbench with doubles : Func<'V,'V3>(f.Invoke >> f2.Invoke)  //
+        // NB CoreUtils.CombineSelectors is visivly faster for operators
+        let func = CoreUtils.CombineMaps(f, f2) //  Func<'V,'V3>(fun x -> f2.Invoke(f.Invoke(x))) // NB (WTF?) this is much slower in the benchmark, but slightly faster with microbench with doubles : Func<'V,'V3>(f.Invoke >> f2.Invoke)  //
         //NB! Expression is slower by 30%
         //let invoker =
         //  let arg = Expression.Parameter(typeof<'V>, "arg")

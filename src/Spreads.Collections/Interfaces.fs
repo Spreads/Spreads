@@ -46,6 +46,7 @@ type ISeries<'K,'V> =
   /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
   /// positions and relative LT/LE/GT/GE moves.
   abstract GetCursor : unit -> ICursor<'K,'V> //'T when 'T :>
+  abstract Comparer: IComparer<'K> with get
   /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys
   abstract IsIndexed : bool with get
   /// True if the underlying collection could be changed, false if the underlying collection is immutable or is complete 
@@ -153,7 +154,6 @@ and
     //inherit IReadOnlyDictionary<'K,'V> // TODO (low) later we should implement all .NET family of generic interfaces from ICollection to IDictionary
     /// True if this.size = 0
     abstract IsEmpty: bool with get
-    abstract Comparer: IComparer<'K> with get
     /// First element, throws InvalidOperationException if empty
     abstract First : KVP<'K, 'V> with get
     /// Last element, throws InvalidOperationException if empty
