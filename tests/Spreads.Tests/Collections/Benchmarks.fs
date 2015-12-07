@@ -710,7 +710,8 @@ module CollectionsBenchmarks =
     
     smap := Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>))
     perf count "Series Add" (fun _ ->
-      for i in 0L..count do
+      smap.Value.Add(0L, 0.0)
+      for i in 2L..count do
         smap.Value.Add(i, double <| i)
     )
 
@@ -754,6 +755,33 @@ module CollectionsBenchmarks =
           let res = i
           ()
       )
+
+    for i in 0..4 do
+      perf count "Streams Add/divide Chained" (fun _ ->
+        let ro =
+          smap.Value
+          |> Nessos.Streams.Stream.ofSeq
+          |> Nessos.Streams.Stream.map (fun x -> x.Value + 123456.0)
+          |> Nessos.Streams.Stream.map (fun x -> x/789.0)
+          |> Nessos.Streams.Stream.toSeq
+        
+        for i in ro do
+          let res = i
+          ()
+      )
+
+    for i in 0..4 do
+      perf count "Streams Add/divide Inline" (fun _ ->
+        let ro =
+          smap.Value
+          |> Nessos.Streams.Stream.ofSeq
+          |> Nessos.Streams.Stream.map (fun x -> (x.Value + 123456.0)/789.0)
+          |> Nessos.Streams.Stream.toSeq
+        for i in ro do
+          let res = i
+          ()
+      )
+
 
 //    let batchSetting = OptimizationSettings.AlwaysBatch
 //    OptimizationSettings.AlwaysBatch <- false
@@ -799,7 +827,7 @@ module CollectionsBenchmarks =
 //      )
     Console.WriteLine("----------------")
   [<Test>]
-  let SeriesNestedMap_run() = SeriesNestedMap(10000000L)
+  let SeriesNestedMap_run() = SeriesNestedMap(50000000L)
 
 
 

@@ -106,6 +106,10 @@
       <HintPath>..\..\packages\NUnit.2.6.3\lib\nunit.framework.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Streams">
+      <HintPath>..\..\packages\Streams.0.4.1\lib\net45\Streams.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System.Data" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System" />
