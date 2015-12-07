@@ -21,6 +21,8 @@ type internal OptimizationSettings() =
   static member val UseCLROptimizations = false with get, set
   /// Use native vectorized calculations if available
   static member val UseNativeOptimizations = false with get, set
+  /// When possible, combine Filter() and Map() delegates
+  static member val CombineFilterMapDelegates = true with get, set
   /// Minimum array length for which we could use native optimization (when p/invoke cost becomes less than gains from vectorized calcs)
   static member val MinVectorLengthForNative = 100 with get, set
   /// Default chunk length of SortedChunkedMap
