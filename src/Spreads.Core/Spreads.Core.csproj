@@ -43,6 +43,7 @@
     <Compile Include="Sequences.cs">
       <DependentUpon>Utils.cs</DependentUpon>
     </Compile>
+    <Compile Include="SpecialValueTypes.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="Lookup.cs" />
     <Compile Include="Interfaces.cs" />

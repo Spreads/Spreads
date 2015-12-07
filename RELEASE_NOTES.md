@@ -1,3 +1,7 @@
+#### 0.1.6 - December 7, 2015
+* Optimize Map() and arithmetics on series by 4x
+* Fix bug with explicit interface implementation in ProjectValuesWrapper
+
 #### 0.1.5 - November 23, 2015
 * Make SCM updateable
 

@@ -126,8 +126,6 @@ namespace Spreads {
 
         public IEnumerable<K> Keys => _innerMap.Keys;
 
-
-
         public object SyncRoot => _innerMap.SyncRoot;
 
         public IEnumerable<Vdest> Values => _innerMap.Values.Select(_srcToDest);
@@ -204,12 +202,13 @@ namespace Spreads {
             return res;
         }
 
-        IEnumerator IEnumerable.GetEnumerator() {
-            return (_innerMap as IEnumerable).GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetCursor();
         }
 
         IEnumerator<KeyValuePair<K, Vdest>> IEnumerable<KeyValuePair<K, Vdest>>.GetEnumerator() {
-            return (_innerMap as IEnumerable<KeyValuePair<K, Vdest>>).GetEnumerator();
+            return GetCursor();
         }
 
     }
