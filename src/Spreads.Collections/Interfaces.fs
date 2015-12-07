@@ -45,7 +45,7 @@ type ISeries<'K,'V> =
   inherit IAsyncEnumerable<KVP<'K,'V>>
   /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
   /// positions and relative LT/LE/GT/GE moves.
-  abstract GetCursor : unit -> ICursor<'K,'V>
+  abstract GetCursor : unit -> ICursor<'K,'V> //'T when 'T :>
   /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys
   abstract IsIndexed : bool with get
   /// True if the underlying collection could be changed, false if the underlying collection is immutable or is complete 

@@ -725,7 +725,7 @@ module CollectionsBenchmarks =
         
     for i in 0..4 do
       perf count "Series Add/divide Chained" (fun _ ->
-        let ro = smap.Value.Map(fun x -> x + 123456.0).Map(fun x -> x/789.0)
+        let ro = smap.Value.Map(fun x -> x + 123456.0).Map(fun x -> x/789.0).Map(fun x -> x*10.0)
         for i in ro do
           let res = i.Value
           ()
@@ -734,7 +734,7 @@ module CollectionsBenchmarks =
 
     for i in 0..4 do
       perf count "Series Add/Delete Inline" (fun _ ->
-        let ro = smap.Value.Map(fun x -> (x + 123456.0)/789.0)
+        let ro = smap.Value.Map(fun x -> ((x + 123456.0)/789.0)*10.0)
         for i in ro do
           let res = i.Value
           ()
@@ -742,7 +742,7 @@ module CollectionsBenchmarks =
 
     for i in 0..4 do
       perf count "LINQ Add/divide Chained" (fun _ ->
-        let ro = smap.Value.Select(fun x -> x.Value + 123456.0).Select(fun x -> x/789.0)
+        let ro = smap.Value.Select(fun x -> x.Value + 123456.0).Select(fun x -> x/789.0).Select(fun x -> x*10.0)
         for i in ro do
           let res = i
           ()
@@ -750,7 +750,7 @@ module CollectionsBenchmarks =
 
     for i in 0..4 do
       perf count "LINQ Add/Delete Inline" (fun _ ->
-        let ro = smap.Value.Select(fun x -> (x.Value + 123456.0)/789.0)
+        let ro = smap.Value.Select(fun x -> ((x.Value + 123456.0)/789.0)*10.0)
         for i in ro do
           let res = i
           ()
@@ -763,6 +763,7 @@ module CollectionsBenchmarks =
           |> Nessos.Streams.Stream.ofSeq
           |> Nessos.Streams.Stream.map (fun x -> x.Value + 123456.0)
           |> Nessos.Streams.Stream.map (fun x -> x/789.0)
+          |> Nessos.Streams.Stream.map (fun x -> x*10.0)
           |> Nessos.Streams.Stream.toSeq
         
         for i in ro do
@@ -775,7 +776,7 @@ module CollectionsBenchmarks =
         let ro =
           smap.Value
           |> Nessos.Streams.Stream.ofSeq
-          |> Nessos.Streams.Stream.map (fun x -> (x.Value + 123456.0)/789.0)
+          |> Nessos.Streams.Stream.map (fun x -> ((x.Value + 123456.0)/789.0)*10.0)
           |> Nessos.Streams.Stream.toSeq
         for i in ro do
           let res = i

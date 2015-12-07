@@ -3,6 +3,7 @@ namespace Spreads
 
 open System
 open System.Linq
+open System.Linq.Expressions
 open System.Collections.Generic
 open System.Diagnostics
 open System.Runtime.InteropServices
@@ -369,6 +370,7 @@ and
     let mutable batchCursor = Unchecked.defaultof<ICursor<'K,'V2>>
     let queue = Queue<Task<_>>()
 
+
     new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, OptionalValue.Missing)
     new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>,fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, OptionalValue(fBatch))
 
@@ -542,11 +544,18 @@ and
     
     interface ICouldMapSeriesValues<'K,'V2> with
       member this.Map<'V3>(f2:Func<'V2,'V3>): Series<'K,'V3> = 
-        let combinedF : Func<'V,'V3> = Func<'V,'V3>(fun x -> f2.Invoke(f.Invoke(x))) // NB (WTF?) this is much slower in the benchmark, but slightly faster with microbench with doubles : Func<'V,'V3>(f.Invoke >> f2.Invoke)  //
+        let func = Func<'V,'V3>(fun x -> f2.Invoke(f.Invoke(x))) // NB (WTF?) this is much slower in the benchmark, but slightly faster with microbench with doubles : Func<'V,'V3>(f.Invoke >> f2.Invoke)  //
+        //NB! Expression is slower by 30%
+        //let invoker =
+        //  let arg = Expression.Parameter(typeof<'V>, "arg")
+        //  let invokeExp = Expression.Invoke(Expression.Constant(func), arg)
+        //  let lambda = Expression.Lambda<Func<'V,'V3>>(invokeExp, arg)
+        //  lambda.Compile()
+        let combinedF : Func<'V,'V3> = func
         new BatchMapValuesCursor<'K,'V,'V3>(cursorFactory, combinedF) :> Series<'K,'V3>
 
-// TODO! (perf) see text in the Obsolete attribute below. We must rewrite this and test with random inputs as in ZipN. This is a hot path and optimizing this is one of the priorities. However, ZipN is not that slow and we should implement other TODO!s first.
 
+// TODO! (perf) see text in the Obsolete attribute below. We must rewrite this and test with random inputs as in ZipN. This is a hot path and optimizing this is one of the priorities. However, ZipN is not that slow and we should implement other TODO!s first.
 //and 
 //  /// A cursor that joins to cursors. 
 //  [<AbstractClassAttribute>]
