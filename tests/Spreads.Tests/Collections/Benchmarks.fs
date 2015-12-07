@@ -702,6 +702,108 @@ module CollectionsBenchmarks =
   let SortedMapRegular_run() = SortedMapRegularTest(1000000L)
 
 
+
+  let SeriesNestedMap(count:int64) =
+    let dc : IKeyComparer<int64> = SpreadsComparerInt64() :> IKeyComparer<int64> 
+
+    let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
+    
+    smap := Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>))
+    perf count "Series Add" (fun _ ->
+      for i in 0L..count do
+        smap.Value.Add(i, double <| i)
+    )
+
+    for i in 0..4 do
+      perf count "Series Read" (fun _ ->
+        for i in smap.Value do
+          let res = i.Value
+          //if res <> double i then failwith "SortedMap failed"
+          ()
+      )
+        
+    for i in 0..4 do
+      perf count "Series Add/divide Chained" (fun _ ->
+        let ro = smap.Value.Map(fun x -> x + 123456.0).Map(fun x -> x/789.0)
+        for i in ro do
+          let res = i.Value
+          ()
+      )
+
+
+    for i in 0..4 do
+      perf count "Series Add/Delete Inline" (fun _ ->
+        let ro = smap.Value.Map(fun x -> (x + 123456.0)/789.0)
+        for i in ro do
+          let res = i.Value
+          ()
+      )
+
+    for i in 0..4 do
+      perf count "LINQ Add/divide Chained" (fun _ ->
+        let ro = smap.Value.Select(fun x -> x.Value + 123456.0).Select(fun x -> x/789.0)
+        for i in ro do
+          let res = i
+          ()
+      )
+
+    for i in 0..4 do
+      perf count "LINQ Add/Delete Inline" (fun _ ->
+        let ro = smap.Value.Select(fun x -> (x.Value + 123456.0)/789.0)
+        for i in ro do
+          let res = i
+          ()
+      )
+
+//    let batchSetting = OptimizationSettings.AlwaysBatch
+//    OptimizationSettings.AlwaysBatch <- false
+//    for i in 0..9 do
+//      perf count "SMR Iterate with plus operator" (fun _ ->
+//        let ro = (((smap.Value.ReadOnly() + 123456L))):> IReadOnlyOrderedMap<int64,int64>
+//        for i in ro do
+//          let res = i.Value
+//          ()
+//      )
+//    OptimizationSettings.AlwaysBatch <- true
+//    for i in 0..9 do
+//      perf count "SMR Iterate with plus operator, batch" (fun _ ->
+//        let ro = (((smap.Value.ReadOnly() + 123456L))):> IReadOnlyOrderedMap<int64,int64>
+//        for i in ro do
+//          let res = i.Value
+//          ()
+//      )
+//    OptimizationSettings.AlwaysBatch <- batchSetting
+//    for i in 0..9 do
+//      perf count "SMR Iterate with Zip" (fun _ ->
+//        let ro = (((smap.Value.ReadOnly().Zip(smap.Value, fun v v2 -> v + v2)))):> IReadOnlyOrderedMap<int64,int64>
+//        for i in ro do
+//          let res = i.Value
+//          ()
+//      )
+//    for i in 0..9 do
+//      perf count "SMR Add Two with operator" (fun _ ->
+//        let ro = (smap.Value + smap.Value) :> IReadOnlyOrderedMap<int64,int64>
+//        for i in ro do
+//          let res = i.Value
+//          ()
+//      )
+//    for i in 0..9 do
+//      perf count "SMR Iterate with plus LINQ" (fun _ ->
+//        let ro = (smap.Value.ReadOnly().Select(fun x -> KVP(x.Key, x.Value + 123456L))) //:> IReadOnlyOrderedMap<int64,int64>
+//        let sm = new SortedMap<_,_>(int count)
+//        for i in ro do
+//          sm.AddLast(i.Key,i.Value)
+//          //let res = i.Value
+//          ()
+//        Console.WriteLine("The count is " + sm.size.ToString())
+//      )
+    Console.WriteLine("----------------")
+  [<Test>]
+  let SeriesNestedMap_run() = SeriesNestedMap(10000000L)
+
+
+
+
   [<TestCase(10000000)>]
   let SHM(count:int64) =
     let shm = ref (Obsolete.SortedHashMap(SpreadsComparerInt64()))
@@ -1002,14 +1104,14 @@ module CollectionsBenchmarks =
 //    DeedleDeque_run()
 
 //    Console.WriteLine("MAPS")
-    DeedleSeries_run()
-    DeedleSeries_run()
+///    DeedleSeries_run()
+///    DeedleSeries_run()
 //    FSXHashMap_run()
 //    IntMap64_run()
 //    MapTree_run()
 //    SCGSortedList_run()
 //    SCIOrderedMap_run()
-    SortedDeque_run()
+///    SortedDeque_run()
 //    SortedList_run()
     SortedMap_run()
 //    SortedMapPeriod_run()

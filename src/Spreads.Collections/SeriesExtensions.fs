@@ -34,8 +34,11 @@ type SeriesExtensions () =
     /// TODO check if input cursor is MapValuesCursor or FilterValuesCursor cursor and repack them into
     /// a single mapFilter cursor with nested funcs. !!! Check if this gives any per gain !!! 
     [<Extension>]
-    static member inline Map(source: ISeries<'K,'V>, mapFunc:Func<'V,'V2>) : Series<'K,'V2> =
-      CursorSeries(fun _ -> new MapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<'K,'V2>) :> Series<'K,'V2>
+    static member Map(source: ISeries<'K,'V>, mapFunc:Func<'V,'V2>) : Series<'K,'V2> =
+      match source with
+      | :? ICouldMapSeriesValues<'K,'V> as s -> s.Map(mapFunc)
+      | _ ->
+        new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> Series<'K,'V2>
 
 //    [<Extension>]
 //    static member inline Map(source: Series<'K,'V>, mapFunc:Func<'K,'K>) : Series<'K,'V> =

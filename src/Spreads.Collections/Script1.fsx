@@ -364,3 +364,22 @@ instance.DoWork2().Result
 //let originalLambda = fun (x:'V1) (y:'V2) -> failwith "todo"
 //let f tuppleArr = failwith ""
 //let fakeLambda (tuppleArr:ValueTuple2<'V1,'V2>[]) = originalLambda tuppleArr.[0].Value1 tuppleArr.[1].Value2 
+
+
+
+
+#time "on"
+open System
+let f : Func<double,double> = Func<double,double>(fun x -> x + 123456.0)
+let f2 : Func<double,double> = Func<double,double>(fun x -> x/789.0)
+
+let fastFunc = Func<double,double>(fun x -> f2.Invoke(f.Invoke(x)))
+let slowFunc = Func<double,double>(f.Invoke >> f2.Invoke)
+
+let mutable sum = 0.0
+for i in 0..100000000 do
+  sum <- sum + fastFunc.Invoke(double i)
+
+let mutable sum2 = 0.0
+for i in 0..100000000 do
+  sum2 <- sum2 + slowFunc.Invoke(double i)

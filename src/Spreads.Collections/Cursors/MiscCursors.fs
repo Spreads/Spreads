@@ -131,34 +131,34 @@ type FillCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, fillValue:'V) as this
     if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
       
-
-type MapValuesCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>, mapF:Func<'V,'V2>) =
-  inherit CursorBind<'K,'V,'V2>(cursorFactory)
-
-  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V2>): bool =
-    if isPositioned then
-      value <- mapF.Invoke(this.InputCursor.CurrentValue)
-      true
-    else
-    // add works on any value, so must use TryGetValue instead of MoveAt
-      let ok, value2 = this.InputCursor.TryGetValue(key)
-      if ok then
-        value <- mapF.Invoke(value2)
-        true
-      else false
-
-  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'V2>) : bool =
-    value <- mapF.Invoke(next.Value)
-    true
-
-  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'V2>) : bool =
-    value <- mapF.Invoke(previous.Value)
-    true
-
-  override this.Clone() = 
-    let clone = new MapValuesCursor<'K,'V,'V2>(cursorFactory, mapF) :> ICursor<'K,'V2>
-    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
-    clone
+// TODO a lightweight FilterMapValuesCursor
+//type MapValuesCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>, mapF:Func<'V,'V2>) =
+//  inherit CursorBind<'K,'V,'V2>(cursorFactory)
+//
+//  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V2>): bool =
+//    if isPositioned then
+//      value <- mapF.Invoke(this.InputCursor.CurrentValue)
+//      true
+//    else
+//    // add works on any value, so must use TryGetValue instead of MoveAt
+//      let ok, value2 = this.InputCursor.TryGetValue(key)
+//      if ok then
+//        value <- mapF.Invoke(value2)
+//        true
+//      else false
+//
+//  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'V2>) : bool =
+//    value <- mapF.Invoke(next.Value)
+//    true
+//
+//  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'V2>) : bool =
+//    value <- mapF.Invoke(previous.Value)
+//    true
+//
+//  override this.Clone() = 
+//    let clone = new MapValuesCursor<'K,'V,'V2>(cursorFactory, mapF) :> ICursor<'K,'V2>
+//    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
+//    clone
 
 // this is not possible with cursor
 //type MapKeysCursor<'K,'V when 'K : comparison>(cursorFactory:Func<ICursor<'K,'V>>, mapK:Func<'K,'K>) =

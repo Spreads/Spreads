@@ -158,7 +158,7 @@ and RowPanel<'TRowKey,'TColumnKey, 'TValue> (rows:Series<'TRowKey, 'TValue[]>, c
 
 
   override this.GetCursor() : ICursor<'TRowKey, Series<'TColumnKey, 'TValue>> = 
-    new MapValuesCursor<'TRowKey,'TValue[],Series<'TColumnKey, 'TValue>>(Func<_>(rows.GetCursor), (fun vArr -> 
+    new BatchMapValuesCursor<'TRowKey,'TValue[],Series<'TColumnKey, 'TValue>>(Func<_>(rows.GetCursor), (fun vArr -> 
       if isIndexed then
           let res = IndexedMap.OfSortedKeysAndValues(columnKeys, vArr) :> Series<'TColumnKey, 'TValue>
           // TODO IsMutable <- false

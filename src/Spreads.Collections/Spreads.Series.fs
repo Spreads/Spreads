@@ -14,6 +14,8 @@ open Spreads
 open Spreads.Collections
 
 
+// BIG TODO Enumerable design, function combination optimizations similar to Streams
+
 // TODO see benchmark for ReadOnly. Reads are very slow while iterations are not affected (GetCursor() returns original cursor) in release mode. Optimize 
 // reads of this wrapper either here by type-checking the source of the cursor and using direct methods on the source
 // or make cursor thread-static and initialize it only once (now it is called on each method)
@@ -30,18 +32,26 @@ open Spreads.Collections
 //    member this.Note = "Debugger should not move cursors TODO write debugger view"
 
 
+// TODO limit this optimization to filterMap, do optimized inline helpers for combining filterMap predicates
+[<Interface>]
 [<AllowNullLiteral>]
-[<Serializable>]
-//[<AbstractClassAttribute>]
-type Series internal() =
-  // NB this is ugly, but rewriting the whole project structure is uglier // TODO "proper" methods DI
-  static do
-    let moduleInfo = 
-      Reflection.Assembly.GetExecutingAssembly().GetTypes()
-      |> Seq.find (fun t -> t.Name = "Initializer")
-    //let ty = typeof<BaseSeries>
-    let mi = moduleInfo.GetMethod("init", (Reflection.BindingFlags.Static ||| Reflection.BindingFlags.NonPublic) )
-    mi.Invoke(null, [||]) |> ignore
+type internal ICouldMapSeriesValues<'K,'V> =
+  abstract member Map: mapFunc:Func<'V,'V2> -> Series<'K,'V2>
+
+
+and
+  [<AllowNullLiteral>]
+  [<Serializable>]
+  //[<AbstractClassAttribute>]
+  Series internal() =
+    // NB this is ugly, but rewriting the whole project structure is uglier // TODO "proper" methods DI
+    static do
+      let moduleInfo = 
+        Reflection.Assembly.GetExecutingAssembly().GetTypes()
+        |> Seq.find (fun t -> t.Name = "Initializer")
+      //let ty = typeof<BaseSeries>
+      let mi = moduleInfo.GetMethod("init", (Reflection.BindingFlags.Static ||| Reflection.BindingFlags.NonPublic) )
+      mi.Invoke(null, [||]) |> ignore
 
 
 and
@@ -51,7 +61,7 @@ and
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   Series<'K,'V>() =
     inherit Series()
-    let mutable sr = Unchecked.defaultof<_> // avoid allocation on each series creation, many of them are lighweight and never need a sync root
+    let mutable syncRoot = Unchecked.defaultof<_> // avoid allocation on each series creation, many of them are lighweight and never need a sync root
     
     abstract GetCursor : unit -> ICursor<'K,'V>
 
@@ -62,8 +72,8 @@ and
     /// Locks any mutations for mutable implementations
     member this.SyncRoot 
       with get() = 
-        if sr = Unchecked.defaultof<_> then sr <- Object()
-        sr
+        if syncRoot = Unchecked.defaultof<_> then syncRoot <- Object()
+        syncRoot
 
     member this.Comparer with get() = this.GetCursor().Comparer
     member this.IsEmpty = not (this.GetCursor().MoveFirst())
@@ -316,13 +326,16 @@ and
   /// Wrap Series over ICursor
   [<AllowNullLiteral>]
   [<Serializable>]
+  [<Obsolete("Cursor must just implement Series")>]
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   CursorSeries<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
     inherit Series<'K,'V>()
     // TODO (perf)
     // 
     override this.GetCursor() = cursorFactory.Invoke()
-
+    
+//    abstract member Map: mapFunc:Func<'V,'V2> -> Series<'K,'V2>
+//    default this.Map(mapFunc:Func<'V,'V2>) =  Series.ScalarOperatorMap(this, mapFunc)
 
 // Attempts to manually optimize callvirt and object allocation failed badly
 // They are not needed, however, in most of the cases, e.g. iterations.
@@ -342,7 +355,10 @@ and
   // NB! Remember that a cursor is single-threaded
   /// Map values to new values, batch mapping if that makes sense (for simple operations additional logic overhead is usually bigger than)
   internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> opt)=
-    let cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
+    inherit Series<'K,'V2>()
+    let mutable cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
+//    let passThrough = match cursor with | :? BatchMapValuesCursor<'K,_,'V> -> true | _ -> false
+    
     let f : Func<'V,'V2> = f
     let fBatch = fBatch
     // for forward-only enumeration this could be faster with native math
@@ -355,6 +371,10 @@ and
 
     new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, OptionalValue.Missing)
     new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>,fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, OptionalValue(fBatch))
+
+    // TODO use Enumerable design, this is wrong
+    override this.GetCursor() = this.Clone()
+    
 
     member this.CurrentKey: 'K = 
       if batchStarted then batchCursor.CurrentKey
@@ -519,7 +539,11 @@ and
       member this.Source: ISeries<'K,'V2> = this.Source
       member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  this.TryGetValue(key, &value)
       member this.Clone() = this.Clone()
-
+    
+    interface ICouldMapSeriesValues<'K,'V2> with
+      member this.Map<'V3>(f2:Func<'V2,'V3>): Series<'K,'V3> = 
+        let combinedF : Func<'V,'V3> = Func<'V,'V3>(fun x -> f2.Invoke(f.Invoke(x))) // NB (WTF?) this is much slower in the benchmark, but slightly faster with microbench with doubles : Func<'V,'V3>(f.Invoke >> f2.Invoke)  //
+        new BatchMapValuesCursor<'K,'V,'V3>(cursorFactory, combinedF) :> Series<'K,'V3>
 
 // TODO! (perf) see text in the Obsolete attribute below. We must rewrite this and test with random inputs as in ZipN. This is a hot path and optimizing this is one of the priorities. However, ZipN is not that slow and we should implement other TODO!s first.
 

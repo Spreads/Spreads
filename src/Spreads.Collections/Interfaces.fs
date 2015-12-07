@@ -89,6 +89,8 @@ type ISeries<'K,'V> =
 ///    Or special behaviour of MoveNext only on appends or changing the last value? On other changes must throw invalidOp (locks are there!)
 ///    So if update is before the current position of a cursor, then throw. If after - then this doesn't affect the cursor in any way.
 ///    TODO cursor could implement IUpdateable when source does, or pass through to CursorSeries
+
+
 and
   [<Interface>]
   [<AllowNullLiteral>]
@@ -105,7 +107,8 @@ and
     /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
     /// Returns true when a batch is available immediately (async for IO, not for waiting for new values),
     /// returns false when there is no more immediate values and a consumer should switch to MoveNextAsync().
-    /// NB: Btach processing is synchronous via IEnumerable interface of a batch, real-time is pull-based asynchronous.
+    /// NB: Batch processing is synchronous via IEnumerable interface of a batch, real-time is pull-based asynchronous.
+    /// NB: When size limit is not zero, we should create a buffer even if the origin doesn't have batches
     abstract MoveNextBatch: cancellationToken:CancellationToken  -> Task<bool>
     /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
     /// The actual implementation of the batch could be mutable and could reference a part of the original series, therefore consumer
