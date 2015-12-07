@@ -802,49 +802,47 @@ module CollectionsBenchmarks =
           ()
       )
 
+    GC.Collect();
 
-//    let batchSetting = OptimizationSettings.AlwaysBatch
-//    OptimizationSettings.AlwaysBatch <- false
-//    for i in 0..9 do
-//      perf count "SMR Iterate with plus operator" (fun _ ->
-//        let ro = (((smap.Value.ReadOnly() + 123456L))):> IReadOnlyOrderedMap<int64,int64>
-//        for i in ro do
-//          let res = i.Value
-//          ()
-//      )
-//    OptimizationSettings.AlwaysBatch <- true
-//    for i in 0..9 do
-//      perf count "SMR Iterate with plus operator, batch" (fun _ ->
-//        let ro = (((smap.Value.ReadOnly() + 123456L))):> IReadOnlyOrderedMap<int64,int64>
-//        for i in ro do
-//          let res = i.Value
-//          ()
-//      )
-//    OptimizationSettings.AlwaysBatch <- batchSetting
-//    for i in 0..9 do
-//      perf count "SMR Iterate with Zip" (fun _ ->
-//        let ro = (((smap.Value.ReadOnly().Zip(smap.Value, fun v v2 -> v + v2)))):> IReadOnlyOrderedMap<int64,int64>
-//        for i in ro do
-//          let res = i.Value
-//          ()
-//      )
-//    for i in 0..9 do
-//      perf count "SMR Add Two with operator" (fun _ ->
-//        let ro = (smap.Value + smap.Value) :> IReadOnlyOrderedMap<int64,int64>
-//        for i in ro do
-//          let res = i.Value
-//          ()
-//      )
-//    for i in 0..9 do
-//      perf count "SMR Iterate with plus LINQ" (fun _ ->
-//        let ro = (smap.Value.ReadOnly().Select(fun x -> KVP(x.Key, x.Value + 123456L))) //:> IReadOnlyOrderedMap<int64,int64>
-//        let sm = new SortedMap<_,_>(int count)
-//        for i in ro do
-//          sm.AddLast(i.Key,i.Value)
-//          //let res = i.Value
-//          ()
-//        Console.WriteLine("The count is " + sm.size.ToString())
-//      )
+    let deedleSeries = ref (Series.ofObservations([]))
+    let mutable list1 = new List<int64>()
+    for r in 0..4 do
+      perf count "DeedleSeries insert" (fun _ ->
+        list1 <- new List<int64>()
+        let list2 = new List<double>()
+        //let arr = Array.zeroCreate ((int count)+1) // System.Collections.Generic.List(count |> int)
+        for i in 0L..count do
+          list1.Add(i)
+          list2.Add(double i)
+          //arr.[int i] <- i
+        deedleSeries := Deedle.Series(list1, list2)
+      )
+
+    for r in 0..4 do
+      let mutable res = Unchecked.defaultof<_>
+      perf count "DeedleSeries Add/divide Chained" (fun _ ->
+        res <- !deedleSeries 
+          |> Series.mapValues (fun x -> x + 123456.0) 
+          |> Series.mapValues (fun x -> x/789.0)
+          |> Series.mapValues (fun x -> x*10.0)
+        ()
+      )
+
+    for r in 0..4 do
+      let mutable res = Unchecked.defaultof<_>
+      perf count "DeedleSeries Add/divide Inline" (fun _ ->
+        res <- !deedleSeries 
+          |> Series.mapValues (fun x -> ((x + 123456.0)/789.0)*10.0) 
+        ()
+      )
+
+    for r in 0..4 do
+      let mutable res = Unchecked.defaultof<_>
+      perf count "DeedleSeries Operator Add/divide" (fun _ ->
+        res <- ((!deedleSeries + 123456.0)/789.0) * 10.0
+        ()
+      )
+
     Console.WriteLine("----------------")
   [<Test>]
   let SeriesNestedMap_run() = SeriesNestedMap(10000000L)
