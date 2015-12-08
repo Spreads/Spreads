@@ -28,7 +28,7 @@ type SeriesExtensions () =
 
     [<Extension>]
     static member  Repeat(source: ISeries<'K,'V>) : Series<'K,'V> = 
-      CursorSeries(fun _ -> new RepeatCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor)) :> ICursor<'K,'V>) :> Series<'K,'V>
+      new RepeatCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor)) :> Series<'K,'V>
 
 
     /// TODO check if input cursor is MapValuesCursor or FilterValuesCursor cursor and repack them into
@@ -39,7 +39,7 @@ type SeriesExtensions () =
       if OptimizationSettings.CombineFilterMapDelegates then
 #endif
         match source with
-        | :? ICouldMapSeriesValues<'K,'V> as s -> s.Map(mapFunc)
+        | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc)
         | _ ->
           new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> Series<'K,'V2>
 #if PRERELEASE
@@ -57,8 +57,8 @@ type SeriesExtensions () =
 
     /// Fill missing values with the given value
     [<Extension>]
-    static member inline Fill(source: ISeries<'K,'V>, fillValue:'V) : Series<'K,'V> = 
-      CursorSeries(fun _ -> new FillCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), fillValue) :> ICursor<'K,'V>) :> Series<'K,'V>
+    static member Fill(source: ISeries<'K,'V>, fillValue:'V) : Series<'K,'V> = 
+      new FillCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), fillValue) :> Series<'K,'V>
 
     [<Extension>]
     static member inline Lag(source: ISeries<'K,'V>, lag:uint32) : Series<'K,'V> = 

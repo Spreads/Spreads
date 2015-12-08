@@ -23,7 +23,7 @@ namespace Spreads {
         private readonly bool _allowIncomplete;
 
         public SMACursor(Func<ICursor<K, double>> cursorFactory, int period, bool allowIncomplete = false)
-            : base(cursorFactory) {
+            : base(cursorFactory, x => x) {
             _cursorFactory = cursorFactory;
             _period = period;
             _allowIncomplete = allowIncomplete;
@@ -64,9 +64,9 @@ namespace Spreads {
         }
 
 
-        public override double EvaluateState(double state) {
-            return state;
-        }
+        //public override double EvaluateState(double state) {
+        //    return state;
+        //}
 
 
         public override bool TryGetValue(K key, out double value) {
@@ -123,7 +123,9 @@ namespace Spreads {
             return clone;
         }
 
-        
+        public override Series<K, V3> Map<V3>(Func<double, V3> f2) {
+            throw new NotImplementedException();
+        }
     }
 
 

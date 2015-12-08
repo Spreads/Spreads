@@ -109,27 +109,27 @@ type CursorRepeat<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) as this =
     base.Dispose()
 
 
-type FillCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, fillValue:'V) as this =
-  inherit CursorBind<'K,'V,'V>(cursorFactory)
-  do
-    this.IsContinuous <- true  
-  // TODO optimize as Repeat
-  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
-    if isPositioned then
-      value <- this.InputCursor.CurrentValue
-      true
-    else
-      let ok, value2 = this.InputCursor.TryGetValue(key)
-      if ok then
-        value <- value2
-      else
-        value <- fillValue
-      true
-
-  override this.Clone() = 
-    let clone = new FillCursor<'K,'V>(cursorFactory, fillValue) :> ICursor<'K,'V>
-    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
-    clone
+//type FillCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, fillValue:'V) as this =
+//  inherit CursorBind<'K,'V,'V>(cursorFactory)
+//  do
+//    this.IsContinuous <- true  
+//  // TODO optimize as Repeat
+//  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
+//    if isPositioned then
+//      value <- this.InputCursor.CurrentValue
+//      true
+//    else
+//      let ok, value2 = this.InputCursor.TryGetValue(key)
+//      if ok then
+//        value <- value2
+//      else
+//        value <- fillValue
+//      true
+//
+//  override this.Clone() = 
+//    let clone = new FillCursor<'K,'V>(cursorFactory, fillValue) :> ICursor<'K,'V>
+//    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
+//    clone
       
 // TODO a lightweight FilterMapValuesCursor
 //type MapValuesCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>, mapF:Func<'V,'V2>) =

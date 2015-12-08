@@ -33,13 +33,11 @@ open Spreads.Collections
 //    member this.Note = "Debugger should not move cursors TODO write debugger view"
 
 
-// TODO limit this optimization to filterMap, do optimized inline helpers for combining filterMap predicates
+/// Could return a series mapped with the provided function
 [<Interface>]
 [<AllowNullLiteral>]
-[<ObsoleteAttribute("Use SeriesCursor instead")>]
-type internal ICouldMapSeriesValues<'K,'V> =
+type internal ICanMapSeriesValues<'K,'V> =
   abstract member Map: mapFunc:Func<'V,'V2> -> Series<'K,'V2>
-
 
 and
   [<AllowNullLiteral>]
@@ -55,16 +53,16 @@ and
       let mi = moduleInfo.GetMethod("init", (Reflection.BindingFlags.Static ||| Reflection.BindingFlags.NonPublic) )
       mi.Invoke(null, [||]) |> ignore
 
-
 and
   [<AllowNullLiteral>]
   [<Serializable>]
   [<AbstractClassAttribute>]
-//  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
+  //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   Series<'K,'V>() =
     inherit Series()
     let mutable syncRoot = Unchecked.defaultof<_> // avoid allocation on each series creation, many of them are lighweight and never need a sync root
     
+    /// Main method to override
     abstract GetCursor : unit -> ICursor<'K,'V>
 
     // TODO! check
@@ -190,7 +188,7 @@ and
       if OptimizationSettings.CombineFilterMapDelegates then
 #endif
         match box source with
-        | :? ICouldMapSeriesValues<'K,'V> as s -> s.Map(mapFunc)
+        | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc)
         | _ ->
           defaultMap
 #if PRERELEASE
@@ -346,16 +344,25 @@ and
     override this.GetCursor() = cursorFactory.Invoke()
     
 
-and
-  // TODO (perf) base Series() implements IROOM inefficiently, see comments in above type Series() implementation
-  
+//and
   /// Wrap Series over ICursor
-  [<AllowNullLiteral>]
-  [<Serializable>]
-  [<AbstractClassAttribute>]
-  SeriesCursor<'K,'V>() =
-    inherit Series<'K,'V>()
-
+//  [<AllowNullLiteral>]
+//  [<Serializable>]
+//  [<AbstractClassAttribute>]
+//  Cursor<'K,'V>() =
+//    inherit Series<'K,'V>()
+//    let threadId = Environment.CurrentManagedThreadId
+//    [<DefaultValueAttribute>]
+//    val mutable state : byte
+//
+//    override this.GetCursor() = 
+//      let cursor = if this.state = 0uy && threadId = Environment.CurrentManagedThreadId then this else this.Clone()
+//      cursor.state <- 1uy
+//      (box cursor) :?> ICursor<'K,'V> // TODO implement 
+//
+//    abstract Dispose: unit -> unit
+//    /// Derived class must create a copy of self and, if hasValidState, move the new copy at the current key with MoveAt
+//    abstract Clone: unit -> Cursor<'K,'V>
 //    abstract member Map: mapFunc:Func<'V,'V2> -> Series<'K,'V2>
 //    default this.Map(mapFunc:Func<'V,'V2>) =  Series.ScalarOperatorMap(this, mapFunc)
 
@@ -394,14 +401,22 @@ and
     let mutable batchStarted = false
     let mutable batch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
     let mutable batchCursor = Unchecked.defaultof<ICursor<'K,'V2>>
-    let queue = Queue<Task<_>>()
+    let queue = if preferBatches then Queue<Task<_>>() else Unchecked.defaultof<_>
 
+    let threadId = Environment.CurrentManagedThreadId
+    [<DefaultValueAttribute>]
+    val mutable started : bool
+    override this.GetCursor() =
+      this.started <- true
+      let cursor = if not this.started && threadId = Environment.CurrentManagedThreadId then this else this.Clone()
+      cursor.started <- true
+      cursor :> ICursor<'K,'V2>
 
     new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, OptionalValue.Missing)
     new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>,fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, OptionalValue(fBatch))
 
-    // TODO use Enumerable design, this is wrong
-    override this.GetCursor() = this.Clone()
+
+
     
 
     member this.CurrentKey: 'K = 
@@ -538,7 +553,8 @@ and
       batchCursor <- Unchecked.defaultof<ICursor<'K,'V2>>
       queue.Clear()
       cursor.Reset()
-    member this.Clone() = new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(cursor.Clone), f, fBatch) :> ICursor<'K,'V2>
+      this.started <- false
+    member this.Clone() = new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(cursor.Clone), f, fBatch)
 
     interface IEnumerator<KVP<'K,'V2>> with    
       member this.Reset() = this.Reset()
@@ -566,9 +582,9 @@ and
       //member this.IsBatch with get() = this.IsBatch
       member this.Source: ISeries<'K,'V2> = this.Source
       member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  this.TryGetValue(key, &value)
-      member this.Clone() = this.Clone()
+      member this.Clone() = this.Clone() :> ICursor<'K,'V2>
     
-    interface ICouldMapSeriesValues<'K,'V2> with
+    interface ICanMapSeriesValues<'K,'V2> with
       member this.Map<'V3>(f2:Func<'V2,'V3>): Series<'K,'V3> = 
         // NB CoreUtils.CombineSelectors is visivly faster for operators
         let func = CoreUtils.CombineMaps(f, f2) //  Func<'V,'V3>(fun x -> f2.Invoke(f.Invoke(x))) // NB (WTF?) this is much slower in the benchmark, but slightly faster with microbench with doubles : Func<'V,'V3>(f.Invoke >> f2.Invoke)  //

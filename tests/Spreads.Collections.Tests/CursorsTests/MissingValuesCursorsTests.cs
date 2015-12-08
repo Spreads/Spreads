@@ -10,13 +10,13 @@ using System.Diagnostics;
 
 namespace Spreads.Collections.Tests.CursorsTests {
     [TestFixture]
-    public class RepeatTests {
+    public class MissingValuesCursorsTests {
 
         [Test]
         public void CouldRepeatSeries() {
             var sm = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
-
+            
             var count = 10000000;
 
             for (int i = 0; i < count; i++) {
@@ -41,6 +41,64 @@ namespace Spreads.Collections.Tests.CursorsTests {
 
         }
 
+        [Test]
+        public void CouldFillSeries() {
+            var sm = new SortedMap<DateTime, double>();
+            var sm2 = new SortedMap<DateTime, double>();
+
+            var count = 10000000;
+
+            for (int i = 0; i < count; i++) {
+                sm.Add(DateTime.UtcNow.Date.AddSeconds(i * 2), i);
+            }
+
+            for (int i = 0; i < count; i++) {
+                sm2.Add(DateTime.UtcNow.Date.AddSeconds(i * 2 + 1), i);
+            }
+
+            var expected = 0.0;
+            for (int i = 0; i < count; i++) {
+                expected += i ; ;
+            }
+
+            var sw = new Stopwatch();
+            sw.Start();
+            var sum = (sm.Fill(0) + sm2).Values.Sum();
+            sw.Stop();
+            Assert.AreEqual(expected, sum);
+            Console.WriteLine("Repeat + zip, elapsed: {0}, ops: {1}", sw.ElapsedMilliseconds, (int)((double)count / (sw.ElapsedMilliseconds / 1000.0)));
+
+        }
+
+
+        [Test]
+        public void CouldRepeatMapSeries() {
+            var sm = new SortedMap<DateTime, double>();
+            var sm2 = new SortedMap<DateTime, double>();
+
+            var count = 10000000;
+
+            for (int i = 0; i < count; i++) {
+                sm.Add(DateTime.UtcNow.Date.AddSeconds(i * 2), i);
+            }
+
+            for (int i = 0; i < count; i++) {
+                sm2.Add(DateTime.UtcNow.Date.AddSeconds(i * 2 + 1), i);
+            }
+
+            var expected = 0.0;
+            for (int i = 0; i < count; i++) {
+                expected += i * 2 + 1 + 1;
+            }
+            OptimizationSettings.CombineFilterMapDelegates = false;
+            var sw = new Stopwatch();
+            sw.Start();
+            var sum = (sm.Repeat().Map(x => x + 1.0).Repeat().Map(x => x + 1.0) + sm2).Values.Sum(); //
+            sw.Stop();
+            //Assert.AreEqual(expected, sum);
+            Console.WriteLine("Repeat + zip, elapsed: {0}, ops: {1}", sw.ElapsedMilliseconds, (int)((double)count / (sw.ElapsedMilliseconds / 1000.0)));
+
+        }
 
         [Test]
         public void CouldRepeatSeriesAsync()
@@ -67,6 +125,7 @@ namespace Spreads.Collections.Tests.CursorsTests {
             for (int i = 0; i < count; i++) {
                 expected += i; ;
             }
+
 
             var sw = new Stopwatch();
             sw.Start();
