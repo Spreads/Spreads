@@ -12,24 +12,32 @@ open System.Threading.Tasks
 open Spreads
 open Spreads.Collections
 
-
+/// Horizontal cursor is a cursor whose state could be re-created at any key with little (bounded) cost 
+/// without iterating over all values before the key. (E.g. scan requires running from the first value,
+/// therefore it is not horizontal. Even though it could be implemented as such, state creation cost is not bounded).
 type internal HorizontalCursor<'K,'V,'State,'V2>
   (
     cursorFactory:Func<ICursor<'K,'V>>,
-    stateCreator:Func<ICursor<'K,'V>, 'K, KVP<bool,'State>>, // Factory if state needs its own cursor
+    stateCreator:Func<ICursor<'K,'V>, 'K, bool, KVP<bool,'State>>, // Factory if state needs its own cursor
     stateFoldNext:Func<'State, KVP<'K,'V>, KVP<bool,'State>>,
     stateFoldPrevious:Func<'State, KVP<'K,'V>, KVP<bool,'State>>,
     stateMapper:Func<'State,'V2>,
-    isContinuous:bool // stateCreator could be able to create state at any point. If isContinuous = true but stateCreator returns false, we fail
+    ?isContinuous:bool // stateCreator could be able to create state at any point. TODO: If isContinuous = true but stateCreator returns false, we fail
   ) =
   inherit Series<'K,'V2>()
   let cursor = cursorFactory.Invoke()
+
+  // evaluated only when TryGetValue is called
+  let lookupCursor = lazy (cursor.Clone())
+
+  let isContinuous = if isContinuous.IsSome then isContinuous.Value else cursor.IsContinuous
+
   let mutable okState = Unchecked.defaultof<KVP<bool,'State>>
   let clearState() = 
     match box okState.Value with
-    | :? IDisposable as disp -> disp.Dispose()
+    | :? IDisposable as disp -> if disp <> null then disp.Dispose()
     | _ -> ()
-    okState <- Unchecked.defaultof<KVP<bool,'State>>
+    //okState <- Unchecked.defaultof<KVP<bool,'State>> not needed
 
 
   let threadId = Environment.CurrentManagedThreadId
@@ -61,6 +69,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
   member this.Dispose() =
     clearState()
     cursor.Dispose()
+    if lookupCursor.IsValueCreated then lookupCursor.Value.Dispose()
 
 
   member this.MoveFirst(): bool =
@@ -68,7 +77,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
     if cursor.MoveFirst() then
 #if PRERELEASE
       let before = cursor.CurrentKey
-      okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
+      okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
       if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
       okState <- stateCreator.Invoke(cursor, cursor.Current)
@@ -80,7 +89,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
         while not found && cursor.MoveNext() do
 #if PRERELEASE
           let before = cursor.CurrentKey
-          okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
+          okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
           if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
           okState <- stateCreator.Invoke(cursor, cursor.Current)
@@ -105,7 +114,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
     if cursor.MoveLast() then
 #if PRERELEASE
       let before = cursor.CurrentKey
-      okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
+      okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
       if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
       okState <- stateCreator.Invoke(cursor, cursor.Current)
@@ -117,7 +126,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
         while not found && cursor.MovePrevious() do
 #if PRERELEASE
           let before = cursor.CurrentKey
-          okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
+          okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
           if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
           okState <- stateCreator.Invoke(cursor, cursor.Current)
@@ -139,10 +148,10 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
 
   member this.MoveAt(index: 'K, direction: Lookup): bool = 
     if cursor.MoveAt(index, direction) then
-      clearState() // we are going to create new one, clear it
+      if okState.Key then clearState() // we are going to create new one, clear it
 #if PRERELEASE
       let before = cursor.CurrentKey
-      okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
+      okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
       if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
       okState <- stateCreator.Invoke(cursor, cursor.Current)
@@ -157,7 +166,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
           while not found && cursor.MoveNext() do
 #if PRERELEASE
             let before = cursor.CurrentKey
-            okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
+            okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
             if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
             okState <- stateCreator.Invoke(cursor, cursor.Current)
@@ -169,7 +178,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
           while not found && cursor.MovePrevious() do
 #if PRERELEASE
             let before = cursor.CurrentKey
-            okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
+            okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
             if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
             okState <- stateCreator.Invoke(cursor, cursor.Current)
@@ -203,7 +212,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
           let! moved' = cursor.MoveNext(cancellationToken) // await input cursor
           moved <- moved'
           while not found && moved do
-            okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
+            okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
             found <- okState.Key
             if not found then
               if cursor.MoveNext() then moved <- true
@@ -224,7 +233,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
     ok
 
   member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool = 
-    let state = stateCreator.Invoke(cursor, cursor.CurrentKey)
+    let state = stateCreator.Invoke(lookupCursor.Value, key, true)
     if state.Key then
       value <- stateMapper.Invoke(state.Value)
       true
@@ -235,7 +244,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
     member this.MoveNext(): bool = this.MoveNext()
     member this.Current with get(): KVP<'K, 'V2> = KVP(cursor.CurrentKey, this.CurrentValue)
     member this.Current with get(): obj = KVP(cursor.CurrentKey, this.CurrentValue) :> obj 
-    member x.Dispose(): unit = x.Dispose()
+    member this.Dispose(): unit = this.Dispose()
 
   interface ICursor<'K,'V2> with
     member this.Comparer with get() = cursor.Comparer

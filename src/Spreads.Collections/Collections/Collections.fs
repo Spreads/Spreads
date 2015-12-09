@@ -12,6 +12,8 @@ open Spreads
 
 [<AutoOpenAttribute>]
 module CollectionsUtils =
+  let inline id a = a
+  let idFunc = Func<_,_>(id)
   let inline konst a _ = a
   let inline cons hd tl = hd::tl
 

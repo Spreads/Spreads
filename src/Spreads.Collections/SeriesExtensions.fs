@@ -51,7 +51,7 @@ type SeriesExtensions () =
 
     [<Extension>]
     static member inline Filter(source: ISeries<'K,'V>, filterFunc:Func<'V,bool>) : Series<'K,'V> = 
-      CursorSeries(fun _ -> new FilterValuesCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), filterFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
+      new FilterValuesCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), filterFunc) :> Series<'K,'V>
       //inline
 
 
@@ -80,27 +80,6 @@ type SeriesExtensions () =
     [<Extension>]
     static member inline Window(source: ISeries<'K,'V>, width:uint32, step:uint32, returnIncomplete:bool) : Series<'K,Series<'K,'V>> = 
       CursorSeries(fun _ -> new WindowCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), width, step, returnIncomplete) :> ICursor<'K,Series<'K,'V>>) :> Series<'K,Series<'K,'V>>
-
-    [<Extension>]
-    static member inline Add(source: ISeries<'K,int>, addition:int) : Series<'K,int> = 
-      CursorSeries(fun _ -> new AddIntCursor<'K>(Func<ICursor<'K,int>>(source.GetCursor),addition) :> ICursor<'K,int>) :> Series<'K,int>
-
-    [<Extension>]
-    static member inline Add(source: ISeries<'K,int64>, addition:int64) : Series<'K,int64> = 
-      CursorSeries(fun _ -> new AddInt64Cursor<'K>(Func<ICursor<'K,int64>>(source.GetCursor),addition) :> ICursor<'K,int64>) :> Series<'K,int64>
-
-    /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
-    [<Extension>]
-    // inline
-    [<Obsolete("Use `ToSortedMap` method instead")>]
-    static member  Evaluate(source: ISeries<'K,'V>) : SortedMap<'K,'V> =
-      let sm = SortedMap()
-      let c = source.GetCursor()
-      while c.MoveNext() do
-      //for kvp in source :> IEnumerable<KVP<'K,'V>> do
-        //sm.AddLast(kvp.Key, kvp.Value)
-        sm.AddLast(c.CurrentKey, c.CurrentValue)
-      sm
 
 
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
