@@ -16,7 +16,7 @@ open Spreads.Collections
 type internal HorizontalCursor<'K,'V,'State,'V2>
   (
     cursorFactory:Func<ICursor<'K,'V>>,
-    stateCreator:Func<ICursor<'K,'V>, KVP<'K,'V>, KVP<bool,'State>>, // Factory if state needs its own cursor
+    stateCreator:Func<ICursor<'K,'V>, 'K, KVP<bool,'State>>, // Factory if state needs its own cursor
     stateFoldNext:Func<'State, KVP<'K,'V>, KVP<bool,'State>>,
     stateFoldPrevious:Func<'State, KVP<'K,'V>, KVP<bool,'State>>,
     stateMapper:Func<'State,'V2>,
@@ -50,7 +50,8 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
       else Unchecked.defaultof<'V2>
 
   member this.Current with get () = KVP(cursor.CurrentKey, this.CurrentValue)
-  member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>> with get
+
+  member this.CurrentBatch with get() = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
 
 
   member this.Reset() = 
@@ -67,7 +68,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
     if cursor.MoveFirst() then
 #if PRERELEASE
       let before = cursor.CurrentKey
-      okState <- stateCreator.Invoke(cursor, cursor.Current)
+      okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
       if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
       okState <- stateCreator.Invoke(cursor, cursor.Current)
@@ -79,15 +80,15 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
         while not found && cursor.MoveNext() do
 #if PRERELEASE
           let before = cursor.CurrentKey
-          okState <- stateCreator.Invoke(cursor, cursor.Current)
+          okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
           if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
           okState <- stateCreator.Invoke(cursor, cursor.Current)
 #endif
           found <- okState.Key
-        if found then true 
-        else false
+        found
     else false
+
 
   member this.MoveNext(): bool =
       if okState.Key then
@@ -95,8 +96,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
         while not found && cursor.MoveNext() do 
           okState <- stateFoldNext.Invoke(okState.Value, cursor.Current)
           found <- okState.Key
-        if found then true 
-        else false
+        found
       else this.MoveFirst()
 
 
@@ -105,7 +105,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
     if cursor.MoveLast() then
 #if PRERELEASE
       let before = cursor.CurrentKey
-      okState <- stateCreator.Invoke(cursor, cursor.Current)
+      okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
       if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
       okState <- stateCreator.Invoke(cursor, cursor.Current)
@@ -117,15 +117,15 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
         while not found && cursor.MovePrevious() do
 #if PRERELEASE
           let before = cursor.CurrentKey
-          okState <- stateCreator.Invoke(cursor, cursor.Current)
+          okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
           if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
           okState <- stateCreator.Invoke(cursor, cursor.Current)
 #endif
           found <- okState.Key
-        if found then true 
-        else false
+        found
     else false
+
 
   member this.MovePrevious(): bool =
       if okState.Key then
@@ -133,181 +133,102 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
         while not found && cursor.MovePrevious() do 
           okState <- stateFoldPrevious.Invoke(okState.Value, cursor.Current)
           found <- okState.Key
-        if found then true 
-        else false
+        found
       else this.MoveLast()
 
+
   member this.MoveAt(index: 'K, direction: Lookup): bool = 
-    if this.InputCursor.MoveAt(index, direction) then
+    if cursor.MoveAt(index, direction) then
+      clearState() // we are going to create new one, clear it
 #if PRERELEASE
-      let before = this.InputCursor.CurrentKey
-      let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
-      if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+      let before = cursor.CurrentKey
+      okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
+      if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
-      let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
+      okState <- stateCreator.Invoke(cursor, cursor.Current)
 #endif
-      if ok then
-        this.CurrentKey <- this.InputCursor.CurrentKey
-        //this.CurrentValue <- this.EvaluateState(state)
-        hasValidState <- true
+      if okState.Key then
         true
       else
         match direction with
         | Lookup.EQ -> false
         | Lookup.GE | Lookup.GT ->
           let mutable found = false
-          while not found && this.InputCursor.MoveNext() do
+          while not found && cursor.MoveNext() do
 #if PRERELEASE
-            let before = this.InputCursor.CurrentKey
-            let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
-            if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+            let before = cursor.CurrentKey
+            okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
+            if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
-            let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
+            okState <- stateCreator.Invoke(cursor, cursor.Current)
 #endif
-            if ok then
-              found <- true
-              this.CurrentKey <- this.InputCursor.CurrentKey
-              //this.CurrentValue <- this.EvaluateState(state)
-          if found then 
-            hasValidState <- true
-            true
-          else false
+            found <- okState.Key
+          found
         | Lookup.LE | Lookup.LT ->
           let mutable found = false
-          while not found && this.InputCursor.MovePrevious() do
+          while not found && cursor.MovePrevious() do
 #if PRERELEASE
-            let before = this.InputCursor.CurrentKey
-            let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
-            if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+            let before = cursor.CurrentKey
+            okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
+            if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
-            let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
+            okState <- stateCreator.Invoke(cursor, cursor.Current)
 #endif
-            if ok then
-              found <- true
-              this.CurrentKey <- this.InputCursor.CurrentKey
-              //this.CurrentValue <- this.EvaluateState(state)
-          if found then 
-            hasValidState <- true
-            true 
-          else false
+            found <- okState.Key
+          found
         | _ -> failwith "wrong lookup value"
     else false
       
-    
-    
-//  member this.MoveLastOld(): bool = 
-//    if this.InputCursor.MoveLast() then
-//#if PRERELEASE
-//      let before = this.InputCursor.CurrentKey
-//      let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
-//      if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
-//#else
-//      let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
-//#endif
-//      if ok then
-//        this.CurrentKey <- this.InputCursor.CurrentKey
-//        //this.CurrentValue <- this.EvaluateState(state)
-//        hasValidState <- true
-//        true
-//      else
-//        let mutable found = false
-//        while not found && this.InputCursor.MovePrevious() do
-//#if PRERELEASE
-//          let before = this.InputCursor.CurrentKey
-//          let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
-//          if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
-//#else
-//          let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
-//#endif
-//          if ok then
-//            found <- true
-//            this.CurrentKey <- this.InputCursor.CurrentKey
-//            //this.CurrentValue <- this.EvaluateState(state)
-//        if found then 
-//          hasValidState <- true
-//          true
-//        else false
-//    else false
-
-//  member this.MovePrevious(): bool = 
-//    if hasValidState then
-//      let mutable found = false
-//      while not found && this.InputCursor.MovePrevious() do
-//#if PRERELEASE
-//        let before = this.InputCursor.CurrentKey
-//        let ok = this.TryUpdateStatePrevious(this.InputCursor.Current, &state)
-//        if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
-//#else
-//        let ok = this.TryUpdateStatePrevious(this.InputCursor.Current, &state)
-//#endif
-//        if ok then 
-//          found <- true
-//          this.CurrentKey <- this.InputCursor.CurrentKey
-//          //this.CurrentValue <- this.EvaluateState(state)
-//      if found then 
-//        hasValidState <- true
-//        true 
-//      else false
-//    else (this :> ICursor<'K,'V2>).MoveLast()
-
-  // TODO! this is first draft. At least do via rec function, later implement all binds in C#
   member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> =
     task {
-      if hasValidState then
-        let mutable found = false
-        let mutable moved = false
-        if this.InputCursor.MoveNext() then moved <- true
-        else
-          let! moved' = this.InputCursor.MoveNext(cancellationToken)
-          moved <- moved'
-        while not found && moved do
-          let ok = this.TryUpdateStateNext(this.InputCursor.Current, &state)
-          if ok then
-            found <- true
-            this.CurrentKey <- this.InputCursor.CurrentKey
-          else
-            if this.InputCursor.MoveNext() then moved <- true
-            else
-              let! moved' = this.InputCursor.MoveNext(cancellationToken)
-              moved <- moved'
-        if found then 
-          return true 
-        else return false
+      if this.MoveNext() then return true
       else
-        let mutable found = false
-        let mutable moved = false
-        if this.InputCursor.MoveNext() then moved <- true
-        else
-          let! moved' = this.InputCursor.MoveNext(cancellationToken)
+        if okState.Key then
+          let mutable found = false
+          let mutable moved = false
+          let! moved' = cursor.MoveNext(cancellationToken) // await input cursor
           moved <- moved'
-        while not found && moved do
-          let ok = this.TryCreateState(this.InputCursor.CurrentKey, &state)
-          if ok then
-            found <- true
-            this.CurrentKey <- this.InputCursor.CurrentKey
-            //this.CurrentValue <- this.EvaluateState(state)
-            hasValidState <- true
-          else
-            if this.InputCursor.MoveNext() then moved <- true
-            else
-              let! moved' = this.InputCursor.MoveNext(cancellationToken)
-              moved <- moved'
-        if found then 
-          //hasInitializedValue <- true
-          return true 
-        else return false
+          while not found && moved do
+            okState <- stateFoldNext.Invoke(okState.Value,cursor.Current)
+            found <- okState.Key
+            if not found then
+              if cursor.MoveNext() then moved <- true
+              else
+                let! moved' = cursor.MoveNext(cancellationToken)
+                moved <- moved'
+          return found
+        else
+          let mutable found = false
+          let mutable moved = false
+          let! moved' = cursor.MoveNext(cancellationToken) // await input cursor
+          moved <- moved'
+          while not found && moved do
+            okState <- stateCreator.Invoke(cursor, cursor.CurrentKey)
+            found <- okState.Key
+            if not found then
+              if cursor.MoveNext() then moved <- true
+              else
+                let! moved' = cursor.MoveNext(cancellationToken)
+                moved <- moved'
+          return found
     }
 
 
   member this.TryGetValueChecked(key: 'K, [<Out>] value: byref<'V2>): bool = 
     let mutable v = Unchecked.defaultof<'V2>
-    let before = this.InputCursor.CurrentKey
+    let before = cursor.CurrentKey
     let ok = this.TryGetValue(key, &v)
-    if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then 
+    if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then 
       raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
     value <- v
     ok
 
+  member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool = 
+    let state = stateCreator.Invoke(cursor, cursor.CurrentKey)
+    if state.Key then
+      value <- stateMapper.Invoke(state.Value)
+      true
+    else false
 
   interface IEnumerator<KVP<'K,'V2>> with
     member this.Reset() = this.Reset()
@@ -326,11 +247,8 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
     member this.MoveFirst(): bool = this.MoveFirst()
     member this.MoveLast(): bool = this.MoveLast()
     member this.MovePrevious(): bool = this.MovePrevious()
-    
     member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = this.MoveNext(cancellationToken)
-    member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = failwith "TODO Not implemented yet"
-    
-    //member this.IsBatch with get() = this.IsBatch
+    member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = Task.FromResult(false)
     member this.Source: ISeries<'K,'V2> = this :> ISeries<'K,'V2>
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  
 #if PRERELEASE
@@ -340,8 +258,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
 #endif
     member this.Clone() = this.Clone() :> ICursor<'K,'V2>
 
-
   interface ICanMapSeriesValues<'K,'V2> with
     member this.Map<'V3>(f2:Func<'V2,'V3>): Series<'K,'V3> = 
-      let func = CoreUtils.CombineMaps(stateMapper, f2)
-      new HorizontalCursor<'K,'V,'State,'V3>((fun _ -> cursor.Clone()), stateCreator, stateFoldNext, stateFoldPrevious, func, isContinuous) :> Series<'K,'V3>
+      let combinedFunc = CoreUtils.CombineMaps(stateMapper, f2)
+      new HorizontalCursor<'K,'V,'State,'V3>((fun _ -> cursor.Clone()), stateCreator, stateFoldNext, stateFoldPrevious, combinedFunc, isContinuous) :> Series<'K,'V3>
