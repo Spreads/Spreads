@@ -172,7 +172,7 @@ and
     // TODO! (perf) how to use batching with selector combinations?
     /// Used for implement scalar operators which are essentially a map application
     static member inline private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>, ?fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = 
-      let defaultMap =
+      let defaultMap() =
         let mapF = mapFunc
         let fBatch =
           if fBatch.IsSome then OptionalValue(fBatch.Value) 
@@ -190,9 +190,9 @@ and
         match box source with
         | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc)
         | _ ->
-          defaultMap
+          defaultMap()
 #if PRERELEASE
-      else defaultMap
+      else defaultMap()
 #endif
 
     // TODO! (perf) optimize ZipN for 2, or reimplement Zip for 'V/'V2->'R, see commented out cursor below
