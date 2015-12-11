@@ -52,8 +52,15 @@ type SeriesExtensions () =
     [<Extension>]
     static member Filter(source: ISeries<'K,'V>, filterFunc:Func<'V,bool>) : Series<'K,'V> = 
        CursorSeries(fun _ -> new FilterValuesCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), filterFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
+
+    [<Extension>]
+    static member FilterMap(source: ISeries<'K,'V>, filterFunc:Func<'K,'V,bool>, mapper:Func<'V,'V2>) : Series<'K,'V2> = 
+       CursorSeries(fun _ -> new FilterMapCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), filterFunc, mapper) :> ICursor<'K,'V2>) :> Series<'K,'V2>
       //inline
 
+    [<Extension>]
+    static member Filter(source: ISeries<'K,'V>, filterFunc:Func<'K,'V,bool>) : Series<'K,'V> = 
+       CursorSeries(fun _ -> new FilterMapCursor<'K,'V,'V>(Func<ICursor<'K,'V>>(source.GetCursor), filterFunc, idFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     /// Fill missing values with the given value
     [<Extension>]

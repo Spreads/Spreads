@@ -879,10 +879,10 @@ module CollectionsBenchmarks =
 //          let res = i.Value
 //          ()
 //      )
-
+    
     for i in 0..4 do
       perf count "Series ZipLag->Map" (fun _ ->
-        let ro = smap.Value.ZipLag(1u, fun c p -> c + p).Map(fun x -> x + 123456.0).Map(fun x -> x/789.0).Map(fun x -> x*10.0)
+        let ro = smap.Value.ZipLag(1u, fun c p -> c + p).FilterMap((fun k v -> k &&& 1L = 0L), (fun x -> x + 123456.0)).Map(fun x -> x/789.0).Map(fun x -> x*10.0)
         for i in ro do
           let res = i.Value
           ()

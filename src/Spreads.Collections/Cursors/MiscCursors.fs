@@ -52,6 +52,7 @@ open Spreads.Collections
 //    value <- KVP(mapK.Invoke(previous.Key), previous.Value)
 //    true
 
+[<SealedAttribute>]
 type FilterValuesCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Func<'V,bool>) =
   inherit SimpleBindCursor<'K,'V,'V>(cursorFactory)
 
@@ -78,6 +79,41 @@ type FilterValuesCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Fu
     let clone = new FilterValuesCursor<'K,'V>(cursorFactory, filterFunc) :> ICursor<'K,'V>
     if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
+
+
+[<SealedAttribute>]
+type FilterMapCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Func<'K,'V,bool>, mapper:Func<'V,'R>) =
+  inherit SimpleBindCursor<'K,'V,'R>(cursorFactory)
+
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'R>): bool =
+    // add works on any value, so must use TryGetValue instead of MoveAt
+    let ok, value2 = this.InputCursor.TryGetValue(key)
+    if ok && filterFunc.Invoke(key,value2) then
+      value <- mapper.Invoke(value2)
+      true
+    else false
+
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
+    if filterFunc.Invoke(next.Key,next.Value) then
+      value <- mapper.Invoke(next.Value)
+      true
+    else false
+
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
+    if filterFunc.Invoke(previous.Key, previous.Value) then
+      value <- mapper.Invoke(previous.Value)
+      true
+    else false
+
+  override this.Clone() = 
+    let clone = new FilterMapCursor<'K,'V,'R>(cursorFactory, filterFunc, mapper) :> ICursor<'K,'R>
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
+    clone
+
+  interface ICanMapSeriesValues<'K,'R> with
+    member this.Map<'R2>(f2:Func<'R,'R2>): Series<'K,'R2> = 
+      let mapper2 : Func<'V,'R2> = Func<'V,'R2>(fun r -> f2.Invoke(mapper.Invoke(r)))
+      CursorSeries(fun _ -> new FilterMapCursor<'K,'V,'R2>(cursorFactory, filterFunc, mapper2) :> ICursor<'K,'R2>) :> Series<'K,'R2>
 
 
 // TODO (perf) we need a special cursor for filter or filter/map to avoid some overheads here OR to prove that overheads are minimal
@@ -155,6 +191,7 @@ type internal LagCursorSlow<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint3
     )
 
 
+[<SealedAttribute>]
 type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
   inherit SimpleBindCursor<'K,'V,'V>(cursorFactory)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
@@ -543,6 +580,7 @@ type ScanCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Fu
 // TODO this is incomplete implementation. doesn't account for cases when step > width (quite valid case)
 // TODO use Window vs Chunk like in Deedle, there is logical issue with overlapped windows - if we ask for a point x, it could be different then enumerated
 // But the same is tru for chunk - probably we must create a buffer in one go
+[<SealedAttribute>]
 type internal WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32, allowIncomplete:bool) =
   inherit SimpleBindCursor<'K,'V,Series<'K,'V>>(cursorFactory)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>

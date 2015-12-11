@@ -34,6 +34,8 @@ open Spreads.Collections
 
 
 /// Could return a series mapped with the provided function
+/// This is the most important optimization (and the only one done currently) because all arithmetic operations are 
+/// mappings and they are often chained.
 [<Interface>]
 [<AllowNullLiteral>]
 type internal ICanMapSeriesValues<'K,'V> =

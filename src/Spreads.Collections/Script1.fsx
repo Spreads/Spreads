@@ -404,22 +404,29 @@ type RootChild() =
 
 
 type RootImplementer() =
-  //inherit Root()
-  //[<MethodImplAttribute(MethodImplOptions.NoInlining)>]
   member this.Add(i) = i + 1
   interface I with
-    member this.Add(i) = this.Add(i) // this is much faster, direct implementation here doesn't matter much (it did matter in SortedDeque though)
+    member this.Add(i) = this.Add(i)
+    
+
+type RootDelegate(f:Func<int,int>) = 
+  member this.Add(i) = f.Invoke(i)
+  interface I with
+    member this.Add(i) = this.Add(i)
     
 
 let IChild = RootChild() :> I
 let IImplementer = RootImplementer() :> I
-
+let IDelegate = RootDelegate(fun x -> x + 1) :> I
 
 let mutable acc = 0
 for i in 0..100000000 do
   acc <- IChild.Add(acc)
 
-
 let mutable acc2 = 0
 for i in 0..100000000 do
   acc2 <- IImplementer.Add(acc2)
+
+let mutable acc3 = 0
+for i in 0..100000000 do
+  acc2 <- IDelegate.Add(acc3)

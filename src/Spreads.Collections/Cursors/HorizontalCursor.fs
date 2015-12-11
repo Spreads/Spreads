@@ -12,6 +12,9 @@ open System.Threading.Tasks
 open Spreads
 open Spreads.Collections
 
+
+// TODO change signatures of bind cursors to match the logic of HorizontalCursor
+
 /// Horizontal cursor is a cursor whose state could be re-created at any key with little (bounded) cost 
 /// without iterating over all values before the key. (E.g. scan requires running from the first value,
 /// therefore it is not horizontal. Even though it could be implemented as such, state creation cost is not bounded).
