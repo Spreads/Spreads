@@ -100,8 +100,14 @@ type SeriesExtensions () =
     [<Extension>]
     static member inline ToSortedMap(source: ISeries<'K,'V>) : SortedMap<'K,'V> =
       let sm = SortedMap()
+      let cursor = source.GetCursor()
+      
       for kvp in source do
         sm.AddLast(kvp.Key, kvp.Value)
+//      Task.Run(async fun _ ->
+//        while cursor.MoveNext(CancellationToken.None).Result do
+//          sm.AddLast(cursor.CurrentKey, cursor.CurrentValue)
+//        )
       sm
 
     [<Extension>]

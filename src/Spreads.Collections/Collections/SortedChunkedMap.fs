@@ -269,7 +269,7 @@ type SortedChunkedMap<'K,'V>
 
     { new BaseCursor<'K,'V>(this) with
       override this.IsContinuous with get() = false
-      override c.Clone() = this.GetCursor(outer.Value.Clone(), inner.Value.Clone(), !isReset, currentBatch, !isBatch)
+      override c.Clone() = this.GetCursor(outer.Value.Clone(), (if inner.Value = Unchecked.defaultof<_> then inner.Value else inner.Value.Clone()), !isReset, currentBatch, !isBatch)
       override c.IsBatch with get() = !isBatch
       override c.Current 
         with get() = 

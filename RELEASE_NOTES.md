@@ -1,3 +1,7 @@
+#### 0.1.8 - December 11, 2015
+* Optimize cursors further. Virtual methods are 5x faster than Func<>s.
+* Fix SCM clone bug
+
 #### 0.1.7 - December 7, 2015
 * Optimize Map() and arithmetics on series by 4x
 * Fix bug with explicit interface implementation in ProjectValuesWrapper

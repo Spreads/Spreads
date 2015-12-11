@@ -830,6 +830,13 @@ module CollectionsBenchmarks =
 
     for r in 0..0 do
       let mutable res = Unchecked.defaultof<_>
+      perf (count/100L) "DeedleSeries Operator Add/divide Chained" (fun _ ->
+        res <- ((!deedleSeries + 123456.0) /789.0) * 10.0
+        ()
+      )
+
+    for r in 0..0 do
+      let mutable res = Unchecked.defaultof<_>
       perf (count/100L) "DeedleSeries Add/divide Inline" (fun _ ->
         res <- !deedleSeries 
           |> Series.map (fun _ x -> ((x + 123456.0)/789.0)*10.0) 
@@ -1248,7 +1255,6 @@ module CollectionsBenchmarks =
 //    DeedleDeque_run()
 
 //    Console.WriteLine("MAPS")
-    DeedleSeries_run()
     DeedleSeries_run()
 //    FSXHashMap_run()
 //    IntMap64_run()

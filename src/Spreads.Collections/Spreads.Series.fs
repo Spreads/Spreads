@@ -1,4 +1,4 @@
-﻿#nowarn "0086"
+﻿#nowarn "0086" // operators overloads are intential, Series are as primitive as scalars, all arithmetic operations are defined on them as maps
 namespace Spreads
 
 open System

@@ -26,8 +26,11 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
   [<DefaultValueAttribute>]
   val mutable started : bool
   override this.GetCursor() =
-    this.started <- true
-    let cursor = if not this.started && threadId = Environment.CurrentManagedThreadId then this else this.Clone()
+    let cursor = 
+      if not this.started && threadId = Environment.CurrentManagedThreadId then 
+        this.started <- true
+        this 
+      else this.Clone()
     cursor.started <- true
     cursor :> ICursor<'K,'V>
 

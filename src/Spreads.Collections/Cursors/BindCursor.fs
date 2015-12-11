@@ -16,7 +16,7 @@ open Spreads.Collections
 // TODO All cursors that are intended to be used with CursorSeries should just inherit Series
 /// A cursor that could perform map, filter, fold, scan or any other projection operations on input cursors.
 [<AbstractClassAttribute>]
-type internal BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>, stateMapper:Func<'State,'V2>) =
+type BindCursor<'K,'V,'State,'V2>(cursorFactory:Func<ICursor<'K,'V>>, stateMapper:Func<'State,'V2>) =
   //inherit Series<'K,'V2>()
   let cursor = cursorFactory.Invoke()
 

@@ -451,8 +451,8 @@ namespace Spreads.Collections.Tests {
                     sm2.Add(i, i);
                 }
             }
-
-            var repeated = sm2.Repeat().ToSortedMap();
+            // assertion failure
+            var repeated = sm2.Repeat();//.ToSortedMap();
             var result = repeated.Zip(sm1, (k, p, d) => p); //.Lag(1u); // .Fill(0)
 
             var cursor = result.GetCursor();
@@ -466,6 +466,43 @@ namespace Spreads.Collections.Tests {
             var sm = result.ToSortedMap();
             Console.WriteLine(result.Count());
             
+
+        }
+
+
+        [Test]
+        public void BugFromStrategies2() {
+
+            var sw = new Stopwatch();
+
+            var sm1 = new SortedChunkedMap<int, int>();
+            var sm2 = new SortedChunkedMap<int, int>();
+
+            sm1.Add(0, 0);
+            sm2.Add(-100500, 0);
+            for (int i = 2; i < 100; i++) {
+                sm1.Add(i, i);
+                if (i % 10 == 0) {
+                    sm2.Add(i, i);
+                }
+            }
+            // assertion failure
+            var repeated = sm2.Repeat();//.ToSortedMap();
+            var cursor1 = repeated.GetCursor();
+
+            var result = repeated.Zip(sm1, (k, p, d) => p); //.Lag(1u); // .Fill(0)
+
+            var cursor = result.GetCursor();
+            //Assert.IsTrue(cursor.MoveNext());
+
+            var clone = cursor.Clone();
+            //Assert.IsTrue(clone.MoveNext());
+            //Assert.IsTrue(clone.MoveNext());
+
+
+            //var sm = result.ToSortedMap();
+            //Console.WriteLine(result.Count());
+
 
         }
 
