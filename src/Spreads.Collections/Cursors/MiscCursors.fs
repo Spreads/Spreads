@@ -187,68 +187,129 @@ type Zip2Cursor<'K,'V,'V2,'R>(cursorFactoryL:Func<ICursor<'K,'V>>,cursorFactoryR
 
 
 
-//type ScanCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Func<'R,'K,'V,'R>) as this =
-//  inherit CursorBind<'K,'V,'R>(cursorFactory)
-//  do
-//    this.IsContinuous <- false // scan is explicitly not continuous
-//
-//  let mutable moveAtCursor = cursorFactory.Invoke()
-//  let mutable buffered = false
-//  let mutable state : 'R = init
-//  let hasValues, first = if moveAtCursor.MoveFirst() then true, moveAtCursor.CurrentKey else false, Unchecked.defaultof<_>
-//
-//  let mutable previousCursor = Unchecked.defaultof<ICursor<'K,'V>>
-//
-//  let mutable buffer = Unchecked.defaultof<SortedMap<'K,'R>>
-//
-//  let getOrMakeBuffer() = 
-//    if not buffered then 
-//      buffered <- true
-//      // TODO here SortedMap must be subscribed to the source 
-//      // and a CTS must be cancelled when disposing this cursor
-//      let sm = SortedMap()
-//      let source = CursorSeries(cursorFactory) 
-//      for kvp in source do
-//        state <- folder.Invoke(state, kvp.Key, kvp.Value)
-//        sm.AddLast(kvp.Key, state)
-//      buffer <- sm
-//    buffer
-//
-//  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'R>): bool =
-//    Trace.Assert(hasValues)
-//    // move first
-//    if not buffered && isPositioned && this.InputCursor.Comparer.Compare(first, key) = 0 then
-//      Trace.Assert(Unchecked.equals state init)
-//      state <- folder.Invoke(state, key, this.InputCursor.CurrentValue)
-//      value <- state
-//      true
-//    else 
-//      getOrMakeBuffer().TryGetValue(key, &value)
-//
-//  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
-//    if not buffered then
-//      state <- folder.Invoke(state, next.Key, next.Value)
-//      value <- state
-//      true
-//    else getOrMakeBuffer().TryGetValue(next.Key, &value)
-//      
-//
-//  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
-//    getOrMakeBuffer().TryGetValue(previous.Key, &value)
-//
-//  override this.Dispose() = 
-//    if previousCursor <> Unchecked.defaultof<ICursor<'K,'V>> then previousCursor.Dispose()
-//    base.Dispose()
-//
-//  override this.Clone() = 
-//    let clone = new ScanCursor<'K,'V, 'R>(cursorFactory, init, folder) :> ICursor<'K,'R>
-//    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
-//    clone
-//
-//
+
+type internal ScanCursorState<'K,'V,'R> =
+  struct
+    [<DefaultValueAttribute(false)>]
+    val mutable value : 'R
+    [<DefaultValueAttribute>]
+    val mutable buffered : bool
+    [<DefaultValueAttribute>]
+    val mutable buffer : SortedMap<'K,'R>
+  end
+  static member GetOrMakeBuffer(this:ScanCursorState<'K,'V,'R> byref, cursor:ICursor<'K,'V>, folder:Func<_,_,_,_>) = 
+    if not this.buffered then 
+      this.buffered <- true
+      // TODO here SortedMap must be subscribed to the source 
+      // and a CTS must be cancelled when disposing this cursor
+      let sm = SortedMap()
+      let source = CursorSeries(fun _ -> cursor.Clone()) 
+      for kvp in source do
+        this.value <- folder.Invoke(this.value, kvp.Key, kvp.Value)
+        sm.AddLast(kvp.Key, this.value)
+      this.buffer <- sm
+    this.buffer
+
+
+// Scan is not horizontal cursor, this is quick hack to have it 
+type internal ScanCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Func<'R,'K,'V,'R>) =
+  inherit HorizontalCursor<'K,'V,ScanCursorState<'K,'V,'R>,'R>(
+    cursorFactory, 
+    ScanCursor<'K,'V,'R>.stateCreator(cursorFactory, init, folder), 
+    ScanCursor<'K,'V,'R>.stateFoldNext(cursorFactory,folder), 
+    ScanCursor<'K,'V,'R>.stateFoldPrevious(cursorFactory,folder),
+    Func<ScanCursorState<'K,'V,'R>,'R>(fun x -> x.value),
+    false
+  )
+
+  static member private stateCreator(cursorFactory, init:'R, folder:Func<'R,'K,'V,'R>):Func<ICursor<'K,'V>,'K,bool,KVP<bool,ScanCursorState<'K,'V,'R>>> = 
+    Func<ICursor<'K,'V>,'K,bool, KVP<bool,ScanCursorState<'K,'V,'R>>>(
+      fun cursor key couldMove ->
+        // this is naive implementation without any perf thoughts
+        let movable = if couldMove then cursor else cursor.Clone()
+        if movable.MoveFirst() then
+          let mutable state = Unchecked.defaultof<ScanCursorState<'K,'V,'R>>
+          let first = movable.CurrentKey
+          if not state.buffered && cursor.Comparer.Compare(first, key) = 0 then
+              state.value <- folder.Invoke(state.value, key, cursor.CurrentValue)
+              KVP(true, state)
+          else 
+            let ok, value = ScanCursorState.GetOrMakeBuffer(ref state, cursor, folder).TryGetValue(key)
+            state.value <- value
+            KVP(ok,state)
+        else KVP(false,Unchecked.defaultof<ScanCursorState<'K,'V,'R>>)
+    )
+
+  static member private stateFoldNext(cursorFactory,folder:Func<'R,'K,'V,'R>):Func<ScanCursorState<'K,'V,'R>, KVP<'K,'V>,KVP<bool,ScanCursorState<'K,'V,'R>>> = 
+    Func<ScanCursorState<'K,'V,'R>, KVP<'K,'V>, KVP<bool,ScanCursorState<'K,'V,'R>>>(
+      fun state current ->
+        let mutable state = state
+        state.value <- folder.Invoke(state.value, current.Key, current.Value)
+        KVP(true,state)
+    )
+
+  static member private stateFoldPrevious(cursorFactory:Func<ICursor<'K,'V>>,folder:Func<'R,'K,'V,'R>):Func<ScanCursorState<'K,'V,'R>, KVP<'K,'V>,KVP<bool,ScanCursorState<'K,'V,'R>>> = 
+    Func<ScanCursorState<'K,'V,'R>, KVP<'K,'V>, KVP<bool,ScanCursorState<'K,'V,'R>>>(
+      fun state current -> 
+        let mutable state = state
+        if not state.buffered then
+          state.buffer <- ScanCursorState.GetOrMakeBuffer(ref state, cursorFactory.Invoke(), folder)
+        let ok, value = state.buffer.TryGetValue(current.Key)
+        state.value <- value
+        KVP(ok,state)
+    )
+
+
+
+
+type internal WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32, allowIncomplete:bool) =
+  inherit HorizontalCursor<'K,'V,KVP<ICursor<'K,'V>,'V>,Series<'K,'V>>( // state is lagged cursor and current value
+    cursorFactory, 
+    WindowCursor<'K,'V,'R>.stateCreator(lag), 
+    WindowCursor<'K,'V,'R>.stateFoldNext(), 
+    WindowCursor<'K,'V,'R>.stateFoldPrevious(), 
+    WindowCursor<'K,'V,'R>.stateMapper(mapCurrentPrev),
+    false
+  )
+
+  static member private stateCreator(width:uint32, step:uint32, allowIncomplete:bool):Func<ICursor<'K,'V>,'K,bool, KVP<bool,KVP<ICursor<'K,'V>,'V>>> = 
+    Func<ICursor<'K,'V>,'K,bool, KVP<bool,KVP<ICursor<'K,'V>,'V>>>(
+      fun cursor key couldMove ->
+        let mutable steps = 0
+        if cursor.Comparer.Compare(cursor.CurrentKey, key) = 0 then // we are creating state at the current position of input cursor
+          let laggedCursor = cursor.Clone()
+          while steps < int lag && laggedCursor.MovePrevious() do
+            steps <- steps + 1
+          KVP((steps = int lag), KVP(laggedCursor, cursor.CurrentValue))
+        else 
+          let movableCursor = if couldMove then cursor else cursor.Clone()
+          if movableCursor.MoveAt(key, Lookup.EQ) then
+            let valueAtKey = movableCursor.CurrentValue
+            while steps < int lag && movableCursor.MovePrevious() do
+              steps <- steps + 1
+            KVP((steps = int lag), KVP(movableCursor,valueAtKey))
+          else KVP(false, Unchecked.defaultof<_>)
+    )
+
+  static member private stateFoldNext():Func<KVP<ICursor<'K,'V>,'V>, KVP<'K,'V>, KVP<bool,KVP<ICursor<'K,'V>,'V>>> = 
+    Func<KVP<ICursor<'K,'V>,'V>, KVP<'K,'V>, KVP<bool,KVP<ICursor<'K,'V>,'V>>>(
+      fun state current -> KVP(state.Key.MoveNext(), KVP(state.Key, current.Value))
+    )
+
+  static member private stateFoldPrevious():Func<KVP<ICursor<'K,'V>,'V>, KVP<'K,'V>, KVP<bool,KVP<ICursor<'K,'V>,'V>>> = 
+    Func<KVP<ICursor<'K,'V>,'V>, KVP<'K,'V>, KVP<bool,KVP<ICursor<'K,'V>,'V>>>(
+      fun state current -> KVP(state.Key.MovePrevious(), KVP(state.Key, current.Value))
+    )
+
+  static member private stateMapper(mapCurrentPrev):Func<KVP<ICursor<'K,'V>,'V>,'R> = 
+    Func<KVP<ICursor<'K,'V>,'V>,'R>(
+      fun laggedCursor_CurrVal -> mapCurrentPrev.Invoke(laggedCursor_CurrVal.Value, laggedCursor_CurrVal.Key.CurrentValue)
+    )
+
+
 //// TODO this is incomplete implementation. doesn't account for cases when step > width (quite valid case)
 //// TODO use Window vs Chunk like in Deedle, there is logical issue with overlapped windows - if we ask for a point x, it could be different then enumerated
-//// But the same is tru for chunk - probably we must create a uffer in one go
+//// But the same is tru for chunk - probably we must create a buffer in one go
 //type WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32, allowIncomplete:bool) =
 //  inherit CursorBind<'K,'V,Series<'K,'V>>(cursorFactory)
 //  let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
