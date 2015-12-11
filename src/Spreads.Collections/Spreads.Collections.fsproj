@@ -104,6 +104,7 @@
     <Compile Include="Collections\DataStream.fs" />
     <Compile Include="Collections\Mutations.fs" />
     <None Include="Cursors\Cursors.md" />
+    <Compile Include="Cursors\SimpleBindCursor.fs" />
     <Compile Include="Cursors\BindCursor.fs" />
     <Compile Include="Cursors\HorizontalCursor.fs" />
     <Compile Include="Cursors\StateModels.fs" />

@@ -15,6 +15,7 @@ open Spreads.Collections
 /// Horizontal cursor is a cursor whose state could be re-created at any key with little (bounded) cost 
 /// without iterating over all values before the key. (E.g. scan requires running from the first value,
 /// therefore it is not horizontal. Even though it could be implemented as such, state creation cost is not bounded).
+[<ObsoleteAttribute("This is 5+ times slower than SimpleBindCursor")>]
 type internal HorizontalCursor<'K,'V,'State,'V2>
   (
     cursorFactory:Func<ICursor<'K,'V>>,

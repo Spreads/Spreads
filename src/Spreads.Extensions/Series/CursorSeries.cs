@@ -30,6 +30,13 @@ namespace Spreads {
             
         }
 
+        //private SMACursor(Func<ICursor<K, double>> cursorFactory, int period, bool allowIncomplete, Func<double,double> mapper)
+        //    : base(cursorFactory, mapper) {
+        //    _cursorFactory = cursorFactory;
+        //    _period = period;
+        //    _allowIncomplete = allowIncomplete;
+        //}
+
         public override bool TryCreateState(K key, out double state) {
             state = 0.0;
 
@@ -123,14 +130,15 @@ namespace Spreads {
             return clone;
         }
 
-        public override Series<K, V3> Map<V3>(Func<double, V3> f2) {
-            throw new NotImplementedException();
-        }
+        //public override Series<K, V3> Map<V3>(Func<double, V3> f2)
+        //{
+        //    new SMACursor<K>(_cursorFactory, _period, _allowIncomplete, f2);
+        //}
     }
 
 
 
-    public class SimpleMovingAverageCursor<K> : CursorBind<K, double, double> {
+    public class SimpleMovingAverageCursor<K> : SimpleBindCursor<K, double, double> {
         protected ICursor<K, double> _laggedCursor;
         protected double _sum;
         protected int _count = 0;
@@ -230,7 +238,7 @@ namespace Spreads {
 
 
 
-    public class StandardDeviationCursor<K> : CursorBind<K, double, double> {
+    public class StandardDeviationCursor<K> : SimpleBindCursor<K, double, double> {
         protected ICursor<K, double> _laggedCursor;
         private readonly Func<ICursor<K, double>> _cursorFactory;
         protected int _period;
@@ -349,6 +357,7 @@ namespace Spreads {
         /// <summary>
         /// Projects values from source to destination and back
         /// </summary>
+        // TODO rename to BiMapValues
         public static IPersistentOrderedMap<K, Vdest> Project<K, Vsrc, Vdest>(this IOrderedMap<K, Vsrc> innerMap,
             Func<Vsrc, Vdest> srcToDest, Func<Vdest, Vsrc> destToSrc) {
             return new ProjectValuesWrapper<K, Vsrc, Vdest>(innerMap, srcToDest, destToSrc);

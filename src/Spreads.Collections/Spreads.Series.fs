@@ -343,28 +343,12 @@ and
     // 
     override this.GetCursor() = cursorFactory.Invoke()
     
-
-//and
-  /// Wrap Series over ICursor
-//  [<AllowNullLiteral>]
-//  [<Serializable>]
-//  [<AbstractClassAttribute>]
-//  Cursor<'K,'V>() =
-//    inherit Series<'K,'V>()
-//    let threadId = Environment.CurrentManagedThreadId
-//    [<DefaultValueAttribute>]
-//    val mutable state : byte
-//
-//    override this.GetCursor() = 
-//      let cursor = if this.state = 0uy && threadId = Environment.CurrentManagedThreadId then this else this.Clone()
-//      cursor.state <- 1uy
-//      (box cursor) :?> ICursor<'K,'V> // TODO implement 
-//
-//    abstract Dispose: unit -> unit
-//    /// Derived class must create a copy of self and, if hasValidState, move the new copy at the current key with MoveAt
-//    abstract Clone: unit -> Cursor<'K,'V>
-//    abstract member Map: mapFunc:Func<'V,'V2> -> Series<'K,'V2>
-//    default this.Map(mapFunc:Func<'V,'V2>) =  Series.ScalarOperatorMap(this, mapFunc)
+    interface ICanMapSeriesValues<'K,'V> with
+      member this.Map<'V2>(f2:Func<'V,'V2>): Series<'K,'V2> = 
+        let cursor = cursorFactory.Invoke()
+        match cursor with
+        | :? ICanMapSeriesValues<'K,'V> as mappable -> mappable.Map(f2)
+        | _ -> new BatchMapValuesCursor<_,_,_>((fun _ -> cursor), f2) :> Series<_,_>
 
 
 
@@ -381,11 +365,10 @@ and
 // slow down virtual and interface calls by dozens of cycles.
 //
 // Our benchmark confirms that the slowdown of .Repeat(), .ReadOnly(), .Map(...) and .Filter(...) is quite small 
-//
-// However, selector combination as in LINQ gives huge performance boost for chained Map()s
+
 
 and
-  // NB! Remember that a cursor is single-threaded
+  // NB! Remember that a cursors are single-threaded
   /// Map values to new values, batch mapping if that makes sense (for simple operations additional logic overhead is usually bigger than)
   [<SealedAttribute>]
   internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> opt)=
@@ -549,9 +532,10 @@ and
       preferBatches <- fBatch.IsPresent
       batchStarted <- false
       batch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
-      if batchCursor <> Unchecked.defaultof<ICursor<'K,'V2>> then batchCursor.Dispose()
-      batchCursor <- Unchecked.defaultof<ICursor<'K,'V2>>
-      queue.Clear()
+      if batchCursor <> Unchecked.defaultof<ICursor<'K,'V2>> then 
+        batchCursor.Dispose()
+        batchCursor <- Unchecked.defaultof<ICursor<'K,'V2>>
+      if preferBatches then queue.Clear()
       cursor.Reset()
       this.started <- false
     member this.Clone() = new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(cursor.Clone), f, fBatch)

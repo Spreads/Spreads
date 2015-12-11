@@ -52,45 +52,72 @@ open Spreads.Collections
 //    value <- KVP(mapK.Invoke(previous.Key), previous.Value)
 //    true
 
+type FilterValuesCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Func<'V,bool>) =
+  inherit SimpleBindCursor<'K,'V,'V>(cursorFactory)
+
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
+    // add works on any value, so must use TryGetValue instead of MoveAt
+    let ok, value2 = this.InputCursor.TryGetValue(key)
+    if ok && filterFunc.Invoke value2 then
+      value <- value2
+      true
+    else false
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
+    if filterFunc.Invoke next.Value then
+      value <- next.Value
+      true
+    else false
+
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
+    if filterFunc.Invoke previous.Value then
+      value <- previous.Value
+      true
+    else false
+
+  override this.Clone() = 
+    let clone = new FilterValuesCursor<'K,'V>(cursorFactory, filterFunc) :> ICursor<'K,'V>
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
+    clone
+
 
 // TODO (perf) we need a special cursor for filter or filter/map to avoid some overheads here OR to prove that overheads are minimal
-type internal FilterValuesCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Func<'V,bool>) =
-  inherit HorizontalCursor<'K,'V,'V,'V>( // state is current value
-    cursorFactory, 
-    FilterValuesCursor.stateCreator(filterFunc), 
-    FilterValuesCursor.stateFoldNext(filterFunc), 
-    FilterValuesCursor.stateFoldPrevious(filterFunc), 
-    idFunc
-  )
+//type internal FilterValuesCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Func<'V,bool>) =
+//  inherit HorizontalCursor<'K,'V,'V,'V>( // state is current value
+//    cursorFactory, 
+//    FilterValuesCursor.stateCreator(filterFunc), 
+//    FilterValuesCursor.stateFoldNext(filterFunc), 
+//    FilterValuesCursor.stateFoldPrevious(filterFunc), 
+//    idFunc
+//  )
+//
+//  static member private stateCreator(filterFunc:Func<'V,bool>):Func<ICursor<'K,'V>, 'K, bool, KVP<bool,'V>> = 
+//    Func<ICursor<'K,'V>, 'K, bool, KVP<bool,'V>>(
+//      fun cursor key _ -> // couldMove is ignored since TGV doesn't move cursor
+//        let hasValue, valueAtKey = cursor.TryGetValue(key)
+//        if hasValue then
+//          KVP(filterFunc.Invoke(valueAtKey), valueAtKey)
+//        else KVP(false, Unchecked.defaultof<_>)
+//    )
+//
+//  static member private stateFoldNext(filterFunc:Func<'V,bool>):Func<'V, KVP<'K,'V>, KVP<bool,'V>> = 
+//    Func<'V, KVP<'K,'V>, KVP<bool,'V>>(
+//      fun _ kvp -> KVP(filterFunc.Invoke(kvp.Value), kvp.Value)
+//    )
+//
+//  static member private stateFoldPrevious(filterFunc:Func<'V,bool>):Func<'V, KVP<'K,'V>, KVP<bool,'V>> = 
+//    Func<'V, KVP<'K,'V>, KVP<bool,'V>>(
+//      fun _ kvp -> KVP(filterFunc.Invoke(kvp.Value), kvp.Value)
+//    )
 
-  static member private stateCreator(filterFunc:Func<'V,bool>):Func<ICursor<'K,'V>, 'K, bool, KVP<bool,'V>> = 
-    Func<ICursor<'K,'V>, 'K, bool, KVP<bool,'V>>(
-      fun cursor key _ -> // couldMove is ignored since TGV doesn't move cursor
-        let hasValue, valueAtKey = cursor.TryGetValue(key)
-        if hasValue then
-          KVP(filterFunc.Invoke(valueAtKey), valueAtKey)
-        else KVP(false, Unchecked.defaultof<_>)
-    )
-
-  static member private stateFoldNext(filterFunc:Func<'V,bool>):Func<'V, KVP<'K,'V>, KVP<bool,'V>> = 
-    Func<'V, KVP<'K,'V>, KVP<bool,'V>>(
-      fun _ kvp -> KVP(filterFunc.Invoke(kvp.Value), kvp.Value)
-    )
-
-  static member private stateFoldPrevious(filterFunc:Func<'V,bool>):Func<'V, KVP<'K,'V>, KVP<bool,'V>> = 
-    Func<'V, KVP<'K,'V>, KVP<bool,'V>>(
-      fun _ kvp -> KVP(filterFunc.Invoke(kvp.Value), kvp.Value)
-    )
 
 
-
-type internal LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
+type internal LagCursorSlow<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
   inherit HorizontalCursor<'K,'V,ICursor<'K,'V>,'V>( // state is lagged cursor
     cursorFactory, 
-    LagCursor<'K,'V>.stateCreator(lag), 
-    LagCursor<'K,'V>.stateFoldNext(), 
-    LagCursor<'K,'V>.stateFoldPrevious(), 
-    LagCursor<'K,'V>.stateMapper(),
+    LagCursorSlow<'K,'V>.stateCreator(lag), 
+    LagCursorSlow<'K,'V>.stateFoldNext(), 
+    LagCursorSlow<'K,'V>.stateFoldPrevious(), 
+    LagCursorSlow<'K,'V>.stateMapper(),
     false // lag is defined only at observed points
   )
 
@@ -128,14 +155,84 @@ type internal LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
     )
 
 
+type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
+  inherit SimpleBindCursor<'K,'V,'V>(cursorFactory)
+  let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
+
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
+    if isPositioned then
+      laggedCursor <- this.InputCursor.Clone()
+      let mutable cont = lag > 0u
+      let mutable step = 0
+      let mutable lagOk = lag = 0u
+      while cont do
+        let moved = laggedCursor.MovePrevious()
+        if moved then
+#if PRERELEASE
+          Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
+#endif
+          step <- step + 1
+        else
+          cont <- false
+        if step = int lag then 
+          cont <- false
+          lagOk <- true
+      if lagOk then
+        value <- laggedCursor.CurrentValue
+        true
+      else false
+    else
+      let c = this.InputCursor.Clone()
+      if c.MoveAt(key, Lookup.EQ) then // lag is meaningful for exact match
+        let mutable cont =  lag > 0u
+        let mutable step = 0
+        let mutable lagOk =  lag = 0u
+        while cont do
+          let moved = c.MovePrevious()
+          if moved then
+#if PRERELEASE
+            Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
+#endif
+            step <- step + 1
+          else
+            cont <- false
+          if step = int lag then 
+            cont <- false
+            lagOk <- true
+        if lagOk then
+          value <- c.CurrentValue
+          true
+        else false
+      else false
+
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
+    if laggedCursor.MoveNext() then
+#if PRERELEASE
+      Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
+#endif
+      value <- laggedCursor.CurrentValue
+      true
+    else false
+
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
+    if laggedCursor.MovePrevious() then
+      value <- laggedCursor.CurrentValue
+      true
+    else false
+
+  override this.Clone() = 
+    let clone = new LagCursor<'K,'V>(cursorFactory, lag) :> ICursor<'K,'V>
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
+    clone
+
 /// Apply lagMapFunc to current and lagged value
-type internal ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapCurrentPrev:Func<'V,'V,'R>) =
+type internal ZipLagCursorSlow<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapCurrentPrev:Func<'V,'V,'R>) =
   inherit HorizontalCursor<'K,'V,KVP<ICursor<'K,'V>,'V>,'R>( // state is lagged cursor and current value
     cursorFactory, 
-    ZipLagCursor<'K,'V,'R>.stateCreator(lag), 
-    ZipLagCursor<'K,'V,'R>.stateFoldNext(), 
-    ZipLagCursor<'K,'V,'R>.stateFoldPrevious(), 
-    ZipLagCursor<'K,'V,'R>.stateMapper(mapCurrentPrev),
+    ZipLagCursorSlow<'K,'V,'R>.stateCreator(lag), 
+    ZipLagCursorSlow<'K,'V,'R>.stateFoldNext(), 
+    ZipLagCursorSlow<'K,'V,'R>.stateFoldPrevious(), 
+    ZipLagCursorSlow<'K,'V,'R>.stateMapper(mapCurrentPrev),
     false
   )
 
@@ -174,6 +271,85 @@ type internal ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uin
     )
 
 
+/// Apply lagMapFunc to current and lagged value
+[<SealedAttribute>]
+type internal ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapCurrentPrev:Func<'V,'V,'R>) =
+  inherit SimpleBindCursor<'K,'V,'R>(cursorFactory)
+  let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
+
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'R>): bool =
+    if isPositioned then
+      laggedCursor <- this.InputCursor.Clone()
+      let mutable cont = lag > 0u
+      let mutable step = 0
+      let mutable lagOk = lag = 0u
+      while cont do
+        let moved = laggedCursor.MovePrevious()
+        if moved then
+#if PRERELEASE
+          Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
+#endif
+          step <- step + 1
+        else
+          cont <- false
+        if step = int lag then 
+          cont <- false
+          lagOk <- true
+      if lagOk then
+        value <- mapCurrentPrev.Invoke(this.InputCursor.CurrentValue, laggedCursor.CurrentValue)
+        true
+      else false
+    else
+      let c = this.InputCursor.Clone()
+      if c.MoveAt(key, Lookup.EQ) then
+        let current = c.CurrentValue
+        let mutable cont =  lag > 0u
+        let mutable step = 0
+        let mutable lagOk = lag = 0u
+        while cont do
+          let moved = c.MovePrevious()
+          if moved then
+#if PRERELEASE
+            Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
+#endif
+            step <- step + 1
+          else
+            cont <- false
+          if step = int lag then 
+            cont <- false
+            lagOk <- true
+        if lagOk then
+          value <- mapCurrentPrev.Invoke(current, c.CurrentValue)
+          true
+        else false
+      else false
+
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
+    if laggedCursor.MoveNext() then
+#if PRERELEASE
+      Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
+#endif
+      value <- mapCurrentPrev.Invoke(this.InputCursor.CurrentValue, laggedCursor.CurrentValue)
+      true
+    else false
+
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
+    if laggedCursor.MovePrevious() then
+      value <- mapCurrentPrev.Invoke(this.InputCursor.CurrentValue, laggedCursor.CurrentValue)
+      true
+    else false
+
+  override this.Clone() = 
+    let clone = new ZipLagCursorSlow<'K,'V, 'R>(cursorFactory, lag, mapCurrentPrev) :> ICursor<'K,'R>
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
+    clone
+
+
+  interface ICanMapSeriesValues<'K,'R> with
+    member this.Map<'R2>(f2:Func<'R,'R2>): Series<'K,'R2> = 
+      let mapCurrentPrev2 : Func<'V,'V,'R2> = Func<'V,'V,'R2>(fun c p -> f2.Invoke(mapCurrentPrev.Invoke(c, p)))
+      CursorSeries(fun _ -> new ZipLagCursor<'K,'V,'R2>(cursorFactory, lag, mapCurrentPrev2) :> ICursor<'K,'R2>) :> Series<'K,'R2>
+      
 
 
 /// Repack original types into value tuples. Due to the lazyness this only happens for a current value of cursor. ZipN keeps vArr instance and
@@ -184,7 +360,6 @@ type Zip2Cursor<'K,'V,'V2,'R>(cursorFactoryL:Func<ICursor<'K,'V>>,cursorFactoryR
     (fun () -> new BatchMapValuesCursor<_,_,_>(cursorFactoryL, Func<_,_>(fun (x:'V) -> ValueTuple<'V,'V2>(x, Unchecked.defaultof<'V2>)), OptionalValue.Missing) :> ICursor<'K,ValueTuple<'V,'V2>>), 
     (fun () -> new BatchMapValuesCursor<_,_,_>(cursorFactoryR, Func<_,_>(fun (x:'V2) -> ValueTuple<'V,'V2>(Unchecked.defaultof<'V>, x)), OptionalValue.Missing) :> ICursor<'K,ValueTuple<'V,'V2>>)
   )
-
 
 
 
@@ -212,12 +387,12 @@ type internal ScanCursorState<'K,'V,'R> =
 
 
 // Scan is not horizontal cursor, this is quick hack to have it 
-type internal ScanCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Func<'R,'K,'V,'R>) =
+type internal ScanCursorSlow<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Func<'R,'K,'V,'R>) =
   inherit HorizontalCursor<'K,'V,ScanCursorState<'K,'V,'R>,'R>(
     cursorFactory, 
-    ScanCursor<'K,'V,'R>.stateCreator(cursorFactory, init, folder), 
-    ScanCursor<'K,'V,'R>.stateFoldNext(cursorFactory,folder), 
-    ScanCursor<'K,'V,'R>.stateFoldPrevious(cursorFactory,folder),
+    ScanCursorSlow<'K,'V,'R>.stateCreator(cursorFactory, init, folder), 
+    ScanCursorSlow<'K,'V,'R>.stateFoldNext(cursorFactory,folder), 
+    ScanCursorSlow<'K,'V,'R>.stateFoldPrevious(cursorFactory,folder),
     Func<ScanCursorState<'K,'V,'R>,'R>(fun x -> x.value),
     false
   )
@@ -259,171 +434,229 @@ type internal ScanCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, 
         KVP(ok,state)
     )
 
+[<SealedAttribute>]
+type ScanCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Func<'R,'K,'V,'R>) as this =
+  inherit SimpleBindCursor<'K,'V,'R>(cursorFactory)
+  do
+    this.IsContinuous <- false // scan is explicitly not continuous
+
+  let mutable moveAtCursor = cursorFactory.Invoke()
+  let mutable buffered = false
+  let mutable state : 'R = init
+  let hasValues, first = if moveAtCursor.MoveFirst() then true, moveAtCursor.CurrentKey else false, Unchecked.defaultof<_>
+
+  let mutable previousCursor = Unchecked.defaultof<ICursor<'K,'V>>
+
+  let mutable buffer = Unchecked.defaultof<SortedMap<'K,'R>>
+
+  let getOrMakeBuffer() = 
+    if not buffered then 
+      buffered <- true
+      // TODO here SortedMap must be subscribed to the source 
+      // and a CTS must be cancelled when disposing this cursor
+      let sm = SortedMap()
+      let source = CursorSeries(cursorFactory) 
+      for kvp in source do
+        state <- folder.Invoke(state, kvp.Key, kvp.Value)
+        sm.AddLast(kvp.Key, state)
+      buffer <- sm
+    buffer
+
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'R>): bool =
+    Trace.Assert(hasValues)
+    // move first
+    if not buffered && isPositioned && this.InputCursor.Comparer.Compare(first, key) = 0 then
+      Trace.Assert(Unchecked.equals state init)
+      state <- folder.Invoke(state, key, this.InputCursor.CurrentValue)
+      value <- state
+      true
+    else 
+      getOrMakeBuffer().TryGetValue(key, &value)
+
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
+    if not buffered then
+      state <- folder.Invoke(state, next.Key, next.Value)
+      value <- state
+      true
+    else getOrMakeBuffer().TryGetValue(next.Key, &value)
+      
+
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
+    getOrMakeBuffer().TryGetValue(previous.Key, &value)
+
+  override this.Dispose() = 
+    if previousCursor <> Unchecked.defaultof<ICursor<'K,'V>> then previousCursor.Dispose()
+    base.Dispose()
+
+  override this.Clone() = 
+    let clone = new ScanCursor<'K,'V, 'R>(cursorFactory, init, folder) :> ICursor<'K,'R>
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
+    clone
+
+//
+//
+//type internal WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32, allowIncomplete:bool) =
+//  inherit HorizontalCursor<'K,'V,KVP<ICursor<'K,'V>,'V>,Series<'K,'V>>( // state is lagged cursor and current value
+//    cursorFactory, 
+//    WindowCursor<'K,'V,'R>.stateCreator(lag), 
+//    WindowCursor<'K,'V,'R>.stateFoldNext(), 
+//    WindowCursor<'K,'V,'R>.stateFoldPrevious(), 
+//    WindowCursor<'K,'V,'R>.stateMapper(mapCurrentPrev),
+//    false
+//  )
+//
+//  static member private stateCreator(width:uint32, step:uint32, allowIncomplete:bool):Func<ICursor<'K,'V>,'K,bool, KVP<bool,KVP<ICursor<'K,'V>,'V>>> = 
+//    Func<ICursor<'K,'V>,'K,bool, KVP<bool,KVP<ICursor<'K,'V>,'V>>>(
+//      fun cursor key couldMove ->
+//        let mutable steps = 0
+//        if cursor.Comparer.Compare(cursor.CurrentKey, key) = 0 then // we are creating state at the current position of input cursor
+//          let laggedCursor = cursor.Clone()
+//          while steps < int lag && laggedCursor.MovePrevious() do
+//            steps <- steps + 1
+//          KVP((steps = int lag), KVP(laggedCursor, cursor.CurrentValue))
+//        else 
+//          let movableCursor = if couldMove then cursor else cursor.Clone()
+//          if movableCursor.MoveAt(key, Lookup.EQ) then
+//            let valueAtKey = movableCursor.CurrentValue
+//            while steps < int lag && movableCursor.MovePrevious() do
+//              steps <- steps + 1
+//            KVP((steps = int lag), KVP(movableCursor,valueAtKey))
+//          else KVP(false, Unchecked.defaultof<_>)
+//    )
+//
+//  static member private stateFoldNext():Func<KVP<ICursor<'K,'V>,'V>, KVP<'K,'V>, KVP<bool,KVP<ICursor<'K,'V>,'V>>> = 
+//    Func<KVP<ICursor<'K,'V>,'V>, KVP<'K,'V>, KVP<bool,KVP<ICursor<'K,'V>,'V>>>(
+//      fun state current -> KVP(state.Key.MoveNext(), KVP(state.Key, current.Value))
+//    )
+//
+//  static member private stateFoldPrevious():Func<KVP<ICursor<'K,'V>,'V>, KVP<'K,'V>, KVP<bool,KVP<ICursor<'K,'V>,'V>>> = 
+//    Func<KVP<ICursor<'K,'V>,'V>, KVP<'K,'V>, KVP<bool,KVP<ICursor<'K,'V>,'V>>>(
+//      fun state current -> KVP(state.Key.MovePrevious(), KVP(state.Key, current.Value))
+//    )
+//
+//  static member private stateMapper(mapCurrentPrev):Func<KVP<ICursor<'K,'V>,'V>,'R> = 
+//    Func<KVP<ICursor<'K,'V>,'V>,'R>(
+//      fun laggedCursor_CurrVal -> mapCurrentPrev.Invoke(laggedCursor_CurrVal.Value, laggedCursor_CurrVal.Key.CurrentValue)
+//    )
 
 
-
+// TODO this is incomplete implementation. doesn't account for cases when step > width (quite valid case)
+// TODO use Window vs Chunk like in Deedle, there is logical issue with overlapped windows - if we ask for a point x, it could be different then enumerated
+// But the same is tru for chunk - probably we must create a buffer in one go
 type internal WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32, allowIncomplete:bool) =
-  inherit HorizontalCursor<'K,'V,KVP<ICursor<'K,'V>,'V>,Series<'K,'V>>( // state is lagged cursor and current value
-    cursorFactory, 
-    WindowCursor<'K,'V,'R>.stateCreator(lag), 
-    WindowCursor<'K,'V,'R>.stateFoldNext(), 
-    WindowCursor<'K,'V,'R>.stateFoldPrevious(), 
-    WindowCursor<'K,'V,'R>.stateMapper(mapCurrentPrev),
-    false
-  )
+  inherit SimpleBindCursor<'K,'V,Series<'K,'V>>(cursorFactory)
+  let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
+  let mutable moves = 0
+  // distance from lagged cursor to current
+  let mutable lagDistance = 0
 
-  static member private stateCreator(width:uint32, step:uint32, allowIncomplete:bool):Func<ICursor<'K,'V>,'K,bool, KVP<bool,KVP<ICursor<'K,'V>,'V>>> = 
-    Func<ICursor<'K,'V>,'K,bool, KVP<bool,KVP<ICursor<'K,'V>,'V>>>(
-      fun cursor key couldMove ->
-        let mutable steps = 0
-        if cursor.Comparer.Compare(cursor.CurrentKey, key) = 0 then // we are creating state at the current position of input cursor
-          let laggedCursor = cursor.Clone()
-          while steps < int lag && laggedCursor.MovePrevious() do
-            steps <- steps + 1
-          KVP((steps = int lag), KVP(laggedCursor, cursor.CurrentValue))
-        else 
-          let movableCursor = if couldMove then cursor else cursor.Clone()
-          if movableCursor.MoveAt(key, Lookup.EQ) then
-            let valueAtKey = movableCursor.CurrentValue
-            while steps < int lag && movableCursor.MovePrevious() do
-              steps <- steps + 1
-            KVP((steps = int lag), KVP(movableCursor,valueAtKey))
-          else KVP(false, Unchecked.defaultof<_>)
-    )
+  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<Series<'K,'V>>): bool =
+    let ok, activeLaggedCursor = 
+      if isPositioned then
+        laggedCursor <- this.InputCursor.Clone()
+        true, laggedCursor
+      else
+        let c = this.InputCursor.Clone()
+        if c.MoveAt(key, Lookup.LE) then
+          true, c
+        else false, Unchecked.defaultof<_>
+    if ok then
+      //let mutable cont = true
+      let mutable lag = 1 // NB! current value counts toward the width, lag = 1
+      while lag < int width && activeLaggedCursor.MovePrevious() do
+        lag <- lag + 1
+      if lag = int width then // reached width
+#if PRERELEASE
+        Trace.Assert(laggedCursor.Comparer.Compare(activeLaggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
+#endif
+        // NB! freeze bounds for the range cursor
+        let startPoint = Some(activeLaggedCursor.CurrentKey)
+        let endPoint = Some(this.InputCursor.CurrentKey)
+        let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+        let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
+        value <- window
+        moves <- 0
+        true
+      else 
+        if allowIncomplete then
+          activeLaggedCursor.MoveAt(key, Lookup.EQ) |> ignore
+          //let mutable cont = true
+          let mutable lag = 1 // NB! current value counts toward the width, lag = 1
+          while lag < int step && activeLaggedCursor.MovePrevious() do
+            lag <- lag + 1
+          if lag = int step then // reached width
+#if PRERELEASE
+            Trace.Assert(laggedCursor.Comparer.Compare(activeLaggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
+#endif
+            // NB! freeze bounds for the range cursor
+            let startPoint = Some(activeLaggedCursor.CurrentKey)
+            let endPoint = Some(this.InputCursor.CurrentKey)
+            let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+            let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
+            value <- window
+            lagDistance <- lag
+            moves <- 0
+            true
+          else false
+        else
+          false
+    else false
 
-  static member private stateFoldNext():Func<KVP<ICursor<'K,'V>,'V>, KVP<'K,'V>, KVP<bool,KVP<ICursor<'K,'V>,'V>>> = 
-    Func<KVP<ICursor<'K,'V>,'V>, KVP<'K,'V>, KVP<bool,KVP<ICursor<'K,'V>,'V>>>(
-      fun state current -> KVP(state.Key.MoveNext(), KVP(state.Key, current.Value))
-    )
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<Series<'K,'V>>) : bool =
+    if allowIncomplete then
+      let moved = 
+        if lagDistance < int width then
+          lagDistance <- lagDistance + 1
+          true
+        else
+          laggedCursor.MoveNext()
+      if moved then
+        moves <- moves + 1
+        if Math.Abs(moves) = int step then
+          // NB! freeze bounds for the range cursor
+          let startPoint = Some(laggedCursor.CurrentKey)
+          let endPoint = Some(this.InputCursor.CurrentKey)
+          let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+        
+          let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
+          value <- window
+          moves <- 0
+          true
+        else false
+      else false
+    else
+      if laggedCursor.MoveNext() then
+        moves <- moves + 1
+        if Math.Abs(moves) = int step then
+          // NB! freeze bounds for the range cursor
+          let startPoint = Some(laggedCursor.CurrentKey)
+          let endPoint = Some(this.InputCursor.CurrentKey)
+          let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+        
+          let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
+          value <- window
+          moves <- 0
+          true
+        else false
+      else false
 
-  static member private stateFoldPrevious():Func<KVP<ICursor<'K,'V>,'V>, KVP<'K,'V>, KVP<bool,KVP<ICursor<'K,'V>,'V>>> = 
-    Func<KVP<ICursor<'K,'V>,'V>, KVP<'K,'V>, KVP<bool,KVP<ICursor<'K,'V>,'V>>>(
-      fun state current -> KVP(state.Key.MovePrevious(), KVP(state.Key, current.Value))
-    )
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<Series<'K,'V>>) : bool =
+    if laggedCursor.MovePrevious() then
+      moves <- moves - 1
+      if Math.Abs(moves) = int step then
+        // NB! freeze bounds for the range cursor
+        let startPoint = Some(laggedCursor.CurrentKey)
+        let endPoint = Some(this.InputCursor.CurrentKey)
+        let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
+        let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
+        value <- window
+        moves <- 0
+        true
+      else false
+    else false
 
-  static member private stateMapper(mapCurrentPrev):Func<KVP<ICursor<'K,'V>,'V>,'R> = 
-    Func<KVP<ICursor<'K,'V>,'V>,'R>(
-      fun laggedCursor_CurrVal -> mapCurrentPrev.Invoke(laggedCursor_CurrVal.Value, laggedCursor_CurrVal.Key.CurrentValue)
-    )
+  override this.Clone() = 
+    let clone = new WindowCursor<'K,'V>(cursorFactory, width, step, allowIncomplete) :> ICursor<'K,Series<'K,'V>>
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
+    clone
 
-
-//// TODO this is incomplete implementation. doesn't account for cases when step > width (quite valid case)
-//// TODO use Window vs Chunk like in Deedle, there is logical issue with overlapped windows - if we ask for a point x, it could be different then enumerated
-//// But the same is tru for chunk - probably we must create a buffer in one go
-//type WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32, allowIncomplete:bool) =
-//  inherit CursorBind<'K,'V,Series<'K,'V>>(cursorFactory)
-//  let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
-//  let mutable moves = 0
-//  // distance from lagged cursor to current
-//  let mutable lagDistance = 0
-//
-//  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<Series<'K,'V>>): bool =
-//    let ok, activeLaggedCursor = 
-//      if isPositioned then
-//        laggedCursor <- this.InputCursor.Clone()
-//        true, laggedCursor
-//      else
-//        let c = this.InputCursor.Clone()
-//        if c.MoveAt(key, Lookup.LE) then
-//          true, c
-//        else false, Unchecked.defaultof<_>
-//    if ok then
-//      //let mutable cont = true
-//      let mutable lag = 1 // NB! current value counts toward the width, lag = 1
-//      while lag < int width && activeLaggedCursor.MovePrevious() do
-//        lag <- lag + 1
-//      if lag = int width then // reached width
-//#if PRERELEASE
-//        Trace.Assert(laggedCursor.Comparer.Compare(activeLaggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
-//#endif
-//        // NB! freeze bounds for the range cursor
-//        let startPoint = Some(activeLaggedCursor.CurrentKey)
-//        let endPoint = Some(this.InputCursor.CurrentKey)
-//        let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
-//        let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
-//        value <- window
-//        moves <- 0
-//        true
-//      else 
-//        if allowIncomplete then
-//          activeLaggedCursor.MoveAt(key, Lookup.EQ) |> ignore
-//          //let mutable cont = true
-//          let mutable lag = 1 // NB! current value counts toward the width, lag = 1
-//          while lag < int step && activeLaggedCursor.MovePrevious() do
-//            lag <- lag + 1
-//          if lag = int step then // reached width
-//#if PRERELEASE
-//            Trace.Assert(laggedCursor.Comparer.Compare(activeLaggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
-//#endif
-//            // NB! freeze bounds for the range cursor
-//            let startPoint = Some(activeLaggedCursor.CurrentKey)
-//            let endPoint = Some(this.InputCursor.CurrentKey)
-//            let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
-//            let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
-//            value <- window
-//            lagDistance <- lag
-//            moves <- 0
-//            true
-//          else false
-//        else
-//          false
-//    else false
-//
-//  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<Series<'K,'V>>) : bool =
-//    if allowIncomplete then
-//      let moved = 
-//        if lagDistance < int width then
-//          lagDistance <- lagDistance + 1
-//          true
-//        else
-//          laggedCursor.MoveNext()
-//      if moved then
-//        moves <- moves + 1
-//        if Math.Abs(moves) = int step then
-//          // NB! freeze bounds for the range cursor
-//          let startPoint = Some(laggedCursor.CurrentKey)
-//          let endPoint = Some(this.InputCursor.CurrentKey)
-//          let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
-//        
-//          let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
-//          value <- window
-//          moves <- 0
-//          true
-//        else false
-//      else false
-//    else
-//      if laggedCursor.MoveNext() then
-//        moves <- moves + 1
-//        if Math.Abs(moves) = int step then
-//          // NB! freeze bounds for the range cursor
-//          let startPoint = Some(laggedCursor.CurrentKey)
-//          let endPoint = Some(this.InputCursor.CurrentKey)
-//          let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
-//        
-//          let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
-//          value <- window
-//          moves <- 0
-//          true
-//        else false
-//      else false
-//
-//  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<Series<'K,'V>>) : bool =
-//    if laggedCursor.MovePrevious() then
-//      moves <- moves - 1
-//      if Math.Abs(moves) = int step then
-//        // NB! freeze bounds for the range cursor
-//        let startPoint = Some(laggedCursor.CurrentKey)
-//        let endPoint = Some(this.InputCursor.CurrentKey)
-//        let rangeCursor() = new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(cursorFactory.Invoke), startPoint, endPoint, None, None) :> ICursor<'K,'V>
-//        let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
-//        value <- window
-//        moves <- 0
-//        true
-//      else false
-//    else false
-//
-//  override this.Clone() = 
-//    let clone = new WindowCursor<'K,'V>(cursorFactory, width, step, allowIncomplete) :> ICursor<'K,Series<'K,'V>>
-//    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
-//    clone
-//

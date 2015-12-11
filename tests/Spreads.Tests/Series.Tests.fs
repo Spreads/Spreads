@@ -202,7 +202,7 @@ type SeriesTestsModule() =
         map.Add(5,5)
         map.Add(7,7)
 
-        let add1 = map.Add(1)
+        let add1 = map + 1
 
         let rc = add1.GetCursor()
 
@@ -238,7 +238,7 @@ type SeriesTestsModule() =
         map.Add(5,5)
         map.Add(7,7)
         
-        let repeated = map.Repeat().Add(1)
+        let repeated = map.Repeat() + 1
         let rc = repeated.GetCursor()
 
         let ok, value = rc.TryGetValue(2)
@@ -372,7 +372,7 @@ type SeriesTestsModule() =
         expected.Add(5,1)
         expected.Add(7,3)
         let lagged = map.Lag(2u)
-        let lag = lagged.Evaluate()
+        let lag = lagged.ToSortedMap()
 
         lag.[5] |> should equal expected.[5]
         lag.[7] |> should equal expected.[7]
@@ -391,7 +391,7 @@ type SeriesTestsModule() =
         expected.Add(5,8)
         expected.Add(7,12)
         let lagged = map.ZipLag(1u, fun c p -> c + p)
-        let lag = lagged.Evaluate()
+        let lag = lagged.ToSortedMap()
 
         lag.[3] |> should equal expected.[3]
         lag.[5] |> should equal expected.[5]
