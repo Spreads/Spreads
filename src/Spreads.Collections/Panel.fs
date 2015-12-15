@@ -11,6 +11,9 @@ open Spreads
 open Spreads.Collections
 
 
+// TODO What special methods we need on a Panel that cannot be done with series of series?
+
+
 [<AbstractClassAttribute>]
 [<AllowNullLiteral>]
 [<SerializableAttribute>]

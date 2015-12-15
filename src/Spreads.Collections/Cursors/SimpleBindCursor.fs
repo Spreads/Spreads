@@ -9,22 +9,20 @@ open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
 open System.Threading.Tasks
 
-open Spreads
-open Spreads.Collections
-
 
 // Bind is in monad sense TODO Undestand/elaborate on weither it is a functor or monad or don't care until it works...
 
+
 /// A cursor that could perform map, filter, fold, scan and other operations on input cursors.
 [<AbstractClassAttribute>]
-type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
+type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
     
     let cursor = cursorFactory.Invoke()
 
     let mutable hasValidState = false
 
     let mutable currentKey = Unchecked.defaultof<'K> 
-    let mutable currentValue = Unchecked.defaultof<'V2> 
+    let mutable currentValue = Unchecked.defaultof<'R> 
 
     /// True after any successful move and when CurrentKey/Value are defined
     member this.HasValidState with get() = hasValidState // NB should set it only here, Try... methods return values indicate valid state of child cursors // and internal set (v) = hasValidState <- v
@@ -42,7 +40,7 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
 
     /// Stores current batch for a succesful batch move
     //abstract CurrentBatch : IReadOnlyOrderedMap<'K,'V2> with get
-    member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>> with get, set
+    member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'R>> with get, set
 
     /// For every successful move of the input coursor creates an output value. If direction is not EQ, continues moves to the direction 
     /// until a valid state is created.
@@ -54,14 +52,14 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
     /// using only this method is highly inefficient, e.g. for StDev(50000) we will waste a 49999*avg(1,50000) moves, 
     /// while with TryUpdateNext we need only 50k moves.
     /// If isMove is false then this method is called from TryGetValue method, not from any move method.
-    abstract TryGetValue: key:'K * isMove:bool * [<Out>] value: byref<'V2> -> bool
+    abstract TryGetValue: key:'K * isMove:bool * [<Out>] value: byref<'R> -> bool
     
 
     /// Update state with a new value. Should be optimized for incremental update of the current state in custom implementations.
     /// If HasValidState is false inside this method, this means that the previous move was either TryGetValue or TryUpdateNext,
     /// because any directional move of SimpleBindCursor calls TryGetValue if the state is not valid and then moves next until 
     /// a valid state is achieved.
-    abstract TryUpdateNext: next:KVP<'K,'V> * [<Out>] value: byref<'V2> -> bool
+    abstract TryUpdateNext: next:KVP<'K,'V> * [<Out>] value: byref<'R> -> bool
     // NB default implementation via TryGetValue is commented out because it is easy to create an O(M^2) TryGetValue implementation
     // which kills any performance hope. Cursor implementers must at least think about TryUpdateNext and copy-paste from TryGetValue
     // to avoid one method call.
@@ -69,15 +67,15 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
   
 
     /// See comment for TryUpdateNext.
-    abstract TryUpdatePrevious: previous:KVP<'K,'V> * [<Out>] value: byref<'V2> -> bool
-    override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'V2>) : bool = 
+    abstract TryUpdatePrevious: previous:KVP<'K,'V> * [<Out>] value: byref<'R> -> bool
+    override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool = 
       Trace.TraceWarning("Using unoptimized TryUpdatePrevious implementation via TryGetValue. If you see this warning often, implement TryUpdatePrevious method in a calling cursor.")
       this.TryGetValue(previous.Key, true, &value)
       
 
     /// If input and this cursor support batches, then process a batch and store it in CurrentBatch
-    abstract TryUpdateNextBatch: nextBatch: IReadOnlyOrderedMap<'K,'V> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>> -> bool  
-    override this.TryUpdateNextBatch(nextBatch: IReadOnlyOrderedMap<'K,'V>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>>) : bool = false
+    abstract TryUpdateNextBatch: nextBatch: IReadOnlyOrderedMap<'K,'V> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'R>> -> bool  
+    override this.TryUpdateNextBatch(nextBatch: IReadOnlyOrderedMap<'K,'V>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'R>>) : bool = false
 
     member this.Reset() = 
       hasValidState <- false
@@ -89,13 +87,13 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
       cursor.Dispose()
 
     /// Create a copy of the current cursor positioned at the same key
-    abstract Clone: unit -> ICursor<'K,'V2> // NB Clone is very important and must be carefully implemented
+    abstract Clone: unit -> ICursor<'K,'R> // NB Clone is very important and must be carefully implemented
     
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>] // NB this and below attributes are probably useless, but we want to inline as much as we can
     member this.MoveNext(): bool =
       if hasValidState then
-        let mutable value = Unchecked.defaultof<'V2>
+        let mutable value = Unchecked.defaultof<'R>
         hasValidState <- false // NB hasValidState was true for the previous position of the input cursor, we set it to false until TryUpdateNext returns true
         while not hasValidState && this.InputCursor.MoveNext() do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
 #if PRERELEASE
@@ -115,7 +113,7 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
     member this.MoveNext(ct:Threading.CancellationToken): Task<bool> =
       task {
         if hasValidState then
-          let mutable value = Unchecked.defaultof<'V2>
+          let mutable value = Unchecked.defaultof<'R>
           hasValidState <- false
           let! moved' = this.InputCursor.MoveNext(ct)
           let mutable moved = moved'
@@ -142,7 +140,7 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
       // NB Unsucessfull moves invalidate state. A cursor is single-threaded and its state is invalid inside any move method, before confirmed otherwise.
       hasValidState <- false
       if this.InputCursor.MoveAt(index, direction) then
-        let mutable value = Unchecked.defaultof<'V2>
+        let mutable value = Unchecked.defaultof<'R>
 #if PRERELEASE
         let before = this.InputCursor.CurrentKey
         hasValidState <- this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
@@ -201,7 +199,7 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MovePrevious(): bool = 
       if hasValidState then
-        let mutable value = Unchecked.defaultof<'V2>
+        let mutable value = Unchecked.defaultof<'R>
         hasValidState <- false
         while not hasValidState && this.InputCursor.MovePrevious() do
 #if PRERELEASE
@@ -218,8 +216,8 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
       else this.MoveLast()
 
 
-    member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool = 
-        let mutable v = Unchecked.defaultof<'V2>
+    member this.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool = 
+        let mutable v = Unchecked.defaultof<'R>
 #if PRERELEASE
         let before = this.InputCursor.CurrentKey
         let ok = this.TryGetValue(key, false, &v)
@@ -231,18 +229,18 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
         ok
 
 
-    interface IEnumerator<KVP<'K,'V2>> with    
+    interface IEnumerator<KVP<'K,'R>> with    
       member this.Reset() = this.Reset()
       member this.MoveNext(): bool = this.MoveNext()
-      member this.Current with get(): KVP<'K, 'V2> = KVP(this.CurrentKey, this.CurrentValue)
+      member this.Current with get(): KVP<'K, 'R> = KVP(this.CurrentKey, this.CurrentValue)
       member this.Current with get(): obj = KVP(this.CurrentKey, this.CurrentValue) :> obj 
       member x.Dispose(): unit = x.Dispose()
 
-    interface ICursor<'K,'V2> with
+    interface ICursor<'K,'R> with
       member this.Comparer with get() = cursor.Comparer
-      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = this.CurrentBatch
+      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'R> = this.CurrentBatch
       member this.CurrentKey: 'K = this.CurrentKey
-      member this.CurrentValue: 'V2 = this.CurrentValue
+      member this.CurrentValue: 'R = this.CurrentValue
       member this.IsContinuous: bool = this.IsContinuous
       member this.MoveAt(index: 'K, direction: Lookup): bool = this.MoveAt(index, direction) 
       member this.MoveFirst(): bool = this.MoveFirst()
@@ -260,8 +258,8 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
 #endif
         
       //member this.IsBatch with get() = this.IsBatch
-      member this.Source: ISeries<'K,'V2> = CursorSeries<'K,'V2>(Func<ICursor<'K,'V2>>((this :> ICursor<'K,'V2>).Clone)) :> ISeries<'K,'V2>
-      member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  this.TryGetValue(key, &value)
+      member this.Source: ISeries<'K,'R> = CursorSeries<'K,'R>(Func<ICursor<'K,'R>>((this :> ICursor<'K,'R>).Clone)) :> ISeries<'K,'R>
+      member this.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool =  this.TryGetValue(key, &value)
       member this.Clone() = this.Clone()
     
       
