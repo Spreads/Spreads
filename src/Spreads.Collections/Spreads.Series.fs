@@ -333,16 +333,12 @@ and
 
 and
   // TODO (perf) base Series() implements IROOM inefficiently, see comments in above type Series() implementation
-  
-  /// Wrap Series over ICursor
+  /// Wraps Series over ICursor
   [<AllowNullLiteral>]
   [<Serializable>]
-  [<Obsolete("Cursor must just implement Series")>]
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   CursorSeries<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
     inherit Series<'K,'V>()
-    // TODO (perf)
-    // 
     override this.GetCursor() = cursorFactory.Invoke()
     
     interface ICanMapSeriesValues<'K,'V> with

@@ -415,9 +415,12 @@ type RootDelegate(f:Func<int,int>) =
     member this.Add(i) = this.Add(i)
     
 
+
+
 let IChild = RootChild() :> I
 let IImplementer = RootImplementer() :> I
 let IDelegate = RootDelegate(fun x -> x + 1) :> I
+
 
 let mutable acc = 0
 for i in 0..100000000 do
@@ -429,4 +432,24 @@ for i in 0..100000000 do
 
 let mutable acc3 = 0
 for i in 0..100000000 do
-  acc2 <- IDelegate.Add(acc3)
+  acc3 <- IDelegate.Add(acc3)
+
+
+
+
+type VirtualRoot() =
+  abstract Add: int -> int
+  override this.Add(i) = i + 1
+  interface I with
+    member this.Add(i) = this.Add(i)
+
+  member this.AddMap(f:Func<int,int>) =
+    {new VirtualRoot() with
+      member x.Add(i) = f.Invoke(this.Add(i))
+    }
+
+let VirtualRoot = VirtualRoot()//.AddMap(fun i -> i * 2)
+
+let mutable acc4 = 0
+for i in 0..100000000 do
+  acc4 <- VirtualRoot.Add(i) * 2
