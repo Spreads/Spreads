@@ -146,6 +146,8 @@ namespace Spreads {
         protected int _period;
         private readonly bool _allowIncomplete;
 
+        public override bool IsContinuous => false;
+
         public SimpleMovingAverageCursor(Func<ICursor<K, double>> cursorFactory, int period, bool allowIncomplete = false)
             : base(cursorFactory) {
             _cursorFactory = cursorFactory;
@@ -250,6 +252,8 @@ namespace Spreads {
             _cursorFactory = cursorFactory;
             _period = period;
         }
+
+        public override bool IsContinuous => false;
 
         public override bool TryGetValue(K key, bool isPositioned, out double value) {
             value = 0.0;

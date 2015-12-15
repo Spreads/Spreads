@@ -13,6 +13,7 @@ open Spreads
 open Spreads.Collections
 
 
+// Bind is in monad sense TODO Undestand/elaborate on weither it is a functor or monad or don't care until it works...
 
 /// A cursor that could perform map, filter, fold, scan and other operations on input cursors.
 [<AbstractClassAttribute>]
@@ -20,23 +21,15 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
     
     let cursor = cursorFactory.Invoke()
 
-    // TODO make public property, e.g. for random walk generator we must throw if we try to init more than one
-    // this is true for all "vertical" transformations, they start from a certain key and depend on the starting value
-    // safe to call TryUpdateNext/Previous
     let mutable hasValidState = false
     /// True after any successful move and when CurrentKey is defined
     member this.HasValidState with get() = hasValidState and set (v) = hasValidState <- v
 
-    // TODO? add key type for the most general case
-    // check if key types are not equal, in that case check if new values are sorted. On first 
-    // unsorted value change output to Indexed
+    /// SimpleBindCursor could enable/disable continuous property. E.g. repeat/fill makes any input
+    /// continuous, while Lag makes any input non-continuous.
+    abstract IsContinuous : bool with get
 
-    //member val IsIndexed = false with get, set //source.IsIndexed
-    /// By default, could move everywhere the source moves
-    member val IsContinuous = cursor.IsContinuous with get, set
-
-    /// Source series
-    //member this.InputSource with get() = source
+    /// An instance of the input cursor that is used for moves of SimpleBindCursor
     member this.InputCursor with get() : ICursor<'K,'V> = cursor
 
     //abstract CurrentKey:'K with get
@@ -88,7 +81,8 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
       hasValidState <- false
       cursor.Reset()
     abstract Dispose: unit -> unit
-    default this.Dispose() = 
+    default this.Dispose() =
+      // NB! do not forget to clean disposable state in cursor implementations 
       hasValidState <- false
       cursor.Dispose()
 
@@ -96,7 +90,7 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
     abstract Clone: unit -> ICursor<'K,'V2> // NB Clone is very important and must be carefully implemented
     
 
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>] // NB this and below attributes are probably useless, but we want to inline as much as we can
     member this.MoveNext(): bool =
       if hasValidState then
         let mutable value = Unchecked.defaultof<'V2>
@@ -255,9 +249,14 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
     
       member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = this.MoveNext(cancellationToken)
       member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
-        Trace.TraceWarning("SimpleBindCursor' MoveNextBatch is not implemented even if its children do implement the method.")
+#if PRERELEASE
+        Trace.TraceWarning("SimpleBindCursor's MoveNextBatch is not implemented even if its children do implement the method.")
         Task.FromResult(false)
-    
+#else
+        // TODO implement it via abstract member
+        raise (NotImplementedException("MoveNextBatch is not implemented in SimpleBindCursor"))
+#endif
+        
       //member this.IsBatch with get() = this.IsBatch
       member this.Source: ISeries<'K,'V2> = CursorSeries<'K,'V2>(Func<ICursor<'K,'V2>>((this :> ICursor<'K,'V2>).Clone)) :> ISeries<'K,'V2>
       member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  this.TryGetValue(key, &value)

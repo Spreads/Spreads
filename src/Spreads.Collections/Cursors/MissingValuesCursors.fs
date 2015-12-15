@@ -102,6 +102,7 @@ type internal FillCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, fillValue:'V
   let threadId = Environment.CurrentManagedThreadId
   [<DefaultValueAttribute>]
   val mutable started : bool
+
   override this.GetCursor() =
     this.started <- true
     let cursor = if not this.started && threadId = Environment.CurrentManagedThreadId then this else this.Clone()

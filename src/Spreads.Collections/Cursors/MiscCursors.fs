@@ -11,7 +11,9 @@ open System.Threading.Tasks
 open Spreads
 open Spreads.Collections
 
-
+// TODO ensure that TGV on Non-continuous cursor returns false if requested key does not exists in input
+// Could add ContainsKey to IROOM/ICursor interface, it is used very often for dict
+// Or define explicit contract that calling TGV is not defined for non-cont series when the key in TGV does not exist
 
 // I had an attempt to manually optimize callvirt and object allocation, both failed badly
 // They are not needed, however, in most of the cases, e.g. iterations.
@@ -56,6 +58,8 @@ open Spreads.Collections
 type FilterValuesCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Func<'V,bool>) =
   inherit SimpleBindCursor<'K,'V,'V>(cursorFactory)
 
+  override this.IsContinuous = this.InputCursor.IsContinuous
+
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt
     let ok, value2 = this.InputCursor.TryGetValue(key)
@@ -80,10 +84,14 @@ type FilterValuesCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Fu
     if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
+  override this.Dispose() = base.Dispose()
+
 
 [<SealedAttribute>]
 type FilterMapCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Func<'K,'V,bool>, mapper:Func<'V,'R>) =
   inherit SimpleBindCursor<'K,'V,'R>(cursorFactory)
+
+  override this.IsContinuous = this.InputCursor.IsContinuous
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'R>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt
@@ -109,6 +117,8 @@ type FilterMapCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Fu
     let clone = new FilterMapCursor<'K,'V,'R>(cursorFactory, filterFunc, mapper) :> ICursor<'K,'R>
     if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
+
+  override this.Dispose() = base.Dispose()
 
   interface ICanMapSeriesValues<'K,'R> with
     member this.Map<'R2>(f2:Func<'R,'R2>): Series<'K,'R2> = 
@@ -196,6 +206,8 @@ type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
   inherit SimpleBindCursor<'K,'V,'V>(cursorFactory)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
 
+  override this.IsContinuous = false
+
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'V>): bool =
     if isPositioned then
       laggedCursor <- this.InputCursor.Clone()
@@ -262,6 +274,10 @@ type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
     if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
+  override this.Dispose() = 
+    if laggedCursor <> Unchecked.defaultof<_> then laggedCursor.Dispose()
+    base.Dispose()
+
 /// Apply lagMapFunc to current and lagged value
 type internal ZipLagCursorSlow<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapCurrentPrev:Func<'V,'V,'R>) =
   inherit HorizontalCursor<'K,'V,KVP<ICursor<'K,'V>,'V>,'R>( // state is lagged cursor and current value
@@ -314,8 +330,10 @@ type internal ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uin
   inherit SimpleBindCursor<'K,'V,'R>(cursorFactory)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
 
-  override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'R>): bool =
-    if isPositioned then
+  override this.IsContinuous = false
+
+  override this.TryGetValue(key:'K, isMove:bool, [<Out>] value: byref<'R>): bool =
+    if isMove then
       laggedCursor <- this.InputCursor.Clone()
       let mutable cont = lag > 0u
       let mutable step = 0
@@ -381,6 +399,9 @@ type internal ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uin
     if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
+  override this.Dispose() = 
+    if laggedCursor <> Unchecked.defaultof<_> then laggedCursor.Dispose()
+    base.Dispose()
 
   interface ICanMapSeriesValues<'K,'R> with
     member this.Map<'R2>(f2:Func<'R,'R2>): Series<'K,'R2> = 
@@ -474,8 +495,6 @@ type internal ScanCursorSlow<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:
 [<SealedAttribute>]
 type ScanCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Func<'R,'K,'V,'R>) as this =
   inherit SimpleBindCursor<'K,'V,'R>(cursorFactory)
-  do
-    this.IsContinuous <- false // scan is explicitly not continuous
 
   let mutable moveAtCursor = cursorFactory.Invoke()
   let mutable buffered = false
@@ -499,6 +518,8 @@ type ScanCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Fu
       buffer <- sm
     buffer
 
+  override this.IsContinuous = false
+
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<'R>): bool =
     Trace.Assert(hasValues)
     // move first
@@ -517,19 +538,18 @@ type ScanCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Fu
       true
     else getOrMakeBuffer().TryGetValue(next.Key, &value)
       
-
   override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
     getOrMakeBuffer().TryGetValue(previous.Key, &value)
-
-  override this.Dispose() = 
-    if previousCursor <> Unchecked.defaultof<ICursor<'K,'V>> then previousCursor.Dispose()
-    base.Dispose()
 
   override this.Clone() = 
     let clone = new ScanCursor<'K,'V, 'R>(cursorFactory, init, folder) :> ICursor<'K,'R>
     if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
+  override this.Dispose() = 
+    if previousCursor <> Unchecked.defaultof<ICursor<'K,'V>> then previousCursor.Dispose()
+    if moveAtCursor <> Unchecked.defaultof<_> then moveAtCursor.Dispose()
+    base.Dispose()
 //
 //
 //type internal WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32, allowIncomplete:bool) =
@@ -578,8 +598,8 @@ type ScanCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Fu
 
 
 // TODO this is incomplete implementation. doesn't account for cases when step > width (quite valid case)
-// TODO use Window vs Chunk like in Deedle, there is logical issue with overlapped windows - if we ask for a point x, it could be different then enumerated
-// But the same is tru for chunk - probably we must create a buffer in one go
+// TODO use Window vs Chunk like in Deedle, there is logical issue with overlapped windows - if we ask for a point x, it could be different when enumerated
+// But the same is true for chunk - probably we must create a buffer in one go
 [<SealedAttribute>]
 type internal WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32, allowIncomplete:bool) =
   inherit SimpleBindCursor<'K,'V,Series<'K,'V>>(cursorFactory)
@@ -587,6 +607,8 @@ type internal WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint
   let mutable moves = 0
   // distance from lagged cursor to current
   let mutable lagDistance = 0
+
+  override this.IsContinuous = false
 
   override this.TryGetValue(key:'K, isPositioned:bool, [<Out>] value: byref<Series<'K,'V>>): bool =
     let ok, activeLaggedCursor = 
@@ -697,4 +719,3 @@ type internal WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint
     let clone = new WindowCursor<'K,'V>(cursorFactory, width, step, allowIncomplete) :> ICursor<'K,Series<'K,'V>>
     if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
-
