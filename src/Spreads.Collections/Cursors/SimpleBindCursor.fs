@@ -22,11 +22,11 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
     let cursor = cursorFactory.Invoke()
 
     let mutable hasValidState = false
-    /// True after any successful move and when CurrentKey is defined
-    member this.HasValidState with get() = hasValidState and set (v) = hasValidState <- v
+    /// True after any successful move and when CurrentKey/Value are defined
+    member this.HasValidState with get() = hasValidState // NB should set it only here, Try... methods return values indicate valid state of child cursors // and internal set (v) = hasValidState <- v
 
-    /// SimpleBindCursor could enable/disable continuous property. E.g. repeat/fill makes any input
-    /// continuous, while Lag makes any input non-continuous.
+    /// SimpleBindCursor could enable/disable continuous property. E.g. repeat/fill make any input
+    /// continuous, while Lag/Window make any input non-continuous.
     abstract IsContinuous : bool with get
 
     /// An instance of the input cursor that is used for moves of SimpleBindCursor
