@@ -88,7 +88,9 @@ type SeriesExtensions () =
 //      CursorSeries(fun _ -> new LagMapCursor<'K,'V,'V>(Func<ICursor<'K,'V>>(source.GetCursor), 1u, fun c p -> c - p) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>] //inline
-    static member  Window(source: ISeries<'K,'V>, width:uint32, step:uint32) : Series<'K,Series<'K,'V>> = 
+    static member  Window(source: ISeries<'K,'V>, width:uint32, step:uint32) : Series<'K,Series<'K,'V>> =
+      if width = 0u then raise (ArgumentOutOfRangeException("Width must be positive"))
+      if step = 0u then raise (ArgumentOutOfRangeException("Step must be positive"))
       CursorSeries(fun _ -> new WindowCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), width, step, false) :> ICursor<'K,Series<'K,'V>>) :> Series<'K,Series<'K,'V>>
 
     [<Extension>] // inline

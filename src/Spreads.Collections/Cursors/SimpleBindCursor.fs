@@ -94,18 +94,19 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
     member this.MoveNext(): bool =
       if hasValidState then
         let mutable value = Unchecked.defaultof<'R>
-        hasValidState <- false // NB hasValidState was true for the previous position of the input cursor, we set it to false until TryUpdateNext returns true
-        while not hasValidState && this.InputCursor.MoveNext() do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
+        let mutable found = false // NB hasValidState was true for the previous position of the input cursor, we set it to false until TryUpdateNext returns true
+        while not found && this.InputCursor.MoveNext() do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
 #if PRERELEASE
           let before = this.InputCursor.CurrentKey
-          hasValidState <- this.TryUpdateNext(this.InputCursor.Current, &value)
+          found <- this.TryUpdateNext(this.InputCursor.Current, &value)
           if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("SimpleBindCursor's TryGetValue implementation must not move InputCursor"))
 #else
-          hasValidState <- this.TryUpdateNext(this.InputCursor.Current, &value)
+          found <- this.TryUpdateNext(this.InputCursor.Current, &value)
 #endif
-          if hasValidState then
+          if found then
             currentKey <- this.InputCursor.CurrentKey
             currentValue <- value
+        hasValidState <- found
         hasValidState
       else this.MoveFirst()
 
@@ -114,23 +115,24 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
       task {
         if hasValidState then
           let mutable value = Unchecked.defaultof<'R>
-          hasValidState <- false
+          let mutable found =  false
           let! moved' = this.InputCursor.MoveNext(ct)
           let mutable moved = moved'
-          while not hasValidState  && moved do
+          while not found  && moved do
   #if PRERELEASE
             let before = this.InputCursor.CurrentKey
-            hasValidState <- this.TryUpdateNext(this.InputCursor.Current, &value)
+            found <- this.TryUpdateNext(this.InputCursor.Current, &value)
             if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("SimpleBindCursor's TryGetValue implementation must not move InputCursor"))
   #else
-            hasValidState <- this.TryUpdateNext(this.InputCursor.Current, &value)
+            found <- this.TryUpdateNext(this.InputCursor.Current, &value)
   #endif
-            if hasValidState then
+            if found then
               currentKey <- this.InputCursor.CurrentKey
               currentValue <- value
             else
               let! moved' = this.InputCursor.MoveNext(ct)
               moved <- moved'
+          hasValidState <- found
           return hasValidState
         else return this.MoveFirst()
       }
@@ -200,18 +202,19 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
     member this.MovePrevious(): bool = 
       if hasValidState then
         let mutable value = Unchecked.defaultof<'R>
-        hasValidState <- false
-        while not hasValidState && this.InputCursor.MovePrevious() do
+        let mutable found = false
+        while not found && this.InputCursor.MovePrevious() do
 #if PRERELEASE
           let before = this.InputCursor.CurrentKey
-          hasValidState <- this.TryUpdatePrevious(this.InputCursor.Current, &value)
+          found <- this.TryUpdatePrevious(this.InputCursor.Current, &value)
           if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("SimpleBindCursor's TryGetValue implementation must not move InputCursor"))
 #else
-          hasValidState <- this.TryUpdatePrevious(this.InputCursor.Current, &value)
+          found <- this.TryUpdatePrevious(this.InputCursor.Current, &value)
 #endif
-          if hasValidState then 
+          if found then 
             currentKey <- this.InputCursor.CurrentKey
             currentValue <- value
+        hasValidState <- found
         hasValidState
       else this.MoveLast()
 
