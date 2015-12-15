@@ -22,6 +22,10 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
     let cursor = cursorFactory.Invoke()
 
     let mutable hasValidState = false
+
+    let mutable currentKey = Unchecked.defaultof<'K> 
+    let mutable currentValue = Unchecked.defaultof<'V2> 
+
     /// True after any successful move and when CurrentKey/Value are defined
     member this.HasValidState with get() = hasValidState // NB should set it only here, Try... methods return values indicate valid state of child cursors // and internal set (v) = hasValidState <- v
 
@@ -32,10 +36,8 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
     /// An instance of the input cursor that is used for moves of SimpleBindCursor
     member this.InputCursor with get() : ICursor<'K,'V> = cursor
 
-    //abstract CurrentKey:'K with get
-    //abstract CurrentValue:'V2 with get
-    member val CurrentKey = Unchecked.defaultof<'K> with get, set
-    member val CurrentValue = Unchecked.defaultof<'V2> with get, set
+    member this.CurrentKey with get() = currentKey
+    member this.CurrentValue with get() = currentValue
     member this.Current with get () = KVP(this.CurrentKey, this.CurrentValue)
 
     /// Stores current batch for a succesful batch move
@@ -104,8 +106,8 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
           hasValidState <- this.TryUpdateNext(this.InputCursor.Current, &value)
 #endif
           if hasValidState then
-            this.CurrentKey <- this.InputCursor.CurrentKey
-            this.CurrentValue <- value
+            currentKey <- this.InputCursor.CurrentKey
+            currentValue <- value
         hasValidState
       else this.MoveFirst()
 
@@ -126,8 +128,8 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
             hasValidState <- this.TryUpdateNext(this.InputCursor.Current, &value)
   #endif
             if hasValidState then
-              this.CurrentKey <- this.InputCursor.CurrentKey
-              this.CurrentValue <- value
+              currentKey <- this.InputCursor.CurrentKey
+              currentValue <- value
             else
               let! moved' = this.InputCursor.MoveNext(ct)
               moved <- moved'
@@ -149,8 +151,8 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
         hasValidState <- this.TryGetValue(this.InputCursor.CurrentKey, true, &value)
 #endif
         if hasValidState then
-          this.CurrentKey <- this.InputCursor.CurrentKey
-          this.CurrentValue <- value
+          currentKey <- this.InputCursor.CurrentKey
+          currentValue <- value
           true
         else
           match direction with
@@ -165,8 +167,8 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
               hasValidState <- this.TryUpdateNext(this.InputCursor.Current, &value)
 #endif
               if hasValidState then 
-                this.CurrentKey <- this.InputCursor.CurrentKey
-                this.CurrentValue <- value
+                currentKey <- this.InputCursor.CurrentKey
+                currentValue <- value
             hasValidState
           | Lookup.LE | Lookup.LT ->
             while not hasValidState && this.InputCursor.MovePrevious() do
@@ -178,8 +180,8 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
               hasValidState <- this.TryUpdatePrevious(this.InputCursor.Current, &value)
 #endif
               if hasValidState then
-                this.CurrentKey <- this.InputCursor.CurrentKey
-                this.CurrentValue <- value
+                currentKey <- this.InputCursor.CurrentKey
+                currentValue <- value
             hasValidState
           | _ -> failwith "wrong lookup value"
       else false
@@ -210,8 +212,8 @@ type SimpleBindCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'V>>) =
           hasValidState <- this.TryUpdatePrevious(this.InputCursor.Current, &value)
 #endif
           if hasValidState then 
-            this.CurrentKey <- this.InputCursor.CurrentKey
-            this.CurrentValue <- value
+            currentKey <- this.InputCursor.CurrentKey
+            currentValue <- value
         hasValidState
       else this.MoveLast()
 
