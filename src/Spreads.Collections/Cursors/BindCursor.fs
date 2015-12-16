@@ -1,14 +1,17 @@
 ﻿namespace Spreads
-
-// That was a good idea in theory, but using Func<> mapper makes it much slower than SimpleBindCursor. Map applied to SimpleBindCursor is as fast and simpler.
-// Return to EvaluateState as a method, make it virtual and try to use object expression for ICanMapValues:
-
+//
+//// BindCursor is needed when state evaluation is much more expensive than state creation, e.g. some regression on window, splines, etc.
+//// We could skip keys without evaluating values
+//
+//// That was a good idea in theory, but using Func<> mapper makes it much slower than SimpleBindCursor. Map applied to SimpleBindCursor is as fast and simpler.
+//// Return to EvaluateState as a method, make it virtual and try to use object expression for ICanMapValues:
+//
 //// TODO we could make this class virtual and implement ICanMapValue interface via object expressions and virtual method
 //// See Script1.fsx RootVirtual example. Func in never inlined, interesting to check if object expression could help.
-
-// ...........................................................................................................................
-
-
+//
+//// ...........................................................................................................................
+//
+//
 //open System
 //open System.Linq
 //open System.Collections
@@ -24,7 +27,7 @@
 //
 //// TODO All cursors that are intended to be used with CursorSeries should just inherit Series
 //
-
+//
 //
 //
 ///// A cursor that could perform map, filter, fold, scan or any other projection operations on input cursors.

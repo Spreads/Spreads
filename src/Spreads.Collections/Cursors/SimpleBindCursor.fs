@@ -18,7 +18,7 @@ open System.Threading.Tasks
 type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
     
     let cursor = cursorFactory.Invoke()
-
+    let mutable reachedLast = false
     let mutable hasValidState = false
 
     let mutable currentKey = Unchecked.defaultof<'K> 
@@ -95,25 +95,32 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
       if hasValidState then
         let mutable value = Unchecked.defaultof<'R>
         let mutable found = false // NB hasValidState was true for the previous position of the input cursor, we set it to false until TryUpdateNext returns true
-        while not found && this.InputCursor.MoveNext() do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
-#if PRERELEASE
-          let before = this.InputCursor.CurrentKey
-          found <- this.TryUpdateNext(this.InputCursor.Current, &value)
-          if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("SimpleBindCursor's TryGetValue implementation must not move InputCursor"))
-#else
-          found <- this.TryUpdateNext(this.InputCursor.Current, &value)
-#endif
-          if found then
-            currentKey <- this.InputCursor.CurrentKey
-            currentValue <- value
-        hasValidState <- found
+        let mutable moved = true
+        while not found && moved do // NB! x.InputCursor.MoveNext() && not found // was stupid serious bug, order matters
+          moved <- this.InputCursor.MoveNext()
+          if moved then
+  #if PRERELEASE
+            let before = this.InputCursor.CurrentKey
+            found <- this.TryUpdateNext(this.InputCursor.Current, &value)
+            if cursor.Comparer.Compare(before, this.InputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("SimpleBindCursor's TryGetValue implementation must not move InputCursor"))
+  #else
+            found <- this.TryUpdateNext(this.InputCursor.Current, &value)
+  #endif
+            if found then
+              currentKey <- this.InputCursor.CurrentKey
+              currentValue <- value
+              hasValidState <- found
+          else
+            hasValidState <- false
+            reachedLast <- true
+        
         hasValidState
-      else this.MoveFirst()
+      else (if reachedLast then false else this.MoveFirst())
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveNext(ct:Threading.CancellationToken): Task<bool> =
       task {
-        if hasValidState then
+        if hasValidState || reachedLast then
           let mutable value = Unchecked.defaultof<'R>
           let mutable found =  false
           let! moved' = this.InputCursor.MoveNext(ct)
@@ -139,6 +146,7 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveAt(index: 'K, direction: Lookup): bool =
+      reachedLast <- false
       // NB Unsucessfull moves invalidate state. A cursor is single-threaded and its state is invalid inside any move method, before confirmed otherwise.
       hasValidState <- false
       if this.InputCursor.MoveAt(index, direction) then
@@ -187,19 +195,22 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
       else false
       
     member this.MoveFirst(): bool =
+      reachedLast <- false
       if this.InputCursor.MoveFirst() then this.MoveAt(this.InputCursor.CurrentKey, Lookup.GE)
       else 
         hasValidState <- false
         false
     
     member this.MoveLast(): bool = 
+      reachedLast <- true
       if this.InputCursor.MoveLast() then this.MoveAt(this.InputCursor.CurrentKey, Lookup.LE)
       else
         hasValidState <- false
         false
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-    member this.MovePrevious(): bool = 
+    member this.MovePrevious(): bool =
+      reachedLast <- false
       if hasValidState then
         let mutable value = Unchecked.defaultof<'R>
         let mutable found = false

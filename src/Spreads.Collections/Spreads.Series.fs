@@ -389,7 +389,7 @@ and
     val mutable started : bool
     override this.GetCursor() =
       this.started <- true
-      let cursor = if not this.started && threadId = Environment.CurrentManagedThreadId then this else this.Clone()
+      let cursor = if not this.started  then this else this.Clone() //&& threadId = Environment.CurrentManagedThreadId
       cursor.started <- true
       cursor :> ICursor<'K,'V2>
 

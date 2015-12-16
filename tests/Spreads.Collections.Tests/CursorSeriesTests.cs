@@ -7,6 +7,7 @@ using NUnit.Framework;
 using System.Runtime.InteropServices;
 using Spreads.Collections;
 using System.Diagnostics;
+using System.Threading;
 
 namespace Spreads.Collections.Tests {
     [TestFixture]
@@ -28,8 +29,7 @@ namespace Spreads.Collections.Tests {
             var zipLag = sm.Lag(1);//.ToSortedMap();
             var c = 1;
             foreach (var zl in zipLag) {
-                if (c - 1 != zl.Value)
-                {
+                if (c - 1 != zl.Value) {
                     throw new ApplicationException();
                 }
                 c++;
@@ -53,10 +53,9 @@ namespace Spreads.Collections.Tests {
             // slow implementation
             var sw = new Stopwatch();
             sw.Start();
-            var zipLag = sm.ZipLag(1, (cur,prev) => cur + prev); //.ToSortedMap();
+            var zipLag = sm.ZipLag(1, (cur, prev) => cur + prev); //.ToSortedMap();
             var c = 1;
-            foreach (var zl in zipLag)
-            {
+            foreach (var zl in zipLag) {
                 if (c + (c - 1) != zl.Value) {
                     throw new ApplicationException();
                 }
@@ -160,6 +159,158 @@ namespace Spreads.Collections.Tests {
             Assert.AreEqual(expected, sum);
             Console.WriteLine("Repeat + zip, elapsed: {0}, ops: {1}", sw.ElapsedMilliseconds, (int)((double)count / (sw.ElapsedMilliseconds / 1000.0)));
 
+        }
+
+
+        [Test]
+        public void CouldCalculateMovingAverage() {
+            var sm = new SortedMap<DateTime, double>();
+
+            var count = 10000000;
+
+            for (int i = 0; i < count; i++) {
+                sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+            }
+
+            // slow implementation
+            var sw = new Stopwatch();
+            sw.Start();
+            var ma = sm.SMA(20); //.ToSortedMap();
+
+            var cursor = ma.GetCursor();
+            cursor.MoveNext();
+            //var cc = 0;
+            //while (cursor.MoveNext())
+            //{
+            //    cc++;
+            //}
+            //Console.WriteLine(cc);
+            //if (cursor.MoveNext())
+            //{
+            //    throw new ApplicationException("Moved next after MoveNext() returned false");
+            //}
+            //cursor.MoveFirst();
+            var c = 1;
+            //foreach (var m in ma) {
+            cursor.Reset();
+            while (cursor.MoveNext()) {
+                if (cursor.CurrentValue != c + 8.5) {
+                    Console.WriteLine(cursor.CurrentValue);
+                    throw new ApplicationException("Invalid value");
+                }
+                c++;
+            }
+            sw.Stop();
+            Console.WriteLine($"Final c: {c}");
+            Console.WriteLine("SMA, elapsed: {0}, ops: {1}", sw.ElapsedMilliseconds, (int)((double)count / (sw.ElapsedMilliseconds / 1000.0)));
+            ma = null;
+            GC.Collect(3, GCCollectionMode.Forced, true);
+            Thread.Sleep(10000);
+            // 
+        }
+
+        [Test]
+        public void CouldCalculateMovingAverageIncomplete() {
+            var sm = new SortedMap<DateTime, double>();
+
+            var count = 10000000;
+
+            for (int i = 0; i < count; i++) {
+                sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+            }
+
+            // slow implementation
+            var sw = new Stopwatch();
+            sw.Start();
+            var ma = sm.SMA(20, true).ToSortedMap();
+            var c = 1;
+            foreach (var m in ma) {
+                if (c <= 20) {
+                    //Console.WriteLine(m.Value);
+                } else if (m.Value != c - 19 + 8.5) {
+                    Console.WriteLine(m.Value);
+                    throw new ApplicationException("Invalid value");
+                }
+                c++;
+            }
+            sw.Stop();
+            Console.WriteLine($"Final c: {c}");
+            Console.WriteLine("SMA, elapsed: {0}, ops: {1}", sw.ElapsedMilliseconds, (int)((double)count / (sw.ElapsedMilliseconds / 1000.0)));
+            // 
+        }
+
+
+        [Test]
+        public void CouldCalculateMovingStDev() {
+            var sm = new SortedMap<DateTime, double>();
+
+            var count = 5000000;
+
+            for (int i = 0; i < count; i++) {
+                sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+            }
+
+            // slow implementation
+            var sw = new Stopwatch();
+            sw.Start();
+            var ma = sm.StDev(20, false); //.ToSortedMap();
+            var c = 1;
+            foreach (var m in ma) {
+                //if (c < 30) {
+                //    Console.WriteLine(m.Value);
+                //} else
+                // TODO on c = 9490618 we have a different value: 5.91740018927231
+                //   Excel value       5.91607978309962
+
+                if (Math.Abs(m.Value - 5.9160797830996161) > 0.0000001) {
+                    Console.WriteLine(m.Value);
+                    Console.WriteLine($"Error c: {c}");
+                    throw new ApplicationException("Invalid value");
+
+                }
+                c++;
+            }
+            sw.Stop();
+            Console.WriteLine($"Final c: {c}");
+            Console.WriteLine("SMA, elapsed: {0}, ops: {1}", sw.ElapsedMilliseconds, (int)((double)count / (sw.ElapsedMilliseconds / 1000.0)));
+            // 
+        }
+
+
+        [Test]
+        public void CouldCalculateMovingStDevIncomlete() {
+            var sm = new SortedMap<DateTime, double>();
+
+            var count = 5000000;
+
+            for (int i = 0; i < count; i++) {
+                sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+            }
+
+            // slow implementation
+            var sw = new Stopwatch();
+            sw.Start();
+            var ma = sm.StDev(20, true); //.ToSortedMap();
+            var c = 1;
+            foreach (var m in ma) {
+                if (c < 30) {
+                    Console.WriteLine(m.Value);
+                } else
+                // TODO on c = 9490618 we have a different value: 5.91740018927231
+                //   Excel value       5.91607978309962
+
+                if (Math.Abs(m.Value - 5.9160797830996161) > 0.0000001) {
+                    Console.WriteLine(m.Value);
+                    Console.WriteLine($"Error c: {c}");
+                    throw new ApplicationException("Invalid value");
+
+                }
+                c++;
+            }
+            sw.Stop();
+            Console.WriteLine($"Final c: {c}");
+            Console.WriteLine("SMA, elapsed: {0}, ops: {1}", sw.ElapsedMilliseconds, (int)((double)count / (sw.ElapsedMilliseconds / 1000.0)));
+            // 
         }
 
     }

@@ -283,7 +283,7 @@ type internal ZipLagCursorSlow<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag
 
 /// Apply lagMapFunc to current and lagged value
 [<SealedAttribute>]
-type internal ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapCurrentPrev:Func<'V,'V,'R>) =
+type ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapCurrentPrev:Func<'V,'V,'R>) =
   inherit SimpleBindCursor<'K,'V,'R>(cursorFactory)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
   let mutable lookupCursor = Unchecked.defaultof<ICursor<'K,'V>>
@@ -381,14 +381,14 @@ type internal ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uin
 
 // TODO unit tests with all moves & TGV, easy to fuck up here
 /// Apply mapCurrentPrevN to current, lagged values and distance between them
-type internal ZipLagAllowIncompleteCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, zeroBasedLag:uint32, step:uint32, mapCurrentPrevN:Func<KVP<'K,'V>,KVP<'K,'V>,uint32,'R>, allowIncomplete:bool) =
+type ZipLagAllowIncompleteCursor<'K,'V,'R>
+  (cursorFactory:Func<ICursor<'K,'V>>, zeroBasedLag:uint32, step:uint32, 
+    mapCurrentPrevN:Func<KVP<'K,'V>,KVP<'K,'V>,uint32,'R>, allowIncomplete:bool) =
   inherit SimpleBindCursor<'K,'V,'R>(cursorFactory)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
   let mutable lookupCursor = Unchecked.defaultof<ICursor<'K,'V>>
   let mutable currentLag = 0u
   let mutable currentSteps = 0u
-  // e.g. for width 7 and step 3 we start with [1], [1-4], [1-7], [4-10] so that the step of ending value is constant
-  //let minWidth = lag % step
 
   override this.IsContinuous = false
 
@@ -517,6 +517,135 @@ type internal ZipLagAllowIncompleteCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'
 //    member this.Map<'R2>(f2:Func<'R,'R2>): Series<'K,'R2> = 
 //      let mapCurrentPrev2 : Func<'V,'V,'R2> = Func<'V,'V,'R2>(fun c p -> f2.Invoke(mapCurrentPrevN.Invoke(c, p, currentLag)))
 //      CursorSeries(fun _ -> new ZipLagCursor<'K,'V,'R2>(cursorFactory, lag, mapCurrentPrev2) :> ICursor<'K,'R2>) :> Series<'K,'R2>
+
+
+
+[<SealedAttribute>]
+type ScanLagAllowIncompleteCursor<'K,'V,'R>
+  (cursorFactory:Func<ICursor<'K,'V>>, zeroBasedLag:uint32, step:uint32, initState:'R, 
+    updateStateAddSubstract:Func<'R,KVP<'K,'V>,KVP<'K,'V>,uint32,'R>, allowIncomplete:bool) =
+  inherit SimpleBindCursor<'K,'V,'R>(cursorFactory)
+  let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
+  let mutable lookupCursor = Unchecked.defaultof<ICursor<'K,'V>>
+  let mutable currentLag = 0u
+  let mutable currentSteps = 0u
+  let mutable currentState = initState
+
+  override this.IsContinuous = false
+
+  override this.TryGetValue(key:'K, isMove:bool, [<Out>] value: byref<'R>): bool =
+    if isMove then
+      if laggedCursor = Unchecked.defaultof<_> then
+        laggedCursor <- this.InputCursor.Clone()
+      else 
+        let moved = laggedCursor.MoveAt(key, Lookup.EQ)
+        if not moved then raise (ApplicationException("This should not happen by design"))
+      currentLag <- 0u
+      let mutable cont = true
+      while currentLag < zeroBasedLag && cont do
+        let moved = laggedCursor.MovePrevious()
+        if moved then
+#if PRERELEASE
+          Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
+#endif
+          currentLag <- currentLag + 1u
+          currentState <- updateStateAddSubstract.Invoke(currentState, laggedCursor.Current, Unchecked.defaultof<_>, currentLag)
+        else
+          let moved' = laggedCursor.MoveFirst()
+          if currentLag = 0u then
+            currentState <- updateStateAddSubstract.Invoke(currentState, laggedCursor.Current, Unchecked.defaultof<_>, currentLag)
+          Trace.Assert(moved', "ZipLagAllowIncompleteCursor: Must check for empty series if this happens")
+          cont <- false
+      if currentLag = zeroBasedLag || allowIncomplete then
+        value <- currentState
+        true
+      else false
+    else
+      let c =
+        if lookupCursor = Unchecked.defaultof<_> then 
+          lookupCursor <- this.InputCursor.Clone()
+        lookupCursor
+      let mutable currentState' = initState
+      let mutable currentLag' = 0u
+      let mutable cont = true
+      while currentLag' < zeroBasedLag && cont do
+        let moved = laggedCursor.MovePrevious()
+        if moved then
+#if PRERELEASE
+          Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
+#endif
+          currentLag' <- currentLag' + 1u //!!!
+          currentState' <- updateStateAddSubstract.Invoke(currentState', laggedCursor.Current, Unchecked.defaultof<_>, currentLag)
+        else
+          let moved' = laggedCursor.MoveFirst()
+          if currentLag = 0u then
+            currentState' <- updateStateAddSubstract.Invoke(currentState', laggedCursor.Current, Unchecked.defaultof<_>, currentLag)
+          cont <- false
+      if currentLag' = zeroBasedLag || allowIncomplete then
+        value <- currentState'
+        true
+      else false
+
+  override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
+    if this.HasValidState then
+  #if PRERELEASE
+      Trace.Assert((currentLag <= zeroBasedLag), "This should not happen by design")
+  #endif
+      if currentLag = zeroBasedLag then
+        // this value will be dropped from a window
+        let out = laggedCursor.Current
+        let moved = laggedCursor.MoveNext()
+  #if PRERELEASE
+        Trace.Assert((moved), "This should not happen by design")
+  #endif
+        currentState <- updateStateAddSubstract.Invoke(currentState, this.InputCursor.Current, out, currentLag)
+        value <- currentState
+        currentSteps <- currentSteps + 1u
+        if currentSteps = step then
+          currentSteps <- 0u
+          true
+        else
+          false
+      elif currentLag < zeroBasedLag && allowIncomplete then
+        // do not move lagged cursor here
+        currentLag <- currentLag + 1u //!!!
+        currentState <- updateStateAddSubstract.Invoke(currentState, this.InputCursor.Current, Unchecked.defaultof<_>, currentLag)
+        value <- currentState
+        currentSteps <- currentSteps + 1u
+        if currentSteps = step then
+          currentSteps <- 0u
+          true
+        else
+          false
+      else false
+    else
+  #if PRERELEASE
+      Trace.Assert(not allowIncomplete, "This should not happen by design")
+      Trace.Assert(currentLag <= zeroBasedLag, "This should not happen by design")
+  #else
+      if allowIncomplete then raise (ApplicationException("This should not happen by design"))
+  #endif
+      // input cursor moved before calling this method, we keep lagged cursor where it was and increment the current lag value
+      currentLag <- currentLag + 1u //!!!
+      currentState <- updateStateAddSubstract.Invoke(currentState, this.InputCursor.Current, Unchecked.defaultof<_>, currentLag)
+      if currentLag = zeroBasedLag then 
+        value <- currentState
+        true
+      else false
+
+  override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
+    // we cannot capture previous Input.Current without additional field, for now just recreate
+    this.TryGetValue(previous.Key, true, &value)
+
+  override this.Clone() = 
+    let clone = new ScanLagAllowIncompleteCursor<'K,'V, 'R>(cursorFactory, zeroBasedLag, step, initState, updateStateAddSubstract, allowIncomplete) :> ICursor<'K,'R>
+    if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
+    clone
+
+  override this.Dispose() = 
+    if laggedCursor <> Unchecked.defaultof<_> then laggedCursor.Dispose()
+    if lookupCursor <> Unchecked.defaultof<_> then laggedCursor.Dispose()
+    base.Dispose()
 
 
 
@@ -707,7 +836,7 @@ type ScanCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Fu
 
 
 [<SealedAttribute>]
-type internal WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32, allowIncomplete:bool) =
+type WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:uint32, allowIncomplete:bool) =
   inherit ZipLagAllowIncompleteCursor<'K,'V,Series<'K,'V>>(
     cursorFactory, 
     width - 1u, // NB! & TODO (low) ZipLagAllowIncompleteCursor accepts zero-based width, was to lazy to reimplement. We check widths/step in extension method
@@ -715,9 +844,9 @@ type internal WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint
     (fun c p n -> 
       let startPoint = Some(p.Key)
       let endPoint = Some(c.Key)
-      let rangeCursor() = new RangeCursor<'K,'V>(cursorFactory, startPoint, endPoint, None, None) :> ICursor<'K,'V>
-      let window = CursorSeries(Func<ICursor<'K,'V>>(rangeCursor)) :> Series<'K,'V>
-      window
+      let rangeCursorFactory() = new RangeCursor<'K,'V>(cursorFactory, startPoint, endPoint, None, None) :> ICursor<'K,'V>
+      let windowDefinition = CursorSeries(Func<ICursor<'K,'V>>(rangeCursorFactory)) :> Series<'K,'V>
+      windowDefinition
     ),
     allowIncomplete)
 

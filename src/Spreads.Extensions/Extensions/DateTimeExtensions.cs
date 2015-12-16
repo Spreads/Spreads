@@ -18,31 +18,31 @@ namespace Spreads
 
         // TODO tests!!!
 
-        private static Dictionary<string, string> _normalizer = new Dictionary<string, string>();
+        private static readonly Dictionary<string, string> Normalizer = new Dictionary<string, string>();
 
         static DateTimeExtensions() {
-            // Add all shortcuts that are deeemed convenient
-            _normalizer.Add("", "UTC");
-            _normalizer.Add("moscow", "Europe/Moscow");
-            _normalizer.Add("moex", "Europe/Moscow");
-            _normalizer.Add("ru", "Europe/Moscow");
-            _normalizer.Add("newyork", "America/New_York");
-            _normalizer.Add("ny", "America/New_York");
-            _normalizer.Add("nyse", "America/New_York");
-            _normalizer.Add("nasdaq", "America/New_York");
-            _normalizer.Add("chicago", "America/Chicago");
-            _normalizer.Add("london", "Europe/London");
-            _normalizer.Add("lse", "Europe/London");
-            _normalizer.Add("ice", "Europe/London");
-            _normalizer.Add("uk", "Europe/London");
-            _normalizer.Add("gb", "Europe/London");
-            _normalizer.Add("cme", "America/Chicago");
+            // Add all shortcuts that are deemed convenient
+            Normalizer.Add("", "UTC");
+            Normalizer.Add("moscow", "Europe/Moscow");
+            Normalizer.Add("moex", "Europe/Moscow");
+            Normalizer.Add("ru", "Europe/Moscow");
+            Normalizer.Add("newyork", "America/New_York");
+            Normalizer.Add("ny", "America/New_York");
+            Normalizer.Add("nyse", "America/New_York");
+            Normalizer.Add("nasdaq", "America/New_York");
+            Normalizer.Add("chicago", "America/Chicago");
+            Normalizer.Add("london", "Europe/London");
+            Normalizer.Add("lse", "Europe/London");
+            Normalizer.Add("ice", "Europe/London");
+            Normalizer.Add("uk", "Europe/London");
+            Normalizer.Add("gb", "Europe/London");
+            Normalizer.Add("cme", "America/Chicago");
         }
 
         /// Returns UTC DateTime with Kind.Unspecified
         public static DateTime ConvertToUtcWithUncpecifiedKind(this DateTime dateTime, string tzFrom) {
             string tz;
-            if (!_normalizer.TryGetValue(tzFrom.ToLowerInvariant(), out tz)) {
+            if (!Normalizer.TryGetValue(tzFrom.ToLowerInvariant(), out tz)) {
                 tz = tzFrom;
             }
             //tz = tz.ToLowerInvariant();
@@ -62,7 +62,7 @@ namespace Spreads
         /// Returns UTC DateTime with Kind.Unspecified
         public static DateTime ConvertToZoneWithUncpecifiedKind(this DateTime utcDateTime, string tzTo) {
             string tz;
-            if (!_normalizer.TryGetValue(tzTo.ToLowerInvariant(), out tz)) {
+            if (!Normalizer.TryGetValue(tzTo.ToLowerInvariant(), out tz)) {
                 tz = tzTo;
             }
             //TODO!implement this

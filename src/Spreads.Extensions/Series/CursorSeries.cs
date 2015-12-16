@@ -8,11 +8,6 @@ using System.Threading.Tasks;
 
 namespace Spreads {
 
-    //public struct SMAState
-    //{
-    //    public double sum;
-    //    public int count;
-    //}
 
     internal class SMACursor<K> : SimpleBindCursor<K, double, double> {
         protected ICursor<K, double> _laggedCursor;
@@ -33,7 +28,7 @@ namespace Spreads {
             _cursorFactory = cursorFactory;
             _period = period;
             _allowIncomplete = allowIncomplete;
-            
+
         }
 
         //private SMACursor(Func<ICursor<K, double>> cursorFactory, int period, bool allowIncomplete, Func<double,double> mapper)
@@ -44,50 +39,37 @@ namespace Spreads {
         //}
 
         public override bool TryGetValue(K key, bool isMove, out double value) {
-            if (isMove)
-            {
+            if (isMove) {
                 value = 0.0;
 
                 _sum = 0.0;
                 _count = 0;
 
-                if (_laggedCursor == null)
-                {
+                if (_laggedCursor == null) {
                     _laggedCursor = this.InputCursor.Clone();
                 }
-                if (_laggedCursor.MoveAt(key, Lookup.EQ))
-                {
+                if (_laggedCursor.MoveAt(key, Lookup.EQ)) {
                     _sum += _laggedCursor.CurrentValue;
                     _count++;
 
-                    while (_count < _period && _laggedCursor.MovePrevious())
-                    {
+                    while (_count < _period && _laggedCursor.MovePrevious()) {
                         _sum += _laggedCursor.CurrentValue;
                         _count++;
                     }
-                    if (_count == _period)
-                    {
-                        value = _sum/_count;
+                    if (_count == _period) {
+                        value = _sum / _count;
                         return true;
-                    }
-                    else if (_allowIncomplete)
-                    {
-                        value = _sum/_count;
+                    } else if (_allowIncomplete) {
+                        value = _sum / _count;
                         _laggedCursor.MoveFirst(); // it was in reset value because tried to move before the first key
                         return true;
-                    }
-                    else
-                    {
+                    } else {
                         return false;
                     }
-                }
-                else
-                {
+                } else {
                     return false;
                 }
-            }
-            else
-            {
+            } else {
                 Trace.TraceWarning("TODO SMACursor: this is inefficient, do not clone on every call");
                 using (var tmpcursor = this.InputCursor.Clone()) {
                     var c = 0;
@@ -108,7 +90,7 @@ namespace Spreads {
                 }
             }
         }
-        
+
 
         public override bool TryUpdateNext(KeyValuePair<K, double> next, out double value) {
             if (_count >= _period) {
@@ -343,21 +325,67 @@ namespace Spreads {
         }
     }
 
+
+    internal class SmaState {
+        public double Count;
+        public double Sum;
+    }
+
+    internal class StDevState {
+        public double Count;
+        public double Sum;
+        public double SumSq;
+    }
+
+
     public static class CursorSeriesExtensions {
+
         public static Series<K, double> SMA<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false) {
-            return new CursorSeries<K, double>(() => new SMACursor<K>(source.GetCursor, period, allowIncomplete));
+            Func<ICursor<K, SmaState>> factory = () => new ScanLagAllowIncompleteCursor<K, double, SmaState>(source.GetCursor, (uint)period - 1u, 1,
+               new SmaState(),
+               (st, add, sub, cnt) => {
+                   st.Count = cnt + 1.0;
+                   st.Sum = st.Sum + add.Value - sub.Value;
+                    return st;
+               }, allowIncomplete);
+            return (new CursorSeries<K, SmaState>(factory).Map(st => st.Sum / st.Count));
         }
 
-        /// <summary>
-        /// Moving standard deviation
-        /// </summary>
-        /// <typeparam name="K"></typeparam>
-        /// <param name="source"></param>
-        /// <param name="period"></param>
-        /// <returns></returns>
-        public static Series<K, double> StDev<K>(this ISeries<K, double> source, int period) {
-            return new CursorSeries<K, double>(() => new StandardDeviationCursor<K>(source.GetCursor, period));
+
+        public static Series<K, double> StDev<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false) {
+            Func<ICursor<K, StDevState>> factory = () => new ScanLagAllowIncompleteCursor<K, double, StDevState>(source.GetCursor, (uint)period - 1u, 1,
+                new StDevState(),
+                (st, add, sub, cnt) => {
+                    st.Count = cnt + 1.0;
+                    st.Sum = st.Sum + add.Value - sub.Value;
+                    st.SumSq = st.SumSq + (add.Value * add.Value) - (sub.Value * sub.Value);
+                    return st;
+                }, allowIncomplete);
+            // Filter (k, st) => st.Count > 1,
+            return (new CursorSeries<K, StDevState>(factory))
+                .FilterMap((k, st) => st.Count > 1, st => {
+                    var periodMinusOne = (double)(st.Count - 1.0);
+                    var value = Math.Sqrt((st.SumSq / periodMinusOne) - (st.Sum * st.Sum) / ((double)(st.Count) * (periodMinusOne)));
+                    return value;
+                }); //.Filter(x => x > 0.0);
         }
+
+
+
+        //internal static Series<K, double> SMAOld<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false) {
+        //    return new CursorSeries<K, double>(() => new SMACursor<K>(source.GetCursor, period, allowIncomplete));
+        //}
+
+        ///// <summary>
+        ///// Moving standard deviation
+        ///// </summary>
+        ///// <typeparam name="K"></typeparam>
+        ///// <param name="source"></param>
+        ///// <param name="period"></param>
+        ///// <returns></returns>
+        //public static Series<K, double> StDevOld<K>(this ISeries<K, double> source, int period) {
+        //    return new CursorSeries<K, double>(() => new StandardDeviationCursor<K>(source.GetCursor, period));
+        //}
 
         /// <summary>
         /// Eager grouping using LINQ group by on Series IEnumerable<KVP<,>> interface
@@ -370,14 +398,12 @@ namespace Spreads {
             return sm;
         }
 
-
         /// <summary>
         /// Projects values from source to destination and back
         /// </summary>
-        // TODO rename to BiMapValues
-        public static IPersistentOrderedMap<K, Vdest> Project<K, Vsrc, Vdest>(this IOrderedMap<K, Vsrc> innerMap,
-            Func<Vsrc, Vdest> srcToDest, Func<Vdest, Vsrc> destToSrc) {
-            return new ProjectValuesWrapper<K, Vsrc, Vdest>(innerMap, srcToDest, destToSrc);
+        public static IPersistentOrderedMap<K, VDest> BiMap<K, VSrc, VDest>(this IOrderedMap<K, VSrc> innerMap,
+            Func<VSrc, VDest> srcToDest, Func<VDest, VSrc> destToSrc) {
+            return new ProjectValuesWrapper<K, VSrc, VDest>(innerMap, srcToDest, destToSrc);
         }
     }
 }

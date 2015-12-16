@@ -10,6 +10,7 @@ open System.Threading.Tasks
 
 open Spreads
 open Spreads.Collections
+open System.Threading
 
 
 // TODO extensions on ISeries but return series, to keep operators working
@@ -104,12 +105,34 @@ type SeriesExtensions () =
       let sm = SortedMap()
       let cursor = source.GetCursor()
       
-      for kvp in source do
-        sm.AddLast(kvp.Key, kvp.Value)
-//      Task.Run(async fun _ ->
-//        while cursor.MoveNext(CancellationToken.None).Result do
-//          sm.AddLast(cursor.CurrentKey, cursor.CurrentValue)
-//        )
+      while cursor.MoveNext() do
+        sm.AddLast(cursor.CurrentKey, cursor.CurrentValue)
+      let wekRef = new WeakReference(sm)
+      //Task.Run(fun _ ->
+      let task = task {
+          let mutable cont = cursor.MoveLast()
+          while cont do
+            Trace.WriteLine("ToSortedMap started live loop")
+            if wekRef.IsAlive then
+              let delay = Task.Delay(1000)
+              let mn = cursor.MoveNext(CancellationToken.None)
+              let! moved = Task.WhenAny(mn, delay)
+              if moved = delay then
+                Trace.WriteLine("ToSortedMap live timeout")
+                ()
+              else
+                let moved = mn.Result
+                cont <- moved
+                if moved then (wekRef.Target :?> SortedMap<'K,'V>).AddLast(cursor.CurrentKey, cursor.CurrentValue)
+            else
+              cont <- false
+          //#if PRERELEASE
+              Trace.WriteLine("ToSortedMap task exited")
+          //#endif
+          return 0
+      }
+      let runninTask = Task.Run<int>(Func<Task<int>>(fun _ -> task))
+      //)
       sm
 
     [<Extension>]
