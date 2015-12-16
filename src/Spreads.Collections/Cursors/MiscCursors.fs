@@ -172,6 +172,8 @@ type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
 #endif
           currentLag <- currentLag + 1u
         else
+          let moved' = laggedCursor.MoveFirst()
+          Trace.Assert(moved', "ZipLagAllowIncompleteCursor: Must check for empty series if this happens")
           cont <- false
       if currentLag = lag then
         value <- laggedCursor.CurrentValue
@@ -201,7 +203,7 @@ type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
     if this.HasValidState then
       if laggedCursor.MoveNext() then
-  #if PRERELEASE
+  #if PRERELEASE_
         Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
   #endif
         value <- laggedCursor.CurrentValue
@@ -306,6 +308,8 @@ type internal ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uin
 #endif
           currentLag <- currentLag + 1u
         else
+          let moved' = laggedCursor.MoveFirst()
+          Trace.Assert(moved', "ZipLagAllowIncompleteCursor: Must check for empty series if this happens")
           cont <- false
       if currentLag = lag then
         value <- mapCurrentPrev.Invoke(this.InputCursor.CurrentValue, laggedCursor.CurrentValue)
@@ -472,13 +476,8 @@ type internal ZipLagAllowIncompleteCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'
       currentLag <- currentLag + 1u
       if currentLag = zeroBasedLag then 
         value <- mapCurrentPrevN.Invoke(this.InputCursor.Current, laggedCursor.Current, currentLag)
-        //currentSteps <- currentSteps + 1u
+        // Do not increment steps here
         true
-//        if currentSteps = step then
-//          currentSteps <- 0u
-//          true
-//        else
-//          false 
       else false
 
   override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
@@ -493,12 +492,15 @@ type internal ZipLagAllowIncompleteCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'
     elif allowIncomplete && currentLag > 0u then
       currentLag <- currentLag - 1u
       value <- mapCurrentPrevN.Invoke(this.InputCursor.Current, laggedCursor.Current, currentLag)
-      currentSteps <- currentSteps + 1u
-      if currentSteps = step then
-        currentSteps <- 0u
-        true
-      else
-        false
+      // TODO rewrite this similar to TryUpdateNext
+      if this.HasValidState then
+        currentSteps <- currentSteps + 1u
+        if currentSteps = step then
+          currentSteps <- 0u
+          true
+        else
+          false
+      else true
     else false
 
   override this.Clone() = 
