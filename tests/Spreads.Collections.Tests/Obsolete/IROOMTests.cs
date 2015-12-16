@@ -8,7 +8,10 @@ using NUnit.Framework;
 using System.Runtime.InteropServices;
 using Spreads.Collections;
 
-namespace Spreads.DB.Tests {
+namespace Spreads.Collections.Tests.Obsolete {
+
+    // NB Instead of creating a collection of all possible implementations, use ContractTests suit for each
+    // collection/CursorSeries
 
 	[TestFixture]
 	public class IROOMTests

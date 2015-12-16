@@ -19,31 +19,14 @@ namespace Spreads {
 
 
 	/// <summary>
-	/// Since we cannot use `fixed` on generic arrays, this interface allows to implement 
-	/// 
-	/// </summary>
-	/// <typeparam name="T"></typeparam>
-	[Obsolete("Smells...")]
-	public interface IFixable<T> where T : struct {
-		/// <summary>
-		/// What would &T return
-		/// </summary>
-		IntPtr Address();
-		/// <summary>
-		/// Fix &T[0] and do action on its pointer
-		/// </summary>
-		void DoFixed(T[] array, Action<IntPtr> action);
-	}
-
-	/// <summary>
 	/// 
 	/// </summary>
 	internal enum CompressionMethod {
 		blosclz = 0,
 		lz4 = 1,
 		lz4hc = 2
-		//, zlib = 3
-		//, snappy = 4
+		//, zlib = 3    // slow
+		//, snappy = 4  // lz4 is better and easier to build, our Blosc does not include Snappy since it is C++, not C.
 	}
 
 	internal class EmptyArray<TElement> {

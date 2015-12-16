@@ -1249,6 +1249,8 @@ type SortedMap<'K,'V>
               (this :> IUpdateable<'K,'V>).OnData.RemoveHandler(updateHandler)
           )
     }
+  
+  member this.GetAt(idx:int) = if idx >= 0 && idx < this.size then this.values.[idx] else raise (ArgumentOutOfRangeException("idx", "Idx is out of range in SortedMap GetAt method."))
 
   /// Make the capacity equal to the size
   member this.TrimExcess() = this.Capacity <- this.size
@@ -1337,7 +1339,7 @@ type SortedMap<'K,'V>
         false
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
     member this.Item with get k = this.Item(k)
-    member this.GetAt(idx:int) = this.values.[idx]
+    member this.GetAt(idx:int) = this.GetAt(idx:int)
     member this.Keys with get() = this.Keys :> IEnumerable<'K>
     member this.Values with get() = this.values :> IEnumerable<'V>
     member this.SyncRoot with get() = syncRoot

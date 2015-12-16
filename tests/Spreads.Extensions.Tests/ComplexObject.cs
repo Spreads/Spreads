@@ -3,7 +3,7 @@ using System.Linq;
 using Spreads.Collections;
 using Newtonsoft.Json;
 
-namespace Spreads.DB.Tests
+namespace Spreads.Extensions.Tests
 {
 
     public class MyTestClass {

@@ -7,10 +7,11 @@ using System.Linq;
 using NUnit.Framework;
 using System.Runtime.InteropServices;
 using Spreads.Collections;
+using Spreads;
 using Newtonsoft.Json.Bson;
 using Newtonsoft.Json;
 
-namespace Spreads.DB.Tests {
+namespace Spreads.Extensions.Tests {
     [TestFixture]
     public class CompressionTests {
 
@@ -30,8 +31,6 @@ namespace Spreads.DB.Tests {
         private ComplexObject[] _complexSmall = new ComplexObject[10];
         private string[] _stringSmall = new string[_small];
         private Random _rng = new Random(0);
-        private KeyValuePair<DateTime, decimal>[] _kvpSmall = new KeyValuePair<DateTime, decimal>[_small];
-        private KeyValuePair<DateTime, decimal>[] _kvpBig = new KeyValuePair<DateTime, decimal>[_big];
 
         [SetUp]
         public void Init() {
@@ -44,7 +43,6 @@ namespace Spreads.DB.Tests {
                     _decsSmall[i] = (decimal)val;
                     _longsSmall[i] = i;
                     _datesSmall[i] = DateTime.UtcNow.Date.AddDays(i);
-                    _kvpSmall[i] = new KeyValuePair<DateTime, decimal>(DateTime.Now.Date.AddDays(i), i);
                     _tickSmall[i] = new Tick(DateTime.UtcNow.Date.AddSeconds(i), i, i);
                     if (i < 10) _complexSmall[i] = ComplexObject.Create();
                     _stringSmall[i] = _rng.NextDouble().ToString();
@@ -53,7 +51,6 @@ namespace Spreads.DB.Tests {
                 _decsBig[i] = (decimal)val;
                 _longsBig[i] = i;
                 _datesBig[i] = DateTime.UtcNow.Date.AddDays(i);
-                _kvpBig[i] = new KeyValuePair<DateTime, decimal>(DateTime.Now.Date.AddDays(i), i);
                 _tickBig[i] = new Tick(DateTime.UtcNow.Date.AddSeconds(i), i, i);
                 var dt = DateTimeOffset.Now;
                 previous = val;
@@ -152,7 +149,22 @@ namespace Spreads.DB.Tests {
             }
         }
 
-        [Test]
+
+	    [Test]
+	    public void CouldCompressAndDecompressEmptyArray()
+	    {
+			int[] nullInt = null;
+		    var json = JsonConvert.SerializeObject(nullInt);
+			Console.WriteLine(json);
+			var ser = new SpreadsJsonSerializer();
+            var ea = new { arr = new int[0]};
+		    var bytes = ser.SerializeToJson(ea);// Serializer.Instance.se .Serialize(ea);
+		    Console.WriteLine(bytes);
+		    //var ea1 = Serializer.Deserialize<int[]>(bytes);
+
+	    }
+
+	    [Test]
         public void CouldCompressAndDecompressSeriesWithCustomObject() {
             var sm = new SortedMap<DateTime, MyTestClass>();
             for (int i = 0; i < 100; i++) {
@@ -232,22 +244,6 @@ namespace Spreads.DB.Tests {
 
 
         [Test]
-        public void CouldCompressKVP()
-        {
-
-            var kvp = new KeyValuePair<DateTime, decimal>(DateTime.Now.Date, 123M);
-
-            var bytes = Serializer.Serialize(kvp);
-
-            var kvp2 = Serializer.Deserialize<KeyValuePair<DateTime, decimal>>(bytes);
-            Console.WriteLine(kvp.Key.Kind);
-            Console.WriteLine(kvp2.Key.Kind);
-            Assert.AreEqual(kvp.Key.ToUniversalTime(), kvp2.Key.ToUniversalTime());
-
-        }
-
-
-        [Test]
         public void CouldCompressAndDecompress() {
             //for (int round = 0; round < 100; round++) {
             CompressSmallBig();
@@ -285,12 +281,6 @@ namespace Spreads.DB.Tests {
 
             Console.WriteLine("tick: " + _big);
             CompressDynamicResolution<Tick>(_tickBig);
-
-            Console.WriteLine("KVP: " + _small);
-            CompressDynamicResolution<KeyValuePair<DateTime, decimal>>(_kvpSmall);
-
-            Console.WriteLine("KVP: " + _big);
-            CompressDynamicResolution<KeyValuePair<DateTime, decimal>>(_kvpBig);
 
             //Console.WriteLine("complex: " + _small);
             //CompressDynamicResolution<ComplexObject>(_complexSmall);
@@ -332,12 +322,6 @@ namespace Spreads.DB.Tests {
 
             Console.WriteLine("complex: " + _small);
             CompressDiffMethods<ComplexObject>(_complexSmall);
-
-            Console.WriteLine("KVP: " + _small);
-            CompressDiffMethods<KeyValuePair<DateTime, decimal>>(_kvpSmall);
-
-            Console.WriteLine("KVP: " + _big);
-            CompressDiffMethods<KeyValuePair<DateTime, decimal>>(_kvpBig);
         }
 
         public void CompressDiffMethods<T>(T[] input) {
@@ -403,9 +387,7 @@ namespace Spreads.DB.Tests {
                          ((double)sw.ElapsedMilliseconds); // MB/s
 
             Assert.AreEqual(decompr.Length, input.Length);
-            for (int i = 0; i < decompr.Length; i++)
-            {
-	            Assert.IsTrue(decompr[i].Equals(input[i]));
+            for (int i = 0; i < decompr.Length; i++) {
                 if (!decompr[i].Equals(input[i])) {
                     Console.WriteLine("In: " + input[i] + "; out: " + decompr[i]);
                 }
@@ -572,9 +554,9 @@ namespace Spreads.DB.Tests {
             //for (int i = 0; i < 1000; i++) {
             //    sl.Add(DateTime.Today.AddDays(i), i);
             //}
-            //bytes = Serializer.Serialize(sl);
+            //bytes = Serializer2.Serialize(sl);
 
-            //sl = Serializer.Deserialize<SortedList<DateTime, double>>(bytes);
+            //sl = Serializer2.Deserialize<SortedList<DateTime, double>>(bytes);
             //sw.Stop();
             //Console.WriteLine("Sorted list: " + sw.ElapsedMilliseconds);
 
@@ -606,10 +588,8 @@ namespace Spreads.DB.Tests {
             for (int i = 0; i < 1000; i++) {
                 sortedMap.Add(DateTime.Today.AddDays(i), Math.Round(i + rng.NextDouble(), 2));
             }
-			sortedMap.Add(DateTime.Today.AddDays(1002), Math.Round(1002 + rng.NextDouble(), 2));
-
-			sw.Start();
-            for (int i = 0; i < 5000; i++) {
+            sw.Start();
+            for (int i = 0; i < 1000; i++) {
                 bytes = Serializer.Serialize(sortedMap);
                 sortedMap = Serializer.Deserialize<SortedMap<DateTime, double>>(bytes);
             }
@@ -772,11 +752,6 @@ namespace Spreads.DB.Tests {
             for (int i = 0; i < 10000000; i++) {
                 Assert.AreEqual(longs1[i], (long)longs2[i]);
             }
-
-
-	        var dt1 = DateTime.Now;
-	        var dt2 = DateTime.FromBinary(dt1.ToBinary());
-	        Assert.AreEqual(dt1, dt2);
         }
     }
 

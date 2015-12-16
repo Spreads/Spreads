@@ -15,6 +15,9 @@
 
 using System.Collections;
 
+
+// A copy of .NET SortedList  implementation
+
 namespace Spreads.Collections.Extra {
     using System;
     using System.Collections.Generic;

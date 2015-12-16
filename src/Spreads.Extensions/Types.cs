@@ -5,6 +5,9 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Spreads {
+    
+    // TODO (@VB) I have somewhere almost complete implementation of Price structs, copy it here
+
     public struct Price
     {
         private ulong value;

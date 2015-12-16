@@ -5,7 +5,6 @@ using System;
 
 namespace Spreads.Collections.Tests {
 
-    // should not happen since Add is stable, but must test AddWithIndex and Add if any change happens!
 
     [TestFixture]
     public class SortedDequeTests {

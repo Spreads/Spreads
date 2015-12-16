@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 using Spreads.Collections;
 using System.Diagnostics;
 
-namespace Spreads.Collections.Tests.CursorsTests {
+namespace Spreads.Collections.Tests.Cursors {
     [TestFixture]
     public class MissingValuesCursorsTests {
 
@@ -16,7 +16,7 @@ namespace Spreads.Collections.Tests.CursorsTests {
         public void CouldRepeatSeries() {
             var sm = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
-            
+
             var count = 10000000;
 
             for (int i = 0; i < count; i++) {
@@ -58,7 +58,7 @@ namespace Spreads.Collections.Tests.CursorsTests {
 
             var expected = 0.0;
             for (int i = 0; i < count; i++) {
-                expected += i ; ;
+                expected += i; ;
             }
 
             var sw = new Stopwatch();
@@ -101,8 +101,7 @@ namespace Spreads.Collections.Tests.CursorsTests {
         }
 
         [Test]
-        public void CouldRepeatSeriesAsync()
-        {
+        public void CouldRepeatSeriesAsync() {
             new ZipNTests().CouldZipContinuousInRealTime();
         }
 

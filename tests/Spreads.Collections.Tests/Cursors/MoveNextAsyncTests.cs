@@ -12,7 +12,7 @@ using System.Threading;
 using System.Runtime.CompilerServices;
 
 
-namespace Spreads.Collections.Tests {
+namespace Spreads.Collections.Tests.Cursors {
 
     [TestFixture]
     public class MoveNextAsyncTests {
@@ -74,7 +74,7 @@ namespace Spreads.Collections.Tests {
         [Test]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes()
         {
-            for (int round = 0; round < 20; round++)
+            for (int round = 0; round < 5; round++)
             {
                 CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
             }
@@ -83,7 +83,7 @@ namespace Spreads.Collections.Tests {
         [Test]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor()
         {
-            var count = 1000000; //00000;
+            var count = 1000; //00000;
             var sw = new Stopwatch();
             //var mre = new ManualResetEventSlim(true);
             sw.Start();
@@ -225,7 +225,7 @@ namespace Spreads.Collections.Tests {
 
 
             for (int r = 0; r < 10; r++) {
-                var count = 10000000;
+                var count = 100000;
                 var sw = new Stopwatch();
 
 
@@ -348,7 +348,7 @@ namespace Spreads.Collections.Tests {
             // but not too big, while on real-time stream there is no alternative at all.
             // Join algos should be paralell and task-based by default
 
-            var count = 1000000;
+            var count = 100000;
             var sw = new Stopwatch();
 
             var sm = new SortedChunkedMap<DateTime, double>();

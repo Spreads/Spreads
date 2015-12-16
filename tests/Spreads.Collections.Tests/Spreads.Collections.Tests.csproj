@@ -78,20 +78,20 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BatchMapValuesCursorTests.cs" />
-    <Compile Include="CursorSeriesTests.cs" />
-    <Compile Include="CursorsTests\MissingValuesCursorsTests.cs" />
+    <Compile Include="Contracts\ContractsTests.cs" />
+    <Compile Include="Cursors\BatchMapValuesCursorTests.cs" />
+    <Compile Include="Cursors\MiscCursorsTests.cs" />
+    <Compile Include="Cursors\MissingValuesCursorsTests.cs" />
     <Compile Include="IndexedMapTests.cs" />
-    <Compile Include="IROOMTests.cs" />
+    <Compile Include="Obsolete\IROOMTests.cs" />
     <Compile Include="SortedChunkedMapTests.cs" />
     <Compile Include="OperatorsTests.cs" />
     <Compile Include="SortedMapTests.cs" />
     <Compile Include="SortedDequeTests.cs" />
-    <Compile Include="ZipNTests.cs" />
-    <Compile Include="MoveNextAsyncTests.cs" />
+    <Compile Include="Cursors\ZipNTests.cs" />
+    <Compile Include="Cursors\MoveNextAsyncTests.cs" />
     <Compile Include="Profiler.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SCMTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

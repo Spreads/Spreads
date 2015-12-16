@@ -5,6 +5,13 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Spreads {
+
+    // TODO
+    //  - Structs SmallPrice with int32 field and BigPrice with int64 field
+    //      used as DTOs
+    //  - OHLCV[W,OI,etc] - when implemented with SmallPrice gives 4x memory savings vs decimal fields
+
+    [Obsolete("Not so useful, should use ValueTuple instead or a memory-optimized Price structs")]
     public struct Tick : IEquatable<Tick> {
         private long date;
         private decimal price;

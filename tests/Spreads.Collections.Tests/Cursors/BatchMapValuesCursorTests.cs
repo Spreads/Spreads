@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 using Spreads.Collections;
 using System.Diagnostics;
 
-namespace Spreads.Collections.Tests {
+namespace Spreads.Collections.Tests.Cursors {
     [TestFixture]
     public class BatchMapValuesCursorTests {
 
@@ -213,7 +213,7 @@ namespace Spreads.Collections.Tests {
         public void CouldAddWithYeppMathProvider() {
 
             var sm = new SortedChunkedMap<DateTime, double>();
-            var count = 40000;
+            var count = 1000;
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -255,7 +255,7 @@ namespace Spreads.Collections.Tests {
         [Test]
         public void CouldAddWitDefaultMathProvider() {
             var sm = new SortedMap<DateTime, double>(4000);
-            var count = 100000;
+            var count = 10000;
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -298,7 +298,7 @@ namespace Spreads.Collections.Tests {
         [Test]
         public void CouldAddWitDefaultMathProviderViaOperator() {
             var sm = new SortedChunkedMap<DateTime, double>(4000);
-            var count = 100000;
+            var count = 10000;
             OptimizationSettings.AlwaysBatch = true;
             for (int i = 0; i < count; i++) {
                 if(i % 99 != 0)

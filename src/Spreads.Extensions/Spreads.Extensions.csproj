@@ -135,7 +135,7 @@
       <Link>System\Threading\Tasks\TaskExt.cs</Link>
     </Compile>
     <Compile Include="ArrayPool.cs" />
-    <Compile Include="Attributes.cs" />
+    <Compile Include="Properties\Attributes.cs" />
     <Compile Include="Bootstrapper\ABI.cs" />
     <Compile Include="Bootstrapper\Bootstrapper.cs" />
     <Compile Include="Bootstrapper\Loader.cs" />
@@ -145,24 +145,12 @@
     <Compile Include="Extensions\DateTimeExtensions.cs" />
     <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="Generation\SortedMapGenerator.cs" />
-    <Compile Include="Persistence\BinarySerializer.cs" />
-    <Compile Include="Persistence\Commands.cs" />
-    <Compile Include="Persistence\DataEventOld.cs" />
-    <Compile Include="Persistence\IPersistentStore.cs" />
-    <Compile Include="Persistence\ISeriesRepository.cs" />
-    <Compile Include="Persistence\ISeriesSelector.cs" />
-    <Compile Include="Persistence\SeriesRepository.cs" />
-    <Compile Include="Persistence\ISpreadsTransportOld.cs" />
-    <Compile Include="Persistence\Messaging.cs" />
-    <Compile Include="Persistence\SeriesInfo.cs" />
     <Compile Include="Serializer.cs" />
     <Compile Include="Series\ProjectValuesWrapper.cs" />
     <Compile Include="Series\CursorSeries.cs" />
     <Compile Include="Series\ZonedSeries.cs" />
     <Compile Include="System\Runtime\BufferPool.cs" />
     <Compile Include="native\NativeMethods.cs" />
-    <Compile Include="Sandbox.cs" />
-    <Compile Include="Obsolete\Serializer.cs" />
     <Compile Include="SortedList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="System\Runtime\SynchronizedPool.cs" />

@@ -19,9 +19,15 @@ namespace Spreads.Collections.Tests
         [SetUp]
         public void Init()
         {
+            
         }
 
-
+        [Test]
+        public void ObeysContracts()
+        {
+            // TODO! implement specific ones not covered buy the contract suite
+            Assert.Fail("IndexedMap contract test is not implemented");
+        }
 
         [Test]
         public void CouldAddToIndexedMap()

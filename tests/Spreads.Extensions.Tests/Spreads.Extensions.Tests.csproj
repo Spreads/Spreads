@@ -56,11 +56,10 @@
   <ItemGroup>
     <Compile Include="ComplexObject.cs" />
     <Compile Include="CursorSeriesExtensions.cs" />
-    <Compile Include="CompressionTests2.cs" />
-    <Compile Include="RepoTests.cs" />
+    <Compile Include="CompressionTests.cs" />
     <Compile Include="GenerationTests.cs" />
     <Compile Include="YepppTests.cs" />
-    <Compile Include="CompressionTests.cs" />
+    <Compile Include="CompressionTestsOld.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -75,7 +74,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
-    <None Include="packages.config" />
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

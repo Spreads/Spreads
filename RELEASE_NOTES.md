@@ -1,6 +1,8 @@
 #### 0.1.9 - December 16, 2015
 * Add additional cursor, implement Window, SMA, StDev via lambdas to ScanLagAllowIncompleteCursor.
 * Make ToSortedMap() live, but unbounded. Could cause out of memory exceptions if used heavily on large series.
+* Clean up tests and start Contracts Suite. Failing tests are now meaningful.
+* Fix some bugs with cursors (TODO! they were probably fixed for the particular test case, not in general, need to pass them throught the Suite)
 
 #### 0.1.8 - December 11, 2015
 * Optimize cursors further. Virtual methods are 5x faster than Func<>s.

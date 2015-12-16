@@ -14,6 +14,10 @@ namespace Spreads.Collections.Tests {
 	[TestFixture]
 	public class OperatorsTests {
 
+        // TODO! we have tested operators performance, but correctness was assumed.
+        // The contract suite also tests the correctness - subject to the materialized series are 
+        // correctly calculated
+
 		[SetUp]
 		public void Init() {
 		}

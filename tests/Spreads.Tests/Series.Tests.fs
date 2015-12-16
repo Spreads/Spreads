@@ -14,6 +14,8 @@ open System.Threading
 
 type SeriesTestsModule() =
     
+    // TODO (low) add edge cases to the contract suite if there are some new here
+
     [<Test>]
     member this.``SM Could TryFind and MoveAt with single value``() =
         let map = SortedMap<int, int>()

@@ -150,7 +150,8 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
       reachedLast <- false
       // NB Unsucessfull moves invalidate state. A cursor is single-threaded and its state is invalid inside any move method, before confirmed otherwise.
       hasValidState <- false
-      if this.InputCursor.MoveAt(index, direction) then
+      if (cursor.Comparer.Compare(index, this.InputCursor.CurrentKey) = 0 && not (direction = Lookup.LT || direction = Lookup.GT)) 
+        || this.InputCursor.MoveAt(index, direction) then
         let mutable value = Unchecked.defaultof<'R>
 #if PRERELEASE
         let before = this.InputCursor.CurrentKey

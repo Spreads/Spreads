@@ -9,9 +9,12 @@ using Spreads.Collections;
 using System.Diagnostics;
 using System.Threading;
 
-namespace Spreads.Collections.Tests {
+namespace Spreads.Collections.Tests.Cursors {
+
+    // TODO (low) SMA & StDev are from Extensions project and should be moved to its test project
+
     [TestFixture]
-    public class CursorSeriesTests {
+    public class MiscCursorsTests {
 
         [Test]
         public void CouldLagSeries() {

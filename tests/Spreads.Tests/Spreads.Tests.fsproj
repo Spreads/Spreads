@@ -71,9 +71,8 @@
     <Compile Include="Collections\IntMap64Tests.fs" />
     <Compile Include="Collections\MapTreeTests.fs" />
     <Compile Include="Collections\SortedMapTests.fs" />
-    <Compile Include="Collections\Benchmarks.fs" />
+    <Compile Include="Benchmarks.fs" />
     <Compile Include="Series.Tests.fs" />
-    <Compile Include="Experimental\BucketOffload.fs" />
     <Compile Include="CircularTests.fs" />
     <Content Include="packages.config" />
   </ItemGroup>
