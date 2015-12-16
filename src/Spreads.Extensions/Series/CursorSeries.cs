@@ -342,7 +342,7 @@ namespace Spreads {
 
         public static Series<K, double> SMA<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false) {
             Func<ICursor<K, SmaState>> factory = () => new ScanLagAllowIncompleteCursor<K, double, SmaState>(source.GetCursor, (uint)period - 1u, 1,
-               new SmaState(),
+               () => new SmaState(),
                (st, add, sub, cnt) => {
                    st.Count = cnt + 1.0;
                    st.Sum = st.Sum + add.Value - sub.Value;
@@ -354,7 +354,7 @@ namespace Spreads {
 
         public static Series<K, double> StDev<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false) {
             Func<ICursor<K, StDevState>> factory = () => new ScanLagAllowIncompleteCursor<K, double, StDevState>(source.GetCursor, (uint)period - 1u, 1,
-                new StDevState(),
+                () => new StDevState(),
                 (st, add, sub, cnt) => {
                     st.Count = cnt + 1.0;
                     st.Sum = st.Sum + add.Value - sub.Value;

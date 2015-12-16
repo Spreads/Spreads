@@ -522,14 +522,14 @@ type ZipLagAllowIncompleteCursor<'K,'V,'R>
 
 [<SealedAttribute>]
 type ScanLagAllowIncompleteCursor<'K,'V,'R>
-  (cursorFactory:Func<ICursor<'K,'V>>, zeroBasedLag:uint32, step:uint32, initState:'R, 
+  (cursorFactory:Func<ICursor<'K,'V>>, zeroBasedLag:uint32, step:uint32, initState:Func<'R>, 
     updateStateAddSubstract:Func<'R,KVP<'K,'V>,KVP<'K,'V>,uint32,'R>, allowIncomplete:bool) =
   inherit SimpleBindCursor<'K,'V,'R>(cursorFactory)
   let mutable laggedCursor = Unchecked.defaultof<ICursor<'K,'V>>
   let mutable lookupCursor = Unchecked.defaultof<ICursor<'K,'V>>
   let mutable currentLag = 0u
   let mutable currentSteps = 0u
-  let mutable currentState = initState
+  let mutable currentState = initState.Invoke()
 
   override this.IsContinuous = false
 
@@ -541,6 +541,7 @@ type ScanLagAllowIncompleteCursor<'K,'V,'R>
         let moved = laggedCursor.MoveAt(key, Lookup.EQ)
         if not moved then raise (ApplicationException("This should not happen by design"))
       currentLag <- 0u
+      currentState <- initState.Invoke()
       let mutable cont = true
       while currentLag < zeroBasedLag && cont do
         let moved = laggedCursor.MovePrevious()
@@ -565,7 +566,7 @@ type ScanLagAllowIncompleteCursor<'K,'V,'R>
         if lookupCursor = Unchecked.defaultof<_> then 
           lookupCursor <- this.InputCursor.Clone()
         lookupCursor
-      let mutable currentState' = initState
+      let mutable currentState' = initState.Invoke()
       let mutable currentLag' = 0u
       let mutable cont = true
       while currentLag' < zeroBasedLag && cont do

@@ -194,19 +194,27 @@ namespace Spreads.Collections.Tests {
             //foreach (var m in ma) {
             cursor.Reset();
             while (cursor.MoveNext()) {
-                if (cursor.CurrentValue != c + 8.5) {
-                    Console.WriteLine(cursor.CurrentValue);
+                if (cursor.CurrentValue != c + 8.5)
+                {
+                    Console.WriteLine(cursor.CurrentValue);// m.Value);
+                    Console.WriteLine($"Error c: {c}");
                     throw new ApplicationException("Invalid value");
                 }
                 c++;
+                if (c == 9999982)
+                {
+                    Console.WriteLine("Catch me");
+                }
             }
             sw.Stop();
             Console.WriteLine($"Final c: {c}");
             Console.WriteLine("SMA, elapsed: {0}, ops: {1}", sw.ElapsedMilliseconds, (int)((double)count / (sw.ElapsedMilliseconds / 1000.0)));
             ma = null;
+            
             GC.Collect(3, GCCollectionMode.Forced, true);
-            Thread.Sleep(10000);
-            // 
+            Thread.Sleep(2000);
+            // NB! In release mode this must print that ToSortedMap task exited, in Debug mode GC does not collect SM and weak reference stays alive
+             
         }
 
         [Test]
@@ -222,7 +230,7 @@ namespace Spreads.Collections.Tests {
             // slow implementation
             var sw = new Stopwatch();
             sw.Start();
-            var ma = sm.SMA(20, true).ToSortedMap();
+            var ma = sm.SMA(20, true); //.ToSortedMap();
             var c = 1;
             foreach (var m in ma) {
                 if (c <= 20) {

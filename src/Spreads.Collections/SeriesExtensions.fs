@@ -111,8 +111,8 @@ type SeriesExtensions () =
       //Task.Run(fun _ ->
       let task = task {
           let mutable cont = cursor.MoveLast()
+          Trace.WriteLine("ToSortedMap started live loop")
           while cont do
-            Trace.WriteLine("ToSortedMap started live loop")
             if wekRef.IsAlive then
               let delay = Task.Delay(1000)
               let mn = cursor.MoveNext(CancellationToken.None)

@@ -79,6 +79,7 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
 
     member this.Reset() = 
       hasValidState <- false
+      reachedLast <- false
       cursor.Reset()
     abstract Dispose: unit -> unit
     default this.Dispose() =
@@ -111,10 +112,10 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
               currentValue <- value
               hasValidState <- found
           else
-            hasValidState <- false
+            //hasValidState <- false
             reachedLast <- true
         
-        hasValidState
+        if reachedLast then false else hasValidState
       else (if reachedLast then false else this.MoveFirst())
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
