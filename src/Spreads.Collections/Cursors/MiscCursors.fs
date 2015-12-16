@@ -464,6 +464,7 @@ type internal ZipLagAllowIncompleteCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'
     else
   #if PRERELEASE
       Trace.Assert(not allowIncomplete, "This should not happen by design")
+      Trace.Assert(currentLag <= zeroBasedLag, "This should not happen by design")
   #else
       if allowIncomplete then raise (ApplicationException("This should not happen by design"))
   #endif
@@ -471,12 +472,13 @@ type internal ZipLagAllowIncompleteCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'
       currentLag <- currentLag + 1u
       if currentLag = zeroBasedLag then 
         value <- mapCurrentPrevN.Invoke(this.InputCursor.Current, laggedCursor.Current, currentLag)
-        currentSteps <- currentSteps + 1u
-        if currentSteps = step then
-          currentSteps <- 0u
-          true
-        else
-          false 
+        //currentSteps <- currentSteps + 1u
+        true
+//        if currentSteps = step then
+//          currentSteps <- 0u
+//          true
+//        else
+//          false 
       else false
 
   override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
