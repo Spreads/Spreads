@@ -1131,7 +1131,7 @@ type SortedMap<'K,'V>
                 currentValue := this.values.[index.Value]
                 true
               else
-                p.Reset()
+                //p.Reset()
                 false
             else
               cursorVersion := orderVersion // update state to new this.version
@@ -1142,7 +1142,7 @@ type SortedMap<'K,'V>
                 currentValue := kvp.Value
                 true
               else  // not found
-                p.Reset()
+                //p.Reset()
                 false
           finally
             exitLockIf syncRoot entered

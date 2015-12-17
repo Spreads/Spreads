@@ -85,7 +85,7 @@ namespace Spreads.Core.Tests {
         [Test]
         public void SingleEnumerableWithYieldForEachManyTimes()
         {
-            for (int i = 0; i < 20; i++)
+            for (int i = 0; i < 5; i++)
             {
                 SingleEnumerableWithYieldForEach();
             }

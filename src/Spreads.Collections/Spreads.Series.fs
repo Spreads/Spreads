@@ -188,14 +188,14 @@ and
         new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(source.GetCursor), mapF, fBatch) :> Series<'K,'V2>
 #if PRERELEASE // we could switch off this optimization in prerelease builds
       if OptimizationSettings.CombineFilterMapDelegates then
-#endif
         match box source with
         | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc)
-        | _ ->
-          defaultMap()
-#if PRERELEASE
+        | _ ->  defaultMap()
       else defaultMap()
+#else
+      defaultMap()
 #endif
+
 
     // TODO! (perf) optimize ZipN for 2, or reimplement Zip for 'V/'V2->'R, see commented out cursor below
     static member inline private BinaryOperatorMap<'K,'V,'R>(source:Series<'K,'V>,other:Series<'K,'V>, mapFunc:Func<'V,'V,'R>) = 
@@ -388,8 +388,11 @@ and
     [<DefaultValueAttribute>]
     val mutable started : bool
     override this.GetCursor() =
-      this.started <- true
-      let cursor = if not this.started  then this else this.Clone() //&& threadId = Environment.CurrentManagedThreadId
+      let cursor = 
+        if not this.started && threadId = Environment.CurrentManagedThreadId then 
+          this.started <- true
+          this 
+        else this.Clone() //&& threadId = Environment.CurrentManagedThreadId
       cursor.started <- true
       cursor :> ICursor<'K,'V2>
 

@@ -84,7 +84,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
       okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
       if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
-      okState <- stateCreator.Invoke(cursor, cursor.Current)
+      okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
 #endif
       if okState.Key then
         true
@@ -96,7 +96,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
           okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
           if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
-          okState <- stateCreator.Invoke(cursor, cursor.Current)
+          okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
 #endif
           found <- okState.Key
         found
@@ -121,7 +121,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
       okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
       if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
-      okState <- stateCreator.Invoke(cursor, cursor.Current)
+      okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
 #endif
       if okState.Key then
         true
@@ -133,7 +133,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
           okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
           if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
-          okState <- stateCreator.Invoke(cursor, cursor.Current)
+          okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
 #endif
           found <- okState.Key
         found
@@ -158,7 +158,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
       okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
       if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
-      okState <- stateCreator.Invoke(cursor, cursor.Current)
+      okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
 #endif
       if okState.Key then
         true
@@ -173,7 +173,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
             okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
             if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
-            okState <- stateCreator.Invoke(cursor, cursor.Current)
+            okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
 #endif
             found <- okState.Key
           found
@@ -185,7 +185,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
             okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
             if cursor.Comparer.Compare(before, cursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
 #else
-            okState <- stateCreator.Invoke(cursor, cursor.Current)
+            okState <- stateCreator.Invoke(cursor, cursor.CurrentKey, false)
 #endif
             found <- okState.Key
           found

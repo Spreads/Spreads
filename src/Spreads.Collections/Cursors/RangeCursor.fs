@@ -111,10 +111,19 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
       else (this :> ICursor<'K,'V>).MoveLast()
     
     member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = 
-      failwith "Not implemented yet"
+      task { 
+        if started then
+          let! moved = this.InputCursor.MoveNext(cancellationToken) 
+          if moved && this.InputCursor.Comparer.Compare(this.InputCursor.CurrentKey, last) <= 0 then
+            return true
+          else return false
+        else return (this :> ICursor<'K,'V>).MoveFirst()
+      }
+
     member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
-      failwith "Not implemented yet"
-    
+      Trace.TraceWarning("MoveNextBatch is not implemented in RangeCursor")
+      Task.FromResult(false)
+      
     member this.Source: ISeries<'K,'V> = CursorSeries<'K,'V2>(Func<ICursor<'K,'V>>((this :> ICursor<'K,'V>).Clone)) :> ISeries<'K,'V>
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'V>): bool = 
       if inRange key then

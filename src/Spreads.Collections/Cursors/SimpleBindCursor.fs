@@ -18,6 +18,7 @@ open System.Threading.Tasks
 type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
     
     let cursor = cursorFactory.Invoke()
+    [<ObsoleteAttribute>]
     let mutable reachedLast = false
     let mutable hasValidState = false
 
