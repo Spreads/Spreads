@@ -57,14 +57,6 @@
   </Choose>
   <Import Project="$(FSharpTargetsPath)" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
-  <!--<Import Project="..\..\.paket\paket.targets" />-->
   <ItemGroup>
     <Content Include="app.config" />
     <Compile Include="Utils.fs" />
@@ -114,8 +106,6 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj">
       <Name>Spreads.Collections</Name>
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
@@ -127,4 +117,12 @@
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+  <!--<Import Project="..\..\.paket\paket.targets" />-->
 </Project>

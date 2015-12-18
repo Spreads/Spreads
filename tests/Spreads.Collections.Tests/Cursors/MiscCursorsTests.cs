@@ -18,20 +18,20 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         public void CouldLagSeries() {
-            var sm = new SortedMap<DateTime, double>();
+            var sm = new SortedMap<double, double>();
 
-            var count = 10000000;
+            var count = 1000000;
 
             for (int i = 0; i < count; i++) {
-                sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                sm.Add(i, i);
             }
 
             // slow implementation
             var sw = new Stopwatch();
             sw.Start();
-            var zipLag = sm.Lag(1);//.ToSortedMap();
+            var lag = sm.Lag(1);//.ToSortedMap();
             var c = 1;
-            foreach (var zl in zipLag) {
+            foreach (var zl in lag) {
                 if (c - 1 != zl.Value) {
                     throw new ApplicationException();
                 }
@@ -40,6 +40,15 @@ namespace Spreads.Collections.Tests.Cursors {
             sw.Stop();
             Console.WriteLine($"Final c: {c}");
             Console.WriteLine("ZipLag, elapsed: {0}, ops: {1}", sw.ElapsedMilliseconds, (int)((double)count / (sw.ElapsedMilliseconds / 1000.0)));
+
+            var repeated = lag.Repeat();
+
+            for (int i = 1; i < 1000; i++)
+            {
+                double v;
+                Assert.IsTrue(repeated.TryGetValue(i+1.5, out v));
+                Assert.AreEqual(i, v);
+            }
 
         }
 
@@ -68,6 +77,63 @@ namespace Spreads.Collections.Tests.Cursors {
             Console.WriteLine($"Final c: {c}");
             Console.WriteLine("ZipLag, elapsed: {0}, ops: {1}", sw.ElapsedMilliseconds, (int)((double)count / (sw.ElapsedMilliseconds / 1000.0)));
 
+        }
+
+
+        [Test]
+        public void CouldCloneZipLagSeries() {
+            
+
+            var count = 1000;
+            var sm = new SortedMap<int, double>();
+            for (int i = 0; i < count; i++) {
+                sm.Add(i, i);
+            }
+
+            // slow implementation
+            var sw = new Stopwatch();
+            sw.Start();
+            var zipLag = sm.ZipLag(1, (cur, prev) => cur + prev); //.ToSortedMap();
+
+            var zc = zipLag.GetCursor();
+            zc.MoveNext();
+            var zc2 = zc.Clone();
+            Assert.AreEqual(zc.CurrentKey, zc2.CurrentKey);
+            zc.MoveNext();
+            zc2.MoveNext();
+            Assert.AreEqual(zc.CurrentKey, zc2.CurrentKey);
+            zc.MovePrevious();
+            zc2.MovePrevious();
+            Assert.AreEqual(zc.CurrentKey, zc2.CurrentKey);
+
+
+            for (int i = 1; i < count; i++)
+            {
+                var expected = i + i - 1;
+                double actual;
+                var ok = zc.TryGetValue(i, out actual);
+                Assert.AreEqual(expected, actual);
+            }
+
+            var sm2 = new SortedMap<int, double>();
+            var zc3 = sm2.ZipLag(1, (cur, prev) => cur + prev).GetCursor();
+
+            var t = Task.Run(async () =>
+            {
+                var c = 1; // first key is missing because we cannot create state at it
+                while (await zc3.MoveNext(CancellationToken.None))
+                {
+                    var expected = c + c - 1;
+                    Assert.AreEqual(expected, zc3.CurrentValue);
+                    c++;
+                }
+            });
+
+            for (int i = 0; i < count; i++) {
+                sm2.Add(i, i);
+            }
+            sm2.IsMutable = false; // without it MoveNextAsync will wait forever
+            t.Wait();
         }
 
 
@@ -257,7 +323,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var count = 5000000;
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 2; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
 

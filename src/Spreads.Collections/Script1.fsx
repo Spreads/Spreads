@@ -219,66 +219,6 @@ for i in 0..1000000 do
 
 
 
-//
-//  
-//    member private this.ActiveCursorLoop(tcs:byref<AsyncTaskMethodBuilder<bool>>,ct:CancellationToken) : unit =
-//      let mutable firstStep = ref true 
-//      if not !firstStep && cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) = 0 && fillContinuousValuesAtKey(pivotKeysSet.First.Key) then
-//        this.CurrentKey <- pivotKeysSet.First.Key
-//        tcs.SetResult(true) // the only true exit
-//        () // return
-//      else
-//        firstStep := false
-//        // pivotKeysSet is essentially a task queue:
-//        // we take every cursor that is not at fthe frontier and try to move it forward until it reaches the frontier
-//        // if we do this in parallel, the frontier could be moving while we move cursors
-//        let first = pivotKeysSet.RemoveFirst()
-//        let ac = cursors.[first.Value]
-//        this.CursorToFrontierLoop(ac, first.Value, &tcs, ct)
-//        // stop loop //Console.WriteLine("Should not be here")
-//        //activeCursorLoop()
-//
-//    member private this.CursorToFrontierLoop (cursor:ICursor<'K,'V>, idx:int, tcs:byref<AsyncTaskMethodBuilder<bool>>, ct:CancellationToken) : unit =
-//          let mutable c = -1
-//          while c < 0 && cursor.MoveNext() do
-//            c <- cmp.Compare(cursor.CurrentKey, pivotKeysSet.Last.Key)
-//          if c >= 0 then
-//            currentValues.[idx] <- cursor.CurrentValue
-//            pivotKeysSet.Add(KV(cursor.CurrentKey, idx)) |> ignore
-//            this.ActiveCursorLoop(&tcs, ct)
-//          else
-//            // call itself until reached the frontier, then call outer loop
-//            let task = cursor.MoveNext(ct)
-//            //task.Start()
-//            let awaiter = task.GetAwaiter()
-//            // NB! do not block, use callback
-//            let tcs = tcs
-//            awaiter.OnCompleted(fun _ ->
-//              let moved =  task.Result
-//              if not moved then
-//                tcs.SetResult(false) // the only false exit
-//                Console.WriteLine("Finished")
-//                ()
-//              else
-//                let c = cmp.Compare(cursor.CurrentKey, pivotKeysSet.Last.Key)
-//                if c < 0 then
-//                  this.CursorToFrontierLoop(cursor, idx, ref tcs, ct)
-//                else
-//                  currentValues.[idx] <- cursor.CurrentValue
-//                  pivotKeysSet.Add(KV(cursor.CurrentKey, idx)) |> ignore
-//                  this.ActiveCursorLoop(ref tcs, ct)
-//            )
-//            ()
-//
-//    // direct asynchronization of the above method, any changes must be done above and ported to async here
-//    member private this.doMoveNextNonContinuousTask(ct:CancellationToken) : Task<bool> =
-//      let mutable tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create())
-//      let returnTask = tcs.Task // NB! must access this property first
-//      //let mutable sourceMoveTask = Unchecked.defaultof<_>
-//      // take the oldest cursor and work on it, when it reaches frontline, iterate
-//      this.ActiveCursorLoop(&tcs, ct)
-//      returnTask
-
 #time "on"
 type MyRecType() = 
   

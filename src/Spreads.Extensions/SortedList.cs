@@ -1,19 +1,4 @@
-﻿// ==++==
-// 
-//   Copyright (c) Microsoft Corporation.  All rights reserved.
-// 
-// ==--==
-/*============================================================
-**
-** Class:  SortedList
-**
-** Purpose: A generic sorted list.
-**
-** Date:  January 28, 2003
-** 
-===========================================================*/
-
-using System.Collections;
+﻿using System.Collections;
 
 
 // A copy of .NET SortedList  implementation

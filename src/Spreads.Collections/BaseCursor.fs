@@ -1,4 +1,23 @@
-﻿namespace Spreads
+﻿(*  
+    Copyright (c) 2014-2015 Victor Baybekov.
+        
+    This file is a part of Spreads library.
+
+    Spreads library is free software; you can redistribute it and/or modify it under
+    the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+        
+    Spreads library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+        
+    You should have received a copy of the GNU Lesser General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*)
+
+namespace Spreads
 
 open System
 open System.Collections.Generic
@@ -9,7 +28,6 @@ open System.Diagnostics
 open Spreads
 
 // TODO rename back to MapCursor - this is an original cursor backed by some map, it does not represent series itself
-// However, it could inherit from SeriesCursor, but SeriesCursor depends now on Series and not on ISeries
 [<AbstractClassAttribute>]
 type BaseCursor<'K,'V>
   (source:IReadOnlyOrderedMap<'K,'V>) as this =
@@ -60,26 +78,15 @@ type BaseCursor<'K,'V>
             )
             return! completeTcs()
           else
-            Debug.WriteLine("STOP")
+            //Debug.WriteLine("STOP")
             return false // stop the loop
     }
 
   let updateHandler : UpdateHandler<'K,'V> = 
     UpdateHandler(fun _ (kvp:KVP<'K,'V>) ->
-         
-//        if (this.Comparer.Compare(kvp.Key, this.CurrentKey) < 0) then 
-//          invalidOp "Out of order value. TODO handle it"
-          // TODO could be same logic as in MoveNext - reposition to out-of-order value, or could throw
-//        if kvp = Unchecked.defaultof<_> then
-//          lock(sr) (fun _ ->
-//            if !tcs <> null then (!tcs).TrySetResult(false) |> ignore
-//          )
-        //el
         if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
     )
       
-    //UpdateHandler(impl)
-
   abstract Comparer: IComparer<'K> with get
   override this.Comparer with get() = source.Comparer
 
@@ -196,7 +203,7 @@ type BaseCursor<'K,'V>
 
 
 /// Uses IReadOnlyOrderedMap's TryFind method, doesn't know anything about underlying sequence
-[<ObsoleteAttribute("TODO replace it with BaseCursor")>]
+[<ObsoleteAttribute("TODO replace it with direct BaseCursor implementation")>]
 type MapCursor<'K,'V>(map:IReadOnlyOrderedMap<'K,'V>) as this =
   inherit BaseCursor<'K,'V>(map)
   [<DefaultValue>] 

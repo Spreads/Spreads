@@ -19,7 +19,7 @@ type CircularTestsModule() =
   member this.``Circular Calculations Work``() =
     let state = SortedMap()
     state.Add(DateTime.UtcNow.AddDays(-1.0), 0.0)
-    let circular = CircularCalculations(state)
+    let circular = TheSimplestTradingStrategy(state)
 
     circular.Execute()
 

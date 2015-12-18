@@ -1,10 +1,3 @@
-/*
- *                      Yeppp! library implementation
- *
- * This file is part of Yeppp! library and licensed under the New BSD license.
- * See LICENSE.txt for the full text of the license.
- */
-
 using System;
 using System.IO;
 using System.Reflection;

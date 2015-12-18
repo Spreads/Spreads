@@ -1,4 +1,23 @@
-﻿namespace Spreads
+﻿(*  
+    Copyright (c) 2014-2015 Victor Baybekov.
+        
+    This file is a part of Spreads library.
+
+    Spreads library is free software; you can redistribute it and/or modify it under
+    the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+        
+    Spreads library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+        
+    You should have received a copy of the GNU Lesser General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*)
+
+namespace Spreads
 
 open System
 
@@ -8,12 +27,6 @@ open System.Threading
 open System.Threading.Tasks
 open System.Runtime.InteropServices
 
-// TODO object cursor and object series
-
-// TODO MoveNext/Previous(n : int) will optimize moves by n steps for SortedMap/SCM and is 
-// trivial to implement with MoveNext(). In the later case, we have an option to MoveAt(where we started)
-// if we could not move ahead enough steps (or leave cursor state undefined on any false move)
-// A bit trickier to implement MoveNextAsync(n:int), but still quite doable via MoveNextAsync() + counter
 
 /// Asynchronous version of the IEnumerator<T> interface, allowing elements to be retrieved asynchronously.
 [<Interface>]
@@ -34,9 +47,6 @@ type IAsyncEnumerable<'T> =
   abstract member GetEnumerator : unit -> IAsyncEnumerator<'T>
 
 
-// ISeries doesn't have any mutable properties or mutating methods, but implementation could 
-// be either mutable or immutable
-// Series have a single member that is enough to implement all other inherited interfaces
 
 /// Main interface for data series.
 [<Interface>]
@@ -58,7 +68,7 @@ type ISeries<'K,'V> =
 
 
 
-/// ICursor is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
+/// ICursor is an advanced enumerator that supports moves to first, last, previous, next, next batch, exact 
 /// positions and relative LT/LE/GT/GE moves.
 /// Cursor is resilient to changes in an underlying sequence during movements, e.g. the
 /// sequence could grow during move next. (See documentation for out of order behavior.)
@@ -68,7 +78,7 @@ type ISeries<'K,'V> =
 /// IsBatch property indicates wether the cursor is positioned on a single value or a batch.
 /// 
 /// Contracts:
-/// 1. At the beginning a cursor consumer could call any single synchronous move method or MoveNextBatch. MoveNextBatch could 
+/// 1. At the beginning a cursor consumer could call any single move method or MoveNextBatch. MoveNextBatch could 
 ///    be called only on the initial move or after a previous MoveNextBatch() call that returned true. It MUST NOT
 ///    be called in any other situation, ICursor implementations MUST return false on any such wrong call.
 /// 2. CurrentBatch contains a batch only after a call to MoveNextBatch() returns true. CurrentBatch is undefined 
@@ -80,12 +90,13 @@ type ISeries<'K,'V> =
 ///    an update but return false if there is no data right now.
 /// 5. When synchronous MoveNext or MoveLast return false, the consumer should call async overload of MoveNext. Inside the async
 ///    implementation of MoveNext, a cursor must check if the source is IUpdateable and return Task.FromResult(false) immediately if it is not.
-/// 6. TODO If the source is updated during a lifetime of a cursor, cursor must recreate its state at its current position
+/// 6. When any move returns false, cursor stays at the position before that move (TODO now this is ensured only for SM MN/MP and for Bind(ex.MA) )
+/// _. TODO If the source is updated during a lifetime of a cursor, cursor must recreate its state at its current position
 ///    Rewind logic only for async? Throw in all cases other than MoveNext, MoveAt? Or at least on MovePrevious.
 ///    Or special behaviour of MoveNext only on appends or changing the last value? On other changes must throw invalidOp (locks are there!)
 ///    So if update is before the current position of a cursor, then throw. If after - then this doesn't affect the cursor in any way.
 ///    TODO cursor could implement IUpdateable when source does, or pass through to CursorSeries
-
+/// 
 
 and
   [<Interface>]
@@ -100,34 +111,39 @@ and
     abstract MovePrevious: unit -> bool
     abstract CurrentKey:'K with get
     abstract CurrentValue:'V with get
-    /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
+
+    /// Optional (used for batch/SIMD optimization where gains are visible), MUST NOT throw NotImplementedException()
     /// Returns true when a batch is available immediately (async for IO, not for waiting for new values),
     /// returns false when there is no more immediate values and a consumer should switch to MoveNextAsync().
     /// NB: Batch processing is synchronous via IEnumerable interface of a batch, real-time is pull-based asynchronous.
-    /// NB: When size limit is not zero, we should create a buffer even if the origin doesn't have batches
     abstract MoveNextBatch: cancellationToken:CancellationToken  -> Task<bool>
+    // TODO Size limit as a parameter. When size limit is not zero, we should create a buffer even if the origin doesn't have batches
+
     /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
     /// The actual implementation of the batch could be mutable and could reference a part of the original series, therefore consumer
     /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap
     abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get
+
     /// True if last successful move was MoveNextBatchAsync and CurrentBatch contains a valid value.
 //    [<ObsoleteAttribute>]
 //    abstract IsBatch: bool with get
+
     /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
     abstract Source : ISeries<'K,'V> with get
+
     /// If true then TryGetValue could return values for any keys, not only for existing keys.
     /// E.g. previous value, interpolated value, etc.
-    //[<ObsoleteAttribute("Review if this is really needed as a part of the interface")>]
-    // TODO think about renaming to IsCalculated, e.g. if a function has holes (e.g. forecast only by x after the last point)
     abstract IsContinuous: bool with get
+
     /// Create a copy of cursor that is positioned at the same place as this cursor.
     abstract Clone: unit -> ICursor<'K,'V>
+
     /// Gets a calculated value for continuous series without moving the cursor position.
-    /// This method must be called only when IsContinuous is true, otherwise NotSupportedException will be thrown.
     /// E.g. a continuous cursor for Repeat() will check if current state allows to get previous value,
     /// and if not then .Source.GetCursor().MoveAt(key, LE). The TryGetValue method should be optimized
     /// for sort join case using enumerator, e.g. for repeat it should keep previous value and check if 
     /// the requested key is between the previous and the current keys, and then return the previous one.
+    /// NB This is not thread safe. ICursors must be used from a single thread.
     abstract TryGetValue: key:'K * [<Out>] value: byref<'V> -> bool
 
 
@@ -146,7 +162,7 @@ and
   [<AllowNullLiteral>]
   IReadOnlyOrderedMap<'K,'V> =
     inherit ISeries<'K,'V>
-    //inherit IReadOnlyDictionary<'K,'V> // TODO (low) later we should implement all .NET family of generic interfaces from ICollection to IDictionary
+    // NB cannot inherit IReadOnlyDictionary<'K,'V> because IReadOnlyOrderedMap does not support Count property (for non-metarialized series we will need to iterate the entire series).
     /// True if this.size = 0
     abstract IsEmpty: bool with get
     /// First element, throws InvalidOperationException if empty
@@ -167,13 +183,8 @@ and
     abstract TryFind: key:'K * direction:Lookup * [<Out>] value: byref<KVP<'K, 'V>> -> bool
     abstract TryGetFirst: [<Out>] value: byref<KVP<'K, 'V>> -> bool
     abstract TryGetLast: [<Out>] value: byref<KVP<'K, 'V>> -> bool
-    /// See ICursor.TryGetValue comment for the behavior of continuous series.
     abstract TryGetValue: key:'K * [<Out>] value: byref<'V> -> bool
-    // TODO GetRange depends on implementation and should be a part of this interface 
-    // and not only an extension. It could be implemented in the base class via cursor extension
-    // for all in-memory map implementations, but for IO-bound implementations chatty
-    // MoveNext is not good, while MoveNextBatch is for another purpose
-    // Another option is to preload next values in IO-bound implementations in some predictive way
+
 
 
 // Main differences between immutable and mutable ordered maps:
@@ -268,28 +279,17 @@ type IImmutableOrderedMap<'K,'V> =
 
 type internal UpdateHandler<'K,'V> = EventHandler<KVP<'K,'V>>
 [<AllowNullLiteral>]
-type IUpdateable<'K,'V> =
+type internal IUpdateable<'K,'V> =
   /// Fired after any data change with key for the first valid data (e.g. after delete, a previous key is returned)
   [<CLIEvent>]
   abstract member OnData : IDelegateEvent<UpdateHandler<'K,'V>>
 
-//type internal MyType<'K,'V> () =
-//    let myEvent = new Event<KVP<'K,'V>> ()
-//    interface IUpdateable<'K,'V> with
-//        [<CLIEvent>]
-//        member this.OnData =  myEvent.Publish
+
 
 // TODO?? maybe this is enough? All other methods could be done as extensions??
 type IPanel<'TRowKey,'TColumnKey, 'TValue> =
   //ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>> // this is how it could be implemented
   inherit ISeries<'TRowKey,IReadOnlyOrderedMap<'TColumnKey,'TValue>> // this is how it is used most of the time
-  // panel stores references to series that could be lazy/persistent/(not in memory), while panel's consumer need rows on demand
-
-
-  // TODO data/event stream interface requires a special interface - or it is just an IAsynEnumerable<'T> which then
-  // could be unpacked into series.
-  // DS could be unordered, with a method like ds.SaveSeries(repo, ds => key, ds => value, overwriteDuplicates = false), same with Rx
-  // out of order KVPs will result only in that active cursors will be repositioned on MoveNext and replay values in the correct order.
 
 
 //and    //TODO?? Panel could be replaced by extension methods on ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>>

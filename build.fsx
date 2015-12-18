@@ -192,7 +192,7 @@ Target "NuGet" (fun _ ->
             AccessKey = getBuildParamOrDefault "nugetkey" ""
             Publish = hasBuildParam "nugetkey"
             Dependencies = 
-              [ "Spreads.Collections", release.NugetVersion
+              [ "Spreads.Core", release.NugetVersion
                 "Newtonsoft.Json", GetPackageVersion "packages" "Newtonsoft.Json"
                 "NodaTime", GetPackageVersion "packages" "NodaTime"
                 ]
@@ -213,7 +213,7 @@ Target "NuGet" (fun _ ->
             AccessKey = getBuildParamOrDefault "nugetkey" ""
             Publish = hasBuildParam "nugetkey"
             Dependencies = 
-              [ "Spreads.Collections", release.NugetVersion
+              [ "Spreads.Core", release.NugetVersion
                 "Spreads.Extensions", release.NugetVersion
                 ]
             })

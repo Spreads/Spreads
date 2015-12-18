@@ -1,4 +1,23 @@
-﻿namespace Spreads
+﻿(*  
+    Copyright (c) 2014-2015 Victor Baybekov.
+        
+    This file is a part of Spreads library.
+
+    Spreads library is free software; you can redistribute it and/or modify it under
+    the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+        
+    Spreads library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+        
+    You should have received a copy of the GNU Lesser General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*)
+
+namespace Spreads
 
 open System
 open System.Linq
@@ -13,13 +32,8 @@ open Spreads
 open Spreads.Collections
 
 
-// TODO change signatures of bind cursors to match the logic of HorizontalCursor
-
-/// Horizontal cursor is a cursor whose state could be re-created at any key with little (bounded) cost 
-/// without iterating over all values before the key. (E.g. scan requires running from the first value,
-/// therefore it is not horizontal. Even though it could be implemented as such, state creation cost is not bounded).
-[<ObsoleteAttribute("This is 5+ times slower than SimpleBindCursor")>]
-type internal HorizontalCursor<'K,'V,'State,'V2>
+[<ObsoleteAttribute("This is 5+ times slower than BindCursor")>]
+type internal FunctionalBindCursor<'K,'V,'State,'V2>
   (
     cursorFactory:Func<ICursor<'K,'V>>,
     stateCreator:Func<ICursor<'K,'V>, 'K, bool, KVP<bool,'State>>, // Factory if state needs its own cursor
@@ -53,7 +67,7 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
     cursor.started <- true
     cursor :> ICursor<'K,'V2>
 
-  member this.Clone() = new HorizontalCursor<'K,'V,'State,'V2>((fun _ -> cursor.Clone()), stateCreator, stateFoldNext, stateFoldPrevious, stateMapper, isContinuous)
+  member this.Clone() = new FunctionalBindCursor<'K,'V,'State,'V2>((fun _ -> cursor.Clone()), stateCreator, stateFoldNext, stateFoldPrevious, stateMapper, isContinuous)
 
 
   member this.CurrentValue 
@@ -274,4 +288,4 @@ type internal HorizontalCursor<'K,'V,'State,'V2>
   interface ICanMapSeriesValues<'K,'V2> with
     member this.Map<'V3>(f2:Func<'V2,'V3>): Series<'K,'V3> = 
       let combinedFunc = CoreUtils.CombineMaps(stateMapper, f2)
-      new HorizontalCursor<'K,'V,'State,'V3>((fun _ -> cursor.Clone()), stateCreator, stateFoldNext, stateFoldPrevious, combinedFunc, isContinuous) :> Series<'K,'V3>
+      new FunctionalBindCursor<'K,'V,'State,'V3>((fun _ -> cursor.Clone()), stateCreator, stateFoldNext, stateFoldPrevious, combinedFunc, isContinuous) :> Series<'K,'V3>

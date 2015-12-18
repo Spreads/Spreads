@@ -1,9 +1,44 @@
-﻿namespace Spreads
+﻿(*  
+    Copyright (c) 2014-2015 Victor Baybekov.
+        
+    This file is a part of Spreads library.
+
+    Spreads library is free software; you can redistribute it and/or modify it under
+    the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+        
+    Spreads library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+        
+    You should have received a copy of the GNU Lesser General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*)
+
+namespace Spreads
 
 open System
 open System.IO
 open System.Threading
 open System.Threading.Tasks
+open System.Diagnostics
+
+[<AutoOpenAttribute>]
+module TestUtils =
+  /// run f and measure ops per second
+  let perf (count:int64) (message:string) (f:unit -> unit) : unit = // int * int =
+    GC.Collect(3, GCCollectionMode.Forced, true)
+    let startMem = GC.GetTotalMemory(false)
+    let sw = Stopwatch.StartNew()
+    f()
+    sw.Stop()
+    let endtMem = GC.GetTotalMemory(true)
+    let p = (1000L * count/sw.ElapsedMilliseconds)
+    //int p, int((endtMem - startMem)/1024L)
+    Console.WriteLine(message + ", #{0}, ops: {1}, mem/item: {2}", 
+      count.ToString(), p.ToString(), ((endtMem - startMem)/count).ToString())
 
 // TODO clean up this from unused snippets
 
@@ -11,7 +46,7 @@ open System.Threading.Tasks
 module Utils =
   // locking using use keyword
   //[<ObsoleteAttribute("When performance is *critical*, consider using enter/exit with try/catch because this shortcut allocates new IDisposable")>]
-  // TODO(low) this only remains in misc maps, not in the core ones. Replace later 
+  // TODO (low) this only remains in misc maps, not in the core ones. Replace later 
   let inline makeLock locker =
     let entered = ref false
     try
@@ -83,9 +118,9 @@ module TaskModule =
   let inline bind  (f: 'T -> Task<'U>) (m: Task<'T>) =
       if m.IsCompleted then f m.Result
       else
-        let tcs =  new TaskCompletionSource<_>() // (Runtime.CompilerServices.AsyncTaskMethodBuilder<_>.Create())
+        let tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<_>.Create()) // new TaskCompletionSource<_>() // NB do not allocate objects
         let t = tcs.Task
-        let awaiter = m.GetAwaiter()
+        let awaiter = m.GetAwaiter() // NB this is faster than ContinueWith
         awaiter.OnCompleted(fun _ -> tcs.SetResult(f m.Result))
         t.Unwrap()
         //m.ContinueWith((fun (x: Task<_>) -> f x.Result)).Unwrap()

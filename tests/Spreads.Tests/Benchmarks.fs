@@ -724,12 +724,15 @@ module CollectionsBenchmarks =
       )
         
     for i in 0..9 do
+      let mutable res = Unchecked.defaultof<_>
       perf count "Series Add/divide Chained" (fun _ ->
         let ro = smap.Value.Map(fun x -> x + 123456.0).Map(fun x -> x/789.0).Map(fun x -> x*10.0)
         for i in ro do
-          let res = i.Value
+          res <- i.Value
           ()
       )
+      if res < 0.0 then failwith "avoid gc" 
+      ()
 
 
     for i in 0..2 do
@@ -827,6 +830,8 @@ module CollectionsBenchmarks =
           |> Series.map (fun _ x -> x*10.0)
         ()
       )
+      if res.ValueCount < 1 then failwith "avoid gc" 
+      ()
 
     for r in 0..0 do
       let mutable res = Unchecked.defaultof<_>
@@ -834,6 +839,8 @@ module CollectionsBenchmarks =
         res <- ((!deedleSeries + 123456.0) /789.0) * 10.0
         ()
       )
+      if res.ValueCount < 1 then failwith "avoid gc" 
+      ()
 
     for r in 0..0 do
       let mutable res = Unchecked.defaultof<_>
@@ -842,6 +849,8 @@ module CollectionsBenchmarks =
           |> Series.map (fun _ x -> ((x + 123456.0)/789.0)*10.0) 
         ()
       )
+      if res.ValueCount < 1 then failwith "avoid gc" 
+      ()
 
     for r in 0..0 do
       let mutable res = Unchecked.defaultof<_>
@@ -849,14 +858,16 @@ module CollectionsBenchmarks =
         res <- ((!deedleSeries + 123456.0)/789.0) * 10.0
         ()
       )
+      if res.ValueCount < 1 then failwith "avoid gc" 
+      ()
 
     Console.WriteLine("----------------")
   [<Test>]
   let SeriesNestedMap_run() = SeriesNestedMap(10000000L)
 
 
-  let CompareHirizontalCursorWithCursorBind(count:int64) =
-    // Horizontal is c.5x slower, probably due to inability to inline delegates
+  let CompareFunctionalBindCursorWithCursorBind(count:int64) =
+    // FunctionalBind is c.5x slower, probably due to inability to inline delegates
     // Also, delegates signatures for non-trivial cursors blow mind and too complex
     // Functions are compiler-generated classes, we should keep cursor as classes with methods instead of functions
 
@@ -879,15 +890,15 @@ module CollectionsBenchmarks =
           ()
       )
 
-//    for i in 0..9 do
-//      perf count "Series SMA->Map" (fun _ ->
-//        let ro = smap.Value.SMA(20).ZipLag(1u, fun c p -> c + p).Map(fun x -> x + 123456.0) //
-//        for i in ro do
-//          let res = i.Value
-//          ()
-//      )
+    for i in 0..9 do
+      perf count "Series SMA->Map" (fun _ ->
+        let ro = smap.Value.SMA(20).ZipLag(1u, fun c p -> c + p).Map(fun x -> x + 123456.0) //
+        for i in ro do
+          let res = i.Value
+          ()
+      )
     
-    for i in 0..4 do
+    for i in 0..9 do
       perf count "Series ZipLag->Map" (fun _ ->
         let ro = smap.Value.ZipLag(1u, fun c p -> c + p).Map(fun x -> x + 123456.0) //.FilterMap((fun k v -> k &&& 1L = 0L), (fun x -> x + 123456.0)).Map(fun x -> x/789.0).Map(fun x -> x*10.0)
         for i in ro do
@@ -895,18 +906,18 @@ module CollectionsBenchmarks =
           ()
       )
         
-    for i in 0..4 do
-      perf count "Series ZipLagSlow->Map" (fun _ ->
-        let ro = smap.Value.ZipLagSlow(1u, fun c p -> c + p).Map(fun x -> x + 123456.0) //.Map(fun x -> x/789.0).Map(fun x -> x*10.0)
-        for i in ro do
-          let res = i.Value
-          ()
-      )
+//    for i in 0..4 do
+//      perf count "Series ZipLagSlow->Map" (fun _ ->
+//        let ro = smap.Value.ZipLagSlow(1u, fun c p -> c + p).Map(fun x -> x + 123456.0) //.Map(fun x -> x/789.0).Map(fun x -> x*10.0)
+//        for i in ro do
+//          let res = i.Value
+//          ()
+//      )
 
 
     OptimizationSettings.CombineFilterMapDelegates <- false
     
-    for i in 0..4 do
+    for i in 0..9 do
       perf count "Series ZipLag->Map" (fun _ ->
         let ro = smap.Value.ZipLag(1u, fun c p -> c + p).Map(fun x -> x + 123456.0)
         let c = ro.GetCursor()
@@ -916,13 +927,13 @@ module CollectionsBenchmarks =
         c.MoveNext() |> ignore
       )
 
-    for i in 0..4 do
-      perf count "Series ZipLagSlow->Map" (fun _ ->
-        let ro = smap.Value.ZipLagSlow(1u, fun c p -> c + p).Map(fun x -> x + 123456.0)
-        for i in ro do
-          let res = i.Value
-          ()
-      )
+//    for i in 0..4 do
+//      perf count "Series ZipLagSlow->Map" (fun _ ->
+//        let ro = smap.Value.ZipLagSlow(1u, fun c p -> c + p).Map(fun x -> x + 123456.0)
+//        for i in ro do
+//          let res = i.Value
+//          ()
+//      )
 
 
     GC.Collect();
@@ -933,7 +944,6 @@ module CollectionsBenchmarks =
       perf (count/10L) "DeedleSeries insert" (fun _ ->
         list1 <- new List<int64>()
         let list2 = new List<double>()
-        //let arr = Array.zeroCreate ((int count)+1) // System.Collections.Generic.List(count |> int)
         for i in 0L..(count/10L) do
           list1.Add(i)
           list2.Add(double i)
@@ -954,77 +964,8 @@ module CollectionsBenchmarks =
 
     Console.WriteLine("----------------")
   [<Test>]
-  let CompareHirizontalCursorWithCursorBind_run() = CompareHirizontalCursorWithCursorBind(1000000L)
+  let CompareFunctionalBindCursorWithCursorBind_run() = CompareFunctionalBindCursorWithCursorBind(1000000L)
 
-
-  [<TestCase(10000000)>]
-  let SHM(count:int64) =
-    let shm = ref (Obsolete.SortedHashMap(SpreadsComparerInt64()))
-    perf count "SHM<1024> Add" (fun _ ->
-      for i in 0L..count do
-        shm.Value.Add(i, i)
-    )
-    perf count "SHM Read" (fun _ ->
-      for i in 0L..count do
-        let res = shm.Value.Item(i)
-        if res <> i then failwith "SHM failed"
-        ()
-    )
-    perf count "SHM Read as RO" (fun _ ->
-      let ro = shm.Value.ReadOnly() :> IReadOnlyOrderedMap<int64,int64>
-      for i in 0L..count do
-        let res = ro.Item(i)
-        if res <> i then failwith "SHM failed"
-        ()
-    )
-    perf count "SHM Iterate" (fun _ ->
-      for i in shm.Value do
-        let res = i.Value
-        if res <> i.Value then failwith "SHM failed"
-        ()
-    )
-    perf count "SHM Iterate as RO" (fun _ ->
-      let ro = shm.Value.ReadOnly() :> IReadOnlyOrderedMap<int64,int64>
-      for i in ro do
-        let res = i.Value
-        if res <> i.Value then failwith "SHM failed"
-        ()
-    )
-    shm := (Obsolete.SortedHashMap(SpreadsComparerInt64()))
-    let count = count / 10L
-    perf count "SHM<1024> Add Reverse" (fun _ ->
-      for i in 0L..count do
-        shm.Value.Add(count - i, i)
-    )
-    perf count "SHM Read Reverse" (fun _ ->
-      for i in 0L..count do
-        let res = shm.Value.Item(count - i)
-        if res <> i then failwith "SHM failed"
-        ()
-    )
-//    for i in 0..9 do
-//      let shmt = ref (SortedHashMap(TimePeriodComparer()))
-//      let count = count * 10L
-//      let initDTO = DateTimeOffset(2014,11,23,0,0,0,0, TimeSpan.Zero)
-//      perf count "SHM Time Period Add" (fun _ ->
-//        for i in 0..(int count) do
-//          shmt.Value.AddLast(TimePeriod(UnitPeriod.Second, 1, 
-//                            initDTO.AddSeconds(float i)), int64 i)
-//      )
-//      perf count "SHM Time Period Read" (fun _ ->
-//        for i in 0..(int count) do
-//          let res = shmt.Value.Item(TimePeriod(UnitPeriod.Second, 1, 
-//                        initDTO.AddSeconds(float i)))
-//          ()
-//      )
-//      perf count "SHM Time Period Iterate" (fun _ ->
-//        for i in shmt.Value do
-//          let res = i.Value
-//          ()
-//      )
-//    Console.WriteLine("----------------")
-  [<Test>]
-  let SHM_run() = SHM(1000000L)
 
   
   [<TestCase(10000000)>]

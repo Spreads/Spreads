@@ -1,4 +1,23 @@
-﻿#nowarn "0086" // operators overloads are intential, Series are as primitive as scalars, all arithmetic operations are defined on them as maps
+﻿(*  
+    Copyright (c) 2014-2015 Victor Baybekov.
+        
+    This file is a part of Spreads library.
+
+    Spreads library is free software; you can redistribute it and/or modify it under
+    the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+        
+    Spreads library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+        
+    You should have received a copy of the GNU Lesser General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*)
+
+#nowarn "0086" // operators overloads are intential, Series are as primitive as scalars, all arithmetic operations are defined on them as maps
 namespace Spreads
 
 open System
@@ -15,9 +34,7 @@ open Spreads
 open Spreads.Collections
 
 
-// BIG TODO Enumerable design, function combination optimizations similar to Streams
-
-// TODO see benchmark for ReadOnly. Reads are very slow while iterations are not affected (GetCursor() returns original cursor) in release mode. Optimize 
+// TODO (perf) see benchmark for ReadOnly. Reads are very slow while iterations are not affected (GetCursor() returns original cursor) in release mode. Optimize 
 // reads of this wrapper either here by type-checking the source of the cursor and using direct methods on the source
 // or make cursor thread-static and initialize it only once (now it is called on each method)
 
@@ -34,7 +51,7 @@ open Spreads.Collections
 
 
 /// Could return a series mapped with the provided function
-/// This is the most important optimization (and the only one done currently) because all arithmetic operations are 
+/// This is one of the most important optimizations because all arithmetic operations are 
 /// mappings and they are often chained.
 [<Interface>]
 [<AllowNullLiteral>]
@@ -44,7 +61,6 @@ type internal ICanMapSeriesValues<'K,'V> =
 and
   [<AllowNullLiteral>]
   [<Serializable>]
-  //[<AbstractClassAttribute>]
   Series internal() =
     // NB this is ugly, but rewriting the whole project structure is uglier // TODO "proper" methods DI
     static do
@@ -172,7 +188,7 @@ and
 
     // TODO! (perf) add batching where it makes sense
     // TODO! (perf) how to use batching with selector combinations?
-    /// Used for implement scalar operators which are essentially a map application
+    /// Used to implement scalar operators which are essentially a map application
     static member inline private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>, ?fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = 
       let defaultMap() =
         let mapF = mapFunc
@@ -201,6 +217,8 @@ and
     static member inline private BinaryOperatorMap<'K,'V,'R>(source:Series<'K,'V>,other:Series<'K,'V>, mapFunc:Func<'V,'V,'R>) = 
       let cursorFactories:(unit->ICursor<'K,'V>)[] = [|source.GetCursor; other.GetCursor|]
       CursorSeries(Func<ICursor<'K,'R>>(fun _ -> (new ZipNCursor<'K,'V,'R>((fun _ varr -> mapFunc.Invoke(varr.[0], varr.[1])), cursorFactories) :> ICursor<'K,'R>) )) :> Series<'K,'R>
+
+    
 
     // int64
     static member (+) (source:Series<'K,int64>, addition:int64) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x + addition)
@@ -328,8 +346,9 @@ and
     static member (<=) (source:Series<'K,float32>, other:Series<'K,float32>) : Series<'K,bool> = Series.BinaryOperatorMap(source, other, fun x y -> x <= y)
     static member (<>) (source:Series<'K,float32>, other:Series<'K,float32>) : Series<'K,bool> = Series.BinaryOperatorMap(source, other, fun x y -> x <> y)
 
+    // TODO (high) add all math operators, e.g. Abs, Log, Exp, etc.
     // TODO other primitive numeric types
-    // TODO dynamic operators, then Panels will work via series
+    // TODO (low) dynamic operators via Linq.Expressions, then Panels will work via series
 
 and
   // TODO (perf) base Series() implements IROOM inefficiently, see comments in above type Series() implementation
@@ -350,21 +369,6 @@ and
 
 
 
-
-// Attempts to manually optimize callvirt and object allocation failed badly
-// They are not needed, however, in most of the cases, e.g. iterations.
-//
-// see https://msdn.microsoft.com/en-us/library/ms973852.aspx
-// ...the virtual and interface method call sites are monomorphic (e.g. per call site, the target method does not change over time), 
-// so the combination of caching the virtual method and interface method dispatch mechanisms (the method table and interface map 
-// pointers and entries) and spectacularly provident branch prediction enables the processor to do an unrealistically effective 
-// job calling through these otherwise difficult-to-predict, data-dependent branches. In practice, a data cache miss on any of the 
-// dispatch mechanism data, or a branch misprediction (be it a compulsory capacity miss or a polymorphic call site), can and will
-// slow down virtual and interface calls by dozens of cycles.
-//
-// Our benchmark confirms that the slowdown of .Repeat(), .ReadOnly(), .Map(...) and .Filter(...) is quite small 
-
-
 and
   // NB! Remember that a cursors are single-threaded
   /// Map values to new values, batch mapping if that makes sense (for simple operations additional logic overhead is usually bigger than)
@@ -372,7 +376,6 @@ and
   internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> opt)=
     inherit Series<'K,'V2>()
     let mutable cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
-//    let passThrough = match cursor with | :? BatchMapValuesCursor<'K,_,'V> -> true | _ -> false
     
     let f : Func<'V,'V2> = f
     let fBatch = fBatch
@@ -392,7 +395,7 @@ and
         if not this.started && threadId = Environment.CurrentManagedThreadId then 
           this.started <- true
           this 
-        else this.Clone() //&& threadId = Environment.CurrentManagedThreadId
+        else this.Clone()
       cursor.started <- true
       cursor :> ICursor<'K,'V2>
 
@@ -400,8 +403,6 @@ and
     new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>,fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, OptionalValue(fBatch))
 
 
-
-    
 
     member this.CurrentKey: 'K = 
       if batchStarted then batchCursor.CurrentKey
