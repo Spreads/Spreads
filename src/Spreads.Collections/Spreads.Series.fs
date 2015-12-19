@@ -192,15 +192,15 @@ and
     static member inline private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>, ?fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = 
       let defaultMap() =
         let mapF = mapFunc
-        let fBatch =
-          if fBatch.IsSome then OptionalValue(fBatch.Value) 
-          else 
-            if OptimizationSettings.AlwaysBatch then
-              let fBatch' b =
-                let ok, v = VectorMathProvider.Default.MapBatch(mapFunc.Invoke, b)
-                v
-              OptionalValue(Func<_,_>(fBatch'))
-            else OptionalValue.Missing
+//        let fBatch =
+//          if fBatch.IsSome then OptionalValue(fBatch.Value) 
+//          else 
+//            if OptimizationSettings.AlwaysBatch then
+//              let fBatch' b =
+//                let ok, v = VectorMathProvider.Default.MapBatch(mapFunc.Invoke, b)
+//                v
+//              OptionalValue(Func<_,_>(fBatch'))
+//            else None
         new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(source.GetCursor), mapF, fBatch) :> Series<'K,'V2>
 #if PRERELEASE // we could switch off this optimization in prerelease builds
       if OptimizationSettings.CombineFilterMapDelegates then
@@ -373,7 +373,7 @@ and
   // NB! Remember that a cursors are single-threaded
   /// Map values to new values, batch mapping if that makes sense (for simple operations additional logic overhead is usually bigger than)
   [<SealedAttribute>]
-  internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> opt)=
+  internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> option)=
     inherit Series<'K,'V2>()
     let mutable cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
     
@@ -381,7 +381,7 @@ and
     let fBatch = fBatch
     // for forward-only enumeration this could be faster with native math
     // any non-forward move makes this false and we fall back to single items
-    let mutable preferBatches = fBatch.IsPresent
+    let mutable preferBatches = fBatch.IsSome
     let mutable batchStarted = false
     let mutable batch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
     let mutable batchCursor = Unchecked.defaultof<ICursor<'K,'V2>>
@@ -399,9 +399,8 @@ and
       cursor.started <- true
       cursor :> ICursor<'K,'V2>
 
-    new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, OptionalValue.Missing)
-    new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>,fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, OptionalValue(fBatch))
-
+    new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, None)
+    new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>,fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, Some(fBatch))
 
 
     member this.CurrentKey: 'K = 
@@ -414,7 +413,7 @@ and
 
     member private this.MapBatch(batch:IReadOnlyOrderedMap<'K,'V>) =
       if preferBatches then
-        fBatch.Present.Invoke(batch)
+        fBatch.Value.Invoke(batch)
       else
         let factory = Func<_>(batch.GetCursor)
         let c() = new BatchMapValuesCursor<'K,'V,'V2>(factory, f, fBatch) :> ICursor<'K,'V2>
@@ -525,13 +524,14 @@ and
         let factory = Func<_>(cursor.Source.GetCursor)
         let c() = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, fBatch) :> ICursor<'K,'V2>
         CursorSeries(Func<_>(c)) :> ISeries<'K,'V2>
+
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  
       let ok, v = cursor.TryGetValue(key)
       if ok then value <- f.Invoke(v)
       ok
     
     member this.Reset() = 
-      preferBatches <- fBatch.IsPresent
+      preferBatches <- fBatch.IsSome
       batchStarted <- false
       batch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
       if batchCursor <> Unchecked.defaultof<ICursor<'K,'V2>> then 
@@ -572,7 +572,7 @@ and
     
     interface ICanMapSeriesValues<'K,'V2> with
       member this.Map<'V3>(f2:Func<'V2,'V3>): Series<'K,'V3> = 
-        // NB CoreUtils.CombineSelectors is visivly faster for operators
+        // NB CoreUtils.CombineSelectors is visibly faster for operators
         let func = CoreUtils.CombineMaps(f, f2) //  Func<'V,'V3>(fun x -> f2.Invoke(f.Invoke(x))) // NB (WTF?) this is much slower in the benchmark, but slightly faster with microbench with doubles : Func<'V,'V3>(f.Invoke >> f2.Invoke)  //
         //NB! Expression is slower by 30%
         //let invoker =
@@ -615,7 +615,7 @@ and
 //          while not found && cursor.MoveNext() do
 //            let c = cmp.Compare(cursor.CurrentKey, k)
 //            if c >= 0 then found <- true
-//          OptionalValue.Missing
+//          None
 //      else
 //        let mutable found = false
 //        let mutable ok = false
@@ -627,7 +627,7 @@ and
 //            ok <- true
 //        if ok then
 //          OptionalValue(cursor.CurrentValue)
-//        else OptionalValue.Missing
+//        else None
 //
 //    let moveOrGetPrevAtK (cursor:ICursor<'K,'V>) (k:'K) : 'V opt =
 //      if cursor.IsContinuous then 
@@ -639,7 +639,7 @@ and
 //          while not found && cursor.MovePrevious() do
 //            let c = cmp.Compare(cursor.CurrentKey, k)
 //            if c >= 0 then found <- true
-//          OptionalValue.Missing
+//          None
 //      else
 //        let mutable found = false
 //        let mutable ok = false
@@ -651,7 +651,7 @@ and
 //            ok <- true
 //        if ok then
 //          OptionalValue(cursor.CurrentValue)
-//        else OptionalValue.Missing
+//        else None
 //    
 //
 //    let mutable hasValidState = false
@@ -985,9 +985,8 @@ and
     // - all cursors are at the same key (virtually for continuous, they are at the next existing key)
     // - cursors are not at the same position but one of them returned false on move next/previous after 
     //   we tried to move from a valid state. In this state we could call MoveNextAsync and try to call Move Next repeatedly.
-    //   current key/values are undefined here because a move returned false
 
-    // all keys where non-continuous cursors are positioned. they define where resulting keys are present
+    // all keys where discrete cursors are positioned. they define where resulting keys are present
     let pivotKeysSet = SortedDeque(KVComparer(cmp, Comparer<int>.Default))
     // active continuous cursors
     let contKeysSet = SortedDeque(KVComparer(cmp, Comparer<int>.Default))
@@ -1017,7 +1016,7 @@ and
 
     // non-cont
     // this is a single-threaded algotithm that uses a SortedDeque data structure to determine moves priority
-    let rec doMoveNextNonContinuous() =
+    let rec doMoveNextDescrete() =
       let mutable cont = true
       // check if we reached the state where all cursors are at the same position
       while cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) < 0 && cont do
@@ -1055,12 +1054,12 @@ and
           if ac.MoveNext() then
             currentValues.[first.Value] <- ac.CurrentValue
             pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
-            doMoveNextNonContinuous() // recursive
+            doMoveNextDescrete() // recursive
           else false
       else false
     
     // TODO ensure this is syncronized with movenext and tested 
-    let rec doMovePrevNonCont() =
+    let rec doMovePrevDiscrete() =
       let mutable cont = true
       //let mutable activeCursorIdx = 0
       // check if we reached the state where all cursors are at the same position
@@ -1097,12 +1096,12 @@ and
           if ac.MoveNext() then
             currentValues.[first.Value] <- ac.CurrentValue
             pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
-            doMoveNextNonContinuous() // recursive
+            doMoveNextDescrete() // recursive
           else false
       else false
 
     // manual state machine instead of a task computation expression, this is visibly faster
-    let doMoveNextNonContinuousTask(ct:CancellationToken) : Task<bool> =
+    let doMoveNextDiscreteTask(ct:CancellationToken) : Task<bool> =
       let mutable tcs = new TaskCompletionSource<_>() //(Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create())
       let returnTask = tcs.Task // NB! must access this property first
       let mutable firstStep = ref true
@@ -1442,6 +1441,7 @@ and
       // run-time type of the instance, could be derived type
       let clone = new ZipNCursor<'K,'V,'R>(resultSelector, cursorFactories) :> ICursor<'K,'R>
       if hasValidState then 
+        // TODO!!! There is a bug inside MoveAt()
         let movedOk = clone.MoveAt(this.CurrentKey, Lookup.EQ)
         Trace.Assert(movedOk) // if current key is set then we could move to it
       clone
@@ -1465,7 +1465,7 @@ and
                 pivotKeysSet.Add(first) // TODO! only replace when needed, do not do this round trip!
                 false
             else true
-          if doContinue then doMoveNextNonContinuous()
+          if doContinue then doMoveNextDescrete()
           else false
 
     // manual
@@ -1475,7 +1475,7 @@ and
         if isContinuous then
           doMoveNextContinuousTask(this.CurrentKey, ct) // failwith "TODO noncont" //doMoveNextContinuousTask(this.CurrentKey, ct)
         else
-          doMoveNextNonContinuousTask(ct)
+          doMoveNextDiscreteTask(ct)
 
     member x.MovePrevious(): bool = 
       if not this.HasValidState then this.MoveLast()
@@ -1493,7 +1493,7 @@ and
                 true
               else false
             else true
-          if cont then doMovePrevNonCont()
+          if cont then doMovePrevDiscrete()
           else false
 
     member this.MoveFirst(): bool =
@@ -1535,7 +1535,7 @@ and
               doContinue <- false 
             else
               // move to max key until min key matches max key so that we can use values
-              valuesOk <- doMoveNextNonContinuous()
+              valuesOk <- doMoveNextDescrete()
               doContinue <- not valuesOk
       if valuesOk then 
         this.HasValidState <- true
@@ -1581,7 +1581,7 @@ and
               cont <- false 
             else
               // move to max key until min key matches max key so that we can use values
-              valuesOk <- doMovePrevNonCont() //failwith "TODO" //this.DoMoveNext()
+              valuesOk <- doMovePrevDiscrete() //failwith "TODO" //this.DoMoveNext()
               cont <- not valuesOk
       if valuesOk then 
         this.HasValidState <- true
@@ -1593,20 +1593,24 @@ and
       let mutable valuesOk = false
       let mutable allMovedAt = false
       pivotKeysSet.Clear()
-      contKeysSet.Clear()
+      //contKeysSet.Clear()
       while cont do
         if not allMovedAt then
+          // WTF! we must MoveAt only discrete cursors! MoveAt for continuous only moves to
           cursors 
-          |> Array.iteri (fun i x -> 
-            let movedAt = x.MoveAt(key, direction)
-            if movedAt then
-              if continuous.[i] then 
-                contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+          |> Array.iteri (fun i x ->
+            if not continuous.[i] then 
+              let movedAt = x.MoveAt(key, direction)
+              if movedAt then
+                if continuous.[i] then 
+                  contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+                else
+                  pivotKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+                currentValues.[i] <- x.CurrentValue
               else
-                pivotKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
-              currentValues.[i] <- x.CurrentValue
-            else
-              cont <- false // series has no values, stop here
+                cont <- false // series has no values, stop here
+//            else
+//              let hasValue, v = x.TryGetValue
           )
           allMovedAt <- cont
         else
@@ -1627,6 +1631,7 @@ and
                   this.CurrentKey <- contKeysSet.Last.Key
                   valuesOk <- true
                   cont <- false
+                  failwith "WTF! review this"
                 else
                   valuesOk <- doMovePrevContinuous(contKeysSet.Last.Key)
                   cont <- not valuesOk
@@ -1634,7 +1639,8 @@ and
                 if fillContinuousValuesAtKey(contKeysSet.First.Key) then
                   this.CurrentKey <- contKeysSet.First.Key
                   valuesOk <- true
-                  cont <- false 
+                  cont <- false
+                  failwith "WTF! review this"
                 else
                   valuesOk <- doMoveNextContinuous(contKeysSet.First.Key)
                   cont <- not valuesOk
@@ -1653,9 +1659,9 @@ and
                 valuesOk <- false
                 cont <- false
               | Lookup.LE | Lookup.LT ->
-                valuesOk <- doMovePrevNonCont()
+                valuesOk <- doMovePrevDiscrete()
               | Lookup.GE | Lookup.GT ->
-                valuesOk <- doMoveNextNonContinuous()
+                valuesOk <- doMoveNextDescrete()
               | _ -> failwith "Wrong lookup direction, should never be there"
       if valuesOk then 
         this.HasValidState <- true
