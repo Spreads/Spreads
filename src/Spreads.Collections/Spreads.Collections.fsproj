@@ -69,7 +69,6 @@
     <Compile Include="Common\Enums.fs" />
     <Compile Include="Common\FastEvents.fs" />
     <Compile Include="Common\Operators.fs" />
-    <Compile Include="Common\DeedleTypes.fs" />
     <Compile Include="Common\ObjectPool.fs" />
     <Compile Include="Common\Utils.fs" />
     <Compile Include="Common\SortedDeque.fs" />
@@ -91,7 +90,6 @@
     <Compile Include="Collections\SortedMap.Obsolete.fs" />
     <Compile Include="Collections\IndexedMap.fs" />
     <Compile Include="Collections\SortedMap.fs" />
-    <Compile Include="Collections\SortedHashMap.Obsolete.fs" />
     <Compile Include="Collections\SortedChunkedMap.fs" />
     <Compile Include="Collections\DataStream.fs" />
     <None Include="Cursors\Cursors.md" />
@@ -109,7 +107,6 @@
     <Compile Include="MathProviderImpl.fs" />
     <Compile Include="Spreads.Series.2.fs" />
     <None Include="Script1.fsx" />
-    <Compile Include="Circular.fs" />
     <Content Include="app.config" />
     <Content Include="packages.config" />
     <None Include="Duality.fsx" />

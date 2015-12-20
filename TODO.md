@@ -12,6 +12,7 @@ Comment prefix codes:
     - `ux` - user experience with API: signatures, comments, etc.
 * `TODO!` means same as `TODO (high)` + `NB!`
 * `TODO!!` or `TODO!!!` means that there was 5AM or someone was on a plane or was drunk or there was any other urgency to keep the code as is, with high probability of mistakes.
+* `WTF!` does not need an explanation! It is all of above combined and multiplied by 100.
 
 Docs
 

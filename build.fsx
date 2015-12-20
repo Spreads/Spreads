@@ -160,7 +160,7 @@ Target "NuGet" (fun _ ->
 
 
 
-    let packageName = project + "." + "Collections"
+    let packageName = project + "." + "Core"
     NuGet (fun p ->
         { p with
             Authors = authors

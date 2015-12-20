@@ -7,7 +7,7 @@
 		<owners>@authors@</owners>
 		<licenseUrl>http://github.com/Spreads/Spreads/blob/master/LICENSE.txt</licenseUrl>
 		<projectUrl>https://github.com/Spreads/Spreads</projectUrl>
-		<iconUrl>https://raw.githubusercontent.com/Spreads/Spreads/master/docs/files/img/logo.png</iconUrl>
+		<iconUrl>https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png</iconUrl>
 		<requireLicenseAcceptance>false</requireLicenseAcceptance>
 		<summary>@summary@</summary>
 		<description>@description@</description>

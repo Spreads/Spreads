@@ -433,7 +433,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
 
-        //[Test] // TODO! (bug)
+        [Test]
         public void BugFromStrategies() {
 
             var sw = new Stopwatch();
@@ -450,8 +450,8 @@ namespace Spreads.Collections.Tests.Cursors {
                 }
             }
             // assertion failure
-            var repeated = sm2.Repeat();//.ToSortedMap();
-            var result = repeated.Zip(sm1, (k, p, d) => p); //.Lag(1u); // .Fill(0)
+            var repeated = sm2.Repeat().Fill(0);//.ToSortedMap();
+            var result = repeated.Zip(sm1, (k, p, d) => p).Lag(1u); // .Fill(0)
 
             var cursor = result.GetCursor();
             Assert.IsTrue(cursor.MoveNext());
@@ -485,7 +485,7 @@ namespace Spreads.Collections.Tests.Cursors {
                 }
             }
             // assertion failure
-            var repeated = sm2.Repeat();//.ToSortedMap();
+            var repeated = sm2.Repeat().ToSortedMap();
             var cursor1 = repeated.GetCursor();
 
             var result = repeated.Zip(sm1, (k, p, d) => p); //.Lag(1u); // .Fill(0)

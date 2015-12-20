@@ -76,11 +76,11 @@ type MyInc2 =
 [<EntryPoint>]
 let main argv = 
  
-  let mutable mi = MyInc(0)
-  mi.Inc() |> ignore
-  Console.WriteLine(mi.Value)
+  let state = SortedMap()
+  state.Add(DateTime.UtcNow.AddDays(-1.0), 0.0)
+  let circular = TheSimplestTradingStrategy(state)
 
-
+  circular.Execute()
 
   Console.ReadLine();
   printfn "%A" argv

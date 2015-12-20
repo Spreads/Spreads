@@ -118,7 +118,7 @@ type SeriesExtensions () =
 
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
     [<Extension>]
-    static member inline ToSortedMap(source: ISeries<'K,'V>) : SortedMap<'K,'V> =
+    static member inline Cache(source: ISeries<'K,'V>) : SortedMap<'K,'V> =
       let sm = SortedMap()
       let cursor = source.GetCursor()
       
@@ -150,6 +150,15 @@ type SeriesExtensions () =
       }
       let runninTask = Task.Run<int>(Func<Task<int>>(fun _ -> task))
       //)
+      sm
+
+    /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
+    [<Extension>]
+    static member inline ToSortedMap(source: ISeries<'K,'V>) : SortedMap<'K,'V> =
+      let sm = SortedMap()
+      let cursor = source.GetCursor()
+      while cursor.MoveNext() do
+        sm.AddLast(cursor.CurrentKey, cursor.CurrentValue)
       sm
 
     [<Extension>]

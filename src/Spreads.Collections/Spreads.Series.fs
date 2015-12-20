@@ -1470,7 +1470,11 @@ and
 
     // manual
     member this.MoveNext(ct:CancellationToken): Task<bool> =
-      if not this.HasValidState then Task.Run(fun _-> this.MoveFirst()) // TODO this is potentially blocking, make it async
+      // WRONG: TODO this is potentially blocking, make it async
+      // MoveFirst should never block
+      // doMoveNextContinuousTask/doMoveNextDiscreteTask must check for valid state 
+      // and await cursors of empty series if necessary
+      if not this.HasValidState then Task.Run(fun _-> this.MoveFirst()) 
       else
         if isContinuous then
           doMoveNextContinuousTask(this.CurrentKey, ct) // failwith "TODO noncont" //doMoveNextContinuousTask(this.CurrentKey, ct)
@@ -1672,7 +1676,15 @@ and
       let mutable cont = true
       let values = 
         cursors 
-        |> Array.map (fun x ->  // TODO instead of Array.Parallel, use PLINQ, it is smart and tested, I do not have the same confidence in F#.Core
+        // NB cursors are single-threaded, all inner cursors were created by this thread
+        // if we pass them to a thread pool, the current thread should not touch them until
+        // all TGV return. So parallel is probably safe here, but for simple cursors
+        // switching costs could be higher. We could benchmark after which N parallel if better
+        // for simplest cursors, and later return to the idea of storing internal complexity/depth of 
+        // cursors in metadata, e.g. in ConditionalWeakTable (this definitely shouldn't be a part
+        // of ICursor, but we could make an internal interface and check if a cursor implements it)
+        // CWT is an interesting thing and I want to try using it for metadata of objects, R-like style.
+        |> Array.map (fun x ->
           let ok, value = x.TryGetValue(key)
           if ok then value 
           else 
@@ -1714,15 +1726,13 @@ and
       member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = 
         this.MoveNext(cancellationToken)
  
-       member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
+      member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
         this.MoveNextBatch(cancellationToken)
      
       //member x.IsBatch with get() = x.IsBatch
       member x.Source: ISeries<'K,'R> = CursorSeries<'K,'R>(Func<ICursor<'K,'R>>((x :> ICursor<'K,'R>).Clone)) :> ISeries<'K,'R>
       
       member this.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool =
-        // TODO should keep a lazy array of cursors that is initiated on first call to this function
-        // and then is reused on evey call
         this.TryGetValue(key, &value)
     
       member this.Clone() = this.Clone()

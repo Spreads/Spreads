@@ -28,7 +28,6 @@ open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
 
-
 open Spreads
 open Spreads.Collections
 
@@ -48,15 +47,22 @@ type TheSimplestTradingStrategy(actualPosition:SortedMap<DateTime, float>) = // 
     let mutable previous = 1.0
     let sm = SortedMap()
     let now = DateTime.UtcNow
-    for i in 0..100 do
-      previous <- previous*(1.0 + rng.NextDouble()*0.01 - 0.005)
-      sm.Add(now.AddSeconds(-((100-i) |> float)*0.2), previous)
-    
+    let mutable trend = -1.0
+    let mutable cnt = 0
+    for i in 0..500 do
+      previous <- previous*(1.0 + rng.NextDouble()*0.02 - 0.01 + 0.01 * trend)
+      sm.Add(now.AddSeconds(-((500-i) |> float)*0.2), previous)
+      cnt <- cnt + 1
+      if cnt % 40 = 0 then trend <- -trend
+
     Task.Run((fun _ ->
+        
         while not ct.IsCancellationRequested do
           Thread.Sleep(200)
-          previous <- previous*(1.0 + rng.NextDouble()*0.01)
+          previous <- previous*(1.0 + rng.NextDouble()*0.02 - 0.01 + 0.01 * trend)
           sm.Add(DateTime.UtcNow, previous)
+          cnt <- cnt + 1
+          if cnt % 40 = 0 then trend <- -trend
       ), ct) |> ignore
     sm :> Series<DateTime, float>
      
@@ -64,35 +70,28 @@ type TheSimplestTradingStrategy(actualPosition:SortedMap<DateTime, float>) = // 
   member this.CalculateTargetState() : Series<DateTime, float> = // this returns desired position
     let quotes = this.Quotes()
     let sma = quotes.Window(20u, 1u, true).Map(fun inner -> inner.Values.Average())
-    let dataSm = quotes.ToSortedMap()
-    let smaSm = sma.ToSortedMap()
-    let signal = quotes / sma - 1.0
-    //let signalSm = signal.ToSortedMap()
-    let func = Func<DateTime,float,float,float>(fun _ sgn st -> 
-        if sgn > 0.0 then
-          st - 1.0
-        elif sgn < 0.0 then
-          st + 1.0
-        else 0.0
-      )
-    let targetState = signal.Zip(actualPosition.Repeat(), func)
-     //.Map(fun s -> if s > 0.0 then -1.0 elif s < 0.0 then 1.0 else 0.0)
-    targetState
+    let deviation = quotes / sma - 1.0
+    let deviationSm = deviation.Cache()
+    let targetState = deviationSm.Map(fun x -> -(float <| Math.Sign(x)))
+    let targetStateSm = targetState.Cache()
+    targetStateSm :> Series<DateTime, float>
 
   member this.Execute() = 
     let targetPosition = this.CalculateTargetState()
-    let targetTrade = targetPosition - actualPosition
-    let tgtCursor = targetPosition.GetCursor()
+    let targetTrade = (targetPosition - actualPosition).Cache()
+    let tgtTradeCursor = targetTrade.GetCursor()
     // TODO "Do(...)" extension method
     executorTask <- Task.Run<int>(Func<Task<int>>(fun _ ->
       task {
-        let! moved = tgtCursor.MoveNext(ct)
+        let! moved = tgtTradeCursor.MoveNext(ct)
         while moved do
-          let! _ =  Task.Delay(20).ContinueWith(fun _ -> 0)
-          actualPosition.Add(DateTime.UtcNow, tgtCursor.CurrentValue)
-          Console.WriteLine("Added new state from target: " + tgtCursor.CurrentKey.ToString() + " | " + tgtCursor.CurrentValue.ToString())
+          let currentPosition = actualPosition.Last.Value
+          let tradeAmout = tgtTradeCursor.CurrentValue
+          let tradeTime = DateTime.UtcNow
+          if tradeAmout <> 0.0 then 
+            Console.WriteLine("Traded " + tradeAmout.ToString() + " at " + tradeTime.ToString())
+            actualPosition.Add(tradeTime, tgtTradeCursor.CurrentValue)
         return 0
       }
     ), ct)
-    // 
     ()

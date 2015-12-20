@@ -87,6 +87,7 @@
     <Error Condition="!Exists('$(SolutionDir)\.nuget\NuGet.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)\.nuget\NuGet.targets'))" />
   </Target>
   <ItemGroup>
+    <Compile Include="SimplestTradingStrategy.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />
@@ -96,6 +97,7 @@
       <HintPath>..\..\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="FSharp.Data.TypeProviders" />
     <Reference Include="FsPickler">
       <HintPath>..\..\packages\FsPickler.1.0.6\lib\net45\FsPickler.dll</HintPath>
       <Private>True</Private>
@@ -107,10 +109,17 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Data.Linq" />
     <Reference Include="System.Numerics" />
     <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj">
       <Name>Spreads.Collections</Name>
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj">
+      <Name>Spreads.Core</Name>
+      <Project>{b2798c33-7901-4142-af96-66fd98ea3ac2}</Project>
       <Private>True</Private>
     </ProjectReference>
     <ProjectReference Include="..\..\src\Spreads.Extensions\Spreads.Extensions.csproj">

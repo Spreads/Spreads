@@ -239,22 +239,23 @@ module CollectionsBenchmarks =
   let SCGList_run() = SCGList(1000000L)
 
 
-  let DeedleDeque(count:int64) =
-    let deque = ref (Deque())
-    perf count "DeedleDeque Add" (fun _ ->
-      for i in 0L..count do
-        deque.Value.Add i
-    )
-    perf count "DeedleDeque RemoveFirst" (fun _ ->
-      for i in 0L..count do
-        let res = deque.Value.RemoveFirst()
-        if res <> i then failwith "DeedleDeque failed"
-        ()
-    )
-    deque := Deque()
-    Console.WriteLine("----------------")
-  [<Test>]
-  let DeedleDeque_run() = DeedleDeque(1000000L)
+// this code removed (it is an internal part of Deedle), we could always write own Deque from SortedDeque,
+//  let DeedleDeque(count:int64) =
+//    let deque = ref (Deque())
+//    perf count "DeedleDeque Add" (fun _ ->
+//      for i in 0L..count do
+//        deque.Value.Add i
+//    )
+//    perf count "DeedleDeque RemoveFirst" (fun _ ->
+//      for i in 0L..count do
+//        let res = deque.Value.RemoveFirst()
+//        if res <> i then failwith "DeedleDeque failed"
+//        ()
+//    )
+//    deque := Deque()
+//    Console.WriteLine("----------------")
+//  [<Test>]
+//  let DeedleDeque_run() = DeedleDeque(1000000L)
 
 
   let MapTree(count:int64) =

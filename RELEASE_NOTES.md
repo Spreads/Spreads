@@ -1,8 +1,11 @@
+#### 0.2.0 - December 20, 2015
+* The first public version. See Readme for details.
+
 #### 0.1.9 - December 16, 2015
 * Add additional cursor, implement Window, SMA, StDev via lambdas to ScanLagAllowIncompleteCursor.
 * Make ToSortedMap() live, but unbounded. Could cause out of memory exceptions if used heavily on large series.
 * Clean up tests and start Contracts Suite. Failing tests are now meaningful.
-* Fix some bugs with cursors (TODO! they were probably fixed for the particular test case, not in general, need to pass them throught the Suite)
+* Fix some bugs with cursors
 
 #### 0.1.8 - December 11, 2015
 * Optimize cursors further. Virtual methods are 5x faster than Func<>s.
@@ -50,9 +53,6 @@
 
 #### 0.0.69 - October 1, 2015
 * Fix regular keys bug with int overflow
-
-#### 0.0.68 - September 28, 2015
-* Messaging proof of concept interfaces and simple implementation
 
 #### 0.0.60 - September 17, 2015
 * SortedDeque constructor with comparer was internal, now public

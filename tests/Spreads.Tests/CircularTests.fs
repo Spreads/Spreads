@@ -13,16 +13,16 @@ open Spreads.Collections
 open Spreads.Collections.Experimental
 open System.Threading
 
-type CircularTestsModule() =
-    
-  [<Test>]
-  member this.``Circular Calculations Work``() =
-    let state = SortedMap()
-    state.Add(DateTime.UtcNow.AddDays(-1.0), 0.0)
-    let circular = TheSimplestTradingStrategy(state)
-
-    circular.Execute()
-
-    Thread.Sleep(60000);
-
-    ()
+//type CircularTestsModule() =
+//    
+//  [<Test>]
+//  member this.``Circular Calculations Work``() =
+//    let state = SortedMap()
+//    state.Add(DateTime.UtcNow.AddDays(-1.0), 0.0)
+//    let circular = TheSimplestTradingStrategy(state)
+//
+//    circular.Execute()
+//
+//    Thread.Sleep(60000);
+//
+//    ()
