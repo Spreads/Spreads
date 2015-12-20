@@ -1,5 +1,5 @@
 #Spreads
-<img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png" alt="Spreads" style="width: 200px;" align="right" />
+<img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png" alt="Spreads" width="200" align="right" />
 
 The name **Spreads** stands for **S**eries and **P**anels for **R**eal-time and **E**xploratory **A**nalysis of
 **D**ata **S**treams.
@@ -8,7 +8,7 @@ The name **Spreads** stands for **S**eries and **P**anels for **R**eal-time and 
 arriving in real-time;
 + **Series** are navigable ordered data streams of key-value pairs;
 + **Panels** are series of series or data frames;
-+ **Exploratory** data manupulation in C#/F# REPLs;
++ **Exploratory** data transformation in C#/F# REPLs;
 + **Real-time** fast incremental calculations.
 
 Spreads is an ultra-fast library for [complex event processing](https://en.wikipedia.org/wiki/Complex_event_processing)
@@ -30,15 +30,15 @@ Google/Facebook and similar user event streams could be processed independently.
 ## Performance
 
 Spreads library is optimized for performance and memory usage.
-It is many times faster than [Deedle](https://github.com/BlueMountainCapital/Deedle),
+It is several times faster than [Deedle](https://github.com/BlueMountainCapital/Deedle),
 does not allocate memory for intermediate calculations or windows,
-and provides real-time incremental calculations. You could run tests and [benchmarks](http://to.do) 
+and provides real-time incremental calculations. You could run tests and [benchmarks](https://github.com/Spreads/Spreads/blob/master/tests/Spreads.Tests/Benchmarks.fs) 
 to see the exact numbers.
 
 For regular keys - keys that have equal difference between them (e.g. seconds) - Spreads stores
-only the first key and the step size, reducing memory usage for `[DateTime,T]` data item by
-8 bytes. So [DateTime,double] data item takes only 8 bytes inside Spread series instead of 16.
-The gains of this optimizations are not obvious on microbenchmarks with a single
+only the first key and the step size, reducing memory usage for `<DateTime,T>` data item by
+8 bytes. So `<DateTime,double>` data item takes only 8 bytes inside Spreads series instead of 16.
+The gains of this optimization are not obvious on microbenchmarks with a single
 series, and one could argue that memory is cheap. However, L1/L2 caches
 are still small, and saving 50% of memory allows to place two times
 more useful data in the caches and to avoid needless cache trashing.
@@ -47,16 +47,16 @@ Spreads library is written in F# (core parts) and C# (tests, unsafe code, extens
 .NET gives native performance when optimized for memory access patterns, which means
  no functional data structures and minimum allocations.
 Even though .NET is a managed platform with garbage collection, in a steady state Spreads
-should not allocate many objects and create GC pessure. 
+should not allocate many objects and create GC pressure. 
 .NET properly supports generic value types and arrays of them are laid out 
-contiguously in memory. Such layout enables CPU to prefetch data efficiently,
+contiguously in memory. Such layout enables CPUs to prefetch data efficiently,
 resulting in great performance boost compared to collections of boxed objects. Also .NET makes it trivial to call native methods and *Spreads.Extensions* project 
 uses SIMD-optimized compression and math libraries written in C.
 
 We haven't compared Spreads performance to performance of commercial systems yet 
-(because their costs are atrocious and leaning cryptic lenguages is not necessary).
-However, the main benchmark while developping Spreads was modern CPU capabilities,
-not any existing product. We tried to achive mecanical sympathy, to avoid any wasteful
+(because their costs are atrocious and learning cryptic languages is not necessary).
+However, the main benchmark while developing Spreads was modern CPUs capabilities,
+not any existing product. We tried to achieve mechanical sympathy, to avoid any wasteful
 operations and to get the most from modern processors. Therefore, unless the fastest commercial
 products use magic or quantum computers, Spreads must be in the same bracket. There are 
 a lot of known optimization that are waiting to be implemented, and we will move closer
@@ -71,14 +71,18 @@ Series could be continuous or discrete. Continuous series have values at any key
 even between observed keys. For example, linear interpolation or cubic splines are continuous series
 defined from observed points. Another example is "last price", which is defined for any key as observed
  price at or before the key.
-<img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/Continuous_Series.png" alt="Continuous series" style="width: 500px;" align="middle" />
+
+
+<img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/Continuous_Series.png" alt="Continuous series" width="500" />
 
 Discrete series have values only at observation/events, e.g. trade volume
 is meaningful only at observed trades, there is no implied latent volumes between trades. We could
 create a derived continuous series, e.g. `let liquidity = volume.SMA(N).Repeat()`, but this
 series changes meaning from a real observed volume to an abstract analytical indicator of average
 liquidity over the last N observation.
-<img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/Discrete_Series.png" alt="Discrete Series" style="width: 500px;" align="middle" />
+
+
+<img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/Discrete_Series.png" alt="Discrete Series" width="500" />
 
 On pictures, a solid line means continuous series, dotted line means discrete series, solid blue dot
 means an observation, a white dot with blue outline means a calculated value of a continuous series
@@ -89,7 +93,7 @@ at a key between observations.
 One of the core feature of Spreads library is declarative lazy series manipulation.
 A calculation on series is not performed until results are pulled from Series. For example,
 expression `let incremented = series + 1.0` is not evaluated until `incremented` series
-is used. Instead, it returns a calcualtion definition that could be
+is used. Instead, it returns a calculation definition that could be
 evaluated on demand.
 
 #### Missing values replacement
@@ -117,7 +121,9 @@ and it is shown on Spreads logo.
 ZipN supports declarative lazy joining of N series and in many 
 cases replaces Frames/Panels functionality and adds
 real-time incremental calculations over N joined series.
-<img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png" alt="ZipN" style="width: 200px;" align="middle" />
+
+
+<img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png" alt="ZipN" width="200"  />
 
 All binary arithmetic operations are implemented via ZipN cursor with N=2. 
 ZipN alway produces inner join, but it is very easy to implement any complex 
@@ -136,17 +142,17 @@ If we then fill the lower series with 42, we will get:
     let sum = upper.Repeat() + lower.Fill(42.0) // [2=>2+42=44; 3=>2+30=32; 4=>4+42=46; 5=>4+50=54]
 
 For N series logic remains the same. If we want to calculate a simple price index like DJIA 
-for each tick of underlying stocks, we could take 30 tick series, repeat them, apply `Zip`
-function and calculate average of prices at any point:
+for each tick of underlying stocks, we could take 30 tick series, repeat them (because ticks are irregular), apply `ZipN`
+and calculate average of prices at any point:
 
-    let index30 : Series[DateTime,double] = 
+    let index30 : Series<DateTime,double> = 
         arrayOfDiscreteSeries
         .Map(fun ds -> ds.Repeat())
-        .Zip(fun (k:'DateTime) (vArr:'double[]) -> vArr.Average())
+        .ZipN(fun (k:'DateTime) (vArr:'double[]) -> vArr.Average())
 
-The values array `vArr` is not copied and the lamdba must not return anything that has a 
+The values array `vArr` is not copied and the lambda must not return anything that has a 
 reference to the array. If the arrays of zipped values are needed for further use outside
-zip method, one must copy the array inside the lamdba. However, this is rarely needed,
+zip method, one must copy the array inside the lambda. However, this is rarely needed,
 because we could zip outputs of zips and process the arrays inside lambda without allocating
 memory. For example, if we have series of returns and weights from applying Zip as before,
 these series are not evaluated until values are requested, and when we zip them to calculate
@@ -177,7 +183,7 @@ an array to store the result. We could change the example to avoid intermediate 
     let indexReturn =
         returns.ZipN(
             weights.Repeat(), 
-            (fun k (ret:ValueTuple[double[],double[]]) (ws:double[]) ->  
+            (fun k (ret:ValueTuple<double[],double[]>) (ws:double[]) ->  
                     let currentPrices : double[] = ret.Item1
                     let previousPrices: double[] = ret.Item2
                     let currentWeights: double[] = ws
@@ -210,7 +216,7 @@ The project and NuGet package `Spreads.Extensions` contain:
 + [Yeppp](http://www.yeppp.info/) math library for SIMD calculations;
 + Generic array pool that gives very visible performance gain on some benchmarks;
 + Concrete implementations of series calculations, such as SMA and StDev;
-+ Useful utils for historical time zones convertions using [NodaTime](http://nodatime.org/).
++ Useful utils for historical time zones conversions using [NodaTime](http://nodatime.org/).
 
 
 ##Install
@@ -218,8 +224,8 @@ The project and NuGet package `Spreads.Extensions` contain:
 `Spreads.Core` package contains the core calculations functionality. `Spreads` package
 adds `Spreads.Extensions` as dependency.
 
-PM> Install-Package Spreads.Core
-PM> Install-Package Spreads
+    PM> Install-Package Spreads.Core
+    PM> Install-Package Spreads
 
 
 ## Contributing
@@ -251,7 +257,7 @@ or (at your option) any later version.
 Persistence and network replication is already implemented and 
 will be gradually released. Persistence could be implemented on any ordered
 key-value storage, including relational data bases. On MySQL, we could get 
-around 1 million [DateTime,decimal] read/write performance (batched) with dev settings.
+around 1 million `<DateTime,decimal>` read/write performance (batched) with dev settings.
 For replication, we use NetMQ's clone pattern and a [broadcast](https://github.com/zeromq/netmq/pull/401)
  feature of Pub/Sub. We are working on making storage and transport pluggable,
 so that we could use any existing high-performance storages like 
@@ -260,10 +266,10 @@ Cassandra/Scylla or any messaging system like Aeron/NATS.
 ## Status and version
 Current status is alpha and it will remain alpha until 1.0-... releases. 
 We will use [semantic versioning](http://semver.org/). Initial released 
-version 0.2 has some known bugs (and it looks like we broked something
+version 0.2 has some known bugs (and it looks like we have broken something
 while preparing the release), but it is much easier to track them
 using GitHub Issues, so we release it anyway and will fix them before 
-the end of 2015. NuGet packages will be published after that.
+the end of 2015.
 
 
 ## History
