@@ -45,6 +45,14 @@ open Spreads.Collections
 type SortedChunkedMap<'K,'V> 
   internal (outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>, comparer:IComparer<'K>, slicer:Func<'K,'K> option, ?chunkMaxSize:int) as this =
   inherit Series<'K,'V>()
+
+//  let mutable comparer : IComparer<'K> = 
+//    if Comparer<'K>.Default.Equals(comparer) then
+//      let kc = KeyComparer.GetDefault<'K>()
+//      if kc = Unchecked.defaultof<_> then Comparer<'K>.Default :> IComparer<'K> 
+//      else kc
+//    else comparer // do not try to replace with KeyComparer if a comparer was given
+
   // TODO serialize size, add a method to calculate size based on outerMap only
   [<NonSerializedAttribute>]
   let mutable size = 0L
@@ -921,7 +929,7 @@ type SortedChunkedMap<'K,'V>
   // x0
   
   new() = 
-    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+    let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
     SortedChunkedMap(factory, comparer, None)
   
@@ -935,15 +943,15 @@ type SortedChunkedMap<'K,'V>
   /// In-memory sorted chunked map
   new(slicer:Func<'K,'K>) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
-    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+    let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
     SortedChunkedMap(factory, comparer, Some(slicer))
   new(chunkMaxSize:int) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
-    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+    let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
     SortedChunkedMap(factory, comparer, None, chunkMaxSize)
 
   new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>) = 
-    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+    let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
     SortedChunkedMap(outerFactory.Invoke, comparer, None)
   
   // x2
@@ -960,10 +968,10 @@ type SortedChunkedMap<'K,'V>
     SortedChunkedMap(outerFactory.Invoke, comparer, None)
 
   new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,slicer:Func<'K,'K>) = 
-    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+    let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
     SortedChunkedMap(outerFactory.Invoke, comparer, Some(slicer))
   new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,chunkMaxSize:int) = 
-    let comparer:IComparer<'K> = Comparer<'K>.Default :> IComparer<'K>
+    let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
     SortedChunkedMap(outerFactory.Invoke, comparer, None, chunkMaxSize)
 
   // x3

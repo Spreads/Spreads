@@ -1280,9 +1280,61 @@ and
           valuesOk <- false
       valuesOk
       
+    // this mirrows doMoveNextContinuous, any changes must be made to both
+    let doMovePrevContinuous(frontier:'K) =
+      let mutable frontier = frontier
+      let mutable valuesOk = false
+      let mutable found = false
+      while not found do
+        let mutable ignoreOffset = contKeysSet.Count - 1
+        let mutable rightmostIsAheadOfFrontier = false
+        while (ignoreOffset >= 0) && not rightmostIsAheadOfFrontier do
+          let initialPosition = contKeysSet.[ignoreOffset]
+          let cursor = cursors.[initialPosition.Value]
+          Debug.Assert(cmp.Compare(initialPosition.Key, cursor.CurrentKey) = 0)
+
+          let shouldMove = cmp.Compare(cursor.CurrentKey, frontier) >= 0
+          let mutable doTryMove = shouldMove
+          let mutable movedAtLeastOnce = false
+          let mutable passedFrontier = not shouldMove
+          
+          while doTryMove do
+            passedFrontier <- cursor.MovePrevious()
+            movedAtLeastOnce <- movedAtLeastOnce || passedFrontier
+            doTryMove <- passedFrontier && cmp.Compare(cursor.CurrentKey, frontier) >= 0
+
+          if movedAtLeastOnce || passedFrontier then
+            if movedAtLeastOnce then
+              let newPosition = KV(cursor.CurrentKey, initialPosition.Value)
+              contKeysSet.RemoveAt(ignoreOffset) |> ignore
+              contKeysSet.Add(newPosition)
+
+            if passedFrontier then
+              if cmp.Compare(contKeysSet.[ignoreOffset].Key, frontier) < 0 then
+                rightmostIsAheadOfFrontier <- true // NB inner loop exit
+              else
+                ()
+            else
+              ()
+          else
+            Debug.Assert(not passedFrontier, "If cursor hasn't moved, I couldn't pass the prontier")
+            ignoreOffset <- ignoreOffset - 1
+            ()
+
+        if rightmostIsAheadOfFrontier then
+          found <- fillContinuousValuesAtKey(contKeysSet.[ignoreOffset].Key) 
+          if found then 
+            valuesOk <- true
+            this.CurrentKey <- contKeysSet.[ignoreOffset].Key
+          else
+            frontier <- contKeysSet.[ignoreOffset].Key
+        else
+          found <- true
+          valuesOk <- false
+      valuesOk
       
     // TODO!!! this is wrong
-    let doMovePrevContinuous(frontier:'K) =
+    let doMovePrevContinuousOld(frontier:'K) =
       failwith "ZipN MovePrevious is very likely wrong"
       // found all values
       let mutable valuesOk = false
@@ -1607,6 +1659,7 @@ and
       let mutable cont = true
       let mutable valuesOk = false
       let mutable allMovedAt = false
+      // we must be able to do the same without this
       discreteKeysSet.Clear()
       contKeysSet.Clear()
       while cont do
@@ -1618,7 +1671,7 @@ and
               // if all cursors are continuous then at least one of them must move at a key
               if isContinuous && movedAt then 
                 allMovedAt <- true
-              contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+              contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore // if movedAt then 
             else
               let movedAt = x.MoveAt(key, direction)
               if movedAt then
@@ -1654,16 +1707,16 @@ and
                   this.CurrentKey <- contKeysSet.Last.Key
                   valuesOk <- true
                   cont <- false
-                  failwith "WTF! review this"
                 else
                   valuesOk <- doMovePrevContinuous(contKeysSet.Last.Key)
                   cont <- not valuesOk
               | Lookup.GE | Lookup.GT ->
+                // TODO! we add all cursors to contKeysSet, even if they do not move, contKeysSet.First.Key could be default value
+                // should use comparer and provide max(key, contKeysSet.First.Key) as frontier
                 if fillContinuousValuesAtKey(contKeysSet.First.Key) then
                   this.CurrentKey <- contKeysSet.First.Key
                   valuesOk <- true
                   cont <- false
-                  failwith "WTF! review this"
                 else
                   valuesOk <- doMoveNextContinuous(contKeysSet.First.Key)
                   cont <- not valuesOk
