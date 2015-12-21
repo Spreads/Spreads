@@ -987,7 +987,7 @@ and
     //   we tried to move from a valid state. In this state we could call MoveNextAsync and try to call Move Next repeatedly.
 
     // all keys where discrete cursors are positioned. they define where resulting keys are present
-    let pivotKeysSet = SortedDeque(KVComparer(cmp, Comparer<int>.Default))
+    let discreteKeysSet = SortedDeque(KVComparer(cmp, Comparer<int>.Default))
     // active continuous cursors
     let contKeysSet = SortedDeque(KVComparer(cmp, Comparer<int>.Default))
     
@@ -1014,16 +1014,16 @@ and
     // when state is valid or when it is proven invalid and we must find the first valid position
     // MoveFirst/Last/At must try to check the initial position before calling the do... functions
 
-    // non-cont
-    // this is a single-threaded algotithm that uses a SortedDeque data structure to determine moves priority
+
+    // return true only if all discrete cursors moved to the same key or they cannot move further
     let rec doMoveNextDescrete() =
-      let mutable cont = true
+      let mutable continueMoves = true
       // check if we reached the state where all cursors are at the same position
-      while cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) < 0 && cont do
+      while cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) < 0 && continueMoves do
         // pivotKeysSet is essentially a task queue:
-        // we take every cursor that is not at fthe frontier and try to move it forward until it reaches the frontier
+        // we take every cursor that is not at the frontier and try to move it forward until it reaches the frontier
         // if we do this in parallel, the frontier could be moving while we move cursors
-        let first = pivotKeysSet.RemoveFirst()
+        let first = discreteKeysSet.RemoveFirst()
         let ac = cursors.[first.Value]
         let mutable moved = true
         let mutable c = -1 // by construction // cmp.Compare(ac.CurrentKey, pivotKeysSet.Max.Key)
@@ -1032,30 +1032,40 @@ and
         // max key of non-cont series is the frontier: we will never get a value before it,
         // and if any pivot moves ahead of the frontier, then it shifts the frontier 
         // and the old one becomes unreachable
-
         while c < 0 && moved do
           moved <- ac.MoveNext()
-          c <- cmp.Compare(ac.CurrentKey, pivotKeysSet.Last.Key)
+          if moved then c <- cmp.Compare(ac.CurrentKey, discreteKeysSet.Last.Key)
 
-        if moved then
-          currentValues.[first.Value] <- ac.CurrentValue
-          pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
-        else
-          cont <- false // cannot move, stop sync move next, leave cursors where they are
-      if cont then
-        if fillContinuousValuesAtKey(pivotKeysSet.First.Key) then
-          this.CurrentKey <- pivotKeysSet.First.Key
+        if not moved then continueMoves <- false
+        // must add it back regardless of moves
+        discreteKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
+
+      // now all discrete cursors have moved at or ahead of frontier
+      // the loop could stop only when all cursors are at the same key or we cannot move ahead
+      if continueMoves then
+        // this only possible if all discrete cursors are at the same key
+        #if PRERELEASE
+        Trace.Assert(cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0)
+        #endif
+        if fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
+          // now we could access values of discrete keys and fill current values with them
+          for kvp in discreteKeysSet do // TODO (perf) Check if F# compiler behaves like C# one, optimizing for structs enumerator. Or just benchmark compared with for loop
+            currentValues.[kvp.Value] <- cursors.[kvp.Value].CurrentValue
+          this.CurrentKey <- discreteKeysSet.First.Key
           true
         else
           // cannot get contiuous values at this key
           // move first non-cont cursor to next position
-          let first =  pivotKeysSet.RemoveFirst()
-          let ac = cursors.[first.Value]
-          if ac.MoveNext() then
-            currentValues.[first.Value] <- ac.CurrentValue
-            pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
+
+          let first = discreteKeysSet.RemoveFirst()
+          let firstCursor = cursors.[first.Value]
+          if firstCursor.MoveNext() then
+            discreteKeysSet.Add(KV(firstCursor.CurrentKey, first.Value)) |> ignore
             doMoveNextDescrete() // recursive
-          else false
+          else
+            // add back, should not be very often TODO (perf, low) add counter to see if this happens often
+            discreteKeysSet.Add(KV(firstCursor.CurrentKey, first.Value)) |> ignore
+            false
       else false
     
     // TODO ensure this is syncronized with movenext and tested 
@@ -1063,11 +1073,11 @@ and
       let mutable cont = true
       //let mutable activeCursorIdx = 0
       // check if we reached the state where all cursors are at the same position
-      while cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) < 0 && cont do //
+      while cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) < 0 && cont do //
         // pivotKeysSet is essentially a task queue:
         // we take every cursor that is not at fthe frontier and try to move it forward until it reaches the frontier
         // if we do this in parallel, the frontier could be moving while we are 
-        let last = pivotKeysSet.RemoveLast()
+        let last = discreteKeysSet.RemoveLast()
         let ac = cursors.[last.Value]
         let mutable moved = true
         let mutable c = +1 // by construction 
@@ -1077,25 +1087,25 @@ and
 
         while c > 0 && moved do
           moved <- ac.MovePrevious()
-          c <- cmp.Compare(ac.CurrentKey, pivotKeysSet.First.Key)
+          c <- cmp.Compare(ac.CurrentKey, discreteKeysSet.First.Key)
 
         if moved then
           currentValues.[last.Value] <- ac.CurrentValue
-          pivotKeysSet.Add(KV(ac.CurrentKey, last.Value)) |> ignore // TODO(low) SortedDeque AddFirst optimization similar to last.
+          discreteKeysSet.Add(KV(ac.CurrentKey, last.Value)) |> ignore // TODO(low) SortedDeque AddFirst optimization similar to last.
         else
           cont <- false // cannot move, stop sync move next, leave cursors where they are
       if cont then
-        if fillContinuousValuesAtKey(pivotKeysSet.First.Key) then
-          this.CurrentKey <- pivotKeysSet.First.Key
+        if fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
+          this.CurrentKey <- discreteKeysSet.First.Key
           true
         else
           // cannot get contiuous values at this key
           // move first non-cont cursor to next position
-          let first =  pivotKeysSet.RemoveFirst()
+          let first =  discreteKeysSet.RemoveFirst()
           let ac = cursors.[first.Value]
           if ac.MoveNext() then
             currentValues.[first.Value] <- ac.CurrentValue
-            pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
+            discreteKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
             doMoveNextDescrete() // recursive
           else false
       else false
@@ -1111,8 +1121,8 @@ and
       let mutable ac = Unchecked.defaultof<_>
       let rec loop(isOuter:bool) : unit =
         if isOuter then
-          if not !firstStep && cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) = 0 && fillContinuousValuesAtKey(pivotKeysSet.First.Key) then
-            this.CurrentKey <- pivotKeysSet.First.Key
+          if not !firstStep && cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 && fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
+            this.CurrentKey <- discreteKeysSet.First.Key
             tcs.SetResult(true) // the only true exit
             () // return
           else
@@ -1120,9 +1130,9 @@ and
             // we take every cursor that is not at fthe frontier and try to move it forward until it reaches the frontier
             // if we do this in parallel, the frontier could be moving while we move cursors
             if lingering then invalidOp "previous position is not added back"
-            if pivotKeysSet.Count = 0 then invalidOp "pivotKeysSet is empty"
+            if discreteKeysSet.Count = 0 then invalidOp "pivotKeysSet is empty"
             
-            initialPosition <- pivotKeysSet.RemoveFirst()
+            initialPosition <- discreteKeysSet.RemoveFirst()
             lingering <- true
             ac <- cursors.[initialPosition.Value]
             loop(false)
@@ -1134,12 +1144,12 @@ and
           let cursor = ac
           let onMoved() =
             currentValues.[idx] <- cursor.CurrentValue
-            pivotKeysSet.Add(KV(cursor.CurrentKey, idx)) |> ignore
+            discreteKeysSet.Add(KV(cursor.CurrentKey, idx)) |> ignore
             lingering <- false
             loop(true)
           let mutable c = -1
           while c < 0 && cursor.MoveNext() do
-            c <- cmp.Compare(cursor.CurrentKey, pivotKeysSet.Last.Key)
+            c <- cmp.Compare(cursor.CurrentKey, discreteKeysSet.Last.Key)
           if c >= 0 then
             onMoved()
           else
@@ -1155,9 +1165,9 @@ and
                 //Console.WriteLine("Finished")
                 ()
               else
-                let c = cmp.Compare(cursor.CurrentKey, pivotKeysSet.Last.Key)
+                let c = cmp.Compare(cursor.CurrentKey, discreteKeysSet.Last.Key)
                 if c < 0 then
-                  pivotKeysSet.Add(initialPosition) // TODO! Add/remove only when needed
+                  discreteKeysSet.Add(initialPosition) // TODO! Add/remove only when needed
                   loop(false)
                 else
                   onMoved()
@@ -1176,7 +1186,7 @@ and
                   if sourceMoveTask.Status = TaskStatus.RanToCompletion then
                     onCompleted()
                   else
-                    pivotKeysSet.Add(initialPosition) // TODO! Add/remove only when needed
+                    discreteKeysSet.Add(initialPosition) // TODO! Add/remove only when needed
                     if sourceMoveTask.Status = TaskStatus.Canceled then
                       tcs.SetCanceled()
                     else
@@ -1454,15 +1464,15 @@ and
           doMoveNextContinuous(this.CurrentKey)
         else
           let doContinue =
-            if cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) = 0 then
-              let first = pivotKeysSet.RemoveFirst()
+            if cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 then
+              let first = discreteKeysSet.RemoveFirst()
               let ac = cursors.[first.Value]
               if ac.MoveNext() then
                 currentValues.[first.Value] <- ac.CurrentValue
-                pivotKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
+                discreteKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
                 true
               else
-                pivotKeysSet.Add(first) // TODO! only replace when needed, do not do this round trip!
+                discreteKeysSet.Add(first) // TODO! only replace when needed, do not do this round trip!
                 false
             else true
           if doContinue then doMoveNextDescrete()
@@ -1488,12 +1498,12 @@ and
           doMovePrevContinuous(this.CurrentKey)
         else
           let cont =
-            if cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) = 0 then
-              let last = pivotKeysSet.RemoveLast()
+            if cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 then
+              let last = discreteKeysSet.RemoveLast()
               let ac = cursors.[last.Value]
               if ac.MovePrevious() then
                 currentValues.[last.Value] <- ac.CurrentValue
-                pivotKeysSet.Add(KV(ac.CurrentKey, last.Value)) |> ignore
+                discreteKeysSet.Add(KV(ac.CurrentKey, last.Value)) |> ignore
                 true
               else false
             else true
@@ -1504,7 +1514,7 @@ and
       let mutable doContinue = true
       let mutable valuesOk = false
       let mutable allMovedFirst = false
-      pivotKeysSet.Clear()
+      discreteKeysSet.Clear()
       contKeysSet.Clear()
       while doContinue do
         if not allMovedFirst then
@@ -1515,10 +1525,10 @@ and
               if continuous.[i] then 
                 contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
               else
-                pivotKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+                discreteKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
               currentValues.[i] <- x.CurrentValue
             else
-              doContinue <- false // series has no values, stop here
+              doContinue <- false // a series has no values, stop here
           )
           allMovedFirst <- doContinue
         else
@@ -1530,17 +1540,18 @@ and
             else
               valuesOk <- doMoveNextContinuous(contKeysSet.First.Key)
           else
-            if cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) = 0 
-                  && fillContinuousValuesAtKey(pivotKeysSet.First.Key) then
-              for kvp in pivotKeysSet.AsEnumerable() do
+            // if we are lucky and have equal keys right after MoveFirst of each cursors
+            if cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 
+                  && fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
+              for kvp in discreteKeysSet.AsEnumerable() do
                 currentValues.[kvp.Value] <- cursors.[kvp.Value].CurrentValue
-              this.CurrentKey <- pivotKeysSet.First.Key
+              this.CurrentKey <- discreteKeysSet.First.Key
               valuesOk <- true
               doContinue <- false 
             else
               // move to max key until min key matches max key so that we can use values
               valuesOk <- doMoveNextDescrete()
-              doContinue <- not valuesOk
+              doContinue <- valuesOk
       if valuesOk then 
         this.HasValidState <- true
         true
@@ -1550,7 +1561,7 @@ and
       let mutable cont = true
       let mutable valuesOk = false
       let mutable allMovedLast = false
-      pivotKeysSet.Clear()
+      discreteKeysSet.Clear()
       contKeysSet.Clear()
       while cont do
         if not allMovedLast then
@@ -1561,7 +1572,7 @@ and
               if continuous.[i] then 
                 contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
               else
-                pivotKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+                discreteKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
               currentValues.[i] <- x.CurrentValue
             else
               cont <- false // series has no values, stop here
@@ -1576,11 +1587,11 @@ and
             else
               valuesOk <- doMovePrevContinuous(contKeysSet.Last.Key)
           else
-            if cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) = 0 
-                  && fillContinuousValuesAtKey(pivotKeysSet.First.Key) then
-              for kvp in pivotKeysSet.AsEnumerable() do
+            if cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 
+                  && fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
+              for kvp in discreteKeysSet.AsEnumerable() do
                 currentValues.[kvp.Value] <- cursors.[kvp.Value].CurrentValue
-              this.CurrentKey <- pivotKeysSet.First.Key
+              this.CurrentKey <- discreteKeysSet.First.Key
               valuesOk <- true
               cont <- false 
             else
@@ -1596,26 +1607,28 @@ and
       let mutable cont = true
       let mutable valuesOk = false
       let mutable allMovedAt = false
-      pivotKeysSet.Clear()
-      //contKeysSet.Clear()
+      discreteKeysSet.Clear()
+      contKeysSet.Clear()
       while cont do
         if not allMovedAt then
-          // WTF! we must MoveAt only discrete cursors! MoveAt for continuous only moves to
           cursors 
           |> Array.iteri (fun i x ->
-            if not continuous.[i] then 
+            if continuous.[i] then
+              let movedAt = x.MoveAt(key, direction)
+              // if all cursors are continuous then at least one of them must move at a key
+              if isContinuous && movedAt then 
+                allMovedAt <- true
+              contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+            else
               let movedAt = x.MoveAt(key, direction)
               if movedAt then
-                if continuous.[i] then 
-                  contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
-                else
-                  pivotKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+                discreteKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+                // TODO remove, access values only when keys are equal
                 currentValues.[i] <- x.CurrentValue
               else
                 cont <- false // series has no values, stop here
-//            else
-//              let hasValue, v = x.TryGetValue
           )
+          if isContinuous && not allMovedAt then cont <- false
           allMovedAt <- cont
         else
           if isContinuous then
@@ -1627,9 +1640,15 @@ and
               cont <- false 
             else
               match direction with
-              | Lookup.EQ -> 
-                valuesOk <- false
-                cont <- false
+              | Lookup.EQ ->
+                // at least one continuous cursor moved exactly to this key
+                if fillContinuousValuesAtKey(key) then
+                  this.CurrentKey <- key
+                  valuesOk <- true
+                  cont <- false
+                else
+                  valuesOk <- false
+                  cont <- false
               | Lookup.LE | Lookup.LT ->
                 if fillContinuousValuesAtKey(contKeysSet.Last.Key) then
                   this.CurrentKey <- contKeysSet.Last.Key
@@ -1650,11 +1669,11 @@ and
                   cont <- not valuesOk
               | _ -> failwith "Wrong lookup direction, should never be there"
           else
-            if cmp.Compare(pivotKeysSet.First.Key, pivotKeysSet.Last.Key) = 0 
-                  && fillContinuousValuesAtKey(pivotKeysSet.First.Key) then
-              for kvp in pivotKeysSet.AsEnumerable() do
+            if cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 
+                  && fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
+              for kvp in discreteKeysSet do
                 currentValues.[kvp.Value] <- cursors.[kvp.Value].CurrentValue
-              this.CurrentKey <- pivotKeysSet.First.Key
+              this.CurrentKey <- discreteKeysSet.First.Key
               valuesOk <- true
               cont <- false 
             else

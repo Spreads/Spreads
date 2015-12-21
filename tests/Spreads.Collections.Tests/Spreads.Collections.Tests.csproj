@@ -79,6 +79,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Contracts\ContractsTests.cs" />
+    <Compile Include="Contracts\ReadmeTests.cs" />
     <Compile Include="Cursors\BatchMapValuesCursorTests.cs" />
     <Compile Include="Cursors\MiscCursorsTests.cs" />
     <Compile Include="Cursors\MissingValuesCursorsTests.cs" />
