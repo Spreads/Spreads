@@ -97,7 +97,10 @@ type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
   #endif
       // input cursor moved before calling this method, we keep lagged cursor where it was and increment the current lag value
       currentLag <- currentLag + 1u
-      if currentLag = lag then true else false
+      if currentLag = lag then 
+        value <- laggedCursor.CurrentValue
+        true
+      else false
 
   override this.TryUpdatePrevious(previous:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
     // TODO check this: MovePrevious is called only from MoveLast/MoveAt or valid state, if last was not able to create state, the series is shorter than lag
@@ -285,9 +288,9 @@ type ZipLagAllowIncompleteCursor<'K,'V,'R>
   #if PRERELEASE
         Trace.Assert((moved), "This should not happen by design")
   #endif
-        value <- mapCurrentPrevN.Invoke(this.InputCursor.Current, laggedCursor.Current, currentLag)
         currentSteps <- currentSteps + 1u
         if currentSteps = step then
+          value <- mapCurrentPrevN.Invoke(this.InputCursor.Current, laggedCursor.Current, currentLag)
           currentSteps <- 0u
           true
         else
@@ -295,9 +298,9 @@ type ZipLagAllowIncompleteCursor<'K,'V,'R>
       elif currentLag < zeroBasedLag && allowIncomplete then
         // do not move lagged cursor here
         currentLag <- currentLag + 1u
-        value <- mapCurrentPrevN.Invoke(this.InputCursor.Current, laggedCursor.Current, currentLag)
         currentSteps <- currentSteps + 1u
         if currentSteps = step then
+          value <- mapCurrentPrevN.Invoke(this.InputCursor.Current, laggedCursor.Current, currentLag)
           currentSteps <- 0u
           true
         else
@@ -330,7 +333,7 @@ type ZipLagAllowIncompleteCursor<'K,'V,'R>
     elif allowIncomplete && currentLag > 0u then
       currentLag <- currentLag - 1u
       value <- mapCurrentPrevN.Invoke(this.InputCursor.Current, laggedCursor.Current, currentLag)
-      // TODO rewrite this similar to TryUpdateNext
+      // TODO rewrite this similar to TryUpdateNext (i do not understand this on second read, it is non obvious)
       if this.HasValidState then
         currentSteps <- currentSteps + 1u
         if currentSteps = step then

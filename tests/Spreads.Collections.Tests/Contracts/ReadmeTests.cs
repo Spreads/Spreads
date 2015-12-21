@@ -75,7 +75,65 @@ namespace Spreads.Collections.Tests.Contracts {
 
 
         [Test]
-        public void ZipNFromLogoAndReadmeRepeatFillCouldMoveNextAfterMoveAt()
+        public void ZipNFromLogoAndReadmeRepeatCouldMoveCursorCorrectly() {
+            var upper = new SortedMap<int, int> { { 2, 2 }, { 4, 4 } };
+            var lower = new SortedMap<int, int> { { 1, 10 }, { 3, 30 }, { 5, 50 } };
+            var sum = (upper.Repeat() + lower);
+            var cursor = sum.GetCursor();
+
+            Assert.AreEqual(32, sum[3]);
+            Assert.AreEqual(54, sum[5]);
+
+            Assert.IsFalse(cursor.MoveAt(1, Lookup.EQ));
+            Assert.IsTrue(cursor.MoveAt(1, Lookup.GE));
+            Assert.AreEqual(3, cursor.CurrentKey);
+            Assert.AreEqual(32, cursor.CurrentValue);
+
+            // move forward
+
+            Assert.IsTrue(cursor.MoveNext());
+            Assert.AreEqual(5, cursor.CurrentKey);
+            Assert.AreEqual(54, cursor.CurrentValue);
+
+            // finished
+            Assert.IsFalse(cursor.MoveNext());
+
+            //// move back
+
+            Assert.IsTrue(cursor.MovePrevious());
+            Assert.AreEqual(3, cursor.CurrentKey);
+            Assert.AreEqual(32, cursor.CurrentValue);
+
+            // async moves
+            Assert.IsTrue(cursor.MoveNext(CancellationToken.None).Result);
+            Assert.AreEqual(5, cursor.CurrentKey);
+            Assert.AreEqual(54, cursor.CurrentValue);
+
+            var moved = false;
+            var t = Task.Run(async () => {
+                moved = await cursor.MoveNext(CancellationToken.None);
+            });
+
+            // add new value
+            lower.Add(6, 60);
+            t.Wait();
+            Assert.IsTrue(moved);
+            Assert.AreEqual(6, cursor.CurrentKey);
+            Assert.AreEqual(4 + 60, cursor.CurrentValue);
+
+            // when all sources are marked as immutable/complete, MNA must return false
+            var t2 = Task.Run(async () => {
+                moved = await cursor.MoveNext(CancellationToken.None);
+            });
+            upper.IsMutable = false;
+            lower.IsMutable = false;
+            t2.Wait();
+            Assert.IsFalse(moved);
+
+        }
+
+        [Test]
+        public void ZipNFromLogoAndReadmeRepeatFillCouldMoveCursorCorrectly()
         {
             var upper = new SortedMap<int, int> { { 2, 2 }, { 4, 4 } };
             var lower = new SortedMap<int, int> { { 1, 10 }, { 3, 30 }, { 5, 50 } };
