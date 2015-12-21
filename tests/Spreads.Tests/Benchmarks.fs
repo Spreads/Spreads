@@ -1199,6 +1199,8 @@ module CollectionsBenchmarks =
 //    DeedleDeque_run()
 
 //    Console.WriteLine("MAPS")
+    SeriesNestedMap_run()
+    CompareFunctionalBindCursorWithCursorBind_run()
     DeedleSeries_run()
 //    FSXHashMap_run()
 //    IntMap64_run()
