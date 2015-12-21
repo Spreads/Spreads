@@ -45,7 +45,9 @@ type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
     if isMove then
       if laggedCursor = Unchecked.defaultof<_> then laggedCursor <- this.InputCursor.Clone()
       let moved = laggedCursor.MoveAt(key, Lookup.EQ)
-      if not moved then raise (ApplicationException("This should not happen by design"))
+      // NB! when isMove is true, we must ensure that input cursor is at key before calling this TryGetValue method
+      if not moved then 
+        raise (ApplicationException("This should not happen by design"))
       currentLag <- 0u
       let mutable cont = true
       while currentLag < lag && cont do

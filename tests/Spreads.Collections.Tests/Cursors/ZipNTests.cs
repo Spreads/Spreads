@@ -485,7 +485,7 @@ namespace Spreads.Collections.Tests.Cursors {
                 }
             }
             // assertion failure
-            var repeated = sm2.Repeat().ToSortedMap();
+            var repeated = sm2.Map(x => x + 0).Repeat(); //.ToSortedMap();
             var cursor1 = repeated.GetCursor();
 
             var result = repeated.Zip(sm1, (k, p, d) => p); //.Lag(1u); // .Fill(0)
@@ -498,7 +498,7 @@ namespace Spreads.Collections.Tests.Cursors {
             //Assert.IsTrue(clone.MoveNext());
 
 
-            //var sm = result.ToSortedMap();
+            var sm = result.ToSortedMap();
             //Console.WriteLine(result.Count());
 
 

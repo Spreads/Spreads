@@ -634,8 +634,10 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
       clearState(moveState) // we are moving from a valid value to new value, must clear existing value
       hasValidState <- false
 
-    if (inputCursor.Comparer.Compare(index, this.InputCursor.CurrentKey) = 0 && not (direction = Lookup.LT || direction = Lookup.GT)) 
-        || this.InputCursor.MoveAt(index, direction) then
+    // TODO we must MoveAt, otherwise TryGetValue could throw assertion failure. Probably just need to add .HasValidState check
+//    if (inputCursor.Comparer.Compare(index, this.InputCursor.CurrentKey) = 0 && not (direction = Lookup.LT || direction = Lookup.GT)) 
+//        || this.InputCursor.MoveAt(index, direction) then
+    if this.InputCursor.MoveAt(index, direction) then
       #if PRERELEASE
       let before = inputCursor.CurrentKey
       #endif
