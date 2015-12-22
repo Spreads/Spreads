@@ -1483,6 +1483,28 @@ namespace Spreads.Collections.Tests.Cursors {
 
         }
 
+        [Test]
+        public void ContinuousZipWithEmptySeriesIsEmpty()
+        {
+            var sm1 = new SortedMap<int, int>();
+            var sm2 = new SortedMap<int, int>();
+
+            var rp1 = sm1.Repeat();
+            var rp2 = sm2.Repeat();
+
+            var zip = rp1.Zip(rp2, (l, r) => l + r);
+            Assert.AreEqual(0, zip.Count());
+
+            sm1.Add(1, 1);
+            var zip2 = rp1.Zip(rp2, (l, r) => l + r);
+            Assert.AreEqual(0, zip2.Count());
+
+            var cursor = zip.GetCursor();
+            Assert.IsFalse(cursor.MoveNext());
+
+            var cursor2 = zip2.GetCursor();
+            Assert.IsFalse(cursor2.MoveNext());
+        }
 
         [Test]
         public void ContinuousZipIsCorrectByRandomCheckMultipleRun() {
