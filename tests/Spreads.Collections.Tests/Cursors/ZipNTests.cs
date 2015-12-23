@@ -1504,6 +1504,10 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var cursor2 = zip2.GetCursor();
             Assert.IsFalse(cursor2.MoveNext());
+
+            var fill = sm2.Fill(0);
+            var zip3 = rp1.Zip(fill, (l, r) => l + r);
+            Assert.AreEqual(1, zip3.Count());
         }
 
         [Test]

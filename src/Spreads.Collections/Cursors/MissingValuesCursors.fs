@@ -157,10 +157,10 @@ type internal FillCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, fillValue:'V
         value <- fillValue
       true
 
-  // Fill().Map() is equivalent to Map().Fill()
-  interface ICanMapSeriesValues<'K,'V> with
-    member this.Map<'V2>(f:Func<'V,'V2>): Series<'K,'V2> =
-      new FillCursor<'K,'V2>((fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f) :> ICursor<'K,'V2>), f.Invoke(fillValue)) :> Series<'K,'V2>
+  // Fill().Map() is equivalent to Map().Fill() // See issue #10 before turning this on
+//  interface ICanMapSeriesValues<'K,'V> with
+//    member this.Map<'V2>(f:Func<'V,'V2>): Series<'K,'V2> =
+//      new FillCursor<'K,'V2>((fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f) :> ICursor<'K,'V2>), f.Invoke(fillValue)) :> Series<'K,'V2>
 
 
 

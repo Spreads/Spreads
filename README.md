@@ -240,7 +240,7 @@ Extensions for additional functionality. However, there are many features still 
 to Deedle or Streams, e.g. aggregation, grouping, resampling. They could be easily 
 implemented via `BindCursor`.
 
-Correctness [is paramount](http://qz.com/119578/damn-you-excel-spreadsheets-jp-morgan-edition/)
+Correctness is paramount
 for this kind of code and its intended usage - some subtle bugs could cause big damage.
 Therefore, one of the main goals is exhaustive random testing of calculations. ZipN tests contain
 an example where reference series are generated manually from random data and then compared to ZipN output.
