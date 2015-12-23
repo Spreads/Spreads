@@ -214,5 +214,24 @@ namespace Spreads.Collections.Tests.Contracts {
 
         }
 
+
+        [Test]
+        public void SmaDeviationTest()
+        {
+            var data = new SortedMap<DateTime, double>();
+            for (int i = 1; i < 101; i++)
+            {
+                data.Add(DateTime.UtcNow.Date.AddMinutes(i), i);
+            }
+
+            var sma = data.SMA(20, true);
+            var deviation = (data/sma - 1);
+            var deviationSm = deviation;
+            var smaDirection = deviation.Map(Math.Sign);
+            Assert.AreEqual(100, smaDirection.Count());
+            Assert.AreEqual(100, deviation.Count());
+            
+        }
+
     }
 }

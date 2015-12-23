@@ -395,7 +395,10 @@ and
         if not this.started && threadId = Environment.CurrentManagedThreadId then 
           this.started <- true
           this 
-        else this.Clone()
+        else 
+          let cс : BatchMapValuesCursor<_,_,_> = this.Clone()
+          cс.Reset()
+          cс
       cursor.started <- true
       cursor :> ICursor<'K,'V2>
 
