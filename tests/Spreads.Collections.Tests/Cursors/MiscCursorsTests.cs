@@ -390,5 +390,33 @@ namespace Spreads.Collections.Tests.Cursors {
             // 
         }
 
+
+        [Test]
+        public void ZipLagIssue11Test() {
+            var data = new SortedChunkedMap<DateTime, double>();
+
+            var count = 5000;
+
+            for (int i = 0; i < count; i++) {
+                data.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+            }
+
+            var laggedSma = data.SMA(20, true).Lag(1u);
+            Console.WriteLine($"laggedSma count: {laggedSma.Count()}");
+
+            var deviation = (data/laggedSma - 1.0);
+
+            // this line or any other intermediate enumeration affect the last line
+            Console.WriteLine($"deviation count: {deviation.Count()}");
+
+            var direction = deviation.Map(x => (Math.Sign(x)));
+
+            //Console.WriteLine($"direction count: {direction.Count()}");
+
+            var diff = direction.ZipLag(1u, (c, p) => c - p); //.ToSortedMap();
+
+            Console.WriteLine($"Count: {diff.Count()}");
+            //Assert.IsTrue(diff.Count() > 0);
+        }
     }
 }
