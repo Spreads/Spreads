@@ -392,11 +392,8 @@ and
     val mutable started : bool
     override this.GetCursor() =
       let cursor = 
-        if not this.started && threadId = Environment.CurrentManagedThreadId then 
-          this.started <- true
-          this 
+        if not this.started && threadId = Environment.CurrentManagedThreadId then this 
         else new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, fBatch)
-
       cursor.started <- true
       cursor :> ICursor<'K,'V2>
 
