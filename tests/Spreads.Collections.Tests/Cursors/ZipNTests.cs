@@ -1507,7 +1507,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var fill = sm2.Fill(0);
             var zip3 = rp1.Zip(fill, (l, r) => l + r);
-            Assert.AreEqual(1, zip3.Count());
+            Assert.AreEqual(0, zip3.Count());
         }
 
         [Test]
