@@ -1,6 +1,10 @@
+#### 0.2.2 - December 28, 2015
+* Bug fixes.
+* Improve performance of ZipN, #9 was on the hot path and used try/catch with exceptions.
+
 #### 0.2.1 - December 21, 2015
-* Fix ZipN #1 and comparer #3 bugs
-* Fix bug in LagCursor
+* Fix ZipN #1 and comparer #3 bugs.
+* Fix bug in LagCursor.
 
 #### 0.2.0 - December 20, 2015
 * The first public version. See Readme for details.

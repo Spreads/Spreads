@@ -539,13 +539,11 @@ type SortedChunkedMap<'K,'V>
       false
         
   member this.TryGetValue(k, [<Out>] value:byref<'V>) =
-    try
-      value <- this.Item(k)
+    let ok, kvp = this.TryFind(k, Lookup.EQ)
+    if ok then
+      value <- kvp.Value
       true
-    with
-    | :? KeyNotFoundException -> 
-      value <- Unchecked.defaultof<'V>
-      false
+    else false
 
   member this.Add(key, value):unit =
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
