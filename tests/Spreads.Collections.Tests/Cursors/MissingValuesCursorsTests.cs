@@ -144,5 +144,47 @@ namespace Spreads.Collections.Tests.Cursors {
             Assert.IsFalse(c.MoveNext());
 
         }
+
+
+        [Test]
+        public void CouldZipAllEmptyFillSeries() {
+            var sm = new SortedMap<DateTime, double>();
+            var one = sm.Fill(1.0);
+            var two = sm.Fill(2.0);
+            var three = one + two;
+
+            var threeeCursor = three.GetCursor();
+            Assert.IsFalse(threeeCursor.MoveNext());
+            double v;
+            Assert.IsTrue(threeeCursor.TryGetValue(DateTime.Now, out v));
+            Assert.AreEqual(3.0, v);
+            Assert.IsTrue(three.TryGetValue(DateTime.Now, out v));
+            Assert.AreEqual(3.0, v);
+        }
+
+        [Test]
+        public void CouldZipOneEmptyFillSeries() {
+            var sm = new SortedMap<DateTime, double>();
+            var sm2 = new SortedMap<DateTime, double>();
+            sm2.Add(DateTime.Today, 42.0);
+            var one = sm.Fill(1.0);
+            var two = sm2.Fill(2.0);
+            var three = one + two;
+
+            var threeeCursor = three.GetCursor();
+            
+            Assert.IsTrue(threeeCursor.MoveNext());
+            Assert.AreEqual(DateTime.Today, threeeCursor.CurrentKey);
+            Assert.AreEqual(43.0, threeeCursor.CurrentValue);
+
+            double v;
+            Assert.IsTrue(threeeCursor.TryGetValue(DateTime.Now, out v));
+            Assert.AreEqual(3.0, v);
+            Assert.IsTrue(three.TryGetValue(DateTime.Now, out v));
+            Assert.AreEqual(3.0, v);
+
+            Assert.IsTrue(three.TryGetValue(DateTime.Today, out v));
+            Assert.AreEqual(43.0, v);
+        }
     }
 }
