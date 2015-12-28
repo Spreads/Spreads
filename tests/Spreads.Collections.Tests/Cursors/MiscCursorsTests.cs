@@ -393,7 +393,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         public void ZipLagIssue11Test() {
-            var data = new SortedChunkedMap<DateTime, double>();
+            OptimizationSettings.CombineFilterMapDelegates = false;
+            var data = new SortedMap<DateTime, double>();
 
             var count = 5000;
 
@@ -401,19 +402,23 @@ namespace Spreads.Collections.Tests.Cursors {
                 data.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
 
-            var laggedSma = data.SMA(20, true).Lag(1u);
-            Console.WriteLine($"laggedSma count: {laggedSma.Count()}");
+            var sma = data.SMA(20, true);
+            Console.WriteLine($"laggedSma count: {sma.Count()}");
 
-            var deviation = (data/laggedSma - 1.0);
+            var minusOne = sma - 1.0;
+
+            Console.WriteLine($"minusOne count: {minusOne.Count()}");
+
+            var deviation = (data/ minusOne);
 
             // this line or any other intermediate enumeration affect the last line
-            Console.WriteLine($"deviation count: {deviation.Count()}");
+            //Console.WriteLine($"deviation count: {deviation.Count()}");
 
-            var direction = deviation.Map(x => (Math.Sign(x)));
+            //var direction = deviation.Map(x => (Math.Sign(x)));
 
             //Console.WriteLine($"direction count: {direction.Count()}");
 
-            var diff = direction.ZipLag(1u, (c, p) => c - p); //.ToSortedMap();
+            var diff = deviation.ZipLag(1u, (c, p) => c - p); //.ToSortedMap();
 
             Console.WriteLine($"Count: {diff.Count()}");
             //Assert.IsTrue(diff.Count() > 0);

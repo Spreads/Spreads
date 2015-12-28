@@ -493,7 +493,7 @@ type ScanLagAllowIncompleteCursor<'K,'V,'R>
     this.TryGetValue(previous.Key, true, &value)
 
   override this.Clone() = 
-    let clone = new ScanLagAllowIncompleteCursor<'K,'V, 'R>(cursorFactory, width, step, initState, updateStateAddSubstract, allowIncomplete) :> ICursor<'K,'R>
+    let clone = new ScanLagAllowIncompleteCursor<'K,'V,'R>(cursorFactory, width, step, initState, updateStateAddSubstract, allowIncomplete) :> ICursor<'K,'R>
     if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 

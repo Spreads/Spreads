@@ -201,7 +201,7 @@ and
 //                v
 //              OptionalValue(Func<_,_>(fBatch'))
 //            else None
-        new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(source.GetCursor), mapF, fBatch) :> Series<'K,'V2>
+        CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(source.GetCursor), mapF, fBatch) :> ICursor<_,_>) :> Series<'K,'V2>
 #if PRERELEASE // we could switch off this optimization in prerelease builds
       if OptimizationSettings.CombineFilterMapDelegates then
         match box source with
@@ -355,6 +355,7 @@ and
   /// Wraps Series over ICursor
   [<AllowNullLiteral>]
   [<Serializable>]
+  [<SealedAttribute>]
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   CursorSeries<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
     inherit Series<'K,'V>()
@@ -365,7 +366,7 @@ and
         let cursor = cursorFactory.Invoke()
         match cursor with
         | :? ICanMapSeriesValues<'K,'V> as mappable -> mappable.Map(f2)
-        | _ -> new BatchMapValuesCursor<_,_,_>((fun _ -> cursor), f2) :> Series<_,_>
+        | _ -> CursorSeries(fun _ -> new BatchMapValuesCursor<_,_,_>((fun _ -> cursor), f2) :> ICursor<_,_>) :> Series<_,_>
 
 
 
@@ -374,7 +375,7 @@ and
   /// Map values to new values, batch mapping if that makes sense (for simple operations additional logic overhead is usually bigger than)
   [<SealedAttribute>]
   internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> option)=
-    inherit Series<'K,'V2>()
+    //inherit Series<'K,'V2>()
     let mutable cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
     
     let f : Func<'V,'V2> = f
@@ -386,16 +387,6 @@ and
     let mutable batch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
     let mutable batchCursor = Unchecked.defaultof<ICursor<'K,'V2>>
     let queue = if preferBatches then Queue<Task<_>>() else Unchecked.defaultof<_>
-
-    let threadId = Environment.CurrentManagedThreadId
-    [<DefaultValueAttribute>]
-    val mutable started : bool
-    override this.GetCursor() =
-      let cursor = 
-        if not this.started && threadId = Environment.CurrentManagedThreadId then this 
-        else new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, fBatch)
-      cursor.started <- true
-      cursor :> ICursor<'K,'V2>
 
     new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, None)
     new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>,fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, Some(fBatch))
@@ -537,8 +528,9 @@ and
         batchCursor <- Unchecked.defaultof<ICursor<'K,'V2>>
       if preferBatches then queue.Clear()
       cursor.Reset()
-      this.started <- false
-    member this.Clone() = new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(cursor.Clone), f, fBatch)
+
+    member this.Clone() = 
+      new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(cursor.Clone), f, fBatch)
 
     interface IEnumerator<KVP<'K,'V2>> with    
       member this.Reset() = this.Reset()
@@ -579,7 +571,7 @@ and
         //  let lambda = Expression.Lambda<Func<'V,'V3>>(invokeExp, arg)
         //  lambda.Compile()
         let combinedF : Func<'V,'V3> = func
-        new BatchMapValuesCursor<'K,'V,'V3>(cursorFactory, combinedF) :> Series<'K,'V3>
+        CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V3>(cursorFactory, combinedF) :> ICursor<_,_>) :> Series<'K,'V3>
 
 
 // TODO! (perf) see text in the Obsolete attribute below. We must rewrite this and test with random inputs as in ZipN. This is a hot path and optimizing this is one of the priorities. However, ZipN is not that slow and we should implement other TODO!s first.
@@ -1515,10 +1507,16 @@ and
         else
           let doContinue =
             if cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 then
+              #if PRERELEASE
+              if cursors.Select(fun c' -> c'.CurrentKey).Distinct().Count() > 1 then
+                Console.WriteLine("Catch me")
+              //Trace.Assert(cursors.Select(fun c' -> c'.CurrentKey).Distinct().Count() = 1, "discreteKeysSet's equal keys condition requires this")
+              #endif
               let first = discreteKeysSet.RemoveFirst()
               let ac = cursors.[first.Value]
               if ac.MoveNext() then
-                currentValues.[first.Value] <- ac.CurrentValue
+                // TODO (delete this line after ZipN rework, look for similar cases). We set values when keys are ok inside doMoveNextDescrete, and we could avoid evaluting CV if it is lazy until keys are OK
+                //currentValues.[first.Value] <- ac.CurrentValue
                 discreteKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
                 true
               else
