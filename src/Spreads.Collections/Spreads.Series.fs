@@ -1507,11 +1507,12 @@ and
         else
           let doContinue =
             if cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 then
-              #if PRERELEASE
-              if cursors.Select(fun c' -> c'.CurrentKey).Distinct().Count() > 1 then
-                Console.WriteLine("Catch me")
-              //Trace.Assert(cursors.Select(fun c' -> c'.CurrentKey).Distinct().Count() = 1, "discreteKeysSet's equal keys condition requires this")
-              #endif
+                // TODO add proper check for discrete only
+//              #if PRERELEASE
+//              if cursors.Select(fun c' -> c'.CurrentKey).Distinct().Count() > 1 then
+//                Console.WriteLine("Catch me")
+//              //Trace.Assert(cursors.Select(fun c' -> c'.CurrentKey).Distinct().Count() = 1, "discreteKeysSet's equal keys condition requires this")
+//              #endif
               let first = discreteKeysSet.RemoveFirst()
               let ac = cursors.[first.Value]
               if ac.MoveNext() then
