@@ -1,3 +1,6 @@
+#### 0.2.3 - December 28, 2015
+* Bug fixes.
+
 #### 0.2.2 - December 28, 2015
 * Bug fixes.
 * Improve performance of ZipN, #9 was on the hot path and used try/catch with exceptions.
