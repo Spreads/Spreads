@@ -43,15 +43,15 @@ type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
 
   override this.TryGetValue(key:'K, isMove:bool, [<Out>] value: byref<'V>): bool =
     if isMove then
-      if laggedCursor = Unchecked.defaultof<_> then laggedCursor <- this.InputCursor.Clone()
+      if laggedCursor = Unchecked.defaultof<_> then 
+        laggedCursor <- this.InputCursor.Clone()
+      else
+        let moved = laggedCursor.MoveAt(key, Lookup.EQ)
+        if not moved then raise (ApplicationException("This should not happen by design"))
       #if PRERELEASE
       Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,key) = 0 )
       Trace.Assert(laggedCursor.Comparer.Compare(this.InputCursor.CurrentKey,key) = 0 )
       #endif
-      //let moved = laggedCursor.MoveAt(key, Lookup.EQ)
-      // NB! when isMove is true, we must ensure that input cursor is at key before calling this TryGetValue method
-//      if not moved then 
-//        raise (ApplicationException("This should not happen by design"))
       currentLag <- 0u
       let mutable cont = true
       while currentLag < lag && cont do
@@ -140,15 +140,15 @@ type ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapC
   
   override this.TryGetValue(key:'K, isMove:bool, [<Out>] value: byref<'R>): bool =
     if isMove then
-      if laggedCursor = Unchecked.defaultof<_> then laggedCursor <- this.InputCursor.Clone()
+      if laggedCursor = Unchecked.defaultof<_> then 
+        laggedCursor <- this.InputCursor.Clone()
+      else 
+        let moved = laggedCursor.MoveAt(key, Lookup.EQ)
+        if not moved then raise (ApplicationException("This should not happen by design"))
       #if PRERELEASE
       Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,key) = 0 )
       Trace.Assert(laggedCursor.Comparer.Compare(this.InputCursor.CurrentKey,key) = 0 )
       #endif
-//      //if not this.HasValidState then 
-//
-//      let moved = laggedCursor.MoveAt(key, Lookup.EQ)
-//      if not moved then raise (ApplicationException("This should not happen by design"))
       currentLag <- 0u
       let mutable cont = true
       while currentLag < lag && cont do
@@ -247,13 +247,15 @@ type ZipLagAllowIncompleteCursor<'K,'V,'R>
 
   override this.TryGetValue(key:'K, isMove:bool, [<Out>] value: byref<'R>): bool =
     if isMove then
-      if laggedCursor = Unchecked.defaultof<_> then laggedCursor <- this.InputCursor.Clone()
+      if laggedCursor = Unchecked.defaultof<_> then 
+        laggedCursor <- this.InputCursor.Clone()
+      else
+        let moved = laggedCursor.MoveAt(key, Lookup.EQ)
+        if not moved then raise (ApplicationException("This should not happen by design"))
       #if PRERELEASE
       Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,key) = 0 )
       Trace.Assert(laggedCursor.Comparer.Compare(this.InputCursor.CurrentKey,key) = 0 )
       #endif
-//      let moved = laggedCursor.MoveAt(key, Lookup.EQ)
-//      if not moved then raise (ApplicationException("This should not happen by design"))
       currentLag <- 0u
       let mutable cont = true
       while currentLag < zeroBasedLag && cont do
@@ -392,13 +394,15 @@ type ScanLagAllowIncompleteCursor<'K,'V,'R>
 
   override this.TryGetValue(key:'K, isMove:bool, [<Out>] value: byref<'R>): bool =
     if isMove then
-      if laggedCursor = Unchecked.defaultof<_> then laggedCursor <- this.InputCursor.Clone()
+      if laggedCursor = Unchecked.defaultof<_> then 
+        laggedCursor <- this.InputCursor.Clone()
+      else
+        let moved = laggedCursor.MoveAt(key, Lookup.EQ)
+        if not moved then raise (ApplicationException("This should not happen by design"))
       #if PRERELEASE
       Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,key) = 0 )
       Trace.Assert(laggedCursor.Comparer.Compare(this.InputCursor.CurrentKey,key) = 0 )
       #endif
-//      let moved = laggedCursor.MoveAt(key, Lookup.EQ)
-//      if not moved then raise (ApplicationException("This should not happen by design"))
       currentWidth <- 0u
       currentState <- initState.Invoke()
 
