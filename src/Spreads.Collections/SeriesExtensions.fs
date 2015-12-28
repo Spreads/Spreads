@@ -46,7 +46,7 @@ type SeriesExtensions () =
 
     [<Extension>]
     static member  Repeat(source: ISeries<'K,'V>) : Series<'K,'V> = 
-      new RepeatCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor)) :> Series<'K,'V>
+      CursorSeries(fun _ -> new RepeatCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor)) :> ICursor<_,_> ) :> Series<'K,'V>
 
 
     /// TODO check if input cursor is MapValuesCursor or FilterValuesCursor cursor and repack them into
@@ -83,7 +83,7 @@ type SeriesExtensions () =
     /// Fill missing values with the given value
     [<Extension>]
     static member Fill(source: ISeries<'K,'V>, fillValue:'V) : Series<'K,'V> = 
-      new FillCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), fillValue) :> Series<'K,'V>
+      CursorSeries(fun _ -> new FillCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), fillValue) :> ICursor<_,_> ) :> Series<'K,'V>
 
     [<Extension>]
     static member Lag(source: ISeries<'K,'V>, lag:uint32) : Series<'K,'V> = 

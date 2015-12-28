@@ -366,7 +366,14 @@ and
         let cursor = cursorFactory.Invoke()
         match cursor with
         | :? ICanMapSeriesValues<'K,'V> as mappable -> mappable.Map(f2)
-        | _ -> CursorSeries(fun _ -> new BatchMapValuesCursor<_,_,_>((fun _ -> cursor), f2) :> ICursor<_,_>) :> Series<_,_>
+        | _ -> 
+          CursorSeries(fun _ ->
+                // NB #11 we had (fun _ -> cursor) as factory, but that was a closure over cursor instance
+                // with the current design, we cannot reuse the cursor allocated to check its interface implementation
+                // we must dispose it and provide factory here
+                cursor.Dispose()
+                new BatchMapValuesCursor<_,_,_>(cursorFactory, f2) :> ICursor<_,_>
+              ) :> Series<_,_>
 
 
 
@@ -1511,7 +1518,7 @@ and
 //              #if PRERELEASE
 //              if cursors.Select(fun c' -> c'.CurrentKey).Distinct().Count() > 1 then
 //                Console.WriteLine("Catch me")
-//              //Trace.Assert(cursors.Select(fun c' -> c'.CurrentKey).Distinct().Count() = 1, "discreteKeysSet's equal keys condition requires this")
+//              Trace.Assert(cursors.Select(fun c' -> c'.CurrentKey).Distinct().Count() = 1, "discreteKeysSet's equal keys condition requires this")
 //              #endif
               let first = discreteKeysSet.RemoveFirst()
               let ac = cursors.[first.Value]

@@ -34,24 +34,10 @@ open Spreads.Collections
 
 // Repeat, fill and other (TODO linear interpolate, cubic splines, trend, .... limited by fantasy and actuals needs: arima forecast, kalman filter)
 
-
 type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
-  inherit Series<'K,'V>()
-  
+ 
   let cursor = cursorFactory.Invoke()
   let mutable lookupCursor = Unchecked.defaultof<ICursor<'K,'V>>
-
-  let threadId = Environment.CurrentManagedThreadId
-  [<DefaultValueAttribute>]
-  val mutable started : bool
-  override this.GetCursor() =
-    let cursor = 
-      if not this.started && threadId = Environment.CurrentManagedThreadId then 
-        this.started <- true
-        this 
-      else this.Clone()
-    cursor.started <- true
-    cursor :> ICursor<'K,'V>
 
   member this.Clone() = new RepeatCursor<'K,'V>(fun _ -> cursor.Clone())
 
@@ -108,25 +94,14 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
   // Repeat().Map() is equivalent to Map().Repeat()
   interface ICanMapSeriesValues<'K,'V> with
     member this.Map<'V2>(f:Func<'V,'V2>): Series<'K,'V2> =
-      new RepeatCursor<'K,'V2>(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f) :> ICursor<'K,'V2>) :> Series<'K,'V2>
+      CursorSeries(fun _ -> new RepeatCursor<'K,'V2>(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f) :> ICursor<'K,'V2>) :> ICursor<_,_>) :> Series<'K,'V2>
 
 
 
 
 type internal FillCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, fillValue:'V) =
-  inherit Series<'K,'V>()
-  
+ 
   let cursor = cursorFactory.Invoke()
-
-  let threadId = Environment.CurrentManagedThreadId
-  [<DefaultValueAttribute>]
-  val mutable started : bool
-
-  override this.GetCursor() =
-    this.started <- true
-    let cursor = if not this.started && threadId = Environment.CurrentManagedThreadId then this else this.Clone()
-    cursor.started <- true
-    cursor :> ICursor<'K,'V>
 
   member this.Clone() = new FillCursor<'K,'V>((fun _ -> cursor.Clone()), fillValue)
 
