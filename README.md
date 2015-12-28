@@ -39,7 +39,7 @@ For regular keys - keys that have equal difference between them (e.g. seconds) -
 only the first key and the step size, reducing memory usage for `<DateTime,T>` data item by
 8 bytes. So `<DateTime,double>` data item takes only 8 bytes inside Spreads series instead of 16.
 The gains of this optimization are not obvious on microbenchmarks with a single
-series, and one could argue that memory is cheap. However, L1/L2 caches
+series, and one could argue that memory is cheap. However, L1/L2/L3 caches
 are still small, and saving 50% of memory allows to place two times
 more useful data in the caches and to avoid needless cache trashing.
 

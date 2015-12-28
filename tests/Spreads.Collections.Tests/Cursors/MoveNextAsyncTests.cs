@@ -336,6 +336,104 @@ namespace Spreads.Collections.Tests.Cursors {
 
         }
 
+
+
+        [Test]
+        public void CouldUseCacheExtensionMethod() {
+            var count = 100;
+            var sw = new Stopwatch();
+            sw.Start();
+
+            var sm = new SortedChunkedMap<DateTime, double>();
+            sm.IsSynchronized = true;
+
+            var addTask = Task.Run(async () => {
+                await Task.Delay(50);
+                for (int i = 0; i < count; i++) {
+                    sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                    //await Task.Delay(1);
+                }
+            });
+
+            var cached = sm.Cache();
+
+            double sum = 0.0;
+            var sumTask = Task.Run(async () => {
+                var c = cached.GetCursor();
+                while (c.MoveNext()) {
+                    sum += c.CurrentValue;
+                }
+                Assert.AreEqual(0, sum);
+                var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
+                //await Task.Delay(50);
+                while (await c.MoveNext(CancellationToken.None)) {
+                    sum += c.CurrentValue;
+                    //Console.WriteLine("Current key: {0}", c.CurrentKey);
+                    if (c.CurrentKey == stop) {
+                        break;
+                    }
+                }
+            });
+
+            sumTask.Wait();
+            addTask.Wait();
+            sw.Stop();
+
+            double expectedSum = 0.0;
+            for (int i = 0; i < count; i++) {
+                expectedSum += i;
+            }
+            Assert.AreEqual(expectedSum, sum);
+
+            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds - 50);
+            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
+
+        }
+
+
+        [Test]
+        public void CouldUseDoExtensionMethod() {
+            var count = 100;
+            var sw = new Stopwatch();
+            sw.Start();
+
+            var sm = new SortedChunkedMap<DateTime, double>();
+            sm.IsSynchronized = true;
+
+            var addTask = Task.Run(async () => {
+                await Task.Delay(50);
+                for (int i = 0; i < count; i++) {
+                    sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                }
+                // signal data completion
+                sm.isMutable = false;
+            });
+
+            var cached = sm.Cache();
+
+            double sum = 0.0;
+
+            cached.Do((k, v) =>
+            {
+                sum += v;
+            });
+
+
+            addTask.Wait();
+            Thread.Sleep(100);
+            sw.Stop();
+
+            double expectedSum = 0.0;
+            for (int i = 0; i < count; i++) {
+                expectedSum += i;
+            }
+            Assert.AreEqual(expectedSum, sum);
+
+            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds - 50);
+            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
+
+        }
+
         [Test]
         public void MoveNextAsyncBenchmark() {
 

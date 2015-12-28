@@ -20,16 +20,11 @@
 namespace Spreads
 
 open System
-open System.Linq
-open System.Collections
 open System.Collections.Generic
 open System.Diagnostics
 open System.Runtime.InteropServices
-open System.Runtime.CompilerServices
 open System.Threading.Tasks
 
-open Spreads
-open Spreads.Collections
 
 
 // TODO! ensure that TGV on Non-continuous cursor returns false if requested key does not exists in input

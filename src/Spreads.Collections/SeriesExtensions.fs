@@ -120,24 +120,21 @@ type SeriesExtensions () =
     [<Extension>]
     static member inline Cache(source: ISeries<'K,'V>) : SortedMap<'K,'V> =
       let sm = SortedMap()
-      let cursor = source.GetCursor()
-      
-      while cursor.MoveNext() do
-        sm.AddLast(cursor.CurrentKey, cursor.CurrentValue)
+      // NB if called of Cache no loger uses sm, the tasl will stop
       let wekRef = new WeakReference(sm)
-      //Task.Run(fun _ ->
       let task = task {
-          let mutable cont = cursor.MoveLast()
-          //Trace.WriteLine("ToSortedMap started live loop")
+          let sm' = (wekRef.Target :?> SortedMap<'K,'V>)
+          let cursor = source.GetCursor()
+          while cursor.MoveNext() do
+            sm'.AddLast(cursor.CurrentKey, cursor.CurrentValue)
+          // by contract, if MN returned false, cursor stays at the same key andwe could call MNA
+          let mutable cont = true
           while cont do
             if wekRef.IsAlive then
               let delay = Task.Delay(1000)
               let mn = cursor.MoveNext(CancellationToken.None)
               let! moved = Task.WhenAny(mn, delay)
-              if moved = delay then
-                //Trace.WriteLine("ToSortedMap live timeout")
-                ()
-              else
+              if mn.IsCompleted then
                 let moved = mn.Result
                 cont <- moved
                 if moved then (wekRef.Target :?> SortedMap<'K,'V>).AddLast(cursor.CurrentKey, cursor.CurrentValue)
@@ -146,11 +143,39 @@ type SeriesExtensions () =
           #if PRERELEASE
               //Trace.WriteLine("ToSortedMap task exited")
           #endif
+          cursor.Dispose()
           return 0
       }
       let runninTask = Task.Run<int>(Func<Task<int>>(fun _ -> task))
-      //)
       sm
+
+    // TODO async fold that returns only when source is complete
+
+    // TODO Do should return task that returns when the source is complete or token was cancelled
+    // called of Do decides wether await or not on it
+
+    /// Invoke action on each key/value sequentially
+    [<Extension>]
+    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>, token:CancellationToken) : unit =
+      let task = task {
+          let cursor = source.GetCursor()
+          while cursor.MoveNext() do
+            action.Invoke(cursor.CurrentKey, cursor.CurrentValue)
+          let mutable moved = true
+          while moved && not token.IsCancellationRequested do
+              let! moved' =  cursor.MoveNext(token)
+              moved <- moved'
+              if moved then
+                action.Invoke(cursor.CurrentKey, cursor.CurrentValue)
+          cursor.Dispose()
+          return 0
+      }
+      let runninTask = Task.Run<int>(Func<Task<int>>(fun _ -> task))
+      ()
+
+    [<Extension>]
+    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>) : unit =
+      SeriesExtensions.Do(source, action, CancellationToken.None)
 
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
     [<Extension>]
