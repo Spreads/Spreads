@@ -38,32 +38,9 @@ namespace Bootstrap {
 
         public static void Main() {
 
-
-            // NetMQ
-            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\AsyncIO.dll");
-            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\NetMQ.dll");
-
-            // RX
-            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\System.Reactive.Core.dll");
-            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\System.Reactive.Interfaces.dll");
-            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\System.Reactive.Linq.dll");
-            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\src\SpreadsDB\bin\Release\System.Reactive.PlatformServices.dll");
-
-            // Blosc
-            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\libblosc\win\x64\libblosc.dll");
-            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\libblosc\win\x32\libblosc.dll");
-
-
-            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\SpreadsDB\src\libspreadsdb\out\w64\bin\libspreadsdb.dll");
-            //Loader.CompressResource(@"C:\Users\Sun\MD\CS\Public Projects\SpreadsDB\src\libspreadsdb\out\w32\bin\libspreadsdb.dll");
-            //Loader.CompressFolder(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\msvcrt\x32");
-            //Loader.ExtractFolder(@"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\msvcrt\x64.zip", @"C:\Users\Sun\MD\CS\Public Projects\Spreads\lib\msvcrt");
-
-
-
-            var json = Newtonsoft.Json.JsonConvert.SerializeObject(new[] { 1, 2, 3, 4, 5 });
-            Console.WriteLine("Running Bootstrapper: " + json);
-            //YepppTest.Run();
+            //var json = Newtonsoft.Json.JsonConvert.SerializeObject(new[] { 1, 2, 3, 4, 5 });
+            //Console.WriteLine("Running Bootstrapper: " + json);
+            ////YepppTest.Run();
 
             Console.ReadLine();
         }

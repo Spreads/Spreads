@@ -72,7 +72,7 @@ type TheSimplestTradingStrategy(actualPosition:SortedMap<DateTime, float>) = // 
     let sma = quotes.Window(20u, 1u, true).Map(fun inner -> inner.Values.Average())
     let deviation = quotes / sma - 1.0
     let deviationSm = deviation.Cache()
-    let targetState = deviationSm.Map(fun x -> -(float <| Math.Sign(x)))
+    let targetState = deviationSm.Map(fun x -> (float <| Math.Sign(x)))
     let targetStateSm = targetState.Cache()
     targetStateSm :> Series<DateTime, float>
 

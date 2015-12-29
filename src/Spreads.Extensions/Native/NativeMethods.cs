@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Native {
     [System.Security.SuppressUnmanagedCodeSecurity]
-    class NativeMethods {
+    internal class NativeMethods {
         static NativeMethods()
         {
             // Ensure Bootstrapper is initialized and native libraries are loaded
