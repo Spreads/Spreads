@@ -75,7 +75,7 @@ defined from observed points. Another example is "last price", which is defined 
 
 <img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/Continuous_Series.png" alt="Continuous series" width="500" />
 
-Discrete series have values only at observation/events, e.g. trade volume
+Discrete series have values only at observations/events, e.g. trade volume
 is meaningful only at observed trades, there is no implied latent volumes between trades. We could
 create a derived continuous series, e.g. `let liquidity = volume.SMA(N).Repeat()`, but this
 series changes meaning from a real observed volume to an abstract analytical indicator of average
@@ -234,7 +234,7 @@ Pull requests and bug reports are very welcome! Currently Spreads library implem
 core functionality via higher-order series projections 
 like `Map`, `Filter`, `Scan`, `ZipN`, `ZipLag`, `Window`, etc.
 One could do a lot of things just by using
-them with sophisticated lambdas or by using cursors directly. In addition, due to the fact that Series implement
+them with sophisticated lambdas or by using cursors directly. In addition, due to the fact that the Series type implements
 generic `I(Async)Enumerable` interface, one could use LINQ and Interactive 
 Extensions for additional functionality. However, there are many features still missing compared 
 to Deedle or Streams, e.g. aggregation, grouping, resampling. They could be easily 
