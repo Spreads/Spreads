@@ -37,6 +37,11 @@ using System.Collections.Concurrent;
 namespace Spreads.Serialization {
 
 
+    // TODO! this need big clean-up and optimization for an array pool
+    // interesting idea is to use CWT to store a bool indicating if an array was 
+    // takes from a pool - need to profile the performance of pool+CWT vs no pool
+    // - could create a special array pool implementation for this
+
 	/// <summary>
 	/// 
 	/// </summary>
@@ -384,6 +389,7 @@ namespace Spreads.Serialization {
 					Debug.Assert(source.Length == length);
 					return source;
 				}
+                // TODO cannot use pool here (no info how to return)
 				var dest = new byte[length];
 				Buffer.BlockCopy(source, 0, dest, 0, length);
 				//Marshal.Copy(source, dest, 0, length);
@@ -861,8 +867,8 @@ namespace Spreads.Serialization {
 							typeSize1 = Marshal.SizeOf(tickSrc[0]);
 							/// Blosc header 16 bytes
 							var maxLength = length * typeSize1 + 16;
-							//Trace.WriteLineIf(maxLength > 85000, "LOH could be an issue, think about a pool");
-							var buffer = new byte[maxLength];
+                            // TODO! (perf) use pool
+                            var buffer = new byte[maxLength];
 							var bufferSize = new UIntPtr((uint)maxLength);
 							fixed (Tick* srcPtr = &tickSrc[0])
 							fixed (byte* bufferPtr = &buffer[0])
@@ -899,8 +905,8 @@ namespace Spreads.Serialization {
 							typeSize1 = Marshal.SizeOf(src[0]);
 							/// Blosc header 16 bytes
 							var maxLength = length * typeSize1 + 16;
-							//Trace.WriteLineIf(maxLength > 85000, "LOH could be an issue, think about a pool");
-							var buffer = new byte[maxLength];
+                            // TODO! (perf) use pool
+                            var buffer = new byte[maxLength];
 							var bufferSize = new UIntPtr((uint)maxLength);
 							try {
 								using (var gp = new GenericArrayPinner<T>(src)) {
@@ -923,6 +929,7 @@ namespace Spreads.Serialization {
 								}
 							} catch {
 								var srcLength = length * typeSize1;
+                                // TODO! (perf) use pool
 								var scrBuffer = new byte[srcLength];
 
 								fixed (byte* srcBufferPtr = &scrBuffer[0])
@@ -1107,6 +1114,7 @@ namespace Spreads.Serialization {
 								return dest;
 							}
 						} catch {
+                            // TODO! (perf) use pool
 							var destBuffer = new byte[(int)nbytes];
 							fixed (byte* destPtr = &destBuffer[0])
 							{
@@ -1193,7 +1201,7 @@ namespace Spreads.Serialization {
 			}
 
 			var maxLength = src.Length + 16;
-			// TODO buffer pool
+			// TODO! (perf) use pool
 			var dest = new byte[maxLength];
 			var destSize = new UIntPtr((uint)maxLength);
 			unsafe
@@ -1215,6 +1223,7 @@ namespace Spreads.Serialization {
 					//    // will copy self in case of ArrayCopy
 					//    return transformer(src, src.Length, true);
 					//} else {
+                    // TODO! (perf) use pool
 					var ret = new byte[compSize];
 					Array.Copy(dest, ret, compSize);
 					return transformer(dest, compSize);
@@ -1262,8 +1271,8 @@ namespace Spreads.Serialization {
 
 				if (srcSize > 0 && srcSize != (int)(cbytes.ToUInt32()))
 					throw new ArgumentOutOfRangeException("Wrong src size");
-
-				dest = new byte[(int)(nbytes.ToUInt32())];
+                // TODO! (perf) use pool
+                dest = new byte[(int)(nbytes.ToUInt32())];
 				fixed (byte* detPtr = &dest[0])
 				{
 					var decompSize = NativeMethods.blosc_decompress_ctx(

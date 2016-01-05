@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System;
 using System.Runtime.InteropServices;
-using Spreads;
 using Spreads.Serialization;
 
-namespace TAQParse {
-
+namespace TAQParse
+{
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct TaqTrade {
         public DateTime Time => new DateTime(_timeUTCTicks, DateTimeKind.Utc);
@@ -108,20 +103,20 @@ namespace TAQParse {
             var mm = (db.ReadByte(index + 2) - '0') * 10 + db.ReadByte(index + 3) - '0';
             var ss = (db.ReadByte(index + 4) - '0')* 10 + db.ReadByte(index + 5) - '0';
             var micros = (db.ReadByte(index + 6) - '0')* 100000
-                          + (db.ReadByte(index + 7) - '0')*10000
-                          + (db.ReadByte(index + 8) - '0')*1000
-                          + (db.ReadByte(index + 9) - '0')*100
-                          + (db.ReadByte(index + 10) - '0')*10
-                          + (db.ReadByte(index + 11) - '0');
+                         + (db.ReadByte(index + 7) - '0')*10000
+                         + (db.ReadByte(index + 8) - '0')*1000
+                         + (db.ReadByte(index + 9) - '0')*100
+                         + (db.ReadByte(index + 10) - '0')*10
+                         + (db.ReadByte(index + 11) - '0');
             var ticks = date.Date.Ticks
-            // hours
-            + hh * TimeSpan.TicksPerHour
-            // minutes
-            + mm * TimeSpan.TicksPerMinute
-            // seconds
-            + ss * TimeSpan.TicksPerSecond
-            // micros
-            + micros * 10;
+                // hours
+                        + hh * TimeSpan.TicksPerHour
+                // minutes
+                        + mm * TimeSpan.TicksPerMinute
+                // seconds
+                        + ss * TimeSpan.TicksPerSecond
+                // micros
+                        + micros * 10;
             var dt = new DateTime(ticks, DateTimeKind.Unspecified);
 
             // this is pefromance killer - for the same date delta is always the same, should 
@@ -156,12 +151,8 @@ namespace TAQParse {
             ulong tmp = x;
             while (--n > 0)
                 tmp = tmp * tmp *
-                     (((power <<= 1) < 0) ? x : 1);
+                      (((power <<= 1) < 0) ? x : 1);
             return tmp;
         }
-    }
-
-    public unsafe struct TaqTradeBuffer106 {
-        public fixed byte buffer[106];
     }
 }

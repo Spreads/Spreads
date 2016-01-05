@@ -15,6 +15,8 @@ namespace TAQParse {
         // 654 MB compressed, 3.8GB uncompressed. ASCII with fixed 106 byte row size + 2 bytes for \r\n
         private static string path = @"X:\Data\EQY_US_ALL_TRADE_20150805.zip";
         static unsafe void Main(string[] args) {
+            // almost no effect on compression ration when above 10000
+            // main effect on memory consumption
             var chunkSize = 100000;
             var date = new DateTime(2015, 8, 5);
             var fb = new FixedBuffer();
