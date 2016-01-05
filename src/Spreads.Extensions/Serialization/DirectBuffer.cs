@@ -33,19 +33,19 @@ namespace Spreads.Serialization {
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct DirectBuffer {
-        internal long length;
+        internal readonly long capacity;
         internal IntPtr data;
 
         /// <summary>
         /// Attach a view to an unmanaged buffer owned by external code
         /// </summary>
         /// <param name="data">Unmanaged byte buffer</param>
-        /// <param name="length">Length of the buffer</param>
-        public DirectBuffer(long length, IntPtr data) {
+        /// <param name="capacity">Length of the buffer</param>
+        public DirectBuffer(long capacity, IntPtr data) {
             if (data == null) throw new ArgumentNullException("data");
-            if (length <= 0) throw new ArgumentException("Buffer size must be > 0", "length");
+            if (capacity <= 0) throw new ArgumentException("Buffer size must be > 0", "capacity");
             this.data = data;
-            this.length = length;
+            this.capacity = capacity;
         }
 
 
@@ -67,21 +67,21 @@ namespace Spreads.Serialization {
         /// Copy data and move the fixed buffer to the new location
         /// </summary>
         public DirectBuffer Move(IntPtr destination, long srcOffset, long length) {
-            memcpy((IntPtr)destination, (IntPtr)(data.ToInt64() + srcOffset), (UIntPtr)length);
+            memcpy(destination, (IntPtr)(data.ToInt64() + srcOffset), (UIntPtr)length);
             return new DirectBuffer(length, destination);
         }
 
         [Obsolete("TODO use longs")]
         public void Copy(byte[] destination, int srcOffset, int destOffset, int length) {
-            Marshal.Copy((IntPtr)data + srcOffset, destination, destOffset, length);
+            Marshal.Copy(data + srcOffset, destination, destOffset, length);
         }
 
 
         /// <summary>
         /// Capacity of the underlying buffer
         /// </summary>
-        public long Length {
-            get { return length; }
+        public long Capacity {
+            get { return capacity; }
         }
 
         public IntPtr Data {
@@ -300,25 +300,25 @@ namespace Spreads.Serialization {
         /// <param name="index">index  in the underlying buffer to start from.</param>
         /// <param name="destination">array into which the bytes will be copied.</param>
         /// <param name="offsetDestination">offset in the supplied buffer to start the copy</param>
-        /// <param name="length">length of the supplied buffer to use.</param>
+        /// <param name="len">length of the supplied buffer to use.</param>
         /// <returns>count of bytes copied.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // TODO test if that has an impact
-        public int ReadBytes(int index, byte[] destination, int offsetDestination, int length) {
-            if (length > this.length - index) throw new ArgumentException("length > _capacity - index");
-            Marshal.Copy((IntPtr)(data + index), destination, offsetDestination, length);
-            return length;
+        public int ReadBytes(int index, byte[] destination, int offsetDestination, int len) {
+            if (len > this.capacity - index) throw new ArgumentException("length > _capacity - index");
+            Marshal.Copy(data + index, destination, offsetDestination, len);
+            return len;
         }
 
 
         public int ReadAllBytes(byte[] destination) {
-            if (length > int.MaxValue) {
+            if (capacity > int.MaxValue) {
                 // TODO (low) .NET already supports arrays larger than 2 Gb, 
                 // but Marshal.Copy doesn't accept long as a parameter
                 // Use memcpy and fixed() over an empty large array
                 throw new NotImplementedException("Buffer length is larger than the maximum size of a byte array.");
             } else {
-                Marshal.Copy((this.data), destination, 0, (int)length);
-                return (int)length;
+                Marshal.Copy((this.data), destination, 0, (int)capacity);
+                return (int)capacity;
             }
         }
 
@@ -328,12 +328,12 @@ namespace Spreads.Serialization {
         /// <param name="index">index  in the underlying buffer to start from.</param>
         /// <param name="src">source byte array to be copied to the underlying buffer.</param>
         /// <param name="offset">offset in the supplied buffer to begin the copy.</param>
-        /// <param name="length">length of the supplied buffer to copy.</param>
+        /// <param name="len">length of the supplied buffer to copy.</param>
         /// <returns>count of bytes copied.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // TODO test if that has an impact
-        public int WriteBytes(int index, byte[] src, int offset, int length) {
-            int count = Math.Min(length, (int)this.length - index);
-            Marshal.Copy(src, offset, (IntPtr)(data + index), count);
+        public int WriteBytes(int index, byte[] src, int offset, int len) {
+            int count = Math.Min(len, (int)this.capacity - index);
+            Marshal.Copy(src, offset, data + index, count);
 
             return count;
         }

@@ -51,7 +51,7 @@ namespace Spreads.Serialization {
 
     internal unsafe sealed class FixedBufferStream : UnmanagedMemoryStream {
         [SecurityCritical]
-        internal FixedBufferStream(FixedBuffer buffer, long offset, long length, bool readOnly, bool unsafePointer) : base() {
+        internal FixedBufferStream(FixedBuffer buffer, long offset, long length, bool readOnly, bool unsafePointer) {
             Debug.Assert(buffer != null, "buffer is null");
             if (unsafePointer) {
                 Initialize(buffer, offset, length, readOnly ? FileAccess.Read : FileAccess.ReadWrite);
@@ -161,8 +161,8 @@ namespace Spreads.Serialization {
 
             _array = byteArray;
 
-            base.SetHandle((IntPtr)_directBuffer.Data);
-            base.Initialize((uint)_directBuffer.Length);
+            base.SetHandle(_directBuffer.Data);
+            base.Initialize((uint)_directBuffer.Capacity);
         }
 
         /// <summary>
@@ -179,8 +179,8 @@ namespace Spreads.Serialization {
             _directBuffer = new DirectBuffer(bufferLength, (IntPtr)pBuffer);
             _needToFreeGCHandle = false;
 
-            base.SetHandle((IntPtr)_directBuffer.Data);
-            base.Initialize((uint)_directBuffer.Length);
+            base.SetHandle(_directBuffer.Data);
+            base.Initialize((uint)_directBuffer.Capacity);
         }
 
 
@@ -218,7 +218,7 @@ namespace Spreads.Serialization {
                     _array = null;
                 }
             } else {
-                memcpy((IntPtr)destination, (IntPtr)(_directBuffer.data + srcOffset), (UIntPtr)length);
+                memcpy((IntPtr)destination, _directBuffer.data + srcOffset, (UIntPtr)length);
             }
             Wrap(length, destination);
             return this;
@@ -230,7 +230,7 @@ namespace Spreads.Serialization {
                 System.Array.Copy(_array, srcOffset, destination, destOffset, length);
                 FreeGCHandle();
             } else {
-                Marshal.Copy((IntPtr)_directBuffer.data + srcOffset, destination, destOffset, length);
+                Marshal.Copy(_directBuffer.data + srcOffset, destination, destOffset, length);
             }
         }
 
@@ -244,7 +244,7 @@ namespace Spreads.Serialization {
                     BufferRecylce(_array.Length, 0, _array);
                 }
             } else {
-                Marshal.Copy((IntPtr)_directBuffer.data, destination, srcOffset, length);
+                Marshal.Copy(_directBuffer.data, destination, srcOffset, length);
             }
             Wrap(destination);
             return this;
@@ -254,10 +254,11 @@ namespace Spreads.Serialization {
         /// <summary>
         /// Capacity of the underlying buffer
         /// </summary>
-        public long Length {
-            get { return _directBuffer.Length; }
-        }
+        //public long Capacity {
+        //    get { return _directBuffer.Capacity; }
+        //}
 
+        [Obsolete("We should not care if the buffer is backed by an array or a pointer, this is an implementation detail")]
         public byte[] Array {
             get { return _array; }
         }
@@ -269,20 +270,20 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="limit">limit access is required to.</param>
         public void CheckLimit(int limit) {
-            if (limit > _directBuffer.Length) {
+            if (limit > _directBuffer.Capacity) {
                 if (BufferRecylce == null) {
                     throw new IndexOutOfRangeException(string.Format("limit={0} is beyond capacity={1}", limit,
-                        _directBuffer.Length));
+                        _directBuffer.Capacity));
                 }
-                var newBuffer = BufferRecylce(_directBuffer.Length, limit, _array);
+                var newBuffer = BufferRecylce(_directBuffer.Capacity, limit, _array);
 
                 if (newBuffer == null) {
                     throw new IndexOutOfRangeException(string.Format("limit={0} is beyond capacity={1}", limit,
-                        _directBuffer.Length));
+                        _directBuffer.Capacity));
                 }
 
-                Trace.Assert(_directBuffer.Length <= int.MaxValue);
-                Marshal.Copy((IntPtr)_directBuffer.data, newBuffer, 0, (int)_directBuffer.Length);
+                Trace.Assert(_directBuffer.Capacity <= int.MaxValue);
+                Marshal.Copy(_directBuffer.data, newBuffer, 0, (int)_directBuffer.Capacity);
                 Wrap(newBuffer);
             }
         }
@@ -296,10 +297,10 @@ namespace Spreads.Serialization {
         public UnmanagedMemoryAccessor CreateAccessor(long offset = 0, long length = 0, bool readOnly = false) {
             if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
             if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
-            if (length + offset > _directBuffer.Length) throw new ArgumentException("Length plus offset exceed capacity");
+            if (length + offset > _directBuffer.Capacity) throw new ArgumentException("Length plus offset exceed capacity");
 
             if (length == 0) {
-                length = _directBuffer.Length - offset;
+                length = _directBuffer.Capacity - offset;
             }
             return new FixedBufferAccessor(this, offset, length, readOnly);
         }
@@ -310,10 +311,10 @@ namespace Spreads.Serialization {
         public UnmanagedMemoryStream CreateStream(long offset = 0, long length = 0, bool readOnly = false, bool unsafePointer = false) {
             if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
             if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
-            if (length + offset > _directBuffer.Length) throw new ArgumentException("Length plus offset exceed capacity");
+            if (length + offset > _directBuffer.Capacity) throw new ArgumentException("Length plus offset exceed capacity");
 
             if (length == 0) {
-                length = _directBuffer.Length - offset;
+                length = _directBuffer.Capacity - offset;
             }
             return new FixedBufferStream(this, offset, length, readOnly, unsafePointer);
         }
@@ -322,9 +323,8 @@ namespace Spreads.Serialization {
         /// <summary>
         /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
         /// </summary>
-        public void Dispose() {
+        public new void Dispose() {
             Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -334,9 +334,13 @@ namespace Spreads.Serialization {
             Dispose(false);
         }
 
-        private void Dispose(bool disposing) {
-            if (_disposed)
-                return;
+        protected override void Dispose(bool disposing) {
+            if (_disposed) return;
+
+            if (disposing) {
+                GC.SuppressFinalize(this);
+                base.Dispose();
+            }
 
             FreeGCHandle();
             if (BufferRecylce != null && _array != null) {
@@ -344,6 +348,7 @@ namespace Spreads.Serialization {
                 BufferRecylce(_array.Length, 0, _array);
             }
             _disposed = true;
+            base.Dispose(disposing);
         }
 
         private void FreeGCHandle() {
@@ -360,11 +365,11 @@ namespace Spreads.Serialization {
 
 
         public static implicit operator DirectBuffer(FixedBuffer fixedBuffer) {
-            return new DirectBuffer(fixedBuffer._directBuffer.Length, (IntPtr)fixedBuffer._directBuffer.data);
+            return new DirectBuffer(fixedBuffer._directBuffer.Capacity, fixedBuffer._directBuffer.data);
         }
 
         public static implicit operator FixedBuffer(DirectBuffer directBuffer) {
-            return new FixedBuffer(directBuffer.length, (byte*)directBuffer.data);
+            return new FixedBuffer(directBuffer.capacity, (byte*)directBuffer.data);
         }
     }
 
