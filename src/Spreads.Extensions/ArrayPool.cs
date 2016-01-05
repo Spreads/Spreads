@@ -23,37 +23,74 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Runtime;
+using System.Runtime.CompilerServices;
 
 namespace Spreads {
 
-	public class DoubleArrayPool : IArrayPool
-	{
-		private InternalBufferManager<double>.PooledBufferManager _doublePool =
-			new InternalBufferManager<double>.PooledBufferManager(512*1024*1024, 1024 * 1024);
+    public class DoubleArrayPool : IArrayPool {
+        private InternalBufferManager<double>.PooledBufferManager _doublePool =
+            new InternalBufferManager<double>.PooledBufferManager(512 * 1024 * 1024, 128 * 1024 * 1024);
 
-		public T[] TakeBuffer<T>(int bufferCount)
-		{
-			if (typeof (T) == typeof (double))
-			{
-				return _doublePool.TakeBuffer(bufferCount) as T[];
-			}
-			else
-			{
-				return new T[bufferCount];
-			}
-		}
+        public T[] TakeBuffer<T>(int bufferCount) {
+            if (typeof(T) == typeof(double)) {
+                return _doublePool.TakeBuffer(bufferCount) as T[];
+            } else {
+                return new T[bufferCount];
+            }
+        }
 
-		public void ReturnBuffer<T>(T[] buffer)
-		{
-			if (typeof(T) == typeof(double))
-			{
-				_doublePool.ReturnBuffer(buffer as double[]);
-			}
-		}
+        public void ReturnBuffer<T>(T[] buffer) {
+            if (typeof(T) == typeof(double)) {
+                _doublePool.ReturnBuffer(buffer as double[]);
+            }
+        }
 
-		public void Clear()
-		{
-			_doublePool.Clear();
-		}
-	}
+        public void Clear() {
+            _doublePool.Clear();
+        }
+    }
+
+
+    public class AtomicCounter {
+        public int Count;
+    }
+
+    public class DoubleArrayPoolCWT : IArrayPool {
+        private ConditionalWeakTable<object, AtomicCounter> _cwt = new ConditionalWeakTable<object, AtomicCounter>();
+
+        private InternalBufferManager<double>.PooledBufferManager _doublePool =
+            new InternalBufferManager<double>.PooledBufferManager(512 * 1024 * 1024, 128 * 1024 * 1024);
+
+        public T[] TakeBuffer<T>(int bufferCount) {
+            if (typeof(T) == typeof(double)) {
+                var buffer = _doublePool.TakeBuffer(bufferCount) as T[];
+                AtomicCounter cnt;
+                if (_cwt.TryGetValue(buffer, out cnt))
+                {
+                    cnt.Count++;
+                }
+                else
+                {
+                    _cwt.Add(buffer, new AtomicCounter {Count = 1});
+                }
+                return buffer;
+            } else {
+                return new T[bufferCount];
+            }
+        }
+
+        public void ReturnBuffer<T>(T[] buffer) {
+            if (typeof(T) == typeof(double)) {
+                AtomicCounter cnt;
+                if (_cwt.TryGetValue(buffer, out cnt)) {
+                    cnt.Count--;
+                    _doublePool.ReturnBuffer(buffer as double[]);
+                }
+            }
+        }
+
+        public void Clear() {
+            _doublePool.Clear();
+        }
+    }
 }
