@@ -2,8 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using Spreads.Serialization;
 
-namespace TAQParse
-{
+namespace TAQParse {
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct TaqTrade {
         public DateTime Time => new DateTime(_timeUTCTicks, DateTimeKind.Utc);
@@ -40,6 +39,7 @@ namespace TAQParse
         public ulong TradeSequenceNumber;
         public byte SourceOfTrade;
         public byte TradeReportingFacility;
+
         public DateTime ParticipantTimestamp => new DateTime(_participantTimestampUtcTicks, DateTimeKind.Utc);
         private long _participantTimestampUtcTicks;
 
@@ -57,8 +57,7 @@ namespace TAQParse
         public DateTime TRFTimestamp => new DateTime(_TRFTimestampUtcTicks, DateTimeKind.Utc);
         private long _TRFTimestampUtcTicks;
 
-        public TaqTrade(DateTime date, FixedBuffer fb)
-        {
+        public TaqTrade(DateTime date, FixedBuffer fb) {
             // Read<> over fb is much slower
             var db = fb.DirectBuffer;
             // Time
@@ -96,26 +95,25 @@ namespace TAQParse
         }
 
 
-        private static long ReadHHMMSSXXXXXXAsUtcTicks(DateTime date, DirectBuffer db, int index)
-        {
+        private static long ReadHHMMSSXXXXXXAsUtcTicks(DateTime date, DirectBuffer db, int index) {
             // TODO method ReadAsciiDigit
-            var hh = (db.ReadByte(index) - '0') * 10 + db.ReadByte(index + 1) - '0';
-            var mm = (db.ReadByte(index + 2) - '0') * 10 + db.ReadByte(index + 3) - '0';
-            var ss = (db.ReadByte(index + 4) - '0')* 10 + db.ReadByte(index + 5) - '0';
-            var micros = (db.ReadByte(index + 6) - '0')* 100000
-                         + (db.ReadByte(index + 7) - '0')*10000
-                         + (db.ReadByte(index + 8) - '0')*1000
-                         + (db.ReadByte(index + 9) - '0')*100
-                         + (db.ReadByte(index + 10) - '0')*10
-                         + (db.ReadByte(index + 11) - '0');
+            var hh = (db.ReadAsciiDigit(index)) * 10 + db.ReadAsciiDigit(index + 1);
+            var mm = (db.ReadAsciiDigit(index + 2)) * 10 + db.ReadAsciiDigit(index + 3);
+            var ss = (db.ReadAsciiDigit(index + 4)) * 10 + db.ReadAsciiDigit(index + 5);
+            var micros = (db.ReadAsciiDigit(index + 6)) * 100000
+                         + (db.ReadAsciiDigit(index + 7)) * 10000
+                         + (db.ReadAsciiDigit(index + 8)) * 1000
+                         + (db.ReadAsciiDigit(index + 9)) * 100
+                         + (db.ReadAsciiDigit(index + 10)) * 10
+                         + (db.ReadAsciiDigit(index + 11));
             var ticks = date.Date.Ticks
-                // hours
+                        // hours
                         + hh * TimeSpan.TicksPerHour
-                // minutes
+                        // minutes
                         + mm * TimeSpan.TicksPerMinute
-                // seconds
+                        // seconds
                         + ss * TimeSpan.TicksPerSecond
-                // micros
+                        // micros
                         + micros * 10;
             var dt = new DateTime(ticks, DateTimeKind.Unspecified);
 
@@ -126,14 +124,11 @@ namespace TAQParse
             return dt.Ticks;
         }
 
-        private static ulong ReadUInt64(DirectBuffer db, int index, int length)
-        {
+        private static ulong ReadUInt64(DirectBuffer db, int index, int length) {
             ulong ret = 0;
-            for (int pos = 0; pos < length; pos++)
-            {
-                byte b = (byte)(db.ReadByte(index + pos) - '0');
-                if (b > 0)
-                {
+            for (int pos = 0; pos < length; pos++) {
+                byte b = (byte)(db.ReadAsciiDigit(index + pos));
+                if (b > 0) {
                     ret += b * (ULongPower(10, (short)(length - pos - 1)));
                 }
             }

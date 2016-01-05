@@ -214,6 +214,8 @@ namespace Spreads.Serialization {
                 if (BufferRecylce != null) {
                     // return previous buffer for recylcing
                     BufferRecylce(_array.Length, 0, _array);
+                } else {
+                    _array = null;
                 }
             } else {
                 memcpy((IntPtr)destination, (IntPtr)(_directBuffer.data + srcOffset), (UIntPtr)length);

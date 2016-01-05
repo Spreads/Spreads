@@ -28,7 +28,8 @@ namespace Spreads.Serialization {
     // we should not protect ourselves from shooting in the leg just by hiding the guns
 
     /// <summary>
-    /// Provides read/write opertaions on a memory pointer.
+    /// Provides unsafe read/write opertaions on a memory pointer. Read/Write arguments are 
+    /// not checked for bounds/ranges/overflows.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct DirectBuffer {
@@ -91,8 +92,8 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        public byte ReadChar(int index) {
-            return *((byte*)data + index);
+        public char ReadChar(int index) {
+            return *((char*)data + index);
         }
 
         /// <summary>
@@ -100,8 +101,8 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        public void WriteChar(int index, byte value) {
-            *((byte*)data + index) = value;
+        public void WriteChar(int index, char value) {
+            *((byte*)data + index) = (byte)value;
         }
 
         /// <summary>
@@ -338,6 +339,16 @@ namespace Spreads.Serialization {
             *(UUID*)(data + index) = value;
         }
 
+        public int ReadAsciiDigit(int index) {
+            return (*((byte*)data + index)) - '0';
+        }
+
+        public void WriteAsciiDigit(int index, int value) {
+            *(byte*)(data + index) = (byte)(value + '0');
+        }
+
+        // TODO add Ascii dates/ints/etc, could take fast implementation from Jil
+        // See TAQParse example for ulong and times manual parsing
     }
 
 
