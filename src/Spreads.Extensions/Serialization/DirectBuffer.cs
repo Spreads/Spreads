@@ -33,7 +33,7 @@ namespace Spreads.Serialization {
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct DirectBuffer {
-        internal IntPtr length;
+        internal long length;
         internal IntPtr data;
 
         /// <summary>
@@ -41,11 +41,11 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="data">Unmanaged byte buffer</param>
         /// <param name="length">Length of the buffer</param>
-        public DirectBuffer(int length, IntPtr data) {
+        public DirectBuffer(long length, IntPtr data) {
             if (data == null) throw new ArgumentNullException("data");
             if (length <= 0) throw new ArgumentException("Buffer size must be > 0", "length");
             this.data = data;
-            this.length = (IntPtr)length;
+            this.length = length;
         }
 
 
@@ -59,28 +59,29 @@ namespace Spreads.Serialization {
         /// <summary>
         /// Copy this buffer to a pointer
         /// </summary>
-        internal void Copy(byte* destination, int srcOffset, int length) {
-            memcpy((IntPtr)destination, (IntPtr)(data + srcOffset), (UIntPtr)length);
+        public void Copy(byte* destination, long srcOffset, ulong length) {
+            memcpy((IntPtr)destination, (IntPtr)(data.ToInt64() + srcOffset), (UIntPtr)length);
         }
 
         /// <summary>
         /// Copy data and move the fixed buffer to the new location
         /// </summary>
-        internal DirectBuffer Move(IntPtr destination, int srcOffset, int length) {
-            memcpy((IntPtr)destination, (IntPtr)(data + srcOffset), (UIntPtr)length);
+        public DirectBuffer Move(IntPtr destination, long srcOffset, long length) {
+            memcpy((IntPtr)destination, (IntPtr)(data.ToInt64() + srcOffset), (UIntPtr)length);
             return new DirectBuffer(length, destination);
         }
 
-        internal void Copy(byte[] destination, int srcOffset, int destOffset, int length) {
-            Marshal.Copy((IntPtr)data, destination, srcOffset, length);
+        [Obsolete("TODO use longs")]
+        public void Copy(byte[] destination, int srcOffset, int destOffset, int length) {
+            Marshal.Copy((IntPtr)data + srcOffset, destination, destOffset, length);
         }
 
 
         /// <summary>
         /// Capacity of the underlying buffer
         /// </summary>
-        public int Length {
-            get { return length.ToInt32(); }
+        public long Length {
+            get { return length; }
         }
 
         public IntPtr Data {
@@ -303,15 +304,22 @@ namespace Spreads.Serialization {
         /// <returns>count of bytes copied.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // TODO test if that has an impact
         public int ReadBytes(int index, byte[] destination, int offsetDestination, int length) {
-            if (length > this.length.ToInt32() - index) throw new ArgumentException("length > _capacity - index");
+            if (length > this.length - index) throw new ArgumentException("length > _capacity - index");
             Marshal.Copy((IntPtr)(data + index), destination, offsetDestination, length);
             return length;
         }
 
 
         public int ReadAllBytes(byte[] destination) {
-            Marshal.Copy((this.data), destination, 0, length.ToInt32());
-            return length.ToInt32();
+            if (length > int.MaxValue) {
+                // TODO (low) .NET already supports arrays larger than 2 Gb, 
+                // but Marshal.Copy doesn't accept long as a parameter
+                // Use memcpy and fixed() over an empty large array
+                throw new NotImplementedException("Buffer length is larger than the maximum size of a byte array.");
+            } else {
+                Marshal.Copy((this.data), destination, 0, (int)length);
+                return (int)length;
+            }
         }
 
         /// <summary>
