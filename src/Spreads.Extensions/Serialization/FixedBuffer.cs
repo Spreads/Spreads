@@ -32,9 +32,9 @@ using System.Security;
 
 namespace Spreads.Serialization {
 
-    internal sealed class PinnedBufferAccessor : UnmanagedMemoryAccessor {
+    internal sealed class FixedBufferAccessor : UnmanagedMemoryAccessor {
         [SecurityCritical]
-        internal PinnedBufferAccessor(PinnedBuffer buffer, int offset, int length, bool readOnly) {
+        internal FixedBufferAccessor(FixedBuffer buffer, int offset, int length, bool readOnly) {
             Debug.Assert(buffer != null, "buffer is null");
             Initialize(buffer, offset, length, readOnly ? FileAccess.Read : FileAccess.ReadWrite);
         }
@@ -49,9 +49,9 @@ namespace Spreads.Serialization {
     }
 
 
-    internal unsafe sealed class PinnedBufferStream : UnmanagedMemoryStream {
+    internal unsafe sealed class FixedBufferStream : UnmanagedMemoryStream {
         [SecurityCritical]
-        internal PinnedBufferStream(PinnedBuffer buffer, int offset, int length, bool readOnly, bool unsafePointer) : base() {
+        internal FixedBufferStream(FixedBuffer buffer, int offset, int length, bool readOnly, bool unsafePointer) : base() {
             Debug.Assert(buffer != null, "buffer is null");
             if (unsafePointer) {
                 Initialize(buffer, offset, length, readOnly ? FileAccess.Read : FileAccess.ReadWrite);
@@ -72,9 +72,9 @@ namespace Spreads.Serialization {
     /// <summary>
     /// Provides read/write opertaions on a byte buffer that is fixed in memory.
     /// </summary>
-    public sealed unsafe class PinnedBuffer : SafeBuffer {
+    public sealed unsafe class FixedBuffer : SafeBuffer {
 #if PRERELEASE
-        static PinnedBuffer() {
+        static FixedBuffer() {
             if (!BitConverter.IsLittleEndian) {
                 // NB we just do not care to support BigEndian. This must be documented. 
                 // But it is OK for debugging to leave such a time bomb here.
@@ -109,7 +109,7 @@ namespace Spreads.Serialization {
         /// Attach a view to a byte[] for providing direct access.
         /// </summary>
         /// <param name="buffer">buffer to which the view is attached.</param>
-        public PinnedBuffer(byte[] buffer) : base(false) {
+        public FixedBuffer(byte[] buffer) : base(false) {
             Wrap(buffer);
         }
 
@@ -117,7 +117,7 @@ namespace Spreads.Serialization {
         /// Create a new FixedBuffer with a new empty array
         /// </summary>
         /// <param name="length">buffer to which the view is attached.</param>
-        public PinnedBuffer(int length) : base(false) {
+        public FixedBuffer(int length) : base(false) {
             if (length <= 0) throw new ArgumentOutOfRangeException(nameof(length));
             byte[] buffer = BufferRecylce == null ? new byte[length] : BufferRecylce(0, length, null);
             Debug.Assert(_array == null, "_buffer is null here, do not assign, avoid double recycling.");
@@ -130,18 +130,18 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="pBuffer">Unmanaged byte buffer</param>
         /// <param name="bufferLength">Length of the buffer</param>
-        public PinnedBuffer(int bufferLength, byte* pBuffer) : base(false) {
+        public FixedBuffer(int bufferLength, byte* pBuffer) : base(false) {
             Wrap(pBuffer, bufferLength);
         }
 
         /// <summary>
         /// Creates a FixedBuffer that can later be wrapped
         /// </summary>
-        public PinnedBuffer() : base(false) {
+        public FixedBuffer() : base(false) {
         }
 
         /// <summary>
-        /// Recycles an existing <see cref="PinnedBuffer"/>
+        /// Recycles an existing <see cref="FixedBuffer"/>
         /// </summary>
         /// <param name="byteArray">The byte array that will act as the backing buffer.</param>
         public void Wrap(byte[] byteArray) {
@@ -166,7 +166,7 @@ namespace Spreads.Serialization {
         }
 
         /// <summary>
-        /// Recycles an existing <see cref="PinnedBuffer"/> from an unmanaged byte buffer owned by external code
+        /// Recycles an existing <see cref="FixedBuffer"/> from an unmanaged byte buffer owned by external code
         /// </summary>
         /// <param name="pBuffer">Unmanaged byte buffer</param>
         /// <param name="bufferLength">Length of the buffer</param>
@@ -207,7 +207,7 @@ namespace Spreads.Serialization {
         /// <summary>
         /// Copy data and move the fixed buffer to the new location
         /// </summary>
-        internal PinnedBuffer Move(byte* destination, int srcOffset, int length) {
+        internal FixedBuffer Move(byte* destination, int srcOffset, int length) {
             if (_array != null) {
                 Marshal.Copy(_array, srcOffset, (IntPtr)destination, length);
                 FreeGCHandle();
@@ -231,7 +231,7 @@ namespace Spreads.Serialization {
             }
         }
 
-        internal PinnedBuffer Move(byte[] destination, int srcOffset, int destOffset, int length) {
+        internal FixedBuffer Move(byte[] destination, int srcOffset, int destOffset, int length) {
             if (_array != null) {
                 System.Array.Copy(_array, srcOffset, destination, destOffset, length);
                 FreeGCHandle();
@@ -296,7 +296,7 @@ namespace Spreads.Serialization {
             if (length == 0) {
                 length = _directBuffer.Length - offset;
             }
-            return new PinnedBufferAccessor(this, offset, length, readOnly);
+            return new FixedBufferAccessor(this, offset, length, readOnly);
         }
 
         /// <summary>
@@ -310,7 +310,7 @@ namespace Spreads.Serialization {
             if (length == 0) {
                 length = _directBuffer.Length - offset;
             }
-            return new PinnedBufferStream(this, offset, length, readOnly, unsafePointer);
+            return new FixedBufferStream(this, offset, length, readOnly, unsafePointer);
         }
 
 
@@ -323,9 +323,9 @@ namespace Spreads.Serialization {
         }
 
         /// <summary>
-        /// Destructor for <see cref="PinnedBuffer"/>
+        /// Destructor for <see cref="FixedBuffer"/>
         /// </summary>
-        ~PinnedBuffer() {
+        ~FixedBuffer() {
             Dispose(false);
         }
 
@@ -354,12 +354,12 @@ namespace Spreads.Serialization {
         }
 
 
-        public static implicit operator DirectBuffer(PinnedBuffer pinnedBuffer) {
-            return new DirectBuffer(pinnedBuffer._directBuffer.Length, (IntPtr)pinnedBuffer._directBuffer.data);
+        public static implicit operator DirectBuffer(FixedBuffer fixedBuffer) {
+            return new DirectBuffer(fixedBuffer._directBuffer.Length, (IntPtr)fixedBuffer._directBuffer.data);
         }
 
-        public static implicit operator PinnedBuffer(DirectBuffer directBuffer) {
-            return new PinnedBuffer(directBuffer.length.ToInt32(), (byte*)directBuffer.data);
+        public static implicit operator FixedBuffer(DirectBuffer directBuffer) {
+            return new FixedBuffer(directBuffer.length.ToInt32(), (byte*)directBuffer.data);
         }
     }
 
@@ -369,7 +369,7 @@ namespace Spreads.Serialization {
         /// 
         /// </summary>
         public static UnmanagedMemoryAccessor GetDirectAccessor(this ArraySegment<byte> arraySegment) {
-            var db = new PinnedBuffer(arraySegment.Array);
+            var db = new FixedBuffer(arraySegment.Array);
             return db.CreateAccessor(arraySegment.Offset, arraySegment.Count, false);
         }
 
@@ -377,7 +377,7 @@ namespace Spreads.Serialization {
         /// 
         /// </summary>
         public static UnmanagedMemoryStream GetDirectStream(this ArraySegment<byte> arraySegment) {
-            var db = new PinnedBuffer(arraySegment.Array);
+            var db = new FixedBuffer(arraySegment.Array);
             return db.CreateStream(arraySegment.Offset, arraySegment.Count, false, true);
         }
 
