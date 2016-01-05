@@ -59,7 +59,7 @@ However, the main benchmark while developing Spreads was modern CPUs capabilitie
 not any existing product. We tried to achieve mechanical sympathy, to avoid any wasteful
 operations and to get the most from modern processors. Therefore, unless the fastest commercial
 products use magic or quantum computers, Spreads must be in the same bracket. There are 
-a lot of known optimization that are waiting to be implemented, and we will move closer
+many known optimizations that are waiting to be implemented, and we will move closer
 to bare metal performance ceiling in the next versions.
 
 
