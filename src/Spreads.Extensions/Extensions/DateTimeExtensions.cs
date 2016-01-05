@@ -22,12 +22,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace Spreads
-{
-    public static class DateTimeExtensions
-    {
-        public static long ToInt64(this DateTime dt)
-        {
+namespace Spreads {
+    public static class DateTimeExtensions {
+        public static long ToInt64(this DateTime dt) {
             return dt.ToBinary(); // ((Int64)dt.Ticks | ((Int64)dt.Kind << 62)); for local, ToBinary() transforms local to UTC, for other types, it is slightly faster and does the same
         }
 
@@ -71,9 +68,19 @@ namespace Spreads
             }
             var utcTimeZone = DateTimeZoneProviders.Tzdb["UTC"];
             var givenTz = DateTimeZoneProviders.Tzdb[tz];
+            var tickWithinSecond = (int) (dateTime.Ticks%TimeSpan.TicksPerSecond);
+            var millis = tickWithinSecond / 10000;
+            var tickWithinMillis = tickWithinSecond % 10000;
 
-            var timeToConvert = new LocalDateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour,
-                dateTime.Minute, dateTime.Second, (int)(dateTime.Ticks % TimeSpan.TicksPerSecond)).InZoneStrictly(givenTz); ;
+            var timeToConvert = new LocalDateTime(dateTime.Year,
+                    dateTime.Month,
+                    dateTime.Day,
+                    dateTime.Hour,
+                    dateTime.Minute, 
+                    dateTime.Second,
+                    millis,
+                    tickWithinMillis
+                ).InZoneStrictly(givenTz); ;
             DateTime utcTime = timeToConvert.ToDateTimeUtc();
             return DateTime.SpecifyKind(utcTime, DateTimeKind.Unspecified);
         }

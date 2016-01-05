@@ -915,8 +915,8 @@ namespace Spreads.Serialization {
 											new UIntPtr((uint)(length * typeSize1)),
 											srcPtr, new IntPtr(bufferPtr), bufferSize,
 											method1.ToString(), new UIntPtr((uint)0),
-											NumThreads
-											);
+                                            NumThreads
+                                            );
 										if (compSize <= 0) throw new ApplicationException("Invalid compression input");
 										return bufferTransform(buffer, compSize);
 									}

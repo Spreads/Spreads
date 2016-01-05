@@ -1,5 +1,9 @@
+#### 0.2.5 - January 5, 2016
+* Keep unsafe methods public for convenience.
+* Add NYSE Trades parsing and serialization example.
+
 #### 0.2.4 - January 4, 2016
-* Add DirectBuffer and PinnedBuffer types. Move Serializer to `Spreads.Serialization` namespace.
+* Add DirectBuffer and FixedBuffer types. Move Serializer to `Spreads.Serialization` namespace.
 
 TODO: Blosc desn't work with ThreadNums > 1, despite I closed the issue in Jul 2015. 
 Should rebuild the binary and investigate.

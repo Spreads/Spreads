@@ -23,6 +23,9 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Serialization {
 
+    // TODO for convenience, all methods should be public
+    // but we must draw the line where we do bound checks on unsafe code and where we don't
+    // we should not protect ourselves from shooting in the leg just by hiding the guns
 
     /// <summary>
     /// Provides read/write opertaions on a memory pointer.
@@ -75,11 +78,11 @@ namespace Spreads.Serialization {
         /// <summary>
         /// Capacity of the underlying buffer
         /// </summary>
-        internal int Length {
+        public int Length {
             get { return length.ToInt32(); }
         }
 
-        internal IntPtr Data {
+        public IntPtr Data {
             get { return data; }
         }
 
@@ -88,7 +91,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        internal byte ReadChar(int index) {
+        public byte ReadChar(int index) {
             return *((byte*)data + index);
         }
 
@@ -97,7 +100,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        internal void WriteChar(int index, byte value) {
+        public void WriteChar(int index, byte value) {
             *((byte*)data + index) = value;
         }
 
@@ -106,7 +109,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        internal sbyte ReadSByte(int index) {
+        public sbyte ReadSByte(int index) {
             return *(sbyte*)(data + index);
         }
 
@@ -115,7 +118,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        internal void WriteSByte(int index, sbyte value) {
+        public void WriteSByte(int index, sbyte value) {
             *(sbyte*)(data + index) = value;
         }
 
@@ -124,7 +127,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        internal byte ReadByte(int index) {
+        public byte ReadByte(int index) {
             return *((byte*)data + index);
         }
 
@@ -134,11 +137,11 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        internal void WriteByte(int index, byte value) {
+        public void WriteByte(int index, byte value) {
             *((byte*)data + index) = value;
         }
 
-        internal byte this[int index] {
+        public byte this[int index] {
             get { return *((byte*)data + index); }
             set { *((byte*)data + index) = value; }
         }
@@ -149,7 +152,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        internal short ReadInt16(int index) {
+        public short ReadInt16(int index) {
             return *(short*)(data + index);
         }
 
@@ -158,7 +161,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        internal void WriteInt16(int index, short value) {
+        public void WriteInt16(int index, short value) {
             *(short*)(data + index) = value;
         }
 
@@ -167,7 +170,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        internal int ReadInt32(int index) {
+        public int ReadInt32(int index) {
             return *(int*)(data + index);
         }
 
@@ -176,7 +179,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        internal void WriteInt32(int index, int value) {
+        public void WriteInt32(int index, int value) {
             *(int*)(data + index) = value;
         }
 
@@ -185,7 +188,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        internal long ReadInt64(int index) {
+        public long ReadInt64(int index) {
             return *(long*)(data + index);
         }
 
@@ -194,7 +197,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        internal void WriteInt64(int index, long value) {
+        public void WriteInt64(int index, long value) {
             *(long*)(data + index) = value;
         }
 
@@ -203,7 +206,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        internal ushort ReadUint16(int index) {
+        public ushort ReadUint16(int index) {
             return *(ushort*)(data + index);
         }
 
@@ -212,7 +215,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        internal void WriteUint16(int index, ushort value) {
+        public void WriteUint16(int index, ushort value) {
             *(ushort*)(data + index) = value;
         }
 
@@ -221,7 +224,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        internal uint ReadUint32(int index) {
+        public uint ReadUint32(int index) {
             return *(uint*)(data + index);
         }
 
@@ -230,7 +233,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        internal void WriteUint32(int index, uint value) {
+        public void WriteUint32(int index, uint value) {
             *(uint*)(data + index) = value;
         }
 
@@ -239,7 +242,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        internal ulong ReadUint64(int index) {
+        public ulong ReadUint64(int index) {
             return *(ulong*)(data + index);
         }
 
@@ -248,7 +251,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        internal void WriteUint64(int index, ulong value) {
+        public void WriteUint64(int index, ulong value) {
             *(ulong*)(data + index) = value;
         }
 
@@ -257,7 +260,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        internal float ReadFloat(int index) {
+        public float ReadFloat(int index) {
             return *(float*)(data + index);
         }
 
@@ -266,7 +269,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        internal void WriteFloat(int index, float value) {
+        public void WriteFloat(int index, float value) {
             *(float*)(data + index) = value;
         }
 
@@ -275,7 +278,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        internal double ReadDouble(int index) {
+        public double ReadDouble(int index) {
             return *(double*)(data + index);
         }
 
@@ -284,7 +287,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        internal void WriteDouble(int index, double value) {
+        public void WriteDouble(int index, double value) {
             *(double*)(data + index) = value;
         }
 
@@ -298,14 +301,14 @@ namespace Spreads.Serialization {
         /// <param name="length">length of the supplied buffer to use.</param>
         /// <returns>count of bytes copied.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // TODO test if that has an impact
-        internal int ReadBytes(int index, byte[] destination, int offsetDestination, int length) {
+        public int ReadBytes(int index, byte[] destination, int offsetDestination, int length) {
             if (length > this.length.ToInt32() - index) throw new ArgumentException("length > _capacity - index");
             Marshal.Copy((IntPtr)(data + index), destination, offsetDestination, length);
             return length;
         }
 
 
-        internal int ReadAllBytes(byte[] destination) {
+        public int ReadAllBytes(byte[] destination) {
             Marshal.Copy((this.data), destination, 0, length.ToInt32());
             return length.ToInt32();
         }
@@ -319,19 +322,19 @@ namespace Spreads.Serialization {
         /// <param name="length">length of the supplied buffer to copy.</param>
         /// <returns>count of bytes copied.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // TODO test if that has an impact
-        internal int WriteBytes(int index, byte[] src, int offset, int length) {
+        public int WriteBytes(int index, byte[] src, int offset, int length) {
             int count = Math.Min(length, (int)this.length - index);
             Marshal.Copy(src, offset, (IntPtr)(data + index), count);
 
             return count;
         }
 
-        internal UUID ReadUUID(int index) {
+        public UUID ReadUUID(int index) {
             return *(UUID*)(data + index);
             //return new UUID(*(ulong*)(_pBuffer + index), *(ulong*)(_pBuffer + index + 8));
         }
 
-        internal void WriteUUID(int index, UUID value) {
+        public void WriteUUID(int index, UUID value) {
             *(UUID*)(data + index) = value;
         }
 

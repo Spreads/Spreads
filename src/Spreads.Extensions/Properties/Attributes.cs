@@ -7,3 +7,5 @@
 
 [assembly: InternalsVisibleTo("SpreadsDB")]
 [assembly: InternalsVisibleTo("SpreadsDB.Tests")]
+[assembly: InternalsVisibleTo("SpreadsDB.Tests.Profile")]
+[assembly: InternalsVisibleTo("SpreadsDB.Tests.CSProfile")]

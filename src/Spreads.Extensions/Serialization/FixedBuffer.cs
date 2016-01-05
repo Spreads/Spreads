@@ -184,7 +184,7 @@ namespace Spreads.Serialization {
         }
 
 
-        // TODO(?) remove this copy/move methods
+        // TODO(?) remove this copy/move methods or add bound checks
 
         /// <summary>
         /// TODO Move to Bootstrapper
@@ -196,7 +196,7 @@ namespace Spreads.Serialization {
         /// <summary>
         /// Copy this buffer to a pointer
         /// </summary>
-        internal void Copy(byte* destination, int srcOffset, int length) {
+        public void Copy(byte* destination, int srcOffset, int length) {
             if (_array != null) {
                 Marshal.Copy(_array, srcOffset, (IntPtr)destination, length);
             } else {
@@ -207,7 +207,7 @@ namespace Spreads.Serialization {
         /// <summary>
         /// Copy data and move the fixed buffer to the new location
         /// </summary>
-        internal FixedBuffer Move(byte* destination, int srcOffset, int length) {
+        public FixedBuffer Move(byte* destination, int srcOffset, int length) {
             if (_array != null) {
                 Marshal.Copy(_array, srcOffset, (IntPtr)destination, length);
                 FreeGCHandle();
@@ -222,7 +222,7 @@ namespace Spreads.Serialization {
             return this;
         }
 
-        internal void Copy(byte[] destination, int srcOffset, int destOffset, int length) {
+        public void Copy(byte[] destination, int srcOffset, int destOffset, int length) {
             if (_array != null) {
                 System.Array.Copy(_array, srcOffset, destination, destOffset, length);
                 FreeGCHandle();
@@ -231,7 +231,7 @@ namespace Spreads.Serialization {
             }
         }
 
-        internal FixedBuffer Move(byte[] destination, int srcOffset, int destOffset, int length) {
+        public FixedBuffer Move(byte[] destination, int srcOffset, int destOffset, int length) {
             if (_array != null) {
                 System.Array.Copy(_array, srcOffset, destination, destOffset, length);
                 FreeGCHandle();
