@@ -32,9 +32,17 @@ using System.Security;
 
 namespace Spreads.Serialization {
 
+    // TODO pinning of arrays is only needed when
+    //  - DirectBuffer property is accessed
+    //  - Unmanaged Accessor/Stream is created
+    // For all other cases, we could use fixed() which is much kinder to GC
+    // TODO add back all read/write methods from DB, and use fixed where possible instead of pinning
+    // The Move(*byte) method should work without pinning but using fixed()
+
+
     internal sealed class FixedBufferAccessor : UnmanagedMemoryAccessor {
         [SecurityCritical]
-        internal FixedBufferAccessor(FixedBuffer buffer, long offset, long length, bool readOnly) {
+        internal FixedBufferAccessor(SafeBuffer buffer, long offset, long length, bool readOnly) {
             Debug.Assert(buffer != null, "buffer is null");
             Initialize(buffer, offset, length, readOnly ? FileAccess.Read : FileAccess.ReadWrite);
         }
@@ -51,13 +59,9 @@ namespace Spreads.Serialization {
 
     internal unsafe sealed class FixedBufferStream : UnmanagedMemoryStream {
         [SecurityCritical]
-        internal FixedBufferStream(FixedBuffer buffer, long offset, long length, bool readOnly, bool unsafePointer) {
+        internal FixedBufferStream(SafeBuffer buffer, long offset, long length, bool readOnly) {
             Debug.Assert(buffer != null, "buffer is null");
-            if (unsafePointer) {
-                Initialize(buffer, offset, length, readOnly ? FileAccess.Read : FileAccess.ReadWrite);
-            } else {
-                Initialize((byte*)buffer.DirectBuffer.data, offset, length, readOnly ? FileAccess.Read : FileAccess.ReadWrite);
-            }
+            Initialize(buffer, offset, length, readOnly ? FileAccess.Read : FileAccess.ReadWrite);
         }
 
         protected override void Dispose(bool disposing) {
@@ -69,10 +73,11 @@ namespace Spreads.Serialization {
         }
     }
 
+
     /// <summary>
     /// Provides read/write opertaions on a byte buffer that is fixed in memory.
     /// </summary>
-    public sealed unsafe class FixedBuffer : SafeBuffer {
+    public sealed unsafe class FixedBuffer {
 #if PRERELEASE
         static FixedBuffer() {
             if (!BitConverter.IsLittleEndian) {
@@ -94,7 +99,21 @@ namespace Spreads.Serialization {
         /// <returns>New buffer, or null if reallocation is not possible</returns>
         public delegate byte[] BufferRecyleDelegate(long existingBufferSize, long requestedBufferSize, byte[] existingBuffer = null);
 
-        public static BufferRecyleDelegate BufferRecylce { get; set; }
+        public BufferRecyleDelegate BufferRecylce {
+            get { return _bufferRecylce; }
+            set { _bufferRecylce = value; }
+        }
+        // default recyling is to use a buffer pool from settings
+        private BufferRecyleDelegate _bufferRecylce = (eSize, rSize, eBuffer) => {
+            if (eBuffer != null && eBuffer.LongLength <= int.MaxValue) {
+                OptimizationSettings.ArrayPool.ReturnBuffer<byte>(eBuffer);
+            }
+            // TODO to long. Now array pool doesn't support long and probably should not.
+            // If we ever allocate large buffer > 2 Gb, we probably want to keep it forever
+            if (rSize > int.MaxValue) return new byte[rSize];
+            var newBuffer = OptimizationSettings.ArrayPool.TakeBuffer<byte>((int)rSize);
+            return newBuffer;
+        };
 
         private DirectBuffer _directBuffer;
         //private int _directBuffer.Length;
@@ -105,11 +124,12 @@ namespace Spreads.Serialization {
         private bool _needToFreeGCHandle;
 
 
+
         /// <summary>
         /// Attach a view to a byte[] for providing direct access.
         /// </summary>
         /// <param name="buffer">buffer to which the view is attached.</param>
-        public FixedBuffer(byte[] buffer) : base(false) {
+        public FixedBuffer(byte[] buffer) {
             Wrap(buffer);
         }
 
@@ -117,7 +137,7 @@ namespace Spreads.Serialization {
         /// Create a new FixedBuffer with a new empty array
         /// </summary>
         /// <param name="length">buffer to which the view is attached.</param>
-        public FixedBuffer(int length) : base(false) {
+        public FixedBuffer(int length) {
             if (length <= 0) throw new ArgumentOutOfRangeException(nameof(length));
             byte[] buffer = BufferRecylce == null ? new byte[length] : BufferRecylce(0, length, null);
             Debug.Assert(_array == null, "_buffer is null here, do not assign, avoid double recycling.");
@@ -130,14 +150,14 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="pBuffer">Unmanaged byte buffer</param>
         /// <param name="bufferLength">Length of the buffer</param>
-        public FixedBuffer(long bufferLength, byte* pBuffer) : base(false) {
+        public FixedBuffer(long bufferLength, byte* pBuffer) {
             Wrap(bufferLength, pBuffer);
         }
 
         /// <summary>
         /// Creates a FixedBuffer that can later be wrapped
         /// </summary>
-        public FixedBuffer() : base(false) {
+        public FixedBuffer() {
         }
 
         /// <summary>
@@ -146,24 +166,27 @@ namespace Spreads.Serialization {
         /// <param name="byteArray">The byte array that will act as the backing buffer.</param>
         public void Wrap(byte[] byteArray) {
             if (byteArray == null) throw new ArgumentNullException("byteArray");
-
             FreeGCHandle();
-
-            // pin the buffer so it does not get moved around by GC, this is required since we use pointers
-            _pinnedGCHandle = GCHandle.Alloc(byteArray, GCHandleType.Pinned);
-            _needToFreeGCHandle = true;
-            _directBuffer = new DirectBuffer(byteArray.Length, (IntPtr)_pinnedGCHandle.AddrOfPinnedObject().ToPointer());
 
             if (BufferRecylce != null && _array != null) {
                 // return previous buffer for recylcing
                 BufferRecylce(_array.Length, 0, _array);
             }
-
             _array = byteArray;
-
-            base.SetHandle(_directBuffer.Data);
-            base.Initialize((uint)_directBuffer.Capacity);
         }
+
+
+        // we postpone pinning array as much as possible
+        private void PinArray() {
+            if (_array != null && !_needToFreeGCHandle) {
+                // pin the buffer so it does not get moved around by GC, this is required since we use pointers
+                _pinnedGCHandle = GCHandle.Alloc(_array, GCHandleType.Pinned);
+                _needToFreeGCHandle = true;
+                _directBuffer = new DirectBuffer(_array.Length,
+                    (IntPtr)_pinnedGCHandle.AddrOfPinnedObject().ToPointer());
+            }
+        }
+
 
         /// <summary>
         /// Recycles an existing <see cref="FixedBuffer"/> from an unmanaged byte buffer owned by external code
@@ -178,9 +201,6 @@ namespace Spreads.Serialization {
 
             _directBuffer = new DirectBuffer(bufferLength, (IntPtr)pBuffer);
             _needToFreeGCHandle = false;
-
-            base.SetHandle(_directBuffer.Data);
-            base.Initialize((uint)_directBuffer.Capacity);
         }
 
 
@@ -263,7 +283,14 @@ namespace Spreads.Serialization {
             get { return _array; }
         }
 
-        public DirectBuffer DirectBuffer => _directBuffer;
+        public DirectBuffer DirectBuffer {
+            get {
+                PinArray();
+                return _directBuffer;
+            }
+        }
+
+
 
         /// <summary>
         /// Check that a given limit is not greater than the capacity of a buffer from a given offset.
@@ -299,26 +326,37 @@ namespace Spreads.Serialization {
             if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
             if (length + offset > _directBuffer.Capacity) throw new ArgumentException("Length plus offset exceed capacity");
 
+            PinArray();
+
             if (length == 0) {
                 length = _directBuffer.Capacity - offset;
             }
-            return new FixedBufferAccessor(this, offset, length, readOnly);
+            return new FixedBufferAccessor(CreateSafeBuffer(), offset, length, readOnly);
         }
 
         /// <summary>
         /// 
         /// </summary>
-        public UnmanagedMemoryStream CreateStream(long offset = 0, long length = 0, bool readOnly = false, bool unsafePointer = false) {
+        public UnmanagedMemoryStream CreateStream(long offset = 0, long length = 0, bool readOnly = false) {
             if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
             if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
             if (length + offset > _directBuffer.Capacity) throw new ArgumentException("Length plus offset exceed capacity");
 
+            PinArray();
+
             if (length == 0) {
                 length = _directBuffer.Capacity - offset;
             }
-            return new FixedBufferStream(this, offset, length, readOnly, unsafePointer);
+            return new FixedBufferStream(CreateSafeBuffer(), offset, length, readOnly);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public SafeBuffer CreateSafeBuffer() {
+            return new SafeFixedBuffer(this);
+        }
 
         /// <summary>
         /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
@@ -334,12 +372,11 @@ namespace Spreads.Serialization {
             Dispose(false);
         }
 
-        protected override void Dispose(bool disposing) {
+        private void Dispose(bool disposing) {
             if (_disposed) return;
 
             if (disposing) {
                 GC.SuppressFinalize(this);
-                base.Dispose();
             }
 
             FreeGCHandle();
@@ -348,7 +385,7 @@ namespace Spreads.Serialization {
                 BufferRecylce(_array.Length, 0, _array);
             }
             _disposed = true;
-            base.Dispose(disposing);
+
         }
 
         private void FreeGCHandle() {
@@ -358,11 +395,29 @@ namespace Spreads.Serialization {
             }
         }
 
-        protected override bool ReleaseHandle() {
-            FreeGCHandle();
-            return true;
-        }
 
+        // NB SafeBuffer Read<> is very slow compared to DirectBuffer unsafe methods
+        // Use SafeBuffer only when explicitly requested
+        internal sealed unsafe class SafeFixedBuffer : SafeBuffer {
+            private readonly FixedBuffer _fixedBuffer;
+
+            public SafeFixedBuffer(FixedBuffer fixedBuffer) : base(false) {
+                _fixedBuffer = fixedBuffer;
+                _fixedBuffer.PinArray();
+                base.SetHandle(_fixedBuffer._directBuffer.Data);
+                base.Initialize((uint)_fixedBuffer._directBuffer.Capacity);
+            }
+
+            protected override bool ReleaseHandle() {
+                _fixedBuffer.FreeGCHandle();
+                return true;
+            }
+
+            protected override void Dispose(bool disposing) {
+                _fixedBuffer.Dispose(disposing);
+                base.Dispose(disposing);
+            }
+        }
 
         public static implicit operator DirectBuffer(FixedBuffer fixedBuffer) {
             return new DirectBuffer(fixedBuffer._directBuffer.Capacity, fixedBuffer._directBuffer.data);
@@ -388,7 +443,7 @@ namespace Spreads.Serialization {
         /// </summary>
         public static UnmanagedMemoryStream GetDirectStream(this ArraySegment<byte> arraySegment) {
             var db = new FixedBuffer(arraySegment.Array);
-            return db.CreateStream(arraySegment.Offset, arraySegment.Count, false, true);
+            return db.CreateStream(arraySegment.Offset, arraySegment.Count, false);
         }
 
 
