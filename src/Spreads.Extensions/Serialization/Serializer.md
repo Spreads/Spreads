@@ -1,4 +1,6 @@
-﻿Spreads.Serializer
+﻿(TODO Update this, it is a though dump and is not relevant now)
+
+Spreads.Serializer
 ------------------
 
 Spreads.Serializer is ultra-fast and efficient binary serializer. It provides high compression for arrays of blittable types

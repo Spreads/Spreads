@@ -1,3 +1,9 @@
+#### 0.2.4 - January 4, 2016
+* Add DirectBuffer and PinnedBuffer types. Move Serializer to `Spreads.Serialization` namespace.
+
+TODO: Blosc desn't work with ThreadNums > 1, despite I closed the issue in Jul 2015. 
+Should rebuild the binary and investigate.
+
 #### 0.2.3 - December 28, 2015
 * Bug fixes.
 

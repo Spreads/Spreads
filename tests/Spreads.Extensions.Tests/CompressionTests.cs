@@ -8,6 +8,7 @@ using NUnit.Framework;
 using System.Runtime.InteropServices;
 using Spreads.Collections;
 using Spreads;
+using Spreads.Serialization;
 using Newtonsoft.Json.Bson;
 using Newtonsoft.Json;
 

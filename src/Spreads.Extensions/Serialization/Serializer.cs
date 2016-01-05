@@ -34,7 +34,7 @@ using Newtonsoft.Json.Bson;
 using System.IO;
 using System.Collections.Concurrent;
 
-namespace Spreads {
+namespace Spreads.Serialization {
 
 
 	/// <summary>
@@ -374,7 +374,7 @@ namespace Spreads {
 			// are called before the serializer is used, so libspreadsdb is loaded.
 			ABI = Bootstrapper.ABI;
 			// blosc threads
-			NumThreads = 1; //Environment.ProcessorCount;
+		    NumThreads = 1; //Environment.ProcessorCount; // NB there are use cases when built-in chunking is needed
 			CompressionMethod = CompressionMethod.lz4;
 			Diff = true;
 			ZeroByteArray = new byte[] { 0 };
