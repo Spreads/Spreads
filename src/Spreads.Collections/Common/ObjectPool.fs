@@ -25,7 +25,6 @@ open System.Threading
 open System.Collections.Concurrent
 open System.Threading.Tasks
 
-[<ObsoleteAttribute("Not used now")>]
 type ObjectPool<'T>(objectGenerator:Func<'T>, maxCapacity:int) =
   // in steady state the number of objects could be much higher than 
   // capacity, but at each moment the number of object inside the buffer 
