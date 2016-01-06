@@ -378,7 +378,7 @@ and
 
 
 and
-  // NB! Remember that a cursors are single-threaded
+  // NB! Remember that cursors are single-threaded
   /// Map values to new values, batch mapping if that makes sense (for simple operations additional logic overhead is usually bigger than)
   [<SealedAttribute>]
   internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> option)=
@@ -1762,8 +1762,8 @@ and
         // CWT is an interesting thing and I want to try using it for metadata of objects, R-like style.
         |> Array.map (fun x ->
           let ok, value = x.TryGetValue(key)
-          if ok then value 
-          else 
+          if ok then value
+          else
             cont <- false
             Unchecked.defaultof<'V>
         )

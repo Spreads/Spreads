@@ -79,7 +79,7 @@ Discrete series have values only at observations/events, e.g. trade volume
 is meaningful only at observed trades, there is no implied latent volumes between trades. We could
 create a derived continuous series, e.g. `let liquidity = volume.SMA(N).Repeat()`, but this
 series changes meaning from a real observed volume to an abstract analytical indicator of average
-liquidity over the last N observation.
+liquidity over the last N observations.
 
 
 <img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/Discrete_Series.png" alt="Discrete Series" width="500" />

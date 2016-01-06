@@ -27,6 +27,9 @@ namespace Spreads {
 
     // TODO (@VB) I have somewhere almost complete implementation of Price structs, copy it here
 
+    // NB in RAQ example we already have prices stored as longs with 4 digits after decimal point
+    // this is a common pattern in financial data DTOs on wire/storage
+
     public struct Price {
         private ulong value;
         private const int precisionOffset = 60;
