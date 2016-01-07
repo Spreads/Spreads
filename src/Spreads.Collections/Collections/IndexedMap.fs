@@ -190,13 +190,13 @@ type IndexedMap<'K,'V> // when 'K:equality
           Array.Copy(this.keys, 0, kArr, 0, this.size)
           let toReturn = this.keys
           this.keys <- kArr
-          OptimizationSettings.ArrayPool.ReturnBuffer(toReturn)
+          OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore
 
           let vArr : 'V array = OptimizationSettings.ArrayPool.TakeBuffer(c)
           Array.Copy(this.values, 0, vArr, 0, this.size)
           let toReturn = this.values
           this.values <- vArr
-          OptimizationSettings.ArrayPool.ReturnBuffer(toReturn)
+          OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore
         | _ -> ()
       finally
         exitLockIf syncRoot entered

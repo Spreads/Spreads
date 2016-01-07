@@ -57,22 +57,24 @@ namespace TAQParse {
         public DateTime TRFTimestamp => new DateTime(_TRFTimestampUtcTicks, DateTimeKind.Utc);
         private long _TRFTimestampUtcTicks;
 
-        public TaqTrade(DateTime date, FixedBuffer fb) {
+        public TaqTrade(DateTime date, FixedBuffer fb)
+        {
+
             // Read<> over fb is much slower
-            var db = fb.DirectBuffer;
+            var db = fb;
             // Time
             _timeUTCTicks = ReadHHMMSSXXXXXXAsUtcTicks(date, fb, 0);
             // Exchange
-            Exchange = db.ReadByte(12);
+            Exchange = fb.ReadByte(12);
             // Symbol
             fixed (void* ptr = _symbol)
             {
-                fb.Copy((byte*)ptr, 13, 16);
+                fb.Copy((IntPtr)ptr, 13, 16);
             }
             // Sale Condition
             fixed (void* ptr = _saleCondition)
             {
-                fb.Copy((byte*)ptr, 29, 4);
+                fb.Copy((IntPtr)ptr, 29, 4);
             }
 
             TradeVolume = (uint)ReadUInt64(fb, 33, 9);
@@ -88,14 +90,14 @@ namespace TAQParse {
 
             fixed (void* ptr = _rnn)
             {
-                fb.Copy((byte*)ptr, 86, 8);
+                fb.Copy((IntPtr)ptr, 86, 8);
             }
 
             _TRFTimestampUtcTicks = ReadHHMMSSXXXXXXAsUtcTicks(date, fb, 94);
         }
 
 
-        private static long ReadHHMMSSXXXXXXAsUtcTicks(DateTime date, DirectBuffer db, int index) {
+        private static long ReadHHMMSSXXXXXXAsUtcTicks(DateTime date, IDirectBuffer db, int index) {
             // TODO method ReadAsciiDigit
             var hh = (db.ReadAsciiDigit(index)) * 10 + db.ReadAsciiDigit(index + 1);
             var mm = (db.ReadAsciiDigit(index + 2)) * 10 + db.ReadAsciiDigit(index + 3);
@@ -124,7 +126,7 @@ namespace TAQParse {
             return dt.Ticks;
         }
 
-        private static ulong ReadUInt64(DirectBuffer db, int index, int length) {
+        private static ulong ReadUInt64(IDirectBuffer db, int index, int length) {
             ulong ret = 0;
             for (int pos = 0; pos < length; pos++) {
                 byte b = (byte)(db.ReadAsciiDigit(index + pos));

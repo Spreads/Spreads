@@ -32,20 +32,21 @@ namespace Spreads.Serialization {
     /// not checked for bounds/ranges/overflows.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct DirectBuffer {
-        internal readonly long capacity;
-        internal IntPtr data;
+    public unsafe struct DirectBuffer : IDirectBuffer
+    {
+        private readonly long _length;
+        private IntPtr _data;
 
         /// <summary>
         /// Attach a view to an unmanaged buffer owned by external code
         /// </summary>
         /// <param name="data">Unmanaged byte buffer</param>
-        /// <param name="capacity">Length of the buffer</param>
-        public DirectBuffer(long capacity, IntPtr data) {
+        /// <param name="length">Length of the buffer</param>
+        public DirectBuffer(long length, IntPtr data) {
             if (data == null) throw new ArgumentNullException("data");
-            if (capacity <= 0) throw new ArgumentException("Buffer size must be > 0", "capacity");
-            this.data = data;
-            this.capacity = capacity;
+            if (length <= 0) throw new ArgumentException("Buffer size must be > 0", "length");
+            this._data = data;
+            this._length = length;
         }
 
 
@@ -59,34 +60,37 @@ namespace Spreads.Serialization {
         /// <summary>
         /// Copy this buffer to a pointer
         /// </summary>
-        public void Copy(byte* destination, long srcOffset, ulong length) {
-            memcpy((IntPtr)destination, (IntPtr)(data.ToInt64() + srcOffset), (UIntPtr)length);
+        public void Copy(IntPtr destination, long srcOffset, long length) {
+            memcpy(destination, (IntPtr)(_data.ToInt64() + srcOffset), (UIntPtr)length);
+        }
+
+        /// <summary>
+        /// Copy this buffer to a byte array
+        /// </summary>
+        public void Copy(byte[] destination, int srcOffset, int destOffset, int length) {
+            Marshal.Copy(_data + srcOffset, destination, destOffset, length);
         }
 
         /// <summary>
         /// Copy data and move the fixed buffer to the new location
         /// </summary>
-        public DirectBuffer Move(IntPtr destination, long srcOffset, long length) {
-            memcpy(destination, (IntPtr)(data.ToInt64() + srcOffset), (UIntPtr)length);
+        public IDirectBuffer Move(IntPtr destination, long srcOffset, long length) {
+            memcpy(destination, (IntPtr)(_data.ToInt64() + srcOffset), (UIntPtr)length);
             return new DirectBuffer(length, destination);
         }
 
-        [Obsolete("TODO use longs")]
-        public void Copy(byte[] destination, int srcOffset, int destOffset, int length) {
-            Marshal.Copy(data + srcOffset, destination, destOffset, length);
+        public IDirectBuffer Move(byte[] destination, int srcOffset, int destOffset, int length) {
+            Marshal.Copy(_data + srcOffset, destination, destOffset, length);
+            return new FixedBuffer(destination);
         }
+
 
 
         /// <summary>
         /// Capacity of the underlying buffer
         /// </summary>
-        public long Capacity {
-            get { return capacity; }
-        }
-
-        public IntPtr Data {
-            get { return data; }
-        }
+        public long Length => _length;
+        public IntPtr Data => _data;
 
         /// <summary>
         /// Gets the <see cref="byte"/> value at a given index.
@@ -94,7 +98,7 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public char ReadChar(int index) {
-            return *((char*)data + index);
+            return *((char*)_data + index);
         }
 
         /// <summary>
@@ -103,7 +107,7 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteChar(int index, char value) {
-            *((byte*)data + index) = (byte)value;
+            *((byte*)_data + index) = (byte)value;
         }
 
         /// <summary>
@@ -112,7 +116,7 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public sbyte ReadSByte(int index) {
-            return *(sbyte*)(data + index);
+            return *(sbyte*)(_data + index);
         }
 
         /// <summary>
@@ -121,7 +125,7 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteSByte(int index, sbyte value) {
-            *(sbyte*)(data + index) = value;
+            *(sbyte*)(_data + index) = value;
         }
 
         /// <summary>
@@ -130,7 +134,7 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public byte ReadByte(int index) {
-            return *((byte*)data + index);
+            return *((byte*)_data + index);
         }
 
 
@@ -140,12 +144,12 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteByte(int index, byte value) {
-            *((byte*)data + index) = value;
+            *((byte*)_data + index) = value;
         }
 
         public byte this[int index] {
-            get { return *((byte*)data + index); }
-            set { *((byte*)data + index) = value; }
+            get { return *((byte*)_data + index); }
+            set { *((byte*)_data + index) = value; }
         }
 
 
@@ -155,7 +159,7 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public short ReadInt16(int index) {
-            return *(short*)(data + index);
+            return *(short*)(_data + index);
         }
 
         /// <summary>
@@ -164,7 +168,7 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteInt16(int index, short value) {
-            *(short*)(data + index) = value;
+            *(short*)(_data + index) = value;
         }
 
         /// <summary>
@@ -173,7 +177,7 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public int ReadInt32(int index) {
-            return *(int*)(data + index);
+            return *(int*)(_data + index);
         }
 
         /// <summary>
@@ -182,7 +186,7 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteInt32(int index, int value) {
-            *(int*)(data + index) = value;
+            *(int*)(_data + index) = value;
         }
 
         /// <summary>
@@ -191,7 +195,7 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public long ReadInt64(int index) {
-            return *(long*)(data + index);
+            return *(long*)(_data + index);
         }
 
         /// <summary>
@@ -200,7 +204,7 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteInt64(int index, long value) {
-            *(long*)(data + index) = value;
+            *(long*)(_data + index) = value;
         }
 
         /// <summary>
@@ -209,7 +213,7 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public ushort ReadUint16(int index) {
-            return *(ushort*)(data + index);
+            return *(ushort*)(_data + index);
         }
 
         /// <summary>
@@ -218,7 +222,7 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteUint16(int index, ushort value) {
-            *(ushort*)(data + index) = value;
+            *(ushort*)(_data + index) = value;
         }
 
         /// <summary>
@@ -227,7 +231,7 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public uint ReadUint32(int index) {
-            return *(uint*)(data + index);
+            return *(uint*)(_data + index);
         }
 
         /// <summary>
@@ -236,7 +240,7 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteUint32(int index, uint value) {
-            *(uint*)(data + index) = value;
+            *(uint*)(_data + index) = value;
         }
 
         /// <summary>
@@ -245,7 +249,7 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public ulong ReadUint64(int index) {
-            return *(ulong*)(data + index);
+            return *(ulong*)(_data + index);
         }
 
         /// <summary>
@@ -254,7 +258,7 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteUint64(int index, ulong value) {
-            *(ulong*)(data + index) = value;
+            *(ulong*)(_data + index) = value;
         }
 
         /// <summary>
@@ -263,7 +267,7 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public float ReadFloat(int index) {
-            return *(float*)(data + index);
+            return *(float*)(_data + index);
         }
 
         /// <summary>
@@ -272,7 +276,7 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteFloat(int index, float value) {
-            *(float*)(data + index) = value;
+            *(float*)(_data + index) = value;
         }
 
         /// <summary>
@@ -281,7 +285,7 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public double ReadDouble(int index) {
-            return *(double*)(data + index);
+            return *(double*)(_data + index);
         }
 
         /// <summary>
@@ -290,7 +294,7 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteDouble(int index, double value) {
-            *(double*)(data + index) = value;
+            *(double*)(_data + index) = value;
         }
 
 
@@ -304,21 +308,21 @@ namespace Spreads.Serialization {
         /// <returns>count of bytes copied.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // TODO test if that has an impact
         public int ReadBytes(int index, byte[] destination, int offsetDestination, int len) {
-            if (len > this.capacity - index) throw new ArgumentException("length > _capacity - index");
-            Marshal.Copy(data + index, destination, offsetDestination, len);
+            if (len > this._length - index) throw new ArgumentException("length > _capacity - index");
+            Marshal.Copy(_data + index, destination, offsetDestination, len);
             return len;
         }
 
 
         public int ReadAllBytes(byte[] destination) {
-            if (capacity > int.MaxValue) {
+            if (_length > int.MaxValue) {
                 // TODO (low) .NET already supports arrays larger than 2 Gb, 
                 // but Marshal.Copy doesn't accept long as a parameter
                 // Use memcpy and fixed() over an empty large array
                 throw new NotImplementedException("Buffer length is larger than the maximum size of a byte array.");
             } else {
-                Marshal.Copy((this.data), destination, 0, (int)capacity);
-                return (int)capacity;
+                Marshal.Copy((this._data), destination, 0, (int)_length);
+                return (int)_length;
             }
         }
 
@@ -332,31 +336,55 @@ namespace Spreads.Serialization {
         /// <returns>count of bytes copied.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // TODO test if that has an impact
         public int WriteBytes(int index, byte[] src, int offset, int len) {
-            int count = Math.Min(len, (int)this.capacity - index);
-            Marshal.Copy(src, offset, data + index, count);
+            int count = Math.Min(len, (int)this._length - index);
+            Marshal.Copy(src, offset, _data + index, count);
 
             return count;
         }
 
         public UUID ReadUUID(int index) {
-            return *(UUID*)(data + index);
+            return *(UUID*)(_data + index);
             //return new UUID(*(ulong*)(_pBuffer + index), *(ulong*)(_pBuffer + index + 8));
         }
 
         public void WriteUUID(int index, UUID value) {
-            *(UUID*)(data + index) = value;
+            *(UUID*)(_data + index) = value;
         }
 
         public int ReadAsciiDigit(int index) {
-            return (*((byte*)data + index)) - '0';
+            return (*((byte*)_data + index)) - '0';
         }
 
         public void WriteAsciiDigit(int index, int value) {
-            *(byte*)(data + index) = (byte)(value + '0');
+            *(byte*)(_data + index) = (byte)(value + '0');
         }
 
         // TODO add Ascii dates/ints/etc, could take fast implementation from Jil
         // See TAQParse example for ulong and times manual parsing
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public SafeBuffer CreateSafeBuffer() {
+            return new SafeDirectBuffer(ref this);
+        }
+
+
+        internal sealed unsafe class SafeDirectBuffer : SafeBuffer {
+            private readonly DirectBuffer _directBuffer;
+
+            public SafeDirectBuffer(ref DirectBuffer directBuffer) : base(false) {
+                _directBuffer = directBuffer;
+                base.SetHandle(_directBuffer._data);
+                base.Initialize((uint)_directBuffer._length);
+            }
+
+            protected override bool ReleaseHandle() {
+                return true;
+            }
+        }
     }
 
 

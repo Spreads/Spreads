@@ -1,3 +1,7 @@
+#### 0.2.6 - January 7, 2016
+* Rework FixedBuffer/DirectBuffer implementation;
+* Add reference counting to buffer pool (prepare for reusing immutable chunks).
+
 #### 0.2.5 - January 5, 2016
 * Keep unsafe methods public for convenience.
 * Add NYSE Trades parsing and serialization example.

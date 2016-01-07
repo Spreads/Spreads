@@ -375,8 +375,7 @@ namespace Spreads.Serialization {
 
 		static Serializer() {
 
-			// Init both bootstrapper and SpreadsDB, this will ensure their static constructors
-			// are called before the serializer is used, so libspreadsdb is loaded.
+			// This will ensure their static constructors are called before the serializer is used.
 			ABI = Bootstrapper.ABI;
 			// blosc threads
 		    NumThreads = Environment.ProcessorCount; // NB there are use cases when built-in chunking is needed
@@ -1708,8 +1707,6 @@ namespace Spreads.Serialization {
 		//    return r;
 		//}
 
-
-		// this is used in SpreadsDB to write directly to DB pointers
 
 		/// <summary>
 		/// Serialize value and apply a function to intermediate buffer

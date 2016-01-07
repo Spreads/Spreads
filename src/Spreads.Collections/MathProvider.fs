@@ -46,10 +46,13 @@ type internal OptimizationSettings() =
   static member val SCMDefaultChunkLength = 4096 with get, set
   /// Generic array pool implementation. Default is GC.
   /// The extension project has an implementation for doubles, and the performance gain is quite visible in benchmarks.
-  static member val ArrayPool = 
+  static member val ArrayPool =
     {new IArrayPool with
-        member x.ReturnBuffer(arg1: 'T []): unit = ()       
         member x.TakeBuffer<'T>(size) = Array.zeroCreate<'T> size
+        // NB 1 because a buffer is passed as an argument and it is still used and owned by GC
+        member x.ReturnBuffer(buffer): int = 1
+        member x.BorrowBuffer(buffer): int = 1
+        member x.ReferenceCount(buffer) = 1
         member x.Clear(): unit = ()
     } with get, set
 

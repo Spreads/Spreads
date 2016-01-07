@@ -229,9 +229,10 @@ type SortedDeque<'T>(comparer:IComparer<'T>, capacity:int) as this=
     index
 
   member this.First with get() = this.buffer.[this.firstOffset]
-  member this.Last with get() = 
-    let offset = this.IndexToOffset (this.count - 1)
-    this.buffer.[offset]
+  member this.Last 
+    with get() = 
+      let offset = this.IndexToOffset (this.count - 1)
+      this.buffer.[offset]
     
   member this.Count with get() = this.count
 
@@ -333,6 +334,9 @@ and SortedDequeEnumerator<'T> =
     member this.Current with get() : obj = box this.Current
     member this.Dispose() = ()
     member this.Reset() = this.Reset()
+
+
+
 
 [<SerializableAttribute>]
 [<ObsoleteAttribute("SortedDeque is faster")>]

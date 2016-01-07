@@ -539,28 +539,24 @@ module CollectionsBenchmarks =
           smap.Value.Add(i, i)
       )
     
-    for i in 0..199 do
+    for i in 0..99 do
       let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
       perf count "SortedMapRegular Add Double GC" (fun _ ->
         for i in 0L..count do
           sdf.Value.Add(i, double i)
       )
 
+    GC.Collect(3, GCCollectionMode.Forced, true)
+    GC.WaitForPendingFinalizers()
+    GC.Collect(3, GCCollectionMode.Forced, true)
+    GC.WaitForPendingFinalizers()
+
     let originalPool = OptimizationSettings.ArrayPool
-
-    OptimizationSettings.ArrayPool <- DoubleArrayPoolCWT()
-
-    for i in 0..199 do
-      let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
-      perf count "SortedMapRegular Add Double Pool CWT" (fun _ ->
-        for i in 0L..count do
-          sdf.Value.Add(i, double i)
-      )
 
 
     OptimizationSettings.ArrayPool <- DoubleArrayPool()
 
-    for i in 0..199 do
+    for i in 0..99 do
       let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
       perf count "SortedMapRegular Add Double Pool" (fun _ ->
         for i in 0L..count do

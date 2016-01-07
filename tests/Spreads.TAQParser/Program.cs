@@ -19,7 +19,7 @@ namespace TAQParse {
             // main effect on memory consumption
             var chunkSize = 100000;
             var date = new DateTime(2015, 8, 5);
-            var fb = new FixedBuffer();
+            
             var tsize = Marshal.SizeOf(typeof(TaqTrade));
             Console.WriteLine(tsize);
 
@@ -43,7 +43,7 @@ namespace TAQParse {
                     line = reader.ReadLine();
                     Encoding.ASCII.GetBytes(line, 0, 106, byteBuffer, 0);
 
-                    fb.Wrap(byteBuffer);
+                    var fb = new FixedBuffer(byteBuffer);
                     var trade = new TaqTrade(date, fb);
                     tradesArray[c % chunkSize] = trade;
 

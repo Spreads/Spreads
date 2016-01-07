@@ -17,18 +17,10 @@
     along with this program.If not, see<http://www.gnu.org/licenses/>.
 */
 
-// inspired by https://github.com/real-logic/simple-binary-encoding/blob/b8316bba72dfbf1ea0939bad79e9f3c56626d90d/main/csharp/DirectBuffer.cs
-// to be used via UnmanagedMemoryAccessor/Stream or as SafeBuffer - they are safe and do bounds check.
-// For unsafe direct access to the underlying buffer use a DirectBuffer struct - it does not check bounds
-// and is a struct, which makes it more lightweight than PinnedBuffer. All unsafe methods on 
-// DirectBuffer are internal, but there is an implicit cast and pinned buffer could be 
-// wrapped around DirectBuffer.
 
 using System;
-using System.Diagnostics;
-using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Security;
 
 namespace Spreads.Serialization {
 
@@ -40,44 +32,21 @@ namespace Spreads.Serialization {
     // The Move(*byte) method should work without pinning but using fixed()
 
 
-    internal sealed class FixedBufferAccessor : UnmanagedMemoryAccessor {
-        [SecurityCritical]
-        internal FixedBufferAccessor(SafeBuffer buffer, long offset, long length, bool readOnly) {
-            Debug.Assert(buffer != null, "buffer is null");
-            Initialize(buffer, offset, length, readOnly ? FileAccess.Read : FileAccess.ReadWrite);
+    internal class UnpinWhenGCed {
+        internal readonly GCHandle PinnedGCHandle;
+        public UnpinWhenGCed(GCHandle pinnedGCHandle) {
+            PinnedGCHandle = pinnedGCHandle;
         }
-
-        protected override void Dispose(bool disposing) {
-            try {
-                // todo?
-            } finally {
-                base.Dispose(disposing);
-            }
+        ~UnpinWhenGCed() {
+            PinnedGCHandle.Free();
         }
     }
-
-
-    internal unsafe sealed class FixedBufferStream : UnmanagedMemoryStream {
-        [SecurityCritical]
-        internal FixedBufferStream(SafeBuffer buffer, long offset, long length, bool readOnly) {
-            Debug.Assert(buffer != null, "buffer is null");
-            Initialize(buffer, offset, length, readOnly ? FileAccess.Read : FileAccess.ReadWrite);
-        }
-
-        protected override void Dispose(bool disposing) {
-            try {
-                // todo?
-            } finally {
-                base.Dispose(disposing);
-            }
-        }
-    }
-
 
     /// <summary>
     /// Provides read/write opertaions on a byte buffer that is fixed in memory.
     /// </summary>
-    public sealed unsafe class FixedBuffer {
+    public unsafe struct FixedBuffer : IDirectBuffer {
+
 #if PRERELEASE
         static FixedBuffer() {
             if (!BitConverter.IsLittleEndian) {
@@ -89,48 +58,28 @@ namespace Spreads.Serialization {
         }
 #endif
 
-        /// <summary>
-        /// Delegate invoked if buffer size is too small. 
-        /// </summary>
-        /// <param name="existingBufferSize"></param>
-        /// <param name="requestedBufferSize"></param>
-        /// <param name="existingBuffer">If this fixed buffer was created from a byte array, the array will be returned e.g. to add it back to a pool</param>
+        private int _offset;
+        private int _length;
+        private byte[] _buffer;
+        private UnpinWhenGCed _unpinner;
 
-        /// <returns>New buffer, or null if reallocation is not possible</returns>
-        public delegate byte[] BufferRecyleDelegate(long existingBufferSize, long requestedBufferSize, byte[] existingBuffer = null);
-
-        public BufferRecyleDelegate BufferRecylce {
-            get { return _bufferRecylce; }
-            set { _bufferRecylce = value; }
-        }
-        // default recyling is to use a buffer pool from settings
-        private BufferRecyleDelegate _bufferRecylce = (eSize, rSize, eBuffer) => {
-            if (eBuffer != null && eBuffer.LongLength <= int.MaxValue) {
-                OptimizationSettings.ArrayPool.ReturnBuffer<byte>(eBuffer);
-            }
-            // TODO to long. Now array pool doesn't support long and probably should not.
-            // If we ever allocate large buffer > 2 Gb, we probably want to keep it forever
-            if (rSize > int.MaxValue) return new byte[rSize];
-            var newBuffer = OptimizationSettings.ArrayPool.TakeBuffer<byte>((int)rSize);
-            return newBuffer;
-        };
-
-        private DirectBuffer _directBuffer;
-        //private int _directBuffer.Length;
-        //internal byte* _directBuffer.data;
-        private byte[] _array;
-        private bool _disposed;
-        private GCHandle _pinnedGCHandle;
-        private bool _needToFreeGCHandle;
-
-
+        public int Offset => _offset;
+        public long Length => _length;
+        public byte[] Buffer => _buffer;
 
         /// <summary>
         /// Attach a view to a byte[] for providing direct access.
         /// </summary>
         /// <param name="buffer">buffer to which the view is attached.</param>
-        public FixedBuffer(byte[] buffer) {
-            Wrap(buffer);
+        public FixedBuffer(byte[] buffer, int offset = 0, int length = 0) {
+            if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+            if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
+            if (length + offset > buffer.Length) throw new ArgumentException("Length plus offset exceed capacity");
+
+            _offset = 0;
+            _length = buffer.Length;
+            _buffer = buffer;
+            _unpinner = null;
         }
 
         /// <summary>
@@ -139,72 +88,21 @@ namespace Spreads.Serialization {
         /// <param name="length">buffer to which the view is attached.</param>
         public FixedBuffer(int length) {
             if (length <= 0) throw new ArgumentOutOfRangeException(nameof(length));
-            byte[] buffer = BufferRecylce == null ? new byte[length] : BufferRecylce(0, length, null);
-            Debug.Assert(_array == null, "_buffer is null here, do not assign, avoid double recycling.");
-            Wrap(buffer);
+            _offset = 0;
+            _length = length;
+            _buffer = OptimizationSettings.ArrayPool.TakeBuffer<byte>(length);
+            _unpinner = null;
         }
 
 
-        /// <summary>
-        /// Attach a view to an unmanaged buffer owned by external code
-        /// </summary>
-        /// <param name="pBuffer">Unmanaged byte buffer</param>
-        /// <param name="bufferLength">Length of the buffer</param>
-        public FixedBuffer(long bufferLength, byte* pBuffer) {
-            Wrap(bufferLength, pBuffer);
+        private void PinBuffer() {
+            // we postpone pinning array as much as possible
+            // whenever this struct is copied by value, a reference to
+            // unpinner is copied with it, so there is no way to manually unpin
+            // other than to GC the unpinner, which happens when the last struct goes out of scope
+            _unpinner = new UnpinWhenGCed(GCHandle.Alloc(_buffer, GCHandleType.Pinned));
         }
 
-        /// <summary>
-        /// Creates a FixedBuffer that can later be wrapped
-        /// </summary>
-        public FixedBuffer() {
-        }
-
-        /// <summary>
-        /// Recycles an existing <see cref="FixedBuffer"/>
-        /// </summary>
-        /// <param name="byteArray">The byte array that will act as the backing buffer.</param>
-        public void Wrap(byte[] byteArray) {
-            if (byteArray == null) throw new ArgumentNullException("byteArray");
-            FreeGCHandle();
-
-            if (BufferRecylce != null && _array != null) {
-                // return previous buffer for recylcing
-                BufferRecylce(_array.Length, 0, _array);
-            }
-            _array = byteArray;
-        }
-
-
-        // we postpone pinning array as much as possible
-        private void PinArray() {
-            if (_array != null && !_needToFreeGCHandle) {
-                // pin the buffer so it does not get moved around by GC, this is required since we use pointers
-                _pinnedGCHandle = GCHandle.Alloc(_array, GCHandleType.Pinned);
-                _needToFreeGCHandle = true;
-                _directBuffer = new DirectBuffer(_array.Length,
-                    (IntPtr)_pinnedGCHandle.AddrOfPinnedObject().ToPointer());
-            }
-        }
-
-
-        /// <summary>
-        /// Recycles an existing <see cref="FixedBuffer"/> from an unmanaged byte buffer owned by external code
-        /// </summary>
-        /// <param name="pBuffer">Unmanaged byte buffer</param>
-        /// <param name="bufferLength">Length of the buffer</param>
-        public void Wrap(long bufferLength, byte* pBuffer) {
-            if (pBuffer == null) throw new ArgumentNullException("pBuffer");
-            if (bufferLength <= 0) throw new ArgumentException("Buffer size must be > 0", "bufferLength");
-
-            FreeGCHandle();
-
-            _directBuffer = new DirectBuffer(bufferLength, (IntPtr)pBuffer);
-            _needToFreeGCHandle = false;
-        }
-
-
-        // TODO(?) remove this copy/move methods or add bound checks
 
         /// <summary>
         /// TODO Move to Bootstrapper
@@ -213,239 +111,457 @@ namespace Spreads.Serialization {
         [DllImport("msvcrt.dll", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr memcpy(IntPtr dest, IntPtr src, UIntPtr count);
 
+
         /// <summary>
         /// Copy this buffer to a pointer
         /// </summary>
-        public void Copy(byte* destination, long srcOffset, long length) {
-            if (_array != null && (srcOffset + length < int.MaxValue)) {
-                Marshal.Copy(_array, (int)srcOffset, (IntPtr)destination, (int)length);
-            } else {
-                memcpy((IntPtr)destination, (IntPtr)(_directBuffer.data.ToInt64() + srcOffset), (UIntPtr)length);
-            }
+        public void Copy(IntPtr destination, long srcOffset, long length) {
+            if (srcOffset + length > _buffer.Length) throw new ArgumentOutOfRangeException("srcOffset + length > _buffer.Length");
+            Marshal.Copy(_buffer, (int)srcOffset, destination, (int)length);
         }
 
         /// <summary>
         /// Copy data and move the fixed buffer to the new location
         /// </summary>
-        public FixedBuffer Move(byte* destination, int srcOffset, int length) {
-            if (_array != null) {
-                Marshal.Copy(_array, srcOffset, (IntPtr)destination, length);
-                FreeGCHandle();
-                if (BufferRecylce != null) {
-                    // return previous buffer for recylcing
-                    BufferRecylce(_array.Length, 0, _array);
-                } else {
-                    _array = null;
-                }
-            } else {
-                memcpy((IntPtr)destination, _directBuffer.data + srcOffset, (UIntPtr)length);
-            }
-            Wrap(length, destination);
-            return this;
+        public IDirectBuffer Move(IntPtr destination, long srcOffset, long length) {
+            if (srcOffset + length > _buffer.Length) throw new ArgumentOutOfRangeException("srcOffset + length > _buffer.Length");
+            Marshal.Copy(_buffer, (int)srcOffset, destination, (int)length);
+            return new DirectBuffer(length, destination);
         }
 
-        [Obsolete("TODO use longs")]
         public void Copy(byte[] destination, int srcOffset, int destOffset, int length) {
-            if (_array != null) {
-                System.Array.Copy(_array, srcOffset, destination, destOffset, length);
-                FreeGCHandle();
-            } else {
-                Marshal.Copy(_directBuffer.data + srcOffset, destination, destOffset, length);
-            }
+            Array.Copy(_buffer, srcOffset, destination, destOffset, length);
         }
 
-        [Obsolete("TODO use longs")]
-        public FixedBuffer Move(byte[] destination, int srcOffset, int destOffset, int length) {
-            if (_array != null) {
-                System.Array.Copy(_array, srcOffset, destination, destOffset, length);
-                FreeGCHandle();
-                if (BufferRecylce != null) {
-                    // return previous buffer for recylcing
-                    BufferRecylce(_array.Length, 0, _array);
-                }
-            } else {
-                Marshal.Copy(_directBuffer.data, destination, srcOffset, length);
-            }
-            Wrap(destination);
-            return this;
+        public IDirectBuffer Move(byte[] destination, int srcOffset, int destOffset, int length) {
+            Array.Copy(_buffer, srcOffset, destination, destOffset, length);
+            return new FixedBuffer(destination);
         }
 
 
-        /// <summary>
-        /// Capacity of the underlying buffer
-        /// </summary>
-        //public long Capacity {
-        //    get { return _directBuffer.Capacity; }
-        //}
-
-        [Obsolete("We should not care if the buffer is backed by an array or a pointer, this is an implementation detail")]
-        public byte[] Array {
-            get { return _array; }
-        }
-
-        public DirectBuffer DirectBuffer {
+        [Obsolete("Unpinner must remain in scope. Use Fixed() method with lambdas instead.")]
+        internal DirectBuffer DirectBuffer {
             get {
-                PinArray();
-                return _directBuffer;
+                PinBuffer();
+                return new DirectBuffer(_length, _unpinner.PinnedGCHandle.AddrOfPinnedObject() + _offset);
             }
         }
 
+        /// <summary>
+        /// Fix a buffer only for the execution of the func
+        /// </summary>
+        public T Fixed<T>(Func<DirectBuffer, T> function) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
+                return function(new DirectBuffer(_length, (IntPtr)ptr));
+            }
+        }
+
+        /// <summary>
+        /// Fix a buffer only for the execution of the func
+        /// </summary>
+        public void Fixed(Action<DirectBuffer> action) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
+                action(new DirectBuffer(_length, (IntPtr)ptr));
+            }
+        }
 
 
         /// <summary>
-        /// Check that a given limit is not greater than the capacity of a buffer from a given offset.
+        /// Gets the <see cref="byte"/> value at a given index.
         /// </summary>
-        /// <param name="limit">limit access is required to.</param>
-        public void CheckLimit(int limit) {
-            if (limit > _directBuffer.Capacity) {
-                if (BufferRecylce == null) {
-                    throw new IndexOutOfRangeException(string.Format("limit={0} is beyond capacity={1}", limit,
-                        _directBuffer.Capacity));
-                }
-                var newBuffer = BufferRecylce(_directBuffer.Capacity, limit, _array);
-
-                if (newBuffer == null) {
-                    throw new IndexOutOfRangeException(string.Format("limit={0} is beyond capacity={1}", limit,
-                        _directBuffer.Capacity));
-                }
-
-                Trace.Assert(_directBuffer.Capacity <= int.MaxValue);
-                Marshal.Copy(_directBuffer.data, newBuffer, 0, (int)_directBuffer.Capacity);
-                Wrap(newBuffer);
+        /// <param name="index">index in bytes from which to get.</param>
+        /// <returns>the value at a given index.</returns>
+        public char ReadChar(int index) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                return *((char*)_data + index);
             }
         }
 
-        // using accessor could be 2x slower http://ayende.com/blog/163138/memory-mapped-files-file-i-o-performance
+        /// <summary>
+        /// Writes a <see cref="byte"/> value to a given index.
+        /// </summary>
+        /// <param name="index">index in bytes for where to put.</param>
+        /// <param name="value">value to be written</param>
+        public void WriteChar(int index, char value) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                *((byte*)_data + index) = (byte)value;
+            }
+        }
+
+        /// <summary>
+        /// Gets the <see cref="sbyte"/> value at a given index.
+        /// </summary>
+        /// <param name="index"> index in bytes from which to get.</param>
+        /// <returns>the value at a given index.</returns>
+        public sbyte ReadSByte(int index) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                return *(sbyte*)(_data + index);
+            }
+        }
+
+        /// <summary>
+        /// Writes a <see cref="sbyte"/> value to a given index.
+        /// </summary>
+        /// <param name="index">index in bytes for where to put.</param>
+        /// <param name="value">value to be written</param>
+        public void WriteSByte(int index, sbyte value) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                *(sbyte*)(_data + index) = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets the <see cref="byte"/> value at a given index.
+        /// </summary>
+        /// <param name="index"> index in bytes from which to get.</param>
+        /// <returns>the value at a given index.</returns>
+        public byte ReadByte(int index) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                return *((byte*)_data + index);
+            }
+        }
+
+
+        /// <summary>
+        /// Writes a <see cref="byte"/> value to a given index.
+        /// </summary>
+        /// <param name="index">index in bytes for where to put.</param>
+        /// <param name="value">value to be written</param>
+        public void WriteByte(int index, byte value) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                *((byte*)_data + index) = value;
+            }
+        }
+
+        public byte this[int index] {
+            get {
+                fixed (byte* _data = &_buffer[_offset])
+                {
+                    return *((byte*)_data + index);
+                }
+            }
+            set {
+                fixed (byte* _data = &_buffer[_offset])
+                {
+                    *((byte*)_data + index) = value;
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Gets the <see cref="short"/> value at a given index.
+        /// </summary>
+        /// <param name="index"> index in bytes from which to get.</param>
+        /// <returns>the value at a given index.</returns>
+        public short ReadInt16(int index) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                return *(short*)(_data + index);
+            }
+        }
+
+        /// <summary>
+        /// Writes a <see cref="short"/> value to a given index.
+        /// </summary>
+        /// <param name="index">index in bytes for where to put.</param>
+        /// <param name="value">value to be written</param>
+        public void WriteInt16(int index, short value) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                *(short*)(_data + index) = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets the <see cref="int"/> value at a given index.
+        /// </summary>
+        /// <param name="index"> index in bytes from which to get.</param>
+        /// <returns>the value at a given index.</returns>
+        public int ReadInt32(int index) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                return *(int*)(_data + index);
+            }
+        }
+
+        /// <summary>
+        /// Writes a <see cref="int"/> value to a given index.
+        /// </summary>
+        /// <param name="index">index in bytes for where to put.</param>
+        /// <param name="value">value to be written</param>
+        public void WriteInt32(int index, int value) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                *(int*)(_data + index) = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets the <see cref="long"/> value at a given index.
+        /// </summary>
+        /// <param name="index"> index in bytes from which to get.</param>
+        /// <returns>the value at a given index.</returns>
+        public long ReadInt64(int index) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                return *(long*)(_data + index);
+            }
+        }
+
+        /// <summary>
+        /// Writes a <see cref="long"/> value to a given index.
+        /// </summary>
+        /// <param name="index">index in bytes for where to put.</param>
+        /// <param name="value">value to be written</param>
+        public void WriteInt64(int index, long value) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                *(long*)(_data + index) = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets the <see cref="ushort"/> value at a given index.
+        /// </summary>
+        /// <param name="index"> index in bytes from which to get.</param>
+        /// <returns>the value at a given index.</returns>
+        public ushort ReadUint16(int index) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                return *(ushort*)(_data + index);
+            }
+        }
+
+        /// <summary>
+        /// Writes a <see cref="ushort"/> value to a given index.
+        /// </summary>
+        /// <param name="index">index in bytes for where to put.</param>
+        /// <param name="value">value to be written</param>
+        public void WriteUint16(int index, ushort value) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                *(ushort*)(_data + index) = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets the <see cref="uint"/> value at a given index.
+        /// </summary>
+        /// <param name="index"> index in bytes from which to get.</param>
+        /// <returns>the value at a given index.</returns>
+        public uint ReadUint32(int index) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                return *(uint*)(_data + index);
+            }
+        }
+
+        /// <summary>
+        /// Writes a <see cref="uint"/> value to a given index.
+        /// </summary>
+        /// <param name="index">index in bytes for where to put.</param>
+        /// <param name="value">value to be written</param>
+        public void WriteUint32(int index, uint value) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                *(uint*)(_data + index) = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets the <see cref="ulong"/> value at a given index.
+        /// </summary>
+        /// <param name="index"> index in bytes from which to get.</param>
+        /// <returns>the value at a given index.</returns>
+        public ulong ReadUint64(int index) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                return *(ulong*)(_data + index);
+            }
+        }
+
+        /// <summary>
+        /// Writes a <see cref="ulong"/> value to a given index.
+        /// </summary>
+        /// <param name="index">index in bytes for where to put.</param>
+        /// <param name="value">value to be written</param>
+        public void WriteUint64(int index, ulong value) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                *(ulong*)(_data + index) = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets the <see cref="float"/> value at a given index.
+        /// </summary>
+        /// <param name="index"> index in bytes from which to get.</param>
+        /// <returns>the value at a given index.</returns>
+        public float ReadFloat(int index) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                return *(float*)(_data + index);
+            }
+        }
+
+        /// <summary>
+        /// Writes a <see cref="float"/> value to a given index.
+        /// </summary>
+        /// <param name="index">index in bytes for where to put.</param>
+        /// <param name="value">value to be written</param>
+        public void WriteFloat(int index, float value) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                *(float*)(_data + index) = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets the <see cref="double"/> value at a given index.
+        /// </summary>
+        /// <param name="index"> index in bytes from which to get.</param>
+        /// <returns>the value at a given index.</returns>
+        public double ReadDouble(int index) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                return *(double*)(_data + index);
+            }
+        }
+
+        /// <summary>
+        /// Writes a <see cref="double"/> value to a given index.
+        /// </summary>
+        /// <param name="index">index in bytes for where to put.</param>
+        /// <param name="value">value to be written</param>
+        public void WriteDouble(int index, double value) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                *(double*)(_data + index) = value;
+            }
+        }
+
+
+        /// <summary>
+        /// Copies a range of bytes from the underlying into a supplied byte array.
+        /// </summary>
+        /// <param name="index">index  in the underlying buffer to start from.</param>
+        /// <param name="destination">array into which the bytes will be copied.</param>
+        /// <param name="offsetDestination">offset in the supplied buffer to start the copy</param>
+        /// <param name="len">length of the supplied buffer to use.</param>
+        /// <returns>count of bytes copied.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // TODO test if that has an impact
+        public int ReadBytes(int index, byte[] destination, int offsetDestination, int len) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                if (len > this._length - index) throw new ArgumentException("length > _capacity - index");
+                Marshal.Copy((IntPtr)_data + index, destination, offsetDestination, len);
+                return len;
+            }
+        }
+
+
+        public int ReadAllBytes(byte[] destination) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                if (_length > int.MaxValue) {
+                    // TODO (low) .NET already supports arrays larger than 2 Gb, 
+                    // but Marshal.Copy doesn't accept long as a parameter
+                    // Use memcpy and fixed() over an empty large array
+                    throw new NotImplementedException(
+                        "Buffer length is larger than the maximum size of a byte array.");
+                } else {
+                    Marshal.Copy((IntPtr)(_data), destination, 0, (int)_length);
+                    return (int)_length;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes a byte array into the underlying buffer.
+        /// </summary>
+        /// <param name="index">index  in the underlying buffer to start from.</param>
+        /// <param name="src">source byte array to be copied to the underlying buffer.</param>
+        /// <param name="offset">offset in the supplied buffer to begin the copy.</param>
+        /// <param name="len">length of the supplied buffer to copy.</param>
+        /// <returns>count of bytes copied.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // TODO test if that has an impact
+        public int WriteBytes(int index, byte[] src, int offset, int len) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                int count = Math.Min(len, (int)this._length - index);
+                Marshal.Copy(src, offset, (IntPtr)_data + index, count);
+
+                return count;
+            }
+        }
+
+        public UUID ReadUUID(int index) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                return *(UUID*)(_data + index);
+            }
+        }
+
+        public void WriteUUID(int index, UUID value) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                *(UUID*)(_data + index) = value;
+            }
+        }
+
+        public int ReadAsciiDigit(int index) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                return (*((byte*)_data + index)) - '0';
+            }
+        }
+
+        public void WriteAsciiDigit(int index, int value) {
+            fixed (byte* _data = &_buffer[_offset])
+            {
+                *(byte*)(_data + index) = (byte)(value + '0');
+            }
+        }
+
+
+        // using safe vuffer/accessor could be 2x slower http://ayende.com/blog/163138/memory-mapped-files-file-i-o-performance
         // but it is bound-checked
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public UnmanagedMemoryAccessor CreateAccessor(long offset = 0, long length = 0, bool readOnly = false) {
-            if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
-            if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
-            if (length + offset > _directBuffer.Capacity) throw new ArgumentException("Length plus offset exceed capacity");
-
-            PinArray();
-
-            if (length == 0) {
-                length = _directBuffer.Capacity - offset;
-            }
-            return new FixedBufferAccessor(CreateSafeBuffer(), offset, length, readOnly);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public UnmanagedMemoryStream CreateStream(long offset = 0, long length = 0, bool readOnly = false) {
-            if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
-            if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
-            if (length + offset > _directBuffer.Capacity) throw new ArgumentException("Length plus offset exceed capacity");
-
-            PinArray();
-
-            if (length == 0) {
-                length = _directBuffer.Capacity - offset;
-            }
-            return new FixedBufferStream(CreateSafeBuffer(), offset, length, readOnly);
-        }
 
         /// <summary>
         /// 
         /// </summary>
         /// <returns></returns>
         public SafeBuffer CreateSafeBuffer() {
-            return new SafeFixedBuffer(this);
+            return new SafeFixedBuffer(ref this);
         }
-
-        /// <summary>
-        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
-        /// </summary>
-        public new void Dispose() {
-            Dispose(true);
-        }
-
-        /// <summary>
-        /// Destructor for <see cref="FixedBuffer"/>
-        /// </summary>
-        ~FixedBuffer() {
-            Dispose(false);
-        }
-
-        private void Dispose(bool disposing) {
-            if (_disposed) return;
-
-            if (disposing) {
-                GC.SuppressFinalize(this);
-            }
-
-            FreeGCHandle();
-            if (BufferRecylce != null && _array != null) {
-                // return previous buffer for recylcing
-                BufferRecylce(_array.Length, 0, _array);
-            }
-            _disposed = true;
-
-        }
-
-        private void FreeGCHandle() {
-            if (_needToFreeGCHandle) {
-                _pinnedGCHandle.Free();
-                _needToFreeGCHandle = false;
-            }
-        }
-
-
         // NB SafeBuffer Read<> is very slow compared to DirectBuffer unsafe methods
         // Use SafeBuffer only when explicitly requested
         internal sealed unsafe class SafeFixedBuffer : SafeBuffer {
             private readonly FixedBuffer _fixedBuffer;
 
-            public SafeFixedBuffer(FixedBuffer fixedBuffer) : base(false) {
+            public SafeFixedBuffer(ref FixedBuffer fixedBuffer) : base(false) {
                 _fixedBuffer = fixedBuffer;
-                _fixedBuffer.PinArray();
-                base.SetHandle(_fixedBuffer._directBuffer.Data);
-                base.Initialize((uint)_fixedBuffer._directBuffer.Capacity);
+                _fixedBuffer.PinBuffer();
+                base.SetHandle(_fixedBuffer._unpinner.PinnedGCHandle.AddrOfPinnedObject() + _fixedBuffer._offset);
+                base.Initialize((uint)_fixedBuffer._length);
             }
 
             protected override bool ReleaseHandle() {
-                _fixedBuffer.FreeGCHandle();
                 return true;
             }
-
-            protected override void Dispose(bool disposing) {
-                _fixedBuffer.Dispose(disposing);
-                base.Dispose(disposing);
-            }
         }
 
-        public static implicit operator DirectBuffer(FixedBuffer fixedBuffer) {
-            return new DirectBuffer(fixedBuffer._directBuffer.Capacity, fixedBuffer._directBuffer.data);
-        }
-
-        public static implicit operator FixedBuffer(DirectBuffer directBuffer) {
-            return new FixedBuffer(directBuffer.capacity, (byte*)directBuffer.data);
-        }
-    }
-
-
-    public static class FixedBufferExtension {
-        /// <summary>
-        /// 
-        /// </summary>
-        public static UnmanagedMemoryAccessor GetDirectAccessor(this ArraySegment<byte> arraySegment) {
-            var db = new FixedBuffer(arraySegment.Array);
-            return db.CreateAccessor(arraySegment.Offset, arraySegment.Count, false);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public static UnmanagedMemoryStream GetDirectStream(this ArraySegment<byte> arraySegment) {
-            var db = new FixedBuffer(arraySegment.Array);
-            return db.CreateStream(arraySegment.Offset, arraySegment.Count, false);
-        }
-
-
+        //public static implicit operator DirectBuffer(FixedBuffer fixedBuffer) {
+        //    return fixedBuffer.DirectBuffer;
+        //}
     }
 }

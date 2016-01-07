@@ -148,6 +148,10 @@
     <Compile Include="Generation\SortedMapGenerator.cs" />
     <Compile Include="Serialization\DirectBuffer.cs" />
     <Compile Include="Serialization\FixedBuffer.cs" />
+    <Compile Include="Serialization\IDirectBuffer.cs" />
+    <Compile Include="Serialization\IDirectBufferExtensions.cs" />
+    <Compile Include="Serialization\SafeBufferAccessor.cs" />
+    <Compile Include="Serialization\SafeBufferStream.cs" />
     <Compile Include="Serialization\Serializer.cs" />
     <Compile Include="Series\ProjectValuesWrapper.cs" />
     <Compile Include="Series\CursorSeries.cs" />
