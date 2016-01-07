@@ -174,9 +174,9 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public char ReadChar(int index) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                return *((char*)_data + index);
+                return *((char*)ptr + index);
             }
         }
 
@@ -186,9 +186,9 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteChar(int index, char value) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                *((byte*)_data + index) = (byte)value;
+                *((byte*)ptr + index) = (byte)value;
             }
         }
 
@@ -198,9 +198,9 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public sbyte ReadSByte(int index) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                return *(sbyte*)(_data + index);
+                return *(sbyte*)(ptr + index);
             }
         }
 
@@ -210,9 +210,9 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteSByte(int index, sbyte value) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                *(sbyte*)(_data + index) = value;
+                *(sbyte*)(ptr + index) = value;
             }
         }
 
@@ -222,9 +222,9 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public byte ReadByte(int index) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                return *((byte*)_data + index);
+                return *((byte*)ptr + index);
             }
         }
 
@@ -235,23 +235,23 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteByte(int index, byte value) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                *((byte*)_data + index) = value;
+                *((byte*)ptr + index) = value;
             }
         }
 
         public byte this[int index] {
             get {
-                fixed (byte* _data = &_buffer[_offset])
+                fixed (byte* ptr = &_buffer[_offset])
                 {
-                    return *((byte*)_data + index);
+                    return *((byte*)ptr + index);
                 }
             }
             set {
-                fixed (byte* _data = &_buffer[_offset])
+                fixed (byte* ptr = &_buffer[_offset])
                 {
-                    *((byte*)_data + index) = value;
+                    *((byte*)ptr + index) = value;
                 }
             }
         }
@@ -263,9 +263,9 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public short ReadInt16(int index) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                return *(short*)(_data + index);
+                return *(short*)(ptr + index);
             }
         }
 
@@ -275,9 +275,9 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteInt16(int index, short value) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                *(short*)(_data + index) = value;
+                *(short*)(ptr + index) = value;
             }
         }
 
@@ -287,9 +287,9 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public int ReadInt32(int index) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                return *(int*)(_data + index);
+                return *(int*)(ptr + index);
             }
         }
 
@@ -299,9 +299,9 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteInt32(int index, int value) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                *(int*)(_data + index) = value;
+                *(int*)(ptr + index) = value;
             }
         }
 
@@ -311,9 +311,9 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public long ReadInt64(int index) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                return *(long*)(_data + index);
+                return *(long*)(ptr + index);
             }
         }
 
@@ -323,9 +323,9 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteInt64(int index, long value) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                *(long*)(_data + index) = value;
+                *(long*)(ptr + index) = value;
             }
         }
 
@@ -335,9 +335,9 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public ushort ReadUint16(int index) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                return *(ushort*)(_data + index);
+                return *(ushort*)(ptr + index);
             }
         }
 
@@ -347,9 +347,9 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteUint16(int index, ushort value) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                *(ushort*)(_data + index) = value;
+                *(ushort*)(ptr + index) = value;
             }
         }
 
@@ -359,9 +359,9 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public uint ReadUint32(int index) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                return *(uint*)(_data + index);
+                return *(uint*)(ptr + index);
             }
         }
 
@@ -371,9 +371,9 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteUint32(int index, uint value) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                *(uint*)(_data + index) = value;
+                *(uint*)(ptr + index) = value;
             }
         }
 
@@ -383,9 +383,9 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public ulong ReadUint64(int index) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                return *(ulong*)(_data + index);
+                return *(ulong*)(ptr + index);
             }
         }
 
@@ -395,9 +395,9 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteUint64(int index, ulong value) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                *(ulong*)(_data + index) = value;
+                *(ulong*)(ptr + index) = value;
             }
         }
 
@@ -407,9 +407,9 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public float ReadFloat(int index) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                return *(float*)(_data + index);
+                return *(float*)(ptr + index);
             }
         }
 
@@ -419,9 +419,9 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteFloat(int index, float value) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                *(float*)(_data + index) = value;
+                *(float*)(ptr + index) = value;
             }
         }
 
@@ -431,9 +431,9 @@ namespace Spreads.Serialization {
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         public double ReadDouble(int index) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                return *(double*)(_data + index);
+                return *(double*)(ptr + index);
             }
         }
 
@@ -443,9 +443,9 @@ namespace Spreads.Serialization {
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         public void WriteDouble(int index, double value) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                *(double*)(_data + index) = value;
+                *(double*)(ptr + index) = value;
             }
         }
 
@@ -460,17 +460,17 @@ namespace Spreads.Serialization {
         /// <returns>count of bytes copied.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // TODO test if that has an impact
         public int ReadBytes(int index, byte[] destination, int offsetDestination, int len) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
                 if (len > this._length - index) throw new ArgumentException("length > _capacity - index");
-                Marshal.Copy((IntPtr)_data + index, destination, offsetDestination, len);
+                Marshal.Copy((IntPtr)ptr + index, destination, offsetDestination, len);
                 return len;
             }
         }
 
 
         public int ReadAllBytes(byte[] destination) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
                 if (_length > int.MaxValue) {
                     // TODO (low) .NET already supports arrays larger than 2 Gb, 
@@ -479,7 +479,7 @@ namespace Spreads.Serialization {
                     throw new NotImplementedException(
                         "Buffer length is larger than the maximum size of a byte array.");
                 } else {
-                    Marshal.Copy((IntPtr)(_data), destination, 0, (int)_length);
+                    Marshal.Copy((IntPtr)(ptr), destination, 0, (int)_length);
                     return (int)_length;
                 }
             }
@@ -495,40 +495,40 @@ namespace Spreads.Serialization {
         /// <returns>count of bytes copied.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // TODO test if that has an impact
         public int WriteBytes(int index, byte[] src, int offset, int len) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
                 int count = Math.Min(len, (int)this._length - index);
-                Marshal.Copy(src, offset, (IntPtr)_data + index, count);
+                Marshal.Copy(src, offset, (IntPtr)ptr + index, count);
 
                 return count;
             }
         }
 
         public UUID ReadUUID(int index) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                return *(UUID*)(_data + index);
+                return *(UUID*)(ptr + index);
             }
         }
 
         public void WriteUUID(int index, UUID value) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                *(UUID*)(_data + index) = value;
+                *(UUID*)(ptr + index) = value;
             }
         }
 
         public int ReadAsciiDigit(int index) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                return (*((byte*)_data + index)) - '0';
+                return (*((byte*)ptr + index)) - '0';
             }
         }
 
         public void WriteAsciiDigit(int index, int value) {
-            fixed (byte* _data = &_buffer[_offset])
+            fixed (byte* ptr = &_buffer[_offset])
             {
-                *(byte*)(_data + index) = (byte)(value + '0');
+                *(byte*)(ptr + index) = (byte)(value + '0');
             }
         }
 
