@@ -49,10 +49,9 @@ type internal OptimizationSettings() =
   static member val ArrayPool =
     {new IArrayPool with
         member x.TakeBuffer<'T>(size) = Array.zeroCreate<'T> size
-        // NB 1 because a buffer is passed as an argument and it is still used and owned by GC
-        member x.ReturnBuffer(buffer): int = 1
-        member x.BorrowBuffer(buffer): int = 1
-        member x.ReferenceCount(buffer) = 1
+        member x.ReturnBuffer(buffer): int = 0
+        member x.BorrowBuffer(buffer): int = 0
+        member x.ReferenceCount(buffer) = 0
         member x.Clear(): unit = ()
     } with get, set
 
