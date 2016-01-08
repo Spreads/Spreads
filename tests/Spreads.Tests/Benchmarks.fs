@@ -538,32 +538,32 @@ module CollectionsBenchmarks =
         for i in 0L..count do
           smap.Value.Add(i, i)
       )
-    
-    for i in 0..99 do
-      let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
-      perf count "SortedMapRegular Add Double GC" (fun _ ->
-        for i in 0L..count do
-          sdf.Value.Add(i, double i)
-      )
-
-    GC.Collect(3, GCCollectionMode.Forced, true)
-    GC.WaitForPendingFinalizers()
-    GC.Collect(3, GCCollectionMode.Forced, true)
-    GC.WaitForPendingFinalizers()
-
-    let originalPool = OptimizationSettings.ArrayPool
-
-
-    OptimizationSettings.ArrayPool <- DoubleArrayPool()
-
-    for i in 0..99 do
-      let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
-      perf count "SortedMapRegular Add Double Pool" (fun _ ->
-        for i in 0L..count do
-          sdf.Value.Add(i, double i)
-      )
-
-    OptimizationSettings.ArrayPool <- originalPool
+//    
+//    for i in 0..99 do
+//      let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
+//      perf count "SortedMapRegular Add Double GC" (fun _ ->
+//        for i in 0L..count do
+//          sdf.Value.Add(i, double i)
+//      )
+//
+//    GC.Collect(3, GCCollectionMode.Forced, true)
+//    GC.WaitForPendingFinalizers()
+//    GC.Collect(3, GCCollectionMode.Forced, true)
+//    GC.WaitForPendingFinalizers()
+//
+//    let originalPool = OptimizationSettings.ArrayPool
+//
+//
+//    OptimizationSettings.ArrayPool <- DoubleArrayPool()
+//
+//    for i in 0..99 do
+//      let sdf = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
+//      perf count "SortedMapRegular Add Double Pool" (fun _ ->
+//        for i in 0L..count do
+//          sdf.Value.Add(i, double i)
+//      )
+//
+//    OptimizationSettings.ArrayPool <- originalPool
 
     for i in 0..4 do
       perf count "SortedMapRegular Read" (fun _ ->
@@ -821,11 +821,11 @@ module CollectionsBenchmarks =
     let deedleSeries = ref (Series.ofObservations([]))
     let mutable list1 = new List<int64>()
     for r in 0..0 do
-      perf (count/100L) "DeedleSeries insert" (fun _ ->
+      perf (count) "DeedleSeries insert" (fun _ ->
         list1 <- new List<int64>()
         let list2 = new List<double>()
         //let arr = Array.zeroCreate ((int count)+1) // System.Collections.Generic.List(count |> int)
-        for i in 0L..(count/100L) do
+        for i in 0L..(count) do
           list1.Add(i)
           list2.Add(double i)
           //arr.[int i] <- i
@@ -834,7 +834,7 @@ module CollectionsBenchmarks =
 
     for r in 0..0 do
       let mutable res = Unchecked.defaultof<_>
-      perf (count/100L) "DeedleSeries Add/divide Chained" (fun _ ->
+      perf (count) "DeedleSeries Add/divide Chained" (fun _ ->
         res <- !deedleSeries 
           |> Series.map (fun _ x -> x + 123456.0) 
           |> Series.map (fun _ x -> x/789.0)
@@ -846,7 +846,7 @@ module CollectionsBenchmarks =
 
     for r in 0..0 do
       let mutable res = Unchecked.defaultof<_>
-      perf (count/100L) "DeedleSeries Operator Add/divide Chained" (fun _ ->
+      perf (count) "DeedleSeries Operator Add/divide Chained" (fun _ ->
         res <- ((!deedleSeries + 123456.0) /789.0) * 10.0
         ()
       )
@@ -855,7 +855,7 @@ module CollectionsBenchmarks =
 
     for r in 0..0 do
       let mutable res = Unchecked.defaultof<_>
-      perf (count/100L) "DeedleSeries Add/divide Inline" (fun _ ->
+      perf (count) "DeedleSeries Add/divide Inline" (fun _ ->
         res <- !deedleSeries 
           |> Series.map (fun _ x -> ((x + 123456.0)/789.0)*10.0) 
         ()
@@ -865,7 +865,7 @@ module CollectionsBenchmarks =
 
     for r in 0..0 do
       let mutable res = Unchecked.defaultof<_>
-      perf (count/100L) "DeedleSeries Operator Add/divide" (fun _ ->
+      perf (count) "DeedleSeries Operator Add/divide" (fun _ ->
         res <- ((!deedleSeries + 123456.0)/789.0) * 10.0
         ()
       )
@@ -874,7 +874,7 @@ module CollectionsBenchmarks =
 
     Console.WriteLine("----------------")
   [<Test>]
-  let SeriesNestedMap_run() = SeriesNestedMap(10000000L)
+  let SeriesNestedMap_run() = SeriesNestedMap(1000000L)
 
 
   let CompareFunctionalBindCursorWithCursorBind(count:int64) =

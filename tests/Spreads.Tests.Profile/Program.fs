@@ -5,6 +5,8 @@ open Spreads
 open Spreads.Collections
 open Spreads.Collections.Experimental
 open Spreads.Collections.Obsolete
+open Spreads.Tests.Collections.Benchmarks
+
   /// run f and measure ops per second
 let perf (count:int64) (message:string) (f:unit -> unit) : unit = // int * int =
   GC.Collect(3, GCCollectionMode.Forced, true)
@@ -76,11 +78,12 @@ type MyInc2 =
 [<EntryPoint>]
 let main argv = 
  
-  let state = SortedMap()
-  state.Add(DateTime.UtcNow.AddDays(-1.0), 0.0)
-  let circular = TheSimplestTradingStrategy(state)
-
-  circular.Execute()
+//  let state = SortedMap()
+//  state.Add(DateTime.UtcNow.AddDays(-1.0), 0.0)
+//  let circular = TheSimplestTradingStrategy(state)
+//
+//  circular.Execute()
+  CollectionsBenchmarks.SeriesNestedMap_run()
 
   Console.ReadLine();
   printfn "%A" argv

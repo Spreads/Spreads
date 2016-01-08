@@ -1,0 +1,46 @@
+Series Add, #10000000, ops: 10881392, mem/item: 26
+Series Read, #10000000, ops: 42194092, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 20242914, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 23529411, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 23696682, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 24449877, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 24330900, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 24449877, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 24449877, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 24449877, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 24390243, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 24096385, mem/item: 0
+Series Add/Delete Inline, #10000000, ops: 29761904, mem/item: 0
+Series Add/Delete Inline, #10000000, ops: 30395136, mem/item: 0
+Series Add/Delete Inline, #10000000, ops: 30030030, mem/item: 0
+Series NonOpt Add/divide Chained, #10000000, ops: 10718113, mem/item: 0
+Series NonOpt Add/divide Chained, #10000000, ops: 10834236, mem/item: 0
+Series NonOpt Add/divide Chained, #10000000, ops: 10881392, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 22421524, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 22573363, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 22271714, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 22421524, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 22321428, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 22371364, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 22421524, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 22026431, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 22573363, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 22075055, mem/item: 0
+LINQ Add/divide Chained, #10000000, ops: 26455026, mem/item: 0
+LINQ Add/divide Chained, #10000000, ops: 20790020, mem/item: 0
+LINQ Add/divide Chained, #10000000, ops: 27173913, mem/item: 0
+LINQ Add/Delete Inline, #10000000, ops: 32467532, mem/item: 0
+LINQ Add/Delete Inline, #10000000, ops: 32573289, mem/item: 0
+LINQ Add/Delete Inline, #10000000, ops: 32573289, mem/item: 0
+Streams Add/divide Chained, #10000000, ops: 18382352, mem/item: 0
+Streams Add/divide Chained, #10000000, ops: 20366598, mem/item: 0
+Streams Add/divide Chained, #10000000, ops: 20576131, mem/item: 0
+Streams Add/divide Inline, #10000000, ops: 23310023, mem/item: 0
+Streams Add/divide Inline, #10000000, ops: 23364485, mem/item: 0
+Streams Add/divide Inline, #10000000, ops: 23419203, mem/item: 0
+DeedleSeries insert, #100000, ops: 7692307, mem/item: 26
+DeedleSeries Add/divide Chained, #100000, ops: 165837, mem/item: 8
+DeedleSeries Operator Add/divide Chained, #100000, ops: 170357, mem/item: 7
+DeedleSeries Add/divide Inline, #100000, ops: 512820, mem/item: 8
+DeedleSeries Operator Add/divide, #100000, ops: 171232, mem/item: 8
+----------------

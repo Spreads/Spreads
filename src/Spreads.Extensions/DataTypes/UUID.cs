@@ -17,6 +17,7 @@
     along with this program.If not, see<http://www.gnu.org/licenses/>.
 */
 
+using Spreads.Serialization;
 using System;
 
 namespace Spreads {
@@ -33,10 +34,12 @@ namespace Spreads {
             _second = second;
         }
 
+        // TODO! test if this is the same as reading directly from fb, endianness could affect this
         public UUID(byte[] bytes) {
             if (bytes == null || bytes.Length < 16) throw new ArgumentException("bytes == null || bytes.Length < 16", nameof(bytes));
-            _first = BitConverter.ToUInt64(bytes, 0);
-            _second = BitConverter.ToUInt64(bytes, 8);
+            var fb = new FixedBuffer(bytes);
+            _first = fb.ReadUint64(0);
+            _second = fb.ReadUint64(8);
         }
 
         public UUID(Guid guid) : this(guid.ToByteArray()) { }

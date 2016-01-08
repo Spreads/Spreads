@@ -1,0 +1,394 @@
+Series Add, #10000000, ops: 11402508, mem/item: 26
+Series Read, #10000000, ops: 38759689, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 17035775, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 24038461, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 24096385, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 23474178, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 23866348, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 24038461, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 22831050, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 22727272, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 24038461, mem/item: 0
+Series Add/divide Chained, #10000000, ops: 23809523, mem/item: 0
+Series Add/Delete Inline, #10000000, ops: 27247956, mem/item: 0
+Series Add/Delete Inline, #10000000, ops: 28653295, mem/item: 0
+Series Add/Delete Inline, #10000000, ops: 21276595, mem/item: 0
+Series NonOpt Add/divide Chained, #10000000, ops: 10449320, mem/item: 0
+Series NonOpt Add/divide Chained, #10000000, ops: 10330578, mem/item: 0
+Series NonOpt Add/divide Chained, #10000000, ops: 10548523, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 21551724, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 21186440, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 21978021, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 21505376, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 21645021, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 21052631, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 21551724, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 21097046, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 21231422, mem/item: 0
+Series Opt Add/divide Chained, #10000000, ops: 20746887, mem/item: 0
+LINQ Add/divide Chained, #10000000, ops: 15600624, mem/item: 0
+LINQ Add/divide Chained, #10000000, ops: 16103059, mem/item: 0
+LINQ Add/divide Chained, #10000000, ops: 15948963, mem/item: 0
+LINQ Add/Delete Inline, #10000000, ops: 30120481, mem/item: 0
+LINQ Add/Delete Inline, #10000000, ops: 31746031, mem/item: 0
+LINQ Add/Delete Inline, #10000000, ops: 29673590, mem/item: 0
+Streams Add/divide Chained, #10000000, ops: 16000000, mem/item: 0
+Streams Add/divide Chained, #10000000, ops: 20408163, mem/item: 0
+Streams Add/divide Chained, #10000000, ops: 20661157, mem/item: 0
+Streams Add/divide Inline, #10000000, ops: 22727272, mem/item: 0
+Streams Add/divide Inline, #10000000, ops: 22573363, mem/item: 0
+Streams Add/divide Inline, #10000000, ops: 22172949, mem/item: 0
+DeedleSeries insert, #100000, ops: 6666666, mem/item: 26
+DeedleSeries Add/divide Chained, #100000, ops: 160513, mem/item: 8
+DeedleSeries Operator Add/divide Chained, #100000, ops: 163934, mem/item: 8
+DeedleSeries Add/divide Inline, #100000, ops: 485436, mem/item: 8
+DeedleSeries Operator Add/divide, #100000, ops: 163934, mem/item: 7
+----------------
+Series Add, #1000000, ops: 14925373, mem/item: 16
+Series Read, #1000000, ops: 45454545, mem/item: 0
+Series SMA->Map, #1000000, ops: 1984126, mem/item: 0
+Series SMA->Map, #1000000, ops: 2717391, mem/item: 0
+Series SMA->Map, #1000000, ops: 2976190, mem/item: 0
+Series SMA->Map, #1000000, ops: 2762430, mem/item: 0
+Series SMA->Map, #1000000, ops: 2881844, mem/item: 0
+Series SMA->Map, #1000000, ops: 2840909, mem/item: 0
+Series SMA->Map, #1000000, ops: 2923976, mem/item: 0
+Series SMA->Map, #1000000, ops: 2824858, mem/item: 0
+Series SMA->Map, #1000000, ops: 2881844, mem/item: 0
+Series SMA->Map, #1000000, ops: 2949852, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 7462686, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 8196721, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 8064516, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 8547008, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 8403361, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 8196721, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 8000000, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 7874015, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 7874015, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 8196721, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 7407407, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 7692307, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 7936507, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 7518796, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 7407407, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 7692307, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 7692307, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 7633587, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 7462686, mem/item: 0
+Series ZipLag->Map, #1000000, ops: 7518796, mem/item: 0
+DeedleSeries insert, #100000, ops: 7692307, mem/item: 26
+DeedleSeries Lag ->Map, #100000, ops: 84104, mem/item: 43
+DeedleSeries Lag ->Map, #100000, ops: 92850, mem/item: 0
+DeedleSeries Lag ->Map, #100000, ops: 89847, mem/item: 0
+----------------
+DeedleSeries insert, #1000000, ops: 11494252, mem/item: 20
+DeedleSeries insert, #1000000, ops: 12345679, mem/item: 0
+DeedleSeries build with SeriesBuilder, #1000000, ops: 1422475, mem/item: 64
+DeedleSeries build with SeriesBuilder, #1000000, ops: 1642036, mem/item: 63
+DeedleSeries Add int via Map, #1000000, ops: 1834862, mem/item: 3
+DeedleSeries Add int via Map, #1000000, ops: 1904761, mem/item: 4
+DeedleSeries Add int via operator, #1000000, ops: 1908396, mem/item: 4
+DeedleSeries Add int via operator, #1000000, ops: 1934235, mem/item: 4
+DeedleSeries Add two series, #1000000, ops: 1663893, mem/item: 133
+DeedleSeries Add two series, #1000000, ops: 2439024, mem/item: 55
+DeedleSeries Add two series, #1000000, ops: 2500000, mem/item: 55
+DeedleSeries Add two series, #1000000, ops: 2439024, mem/item: 55
+DeedleSeries Add two series, #1000000, ops: 2444987, mem/item: 55
+DeedleSeries Add two series, #1000000, ops: 2364066, mem/item: 55
+DeedleSeries Zip two series, #1000000, ops: 131613, mem/item: 51
+DeedleSeries Zip two series, #1000000, ops: 132170, mem/item: 51
+DeedleSeries Chunks, #1000000, ops: 2114164, mem/item: 64
+DeedleSeries Chunks, #1000000, ops: 2386634, mem/item: 64
+The sum is 1000001
+List int64 addition, #1000000, ops: 58823529, mem/item: 0
+The sum is 1000001
+List int64 addition, #1000000, ops: 76923076, mem/item: 0
+The sum is 1000001
+List int64 addition LINQ, #1000000, ops: 66666666, mem/item: 0
+The sum is 1000001
+List int64 addition LINQ, #1000000, ops: 90909090, mem/item: 0
+The sum is 1000001
+List int64 addition Seq.map, #1000000, ops: 45454545, mem/item: 0
+The sum is 1000001
+List int64 addition Seq.map, #1000000, ops: 50000000, mem/item: 0
+----------------
+SortedMap Add, #1000000, ops: 13333333, mem/item: 16
+SortedMap Add, #1000000, ops: 14492753, mem/item: 16
+SortedMap Add, #1000000, ops: 14492753, mem/item: 16
+SortedMap Add, #1000000, ops: 15151515, mem/item: 16
+SortedMap Add, #1000000, ops: 13888888, mem/item: 16
+SortedMap Read, #1000000, ops: 3401360, mem/item: 0
+SortedMap Read, #1000000, ops: 3921568, mem/item: 0
+SortedMap Read, #1000000, ops: 3906250, mem/item: 0
+SortedMap Read, #1000000, ops: 3921568, mem/item: 0
+SortedMap Read, #1000000, ops: 3731343, mem/item: 0
+SortedMap Iterate, #1000000, ops: 31250000, mem/item: 0
+SortedMap Iterate, #1000000, ops: 47619047, mem/item: 0
+SortedMap Iterate, #1000000, ops: 43478260, mem/item: 0
+SortedMap Iterate, #1000000, ops: 45454545, mem/item: 0
+SortedMap Iterate, #1000000, ops: 45454545, mem/item: 0
+SortedMap Iterate, #1000000, ops: 43478260, mem/item: 0
+SortedMap Iterate, #1000000, ops: 47619047, mem/item: 0
+SortedMap Iterate, #1000000, ops: 45454545, mem/item: 0
+SortedMap Iterate, #1000000, ops: 47619047, mem/item: 0
+SortedMap Iterate, #1000000, ops: 43478260, mem/item: 0
+SortedMap Iterate Values, #1000000, ops: 52631578, mem/item: 0
+SortedMap Iterate Values, #1000000, ops: 142857142, mem/item: 0
+SortedMap Iterate Values, #1000000, ops: 142857142, mem/item: 0
+SortedMap Iterate Values, #1000000, ops: 142857142, mem/item: 0
+SortedMap Iterate Values, #1000000, ops: 142857142, mem/item: 0
+SortedMap Iterate Values, #1000000, ops: 142857142, mem/item: 0
+SortedMap Iterate Values, #1000000, ops: 142857142, mem/item: 0
+SortedMap Iterate Values, #1000000, ops: 125000000, mem/item: 0
+SortedMap Iterate Values, #1000000, ops: 142857142, mem/item: 0
+SortedMap Iterate Values, #1000000, ops: 142857142, mem/item: 0
+SortedMap Iterate with load, #1000000, ops: 8547008, mem/item: 0
+SortedMap Iterate with load, #1000000, ops: 8403361, mem/item: 0
+SortedMap Iterate with load, #1000000, ops: 8547008, mem/item: 0
+SortedMap Iterate with load, #1000000, ops: 8695652, mem/item: 0
+SortedMap Iterate with load, #1000000, ops: 8064516, mem/item: 0
+SortedMap Iterate with load, #1000000, ops: 8474576, mem/item: 0
+SortedMap Iterate with load, #1000000, ops: 8264462, mem/item: 0
+SortedMap Iterate with load, #1000000, ops: 8196721, mem/item: 0
+SortedMap Iterate with load, #1000000, ops: 8849557, mem/item: 0
+SortedMap Iterate with load, #1000000, ops: 8403361, mem/item: 0
+----------------
+SortedMapRegular Add, #1000000, ops: 12048192, mem/item: 8
+SortedMapRegular Add, #1000000, ops: 12820512, mem/item: 8
+SortedMapRegular Add, #1000000, ops: 13157894, mem/item: 8
+SortedMapRegular Add, #1000000, ops: 13333333, mem/item: 8
+SortedMapRegular Add, #1000000, ops: 11904761, mem/item: 8
+SortedMapRegular Read, #1000000, ops: 11494252, mem/item: 0
+SortedMapRegular Read, #1000000, ops: 11627906, mem/item: 0
+SortedMapRegular Read, #1000000, ops: 11627906, mem/item: 0
+SortedMapRegular Read, #1000000, ops: 11764705, mem/item: 0
+SortedMapRegular Read, #1000000, ops: 11627906, mem/item: 0
+SortedMapRegular Read as RO, #1000000, ops: 2178649, mem/item: 0
+SortedMapRegular Read as RO, #1000000, ops: 2237136, mem/item: 0
+SortedMapRegular Read as RO, #1000000, ops: 2392344, mem/item: 0
+SortedMapRegular Read as RO, #1000000, ops: 2304147, mem/item: 0
+SortedMapRegular Read as RO, #1000000, ops: 2257336, mem/item: 0
+SortedMapRegular Iterate, #1000000, ops: 32258064, mem/item: 0
+SortedMapRegular Iterate, #1000000, ops: 33333333, mem/item: 0
+SortedMapRegular Iterate, #1000000, ops: 34482758, mem/item: 0
+SortedMapRegular Iterate, #1000000, ops: 35714285, mem/item: 0
+SortedMapRegular Iterate, #1000000, ops: 37037037, mem/item: 0
+SortedMapRegular Iterate, #1000000, ops: 37037037, mem/item: 0
+SortedMapRegular Iterate, #1000000, ops: 35714285, mem/item: 0
+SortedMapRegular Iterate, #1000000, ops: 35714285, mem/item: 0
+SortedMapRegular Iterate, #1000000, ops: 35714285, mem/item: 0
+SortedMapRegular Iterate, #1000000, ops: 37037037, mem/item: 0
+SortedMapRegular Iterate as RO, #1000000, ops: 34482758, mem/item: 0
+SortedMapRegular Iterate as RO, #1000000, ops: 32258064, mem/item: 0
+SortedMapRegular Iterate as RO, #1000000, ops: 35714285, mem/item: 0
+SortedMapRegular Iterate as RO, #1000000, ops: 33333333, mem/item: 0
+SortedMapRegular Iterate as RO, #1000000, ops: 37037037, mem/item: 0
+SortedMapRegular Iterate as RO, #1000000, ops: 34482758, mem/item: 0
+SortedMapRegular Iterate as RO, #1000000, ops: 35714285, mem/item: 0
+SortedMapRegular Iterate as RO, #1000000, ops: 32258064, mem/item: 0
+SortedMapRegular Iterate as RO, #1000000, ops: 37037037, mem/item: 0
+SortedMapRegular Iterate as RO, #1000000, ops: 37037037, mem/item: 0
+SMR Iterate as RO+Add, #1000000, ops: 21276595, mem/item: 0
+SMR Iterate as RO+Add, #1000000, ops: 23255813, mem/item: 0
+SMR Iterate as RO+Add, #1000000, ops: 19607843, mem/item: 0
+SMR Iterate as RO+Add, #1000000, ops: 21739130, mem/item: 0
+SMR Iterate as RO+Add, #1000000, ops: 22222222, mem/item: 0
+SMR Iterate as RO+Add, #1000000, ops: 23809523, mem/item: 0
+SMR Iterate as RO+Add, #1000000, ops: 22222222, mem/item: 0
+SMR Iterate as RO+Add, #1000000, ops: 22222222, mem/item: 0
+SMR Iterate as RO+Add, #1000000, ops: 22222222, mem/item: 0
+SMR Iterate as RO+Add, #1000000, ops: 21739130, mem/item: 0
+SMR Iterate as RO+Map(Add), #1000000, ops: 22222222, mem/item: 0
+SMR Iterate as RO+Map(Add), #1000000, ops: 21276595, mem/item: 0
+SMR Iterate as RO+Map(Add), #1000000, ops: 22222222, mem/item: 0
+SMR Iterate as RO+Map(Add), #1000000, ops: 23809523, mem/item: 0
+SMR Iterate as RO+Map(Add), #1000000, ops: 21739130, mem/item: 0
+SMR Iterate as RO+Map(Add), #1000000, ops: 23255813, mem/item: 0
+SMR Iterate as RO+Map(Add), #1000000, ops: 18867924, mem/item: 0
+SMR Iterate as RO+Map(Add), #1000000, ops: 23809523, mem/item: 0
+SMR Iterate as RO+Map(Add), #1000000, ops: 21276595, mem/item: 0
+SMR Iterate as RO+Map(Add), #1000000, ops: 22727272, mem/item: 0
+SMR Iterate with plus operator, #1000000, ops: 21739130, mem/item: 0
+SMR Iterate with plus operator, #1000000, ops: 23809523, mem/item: 0
+SMR Iterate with plus operator, #1000000, ops: 22727272, mem/item: 0
+SMR Iterate with plus operator, #1000000, ops: 22222222, mem/item: 0
+SMR Iterate with plus operator, #1000000, ops: 23809523, mem/item: 0
+SMR Iterate with plus operator, #1000000, ops: 23255813, mem/item: 0
+SMR Iterate with plus operator, #1000000, ops: 23255813, mem/item: 0
+SMR Iterate with plus operator, #1000000, ops: 22222222, mem/item: 0
+SMR Iterate with plus operator, #1000000, ops: 21739130, mem/item: 0
+SMR Iterate with plus operator, #1000000, ops: 22727272, mem/item: 0
+SMR Iterate with plus operator, batch, #1000000, ops: 23255813, mem/item: 0
+SMR Iterate with plus operator, batch, #1000000, ops: 21739130, mem/item: 0
+SMR Iterate with plus operator, batch, #1000000, ops: 22222222, mem/item: 0
+SMR Iterate with plus operator, batch, #1000000, ops: 22222222, mem/item: 0
+SMR Iterate with plus operator, batch, #1000000, ops: 20833333, mem/item: 0
+SMR Iterate with plus operator, batch, #1000000, ops: 22727272, mem/item: 0
+SMR Iterate with plus operator, batch, #1000000, ops: 23255813, mem/item: 0
+SMR Iterate with plus operator, batch, #1000000, ops: 23255813, mem/item: 0
+SMR Iterate with plus operator, batch, #1000000, ops: 23255813, mem/item: 0
+SMR Iterate with plus operator, batch, #1000000, ops: 23809523, mem/item: 0
+SMR Add Two with operator, #1000000, ops: 3003003, mem/item: 0
+SMR Add Two with operator, #1000000, ops: 3184713, mem/item: 0
+SMR Add Two with operator, #1000000, ops: 3300330, mem/item: 0
+SMR Add Two with operator, #1000000, ops: 3164556, mem/item: 0
+SMR Add Two with operator, #1000000, ops: 3039513, mem/item: 0
+SMR Add Two with operator, #1000000, ops: 3115264, mem/item: 0
+SMR Add Two with operator, #1000000, ops: 3278688, mem/item: 0
+SMR Add Two with operator, #1000000, ops: 3194888, mem/item: 0
+SMR Add Two with operator, #1000000, ops: 3125000, mem/item: 0
+SMR Add Two with operator, #1000000, ops: 3105590, mem/item: 0
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 10638297, mem/item: 0
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 11627906, mem/item: 0
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 11627906, mem/item: 0
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 11363636, mem/item: 0
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 12048192, mem/item: 0
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 10752688, mem/item: 0
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 12048192, mem/item: 0
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 11764705, mem/item: 0
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 11904761, mem/item: 0
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 11904761, mem/item: 0
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 12987012, mem/item: 0
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 14925373, mem/item: 0
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 12345679, mem/item: 0
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 14705882, mem/item: 0
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 14285714, mem/item: 0
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 14492753, mem/item: 0
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 13513513, mem/item: 0
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 14492753, mem/item: 0
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 13888888, mem/item: 0
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 14705882, mem/item: 0
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 10526315, mem/item: 0
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 10526315, mem/item: 0
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 10752688, mem/item: 0
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 10752688, mem/item: 0
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 10869565, mem/item: 0
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 10869565, mem/item: 0
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 10204081, mem/item: 0
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 10869565, mem/item: 0
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 9900990, mem/item: 0
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 10101010, mem/item: 0
+SortedMapRegular Iterate with load, #1000000, ops: 7874015, mem/item: 0
+SortedMapRegular Iterate with load, #1000000, ops: 8064516, mem/item: 0
+SortedMapRegular Iterate with load, #1000000, ops: 7874015, mem/item: 0
+SortedMapRegular Iterate with load, #1000000, ops: 7812500, mem/item: 0
+SortedMapRegular Iterate with load, #1000000, ops: 7874015, mem/item: 0
+SortedMapRegular Iterate with load, #1000000, ops: 7692307, mem/item: 0
+SortedMapRegular Iterate with load, #1000000, ops: 8130081, mem/item: 0
+SortedMapRegular Iterate with load, #1000000, ops: 7874015, mem/item: 0
+SortedMapRegular Iterate with load, #1000000, ops: 8064516, mem/item: 0
+SortedMapRegular Iterate with load, #1000000, ops: 8064516, mem/item: 0
+----------------
+SCM<Auto> Add, #1000000, ops: 3952569, mem/item: 8
+SCM<Auto> Add, #1000000, ops: 4504504, mem/item: 0
+SCM<Auto> Add, #1000000, ops: 4219409, mem/item: 0
+SCM<Auto> Add, #1000000, ops: 4405286, mem/item: 0
+SCM<Auto> Add, #1000000, ops: 4255319, mem/item: 0
+SCM<Auto> Add, #1000000, ops: 4524886, mem/item: 0
+SCM<Auto> Add, #1000000, ops: 4347826, mem/item: 0
+SCM<Auto> Add, #1000000, ops: 4405286, mem/item: 0
+SCM<Auto> Add, #1000000, ops: 4255319, mem/item: 0
+SCM<Auto> Add, #1000000, ops: 4504504, mem/item: 0
+SCM<Auto> Read, #1000000, ops: 3236245, mem/item: 0
+SCM<Auto> Read, #1000000, ops: 3246753, mem/item: 0
+SCM<Auto> Read, #1000000, ops: 3164556, mem/item: 0
+SCM<Auto> Read, #1000000, ops: 3367003, mem/item: 0
+SCM<Auto> Read, #1000000, ops: 2949852, mem/item: 0
+SCM<Auto> Read, #1000000, ops: 2277904, mem/item: 0
+SCM<Auto> Read, #1000000, ops: 2898550, mem/item: 0
+SCM<Auto> Read, #1000000, ops: 3174603, mem/item: 0
+SCM<Auto> Read, #1000000, ops: 3105590, mem/item: 0
+SCM<Auto> Read, #1000000, ops: 3048780, mem/item: 0
+SCM<Auto> Iterate, #1000000, ops: 9433962, mem/item: 0
+SCM<Auto> Iterate, #1000000, ops: 11111111, mem/item: 0
+SCM<Auto> Iterate, #1000000, ops: 10309278, mem/item: 0
+SCM<Auto> Iterate, #1000000, ops: 10638297, mem/item: 0
+SCM<Auto> Iterate, #1000000, ops: 11363636, mem/item: 0
+SCM<Auto> Iterate, #1000000, ops: 11235955, mem/item: 0
+SCM<Auto> Iterate, #1000000, ops: 11235955, mem/item: 0
+SCM<Auto> Iterate, #1000000, ops: 10989010, mem/item: 0
+SCM<Auto> Iterate, #1000000, ops: 10989010, mem/item: 0
+SCM<Auto> Iterate, #1000000, ops: 10869565, mem/item: 0
+SCM<Auto> Iterate with plus operator, #1000000, ops: 8403361, mem/item: 0
+SCM<Auto> Iterate with plus operator, #1000000, ops: 8064516, mem/item: 0
+SCM<Auto> Iterate with plus operator, #1000000, ops: 9259259, mem/item: 0
+SCM<Auto> Iterate with plus operator, #1000000, ops: 9090909, mem/item: 0
+SCM<Auto> Iterate with plus operator, #1000000, ops: 9009009, mem/item: 0
+SCM<Auto> Iterate with plus operator, #1000000, ops: 8547008, mem/item: 0
+SCM<Auto> Iterate with plus operator, #1000000, ops: 8928571, mem/item: 0
+SCM<Auto> Iterate with plus operator, #1000000, ops: 8547008, mem/item: 0
+SCM<Auto> Iterate with plus operator, #1000000, ops: 8849557, mem/item: 0
+SCM<Auto> Iterate with plus operator, #1000000, ops: 8849557, mem/item: 0
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 8264462, mem/item: 0
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 9090909, mem/item: 0
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 7874015, mem/item: 0
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 8620689, mem/item: 0
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 8849557, mem/item: 0
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 8928571, mem/item: 0
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 8928571, mem/item: 0
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 9090909, mem/item: 0
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 9009009, mem/item: 0
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 8403361, mem/item: 0
+SCM<1024> Add, #1000000, ops: 7092198, mem/item: 4
+SCM<1024> Add, #1000000, ops: 6756756, mem/item: 0
+SCM<1024> Add, #1000000, ops: 7246376, mem/item: 0
+SCM<1024> Add, #1000000, ops: 7407407, mem/item: 0
+SCM<1024> Add, #1000000, ops: 6666666, mem/item: 0
+SCM<1024> Add, #1000000, ops: 7246376, mem/item: 0
+SCM<1024> Add, #1000000, ops: 7518796, mem/item: 0
+SCM<1024> Add, #1000000, ops: 7092198, mem/item: 0
+SCM<1024> Add, #1000000, ops: 7299270, mem/item: 0
+SCM<1024> Add, #1000000, ops: 7575757, mem/item: 0
+SCM Read, #1000000, ops: 6134969, mem/item: 0
+SCM Read, #1000000, ops: 5681818, mem/item: 0
+SCM Read, #1000000, ops: 6250000, mem/item: 0
+SCM Read, #1000000, ops: 5882352, mem/item: 0
+SCM Read, #1000000, ops: 6060606, mem/item: 0
+SCM Read, #1000000, ops: 6097560, mem/item: 0
+SCM Read, #1000000, ops: 5988023, mem/item: 0
+SCM Read, #1000000, ops: 5952380, mem/item: 0
+SCM Read, #1000000, ops: 6024096, mem/item: 0
+SCM Read, #1000000, ops: 6097560, mem/item: 0
+SCM Iterate, #1000000, ops: 11627906, mem/item: 0
+SCM Iterate, #1000000, ops: 11627906, mem/item: 0
+SCM Iterate, #1000000, ops: 11111111, mem/item: 0
+SCM Iterate, #1000000, ops: 11111111, mem/item: 0
+SCM Iterate, #1000000, ops: 11363636, mem/item: 0
+SCM Iterate, #1000000, ops: 11627906, mem/item: 0
+SCM Iterate, #1000000, ops: 10869565, mem/item: 0
+SCM Iterate, #1000000, ops: 11764705, mem/item: 0
+SCM Iterate, #1000000, ops: 11764705, mem/item: 0
+SCM Iterate, #1000000, ops: 10989010, mem/item: 0
+SCM Iterate with load, #1000000, ops: 5347593, mem/item: 0
+SCM Iterate with load, #1000000, ops: 5376344, mem/item: 0
+SCM Iterate with load, #1000000, ops: 5434782, mem/item: 0
+SCM Iterate with load, #1000000, ops: 5434782, mem/item: 0
+SCM Iterate with load, #1000000, ops: 5464480, mem/item: 0
+SCM Iterate with load, #1000000, ops: 5586592, mem/item: 0
+SCM Iterate with load, #1000000, ops: 5291005, mem/item: 0
+SCM Iterate with load, #1000000, ops: 5464480, mem/item: 0
+SCM Iterate with load, #1000000, ops: 5494505, mem/item: 0
+SCM Iterate with load, #1000000, ops: 5405405, mem/item: 0
+SCM<1024> Add Reverse, #100000, ops: 16374, mem/item: 154
+SCM Read Reverse, #100000, ops: 2702702, mem/item: 0
+
