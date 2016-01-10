@@ -2,7 +2,7 @@
 // FAKE build script
 // --------------------------------------------------------------------------------------
 
-#r @"C:/tools/BUILD/FAKE/FakeLib.dll"
+#r @"packages/FAKE/tools/FakeLib.dll"
 
 open Fake
 open Fake.Git
