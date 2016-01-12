@@ -38,6 +38,17 @@ and KVKeyComparer<'K,'V>(keyComparer:IComparer<'K>) =
     member this.Compare(x: KV<'K, 'V>, y: KV<'K, 'V>): int = keyComparer.Compare(x.Key, y.Key)
   end
 
+and internal ZipNComparer<'K>(keyComparer:IComparer<'K>) = 
+  interface IComparer<KV<'K,int>> with
+    member this.Compare(x: KV<'K,int>, y: KV<'K,int>): int = 
+      let c1 = keyComparer.Compare(x.Key, y.Key)
+      if c1 = 0 then 
+        if x.Value < y.Value then -1
+        elif x.Value > y.Value then 1
+        else 0
+      else c1
+  end
+
 and
   /// A comparable KeyValuePair
   [<CustomComparison;CustomEquality>]

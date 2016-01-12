@@ -959,9 +959,6 @@ and
       if cursorFactories.Length < 2 then invalidArg "cursorFactories" "ZipN takes at least two cursor factories"
     let cursorsFactory() = cursorFactories |> Array.map (fun x -> x())
     let mutable cursors = cursorsFactory()
-    // positions of cursor, including virtual positions of continuous cursors
-    // NB this is probably not needed, one of attempts to deal with continuous cursors
-    let positions = Array.zeroCreate<'K> cursors.Length
 
     // current values of all cursor. we keep them in an array because for continuous cursors there is no current value,
     // they just return TryGetValue at a key. Also, applying a resultSelector function to an array is fast
@@ -973,7 +970,8 @@ and
         if not <| c.Comparer.Equals(c') then invalidOp "ZipNCursor: Comparers are not equal" 
       c'
 
-    let continuous = cursors |> Array.map (fun x -> x.IsContinuous) // NB only two bool arrays per cursor, could use BitArray but "later"(TM)
+    // NB only two bool arrays per cursor, could use BitArray later
+    let continuous = cursors |> Array.map (fun x -> x.IsContinuous) 
     let isContinuous = continuous |> Array.forall id
 
     // indicates that previous move was OK and that a next move should not pre-build a state
@@ -981,12 +979,12 @@ and
     // for ZipN, valid states are:
     // - all cursors are at the same key (virtually for continuous, they are at the next existing key)
     // - cursors are not at the same position but one of them returned false on move next/previous after 
-    //   we tried to move from a valid state. In this state we could call MoveNextAsync and try to call Move Next repeatedly.
+    //   we tried to move from a valid state. In this state we could call MoveNextAsync or try to call Move Next repeatedly.
 
     // all keys where discrete cursors are positioned. they define where resulting keys are present
-    let discreteKeysSet = SortedDeque(KVComparer(cmp, Comparer<int>.Default))
+    let discreteKeysSet = SortedDeque(ZipNComparer(cmp))
     // active continuous cursors
-    let contKeysSet = SortedDeque(KVComparer(cmp, Comparer<int>.Default))
+    let contKeysSet = SortedDeque(ZipNComparer(cmp))
     
 
     /// TODO(perf) Now using TryGetValue without moving cursors. The idea is that continuous series are usually less frequent than
@@ -1007,13 +1005,9 @@ and
           c <- c + 1
         cont
 
-    // do... functions do move at least one cursor, so they should only be called
-    // when state is valid or when it is proven invalid and we must find the first valid position
-    // MoveFirst/Last/At must try to check the initial position before calling the do... functions
-
 
     // return true only if all discrete cursors moved to the same key or they cannot move further
-    let rec doMoveNextDescrete() =
+    let rec doMoveNextDiscrete() =
       let mutable continueMoves = true
       // check if we reached the state where all cursors are at the same position
       while cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) < 0 && continueMoves do
@@ -1058,91 +1052,91 @@ and
           let firstCursor = cursors.[first.Value]
           if firstCursor.MoveNext() then
             discreteKeysSet.Add(KV(firstCursor.CurrentKey, first.Value)) |> ignore
-            doMoveNextDescrete() // recursive
+            doMoveNextDiscrete() // recursive
           else
             // add back, should not be very often TODO (perf, low) add counter to see if this happens often
             discreteKeysSet.Add(KV(firstCursor.CurrentKey, first.Value)) |> ignore
             false
       else false
     
-    // TODO ensure this is syncronized with movenext and tested 
+    // a copy of doMoveNextDiscrete() with changed direction. 
     let rec doMovePrevDiscrete() =
-      let mutable cont = true
-      //let mutable activeCursorIdx = 0
-      // check if we reached the state where all cursors are at the same position
-      while cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) < 0 && cont do //
-        // pivotKeysSet is essentially a task queue:
-        // we take every cursor that is not at fthe frontier and try to move it forward until it reaches the frontier
-        // if we do this in parallel, the frontier could be moving while we are 
+      let mutable continueMoves = true
+      while cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) < 0 && continueMoves do
         let last = discreteKeysSet.RemoveLast()
         let ac = cursors.[last.Value]
         let mutable moved = true
-        let mutable c = +1 // by construction 
-
-        // move active cursor backward while it is before the current min key
-        // ... see move next
-
+        let mutable c = +1
+        
+        // move active cursor forward while it is before the current max key
+        // max key of non-cont series is the frontier: we will never get a value before it,
+        // and if any pivot moves ahead of the frontier, then it shifts the frontier 
+        // and the old one becomes unreachable
         while c > 0 && moved do
           moved <- ac.MovePrevious()
-          c <- cmp.Compare(ac.CurrentKey, discreteKeysSet.First.Key)
+          if moved then c <- cmp.Compare(ac.CurrentKey, discreteKeysSet.First.Key)
 
-        if moved then
-          currentValues.[last.Value] <- ac.CurrentValue
-          discreteKeysSet.Add(KV(ac.CurrentKey, last.Value)) |> ignore // TODO(low) SortedDeque AddFirst optimization similar to last.
-        else
-          cont <- false // cannot move, stop sync move next, leave cursors where they are
-      if cont then
+        if not moved then continueMoves <- false
+        // must add it back regardless of moves
+        discreteKeysSet.Add(KV(ac.CurrentKey, last.Value)) |> ignore
+
+      // now all discrete cursors have moved at or ahead of frontier
+      // the loop could stop only when all cursors are at the same key or we cannot move ahead
+      if continueMoves then
+        // this only possible if all discrete cursors are at the same key
+        #if PRERELEASE
+        Trace.Assert(cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0)
+        #endif
         if fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
+          // now we could access values of discrete keys and fill current values with them
+          for kvp in discreteKeysSet do // TODO (perf) Check if F# compiler behaves like C# one, optimizing for structs enumerator. Or just benchmark compared with for loop
+            currentValues.[kvp.Value] <- cursors.[kvp.Value].CurrentValue
           this.CurrentKey <- discreteKeysSet.First.Key
           true
         else
           // cannot get contiuous values at this key
           // move first non-cont cursor to next position
-          let first =  discreteKeysSet.RemoveFirst()
-          let ac = cursors.[first.Value]
-          if ac.MoveNext() then
-            currentValues.[first.Value] <- ac.CurrentValue
-            discreteKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
-            doMoveNextDescrete() // recursive
-          else false
+
+          let last = discreteKeysSet.RemoveLast()
+          let lastCursor = cursors.[last.Value]
+          if lastCursor.MovePrevious() then
+            discreteKeysSet.Add(KV(lastCursor.CurrentKey, last.Value)) |> ignore
+            doMoveNextDiscrete() // recursive
+          else
+            // add back, should not be very often TODO (perf, low) add counter to see if this happens often
+            discreteKeysSet.Add(KV(lastCursor.CurrentKey, last.Value)) |> ignore
+            false
       else false
 
     // manual state machine instead of a task computation expression, this is visibly faster
+    // But this is complex, TODO review, run benchmarks 
     let doMoveNextDiscreteTask(ct:CancellationToken) : Task<bool> =
-      let mutable tcs = new TaskCompletionSource<_>() //(Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create())
+      let mutable tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create() //new TaskCompletionSource<_>() //
       let returnTask = tcs.Task // NB! must access this property first
       let mutable firstStep = ref true
       let mutable sourceMoveTask = Unchecked.defaultof<_>
-      let mutable lingering = false
       let mutable initialPosition = Unchecked.defaultof<_>
       let mutable ac = Unchecked.defaultof<_>
       let rec loop(isOuter:bool) : unit =
         if isOuter then
           if not !firstStep && cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 && fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
             this.CurrentKey <- discreteKeysSet.First.Key
+            // we set vakues only here, when we know that we could return
+            for kvp in discreteKeysSet do
+              currentValues.[kvp.Value] <- cursors.[kvp.Value].CurrentValue
             tcs.SetResult(true) // the only true exit
             () // return
           else
-            // pivotKeysSet is essentially a task queue:
-            // we take every cursor that is not at fthe frontier and try to move it forward until it reaches the frontier
-            // if we do this in parallel, the frontier could be moving while we move cursors
-            if lingering then invalidOp "previous position is not added back"
             if discreteKeysSet.Count = 0 then invalidOp "pivotKeysSet is empty"
-            
             initialPosition <- discreteKeysSet.RemoveFirst()
-            lingering <- true
             ac <- cursors.[initialPosition.Value]
             loop(false)
-            // stop loop //Console.WriteLine("Should not be here")
-            //activeCursorLoop()
         else
           firstStep := false
           let idx = initialPosition.Value
           let cursor = ac
           let onMoved() =
-            currentValues.[idx] <- cursor.CurrentValue
             discreteKeysSet.Add(KV(cursor.CurrentKey, idx)) |> ignore
-            lingering <- false
             loop(true)
           let mutable c = -1
           while c < 0 && cursor.MoveNext() do
@@ -1152,14 +1146,11 @@ and
           else
             // call itself until reached the frontier, then call outer loop
             sourceMoveTask <- cursor.MoveNext(ct)
-            //task.Start()
-            
             // there is a big chance that this task is already completed
             let onCompleted() =
               let moved =  sourceMoveTask.Result
               if not moved then
                 tcs.SetResult(false) // the only false exit
-                //Console.WriteLine("Finished")
                 ()
               else
                 let c = cmp.Compare(cursor.CurrentKey, discreteKeysSet.Last.Key)
@@ -1172,12 +1163,8 @@ and
             if sourceMoveTask.Status = TaskStatus.RanToCompletion then
               onCompleted()
             else
-//              Thread.SpinWait(50)
-//              if sourceMoveTask.IsCompleted then
-//                onCompleted()
-//              else
                 let awaiter = sourceMoveTask.GetAwaiter()
-                // NB! do not block, use callback
+                // NB! do not block, use a callback
                 awaiter.OnCompleted(fun _ ->
                   // TODO! Test all cases
                   if sourceMoveTask.Status = TaskStatus.RanToCompletion then
@@ -1185,7 +1172,7 @@ and
                   else
                     discreteKeysSet.Add(initialPosition) // TODO! Add/remove only when needed
                     if sourceMoveTask.Status = TaskStatus.Canceled then
-                      tcs.SetCanceled()
+                      tcs.SetException(OperationCanceledException())
                     else
                       tcs.SetException(sourceMoveTask.Exception)
                 )
@@ -1330,31 +1317,8 @@ and
           valuesOk <- false
       valuesOk
       
-    // TODO!!! this is wrong
-    let doMovePrevContinuousOld(frontier:'K) =
-      failwith "ZipN MovePrevious is very likely wrong"
-      // found all values
-      let mutable valuesOk = false
-      let cksEnumerator = contKeysSet.Reverse().GetEnumerator()
-      let mutable found = false
-      while not found && cksEnumerator.MoveNext() do // need to update contKeysSet!!!!!!!!!!!!!!!!!!!
-        let position = cksEnumerator.Current
-        let cursor = cursors.[position.Value]
-        let mutable moved = true
-        while cmp.Compare(cursor.CurrentKey, frontier) >= 0 && moved && not found do
-          moved <- cursor.MovePrevious()
-          if moved then // cursor moved
-            contKeysSet.Remove(position)
-            contKeysSet.Add(KV(cursor.CurrentKey, position.Value))
-            
-            if cmp.Compare(cursor.CurrentKey, frontier) < 0  // ahead of the previous key
-              && fillContinuousValuesAtKey(cursor.CurrentKey) then // and we could get all values at the new position
-              found <- true
-              valuesOk <- true
-              this.CurrentKey <- cursor.CurrentKey
-      valuesOk
 
-    // TODO (perf) this passes tests, but no attemp was made to optimize the async version
+    // TODO (perf) no attempts was made to optimize the async version
     let doMoveNextContinuousTask(frontier:'K, ct:CancellationToken) : Task<bool> =
       task {
       let mutable frontier = frontier
@@ -1523,7 +1487,7 @@ and
               let first = discreteKeysSet.RemoveFirst()
               let ac = cursors.[first.Value]
               if ac.MoveNext() then
-                // TODO (delete this line after ZipN rework, look for similar cases). We set values when keys are ok inside doMoveNextDescrete, and we could avoid evaluting CV if it is lazy until keys are OK
+                // TODO (delete this line after ZipN rework, look for similar cases). We set values when keys are ok inside doMoveNextDiscrete, and we could avoid evaluting CV if it is lazy until keys are OK
                 //currentValues.[first.Value] <- ac.CurrentValue
                 discreteKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
                 true
@@ -1531,7 +1495,7 @@ and
                 discreteKeysSet.Add(first) // TODO! only replace when needed, do not do this round trip!
                 false
             else true
-          if doContinue then doMoveNextDescrete()
+          if doContinue then doMoveNextDiscrete()
           else false
 
     // manual
@@ -1606,7 +1570,7 @@ and
               doContinue <- false 
             else
               // move to max key until min key matches max key so that we can use values
-              valuesOk <- doMoveNextDescrete()
+              valuesOk <- doMoveNextDiscrete()
               doContinue <- valuesOk
       if valuesOk then 
         this.HasValidState <- true
@@ -1741,7 +1705,7 @@ and
               | Lookup.LE | Lookup.LT ->
                 valuesOk <- doMovePrevDiscrete()
               | Lookup.GE | Lookup.GT ->
-                valuesOk <- doMoveNextDescrete()
+                valuesOk <- doMoveNextDiscrete()
               | _ -> failwith "Wrong lookup direction, should never be there"
       if valuesOk then 
         this.HasValidState <- true
