@@ -17,7 +17,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *)
 
-#nowarn "0086" // operators overloads are intential, Series are as primitive as scalars, all arithmetic operations are defined on them as maps
+#nowarn "0086" // operator overloads are intentional, Series are as primitive as scalars, all arithmetic operations are defined on them as maps
 namespace Spreads
 
 open System
@@ -34,11 +34,13 @@ open Spreads
 open Spreads.Collections
 
 
-// TODO (perf) see benchmark for ReadOnly. Reads are very slow while iterations are not affected (GetCursor() returns original cursor) in release mode. Optimize 
+// TODO (perf) see benchmark for ReadOnly. Reads are very slow while iterations are not 
+// affected (GetCursor() returns original cursor) in release mode. Optimize 
 // reads of this wrapper either here by type-checking the source of the cursor and using direct methods on the source
 // or make cursor thread-static and initialize it only once (now it is called on each method)
 
-// TODO duplicate IReadOnlyOrderedMap methods as an instance virtual methods to avoid casting in F#. That will require ovverrides in all children or conflict
+// TODO duplicate IReadOnlyOrderedMap methods as an instance virtual methods to avoid casting in F#.
+// That will require ovverrides in all children or conflict
 // check how it is used from C# (do tests in C# in general)
 
 // TODO check thread safety of the default series implementation. Should we use ThreadLocal for caching cursors that are called via the interfaces?
@@ -76,79 +78,72 @@ and
   [<Serializable>]
   [<AbstractClassAttribute>]
   //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-  Series<'K,'V>() =
+  Series<'K,'V>() as this =
     inherit Series()
     let mutable syncRoot = Unchecked.defaultof<_> // avoid allocation on each series creation, many of them are lighweight and never need a sync root
     
+    let c = new ThreadLocal<_>(Func<_>(this.GetCursor), true) // 
+
     /// Main method to override
     abstract GetCursor : unit -> ICursor<'K,'V>
-
-    // TODO! check
+   
     member this.IsIndexed with get() = this.GetCursor().Source.IsIndexed
     member this.IsMutable =  this.GetCursor().Source.IsMutable
 
     /// Locks any mutations for mutable implementations
     member this.SyncRoot 
       with get() = 
-        if syncRoot = Unchecked.defaultof<_> then syncRoot <- Object()
+        if syncRoot = Unchecked.defaultof<_> then syncRoot <- this.GetCursor().Source.SyncRoot
         syncRoot
 
     member this.Comparer with get() = this.GetCursor().Comparer
     member this.IsEmpty = not (this.GetCursor().MoveFirst())
-    //member this.Count with get() = map.Count
+
     member this.First 
       with get() = 
-        let c = this.GetCursor()
-        if c.MoveFirst() then c.Current else invalidOp "Series is empty"
+        if c.Value.MoveFirst() then c.Value.Current else invalidOp "Series is empty"
 
     member this.Last 
       with get() =
-        let c = this.GetCursor()
-        if c.MoveLast() then c.Current else invalidOp "Series is empty"
+        if c.Value.MoveLast() then c.Value.Current else invalidOp "Series is empty"
 
     member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      let c = this.GetCursor()
-      if c.MoveAt(k, direction) then 
-        result <- c.Current 
+      if c.Value.MoveAt(k, direction) then 
+        result <- c.Value.Current 
         true
       else false
 
     member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      let c = this.GetCursor()
-      if c.MoveFirst() then
-        res <- c.Current
+      if c.Value.MoveFirst() then
+        res <- c.Value.Current
         true
       else false
 
     member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      let c = this.GetCursor()
-      if c.MoveLast() then
-        res <- c.Current
+      if c.Value.MoveLast() then
+        res <- c.Value.Current
         true
       else false
 
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
-      let c = this.GetCursor()
-      if c.IsContinuous then
-        c.TryGetValue(k, &value)
+      if c.Value.IsContinuous then
+        c.Value.TryGetValue(k, &value)
       else
         let v = ref Unchecked.defaultof<KVP<'K,'V>>
-        let ok = c.MoveAt(k, Lookup.EQ)
-        if ok then value <- c.CurrentValue else value <- Unchecked.defaultof<'V>
+        let ok = c.Value.MoveAt(k, Lookup.EQ)
+        if ok then value <- c.Value.CurrentValue else value <- Unchecked.defaultof<'V>
         ok
 
     member this.Item 
       with get k = 
-        let c = this.GetCursor()
-        if c.MoveAt(k, Lookup.EQ) then c.CurrentValue
+        if c.Value.MoveAt(k, Lookup.EQ) then c.Value.CurrentValue
         else raise (KeyNotFoundException())
 
     member this.Keys 
       with get() =
-        let c = this.GetCursor()
         seq {
-          while c.MoveNext() do
-            yield c.CurrentKey
+          while c.Value.MoveNext() do
+            yield c.Value.CurrentKey
         }
 
     member this.Values
@@ -158,6 +153,11 @@ and
           while c.MoveNext() do
             yield c.CurrentValue
         }
+
+    override x.Finalize() =
+      for v in c.Values do
+        v.Dispose()
+      c.Dispose()
 
     interface IEnumerable<KeyValuePair<'K, 'V>> with
       member this.GetEnumerator() = this.GetCursor() :> IEnumerator<KeyValuePair<'K, 'V>>
@@ -202,15 +202,15 @@ and
 //              OptionalValue(Func<_,_>(fBatch'))
 //            else None
         CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(source.GetCursor), mapF, fBatch) :> ICursor<_,_>) :> Series<'K,'V2>
-#if PRERELEASE // we could switch off this optimization in prerelease builds
+      #if PRERELEASE // we could switch off this optimization in prerelease builds
       if OptimizationSettings.CombineFilterMapDelegates then
         match box source with
         | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc)
         | _ ->  defaultMap()
       else defaultMap()
-#else
+      #else
       defaultMap()
-#endif
+      #endif
 
 
     // TODO! (perf) optimize ZipN for 2, or reimplement Zip for 'V/'V2->'R, see commented out cursor below
@@ -974,13 +974,12 @@ and
     let continuous = cursors |> Array.map (fun x -> x.IsContinuous) 
     let isContinuous = continuous |> Array.forall id
 
-    // indicates that previous move was OK and that a next move should not pre-build a state
+    // The state is valid when
+    // For discrete case - all discrete cursors move at some location (first/last/at)
+    // For continuous case - at least one continuous series moved at some location
+    // and we could call do... methods after that
     let mutable hasValidState = false
-    // for ZipN, valid states are:
-    // - all cursors are at the same key (virtually for continuous, they are at the next existing key)
-    // - cursors are not at the same position but one of them returned false on move next/previous after 
-    //   we tried to move from a valid state. In this state we could call MoveNextAsync or try to call Move Next repeatedly.
-
+    
     // all keys where discrete cursors are positioned. they define where resulting keys are present
     let discreteKeysSet = SortedDeque(ZipNComparer(cmp))
     // active continuous cursors
@@ -1008,9 +1007,6 @@ and
 
     // return true only if all discrete cursors moved to the same key or they cannot move further
     let rec doMoveNextDiscrete() =
-      #if PRERELEASE
-      Trace.Assert(this.HasValidState)
-      #endif
       let mutable continueMoves = true
       // check if we reached the state where all cursors are at the same position
       while cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) < 0 && continueMoves do
@@ -1114,12 +1110,8 @@ and
             false
       else false
 
-    // manual state machine instead of a task computation expression, this is visibly faster
-    // But this is complex, TODO review, run benchmarks 
+    // Manual state machine instead of a task computation expression, this is visibly faster
     let doMoveNextDiscreteTask(ct:CancellationToken) : Task<bool> =
-      #if PRERELEASE
-      Trace.Assert(this.HasValidState)
-      #endif
       let mutable tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create() //new TaskCompletionSource<_>() //
       let returnTask = tcs.Task // NB! must access this property first
       let mutable firstStep = ref true
