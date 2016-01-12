@@ -962,8 +962,8 @@ and
     let cursorsFactory() = cursorFactories |> Array.map (fun x -> x())
     let mutable cursors = cursorsFactory()
 
-    // current values of all cursor. we keep them in an array because for continuous cursors there is no current value,
-    // they just return TryGetValue at a key. Also, applying a resultSelector function to an array is fast
+    // Current values of all cursors. We keep them in an array because for continuous cursors there is no current value,
+    // they just return TryGetValue at a key. Also applying a resultSelector function to an array is fast.
     let currentValues = Array.zeroCreate<'V> cursors.Length
     
     let cmp = 
@@ -994,8 +994,8 @@ and
     /// Continuous cursors should be optimized for the cases when the key in `.TryGetValue(key)` is between
     /// the current and the previous position of the continuous cursor
     let fillContinuousValuesAtKey (key:'K) =
-      if contKeysSet.Count = 0 then true
-      else
+//      if contKeysSet.Count = 0 then true
+//      else
         let mutable cont = true
         let mutable c = 0
         while cont && c < cursors.Length do
@@ -1602,41 +1602,41 @@ and
               valuesOk <- doMoveNextDiscrete()
               doContinue <- valuesOk
       valuesOk
-//      if valuesOk then 
-//        true
-//      else false
 
 
     member this.MoveLast(): bool = 
-      let mutable cont = true
+      let mutable doContinue = true
       let mutable valuesOk = false
-      let mutable allMovedLast = false
+      let mutable movedLast = false
       discreteKeysSet.Clear()
       contKeysSet.Clear()
-      while cont do
-        if not allMovedLast then
+      while doContinue do
+        if not movedLast then
           cursors 
           |> Array.iteri (fun i x -> 
-            let movedLast = x.MoveLast()
-            if movedLast then
-              if continuous.[i] then 
-                contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
-              else
-                discreteKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
-              currentValues.[i] <- x.CurrentValue
+            let movedLast' = x.MoveLast()
+            if continuous.[i] then
+              if movedLast' then contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+              // we need at least one initialized (valid) series for the continuous case
+              if isContinuous then movedLast <- movedLast' || movedLast
             else
-              cont <- false // series has no values, stop here
+              discreteKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+              // if this cursor is discrete, than the netire ZipN is discrete
+              // all discrete must move, otehrwise we cannot get values
+              if not movedLast' then doContinue <- false
           )
-          allMovedLast <- cont
+          if isContinuous && not movedLast then doContinue <- false
+          else movedLast <- doContinue
         else
           this.HasValidState <- true
           if isContinuous then
             if fillContinuousValuesAtKey(contKeysSet.Last.Key) then
               this.CurrentKey <- contKeysSet.Last.Key
               valuesOk <- true
-              cont <- false
+              doContinue <- false
             else
               valuesOk <- doMovePrevContinuous(contKeysSet.Last.Key)
+              doContinue <- valuesOk
           else
             if cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 
                   && fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
@@ -1644,45 +1644,37 @@ and
                 currentValues.[kvp.Value] <- cursors.[kvp.Value].CurrentValue
               this.CurrentKey <- discreteKeysSet.First.Key
               valuesOk <- true
-              cont <- false 
+              doContinue <- false 
             else
-              // move to max key until min key matches max key so that we can use values
-              valuesOk <- doMovePrevDiscrete() //failwith "TODO" //this.DoMoveNext()
-              cont <- not valuesOk
+              valuesOk <- doMovePrevDiscrete()
+              doContinue <- valuesOk
       valuesOk
-//      if valuesOk then 
-//        this.HasValidState <- true
-//        true
-//      else false
+
 
     member x.MoveAt(key: 'K, direction: Lookup) : bool =
-      let mutable cont = true
+      let mutable doContinue = true
       let mutable valuesOk = false
-      let mutable allMovedAt = false
+      let mutable movedAt = false
       // we must be able to do the same without this
       discreteKeysSet.Clear()
       contKeysSet.Clear()
-      while cont do
-        if not allMovedAt then
+      while doContinue do
+        if not movedAt then
           cursors 
-          |> Array.iteri (fun i x ->
-            if continuous.[i] then
-              let movedAt = x.MoveAt(key, direction)
-              // if all cursors are continuous then at least one of them must move at a key
-              if isContinuous && movedAt then 
-                allMovedAt <- true
-              contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore // if movedAt then 
+          |> Array.iteri (fun i x -> 
+            let movedAt' = x.MoveAt(key, direction)
+            if continuous.[i] then 
+              if movedAt' then contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+              // we need at least one initialized (valid) series for the continuous case
+              if isContinuous then movedAt <- movedAt' || movedAt
             else
-              let movedAt = x.MoveAt(key, direction)
-              if movedAt then
-                discreteKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
-                // TODO remove, access values only when keys are equal
-                currentValues.[i] <- x.CurrentValue
-              else
-                cont <- false // series has no values, stop here
+              discreteKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+              // if this cursor is discrete, than the netire ZipN is discrete
+              // all discrete must move, otehrwise we cannot get values
+              if not movedAt' then doContinue <- false
           )
-          if isContinuous && not allMovedAt then cont <- false
-          allMovedAt <- cont
+          if isContinuous && not movedAt then doContinue <- false
+          else movedAt <- doContinue
         else
           this.HasValidState <- true
           if isContinuous then
@@ -1691,7 +1683,7 @@ and
                   && fillContinuousValuesAtKey(contKeysSet.First.Key) then
               this.CurrentKey <- contKeysSet.First.Key
               valuesOk <- true
-              cont <- false 
+              doContinue <- false 
             else
               match direction with
               | Lookup.EQ ->
@@ -1699,28 +1691,28 @@ and
                 if fillContinuousValuesAtKey(key) then
                   this.CurrentKey <- key
                   valuesOk <- true
-                  cont <- false
+                  doContinue <- false
                 else
                   valuesOk <- false
-                  cont <- false
+                  doContinue <- false
               | Lookup.LE | Lookup.LT ->
                 if fillContinuousValuesAtKey(contKeysSet.Last.Key) then
                   this.CurrentKey <- contKeysSet.Last.Key
                   valuesOk <- true
-                  cont <- false
+                  doContinue <- false
                 else
                   valuesOk <- doMovePrevContinuous(contKeysSet.Last.Key)
-                  cont <- not valuesOk
+                  doContinue <- not valuesOk
               | Lookup.GE | Lookup.GT ->
                 // TODO! we add all cursors to contKeysSet, even if they do not move, contKeysSet.First.Key could be default value
                 // should use comparer and provide max(key, contKeysSet.First.Key) as frontier
                 if fillContinuousValuesAtKey(contKeysSet.First.Key) then
                   this.CurrentKey <- contKeysSet.First.Key
                   valuesOk <- true
-                  cont <- false
+                  doContinue <- false
                 else
                   valuesOk <- doMoveNextContinuous(contKeysSet.First.Key)
-                  cont <- not valuesOk
+                  doContinue <- not valuesOk
               | _ -> failwith "Wrong lookup direction, should never be there"
           else
             if cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 
@@ -1729,12 +1721,12 @@ and
                 currentValues.[kvp.Value] <- cursors.[kvp.Value].CurrentValue
               this.CurrentKey <- discreteKeysSet.First.Key
               valuesOk <- true
-              cont <- false 
+              doContinue <- false 
             else
               match direction with
               | Lookup.EQ -> 
                 valuesOk <- false
-                cont <- false
+                doContinue <- false
               | Lookup.LE | Lookup.LT ->
                 valuesOk <- doMovePrevDiscrete()
               | Lookup.GE | Lookup.GT ->

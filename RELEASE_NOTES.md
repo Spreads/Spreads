@@ -1,3 +1,8 @@
+#### 0.2.7 - January 12, 2016
+* Stabilize ZipN and continuous series behavior #1 & #10;
+* Fix Range MoveNextAsync;
+* Series default IROOM implementation via ThreadLocal cursors.
+
 #### 0.2.6 - January 7, 2016
 * Rework FixedBuffer/DirectBuffer implementation;
 * Add reference counting to buffer pool (prepare for reusing immutable chunks).

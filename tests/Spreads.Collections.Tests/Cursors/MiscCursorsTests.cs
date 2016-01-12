@@ -141,7 +141,7 @@ namespace Spreads.Collections.Tests.Cursors {
         public void CouldCalculateAverageOnMovingWindow() {
             var sm = new SortedMap<DateTime, double>();
 
-            var count = 1000000;
+            var count = 100000;
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -174,7 +174,7 @@ namespace Spreads.Collections.Tests.Cursors {
         public void CouldCalculateAverageOnMovingWindowWithStep() {
             var sm = new SortedMap<DateTime, double>();
 
-            var count = 1000000;
+            var count = 100000;
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -206,7 +206,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
-            var count = 1000000;
+            var count = 100000;
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i * 2), i);
@@ -235,7 +235,7 @@ namespace Spreads.Collections.Tests.Cursors {
         public void CouldCalculateMovingAverage() {
             var sm = new SortedMap<DateTime, double>();
 
-            var count = 10000000;
+            var count = 1000000;
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -270,7 +270,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     throw new ApplicationException("Invalid value");
                 }
                 c++;
-                if (c == 9999982)
+                if (c == 999982)
                 {
                     Console.WriteLine("Catch me");
                 }
@@ -290,7 +290,7 @@ namespace Spreads.Collections.Tests.Cursors {
         public void CouldCalculateMovingAverageIncomplete() {
             var sm = new SortedMap<DateTime, double>();
 
-            var count = 10000000;
+            var count = 100000;
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -321,7 +321,7 @@ namespace Spreads.Collections.Tests.Cursors {
         public void CouldCalculateMovingStDev() {
             var sm = new SortedMap<DateTime, double>();
 
-            var count = 5000000;
+            var count = 1000000;
 
             for (int i = 2; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -358,7 +358,7 @@ namespace Spreads.Collections.Tests.Cursors {
         public void CouldCalculateMovingStDevIncomlete() {
             var sm = new SortedMap<DateTime, double>();
 
-            var count = 5000000;
+            var count = 1000000;
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
