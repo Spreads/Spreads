@@ -1008,6 +1008,9 @@ and
 
     // return true only if all discrete cursors moved to the same key or they cannot move further
     let rec doMoveNextDiscrete() =
+      #if PRERELEASE
+      Trace.Assert(this.HasValidState)
+      #endif
       let mutable continueMoves = true
       // check if we reached the state where all cursors are at the same position
       while cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) < 0 && continueMoves do
@@ -1061,6 +1064,9 @@ and
     
     // a copy of doMoveNextDiscrete() with changed direction. 
     let rec doMovePrevDiscrete() =
+      #if PRERELEASE
+      Trace.Assert(this.HasValidState)
+      #endif
       let mutable continueMoves = true
       while cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) < 0 && continueMoves do
         let last = discreteKeysSet.RemoveLast()
@@ -1111,6 +1117,9 @@ and
     // manual state machine instead of a task computation expression, this is visibly faster
     // But this is complex, TODO review, run benchmarks 
     let doMoveNextDiscreteTask(ct:CancellationToken) : Task<bool> =
+      #if PRERELEASE
+      Trace.Assert(this.HasValidState)
+      #endif
       let mutable tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create() //new TaskCompletionSource<_>() //
       let returnTask = tcs.Task // NB! must access this property first
       let mutable firstStep = ref true
@@ -1183,6 +1192,10 @@ and
     
     // Continuous
     let doMoveNextContinuous(frontier:'K) =
+      #if PRERELEASE
+      Trace.Assert(this.HasValidState)
+      #endif
+
       let mutable frontier = frontier
 
       // frontier is the current key. on each zip move we must move at least one cursor ahead 
@@ -1266,6 +1279,10 @@ and
       
     // this mirrows doMoveNextContinuous, any changes must be made to both
     let doMovePrevContinuous(frontier:'K) =
+      #if PRERELEASE
+      Trace.Assert(this.HasValidState)
+      #endif
+
       let mutable frontier = frontier
       let mutable valuesOk = false
       let mutable found = false
@@ -1320,6 +1337,9 @@ and
 
     // TODO (perf) no attempts was made to optimize the async version
     let doMoveNextContinuousTask(frontier:'K, ct:CancellationToken) : Task<bool> =
+      #if PRERELEASE
+      Trace.Assert(this.HasValidState)
+      #endif
       task {
       let mutable frontier = frontier
 
@@ -1554,6 +1574,8 @@ and
           )
           allMovedFirst <- doContinue
         else
+          // all cursors are positioned so that it is possible to get value, but not guaranteed
+          this.HasValidState <- true
           if isContinuous then
             if fillContinuousValuesAtKey(contKeysSet.First.Key) then
               this.CurrentKey <- contKeysSet.First.Key
@@ -1574,10 +1596,10 @@ and
               // move to max key until min key matches max key so that we can use values
               valuesOk <- doMoveNextDiscrete()
               doContinue <- valuesOk
-      if valuesOk then 
-        this.HasValidState <- true
-        true
-      else false
+      valuesOk
+//      if valuesOk then 
+//        true
+//      else false
 
 
     member this.MoveLast(): bool = 
@@ -1602,6 +1624,7 @@ and
           )
           allMovedLast <- cont
         else
+          this.HasValidState <- true
           if isContinuous then
             if fillContinuousValuesAtKey(contKeysSet.Last.Key) then
               this.CurrentKey <- contKeysSet.Last.Key
@@ -1621,10 +1644,11 @@ and
               // move to max key until min key matches max key so that we can use values
               valuesOk <- doMovePrevDiscrete() //failwith "TODO" //this.DoMoveNext()
               cont <- not valuesOk
-      if valuesOk then 
-        this.HasValidState <- true
-        true
-      else false
+      valuesOk
+//      if valuesOk then 
+//        this.HasValidState <- true
+//        true
+//      else false
 
     member x.MoveAt(key: 'K, direction: Lookup) : bool =
       let mutable cont = true
@@ -1655,6 +1679,7 @@ and
           if isContinuous && not allMovedAt then cont <- false
           allMovedAt <- cont
         else
+          this.HasValidState <- true
           if isContinuous then
             // this condition is applied to all directions
             if cmp.Compare(contKeysSet.First.Key, contKeysSet.Last.Key) = 0 
@@ -1710,10 +1735,11 @@ and
               | Lookup.GE | Lookup.GT ->
                 valuesOk <- doMoveNextDiscrete()
               | _ -> failwith "Wrong lookup direction, should never be there"
-      if valuesOk then 
-        this.HasValidState <- true
-        true
-      else false
+      valuesOk
+//      if valuesOk then 
+//        this.HasValidState <- true
+//        true
+//      else false
 
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool =
       let mutable cont = true
