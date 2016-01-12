@@ -28,8 +28,7 @@ namespace Spreads.Collections.Tests.Cursors {
         }
 
         [Test]
-        public void CouldUseAwaiter()
-        {
+        public void CouldUseAwaiter() {
 
             var t = Task.Delay(1000);
             var awaiter = t.GetAwaiter();
@@ -72,17 +71,14 @@ namespace Spreads.Collections.Tests.Cursors {
         }
 
         [Test]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes()
-        {
-            for (int round = 0; round < 5; round++)
-            {
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes() {
+            for (int round = 0; round < 5; round++) {
                 CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
             }
         }
 
         [Test]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor()
-        {
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor() {
             var count = 1000; //00000;
             var sw = new Stopwatch();
             //var mre = new ManualResetEventSlim(true);
@@ -124,7 +120,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     } else {
                         //Console.WriteLine("Sync move");
                     }
-                    
+
                     sum += c.CurrentValue;
                     cnt++;
                 }
@@ -138,13 +134,10 @@ namespace Spreads.Collections.Tests.Cursors {
                     if (c.CurrentKey == stop) {
                         break;
                     }
-                    if ((int) c.CurrentValue != cnt)
-                    {
+                    if ((int)c.CurrentValue != cnt) {
                         //Console.WriteLine("Wrong sequence");
                         Assert.Fail("Wrong sequence");
-                    }
-                    else
-                    {
+                    } else {
                         //Console.WriteLine("Async move");
                     }
                     cnt++;
@@ -208,7 +201,7 @@ namespace Spreads.Collections.Tests.Cursors {
             for (int i = 0; i < count; i++) {
                 expectedSum += i;
             }
-            if(expectedSum != sum) Console.WriteLine("Sum 1 is wrong");
+            if (expectedSum != sum) Console.WriteLine("Sum 1 is wrong");
             if (expectedSum != sum2) Console.WriteLine("Sum 2 is wrong");
             if (expectedSum != sum3) Console.WriteLine("Sum 3 is wrong");
             Assert.AreEqual(expectedSum, sum, "Sum 1");
@@ -218,8 +211,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_spinwait()
-        {
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_spinwait() {
 
             OptimizationSettings.ArrayPool = new DoubleArrayPool();
 
@@ -413,9 +405,52 @@ namespace Spreads.Collections.Tests.Cursors {
 
             double sum = 0.0;
 
-            cached.Do((k, v) =>
-            {
+            cached.Do((k, v) => {
                 sum += v;
+            });
+
+
+            addTask.Wait();
+            Thread.Sleep(100);
+            sw.Stop();
+
+            double expectedSum = 0.0;
+            for (int i = 0; i < count; i++) {
+                expectedSum += i;
+            }
+            Assert.AreEqual(expectedSum, sum);
+
+            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds - 50);
+            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
+
+        }
+
+
+        [Test]
+        public void CouldUseDoExtensionMethodOnRange() {
+            var count = 100;
+            var sw = new Stopwatch();
+            sw.Start();
+
+            var sm = new SortedChunkedMap<DateTime, double>();
+            sm.IsSynchronized = true;
+
+            var addTask = Task.Run(async () => {
+                await Task.Delay(50);
+                for (int i = 0; i < count; i++) {
+                    sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                }
+                // signal data completion
+                sm.isMutable = false;
+            });
+
+            var cached = sm.Cache().After(DateTime.UtcNow.Date.AddSeconds(0), Lookup.EQ);
+
+            double sum = 0.0;
+
+            cached.Do((k, v) => {
+                sum += v;
+                Console.WriteLine($"{k} : {v}");
             });
 
 

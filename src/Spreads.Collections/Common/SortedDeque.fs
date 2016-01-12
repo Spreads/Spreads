@@ -145,16 +145,22 @@ type SortedDeque<'T>(comparer:IComparer<'T>, capacity:int) as this=
       // unchecked, assume that offset is inside existing range
       if this.firstOffset + this.count > this.buffer.Length then // is already a split
         if offset < this.firstOffset then // we are at the left part of the split [__._>    ___]
-          Debug.Assert(offset < this.firstOffset + this.count - this.buffer.Length)
+          #if PRERELEASE
+          Trace.Assert(offset < this.firstOffset + this.count - this.buffer.Length)
+          #endif
           Array.Copy(this.buffer, offset, this.buffer, offset + 1, this.firstOffset + this.count - this.buffer.Length - offset)
         else // we are at the left part of the split [___    <__._]
           Array.Copy(this.buffer, this.firstOffset, this.buffer, this.firstOffset - 1, (offset - this.firstOffset) + 1)
           this.firstOffset <- this.firstOffset - 1
           offset <- offset - 1
-          Debug.Assert(this.comparer.Compare(element, this.buffer.[offset - 1]) > 0)
+          #if PRERELEASE
+          Trace.Assert(this.comparer.Compare(element, this.buffer.[offset - 1]) > 0)
+          #endif
       else
         if this.firstOffset = 0 then // avoid split if possible [>_____     ]
-          Debug.Assert(offset < this.count)
+          #if PRERELEASE
+          Trace.Assert(offset < this.count)
+          #endif
           Array.Copy(this.buffer, offset, this.buffer, offset + 1, this.count - offset)
         elif (this.count - (offset - this.firstOffset) <= this.count / 2)  then // [   _______.>__     ]
           if this.firstOffset + this.count = this.buffer.Length then
@@ -162,12 +168,16 @@ type SortedDeque<'T>(comparer:IComparer<'T>, capacity:int) as this=
             Array.Copy(this.buffer, offset, this.buffer, offset + 1, this.count - (offset - this.firstOffset) - 1)
           else
             Array.Copy(this.buffer, offset, this.buffer, offset + 1, this.count - (offset - this.firstOffset))
-          Debug.Assert(this.comparer.Compare(element, this.buffer.[offset - 1]) > 0)
+          #if PRERELEASE
+          Trace.Assert(this.comparer.Compare(element, this.buffer.[offset - 1]) > 0)
+          #endif
         else //[   __<._______     ]
           Array.Copy(this.buffer, this.firstOffset, this.buffer, this.firstOffset - 1, offset - this.firstOffset)
           offset <- offset - 1
           this.firstOffset <- this.firstOffset - 1
-          Debug.Assert(this.comparer.Compare(element, this.buffer.[offset - 1]) > 0)
+          #if PRERELEASE
+          Trace.Assert(this.comparer.Compare(element, this.buffer.[offset - 1]) > 0)
+          #endif
       this.buffer.[offset] <- element
       this.count <- this.count + 1
 

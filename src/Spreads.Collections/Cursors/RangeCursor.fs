@@ -121,10 +121,22 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
       task { 
         if started then
           let! moved = this.InputCursor.MoveNext(cancellationToken) 
-          if moved &&  endOk this.InputCursor.CurrentKey then
+          if moved && endOk this.InputCursor.CurrentKey then
             return true
           else return false
-        else return (this :> ICursor<'K,'V>).MoveFirst()
+        else
+          if (this :> ICursor<'K,'V>).MoveFirst() then return true
+          else
+            // TODO review this
+            let mutable movedFirst = false
+            let mutable complete = false
+            while not movedFirst && not complete do
+              let! moved' = this.InputCursor.MoveNext(cancellationToken)
+              complete <- not moved'
+              if moved' then
+                // this.MF has additional logic
+                movedFirst <- (this :> ICursor<'K,'V>).MoveFirst()
+            return movedFirst
       }
 
     member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 

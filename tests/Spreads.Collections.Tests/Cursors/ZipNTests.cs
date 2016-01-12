@@ -545,7 +545,7 @@ namespace Spreads.Collections.Tests.Cursors {
             sm1.Add(0, 0);
             sm2.Add(0, 0);
 
-            for (int i = 2; i < 1000000; i = i + 2) {
+            for (int i = 2; i < 100000; i = i + 2) {
                 sm1.Add(i, i);
                 sm2.Add(i + 1, i);
             }
@@ -572,7 +572,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
             sm1.Add(0, 0);
             sm2.Add(0, 0);
-            for (int i = 2; i < 1000000; i = i + 2) {
+            for (int i = 2; i < 100000; i = i + 2) {
                 sm1.Add(i, i);
                 sm2.Add(i, i);
             }
@@ -585,7 +585,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
             sw.Stop();
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
-            for (int i = 2; i < 1000000; i = i + 2) {
+            for (int i = 2; i < 100000; i = i + 2) {
                 Assert.AreEqual(series.Length * i, sum[i]);
             }
 
@@ -605,7 +605,7 @@ namespace Spreads.Collections.Tests.Cursors {
             sm1.Add(0, 0);
             sm2.Add(0, 0);
 
-            for (int i = 2; i < 1000000; i = i + 2) {
+            for (int i = 2; i < 100000; i = i + 2) {
                 sm1.Add(i, i);
                 sm2.Add(i + 1, i);
             }
@@ -618,7 +618,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
             sw.Stop();
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
-            for (int i = 2; i < 1000000; i = i + 2) {
+            for (int i = 2; i < 100000; i = i + 2) {
                 Assert.AreEqual(i * 2 - 2, sum[i]);
             }
 
@@ -634,7 +634,7 @@ namespace Spreads.Collections.Tests.Cursors {
             sm1.Add(0, 0);
             sm2.Add(0, 0);
 
-            for (int i = 2; i < 1000000; i = i + 2) {
+            for (int i = 2; i < 100000; i = i + 2) {
                 sm1.Add(i, i);
                 sm2.Add(i + 1, i);
             }
@@ -746,7 +746,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
             sm1.Add(0, 0);
 
-            for (int i = 2; i < 100000; i++) {
+            for (int i = 2; i < 10000; i++) {
                 sm1.Add(i, i);
             }
 
@@ -872,7 +872,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm1 = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
-            var count = 1000000;
+            var count = 100000;
 
             for (int i = 0; i < count; i++) {
                 sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -941,7 +941,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm1 = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
-            var count = 1000000; //000000;
+            var count = 100000; //000000;
             var mid = 1;
 
             for (int i = 0; i < mid; i++) {
@@ -1030,7 +1030,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm1 = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
-            var count = 1000000;
+            var count = 100000;
 
             for (int i = 0; i < 1; i++) {
                 sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -1100,7 +1100,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm1 = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
-            var count = 1000000;
+            var count = 100000;
 
             for (int i = 0; i < count; i++) {
                 sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -1287,7 +1287,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm1 = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
-            var count = 1000000;
+            var count = 100000;
 
             for (int i = 0; i < count; i++) {
                 sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -1538,7 +1538,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var fill = sm2.Fill(0);
             var zip3 = rp1.Zip(fill, (l, r) => l + r);
-            Assert.AreEqual(0, zip3.Count());
+            Assert.AreEqual(1, zip3.Count());
         }
 
         [Test]
@@ -1561,7 +1561,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var prev1 = 0;
             var prev2 = 0;
 
-            for (int i = 0; i < 1000000; i = i + 1) {
+            for (int i = 0; i < 100000; i = i + 1) {
                 prev1 = prev1 + rng.Next(1, 11);
                 sm1.Add(prev1, prev1);
                 prev2 = prev2 + rng.Next(1, 11);

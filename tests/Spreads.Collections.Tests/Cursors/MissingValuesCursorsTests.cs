@@ -17,7 +17,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
-            var count = 10000000;
+            var count = 1000000;
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i * 2), i);
@@ -46,7 +46,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
-            var count = 10000000;
+            var count = 1000000;
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i * 2), i);
@@ -76,7 +76,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
-            var count = 10000000;
+            var count = 1000000;
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i * 2), i);
@@ -110,7 +110,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
-            var count = 10000000;
+            var count = 1000000;
 
             for (int i = 0; i < 1; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i * 2), i);

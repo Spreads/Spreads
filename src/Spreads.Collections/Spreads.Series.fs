@@ -155,9 +155,12 @@ and
         }
 
     override x.Finalize() =
-      for v in c.Values do
-        v.Dispose()
-      c.Dispose()
+      try
+        for v in c.Values do
+          v.Dispose()
+        c.Dispose()
+      with
+      | :? ObjectDisposedException -> ()
 
     interface IEnumerable<KeyValuePair<'K, 'V>> with
       member this.GetEnumerator() = this.GetCursor() :> IEnumerator<KeyValuePair<'K, 'V>>
@@ -382,7 +385,6 @@ and
   /// Map values to new values, batch mapping if that makes sense (for simple operations additional logic overhead is usually bigger than)
   [<SealedAttribute>]
   internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> option)=
-    //inherit Series<'K,'V2>()
     let mutable cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
     
     let f : Func<'V,'V2> = f
@@ -1555,24 +1557,26 @@ and
     member this.MoveFirst(): bool =
       let mutable doContinue = true
       let mutable valuesOk = false
-      let mutable allMovedFirst = false
+      let mutable movedFirst = false
       discreteKeysSet.Clear()
       contKeysSet.Clear()
       while doContinue do
-        if not allMovedFirst then
+        if not movedFirst then
           cursors 
           |> Array.iteri (fun i x -> 
-            let movedFirst = x.MoveFirst()
-            if movedFirst then
-              if continuous.[i] then 
-                contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
-              else
-                discreteKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
-              currentValues.[i] <- x.CurrentValue
+            let movedFirst' = x.MoveFirst()
+            if continuous.[i] then 
+              if movedFirst' then contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+              // we need at least one initialized (valid) series for the continuous case
+              if isContinuous then movedFirst <- movedFirst' || movedFirst
             else
-              doContinue <- false // a series has no values, stop here
+              discreteKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
+              // if this cursor is discrete, than the netire ZipN is discrete
+              // all discrete must move, otehrwise we cannot get values
+              if not movedFirst' then doContinue <- false
           )
-          allMovedFirst <- doContinue
+          if isContinuous && not movedFirst then doContinue <- false
+          else movedFirst <- doContinue
         else
           // all cursors are positioned so that it is possible to get value, but not guaranteed
           this.HasValidState <- true
@@ -1583,6 +1587,7 @@ and
               doContinue <- false
             else
               valuesOk <- doMoveNextContinuous(contKeysSet.First.Key)
+              doContinue <- valuesOk
           else
             // if we are lucky and have equal keys right after MoveFirst of each cursors
             if cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 
