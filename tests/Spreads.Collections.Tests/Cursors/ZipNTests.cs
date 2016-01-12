@@ -230,6 +230,38 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
+        public void CouldMoveNextDiscreteOnEmptyIntersect() {
+
+            var sm1 = new SortedMap<int, int>(new Dictionary<int, int>()
+                { 
+                    //{ 1, 1}
+                });
+            var sm2 = new SortedMap<int, int>(new Dictionary<int, int>()
+                {
+                    { 1, 2},
+                    { 2, 4},
+                    { 3, 6},
+                    { 5, 10},
+                    { 7, 14}
+                });
+
+
+            var zipped = sm1 + sm2;
+            var c1 = zipped.GetCursor();
+            Assert.IsFalse(c1.MoveNext());
+            Assert.IsFalse(c1.MoveFirst());
+            var task = c1.MoveNext(CancellationToken.None);
+
+            sm1.Add(1, 1);
+
+            Assert.AreEqual(TaskStatus.RanToCompletion, task.Status);
+            Assert.AreEqual(1, c1.CurrentKey);
+            Assert.AreEqual(3, c1.CurrentValue);
+
+
+        }
+
+        [Test]
         public void CouldMoveAtPositionOfThreeDifferentSeriesWithContinuous() {
 
             var sm1 = new SortedMap<int, int>(new Dictionary<int, int>()
@@ -1484,8 +1516,7 @@ namespace Spreads.Collections.Tests.Cursors {
         }
 
         [Test]
-        public void ContinuousZipWithEmptySeriesIsEmpty()
-        {
+        public void ContinuousZipWithEmptySeriesIsEmpty() {
             var sm1 = new SortedMap<int, int>();
             var sm2 = new SortedMap<int, int>();
 

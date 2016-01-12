@@ -171,7 +171,7 @@ type SortedMap<'K,'V>
 
   do
     let tempCap = if capacity.IsSome then capacity.Value else 1
-    if dictionary.IsNone then // otherwise we will set them in dict processing part
+    if dictionary.IsNone || dictionary.Value.Count = 0 then // otherwise we will set them in dict processing part
       this.keys <- OptimizationSettings.ArrayPool.TakeBuffer (if couldHaveRegularKeys then 2 else tempCap) // regular keys are the first and the second value, their diff is the step
     this.values <- OptimizationSettings.ArrayPool.TakeBuffer tempCap
 

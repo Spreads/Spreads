@@ -1121,7 +1121,7 @@ and
         if isOuter then
           if not !firstStep && cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 && fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
             this.CurrentKey <- discreteKeysSet.First.Key
-            // we set vakues only here, when we know that we could return
+            // we set values only here, when we know that we could return
             for kvp in discreteKeysSet do
               currentValues.[kvp.Value] <- cursors.[kvp.Value].CurrentValue
             tcs.SetResult(true) // the only true exit
@@ -1500,16 +1500,18 @@ and
 
     // manual
     member this.MoveNext(ct:CancellationToken): Task<bool> =
-      // WRONG: TODO this is potentially blocking, make it async
       // MoveFirst should never block
       // doMoveNextContinuousTask/doMoveNextDiscreteTask must check for valid state 
       // and await cursors of empty series if necessary
-      if not this.HasValidState then Task.Run(fun _-> this.MoveFirst()) 
+      if not this.HasValidState && this.MoveFirst() then 
+        Task.FromResult(true)
       else
-        if isContinuous then
-          doMoveNextContinuousTask(this.CurrentKey, ct) // failwith "TODO noncont" //doMoveNextContinuousTask(this.CurrentKey, ct)
-        else
-          doMoveNextDiscreteTask(ct)
+        if this.HasValidState then
+          if isContinuous then
+            doMoveNextContinuousTask(this.CurrentKey, ct)
+          else
+            doMoveNextDiscreteTask(ct)
+        else failwith "TODO move first was false and we must wait for a value"
 
     member x.MovePrevious(): bool = 
       if not this.HasValidState then this.MoveLast()
@@ -1576,6 +1578,7 @@ and
         this.HasValidState <- true
         true
       else false
+
 
     member this.MoveLast(): bool = 
       let mutable cont = true
