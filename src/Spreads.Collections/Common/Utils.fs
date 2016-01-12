@@ -34,11 +34,13 @@ module TestUtils =
     let sw = Stopwatch.StartNew()
     f()
     sw.Stop()
+    let peakMem = GC.GetTotalMemory(false)
+    GC.Collect(3, GCCollectionMode.Forced, true)
     let endtMem = GC.GetTotalMemory(true)
     let p = (1000L * count/sw.ElapsedMilliseconds)
     //int p, int((endtMem - startMem)/1024L)
-    Console.WriteLine(message + ", #{0}, ops: {1}, mem/item: {2}", 
-      count.ToString(), p.ToString(), ((endtMem - startMem)/count).ToString())
+    Console.WriteLine(message + ", #{0}, ops: {1}, pm: {2}, em: {3}", 
+      count.ToString(), p.ToString(), ((peakMem - startMem)/count).ToString(), ((endtMem - startMem)/count).ToString())
 
 // TODO clean up this from unused snippets
 
