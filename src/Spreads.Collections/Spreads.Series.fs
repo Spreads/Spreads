@@ -108,7 +108,7 @@ and
         if c.Value.MoveLast() then c.Value.Current else invalidOp "Series is empty"
 
     member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      if c.Value.MoveAt(k, direction) then 
+      if c.Value.MoveAt(k, direction) then
         result <- c.Value.Current 
         true
       else false
@@ -1007,6 +1007,9 @@ and
 
     // return true only if all discrete cursors moved to the same key or they cannot move further
     let rec doMoveNextDiscrete() =
+      #if PRERELEASE
+      Trace.Assert(this.HasValidState)
+      #endif
       let mutable continueMoves = true
       // check if we reached the state where all cursors are at the same position
       while cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) < 0 && continueMoves do
@@ -1028,6 +1031,8 @@ and
 
         if not moved then continueMoves <- false
         // must add it back regardless of moves
+        // TODO (perf) should benefit here from RemoveFirstAddLast method, becuase is moved = true, 
+        // we add the last value by construction
         discreteKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
 
       // now all discrete cursors have moved at or ahead of frontier
@@ -1112,6 +1117,9 @@ and
 
     // Manual state machine instead of a task computation expression, this is visibly faster
     let doMoveNextDiscreteTask(ct:CancellationToken) : Task<bool> =
+      #if PRERELEASE
+      Trace.Assert(this.HasValidState)
+      #endif
       let mutable tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create() //new TaskCompletionSource<_>() //
       let returnTask = tcs.Task // NB! must access this property first
       let mutable firstStep = ref true
