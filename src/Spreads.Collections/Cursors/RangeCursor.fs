@@ -32,8 +32,6 @@ open Spreads
 open Spreads.Collections
 
 
-
-
 /// Range from start to end key. 
 //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
 type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, endKey:'K option, startLookup: Lookup option, endLookup:Lookup option) =
@@ -41,30 +39,18 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
   let cursor = cursorFactory.Invoke()
   let mutable started = false
     
-
   // EQ just means inclusive
   let firstLookup = if startLookup.IsSome && startLookup.Value <> Lookup.EQ then startLookup.Value else Lookup.GE
   let lastLookup = if endLookup.IsSome && endLookup.Value <> Lookup.EQ then endLookup.Value else Lookup.LE
 
-  let hasFirst, first = 
-    if startKey.IsSome then
-      let moved = cursor.MoveAt(startKey.Value, firstLookup)
-      if moved then true, cursor.CurrentKey else false, Unchecked.defaultof<_>
-    else
-      let moved =  cursor.MoveFirst()
-      if moved then true, cursor.CurrentKey else false, Unchecked.defaultof<_>
-    
-  let hasLast, last = 
-    if endKey.IsSome then
-      let moved = cursor.MoveAt(endKey.Value, lastLookup)
-      if moved then true, cursor.CurrentKey else false, Unchecked.defaultof<_>
-    else
-      let moved =  cursor.MoveLast()
-      if moved then true, cursor.CurrentKey else false, Unchecked.defaultof<_>
-
-  let mutable hasValues = hasFirst && hasLast && cursor.Comparer.Compare(first, last) <= 0
-
-  let inRange k = cursor.Comparer.Compare(k, first) >= 0 && cursor.Comparer.Compare(k, last) <= 0
+  // if limits are not set then eny key is ok
+  let startOk k = 
+    if startKey.IsSome then cursor.Comparer.Compare(k, startKey.Value) >= 0
+    else true
+  let endOk k = 
+    if endKey.IsSome then cursor.Comparer.Compare(k, endKey.Value) <= 0
+    else true
+  let inRange k = (startOk k) && (endOk k)
 
   do
     cursor.Reset()
@@ -90,7 +76,7 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
     member this.Reset() = this.Reset()
     member this.MoveNext(): bool =
       if started then
-        if this.InputCursor.MoveNext() && this.InputCursor.Comparer.Compare(this.InputCursor.CurrentKey, last) <= 0 then
+        if this.InputCursor.MoveNext() && endOk this.InputCursor.CurrentKey then
           true
         else false
       else (this :> ICursor<'K,'V>).MoveFirst()
@@ -111,20 +97,22 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
       else false
       
     member this.MoveFirst(): bool = 
-      if hasValues && this.InputCursor.MoveAt(first, firstLookup) then
+      if (startKey.IsSome && this.InputCursor.MoveAt(startKey.Value, firstLookup))
+        || (startKey.IsNone && this.InputCursor.MoveFirst()) then
         started <- true
         true
       else false
     
     member this.MoveLast(): bool = 
-      if hasValues && this.InputCursor.MoveAt(last, lastLookup) then
+      if (endKey.IsSome && this.InputCursor.MoveAt(endKey.Value, lastLookup))
+        || (endKey.IsNone && this.InputCursor.MoveLast()) then
         started <- true
         true
       else false
 
     member this.MovePrevious(): bool = 
       if started then
-        if this.InputCursor.MovePrevious() && this.InputCursor.Comparer.Compare(this.InputCursor.CurrentKey, first) >= 0 then
+        if this.InputCursor.MovePrevious() && startOk this.InputCursor.CurrentKey then
           true
         else false
       else (this :> ICursor<'K,'V>).MoveLast()
@@ -133,7 +121,7 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
       task { 
         if started then
           let! moved = this.InputCursor.MoveNext(cancellationToken) 
-          if moved && this.InputCursor.Comparer.Compare(this.InputCursor.CurrentKey, last) <= 0 then
+          if moved &&  endOk this.InputCursor.CurrentKey then
             return true
           else return false
         else return (this :> ICursor<'K,'V>).MoveFirst()
