@@ -8,8 +8,65 @@ using NUnit.Framework;
 using System.Runtime.InteropServices;
 using Spreads.Collections;
 using System.Diagnostics;
+using System.Numerics;
+using Spreads;
+using Microsoft.FSharp.Core;
 
 namespace Spreads.Collections.Tests.Cursors {
+    public class SimdMathProvider : IVectorMathProvider {
+
+        public bool AddBatch<K>(IReadOnlyOrderedMap<K, double> left, IReadOnlyOrderedMap<K, double> right, out IReadOnlyOrderedMap<K, double> value) {
+            throw new NotImplementedException();
+        }
+
+        public bool AddBatch<K>(double scalar, IReadOnlyOrderedMap<K, double> batch, out IReadOnlyOrderedMap<K, double> value) {
+            var sm = batch as SortedMap<K, double>;
+            if (!ReferenceEquals(sm, null)) {
+                double[] newValues = OptimizationSettings.ArrayPool.TakeBuffer<double>(sm.size);
+                double[] buffer = new double[Vector<double>.Count];
+                for (int c = 0; c < Vector<double>.Count; c++) {
+                    buffer[c] = scalar;
+                }
+                var tempVector = new System.Numerics.Vector<double>(buffer);
+                int i;
+                for (i = 0; i < newValues.Length; i = i + Vector<double>.Count) {
+                    var vec = new Vector<double>(sm.values, i);
+                    vec = Vector.Add(vec, tempVector);
+                    vec.CopyTo(newValues, i);
+                }
+                for (; i < newValues.Length; i++) {
+                    newValues[i] = sm.values[i] + scalar;
+                }
+
+                var newKeys = sm.IsMutable ? sm.keys.ToArray() : sm.keys;
+                var newSm = SortedMap<K, double>.OfSortedKeysAndValues(newKeys, newValues, sm.size, sm.Comparer, false, sm.IsRegular);
+                value = newSm;
+                return true;
+            }
+            throw new NotImplementedException();
+        }
+
+        public bool SumBatch<K>(double scalar, IReadOnlyOrderedMap<K, double> batch, out double value) {
+            var sm = batch as SortedMap<K, double>;
+            if (!ReferenceEquals(sm, null)) {
+                double[] newValues = new double[sm.size];
+                //Yeppp.Core.Add_V64fS64f_V64f(sm.values, 0, scalar, newValues, 0, sm.size);
+                value = Yeppp.Core.Sum_V64f_S64f(sm.values, 0, sm.size);
+                return true;
+            }
+            throw new NotImplementedException();
+        }
+
+        public void AddVectors<T>(T[] x, T[] y, T[] result) {
+            throw new NotImplementedException();
+        }
+
+        public bool MapBatch<K, V, V2>(FSharpFunc<V, V2> mapF, IReadOnlyOrderedMap<K, V> batch, out IReadOnlyOrderedMap<K, V2> value) {
+            throw new NotImplementedException();
+        }
+    }
+
+
     [TestFixture]
     public class BatchMapValuesCursorTests {
 
@@ -209,6 +266,14 @@ namespace Spreads.Collections.Tests.Cursors {
             return sm2;
         }
 
+
+        public IReadOnlyOrderedMap<DateTime, double> SimdMathProviderSample(IReadOnlyOrderedMap<DateTime, double> batch) {
+            var mathProviderImpl = new SimdMathProvider();
+            IReadOnlyOrderedMap<DateTime, double> sm2;
+            var ok = mathProviderImpl.AddBatch(3.1415926, batch, out sm2);
+            return sm2;
+        }
+
         [Test]
         public void CouldAddWithYeppMathProvider() {
 
@@ -223,7 +288,7 @@ namespace Spreads.Collections.Tests.Cursors {
             sw.Start();
             var sum = 0.0;
             for (int rounds = 0; rounds < 10000; rounds++) {
-                var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, 
+                var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor,
                     (v) => v + 3.1415926, YeppMathProviderSample); //
                 while (bmvc.MoveNext()) {
                     sum += bmvc.CurrentValue;
@@ -243,9 +308,42 @@ namespace Spreads.Collections.Tests.Cursors {
 
         }
 
+        [Test]
+        public void CouldAddWithSimdMathProvider() {
 
-        public IReadOnlyOrderedMap<DateTime, double> MathProviderSample(IReadOnlyOrderedMap<DateTime, double> batch)
-        {
+            var sm = new SortedChunkedMap<DateTime, double>();
+            var count = 1000;
+
+            for (int i = 0; i < count; i++) {
+                sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+            }
+
+            var sw = new Stopwatch();
+            sw.Start();
+            var sum = 0.0;
+            for (int rounds = 0; rounds < 10000; rounds++) {
+                var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor,
+                    (v) => v + 3.1415926, SimdMathProviderSample); //
+                while (bmvc.MoveNext()) {
+                    sum += bmvc.CurrentValue;
+                }
+            }
+            sw.Stop();
+
+            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 10000 * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
+            Console.WriteLine(sum);
+            var c = 0;
+            //foreach (var kvp in sm2)
+            //{
+            //    Assert.AreEqual(c + 1, kvp.Value);
+            //    c++;
+            //}
+
+        }
+
+
+        public IReadOnlyOrderedMap<DateTime, double> MathProviderSample(IReadOnlyOrderedMap<DateTime, double> batch) {
             var mathProviderImpl = new MathProviderImpl() as IVectorMathProvider;
             IReadOnlyOrderedMap<DateTime, double> sm2;
             var ok = mathProviderImpl.AddBatch(3.1415926, batch, out sm2);
@@ -265,8 +363,7 @@ namespace Spreads.Collections.Tests.Cursors {
             sw.Start();
             var sum = 0.0;
             for (int rounds = 0; rounds < 1000; rounds++) {
-                var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) =>
-                {
+                var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) => {
                     //Thread.SpinWait(50);
                     //var fakeSum = 0;
                     //for (int i = 0; i < 100; i++) {
@@ -276,7 +373,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     return v + 3.1415926;
                 }, MathProviderSample); //
                 //var bmvc = new MapCursor<DateTime, double, double>(sm.GetCursor, (k,v) => Math.Log(v)) as ICursor<DateTime, double>; //
-                while (bmvc.MoveNext()){
+                while (bmvc.MoveNext()) {
                     sum += bmvc.CurrentValue;
                 }
             }
@@ -301,15 +398,14 @@ namespace Spreads.Collections.Tests.Cursors {
             var count = 10000;
             OptimizationSettings.AlwaysBatch = true;
             for (int i = 0; i < count; i++) {
-                if(i % 99 != 0)
-                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                if (i % 99 != 0)
+                    sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
 
             var sw = new Stopwatch();
             sw.Start();
             var sum = 0.0;
-            for (int rounds = 0; rounds < 1000; rounds++)
-            {
+            for (int rounds = 0; rounds < 1000; rounds++) {
                 var sm2 = sm + 3.1415926;
                 var bmvc = sm2.GetCursor();
                 while (bmvc.MoveNext()) {

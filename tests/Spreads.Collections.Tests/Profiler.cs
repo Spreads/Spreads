@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Spreads.Collections.Tests.Cursors;
+using System;
 
 namespace Spreads.Collections.Tests {
     /// <summary>
@@ -11,6 +12,7 @@ namespace Spreads.Collections.Tests {
             //test.CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
 
 
+            (new BatchMapValuesCursorTests()).CouldAddWithSimdMathProvider();
             ////////////////////////////////////////
             Console.WriteLine("Finished profiling");
             Console.ReadLine();
