@@ -1165,12 +1165,13 @@ module CollectionsBenchmarks =
       for i in 0L..count do
         vec.Value.Add(i)
     )
-//    perf count "SortedDeque Read" (fun _ ->
-//      for i in 0L..count do
-//        let res = vec.Value.Item(i)
-//        if res <> i then failwith "SortedDeque failed"
-//        ()
-//    )
+    for r in 0..9 do
+      perf count "SortedDeque Read" (fun _ ->
+        for i in 0L..count do
+          let res = vec.Value.[int i]
+          if res <> i then failwith "SortedDeque failed"
+          ()
+      )
     for r in 0..9 do
       let mutable sum = 0L
       perf count "SortedDeque Iterate" (fun _ ->

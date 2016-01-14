@@ -109,7 +109,8 @@ type SortedDeque<'T>(comparer:IComparer<'T>, capacity:int) as this=
   new(comparer:IComparer<'T>) = new SortedDeque<'T>(comparer, 2)
   new(capacity) = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>(), capacity)
 
-  member inline internal this.IndexToOffset(index) = (index + this.firstOffset) &&& (this.buffer.Length - 1)
+  member inline internal this.IndexToOffset(index) = 
+    (index + this.firstOffset) % (this.buffer.Length)
 
   member private this.OffsetOfElement(element:'T) =
     let index = 
@@ -214,13 +215,16 @@ type SortedDeque<'T>(comparer:IComparer<'T>, capacity:int) as this=
     // ensure capacity
     if this.count = this.buffer.Length then doubleCapacity()
     if this.count = 0 then
-      this.InsertAtOffset(this.IndexToOffset(this.count), element)
+      let offset = this.IndexToOffset(this.count)
+      this.InsertAtOffset(offset, element)
     elif  this.comparer.Compare(element, this.buffer.[this.IndexToOffset (this.count - 1)]) > 0 then
       // adding to the end
-      this.InsertAtOffset(this.IndexToOffset(this.count), element)
+      let offset = this.IndexToOffset(this.count)
+      this.InsertAtOffset(offset, element)
     elif this.comparer.Compare(element, this.buffer.[this.IndexToOffset (0)]) < 0 then
       // adding to the front
-      this.InsertAtOffset(this.IndexToOffset(0), element)
+      let offset = this.IndexToOffset(0)
+      this.InsertAtOffset(offset, element)
     else
       let offset = this.OffsetOfElement(element)
       if offset > 0 then invalidOp "Item already exists"

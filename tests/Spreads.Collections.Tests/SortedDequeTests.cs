@@ -396,12 +396,12 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void CouldAddKVsWithSimilarKey() {
-            var sd = new SortedDeque<KV<int, int>>(new ZipNComparer<int>(Comparer<int>.Default));
-            for (int i = 0; i < 5; i++) {
+            var sd = new SortedDeque<KV<int, int>>(new ZipNComparer<int>(Comparer<int>.Default), 3);
+            for (int i = 0; i < 3; i++) {
                 sd.Add(new KV<int, int>(999999, i));
             }
-            var expected = 999999 * 5;
-            int[] values = new int[5];
+            var expected = 999999 * 3;
+            int[] values = new int[3];
             foreach (var item in sd)
             {
                 values[item.Value] = item.Key;
