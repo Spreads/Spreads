@@ -78,7 +78,7 @@ and
 
 
 [<SerializableAttribute>]
-type SortedDeque<'T>(comparer:IComparer<'T>, capacity:int) as this=
+type SortedDeque<'T> private(comparer:IComparer<'T>, capacity:int) as this=
   [<DefaultValue>] val mutable internal comparer : IComparer<'T> 
   [<DefaultValue>] val mutable internal buffer : 'T[]
   [<DefaultValue>] val mutable internal count : int
@@ -107,10 +107,10 @@ type SortedDeque<'T>(comparer:IComparer<'T>, capacity:int) as this=
 
   new() = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>(), 2)
   new(comparer:IComparer<'T>) = new SortedDeque<'T>(comparer, 2)
-  new(capacity) = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>(), capacity)
+  //new(capacity) = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>(), capacity)
 
   member inline internal this.IndexToOffset(index) = 
-    (index + this.firstOffset) % (this.buffer.Length)
+    (index + this.firstOffset) &&& (this.buffer.Length - 1)
 
   member private this.OffsetOfElement(element:'T) =
     let index = 
