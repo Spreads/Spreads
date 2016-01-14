@@ -1636,7 +1636,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm2 = new SortedMap<int, int>();
 
 
-            var rng = new System.Random(); //31415926
+            var rng = new System.Random(31415926); //31415926
 
             var prev1 = 0;
             var prev2 = 0;
@@ -1696,13 +1696,17 @@ namespace Spreads.Collections.Tests.Cursors {
             Console.WriteLine("Manual join, elapsed msec: {0}", sw.ElapsedMilliseconds);
 
 
-            SortedMap<int, int> sum = null;
+            SortedMap<int, int> sum = new SortedMap<int, int>();
 
             for (int round = 0; round < 1; round++) {
                 sw.Restart();
                 var ser = series.Zip((k, varr) => varr.Sum());
 
-                sum = ser.ToSortedMap();
+                var cur = ser.GetCursor();
+                while (cur.MoveNext())
+                {
+                    sum.AddLast(cur.CurrentKey, cur.CurrentValue);
+                }
 
                 sw.Stop();
                 Console.WriteLine("Zip join, elapsed msec: {0}", sw.ElapsedMilliseconds);

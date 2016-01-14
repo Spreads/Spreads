@@ -964,7 +964,7 @@ and
       c'
     // TODO (perf) allocates for the lifetime of cursor
     let movedKeysFlags : bool[] = Array.zeroCreate cursors.Length
-    let movedKeys = SortedDeque(ZipNComparer(cmp), cursors.Length)
+    let movedKeys = SortedDeque(ZipNComparer(cmp)) // , cursors.Length
 
     let semaphore = new SemaphoreSlim(0, cursors.Length)
     // Live counter shows how many cont cursor not yet returned false on MoveNextAsync
@@ -1260,7 +1260,7 @@ and
     // Same meaning as in BingCursor: we have at least one sucessful move and some state for further moves
     let mutable hasValidState = false
     // all keys where discrete cursors are positioned. their intersect define where resulting keys are present.
-    let discreteKeysSet = SortedDeque(ZipNComparer(cmp), cursors.Length)
+    let discreteKeysSet = SortedDeque(ZipNComparer(cmp))
 
     let isContinuous = cursors |> Array.map (fun x -> x.IsContinuous) |> Array.forall id
     let unionKeys : ICursor<'K,'V> = if isContinuous then new UnionKeysCursor<'K,'V>(cursors) :> ICursor<'K,'V> else Unchecked.defaultof<_>
@@ -1329,7 +1329,7 @@ and
           // move first non-cont cursor to next position
 
           let first = discreteKeysSet.RemoveFirst()
-          let firstCursor = cursors.[first.Value]
+          let firstCursor = if isContinuous then unionKeys else cursors.[first.Value]
           if firstCursor.MoveNext() then
             discreteKeysSet.Add(KV(firstCursor.CurrentKey, first.Value)) |> ignore
             doMoveNext() // recursive
@@ -1379,7 +1379,7 @@ and
           // move first non-cont cursor to next position
 
           let last = discreteKeysSet.RemoveLast()
-          let lastCursor = cursors.[last.Value]
+          let lastCursor = if isContinuous then unionKeys else cursors.[last.Value]
           if lastCursor.MovePrevious() then
             discreteKeysSet.Add(KV(lastCursor.CurrentKey, last.Value)) |> ignore
             doMovePrevious() // recursive
@@ -1425,7 +1425,7 @@ and
             loop(true)
           let mutable c = -1
           while c < 0 && cursor.MoveNext() do
-            Trace.Fail("discreteKeysSet could be empty here")
+            //Trace.Fail("discreteKeysSet could be empty here")
             c <- cmp.Compare(cursor.CurrentKey, discreteKeysSet.Last.Key)
           // TODO lookc like it must be c > 0, see when & how this method is called
           if c >= 0 then
@@ -1556,10 +1556,11 @@ and
           else
             let mutable i = 0
             for x in cursors do
-              if not cursors.[i].IsContinuous then 
+              if not x.IsContinuous then 
                 let movedFirst' = x.MoveLast()
                 if movedFirst' then
-                  discreteKeysSet.Add(KV(x.CurrentKey, i)) |> ignore 
+                  let kv = KV(x.CurrentKey, i)
+                  discreteKeysSet.Add(kv) |> ignore 
                 else doContinue <- false
               i <- i + 1
             movedLast <- doContinue
@@ -1638,7 +1639,7 @@ and
         if doContinue then doMoveNext()
         else false
             
-    member x.MovePrevious(): bool = 
+    member this.MovePrevious(): bool = 
       if not this.HasValidState then this.MoveLast()
       else
         let cont =
@@ -1735,641 +1736,35 @@ and
         true
       else false
         
-    member x.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = Task.FromResult(false)
+    member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = Task.FromResult(false)
     
-    //member x.IsBatch with get() = x.IsBatch
-    member x.Source: ISeries<'K,'R> = CursorSeries<'K,'R>(Func<ICursor<'K,'R>>((x :> ICursor<'K,'R>).Clone)) :> ISeries<'K,'R>
+    //member this.IsBatch with get() = this.IsBatch
+    member this.Source: ISeries<'K,'R> = CursorSeries<'K,'R>(Func<ICursor<'K,'R>>((this :> ICursor<'K,'R>).Clone)) :> ISeries<'K,'R>
 
     interface IEnumerator<KVP<'K,'R>> with
       member this.Reset() = this.Reset()
       member this.MoveNext(): bool = this.MoveNext()
       member this.Current with get(): KVP<'K, 'R> = KVP(this.CurrentKey, this.CurrentValue)
       member this.Current with get(): obj = this.Current :> obj 
-      member x.Dispose(): unit = x.Dispose()
+      member this.Dispose(): unit = this.Dispose()
 
     // TODO (perf, low) move implementations directly to interface, that will save one callvirt. That trick has already improved perf in other places, e.g. SortedDeque.
 
     interface ICursor<'K,'R> with
       member this.Comparer with get() = cmp
-      member x.CurrentBatch: IReadOnlyOrderedMap<'K,'R> = x.CurrentBatch
-      member x.CurrentKey: 'K = x.CurrentKey
-      member x.CurrentValue: 'R = x.CurrentValue
-      member x.IsContinuous: bool = x.IsContinuous
-      member x.MoveAt(key: 'K, direction: Lookup) : bool = x.MoveAt(key, direction)
-
+      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'R> = this.CurrentBatch
+      member this.CurrentKey: 'K = this.CurrentKey
+      member this.CurrentValue: 'R = this.CurrentValue
+      member this.IsContinuous: bool = this.IsContinuous
+      member this.MoveAt(key: 'K, direction: Lookup) : bool = this.MoveAt(key, direction)
       member this.MoveFirst(): bool = this.MoveFirst()
       member this.MoveLast(): bool = this.MoveLast()
-
       member this.MovePrevious(): bool = this.MovePrevious()
-    
       member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = 
         this.MoveNext(cancellationToken)
- 
       member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
         this.MoveNextBatch(cancellationToken)
-     
-      //member x.IsBatch with get() = x.IsBatch
-      member x.Source: ISeries<'K,'R> = CursorSeries<'K,'R>(Func<ICursor<'K,'R>>((x :> ICursor<'K,'R>).Clone)) :> ISeries<'K,'R>
-      
+      member this.Source: ISeries<'K,'R> = CursorSeries<'K,'R>(Func<ICursor<'K,'R>>((this :> ICursor<'K,'R>).Clone)) :> ISeries<'K,'R>
       member this.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool =
         this.TryGetValue(key, &value)
-    
       member this.Clone() = this.Clone()
-
-
-
-
-/// Garbage from previous ZipN implementation
-
-
-    
-//    // Continuous
-//    let doMoveNextContinuous(frontier:'K) =
-//      let mutable frontier = frontier
-//
-//      // frontier is the current key. on each zip move we must move at least one cursor ahead 
-//      // of the current key, and the position of this cursor is the new key
-//      //    [---x----x-----x-----x-------x---]
-//      //    [-----x--|--x----x-----x-------x-]
-//      //    [-x----x-|---x-----x-------x-----]
-//
-//      // found all values
-//      let mutable valuesOk = false
-//      let mutable found = false
-//      while not found do
-//        /// ignore this number of leftmost cursors because they could not move
-//        let mutable ignoreOffset = 0 // NB is reset on each move next, because the sources could be updated between moves
-//        let mutable leftmostIsAheadOfFrontier = false
-//        while (ignoreOffset < contKeysSet.Count) && not leftmostIsAheadOfFrontier do // wrong condition
-//          // if we will have to update contKeysSet, we must freeze the initial position
-//          let initialPosition = contKeysSet.[ignoreOffset]
-//          // the leftmost cursor
-//          let cursor = cursors.[initialPosition.Value]
-//          Debug.Assert(cmp.Compare(initialPosition.Key, cursor.CurrentKey) = 0)
-//
-//          let mutable shouldMove = cmp.Compare(cursor.CurrentKey, frontier) <= 0
-//          let mutable movedAtLeastOnce = false
-//          let mutable passedFrontier = not shouldMove
-//          // try move while could move and not passed the frontier
-//          while shouldMove do
-//            let moved = cursor.MoveNext()
-//            movedAtLeastOnce <- movedAtLeastOnce || moved
-//            passedFrontier <- cmp.Compare(cursor.CurrentKey, frontier) > 0
-//            shouldMove <- moved && not passedFrontier
-//
-//          if movedAtLeastOnce || passedFrontier then
-//            if movedAtLeastOnce then
-//              let newPosition = KV(cursor.CurrentKey, initialPosition.Value)
-//              // update positions if the current has changed, regardless of the frontier
-//              contKeysSet.RemoveAt(ignoreOffset) |> ignore
-//              contKeysSet.Add(newPosition)
-//
-//            if passedFrontier then
-//              // here we have the most lefmost position updated (it could be the same cursor, but is doesn't matter)
-//              // we should check if the updated leftmost position is ahead of the frontier
-//              // if it is, then we should try get values at the key - EXIT inner loop
-//              //      if values are OK there, then return
-//              //      else move frontier there and continues
-//              // iterate the loop
-//
-//              // compare the new leftmost cursor with the frontier
-//              if cmp.Compare(contKeysSet.[ignoreOffset].Key, frontier) > 0 then
-//                // could just set ignoreOffset above the deque length
-//                leftmostIsAheadOfFrontier <- true // NB inner loop exit
-//              else
-//                // should iterate the inner loop
-//                ()
-//            else
-//              // should iterate the inner loop
-//              // if the cursor is still the leftmost and cannot move, on the next iteration movedAtLeastOnce will be false
-//              // and ignoreOffset will be incremented below
-//              ()
-//          else
-//            Debug.Assert(not passedFrontier, "If cursor hasn't moved, I couldn't pass the prontier")
-//            // we should ignore this cursor during this ZipN.MoveNext()
-//            // it is already the most leftmost, and couldn't move
-//            ignoreOffset <- ignoreOffset + 1
-//            ()
-//
-//        // if the leftmost cursor passed the frontier
-//        if leftmostIsAheadOfFrontier then
-//          found <- fillContinuousValuesAtKey(contKeysSet.[ignoreOffset].Key) 
-//          if found then 
-//            valuesOk <- true
-//            this.CurrentKey <- contKeysSet.[ignoreOffset].Key
-//          else
-//            frontier <- contKeysSet.[ignoreOffset].Key
-//        else
-//          // we cannot move further if we have exited the inner loop but couldn't pass the frontier
-//          found <- true
-//          valuesOk <- false
-//      valuesOk
-//      
-//    // this mirrows doMoveNextContinuous, any changes must be made to both
-//    let doMovePrevContinuous(frontier:'K) =
-//      let mutable frontier = frontier
-//      let mutable valuesOk = false
-//      let mutable found = false
-//      while not found do
-//        let mutable ignoreOffset = contKeysSet.Count - 1
-//        let mutable rightmostIsAheadOfFrontier = false
-//        while (ignoreOffset >= 0) && not rightmostIsAheadOfFrontier do
-//          let initialPosition = contKeysSet.[ignoreOffset]
-//          let cursor = cursors.[initialPosition.Value]
-//          Debug.Assert(cmp.Compare(initialPosition.Key, cursor.CurrentKey) = 0)
-//
-//          let mutable shouldMove = cmp.Compare(cursor.CurrentKey, frontier) <= 0
-//          let mutable movedAtLeastOnce = false
-//          let mutable passedFrontier = not shouldMove
-//          // try move while could move and not passed the frontier
-//          while shouldMove do
-//            let moved = cursor.MovePrevious()
-//            movedAtLeastOnce <- movedAtLeastOnce || moved
-//            passedFrontier <- cmp.Compare(cursor.CurrentKey, frontier) < 0
-//            shouldMove <- moved && not passedFrontier
-//
-//          if movedAtLeastOnce || passedFrontier then
-//            if movedAtLeastOnce then
-//              let newPosition = KV(cursor.CurrentKey, initialPosition.Value)
-//              contKeysSet.RemoveAt(ignoreOffset) |> ignore
-//              contKeysSet.Add(newPosition)
-//
-//            if passedFrontier then
-//              if cmp.Compare(contKeysSet.[ignoreOffset].Key, frontier) < 0 then
-//                rightmostIsAheadOfFrontier <- true // NB inner loop exit
-//              else
-//                ()
-//            else
-//              ()
-//          else
-//            Debug.Assert(not passedFrontier, "If cursor hasn't moved, I couldn't pass the prontier")
-//            ignoreOffset <- ignoreOffset - 1
-//            ()
-//
-//        if rightmostIsAheadOfFrontier then
-//          found <- fillContinuousValuesAtKey(contKeysSet.[ignoreOffset].Key) 
-//          if found then 
-//            valuesOk <- true
-//            this.CurrentKey <- contKeysSet.[ignoreOffset].Key
-//          else
-//            frontier <- contKeysSet.[ignoreOffset].Key
-//        else
-//          found <- true
-//          valuesOk <- false
-//      valuesOk
-//      
-//
-//    // TODO (perf) no attempts was made to optimize the async version
-//    let doMoveNextContinuousTaskOld(frontier:'K, ct:CancellationToken) : Task<bool> =
-//      //failwith "doMoveNextContinuousTask is broken"
-//      task {
-//      let mutable frontier = frontier
-//
-//      // frontier is the current key. on each zip move we must move at least one cursor ahead 
-//      // of the current key, and the position of this cursor is the new key
-//      //    [---x----x-----x-----x-------x---]
-//      //    [-----x--|--x----x-----x-------x-]
-//      //    [-x----x-|---x-----x-------x-----]
-//
-//      // found all values
-//      let mutable valuesOk = false
-//      let mutable found = false
-//      while not found do
-//        /// ignore this number of leftmost cursors because they could not move
-//        let mutable ignoreOffset = 0 // NB is reset on each move next, because the sources could be updated between moves
-//        let mutable leftmostIsAheadOfFrontier = false
-//        lock contKeysSet (fun _ ->
-//          while (ignoreOffset < contKeysSet.Count) && not leftmostIsAheadOfFrontier do // wrong condition
-//            // if we will have to update contKeysSet, we must freeze the initial position
-//            let initialPosition = contKeysSet.[ignoreOffset]
-//            // the leftmost cursor
-//            let cursor = cursors.[initialPosition.Value]
-//            Debug.Assert(cmp.Compare(initialPosition.Key, cursor.CurrentKey) = 0)
-//
-//            let shouldMove = cmp.Compare(cursor.CurrentKey, frontier) <= 0
-//            let mutable doTryMove = shouldMove
-//            let mutable movedAtLeastOnce = false
-//            let mutable passedFrontier = not shouldMove
-//            
-//            // try move while could move and not passed the frontier
-//            while doTryMove do
-//              let moved = cursor.MoveNext()
-//              movedAtLeastOnce <- movedAtLeastOnce || moved
-//              passedFrontier <- cmp.Compare(cursor.CurrentKey, frontier) > 0
-//              doTryMove <- moved && not passedFrontier
-//
-//            if movedAtLeastOnce || passedFrontier then
-//              if movedAtLeastOnce then
-//                let newPosition = KV(cursor.CurrentKey, initialPosition.Value)
-//                // update positions if the current has changed, regardless of the frontier
-//                contKeysSet.Remove(initialPosition)
-//                contKeysSet.Add(newPosition)
-//              
-//
-//              if passedFrontier then
-//                // here we have the most lefmost position updated (it could be the same cursor, but is doesn't matter)
-//                // we should check if the updated leftmost position is ahead of the frontier
-//                // if it is, then we should try get values at the key - EXIT inner loop
-//                //      if values are OK there, then return
-//                //      else move frontier there and continues
-//                // iterate the loop
-//
-//                // compare the new leftmost cursor with the frontier
-//                if cmp.Compare(contKeysSet.[ignoreOffset].Key, frontier) > 0 then
-//                  // could just set ignoreOffset above the deque length
-//                  leftmostIsAheadOfFrontier <- true // NB inner loop exit
-//                else
-//                  // should iterate the inner loop
-//                  ()
-//              else
-//                // should iterate the inner loop
-//                // if the cursor is still the leftmost and cannot move, on the next iteration movedAtLeastOnce will be false
-//                // and ignoreOffset will be incremented below
-//                ()
-//            else
-//              Debug.Assert(not passedFrontier, "If cursor hasn't moved, I couldn't pass the prontier")
-//              // we should ignore this cursor during this ZipN.MoveNext()
-//              // it is already the most leftmost, and couldn't move
-//              ignoreOffset <- ignoreOffset + 1
-//              ()
-//        ) // lock
-//
-//        // if the leftmost cursor passed the frontier
-//        if leftmostIsAheadOfFrontier then
-//          found <- fillContinuousValuesAtKey(contKeysSet.[ignoreOffset].Key) 
-//          if found then 
-//            valuesOk <- true
-//            this.CurrentKey <- contKeysSet.[ignoreOffset].Key
-//          else
-//            frontier <- contKeysSet.[ignoreOffset].Key
-//        else
-//          let continueMoveNext (position:KV<'K,int>) =
-//            let cur = cursors.[position.Value]
-//            cur.MoveNext(ct).ContinueWith(fun (t:Task<bool>) -> 
-//                if t.Result then
-//                  if cmp.Compare(cur.CurrentKey, frontier) < 0 then
-//                    invalidOp "Out of order data in ZipN continuous"
-//                  lock contKeysSet (fun _ ->
-//                    // this could be a new cursor that was empty at the beginning
-//                    if contKeysSet.Contains(position) then
-//                      contKeysSet.Remove(position) |> ignore
-//                    contKeysSet.Add(KV(cur.CurrentKey, position.Value))
-//                    ()
-//                  )
-//                  true
-//                else
-//                  lock contKeysSet (fun _ ->
-//                    // it will never move again, remove forever
-//                    contKeysSet.Remove(position) |> ignore
-//                    ()
-//                  )
-//                  false
-//              )
-//
-//          let tasks = 
-//            cursors //contKeysSet
-//            |> Seq.mapi (fun i c -> i,c) 
-//            |> Seq.filter (fun (i,c) -> cmp.Compare(c.CurrentKey, frontier) <= 0)
-//            |> Seq.map (fun (i,c) -> continueMoveNext <| KV(c.CurrentKey,i))
-//            |> Seq.toArray
-//          let! oneMoved = Task.WhenAny(tasks)
-//          if contKeysSet.Count = 0 then
-//            // we cannot move further if we have exited the inner loop but couldn't pass the frontier
-//            found <- true
-//            valuesOk <- false
-//          else
-//            // continue the outer (not found) loop until there is at least one source
-//            ()
-//
-//      return valuesOk }
-//
-//    // the idea is that we should try to move 
-//
-//    let doMoveNextContinuousTask(frontier:'K, ct:CancellationToken) : Task<bool> =
-//      let mutable tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create() //new TaskCompletionSource<_>() //
-//      let returnTask = tcs.Task // NB! must access this property first
-//      let mutable frontier = frontier
-//
-//      // frontier is the current key. on each zip move we must move at least one cursor ahead 
-//      // of the current key, and the position of this cursor is the new key
-//      //    [---x----x-----x-----x-------x---]
-//      //    [-----x--|--x----x-----x-------x-]
-//      //    [-x----x-|---x-----x-------x-----]
-//
-//      let mutable valuesOk = false
-//      let rec loop() =
-//        let mutable ignoreOffset = 0
-//        let mutable leftmostIsAheadOfFrontier = false
-//        lock contKeysSet (fun _ ->
-//          while (ignoreOffset < contKeysSet.Count) && not leftmostIsAheadOfFrontier do
-//            // if we will have to update contKeysSet, we must freeze the initial position
-//            let initialPosition = contKeysSet.[ignoreOffset]
-//            // the leftmost cursor
-//            let cursor = cursors.[initialPosition.Value]
-//            
-//            #if PRERELEASE
-//            Trace.Assert(cmp.Compare(initialPosition.Key, cursor.CurrentKey) = 0)
-//            #endif
-//
-//            let mutable shouldMove = cmp.Compare(cursor.CurrentKey, frontier) <= 0
-//            let mutable movedAtLeastOnce = false
-//            let mutable passedFrontier = not shouldMove
-//            // try move while could move and not passed the frontier
-//            while shouldMove do
-//              let moved = cursor.MoveNext()
-//              movedAtLeastOnce <- movedAtLeastOnce || moved
-//              passedFrontier <- cmp.Compare(cursor.CurrentKey, frontier) > 0
-//              shouldMove <- moved && not passedFrontier
-//
-//            if movedAtLeastOnce || passedFrontier then
-//              if movedAtLeastOnce then
-//                let newPosition = KV(cursor.CurrentKey, initialPosition.Value)
-//                // update positions if the current has changed, regardless of the frontier
-//                contKeysSet.Remove(initialPosition)
-//                contKeysSet.Add(newPosition)
-//              
-//              if passedFrontier then
-//                // here we have the most lefmost position updated (it could be the same cursor, but is doesn't matter)
-//                // we should check if the updated leftmost position is ahead of the frontier
-//                // if it is, then we should try get values at the key
-//                //      if values are OK there, then return
-//                //      else move frontier there and continues
-//                // iterate the loop
-//
-//                // compare the new leftmost cursor with the frontier
-//                if cmp.Compare(contKeysSet.[ignoreOffset].Key, frontier) > 0 then
-//                  leftmostIsAheadOfFrontier <- true
-//            else
-//              Trace.Assert(not passedFrontier, "If cursor hasn't moved, I couldn't pass the prontier")
-//              // we should ignore this cursor during this ZipN.MoveNext()
-//              // it is already the most leftmost, and couldn't move
-//              ignoreOffset <- ignoreOffset + 1
-//              ()
-//        ) // lock
-//
-//        // if the leftmost cursor passed the frontier
-//        if leftmostIsAheadOfFrontier then
-//          let found = fillContinuousValuesAtKey(contKeysSet.[ignoreOffset].Key) 
-//          if found then 
-//            valuesOk <- true
-//            this.CurrentKey <- contKeysSet.[ignoreOffset].Key
-//            tcs.SetResult(true)
-//          else
-//            frontier <- contKeysSet.[ignoreOffset].Key
-//            loop()
-//        else
-//          let continueMoveNext (position:KV<'K,int>) =
-//            let cur = cursors.[position.Value]
-//            cur.MoveNext(ct).ContinueWith(fun (t:Task<bool>) -> 
-//                if t.Result then
-//                  if cmp.Compare(cur.CurrentKey, frontier) < 0 then
-//                    invalidOp "Out of order data in ZipN continuous"
-//                  lock contKeysSet (fun _ ->
-//                    // this could be a new cursor that was empty at the beginning
-//                    //if contKeysSet.Contains(position) then
-//                    try contKeysSet.Remove(position) |> ignore with | :? KeyNotFoundException -> ()
-//                    contKeysSet.Add(KV(cur.CurrentKey, position.Value))
-//                    ()
-//                  )
-//                  true
-//                else
-//                  lock contKeysSet (fun _ ->
-//                    // it will never move again, remove forever
-//                    try contKeysSet.Remove(position) |> ignore with | :? KeyNotFoundException -> ()
-//                    ()
-//                  )
-//                  false
-//              )
-//          let tasks = 
-//            cursors //contKeysSet
-//            |> Array.mapi (fun i c -> i,c) 
-//            |> Array.filter (fun (i,c) -> cmp.Compare(c.CurrentKey, frontier) <= 0)
-//            |> Array.map (fun (i,c) -> continueMoveNext <| KV(c.CurrentKey,i))
-//          let anyMovedTask = Task.WhenAny(tasks)
-//          let awaiter = anyMovedTask.GetAwaiter()
-//          awaiter.OnCompleted(fun _ ->
-//            // TODO! Test all cases
-//            if anyMovedTask.Status = TaskStatus.RanToCompletion then
-//              if contKeysSet.Count = 0 then
-//                // we cannot move further if we have exited the inner loop but couldn't pass the frontier
-//                //found <- true
-//                valuesOk <- false
-//                tcs.SetResult(false)
-//              else
-//                // continue the outer (not found) loop until there is at least one source
-//                loop()
-//            else
-//              if anyMovedTask.Status = TaskStatus.Canceled then
-//                tcs.SetException(OperationCanceledException())
-//              else
-//                tcs.SetException(anyMovedTask.Exception)
-//          )
-//      loop()
-//      returnTask
-//    
-//
-//    member private this.MoveFirstTask(ct:CancellationToken): Task<bool> =
-//      task {
-//        let mutable doContinue = true
-//        let mutable valuesOk = false
-//        let mutable movedFirst = false
-//        discreteKeysSet.Clear()
-//        while doContinue do
-//          if not movedFirst then
-//            let mutable i = 0
-//            for x in cursors do
-//              let movedFirst' = x.MoveFirst()
-//              if continuous.[i] then 
-//                contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
-//              else
-//                discreteKeysSet.Add(KV(x.CurrentKey, i)) |> ignore
-//                // if this cursor is discrete, than the entire ZipN is discrete
-//                // all discrete must move, otehrwise we cannot get values
-//                if not movedFirst' then 
-//                  let! movedAsync = x.MoveNext(ct)
-//                  doContinue <- doContinue && movedAsync
-//              i <- i + 1
-//            movedFirst <- doContinue
-//          else
-//            // if we are lucky and have equal keys right after MoveFirst of each cursors
-//            if cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 
-//                  && fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
-//              for kvp in discreteKeysSet.AsEnumerable() do
-//                currentValues.[kvp.Value] <- cursors.[kvp.Value].CurrentValue
-//              this.CurrentKey <- discreteKeysSet.First.Key
-//              valuesOk <- true
-//              doContinue <- false 
-//            else
-//              // move to max key until min key matches max key so that we can use values
-//              let! valuesOk' = doMoveNextDiscreteTask(ct)
-//              valuesOk <- valuesOk'
-//              doContinue <- valuesOk
-//        hasValidState <- valuesOk
-//        return valuesOk
-//      }
-//
-//    member private this.MoveFirstContinuousTask(ct:CancellationToken): Task<bool> =
-//      task {
-//        let mutable valuesOk = false
-//        contKeysSet.Clear()
-//        //if not movedFirst then
-//        let rec moveCursor i = // NB for loop inside task{} is transformed into a computation expression method, avoid it
-//          let x = cursors.[i]
-//          let movedFirst' = x.MoveFirst()
-//          if movedFirst' then
-//            lock(contKeysSet) (fun _ -> contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore )
-//            contSemaphore.Release() |> ignore
-//          else
-//            // MF returns false only when series is empty, then MNAsync is equivalent to MFAsync
-//            x.MoveNext(ct).ContinueWith(fun (t:Task<bool>) ->
-//              match t.Status with
-//              | TaskStatus.RanToCompletion -> 
-//                if t.Result then
-//                  lock(contKeysSet) (fun _ -> contKeysSet.Add(KV(x.CurrentKey, i)) |> ignore )
-//                  contSemaphore.Release() |> ignore
-//                else
-//                  let decremented = Interlocked.Decrement(&contLiveCnt)
-//                  if decremented = 0 then contSemaphore.Release() |> ignore
-//              | _ -> failwith "TODO remove task{} and process all task results"
-//            ) |> ignore
-//          if i + 1 < cursors.Length then moveCursor (i+1) else ()
-//        moveCursor 0
-//        // waith for at least one to move
-//        let! signal = contSemaphore.WaitAsync(-1, ct)
-//        if not signal || Interlocked.Add(&contLiveCnt, 0) = 0 then
-//          ct.ThrowIfCancellationRequested()
-//          valuesOk <- false
-//        else
-//          if fillContinuousValuesAtKey(contKeysSet.First.Key) then
-//            this.CurrentKey <- contKeysSet.First.Key
-//            valuesOk <- true
-//          else
-//            // TODO test this case it is possible even with rp()
-//            let! valuesOk' = this.MoveNextContinuousTask(contKeysSet.First.Key, ct)
-//            valuesOk <- valuesOk'
-//        hasValidState <- valuesOk
-//        return valuesOk
-//      }
-//
-//    member private this.MoveNextContinuousTask(frontier:'K, ct:CancellationToken): Task<bool> =
-//      
-//      let mutable tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create() //new TaskCompletionSource<_>() //
-//      let returnTask = tcs.Task // NB! must access this property first
-//      let mutable frontier = frontier
-//
-//      // frontier is the current key. on each zip move we must move at least one cursor ahead 
-//      // of the current key, and the position of this cursor is the new key
-//      //    [---x----x-----x-----x-------x---]
-//      //    [-----x--|--x----x-----x-------x-]
-//      //    [-x----x-|---x-----x-------x-----]
-//
-//      let mutable valuesOk = false
-//      let rec loop() =
-//        let mutable ignoreOffset = 0
-//        let mutable leftmostIsAheadOfFrontier = false
-//        lock contKeysSet (fun _ ->
-//          while (ignoreOffset < contKeysSet.Count) && not leftmostIsAheadOfFrontier do
-//            // if we will have to update contKeysSet, we must freeze the initial position
-//            let initialPosition = contKeysSet.[ignoreOffset]
-//            // the leftmost cursor
-//            let cursor = cursors.[initialPosition.Value]
-//            
-//            #if PRERELEASE
-//            Trace.Assert(cmp.Compare(initialPosition.Key, cursor.CurrentKey) = 0)
-//            #endif
-//
-//            let mutable shouldMove = cmp.Compare(cursor.CurrentKey, frontier) <= 0
-//            let mutable movedAtLeastOnce = false
-//            let mutable passedFrontier = not shouldMove
-//            // try move while could move and not passed the frontier
-//            while shouldMove do
-//              let moved = cursor.MoveNext()
-//              movedAtLeastOnce <- movedAtLeastOnce || moved
-//              passedFrontier <- cmp.Compare(cursor.CurrentKey, frontier) > 0
-//              shouldMove <- moved && not passedFrontier
-//
-//            if movedAtLeastOnce || passedFrontier then
-//              if movedAtLeastOnce then
-//                let newPosition = KV(cursor.CurrentKey, initialPosition.Value)
-//                // update positions if the current has changed, regardless of the frontier
-//                contKeysSet.Remove(initialPosition)
-//                contKeysSet.Add(newPosition)
-//              
-//              if passedFrontier then
-//                // here we have the most lefmost position updated (it could be the same cursor, but is doesn't matter)
-//                // we should check if the updated leftmost position is ahead of the frontier
-//                // if it is, then we should try get values at the key
-//                //      if values are OK there, then return
-//                //      else move frontier there and continues
-//                // iterate the loop
-//
-//                // compare the new leftmost cursor with the frontier
-//                if cmp.Compare(contKeysSet.[ignoreOffset].Key, frontier) > 0 then
-//                  leftmostIsAheadOfFrontier <- true
-//            else
-//              Trace.Assert(not passedFrontier, "If cursor hasn't moved, I couldn't pass the prontier")
-//              // we should ignore this cursor during this ZipN.MoveNext()
-//              // it is already the most leftmost, and couldn't move
-//              ignoreOffset <- ignoreOffset + 1
-//              ()
-//        ) // lock
-//
-//        // if the leftmost cursor passed the frontier
-//        if leftmostIsAheadOfFrontier then
-//          let found = fillContinuousValuesAtKey(contKeysSet.[ignoreOffset].Key) 
-//          if found then 
-//            valuesOk <- true
-//            this.CurrentKey <- contKeysSet.[ignoreOffset].Key
-//            tcs.SetResult(true)
-//          else
-//            frontier <- contKeysSet.[ignoreOffset].Key
-//            loop()
-//        else
-//          let continueMoveNext (position:KV<'K,int>) =
-//            let cur = cursors.[position.Value]
-//            cur.MoveNext(ct).ContinueWith(fun (t:Task<bool>) -> 
-//                if t.Result then
-//                  if cmp.Compare(cur.CurrentKey, frontier) < 0 then
-//                    invalidOp "Out of order data in ZipN continuous"
-//                  lock contKeysSet (fun _ ->
-//                    // this could be a new cursor that was empty at the beginning
-//                    //if contKeysSet.Contains(position) then
-//                    try contKeysSet.Remove(position) |> ignore with | :? KeyNotFoundException -> ()
-//                    contKeysSet.Add(KV(cur.CurrentKey, position.Value))
-//                    ()
-//                  )
-//                  true
-//                else
-//                  lock contKeysSet (fun _ ->
-//                    // it will never move again, remove forever
-//                    try contKeysSet.Remove(position) |> ignore with | :? KeyNotFoundException -> ()
-//                    ()
-//                  )
-//                  false
-//              )
-//          let tasks = 
-//            cursors //contKeysSet
-//            |> Array.mapi (fun i c -> i,c) 
-//            |> Array.filter (fun (i,c) -> cmp.Compare(c.CurrentKey, frontier) <= 0)
-//            |> Array.map (fun (i,c) -> continueMoveNext <| KV(c.CurrentKey,i))
-//          let anyMovedTask = Task.WhenAny(tasks)
-//          let awaiter = anyMovedTask.GetAwaiter()
-//          awaiter.OnCompleted(fun _ ->
-//            // TODO! Test all cases
-//            if anyMovedTask.Status = TaskStatus.RanToCompletion then
-//              if contKeysSet.Count = 0 then
-//                // we cannot move further if we have exited the inner loop but couldn't pass the frontier
-//                //found <- true
-//                valuesOk <- false
-//                tcs.SetResult(false)
-//              else
-//                // continue the outer (not found) loop until there is at least one source
-//                loop()
-//            else
-//              if anyMovedTask.Status = TaskStatus.Canceled then
-//                tcs.SetException(OperationCanceledException())
-//              else
-//                tcs.SetException(anyMovedTask.Exception)
-//          )
-//      loop()
-//      returnTask
