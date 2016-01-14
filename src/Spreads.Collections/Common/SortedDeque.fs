@@ -277,7 +277,7 @@ type SortedDeque<'T>(comparer:IComparer<'T>, capacity:int) as this=
 
   member this.Remove(element:'T): unit = 
     let offset = this.OffsetOfElement(element)
-    if offset < 0 then 
+    if offset < 0 then
       let offset' =  this.OffsetOfElement(element) // debug
       this.RemoveAtOffset(offset') |> ignore
       invalidOp "Element doesn't exist in the SortedDeque"

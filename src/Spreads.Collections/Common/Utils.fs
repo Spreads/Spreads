@@ -31,16 +31,27 @@ module TestUtils =
   let perf (count:int64) (message:string) (f:unit -> unit) : unit = // int * int =
     GC.Collect(3, GCCollectionMode.Forced, true)
     let startMem = GC.GetTotalMemory(false)
+    let gen0 = GC.CollectionCount(0);
+    let gen1 = GC.CollectionCount(1);
+    let gen2 = GC.CollectionCount(2);
+    let gen3 = GC.CollectionCount(3);
     let sw = Stopwatch.StartNew()
     f()
     sw.Stop()
     let peakMem = GC.GetTotalMemory(false)
     GC.Collect(3, GCCollectionMode.Forced, true)
     let endMem = GC.GetTotalMemory(true)
+    let gen0 = GC.CollectionCount(0) - gen0;
+    let gen1 = GC.CollectionCount(1) - gen1;
+    let gen2 = GC.CollectionCount(2) - gen2;
+    let gen3 = GC.CollectionCount(3) - gen3;
     let p = (1000L * count/sw.ElapsedMilliseconds)
     //int p, int((endtMem - startMem)/1024L)
-    Console.WriteLine(message + ", #{0}, ops: {1}, pm: {2}, em: {3}", 
-      count.ToString(), p.ToString(), ((peakMem - startMem)/count).ToString(), ((endMem - startMem)/count).ToString())
+    Console.WriteLine(message + ", #{0}, ops: {1}, pm: {2}, em: {3}, g+: {4}", 
+      count.ToString(), p.ToString(), ((peakMem - startMem)/count).ToString(), ((endMem - startMem)/count).ToString(), gen0+gen1+gen2+gen3)
+//
+//    Console.WriteLine(message + ", #{0}, ops: {1}, \n\r\t pm: {2}, em: {3}, g0: {4}, g1: {5}, g2: {6}, g3: {7}", 
+//      count.ToString(), p.ToString(), ((peakMem - startMem)/count).ToString(), ((endMem - startMem)/count).ToString(), gen0, gen1, gen2, gen3)
 
 // TODO clean up this from unused snippets
 

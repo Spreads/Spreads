@@ -253,11 +253,83 @@ namespace Spreads.Collections.Tests.Cursors {
             var task = c1.MoveNext(CancellationToken.None);
 
             sm1.Add(1, 1);
-
+            Thread.Sleep(50);
             Assert.AreEqual(TaskStatus.RanToCompletion, task.Status);
             Assert.AreEqual(1, c1.CurrentKey);
             Assert.AreEqual(3, c1.CurrentValue);
 
+        }
+
+
+        [Test]
+        public void CouldNotMoveAsyncDiscreteOnEmptyZip() {
+
+            var sm1 = new SortedMap<int, int>();
+            var sm2 = new SortedMap<int, int>();
+            sm1.IsMutable = false;
+            sm2.IsMutable = false;
+
+            var zipped = sm1 + sm2.Repeat();
+            var c1 = zipped.GetCursor();
+            Assert.IsFalse(sm1.GetCursor().MoveNext(CancellationToken.None).Result);
+            Assert.IsFalse(sm2.GetCursor().MoveNext(CancellationToken.None).Result);
+            Assert.IsFalse(c1.MoveNext());
+            Assert.IsFalse(c1.MoveFirst());
+            var task = c1.MoveNext(CancellationToken.None);
+            task.Wait();
+            Assert.AreEqual(TaskStatus.RanToCompletion, task.Status);
+            Assert.IsFalse(task.Result);
+        }
+
+        [Test]
+        public void CouldNotMoveAsyncContinuousOnEmptyZip() {
+
+            var sm1 = new SortedMap<int, int>();
+            var sm2 = new SortedMap<int, int>();
+            sm1.IsMutable = false;
+            sm2.IsMutable = false;
+
+            var zipped = sm1.Repeat() + sm2.Repeat();
+            var c1 = zipped.GetCursor();
+            Assert.IsFalse(sm1.GetCursor().MoveNext(CancellationToken.None).Result);
+            Assert.IsFalse(sm2.GetCursor().MoveNext(CancellationToken.None).Result);
+            Assert.IsFalse(c1.MoveNext());
+            Assert.IsFalse(c1.MoveFirst());
+            var task = c1.MoveNext(CancellationToken.None);
+            task.Wait();
+            Assert.AreEqual(TaskStatus.RanToCompletion, task.Status);
+            Assert.IsFalse(task.Result);
+        }
+
+        [Test]
+        public void CouldMoveContinuousOnEmptyIntersect() {
+
+            var sm1 = new SortedMap<int, int>(new Dictionary<int, int>() {
+                //{ 1, 1}
+            });
+            var sm2 = new SortedMap<int, int>(new Dictionary<int, int>()
+                {
+
+                    { 1, 2},
+                    { 2, 4},
+                    { 3, 6},
+                    { 5, 10},
+                    { 7, 14}
+                });
+
+
+            var zipped = sm1.Repeat() + sm2.Repeat();
+            var c1 = zipped.GetCursor();
+            //Assert.IsFalse(c1.MoveNext());
+            //Assert.IsFalse(c1.MoveFirst());
+            var task = c1.MoveNext(CancellationToken.None);
+
+            sm1.Add(7, 1);
+            Thread.Sleep(5000000);
+            task.Wait();
+            Assert.AreEqual(TaskStatus.RanToCompletion, task.Status);
+            Assert.AreEqual(7, c1.CurrentKey);
+            Assert.AreEqual(15, c1.CurrentValue);
 
         }
 
@@ -685,7 +757,15 @@ namespace Spreads.Collections.Tests.Cursors {
                 totalSum += cur.CurrentValue;
             }
 
+            var expectedTotalSum = 0L;
+            var cur2 = sm1.GetCursor();
+            while (cur2.MovePrevious()) {
+                expectedTotalSum += cur2.CurrentValue;
+            }
+            expectedTotalSum *= 5;
+
             sw.Stop();
+            Assert.AreEqual(expectedTotalSum, totalSum, "Sums are not equal");
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
             Console.WriteLine("Total sum: {0}", totalSum);
 
@@ -1215,7 +1295,6 @@ namespace Spreads.Collections.Tests.Cursors {
             }).Wait();
 
 
-
         }
 
 
@@ -1378,6 +1457,7 @@ namespace Spreads.Collections.Tests.Cursors {
             for (int i = 2; i < 50; i = i + 2) {
                 Assert.AreEqual(i * 2 - 2, sum[i]);
             }
+
 
             var cur = ser.GetCursor();
 

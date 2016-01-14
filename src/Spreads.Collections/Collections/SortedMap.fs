@@ -977,7 +977,7 @@ type SortedMap<'K,'V>
         if lc = 0 then // key = last key
           value <- this.values.[this.size-1]
           true
-        else   
+        else
           let index = this.IndexOfKey(key)
           if index >= 0 then
             value <- this.values.[index]
