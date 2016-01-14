@@ -394,6 +394,23 @@ namespace Spreads.Collections.Tests {
             Console.WriteLine(sw.ElapsedMilliseconds);
         }
 
+        [Test]
+        public void CouldAddKVsWithSimilarKey() {
+            var sd = new SortedDeque<KV<int, int>>(new ZipNComparer<int>(Comparer<int>.Default));
+            for (int i = 0; i < 5; i++) {
+                sd.Add(new KV<int, int>(999999, i));
+            }
+            var expected = 999999 * 5;
+            int[] values = new int[5];
+            foreach (var item in sd)
+            {
+                values[item.Value] = item.Key;
+            }
+            var actual = values.Sum();
+            Console.WriteLine(actual);
+            Assert.AreEqual(expected, actual);
+        }
+
 
     }
 }
