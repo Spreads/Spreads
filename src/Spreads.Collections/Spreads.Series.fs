@@ -966,7 +966,7 @@ and
     let movedKeysFlags : bool[] = Array.zeroCreate cursors.Length
     let movedKeys = SortedDeque(ZipNComparer(cmp)) // , cursors.Length
 
-    let semaphore = new SemaphoreSlim(0, cursors.Length)
+    let semaphore = new SemaphoreSlim(0) //, cursors.Length
     // Live counter shows how many cont cursor not yet returned false on MoveNextAsync
     let mutable liveCounter = cursors.Length
 
@@ -1172,45 +1172,189 @@ and
         else
             false
 
-     member this.MoveNext(ct): Task<bool> =
-      if hasValidState then failwith "TODO: MoveNext(ct) in UnionKeys"
-      else
-        task {
-          let mutable valuesOk = false
-          movedKeys.Clear()
-          //if not movedFirst then
-          let rec moveCursor i = // NB for loop inside task{} is transformed into a computation expression method, avoid it
-            let x = cursors.[i]
-            let movedFirst' = x.MoveFirst()
-            if movedFirst' then
-              lock(movedKeys) (fun _ -> movedKeys.Add(KV(x.CurrentKey, i)) |> ignore )
-              semaphore.Release() |> ignore
-            else
-              // MF returns false only when series is empty, then MNAsync is equivalent to MFAsync
-              x.MoveNext(ct).ContinueWith(fun (t:Task<bool>) ->
-                match t.Status with
-                | TaskStatus.RanToCompletion -> 
-                  if t.Result then
-                    lock(movedKeys) (fun _ -> movedKeys.Add(KV(x.CurrentKey, i)) |> ignore )
-                    semaphore.Release() |> ignore
-                  else
-                    let decremented = Interlocked.Decrement(&liveCounter)
-                    if decremented = 0 then semaphore.Release() |> ignore
-                | _ -> failwith "TODO remove task{} and process all task results"
-              ) |> ignore
-            if i + 1 < cursors.Length then moveCursor (i+1) else ()
-          moveCursor 0
-          // waith for at least one to move
-          let! signal = semaphore.WaitAsync(-1, ct)
-          if not signal || Interlocked.Add(&liveCounter, 0) = 0 then
-            ct.ThrowIfCancellationRequested()
-            valuesOk <- false
+    
+    member private this.MoveFirst(ct): Task<bool> =
+      task {
+        let mutable valuesOk = false
+        movedKeys.Clear()
+        //if not movedFirst then
+        let rec moveCursor i = // NB for loop inside task{} is transformed into a computation expression method, avoid it
+          let x = cursors.[i]
+          let movedFirst' = x.MoveFirst()
+          if movedFirst' then
+            lock(movedKeys) (fun _ -> movedKeys.Add(KV(x.CurrentKey, i)) |> ignore )
+            semaphore.Release() |> ignore
           else
-            this.CurrentKey <- movedKeys.First.Key
-            valuesOk <- true
-          hasValidState <- valuesOk
-          return valuesOk
-        }
+            // MF returns false only when series is empty, then MNAsync is equivalent to MFAsync
+            x.MoveNext(ct).ContinueWith(fun (t:Task<bool>) ->
+              match t.Status with
+              | TaskStatus.RanToCompletion -> 
+                if t.Result then
+                  lock(movedKeys) (fun _ -> movedKeys.Add(KV(x.CurrentKey, i)) |> ignore )
+                  semaphore.Release() |> ignore
+                else
+                  let decremented = Interlocked.Decrement(&liveCounter)
+                  if decremented = 0 then semaphore.Release() |> ignore
+              | _ -> failwith "TODO remove task{} and process all task results"
+            ) |> ignore
+          if i + 1 < cursors.Length then moveCursor (i+1) else ()
+        moveCursor 0
+        // waith for at least one to move
+        let! signal = semaphore.WaitAsync(-1, ct)
+        if not signal || Interlocked.Add(&liveCounter, 0) = 0 then
+          ct.ThrowIfCancellationRequested()
+          valuesOk <- false
+        else
+          this.CurrentKey <- movedKeys.First.Key
+          valuesOk <- true
+        hasValidState <- valuesOk
+        return valuesOk
+      }
+
+    member this.MoveNext(ct): Task<bool> =
+      let mutable tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create() //new TaskCompletionSource<_>() //
+      let returnTask = tcs.Task // NB! must access this property first
+      let rec loop() = 
+        if this.MoveNext() then
+          tcs.SetResult(true)
+          ()
+        else
+          // start background notification
+          let semaphorePeek = semaphore.Wait(0)
+          if semaphorePeek then
+            loop()
+          else
+            Task.Run(fun _ ->
+              let mutable i = 0
+              for c in cursors do
+                let ii = i
+                let cc = c
+                c.Clone().MoveNext(ct).ContinueWith(fun (t:Task<bool>) ->
+                  let iii = ii
+                  let ccc = cc
+                  match t.Status with
+                  | TaskStatus.RanToCompletion -> 
+                    if t.Result then
+                      if not movedKeysFlags.[iii] then 
+                        lock(movedKeys) (fun _ -> movedKeys.Add(KV(ccc.CurrentKey, iii)) |> ignore )
+                      semaphore.Release() |> ignore
+                    else
+                      let decremented = Interlocked.Decrement(&liveCounter)
+                      if decremented = 0 then semaphore.Release() |> ignore
+                  | _ -> failwith "TODO remove task{} and process all task results"
+                ) |> ignore
+                i <- i + 1
+              ()
+              ) |> ignore
+            // initial count was zero, could return here only after at least one clone moved
+            // if several moved we do not care because if that affects MoveNext() we won't restart 
+            // TODO restart moved clones only
+            let semaphoreTask = semaphore.WaitAsync(-1, ct)
+            let awaiter = semaphoreTask.GetAwaiter()
+            awaiter.OnCompleted(fun _ -> 
+              match semaphoreTask.Status with
+              | TaskStatus.RanToCompletion -> 
+                let signal = semaphoreTask.Result
+                if not signal || Interlocked.Add(&liveCounter, 0) = 0 then
+                  ct.ThrowIfCancellationRequested()
+                  tcs.SetResult(false)
+                  ()
+                else
+                  loop()
+              | _ -> failwith "TODO remove task{} and process all task results"
+              ()
+            )
+      loop()
+      returnTask
+//      if not hasValidState then this.MoveFirst(ct)
+//      else
+//        failwith "TODO: MoveNext(ct) in UnionKeys"
+//        // try to recover cursors that have not moved before
+//        if movedKeys.Count < cursors.Length then
+//          let mutable i = 0
+//          while i < movedKeysFlags.Length do
+//            if not movedKeysFlags.[i] then
+//              let c = cursors.[i]
+//              let moved' = c.MoveAt(this.CurrentKey, Lookup.GT)
+//              if moved' then 
+//                movedKeysFlags.[i] <- true
+//                movedKeys.Add(KV(c.CurrentKey, i)) |> ignore
+//            i <- i + 1
+//
+//        // ignore cursors that cannot move ahead of frontier during this move, but do 
+//        // not remove them from movedKeys so that we try to move them again on the next move
+//        let mutable ignoreOffset = 0
+//        let mutable leftmostIsAheadOfFrontier = false
+//        // current key is frontier, we could call MN after MP, etc.
+//        while ignoreOffset < movedKeys.Count && not leftmostIsAheadOfFrontier do
+//          //leftmostIsAheadOfFrontier <- not cmp.Compare(movedKeys.First.Key, this.CurrentKey) <= 0
+//          let initialPosition = movedKeys.[ignoreOffset]
+//          let cursor = cursors.[initialPosition.Value]
+//
+//          let mutable shouldMove = cmp.Compare(cursor.CurrentKey, this.CurrentKey) <= 0
+//          let mutable movedAtLeastOnce = false
+//          let mutable passedFrontier = not shouldMove
+//          // try move while could move and not passed the frontier
+//          while shouldMove do
+//            let moved = cursor.MoveNext()
+//            movedAtLeastOnce <- movedAtLeastOnce || moved
+//            passedFrontier <- cmp.Compare(cursor.CurrentKey, this.CurrentKey) > 0
+//            shouldMove <- moved && not passedFrontier
+//          
+//          if movedAtLeastOnce || passedFrontier then
+//            if movedAtLeastOnce then
+//              let newPosition = KV(cursor.CurrentKey, initialPosition.Value)
+//              // update positions if the current has changed, regardless of the frontier
+//              movedKeys.RemoveAt(ignoreOffset) |> ignore
+//              movedKeys.Add(newPosition)
+//
+//            // here passedFrontier if for cursor that after remove/add is not at ignoreOffset idx
+//            if passedFrontier && cmp.Compare(movedKeys.[ignoreOffset].Key, this.CurrentKey) > 0 then
+//              leftmostIsAheadOfFrontier <- true
+//          else
+//            Trace.Assert(not passedFrontier, "If cursor hasn't moved, I couldn't pass the prontier")
+//            ignoreOffset <- ignoreOffset + 1
+//            ()
+//        // end of outer loop
+//        if leftmostIsAheadOfFrontier then
+//            this.CurrentKey <- movedKeys.[ignoreOffset].Key
+//            true
+//        else
+//            false
+//        task {
+//          let mutable valuesOk = false
+//          let rec moveCursor i = // NB for loop inside task{} is transformed into a computation expression method, avoid it
+//            let x = cursors.[i]
+//            let movedFirst' = x.MoveFirst()
+//            if movedFirst' then
+//              lock(movedKeys) (fun _ -> movedKeys.Add(KV(x.CurrentKey, i)) |> ignore )
+//              semaphore.Release() |> ignore
+//            else
+//              // MF returns false only when series is empty, then MNAsync is equivalent to MFAsync
+//              x.MoveNext(ct).ContinueWith(fun (t:Task<bool>) ->
+//                match t.Status with
+//                | TaskStatus.RanToCompletion -> 
+//                  if t.Result then
+//                    lock(movedKeys) (fun _ -> movedKeys.Add(KV(x.CurrentKey, i)) |> ignore )
+//                    semaphore.Release() |> ignore
+//                  else
+//                    let decremented = Interlocked.Decrement(&liveCounter)
+//                    if decremented = 0 then semaphore.Release() |> ignore
+//                | _ -> failwith "TODO remove task{} and process all task results"
+//              ) |> ignore
+//            if i + 1 < cursors.Length then moveCursor (i+1) else ()
+//          moveCursor 0
+          // waith for at least one to move
+//          let! signal = semaphore.WaitAsync(-1, ct)
+//          if not signal || Interlocked.Add(&liveCounter, 0) = 0 then
+//            ct.ThrowIfCancellationRequested()
+//            valuesOk <- false
+//          else
+//            this.CurrentKey <- movedKeys.First.Key
+//            valuesOk <- true
+//          hasValidState <- valuesOk
+//          return valuesOk
+//        }
 
     interface IEnumerator<KVP<'K,'V>> with
       member this.Reset() = this.Reset()
