@@ -17,7 +17,7 @@ type CircularTestsModule() =
     
   [<Test>]
   member this.``Circular Calculations Work``() =
-    let numQuoteSources = 2
+    let numQuoteSources = 100
 
     let cts = new CancellationTokenSource()
     let ct = cts.Token
@@ -53,10 +53,14 @@ type CircularTestsModule() =
         Async.Start(task, ct)
         sm :> Series<DateTime, float>
 
-    let arrayOfContinuousSeries = Array.init numQuoteSources (fun i -> (makeQuoteSource ()).Repeat())
+    let quoteSources = 
+        Array.init numQuoteSources (fun i -> let qs = makeQuoteSource()
+                                             // make the 1st quotesource discrete, the rest continuous
+                                             if i = 0 then qs else qs.Repeat()
+                                             )
 
     let index : Series<DateTime, float> = 
-        arrayOfContinuousSeries.Zip(fun k vArr -> vArr |> Array.average)
+        quoteSources.Zip(fun k vArr -> vArr |> Array.average)
 
     // monitoring - 2s chunks, and total
     let chunkMillisecs = 2000
