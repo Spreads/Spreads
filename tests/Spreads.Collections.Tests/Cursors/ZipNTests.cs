@@ -1294,7 +1294,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         public void CouldZipContinuousInRealTimeWithOneShort() {
-            Assert.Fail("This test often hangs, sometimes passes");
+            //Assert.Fail("This test often hangs, sometimes passes");
             var sm1 = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
@@ -1315,8 +1315,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     //Thread.Sleep(50);
                 }
 
-                sm1.Complete(); // stop mutating
-                //Console.WriteLine("Set immutable");
+                sm1.Complete();
             });
 
             // this test measures isolated performance of ZipN, without ToSortedMap

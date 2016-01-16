@@ -180,6 +180,30 @@ type BaseCursor<'K,'V>
   abstract IsBatch: bool with get
   abstract IsContinuous: bool with get
 
+//  abstract Subscribe: observer:IObserver<KVP<'K,'V>> -> IDisposable
+//  override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
+//    match box observer with
+//    | :? ISeriesSubscriber<'K, 'V> as seriesSubscriber -> 
+//      let seriesSubscription : ISeriesSubscription<'K> = Unchecked.defaultof<_>
+//      seriesSubscription :> IDisposable
+//    | :? ISubscriber<KVP<'K,'V>> as subscriber -> 
+//      let subscription : ISubscription = Unchecked.defaultof<_>
+//      subscription :> IDisposable
+//    | _ ->
+//      // draft: move from current position on every source OnNext
+//      let sourceObserver = 
+//        { new IObserver<KVP<'K,'V>> with
+//            member x.OnNext(kvp) = ()
+//            member x.OnCompleted() = observer.OnCompleted()
+//            member x.OnError(exn) = observer.OnError(exn)
+//        }
+//      let sourceSubscription = source.Subscribe(sourceObserver)
+//      { new IDisposable with
+//          member x.Dispose() = 
+//            sourceSubscription.Dispose()
+//      }
+
+
   interface IDisposable with
     member this.Dispose() = this.Dispose()
 

@@ -17,7 +17,7 @@ type CircularTestsModule() =
     
   [<Test>]
   member this.``Circular Calculations Work``() =
-    let numQuoteSources = 100
+    let numQuoteSources = 5000
 
     let cts = new CancellationTokenSource()
     let ct = cts.Token
@@ -35,7 +35,7 @@ type CircularTestsModule() =
         let now = DateTime.UtcNow
         let mutable trend = -1.0
         let mutable cnt = 0
-        let gapMillisecs = int(rng.NextDouble() * 2.0 + 1.0)
+        let gapMillisecs = int(rng.NextDouble() * 200.0 + 100.0)
 
         sm.Add(now, value)
 
@@ -56,7 +56,8 @@ type CircularTestsModule() =
     let quoteSources = 
         Array.init numQuoteSources (fun i -> let qs = makeQuoteSource()
                                              // make the 1st quotesource discrete, the rest continuous
-                                             if i = 0 then qs else  qs.Repeat()
+                                             //if i = 0 then qs else  
+                                             qs.Repeat()
                                              )
 
     let index : Series<DateTime, float> = 
@@ -72,6 +73,7 @@ type CircularTestsModule() =
     let printRates (stopwatch : Diagnostics.Stopwatch) inputs outputs =
         let elapsedSeconds = (float)stopwatch.ElapsedMilliseconds / 1000.
         printfn "%A: %d inputs (%f/s) -> %d outputs (%f/s)" DateTime.UtcNow inputs (((float)inputs)/elapsedSeconds) outputs (((float)outputs)/elapsedSeconds) 
+        printfn "Total memory: %d" (GC.GetTotalMemory(false))
 
     let monitor = async {
                         while not ct.IsCancellationRequested do

@@ -83,8 +83,8 @@ let main argv =
 //  let circular = TheSimplestTradingStrategy(state)
 //
 //  circular.Execute()
-  CollectionsBenchmarks.SeriesNestedMap_run()
-
+//  CollectionsBenchmarks.SeriesNestedMap_run()
+  (Spreads.Tests.Series.CircularTestsModule()).``Circular Calculations Work``()
   Console.ReadLine();
   printfn "%A" argv
   0
