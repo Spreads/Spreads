@@ -116,8 +116,6 @@ and
         let subscription : ISubscription = Unchecked.defaultof<_>
         subscription :> IDisposable
       | _ ->
-        // normal observer will receive data only after subscription
-        // 
         this.onNextEvent.Publish.AddHandler(OnNextHandler(observer.OnNext))
         let completedHandler = OnCompletedHandler(fun isCompleted -> if isCompleted then observer.OnCompleted())
         this.onCompletedEvent.Publish.AddHandler(completedHandler)
@@ -412,8 +410,53 @@ and
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   CursorSeries<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
     inherit Series<'K,'V>()
+    // we use cursor to implement Obsrvable, but cursor used it for MNA
+    // need to remove indirection and make cursors observable as well
+    let mutable observableTask = Unchecked.defaultof<_>
+
     override this.GetCursor() = cursorFactory.Invoke()
     
+    override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
+      let cts = new CancellationTokenSource()
+      let cursor = cursorFactory.Invoke()
+      cursor.MoveLast() |> ignore
+      if observableTask = Unchecked.defaultof<_> then
+        observableTask <- Task.Run<int>(Func<Task<int>>(fun _ ->
+          task {
+            let mutable moved = true
+            while moved && not cts.IsCancellationRequested do
+              let! moved' = cursor.MoveNext(cts.Token)
+              moved <- moved'
+              // could implement subscribe without events
+              if(moved) then this.onNextEvent.Trigger(cursor.Current) // observer.OnNext(cursor.Current)
+              else this.onCompletedEvent.Trigger(true) // observer.OnCompleted
+            return 0
+          }
+        )) |> ignore
+      // there is a bug in F#, have to copy-paste for now https://github.com/Microsoft/visualfsharp/issues/671
+      //base.Subscribe(observer)
+      match box observer with
+      | :? ISeriesSubscriber<'K, 'V> as seriesSubscriber -> 
+        let seriesSubscription : ISeriesSubscription<'K> = Unchecked.defaultof<_>
+        seriesSubscription :> IDisposable
+      | :? ISubscriber<KVP<'K,'V>> as subscriber -> 
+        let subscription : ISubscription = Unchecked.defaultof<_>
+        subscription :> IDisposable
+      | _ ->
+        this.onNextEvent.Publish.AddHandler(OnNextHandler(observer.OnNext))
+        let completedHandler = OnCompletedHandler(fun isCompleted -> if isCompleted then observer.OnCompleted())
+        this.onCompletedEvent.Publish.AddHandler(completedHandler)
+        this.onErrorEvent.Publish.AddHandler(OnErrorHandler(observer.OnError))
+        { new IDisposable with
+            member x.Dispose() = 
+              cts.Cancel()
+              cursor.Dispose()
+              this.onNextEvent.Publish.RemoveHandler(OnNextHandler(observer.OnNext))
+              this.onCompletedEvent.Publish.RemoveHandler(completedHandler)
+              this.onErrorEvent.Publish.RemoveHandler(OnErrorHandler(observer.OnError))
+        }
+
+
     interface ICanMapSeriesValues<'K,'V> with
       member this.Map<'V2>(f2:Func<'V,'V2>): Series<'K,'V2> = 
         let cursor = cursorFactory.Invoke()

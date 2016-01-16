@@ -8,6 +8,7 @@ using NUnit.Framework;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Spreads.Collections;
+using System.Threading;
 
 namespace Spreads.Collections.Tests {
 
@@ -44,22 +45,28 @@ namespace Spreads.Collections.Tests {
         public void CouldCompleteObserver() {
             CouldCompleteObserver(new SortedMap<int, int>());
             CouldCompleteObserver(new SortedChunkedMap<int, int>());
-            CouldCompleteObserver(new IndexedMap<int, int>());
+            // TODO
+            Trace.TraceWarning("TODO! Indexed map should support zip when keys are equal, e.g. series + series. This is often needed for rows of panel.");
+            //CouldCompleteObserver(new IndexedMap<int, int>());
         }
 
         public void CouldCompleteObserver(IOrderedMap<int, int> map) {
             var subscriber = new SumValuesObserver();
-            var cursor = map.ReadOnly().GetCursor();
+            var series = map as Series<int, int>;
+            var cursor = (series + series).GetCursor();
             cursor.Source.Subscribe(subscriber);
             var expectedSum = 0;
             for (int i = 0; i < 10; i++) {
                 map.Add(i, i);
                 expectedSum += i;
             }
-            Assert.AreEqual(expectedSum, subscriber.Sum);
+           
             Assert.IsFalse(subscriber.IsCompleted);
             map.Complete();
+            Thread.Sleep(100);
             Assert.IsTrue(subscriber.IsCompleted);
+            Thread.Sleep(1000);
+            Assert.AreEqual(expectedSum * 2, subscriber.Sum);
         }
 
         [Test]
