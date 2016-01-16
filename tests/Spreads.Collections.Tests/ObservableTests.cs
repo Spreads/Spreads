@@ -114,7 +114,7 @@ namespace Spreads.Collections.Tests {
             }
             Assert.IsTrue(subscriber.Exception is OutOfOrderKeyException<int>);
             Assert.AreEqual(-1, (subscriber.Exception as OutOfOrderKeyException<int>).NewKey);
-            Assert.AreEqual(99, (subscriber.Exception as OutOfOrderKeyException<int>).CurrentKey);
+            Assert.AreEqual(9, (subscriber.Exception as OutOfOrderKeyException<int>).CurrentKey);
         }
     }
 }
