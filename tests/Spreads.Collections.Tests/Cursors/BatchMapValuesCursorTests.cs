@@ -98,7 +98,7 @@ namespace Spreads.Collections.Tests.Cursors {
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
-            sm.IsMutable = false;
+            sm.Complete();
 
             var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) => v + 1.0);
             var c = 0;
@@ -123,7 +123,7 @@ namespace Spreads.Collections.Tests.Cursors {
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
-            sm.IsMutable = false;
+            sm.Complete();
 
             var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) => v + 1.0);
             var c = 0;
@@ -151,7 +151,7 @@ namespace Spreads.Collections.Tests.Cursors {
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
-            sm.IsMutable = false;
+            sm.Complete();
 
             var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) => v + 1.0, this.IncrementMap);
             var c = 0;
@@ -176,7 +176,6 @@ namespace Spreads.Collections.Tests.Cursors {
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
-            sm.IsMutable = true; // will mutate after the first batch
 
             Task.Run(() => {
                 Thread.Sleep(1000);
@@ -185,7 +184,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     //Thread.Sleep(50);
                 }
 
-                sm.IsMutable = false; // stop mutating
+                sm.Complete(); // stop mutating
                 //Console.WriteLine("Set immutable");
             });
 
@@ -214,7 +213,7 @@ namespace Spreads.Collections.Tests.Cursors {
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
-            sm.IsMutable = false;
+            sm.Complete();
 
             var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) => v + 1.0, this.IncrementMap);
             var c = 0;
@@ -241,7 +240,7 @@ namespace Spreads.Collections.Tests.Cursors {
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
-            sm.IsMutable = false;
+            sm.Complete();
 
             var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) => v + 1.0, this.IncrementMap);
             var c = 0;
@@ -358,7 +357,7 @@ namespace Spreads.Collections.Tests.Cursors {
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
-            sm.IsMutable = false;
+            sm.Complete();
             var sw = new Stopwatch();
             sw.Start();
             var sum = 0.0;

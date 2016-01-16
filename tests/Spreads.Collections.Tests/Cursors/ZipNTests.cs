@@ -265,8 +265,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var sm1 = new SortedMap<int, int>();
             var sm2 = new SortedMap<int, int>();
-            sm1.IsMutable = false;
-            sm2.IsMutable = false;
+            sm1.Complete();
+            sm2.Complete();
 
             var zipped = sm1 + sm2.Repeat();
             var c1 = zipped.GetCursor();
@@ -285,8 +285,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var sm1 = new SortedMap<int, int>();
             var sm2 = new SortedMap<int, int>();
-            sm1.IsMutable = false;
-            sm2.IsMutable = false;
+            sm1.Complete();
+            sm2.Complete();
 
             var zipped = sm1.Repeat() + sm2.Repeat();
             var c1 = zipped.GetCursor();
@@ -889,7 +889,6 @@ namespace Spreads.Collections.Tests.Cursors {
                 sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
             }
-            sm1.IsMutable = true; // will mutate after the first batch
 
             Task.Run(() => {
                 Thread.Sleep(1000);
@@ -898,7 +897,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     //Thread.Sleep(50);
                 }
 
-                sm1.IsMutable = false; // stop mutating
+                sm1.Complete(); // stop mutating
                 //Console.WriteLine("Set immutable");
             });
 
@@ -909,7 +908,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     //Thread.Sleep(50);
                 }
 
-                sm2.IsMutable = false; // stop mutating
+                sm2.Complete(); // stop mutating
                 //Console.WriteLine("Set immutable");
             });
 
@@ -956,7 +955,6 @@ namespace Spreads.Collections.Tests.Cursors {
                 sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
             }
-            sm1.IsMutable = true; // will mutate after the first batch
 
             Task.Run(() => {
                 Thread.Sleep(1000);
@@ -965,7 +963,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     //Thread.Sleep(50);
                 }
 
-                sm1.IsMutable = false; // stop mutating
+                sm1.Complete(); // stop mutating
                 //Console.WriteLine("Set immutable");
             });
 
@@ -976,7 +974,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     //Thread.Sleep(50);
                 }
 
-                sm2.IsMutable = false; // stop mutating
+                sm2.Complete(); // stop mutating
                 //Console.WriteLine("Set immutable");
             });
 
@@ -1026,7 +1024,6 @@ namespace Spreads.Collections.Tests.Cursors {
                 sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
             }
-            sm1.IsMutable = true; // will mutate after the first batch
 
             Task.Run(() => {
                 Thread.Sleep(100);
@@ -1036,7 +1033,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     //Thread.Sleep(1);
                 }
 
-                sm1.IsMutable = false; // stop mutating
+                sm1.Complete(); // stop mutating
                                        //Console.WriteLine("Set immutable");
             });
 
@@ -1048,7 +1045,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     //Thread.Sleep(1);
                 }
 
-                sm2.IsMutable = false; // stop mutating
+                sm2.Complete(); // stop mutating
                                        //Console.WriteLine("Set immutable");
             });
 
@@ -1114,7 +1111,6 @@ namespace Spreads.Collections.Tests.Cursors {
                 sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
             }
-            sm1.IsMutable = true; // will mutate after the first batch
 
             Task.Run(() => {
                 //Thread.Sleep(1000);
@@ -1123,7 +1119,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     //Thread.Sleep(50);
                 }
 
-                sm1.IsMutable = false; // stop mutating
+                sm1.Complete(); // stop mutating
                 //Console.WriteLine("Set immutable");
             });
 
@@ -1134,7 +1130,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     //Thread.Sleep(50);
                 }
 
-                sm2.IsMutable = false; // stop mutating
+                sm2.Complete(); // stop mutating
                 //Console.WriteLine("Set immutable");
             });
 
@@ -1184,8 +1180,8 @@ namespace Spreads.Collections.Tests.Cursors {
                 sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
             }
-            sm1.IsMutable = false; // will mutate after the first batch
-            sm2.IsMutable = false;
+            sm1.Complete(); // will mutate after the first batch
+            sm2.Complete();
 
 
             // this test measures isolated performance of ZipN, without ToSortedMap
@@ -1233,7 +1229,6 @@ namespace Spreads.Collections.Tests.Cursors {
                 sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
             }
-            sm1.IsMutable = true; // will mutate after the first batch
 
             Task.Run(() => {
                 Thread.Sleep(1000);
@@ -1242,7 +1237,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     Thread.Sleep(50);
                 }
 
-                sm1.IsMutable = false; // stop mutating
+                sm1.Complete(); // stop mutating
                 //Console.WriteLine("Set immutable");
             });
 
@@ -1253,7 +1248,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     Thread.Sleep(50);
                 }
 
-                sm2.IsMutable = false; // stop mutating
+                sm2.Complete(); // stop mutating
                 //Console.WriteLine("Set immutable");
             });
 
@@ -1309,10 +1304,9 @@ namespace Spreads.Collections.Tests.Cursors {
             for (int i = 0; i < count; i++) {
                 sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
-            sm1.IsMutable = true; // will mutate after the first batch
 
             sm2.Add(DateTime.UtcNow.Date.AddSeconds(0), 2);
-            sm2.IsMutable = false;
+            sm2.Complete();
 
             Task.Run(() => {
                 Thread.Sleep(1000);
@@ -1321,7 +1315,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     //Thread.Sleep(50);
                 }
 
-                sm1.IsMutable = false; // stop mutating
+                sm1.Complete(); // stop mutating
                 //Console.WriteLine("Set immutable");
             });
 
@@ -1371,7 +1365,6 @@ namespace Spreads.Collections.Tests.Cursors {
                 sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
             }
-            sm1.IsMutable = true; // will mutate after the first batch
 
             Task.Run(() => {
                 Thread.Sleep(1000);
@@ -1380,7 +1373,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     //Thread.Sleep(50);
                 }
 
-                sm1.IsMutable = false; // stop mutating
+                sm1.Complete(); // stop mutating
                 //Console.WriteLine("Set immutable");
             });
 
@@ -1391,7 +1384,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     //Thread.Sleep(50);
                 }
 
-                sm2.IsMutable = false; // stop mutating
+                sm2.Complete(); // stop mutating
                 //Console.WriteLine("Set immutable");
             });
 
@@ -1441,8 +1434,8 @@ namespace Spreads.Collections.Tests.Cursors {
                 sm1.Add(i, i);
                 sm2.Add(i + 1, i);
             }
-            sm1.IsMutable = false;
-            sm2.IsMutable = false;
+            sm1.Complete();
+            sm2.Complete();
 
             var series = new[] { sm1.Repeat(), sm2.Repeat(), };
 
@@ -1505,8 +1498,8 @@ namespace Spreads.Collections.Tests.Cursors {
                 prev2 = prev2 + rng.Next(1, 11);
                 sm2.Add(prev2, prev2);
             }
-            sm1.IsMutable = false;
-            sm2.IsMutable = false;
+            sm1.Complete();
+            sm2.Complete();
 
             //Console.WriteLine("First map:");
             //foreach (var kvp in sm1) {
@@ -1646,8 +1639,8 @@ namespace Spreads.Collections.Tests.Cursors {
                 prev2 = prev2 + rng.Next(1, 11);
                 sm2.Add(prev2, prev2);
             }
-            sm1.IsMutable = false;
-            sm2.IsMutable = false;
+            sm1.Complete();
+            sm2.Complete();
 
             //Console.WriteLine("First map:");
             //foreach (var kvp in sm1)

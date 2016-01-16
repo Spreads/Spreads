@@ -160,7 +160,7 @@ namespace Spreads.Collections.Tests.Cursors {
             for (int i = 0; i < count; i++) {
                 sm2.Add(i, i);
             }
-            sm2.IsMutable = false; // without it MoveNextAsync will wait forever
+            sm2.Complete(); // without it MoveNextAsync will wait forever
             t.Wait();
         }
 

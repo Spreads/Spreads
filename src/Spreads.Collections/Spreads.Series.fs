@@ -100,18 +100,20 @@ and
 
     /// Main method to override
     abstract GetCursor : unit -> ICursor<'K,'V>
-   
-    member this.IsIndexed with get() = this.GetCursor().Source.IsIndexed
-    member this.IsMutable =  this.GetCursor().Source.IsMutable
+
+    abstract IsIndexed : bool with get
+    abstract IsMutable: bool with get
+    override this.IsIndexed with get() = c.Value.Source.IsIndexed
+    override this.IsMutable = c.Value.Source.IsMutable
 
     /// Locks any mutations for mutable implementations
     member this.SyncRoot 
       with get() = 
-        if syncRoot = Unchecked.defaultof<_> then syncRoot <- this.GetCursor().Source.SyncRoot
+        if syncRoot = Unchecked.defaultof<_> then syncRoot <- c.Value.Source.SyncRoot
         syncRoot
 
-    member this.Comparer with get() = this.GetCursor().Comparer
-    member this.IsEmpty = not (this.GetCursor().MoveFirst())
+    member this.Comparer with get() = c.Value.Comparer
+    member this.IsEmpty = not (c.Value.MoveFirst())
 
     member this.First 
       with get() = 
@@ -155,9 +157,10 @@ and
 
     member this.Keys 
       with get() =
+        let c = this.GetCursor()
         seq {
-          while c.Value.MoveNext() do
-            yield c.Value.CurrentKey
+          while c.MoveNext() do
+            yield c.CurrentKey
         }
 
     member this.Values

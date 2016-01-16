@@ -83,7 +83,7 @@ namespace Spreads.Collections.Tests {
                     //scm[i] = i;
                     Thread.Sleep(5);
                 }
-                scm.IsMutable = false; // this will trigger a false return of MoveNextAsync()
+                scm.Complete(); // this will trigger a false return of MoveNextAsync()
             });
 
             var reader = scm.ReadOnly();

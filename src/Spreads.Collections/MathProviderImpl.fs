@@ -41,7 +41,8 @@ type MathProviderImpl() =
             if sm.IsMutable then Array.copy sm.keys
             else sm.keys // NB borrow keys from the source batch
           let sm2 = SortedMap.OfSortedKeysAndValues(keys2, values2, sm.size, sm.Comparer, false, sm.IsRegular)
-          sm2.IsMutable <- false // NB source was mutable or we have created a copy that is supposed to be accessed as IReadOnlyOrderedMap externally
+          // NB source was mutable or we have created a copy that is supposed to be accessed as IReadOnlyOrderedMap externally
+          sm2.Complete()
           value <- sm2 :> IReadOnlyOrderedMap<'K,'V2>
           true
         else false

@@ -137,15 +137,13 @@ type SortedChunkedMap<'K,'V>
         finally
           exitLockIf this.SyncRoot entered
 
-  member this.IsMutable 
-    with get() = isMutable
-    and set (value) = 
-      if isMutable then 
-        isMutable <- value
-        if not value && cursorCounter > 0 then this.onCompleteEvent.Trigger()
-      else 
-        if isMutable = value then () // NB same as not value
-        else invalidOp "Cannot make immutable map mutable, the setter only supports on-way change from mutable to immutable"
+  member this.Complete() = 
+    if isMutable then 
+        isMutable <- false
+        if cursorCounter > 0 then 
+          this.onCompleteEvent.Trigger()
+  override this.IsMutable with get() = isMutable
+  override this.IsIndexed with get() = false
 
   member this.IsSynchronized with get() = isSync and set v = isSync <- v
 
@@ -903,6 +901,7 @@ type SortedChunkedMap<'K,'V>
     
 
   interface IOrderedMap<'K,'V> with
+    member this.Complete() = this.Complete()
     member this.Version with get() = int64(this.Version)
     member this.Count with get() = this.Count
     member this.Item

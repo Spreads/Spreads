@@ -182,6 +182,9 @@ namespace Spreads {
             }
         }
 
+        public void Complete() => _map.Complete();
+        public bool IsMutable => _map.IsMutable;
+
         public void Add(DateTime k, V v) {
             _map.Add(k.ConvertToUtcWithUncpecifiedKind(_tz), v);
         }

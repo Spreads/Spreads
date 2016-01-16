@@ -647,6 +647,8 @@ namespace Spreads.Collections
       member internal m.Tree = tree
 
       member this.IsEmpty with get() = MapTree.isEmpty tree
+      override this.IsIndexed with get() = false
+      override this.IsMutable with get() = false
 
       member this.First
         with get() = 
@@ -790,7 +792,6 @@ namespace Spreads.Collections
             MapTree.remove comparer k tree
           | _ -> failwith "unexpected wrong direction"
         ImmutableSortedMap<'K,'V>(comparer, newTree)
-
 
       interface IEnumerable<KeyValuePair<'K, 'V>> with
         member m.GetEnumerator() = MapTree.mkIEnumerator tree

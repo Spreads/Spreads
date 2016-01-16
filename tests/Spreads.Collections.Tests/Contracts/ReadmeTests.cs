@@ -125,8 +125,8 @@ namespace Spreads.Collections.Tests.Contracts {
             var t2 = Task.Run(async () => {
                 moved = await cursor.MoveNext(CancellationToken.None);
             });
-            upper.IsMutable = false;
-            lower.IsMutable = false;
+            upper.Complete();
+            lower.Complete();
             t2.Wait();
             Assert.IsFalse(moved);
 
@@ -207,8 +207,8 @@ namespace Spreads.Collections.Tests.Contracts {
             var t2 = Task.Run(async () => {
                 moved = await cursor.MoveNext(CancellationToken.None);
             });
-            upper.IsMutable = false;
-            lower.IsMutable = false;
+            upper.Complete();
+            lower.Complete();
             t2.Wait();
             Assert.IsFalse(moved);
 

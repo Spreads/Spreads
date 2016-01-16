@@ -31,6 +31,7 @@ open Spreads.Collections
 
 [<Serializable>]
 /// Make immutable map behave like a mutable one
+[<ObsoleteAttribute("Probably this is useless.")>]
 type internal MutableWrapper<'K,'V  when 'K : comparison>
   (immutableMap:IImmutableOrderedMap<'K,'V>)=
     
@@ -97,6 +98,7 @@ type internal MutableWrapper<'K,'V  when 'K : comparison>
         lock this.SyncRoot ( fun () ->
           map <- map.Add(k, v)
         )
+    member this.Complete() = raise (NotSupportedException())
    
 
     member this.Add(k, v) = 

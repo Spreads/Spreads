@@ -56,7 +56,7 @@ namespace Spreads.Extensions.Tests {
                     await Task.Delay(1); // 15 msec
                     sm.Add(i, i);
                 }
-                sm.IsMutable = false;
+                sm.Complete();
             });
 
 
@@ -81,7 +81,7 @@ namespace Spreads.Extensions.Tests {
                     sm.Add(DateTime.Today.AddSeconds(i), i+10000);
                     await Task.Delay(25);
                 }
-                sm.IsMutable = false;
+                sm.Complete();
             });
 
             Thread.Sleep(50);

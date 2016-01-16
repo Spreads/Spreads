@@ -397,7 +397,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 }
                 // signal data completion
-                sm.isMutable = false;
+                sm.Complete();
             });
 
             var cached = sm.Cache();
@@ -440,7 +440,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 }
                 // signal data completion
-                sm.isMutable = false;
+                sm.Complete();
             });
 
             var cached = sm.Cache().After(DateTime.UtcNow.Date.AddSeconds(0), Lookup.EQ);
@@ -489,7 +489,7 @@ namespace Spreads.Collections.Tests.Cursors {
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
-            sm.IsMutable = false;
+            sm.Complete();
             sw.Start();
             double sum = 0.0;
             var c = sm.GetCursor();

@@ -120,18 +120,15 @@ namespace Spreads {
             }
         }
 
-        public KeyValuePair<K, Vdest> Last
-        {
+        public KeyValuePair<K, Vdest> Last {
             get {
                 var srcFirst = _innerMap.Last;
                 return new KeyValuePair<K, Vdest>(srcFirst.Key, _srcToDest(srcFirst.Value));
             }
         }
 
-        public string Id
-        {
-            get
-            {
+        public string Id {
+            get {
                 var pom = _innerMap as IPersistentOrderedMap<K, Vsrc>;
                 return pom != null ? pom.Id : "";
             }
@@ -142,6 +139,7 @@ namespace Spreads {
         public bool IsIndexed => _innerMap.IsIndexed;
 
         public bool IsMutable => _innerMap.IsMutable;
+        public void Complete() => _innerMap.Complete();
 
         public IEnumerable<K> Keys => _innerMap.Keys;
 
@@ -151,8 +149,7 @@ namespace Spreads {
 
         public void Dispose() {
             var pom = _innerMap as IPersistentOrderedMap<K, Vsrc>;
-            if (pom != null)
-            {
+            if (pom != null) {
                 pom.Dispose();
             }
         }
@@ -165,11 +162,10 @@ namespace Spreads {
         }
 
         public Vdest GetAt(int idx) {
-            return  _srcToDest(_innerMap.GetAt(idx));
+            return _srcToDest(_innerMap.GetAt(idx));
         }
 
-        public override ICursor<K, Vdest> GetCursor()
-        {
+        public override ICursor<K, Vdest> GetCursor() {
             return new BatchMapValuesCursor<K, Vsrc, Vdest>(_innerMap.GetCursor, _srcToDest);
         }
 
@@ -212,7 +208,7 @@ namespace Spreads {
 
         public bool TryGetValue(K key, out Vdest value) {
             Vsrc srcVal;
-            var res = _innerMap.TryGetValue(key,out srcVal);
+            var res = _innerMap.TryGetValue(key, out srcVal);
             if (res) {
                 value = _srcToDest(srcVal);
             } else {
@@ -221,8 +217,7 @@ namespace Spreads {
             return res;
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
+        IEnumerator IEnumerable.GetEnumerator() {
             return GetCursor();
         }
 
