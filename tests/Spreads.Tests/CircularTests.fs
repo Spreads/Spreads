@@ -17,7 +17,7 @@ type CircularTestsModule() =
     
   [<Test>]
   member this.``Circular Calculations Work``() =
-    let numQuoteSources = 5000
+    let numQuoteSources = 500
 
     let cts = new CancellationTokenSource()
     let ct = cts.Token
@@ -28,6 +28,24 @@ type CircularTestsModule() =
     let chunkOutputs = ref 0
     let totalInputs = ref 0
     let chunkInputs = ref 0
+
+    let makeQuoteSources (n) : Series<DateTime, float>[] =
+      let maps = Array.init n (fun _ -> SortedMap())
+      let mutable value = 1.0
+      let mutable ticks = 0L
+      let task = async {
+                while not ct.IsCancellationRequested do
+                  let nextIdx = rng.Next(n)
+                  let time = DateTime.UtcNow.AddTicks(Interlocked.Increment(&ticks))
+                  Interlocked.Increment(totalInputs) |> ignore
+                  Interlocked.Increment(chunkInputs) |> ignore
+                  value <- value*(1.0 + rng.NextDouble()*0.002 - 0.001 + 0.001)
+                  maps.[nextIdx].Add(time, value)
+                  //do! Async.Sleep 1
+            }
+      Async.Start(task, ct)
+      maps |> Array.map (fun x -> x.Repeat())
+
 
     let makeQuoteSource () : Series<DateTime, float> = // data is produced outside
         let mutable value = 1.0
@@ -53,12 +71,12 @@ type CircularTestsModule() =
         Async.Start(task, ct)
         sm :> Series<DateTime, float>
 
-    let quoteSources = 
-        Array.init numQuoteSources (fun i -> let qs = makeQuoteSource()
-                                             // make the 1st quotesource discrete, the rest continuous
-                                             //if i = 0 then qs else 
-                                             qs.Repeat()
-                                             )
+    let quoteSources = makeQuoteSources(numQuoteSources)
+//        Array.init numQuoteSources (fun i -> let qs = makeQuoteSource()
+//                                             // make the 1st quotesource discrete, the rest continuous
+//                                             //if i = 0 then qs else 
+//                                             qs.Repeat()
+//                                             )
 
     let index : Series<DateTime, float> = 
         quoteSources.Zip(fun k vArr -> vArr |> Array.average)
