@@ -189,12 +189,12 @@ namespace Spreads {
 
 
     internal delegate void OnNextHandler<K, V>(KeyValuePair<K, V> kvp);
-    internal delegate void OnCompleteHandler();
+    internal delegate void OnCompletedHandler(bool isComplete);
     internal delegate void OnErrorHandler(Exception exception);
 
     internal interface IObservableEvents<K, V> {
         event OnNextHandler<K, V> OnNext;
-        event OnCompleteHandler OnComplete;
+        event OnCompletedHandler OnComplete;
         event OnErrorHandler OnError;
     }
 

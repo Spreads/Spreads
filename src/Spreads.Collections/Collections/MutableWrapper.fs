@@ -49,6 +49,7 @@ type internal MutableWrapper<'K,'V  when 'K : comparison>
       (map:> IEnumerable<_>).GetEnumerator() :> IEnumerator<KeyValuePair<'K,'V>>
    
   interface IReadOnlyOrderedMap<'K,'V> with
+    member this.Subscribe(observer) = raise (NotImplementedException())
     member this.Comparer with get() = map.Comparer
     member this.GetEnumerator() = map.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
     member this.GetCursor() = map.GetCursor()

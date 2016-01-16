@@ -89,13 +89,13 @@ and
     val mutable internal onNextEvent : EventV2<OnNextHandler<'K,'V>,KVP<'K,'V>>
     [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
-    val mutable internal onCompleteEvent : EventV2<OnCompleteHandler,unit>
+    val mutable internal onCompletedEvent : EventV2<OnCompletedHandler,bool>
     [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
     val mutable internal onErrorEvent : EventV2<OnErrorHandler,Exception>
     do
       this.onNextEvent <- new EventV2<OnNextHandler<'K,'V>,KVP<'K,'V>>()
-      this.onCompleteEvent <- new EventV2<OnCompleteHandler,unit>()
+      this.onCompletedEvent <- new EventV2<OnCompletedHandler,bool>()
       this.onErrorEvent <- new EventV2<OnErrorHandler,Exception>()
 
     /// Main method to override
@@ -105,6 +105,29 @@ and
     abstract IsMutable: bool with get
     override this.IsIndexed with get() = c.Value.Source.IsIndexed
     override this.IsMutable = c.Value.Source.IsMutable
+
+    abstract Subscribe: observer:IObserver<KVP<'K,'V>> -> IDisposable
+    override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
+      match box observer with
+      | :? ISeriesSubscriber<'K, 'V> as seriesSubscriber -> 
+        let seriesSubscription : ISeriesSubscription<'K> = Unchecked.defaultof<_>
+        seriesSubscription :> IDisposable
+      | :? ISubscriber<KVP<'K,'V>> as subscriber -> 
+        let subscription : ISubscription = Unchecked.defaultof<_>
+        subscription :> IDisposable
+      | _ ->
+        // normal observer will receive data only after subscription
+        // 
+        this.onNextEvent.Publish.AddHandler(OnNextHandler(observer.OnNext))
+        let completedHandler = OnCompletedHandler(fun isCompleted -> if isCompleted then observer.OnCompleted())
+        this.onCompletedEvent.Publish.AddHandler(completedHandler)
+        this.onErrorEvent.Publish.AddHandler(OnErrorHandler(observer.OnError))
+        { new IDisposable with
+            member x.Dispose() = 
+              this.onNextEvent.Publish.RemoveHandler(OnNextHandler(observer.OnNext))
+              this.onCompletedEvent.Publish.RemoveHandler(completedHandler)
+              this.onErrorEvent.Publish.RemoveHandler(OnErrorHandler(observer.OnError))
+        }
 
     /// Locks any mutations for mutable implementations
     member this.SyncRoot 
@@ -186,6 +209,7 @@ and
 
     interface IReadOnlyOrderedMap<'K,'V> with
       member this.GetCursor() = this.GetCursor()
+      member this.Subscribe(observer : IObserver<KVP<'K,'V>>) = this.Subscribe(observer)
       member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
       member this.Comparer with get() = this.Comparer
       member this.IsIndexed with get() = this.IsIndexed
@@ -210,7 +234,7 @@ and
       [<CLIEvent>]
       member x.OnNext = this.onNextEvent.Publish
       [<CLIEvent>]
-      member x.OnComplete = this.onCompleteEvent.Publish
+      member x.OnComplete = this.onCompletedEvent.Publish
       [<CLIEvent>]
       member x.OnError = this.onErrorEvent.Publish
 

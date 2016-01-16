@@ -81,6 +81,7 @@
     <Compile Include="Cursors\MiscCursorsTests.cs" />
     <Compile Include="Cursors\MissingValuesCursorsTests.cs" />
     <Compile Include="IndexedMapTests.cs" />
+    <Compile Include="ObservableTests.cs" />
     <Compile Include="Obsolete\IROOMTests.cs" />
     <Compile Include="SortedChunkedMapTests.cs" />
     <Compile Include="OperatorsTests.cs" />

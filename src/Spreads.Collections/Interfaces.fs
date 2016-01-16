@@ -56,6 +56,7 @@ type ISeries<'K,'V> =
   /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
   /// positions and relative LT/LE/GT/GE moves.
   abstract GetCursor : unit -> ICursor<'K,'V>
+  abstract Subscribe: observer:IObserver<KVP<'K,'V>> -> IDisposable
   abstract Comparer: IComparer<'K> with get
   /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys
   abstract IsIndexed : bool with get

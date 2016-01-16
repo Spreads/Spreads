@@ -87,8 +87,8 @@ type BaseCursor<'K,'V>
     )
 
   // temp solution, this implementation them checks IsMutable property
-  let completeHandler : OnCompleteHandler = 
-    OnCompleteHandler(fun _ ->
+  let completeHandler : OnCompletedHandler = 
+    OnCompletedHandler(fun _ ->
         if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
     )
       

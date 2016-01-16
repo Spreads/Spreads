@@ -359,8 +359,8 @@ type SortedMap<'K,'V>
   member this.Complete() = 
     if isMutable then 
         isMutable <- false
-        if cursorCounter > 0 then 
-          this.onCompleteEvent.Trigger()
+        if cursorCounter > 0 then this.onCompletedEvent.Trigger(true)
+
   override this.IsMutable with get() = isMutable
   override this.IsIndexed with get() = false
 
@@ -672,7 +672,10 @@ type SortedMap<'K,'V>
         let c = this.CompareToLast key
         if c > 0 then 
           this.Insert(this.size, key, value)
-        else raise (ArgumentOutOfRangeException("SortedMap.AddLast: New key is smaller or equal to the largest existing key"))
+        else 
+          let exn = OutOfOrderKeyException(this.Last.Key, key, "SortedMap.AddLast: New key is smaller or equal to the largest existing key")
+          this.onErrorEvent.Trigger(exn)
+          raise (exn)
     finally
       exitLockIf syncRoot entered
 
@@ -685,7 +688,10 @@ type SortedMap<'K,'V>
         let c = this.CompareToFirst key
         if c < 0 then
             this.Insert(0, key, value)
-        else raise (ArgumentOutOfRangeException("SortedMap.AddLast: New key is larger or equal to the smallest existing key"))
+        else 
+          let exn = OutOfOrderKeyException(this.Last.Key, key, "SortedMap.AddLast: New key is larger or equal to the smallest existing key")
+          this.onErrorEvent.Trigger(exn)
+          raise (exn)
     finally
       exitLockIf syncRoot entered
     
@@ -1092,8 +1098,8 @@ type SortedMap<'K,'V>
             match this.IsMutable with
             | true ->
               let upd = this :> IObservableEvents<'K,'V>
-              if not !observerStarted then 
-                upd.add_OnNext updateHandler
+              if not !observerStarted then
+                this.onNextEvent.Publish.AddHandler updateHandler
                 observerStarted := true
                 taskCompleter := completeTcs()
               

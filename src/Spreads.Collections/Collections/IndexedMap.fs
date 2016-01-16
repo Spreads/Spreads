@@ -154,7 +154,7 @@ type IndexedMap<'K,'V> // when 'K:equality
     if isMutable then 
         isMutable <- false
         if cursorCounter > 0 then 
-          this.onCompleteEvent.Trigger()
+          this.onCompletedEvent.Trigger(true)
   override this.IsMutable with get() = isMutable
   override this.IsIndexed with get() = false
 
