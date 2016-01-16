@@ -38,7 +38,7 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
  
   let cursor = cursorFactory.Invoke()
   let mutable lookupCursor = Unchecked.defaultof<ICursor<'K,'V>>
-
+  let mutable lookupMoved = false
   member this.Clone() = new RepeatCursor<'K,'V>(fun _ -> cursor.Clone())
 
   interface ICursor<'K,'V> with
@@ -62,33 +62,43 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
     member this.Source: ISeries<'K,'V> = cursor.Source
     member this.TryGetValue(key: 'K, value: byref<'V>): bool =
       // TODO (perf) optimize the case when key is below the previous one
-      
-      let ok, v = cursor.TryGetValue(key)
-      if ok then
-        value <- v
-        true
-      else
-        if lookupCursor = Unchecked.defaultof<ICursor<'K,'V>> then lookupCursor <- cursor.Clone()
-        // MoveLast()+MovePrevious() is much slower
-//        if lookupCursor.MoveLast() then
-//          if lookupCursor.Comparer.Compare(key, lookupCursor.CurrentKey) >= 0 then
-//            value <- lookupCursor.CurrentValue
-//            true
-//          else
-//            if lookupCursor.MovePrevious() && lookupCursor.Comparer.Compare(key, lookupCursor.CurrentKey) >= 0 then 
-//              value <- lookupCursor.CurrentValue
-//              true
-//            else
-//              if lookupCursor.MoveAt(key, Lookup.LE) then
-//                value <- lookupCursor.CurrentValue
-//                true
-//              else false
-//        else false
+      if lookupCursor = Unchecked.defaultof<ICursor<'K,'V>> then lookupCursor <- cursor.Clone()
 
-        if lookupCursor.MoveAt(key, Lookup.LE) then
-          value <- lookupCursor.CurrentValue
+      // TODO rewrite this
+      if lookupMoved then
+        if lookupCursor.Comparer.Compare(key, lookupCursor.CurrentKey) >= 0 then
+          if lookupCursor.MoveNext() then
+            if lookupCursor.Comparer.Compare(key, lookupCursor.CurrentKey) <= 0 then
+              value <- lookupCursor.CurrentValue
+              true
+            elif lookupCursor.MoveAt(key, Lookup.LE) then
+              value <- lookupCursor.CurrentValue
+              true
+            else false
+          else
+            value <- lookupCursor.CurrentValue
+            true
+        else
+          if lookupCursor.MovePrevious() && lookupCursor.Comparer.Compare(key, lookupCursor.CurrentKey) >= 0 then 
+            value <- lookupCursor.CurrentValue
+            true
+          else
+            if lookupCursor.MoveAt(key, Lookup.LE) then
+              value <- lookupCursor.CurrentValue
+              true
+            else false
+      else
+
+        let ok, v = lookupCursor.TryGetValue(key)
+        if ok then
+          value <- v
           true
-        else false
+        else
+          if lookupCursor.MoveAt(key, Lookup.LE) then
+            lookupMoved <- true
+            value <- lookupCursor.CurrentValue
+            true
+          else false
 
 
   // Repeat().Map() is equivalent to Map().Repeat()

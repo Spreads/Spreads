@@ -56,7 +56,7 @@ type CircularTestsModule() =
     let quoteSources = 
         Array.init numQuoteSources (fun i -> let qs = makeQuoteSource()
                                              // make the 1st quotesource discrete, the rest continuous
-                                             //if i = 0 then qs else  
+                                             //if i = 0 then qs else 
                                              qs.Repeat()
                                              )
 
