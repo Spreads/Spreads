@@ -26,15 +26,14 @@ open System.Threading
 open System.Threading.Tasks
 open System.Diagnostics
 open Spreads
-
+open Microsoft.FSharp.Control
 // TODO rename back to MapCursor - this is an original cursor backed by some map, it does not represent series itself
 [<AbstractClassAttribute>]
 type BaseCursor<'K,'V>
   (source:IReadOnlyOrderedMap<'K,'V>) as this =
 
   // implement default MoveNextAsync logic using only MoveNext
-
-  let isUpdateable = match source with | :? IUpdateable<'K,'V> -> true | _ -> false
+  let isUpdateable = match source with | :? IObservableEvents<'K,'V> -> true | _ -> false
   let observerStarted = ref false
   //let tcs = ref (TaskCompletionSource<bool>())
   let mutable tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create())
@@ -82,8 +81,14 @@ type BaseCursor<'K,'V>
             return false // stop the loop
     }
 
-  let updateHandler : UpdateHandler<'K,'V> = 
-    UpdateHandler(fun _ (kvp:KVP<'K,'V>) ->
+  let updateHandler : OnNextHandler<'K,'V> = 
+    OnNextHandler(fun (kvp:KVP<'K,'V>) ->
+        if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
+    )
+
+  // temp solution, this implementation them checks IsMutable property
+  let completeHandler : OnCompleteHandler = 
+    OnCompleteHandler(fun _ ->
         if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
     )
       
@@ -111,8 +116,9 @@ type BaseCursor<'K,'V>
   override this.Dispose() =
     lock(sr) (fun _ ->
       if !observerStarted then
-        Trace.Assert(source :? IUpdateable<'K,'V>)
-        (source :?> IUpdateable<'K,'V>).OnData.RemoveHandler(updateHandler)
+        Trace.Assert(source :? IObservableEvents<'K,'V>)
+        (source :?> IObservableEvents<'K,'V>).remove_OnNext(updateHandler)
+        (source :?> IObservableEvents<'K,'V>).remove_OnComplete(completeHandler)
     )
 
   abstract member Reset : unit -> unit
@@ -126,9 +132,10 @@ type BaseCursor<'K,'V>
       | false ->
         match isUpdateable, source.IsMutable with
         | true, true ->
-          let upd = source :?> IUpdateable<'K,'V>
+          let upd = source :?> IObservableEvents<'K,'V>
           if not !observerStarted then 
-            upd.OnData.AddHandler updateHandler
+            upd.add_OnNext(updateHandler)
+            upd.add_OnComplete(completeHandler)
             observerStarted := true
             taskCompleter := completeTcs()
 

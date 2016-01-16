@@ -40,9 +40,8 @@ namespace Spreads.Collections.Tests.Cursors {
         [Test]
         public void UpdateEventIsTriggered() {
             var sm = new SortedMap<DateTime, double>();
-            (sm as IUpdateable<DateTime, double>).OnData += (s, x) => {
-                Console.WriteLine("Added {0} : {1}", x.Key,
-                    x.Value);
+            (sm as IObservableEvents<DateTime, double>).OnNext += (kvp) => {
+                Console.WriteLine("Added {0} : {1}", kvp.Key, kvp.Value);
             };
 
             sm.Add(DateTime.UtcNow.Date.AddSeconds(0), 0);
@@ -481,7 +480,7 @@ namespace Spreads.Collections.Tests.Cursors {
             // but not too big, while on real-time stream there is no alternative at all.
             // Join algos should be paralell and task-based by default
 
-            var count = 100000;
+            var count = 10000000;
             var sw = new Stopwatch();
 
             var sm = new SortedChunkedMap<DateTime, double>();
@@ -490,14 +489,15 @@ namespace Spreads.Collections.Tests.Cursors {
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
+            sm.IsMutable = false;
             sw.Start();
             double sum = 0.0;
             var c = sm.GetCursor();
-            //c.MoveNext();
-            while (c.CurrentValue < count - 1.0) {
-                Task.Run(async () => await c.MoveNext(CancellationToken.None)).Wait();
-                sum += c.CurrentValue;
-            }
+            Task.Run(async () => {
+                while (await c.MoveNext(CancellationToken.None)) {
+                    sum += c.CurrentValue;
+                }
+            }).Wait();
             sw.Stop();
 
             double expectedSum = 0.0;

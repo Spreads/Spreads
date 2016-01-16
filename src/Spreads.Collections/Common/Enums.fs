@@ -21,21 +21,6 @@ namespace Spreads
 open System
 
 
-
-
-/// Lookup direction on sorted maps
-type Lookup =
-  /// Less than
-  | LT = -2
-  /// Less or equal
-  | LE = -1
-  /// Exactly equal
-  | EQ = 0
-  /// Greater or equal
-  | GE = 1
-  /// Greater than
-  | GT = 2
-
 /// Defines how IOrderedMap.Append behaves
 type AppendOption =
   /// Throw if new values overlap with existing values.
@@ -50,8 +35,6 @@ type AppendOption =
   | [<Obsolete("TODO Not implemented in SM/SCM")>] UpdateValuesIfAllOverlapKeysMatch = 4
   /// Ignores equal overlap and updates the last value only. Throws if other values are different or keys do not match in the overlap region.
   | [<Obsolete("TODO Not implemented in SM/SCM")>] UpdateLastValueOnly = 5
-
-
 
 
 /// Base unit of a period

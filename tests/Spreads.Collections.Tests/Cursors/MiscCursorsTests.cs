@@ -15,6 +15,34 @@ namespace Spreads.Collections.Tests.Cursors {
 
     [TestFixture]
     public class MiscCursorsTests {
+        [Test]
+        public void UpdateLiveStrategy()
+        {
+
+            var close = new SortedMap<DateTime, double>();
+            Task.Run(() =>
+            {
+                for (int i = 1; i < 100000; i++)
+                {
+                    close.Add(DateTime.Now, i);
+                    Thread.Sleep(100);
+                }
+            });
+            //Thread.Sleep(1000);
+            var returns = close.ZipLag(1u, (c, p) => c / p - 1.0);//.Cache();
+            var indexSma = close.SMA(50, true).Lag(1u);//.Cache();
+            var deviation = (close / indexSma - 1.0);//.Cache();
+            var leverage = (2 * (-(5 * (deviation.Map(x => Math.Abs(x)))) + 1.0));//.Cache();
+            var smaSignal = deviation.Map(x => Convert.ToDouble(Math.Sign(x)));//.Cache();
+            var smaPositionMultiple = smaSignal;//.Cache();//Map(x => 0.25 * (Math.Round(x / 0.25)))).
+
+            //var dailyTurnover = smaPositionMultiple.ZipLag(1u, (c, p) => c - p).Map(x => Math.Abs(x)).Cache();
+            smaPositionMultiple.Do((k, v) =>
+            {
+                Console.WriteLine($"{k} - {v}");
+            });
+            Thread.Sleep(1000000);
+        }
 
         [Test]
         public void CouldLagSeries() {

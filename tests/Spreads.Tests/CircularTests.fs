@@ -35,13 +35,13 @@ type CircularTestsModule() =
         let now = DateTime.UtcNow
         let mutable trend = -1.0
         let mutable cnt = 0
-        let gapMillisecs = int(rng.NextDouble() * 500.0 + 250.0)
+        let gapMillisecs = int(rng.NextDouble() * 2.0 + 1.0)
 
         sm.Add(now, value)
 
         let task = async {
                         while not ct.IsCancellationRequested do
-                            do! Async.Sleep gapMillisecs
+                            do! Async.Sleep 1 //gapMillisecs
                             let time = DateTime.UtcNow
                             Interlocked.Increment(totalInputs) |> ignore
                             Interlocked.Increment(chunkInputs) |> ignore
@@ -56,7 +56,7 @@ type CircularTestsModule() =
     let quoteSources = 
         Array.init numQuoteSources (fun i -> let qs = makeQuoteSource()
                                              // make the 1st quotesource discrete, the rest continuous
-                                             if i = 0 then qs else qs.Repeat()
+                                             if i = 0 then qs else  qs.Repeat()
                                              )
 
     let index : Series<DateTime, float> = 

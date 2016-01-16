@@ -41,7 +41,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Exceptions.cs" />
     <Compile Include="MemoryCache.cs" />
+    <Compile Include="Properties\Attributes.cs" />
     <Compile Include="Sequences.cs">
       <DependentUpon>Utils.cs</DependentUpon>
     </Compile>

@@ -17,7 +17,7 @@
     along with this program.If not, see<http://www.gnu.org/licenses/>.
 */
 
-namespace Spreads.Experimental
+namespace Spreads
 {
     /// <summary>
     /// Direction to lookup data or move from a starting point

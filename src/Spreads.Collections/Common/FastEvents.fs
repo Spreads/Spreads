@@ -17,7 +17,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *)
 
-namespace Spreads.Internals
+namespace Spreads
 
 open System
 open System.Collections.Generic
@@ -25,15 +25,16 @@ open System.Linq.Expressions
 open System.Threading
 open System.Threading.Tasks
 
+// TODO (perf) we move event interface to Core and probably this trick is no longer needed, need to profile
 //thanks to http://v2matveev.blogspot.ru/2010/06/f-performance-of-events.html for the idea
 
-
-type internal EventV2<'D, 'A when 'D :> Delegate and 'D : delegate<'A, unit> and 'D : null>() = 
+//and 'D : delegate<'A, unit>
+type internal EventV2<'D, 'A when 'D :> Delegate and 'D : null>() = 
   static let invoker =
     let d = Expression.Parameter(typeof<'D>, "dlg")
-    let sender = Expression.Parameter(typeof<obj>, "sender")
+    //let sender = Expression.Parameter(typeof<obj>, "sender")
     let arg = Expression.Parameter(typeof<'A>, "arg")
-    let lambda = Expression.Lambda<Action<'D,obj,'A>>(Expression.Invoke(d, sender, arg), d, sender, arg)
+    let lambda = Expression.Lambda<Action<'D,'A>>(Expression.Invoke(d, arg), d, arg)
     lambda.Compile()
 
   let mutable multicast : 'D = null     
@@ -41,7 +42,7 @@ type internal EventV2<'D, 'A when 'D :> Delegate and 'D : delegate<'A, unit> and
   member inline x.Trigger(args: 'A) =
       match multicast with
       | null -> ()
-      | d -> invoker.Invoke(d, null, args) // Using this instead of d.DynamicInvoke(null,args) |> ignore makes an empty call more than 20x faster 
+      | d -> invoker.Invoke(d, args) // Using this instead of d.DynamicInvoke(null,args) |> ignore makes an empty call more than 20x faster 
 
   member inline x.Publish =
       { new IDelegateEvent<'D> with
@@ -52,7 +53,7 @@ type internal EventV2<'D, 'A when 'D :> Delegate and 'D : delegate<'A, unit> and
 
 
 
-type AsyncManualResetEvent () =
+type internal AsyncManualResetEvent () =
   //http://blogs.msdn.com/b/pfxteam/archive/2012/02/11/10266920.aspx
   [<VolatileFieldAttribute>]
   let mutable m_tcs = TaskCompletionSource<bool>()
@@ -71,7 +72,7 @@ type AsyncManualResetEvent () =
 
 
 
-type AsyncAutoResetEvent () =
+type internal AsyncAutoResetEvent () =
   //http://blogs.msdn.com/b/pfxteam/archive/2012/02/11/10266923.aspx
   static let mutable s_completed = Task.FromResult(true)
   let m_waits = new Queue<TaskCompletionSource<bool>>()

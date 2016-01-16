@@ -93,6 +93,7 @@ type SortedMap<'K,'V>
   [<NonSerializedAttribute>]
   let isKeyReferenceType : bool = not typeof<'K>.IsValueType
   [<NonSerializedAttribute>]
+  [<Obsolete("rename to observer counter, also check if event do this automatically")>]
   let mutable cursorCounter : int = 1 // TODO either delete this or add decrement to cursor disposal
   [<NonSerializedAttribute>]
   let mutable rkStep_ : int64 = 0L // TODO review all usages
@@ -115,8 +116,7 @@ type SortedMap<'K,'V>
   let syncRoot = new Object()
   [<NonSerializedAttribute>]
   let mutable mapKey = ""
-  [<NonSerializedAttribute>]
-  let updateEvent = new Internals.EventV2<UpdateHandler<'K,'V>,KVP<'K,'V>>()
+
 
   // helper functions
   // TODO helper functions as inline methods
@@ -354,14 +354,15 @@ type SortedMap<'K,'V>
     if not keepVersion then orderVersion <- orderVersion + 1
     this.size <- this.size + 1
     this.version <- this.version + 1
-    if cursorCounter > 0 then updateEvent.Trigger(KVP(k,v))
+    if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
     
   member this.IsMutable 
     with get() = isMutable
     and set (value) = 
       if isMutable then 
         isMutable <- value
-        if not value && cursorCounter >0 then updateEvent.Trigger(Unchecked.defaultof<_>)
+        if not value && cursorCounter > 0 then 
+          this.onCompleteEvent.Trigger()
       else 
         if isMutable = value then () // NB same as not value
         else invalidOp "Cannot make immutable map mutable, the setter only supports on-way change from mutable to immutable"
@@ -623,7 +624,7 @@ type SortedMap<'K,'V>
           this.values.[lastIdx] <- v
           this.version <- this.version + 1
           orderVersion <- orderVersion + 1
-          if cursorCounter >0 then updateEvent.Trigger(KVP(k,v))
+          if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
           lastIdx
         elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
           this.Insert(this.size, k, v)
@@ -634,7 +635,7 @@ type SortedMap<'K,'V>
             this.values.[index] <- v
             this.version <- this.version + 1
             orderVersion <- orderVersion + 1
-            if cursorCounter >0 then updateEvent.Trigger(KVP(k,v))
+            if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
             index
           else
             this.Insert(~~~index, k, v)
@@ -730,10 +731,11 @@ type SortedMap<'K,'V>
       this.version <- this.version + 1
       orderVersion <- orderVersion + 1
 
-      if cursorCounter > 0 then 
+      if cursorCounter > 0 then
+        this.onErrorEvent.Trigger(NotImplementedException("TODO remove should trigger a special exception"))
         // on removal, the next valid value is the previous one and all downstreams must reposition and replay from it
-        if index > 0 then updateEvent.Trigger(this.GetPairByIndexUnchecked(index - 1)) // after removal (index - 1) is unchanged
-        else updateEvent.Trigger(Unchecked.defaultof<_>)
+//        if index > 0 then this.onNextEvent.Trigger(this.GetPairByIndexUnchecked(index - 1)) // after removal (index - 1) is unchanged
+//        else this.onNextEvent.Trigger(Unchecked.defaultof<_>)
     finally
       exitLockIf syncRoot entered
 
@@ -828,6 +830,7 @@ type SortedMap<'K,'V>
             raise (ApplicationException("wrong result of TryFindWithIndex with GT/GE direction"))
         | _ -> failwith "wrong direction"
     finally
+      this.onErrorEvent.Trigger(NotImplementedException("TODO remove should trigger a special exception"))
       exitLockIf syncRoot entered
     
   /// Returns the index of found KeyValuePair or a negative value:
@@ -1033,8 +1036,8 @@ type SortedMap<'K,'V>
 //      else 0L
     //diffCalc.Add(this.keys.[0], (int64 idx)*rkGetStep())
 
-    let updateHandler : UpdateHandler<'K,'V> = 
-      UpdateHandler(fun _ (kvp:KVP<'K,'V>) ->
+    let updateHandler : OnNextHandler<'K,'V> = 
+      OnNextHandler(fun (kvp:KVP<'K,'V>) ->
          
   //        if (this.Comparer.Compare(kvp.Key, this.CurrentKey) < 0) then 
   //          invalidOp "Out of order value. TODO handle it"
@@ -1091,9 +1094,9 @@ type SortedMap<'K,'V>
           | false ->
             match this.IsMutable with
             | true ->
-              let upd = this :> IUpdateable<'K,'V>
+              let upd = this :> IObservableEvents<'K,'V>
               if not !observerStarted then 
-                upd.OnData.AddHandler updateHandler
+                upd.add_OnNext updateHandler
                 observerStarted := true
                 taskCompleter := completeTcs()
               
@@ -1265,7 +1268,7 @@ type SortedMap<'K,'V>
           p.Reset()
           lock(sr) (fun _ ->
             if !observerStarted then
-              (this :> IUpdateable<'K,'V>).OnData.RemoveHandler(updateHandler)
+              (this :> IObservableEvents<'K,'V>).remove_OnNext(updateHandler)
           )
     }
   
@@ -1480,10 +1483,6 @@ type SortedMap<'K,'V>
 //        this.AddLast(i.Key, i.Value)
       //raise (NotImplementedException("TODO append impl"))
     
-  interface IUpdateable<'K,'V> with
-    [<CLIEvent>]
-    member x.OnData = updateEvent.Publish
-
   //#endregion
 
   //#region Constructors

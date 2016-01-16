@@ -308,7 +308,6 @@ namespace Spreads.Collections.Tests.Cursors {
             });
             var sm2 = new SortedMap<int, int>(new Dictionary<int, int>()
                 {
-
                     { 1, 2},
                     { 2, 4},
                     { 3, 6},
@@ -316,19 +315,18 @@ namespace Spreads.Collections.Tests.Cursors {
                     { 7, 14}
                 });
 
-
             var zipped = sm1.Repeat() + sm2.Repeat();
             var c1 = zipped.GetCursor();
             //Assert.IsFalse(c1.MoveNext());
             //Assert.IsFalse(c1.MoveFirst());
             var task = c1.MoveNext(CancellationToken.None);
 
-            sm1.Add(6, 1);
+            sm1.Add(7, 1);
             sm1.Add(8, 1);
             Thread.Sleep(50);
             task.Wait();
             Assert.AreEqual(TaskStatus.RanToCompletion, task.Status);
-            Assert.AreEqual(6, c1.CurrentKey);
+            Assert.AreEqual(7, c1.CurrentKey);
             Assert.AreEqual(15, c1.CurrentValue);
 
         }
@@ -1301,7 +1299,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         public void CouldZipContinuousInRealTimeWithOneShort() {
-            Assert.Fail("This test hangs");
+            Assert.Fail("This test often hangs, sometimes passes");
             var sm1 = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
@@ -1339,7 +1337,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sumCursor = series.Zip((k, varr) => varr.Sum()).GetCursor();
             var c = 0;
             while (c < 5 && sumCursor.MoveNext()) {
-                //Assert.AreEqual(c + 2, sumCursor.CurrentValue);
+                Assert.AreEqual(c + 2, sumCursor.CurrentValue);
                 totalSum += sumCursor.CurrentValue;
                 c++;
             }

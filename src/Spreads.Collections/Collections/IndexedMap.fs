@@ -76,8 +76,6 @@ type IndexedMap<'K,'V> // when 'K:equality
   [<NonSerializedAttribute>]
   let mutable mapKey = ""
 
-  let updateEvent = new Internals.EventV2<UpdateHandler<'K,'V>,KVP<'K,'V>>()
-
   do
     let tempCap = if capacity.IsSome then capacity.Value else 1
     if dictionary.IsNone then // otherwise we will set them in dict processing part
@@ -150,12 +148,15 @@ type IndexedMap<'K,'V> // when 'K:equality
     this.values.[index] <- v     
     version <- version + 1
     this.size <- this.size + 1
-    if cursorCounter >0 then updateEvent.Trigger(KVP(k,v))
+    if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
     
-  member this.IsMutable 
+  member this.IsMutable
     with get() = isMutable
-    and set (value) = 
-      if isMutable then isMutable <- value
+    and set (value) =
+      if isMutable then
+        isMutable <- value
+        if not value && cursorCounter > 0 then
+          this.onCompleteEvent.Trigger()
       else 
         if isMutable = value then () // NB same as not value
         else invalidOp "Cannot make immutable map mutable, the setter only supports on-way change from mutable to immutable"
@@ -390,14 +391,14 @@ type IndexedMap<'K,'V> // when 'K:equality
         if comparer.Compare(k, this.keys.[lastIdx]) = 0 then // key = last key
           this.values.[lastIdx] <- v
           version <- version + 1
-          if cursorCounter >0 then updateEvent.Trigger(KVP(k,v))
+          if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
           lastIdx
         else   
           let index = this.IndexOfKeyUnchecked(k)
           if index >= 0 then // contains key 
             this.values.[index] <- v
             version <- version + 1 
-            if cursorCounter > 0 then updateEvent.Trigger(KVP(k,v))
+            if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
             index     
           else
             this.Insert(~~~index, k, v)
@@ -453,10 +454,11 @@ type IndexedMap<'K,'V> // when 'K:equality
       this.size <- newSize
       version <- version + 1
 
-      if cursorCounter > 0 then 
-        // on removal, the next valid value is the previous one and all downstreams must reposition and replay from it
-        if index > 0 then updateEvent.Trigger(this.GetPairByIndexUnchecked(index - 1)) // after removal (index - 1) is unchanged
-        else updateEvent.Trigger(Unchecked.defaultof<_>)
+      if cursorCounter > 0 then
+        this.onErrorEvent.Trigger(NotImplementedException("TODO remove should trigger a special exception"))
+//        // on removal, the next valid value is the previous one and all downstreams must reposition and replay from it
+//        if index > 0 then this.onNextEvent.Trigger(this.GetPairByIndexUnchecked(index - 1)) // after removal (index - 1) is unchanged
+//        else this.onNextEvent.Trigger(Unchecked.defaultof<_>)
     finally
       exitLockIf syncRoot entered
 
@@ -1048,9 +1050,6 @@ type IndexedMap<'K,'V> // when 'K:equality
 //        this.AddLast(i.Key, i.Value)
       //raise (NotImplementedException("TODO append impl"))
     
-  interface IUpdateable<'K,'V> with
-    [<CLIEvent>]
-    member x.OnData = updateEvent.Publish
 
   //#endregion
 

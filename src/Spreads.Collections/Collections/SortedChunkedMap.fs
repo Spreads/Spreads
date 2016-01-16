@@ -46,13 +46,6 @@ type SortedChunkedMap<'K,'V>
   internal (outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>, comparer:IComparer<'K>, slicer:Func<'K,'K> option, ?chunkMaxSize:int) as this =
   inherit Series<'K,'V>()
 
-//  let mutable comparer : IComparer<'K> = 
-//    if Comparer<'K>.Default.Equals(comparer) then
-//      let kc = KeyComparer.GetDefault<'K>()
-//      if kc = Unchecked.defaultof<_> then Comparer<'K>.Default :> IComparer<'K> 
-//      else kc
-//    else comparer // do not try to replace with KeyComparer if a comparer was given
-
   // TODO serialize size, add a method to calculate size based on outerMap only
   [<NonSerializedAttribute>]
   let mutable size = 0L
@@ -82,9 +75,6 @@ type SortedChunkedMap<'K,'V>
   let outerMap = outerFactory(comparer)
   let mutable id = String.Empty
   
-  [<NonSerializedAttribute>]
-  let updateEvent = new Internals.EventV2<UpdateHandler<'K,'V>,KVP<'K,'V>>()
-
   [<NonSerializedAttribute>]
   let slicer : IKeySlicer<'K> = 
     match slicer with
@@ -152,7 +142,7 @@ type SortedChunkedMap<'K,'V>
     and set (value) = 
       if isMutable then 
         isMutable <- value
-        if not value && cursorCounter > 0 then updateEvent.Trigger(Unchecked.defaultof<_>)
+        if not value && cursorCounter > 0 then this.onCompleteEvent.Trigger()
       else 
         if isMutable = value then () // NB same as not value
         else invalidOp "Cannot make immutable map mutable, the setter only supports on-way change from mutable to immutable"
@@ -197,7 +187,7 @@ type SortedChunkedMap<'K,'V>
           version <- version + 1L
           let s2 = prevBucket.size
           size <- size + int64(s2 - s1)
-          if cursorCounter > 0 then updateEvent.Trigger(KVP(key,value))
+          if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
         else
           if prevBucketIsSet then
             //prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
@@ -218,7 +208,7 @@ type SortedChunkedMap<'K,'V>
           version <- version + 1L
           let s2 = bucket.size
           size <- size + int64(s2 - s1)
-          if cursorCounter > 0 then updateEvent.Trigger(KVP(key,value))
+          if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
           prevHash <- hash
           prevBucket <- bucket
           prevBucketIsSet <- true
@@ -230,7 +220,8 @@ type SortedChunkedMap<'K,'V>
     with get() = 
       let entered = enterLockIf this.SyncRoot this.IsSynchronized
       try
-        if this.IsEmpty then raise (InvalidOperationException("Could not get the first element of an empty map"))
+        if this.IsEmpty then 
+          raise (InvalidOperationException("Could not get the first element of an empty map"))
         let bucket = outerMap.First
         bucket.Value.First
       finally
@@ -555,7 +546,7 @@ type SortedChunkedMap<'K,'V>
         prevBucket.Add(subKey, value)
         version <- version + 1L
         size <- size + 1L
-        if cursorCounter > 0 then updateEvent.Trigger(KVP(key,value))
+        if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
       else
         if prevBucketIsSet then
           //prevBucket.Capacity <- prevBucket.Count // trim excess
@@ -573,7 +564,7 @@ type SortedChunkedMap<'K,'V>
             newSm
         version <- version + 1L
         size <- size + 1L
-        if cursorCounter > 0 then updateEvent.Trigger(KVP(key,value))
+        if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
         prevHash <- hash
         prevBucket <-  bucket
         prevBucketIsSet <- true
@@ -589,7 +580,10 @@ type SortedChunkedMap<'K,'V>
         else comparer.Compare(key, this.Last.Key)
       if c > 0 then
         this.Add(key, value)
-      else raise (ArgumentOutOfRangeException("New key is smaller or equal to the largest existing key"))
+      else
+        let exn = OutOfOrderKeyException(this.Last.Key, key, "New key is smaller or equal to the largest existing key")
+        this.onErrorEvent.Trigger(exn)
+        raise (exn)
     finally
       exitLockIf this.SyncRoot entered
 
@@ -602,7 +596,10 @@ type SortedChunkedMap<'K,'V>
         else comparer.Compare(key, this.First.Key)
       if c < 0 then 
         this.Add(key, value)
-      else raise (ArgumentOutOfRangeException("New key is larger or equal to the smallest existing key"))
+      else 
+        let exn = OutOfOrderKeyException(this.Last.Key, key, "New key is larger or equal to the smallest existing key")
+        this.onErrorEvent.Trigger(exn)
+        raise (exn)
     finally
       exitLockIf this.SyncRoot entered
 
@@ -625,7 +622,6 @@ type SortedChunkedMap<'K,'V>
           if prevBucket.size = 0 then
             outerMap.Remove(prevHash) |> ignore
             prevBucketIsSet <- false
-          if cursorCounter > 0 then updateEvent.Trigger(Unchecked.defaultof<_>)
         res
       else
         if prevBucketIsSet then 
@@ -646,11 +642,11 @@ type SortedChunkedMap<'K,'V>
             else
               outerMap.Remove(prevHash) |> ignore
               prevBucketIsSet <- false
-            if cursorCounter > 0 then updateEvent.Trigger(Unchecked.defaultof<_>)
           res
         else
             false
     finally
+      this.onErrorEvent.Trigger(NotImplementedException("TODO remove should trigger a special exception"))
       exitLockIf this.SyncRoot entered
 
   member this.RemoveFirst([<Out>]result: byref<KeyValuePair<'K, 'V>>):bool =
@@ -733,6 +729,7 @@ type SortedChunkedMap<'K,'V>
       if result then version <- version + 1L
       result
     finally
+      this.onErrorEvent.Trigger(NotImplementedException("TODO remove should trigger a special exception"))
       exitLockIf this.SyncRoot entered
 
   // TODO after checks, should form changed new chunks and use outer append method with rewrite
@@ -770,7 +767,10 @@ type SortedChunkedMap<'K,'V>
               c <- c + 1
               this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
             c
-          else invalidOp "values overlap with existing"
+          else 
+            let exn = SpreadsException("values overlap with existing")
+            this.onErrorEvent.Trigger(exn)
+            raise exn
         | AppendOption.DropOldOverlap ->
           if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
             let mutable c = 0
@@ -805,7 +805,10 @@ type SortedChunkedMap<'K,'V>
                   c <- c + 1
                 c
               else 0
-            else invalidOp "overlapping values are not equal" // TODO unit test
+            else 
+              let exn = SpreadsException("overlapping values are not equal")
+              this.onErrorEvent.Trigger(exn)
+              raise exn
         | AppendOption.RequireEqualOverlap ->
           if this.IsEmpty then
             let mutable c = 0
@@ -814,7 +817,9 @@ type SortedChunkedMap<'K,'V>
               this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
             c
           elif comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
-            invalidOp "values do not overlap with existing"
+            let exn = SpreadsException("values do not overlap with existing")
+            this.onErrorEvent.Trigger(exn)
+            raise exn
           else
             let isEqOverlap = hasEqOverlap this appendMap
             if isEqOverlap then
@@ -827,7 +832,10 @@ type SortedChunkedMap<'K,'V>
                   c <- c + 1
                 c
               else 0
-            else invalidOp "overlapping values are not equal" // TODO unit test
+            else 
+              let exn = SpreadsException("overlapping values are not equal")
+              this.onErrorEvent.Trigger(exn)
+              raise exn
         | _ -> failwith "Unknown AppendOption"
       finally
         this.Flush()
@@ -836,9 +844,6 @@ type SortedChunkedMap<'K,'V>
   member this.Id with get() = id and set(newid) = id <- newid
 
   //#region Interfaces
-  interface IUpdateable<'K,'V> with
-    [<CLIEvent>]
-    member x.OnData = updateEvent.Publish
 
   interface IEnumerable with
     member this.GetEnumerator() = this.GetCursor() :> IEnumerator

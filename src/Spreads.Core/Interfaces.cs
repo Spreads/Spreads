@@ -24,7 +24,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads.Experimental {
+namespace Spreads {
 
     // TODO ISeriesSegment that implements IReadOnlyCollection 
 
@@ -65,7 +65,7 @@ namespace Spreads.Experimental {
         /// <summary>
         /// Returns an async enumerator.
         /// </summary>
-        new IAsyncEnumerator<T> GetEnumerator();
+        IAsyncEnumerator<T> GetEnumerator();
     }
 
 
@@ -120,7 +120,8 @@ namespace Spreads.Experimental {
     public interface IPublisher<out T> : IObservable<T> {
         // We do not need to expose ISubscription to publisher, only subscriber could request new data
         // However, publisher could cancel a subscription via Dispose()
-        // new ISubscription Subscribe(IObserver<T> subscriber);
+        [Obsolete("Use typecheck in implementations")]
+        new ISubscription Subscribe(IObserver<T> subscriber);
     }
 
     public interface IDataStream<T> : IAsyncEnumerable<T>, IPublisher<T> { }
@@ -139,54 +140,63 @@ namespace Spreads.Experimental {
 
     // TODO This is not final. I am not sure that ICursor should implement ISeriesSubscriber
     // or ISeriesSubscription, we probably need some composition not inheritance
-    public interface ICursor<TKey, TValue>
-        : IAsyncEnumerator<KeyValuePair<TKey, TValue>>, ISeriesSubscriber<TKey, TValue>, ISeriesSubscription<TKey> {
+    //public interface ICursor<TKey, TValue>
+    //    : IAsyncEnumerator<KeyValuePair<TKey, TValue>>, ISeriesSubscriber<TKey, TValue>, ISeriesSubscription<TKey> {
 
-        IComparer<TKey> Comparer { get; }
-        IReadOnlyOrderedMap<TKey, TValue> CurrentBatch { get; }
-        TKey CurrentKey { get; }
-        TValue CurrentValue { get; }
-        bool IsContinuous { get; }
-        ISeries<TKey, TValue> Source { get; }
+    //    IComparer<TKey> Comparer { get; }
+    //    IReadOnlyOrderedMap<TKey, TValue> CurrentBatch { get; }
+    //    TKey CurrentKey { get; }
+    //    TValue CurrentValue { get; }
+    //    bool IsContinuous { get; }
+    //    ISeries<TKey, TValue> Source { get; }
 
-        ICursor<TKey, TValue> Clone();
-        bool MoveAt(TKey key, Lookup direction);
-        bool MoveFirst();
-        bool MoveLast();
-        Task<bool> MoveNextBatch(CancellationToken cancellationToken);
-        bool MovePrevious();
-        bool TryGetValue(TKey key, out TValue value);
+    //    ICursor<TKey, TValue> Clone();
+    //    bool MoveAt(TKey key, Lookup direction);
+    //    bool MoveFirst();
+    //    bool MoveLast();
+    //    Task<bool> MoveNextBatch(CancellationToken cancellationToken);
+    //    bool MovePrevious();
+    //    bool TryGetValue(TKey key, out TValue value);
+    //}
+
+
+    //public interface ISeries<TKey, TValue> : IPublisher<KeyValuePair<TKey, TValue>> {
+    //    bool IsIndexed { get; }
+    //    bool IsMutable { get; }
+    //    object SyncRoot { get; }
+
+    //    ICursor<TKey, TValue> GetCursor();
+
+    //    // IDisposable Subscribe(IObserver<T> observer);
+    //}
+
+    //public interface IReadOnlyOrderedMap<K, V> : ISeries<K, V> {
+    //    V this[K value] { get; }
+
+    //    IComparer<K> Comparer { get; }
+    //    KeyValuePair<K, V> First { get; }
+    //    bool IsEmpty { get; }
+    //    IEnumerable<K> Keys { get; }
+    //    KeyValuePair<K, V> Last { get; }
+    //    IEnumerable<V> Values { get; }
+
+    //    V GetAt(int idx);
+    //    bool TryFind(K key, Lookup direction, out KeyValuePair<K, V> value);
+    //    //bool TryGetFirst(out KeyValuePair<K, V> value);
+    //    //bool TryGetLast(out KeyValuePair<K, V> value);
+    //    bool TryGetValue(K key, out V value);
+    //}
+
+
+    internal delegate void OnNextHandler<K, V>(KeyValuePair<K, V> kvp);
+    internal delegate void OnCompleteHandler();
+    internal delegate void OnErrorHandler(Exception exception);
+
+    internal interface IObservableEvents<K, V> {
+        event OnNextHandler<K, V> OnNext;
+        event OnCompleteHandler OnComplete;
+        event OnErrorHandler OnError;
     }
-
-
-    public interface ISeries<TKey, TValue> : IPublisher<KeyValuePair<TKey, TValue>> {
-        bool IsIndexed { get; }
-        bool IsMutable { get; }
-        object SyncRoot { get; }
-
-        ICursor<TKey, TValue> GetCursor();
-
-        // IDisposable Subscribe(IObserver<T> observer);
-    }
-
-    public interface IReadOnlyOrderedMap<K, V> : ISeries<K, V> {
-        V this[K value] { get; }
-
-        IComparer<K> Comparer { get; }
-        KeyValuePair<K, V> First { get; }
-        bool IsEmpty { get; }
-        IEnumerable<K> Keys { get; }
-        KeyValuePair<K, V> Last { get; }
-        IEnumerable<V> Values { get; }
-
-        V GetAt(int idx);
-        bool TryFind(K key, Lookup direction, out KeyValuePair<K, V> value);
-        //bool TryGetFirst(out KeyValuePair<K, V> value);
-        //bool TryGetLast(out KeyValuePair<K, V> value);
-        bool TryGetValue(K key, out V value);
-    }
-
-
 
 
 

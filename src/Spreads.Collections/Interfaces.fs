@@ -28,23 +28,23 @@ open System.Threading.Tasks
 open System.Runtime.InteropServices
 
 
-/// Asynchronous version of the IEnumerator<T> interface, allowing elements to be retrieved asynchronously.
-[<Interface>]
-[<AllowNullLiteral>]
-type IAsyncEnumerator<'T> =
-  inherit System.IDisposable
-  inherit IEnumerator<'T>
-  /// Advances the enumerator to the next element in the sequence, returning the result asynchronously.
-  /// cancellationToken: Cancellation token that can be used to cancel the operation.
-  abstract member MoveNext : cancellationToken:CancellationToken -> Task<bool>
-
-/// Asynchronous version of the IEnumerable<T> interface, allowing elements of the enumerable sequence to be retrieved asynchronously.
-[<Interface>]
-[<AllowNullLiteral>]
-type IAsyncEnumerable<'T> =
-  inherit IEnumerable<'T>
-  /// Gets an asynchronous enumerator over the sequence.
-  abstract member GetEnumerator : unit -> IAsyncEnumerator<'T>
+///// Asynchronous version of the IEnumerator<T> interface, allowing elements to be retrieved asynchronously.
+//[<Interface>]
+//[<AllowNullLiteral>]
+//type IAsyncEnumerator<'T> =
+//  inherit System.IDisposable
+//  inherit IEnumerator<'T>
+//  /// Advances the enumerator to the next element in the sequence, returning the result asynchronously.
+//  /// cancellationToken: Cancellation token that can be used to cancel the operation.
+//  abstract member MoveNext : cancellationToken:CancellationToken -> Task<bool>
+//
+///// Asynchronous version of the IEnumerable<T> interface, allowing elements of the enumerable sequence to be retrieved asynchronously.
+//[<Interface>]
+//[<AllowNullLiteral>]
+//type IAsyncEnumerable<'T> =
+//  inherit IEnumerable<'T>
+//  /// Gets an asynchronous enumerator over the sequence.
+//  abstract member GetEnumerator : unit -> IAsyncEnumerator<'T>
 
 
 
@@ -277,13 +277,13 @@ type IImmutableOrderedMap<'K,'V> =
 //    abstract Identity : 'TId with get
 
 
-type internal UpdateHandler<'K,'V> = EventHandler<KVP<'K,'V>>
-[<AllowNullLiteral>]
-type internal IUpdateable<'K,'V> =
-  /// Fired after any data change with key for the first valid data (e.g. after delete, a previous key is returned)
-  [<CLIEvent>]
-  abstract member OnData : IDelegateEvent<UpdateHandler<'K,'V>>
-
+//type internal OnNextHandler<'K,'V> = EventHandler<KVP<'K,'V>>
+//[<AllowNullLiteral>]
+//type internal IUpdateable<'K,'V> =
+//  [<CLIEvent>]
+//  abstract member OnNext : IDelegateEvent<OnNextHandler<'K,'V>>
+////  [<CLIEvent>]
+////  abstract member OnComplete : IDelegateEvent<EventHandler>
 
 
 // TODO?? maybe this is enough? All other methods could be done as extensions??

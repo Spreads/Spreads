@@ -84,6 +84,20 @@ and
     
     let c = new ThreadLocal<_>(Func<_>(this.GetCursor), true) // 
 
+    [<NonSerializedAttribute>]
+    [<DefaultValueAttribute>]
+    val mutable internal onNextEvent : EventV2<OnNextHandler<'K,'V>,KVP<'K,'V>>
+    [<NonSerializedAttribute>]
+    [<DefaultValueAttribute>]
+    val mutable internal onCompleteEvent : EventV2<OnCompleteHandler,unit>
+    [<NonSerializedAttribute>]
+    [<DefaultValueAttribute>]
+    val mutable internal onErrorEvent : EventV2<OnErrorHandler,Exception>
+    do
+      this.onNextEvent <- new EventV2<OnNextHandler<'K,'V>,KVP<'K,'V>>()
+      this.onCompleteEvent <- new EventV2<OnCompleteHandler,unit>()
+      this.onErrorEvent <- new EventV2<OnErrorHandler,Exception>()
+
     /// Main method to override
     abstract GetCursor : unit -> ICursor<'K,'V>
    
@@ -188,6 +202,15 @@ and
       member this.Keys with get() = this.Keys 
       member this.Values with get() = this.Values
           
+
+    interface IObservableEvents<'K,'V> with
+      [<CLIEvent>]
+      member x.OnNext = this.onNextEvent.Publish
+      [<CLIEvent>]
+      member x.OnComplete = this.onCompleteEvent.Publish
+      [<CLIEvent>]
+      member x.OnError = this.onErrorEvent.Publish
+
 
     // TODO! (perf) add batching where it makes sense
     // TODO! (perf) how to use batching with selector combinations?
@@ -1228,15 +1251,17 @@ and
               let mutable i = 0
               for c in cursors do
                 let ii = i
-                let cc = c
-                c.Clone().MoveNext(ct).ContinueWith(fun (t:Task<bool>) ->
+                let cc = c.Clone()
+                cc.MoveNext(ct).ContinueWith(fun (t:Task<bool>) ->
                   let iii = ii
                   let ccc = cc
                   match t.Status with
                   | TaskStatus.RanToCompletion -> 
                     if t.Result then
                       if not movedKeysFlags.[iii] then 
-                        lock(movedKeys) (fun _ -> movedKeys.Add(KV(ccc.CurrentKey, iii)) |> ignore )
+                        lock(movedKeys) (fun _ -> 
+                          Console.WriteLine("Added key & i: " + ccc.CurrentKey.ToString() + " - " + iii.ToString())
+                          movedKeys.Add(KV(ccc.CurrentKey, iii)) |> ignore )
                       semaphore.Release() |> ignore
                     else
                       let decremented = Interlocked.Decrement(&liveCounter)

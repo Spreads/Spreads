@@ -212,6 +212,10 @@
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
       <Name>Spreads.Collections</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj">
+      <Project>{b2798c33-7901-4142-af96-66fd98ea3ac2}</Project>
+      <Name>Spreads.Core</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
