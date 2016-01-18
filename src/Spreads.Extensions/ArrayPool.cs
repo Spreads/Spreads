@@ -29,7 +29,7 @@ using System.Diagnostics;
 
 namespace Spreads {
 
-    public class DoubleArrayPool : IArrayPool {
+    public class BaseArrayPool : IArrayPool {
         // NB this must be a class to be stored in CWT
         // effectively we are doing the same as NetMQ counter, but instead of 
         // a wrapper struct we use CWT and instead of incrementing/decrementing 
@@ -44,7 +44,7 @@ namespace Spreads {
         private InternalBufferManager<byte>.PooledBufferManager _bytePool =
             new InternalBufferManager<byte>.PooledBufferManager(512 * 1024 * 1024, 128 * 1024 * 1024);
 
-        public T[] TakeBuffer<T>(int bufferCount) {
+        public virtual T[] TakeBuffer<T>(int bufferCount) {
             T[] buffer;
             bool doTrack = false;
             if (typeof(T) == typeof(double)) {
@@ -67,7 +67,7 @@ namespace Spreads {
             return buffer;
         }
 
-        public int ReturnBuffer<T>(T[] buffer) {
+        public virtual int ReturnBuffer<T>(T[] buffer) {
             AtomicCounter cnt;
             int ret = 0;
             if (_cwt.TryGetValue(buffer, out cnt)) {
@@ -90,12 +90,13 @@ namespace Spreads {
             return ret;
         }
 
-        public void Clear() {
+        public virtual void Clear() {
             _doublePool.Clear();
+            _bytePool.Clear();
         }
 
 
-        public int BorrowBuffer<T>(T[] buffer) {
+        public virtual int BorrowBuffer<T>(T[] buffer) {
             AtomicCounter cnt;
             if (_cwt.TryGetValue(buffer, out cnt)) {
                 var count = Interlocked.Increment(ref cnt.Count);
@@ -110,7 +111,7 @@ namespace Spreads {
             return 0;
         }
 
-        public int ReferenceCount<T>(T[] buffer) {
+        public virtual int ReferenceCount<T>(T[] buffer) {
             AtomicCounter cnt;
             if (_cwt.TryGetValue(buffer, out cnt)) {
                 return Interlocked.Add(ref cnt.Count, 0);

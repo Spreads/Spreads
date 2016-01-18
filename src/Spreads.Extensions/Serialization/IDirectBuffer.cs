@@ -221,5 +221,16 @@ namespace Spreads.Serialization
         /// Copy data and move the buffer to the new location
         /// </summary>
         IDirectBuffer Move(byte[] destination, int srcOffset, int destOffset, int length);
+
+        unsafe int InterlockedIncrementInt32(int index);
+        unsafe int InterlockedDecrementInt32(int index);
+        unsafe int InterlockedAddInt32(int index, int value);
+        unsafe int InterlockedReadInt32(int index);
+        unsafe int InterlockedCompareExchangeInt32(int index, int value, int comparand);
+        unsafe long InterlockedIncrementInt64(int index);
+        unsafe long InterlockedDecrementInt64(int index);
+        unsafe long InterlockedAddInt64(int index, long value);
+        unsafe long InterlockedReadInt64(int index);
+        unsafe long InterlockedCompareExchangeInt64(int index, long value, long comparand);
     }
 }

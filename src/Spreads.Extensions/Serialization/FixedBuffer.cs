@@ -21,6 +21,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Spreads.Serialization {
 
@@ -323,6 +324,86 @@ namespace Spreads.Serialization {
             fixed (byte* ptr = &_buffer[_offset])
             {
                 *(int*)(ptr + index) = value;
+            }
+        }
+
+        public int InterlockedIncrementInt32(int index) {
+            Assert(index, 4);
+            fixed (byte* ptr = &_buffer[_offset])
+            {
+                return Interlocked.Increment(ref *(int*)(ptr + index));
+            }
+        }
+
+        public int InterlockedDecrementInt32(int index) {
+            Assert(index, 4);
+            fixed (byte* ptr = &_buffer[_offset])
+            {
+                return Interlocked.Decrement(ref *(int*)(ptr + index));
+            }
+        }
+
+        public int InterlockedAddInt32(int index, int value) {
+            Assert(index, 4);
+            fixed (byte* ptr = &_buffer[_offset])
+            {
+                return Interlocked.Add(ref *(int*)(ptr + index), value);
+            }
+        }
+
+        public int InterlockedReadInt32(int index) {
+            Assert(index, 4);
+            fixed (byte* ptr = &_buffer[_offset])
+            {
+                return Interlocked.Add(ref *(int*)(ptr + index), 0);
+            }
+        }
+
+        public int InterlockedCompareExchangeInt32(int index, int value, int comparand) {
+            Assert(index, 4);
+            fixed (byte* ptr = &_buffer[_offset])
+            {
+                return Interlocked.CompareExchange(ref *(int*)(ptr + index), value, comparand);
+            }
+        }
+
+        public long InterlockedIncrementInt64(int index) {
+            Assert(index, 8);
+            fixed (byte* ptr = &_buffer[_offset])
+            {
+                return Interlocked.Increment(ref *(long*)(ptr + index));
+            }
+        }
+
+        public long InterlockedDecrementInt64(int index) {
+            Assert(index, 8);
+            fixed (byte* ptr = &_buffer[_offset])
+            {
+                return Interlocked.Decrement(ref *(long*)(ptr + index));
+            }
+        }
+
+        public long InterlockedAddInt64(int index, long value) {
+            Assert(index, 8);
+            fixed (byte* ptr = &_buffer[_offset])
+            {
+                return Interlocked.Add(ref *(long*)(ptr + index), value);
+            }
+        }
+
+        public long InterlockedReadInt64(int index) {
+            Assert(index, 8);
+            fixed (byte* ptr = &_buffer[_offset])
+            {
+                return Interlocked.Add(ref *(long*)(ptr + index), 0);
+            }
+        }
+
+        public long InterlockedCompareExchangeInt64(int index, long value, long comparand) {
+            Assert(index, 8);
+            fixed (byte* ptr = &_buffer[_offset])
+            {
+                return Interlocked.CompareExchange(ref *(long*)(ptr + index), value, comparand);
             }
         }
 

@@ -20,6 +20,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Spreads.Serialization {
 
@@ -214,6 +215,56 @@ namespace Spreads.Serialization {
         public void WriteInt32(int index, int value) {
             Assert(index, 4);
             *(int*)(_data + index) = value;
+        }
+
+        public int InterlockedIncrementInt32(int index) {
+            Assert(index, 4);
+            return Interlocked.Increment(ref *(int*)(_data + index));
+        }
+
+        public int InterlockedDecrementInt32(int index) {
+            Assert(index, 4);
+            return Interlocked.Decrement(ref *(int*)(_data + index));
+        }
+
+        public int InterlockedAddInt32(int index, int value) {
+            Assert(index, 4);
+            return Interlocked.Add(ref *(int*)(_data + index), value);
+        }
+
+        public int InterlockedReadInt32(int index) {
+            Assert(index, 4);
+            return Interlocked.Add(ref *(int*)(_data + index), 0);
+        }
+
+        public int InterlockedCompareExchangeInt32(int index, int value, int comparand) {
+            Assert(index, 4);
+            return Interlocked.CompareExchange(ref *(int*)(_data + index), value, comparand);
+        }
+
+        public long InterlockedIncrementInt64(int index) {
+            Assert(index, 8);
+            return Interlocked.Increment(ref *(long*)(_data + index));
+        }
+
+        public long InterlockedDecrementInt64(int index) {
+            Assert(index, 8);
+            return Interlocked.Decrement(ref *(long*)(_data + index));
+        }
+
+        public long InterlockedAddInt64(int index, long value) {
+            Assert(index, 8);
+            return Interlocked.Add(ref *(long*)(_data + index), value);
+        }
+
+        public long InterlockedReadInt64(int index) {
+            Assert(index, 8);
+            return Interlocked.Add(ref *(long*)(_data + index), 0);
+        }
+
+        public long InterlockedCompareExchangeInt64(int index, long value, long comparand) {
+            Assert(index, 8);
+            return Interlocked.CompareExchange(ref *(long*)(_data + index), value, comparand);
         }
 
         /// <summary>

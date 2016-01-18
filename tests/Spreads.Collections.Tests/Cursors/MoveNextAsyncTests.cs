@@ -212,7 +212,7 @@ namespace Spreads.Collections.Tests.Cursors {
         [Test]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_spinwait() {
 
-            OptimizationSettings.ArrayPool = new DoubleArrayPool();
+            OptimizationSettings.ArrayPool = new BaseArrayPool();
 
 
             for (int r = 0; r < 10; r++) {
