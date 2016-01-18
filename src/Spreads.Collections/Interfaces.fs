@@ -148,11 +148,6 @@ and
     abstract TryGetValue: key:'K * [<Out>] value: byref<'V> -> bool
 
 
-// TODO for chains of batch operation it is a quetion how to minimize allocations:
-// one simple strategy is to check if the batch is SortedMap and check if it is read-only or not
-// that will require changes to SortedMap - a constructor that uses references to keys/values 
-// and not copies them or uses another SM as a source and blocks all write methods.
-
 /// NB! 'Read-only' doesn't mean that the object is immutable or not changing. It only means
 /// that there is no methods to change the map *from* this interface, without any assumptions about 
 /// the implementation. Underlying sequence could be mutable and rapidly changing; to prevent any 

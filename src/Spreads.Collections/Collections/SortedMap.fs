@@ -76,7 +76,7 @@ type SortedMap<'K,'V>
   /// data version
   [<DefaultValueAttribute>] 
   val mutable internal version : int // enumeration doesn't lock but checks this.version
-  
+  // isMutable as field
   /// used for cursors, incremented on any out of order data change that require a cursor either to throw to to recover with repositioning
   [<NonSerializedAttribute>]
   let mutable orderVersion : int = 0
@@ -110,7 +110,7 @@ type SortedMap<'K,'V>
   let mutable rkLast = Unchecked.defaultof<'K>
   [<NonSerializedAttribute>]
   let mutable isSynchronized : bool = false
-  [<NonSerializedAttribute>]
+  // NB it is serializable
   let mutable isMutable : bool = true
   [<NonSerializedAttribute>]
   let syncRoot = new Object()

@@ -1632,12 +1632,12 @@ and
                   #if PRERELEASE
                   Trace.Assert(c > 0)
                   #endif
-                  if c < 0 then
-                    discreteKeysSet.Add(initialPosition)
-                    loop(false)
-                  else
-                    onMoved()
-                  
+//                  if c < 0 then
+//                    discreteKeysSet.Add(initialPosition)
+//                    loop(false)
+//                  else
+                  onMoved()
+
             let awaiter = sourceMoveTask.GetAwaiter()
             // NB! do not block, use a callback
             awaiter.OnCompleted(fun _ ->
@@ -1651,16 +1651,6 @@ and
                 else
                   tcs.SetException(sourceMoveTask.Exception)
             )
-//            sourceMoveTask.ContinueWith( (fun (antecedant2 : Task<bool>) ->
-//              if sourceMoveTask.Status = TaskStatus.RanToCompletion then
-//                onCompleted()
-//              else
-//                discreteKeysSet.Add(initialPosition) // TODO! Add/remove only when needed
-//                if sourceMoveTask.Status = TaskStatus.Canceled then
-//                  tcs.SetException(OperationCanceledException())
-//                else
-//                  tcs.SetException(sourceMoveTask.Exception)
-//            )) |> ignore
       loop(true)
       returnTask
 
@@ -1673,7 +1663,9 @@ and
     member val CurrentKey = Unchecked.defaultof<'K> with get, set
 
     // NB lazy application of resultSelector, only when current value is requested
-    member this.CurrentValue with get() = resultSelector.Invoke(this.CurrentKey, currentValues)
+    member this.CurrentValue with get() = 
+      // TODO lazy 
+      resultSelector.Invoke(this.CurrentKey, currentValues)
 
     member this.Current with get () = KVP(this.CurrentKey, this.CurrentValue)
 
