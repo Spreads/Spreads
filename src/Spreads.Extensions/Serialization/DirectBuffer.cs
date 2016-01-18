@@ -217,6 +217,26 @@ namespace Spreads.Serialization {
             *(int*)(_data + index) = value;
         }
 
+        public int VolatileReadInt32(int index) {
+            Assert(index, 4);
+            return Volatile.Read(ref * (int*)(_data + index));
+        }
+
+        public void VolatileWriteInt32(int index, int value) {
+            Assert(index, 4);
+            Volatile.Write(ref *(int*)(_data + index), value);
+        }
+
+        public int VolatileReadInt64(int index) {
+            Assert(index, 8);
+            return Volatile.Read(ref *(int*)(_data + index));
+        }
+
+        public void VolatileWriteInt64(int index, int value) {
+            Assert(index, 8);
+            Volatile.Write(ref *(int*)(_data + index), value);
+        }
+
         public int InterlockedIncrementInt32(int index) {
             Assert(index, 4);
             return Interlocked.Increment(ref *(int*)(_data + index));

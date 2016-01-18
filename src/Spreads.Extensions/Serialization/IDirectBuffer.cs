@@ -232,5 +232,9 @@ namespace Spreads.Serialization
         unsafe long InterlockedAddInt64(int index, long value);
         unsafe long InterlockedReadInt64(int index);
         unsafe long InterlockedCompareExchangeInt64(int index, long value, long comparand);
+        unsafe int VolatileReadInt32(int index);
+        unsafe void VolatileWriteInt32(int index, int value);
+        unsafe int VolatileReadInt64(int index);
+        unsafe void VolatileWriteInt64(int index, int value);
     }
 }
