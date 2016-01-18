@@ -287,7 +287,6 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm2 = new SortedMap<int, int>();
             sm1.Complete();
             sm2.Complete();
-
             var zipped = sm1.Repeat() + sm2.Repeat();
             var c1 = zipped.GetCursor();
             Assert.IsFalse(sm1.GetCursor().MoveNext(CancellationToken.None).Result);
@@ -1034,7 +1033,7 @@ namespace Spreads.Collections.Tests.Cursors {
                 }
 
                 sm1.Complete(); // stop mutating
-                                       //Console.WriteLine("Set immutable");
+                                //Console.WriteLine("Set immutable");
             });
 
             Task.Run(() => {
@@ -1046,7 +1045,7 @@ namespace Spreads.Collections.Tests.Cursors {
                 }
 
                 sm2.Complete(); // stop mutating
-                                       //Console.WriteLine("Set immutable");
+                                //Console.WriteLine("Set immutable");
             });
 
             // this test measures isolated performance of ZipN, without ToSortedMap
@@ -1294,7 +1293,6 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         public void CouldZipContinuousInRealTimeWithOneShort() {
-            //Assert.Fail("This test often hangs, sometimes passes");
             var sm1 = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
@@ -1351,10 +1349,18 @@ namespace Spreads.Collections.Tests.Cursors {
 
         }
 
+        [Test]
+        public void CouldZipManyContinuousInRealTimeManyRounds() {
+            for (int i = 0; i < 10; i++) {
+                CouldZipManyContinuousInRealTime();
+            }
+        }
 
         [Test]
         public void CouldZipManyContinuousInRealTime() {
-
+            //Assert.Inconclusive();
+            //Trace.TraceWarning("volkswagening: this test hangs when started together with ZipN tests");
+            //return;
             var sm1 = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
@@ -1365,26 +1371,28 @@ namespace Spreads.Collections.Tests.Cursors {
                 sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
             }
 
-            Task.Run(() => {
-                Thread.Sleep(1000);
-                for (int i = count; i < count * 2; i++) {
-                    sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
-                    //Thread.Sleep(50);
+            var t1 = Task.Run(() => {
+                try {
+                    Thread.Sleep(1000);
+                    for (int i = count; i < count * 2; i++) {
+                        sm1.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                    }
+                } finally {
+                    sm1.Complete();
+                    Console.WriteLine("sm1.Complete()");
                 }
-
-                sm1.Complete(); // stop mutating
-                //Console.WriteLine("Set immutable");
             });
 
-            Task.Run(() => {
-                Thread.Sleep(950);
-                for (int i = count; i < count * 2; i++) {
-                    sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
-                    //Thread.Sleep(50);
+            var t2 = Task.Run(() => {
+                try {
+                    Thread.Sleep(950);
+                    for (int i = count; i < count * 2; i++) {
+                        sm2.Add(DateTime.UtcNow.Date.AddSeconds(i), i * 3);
+                    }
+                } finally {
+                    sm2.Complete();
+                    Console.WriteLine("sm2.Complete()");
                 }
-
-                sm2.Complete(); // stop mutating
-                //Console.WriteLine("Set immutable");
             });
 
             // this test measures isolated performance of ZipN, without ToSortedMap
@@ -1404,16 +1412,24 @@ namespace Spreads.Collections.Tests.Cursors {
                 c++;
             }
 
-            while (sumCursor.MoveNext(CancellationToken.None).Result) {
-                //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
-                //Console.WriteLine("Value: " + sumCursor.CurrentValue);
-                totalSum += sumCursor.CurrentValue;
-                c++;
-            }
+            var t3 = Task.Run(async () =>
+            {
+                var previous = sumCursor.CurrentKey;
+                while (await sumCursor.MoveNext(CancellationToken.None)) {
+                    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
+                    //Console.WriteLine("Value: " + sumCursor.CurrentValue);
+                    totalSum += sumCursor.CurrentValue;
+                    c++;
+                    Assert.IsTrue(sumCursor.CurrentKey > previous, "Next key is less than previous");
+                    previous = sumCursor.CurrentKey;
+                }
+            });
+            Task.WaitAll(t1, t2, t3);
             sw.Stop();
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
             Console.WriteLine("Total sum: {0}", totalSum);
-
+            Assert.AreEqual(count * 2, sm1.Count);
+            Assert.AreEqual(count * 2, sm2.Count);
 
         }
 
@@ -1422,6 +1438,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         public void ContinuousZipIsCorrectByConstrcution() {
+            var count = 10;
+
             var sw = new Stopwatch();
 
             var sm1 = new SortedMap<int, int>();
@@ -1429,7 +1447,7 @@ namespace Spreads.Collections.Tests.Cursors {
             sm1.Add(0, 0);
             sm2.Add(0, 0);
 
-            for (int i = 2; i < 50; i = i + 2) {
+            for (int i = 2; i < count; i = i + 2) {
                 sm1.Add(i, i);
                 sm2.Add(i + 1, i);
             }
@@ -1445,7 +1463,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
             sw.Stop();
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
-            for (int i = 2; i < 50; i = i + 2) {
+            for (int i = 2; i < count; i = i + 2) {
                 Assert.AreEqual(i * 2 - 2, sum[i]);
             }
 
@@ -1742,6 +1760,45 @@ namespace Spreads.Collections.Tests.Cursors {
             }
 
             Console.WriteLine("");
+        }
+
+
+        [Test]
+        public void UnionKeysTest() {
+            var sm1 = new SortedMap<int, int>();
+            var sm2 = new SortedMap<int, int>();
+            var zip = sm1.Repeat() + sm2.Repeat();
+            var c = zip.GetCursor();
+
+
+            sm1.Add(1, 1);
+            Assert.IsFalse(c.MoveNext());
+            sm2.Add(0, 0);
+            Assert.IsTrue(c.MoveNext());
+            Assert.AreEqual(1, c.CurrentKey);
+
+            sm1.Add(0, 0);
+            Assert.IsFalse(c.MoveNext());
+            Assert.IsTrue(c.MovePrevious());
+            Assert.AreEqual(0, c.CurrentKey);
+            Assert.IsFalse(c.MovePrevious());
+            Assert.IsTrue(c.MoveNext());
+            Assert.AreEqual(1, c.CurrentKey);
+
+            sm1.Add(3, 3);
+            Assert.IsTrue(c.MoveNext());
+            Assert.AreEqual(3, c.CurrentKey);
+            Assert.AreEqual(3, c.CurrentValue);
+
+            var t = Task.Run(async () => {
+                return await c.MoveNext(CancellationToken.None);
+            });
+            Thread.Sleep(15);
+            sm2.Add(4, 4);
+            Assert.IsTrue(t.Wait(50));
+            Assert.IsTrue(t.Result);
+            Assert.AreEqual(4, c.CurrentKey);
+            Assert.AreEqual(7, c.CurrentValue);
         }
 
     }

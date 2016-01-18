@@ -1,3 +1,8 @@
+#### 0.3.0 - January 18, 2016
+* Fix ZipN known bugs and edge cases;
+* Series implement IObservable interface;
+* Benchmark for index example from readme.
+
 #### 0.2.7 - January 12, 2016
 * Stabilize ZipN and continuous series behavior #1 & #10;
 * Fix Range MoveNextAsync;

@@ -38,7 +38,7 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
  
   let cursor = cursorFactory.Invoke()
   let mutable lookupCursor = Unchecked.defaultof<ICursor<'K,'V>>
-  let mutable lookupMoved = false
+  let mutable previous : KVP<'K,'V> = Unchecked.defaultof<_>
   member this.Clone() = new RepeatCursor<'K,'V>(fun _ -> cursor.Clone())
 
   interface ICursor<'K,'V> with
@@ -54,8 +54,10 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
     member this.MoveAt(key: 'K, direction: Lookup): bool = cursor.MoveAt(key, direction)
     member this.MoveFirst(): bool = cursor.MoveFirst()
     member this.MoveLast(): bool = cursor.MoveLast()
-    member this.MoveNext(cancellationToken: CancellationToken): Task<bool> = cursor.MoveNext(cancellationToken)
-    member this.MoveNext(): bool = cursor.MoveNext()
+    member this.MoveNext(cancellationToken: CancellationToken): Task<bool> = 
+      cursor.MoveNext(cancellationToken)
+    member this.MoveNext(): bool = 
+      cursor.MoveNext()
     member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = cursor.MoveNextBatch(cancellationToken)
     member this.MovePrevious(): bool = cursor.MovePrevious()
     member this.Reset(): unit = cursor.Reset()
@@ -63,43 +65,21 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
     member this.TryGetValue(key: 'K, value: byref<'V>): bool =
       // TODO (perf) optimize the case when key is below the previous one
       if lookupCursor = Unchecked.defaultof<ICursor<'K,'V>> then lookupCursor <- cursor.Clone()
-
-      // TODO rewrite this
-      if lookupMoved then
-        if lookupCursor.Comparer.Compare(key, lookupCursor.CurrentKey) >= 0 then
-          if lookupCursor.MoveNext() then
-            if lookupCursor.Comparer.Compare(key, lookupCursor.CurrentKey) <= 0 then
-              value <- lookupCursor.CurrentValue
-              true
-            elif lookupCursor.MoveAt(key, Lookup.LE) then
-              value <- lookupCursor.CurrentValue
-              true
-            else false
-          else
-            value <- lookupCursor.CurrentValue
-            true
-        else
-          if lookupCursor.MovePrevious() && lookupCursor.Comparer.Compare(key, lookupCursor.CurrentKey) >= 0 then 
-            value <- lookupCursor.CurrentValue
-            true
-          else
-            if lookupCursor.MoveAt(key, Lookup.LE) then
-              value <- lookupCursor.CurrentValue
-              true
-            else false
-      else
-
+      if cursor.IsContinuous then 
         let ok, v = lookupCursor.TryGetValue(key)
         if ok then
           value <- v
           true
         else
           if lookupCursor.MoveAt(key, Lookup.LE) then
-            lookupMoved <- true
             value <- lookupCursor.CurrentValue
             true
           else false
-
+      else
+        if lookupCursor.MoveAt(key, Lookup.LE) then
+          value <- lookupCursor.CurrentValue
+          true
+        else false
 
   // Repeat().Map() is equivalent to Map().Repeat()
   interface ICanMapSeriesValues<'K,'V> with
@@ -140,6 +120,39 @@ type internal FillCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, fillValue:'V
         value <- v
       else
         value <- fillValue
+      true
+
+
+// TODO Setter must trigger move next
+type internal ConstantCursor<'K,'V>(fillValue:KVP<'K,'V>) =
+ 
+  let mutable fillValue = fillValue
+
+  member this.Value with get() = fillValue and set(v) = fillValue <- v
+
+  member this.Clone() = new ConstantCursor<'K,'V>(fillValue)
+
+  interface ICursor<'K,'V> with
+    member this.Clone(): ICursor<'K,'V> = this.Clone() :> ICursor<'K,'V>
+    member this.Comparer: IComparer<'K> = KeyComparer.GetDefault<'K>()
+    member this.Current: KVP<'K,'V> = fillValue
+    member this.Current: obj = fillValue :> obj
+    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = Unchecked.defaultof<_>
+    member this.CurrentKey: 'K = fillValue.Key
+    member this.CurrentValue: 'V = fillValue.Value
+    member this.Dispose(): unit = ()
+    member this.IsContinuous: bool = true
+    member this.MoveAt(key: 'K, direction: Lookup): bool = true
+    member this.MoveFirst(): bool = true
+    member this.MoveLast(): bool = true
+    member this.MoveNext(cancellationToken: CancellationToken): Task<bool> = Task.FromResult(true)
+    member this.MoveNext(): bool = true
+    member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = Task.FromResult(false)
+    member this.MovePrevious(): bool = true
+    member this.Reset(): unit = ()
+    member this.Source: ISeries<'K,'V> = new CursorSeries<'K,'V>(fun _ -> new ConstantCursor<'K,'V>(fillValue) :> ICursor<'K,'V>) :> ISeries<'K,'V>
+    member this.TryGetValue(key: 'K, value: byref<'V>): bool =
+      value <- fillValue.Value
       true
 
   // Fill().Map() is equivalent to Map().Fill() // See issue #10 before turning this on

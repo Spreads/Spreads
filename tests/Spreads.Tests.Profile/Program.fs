@@ -84,7 +84,7 @@ let main argv =
 //
 //  circular.Execute()
 //  CollectionsBenchmarks.SeriesNestedMap_run()
-  (Spreads.Tests.Series.CircularTestsModule()).``Circular Calculations Work``()
+  (Spreads.Tests.Series.ReadmeTestsModule()).CouldCalculateSimpleIndexInRealTime()
   Console.ReadLine();
   printfn "%A" argv
   0

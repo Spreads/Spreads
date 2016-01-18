@@ -65,7 +65,7 @@
     <Compile Include="Collections\SortedMapTests.fs" />
     <Compile Include="Benchmarks.fs" />
     <Compile Include="Series.Tests.fs" />
-    <Compile Include="CircularTests.fs" />
+    <Compile Include="ReadmeTests.fs" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

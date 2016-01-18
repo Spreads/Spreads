@@ -78,14 +78,14 @@ and
 
 
 [<SerializableAttribute>]
-type SortedDeque<'T> private(comparer:IComparer<'T>, capacity:int) as this=
+type SortedDeque<'T> (comparer:IComparer<'T>) as this=
   [<DefaultValue>] val mutable internal comparer : IComparer<'T> 
   [<DefaultValue>] val mutable internal buffer : 'T[]
   [<DefaultValue>] val mutable internal count : int
   [<DefaultValue>] val mutable internal firstOffset : int
   do
     this.comparer <- if comparer = null then Comparer<'T>.Default :> IComparer<'T> else comparer
-    this.buffer <- Array.zeroCreate capacity
+    this.buffer <- Array.zeroCreate 2
 
   /// Sets the total number of elements the internal array can hold without resizing.
   let doubleCapacity() = 
@@ -105,8 +105,8 @@ type SortedDeque<'T> private(comparer:IComparer<'T>, capacity:int) as this=
     this.buffer <- copyBuffer newCapacity
     this.firstOffset <- 0
 
-  new() = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>(), 2)
-  new(comparer:IComparer<'T>) = new SortedDeque<'T>(comparer, 2)
+  new() = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>())
+  //new(comparer:IComparer<'T>) = new SortedDeque<'T>(comparer)
   //new(capacity) = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>(), capacity)
 
   member inline internal this.IndexToOffset(index) = 

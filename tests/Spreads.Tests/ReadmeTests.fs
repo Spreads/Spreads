@@ -13,10 +13,10 @@ open Spreads.Collections
 open Spreads.Collections.Experimental
 open System.Threading
 
-type CircularTestsModule() =
+type ReadmeTestsModule() =
     
   [<Test>]
-  member this.``Circular Calculations Work``() =
+  member this.CouldCalculateSimpleIndexInRealTime() =
     let numQuoteSources = 500
 
     let cts = new CancellationTokenSource()
@@ -59,7 +59,7 @@ type CircularTestsModule() =
 
         let task = async {
                         while not ct.IsCancellationRequested do
-                            do! Async.Sleep 1 //gapMillisecs
+                            do! Async.Sleep gapMillisecs
                             let time = DateTime.UtcNow
                             Interlocked.Increment(totalInputs) |> ignore
                             Interlocked.Increment(chunkInputs) |> ignore

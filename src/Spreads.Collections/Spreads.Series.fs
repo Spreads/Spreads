@@ -116,16 +116,21 @@ and
         let subscription : ISubscription = Unchecked.defaultof<_>
         subscription :> IDisposable
       | _ ->
-        this.onNextEvent.Publish.AddHandler(OnNextHandler(observer.OnNext))
-        let completedHandler = OnCompletedHandler(fun isCompleted -> if isCompleted then observer.OnCompleted())
-        this.onCompletedEvent.Publish.AddHandler(completedHandler)
-        this.onErrorEvent.Publish.AddHandler(OnErrorHandler(observer.OnError))
-        { new IDisposable with
-            member x.Dispose() = 
-              this.onNextEvent.Publish.RemoveHandler(OnNextHandler(observer.OnNext))
-              this.onCompletedEvent.Publish.RemoveHandler(completedHandler)
-              this.onErrorEvent.Publish.RemoveHandler(OnErrorHandler(observer.OnError))
-        }
+        // TODO locks in Complete() and Subscribe()
+        if this.IsMutable then
+          this.onNextEvent.Publish.AddHandler(OnNextHandler(observer.OnNext))
+          let completedHandler = OnCompletedHandler(fun isCompleted -> if isCompleted then observer.OnCompleted())
+          this.onCompletedEvent.Publish.AddHandler(completedHandler)
+          this.onErrorEvent.Publish.AddHandler(OnErrorHandler(observer.OnError))
+          { new IDisposable with
+              member x.Dispose() = 
+                this.onNextEvent.Publish.RemoveHandler(OnNextHandler(observer.OnNext))
+                this.onCompletedEvent.Publish.RemoveHandler(completedHandler)
+                this.onErrorEvent.Publish.RemoveHandler(OnErrorHandler(observer.OnError))
+          }
+        else
+          observer.OnCompleted()
+          DummyDisposable.Instance
 
     /// Locks any mutations for mutable implementations
     member this.SyncRoot 
@@ -1048,8 +1053,6 @@ and
 
 and
   private UnionKeysCursor<'K,'V>([<ParamArray>] cursors:ICursor<'K,'V>[]) =
-    // TODO out of order keys handling here
-    // we could throw a special exception or ignore them and move to frontier
     let cmp = 
       let c' = cursors.[0].Comparer
       for c in cursors do
@@ -1063,6 +1066,7 @@ and
     // Live counter shows how many cont cursor not yet returned false on MoveNextAsync
     let mutable liveCounter = cursors.Length
     let mutable subscriptions : IDisposable[] = Unchecked.defaultof<_> 
+    let mutable outOfOrderKeys : SortedDeque<'K> = Unchecked.defaultof<_>
     // Same meaning as in BingCursor: we have at least one sucessful move and some state for further moves
     let mutable hasValidState = false
 
@@ -1310,10 +1314,18 @@ and
     member this.MoveNext(ct): Task<bool> =
       let mutable tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create() //new TaskCompletionSource<_>() //
       let returnTask = tcs.Task // NB! must access this property first
-      let rec loop() = 
-        if this.MoveNext() then
+      let rec loop() =
+        // we make null comparison even when outOfOrderKeys is empty, and this is a hot path
+        // TODO add OOO keys counter or always allocate SD - but counter could take 4 bytes only, while SD is an object with 16+ bytes overhead
+        if outOfOrderKeys <> Unchecked.defaultof<_> && outOfOrderKeys.Count > 0 then
+          lock (outOfOrderKeys) (fun _ -> 
+            this.CurrentKey <- outOfOrderKeys.RemoveFirst()
+            tcs.SetResult(true)
+          )
+        elif this.MoveNext() then
           tcs.SetResult(true)
-          ()
+        elif Interlocked.Add(&liveCounter, 0) = 0 then
+          tcs.SetResult(false)
         else
           if semaphore = Unchecked.defaultof<_> then
             semaphore <- new SemaphoreSlim(0)
@@ -1323,34 +1335,48 @@ and
                 let ii = i
                 let cc = c.Clone()
                 let sourceObserver = { new IObserver<KVP<'K,'V>> with
-                    member x.OnNext(kvp) = semaphore.Release() |> ignore
+                    member x.OnNext(kvp) = 
+                      // We must compare a key to the current key and if
+                      // kvp.Key is LE that the current one, we should store it
+                      // in an out-of-order deque. Then we should check OOO deque and 
+                      // consume it. Because OOO deque grows only when new key if LE 
+                      // the current one, it is bounded by construction.
+                      // Union key then could return repeated keys and OOO keys,
+                      // and it is ZipNs responsibility to handle these cases
+                      if cmp.Compare(kvp.Key, this.CurrentKey) <= 0 then
+                        if outOfOrderKeys = Unchecked.defaultof<_> then outOfOrderKeys <- SortedDeque(cmp)
+                        lock (outOfOrderKeys) (fun _ -> 
+                          // TODO check this, add perf counters for frequence and max size
+                          //if not <| outOfOrderKeys.TryAdd(kvp.Key) then
+                          //  Console.WriteLine(kvp.Key.ToString() + " - " + kvp.Value.ToString() )
+                          outOfOrderKeys.TryAdd(kvp.Key) |> ignore
+                        )
+                      semaphore.Release() |> ignore
                     member x.OnCompleted() =
                       let decremented = Interlocked.Decrement(&liveCounter)
                       if decremented = 0 then semaphore.Release() |> ignore
                     member x.OnError(exn) = ()
                 }
-                // TODO dispose it
                 subscriptions.[i] <- c.Source.Subscribe(sourceObserver)
                 i <- i + 1
           let semaphorePeek = semaphore.Wait(0)
           if semaphorePeek then
+            // TODO check for live count here
             loop()
           else
-            // initial count was zero, could return here only after at least one clone moved
-            // if several moved we do not care because if that affects MoveNext() we won't restart 
-            let semaphoreTask = semaphore.WaitAsync(-1, ct)
+            // initial count was zero, could return here only after at least one cursor moved
+            let semaphoreTask = semaphore.WaitAsync(50, ct) // TODO return back -1
             let awaiter = semaphoreTask.GetAwaiter()
             awaiter.OnCompleted(fun _ -> 
               match semaphoreTask.Status with
               | TaskStatus.RanToCompletion -> 
                 let signal = semaphoreTask.Result
-                if not signal || Interlocked.Add(&liveCounter, 0) = 0 then
+                if Interlocked.Add(&liveCounter, 0) = 0 then
                   ct.ThrowIfCancellationRequested()
                   tcs.SetResult(false)
-                  ()
                 else
                   loop()
-              | _ -> failwith "TODO remove task{} and process all task results"
+              | _ -> failwith "TODO process all task results"
               ()
             )
       loop()
@@ -1543,18 +1569,23 @@ and
       let mutable firstStep = ref true
       let mutable sourceMoveTask = Unchecked.defaultof<_>
       let mutable initialPosition = Unchecked.defaultof<_>
-      let mutable ac = Unchecked.defaultof<_>
+      let mutable ac : ICursor<'K,'V> = Unchecked.defaultof<_>
       let rec loop(isOuter:bool) : unit =
         if isOuter then
-          if not !firstStep && cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 
-            && fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
-            this.CurrentKey <- discreteKeysSet.First.Key
+          if not !firstStep 
+            && 
+              (
+              (isContinuous && cmp.Compare(ac.CurrentKey, this.CurrentKey) > 0)
+              || 
+              (not isContinuous && cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0)
+              )
+            && fillContinuousValuesAtKey(ac.CurrentKey) then
+            this.CurrentKey <- ac.CurrentKey
             if not isContinuous then
               // we set values only here, when we know that we could return
               for kvp in discreteKeysSet do
                 currentValues.[kvp.Value] <- cursors.[kvp.Value].CurrentValue
             tcs.SetResult(true) // the only true exit
-            () // return
           else
             if discreteKeysSet.Count = 0 then invalidOp "discreteKeysSet is empty"
             initialPosition <- discreteKeysSet.RemoveFirst()
@@ -1564,51 +1595,72 @@ and
           firstStep := false
           let idx = initialPosition.Value
           let cursor = ac
-          let onMoved() =
+          let inline onMoved() =
             discreteKeysSet.Add(KV(cursor.CurrentKey, idx)) |> ignore
             loop(true)
-          let mutable c = -1
-          while c < 0 && cursor.MoveNext() do
-            //Trace.Fail("discreteKeysSet could be empty here")
-            c <- cmp.Compare(cursor.CurrentKey, discreteKeysSet.Last.Key)
-          // TODO lookc like it must be c > 0, see when & how this method is called
-          if c >= 0 then
+          let mutable reachedFrontier = false
+          while not reachedFrontier && cursor.MoveNext() do
+            if isContinuous then
+              reachedFrontier <- 
+                if hasValidState then cmp.Compare(cursor.CurrentKey, this.CurrentKey) > 0
+                else true
+            else
+              reachedFrontier <- cmp.Compare(cursor.CurrentKey, this.CurrentKey) >= 0
+          if reachedFrontier then
             onMoved()
           else
             // call itself until reached the frontier, then call outer loop
             sourceMoveTask <- cursor.MoveNext(ct)
             // there is a big chance that this task is already completed
-            let onCompleted() =
+            let inline onCompleted() =
               let moved =  sourceMoveTask.Result
               if not moved then
                 tcs.SetResult(false) // the only false exit
                 ()
               else
-                let c = cmp.Compare(cursor.CurrentKey, discreteKeysSet.Last.Key)
-                if c < 0 then
-                  discreteKeysSet.Add(initialPosition) // TODO! Add/remove only when needed
-                  loop(false)
-                else
-                  onMoved()
-                  
-            // TODO just use ContinueWith
-            if sourceMoveTask.Status = TaskStatus.RanToCompletion then
-              onCompleted()
-            else
-                let awaiter = sourceMoveTask.GetAwaiter()
-                // NB! do not block, use a callback
-                awaiter.OnCompleted(fun _ ->
-                  // TODO! Test all cases
-                  if sourceMoveTask.Status = TaskStatus.RanToCompletion then
-                    onCompleted()
+                if isContinuous then
+                  let c = cmp.Compare(cursor.CurrentKey, this.CurrentKey)
+                  if c > 0 then onMoved()
                   else
-                    discreteKeysSet.Add(initialPosition) // TODO! Add/remove only when needed
-                    if sourceMoveTask.Status = TaskStatus.Canceled then
-                      tcs.SetException(OperationCanceledException())
+                    if hasValidState then
+                      loop(false)
                     else
-                      tcs.SetException(sourceMoveTask.Exception)
-                )
-            ()
+                      discreteKeysSet.Add(initialPosition)
+                      loop(true)
+                else
+                  let c = cmp.Compare(cursor.CurrentKey, this.CurrentKey)
+                  #if PRERELEASE
+                  Trace.Assert(c > 0)
+                  #endif
+                  if c < 0 then
+                    discreteKeysSet.Add(initialPosition)
+                    loop(false)
+                  else
+                    onMoved()
+                  
+            let awaiter = sourceMoveTask.GetAwaiter()
+            // NB! do not block, use a callback
+            awaiter.OnCompleted(fun _ ->
+              // TODO! Test all cases
+              if sourceMoveTask.Status = TaskStatus.RanToCompletion then
+                onCompleted()
+              else
+                discreteKeysSet.Add(initialPosition) // TODO! Add/remove only when needed
+                if sourceMoveTask.Status = TaskStatus.Canceled then
+                  tcs.SetException(OperationCanceledException())
+                else
+                  tcs.SetException(sourceMoveTask.Exception)
+            )
+//            sourceMoveTask.ContinueWith( (fun (antecedant2 : Task<bool>) ->
+//              if sourceMoveTask.Status = TaskStatus.RanToCompletion then
+//                onCompleted()
+//              else
+//                discreteKeysSet.Add(initialPosition) // TODO! Add/remove only when needed
+//                if sourceMoveTask.Status = TaskStatus.Canceled then
+//                  tcs.SetException(OperationCanceledException())
+//                else
+//                  tcs.SetException(sourceMoveTask.Exception)
+//            )) |> ignore
       loop(true)
       returnTask
 
