@@ -54,8 +54,8 @@ and
   [<CustomComparison;CustomEquality>]
   KV<'K,'V> =
     struct
-      val Key : 'K
-      val Value : 'V
+      val mutable Key : 'K
+      val mutable Value : 'V
       new(key, value) = {Key = key; Value = value}
     end
     override x.Equals(yobj) =
@@ -211,7 +211,9 @@ type SortedDeque<'T> private(comparer:IComparer<'T>, capacity:int) as this=
     element
 
 
-  member this.Add(element:'T) = 
+  member this.Add(element:'T) =
+    // NB save some cycles instead of this line
+    //if this.TryAdd(element) < 0 then invalidOp "Item already exists"
     // ensure capacity
     if this.count = this.buffer.Length then doubleCapacity()
     if this.count = 0 then
@@ -227,35 +229,62 @@ type SortedDeque<'T> private(comparer:IComparer<'T>, capacity:int) as this=
       this.InsertAtOffset(offset, element)
     else
       let offset = this.OffsetOfElement(element)
-      if offset > 0 then invalidOp "Item already exists"
+      if offset >= 0 then invalidOp "Item already exists"
       else this.InsertAtOffset(~~~offset, element)
 
-  /// Returns the index of added element
-  member this.AddWithIndex(element:'T) = 
+  member this.TryAdd(element:'T) : int =
     let mutable index = 0
     // ensure capacity
     if this.count = this.buffer.Length then doubleCapacity()
     if this.count = 0 then
-      this.InsertAtOffset(this.IndexToOffset(this.count), element)
-      // index = 0
+      let offset = this.IndexToOffset(this.count)
+      this.InsertAtOffset(offset, element)
     elif  this.comparer.Compare(element, this.buffer.[this.IndexToOffset (this.count - 1)]) > 0 then
       // adding to the end
-      this.InsertAtOffset(this.IndexToOffset(this.count), element) // NB!&FML! this.count was index before I found that order of lines was wrong, then order of lines became as now, but index remained instead of count - and we were fucked! (TODO (low) remove this comment to a collection of stupid behavior bugs, which rapidly increases in size!)
-      index <- this.count 
+      let offset = this.IndexToOffset(this.count)
+      this.InsertAtOffset(offset, element)
+      index <- this.count
     elif this.comparer.Compare(element, this.buffer.[this.IndexToOffset (0)]) < 0 then
       // adding to the front
-      this.InsertAtOffset(this.IndexToOffset(0), element)
-      // index = 0
+      let offset = this.IndexToOffset(0)
+      this.InsertAtOffset(offset, element)
     else
       let offset = this.OffsetOfElement(element)
-      if offset > 0 then invalidOp "Item already exists"
+      if offset >= 0 then index <- -1
       else this.InsertAtOffset(~~~offset, element)
       index <- (this.buffer.Length + offset- this.firstOffset) &&& (this.buffer.Length - 1) // TODO unit test, looks obvious, but just in case
     index
 
-  member this.First with get() = this.buffer.[this.firstOffset]
-  member this.Last 
+  /// Returns the index of added element
+//  member this.AddWithIndex(element:'T) = 
+//    let mutable index = 0
+//    // ensure capacity
+//    if this.count = this.buffer.Length then doubleCapacity()
+//    if this.count = 0 then
+//      this.InsertAtOffset(this.IndexToOffset(this.count), element)
+//      // index = 0
+//    elif  this.comparer.Compare(element, this.buffer.[this.IndexToOffset (this.count - 1)]) > 0 then
+//      // adding to the end
+//      this.InsertAtOffset(this.IndexToOffset(this.count), element) // NB!&FML! this.count was index before I found that order of lines was wrong, then order of lines became as now, but index remained instead of count - and we were fucked! (TODO (low) remove this comment to a collection of stupid behavior bugs, which rapidly increases in size!)
+//      index <- this.count 
+//    elif this.comparer.Compare(element, this.buffer.[this.IndexToOffset (0)]) < 0 then
+//      // adding to the front
+//      this.InsertAtOffset(this.IndexToOffset(0), element)
+//      // index = 0
+//    else
+//      let offset = this.OffsetOfElement(element)
+//      if offset >= 0 then invalidOp "Item already exists"
+//      else this.InsertAtOffset(~~~offset, element)
+//      index <- (this.buffer.Length + offset- this.firstOffset) &&& (this.buffer.Length - 1) // TODO unit test, looks obvious, but just in case
+//    index
+
+  member this.First 
     with get() = 
+      if this.count = 0 then invalidOp "SortedDeque is empty"
+      this.buffer.[this.firstOffset]
+  member this.Last 
+    with get() =
+      if this.count = 0 then invalidOp "SortedDeque is empty"
       let offset = this.IndexToOffset (this.count - 1)
       this.buffer.[offset]
     
@@ -269,21 +298,22 @@ type SortedDeque<'T> private(comparer:IComparer<'T>, capacity:int) as this=
   member this.RemoveFirst() : 'T = 
     if this.count = 0 then invalidOp "SortedDeque is empty"
     let first = this.buffer.[this.firstOffset]
+    this.buffer.[this.firstOffset] <- Unchecked.defaultof<_>
     this.firstOffset <- (this.firstOffset + 1) &&& (this.buffer.Length - 1)
     this.count <- this.count - 1
     first
 
   member this.RemoveLast(): 'T = 
     if this.count = 0 then invalidOp "SortedDeque is empty"
-    let last = this.buffer.[this.IndexToOffset(this.count - 1)]
+    let offset = this.IndexToOffset(this.count - 1)
+    let last = this.buffer.[offset]
+    this.buffer.[offset] <- Unchecked.defaultof<_>
     this.count <- this.count - 1
     last
 
   member this.Remove(element:'T): unit = 
     let offset = this.OffsetOfElement(element)
     if offset < 0 then
-      let offset' =  this.OffsetOfElement(element) // debug
-      this.RemoveAtOffset(offset') |> ignore
       invalidOp "Element doesn't exist in the SortedDeque"
     this.RemoveAtOffset(offset) |> ignore
 

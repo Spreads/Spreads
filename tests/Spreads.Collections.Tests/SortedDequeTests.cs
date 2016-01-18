@@ -110,14 +110,14 @@ namespace Spreads.Collections.Tests {
                 for (int i = 0; i < 50; i++) {
                     for (var next = rng.Next(1000); !set.Contains(next);) {
                         set.Add(next);
-                        sd.AddWithIndex(next);
+                        sd.TryAdd(next);
                     }
                 }
 
                 for (int i = 0; i < 1000; i++) {
                     for (var next = rng.Next(1000); !set.Contains(next);) {
                         set.Add(next);
-                        sd.AddWithIndex(next);
+                        sd.TryAdd(next);
                     }
 
                     Assert.AreEqual(set.Count, sd.Count);
@@ -155,14 +155,14 @@ namespace Spreads.Collections.Tests {
                 for (int i = 0; i < 50; i++) {
                     for (var next = rng.Next(1000); !set.Contains(next);) {
                         set.Add(next);
-                        sd.AddWithIndex(next);
+                        sd.TryAdd(next);
                     }
                 }
 
                 for (int i = 0; i < 1000; i++) {
                     for (var next = rng.Next(1000); !set.Contains(next);) {
                         set.Add(next);
-                        sd.AddWithIndex(next);
+                        sd.TryAdd(next);
                     }
 
                     Assert.AreEqual(set.Count, sd.Count);
@@ -191,7 +191,7 @@ namespace Spreads.Collections.Tests {
                 for (int i = 0; i < 100; i++) {
                     for (var next = rng.Next(1000); !set.Contains(next);) {
                         set.Add(next);
-                        sd.AddWithIndex(next);
+                        sd.TryAdd(next);
                     }
                 }
                 while (sd.Count > 0) {
@@ -226,7 +226,7 @@ namespace Spreads.Collections.Tests {
                 for (int i = 0; i < 100; i++) {
                     for (var next = rng.Next(1000); !set.Contains(next);) {
                         set.Add(next);
-                        sd.AddWithIndex(next);
+                        sd.TryAdd(next);
                     }
                 }
                 while (sd.Count > 0) {
@@ -262,10 +262,10 @@ namespace Spreads.Collections.Tests {
             for (int i = 0; i < 100; i++) {
                 if (i % 2 == 0) {
                     set.Add(i);
-                    sd.AddWithIndex(i);
+                    sd.TryAdd(i);
                 } else {
                     set.Add(-i);
-                    sd.AddWithIndex(-i);
+                    sd.TryAdd(-i);
                 }
             }
             {
@@ -319,7 +319,7 @@ namespace Spreads.Collections.Tests {
                 for (int i = 0; i < 100; i++) {
                     for (var next = rng.Next(1000); !set.Contains(next);) {
                         set.Add(next);
-                        sd.AddWithIndex(next);
+                        sd.TryAdd(next);
                     }
                     Assert.AreEqual(set.Count, sd.Count);
                     Assert.AreEqual(set.Sum(), sd.Sum());
@@ -344,7 +344,7 @@ namespace Spreads.Collections.Tests {
         public void AddSequentialTest() {
             var sd = new SortedDeque<int>();
             for (var r = 0; r < 1000; r++) {
-                sd.AddWithIndex(r);
+                sd.TryAdd(r);
             }
         }
 
@@ -353,7 +353,7 @@ namespace Spreads.Collections.Tests {
         public void AddReverseSequentialTest() {
             var sd = new SortedDeque<int>();
             for (var r = 1000; r >= 0; r--) {
-                sd.AddWithIndex(r);
+                sd.TryAdd(r);
             }
         }
 
@@ -396,11 +396,11 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void CouldAddKVsWithSimilarKey() {
-            var sd = new SortedDeque<KV<int, int>>(new ZipNComparer<int>(Comparer<int>.Default), 3);
+            var sd = new SortedDeque<KV<int, int>>(new ZipNComparer<int>(Comparer<int>.Default));
             for (int i = 0; i < 3; i++) {
-                sd.Add(new KV<int, int>(999999, i));
+                sd.Add(new KV<int, int>(1, i));
             }
-            var expected = 999999 * 3;
+            var expected = 1 * 3;
             int[] values = new int[3];
             foreach (var item in sd)
             {
