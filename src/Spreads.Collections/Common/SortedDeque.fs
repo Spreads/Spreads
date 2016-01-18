@@ -250,9 +250,10 @@ type SortedDeque<'T> (comparer:IComparer<'T>) as this=
       this.InsertAtOffset(offset, element)
     else
       let offset = this.OffsetOfElement(element)
-      if offset >= 0 then index <- -1
-      else this.InsertAtOffset(~~~offset, element)
-      index <- (this.buffer.Length + offset- this.firstOffset) &&& (this.buffer.Length - 1) // TODO unit test, looks obvious, but just in case
+      if offset >= 0 then index <- ~~~offset
+      else 
+        this.InsertAtOffset(~~~offset, element)
+        index <- (this.buffer.Length + offset- this.firstOffset) &&& (this.buffer.Length - 1) // TODO unit test, looks obvious, but just in case
     index
 
   /// Returns the index of added element
