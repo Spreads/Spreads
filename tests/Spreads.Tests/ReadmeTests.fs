@@ -81,8 +81,8 @@ type ReadmeTestsModule() =
     let index : Series<DateTime, float> = 
         quoteSources.Zip(fun k vArr -> vArr |> Array.average)
 
-    // monitoring - 2s chunks, and total
-    let chunkMillisecs = 2000
+    // monitoring - 1s chunks, and total
+    let chunkMillisecs = 1000
     let totalStopwatch = new Diagnostics.Stopwatch()
     let chunkStopwatch = new Diagnostics.Stopwatch()
     totalStopwatch.Start()
@@ -90,8 +90,7 @@ type ReadmeTestsModule() =
 
     let printRates (stopwatch : Diagnostics.Stopwatch) inputs outputs =
         let elapsedSeconds = (float)stopwatch.ElapsedMilliseconds / 1000.
-        printfn "%A: %d inputs (%f/s) -> %d outputs (%f/s)" DateTime.UtcNow inputs (((float)inputs)/elapsedSeconds) outputs (((float)outputs)/elapsedSeconds) 
-        printfn "Total memory: %d" (GC.GetTotalMemory(false))
+        printfn "%A: in: %d; out %d; mem: %d" DateTime.UtcNow (int <| ((float)inputs)/elapsedSeconds) (int <| ((float)outputs)/elapsedSeconds) (GC.GetTotalMemory(false)/1000000L)
 
     let monitor = async {
                         while not ct.IsCancellationRequested do
