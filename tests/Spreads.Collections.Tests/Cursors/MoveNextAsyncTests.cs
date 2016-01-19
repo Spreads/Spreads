@@ -84,7 +84,7 @@ namespace Spreads.Collections.Tests.Cursors {
             sw.Start();
 
             //var sm = new SortedMap<DateTime, double>();
-            var sm = new SortedMap<DateTime, double>();
+            var sm = new SortedChunkedMap<DateTime, double>();
             //sm.Add(DateTime.UtcNow.Date.AddSeconds(-2), 0);
 
             sm.IsSynchronized = true;

@@ -24,6 +24,7 @@ open System.Collections
 open System.Collections.Generic
 open System.Linq
 open System.Runtime.InteropServices
+open System.Runtime.CompilerServices
 open System.Runtime.Serialization
 open System.Threading
 open System.Threading.Tasks
@@ -258,204 +259,263 @@ type SortedChunkedMap<'K,'V>
     
 
   override this.GetCursor() : ICursor<'K,'V> =
-    this.GetCursor(outerMap.GetCursor(), Unchecked.defaultof<ICursor<'K, 'V>>, true, Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>, false)
+    this.GetCursor(outerMap.GetCursor(), true, Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>, false)
 
-  member private this.GetCursor(outer:ICursor<'K,SortedMap<'K,'V>>, inner:ICursor<'K,'V>, isReset:bool,currentBatch:IReadOnlyOrderedMap<'K,'V>, isBatch:bool) : ICursor<'K,'V> =
+  member private this.GetCursor(outer:ICursor<'K,SortedMap<'K,'V>>, isReset:bool,currentBatch:IReadOnlyOrderedMap<'K,'V>, isBatch:bool) : ICursor<'K,'V> =
     // TODO
     let nextBatch : Task<IReadOnlyOrderedMap<'K,'V>> ref = ref Unchecked.defaultof<Task<IReadOnlyOrderedMap<'K,'V>>>
     
     let outer = ref outer
     outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
-    let inner = ref inner //(if inner = Unchecked.defaultof<ICursor<'K, 'V>> then outer.Value.CurrentValue.GetCursor() else inner)
+    let mutable inner : SortedMapCursor<'K,'V> = Unchecked.defaultof<_>
     let isReset = ref isReset
     let mutable currentBatch : IReadOnlyOrderedMap<'K,'V> = currentBatch
     let isBatch = ref isBatch
 
-    // TODO use inner directly
-//    let currentKey : 'K ref = ref inner.Value.CurrentKey // Unchecked.defaultof<'K>
-//    let currentValue : 'V ref = ref inner.Value.CurrentValue // Unchecked.defaultof<'V>
+    let observerStarted = ref false
+    let mutable semaphore : SemaphoreSlim = Unchecked.defaultof<_>
+    let mutable are : AutoResetEvent =  Unchecked.defaultof<_>
+    let onNextHandler : OnNextHandler<'K,'V> = 
+      OnNextHandler(fun (kvp:KVP<'K,'V>) ->
+          if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
+      )
+    let onCompletedHandler : OnCompletedHandler = 
+      OnCompletedHandler(fun _ ->
+          if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
+      )
 
-    { new BaseCursor<'K,'V>(this) with
-      override this.IsContinuous with get() = false
-      override c.Clone() = this.GetCursor(outer.Value.Clone(), (if inner.Value = Unchecked.defaultof<_> then inner.Value else inner.Value.Clone()), !isReset, currentBatch, !isBatch)
-      override c.IsBatch with get() = !isBatch
-      override c.Current 
-        with get() = 
-          if !isBatch then invalidOp "Current move is MoveNextBatxhAsync, cannot return a single valule"
-          else inner.Value.Current
-      override p.MoveNext() = 
-        let entered = enterLockIf this.SyncRoot this.IsSynchronized
-        try
-          if isReset.Value then p.MoveFirst()
-          else
-            let res = inner.Value.MoveNext() // could pass curent key by ref and save some single-dig %
-            if res then
-              if !isBatch then isBatch := false
-              true
+    { new ICursor<'K,'V> with
+        member c.Comparer: IComparer<'K> = this.Comparer
+        member c.Source with get() = this :> ISeries<_,_>
+        member c.IsContinuous with get() = false
+        member c.Clone() = 
+          let clone = this.GetCursor(outer.Value.Clone(), !isReset, currentBatch, !isBatch)
+          if not !isReset then
+            let moved = clone.MoveAt(c.CurrentKey, Lookup.EQ)
+            if not moved then invalidOp "cannot correctly clone SCM cursor"
+          clone
+        
+        member x.MoveNext(ct: CancellationToken): Task<bool> = 
+          let rec completeTcs(tcs:AsyncTaskMethodBuilder<bool>, token: CancellationToken) : unit = // Task<bool> = 
+            if x.MoveNext() then
+              tcs.SetResult(true)
             else
-              let currentKey = inner.Value.CurrentKey
-              if outer.Value.MoveNext() then // go to the next bucket
-                inner := outer.Value.CurrentValue.GetCursor()
-                let res = inner.Value.MoveFirst()
-                if res then
-                  isBatch := false
-                  true
-                else
-                  raise (ApplicationException("Unexpected - empty bucket")) 
-              else
-                //p.MoveAt(currentKey, Lookup.GT)
-                false
-        finally
-          exitLockIf this.SyncRoot entered
+              let semaphoreTask = semaphore.WaitAsync(-1, token)
+              let awaiter = semaphoreTask.GetAwaiter()
+              awaiter.UnsafeOnCompleted(fun _ ->
+                match semaphoreTask.Status with
+                | TaskStatus.RanToCompletion -> 
+                  if x.MoveNext() then tcs.SetResult(true)
+                  elif not this.IsMutable then tcs.SetResult(false)
+                  else completeTcs(tcs, token)
+                | _ -> failwith "TODO process all task results"
+                ()
+              )
+          match x.MoveNext() with
+          | true -> trueTask            
+          | false ->
+            match this.IsMutable with
+            | true ->
+              let upd = this :> IObservableEvents<'K,'V>
+              if not !observerStarted then
+                semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
+                this.onNextEvent.Publish.AddHandler onNextHandler
+                this.onCompletedEvent.Publish.AddHandler onCompletedHandler
+                observerStarted := true
+              let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
+              let returnTask = tcs.Task
+              completeTcs(tcs, ct)
+              returnTask
+            | _ -> falseTask
 
-      override p.MovePrevious() = 
-        let entered = enterLockIf this.SyncRoot this.IsSynchronized
-        try
-          if isReset.Value then p.MoveLast()
-          else
-            let res = inner.Value.MovePrevious()
+        member p.MovePrevious() = 
+          let entered = enterLockIf this.SyncRoot this.IsSynchronized
+          try
+            if isReset.Value then p.MoveLast()
+            else
+              let res = inner.MovePrevious()
+              if res then
+                isBatch := false
+                true
+              else
+                if outer.Value.MovePrevious() then // go to the previous bucket
+                  inner <- outer.Value.CurrentValue.GetSMCursor()
+                  let res = inner.MoveLast()
+                  if res then
+                    isBatch := false
+                    true
+                  else
+                    raise (ApplicationException("Unexpected - empty bucket")) 
+                else
+                  false
+          finally
+            exitLockIf this.SyncRoot entered
+
+        member p.MoveAt(key:'K, direction:Lookup) = 
+          let entered = enterLockIf this.SyncRoot this.IsSynchronized
+          try
+            let newHash = slicer.Hash(key)
+            let newSubIdx = key
+            let c = comparer.Compare(newHash, outer.Value.CurrentKey)
+            let res =
+              if c <> 0 || !isReset then // not in the current bucket, switch bucket
+                if outer.Value.MoveAt(newHash, Lookup.EQ) then // Equal!
+                  inner <- outer.Value.CurrentValue.GetSMCursor()
+                  inner.MoveAt(newSubIdx, direction)
+                else
+                  false
+              else
+                inner.MoveAt(newSubIdx, direction)
+                   
             if res then
+              isReset := false
               isBatch := false
               true
             else
-              if outer.Value.MovePrevious() then // go to the previous bucket
-                inner := outer.Value.CurrentValue.GetCursor()
-                let res = inner.Value.MoveLast()
-                if res then
-                  isBatch := false
-                  true
-                else
-                  raise (ApplicationException("Unexpected - empty bucket")) 
-              else
-                false
-        finally
-          exitLockIf this.SyncRoot entered
-
-      override p.MoveAt(key:'K, direction:Lookup) = 
-        let entered = enterLockIf this.SyncRoot this.IsSynchronized
-        try
-          let newHash = slicer.Hash(key)
-          let newSubIdx = key
-          let c = comparer.Compare(newHash, outer.Value.CurrentKey)
-          let res =
-            if c <> 0 || !isReset then // not in the current bucket, switch bucket
-              if outer.Value.MoveAt(newHash, Lookup.EQ) then // Equal!
-                inner := outer.Value.CurrentValue.GetCursor()
-                inner.Value.MoveAt(newSubIdx, direction)
-              else
-                false
-            else
-              inner.Value.MoveAt(newSubIdx, direction)
-                   
-          if res then
-            isReset := false
-            isBatch := false
-            true
-          else
-              match direction with
-              | Lookup.LT | Lookup.LE ->
-                // look into previous bucket
-                if outer.Value.MovePrevious() then
-                  inner := outer.Value.CurrentValue.GetCursor()
-                  let res = inner.Value.MoveAt(newSubIdx, direction)
-                  if res then
-                    isBatch := false
-                    isReset := false
-                    true
-                  else
-                    p.Reset()
-                    false
-                else
-                  p.Reset()
-                  false 
-              | Lookup.GT | Lookup.GE ->
-                // look into next bucket
-                let moved = outer.Value.MoveNext() 
-                if moved then
-                  inner := outer.Value.CurrentValue.GetCursor()
-                  let res = inner.Value.MoveAt(newSubIdx, direction)
-                  if res then
-                    isBatch := false
-                    isReset := false
-                    true
+                match direction with
+                | Lookup.LT | Lookup.LE ->
+                  // look into previous bucket
+                  if outer.Value.MovePrevious() then
+                    inner <- outer.Value.CurrentValue.GetSMCursor()
+                    let res = inner.MoveAt(newSubIdx, direction)
+                    if res then
+                      isBatch := false
+                      isReset := false
+                      true
+                    else
+                      p.Reset()
+                      false
                   else
                     p.Reset()
                     false 
-                else
-                  p.Reset()
-                  false 
-              | _ -> false // LookupDirection.EQ
-        finally
-          exitLockIf this.SyncRoot entered
-
-      override p.MoveFirst() = 
-        let entered = enterLockIf this.SyncRoot this.IsSynchronized
-        try
-          if this.IsEmpty then false
-          else p.MoveAt(this.First.Key, Lookup.EQ)
-        finally
-          exitLockIf this.SyncRoot entered
-
-      override p.MoveLast() = 
-        let entered = enterLockIf this.SyncRoot this.IsSynchronized
-        try
-          if this.IsEmpty then false
-          else p.MoveAt(this.Last.Key, Lookup.EQ)
-        finally
-          exitLockIf this.SyncRoot entered
-
-      // TODO (v.0.2+) We now require that a false move keeps cursors on the same key before unsuccessfull move
-      // Also, calling CurrentKey/Value must never throw, remove try/catch here to avoid muting error that should not happen
-      //
-      // (delete this) NB These are "undefined" when cursor is in invalid state, but they should not thow
-      // Try/catch adds almost no overhead, even compared to null check, in the normal case. Calling these properties before move is 
-      // an application error and should be logged or raise an assertion failure
-      override p.CurrentKey with get() = try inner.Value.CurrentKey with | _ -> Unchecked.defaultof<_>
-      override p.CurrentValue with get() = try inner.Value.CurrentValue with | _ -> Unchecked.defaultof<_>
-
-      override p.Reset() = 
-        if not !isReset then
-          outer.Value.Reset()
-          outer.Value.MoveFirst() |> ignore
-          //inner.Value.Reset()
-          inner := Unchecked.defaultof<ICursor<'K, 'V>> // outer.Value.CurrentValue.GetCursor() //
-          isReset := true
-
-      override p.Dispose() = base.Dispose()
-
-      override p.CurrentBatch = 
-        if !isBatch then currentBatch
-        else invalidOp "Current move is single, cannot return a batch"
-
-      override p.MoveNextBatchAsync(ct) =
-        Async.StartAsTask(async {
-          let entered = enterLockIf this.SyncRoot this.IsSynchronized
-          try
-            if isReset.Value then 
-              if outer.Value.MoveFirst() then
-                currentBatch <- outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
-                isBatch := true
-                isReset := false
-                return true
-              else return false
-            else
-              if !isBatch then
-                let couldMove = outer.Value.MoveNext() // ct |> Async.AwaitTask // NB not async move next!
-                if couldMove then
-                  currentBatch <- outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
-                  isBatch := true
-                  return true
-                else 
-                  // no batch, but place cursor at the end of the last batch so that move next won't get null reference exception
-                  inner := outer.Value.CurrentValue.GetCursor()
-                  if not outer.Value.CurrentValue.IsEmpty then inner.Value.MoveLast() |> ignore
-                  return false
-              else
-                return false
+                | Lookup.GT | Lookup.GE ->
+                  // look into next bucket
+                  let moved = outer.Value.MoveNext() 
+                  if moved then
+                    inner <- outer.Value.CurrentValue.GetSMCursor()
+                    let res = inner.MoveAt(newSubIdx, direction)
+                    if res then
+                      isBatch := false
+                      isReset := false
+                      true
+                    else
+                      p.Reset()
+                      false 
+                  else
+                    p.Reset()
+                    false 
+                | _ -> false // LookupDirection.EQ
           finally
             exitLockIf this.SyncRoot entered
-        }, TaskCreationOptions.None, ct)
-    } :> ICursor<'K,'V> 
+
+        member p.MoveFirst() = 
+          let entered = enterLockIf this.SyncRoot this.IsSynchronized
+          try
+            if this.IsEmpty then false
+            else p.MoveAt(this.First.Key, Lookup.EQ)
+          finally
+            exitLockIf this.SyncRoot entered
+
+        member p.MoveLast() = 
+          let entered = enterLockIf this.SyncRoot this.IsSynchronized
+          try
+            if this.IsEmpty then false
+            else p.MoveAt(this.Last.Key, Lookup.EQ)
+          finally
+            exitLockIf this.SyncRoot entered
+
+        // TODO (v.0.2+) We now require that a false move keeps cursors on the same key before unsuccessfull move
+        // Also, calling CurrentKey/Value must never throw, remove try/catch here to avoid muting error that should not happen
+        //
+        // (delete this) NB These are "undefined" when cursor is in invalid state, but they should not thow
+        // Try/catch adds almost no overhead, even compared to null check, in the normal case. Calling these properties before move is 
+        // an application error and should be logged or raise an assertion failure
+        member c.CurrentKey with get() = try inner.CurrentKey with | _ -> Unchecked.defaultof<_>
+        member c.CurrentValue with get() = try inner.CurrentValue with | _ -> Unchecked.defaultof<_>
+        //member c.Current with get() : obj = box c.Current
+        member c.TryGetValue(key: 'K, value: byref<'V>): bool = this.TryGetValue(key, &value)
+
+
+
+        member p.CurrentBatch = 
+          if !isBatch then currentBatch
+          else invalidOp "Current move is single, cannot return a batch"
+
+        member p.MoveNextBatch(ct) =
+          Async.StartAsTask(async {
+            let entered = enterLockIf this.SyncRoot this.IsSynchronized
+            try
+              if isReset.Value then 
+                if outer.Value.MoveFirst() then
+                  currentBatch <- outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
+                  isBatch := true
+                  isReset := false
+                  return true
+                else return false
+              else
+                if !isBatch then
+                  let couldMove = outer.Value.MoveNext() // ct |> Async.AwaitTask // NB not async move next!
+                  if couldMove then
+                    currentBatch <- outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
+                    isBatch := true
+                    return true
+                  else 
+                    // no batch, but place cursor at the end of the last batch so that move next won't get null reference exception
+                    inner <- outer.Value.CurrentValue.GetSMCursor()
+                    if not outer.Value.CurrentValue.IsEmpty then inner.MoveLast() |> ignore
+                    return false
+                else
+                  return false
+            finally
+              exitLockIf this.SyncRoot entered
+          }, TaskCreationOptions.None, ct)
+
+      interface IEnumerator<KVP<'K,'V>> with
+        member p.Reset() = 
+          if not !isReset then
+            outer.Value.Reset()
+            outer.Value.MoveFirst() |> ignore
+            //inner.Reset()
+            inner <- Unchecked.defaultof<_>
+            isReset := true
+
+        member p.Dispose() = 
+            p.Reset()
+            if !observerStarted then
+              this.onNextEvent.Publish.RemoveHandler(onNextHandler)
+              this.onCompletedEvent.Publish.RemoveHandler(onCompletedHandler)
+        
+        member p.MoveNext() = 
+          let entered = enterLockIf this.SyncRoot this.IsSynchronized
+          try
+            if isReset.Value then (p :?> ICursor<'K,'V>).MoveFirst()
+            else
+              let res = inner.MoveNext() // could pass curent key by ref and save some single-dig %
+              if res then
+                if !isBatch then isBatch := false
+                true
+              else
+                let currentKey = inner.CurrentKey
+                if outer.Value.MoveNext() then // go to the next bucket
+                  inner <- outer.Value.CurrentValue.GetSMCursor()
+                  let res = inner.MoveFirst()
+                  if res then
+                    isBatch := false
+                    true
+                  else
+                    raise (ApplicationException("Unexpected - empty bucket")) 
+                else
+                  //p.MoveAt(currentKey, Lookup.GT)
+                  false
+          finally
+            exitLockIf this.SyncRoot entered
+
+        member c.Current 
+          with get() =
+            if !isBatch then invalidOp "Current move is MoveNextBatxhAsync, cannot return a single valule"
+            else inner.Current
+        member this.Current with get(): obj = this.Current :> obj
+    }
 
   member this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
