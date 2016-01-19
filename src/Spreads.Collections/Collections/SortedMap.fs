@@ -1032,9 +1032,15 @@ type SortedMap<'K,'V>
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
 
-  override this.GetCursor() = //new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
-    this.GetCursor(-1,  this.orderVersion, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>) :> ICursor<'K,'V> //this.GetCursor(-1, this.version, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>)
- 
+  override this.GetCursor() =
+    if isMutable then this.GetCursor(-1,  this.orderVersion, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>) :> ICursor<'K,'V>
+    else 
+      // optimization when SM represents an immutable chunk
+      // TODO this doesn't work for the compiler optimization
+      new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
+
+  member internal this.GetSMCursor() = new SortedMapCursor<'K,'V>(this)
+
   // for foreach optimization
   // TODO(?) replace with a mutable struct, like in SCG.SortedList<T>, there are too many virtual calls and reference cells in the most critical paths like MoveNext
   // NB Object expression with ref cells are surprisingly fast compared to a custom class or even a struct
@@ -1236,6 +1242,7 @@ type SortedMap<'K,'V>
           p.Reset()
           if !observerStarted then
             this.onNextEvent.Publish.RemoveHandler(onNextHandler)
+            this.onCompletedEvent.Publish.RemoveHandler(onCompletedHandler)
     }
 
   member this.GetAt(idx:int) = if idx >= 0 && idx < this.size then this.values.[idx] else raise (ArgumentOutOfRangeException("idx", "Idx is out of range in SortedMap GetAt method."))
@@ -1445,10 +1452,6 @@ type SortedMap<'K,'V>
           | _ -> failwith "Unknown AppendOption"
         finally
           exitLockIf this.SyncRoot entered
-      // do not need transaction because if the first addition succeeds then all others will be added as well
-//      for i in appendMap do
-//        this.AddLast(i.Key, i.Value)
-      //raise (NotImplementedException("TODO append impl"))
     
   //#endregion
 
@@ -1519,86 +1522,24 @@ type SortedMap<'K,'V>
 
 and
   internal SortedMapCursor<'K,'V> =
-    //struct
-    val public source : SortedMap<'K,'V>
-    val mutable index : int
-    val mutable currentKey : 'K
-    val mutable currentValue: 'V
-    val mutable cursorVersion : int
-    val mutable isBatch : bool
+    struct
+      val public source : SortedMap<'K,'V>
+      val mutable index : int
+      val mutable currentKey : 'K
+      val mutable currentValue: 'V
+      val mutable cursorVersion : int
+      val mutable isBatch : bool
 
-    val mutable isSubscribed : bool
-    val mutable tcs :  TaskCompletionSource<bool> //AsyncTaskMethodBuilder<bool>
-    val mutable cancellationToken : CancellationToken 
-    val mutable cancellationTokenRegistration : CancellationTokenRegistration
-    [<DefaultValueAttribute(false)>]
-    val mutable onNextHandler : OnNextHandler<'K,'V>
-    [<DefaultValueAttribute(false)>]
-    val mutable onCompletedHandler : OnCompletedHandler
-    [<DefaultValueAttribute(false)>]
-    val mutable onErrorHandler : OnErrorHandler
+      new(source:SortedMap<'K,'V>) = 
+        { source = source; 
+          index = -1;
+          currentKey = Unchecked.defaultof<_>;
+          currentValue = Unchecked.defaultof<_>;
+          cursorVersion = source.orderVersion;
+          isBatch = false;
+        }
+    end 
 
-    new(source:SortedMap<'K,'V>) = 
-      { source = source; 
-        index = -1;
-        currentKey = Unchecked.defaultof<_>;
-        currentValue = Unchecked.defaultof<_>;
-        cursorVersion = source.orderVersion;
-        isBatch = false;
-        isSubscribed = false;
-        tcs = Unchecked.defaultof<_>;
-        cancellationToken = Unchecked.defaultof<_>;
-        cancellationTokenRegistration  = Unchecked.defaultof<_> ;
-
-      }
-    //end 
-//    member this.ONH(kvp:KVP<'K,'V>) =
-//      SortedMapCursor<'K,'V>.OnNext(&this, kvp)
-
-    static member private OnNext(cursor:SortedMapCursor<'K,'V>, kvp:KVP<'K,'V>) : unit =
-      // we do not use kvp for now and ignore out of order data
-      // MoveNext + versions handling should handle this
-      let entered = enterLockIf cursor.source.SyncRoot true
-      try
-        if cursor.tcs <> Unchecked.defaultof<_> then
-          let mutable localtcs = cursor.tcs
-          cursor.tcs <- Unchecked.defaultof<_>
-          try
-            if cursor.MoveNext() then 
-              localtcs.SetResult(true)
-          with
-          | _ as ex -> localtcs.SetException(ex)
-        //else do nothing
-      finally
-        exitLockIf cursor.source.SyncRoot entered
-
-    // temp solution, this implementation them checks IsMutable property
-    static member private OnCompleted(cursor:SortedMapCursor<'K,'V>) = 
-      let entered = enterLockIf cursor.source.SyncRoot true
-      try
-        if cursor.tcs <> Unchecked.defaultof<_> then
-          let mutable localtcs = cursor.tcs
-          cursor.tcs <- Unchecked.defaultof<_>
-          try
-            if cursor.MoveNext() then localtcs.SetResult(true)
-            else localtcs.SetResult(false)
-          with
-          | _ as ex -> localtcs.SetException(ex)
-        //else do nothing
-      finally
-        exitLockIf cursor.source.SyncRoot entered
-
-    static member private OnError(this:SortedMapCursor<'K,'V>, e:exn) = 
-      let entered = enterLockIf this.source.SyncRoot true
-      try
-        if this.tcs <> Unchecked.defaultof<_> then
-          let mutable localtcs = this.tcs
-          this.tcs <- Unchecked.defaultof<_>
-          localtcs.SetException(e)
-        //else do nothing
-      finally
-        exitLockIf this.source.SyncRoot entered
-      
     member this.Comparer: IComparer<'K> = this.source.Comparer
     member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
     member this.MoveNext() =
@@ -1626,54 +1567,7 @@ and
       finally
         exitLockIf this.source.SyncRoot entered
     
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-    member this.MoveNext(ct: CancellationToken): Task<bool> = 
-      if this.MoveNext() then trueTask
-      elif this.source.IsMutable then
-        #if PRERELEASE
-        Trace.Assert((this.tcs = Unchecked.defaultof<_>), "TCS field must be cleared before setting TCS result")
-        #endif
-        if not this.isSubscribed then
-          //let mutable th = ref this
-          this.onNextHandler <- OnNextHandler(fun kvp -> 
-              SortedMapCursor<'K,'V>.OnNext(this, kvp)
-            )
-          this.onCompletedHandler <- OnCompletedHandler(fun kvp -> 
-              SortedMapCursor<'K,'V>.OnCompleted(this)
-            )
-          this.onErrorHandler <- OnErrorHandler(fun e -> 
-              SortedMapCursor<'K,'V>.OnError(this, e)
-            )
-          this.source.onNextEvent.Publish.AddHandler(this.onNextHandler) 
-          this.source.onCompletedEvent.Publish.AddHandler(this.onCompletedHandler)
-          this.source.onErrorEvent.Publish.AddHandler(this.onErrorHandler)
-          this.isSubscribed <- true
-
-        // in most cases we have the same CT
-        if this.cancellationToken <> ct && ct <> Unchecked.defaultof<_> && ct <> CancellationToken.None then
-          this.cancellationToken <- ct
-          if this.cancellationTokenRegistration <> Unchecked.defaultof<_> then
-            this.cancellationTokenRegistration.Dispose()
-          let th = ref this
-          this.cancellationTokenRegistration <- ct.Register(fun _ -> SortedMapCursor<'K,'V>.OnError(this, OperationCanceledException()))
-        
-        let returnTask = 
-          let entered = enterLockIf this.source.SyncRoot true
-          try
-            // OnNext could have been called before tcs is assigned and then there are no more onnexts
-            if this.MoveNext() then
-              trueTask
-            elif not this.source.IsMutable then
-              falseTask
-            else
-              let localTcs = new  TaskCompletionSource<bool>() //AsyncTaskMethodBuilder<bool>.Create()
-              let returnTask' = localTcs.Task // must access it before returning
-              this.tcs <- localTcs
-              returnTask'
-          finally
-            exitLockIf this.source.SyncRoot entered
-        returnTask
-      else falseTask
+    member this.MoveNext(ct: CancellationToken): Task<bool> = falseTask
 
     member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
     member this.IsContinuous with get() = false
@@ -1788,12 +1682,7 @@ and
       this.cursorVersion <-  this.source.orderVersion
       this.index <- -1
 
-    member this.Dispose() = 
-      this.Reset()
-      if this.isSubscribed then
-        this.source.onNextEvent.Publish.RemoveHandler(this.onNextHandler)
-        this.source.onCompletedEvent.Publish.RemoveHandler(this.onCompletedHandler)
-        this.source.onErrorEvent.Publish.RemoveHandler(this.onErrorHandler)
+    member this.Dispose() = this.Reset()
 
     interface IDisposable with
       member this.Dispose() = this.Dispose()
