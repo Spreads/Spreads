@@ -71,20 +71,20 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes() {
-            for (int round = 0; round < 5; round++) {
+            for (int round = 0; round < 10; round++) {
                 CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
             }
         }
 
         [Test]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor() {
-            var count = 1000; //00000;
+            var count = 1000000;
             var sw = new Stopwatch();
             //var mre = new ManualResetEventSlim(true);
             sw.Start();
 
             //var sm = new SortedMap<DateTime, double>();
-            var sm = new SortedChunkedMap<DateTime, double>();
+            var sm = new SortedMap<DateTime, double>();
             //sm.Add(DateTime.UtcNow.Date.AddSeconds(-2), 0);
 
             sm.IsSynchronized = true;
@@ -95,18 +95,15 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var addTask = Task.Run(async () => {
 
-                await Task.Delay(50);
-                //try {
+                await Task.Delay(10);
                 for (int i = 5; i < count; i++) {
                     //mre.Wait();
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                     //await Task.Delay(1);
-                    NOP(500);
+                    //NOP(500);
                 }
-                //} catch(Exception e)
-                //{
-                //    Console.WriteLine(e.Message);
-                //}
+                sm.Complete();
+
             });
 
             double sum = 0.0;
@@ -124,15 +121,11 @@ namespace Spreads.Collections.Tests.Cursors {
                     cnt++;
                 }
                 //Assert.AreEqual(10, sum);
-                var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
 
-                await Task.Delay(10);
+                await Task.Delay(30);
                 while (await c.MoveNext(CancellationToken.None)) {
                     //mre.Reset();
                     sum += c.CurrentValue;
-                    if (c.CurrentKey == stop) {
-                        break;
-                    }
                     if ((int)c.CurrentValue != cnt) {
                         //Console.WriteLine("Wrong sequence");
                         Assert.Fail("Wrong sequence");
@@ -152,15 +145,11 @@ namespace Spreads.Collections.Tests.Cursors {
                     sum2 += c.CurrentValue;
                 }
                 Assert.AreEqual(10, sum2);
-                var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
 
                 await Task.Delay(50);
                 while (await c.MoveNext(CancellationToken.None)) {
                     //mre.Reset();
                     sum2 += c.CurrentValue;
-                    if (c.CurrentKey == stop) {
-                        break;
-                    }
                     //mre.Set();
                 }
                 Console.WriteLine("Finished 2");
@@ -173,15 +162,11 @@ namespace Spreads.Collections.Tests.Cursors {
                     sum3 += c.CurrentValue;
                 }
                 Assert.AreEqual(10, sum3);
-                var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
 
                 await Task.Delay(100);
                 while (await c.MoveNext(CancellationToken.None)) {
                     //mre.Reset();
                     sum3 += c.CurrentValue;
-                    if (c.CurrentKey == stop) {
-                        break;
-                    }
                     //mre.Set();
                 }
                 Console.WriteLine("Finished 3");
@@ -483,7 +468,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var count = 10000000;
             var sw = new Stopwatch();
 
-            var sm = new SortedChunkedMap<DateTime, double>();
+            var sm = new SortedMap<DateTime, double>();
             //sm.IsSynchronized = true;
 
             for (int i = 0; i < count; i++) {

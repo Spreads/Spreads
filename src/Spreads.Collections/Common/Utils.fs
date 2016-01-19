@@ -85,7 +85,8 @@ module Utils =
 
 [<AutoOpenAttribute>]
 module TaskModule =
-
+  let trueTask = Task.FromResult(true)
+  let falseTask = Task.FromResult(false)
 //  let inline konst a _ = a
 
   /// Task result
