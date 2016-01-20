@@ -113,8 +113,8 @@ type SortedDeque<'T> (capacity:int, comparer:IComparer<'T>) as this=
     this.buffer <- copyBuffer newCapacity
     this.firstOffset <- 0
 
-  new() = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>())
-  new(comparer:IComparer<'T>) = new SortedDeque<'T>(comparer)
+  new() = new SortedDeque<'T>(2, Spreads.KeyComparer.GetDefault<'T>())
+  new(comparer:IComparer<'T>) = new SortedDeque<'T>(2, comparer)
   new(capacity) = new SortedDeque<'T>(capacity, Spreads.KeyComparer.GetDefault<'T>())
 
   member inline internal this.IndexToOffset(index) = 

@@ -735,7 +735,8 @@ and
       finally
         exitLockIf this.source.SyncRoot entered
     
-    member this.MoveNext(ct: CancellationToken): Task<bool> = falseTask
+    member this.MoveNext(ct: CancellationToken): Task<bool> = 
+      if this.MoveNext() then trueTask else falseTask
 
     member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
     member this.IsContinuous with get() = false

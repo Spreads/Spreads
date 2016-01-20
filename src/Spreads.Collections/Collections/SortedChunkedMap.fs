@@ -115,6 +115,8 @@ type SortedChunkedMap<'K,'V>
       let removed = outerMap.RemoveMany(outerMap.First.Key, Lookup.GE)
       if removed then version <- version + 1L
 
+  member this.Comparer with get() = comparer
+
   member this.Count
       with get() = 
         let entered = enterLockIf this.SyncRoot this.IsSynchronized
@@ -286,7 +288,7 @@ type SortedChunkedMap<'K,'V>
       )
 
     { new ICursor<'K,'V> with
-        member c.Comparer: IComparer<'K> = this.Comparer
+        member c.Comparer: IComparer<'K> = comparer
         member c.Source with get() = this :> ISeries<_,_>
         member c.IsContinuous with get() = false
         member c.Clone() = 

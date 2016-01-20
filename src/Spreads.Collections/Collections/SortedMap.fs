@@ -1034,9 +1034,9 @@ type SortedMap<'K,'V>
       false
 
   override this.GetCursor() =
-    if isMutable then this.GetCursor(-1,  this.orderVersion, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>) :> ICursor<'K,'V>
+    if isMutable then
+      this.GetCursor(-1,  this.orderVersion, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>) :> ICursor<'K,'V>
     else new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
-  
   // foreach optimization
   member this.GetEnumerator() = new SortedMapCursor<'K,'V>(this)
 
@@ -1054,7 +1054,6 @@ type SortedMap<'K,'V>
 
     let observerStarted = ref false
     let mutable semaphore : SemaphoreSlim = Unchecked.defaultof<_>
-    let mutable are : AutoResetEvent =  Unchecked.defaultof<_>
     let onNextHandler : OnNextHandler<'K,'V> = 
       OnNextHandler(fun (kvp:KVP<'K,'V>) ->
           if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
@@ -1568,7 +1567,8 @@ and
       finally
         exitLockIf this.source.SyncRoot entered
     
-    member this.MoveNext(ct: CancellationToken): Task<bool> = falseTask
+    member this.MoveNext(ct: CancellationToken): Task<bool> = 
+      if this.MoveNext() then trueTask else falseTask
 
     member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
     member this.IsContinuous with get() = false
