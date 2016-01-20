@@ -802,7 +802,8 @@ type SortedMap<'K,'V>
       if not isMutable then invalidOp "SortedMap is not mutable"
       if this.size = 0 then false
       else
-        let pivotIndex,_ = this.TryFindWithIndex(key, direction)
+        let mutable kvp = Unchecked.defaultof<_>
+        let pivotIndex = this.TryFindWithIndex(key, direction, &kvp)
         // pivot should be removed, after calling TFWI pivot is always inclusive
         match direction with
         | Lookup.EQ -> this.Remove(key)
@@ -984,9 +985,10 @@ type SortedMap<'K,'V>
 
   member this.TryFind(k:'K, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-    let idx, v = this.TryFindWithIndex(k, direction)
+    let mutable kvp = Unchecked.defaultof<_>
+    let idx = this.TryFindWithIndex(k, direction, &kvp)
     if idx >= 0 then
-        res <- v
+        res <- kvp
         true
     else false
 
@@ -1144,7 +1146,8 @@ type SortedMap<'K,'V>
                 false
             else
               cursorVersion :=  this.orderVersion // update state to new this.version
-              let position, kvp = this.TryFindWithIndex(p.CurrentKey, Lookup.LT) //currentKey.Value
+              let mutable kvp = Unchecked.defaultof<_>
+              let position = this.TryFindWithIndex(p.CurrentKey, Lookup.LT, &kvp) //currentKey.Value
               if position > 0 then
                 index := position
                 currentKey := kvp.Key
@@ -1159,7 +1162,8 @@ type SortedMap<'K,'V>
         member p.MoveAt(key:'K, lookup:Lookup) = 
           let entered = enterLockIf syncRoot  isSynchronized
           try
-            let position, kvp = this.TryFindWithIndex(key, lookup)
+            let mutable kvp = Unchecked.defaultof<_>
+            let position = this.TryFindWithIndex(key, lookup, &kvp)
             if position >= 0 then
               index := position
               currentKey := kvp.Key
@@ -1221,7 +1225,8 @@ type SortedMap<'K,'V>
                 false
             else  // source change
               cursorVersion :=  this.orderVersion // update state to new this.version
-              let position, kvp = this.TryFindWithIndex(currentKey.Value, Lookup.GT) // reposition cursor after source change //currentKey.Value
+              let mutable kvp = Unchecked.defaultof<_>
+              let position = this.TryFindWithIndex(currentKey.Value, Lookup.GT, &kvp) // reposition cursor after source change //currentKey.Value
               if position > 0 then
                 index := position
                 currentKey := kvp.Key
@@ -1556,7 +1561,8 @@ and
             false // NB! Do not reset cursor on false MoveNext
         else  // source change
           this.cursorVersion <- this.source.orderVersion // update state to new this.source.version
-          let position, kvp = this.source.TryFindWithIndex(this.currentKey, Lookup.GT) // reposition cursor after source change //currentKey.Value
+          let mutable kvp = Unchecked.defaultof<_>
+          let position = this.source.TryFindWithIndex(this.currentKey, Lookup.GT, &kvp) // reposition cursor after source change //currentKey.Value
           if position > 0 then
             this.index <- position
             this.currentKey <- kvp.Key
@@ -1620,7 +1626,8 @@ and
             false
         else
           this.cursorVersion <-  this.source.orderVersion // update state to new this.source.version
-          let position, kvp = this.source.TryFindWithIndex(this.currentKey, Lookup.LT) //currentKey.Value
+          let mutable kvp = Unchecked.defaultof<_>
+          let position = this.source.TryFindWithIndex(this.currentKey, Lookup.LT, &kvp) //currentKey.Value
           if position > 0 then
             this.index <- position
             this.currentKey <- kvp.Key
@@ -1635,7 +1642,8 @@ and
     member this.MoveAt(key:'K, lookup:Lookup) = 
       let entered = enterLockIf this.source.SyncRoot this.source.IsSynchronized
       try
-        let position, kvp = this.source.TryFindWithIndex(key, lookup)
+        let mutable kvp = Unchecked.defaultof<_>
+        let position = this.source.TryFindWithIndex(key, lookup, &kvp)
         if position >= 0 then
           this.index <- position
           this.currentKey <- kvp.Key

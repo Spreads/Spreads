@@ -506,10 +506,10 @@ type SortedDequeMap<'K,'V>
 
 
   member this.TryFind(k:'K, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-    res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-    let tr = this.TryFindWithIndex(k, direction)
-    if (fst tr) >= 0 then
-        res <- snd tr
+    let mutable kvp = Unchecked.defaultof<_>
+    let idx = this.TryFindWithIndex(k, direction, &kvp)
+    if idx >= 0 then
+        res <- kvp
         true
     else
         false
@@ -725,7 +725,8 @@ and
             false // NB! Do not reset cursor on false MoveNext
         else  // source change
           this.cursorVersion <- this.source.version // update state to new this.source.version
-          let position, kvp = this.source.TryFindWithIndex(this.current.Key, Lookup.GT) // reposition cursor after source change //currentKey.Value
+          let mutable kvp = Unchecked.defaultof<_>
+          let position = this.source.TryFindWithIndex(this.current.Key, Lookup.GT, &kvp) // reposition cursor after source change //currentKey.Value
           if position > 0 then
             this.index <- position
             this.current <- kvp
@@ -785,7 +786,8 @@ and
             false
         else
           this.cursorVersion <-  this.source.version // update state to new this.source.version
-          let position, kvp = this.source.TryFindWithIndex(this.current.Key, Lookup.LT) //currentKey.Value
+          let mutable kvp = Unchecked.defaultof<_>
+          let position = this.source.TryFindWithIndex(this.current.Key, Lookup.LT, &kvp)
           if position > 0 then
             this.index <- position
             this.current <- kvp
@@ -799,7 +801,8 @@ and
     member this.MoveAt(key:'K, lookup:Lookup) = 
       let entered = enterLockIf this.source.SyncRoot this.source.IsSynchronized
       try
-        let position, kvp = this.source.TryFindWithIndex(key, lookup)
+        let mutable kvp = Unchecked.defaultof<_>
+        let position = this.source.TryFindWithIndex(key, lookup, &kvp)
         if position >= 0 then
           this.index <- position
           this.current <- kvp
