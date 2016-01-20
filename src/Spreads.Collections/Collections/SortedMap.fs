@@ -1048,11 +1048,11 @@ type SortedMap<'K,'V>
   // TODO(?) replace with a mutable struct, like in SCG.SortedList<T>, there are too many virtual calls and reference cells in the most critical paths like MoveNext
   // NB Object expression with ref cells are surprisingly fast compared to a custom class or even a struct
   member internal this.GetCursor(index:int,cursorVersion:int,currentKey:'K, currentValue:'V) =
-    let index = ref index
-    let cursorVersion = ref cursorVersion
-    let currentKey : 'K ref = ref currentKey
-    let currentValue : 'V ref = ref currentValue
-    let isBatch = ref false
+    let mutable index = index
+    let mutable cursorVersion = cursorVersion
+    let mutable currentKey : 'K = currentKey
+    let mutable currentValue : 'V = currentValue
+    let mutable isBatch = false
 
     let observerStarted = ref false
     let mutable semaphore : SemaphoreSlim = Unchecked.defaultof<_>
@@ -1109,8 +1109,8 @@ type SortedMap<'K,'V>
           let entered = enterLockIf syncRoot  isSynchronized
           try
             // TODO! how to do this correct for mutable case. Looks like impossible without copying
-            if !isBatch then
-              Trace.Assert(!index = this.size - 1)
+            if isBatch then
+              Trace.Assert((index = this.size - 1))
               Trace.Assert(not this.IsMutable)
               this :> IReadOnlyOrderedMap<'K,'V>
             else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
@@ -1119,39 +1119,39 @@ type SortedMap<'K,'V>
         member p.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
           let entered = enterLockIf syncRoot  isSynchronized
           try
-            if (not this.IsMutable) && (!index = -1) then
-              index := this.size - 1 // at the last element of the batch
-              currentKey := this.GetKeyByIndex(index.Value)
-              currentValue := this.values.[!index]
-              isBatch := true
+            if (not this.IsMutable) && (index = -1) then
+              index <- this.size - 1 // at the last element of the batch
+              currentKey <- this.GetKeyByIndex(index)
+              currentValue <- this.values.[index]
+              isBatch <- true
               Task.FromResult(true)
             else Task.FromResult(false)
           finally
             exitLockIf syncRoot entered
 
-        member p.Clone() = this.GetCursor(!index,!cursorVersion, p.CurrentKey, p.CurrentValue) //!currentKey,!currentValue)
+        member p.Clone() = this.GetCursor(index,cursorVersion, p.CurrentKey, p.CurrentValue) //!currentKey,!currentValue)
       
         member p.MovePrevious() = 
           let entered = enterLockIf syncRoot  isSynchronized
           try
-            if index.Value = -1 then p.MoveLast()  // first move when index = -1
-            elif cursorVersion.Value =  this.orderVersion then
-              if index.Value > 0 && index.Value < this.size then
-                index := index.Value - 1
-                currentKey := this.GetKeyByIndex(index.Value)
-                currentValue := this.values.[index.Value]
+            if index = -1 then p.MoveLast()  // first move when index = -1
+            elif cursorVersion =  this.orderVersion then
+              if index > 0 && index < this.size then
+                index <- index - 1
+                currentKey <- this.GetKeyByIndex(index)
+                currentValue <- this.values.[index]
                 true
               else
                 //p.Reset()
                 false
             else
-              cursorVersion :=  this.orderVersion // update state to new this.version
+              cursorVersion <-  this.orderVersion // update state to new this.version
               let mutable kvp = Unchecked.defaultof<_>
               let position = this.TryFindWithIndex(p.CurrentKey, Lookup.LT, &kvp) //currentKey.Value
               if position > 0 then
-                index := position
-                currentKey := kvp.Key
-                currentValue := kvp.Value
+                index <- position
+                currentKey <- kvp.Key
+                currentValue <- kvp.Value
                 true
               else  // not found
                 //p.Reset()
@@ -1165,9 +1165,9 @@ type SortedMap<'K,'V>
             let mutable kvp = Unchecked.defaultof<_>
             let position = this.TryFindWithIndex(key, lookup, &kvp)
             if position >= 0 then
-              index := position
-              currentKey := kvp.Key
-              currentValue := kvp.Value
+              index <- position
+              currentKey <- kvp.Key
+              currentValue <- kvp.Value
               true
             else
               p.Reset()
@@ -1179,9 +1179,9 @@ type SortedMap<'K,'V>
           let entered = enterLockIf syncRoot  isSynchronized
           try
             if this.size > 0 then
-              index := 0
-              currentKey := this.GetKeyByIndex(index.Value)
-              currentValue := this.values.[index.Value]
+              index <- 0
+              currentKey <- this.GetKeyByIndex(index)
+              currentValue <- this.values.[index]
               true
             else
               p.Reset()
@@ -1193,9 +1193,9 @@ type SortedMap<'K,'V>
           let entered = enterLockIf syncRoot  isSynchronized
           try
             if this.size > 0 then
-              index := this.size - 1
-              currentKey := this.GetKeyByIndex(index.Value)
-              currentValue := this.values.[index.Value]
+              index <- this.size - 1
+              currentKey <- this.GetKeyByIndex(index)
+              currentValue <- this.values.[index]
               true
             else
               p.Reset()
@@ -1203,34 +1203,34 @@ type SortedMap<'K,'V>
           finally
             exitLockIf syncRoot entered
 
-        member p.CurrentKey with get() = currentKey.Value //if index.Value >= 0 then this.GetKeyByIndex(index.Value) else Unchecked.defaultof<'K> //currentKey.Value
+        member p.CurrentKey with get() = currentKey
 
-        member p.CurrentValue with get() = currentValue.Value //if index.Value >= 0 then this.values.[index.Value] else Unchecked.defaultof<'V> //currentValue.Value
+        member p.CurrentValue with get() = currentValue
 
       interface IEnumerator<KVP<'K,'V>> with
-        member p.Current with get() : KVP<'K,'V> = KeyValuePair(currentKey.Value, currentValue.Value)
+        member p.Current with get() : KVP<'K,'V> = KeyValuePair(currentKey, currentValue)
         member p.Current with get() : obj = box p.Current
         member p.MoveNext() = 
           let entered = enterLockIf syncRoot isSynchronized
           try
-            if cursorVersion.Value =  this.orderVersion then
-              if index.Value < (this.size - 1) then
-                index := !index + 1
+            if cursorVersion =  this.orderVersion then
+              if index < (this.size - 1) then
+                index <- index + 1
                 // TODO!! (perf) regular keys were supposed to speed up things, not to slow down by 50%! 
-                currentKey := this.GetKeyByIndexUnchecked(!index)
-                currentValue := this.values.[!index]
+                currentKey <- this.GetKeyByIndexUnchecked(index)
+                currentValue <- this.values.[index]
                 true
               else
                 //p.Reset() // NB! Do not reset cursor on false MoveNext
                 false
             else  // source change
-              cursorVersion :=  this.orderVersion // update state to new this.version
+              cursorVersion <- this.orderVersion // update state to new this.version
               let mutable kvp = Unchecked.defaultof<_>
-              let position = this.TryFindWithIndex(currentKey.Value, Lookup.GT, &kvp) // reposition cursor after source change //currentKey.Value
+              let position = this.TryFindWithIndex(currentKey, Lookup.GT, &kvp) // reposition cursor after source change //currentKey.Value
               if position > 0 then
-                index := position
-                currentKey := kvp.Key
-                currentValue := kvp.Value
+                index <- position
+                currentKey <- kvp.Key
+                currentValue <- kvp.Value
                 true
               else  // not found
                 //p.Reset() // NB! Do not reset cursor on false MoveNext
@@ -1238,10 +1238,10 @@ type SortedMap<'K,'V>
           finally
             exitLockIf syncRoot entered
         member p.Reset() = 
-          cursorVersion :=  this.orderVersion // update state to new this.version
-          index := -1
-          currentKey := Unchecked.defaultof<'K>
-          currentValue := Unchecked.defaultof<'V>
+          cursorVersion <-  this.orderVersion // update state to new this.version
+          index <- -1
+          currentKey <- Unchecked.defaultof<'K>
+          currentValue <- Unchecked.defaultof<'V>
 
         member p.Dispose() = 
           p.Reset()
