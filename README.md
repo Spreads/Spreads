@@ -265,9 +265,7 @@ Cassandra/Scylla or any messaging system like Aeron/NATS.
 
 ## Status and version
 Current status is alpha and it will remain alpha until 1.0-... releases. 
-We will use [semantic versioning](http://semver.org/). There are known edge cases where 
-ZipN could work incorrectly (continuous MoveAt when one of input series is empty) 
-and probably some undetected cases.
+We will use [semantic versioning](http://semver.org/).
 
 
 ## Links
