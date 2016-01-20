@@ -92,7 +92,7 @@ type SortedDequeMap<'K,'V>
 #endif
     //#region Private & Internal members
   
-  member inline internal this.GetByIndex(index) = this.sd.[index]
+  member internal this.GetByIndex(index) = this.sd.[index]
 
   member this.IsReadOnly with get() = this.isReadOnly
   member this.Complete() = this.isReadOnly <- true
@@ -622,7 +622,7 @@ type SortedDequeMap<'K,'V>
     member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.Count = 0
     member this.IsIndexed with get() = false
-    member this.IsMutable with get() = true
+    member this.IsReadOnly with get() = this.IsReadOnly
     //member this.Count with get() = int this.size
     member this.First with get() = this.First
     member this.Last with get() = this.Last
@@ -745,7 +745,7 @@ and
         // TODO! how to do this correct for mutable case. Looks like impossible without copying
         if this.isBatch then
           Trace.Assert(this.index = this.source.Count - 1)
-          Trace.Assert(not this.source.IsMutable)
+          Trace.Assert(this.source.IsReadOnly)
           this.source :> IReadOnlyOrderedMap<'K,'V>
         else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
       finally
@@ -754,7 +754,7 @@ and
     member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
       let entered = enterLockIf this.source.SyncRoot this.source.IsSynchronized
       try
-        if (not this.source.IsMutable) && (this.index = -1) then
+        if (this.source.IsReadOnly) && (this.index = -1) then
           this.index <- this.source.Count - 1 // at the last element of the batch
           this.current <- this.source.GetByIndex(this.index)
           this.isBatch <- true

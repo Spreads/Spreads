@@ -102,9 +102,9 @@ and
     abstract GetCursor : unit -> ICursor<'K,'V>
 
     abstract IsIndexed : bool with get
-    abstract IsMutable: bool with get
+    abstract IsReadOnly: bool with get
     override this.IsIndexed with get() = c.Value.Source.IsIndexed
-    override this.IsMutable = c.Value.Source.IsMutable
+    override this.IsReadOnly = c.Value.Source.IsReadOnly
 
     abstract Subscribe: observer:IObserver<KVP<'K,'V>> -> IDisposable
     override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
@@ -117,7 +117,7 @@ and
         subscription :> IDisposable
       | _ ->
         // TODO locks in Complete() and Subscribe()
-        if this.IsMutable then
+        if not this.IsReadOnly then
           this.onNextEvent.Publish.AddHandler(OnNextHandler(observer.OnNext))
           let completedHandler = OnCompletedHandler(fun isCompleted -> if isCompleted then observer.OnCompleted())
           this.onCompletedEvent.Publish.AddHandler(completedHandler)
@@ -216,7 +216,7 @@ and
       member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
       member this.Comparer with get() = this.Comparer
       member this.IsIndexed with get() = this.IsIndexed
-      member this.IsMutable =  this.IsMutable
+      member this.IsReadOnly =  this.IsReadOnly
       member this.SyncRoot with get() = this.SyncRoot
 
       member this.IsEmpty = this.IsEmpty

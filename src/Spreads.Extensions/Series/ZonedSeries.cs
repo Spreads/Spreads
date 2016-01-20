@@ -183,7 +183,7 @@ namespace Spreads {
         }
 
         public void Complete() => _map.Complete();
-        public bool IsMutable => _map.IsMutable;
+        public bool IsReadOnly => _map.IsReadOnly;
 
         public void Add(DateTime k, V v) {
             _map.Add(k.ConvertToUtcWithUncpecifiedKind(_tz), v);

@@ -68,7 +68,7 @@ type internal FunctionalBindCursor<'K,'V,'State,'V2>
     cursor :> ICursor<'K,'V2>
 
   override this.IsIndexed with get() = cursor.Source.IsIndexed
-  override this.IsMutable with get() = cursor.Source.IsMutable
+  override this.IsReadOnly with get() = cursor.Source.IsReadOnly
 
   member this.Clone() = new FunctionalBindCursor<'K,'V,'State,'V2>((fun _ -> cursor.Clone()), stateCreator, stateFoldNext, stateFoldPrevious, stateMapper, isContinuous)
 

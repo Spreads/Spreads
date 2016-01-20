@@ -71,7 +71,7 @@ namespace Spreads.Collections.Tests.Contracts {
         public void BasicTests() {
             Assert.AreEqual(_materializedSeries.Count, _testSeries.Count());
             Assert.AreEqual(_materializedSeries.IsEmpty, !_testSeries.Any());
-            Assert.AreEqual(_materializedSeries.IsMutable, _testSeries.IsMutable);
+            Assert.AreEqual(_materializedSeries.IsReadOnly, _testSeries.IsReadOnly);
             if (_materializedSeries.Count == 0) {
                 return;
             }

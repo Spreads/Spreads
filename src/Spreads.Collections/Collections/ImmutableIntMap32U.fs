@@ -1273,7 +1273,7 @@ namespace Spreads.Collections
             member this.GetCursor() = this.GetCursor()
             member this.IsEmpty = this.IsEmpty
             member this.IsIndexed with get() = false
-            member this.IsMutable = false
+            member this.IsReadOnly = true
             member this.First with get() = this.First
             member this.Last with get() = this.Last
             member this.Item with get (k) : 'T = this.Item(k)

@@ -381,7 +381,8 @@ type SortedMap<'K,'V>
     finally
       exitLockIf syncRoot entered
 
-  override this.IsMutable with get() = isMutable
+  member internal this.IsMutable with get() = isMutable
+  override this.IsReadOnly with get() = not isMutable
   override this.IsIndexed with get() = false
 
   member this.IsSynchronized 
@@ -1311,7 +1312,7 @@ type SortedMap<'K,'V>
     member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.size = 0
     member this.IsIndexed with get() = false
-    member this.IsMutable with get() = this.IsMutable
+    member this.IsReadOnly with get() = this.IsReadOnly
     member this.First with get() = this.First
     member this.Last with get() = this.Last
     member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 

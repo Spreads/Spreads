@@ -60,9 +60,9 @@ type ISeries<'K,'V> =
   abstract Comparer: IComparer<'K> with get
   /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys
   abstract IsIndexed : bool with get
-  /// True if the underlying collection could be changed, false if the underlying collection is immutable or is complete 
+  /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete 
   /// for adding (e.g. after OnCompleted in Rx) or IsReadOnly in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
-  abstract IsMutable: bool with get
+  abstract IsReadOnly: bool with get
   /// Locks any mutations for mutable implementations
   abstract SyncRoot : obj with get
 

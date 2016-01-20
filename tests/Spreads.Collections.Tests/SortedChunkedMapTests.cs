@@ -87,8 +87,8 @@ namespace Spreads.Collections.Tests {
             });
 
             var reader = scm.ReadOnly();
-            Console.WriteLine("Writer IsMutable: {0}", scm.IsMutable);
-            Console.WriteLine("Reader IsMutable: {0}", reader.IsMutable);
+            Console.WriteLine("Writer IsReadOnly: {0}", scm.IsReadOnly);
+            Console.WriteLine("Reader IsReadOnly: {0}", reader.IsReadOnly);
             var cnt = 0;
             using (var c = reader.GetCursor()) {
                 var couldMove = await c.MoveNext(CancellationToken.None);
@@ -100,8 +100,8 @@ namespace Spreads.Collections.Tests {
             }
             addTask.Wait();
             Assert.AreEqual(cnt, total + 1);
-            Console.WriteLine("Writer IsMutable: {0}", scm.IsMutable);
-            Console.WriteLine("Reader IsMutable: {0}", reader.IsMutable);
+            Console.WriteLine("Writer IsReadOnly: {0}", scm.IsReadOnly);
+            Console.WriteLine("Reader IsReadOnly: {0}", reader.IsReadOnly);
             //(scm as IPersistentOrderedMap<int, int>).Dispose();
         }
 

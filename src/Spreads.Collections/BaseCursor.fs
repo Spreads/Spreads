@@ -65,7 +65,7 @@ type BaseCursor<'K,'V>
         #endif
                   ()
                 // check if the source became immutable
-                elif not source.IsMutable then 
+                elif source.IsReadOnly then 
                   //Debug.WriteLine("D")
                   //let couldSetResult = 
                   (tcs).SetResult(false)
@@ -131,8 +131,8 @@ type BaseCursor<'K,'V>
         //Console.WriteLine("From result")
         Task.FromResult(true)
       | false ->
-        match isUpdateable, source.IsMutable with
-        | true, true ->
+        match isUpdateable, source.IsReadOnly with
+        | true, false ->
           let upd = source :?> IObservableEvents<'K,'V>
           if not !observerStarted then 
             upd.add_OnNext(updateHandler)
@@ -315,7 +315,7 @@ type BaseCursor2<'K,'V>(source:Series<'K,'V>) as this =
   abstract member MoveNext : CancellationToken -> Task<bool>
   override this.MoveNext(ct) =
     if this.MoveNext() then trueTask
-    elif source.IsMutable then
+    elif not source.IsReadOnly then
       #if PRERELEASE
       Trace.Assert((tcs = Unchecked.defaultof<_>), "TCS field must be cleared before setting TCS result")
       #endif

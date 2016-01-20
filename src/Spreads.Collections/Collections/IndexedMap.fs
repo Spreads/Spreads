@@ -156,7 +156,8 @@ type IndexedMap<'K,'V> // when 'K:equality
         isMutable <- false
         if cursorCounter > 0 then 
           this.onCompletedEvent.Trigger(true)
-  override this.IsMutable with get() = isMutable
+  member internal this.IsMutable with get() = isMutable
+  override this.IsReadOnly with get() = not isMutable
   override this.IsIndexed with get() = false
 
   member this.IsSynchronized 
@@ -904,7 +905,7 @@ type IndexedMap<'K,'V> // when 'K:equality
     member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.size = 0
     member this.IsIndexed with get() = false
-    member this.IsMutable with get() = this.IsMutable
+    member this.IsReadOnly with get() = not this.IsMutable
     member this.First with get() = this.First
     member this.Last with get() = this.Last
     member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 

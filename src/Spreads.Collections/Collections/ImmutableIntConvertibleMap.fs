@@ -85,7 +85,7 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
         member this.IsEmpty = map.IsEmpty
         //member this.Count = int map.Size
         member this.IsIndexed with get() = (map :> IImmutableOrderedMap<int64,'V>).IsIndexed
-        member this.IsMutable = (map :> IImmutableOrderedMap<int64,'V>).IsMutable
+        member this.IsReadOnly = (map :> IImmutableOrderedMap<int64,'V>).IsReadOnly
         member this.First
             with get() = 
                 let f = map.First

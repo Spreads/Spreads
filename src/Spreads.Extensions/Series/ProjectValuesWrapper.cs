@@ -138,7 +138,7 @@ namespace Spreads {
 
         public bool IsIndexed => _innerMap.IsIndexed;
 
-        public bool IsMutable => _innerMap.IsMutable;
+        public bool IsReadOnly => _innerMap.IsReadOnly;
         public void Complete() => _innerMap.Complete();
 
         public IEnumerable<K> Keys => _innerMap.Keys;

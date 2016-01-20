@@ -55,7 +55,7 @@ type internal MutableWrapper<'K,'V  when 'K : comparison>
     member this.GetCursor() = map.GetCursor()
     member this.IsEmpty = map.IsEmpty
     member this.IsIndexed with get() = false
-    member this.IsMutable with get() = true
+    member this.IsReadOnly with get() = false
     //member this.Count with get() = int map.Size
     member this.First with get() = map.First
     member this.Last with get() = map.Last

@@ -648,7 +648,7 @@ namespace Spreads.Collections
 
       member this.IsEmpty with get() = MapTree.isEmpty tree
       override this.IsIndexed with get() = false
-      override this.IsMutable with get() = false
+      override this.IsReadOnly with get() = true
 
       member this.First
         with get() = 
@@ -805,7 +805,7 @@ namespace Spreads.Collections
         member this.GetCursor() = this.GetCursor()
         member this.IsEmpty = this.IsEmpty
         member this.IsIndexed with get() = false
-        member this.IsMutable with get() = false
+        member this.IsReadOnly with get() = true
         //member this.Count with get() = int this.Size
         member this.First  with get() = this.First
         member this.Last  with get() = this.Last

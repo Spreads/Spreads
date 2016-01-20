@@ -143,7 +143,8 @@ type SortedChunkedMap<'K,'V>
         isMutable <- false
         if cursorCounter > 0 then 
           this.onCompletedEvent.Trigger(true)
-  override this.IsMutable with get() = isMutable
+  member internal this.IsMutable with get() = isMutable
+  override this.IsReadOnly with get() = not isMutable
   override this.IsIndexed with get() = false
 
   member this.IsSynchronized with get() = isSync and set v = isSync <- v
@@ -917,7 +918,7 @@ type SortedChunkedMap<'K,'V>
     member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.IsEmpty
     member this.IsIndexed with get() = false
-    member this.IsMutable with get() = this.IsMutable
+    member this.IsReadOnly with get() = not this.IsMutable
     member this.First with get() = this.First
     member this.Last with get() = this.Last
     member this.TryFind(k:'K, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
