@@ -154,27 +154,37 @@ type SeriesExtensions () =
     // TODO Do should return task that returns when the source is complete or token was cancelled
     // called of Do decides wether await or not on it
 
+    // TODO we never set task to false
+
     /// Invoke action on each key/value sequentially
     [<Extension>]
-    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>, token:CancellationToken) : unit =
-      let task = task {
-          let cursor = source.GetCursor()
-          while cursor.MoveNext() do
-            action.Invoke(cursor.CurrentKey, cursor.CurrentValue)
-          let mutable moved = true
-          while moved && not token.IsCancellationRequested do
-              let! moved' =  cursor.MoveNext(token)
-              moved <- moved'
-              if moved then
-                action.Invoke(cursor.CurrentKey, cursor.CurrentValue)
-          cursor.Dispose()
-          return 0
-      }
-      let runninTask = Task.Run<int>(Func<Task<int>>(fun _ -> task))
-      ()
+    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>, token:CancellationToken) : Task<bool> =
+      let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
+      let returnTask = tcs.Task
+      let cursor = source.GetCursor()
+      let rec loop() =
+        while cursor.MoveNext() do
+          action.Invoke(cursor.CurrentKey, cursor.CurrentValue)
+        let moveTask = cursor.MoveNext(token)
+        let awaiter = moveTask.GetAwaiter()
+        awaiter.UnsafeOnCompleted(fun _ ->
+          match moveTask.Status with
+          | TaskStatus.RanToCompletion ->
+            if moveTask.Result then
+              action.Invoke(cursor.CurrentKey, cursor.CurrentValue)
+              loop()
+            else
+              tcs.SetResult(true) // finish on complete
+          | TaskStatus.Canceled -> tcs.SetException(OperationCanceledException())
+          | TaskStatus.Faulted -> tcs.SetException(moveTask.Exception)
+          | _ -> failwith "TODO process all task statuses"
+          ()
+        )
+      loop()
+      returnTask
 
     [<Extension>]
-    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>) : unit =
+    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>) : Task<bool> =
       SeriesExtensions.Do(source, action, CancellationToken.None)
 
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.

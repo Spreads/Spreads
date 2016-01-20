@@ -385,7 +385,7 @@ namespace Spreads.Collections.Tests.Cursors {
                 sm.Complete();
             });
 
-            var cached = sm.Cache();
+            var cached = sm; //.Cache();
 
             double sum = 0.0;
 
