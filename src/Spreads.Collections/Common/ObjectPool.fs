@@ -47,8 +47,9 @@ type ObjectPool<'T>(objectGenerator:Func<'T>, maxCapacity:int) =
   member x.Outstanding with get() = outstanding
 
   member x.GetObject() =
-    let ok, value = objects.TryTake()
-    if ok then value
+    let mutable v = Unchecked.defaultof<_>
+    let ok = objects.TryTake(&v)
+    if ok then v
     else 
       Interlocked.Increment(&outstanding) |> ignore
       objectGenerator.Invoke()
@@ -65,10 +66,11 @@ type ObjectPool<'T>(objectGenerator:Func<'T>, maxCapacity:int) =
   member x.Dispose() =
       //let isDisposable = typedefof<IDisposable>.IsAssignableFrom(typedefof<'T>);
       let rec removeDisposeItem() =
-        let ok, item = objects.TryTake()
+        let mutable v = Unchecked.defaultof<_>
+        let ok = objects.TryTake(&v)
         if ok then // && isDisposable
-          ((box item) :?> IDisposable).Dispose()
-          match box item with
+          ((box v) :?> IDisposable).Dispose()
+          match box v with
           | :? IDisposable as d -> d.Dispose()
           | _ -> ()
           removeDisposeItem()

@@ -66,7 +66,8 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
       // TODO (perf) optimize the case when key is below the previous one
       if lookupCursor = Unchecked.defaultof<ICursor<'K,'V>> then lookupCursor <- cursor.Clone()
       if cursor.IsContinuous then 
-        let ok, v = lookupCursor.TryGetValue(key)
+        let mutable v = Unchecked.defaultof<_>
+        let ok = lookupCursor.TryGetValue(key, &v)
         if ok then
           value <- v
           true
@@ -115,7 +116,8 @@ type internal FillCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, fillValue:'V
     member this.Reset(): unit = cursor.Reset()
     member this.Source: ISeries<'K,'V> = cursor.Source
     member this.TryGetValue(key: 'K, value: byref<'V>): bool =
-      let ok, v = cursor.TryGetValue(key)
+      let mutable v = Unchecked.defaultof<_>
+      let ok = cursor.TryGetValue(key, &v)
       if ok then 
         value <- v
       else

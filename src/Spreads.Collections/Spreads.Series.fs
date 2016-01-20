@@ -253,7 +253,8 @@ and
 //          else 
 //            if OptimizationSettings.AlwaysBatch then
 //              let fBatch' b =
-//                let ok, v = VectorMathProvider.Default.MapBatch(mapFunc.Invoke, b)
+//                let mutable v = Unchecked.defaultof<_>
+//                let ok = VectorMathProvider.Default.MapBatch(mapFunc.Invoke, b, &v)
 //                v
 //              OptionalValue(Func<_,_>(fBatch'))
 //            else None
@@ -621,8 +622,9 @@ and
         let c() = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, fBatch) :> ICursor<'K,'V2>
         CursorSeries(Func<_>(c)) :> ISeries<'K,'V2>
 
-    member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  
-      let ok, v = cursor.TryGetValue(key)
+    member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =
+      let mutable v = Unchecked.defaultof<_>
+      let ok = cursor.TryGetValue(key, &v)
       if ok then value <- f.Invoke(v)
       ok
     
@@ -704,7 +706,8 @@ and
 //    // if not continuous, then move after k
 //    let moveOrGetNextAtK (cursor:ICursor<'K,'V>) (k:'K) : 'V opt =
 //      if cursor.IsContinuous then 
-//        let ok, v = cursor.TryGetValue(k)
+//        let mutable v = Unchecked.defaultof<_>
+//        let ok = cursor.TryGetValue(k, &v)
 //        if ok then OptionalValue(v)
 //        else
 //          // weird case when continuous has holes
@@ -1447,8 +1450,9 @@ and
         let mutable c = 0
         while cont && c < cursors.Length do
           if cursors.[c].IsContinuous then
-            let ok, value = cursors.[c].TryGetValue(key)
-            if ok then currentValues.[c] <- value
+            let mutable v = Unchecked.defaultof<_>
+            let ok = cursors.[c].TryGetValue(key, &v)
+            if ok then currentValues.[c] <- v
             else cont <- false // cannot get value
           c <- c + 1
         cont
@@ -1913,8 +1917,9 @@ and
         // of ICursor, but we could make an internal interface and check if a cursor implements it)
         // CWT is an interesting thing and I want to try using it for metadata of objects, R-like style.
         |> Array.map (fun x ->
-          let ok, value = x.TryGetValue(key)
-          if ok then value
+          let mutable v = Unchecked.defaultof<_>
+          let ok = x.TryGetValue(key, &v)
+          if ok then v
           else
             cont <- false
             Unchecked.defaultof<'V>

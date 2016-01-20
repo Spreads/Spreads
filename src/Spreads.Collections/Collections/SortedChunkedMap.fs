@@ -95,7 +95,8 @@ type SortedChunkedMap<'K,'V>
             // new values to this bucket. Else create a new bucket.
               if om.IsEmpty then k
               else
-                let ok,kvp = om.TryFind(k, Lookup.LE)
+                let mutable kvp = Unchecked.defaultof<_>
+                let ok = om.TryFind(k, Lookup.LE, &kvp)
                 if ok then
                   // k is larger than the last key and the chunk is big enough
                   Trace.Assert(kvp.Value.size > 0)
@@ -166,7 +167,8 @@ type SortedChunkedMap<'K,'V>
           prevBucket.[subKey] // this could raise keynotfound exeption
         else
           let bucket =
-            let ok, bucketKvp = outerMap.TryFind(hash, Lookup.EQ)
+            let mutable bucketKvp = Unchecked.defaultof<_>
+            let ok = outerMap.TryFind(hash, Lookup.EQ, &bucketKvp)
             if ok then
               bucketKvp.Value
             else
@@ -195,7 +197,8 @@ type SortedChunkedMap<'K,'V>
             //prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
             outerMap.[prevHash] <- prevBucket // will store bucket if outer is persistent
           let bucket = 
-            let ok, bucketKvp = outerMap.TryFind(hash, Lookup.EQ)
+            let mutable bucketKvp = Unchecked.defaultof<_>
+            let ok = outerMap.TryFind(hash, Lookup.EQ, &bucketKvp)
             if ok then 
               bucketKvp.Value
             else
@@ -531,7 +534,8 @@ type SortedChunkedMap<'K,'V>
 
       let res, pair =
         if c <> 0 || (not prevBucketIsSet) then // not in the prev bucket, switch bucket to newHash
-          let ok, innerMapKvp = outerMap.TryFind(hash, Lookup.EQ) //.TryGetValue(newHash)
+          let mutable innerMapKvp = Unchecked.defaultof<_>
+          let ok = outerMap.TryFind(hash, Lookup.EQ, &innerMapKvp)
           if ok then
             prevHash <- hash
             prevBucket <- (innerMapKvp.Value)
@@ -591,7 +595,8 @@ type SortedChunkedMap<'K,'V>
       false
         
   member this.TryGetValue(k, [<Out>] value:byref<'V>) =
-    let ok, kvp = this.TryFind(k, Lookup.EQ)
+    let mutable kvp = Unchecked.defaultof<_>
+    let ok = this.TryFind(k, Lookup.EQ, &kvp)
     if ok then
       value <- kvp.Value
       true
@@ -613,7 +618,8 @@ type SortedChunkedMap<'K,'V>
           //prevBucket.Capacity <- prevBucket.Count // trim excess
           outerMap.[prevHash] <- prevBucket
         let bucket = 
-          let ok, bucketKvp = outerMap.TryFind(hash, Lookup.EQ)
+          let mutable bucketKvp = Unchecked.defaultof<_>
+          let ok = outerMap.TryFind(hash, Lookup.EQ, &bucketKvp)
           if ok then 
             bucketKvp.Value.Add(subKey, value)
             bucketKvp.Value
@@ -688,7 +694,8 @@ type SortedChunkedMap<'K,'V>
         if prevBucketIsSet then 
           //prevBucket.Capacity <- prevBucket.Count // trim excess 
           outerMap.[prevHash]<- prevBucket
-        let ok, innerMapKvp = outerMap.TryFind(hash, Lookup.EQ) //.TryGetValue(newHash)
+        let mutable innerMapKvp = Unchecked.defaultof<_>
+        let ok = outerMap.TryFind(hash, Lookup.EQ, &innerMapKvp)
         if ok then 
           let bucket = (innerMapKvp.Value)
           prevHash <- hash

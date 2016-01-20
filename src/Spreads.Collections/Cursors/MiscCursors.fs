@@ -90,8 +90,9 @@ type internal ScanCursorSlow<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:
               state.value <- folder.Invoke(state.value, key, cursor.CurrentValue)
               KVP(true, state)
           else 
-            let ok, value = ScanCursorState.GetOrMakeBuffer(ref state, cursor, folder).TryGetValue(key)
-            state.value <- value
+            let mutable v = Unchecked.defaultof<_>
+            let ok = ScanCursorState.GetOrMakeBuffer(ref state, cursor, folder).TryGetValue(key, &v)
+            state.value <- v
             KVP(ok,state)
         else KVP(false,Unchecked.defaultof<ScanCursorState<'K,'V,'R>>)
     )
@@ -110,8 +111,9 @@ type internal ScanCursorSlow<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:
         let mutable state = state
         if not state.buffered then
           state.buffer <- ScanCursorState.GetOrMakeBuffer(ref state, cursorFactory.Invoke(), folder)
-        let ok, value = state.buffer.TryGetValue(current.Key)
-        state.value <- value
+        let mutable v = Unchecked.defaultof<_>
+        let ok = state.buffer.TryGetValue(current.Key, &v)
+        state.value <- v
         KVP(ok,state)
     )
 

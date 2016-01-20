@@ -39,9 +39,10 @@ type FilterValuesCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Fu
   override this.IsContinuous = this.InputCursor.IsContinuous
 
   override this.TryGetValue(key:'K, isMove:bool, [<Out>] value: byref<'V>): bool =
-    let ok, value2 = this.InputCursor.TryGetValue(key)
-    if ok && filterFunc.Invoke value2 then
-      value <- value2
+    let mutable v = Unchecked.defaultof<_>
+    let ok = this.InputCursor.TryGetValue(key, &v)
+    if ok && filterFunc.Invoke v then
+      value <- v
       true
     else false
 
@@ -71,9 +72,10 @@ type FilterMapCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Fu
 
   override this.TryGetValue(key:'K, isMove:bool, [<Out>] value: byref<'R>): bool =
     // add works on any value, so must use TryGetValue instead of MoveAt
-    let ok, value2 = this.InputCursor.TryGetValue(key)
-    if ok && filterFunc.Invoke(key,value2) then
-      value <- mapperFunc.Invoke(value2)
+    let mutable v = Unchecked.defaultof<_>
+    let ok = this.InputCursor.TryGetValue(key, &v)
+    if ok && filterFunc.Invoke(key,v) then
+      value <- mapperFunc.Invoke(v)
       true
     else false
 

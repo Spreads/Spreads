@@ -154,5 +154,6 @@ type KeyComparer()=
   static member RegisterDefault(keyComparer:IKeyComparer<'K>) =
     registeredComparers.[typeof<'K>] <- keyComparer
   static member GetDefault<'K>() : IComparer<'K> =
-    let ok, v = registeredComparers.TryGetValue(typeof<'K>)
+    let mutable v = Unchecked.defaultof<_>
+    let ok = registeredComparers.TryGetValue(typeof<'K>, &v)
     if ok then v :?> IComparer<'K> else Comparer<'K>.Default :> IComparer<'K>

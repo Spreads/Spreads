@@ -54,7 +54,8 @@ type internal MapValuesWithKeysCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'
       let c() = new MapValuesWithKeysCursor<'K,'V,'V2>(cursorFactory, f) :> ICursor<'K,'V2>
       CursorSeries(Func<_>(c)) :> ISeries<'K,'V2>
   member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  
-    let ok, v = cursor.TryGetValue(key)
+    let mutable v = Unchecked.defaultof<_>
+    let ok = cursor.TryGetValue(key, &v)
     if ok then value <- f.Invoke(key, v)
     ok
       
