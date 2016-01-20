@@ -79,7 +79,12 @@ type ReadmeTestsModule() =
 //                                             )
 
     let index : Series<DateTime, float> = 
-        quoteSources.Zip(fun k vArr -> vArr.Average())
+        quoteSources.Zip(fun k vArr ->
+          let mutable sum = 0.0
+          for i in 0..(vArr.Length - 1) do
+            sum <- sum + vArr.[i]
+          sum/(float vArr.Length)
+        )
 
     // monitoring - 1s chunks, and total
     let chunkMillisecs = 1000
