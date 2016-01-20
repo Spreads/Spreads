@@ -28,9 +28,10 @@ open System.Threading.Tasks
 open System.Diagnostics
 open Spreads
 open Microsoft.FSharp.Control
+
 // TODO rename back to MapCursor - this is an original cursor backed by some map, it does not represent series itself
 [<AbstractClassAttribute>]
-type BaseCursor<'K,'V>
+type BaseCursorOld<'K,'V>
   (source:IReadOnlyOrderedMap<'K,'V>) as this =
 
   // implement default MoveNextAsync logic using only MoveNext
@@ -236,7 +237,7 @@ type BaseCursor<'K,'V>
 
 // TODO rename back to MapCursor - this is an original cursor backed by some map, it does not represent series itself
 [<AbstractClassAttribute>]
-type BaseCursor2<'K,'V>(source:Series<'K,'V>) as this =
+type BaseCursor<'K,'V>(source:Series<'K,'V>) as this =
 
   let mutable isSubscribed = false
   
@@ -419,7 +420,7 @@ type BaseCursor2<'K,'V>(source:Series<'K,'V>) as this =
 /// Uses IReadOnlyOrderedMap's TryFind method, doesn't know anything about underlying sequence
 [<ObsoleteAttribute("TODO replace it with direct BaseCursor implementation")>]
 type MapCursor<'K,'V>(map:IReadOnlyOrderedMap<'K,'V>) as this =
-  inherit BaseCursor<'K,'V>(map)
+  inherit BaseCursorOld<'K,'V>(map)
   [<DefaultValue>] 
   val mutable private currentPosition : bool * KeyValuePair<'K,'V>
 
