@@ -64,18 +64,18 @@ open Spreads.Collections
 type SortedMap<'K,'V>
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
   inherit Series<'K,'V>()
-   
+  
   // data fields
+  [<DefaultValueAttribute>] 
+  val mutable internal version : int // enumeration doesn't lock but checks this.version
+  [<DefaultValueAttribute>]
+  val mutable internal size : int
+  // TODO isMutable as field
   [<DefaultValueAttribute>]
   val mutable internal keys : 'K array
   [<DefaultValueAttribute>]
   val mutable internal values : 'V array
-  [<DefaultValueAttribute>] // if size > 2 and keys.Length = 2 then the keys are regular
-  val mutable internal size : int
-  /// data version
-  [<DefaultValueAttribute>] 
-  val mutable internal version : int // enumeration doesn't lock but checks this.version
-  // isMutable as field
+
 
 
   /// used for cursors, incremented on any out of order data change that require a cursor either to throw to to recover with repositioning
@@ -1034,10 +1034,10 @@ type SortedMap<'K,'V>
 
   override this.GetCursor() =
     if isMutable then this.GetCursor(-1,  this.orderVersion, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>) :> ICursor<'K,'V>
-    else 
-      // optimization when SM represents an immutable chunk
-      // TODO this doesn't work for the compiler optimization
-      new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
+    else new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
+  
+  // foreach optimization
+  member this.GetEnumerator() = new SortedMapCursor<'K,'V>(this)
 
   member internal this.GetSMCursor() = new SortedMapCursor<'K,'V>(this)
 
@@ -1460,12 +1460,12 @@ type SortedMap<'K,'V>
   // TODO try resolve KeyComparer for know types
   new() = SortedMap(None, None, None)
   new(dictionary:IDictionary<'K,'V>) = SortedMap(Some(dictionary), Some(dictionary.Count), Some(Comparer<'K>.Default :> IComparer<'K>))
-  new(capacity:int) = SortedMap(None, Some(capacity), Some(Comparer<'K>.Default :> IComparer<'K>))
+  new(minimumCapacity:int) = SortedMap(None, Some(minimumCapacity), Some(Comparer<'K>.Default :> IComparer<'K>))
 
   // do not expose ctors with comparer to public
   internal new(comparer:IComparer<'K>) = SortedMap(None, None, Some(comparer))
   internal new(dictionary:IDictionary<'K,'V>,comparer:IComparer<'K>) = SortedMap(Some(dictionary), Some(dictionary.Count), Some(comparer))
-  internal new(capacity:int,comparer:IComparer<'K>) = SortedMap(None, Some(capacity), Some(comparer))
+  internal new(minimumCapacity:int,comparer:IComparer<'K>) = SortedMap(None, Some(minimumCapacity), Some(comparer))
 
   static member internal OfSortedKeysAndValues(keys:'K[], values:'V[], size:int, comparer:IComparer<'K>, sortChecked:bool, isAlreadyRegular) =
     if keys.Length < size && not isAlreadyRegular then raise (new ArgumentException("Keys array is smaller than provided size"))
@@ -1521,7 +1521,7 @@ type SortedMap<'K,'V>
       System.Linq.Enumerable.SequenceEqual(smA.keys, smB.keys)
 
 and
-  internal SortedMapCursor<'K,'V> =
+  public SortedMapCursor<'K,'V> =
     struct
       val public source : SortedMap<'K,'V>
       val mutable index : int

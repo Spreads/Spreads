@@ -46,13 +46,14 @@ type IndexedMap<'K,'V> // when 'K:equality
   //#region Main internal constructor
     
   // data fields
+  let mutable version : int = 0 // enumeration doesn't lock but checks version
+  [<DefaultValueAttribute>] // if size > 2 and keys.Length = 2 then the keys are regular
+  val mutable internal size : int
   [<DefaultValueAttribute>]
   val mutable internal keys : 'K array
   [<DefaultValueAttribute>]
   val mutable internal values : 'V array
-  [<DefaultValueAttribute>] // if size > 2 and keys.Length = 2 then the keys are regular
-  val mutable internal size : int
-  let mutable version : int = 0 // enumeration doesn't lock but checks version
+
 
   [<NonSerializedAttribute>]
   // This type is logically immutable. This field is only mutated during deserialization. 

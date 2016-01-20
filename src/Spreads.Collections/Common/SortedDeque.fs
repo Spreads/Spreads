@@ -25,6 +25,8 @@ open System.Collections
 open System.Collections.Generic
 open System.Diagnostics
 
+open Spreads
+
 type KVComparer<'K,'V>(keyComparer:IComparer<'K>, valueComparer:IComparer<'V>) = 
   interface IComparer<KV<'K,'V>> with
     member this.Compare(x: KV<'K, 'V>, y: KV<'K, 'V>): int = 
@@ -36,6 +38,11 @@ type KVComparer<'K,'V>(keyComparer:IComparer<'K>, valueComparer:IComparer<'V>) =
 and KVKeyComparer<'K,'V>(keyComparer:IComparer<'K>) = 
   interface IComparer<KV<'K,'V>> with
     member this.Compare(x: KV<'K, 'V>, y: KV<'K, 'V>): int = keyComparer.Compare(x.Key, y.Key)
+  end
+
+and KVPKeyComparer<'K,'V>(keyComparer:IComparer<'K>) = 
+  interface IComparer<KVP<'K,'V>> with
+    member this.Compare(x: KVP<'K, 'V>, y: KVP<'K, 'V>): int = keyComparer.Compare(x.Key, y.Key)
   end
 
 and internal ZipNComparer<'K>(keyComparer:IComparer<'K>) = 
@@ -78,14 +85,15 @@ and
 
 
 [<SerializableAttribute>]
-type SortedDeque<'T> (comparer:IComparer<'T>) as this=
-  [<DefaultValue>] val mutable internal comparer : IComparer<'T> 
-  [<DefaultValue>] val mutable internal buffer : 'T[]
-  [<DefaultValue>] val mutable internal count : int
+type SortedDeque<'T> (capacity:int, comparer:IComparer<'T>) as this=
+  [<DefaultValue>] val mutable internal comparer : IComparer<'T>
   [<DefaultValue>] val mutable internal firstOffset : int
+  [<DefaultValue>] val mutable internal count : int
+  [<DefaultValue>] val mutable internal buffer : 'T[]
+  
   do
     this.comparer <- if comparer = null then Comparer<'T>.Default :> IComparer<'T> else comparer
-    this.buffer <- Array.zeroCreate 2
+    this.buffer <- Array.zeroCreate capacity
 
   /// Sets the total number of elements the internal array can hold without resizing.
   let doubleCapacity() = 
@@ -106,11 +114,17 @@ type SortedDeque<'T> (comparer:IComparer<'T>) as this=
     this.firstOffset <- 0
 
   new() = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>())
-  //new(comparer:IComparer<'T>) = new SortedDeque<'T>(comparer)
-  //new(capacity) = new SortedDeque<'T>(Spreads.KeyComparer.GetDefault<'T>(), capacity)
+  new(comparer:IComparer<'T>) = new SortedDeque<'T>(comparer)
+  new(capacity) = new SortedDeque<'T>(capacity, Spreads.KeyComparer.GetDefault<'T>())
 
   member inline internal this.IndexToOffset(index) = 
-    (index + this.firstOffset) &&& (this.buffer.Length - 1)
+    (index + this.firstOffset) % (this.buffer.Length)
+  member inline internal this.OffsetToIndex(offset) = 
+    // TODO unit test, looks obvious - bacause of that
+    if offset >= 0 then
+      (this.buffer.Length + offset- this.firstOffset) % (this.buffer.Length)
+    else
+      ~~~((this.buffer.Length + (~~~offset)- this.firstOffset) % (this.buffer.Length))
 
   member private this.OffsetOfElement(element:'T) =
     let index = 
@@ -127,19 +141,23 @@ type SortedDeque<'T> (comparer:IComparer<'T>) as this=
         Array.BinarySearch(this.buffer, this.firstOffset, this.count, element, this.comparer) 
     index
 
+  member this.IndexOfElement(element:'T) =
+    let offset = this.OffsetOfElement(element)
+    this.OffsetToIndex(offset)
+
   /// Offset is the place where a new element must be if we always shift 
   /// existing elements to the right. Here, we could shift existing elements
   /// to the left if doing so is faster, so the new element could end up
   /// at offset-1 place.
   member private this.InsertAtOffset(offset, element) : unit =
-    let mutable offset = offset &&& (this.buffer.Length - 1)
+    let mutable offset = offset % (this.buffer.Length)
     
     if this.count = 0 || (offset = this.firstOffset + this.count) || offset = this.firstOffset + this.count - this.buffer.Length then // add to the right end
-      let destination = offset &&& (this.buffer.Length-1) // ofset could have been equal to length
+      let destination = offset % (this.buffer.Length) // ofset could have been equal to length
       this.buffer.[destination] <- element
       this.count <- this.count + 1
     elif offset = this.firstOffset then // add to the left end
-      this.firstOffset <- (offset + this.buffer.Length - 1) &&& (this.buffer.Length - 1)
+      this.firstOffset <- (offset + this.buffer.Length - 1) % (this.buffer.Length)
       this.buffer.[this.firstOffset] <- element
       this.count <- this.count + 1
     else
@@ -183,7 +201,7 @@ type SortedDeque<'T> (comparer:IComparer<'T>) as this=
       this.count <- this.count + 1
 
   member private this.RemoveAtOffset(offset) : 'T =
-    let mutable offset = offset &&& (this.buffer.Length - 1)
+    let mutable offset = offset % (this.buffer.Length)
     let element = this.buffer.[offset]
     if this.count = 0 then
       invalidOp "SortedDeque is empty"
@@ -191,7 +209,7 @@ type SortedDeque<'T> (comparer:IComparer<'T>) as this=
       // at the end: this.count <- this.count - 1
       ()
     elif offset = this.firstOffset then
-      this.firstOffset <- (this.firstOffset + 1) &&& (this.buffer.Length - 1)
+      this.firstOffset <- (this.firstOffset + 1) % (this.buffer.Length)
       // at the end: this.count <- this.count - 1
     else
       // unchecked, assume that offset is inside existing range
@@ -210,6 +228,26 @@ type SortedDeque<'T> (comparer:IComparer<'T>) as this=
     this.count <- this.count - 1
     element
 
+  member this.Set(element:'T) =
+    // NB save some cycles instead of this line
+    //if this.TryAdd(element) < 0 then invalidOp "Item already exists"
+    // ensure capacity
+    if this.count = this.buffer.Length then doubleCapacity()
+    if this.count = 0 then
+      let offset = this.IndexToOffset(this.count)
+      this.InsertAtOffset(offset, element)
+    elif  this.comparer.Compare(element, this.buffer.[this.IndexToOffset (this.count - 1)]) > 0 then
+      // adding to the end
+      let offset = this.IndexToOffset(this.count)
+      this.InsertAtOffset(offset, element)
+    elif this.comparer.Compare(element, this.buffer.[this.IndexToOffset (0)]) < 0 then
+      // adding to the front
+      let offset = this.IndexToOffset(0)
+      this.InsertAtOffset(offset, element)
+    else
+      let offset = this.OffsetOfElement(element)
+      if offset >= 0 then this.buffer.[offset] <- element
+      else this.InsertAtOffset(~~~offset, element)
 
   member this.Add(element:'T) =
     // NB save some cycles instead of this line
@@ -253,7 +291,7 @@ type SortedDeque<'T> (comparer:IComparer<'T>) as this=
       if offset >= 0 then index <- ~~~offset
       else 
         this.InsertAtOffset(~~~offset, element)
-        index <- (this.buffer.Length + offset- this.firstOffset) &&& (this.buffer.Length - 1) // TODO unit test, looks obvious, but just in case
+        index <- this.OffsetToIndex(offset) 
     index
 
   /// Returns the index of added element
@@ -276,7 +314,7 @@ type SortedDeque<'T> (comparer:IComparer<'T>) as this=
 //      let offset = this.OffsetOfElement(element)
 //      if offset >= 0 then invalidOp "Item already exists"
 //      else this.InsertAtOffset(~~~offset, element)
-//      index <- (this.buffer.Length + offset- this.firstOffset) &&& (this.buffer.Length - 1) // TODO unit test, looks obvious, but just in case
+//      index <- (this.buffer.Length + offset- this.firstOffset) % (this.buffer.Length) // TODO unit test, looks obvious, but just in case
 //    index
 
   member this.First 
@@ -300,7 +338,7 @@ type SortedDeque<'T> (comparer:IComparer<'T>) as this=
     if this.count = 0 then invalidOp "SortedDeque is empty"
     let first = this.buffer.[this.firstOffset]
     this.buffer.[this.firstOffset] <- Unchecked.defaultof<_>
-    this.firstOffset <- (this.firstOffset + 1) &&& (this.buffer.Length - 1)
+    this.firstOffset <- (this.firstOffset + 1) % (this.buffer.Length)
     this.count <- this.count - 1
     first
 
@@ -312,13 +350,20 @@ type SortedDeque<'T> (comparer:IComparer<'T>) as this=
     this.count <- this.count - 1
     last
 
-  member this.Remove(element:'T): unit = 
+  // NB Remove methods return 'T because comparer could take only a part of element
+  // e.g. for KV we could remove elements only by key part and returned KV will have a value
+
+  member this.Remove(element:'T): 'T = 
     let offset = this.OffsetOfElement(element)
     if offset < 0 then
       invalidOp "Element doesn't exist in the SortedDeque"
-    this.RemoveAtOffset(offset) |> ignore
+    this.RemoveAtOffset(offset)
 
-  member this.RemoveAt(idx) = this.RemoveAtOffset(this.IndexToOffset(idx))
+  member this.RemoveAt(index) : 'T = 
+    if index < 0 || index >= this.count then
+      raise (ArgumentOutOfRangeException("index"))
+    else
+      this.RemoveAtOffset(this.IndexToOffset(index))
 
   member this.Item with get(idx) = this.buffer.[this.IndexToOffset(idx)]
 

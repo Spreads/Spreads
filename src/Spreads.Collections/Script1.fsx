@@ -393,3 +393,17 @@ let VirtualRoot = VirtualRoot()//.AddMap(fun i -> i * 2)
 let mutable acc4 = 0
 for i in 0..100000000 do
   acc4 <- VirtualRoot.Add(i) * 2
+
+
+#time "on"
+// no difference with mod operation
+let mutable modSum = 0L
+for i in 0L..10000000L do
+  modSum <- modSum + (i &&& (128L-1L))
+modSum
+
+
+modSum <- 0L
+for i in 0L..10000000L do
+  modSum <- modSum + (i % (125L))
+modSum

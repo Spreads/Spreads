@@ -80,6 +80,7 @@ module Utils =
   let inline exitLockIf locker (condition:bool) = 
     if condition then System.Threading.Monitor.Exit(locker)
 
+  let increment (value:byref<int>) = value <- value + 1
 
 // TODO add back cancellation. this was taken from F#x and stripped from everything that is not needed for MoveNextAsync in cursors
 
