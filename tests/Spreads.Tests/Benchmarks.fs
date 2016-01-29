@@ -66,7 +66,6 @@ module CollectionsBenchmarks =
         for i in 0L..count+1L do
           sb2.Add(i,int i)
         deedleSeries2 := sb2.ToSeries()
-
 //    perf count "DeedleSeries read" (fun _ ->
 //      for i in 0L..count do
 //        let res = Series.lookup i Deedle.Lookup.Exact !deedleSeries 

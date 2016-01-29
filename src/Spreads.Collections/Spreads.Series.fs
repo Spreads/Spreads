@@ -171,7 +171,6 @@ and
       if c.Value.IsContinuous then
         c.Value.TryGetValue(k, &value)
       else
-        let v = ref Unchecked.defaultof<KVP<'K,'V>>
         let ok = c.Value.MoveAt(k, Lookup.EQ)
         if ok then value <- c.Value.CurrentValue else value <- Unchecked.defaultof<'V>
         ok

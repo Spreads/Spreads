@@ -30,7 +30,7 @@ type ReadmeTestsModule() =
     let chunkInputs = ref 0
 
     let makeQuoteSources (n) : Series<DateTime, float>[] =
-      let maps = Array.init n (fun _ -> SortedMap(200000))
+      let maps = Array.init n (fun _ -> SortedMap())
       let mutable value = 1.0
       let mutable ticks = 0L
       let task = async {

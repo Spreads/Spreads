@@ -74,6 +74,7 @@
     <Compile Include="Common\SortedDeque.fs" />
     <Compile Include="Common\FixedMinHeap.fs" />
     <Compile Include="Common\Exceptions.fs" />
+    <Compile Include="Common\OptionalValue.fs" />
     <Compile Include="Interfaces.fs" />
     <Compile Include="MathProvider.fs" />
     <Compile Include="Spreads.Series.fs" />
