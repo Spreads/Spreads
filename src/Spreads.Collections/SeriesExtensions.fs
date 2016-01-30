@@ -67,6 +67,12 @@ type SeriesExtensions () =
 //    static member inline Map(source: Series<'K,'V>, mapFunc:Func<'K,'K>) : Series<'K,'V> =
 //      CursorSeries(fun _ -> new MapKeysCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
 
+
+    [<Extension>]
+    static member Map(source: ISeries<'K,'V>, mapFunc:Func<'K,'V,'V2>) : Series<'K,'V2> =
+      CursorSeries(fun _ -> new MapValuesWithKeysCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<_,_> ) :> Series<'K,'V2>
+
+
     [<Extension>]
     static member Filter(source: ISeries<'K,'V>, filterFunc:Func<'V,bool>) : Series<'K,'V> = 
        CursorSeries(fun _ -> new FilterValuesCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), filterFunc) :> ICursor<'K,'V>) :> Series<'K,'V>

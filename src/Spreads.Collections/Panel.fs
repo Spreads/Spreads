@@ -42,6 +42,9 @@ type Panel<'TRowKey,'TColumnKey, 'TValue>() =
   abstract Columns : Series<'TColumnKey, Series<'TRowKey,'TValue>> with get
   abstract Rows : Series<'TRowKey, Series<'TColumnKey,'TValue>> with get
 
+  abstract ColumnKeys : 'TColumnKey seq with get
+  abstract RowKeys: 'TRowKey seq with get
+
   [<ObsoleteAttribute("Is this needed?")>]
   static member op_Explicit(columns:Series<'TColumnKey, Series<'TRowKey, 'TValue>>) : Panel<'TRowKey,'TColumnKey, 'TValue> = ColumnPanel(columns) :> Panel<'TRowKey,'TColumnKey, 'TValue>
 
@@ -105,6 +108,9 @@ and ColumnPanel<'TRowKey,'TColumnKey, 'TValue> (columns:Series<'TColumnKey, Seri
       // Need an extension method? Or documen this. Or create a type that inherit from series and then is used as parent for Sorted/Indexed maps
       columns :?> Series<'TColumnKey, Series<'TRowKey,'TValue>>
   override this.Rows with get() = this :> Series<'TRowKey, Series<'TColumnKey,'TValue>>
+
+  override this.ColumnKeys = columnKeys :> seq<_>
+  override this.RowKeys = CursorSeries(Func<_>(this.GetCursor)).Keys
 
 //  override this.RowWise<'TResult>(mapper:Func<Series<'TColumnKey,'TValue>,Series<'TColumnKey,'TResult>>) : Panel<'TRowKey,'TColumnKey,'TResult> =
 //    let zipCursor() = 
@@ -197,7 +203,9 @@ and RowPanel<'TRowKey,'TColumnKey, 'TValue> (rows:Series<'TRowKey, 'TValue[]>, c
   override this.Columns with get() : Series<'TColumnKey, Series<'TRowKey,'TValue>> = raise (NotImplementedException("TODO"))
     //ColumnPanel(this :> IOrderedMap<'TColumnKey, Series<'TRowKey,'TValue>>)
   override this.Rows with get() = this :> Series<'TRowKey, Series<'TColumnKey,'TValue>>
-
+  
+  override this.ColumnKeys = columnKeys :> seq<_>
+  override this.RowKeys = rows.Keys
 
 
 [<Extension>]
