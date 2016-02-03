@@ -267,6 +267,9 @@ Cassandra/Scylla or any messaging system like Aeron/NATS.
 Current status is alpha and it will remain alpha until 1.0-... releases. 
 We will use [semantic versioning](http://semver.org/).
 
+Releases that are not marked with alpha/beta 
+could be considered stable for core functionality starting from 0.3.
+
 
 ## Links
 

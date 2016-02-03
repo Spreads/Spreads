@@ -278,7 +278,7 @@ type internal FunctionalBindCursor<'K,'V,'State,'V2>
     member this.MoveLast(): bool = this.MoveLast()
     member this.MovePrevious(): bool = this.MovePrevious()
     member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = this.MoveNext(cancellationToken)
-    member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = Task.FromResult(false)
+    member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = falseTask
     member this.Source: ISeries<'K,'V2> = this :> ISeries<'K,'V2>
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  
 #if PRERELEASE

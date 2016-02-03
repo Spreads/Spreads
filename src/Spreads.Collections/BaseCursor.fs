@@ -128,9 +128,7 @@ type BaseCursorOld<'K,'V>
   abstract member MoveNext : CancellationToken -> Task<bool>
   override this.MoveNext(ct) =
       match this.MoveNext() with
-      | true -> 
-        //Console.WriteLine("From result")
-        Task.FromResult(true)
+      | true -> trueTask
       | false ->
         match isUpdateable, source.IsReadOnly with
         | true, false ->
@@ -153,10 +151,10 @@ type BaseCursorOld<'K,'V>
   ////            else spinCount <- spinCount + 1
   //        if moved && not ct.IsCancellationRequested then
   //          //isWaitingForTcs := false
-  //          Task.FromResult(true)
+  //          trueTask
   //        else
           cancellationToken := ct
-          // TODO use interlocked.exchange or whatever to not allocate new one every time, if we return Task.FromResult(true) below
+          // TODO use interlocked.exchange or whatever to not allocate new one every time, if we return trueTask below
           // interlocked.exchange does not short-circuit and allocates value each time
           //Interlocked.CompareExchange(tcs, TaskCompletionSource(), null) |> ignore
         
@@ -170,7 +168,7 @@ type BaseCursorOld<'K,'V>
               tcs.Task
           )
         
-        | _ -> Task.FromResult(false) // has no values and will never have because is not IUpdateable or IsMutable=false
+        | _ -> falseTask // has no values and will never have because is not IUpdateable or IsMutable=false
 
   abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>
   abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get

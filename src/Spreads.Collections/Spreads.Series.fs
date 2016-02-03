@@ -712,7 +712,7 @@ and
     member this.MoveNext(cancellationToken: Threading.CancellationToken) =
       // not just cursor.MoveNext(cancellationToken), because this.MoveNext() will set flags
       // when batching is over 
-      if this.MoveNext() then Task.FromResult(true)
+      if this.MoveNext() then trueTask
       else cursor.MoveNext(cancellationToken)
 
     member private this.ClearBatches() =
@@ -1556,7 +1556,7 @@ and
       member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = 
         this.MoveNext(cancellationToken)
       member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
-        Task.FromResult(false)
+        falseTask
       member this.Source: ISeries<'K,'V> = CursorSeries<'K,'V>(Func<ICursor<'K,'V>>((this :> ICursor<'K,'V>).Clone)) :> ISeries<'K,'V>
       member this.TryGetValue(key: 'K, [<Out>] value: byref<'V>): bool =
         raise (NotSupportedException("UnionKeysCursor should be used only as a pivot inside continuous ZipN"))
@@ -2091,7 +2091,7 @@ and
         true
       else false
         
-    member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = Task.FromResult(false)
+    member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = falseTask
     
     //member this.IsBatch with get() = this.IsBatch
     member this.Source: ISeries<'K,'R> = CursorSeries<'K,'R>(Func<ICursor<'K,'R>>((this :> ICursor<'K,'R>).Clone)) :> ISeries<'K,'R>

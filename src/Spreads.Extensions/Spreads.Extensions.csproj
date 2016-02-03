@@ -136,6 +136,7 @@
     </Compile>
     <Compile Include="ArrayPool.cs" />
     <Compile Include="DataTypes\UUID.cs" />
+    <Compile Include="DataTypes\Variant.cs" />
     <Compile Include="Properties\Attributes.cs" />
     <Compile Include="Bootstrapper\ABI.cs" />
     <Compile Include="Bootstrapper\Bootstrapper.cs" />

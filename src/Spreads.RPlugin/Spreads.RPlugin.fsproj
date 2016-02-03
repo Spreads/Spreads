@@ -1,44 +1,40 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>e789c72a-5cfd-436b-8ef1-61aa2852a89f</ProjectGuid>
+    <ProjectGuid>52f9b09c-c123-4e2f-abde-fbaee1f8a759</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>Spreads.Tests</RootNamespace>
-    <AssemblyName>Spreads.Tests</AssemblyName>
+    <RootNamespace>Spreads.RPlugin</RootNamespace>
+    <AssemblyName>Spreads.RPlugin</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <TargetFSharpCoreVersion>4.3.1.0</TargetFSharpCoreVersion>
-    <Name>Spreads.Tests</Name>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Name>Spreads.RPlugin</Name>
     <TargetFrameworkProfile />
-    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
-    <RestorePackages>true</RestorePackages>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <Tailcalls>false</Tailcalls>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>..\..\bin\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Debug\fsharp_project_scaffold_tests.XML</DocumentationFile>
-    <StartAction>Project</StartAction>
-    <StartProgram>
-    </StartProgram>
-    <StartArguments>
-    </StartArguments>
+    <DocumentationFile>
+    </DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>..\..\bin\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Release\Spreads.Tests.xml</DocumentationFile>
+    <DocumentationFile>
+    </DocumentationFile>
   </PropertyGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
@@ -56,70 +52,56 @@
     </Otherwise>
   </Choose>
   <Import Project="$(FSharpTargetsPath)" />
-  <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
   <ItemGroup>
-    <Content Include="app.config" />
-    <Compile Include="Utils.fs" />
-    <Compile Include="Collections\IntMap64Tests.fs" />
-    <Compile Include="Collections\MapTreeTests.fs" />
-    <Compile Include="Collections\SortedMapTests.fs" />
-    <Compile Include="Benchmarks.fs" />
-    <Compile Include="Series.Tests.fs" />
-    <Compile Include="ReadmeTests.fs" />
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Converters.fs" />
+    <Compile Include="Exports.fs" />
+    <None Include="Script.fsx" />
     <Content Include="packages.config" />
-    <None Include="Script1.fsx" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="Deedle">
-      <HintPath>..\..\packages\Deedle.1.2.4\lib\net40\Deedle.dll</HintPath>
+    <Reference Include="DynamicInterop">
+      <HintPath>..\..\packages\DynamicInterop.0.7.4\lib\net40\DynamicInterop.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="FSharp.Core">
-      <HintPath>..\..\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
+    <Reference Include="mscorlib" />
+    <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <Private>True</Private>
     </Reference>
-    <Reference Include="FSharp.Data">
-      <HintPath>..\..\packages\FSharp.Data.2.0.14\lib\net40\FSharp.Data.dll</HintPath>
+    <Reference Include="RDotNet">
+      <HintPath>..\..\packages\R.NET.Community.1.6.4\lib\net40\RDotNet.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="FSharpx.Collections">
-      <HintPath>..\..\packages\FSharpx.Collections.1.9.4\lib\net35\FSharpx.Collections.dll</HintPath>
+    <Reference Include="RDotNet.FSharp">
+      <HintPath>..\..\packages\R.NET.Community.FSharp.1.6.4\lib\net40\RDotNet.FSharp.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="FSharpx.Collections.Experimental">
-      <HintPath>..\..\packages\FSharpx.Collections.Experimental.1.9.3\lib\net35\FSharpx.Collections.Experimental.dll</HintPath>
+    <Reference Include="RDotNet.NativeLibrary">
+      <HintPath>..\..\packages\R.NET.Community.1.6.4\lib\net40\RDotNet.NativeLibrary.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="FsUnit.NUnit">
-      <HintPath>..\..\packages\FsUnit.1.3.0.1\lib\Net40\FsUnit.NUnit.dll</HintPath>
+    <Reference Include="RProvider">
+      <HintPath>..\..\packages\RProvider.1.1.15\lib\net40\RProvider.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="nunit.framework">
-      <HintPath>..\..\packages\NUnit.2.6.3\lib\nunit.framework.dll</HintPath>
+    <Reference Include="RProvider.Runtime">
+      <HintPath>..\..\packages\RProvider.1.1.15\lib\net40\RProvider.Runtime.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Streams">
-      <HintPath>..\..\packages\Streams.0.4.1\lib\net45\Streams.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml.Linq" />
     <Reference Include="System" />
+    <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
-    <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj">
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj">
       <Name>Spreads.Collections</Name>
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
       <Private>True</Private>
     </ProjectReference>
-    <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj">
+    <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj">
       <Name>Spreads.Core</Name>
       <Project>{b2798c33-7901-4142-af96-66fd98ea3ac2}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\..\src\Spreads.Extensions\Spreads.Extensions.csproj">
-      <Name>Spreads.Extensions</Name>
-      <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>
@@ -130,5 +112,4 @@
   <Target Name="AfterBuild">
   </Target>
   -->
-  <!--<Import Project="..\..\.paket\paket.targets" />-->
 </Project>

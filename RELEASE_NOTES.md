@@ -1,3 +1,11 @@
+#### 0.3.1-alpha - February 3, 2016
+* Improved performance due to elimination of `task{}` computation expression;
+* Added R Provider Plugin POC;
+* Updated Blosc binary with fixed n-threads bug;
+* Added Map() with keys;
+* Added Panel ColumnKeys/RowKeys;
+* Added IDirectBuffer interface and two implementations for `byte[]` and `IntPtr`.
+
 #### 0.3.0 - January 18, 2016
 * Fix ZipN known bugs and edge cases;
 * Series implement IObservable interface;

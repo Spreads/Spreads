@@ -726,8 +726,8 @@ type IndexedMap<'K,'V> // when 'K:equality
         if !index = -1 then 
           index := this.size
           isBatch := true
-          Task.FromResult(true)
-        else Task.FromResult(false)
+          trueTask
+        else falseTask
       override p.IsBatch with get() = !isBatch
       override p.Clone() = this.GetCursor(!index,!cursorVersion, p.CurrentKey, p.CurrentValue) //!currentKey,!currentValue)
       override p.Current with get() = KeyValuePair(p.CurrentKey, p.CurrentValue) // currentKey.Value, currentValue.Value)

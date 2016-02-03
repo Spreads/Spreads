@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <metadata xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+    <id>@project@</id>
+    <version>@build.number@</version>
+    <authors>@authors@</authors>
+    <owners>@authors@</owners>
+    <licenseUrl>http://github.com/Spreads/Spreads/blob/master/LICENSE.txt</licenseUrl>
+    <projectUrl>https://github.com/Spreads/Spreads</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <summary>@summary@</summary>
+    <description>@description@</description>
+    <releaseNotes>@releaseNotes@</releaseNotes>
+    <copyright>Copyright 2016</copyright>
+    <tags>@tags@</tags>
+	@dependencies@
+  </metadata>
+  <files>
+	  <!-- TODO xml files, omitted for now because they often break builds in VS (file is locked) -->
+	<file src="..\bin\Spreads.RPlugin.dll" target="lib/net45" />
+	<file src="..\bin\Spreads.RPlugin.pdb" target="lib/net45" />
+  </files>
+</package>

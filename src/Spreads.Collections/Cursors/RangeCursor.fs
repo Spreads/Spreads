@@ -141,7 +141,7 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
 
     member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
       Trace.TraceWarning("MoveNextBatch is not implemented in RangeCursor")
-      Task.FromResult(false)
+      falseTask
       
     member this.Source: ISeries<'K,'V> = CursorSeries<'K,'V2>(Func<ICursor<'K,'V>>((this :> ICursor<'K,'V>).Clone)) :> ISeries<'K,'V>
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'V>): bool = 

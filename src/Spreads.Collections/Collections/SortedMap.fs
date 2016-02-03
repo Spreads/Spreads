@@ -1124,8 +1124,8 @@ type SortedMap<'K,'V>
               currentKey <- this.GetKeyByIndex(index)
               currentValue <- this.values.[index]
               isBatch <- true
-              Task.FromResult(true)
-            else Task.FromResult(false)
+              trueTask
+            else falseTask
           finally
             exitLockIf syncRoot entered
 

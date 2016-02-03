@@ -1,7 +1,7 @@
 ﻿namespace System
 open System.Reflection
 
-[<assembly: AssemblyTitleAttribute("Spreads.Collections")>]
+[<assembly: AssemblyTitleAttribute("Spreads.RPlugin")>]
 [<assembly: AssemblyProductAttribute("Spreads")>]
 [<assembly: AssemblyDescriptionAttribute("Spreads")>]
 [<assembly: AssemblyVersionAttribute("0.3.1")>]
