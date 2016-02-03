@@ -274,24 +274,37 @@ and
       let cursorFactories:(unit->ICursor<'K,'V>)[] = [|source.GetCursor; other.GetCursor|]
       CursorSeries(Func<ICursor<'K,'R>>(fun _ -> (new ZipNCursor<'K,'V,'R>((fun _ varr -> mapFunc.Invoke(varr.[0], varr.[1])), cursorFactories) :> ICursor<'K,'R>) )) :> Series<'K,'R>
 
-    
+    static member inline private BinaryOperatorMap2<'K,'V1,'V2,'R>(source:Series<'K,'V1>,other:Series<'K,'V2>, mapFunc:Func<'V1,'V2,'R>) = 
+      let c1, c2 = source.GetCursor, other.GetCursor
+      CursorSeries(Func<ICursor<'K,'R>>(fun _ -> (new Zip2Cursor<'K,'V1,'V2,'R>(Func<ICursor<_,_>>(c1), Func<ICursor<_,_>>(c2), (fun k v1 v2 -> mapFunc.Invoke(v1, v2))) :> ICursor<'K,'R>) )) :> Series<'K,'R>
+
 
     // int64
     static member (+) (source:Series<'K,int64>, addition:int64) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x + addition)
+    static member (+) (addition:int64, source:Series<'K,int64>) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x + addition)
     static member (~+) (source:Series<'K,int64>) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x)
     static member (-) (source:Series<'K,int64>, subtraction:int64) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x - subtraction)
+    static member (-) (subtraction:int64, source:Series<'K,int64>) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x - subtraction)
     static member (~-) (source:Series<'K,int64>) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> -x)
     static member (*) (source:Series<'K,int64>, multiplicator:int64) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x * multiplicator)
     static member (*) (multiplicator:int64,source:Series<'K,int64>) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> multiplicator * x)
     static member (/) (source:Series<'K,int64>, divisor:int64) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x / divisor)
     static member (/) (numerator:int64,source:Series<'K,int64>) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> numerator / x)
     static member (%) (source:Series<'K,int64>, modulo:int64) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x % modulo)
+    static member (%) (modulo:int64, source:Series<'K,int64>) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> x % modulo)
     static member ( ** ) (source:Series<'K,int64>, power:int64) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> raise (NotImplementedException("TODO Implement with fold, checked?")))
+    static member ( ** ) (power:int64, source:Series<'K,int64>) : Series<'K,int64> = Series.ScalarOperatorMap(source, fun x -> raise (NotImplementedException("TODO Implement with fold, checked?")))
     static member (=) (source:Series<'K,int64>, other:int64) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> x = other)
+    static member (=) (other:int64, source:Series<'K,int64>) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> x = other)
     static member (>) (source:Series<'K,int64>, other:int64) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> x > other)
+    static member (>) (other:int64, source:Series<'K,int64>) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> x > other)
     static member (>=) (source:Series<'K,int64>, other:int64) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> x >= other)
+    static member (>=) (other:int64, source:Series<'K,int64>) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> x >= other)
+    static member (<) (source:Series<'K,int64>, other:int64) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> other < x)
     static member (<) (other:int64, source:Series<'K,int64>) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> other < x)
+    static member (<=) (source:Series<'K,int64>, other:int64) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> other <= x)
     static member (<=) (other:int64, source:Series<'K,int64>) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> other <= x)
+    static member (<>) (source:Series<'K,int64>, other:int64) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> other <> x)
     static member (<>) (other:int64, source:Series<'K,int64>) : Series<'K,bool> = Series.ScalarOperatorMap(source, fun x -> other <> x)
 
     static member (+) (source:Series<'K,int64>, other:Series<'K,int64>) : Series<'K,int64> = Series.BinaryOperatorMap(source, other, fun x y -> x + y)
@@ -402,9 +415,14 @@ and
     static member (<=) (source:Series<'K,float32>, other:Series<'K,float32>) : Series<'K,bool> = Series.BinaryOperatorMap(source, other, fun x y -> x <= y)
     static member (<>) (source:Series<'K,float32>, other:Series<'K,float32>) : Series<'K,bool> = Series.BinaryOperatorMap(source, other, fun x y -> x <> y)
 
+    // generic
+    // TODO (low) dynamic operators via Linq.Expressions, then Panels will work via series
+    static member (+) (source:Series<'K,'V1>, other:Series<'K,'V2>) : Series<'K,'V3> = Series.BinaryOperatorMap2(source, other, fun x y -> Op<'V1,'V2,'V3>.Add(x,y))
+    static member (+) (source:Series<'K,'V1>, other:Series<'K,'V2>) : Series<'K,'V1> = Series.BinaryOperatorMap2(source, other, fun x y -> Op<'V1,'V2,'V1>.Add(x,y))
+
     // TODO (high) add all math operators, e.g. Abs, Log, Exp, etc.
     // TODO other primitive numeric types
-    // TODO (low) dynamic operators via Linq.Expressions, then Panels will work via series
+    
 
 and
   // TODO (perf) base Series() implements IROOM inefficiently, see comments in above type Series() implementation
@@ -1410,6 +1428,17 @@ and
         raise (NotSupportedException("UnionKeysCursor should be used only as a pivot inside continuous ZipN"))
       member this.Clone() = 
         raise (NotSupportedException("UnionKeysCursor should be used only as a pivot inside continuous ZipN"))
+
+
+/// Repack original types into value tuples. Due to the lazyness this only happens for a current value of cursor. ZipN keeps vArr instance and
+/// rewrites its values. For value types we will always be in L1/stack, for reference types we do not care that much about performance.
+and 
+  Zip2Cursor<'K,'V,'V2,'R>(cursorFactoryL:Func<ICursor<'K,'V>>,cursorFactoryR:Func<ICursor<'K,'V2>>, mapF:Func<'K,'V,'V2,'R>) =
+    inherit ZipNCursor<'K,ValueTuple<'V,'V2>,'R>(
+      Func<'K, ValueTuple<'V,'V2>[],'R>(fun (k:'K) (tArr:ValueTuple<'V,'V2>[]) -> mapF.Invoke(k, tArr.[0].Value1, tArr.[1].Value2)), 
+      (fun () -> new BatchMapValuesCursor<_,_,_>(cursorFactoryL, Func<_,_>(fun (x:'V) -> ValueTuple<'V,'V2>(x, Unchecked.defaultof<'V2>)), None) :> ICursor<'K,ValueTuple<'V,'V2>>), 
+      (fun () -> new BatchMapValuesCursor<_,_,_>(cursorFactoryR, Func<_,_>(fun (x:'V2) -> ValueTuple<'V,'V2>(Unchecked.defaultof<'V>, x)), None) :> ICursor<'K,ValueTuple<'V,'V2>>)
+    )
 
 
 and
