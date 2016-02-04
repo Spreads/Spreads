@@ -83,17 +83,19 @@ namespace Spreads.Serialization {
             _unpinner = null;
         }
 
-        /// <summary>
-        /// Create a new FixedBuffer with a new empty array
-        /// </summary>
-        /// <param name="length">buffer to which the view is attached.</param>
-        public FixedBuffer(int length) {
-            if (length <= 0) throw new ArgumentOutOfRangeException(nameof(length));
-            _offset = 0;
-            _length = length;
-            _buffer = OptimizationSettings.ArrayPool.TakeBuffer<byte>(length);
-            _unpinner = null;
-        }
+        // NB for struct there is no finalizer, returning a buffer to the pool would be difficult
+        //    and we should manage arrays outside
+        ///// <summary>
+        ///// Create a new FixedBuffer with a new empty array
+        ///// </summary>
+        ///// <param name="length">buffer to which the view is attached.</param>
+        //public FixedBuffer(int length) {
+        //    if (length <= 0) throw new ArgumentOutOfRangeException(nameof(length));
+        //    _offset = 0;
+        //    _length = length;
+        //    _buffer = OptimizationSettings.ArrayPool.TakeBuffer<byte>(length);
+        //    _unpinner = null;
+        //}
 
 
         private void PinBuffer() {
