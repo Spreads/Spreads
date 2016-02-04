@@ -1,4 +1,4 @@
-#### 0.3.2-alpha - February 3, 2016
+#### 0.3.3 - February 4, 2016
 * R Plugin: use R function dispatch by name; 
 * Move direct buffers to the Core projects. Extensions has too many dependencies and is used for non-core stuff. Core is now unsafe.
 

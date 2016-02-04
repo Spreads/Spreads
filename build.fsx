@@ -38,7 +38,7 @@ let description = "Spreads" //"Series and Panels for Reactive and Exploratory An
 let authors = [ "Victor Baybekov" ]
 
 // Tags for your project (for NuGet package)
-let tags = "Spreads" //"F# fsharp real-time analysis streams data time series reactive"
+let tags = "Spreads F# data streaming real-time analysis streams time series reactive"
 
 // File system information 
 let solutionFile  = "Spreads.sln"
