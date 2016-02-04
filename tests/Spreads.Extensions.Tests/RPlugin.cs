@@ -22,6 +22,15 @@ namespace Spreads.Extensions.Tests {
     public class RPluginTests {
         [Test]
         public void CouldRoundtripArrays() {
+            var arr = new double[] {1,2,3};
+            var res = RUtils.Call("spreads_add42", arr);
+            foreach (var item in res) {
+                Console.WriteLine($"{item}");
+            }
+        }
+
+        [Test]
+        public void CouldRoundtripSeries() {
             var sm = new SortedMap<DateTime, double>();
             sm.Add(DateTime.Today, 0);
             sm.Add(DateTime.Today.AddSeconds(1), 1);
@@ -35,21 +44,25 @@ namespace Spreads.Extensions.Tests {
         [Test]
         public void CouldRoundtripArraysBenchmark() {
 
-
             var sm = new SortedMap<DateTime, double>();
-            for (int i = 0; i < 10000; i++) {
+            var arr = new double[100];
+            for (int i = 0; i < 100; i++) {
                 sm.Add(DateTime.Today.AddSeconds(i), i);
+                arr[i] = i;
             }
             
             for (int i = 0; i < 2; i++) {
                 var res = RUtils.Call("spreads_add42", sm as Series<DateTime, double>);
+                var res2 = RUtils.Call("spreads_add42", arr);
             }
-            for (int r = 5; r <= 500; r *= 10) {
+            for (int r = 5; r <= 5000; r *= 10) {
                 var sw = new Stopwatch();
                 sw.Start();
-                var count = r;
+
+               var count = r;
                 for (int i = 0; i < count; i++) {
-                    var res = RUtils.Call("spreads_add42", sm as Series<DateTime, double>);
+                    var res = RUtils.Call("spreads_add42", arr);
+                    //var res = RUtils.Call("spreads_echo", sm as Series<DateTime, double>);
                 }
                 sw.Stop();
                 Console.WriteLine($"{count}: Elapsed: {sw.ElapsedMilliseconds}, ops: {count * 1000.0 / sw.ElapsedMilliseconds }");

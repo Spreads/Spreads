@@ -18,12 +18,16 @@ open RProvider.Spreads
 
 type RUtils() =
   static member Call(name:string, x:Series<DateTime, double>) =
-    let params = namedParams [
+    let args = 
+      namedParams [
         "name", box name;
         "x", box x;]
-    R.spreads__call(params).GetValue<SortedMap<DateTime, double>>()
+    R.spreads__call(args).GetValue<SortedMap<DateTime, double>>()
 
   static member Call(name:string, x:double[]) : double[] =
-    
-    R.spreads__call(name, x).GetValue<double[]>()
+    let args = 
+      namedParams [
+        "name", box name;
+        "x", box x;]
+    R.spreads__call(args).GetValue<double[]>()
 
