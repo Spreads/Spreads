@@ -1,3 +1,7 @@
+#### 0.3.2-alpha - February 3, 2016
+* R Plugin: use R function dispatch by name; 
+* Move direct buffers to the Core projects. Extensions has too many dependencies and is used for non-core stuff. Core is now unsafe.
+
 #### 0.3.1-alpha - February 3, 2016
 * Improved performance due to elimination of `task{}` computation expression;
 * Added R Provider Plugin POC;

@@ -18,7 +18,7 @@
   </metadata>
   <files>
 	  <!-- TODO xml files, omitted for now because they often break builds in VS (file is locked) -->
-	<file src="..\bin\Spreads.RPlugin.dll" target="lib/net45" />
-	<file src="..\bin\Spreads.RPlugin.pdb" target="lib/net45" />
+	<file src="..\bin\Spreads.R.Plugin.dll" target="lib/net45" />
+	<file src="..\bin\Spreads.R.Plugin.pdb" target="lib/net45" />
   </files>
 </package>
