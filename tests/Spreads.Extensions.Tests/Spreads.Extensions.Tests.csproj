@@ -59,6 +59,7 @@
     <Compile Include="CompressionTests.cs" />
     <Compile Include="BuffersAndPoolTests.cs" />
     <Compile Include="GenerationTests.cs" />
+    <Compile Include="RPlugin.cs" />
     <Compile Include="YepppTests.cs" />
     <Compile Include="CompressionTestsOld.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -75,6 +76,10 @@
     <ProjectReference Include="..\..\src\Spreads.Extensions\Spreads.Extensions.csproj">
       <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
       <Name>Spreads.Extensions</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Spreads.RPlugin\Spreads.RPlugin.fsproj">
+      <Project>{52f9b09c-c123-4e2f-abde-fbaee1f8a759}</Project>
+      <Name>Spreads.RPlugin</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

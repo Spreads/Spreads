@@ -1,5 +1,9 @@
 ﻿module internal Spreads.RPlugin.Conversions
 
+open Spreads
+open Spreads.Collections
+
+
 open System
 open RDotNet
 open RDotNet.ActivePatterns
@@ -7,8 +11,7 @@ open RProvider
 open RProvider.``base``
 open RProvider.zoo
 open Microsoft.FSharp.Reflection
-open Spreads
-open Spreads.Collections
+
 
 // TODO this is a POC for Spreads
 // "yyyy-MM-dd HH:mm:ss.ffffff" back and forth parsing should be very slow, 
@@ -54,14 +57,14 @@ let tryGetDateTimeKeys (zoo:SymbolicExpression) fromDateTime =
   with :? RDotNet.ParseException | :? RDotNet.EvaluationException -> None
 
 /// Try converting the specified symbolic expression to a time series
-let tryCreateTimeSeries fromDateTime (symExpr:SymbolicExpression) : option<Series<DateTime, double>> = 
+let tryCreateTimeSeries fromDateTime (symExpr:SymbolicExpression) : option<SortedMap<DateTime, double>> = 
   tryAsZooSeries symExpr |> Option.bind (fun zoo ->
     // Format the keys as string and turn them into DateTimes
     let keys = tryGetDateTimeKeys zoo fromDateTime
     // If converting keys to datetime worked, return series
     keys |> Option.bind (fun keys ->
       let values = zoo.GetValue<'double[]>()
-      Some(SortedMap<DateTime, double>.OfSortedKeysAndValues (keys, values) :> Series<DateTime, double>) ))
+      Some(SortedMap<DateTime, double>.OfSortedKeysAndValues (keys, values)) ))
 
 /// Try converting the specified symbolic expression to a series with arbitrary keys
 let tryCreateSeries (symExpr:SymbolicExpression) : option<SortedMap<DateTime, double>> = 

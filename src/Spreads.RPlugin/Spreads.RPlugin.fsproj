@@ -8,7 +8,7 @@
     <ProjectGuid>52f9b09c-c123-4e2f-abde-fbaee1f8a759</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>Spreads.RPlugin</RootNamespace>
-    <AssemblyName>Spreads.RPlugin</AssemblyName>
+    <AssemblyName>Spreads.R.Plugin</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <TargetFSharpCoreVersion>4.3.1.0</TargetFSharpCoreVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -56,6 +56,7 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Converters.fs" />
     <Compile Include="Exports.fs" />
+    <Compile Include="SeriesExtensions.fs" />
     <None Include="Script.fsx" />
     <Content Include="packages.config" />
   </ItemGroup>

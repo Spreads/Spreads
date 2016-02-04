@@ -41,7 +41,10 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
     
   // EQ just means inclusive
   let firstLookup = if startLookup.IsSome && startLookup.Value <> Lookup.EQ then startLookup.Value else Lookup.GE
-  let lastLookup = if endLookup.IsSome && endLookup.Value <> Lookup.EQ then endLookup.Value else Lookup.LE
+  let lastLookup = 
+    if endLookup.IsSome && endLookup.Value <> Lookup.EQ then 
+      endLookup.Value 
+    else Lookup.LE
 
   // if limits are not set then eny key is ok
   let startOk k = 

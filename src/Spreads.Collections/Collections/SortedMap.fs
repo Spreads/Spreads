@@ -729,8 +729,8 @@ type SortedMap<'K,'V>
         elif index = newSize then 
           rkLast <- diffCalc.Add(this.keys.[0], (int64 (newSize-1))*this.rkGetStep()) // removing last, only size--
         else
-          // removing within range, creating a hole
-          this.keys <- this.rkMaterialize() 
+          // removing within range,  creating a hole
+          this.keys <- this.rkMaterialize()
           couldHaveRegularKeys <- false
       elif couldHaveRegularKeys && this.size = 2 then // will have single value with undefined step
         if index = 0 then
@@ -739,6 +739,7 @@ type SortedMap<'K,'V>
         elif index = 1 then
           rkLast <- this.keys.[0]
         rkStep_ <- 0L
+
 
       if not couldHaveRegularKeys || this.size = 1 then
         if index < this.size then

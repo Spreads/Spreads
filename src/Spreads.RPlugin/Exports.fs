@@ -5,22 +5,24 @@ open System.Linq
 open System.Collections
 open System.ComponentModel.Composition
 
+open Spreads
+open Spreads.Collections
+open Spreads.RPlugin.Conversions
+
 open RDotNet
 open RProvider
 open RProvider.``base``
 open RProvider.zoo
 
-open Spreads
-open Spreads.Collections
-open Spreads.RPlugin.Conversions
+
 
 // ------------------------------------------------------------------------------------------------
 // IDefaultConvertFromR - convert Deedle frame & time series to R symexpr
 // ------------------------------------------------------------------------------------------------
 
-[<Export(typeof<IConvertToR<ISeries<DateTime, double>>>)>]
+[<Export(typeof<IConvertToR<SortedMap<DateTime, double>>>)>]
 type TimeSeriesToR() =
-  interface IConvertToR<Series<DateTime, double>> with
+  interface IConvertToR<SortedMap<DateTime, double>> with
     member x.Convert(engine, series) = R.zoo(series.Values.ToArray(), series.Keys.ToArray())
 
 // ------------------------------------------------------------------------------------------------
@@ -39,9 +41,9 @@ type SeriesDefaultFromR() =
 
 // Time series with DateTime keys
 
-[<Export(typeof<IConvertFromR<Series<DateTime, float>>>)>]
+[<Export(typeof<IConvertFromR<SortedMap<DateTime, float>>>)>]
 type SeriesDateFloatFromR() =
-  interface IConvertFromR<Series<DateTime, float>> with 
+  interface IConvertFromR<SortedMap<DateTime, float>> with 
     member x.Convert(symExpr) = tryCreateTimeSeries id symExpr
 
 

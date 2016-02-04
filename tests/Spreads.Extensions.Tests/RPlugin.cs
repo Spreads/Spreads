@@ -1,0 +1,60 @@
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using NUnit.Framework;
+using System.Runtime.InteropServices;
+using Spreads.Collections;
+using Newtonsoft.Json.Bson;
+using Newtonsoft.Json;
+using Spreads;
+using System.Threading;
+using System.Threading.Tasks;
+using Spreads.RPlugin;
+
+namespace Spreads.Extensions.Tests {
+
+    // TODO separate project 
+
+    [TestFixture]
+    public class RPluginTests {
+        [Test]
+        public void CouldRoundtripArrays() {
+            var sm = new SortedMap<DateTime, double>();
+            sm.Add(DateTime.Today, 0);
+            sm.Add(DateTime.Today.AddSeconds(1), 1);
+            sm.Add(DateTime.Today.AddSeconds(2), 2);
+            var res = RUtils.Call("spreads_add42", sm as Series<DateTime, double>);
+            foreach (var item in res) {
+                Console.WriteLine($"{item.Key} - {item.Value}");
+            }
+        }
+
+        [Test]
+        public void CouldRoundtripArraysBenchmark() {
+
+
+            var sm = new SortedMap<DateTime, double>();
+            for (int i = 0; i < 10000; i++) {
+                sm.Add(DateTime.Today.AddSeconds(i), i);
+            }
+            
+            for (int i = 0; i < 2; i++) {
+                var res = RUtils.Call("spreads_add42", sm as Series<DateTime, double>);
+            }
+            for (int r = 5; r <= 500; r *= 10) {
+                var sw = new Stopwatch();
+                sw.Start();
+                var count = r;
+                for (int i = 0; i < count; i++) {
+                    var res = RUtils.Call("spreads_add42", sm as Series<DateTime, double>);
+                }
+                sw.Stop();
+                Console.WriteLine($"{count}: Elapsed: {sw.ElapsedMilliseconds}, ops: {count * 1000.0 / sw.ElapsedMilliseconds }");
+
+            }
+        }
+    }
+}
