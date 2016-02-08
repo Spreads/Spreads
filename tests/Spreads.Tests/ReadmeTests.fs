@@ -17,7 +17,7 @@ type ReadmeTestsModule() =
     
   [<Test>]
   member this.CouldCalculateSimpleIndexInRealTime() =
-    let numQuoteSources = 500
+    let numQuoteSources = 1000
 
     let cts = new CancellationTokenSource()
     let ct = cts.Token
@@ -30,7 +30,7 @@ type ReadmeTestsModule() =
     let chunkInputs = ref 0
 
     let makeQuoteSources (n) : Series<DateTime, float>[] =
-      let maps = Array.init n (fun _ -> SortedMap())
+      let maps = Array.init n (fun _ -> SortedMap()) |> Array.map (fun sm -> sm.AddFirst(DateTime.Today, 0.0);sm)
       let mutable value = 1.0
       let mutable ticks = 0L
       let task = async {

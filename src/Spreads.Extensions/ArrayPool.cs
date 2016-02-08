@@ -38,7 +38,7 @@ namespace Spreads {
             public int Count;
         }
         private ConditionalWeakTable<object, AtomicCounter> _cwt = new ConditionalWeakTable<object, AtomicCounter>();
-
+        
         private InternalBufferManager<double>.PooledBufferManager _doublePool =
             new InternalBufferManager<double>.PooledBufferManager(512 * 1024 * 1024, 128 * 1024 * 1024);
         private InternalBufferManager<byte>.PooledBufferManager _bytePool =

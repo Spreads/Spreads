@@ -89,6 +89,7 @@
     <Compile Include="Collections\ImmutableSortedMap.fs" />
     <Compile Include="Collections\MutableWrapper.fs" />
     <Compile Include="Collections\DequeMap.fs" />
+    <Compile Include="Collections\DequePanel.fs" />
     <Compile Include="Collections\SortedMap.Obsolete.fs" />
     <Compile Include="Collections\IndexedMap.fs" />
     <Compile Include="Collections\SortedMap.fs" />
@@ -112,6 +113,7 @@
     <Content Include="app.config" />
     <Content Include="packages.config" />
     <None Include="Duality.fsx" />
+    <Compile Include="TimeSeries.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">

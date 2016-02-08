@@ -84,7 +84,11 @@ let main argv =
 //
 //  circular.Execute()
 //  CollectionsBenchmarks.SeriesNestedMap_run()
+  
+  System.Runtime.GCSettings.LatencyMode <- System.Runtime.GCLatencyMode.SustainedLowLatency
   (Spreads.Tests.Series.ReadmeTestsModule()).CouldCalculateSimpleIndexInRealTime()
+
+
   Console.ReadLine();
   printfn "%A" argv
   0

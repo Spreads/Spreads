@@ -1,10 +1,8 @@
 using System;
 using System.Linq;
 using Spreads.Collections;
-using Newtonsoft.Json;
 
-namespace Spreads.Extensions.Tests
-{
+namespace Spreads.Extensions.Tests {
 
     public class MyTestClass {
         public string Text { get; set; }
