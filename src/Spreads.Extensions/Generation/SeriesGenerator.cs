@@ -10,7 +10,7 @@ using Spreads.Collections;
 namespace Spreads.Generation {
     public static class SeriesGenerator {
 
-        public static Series<DateTime, double> GenerateDummyTimeSeries(int length,
+        public static Series<DateTime, double> DummySeries(int length,
             DateTime? startDate = null, TimeSpan? dateStep = null,
             double startValue = 0.0, double valueStep = 1.0) {
             var sm = new SortedMap<DateTime, double>(length);
@@ -53,10 +53,10 @@ namespace Spreads.Generation {
             for (var i = 0; i < length; i++) {
                 for (var c = 0; c < width; c++) {
                     var sm = series[c] as SortedMap<DateTime, double>;
-                    sm.AddLast(startDate.Value, startValue);
-                    startDate += dateStep;
-                    startValue += valueStep;
+                    sm.AddLast(startDate.Value, startValue * Math.Pow(columnMultiple, c));
                 }
+                startDate += dateStep;
+                startValue += valueStep;
             }
 
             return series;
