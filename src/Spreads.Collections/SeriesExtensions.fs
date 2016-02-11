@@ -199,7 +199,8 @@ type SeriesExtensions () =
       let sm = SortedMap()
       let cursor = source.GetCursor()
       while cursor.MoveNext() do
-        sm.AddLast(cursor.CurrentKey, cursor.CurrentValue)
+        // TODO AddLast
+        sm.Add(cursor.CurrentKey, cursor.CurrentValue)
       sm
 
     [<Extension>]

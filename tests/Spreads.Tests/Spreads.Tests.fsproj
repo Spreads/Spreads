@@ -68,6 +68,7 @@
     <Compile Include="ReadmeTests.fs" />
     <Content Include="packages.config" />
     <None Include="Script1.fsx" />
+    <None Include="TAQDemo.fsx" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Deedle">
