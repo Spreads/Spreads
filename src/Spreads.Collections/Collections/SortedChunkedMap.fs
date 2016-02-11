@@ -273,7 +273,7 @@ type SortedChunkedMap<'K,'V>
     
     let outer = ref outer
     outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
-    let mutable inner : SortedMapCursor<'K,'V> = Unchecked.defaultof<_>
+    let mutable inner : SortedMapCursor<'K,'V> = outer.Value.CurrentValue.GetSMCursor()
     let isReset = ref isReset
     let mutable currentBatch : IReadOnlyOrderedMap<'K,'V> = currentBatch
     let isBatch = ref isBatch
