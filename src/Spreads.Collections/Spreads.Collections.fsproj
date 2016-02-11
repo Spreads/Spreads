@@ -114,6 +114,7 @@
     <Content Include="packages.config" />
     <None Include="Duality.fsx" />
     <Compile Include="TimeSeries.fs" />
+    <None Include="Series.fsx" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">

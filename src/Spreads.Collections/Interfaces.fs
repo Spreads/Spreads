@@ -57,16 +57,31 @@ type ISeries<'K,'V> =
   /// positions and relative LT/LE/GT/GE moves.
   abstract GetCursor : unit -> ICursor<'K,'V>
   abstract Subscribe: observer:IObserver<KVP<'K,'V>> -> IDisposable
+  [<ObsoleteAttribute("See a ncommnet in Interfaces.fs")>]
   abstract Comparer: IComparer<'K> with get
   /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys
+  [<ObsoleteAttribute("See a ncommnet in Interfaces.fs")>]
   abstract IsIndexed : bool with get
   /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete 
   /// for adding (e.g. after OnCompleted in Rx) or IsReadOnly in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
+  [<ObsoleteAttribute("See a ncommnet in Interfaces.fs")>]
   abstract IsReadOnly: bool with get
   /// Locks any mutations for mutable implementations
+  [<ObsoleteAttribute("See a ncommnet in Interfaces.fs")>]
   abstract SyncRoot : obj with get
 
 
+// TODO Series' only members must be GetCursor and Susbcribe.
+// All other current members are implementation details that should live 
+// either at containers level or at cursor level (maybe ).
+// e.g. IsIndexed must be near GetAt() method of IROOM
+// IsReadonly = true is equivalent of MoveNextAsync retuning false immediately
+// and is a pasrt of cursor or containers implementation.
+// SyncRoot is definetly a container thing. Subscribe cannot use it in any way,
+// but instead has the error message channel. We should throw exceptions - like we already
+// do for Out-Of-Order Data, and either handle them or pass downstream.
+// Comparer is a part of maps, Cursor has it or maps must have it for generic 
+// cursor implementations that use IROOM.
 
 
 /// ICursor is an advanced enumerator that supports moves to first, last, previous, next, next batch, exact 
