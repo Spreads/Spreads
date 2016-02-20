@@ -17,17 +17,18 @@ open RProvider.Spreads
 
 
 type RUtils() =
-  static member Call(name:string, x:Series<DateTime, double>) =
-    let args = 
-      namedParams [
-        "name", box name;
-        "x", box x;]
-    R.spreads__call(args).GetValue<SortedMap<DateTime, double>>()
-
-  static member Call(name:string, x:double[]) : double[] =
-    let args = 
-      namedParams [
-        "name", box name;
-        "x", box x;]
-    R.spreads__call(args).GetValue<double[]>()
+  static member Deprecated with get() = true
+//  static member Call(name:string, x:Series<DateTime, double>) =
+//    let args = 
+//      namedParams [
+//        "name", box name;
+//        "x", box x;]
+//    R.spreads__call(args).GetValue<SortedMap<DateTime, double>>()
+//
+//  static member Call(name:string, x:double[]) : double[] =
+//    let args = 
+//      namedParams [
+//        "name", box name;
+//        "x", box x;]
+//    R.spreads__call(args).GetValue<double[]>()
 
