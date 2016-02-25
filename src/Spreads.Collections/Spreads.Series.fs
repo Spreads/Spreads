@@ -197,6 +197,7 @@ and
         }
 
     override x.Finalize() =
+      // TODO (!) make it work without try..catch
       try
         for v in c.Values do
           v.Dispose()

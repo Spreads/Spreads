@@ -99,8 +99,9 @@ type SortedChunkedMap<'K,'V>
                 let ok = om.TryFind(k, Lookup.LE, &kvp)
                 if ok then
                   // k is larger than the last key and the chunk is big enough
-                  Trace.Assert(kvp.Value.size > 0)
-                  if comparer.Compare(k,kvp.Value.Last.Key) > 0 && kvp.Value.size >= chunkUpperLimit then k
+                  //Trace.Assert(kvp.Value.IsEmpty)
+                  if kvp.Value.IsEmpty 
+                    || (comparer.Compare(k,kvp.Value.Last.Key) > 0 && kvp.Value.size >= chunkUpperLimit) then k
                   else kvp.Key // NB! there was a bug: .Value.keys.[0] -- outer hash key could be smaller that the first key of its inner map
                 else k
       }
@@ -196,20 +197,20 @@ type SortedChunkedMap<'K,'V>
           if prevBucketIsSet then
             //prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
             outerMap.[prevHash] <- prevBucket // will store bucket if outer is persistent
-          let bucket = 
+          let isNew, bucket = 
             let mutable bucketKvp = Unchecked.defaultof<_>
             let ok = outerMap.TryFind(hash, Lookup.EQ, &bucketKvp)
-            if ok then 
-              bucketKvp.Value
+            if ok then
+              false, bucketKvp.Value
             else
               // outerMap.Count could be VERY slow, do not do this
               let averageSize = 4L //try size / (int64 outerMap.Count) with | _ -> 4L // 4L in default
-              let newSm = SortedMap(int averageSize, comparer)
+              let newSm = new SortedMap<'K,'V>(int averageSize, comparer)
               newSm.IsSynchronized <- this.IsSynchronized
-              outerMap.[hash] <- newSm
-              newSm
+              true, newSm
           let s1 = bucket.size
           bucket.[subKey] <- value
+          if isNew then outerMap.[hash] <- bucket
           version <- version + 1L
           let s2 = bucket.size
           size <- size + int64(s2 - s1)
@@ -273,7 +274,7 @@ type SortedChunkedMap<'K,'V>
     
     let outer = ref outer
     outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
-    let mutable inner : SortedMapCursor<'K,'V> = outer.Value.CurrentValue.GetSMCursor()
+    let mutable inner : SortedMapCursor<'K,'V> =  Unchecked.defaultof<_> //outer.Value.CurrentValue.GetSMCursor()
     let isReset = ref isReset
     let mutable currentBatch : IReadOnlyOrderedMap<'K,'V> = currentBatch
     let isBatch = ref isBatch
@@ -357,20 +358,26 @@ type SortedChunkedMap<'K,'V>
           finally
             exitLockIf this.SyncRoot entered
 
+        // TODO (!) review the entire method for edge cases
         member p.MoveAt(key:'K, direction:Lookup) = 
           let entered = enterLockIf this.SyncRoot this.IsSynchronized
           try
             let newHash = slicer.Hash(key)
             let newSubIdx = key
-            let c = comparer.Compare(newHash, outer.Value.CurrentKey)
+            let c = 
+              if isReset.Value then 2 // <> 0 below
+              else comparer.Compare(newHash, outer.Value.CurrentKey)
             let res =
-              if c <> 0 || !isReset then // not in the current bucket, switch bucket
+              if c <> 0 then // not in the current bucket, switch bucket
                 if outer.Value.MoveAt(newHash, Lookup.EQ) then // Equal!
                   inner <- outer.Value.CurrentValue.GetSMCursor()
                   inner.MoveAt(newSubIdx, direction)
                 else
                   false
               else
+                #if PRERELEASE
+                Trace.Assert(not <| Unchecked.equals inner Unchecked.defaultof<SortedMapCursor<'K,'V>>)
+                #endif
                 inner.MoveAt(newSubIdx, direction)
                    
             if res then
@@ -624,7 +631,7 @@ type SortedChunkedMap<'K,'V>
             bucketKvp.Value.Add(subKey, value)
             bucketKvp.Value
           else
-            let newSm = SortedMap(comparer)
+            let newSm = new SortedMap<'K,'V>(comparer)
             newSm.IsSynchronized <- this.IsSynchronized
             newSm.Add(subKey, value)
             outerMap.[hash]<- newSm

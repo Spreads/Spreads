@@ -14,7 +14,7 @@ public class MyInc {
 namespace Spreads.Tests.CSProfile {
     class Program {
         static void Main(string[] args) {
-            (new Extensions.Tests.RPluginTests()).CouldRoundtripArraysBenchmark();
+            //(new Extensions.Tests.RPluginTests()).CouldRoundtripArraysBenchmark();
             Console.ReadLine();
         }
     }

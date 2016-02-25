@@ -98,5 +98,17 @@ namespace Spreads.Collections.Tests {
 
         }
 
+        [Test]
+        public void CouldSerializeSMWithSingleElement() {
+            var sm = new SortedMap<long, long>();
+            sm.Add(1, 1);
+
+            var sm2 = Serialization.Serializer.Deserialize<SortedMap<long, long>>(Serialization.Serializer.Serialize(sm));
+            Assert.AreEqual(1, sm2.Count);
+            Assert.AreEqual(1, sm2.First.Value);
+            Assert.AreEqual(1, sm2.First.Key);
+
+        }
+
     }
 }

@@ -219,5 +219,34 @@ namespace Spreads.Collections.Tests {
         }
 
 
+        [Test]
+        public void CouldMoveAtOnEmpty() {
+
+            var scm = new SortedChunkedMap<int, int>();
+            var c = scm.GetCursor();
+            Assert.IsFalse(c.MoveAt(1, Lookup.GT));
+            Assert.IsFalse(c.MoveAt(1, Lookup.GE));
+            Assert.IsFalse(c.MoveAt(1, Lookup.EQ));
+            Assert.IsFalse(c.MoveAt(1, Lookup.LE));
+            Assert.IsFalse(c.MoveAt(1, Lookup.LT));
+            
+        }
+
+
+        [Test]
+        public void CouldMoveAtOnNonEmpty() {
+
+            var scm = new SortedChunkedMap<int, int>();
+            scm.Add(1, 1);
+            var c = scm.GetCursor();
+            Assert.IsFalse(c.MoveAt(1, Lookup.GT));
+            Assert.IsTrue(c.MoveAt(1, Lookup.GE));
+            Assert.IsTrue(c.MoveAt(1, Lookup.EQ));
+            Assert.IsTrue(c.MoveAt(1, Lookup.LE));
+            Assert.IsFalse(c.MoveAt(1, Lookup.LT));
+
+        }
+
+
     }
 }
