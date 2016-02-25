@@ -1,18 +1,8 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using NUnit.Framework;
-using System.Runtime.InteropServices;
-using Spreads.Collections;
-using Newtonsoft.Json.Bson;
-using Newtonsoft.Json;
-using Spreads;
-using System.Threading;
-using System.Threading.Tasks;
 using MySql.Data.MySqlClient;
 using Dapper;
 using Spreads.Storage;
@@ -51,14 +41,14 @@ namespace Spreads.Extensions.Tests {
         public void CouldCreateMySqlSeriesStorage()
         {
             var storage = new MySqlSeriesStorage(_connection);
-            var intMap = storage.GetPersistentOrderedMap<int, int>("int_map");
+            storage.GetPersistentOrderedMap<int, int>("int_map");
            
         }
 
 
         [Test]
         public void CouldCRUDMySqlSeriesStorage() {
-            var storage = new MySqlSeriesStorage(_connection, idTableName: "test_series_ids", chunkTableName: "test_series_chunks");
+            var storage = new MySqlSeriesStorage(_connection, "test_series_ids", "test_series_chunks");
             var timeseries = storage.GetPersistentOrderedMap<DateTime, double>("test_timeseries");
 
             if (!timeseries.IsEmpty)
@@ -72,12 +62,12 @@ namespace Spreads.Extensions.Tests {
             Console.WriteLine($"Count: {count}");
 
             var date = DateTime.UtcNow.Date;
-            var rng = new System.Random();
+            var rng = new Random();
 
             sw.Start();
             for (int i = 0; i < count; i++)
             {
-                timeseries.Add(date, Math.Round((double)i + rng.NextDouble(), 2));
+                timeseries.Add(date, Math.Round(i + rng.NextDouble(), 2));
                 date = date.AddMilliseconds(rng.Next(1, 10));
             }
             timeseries.Flush();
@@ -93,6 +83,7 @@ namespace Spreads.Extensions.Tests {
             {
                 sum += kvp.Value;
             }
+            Assert.IsTrue(sum > 0);
             sw.Stop();
             Console.WriteLine($"Reads, Mops: {count * 0.001 / sw.ElapsedMilliseconds}");
 
