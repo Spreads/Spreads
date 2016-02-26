@@ -2,12 +2,12 @@
 using System.Data;
 using System.Diagnostics;
 using System.Linq;
-using NUnit.Framework;
-using MySql.Data.MySqlClient;
 using Dapper;
+using MySql.Data.MySqlClient;
+using NUnit.Framework;
 using Spreads.Storage;
 
-namespace Spreads.Extensions.Tests {
+namespace Spreads.Extensions.Tests.Storage {
 
     [TestFixture, Ignore]
     public class StorageTests {

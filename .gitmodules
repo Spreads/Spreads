@@ -6,7 +6,7 @@
 	
 	path = lib/Microsoft.Data.Sqlite
 	
-	url = git@github.com:aspnet/Microsoft.Data.Sqlite.git
+	url = git@github.com:Spreads/Microsoft.Data.Sqlite.git
 	
 	branch = dev
 [submodule "lib/dapper-dot-net"]

@@ -67,7 +67,15 @@
     <Compile Include="BuffersAndPoolTests.cs" />
     <Compile Include="GenerationTests.cs" />
     <Compile Include="RPlugin.cs" />
-    <Compile Include="StorageTests.cs" />
+    <Compile Include="Storage\SQLite\SqliteCommandTest.cs" />
+    <Compile Include="Storage\SQLite\SqliteConnectionStringBuilderTest.cs" />
+    <Compile Include="Storage\SQLite\SqliteConnectionTest.cs" />
+    <Compile Include="Storage\SQLite\SqliteDataReaderTest.cs" />
+    <Compile Include="Storage\SQLite\SqliteTransactionTest.cs" />
+    <Compile Include="Storage\SQLite\TestUtilities\Constants.cs" />
+    <Compile Include="Storage\SQLite\TestUtilities\DbConnectionExtensions.cs" />
+    <Compile Include="Storage\SQLite\TestUtilities\SqliteVersionConditionAttribute.cs" />
+    <Compile Include="Storage\StorageTests.cs" />
     <Compile Include="YepppTests.cs" />
     <Compile Include="CompressionTestsOld.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -96,7 +104,6 @@
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
