@@ -2,3 +2,10 @@
 	path = lib/Ix.NET
 	url = https://github.com/Spreads/Ix.NET
 	branch = spreads
+[submodule "lib/Microsoft.Data.Sqlite"]
+	
+	path = lib/Microsoft.Data.Sqlite
+	
+	url = git@github.com:aspnet/Microsoft.Data.Sqlite.git
+	
+	branch = dev

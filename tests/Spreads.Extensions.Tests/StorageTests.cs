@@ -9,11 +9,11 @@ using Spreads.Storage;
 
 namespace Spreads.Extensions.Tests {
 
-    [TestFixture]
+    [TestFixture, Ignore]
     public class StorageTests {
         private IDbConnection _connection;
 
-        [SetUp]
+        [SetUp, Ignore]
         public void CreateConnection()
         {
             var server = "localhost";
@@ -29,7 +29,7 @@ namespace Spreads.Extensions.Tests {
         }
 
 
-        [Test]
+        [Test, Ignore]
         public void CouldConnectToStorage()
         {
             var two = _connection.Query<int>("SELECT 1+1;").Single();
@@ -37,7 +37,7 @@ namespace Spreads.Extensions.Tests {
         }
 
 
-        [Test]
+        [Test, Ignore]
         public void CouldCreateMySqlSeriesStorage()
         {
             var storage = new MySqlSeriesStorage(_connection);
@@ -46,7 +46,7 @@ namespace Spreads.Extensions.Tests {
         }
 
 
-        [Test]
+        [Test,Ignore]
         public void CouldCRUDMySqlSeriesStorage() {
             var storage = new MySqlSeriesStorage(_connection, "test_series_ids", "test_series_chunks");
             var timeseries = storage.GetPersistentOrderedMap<DateTime, double>("test_timeseries");

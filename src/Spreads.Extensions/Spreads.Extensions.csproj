@@ -22,7 +22,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>..\..\bin\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;SPREADS;NO_VARIANCE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;PRERELEASE;SPREADS;NO_VARIANCE;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -32,7 +32,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\..\bin\</OutputPath>
-    <DefineConstants>TRACE;PRERELEASE;SPREADS;NO_VARIANCE</DefineConstants>
+    <DefineConstants>TRACE;PRERELEASE;SPREADS;NO_VARIANCE;NET451</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -88,6 +88,14 @@
       <Link>native\w32\libblosc.dll</Link>
       <LogicalName>win/x32/libblosc.dll</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Strings.resx">
+      <Link>Storage\SQLite\Strings.resx</Link>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <None Include="Resources\Strings.resx" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\..\lib\Ix.NET\Ix.NET\Source\System.Interactive.Async\AsyncEnumerable.Aggregates.cs">
@@ -138,6 +146,83 @@
     <Compile Include="..\..\lib\Ix.NET\Ix.NET\Source\System.Interactive.Async\TaskExt.cs">
       <Link>System\Threading\Tasks\TaskExt.cs</Link>
     </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Interop\Constants.cs">
+      <Link>Storage\SQLite\Interop\Constants.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Interop\MarshalEx.cs">
+      <Link>Storage\SQLite\Interop\MarshalEx.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Interop\NativeMethods.cs">
+      <Link>Storage\SQLite\Interop\NativeMethods.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Interop\NativeMethodsImpl.cs">
+      <Link>Storage\SQLite\Interop\NativeMethodsImpl.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Interop\Sqlite3Handle.cs">
+      <Link>Storage\SQLite\Interop\Sqlite3Handle.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Interop\Sqlite3StmtHandle.cs">
+      <Link>Storage\SQLite\Interop\Sqlite3StmtHandle.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Interop\VersionedMethods.cs">
+      <Link>Storage\SQLite\Interop\VersionedMethods.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Properties\InternalsVisibleTo.cs">
+      <Link>Storage\SQLite\Properties\InternalsVisibleTo.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Properties\Strings.Designer.cs">
+      <Link>Storage\SQLite\Properties\Strings.Designer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteCacheMode.cs">
+      <Link>Storage\SQLite\SqliteCacheMode.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteCommand.cs">
+      <Link>Storage\SQLite\SqliteCommand.cs</Link>
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteConnection.cs">
+      <Link>Storage\SQLite\SqliteConnection.cs</Link>
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteConnectionStringBuilder.cs">
+      <Link>Storage\SQLite\SqliteConnectionStringBuilder.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteDataReader.cs">
+      <Link>Storage\SQLite\SqliteDataReader.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteEngine.cs">
+      <Link>Storage\SQLite\SqliteEngine.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteException.cs">
+      <Link>Storage\SQLite\SqliteException.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteFactory.cs">
+      <Link>Storage\SQLite\SqliteFactory.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteOpenMode.cs">
+      <Link>Storage\SQLite\SqliteOpenMode.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteParameter.cs">
+      <Link>Storage\SQLite\SqliteParameter.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteParameterCollection.cs">
+      <Link>Storage\SQLite\SqliteParameterCollection.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteTransaction.cs">
+      <Link>Storage\SQLite\SqliteTransaction.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteType.cs">
+      <Link>Storage\SQLite\SqliteType.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Utilities\DbConnectionExtensions.cs">
+      <Link>Storage\SQLite\Utilities\DbConnectionExtensions.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Utilities\NativeLibraryLoader.cs">
+      <Link>Storage\SQLite\Utilities\NativeLibraryLoader.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Utilities\TypeExtensions.cs">
+      <Link>Storage\SQLite\Utilities\TypeExtensions.cs</Link>
+    </Compile>
     <Compile Include="ArrayPool.cs" />
     <Compile Include="Generation\SeriesGenerator.cs" />
     <Compile Include="Properties\Attributes.cs" />
@@ -150,6 +235,11 @@
     <Compile Include="Extensions\DateTimeExtensions.cs" />
     <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="Generation\SortedMapGenerator.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
     <Compile Include="Serialization\Serializer.cs" />
     <Compile Include="Series\ProjectValuesWrapper.cs" />
     <Compile Include="Series\CursorSeries.cs" />
