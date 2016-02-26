@@ -8,7 +8,7 @@ open Spreads
 open Spreads.Collections
 
 // value of returned 'K could be different, e.g. for fill/repeat
-type FCursor<'K,'V> = ('K -> ('K*'V) option) 
+type FCursor<'K,'V> = ('K -> ('K*'V) option)
 
 type FSeries<'K,'V> = unit -> FCursor<'K,'V>
 
@@ -24,7 +24,7 @@ let fromISeries (series:ISeries<'K,'V>) : FSeries<'K,'V> =
     let cursor = series.GetCursor()
     let fcursor = fun k ->
       let mutable value = Unchecked.defaultof<_>
-      // FCursor is purely function without side effects. Only TryGetValue 
+      // FCursor is purely functional without side effects. Only TryGetValue 
       // method of ICursor is a pure function, Move.. methods change position
       if cursor.TryGetValue(k, &value) then 
         Some(k, value)
@@ -103,17 +103,17 @@ let repeated : FSeries<int, int> =
     let cursor = intSeries() 
     discreteRepeatCursor cursor
 
-repeated()(4)   // 4, 40.0
-repeated()(20)  // 10, 100.0
+repeated()(4)   // 4, 4
+repeated()(20)  // 10, 10
 repeated()(0)   // None
 
 #time "on"
-repeated()(10000000) // 10, 100.0
+repeated()(10000000) // 10, 10
 // c. 2.3 sec
 
 // in the repeated series above we transform (map) 
 // a cursor to another cursor with different behavior 
-// but teh same signature, and then wrap the new cursor
+// but the same signature, and then wrap the new cursor
 type FCursorMap<'K,'V,'U> = FCursor<'K,'V> -> FCursor<'K,'U>
 
 // wrap ("monadic return")
@@ -137,14 +137,14 @@ let mapCursor (f:FCursorMap<'K,'V,'U>) (series:FSeries<'K,'V>) : FSeries<'K,'U> 
  Series<'Cursor<T>> * ('Cursor<T> -> Series<Cursor<'U>>) -> Series<Cursor<'U>>
 *)
 
-type FCursorBind<'K,'V,'U> = FCursor<'K,'V> -> FSeries<'K,'U>
+type FCursorBinder<'K,'V,'U> = FCursor<'K,'V> -> FSeries<'K,'U>
 
 /// reorder for easier |>
-let inline bind (binder:FCursorBind<'K,'V,'U>) (series:FSeries<'K,'V>)  =
+let inline bind (binder:FCursorBinder<'K,'V,'U>) (series:FSeries<'K,'V>)  =
   series()   // we create new cursor for every returned series
   |> binder  // even if cursors are stateful, bound series use different instances
   
-// this function has FCursorBind<'K,'V,'U> signature
+// this function has FCursorBinder<'K,'V,'U> signature
 let inline repeatProjection cursor =
   fun () -> cursor |> discreteRepeatCursor
 
@@ -163,7 +163,9 @@ oddRepeatFill()(17) // 9, 9
 oddRepeatFill()(10000000) // 15, 15
 // c.2.5 sec
 
+
 // final picture here
+
 
 (*
   Actual ISeries returns ICursor via GetCursor() method. 
@@ -267,6 +269,11 @@ for i in 0..10000000 do
   ()
 // c. 2.9 sec for 10M iterations, or 290 nanosec per lookup (vs. 2.3 sec above)
 
+
+
+(*
+ZipN implementation
+*)
 
 // signature tells the returned type is FSeries<'K,'V[]>
 let zipN (series:FSeries<'K,'V>[]) =

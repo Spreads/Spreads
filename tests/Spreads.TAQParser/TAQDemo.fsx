@@ -80,7 +80,7 @@ plot msft
 
 
 
-let spread = (aapl/msft - 1.0)
+let spread = (aapl/msft)
 plot spread
 
 // series are irregular, there are few trades that happened at the same microsecond
@@ -90,7 +90,7 @@ spread.Count()
 
 
 let spread2 = 
-  (aapl.Repeat()/msft.Repeat() - 1.0)
+  (aapl.Repeat()/msft.Repeat())
     .ToSortedMap()
 plot spread2
 
@@ -149,7 +149,7 @@ let quotes : Series<DateTime, float> = // data is produced outside
           previous <- previous*(1.0 + rng.NextDouble()*0.002 - 0.001 + 0.001 * trend)
           sm.Add(DateTime.UtcNow, previous)
           cnt <- cnt + 1
-          if cnt % 40 = 0 then trend <- -trend
+          if cnt % 25 = 0 then trend <- -trend
       ), ct) |> ignore
     sm :> Series<DateTime, float>
 
@@ -182,7 +182,8 @@ let actualPositionWritable = SortedMap<DateTime,float>()
 let realTrades = SortedMap<DateTime,float>() 
 let actualPosition = actualPositionWritable :> Series<_,_>
 actualPosition.Do((fun k v -> 
-    Console.WriteLine("Actual position: " + k.ToString() + " : " + v.ToString())
+    if k > DateTime.Today then
+      Console.WriteLine("Actual position: " + k.ToString() + " : " + v.ToString())
   ), ct)
 
 
@@ -198,7 +199,7 @@ targetPosition.Do(
         if actualPositionWritable.IsEmpty then v
         else (v - actualPositionWritable.Last.Value)
       if qty <> 0.0 then
-        Console.WriteLine(k.ToString() +  " : Paper trade: " + qty.ToString())
+        //Console.WriteLine(k.ToString() +  " : Paper trade: " + qty.ToString())
         actualPositionWritable.AddLast(k, v)
     else
       // do real trading
@@ -219,7 +220,8 @@ let myAumIndex = myReturns.Scan(1.0, fun st k v -> st*(1.0 + v))
 
 // Print live data
 myAumIndex.Do((fun k v -> 
-    Console.WriteLine("AUM Index: " + k.ToString() + " : " + v.ToString())
+    if k > DateTime.Today then
+      Console.WriteLine("AUM Index: " + k.ToString() + " : " + v.ToString())
   ), ct)
 
 // Stop it gracefully

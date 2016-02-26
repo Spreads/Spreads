@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Serialization;
 using Prism.DataModel;
@@ -21,8 +22,19 @@ namespace TAQParse {
         // in MySql, storage takes 743 MB, with random access to any TAQ value
         private static string path = @"E:\Data\EQY_US_ALL_TRADE_20150805.zip";
 
-        
-        static unsafe void Main(string[] args) {
+        private static void Main(string[] args)
+        {
+            var t = Task.FromResult(1);
+            Interlocked.Exchange(ref t, t.ContinueWith(x =>
+            {
+                Console.WriteLine("Cont 1");
+                return 0;
+            }));
+            Console.ReadLine();
+        }
+
+
+        static unsafe void Main3(string[] args) {
 
             var dbPersistor = new DatabasePersistor("taq2", new MySqlMigrationsConfiguration(), new MySqlDistributedMigrationsConfiguration(), updateMigrations: true);
             var store = new DbPersistentStore(dbPersistor);

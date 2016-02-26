@@ -110,7 +110,7 @@ a value from the key at or before requested key for `Repeat` or a given value fo
     let repeated = sparseSeries.Repeat()
     let filled = sparseSeries.Fill(0.0)
 
-The returned series contain infinite number of values defined for any key, but the values from
+The returned series contains infinite number of values defined for any key, but the values from
 non-observed keys are calculated on demand and do not take any space.
 
 
