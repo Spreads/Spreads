@@ -1,3 +1,6 @@
+#### 0.3.4 - February 26, 2016
+* Add storage functionality to the Extensions project; Embed SQLite and Dapper without binary dependencies. 
+
 #### 0.3.3 - February 4, 2016
 * R Plugin: use R function dispatch by name; 
 * Move direct buffers to the Core projects. Extensions has too many dependencies and is used for non-core stuff. Core is now unsafe.

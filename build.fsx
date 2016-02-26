@@ -202,26 +202,26 @@ Target "NuGet" (fun _ ->
             })
         ("nuget/" + packageName + ".nuspec")
 
-    let packageName = project + "." + "RPlugin"
-    NuGet (fun p ->
-        { p with
-            Authors = authors
-            Project = packageName
-            Summary = packageName // "TODO"
-            Description = packageName // "TODO"
-            Version = release.NugetVersion
-            ReleaseNotes = ""
-            Tags = tags
-            OutputPath = "bin"
-            AccessKey = getBuildParamOrDefault "nugetkey" ""
-            Publish = hasBuildParam "nugetkey"
-            Dependencies = 
-              [ "Spreads", release.NugetVersion
-                "R.NET.Community", GetPackageVersion "packages" "R.NET.Community"
-                "R.NET.Community.FSharp", GetPackageVersion "packages" "R.NET.Community.FSharp"
-                "RProvider", GetPackageVersion "packages" "RProvider" ]
-            })
-        ("nuget/" + packageName + ".nuspec")
+//    let packageName = project + "." + "RPlugin"
+//    NuGet (fun p ->
+//        { p with
+//            Authors = authors
+//            Project = packageName
+//            Summary = packageName // "TODO"
+//            Description = packageName // "TODO"
+//            Version = release.NugetVersion
+//            ReleaseNotes = ""
+//            Tags = tags
+//            OutputPath = "bin"
+//            AccessKey = getBuildParamOrDefault "nugetkey" ""
+//            Publish = hasBuildParam "nugetkey"
+//            Dependencies = 
+//              [ "Spreads", release.NugetVersion
+//                "R.NET.Community", GetPackageVersion "packages" "R.NET.Community"
+//                "R.NET.Community.FSharp", GetPackageVersion "packages" "R.NET.Community.FSharp"
+//                "RProvider", GetPackageVersion "packages" "RProvider" ]
+//            })
+//        ("nuget/" + packageName + ".nuspec")
 )
 
 // --------------------------------------------------------------------------------------
