@@ -1,4 +1,4 @@
-Spreads library contains source and binary dependencies on some cool independent open-source projects. 
+Spreads library contains source and binary dependencies on some independent open-source projects. 
 Here they are listed alphabetically together with their respective licences. The decision to
 embed them was based on https://en.wikipedia.org/wiki/License_compatibility
 and was done for convenience and compatibility with Spreads API.
