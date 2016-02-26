@@ -76,6 +76,10 @@
       <Link>native\w64\libblosc.dll</Link>
       <LogicalName>win/x64/libblosc.dll</LogicalName>
     </EmbeddedResource>
+	<EmbeddedResource Include="..\..\lib\sqlite3\w64\sqlite3.dll">
+		<Link>native\w64\sqlite3.dll</Link>
+		<LogicalName>win/x64/sqlite3.dll</LogicalName>
+	</EmbeddedResource>
     <EmbeddedResource Include="..\..\lib\libyeppp\win\x32\yeppp.dll">
       <Link>native\w32\yeppp.dll</Link>
       <LogicalName>win/x32/yeppp.dll</LogicalName>
@@ -84,6 +88,10 @@
       <Link>native\w32\libblosc.dll</Link>
       <LogicalName>win/x32/libblosc.dll</LogicalName>
     </EmbeddedResource>
+	<EmbeddedResource Include="..\..\lib\sqlite3\w32\sqlite3.dll">
+		<Link>native\w32\sqlite3.dll</Link>
+		<LogicalName>win/x32/sqlite3.dll</LogicalName>
+	</EmbeddedResource>
     <EmbeddedResource Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Strings.resx">
       <Link>Storage\SQLite\Strings.resx</Link>
     </EmbeddedResource>
