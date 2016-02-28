@@ -14,8 +14,10 @@ public class MyInc {
 namespace Spreads.Tests.CSProfile {
     class Program {
         static void Main(string[] args) {
-            //(new Extensions.Tests.RPluginTests()).CouldRoundtripArraysBenchmark();
+            var bs = Bootstrap.Bootstrapper.Instance;
+            (new Microsoft.Data.Sqlite.SqlitePerformanceTest()).InsertSpeed();
             Console.ReadLine();
+            Console.WriteLine(bs.AppFolder);
         }
     }
 }
