@@ -47,11 +47,14 @@ type SortedChunkedMap<'K,'V>
   internal (outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>, comparer:IComparer<'K>, slicer:Func<'K,'K> option, ?chunkMaxSize:int) as this =
   inherit Series<'K,'V>()
 
+  // TODO (low) replace outer with MapDeque, see comments in MapDeque.fs
+  let outerMap = outerFactory(comparer)
+
   // TODO serialize size, add a method to calculate size based on outerMap only
-  [<NonSerializedAttribute>]
-  let mutable size = 0L
-  [<NonSerializedAttribute>]
-  let mutable version = 0L
+//  [<NonSerializedAttribute>]
+//  let mutable size = 0L
+//  [<NonSerializedAttribute>]
+//  let mutable version = outerMap.Version
   [<NonSerializedAttribute>]
   let mutable prevHash  = Unchecked.defaultof<'K>
   [<NonSerializedAttribute>]
@@ -59,7 +62,7 @@ type SortedChunkedMap<'K,'V>
   [<NonSerializedAttribute>]
   let mutable prevBucketIsSet  = false
   [<NonSerializedAttribute>]
-  let mutable flushedVersion = 0L
+  let mutable flushedVersion = outerMap.Version
   [<NonSerializedAttribute>]
   let mutable isMutable : bool = true
   [<NonSerializedAttribute>]
@@ -72,8 +75,7 @@ type SortedChunkedMap<'K,'V>
     else
       if chunkMaxSize.IsSome then chunkMaxSize.Value
       else OptimizationSettings.SCMDefaultChunkLength
-  // TODO (very low) replace outer with MapDeque, see comments in MapDeque.fs
-  let outerMap = outerFactory(comparer)
+  
   let mutable id = String.Empty
   
   [<NonSerializedAttribute>]
@@ -115,7 +117,7 @@ type SortedChunkedMap<'K,'V>
   member this.Clear() : unit =
     if not this.IsEmpty then 
       let removed = outerMap.RemoveMany(outerMap.First.Key, Lookup.GE)
-      if removed then version <- version + 1L
+      if removed then outerMap.Version <- outerMap.Version + 1L
 
   member this.Comparer with get() = comparer
 
@@ -126,18 +128,18 @@ type SortedChunkedMap<'K,'V>
           let mutable size' = 0L
           for okvp in outerMap do
             size' <- size' + (int64 okvp.Value.size)
-          size <- size'
+          //size <- size'
           size'
         finally
           exitLockIf this.SyncRoot entered
 
-  member this.Version with get() = version
+  member this.Version with get() = outerMap.Version
 
   member this.IsEmpty
       with get() =
         let entered = enterLockIf this.SyncRoot this.IsSynchronized
         try
-          outerMap.IsEmpty 
+          outerMap.IsEmpty
           //|| not (outerMap.Values |> Seq.exists (fun inner -> inner <> null && inner.size > 0))
         finally
           exitLockIf this.SyncRoot entered
@@ -189,12 +191,13 @@ type SortedChunkedMap<'K,'V>
         if c = 0 && prevBucketIsSet then // avoid generic equality and null compare
           let s1 = prevBucket.size
           prevBucket.[subKey] <- value
-          version <- version + 1L
+          outerMap.Version <- outerMap.Version + 1L
           let s2 = prevBucket.size
-          size <- size + int64(s2 - s1)
+          //size <- size + int64(s2 - s1)
           if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
         else
           if prevBucketIsSet then
+            outerMap.Version <- outerMap.Version - 1L // set operation increments version, here not needed
             //prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
             outerMap.[prevHash] <- prevBucket // will store bucket if outer is persistent
           let isNew, bucket = 
@@ -208,12 +211,14 @@ type SortedChunkedMap<'K,'V>
               let newSm = new SortedMap<'K,'V>(int averageSize, comparer)
               newSm.IsSynchronized <- this.IsSynchronized
               true, newSm
-          let s1 = bucket.size
+          //let s1 = bucket.size
           bucket.[subKey] <- value
-          if isNew then outerMap.[hash] <- bucket
-          version <- version + 1L
-          let s2 = bucket.size
-          size <- size + int64(s2 - s1)
+          if isNew then
+            outerMap.Version <- outerMap.Version - 1L // set operation increments version, here not needed
+            outerMap.[hash] <- bucket
+          outerMap.Version <- outerMap.Version + 1L
+          //let s2 = bucket.size
+          //size <- size + int64(s2 - s1)
           if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
           prevHash <- hash
           prevBucket <- bucket
@@ -247,11 +252,12 @@ type SortedChunkedMap<'K,'V>
   member this.Flush() =
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
-      if prevBucketIsSet && flushedVersion <> version then
+      if prevBucketIsSet && flushedVersion <> outerMap.Version then
         //&& outerMap.[prevHash].Version <> prevBucket.Version then
           //prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
+          outerMap.Version <- outerMap.Version - 1L // set operation increments version, here not needed
           outerMap.[prevHash] <- prevBucket
-          flushedVersion <- version
+          flushedVersion <- outerMap.Version
     finally
       exitLockIf this.SyncRoot entered
 
@@ -262,6 +268,7 @@ type SortedChunkedMap<'K,'V>
     if prevBucketIsSet && not flushed then
       //&& outerMap.[prevHash].Version <> prevBucket.Version then
           //prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
+          outerMap.Version <- outerMap.Version - 1L // set operation increments version, here not needed
           outerMap.[prevHash] <- prevBucket
     
 
@@ -617,12 +624,13 @@ type SortedChunkedMap<'K,'V>
       // the most common scenario is to hit the previous bucket 
       if prevBucketIsSet && comparer.Compare(hash, prevHash) = 0 then
         prevBucket.Add(subKey, value)
-        version <- version + 1L
-        size <- size + 1L
+        outerMap.Version <- outerMap.Version + 1L
+        //size <- size + 1L
         if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
       else
         if prevBucketIsSet then
           //prevBucket.Capacity <- prevBucket.Count // trim excess
+          outerMap.Version <- outerMap.Version - 1L
           outerMap.[prevHash] <- prevBucket
         let bucket = 
           let mutable bucketKvp = Unchecked.defaultof<_>
@@ -634,10 +642,11 @@ type SortedChunkedMap<'K,'V>
             let newSm = new SortedMap<'K,'V>(comparer)
             newSm.IsSynchronized <- this.IsSynchronized
             newSm.Add(subKey, value)
+            outerMap.Version <- outerMap.Version - 1L
             outerMap.[hash]<- newSm
             newSm
-        version <- version + 1L
-        size <- size + 1L
+        outerMap.Version <- outerMap.Version + 1L
+        //size <- size + 1L
         if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
         prevHash <- hash
         prevBucket <-  bucket
@@ -691,8 +700,8 @@ type SortedChunkedMap<'K,'V>
       if c = 0 && prevBucketIsSet then
         let res = prevBucket.Remove(subKey)
         if res then 
-          version <- version + 1L
-          size <- size - 1L
+          outerMap.Version <- outerMap.Version + 1L
+          //size <- size - 1L
           if prevBucket.size = 0 then
             outerMap.Remove(prevHash) |> ignore
             prevBucketIsSet <- false
@@ -700,6 +709,7 @@ type SortedChunkedMap<'K,'V>
       else
         if prevBucketIsSet then 
           //prevBucket.Capacity <- prevBucket.Count // trim excess 
+          outerMap.Version <- outerMap.Version - 1L
           outerMap.[prevHash]<- prevBucket
         let mutable innerMapKvp = Unchecked.defaultof<_>
         let ok = outerMap.TryFind(hash, Lookup.EQ, &innerMapKvp)
@@ -710,9 +720,10 @@ type SortedChunkedMap<'K,'V>
           prevBucketIsSet <- true
           let res = bucket.Remove(subKey)
           if res then
-            version <- version + 1L
-            size <- size - 1L
+            outerMap.Version <- outerMap.Version + 1L
+            //size <- size - 1L
             if prevBucket.size > 0 then
+              outerMap.Version <- outerMap.Version - 1L
               outerMap.[prevHash]<- prevBucket
             else
               outerMap.Remove(prevHash) |> ignore
@@ -747,6 +758,7 @@ type SortedChunkedMap<'K,'V>
   member this.RemoveMany(key:'K,direction:Lookup):bool =
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
+      let version = outerMap.Version
       let result = 
         if outerMap.Count = 0L then false
         else
@@ -763,6 +775,7 @@ type SortedChunkedMap<'K,'V>
                 let r2 = outerMap.First.Value.RemoveMany(subKey, direction) // same direction
                 if r2 then
                   if outerMap.First.Value.size > 0 then
+                    outerMap.Version <- outerMap.Version - 1L
                     outerMap.[outerMap.First.Key] <- outerMap.First.Value // Flush
                   else 
                     outerMap.Remove(outerMap.First.Key) |> ignore
@@ -788,6 +801,7 @@ type SortedChunkedMap<'K,'V>
                   if lastChunk.IsEmpty then
                     outerMap.Remove(outerMap.Last.Key) |> ignore
                   else
+                    outerMap.Version <- outerMap.Version - 1L
                     outerMap.[outerMap.Last.Key] <- lastChunk // Flush
                   r1 || r2
               else 
@@ -801,7 +815,10 @@ type SortedChunkedMap<'K,'V>
             prevBucketIsSet <- false
             prevBucket <- Unchecked.defaultof<_>
           removed
-      if result then version <- version + 1L
+      if result then 
+        outerMap.Version <- version + 1L
+      else
+        outerMap.Version <- version
       result
     finally
       this.onErrorEvent.Trigger(NotImplementedException("TODO remove should trigger a special exception"))
@@ -979,7 +996,7 @@ type SortedChunkedMap<'K,'V>
 
   interface IOrderedMap<'K,'V> with
     member this.Complete() = this.Complete()
-    member this.Version with get() = int64(this.Version)
+    member this.Version with get() = int64(this.Version) and set v = raise (NotSupportedException())
     member this.Count with get() = this.Count
     member this.Item
       with get k = this.Item(k) 

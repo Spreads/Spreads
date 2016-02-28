@@ -936,7 +936,7 @@ type IndexedMap<'K,'V> // when 'K:equality
 
   interface IOrderedMap<'K,'V> with
     member this.Complete() = this.Complete()
-    member this.Version with get() = int64(this.Version)
+    member this.Version with get() = int64(this.Version) and set v = version <- int v
     member this.Count with get() = int64(this.size)
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
     member this.Add(k, v) = this.Add(k,v)

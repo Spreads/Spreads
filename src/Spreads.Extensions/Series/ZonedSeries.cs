@@ -172,8 +172,10 @@ namespace Spreads {
             get { return _map.Count; }
         }
 
-        public long Version {
+        public long Version
+        {
             get { return _map.Version; }
+            set { _map.Version = value; }
         }
 
         public string Id {

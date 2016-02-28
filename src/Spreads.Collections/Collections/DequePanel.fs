@@ -653,7 +653,7 @@ type SortedDequePanel<'K,'V>
     
 
   interface IOrderedMap<'K,'V> with
-    member this.Version with get() = int64(this.Version)
+    member this.Version with get() = int64(this.Version) and set v = failwith "TODO"
     member this.Complete() = this.Complete()
     member this.Count with get() = int64(this.Count)
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v

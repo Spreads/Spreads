@@ -375,6 +375,7 @@
     <Compile Include="Storage\ISeriesStorage.cs" />
     <Compile Include="Storage\RemoteChunksSeries.cs" />
     <Compile Include="Storage\MySqlSeriesStorage.cs" />
+    <Compile Include="Storage\Tables.cs" />
     <Compile Include="System\Runtime\BufferPool.cs" />
     <Compile Include="native\NativeMethods.cs" />
     <Compile Include="SortedList.cs" />

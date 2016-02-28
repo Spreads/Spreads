@@ -216,7 +216,7 @@ type IOrderedMap<'K,'V> =
   //inherit IDictionary<'K,'V>
   abstract Count: int64 with get
   /// Incremented after any change to data, including setting of the same value to the same key
-  abstract Version: int64 with get
+  abstract Version: int64 with get,set
   abstract Item : 'K -> 'V with get,set
   /// Adds new key and value to map, throws if the key already exists
   abstract Add : k:'K*v:'V -> unit

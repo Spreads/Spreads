@@ -36,19 +36,10 @@ namespace Spreads.Storage {
     // TODO (low) need to adjust SQL for each major RDBMS. Won't do until use any other DB myself
     // Need an enum for DB type and SQL strings dict of something
 
-    public class MySqlSeriesStorage : ISeriesStorage {
-        private class SeriesChunk {
-            public long Id { get; set; }
-            public long ChunkKey { get; set; }
-            public int Count { get; set; }
-            public int Version { get; set; }
-            public byte[] ChunkValue { get; set; }
-        }
 
-        private class SeriesId {
-            public long Id { get; set; }
-            public string TextId { get; set; }
-        }
+
+    public class MySqlSeriesStorage : ISeriesStorage {
+        
 
         private readonly IDbConnection _connection;
 

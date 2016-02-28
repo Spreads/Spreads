@@ -109,7 +109,11 @@ namespace Spreads {
 
         public IComparer<K> Comparer => _innerMap.Comparer;
 
-        public long Version => _innerMap.Version;
+        public long Version
+        {
+            get { return _innerMap.Version; }
+            set { _innerMap.Version = value; }
+        }
 
         public long Count => _innerMap.Count;
 

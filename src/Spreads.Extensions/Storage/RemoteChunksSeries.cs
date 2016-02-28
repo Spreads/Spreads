@@ -64,10 +64,8 @@ namespace Spreads.Storage {
 
         public long Version
         {
-            get
-            {
-                return _localKeysCache.Version;
-            }
+            get { return _localKeysCache.Version; }
+            set { _localKeysCache.Version = value; }
         }
 
         SortedMap<K, V> this[K key]
