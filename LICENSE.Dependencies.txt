@@ -31,6 +31,13 @@ THE SOFTWARE.
 
 
 
+### Dapper
+
+https://github.com/StackExchange/dapper-dot-net/blob/master/License.txt
+http://www.apache.org/licenses/LICENSE-2.0
+
+
+
 ### Deedle
 
 https://github.com/BlueMountainCapital/Deedle/blob/master/LICENSE.md
