@@ -13,10 +13,6 @@ namespace Microsoft.Data.Sqlite
     public class SqliteDataReaderTest
     {
 
-        [SetUp]
-        public void Init() {
-            var bs = Bootstrap.Bootstrapper.Instance;
-        }
         [Test]
         public void Depth_returns_zero()
         {

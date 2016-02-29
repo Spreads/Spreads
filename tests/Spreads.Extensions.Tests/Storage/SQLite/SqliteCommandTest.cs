@@ -13,11 +13,7 @@ namespace Microsoft.Data.Sqlite
     [TestFixture]
     public class SqliteCommandTest
     {
-        [SetUp]
-        public void Init() {
-            var bs = Bootstrap.Bootstrapper.Instance;
-        }
-
+        
         [Test]
         public void Ctor_sets_values()
         {

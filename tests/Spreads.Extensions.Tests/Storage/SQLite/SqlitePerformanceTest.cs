@@ -10,10 +10,6 @@ using NUnit.Framework;
 namespace Spreads.Extensions.Tests.Storage.SQLite {
     [TestFixture]
     public class SqlitePerformanceTest {
-        [SetUp]
-        public void Init() {
-            var bs = Bootstrap.Bootstrapper.Instance;
-        }
 
 
         [Test]
@@ -36,9 +32,9 @@ namespace Spreads.Extensions.Tests.Storage.SQLite {
                 sw.Start();
                 //var txn = connection.BeginTransaction();
                 for (int i = 0; i < 100000; i++) {
-                    connection.ExecuteNonQuery($"INSERT INTO Numbers VALUES ({i}, {i});");
-                    //connection.Execute("INSERT INTO Numbers VALUES (@Key, @Value);",
-                    //    new[] { new { Key = (long)i, Value = (double)i } });
+                    //connection.ExecuteNonQuery($"INSERT INTO Numbers VALUES ({i}, {i});");
+                    connection.Execute("INSERT INTO Numbers VALUES (@Key, @Value);",
+                        new[] { new { Key = (long)i, Value = (double)i } });
                 }
                 //txn.Commit();
                 sw.Stop();

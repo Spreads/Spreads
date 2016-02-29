@@ -1,10 +1,17 @@
 ﻿
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace Microsoft.Data.Sqlite.Interop {
 
     internal static partial class NativeMethods {
+
+        static NativeMethods()
+        {
+            // Bootstrapper's static ctor loads native dlls
+            Trace.Assert(Bootstrap.Bootstrapper.Instance.BaseFolder.Length > 0);
+        }
 
         public static int sqlite3_blob_bytes(Sqlite3BlobHandle pBlob)
             => Sqlite3.blob_bytes(pBlob);

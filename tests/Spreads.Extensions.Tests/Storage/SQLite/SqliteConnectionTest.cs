@@ -15,12 +15,7 @@ namespace Microsoft.Data.Sqlite
     [TestFixture]
     public class SqliteConnectionTest
     {
-        [SetUp]
-        public void Init()
-        {
-            var bs = Bootstrap.Bootstrapper.Instance;
-        }
-
+        
         [Test]
         public void Ctor_sets_connection_string()
         {
