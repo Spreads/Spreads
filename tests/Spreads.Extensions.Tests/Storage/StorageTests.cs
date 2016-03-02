@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Data;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using Dapper;
-using MySql.Data.MySqlClient;
+using Microsoft.Data.Sqlite;
 using NUnit.Framework;
 using Spreads.Storage;
 
@@ -11,64 +12,55 @@ namespace Spreads.Extensions.Tests.Storage {
 
     [TestFixture, Ignore]
     public class StorageTests {
-        private IDbConnection _connection;
-
-        [SetUp, Ignore]
-        public void CreateConnection()
-        {
-            var server = "localhost";
-            var database = "spreads";
-            var uid = "spreads";
-            var password = "spreads";
-            string connectionString;
-            connectionString = "SERVER=" + server + ";" + "DATABASE=" +
-            database + ";" + "UID=" + uid + ";" + "PASSWORD=" + password + ";";
-
-            _connection = new MySqlConnection(connectionString);
-            _connection.Open();
-        }
 
 
         [Test, Ignore]
-        public void CouldConnectToStorage()
-        {
-            var two = _connection.Query<int>("SELECT 1+1;").Single();
-            Assert.AreEqual(2, two);
-        }
-
-
-        [Test, Ignore]
-        public void CouldCreateMySqlSeriesStorage()
-        {
-            var storage = new MySqlSeriesStorage(_connection);
+        public void CouldCreateSeriesStorage() {
+            var folder = Bootstrap.Bootstrapper.Instance.DataFolder;
+            Console.WriteLine(folder);
+            var storage = SeriesStorage.Default;
             storage.GetPersistentOrderedMap<int, int>("int_map");
-           
+
+            Assert.Throws(typeof (ArgumentException), () =>
+            {
+                try
+                {
+                    var map = storage.GetPersistentOrderedMap<int, double>("int_map");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                    throw;
+                }
+            });
         }
 
 
-        [Test,Ignore]
-        public void CouldCRUDMySqlSeriesStorage() {
-            var storage = new MySqlSeriesStorage(_connection, "test_series_ids", "test_series_chunks");
+        [Test, Ignore]
+        public void CouldCRUDSeriesStorage() {
+            var storage = SeriesStorage.Default;
             var timeseries = storage.GetPersistentOrderedMap<DateTime, double>("test_timeseries");
 
-            if (!timeseries.IsEmpty)
-            {
+            if (!timeseries.IsEmpty) {
                 // Remove all values
                 timeseries.RemoveMany(timeseries.First.Key, Lookup.GE);
             }
 
             var sw = new Stopwatch();
-            var count = 1000000;
+            var count = 1000000000;
             Console.WriteLine($"Count: {count}");
 
             var date = DateTime.UtcNow.Date;
             var rng = new Random();
 
             sw.Start();
-            for (int i = 0; i < count; i++)
-            {
+            for (int i = 0; i < count; i++) {
                 timeseries.Add(date, Math.Round(i + rng.NextDouble(), 2));
                 date = date.AddMilliseconds(rng.Next(1, 10));
+                if (i%10000000 == 0)
+                {
+                    Console.WriteLine($"Wrote: {i}");
+                }
             }
             timeseries.Flush();
             sw.Stop();
@@ -77,22 +69,24 @@ namespace Spreads.Extensions.Tests.Storage {
 
             sw.Restart();
             var sum = 0.0;
-            var storage2 = new MySqlSeriesStorage(_connection, idTableName: "test_series_ids", chunkTableName: "test_series_chunks");
+            var storage2 = new SeriesStorage($"Filename={Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "default.db")}");
             var timeseries2 = storage2.GetPersistentOrderedMap<DateTime, double>("test_timeseries");
-            foreach (var kvp in timeseries2)
-            {
+            foreach (var kvp in timeseries2) {
                 sum += kvp.Value;
             }
             Assert.IsTrue(sum > 0);
             sw.Stop();
             Console.WriteLine($"Reads, Mops: {count * 0.001 / sw.ElapsedMilliseconds}");
 
+            var _connection =
+                new SqliteConnection(
+                    $"Filename={Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "default.db")}");
 
-            var mySqlCount = _connection.ExecuteScalar<long>($"SELECT sum(count) FROM {storage.ChunkTableName} where id = (SELECT id from {storage.IdTableName} where TextId = 'test_timeseries'); ");
-            Console.WriteLine($"Count in MySQL: {mySqlCount}");
-            Assert.AreEqual(count, mySqlCount);
-            var mySqlSize = _connection.ExecuteScalar<long>($"SELECT sum(length(ChunkValue)) FROM {storage.ChunkTableName} where id = (SELECT id from {storage.IdTableName} where TextId = 'test_timeseries'); ");
-            Console.WriteLine($"Memory size: {count * 16}; MySQL net blob size: {mySqlSize}; comp ratio: {Math.Round(count * 16.0/ mySqlSize *1.0, 2)}");
+            var sqlCount = _connection.ExecuteScalar<long>($"SELECT sum(count) FROM {storage.ChunkTableName} where id = (SELECT id from {storage.IdTableName} where TextId = 'test_timeseries'); ");
+            Console.WriteLine($"Count in SQLite: {sqlCount}");
+            Assert.AreEqual(count, sqlCount);
+            var sqlSize = _connection.ExecuteScalar<long>($"SELECT sum(length(ChunkValue)) FROM {storage.ChunkTableName} where id = (SELECT id from {storage.IdTableName} where TextId = 'test_timeseries'); ");
+            Console.WriteLine($"Memory size: {count * 16}; SQLite net blob size: {sqlSize}; comp ratio: {Math.Round(count * 16.0 / sqlSize * 1.0, 2)}");
         }
     }
 }

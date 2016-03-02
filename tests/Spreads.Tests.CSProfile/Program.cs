@@ -16,7 +16,7 @@ namespace Spreads.Tests.CSProfile {
     class Program {
         static void Main(string[] args) {
             var bs = Bootstrap.Bootstrapper.Instance;
-            (new SqliteBlobTest()).InsertSpeed();
+            new SqlitePerformanceTest().InsertSpeed();
             Console.ReadLine();
             Console.WriteLine(bs.AppFolder);
         }

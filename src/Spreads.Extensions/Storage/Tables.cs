@@ -10,12 +10,13 @@ namespace Spreads.Storage
     }
 
 
-
     public class SeriesChunk {
         public long Id { get; set; }
         public long ChunkKey { get; set; }
-        public int Count { get; set; }
-        public int Version { get; set; }
+        public long Count { get; set; }
+        public long Version { get; set; }
         public byte[] ChunkValue { get; set; }
     }
+
+
 }

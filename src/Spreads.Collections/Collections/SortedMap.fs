@@ -1459,6 +1459,10 @@ type SortedMap<'K,'V>
         finally
           exitLockIf this.SyncRoot entered
     
+  override this.Finalize() =
+    OptimizationSettings.ArrayPool.ReturnBuffer(this.keys) |> ignore
+    OptimizationSettings.ArrayPool.ReturnBuffer(this.values) |> ignore
+
   //#endregion
 
   //#region Constructors

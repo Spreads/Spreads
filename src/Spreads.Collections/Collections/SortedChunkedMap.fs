@@ -99,12 +99,16 @@ type SortedChunkedMap<'K,'V>
               else
                 let mutable kvp = Unchecked.defaultof<_>
                 let ok = om.TryFind(k, Lookup.LE, &kvp)
+
                 if ok then
-                  // k is larger than the last key and the chunk is big enough
-                  //Trace.Assert(kvp.Value.IsEmpty)
-                  if kvp.Value.IsEmpty 
-                    || (comparer.Compare(k,kvp.Value.Last.Key) > 0 && kvp.Value.size >= chunkUpperLimit) then k
-                  else kvp.Key // NB! there was a bug: .Value.keys.[0] -- outer hash key could be smaller that the first key of its inner map
+                  if prevBucketIsSet && comparer.Compare(kvp.Key, prevHash) = 0 then
+                    if prevBucket.size >= chunkUpperLimit then k else prevHash
+                  else
+                    // k is larger than the last key and the chunk is big enough
+                    //Trace.Assert(kvp.Value.IsEmpty)
+                    if kvp.Value.IsEmpty 
+                      || (comparer.Compare(k,kvp.Value.Last.Key) > 0 && kvp.Value.size >= chunkUpperLimit) then k
+                    else kvp.Key // NB! there was a bug: .Value.keys.[0] -- outer hash key could be smaller that the first key of its inner map
                 else k
       }
 
@@ -189,10 +193,10 @@ type SortedChunkedMap<'K,'V>
       try
         let c = comparer.Compare(hash, prevHash)
         if c = 0 && prevBucketIsSet then // avoid generic equality and null compare
-          let s1 = prevBucket.size
+          //let s1 = prevBucket.size
           prevBucket.[subKey] <- value
           outerMap.Version <- outerMap.Version + 1L
-          let s2 = prevBucket.size
+          //let s2 = prevBucket.size
           //size <- size + int64(s2 - s1)
           if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
         else
@@ -261,7 +265,7 @@ type SortedChunkedMap<'K,'V>
     finally
       exitLockIf this.SyncRoot entered
 
-  override x.Finalize() =
+  override this.Finalize() =
     // TODO check if flushed already
     let flushed = false
     // no locking, no-one has a reference to this

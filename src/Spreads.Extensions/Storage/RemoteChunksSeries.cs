@@ -17,104 +17,55 @@
     along with this program.If not, see<http://www.gnu.org/licenses/>.
 */
 
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.Caching;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Collections;
+using Spreads.Serialization;
 
 namespace Spreads.Storage {
 
 
-    // TODO (!!!) even though this "just works" on MySQL, the code was never reviewed after first working POC version
+    // TODO disposable, release lock
 
     /// <summary>
     /// Boilerplate to implement persistent series
     /// </summary>
-    public class RemoteChunksSeries<K, V, TMapId> : Series<K, SortedMap<K, V>>, IOrderedMap<K, SortedMap<K, V>> {
-        private readonly TMapId _mapId;
+    public class RemoteChunksSeries<K, V> : IOrderedMap<K, SortedMap<K, V>> { // Series<K, SortedMap<K, V>>,
+
+        public delegate void ChunkSaveHandler(SeriesChunk chunk);
+
+        private readonly long _mapId;
         private readonly IKeyComparer<K> _comparer;
-        private readonly Func<TMapId, long, Task<SortedMap<long, int>>> _remoteKeysLoader;
-        private readonly Func<TMapId, long, Task<SortedMap<K, V>>> _remoteLoader;
-        private readonly Func<TMapId, long, SortedMap<K, V>, Task<long>> _remoteSaver;
-        private readonly Func<TMapId, long, Lookup, Task<long>> _remoteRemover;
-        private readonly Func<TMapId, long, Task<IDisposable>> _remoteLocker;
-        private readonly long _localVersion;
-        private IOrderedMap<long, int> _localKeysCache;
-        private readonly Func<TMapId, long, SortedMap<K, V>> _localChunksCacheGet;
-        private readonly Action<TMapId, long, SortedMap<K, V>> _localChunksCacheSet;
-        //private Int64 _version;
+
+        private readonly Func<long, long, Task<SortedMap<long, SeriesChunk>>> _remoteKeysLoader;
+
+        private readonly Func<long, long, Task<SeriesChunk>> _remoteLoader;
+        private readonly Func<SeriesChunk, Task<long>> _remoteSaver;
+
+        private readonly Func<long, long, Lookup, Task<long>> _remoteRemover;
+
+        private IOrderedMap<long, LazyValue> _chunksCache;
+
         private readonly object _syncRoot = new object();
 
-        public object SyncRoot
-        {
-            get { return _syncRoot; }
-        }
+        public new object SyncRoot => _syncRoot;
 
-        public long Count
-        {
-            get
-            {
-                return _localKeysCache.Count;
-            }
-        }
+        public long Count => _chunksCache.Count;
 
         public long Version
         {
-            get { return _localKeysCache.Version; }
-            set { _localKeysCache.Version = value; }
+            get { return _chunksCache.Version; }
+            set { _chunksCache.Version = value; }
         }
 
-        SortedMap<K, V> this[K key]
-        {
-            get
-            {
-                return (this as IReadOnlyOrderedMap<K, SortedMap<K, V>>)[key];
-            }
+        public new bool IsEmpty => _chunksCache.IsEmpty;
 
-            set
-            {
-                var v = value;
-                var k = ToInt64(key);
-                using (var locker = _remoteLocker(_mapId, k).Result) {
-                    _remoteSaver(_mapId, k, v).Wait();
-                    _localChunksCacheSet(_mapId, k, v);
-                    _localKeysCache[k] = v.Version;
-                }
-            }
-        }
-
-        new public bool IsEmpty
-        {
-            get { return _localKeysCache.IsEmpty; }
-        }
-
-        bool IReadOnlyOrderedMap<K, SortedMap<K, V>>.IsEmpty
-        {
-            get { return _localKeysCache.IsEmpty; }
-        }
-
-        SortedMap<K, V> IOrderedMap<K, SortedMap<K, V>>.this[K key]
-        {
-            get
-            {
-                return (this as IReadOnlyOrderedMap<K, SortedMap<K, V>>)[key];
-            }
-
-            set
-            {
-                var v = value;
-                var k = ToInt64(key);
-                using (var locker = _remoteLocker(_mapId, k).Result) {
-                    _remoteSaver(_mapId, k, v).Wait();
-                    _localChunksCacheSet(_mapId, k, v);
-                    _localKeysCache[k] = v.Version;
-                }
-            }
-        }
 
         bool ISeries<K, SortedMap<K, V>>.IsIndexed
         {
@@ -124,45 +75,69 @@ namespace Spreads.Storage {
             }
         }
 
+        public KeyValuePair<K, SortedMap<K, V>> First
+        {
+            get
+            {
+                return new KeyValuePair<K, SortedMap<K, V>>(FromInt64(_chunksCache.First.Key), _chunksCache.First.Value.Value);
+            }
+        }
 
-        public RemoteChunksSeries(TMapId mapId,
+        public KeyValuePair<K, SortedMap<K, V>> Last
+        {
+            get
+            {
+                return new KeyValuePair<K, SortedMap<K, V>>(FromInt64(_chunksCache.Last.Key), _chunksCache.Last.Value.Value);
+            }
+        }
+
+        public IEnumerable<K> Keys
+        {
+            get
+            {
+                return _chunksCache.Keys.Select(FromInt64);
+            }
+        }
+
+        public IEnumerable<SortedMap<K, V>> Values
+        {
+            get
+            {
+                return _chunksCache.Values.Select(lv => lv.Value);
+            }
+        }
+
+        public IComparer<K> Comparer
+        {
+            get { return _comparer; }
+        }
+
+        public bool IsReadOnly
+        {
+            get
+            {
+                return false;
+            }
+        }
+
+        public RemoteChunksSeries(long mapId,
             IKeyComparer<K> comparer,
             // mapId, current map version => map with chunk keys and versions
-            Func<TMapId, long, Task<SortedMap<long, int>>> remoteKeysLoader,
+            Func<long, long, Task<SortedMap<long, SeriesChunk>>> remoteKeysLoader,
             // mapId, chunkKey => deserialied chunk
-            Func<TMapId, long, Task<SortedMap<K, V>>> remoteLoader,
+            Func<long, long, Task<SeriesChunk>> remoteLoader,
             // mapId, chunkKey, deserialied chunk => whole map version
-            Func<TMapId, long, SortedMap<K, V>, Task<long>> remoteSaver, // TODO corresponding updates
-                                                                         // mapId, chunkKey, direction => whole map version
-            Func<TMapId, long, Lookup, Task<long>> remoteRemover, // TODO corresponding updates
-                                                                  // mapId, chunkKey => lock releaser
-            Func<TMapId, long, Task<IDisposable>> remoteLocker,
-            long localVersion,
-            // chunk key -> chunk version
-            IOrderedMap<long, int> localKeysCache,
-            // chunk key -> deserialized chunk version
-            Func<TMapId, long, SortedMap<K, V>> localChunksCacheGet,
-            Action<TMapId, long, SortedMap<K, V>> localChunksCacheSet) {
+            Func<SeriesChunk, Task<long>> remoteSaver, // TODO corresponding updates
+                                                       // mapId, chunkKey, direction => whole map version
+            Func<long, long, Lookup, Task<long>> remoteRemover) {
             _mapId = mapId;
-            //_prefix = "RemoteInt64Map_" + _mapId.ToString("D");
             _comparer = comparer;
             _remoteKeysLoader = remoteKeysLoader;
             _remoteLoader = remoteLoader;
             _remoteSaver = remoteSaver;
             _remoteRemover = remoteRemover;
-            _remoteLocker = remoteLocker;
-            _localVersion = localVersion;
-            _localKeysCache = localKeysCache;
-            _localChunksCacheGet = localChunksCacheGet;
-            _localChunksCacheSet = localChunksCacheSet;
 
-
-            // TODO constructor must just start synch process on local caches, Series must work with updating source normally
-            // TODO don't wait on it
             UpdateLocalKeysCacheAsync().Wait();
-
-            // TODO! invalidate _localChunksCache, delete all existing keys that are not in renewedKeys
-            // and when versions differ
 
         }
 
@@ -175,41 +150,41 @@ namespace Spreads.Storage {
             return _comparer.Add(default(K), value);
         }
 
-
         private async Task UpdateLocalKeysCacheAsync() {
-            // TODO update as a task and work with _localKeysCache normally assuming it could be 
-            // all keys that are modified after this version
-            var renewedKeys = await _remoteKeysLoader(_mapId, _localVersion);
-            // TODO int to Int64 for SM version
-            //_version = renewedKeys.Version;
-            // rewrite all local keys cache with new keys
-            // TODO use append
-            _localKeysCache = renewedKeys; //.Append(renewedKeys, AppendOption.DropOldOverlap);
-            return;
+            var renewedKeys = await _remoteKeysLoader(_mapId, 0);
+            _chunksCache = renewedKeys.Map((k, ch) => new LazyValue(k, ch.Count, ch.Version, this)).ToSortedMap();
+            _chunksCache.Version = _chunksCache.Values.Max(x => x.ChunkVersion);
         }
 
-        private async Task<SortedMap<K, V>> LoadChunkAsync(long chunkKey) {
-            var cached = _localChunksCacheGet(_mapId, chunkKey);
-            if (cached != null) {
-                return cached;
+
+        public new SortedMap<K, V> this[K key]
+        {
+            get
+            {
+                return _chunksCache[ToInt64(key)].Value;
             }
-            using (var locker = await _remoteLocker(_mapId, chunkKey)) {
-                return await _remoteLoader(_mapId, chunkKey);
+
+            set
+            {
+                var bytes = Serializer.Serialize(value);
+                var k = ToInt64(key);
+                // this line increments version, must go before _remoteSaver
+                _chunksCache[k] = new LazyValue(k, value.Count, _chunksCache.Version, this);
+                _remoteSaver(new SeriesChunk { Id = _mapId, ChunkKey = k, Count = value.Count, Version = _chunksCache.Version, ChunkValue = bytes }).Wait();
+
             }
         }
 
-        public override ICursor<K, SortedMap<K, V>> GetCursor() {
+        private async Task<SeriesChunk> LoadChunkAsync(long chunkKey) {
+            return await _remoteLoader(_mapId, chunkKey);
+        }
+
+        public ICursor<K, SortedMap<K, V>> GetCursor() {
             return new RemoteCursor(this);
         }
 
         public void Add(K k, SortedMap<K, V> v) {
-            var chunkKey = ToInt64(k);
-            lock (_syncRoot) {
-                using (var locker = _remoteLocker(_mapId, chunkKey).Result) {
-
-                }
-            }
-
+            throw new NotImplementedException();
         }
 
         public void AddLast(K k, SortedMap<K, V> v) {
@@ -236,7 +211,7 @@ namespace Spreads.Storage {
 
         public bool RemoveMany(K k, Lookup direction) {
             var intKey = ToInt64(k);
-            var r1 = _localKeysCache.RemoveMany(intKey, direction);
+            var r1 = _chunksCache.RemoveMany(intKey, direction);
             return r1 && _remoteRemover(_mapId, intKey, direction).Result > 0;
         }
 
@@ -245,17 +220,63 @@ namespace Spreads.Storage {
         }
 
         public void Complete() {
+            throw new NotSupportedException();
+        }
+
+        public SortedMap<K, V> GetAt(int idx) {
+            throw new NotSupportedException();
+        }
+
+        public bool TryFind(K key, Lookup direction, out KeyValuePair<K, SortedMap<K, V>> value) {
+            value = default(KeyValuePair<K, SortedMap<K, V>>);
+            KeyValuePair<long, LazyValue> tmp;
+            if (!_chunksCache.TryFind(ToInt64(key), direction, out tmp)) return false;
+            value = new KeyValuePair<K, SortedMap<K, V>>(FromInt64(tmp.Key), tmp.Value.Value);
+            return true;
+        }
+
+        public bool TryGetFirst(out KeyValuePair<K, SortedMap<K, V>> value) {
             throw new NotImplementedException();
         }
 
+        public bool TryGetLast(out KeyValuePair<K, SortedMap<K, V>> value) {
+            throw new NotImplementedException();
+        }
+
+        public bool TryGetValue(K key, out SortedMap<K, V> value) {
+            KeyValuePair<K, SortedMap<K, V>> tmp;
+            if (TryFind(key, Lookup.EQ, out tmp)) {
+                value = tmp.Value;
+                return true;
+            }
+            value = null;
+            return false;
+        }
+
+        public IDisposable Subscribe(IObserver<KeyValuePair<K, SortedMap<K, V>>> observer) {
+            throw new NotImplementedException();
+        }
+
+        public IAsyncEnumerator<KeyValuePair<K, SortedMap<K, V>>> GetEnumerator() {
+            return new RemoteCursor(this);
+        }
+
+        IEnumerator<KeyValuePair<K, SortedMap<K, V>>> IEnumerable<KeyValuePair<K, SortedMap<K, V>>>.GetEnumerator() {
+            return new RemoteCursor(this);
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() {
+            return new RemoteCursor(this);
+        }
+
         class RemoteCursor : ICursor<K, SortedMap<K, V>> {
-            private readonly RemoteChunksSeries<K, V, TMapId> _source;
-            private ICursor<long, int> _keysCursor;
+            private readonly RemoteChunksSeries<K, V> _source;
+            private ICursor<long, SortedMap<K, V>> _keysCursor;
             private bool _isReset = true;
 
-            public RemoteCursor(RemoteChunksSeries<K, V, TMapId> source) {
+            public RemoteCursor(RemoteChunksSeries<K, V> source) {
                 _source = source;
-                _keysCursor = source._localKeysCache.GetCursor();
+                _keysCursor = source._chunksCache.Map(lv => lv.Value).GetCursor();
             }
 
             public IComparer<K> Comparer
@@ -278,7 +299,7 @@ namespace Spreads.Storage {
             {
                 get
                 {
-                    throw new NotImplementedException();
+                    throw new NotSupportedException();
                 }
             }
 
@@ -286,8 +307,7 @@ namespace Spreads.Storage {
             {
                 get
                 {
-                    Debug.Assert(!_isReset, "Should not access current key of reset cursor");
-
+                    Debug.Assert(!_isReset, "Should not access current chunkKey of reset cursor");
                     return _isReset ? default(K) : _source.FromInt64(_keysCursor.CurrentKey);
                 }
             }
@@ -297,7 +317,7 @@ namespace Spreads.Storage {
                 get
                 {
                     Debug.Assert(!_isReset, "Should not access current value of reset cursor");
-                    return _isReset ? null : _source.LoadChunkAsync(_keysCursor.CurrentKey).Result;
+                    return _isReset ? null : _keysCursor.CurrentValue;
                 }
             }
 
@@ -401,10 +421,7 @@ namespace Spreads.Storage {
             }
 
             public bool TryGetValue(K key, out SortedMap<K, V> value) {
-                value = default(SortedMap<K, V>);
-                int version;
-                if (_keysCursor.TryGetValue(_source.ToInt64(key), out version)) {
-                    value = _source.LoadChunkAsync(_keysCursor.CurrentKey).Result;
+                if (_keysCursor.TryGetValue(_source.ToInt64(key), out value)) {
                     return true;
                 }
                 return false;
@@ -412,32 +429,20 @@ namespace Spreads.Storage {
         }
 
 
+        internal struct LazyValue {
+            private readonly long _chunkKey;
+            private long _chunkSize;
+            private long _chunkVersion;
+            private readonly RemoteChunksSeries<K, V> _source;
+            private readonly WeakReference<SortedMap<K, V>> _wr;
 
-        internal class LazyValue : IDisposable {
-            //internal static MemoryCache Cache = MemoryCache.Default; // new MemoryCache("MySQLDateTimeMap");
-            private long _key;
-            private RemoteChunksSeries<K, V, TMapId> _source;
-            private WeakReference<SortedMap<K, V>> _wr = new WeakReference<SortedMap<K, V>>(null);
-            private static CacheItemPolicy _policy;
-            private int lastSavedVersion = 0;
 
-            static LazyValue() {
-                _policy = new CacheItemPolicy();
-                _policy.SlidingExpiration = TimeSpan.FromMinutes(1);
-                //_policy.RemovedCallback = (CacheEntryRemovedCallback) ((args) =>
-                //{
-                //	if (args.RemovedReason != CacheEntryRemovedReason.Removed)
-                //	{
-                //		var item = args.CacheItem.Value as SortedMap<DateTime, V>;
-                //		Debug.Assert(item != null);
-                //                }
-                //            });
-            }
-
-            public LazyValue(long key, RemoteChunksSeries<K, V, TMapId> source) {
-                _key = key;
+            public LazyValue(long chunkKey, long chunkSize, long chunkVersion, RemoteChunksSeries<K, V> source) {
+                _chunkKey = chunkKey;
+                _chunkSize = chunkSize;
+                _chunkVersion = chunkVersion;
                 _source = source;
-
+                _wr = new WeakReference<SortedMap<K, V>>(null);
             }
 
             public SortedMap<K, V> Value
@@ -449,60 +454,22 @@ namespace Spreads.Storage {
                         // _wr must be alive while target is in cache, do not check cache here
                         return target;
                     } else {
-                        var v = _source.LoadChunkAsync(_key).Result;
-                        //Cache.Set(_key, v, _policy);
-                        _wr.SetTarget(v);
-                        lastSavedVersion = v.Version;
-                        return v;
-                    }
-                }
-                set
-                {
-                    var v = value;
-                    if (true) // || lastSavedVersion != v.Version) 
-                    {
-                        var key = _source.FromInt64(_key);
-                        _source[key] = v;
-                        //Cache.Set(_key, v, _policy);
-                        _wr.SetTarget(v);
-                        lastSavedVersion = v.Version;
+                        var chunkRow = _source.LoadChunkAsync(_chunkKey).Result;
+                        _chunkSize = chunkRow.Count;
+                        _chunkVersion = chunkRow.Version;
+                        target = Serializer.Deserialize<SortedMap<K, V>>(chunkRow.ChunkValue);
+                        _wr.SetTarget(target);
+                        return target;
                     }
                 }
             }
 
-            ~LazyValue() {
-                Dispose(false);
-            }
+            public long ChunkKey => _chunkKey;
 
-            //Implement IDisposable.
-            public void Dispose() {
-                Dispose(true);
-                GC.SuppressFinalize(this);
-            }
+            public long ChunkSize => _chunkSize;
 
-            protected virtual void Dispose(bool disposing) {
-                if (disposing) {
-                    // Free other state (managed objects).
-                }
-                SortedMap<K, V> v;
-                //var cached = Cache[_key];
-                if (_wr.TryGetTarget(out v)) // || cached != null) {
-                    {
-                    //if (v == null) { v = cached as SortedMap<DateTime, V>; }
-                    if (true) // || lastSavedVersion != v.Version)
-                    {
-                        var key = _source.FromInt64(_key);
-                        _source[key] = v;
-                        //Cache.Remove(_key);
-                        _wr = null;
-                        lastSavedVersion = 0;
-                    }
-                } else {
-                    //Debug.Assert(!Cache.Contains(_key));
-                }
-            }
+            public long ChunkVersion => _chunkVersion;
         }
-
 
     }
 

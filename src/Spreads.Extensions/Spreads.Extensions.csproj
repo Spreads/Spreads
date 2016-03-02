@@ -92,10 +92,9 @@
       <Link>native\w32\sqlite3.dll</Link>
       <LogicalName>win/x32/sqlite3.dll</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Strings.resx">
-      <Link>Storage\SQLite\Strings.resx</Link>
+    <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Strings.Designer.cs</LastGenOutput>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
@@ -368,13 +367,18 @@
     <Compile Include="Extensions\DateTimeExtensions.cs" />
     <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="Generation\SortedMapGenerator.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
     <Compile Include="Serialization\Serializer.cs" />
     <Compile Include="Series\ProjectValuesWrapper.cs" />
     <Compile Include="Series\CursorSeries.cs" />
     <Compile Include="Series\ZonedSeries.cs" />
     <Compile Include="Storage\ISeriesStorage.cs" />
     <Compile Include="Storage\RemoteChunksSeries.cs" />
-    <Compile Include="Storage\MySqlSeriesStorage.cs" />
+    <Compile Include="Storage\SeriesStorage.cs" />
     <Compile Include="Storage\SQLite\Interop\NativeMethodsEx.cs" />
     <Compile Include="Storage\SQLite\Interop\Sqlite3BlobHandle.cs" />
     <Compile Include="Storage\Tables.cs" />
@@ -439,9 +443,7 @@
       <Name>Spreads.Core</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Resources\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

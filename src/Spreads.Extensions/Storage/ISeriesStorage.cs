@@ -25,7 +25,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Spreads.Storage {
-    public interface ISeriesStorage {
+    public interface ISeriesStorage : IDisposable {
         /// <summary>
         /// Get writable series that persist changes. Always returns a reference to the same object for each seriesId.
         /// </summary>

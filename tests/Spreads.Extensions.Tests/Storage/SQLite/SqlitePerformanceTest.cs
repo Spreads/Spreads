@@ -4,7 +4,6 @@ using Dapper;
 using Microsoft.Data.Sqlite;
 using Microsoft.Data.Sqlite.Utilities;
 using NUnit.Framework;
-//using Dapper;
 
 
 namespace Spreads.Extensions.Tests.Storage.SQLite {
@@ -15,7 +14,7 @@ namespace Spreads.Extensions.Tests.Storage.SQLite {
         [Test]
         public void InsertSpeed()
         {
-            var connectionString =  "Data Source=perf_test.db;"; // "Data Source=:memory:";//
+            var connectionString = "Data Source=perf_test.db;"; // "Data Source=:memory:";//
 
             using (var connection = new SqliteConnection(connectionString)) {
                 connection.Open();
@@ -26,7 +25,7 @@ namespace Spreads.Extensions.Tests.Storage.SQLite {
                 connection.ExecuteNonQuery("PRAGMA journal_mode = WAL;");
                 connection.ExecuteNonQuery("PRAGMA main.cache_size = 5000;");
                 connection.ExecuteNonQuery("DROP TABLE IF EXISTS Numbers");
-                connection.ExecuteNonQuery("CREATE TABLE Numbers (Key INTEGER, Value REAL, PRIMARY KEY(Key));");
+                connection.ExecuteNonQuery("CREATE TABLE `Numbers` (Key INTEGER, Value REAL, PRIMARY KEY(Key));");
 
                 var sw = new Stopwatch();
                 sw.Start();
