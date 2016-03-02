@@ -1,3 +1,6 @@
+#### 0.3.5 - March 2, 2016
+* Add local SeriesStorage based on SQLite
+
 #### 0.3.4 - February 26, 2016
 * Add storage functionality to the Extensions project; Embed SQLite and Dapper without binary dependencies. 
 
