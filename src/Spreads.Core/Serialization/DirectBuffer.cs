@@ -50,6 +50,16 @@ namespace Spreads.Serialization {
             this._length = length;
         }
 
+        //SafeBuffer
+        public DirectBuffer(long length, SafeBuffer buffer) : this(length, PtrFromSafeBuffer(buffer)) {
+        }
+
+        private static IntPtr PtrFromSafeBuffer(SafeBuffer buffer)
+        {
+            byte* bPtr = null;
+            buffer.AcquirePointer(ref bPtr);
+            return (IntPtr) bPtr;
+        }
 
         /// <summary>
         /// TODO Move to Bootstrapper
@@ -227,14 +237,14 @@ namespace Spreads.Serialization {
             Volatile.Write(ref *(int*)(_data + index), value);
         }
 
-        public int VolatileReadInt64(int index) {
+        public long VolatileReadInt64(int index) {
             Assert(index, 8);
-            return Volatile.Read(ref *(int*)(_data + index));
+            return Volatile.Read(ref *(long*)(_data + index));
         }
 
-        public void VolatileWriteInt64(int index, int value) {
+        public void VolatileWriteInt64(int index, long value) {
             Assert(index, 8);
-            Volatile.Write(ref *(int*)(_data + index), value);
+            Volatile.Write(ref *(long*)(_data + index), value);
         }
 
         public int InterlockedIncrementInt32(int index) {

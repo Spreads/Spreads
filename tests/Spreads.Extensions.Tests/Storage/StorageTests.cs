@@ -47,7 +47,7 @@ namespace Spreads.Extensions.Tests.Storage {
             }
 
             var sw = new Stopwatch();
-            var count = 1000000000;
+            var count = 1000000L;
             Console.WriteLine($"Count: {count}");
 
             var date = DateTime.UtcNow.Date;
@@ -86,7 +86,7 @@ namespace Spreads.Extensions.Tests.Storage {
             Console.WriteLine($"Count in SQLite: {sqlCount}");
             Assert.AreEqual(count, sqlCount);
             var sqlSize = _connection.ExecuteScalar<long>($"SELECT sum(length(ChunkValue)) FROM {storage.ChunkTableName} where id = (SELECT id from {storage.IdTableName} where TextId = 'test_timeseries'); ");
-            Console.WriteLine($"Memory size: {count * 16}; SQLite net blob size: {sqlSize}; comp ratio: {Math.Round(count * 16.0 / sqlSize * 1.0, 2)}");
+            Console.WriteLine($"Memory size: {count * 16L}; SQLite net blob size: {sqlSize}; comp ratio: {Math.Round(count * 16.0 / sqlSize * 1.0, 2)}");
         }
     }
 }

@@ -345,7 +345,7 @@ namespace Spreads.Serialization {
             }
         }
 
-        public int VolatileReadInt64(int index) {
+        public long VolatileReadInt64(int index) {
             Assert(index, 8);
             fixed (byte* ptr = &_buffer[_offset])
             {
@@ -353,11 +353,11 @@ namespace Spreads.Serialization {
             }
         }
 
-        public void VolatileWriteInt64(int index, int value) {
+        public void VolatileWriteInt64(int index, long value) {
             Assert(index, 8);
             fixed (byte* ptr = &_buffer[_offset])
             {
-                Volatile.Write(ref *(int*)(ptr + index), value);
+                Volatile.Write(ref *(long*)(ptr + index), value);
             }
         }
 
