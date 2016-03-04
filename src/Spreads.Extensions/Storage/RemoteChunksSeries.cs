@@ -49,12 +49,13 @@ namespace Spreads.Storage {
         private readonly Func<SeriesChunk, Task<long>> _remoteSaver;
 
         private readonly Func<long, long, Lookup, Task<long>> _remoteRemover;
+        private readonly bool _readOnly;
 
-        private IOrderedMap<long, LazyValue> _chunksCache;
+        internal IOrderedMap<long, LazyValue> _chunksCache;
 
         private readonly object _syncRoot = new object();
 
-        public new object SyncRoot => _syncRoot;
+        public object SyncRoot => _syncRoot;
 
         public long Count => _chunksCache.Count;
 
@@ -64,7 +65,7 @@ namespace Spreads.Storage {
             set { _chunksCache.Version = value; }
         }
 
-        public new bool IsEmpty => _chunksCache.IsEmpty;
+        public bool IsEmpty => _chunksCache.IsEmpty;
 
 
         bool ISeries<K, SortedMap<K, V>>.IsIndexed
@@ -129,24 +130,27 @@ namespace Spreads.Storage {
             // mapId, chunkKey, deserialied chunk => whole map version
             Func<SeriesChunk, Task<long>> remoteSaver, // TODO corresponding updates
                                                        // mapId, chunkKey, direction => whole map version
-            Func<long, long, Lookup, Task<long>> remoteRemover) {
+            Func<long, long, Lookup,
+            Task<long>> remoteRemover,
+            bool readOnly = false) {
             _mapId = mapId;
             _comparer = comparer;
             _remoteKeysLoader = remoteKeysLoader;
             _remoteLoader = remoteLoader;
             _remoteSaver = remoteSaver;
             _remoteRemover = remoteRemover;
+            _readOnly = readOnly;
 
             UpdateLocalKeysCacheAsync().Wait();
 
         }
 
 
-        private long ToInt64(K key) {
+        internal long ToInt64(K key) {
             return _comparer.Diff(key, default(K));
         }
 
-        private K FromInt64(long value) {
+        internal K FromInt64(long value) {
             return _comparer.Add(default(K), value);
         }
 
@@ -157,7 +161,7 @@ namespace Spreads.Storage {
         }
 
 
-        public new SortedMap<K, V> this[K key]
+        public SortedMap<K, V> this[K key]
         {
             get
             {
@@ -166,12 +170,20 @@ namespace Spreads.Storage {
 
             set
             {
+
                 var bytes = Serializer.Serialize(value);
                 var k = ToInt64(key);
                 // this line increments version, must go before _remoteSaver
                 _chunksCache[k] = new LazyValue(k, value.Count, _chunksCache.Version, this);
-                _remoteSaver(new SeriesChunk { Id = _mapId, ChunkKey = k, Count = value.Count, Version = _chunksCache.Version, ChunkValue = bytes }).Wait();
-
+                if (!_readOnly) {
+                    _remoteSaver(new SeriesChunk {
+                        Id = _mapId,
+                        ChunkKey = k,
+                        Count = value.Count,
+                        Version = _chunksCache.Version,
+                        ChunkValue = bytes
+                    }).Wait();
+                }
             }
         }
 
@@ -212,7 +224,7 @@ namespace Spreads.Storage {
         public bool RemoveMany(K k, Lookup direction) {
             var intKey = ToInt64(k);
             var r1 = _chunksCache.RemoveMany(intKey, direction);
-            return r1 && _remoteRemover(_mapId, intKey, direction).Result > 0;
+            return r1 && (_readOnly || _remoteRemover(_mapId, intKey, direction).Result > 0);
         }
 
         public int Append(IReadOnlyOrderedMap<K, SortedMap<K, V>> appendMap, AppendOption option) {

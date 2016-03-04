@@ -29,6 +29,6 @@ namespace Spreads.Storage {
         /// <summary>
         /// Get writable series that persist changes. Always returns a reference to the same object for each seriesId.
         /// </summary>
-        IPersistentOrderedMap<TKey, TValue> GetPersistentOrderedMap<TKey, TValue>(string seriesId);
+        IPersistentOrderedMap<TKey, TValue> GetPersistentOrderedMap<TKey, TValue>(string seriesId, bool readOnly = false);
     }
 }

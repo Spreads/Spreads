@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using Spreads;
 using Spreads.Collections;
+using Spreads.Extensions.Tests.Storage;
 using Spreads.Extensions.Tests.Storage.SQLite;
 
 
@@ -16,7 +17,7 @@ namespace Spreads.Tests.CSProfile {
     class Program {
         static void Main(string[] args) {
             var bs = Bootstrap.Bootstrapper.Instance;
-            new SqlitePerformanceTest().InsertSpeed();
+            new StorageTests().CouldCRUDSeriesStorage();
             Console.ReadLine();
             Console.WriteLine(bs.AppFolder);
         }

@@ -4,6 +4,7 @@ namespace Spreads.Storage
     public class SeriesId {
         public long Id { get; set; }
         public string TextId { get; set; }
+        public byte[] UUID { get; set; }
         // the easiest way to avoid collisions by string TextId name is to store type names together with series id, e.g. my_series<>
         public string KeyType { get; set; }
         public string ValueType { get; set; }
@@ -11,6 +12,9 @@ namespace Spreads.Storage
 
 
     public class SeriesChunk {
+        /// <summary>
+        /// Series id
+        /// </summary>
         public long Id { get; set; }
         public long ChunkKey { get; set; }
         public long Count { get; set; }

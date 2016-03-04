@@ -37,6 +37,11 @@ namespace Spreads {
             var hashValue = hasher.ComputeHash(Encoding.UTF8.GetBytes(uniqueString));
             return new Guid(hashValue);
         }
-        
+
+        public static byte[] MD5Bytes(this string uniqueString) {
+            var hasher = MD5.Create();
+            return hasher.ComputeHash(Encoding.UTF8.GetBytes(uniqueString));
+        }
+
     }
 }

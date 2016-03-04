@@ -189,7 +189,7 @@ namespace Bootstrap {
             }
         }
 
-        internal string DataFolder {
+        public string DataFolder {
             get {
                 return _dataFolder;
             }
