@@ -179,6 +179,32 @@ namespace Spreads.Collections.Tests {
             }
         }
 
+
+        [Test]
+        public void CouldAddMoreThanChunkSize() {
+
+            var scm = new SortedChunkedMap<int, int>(1024);
+            var cnt = 0;
+            for (int i = 0; i < 10000; i = i + 2)
+            {
+                scm.Add(i, i);
+                cnt++;
+            }
+
+            for (int i = 1; i < 10000; i = i + 2) {
+                scm.Add(i, i);
+                cnt++;
+            }
+
+            Assert.AreEqual(cnt, scm.Count);
+            Assert.IsTrue(scm.outerMap.First.Value.Count > 1024);
+
+            for (int i = 0; i < 10000; i++)
+            {
+                Assert.AreEqual(i, scm[i]);
+            }
+        }
+
         [Test]
         public void CouldCompareDates() {
             var dtc = KeyComparer.GetDefault<DateTime>();
