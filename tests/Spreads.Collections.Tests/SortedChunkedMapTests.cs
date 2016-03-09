@@ -185,8 +185,7 @@ namespace Spreads.Collections.Tests {
 
             var scm = new SortedChunkedMap<int, int>(1024);
             var cnt = 0;
-            for (int i = 0; i < 10000; i = i + 2)
-            {
+            for (int i = 0; i < 10000; i = i + 2) {
                 scm.Add(i, i);
                 cnt++;
             }
@@ -199,8 +198,7 @@ namespace Spreads.Collections.Tests {
             Assert.AreEqual(cnt, scm.Count);
             Assert.IsTrue(scm.outerMap.First.Value.Count > 1024);
 
-            for (int i = 0; i < 10000; i++)
-            {
+            for (int i = 0; i < 10000; i++) {
                 Assert.AreEqual(i, scm[i]);
             }
         }
@@ -255,7 +253,7 @@ namespace Spreads.Collections.Tests {
             Assert.IsFalse(c.MoveAt(1, Lookup.EQ));
             Assert.IsFalse(c.MoveAt(1, Lookup.LE));
             Assert.IsFalse(c.MoveAt(1, Lookup.LT));
-            
+
         }
 
 
@@ -273,6 +271,38 @@ namespace Spreads.Collections.Tests {
 
         }
 
+
+        /// <summary>
+        /// MoveAt inside SCM was failing
+        /// </summary>
+        [Test]
+        public void DemoAndStratIssue() {
+            var series = new SortedChunkedMap<DateTime, double>[2];
+            var scm1 = new SortedChunkedMap<DateTime, double>();
+            var scm2 = new SortedChunkedMap<DateTime, double>();
+            var today = DateTime.UtcNow.Date;
+            for (int i = 0; i < 10000; i = i + 2) {
+                scm1.Add(today.AddMilliseconds(i), i);
+            }
+
+            for (int i = 1; i < 10000; i = i + 2) {
+                scm2.Add(today.AddMilliseconds(i), i);
+            }
+
+            series[0] = scm1;
+            series[1] = scm2;
+
+            // Zip on repeated used to throw
+            var sm = series.Select(x => x.Repeat()).ToArray().Zip((k, vArr) => {
+                if (Math.Abs(vArr.Sum(x => Math.Sign(x))) == vArr.Length) {
+                    return vArr.Average();
+                } else {
+                    return 0.0;
+                }
+            }).ToSortedMap();
+            Console.WriteLine(sm.Count);
+
+        }
 
     }
 }
