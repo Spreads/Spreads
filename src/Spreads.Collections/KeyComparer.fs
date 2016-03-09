@@ -39,7 +39,7 @@ type IKeyComparer<'K> =
   abstract Add : 'K * diff:int64 -> 'K
 
 [<AllowNullLiteral>]
-type internal IKeySlicer<'K> =
+type internal IKeyHasher<'K> =
   /// Generates an order-preserving hash.
   /// The hashes are used as bucket keys and should be a 
   /// http://en.wikipedia.org/wiki/Monotonic_function

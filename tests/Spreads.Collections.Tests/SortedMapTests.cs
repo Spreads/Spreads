@@ -1,17 +1,10 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using NUnit.Framework;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
-using Spreads.Collections;
 
 namespace Spreads.Collections.Tests {
 
-	[TestFixture]
+    [TestFixture]
 	public class SortedMapTests {
 
 		[SetUp]
@@ -48,11 +41,11 @@ namespace Spreads.Collections.Tests {
 
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
-                var version = sm.version;
+                var version = sm.Version;
                 if (i > 10)
                 {
                     sm[DateTime.UtcNow.Date.AddSeconds(i - 10)] = i - 10 + 1;
-                    Assert.IsTrue(sm.version > version);
+                    Assert.IsTrue(sm.Version > version);
                 }
                 c.MoveNext();
                 Assert.AreEqual(i, c.CurrentValue);

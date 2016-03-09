@@ -44,7 +44,7 @@ open Spreads.Collections
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
 type SortedChunkedMap<'K,'V> 
-  internal (outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>, comparer:IComparer<'K>, slicer:Func<'K,'K> option, ?chunkMaxSize:int) as this =
+  internal (outerFactory:IComparer<'K>->IOrderedMap<'K, SortedMap<'K,'V>>, comparer:IComparer<'K>, hasher:IKeyHasher<'K> option, ?chunkMaxSize:int) as this =
   inherit Series<'K,'V>()
 
   // TODO (low) replace outer with MapDeque, see comments in MapDeque.fs
@@ -69,48 +69,31 @@ type SortedChunkedMap<'K,'V>
   let mutable cursorCounter : int = 1 // TODO either delete this or add decrement to cursor disposal
   [<NonSerializedAttribute>]
   let mutable isSync  = true
+
+  /// Non-zero only for the defaul slicing logic. When zero, we do not check for chunk size
   [<NonSerializedAttribute>]
   let chunkUpperLimit : int = 
-    if slicer.IsSome then 0
+    if hasher.IsSome then 0
     else
-      if chunkMaxSize.IsSome then chunkMaxSize.Value
+      if chunkMaxSize.IsSome && chunkMaxSize.Value > 0 then chunkMaxSize.Value
       else OptimizationSettings.SCMDefaultChunkLength
   
   let mutable id = String.Empty
-  
-  [<NonSerializedAttribute>]
-  let slicer : IKeySlicer<'K> = 
-    match slicer with
-    | Some s -> 
-        { new IKeySlicer<'K> with
-          member x.Hash(k) = s.Invoke k
-        }
-    | None ->
-      { new IKeySlicer<'K> with
-          member x.Hash(k) =
-            match outerMap with
-      //      | :? SortedMap<'K, SortedMap<'K,'V>> as sm -> 
-      //        failwith "not implemented: here will be optimized lookup"
-            | _ as om ->
-            // Fake comparer
-            // For each key, lookup LE outer key. If the bucket with this key has size < UPPER, add 
-            // new values to this bucket. Else create a new bucket.
-              if om.IsEmpty then k
-              else
-                let mutable kvp = Unchecked.defaultof<_>
-                let ok = om.TryFind(k, Lookup.LE, &kvp)
 
-                if ok then
-                  if prevBucketIsSet && comparer.Compare(kvp.Key, prevHash) = 0 then
-                    if prevBucket.size >= chunkUpperLimit then k else prevHash
-                  else
-                    // k is larger than the last key and the chunk is big enough
-                    //Trace.Assert(kvp.Value.IsEmpty)
-                    if kvp.Value.IsEmpty 
-                      || (comparer.Compare(k,kvp.Value.Last.Key) > 0 && kvp.Value.size >= chunkUpperLimit) then k
-                    else kvp.Key // NB! there was a bug: .Value.keys.[0] -- outer hash key could be smaller that the first key of its inner map
-                else k
-      }
+  // used only when chunkUpperLimit = 0
+  [<NonSerializedAttribute>]
+  let hasher : IKeyHasher<'K> =
+    match hasher with
+    | Some h -> h
+    | None -> Unchecked.defaultof<_>
+
+  // hash for locating existing value
+  let existingHash key =
+    if chunkUpperLimit = 0 then hasher.Hash(key) 
+    else
+      let mutable h = Unchecked.defaultof<_>
+      outerMap.TryFind(key, Lookup.LE, &h) |> ignore
+      h.Key
 
   [<OnDeserialized>]
   member private this.Init(context:StreamingContext) =
@@ -162,75 +145,114 @@ type SortedChunkedMap<'K,'V>
   member this.SyncRoot with get() = outerMap.SyncRoot
 
   // TODO! there must be a smarter locking strategy at buckets level (instead of syncRoot)
-  // 
-  member this.Item 
+  member this.Item
+    // if hasher is set then for each key we have deterministic hash that does not depend on outer map at all
     with get key =
       let entered = enterLockIf this.SyncRoot this.IsSynchronized
-      let hash = slicer.Hash(key)
-      let subKey = key
       try
-        let c = comparer.Compare(hash, prevHash)
-        if c = 0 && prevBucketIsSet then
-          prevBucket.[subKey] // this could raise keynotfound exeption
+        if chunkUpperLimit = 0 then // deterministic hash
+          let hash = hasher.Hash(key)
+          let c = comparer.Compare(hash, prevHash)
+          if c = 0 && prevBucketIsSet then
+            prevBucket.[key] // this could raise keynotfound exeption
+          else
+            let bucket =
+              let mutable bucketKvp = Unchecked.defaultof<_>
+              let ok = outerMap.TryFind(hash, Lookup.EQ, &bucketKvp)
+              if ok then
+                bucketKvp.Value
+              else
+                raise (KeyNotFoundException())
+            prevHash <- hash
+            prevBucket <- bucket
+            prevBucketIsSet <- true
+            bucket.[key] // this could raise keynotfound exeption
         else
-          let bucket =
-            let mutable bucketKvp = Unchecked.defaultof<_>
-            let ok = outerMap.TryFind(hash, Lookup.EQ, &bucketKvp)
+          // we are inside previous bucket, getter alway should try to get a value from there
+          if prevBucketIsSet && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket.Last.Key) <= 0 then
+            prevBucket.[key]
+          else
+            let mutable kvp = Unchecked.defaultof<_>
+            let ok = outerMap.TryFind(key, Lookup.LE, &kvp)
             if ok then
-              bucketKvp.Value
-            else
-              raise (KeyNotFoundException())
-          prevHash <- hash
-          prevBucket <- bucket
-          prevBucketIsSet <- true
-          bucket.[subKey] // this could raise keynotfound exeption
+              prevHash <- kvp.Key
+              prevBucket <- kvp.Value
+              prevBucketIsSet <- true
+              kvp.Value.[key]
+            else raise (KeyNotFoundException())
       finally
-          exitLockIf this.SyncRoot entered
+        exitLockIf this.SyncRoot entered
+
     and set key value =
       let entered = enterLockIf this.SyncRoot this.IsSynchronized
-      let hash = slicer.Hash(key)
-      let subKey = key
       try
-        let c = comparer.Compare(hash, prevHash)
-        if c = 0 && prevBucketIsSet then // avoid generic equality and null compare
-          //let s1 = prevBucket.size
-          prevBucket.[subKey] <- value
-          outerMap.Version <- outerMap.Version + 1L
-          //let s2 = prevBucket.size
-          //size <- size + int64(s2 - s1)
-          if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+        if chunkUpperLimit = 0 then // deterministic hash
+          let hash = hasher.Hash(key)
+          let c = comparer.Compare(hash, prevHash)
+          if c = 0 && prevBucketIsSet then // avoid generic equality and null compare
+            prevBucket.[key] <- value
+            outerMap.Version <- outerMap.Version + 1L
+            if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+          else
+            if prevBucketIsSet then
+              outerMap.Version <- outerMap.Version - 1L // set operation increments version, here not needed
+              outerMap.[prevHash] <- prevBucket // will store bucket if outer is persistent
+            let isNew, bucket = 
+              let mutable bucketKvp = Unchecked.defaultof<_>
+              let ok = outerMap.TryFind(hash, Lookup.EQ, &bucketKvp)
+              if ok then
+                false, bucketKvp.Value
+              else
+                let newSm = new SortedMap<'K,'V>(4, comparer)
+                newSm.IsSynchronized <- this.IsSynchronized
+                true, newSm
+            bucket.[key] <- value
+            if isNew then
+              outerMap.Version <- outerMap.Version - 1L // set operation increments version, here not needed
+              outerMap.[hash] <- bucket
+            outerMap.Version <- outerMap.Version + 1L
+            //let s2 = bucket.size
+            //size <- size + int64(s2 - s1)
+            if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+            prevHash <- hash
+            prevBucket <- bucket
+            prevBucketIsSet <- true
         else
-          if prevBucketIsSet then
-            outerMap.Version <- outerMap.Version - 1L // set operation increments version, here not needed
-            //prevBucket.Capacity <- prevBucket.Count // trim excess, save changes to modified bucket
-            outerMap.[prevHash] <- prevBucket // will store bucket if outer is persistent
-          let isNew, bucket = 
-            let mutable bucketKvp = Unchecked.defaultof<_>
-            let ok = outerMap.TryFind(hash, Lookup.EQ, &bucketKvp)
-            if ok then
-              false, bucketKvp.Value
+          // we are inside previous bucket, setter has no choice but to set to this bucket regardless of its size
+          if prevBucketIsSet && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket.Last.Key) <= 0 then
+            prevBucket.[key] <- value
+            outerMap.Version <- outerMap.Version + 1L
+          else
+            let mutable kvp = Unchecked.defaultof<_>
+            let ok = outerMap.TryFind(key, Lookup.LE, &kvp)
+            if ok &&
+              // the second condition here is for the case when we add inside existing bucket, overflow above chunkUpperLimit is inevitable without a separate split logic (TODO?)
+              (kvp.Value.size < chunkUpperLimit || comparer.Compare(key, kvp.Value.Last.Key) <= 0) then
+              kvp.Value.[key] <- value
+              prevHash <- kvp.Key
+              prevBucket <- kvp.Value
+              prevBucketIsSet <- true
+              outerMap.Version <- outerMap.Version + 1L
+              if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
             else
-              // outerMap.Count could be VERY slow, do not do this
-              let averageSize = 4L //try size / (int64 outerMap.Count) with | _ -> 4L // 4L in default
-              let newSm = new SortedMap<'K,'V>(int averageSize, comparer)
+              // create a new bucket at key
+              let newSm = new SortedMap<'K,'V>(4, comparer)
               newSm.IsSynchronized <- this.IsSynchronized
-              true, newSm
-          //let s1 = bucket.size
-          bucket.[subKey] <- value
-          if isNew then
-            outerMap.Version <- outerMap.Version - 1L // set operation increments version, here not needed
-            outerMap.[hash] <- bucket
-          outerMap.Version <- outerMap.Version + 1L
-          //let s2 = bucket.size
-          //size <- size + int64(s2 - s1)
-          if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
-          prevHash <- hash
-          prevBucket <- bucket
-          prevBucketIsSet <- true
+              newSm.[key] <- value
+              #if PRERELEASE
+              let v = outerMap.Version
+              outerMap.[key] <- newSm // outerMap.Version is incremented here, set non-empty bucket only
+              Trace.Assert(v + 1L = outerMap.Version, "Outer setter must increment its version")
+              #else
+              outerMap.[key] <- newSm // outerMap.Version is incremented here, set non-empty bucket only
+              #endif
+              prevHash <- key
+              prevBucket <- newSm
+              prevBucketIsSet <- true
+              if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
       finally
-          exitLockIf this.SyncRoot entered
+        exitLockIf this.SyncRoot entered
 
-    
   member this.First
     with get() = 
       let entered = enterLockIf this.SyncRoot this.IsSynchronized
@@ -285,7 +307,7 @@ type SortedChunkedMap<'K,'V>
     
     let outer = ref outer
     outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
-    let mutable inner : SortedMapCursor<'K,'V> =  Unchecked.defaultof<_> //outer.Value.CurrentValue.GetSMCursor()
+    let mutable inner : SortedMapCursor<'K,'V> = Unchecked.defaultof<_> // outer.Value.CurrentValue.GetSMCursor() //  
     let isReset = ref isReset
     let mutable currentBatch : IReadOnlyOrderedMap<'K,'V> = currentBatch
     let isBatch = ref isBatch
@@ -373,24 +395,31 @@ type SortedChunkedMap<'K,'V>
         member p.MoveAt(key:'K, direction:Lookup) = 
           let entered = enterLockIf this.SyncRoot this.IsSynchronized
           try
-            let newHash = slicer.Hash(key)
-            let newSubIdx = key
-            let c = 
-              if isReset.Value then 2 // <> 0 below
-              else comparer.Compare(newHash, outer.Value.CurrentKey)
             let res =
-              if c <> 0 then // not in the current bucket, switch bucket
-                if outer.Value.MoveAt(newHash, Lookup.EQ) then // Equal!
+              if chunkUpperLimit = 0 then
+                let hash = hasher.Hash(key)
+                let c = 
+                  if isReset.Value then 2 // <> 0 below
+                  else comparer.Compare(hash, outer.Value.CurrentKey)
+              
+                if c <> 0 then // not in the current bucket, switch bucket
+                  if outer.Value.MoveAt(hash, Lookup.EQ) then // Equal!
+                    inner <- outer.Value.CurrentValue.GetSMCursor()
+                    inner.MoveAt(key, direction)
+                  else
+                    false
+                else
+                  #if PRERELEASE
+                  Trace.Assert(not <| Unchecked.equals inner Unchecked.defaultof<SortedMapCursor<'K,'V>>)
+                  #endif
+                  inner.MoveAt(key, direction)
+              else
+                if outer.Value.MoveAt(key, Lookup.LE) then // LE!
                   inner <- outer.Value.CurrentValue.GetSMCursor()
-                  inner.MoveAt(newSubIdx, direction)
+                  inner.MoveAt(key, direction)
                 else
                   false
-              else
-                #if PRERELEASE
-                Trace.Assert(not <| Unchecked.equals inner Unchecked.defaultof<SortedMapCursor<'K,'V>>)
-                #endif
-                inner.MoveAt(newSubIdx, direction)
-                   
+
             if res then
               isReset := false
               isBatch := false
@@ -401,7 +430,7 @@ type SortedChunkedMap<'K,'V>
                   // look into previous bucket
                   if outer.Value.MovePrevious() then
                     inner <- outer.Value.CurrentValue.GetSMCursor()
-                    let res = inner.MoveAt(newSubIdx, direction)
+                    let res = inner.MoveAt(key, direction)
                     if res then
                       isBatch := false
                       isReset := false
@@ -411,13 +440,13 @@ type SortedChunkedMap<'K,'V>
                       false
                   else
                     p.Reset()
-                    false 
+                    false
                 | Lookup.GT | Lookup.GE ->
                   // look into next bucket
                   let moved = outer.Value.MoveNext() 
                   if moved then
                     inner <- outer.Value.CurrentValue.GetSMCursor()
-                    let res = inner.MoveAt(newSubIdx, direction)
+                    let res = inner.MoveAt(key, direction)
                     if res then
                       isBatch := false
                       isReset := false
@@ -546,8 +575,7 @@ type SortedChunkedMap<'K,'V>
     try
       result <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
         
-      let hash = slicer.Hash(key)
-      let subKey = key
+      let hash = existingHash key
       let c = comparer.Compare(hash, prevHash)
 
       let res, pair =
@@ -558,12 +586,12 @@ type SortedChunkedMap<'K,'V>
             prevHash <- hash
             prevBucket <- (innerMapKvp.Value)
             prevBucketIsSet <- true
-            prevBucket.TryFind(subKey, direction)
+            prevBucket.TryFind(key, direction)
           else
             false, Unchecked.defaultof<KeyValuePair<'K, 'V>>
         else
           // TODO null reference when called on empty
-          prevBucket.TryFind(subKey, direction)
+          prevBucket.TryFind(key, direction)
 
       if res then // found in the bucket of key
         result <- pair
@@ -622,39 +650,72 @@ type SortedChunkedMap<'K,'V>
 
   member this.Add(key, value):unit =
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
-    let hash = slicer.Hash(key)
-    let subKey = key
     try
-      // the most common scenario is to hit the previous bucket 
-      if prevBucketIsSet && comparer.Compare(hash, prevHash) = 0 then
-        prevBucket.Add(subKey, value)
-        outerMap.Version <- outerMap.Version + 1L
-        //size <- size + 1L
-        if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
-      else
-        if prevBucketIsSet then
-          //prevBucket.Capacity <- prevBucket.Count // trim excess
-          outerMap.Version <- outerMap.Version - 1L
-          outerMap.[prevHash] <- prevBucket
-        let bucket = 
-          let mutable bucketKvp = Unchecked.defaultof<_>
-          let ok = outerMap.TryFind(hash, Lookup.EQ, &bucketKvp)
-          if ok then 
-            bucketKvp.Value.Add(subKey, value)
-            bucketKvp.Value
-          else
-            let newSm = new SortedMap<'K,'V>(comparer)
-            newSm.IsSynchronized <- this.IsSynchronized
-            newSm.Add(subKey, value)
+      if chunkUpperLimit = 0 then // deterministic hash
+        let hash = hasher.Hash(key)
+        // the most common scenario is to hit the previous bucket 
+        if prevBucketIsSet && comparer.Compare(hash, prevHash) = 0 then
+          prevBucket.Add(key, value)
+          outerMap.Version <- outerMap.Version + 1L
+          //size <- size + 1L
+          if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+        else
+          if prevBucketIsSet then
+            //prevBucket.Capacity <- prevBucket.Count // trim excess
             outerMap.Version <- outerMap.Version - 1L
-            outerMap.[hash]<- newSm
-            newSm
-        outerMap.Version <- outerMap.Version + 1L
-        //size <- size + 1L
-        if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
-        prevHash <- hash
-        prevBucket <-  bucket
-        prevBucketIsSet <- true
+            outerMap.[prevHash] <- prevBucket
+          let bucket = 
+            let mutable bucketKvp = Unchecked.defaultof<_>
+            let ok = outerMap.TryFind(hash, Lookup.EQ, &bucketKvp)
+            if ok then 
+              bucketKvp.Value.Add(key, value)
+              bucketKvp.Value
+            else
+              let newSm = new SortedMap<'K,'V>(comparer)
+              newSm.IsSynchronized <- this.IsSynchronized
+              newSm.Add(key, value)
+              outerMap.Version <- outerMap.Version - 1L
+              outerMap.[hash]<- newSm
+              newSm
+          outerMap.Version <- outerMap.Version + 1L
+          //size <- size + 1L
+          if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+          prevHash <- hash
+          prevBucket <-  bucket
+          prevBucketIsSet <- true
+      else
+        // we are inside previous bucket, setter has no choice but to set to this bucket regardless of its size
+        if prevBucketIsSet && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket.Last.Key) <= 0 then
+          prevBucket.Add(key,value)
+          outerMap.Version <- outerMap.Version + 1L
+        else
+          let mutable kvp = Unchecked.defaultof<_>
+          let ok = outerMap.TryFind(key, Lookup.LE, &kvp)
+          if ok &&
+            // the second condition here is for the case when we add inside existing bucket, overflow above chunkUpperLimit is inevitable without a separate split logic (TODO?)
+            (kvp.Value.size < chunkUpperLimit || comparer.Compare(key, kvp.Value.Last.Key) <= 0) then
+            kvp.Value.Add(key, value)
+            prevHash <- kvp.Key
+            prevBucket <- kvp.Value
+            prevBucketIsSet <- true
+            outerMap.Version <- outerMap.Version + 1L
+            if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+          else
+            // create a new bucket at key
+            let newSm = new SortedMap<'K,'V>(4, comparer)
+            newSm.IsSynchronized <- this.IsSynchronized
+            newSm.[key] <- value
+            #if PRERELEASE
+            let v = outerMap.Version
+            outerMap.[key] <- newSm // outerMap.Version is incremented here, set non-empty bucket only
+            Trace.Assert(v + 1L = outerMap.Version, "Outer setter must increment its version")
+            #else
+            outerMap.[key] <- newSm // outerMap.Version is incremented here, set non-empty bucket only
+            #endif
+            prevHash <- key
+            prevBucket <- newSm
+            prevBucketIsSet <- true
+            if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
     finally
       exitLockIf this.SyncRoot entered
 
@@ -698,11 +759,10 @@ type SortedChunkedMap<'K,'V>
   member this.Remove(key):bool =
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
-      let hash = slicer.Hash(key)
-      let subKey = key
+      let hash = existingHash key
       let c = comparer.Compare(hash, prevHash)
       if c = 0 && prevBucketIsSet then
-        let res = prevBucket.Remove(subKey)
+        let res = prevBucket.Remove(key)
         if res then 
           outerMap.Version <- outerMap.Version + 1L
           //size <- size - 1L
@@ -722,7 +782,7 @@ type SortedChunkedMap<'K,'V>
           prevHash <- hash
           prevBucket <- bucket
           prevBucketIsSet <- true
-          let res = bucket.Remove(subKey)
+          let res = bucket.Remove(key)
           if res then
             outerMap.Version <- outerMap.Version + 1L
             //size <- size - 1L
@@ -771,12 +831,11 @@ type SortedChunkedMap<'K,'V>
             | Lookup.EQ -> 
               this.Remove(key)
             | Lookup.LT | Lookup.LE ->
-              let hash = slicer.Hash(key)
-              let subKey = key
+              let hash = existingHash key
               let hasPivot, pivot = this.TryFind(key, direction)
               if hasPivot then
                 let r1 = outerMap.RemoveMany(hash, Lookup.LT)  // strictly LT
-                let r2 = outerMap.First.Value.RemoveMany(subKey, direction) // same direction
+                let r2 = outerMap.First.Value.RemoveMany(key, direction) // same direction
                 if r2 then
                   if outerMap.First.Value.size > 0 then
                     outerMap.Version <- outerMap.Version - 1L
@@ -792,7 +851,7 @@ type SortedChunkedMap<'K,'V>
                 elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
                 else false
             | Lookup.GT | Lookup.GE ->
-              let hash = slicer.Hash(key)
+              let hash = existingHash key
               let subKey = key
               let hasPivot, pivot = this.TryFind(key, direction)
               if hasPivot then
@@ -1041,10 +1100,13 @@ type SortedChunkedMap<'K,'V>
     SortedChunkedMap(factory, comparer, None)
   
   /// In-memory sorted chunked map
-  new(slicer:Func<'K,'K>) = 
+  new(hasher:Func<'K,'K>) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
     let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
-    SortedChunkedMap(factory, comparer, Some(slicer))
+    let hasher = { new IKeyHasher<'K> with
+          member x.Hash(k) = hasher.Invoke k
+        }
+    SortedChunkedMap(factory, comparer, Some(hasher))
   new(chunkMaxSize:int) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
     let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
@@ -1057,9 +1119,12 @@ type SortedChunkedMap<'K,'V>
   // x2
 
   /// In-memory sorted chunked map
-  new(comparer:IComparer<'K>,slicer:Func<'K,'K>) = 
+  new(comparer:IComparer<'K>,hasher:Func<'K,'K>) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
-    SortedChunkedMap(factory, comparer, Some(slicer))
+    let hasher = { new IKeyHasher<'K> with
+          member x.Hash(k) = hasher.Invoke k
+        }
+    SortedChunkedMap(factory, comparer, Some(hasher))
   new(comparer:IComparer<'K>,chunkMaxSize:int) = 
     let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c) :> IOrderedMap<'K, SortedMap<'K,'V>>)
     SortedChunkedMap(factory, comparer, None, chunkMaxSize)
@@ -1067,16 +1132,22 @@ type SortedChunkedMap<'K,'V>
   new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,comparer:IComparer<'K>) = 
     SortedChunkedMap(outerFactory.Invoke, comparer, None)
 
-  new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,slicer:Func<'K,'K>) = 
+  new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,hasher:Func<'K,'K>) = 
     let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
-    SortedChunkedMap(outerFactory.Invoke, comparer, Some(slicer))
+    let hasher = { new IKeyHasher<'K> with
+          member x.Hash(k) = hasher.Invoke k
+        }
+    SortedChunkedMap(outerFactory.Invoke, comparer, Some(hasher))
   new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,chunkMaxSize:int) = 
     let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
     SortedChunkedMap(outerFactory.Invoke, comparer, None, chunkMaxSize)
 
   // x3
 
-  new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,comparer:IComparer<'K>,slicer:Func<'K,'K>) = 
-    SortedChunkedMap(outerFactory.Invoke, comparer, Some(slicer))
+  new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,comparer:IComparer<'K>,hasher:Func<'K,'K>) =
+    let hasher = { new IKeyHasher<'K> with
+          member x.Hash(k) = hasher.Invoke k
+        }
+    SortedChunkedMap(outerFactory.Invoke, comparer, Some(hasher))
   new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,comparer:IComparer<'K>,chunkMaxSize:int) = 
     SortedChunkedMap(outerFactory.Invoke, comparer, None, chunkMaxSize)
