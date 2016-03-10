@@ -120,7 +120,9 @@ type SortedChunkedMap<'K,'V>
         finally
           exitLockIf this.SyncRoot entered
 
+  member internal this.OuterMap with get() = outerMap
   member this.Version with get() = outerMap.Version
+
 
   member this.IsEmpty
       with get() =

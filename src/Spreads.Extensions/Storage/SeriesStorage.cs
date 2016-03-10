@@ -43,7 +43,6 @@ namespace Spreads.Storage {
         public string IdTableName { get; }
         public string ChunkTableName { get; }
 
-        
 
         private static SqliteConnection CreateConnection(string connectionString, bool async = false) {
             var connection = new SqliteConnection(connectionString);
@@ -141,7 +140,7 @@ namespace Spreads.Storage {
         }
 
 
-        private long GetLongId<K, V>(string seriesId) {
+        internal long GetLongId<K, V>(string seriesId) {
             seriesId = seriesId.ToLowerInvariant().Trim();
             var keyType = typeof(K).FullName;
             var valueType = typeof(V).FullName;
@@ -165,23 +164,76 @@ namespace Spreads.Storage {
             return id;
         }
 
+        internal long GetLongId(string extendedSeriesId) {
+            var sid = new SeriesId(extendedSeriesId);
+            var seriesId = sid.TextId;
+            var keyType = sid.KeyType;
+            var valueType = sid.ValueType;
+
+            var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType from " + IdTableName + "" + " WHERE TextId = @TextId", new { TextId = seriesId }, buffered: false).SingleOrDefault();
+            if (seriesIdRow != null) {
+                if (seriesIdRow.KeyType != keyType || seriesIdRow.ValueType != valueType) {
+                    throw new ArgumentException(
+                        $"Wrong types for {seriesId}: expexting <{seriesIdRow.KeyType},{seriesIdRow.ValueType}> but requested <{keyType},{valueType}>");
+                }
+                return seriesIdRow.Id;
+            }
+
+            var setSql = @"INSERT INTO " + IdTableName + " (TextId, UUID, KeyType, ValueType) VALUES ( @TextId, @UUID, @KeyType, @ValueType ); " + "SELECT Id from " + IdTableName + " WHERE TextId = @TextId;";
+            var id = _connection.ExecuteScalar<long>(setSql, new {
+                TextId = seriesId,
+                UUID = seriesId.MD5Bytes(),
+                KeyType = keyType,
+                ValueType = valueType
+            });
+            return id;
+        }
+
+        internal SeriesId GetExtendedSeriesId(long id) {
+            var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType from " + IdTableName + "" + " WHERE Id = @Id", new { Id = id }, buffered: false).Single();
+            return seriesIdRow;
+        }
+
+        internal string GetExtendedSeriesId<K, V>(string seriesId) {
+            seriesId = seriesId.ToLowerInvariant().Trim();
+            var keyType = typeof(K).FullName;
+            var valueType = typeof(V).FullName;
+
+            var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType from " + IdTableName + "" + " WHERE TextId = @TextId", new { TextId = seriesId }, buffered: false).SingleOrDefault();
+            if (seriesIdRow != null) {
+                if (seriesIdRow.KeyType != keyType || seriesIdRow.ValueType != valueType) {
+                    throw new ArgumentException(
+                        $"Wrong types for {seriesId}: expexting <{seriesIdRow.KeyType},{seriesIdRow.ValueType}> but requested <{keyType},{valueType}>");
+                }
+                return seriesIdRow.ToString();
+            }
+
+            var setSql = @"INSERT INTO " + IdTableName + " (TextId, UUID, KeyType, ValueType) VALUES ( @TextId, @UUID, @KeyType, @ValueType ); " + "SELECT Id from " + IdTableName + " WHERE TextId = @TextId;";
+            var id = _connection.ExecuteScalar<long>(setSql, new {
+                TextId = seriesId,
+                UUID = seriesId.MD5Bytes(),
+                KeyType = keyType,
+                ValueType = valueType
+            });
+            if (id > 0) {
+                GetExtendedSeriesId<K, V>(seriesId);
+            }
+            return null;
+        }
+
         // assert consistency
         internal delegate void ChunkSaveHandler(SeriesChunk chunk);
         internal event ChunkSaveHandler OnChunkSave;
-        internal bool AssertChunkSet<K, V>(SeriesChunk chunk)
-        {
+        internal bool AssertChunkSet<K, V>(SeriesChunk chunk) {
             if (!_readOnlySeriesStore.ContainsKey(chunk.Id)) return false;
             var outer =
                 (_readOnlySeriesStore[chunk.Id] as SortedChunkedMap<K, V>)?.outerMap as RemoteChunksSeries<K, V>;
             if (outer == null) return false;
             //var k = outer.FromInt64(chunk.ChunkKey);
-            try
-            {
+            try {
                 var lv = outer._chunksCache[chunk.ChunkKey];
                 return lv.ChunkSize == chunk.Count && lv.ChunkVersion == chunk.Version;
-            }
-            catch (KeyNotFoundException e)
-            {
+            } catch (KeyNotFoundException e) {
                 return false;
             }
             return false;
@@ -193,21 +245,7 @@ namespace Spreads.Storage {
             if (comparer != null) {
 
                 //// mapId, chunkKey, deserialied chunk => whole map version
-                Func<SeriesChunk, Task<long>> remoteSaver = chunk => {
-
-                    var setSQL = @"INSERT OR REPLACE INTO " + ChunkTableName + " (Id,ChunkKey,Count,Version,ChunkValue)" + " VALUES ( @id, @chKey, @count, @version, @chVal)";
-                    var processedTmp = _connection.Execute(setSQL, new {
-                        id = chunk.Id,
-                        chKey = chunk.ChunkKey,
-                        count = chunk.Count,
-                        version = chunk.Version,
-                        chVal = chunk.ChunkValue
-                    });
-                    if (processedTmp < 1) throw new ApplicationException("Cannot set value");
-                    OnChunkSave?.Invoke(chunk);
-                    return Task.FromResult(0L);
-                    //}
-                };
+                Func<SeriesChunk, Task<long>> remoteSaver = RemoteSaver;
 
                 // mapId, chunkKey, direction => whole map version
                 Func<long, long, Lookup, Task<long>> remoteRemover = (mapId, key, direction) => {
@@ -272,6 +310,19 @@ namespace Spreads.Storage {
                 return series;
             }
             throw new NotSupportedException("Only type that have IKeyComparer<K> are supported");
+        }
+
+        internal Task<long> RemoteSaver(SeriesChunk chunk)
+        {
+            var setSQL = @"INSERT OR REPLACE INTO " + ChunkTableName + " (Id,ChunkKey,Count,Version,ChunkValue)" + " VALUES ( @id, @chKey, @count, @version, @chVal)";
+            var processedTmp = _connection.Execute(setSQL, new
+            {
+                id = chunk.Id, chKey = chunk.ChunkKey, count = chunk.Count, version = chunk.Version, chVal = chunk.ChunkValue
+            });
+            if (processedTmp < 1) throw new ApplicationException("Cannot set value");
+            OnChunkSave?.Invoke(chunk);
+            return Task.FromResult(0L);
+            //}
         }
 
         public void Dispose() {

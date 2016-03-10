@@ -163,18 +163,15 @@ namespace Spreads.Storage {
 
         public SortedMap<K, V> this[K key]
         {
-            get
-            {
-                return _chunksCache[ToInt64(key)].Value;
-            }
+            get { return _chunksCache[ToInt64(key)].Value; }
 
-            set
-            {
-
+            set {
                 var bytes = Serializer.Serialize(value);
                 var k = ToInt64(key);
+                var lv = new LazyValue(k, value.Count, _chunksCache.Version, this);
+                lv.Value = value;
                 // this line increments version, must go before _remoteSaver
-                _chunksCache[k] = new LazyValue(k, value.Count, _chunksCache.Version, this);
+                _chunksCache[k] = lv;
                 if (!_readOnly) {
                     _remoteSaver(new SeriesChunk {
                         Id = _mapId,
@@ -474,6 +471,8 @@ namespace Spreads.Storage {
                         return target;
                     }
                 }
+                // NB use this method only when 
+                internal set { _wr.SetTarget(value); }
             }
 
             public long ChunkKey => _chunkKey;
