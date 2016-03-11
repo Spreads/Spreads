@@ -4,14 +4,13 @@ namespace Spreads.Storage {
 
     public class SeriesId {
 
-        public SeriesId() {}
+        public SeriesId() { }
 
         public SeriesId(string extendedSeriesId) {
             var parts = extendedSeriesId.Split('|');
-            Trace.Assert(parts.Length == 3);
             TextId = parts[0];
-            KeyType = parts[1];
-            ValueType = parts[2];
+            KeyType = parts.Length > 1 ? parts[1] : "";
+            ValueType = parts.Length > 2 ? parts[2] : "";
         }
         public long Id { get; set; }
         public string TextId { get; set; }

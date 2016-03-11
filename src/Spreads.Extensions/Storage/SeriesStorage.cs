@@ -55,10 +55,9 @@ namespace Spreads.Storage {
         }
 
         private static readonly string _defaultPath = Bootstrap.Bootstrapper.Instance.DataFolder;
-        private static readonly SeriesStorage _default = new SeriesStorage($"Filename={Path.Combine(_defaultPath, "default.db")}");
-        public static SeriesStorage Default
+        public static SeriesStorage GetDefault()
         {
-            get { return _default; }
+            return new SeriesStorage($"Filename={Path.Combine(_defaultPath, "default.db")}");
         }
 
         public SqliteConnection Connection
@@ -215,10 +214,7 @@ namespace Spreads.Storage {
                 KeyType = keyType,
                 ValueType = valueType
             });
-            if (id > 0) {
-                GetExtendedSeriesId<K, V>(seriesId);
-            }
-            return null;
+            return id > 0 ? GetExtendedSeriesId<K, V>(seriesId) : null;
         }
 
         // assert consistency
@@ -245,7 +241,7 @@ namespace Spreads.Storage {
             if (comparer != null) {
 
                 //// mapId, chunkKey, deserialied chunk => whole map version
-                Func<SeriesChunk, Task<long>> remoteSaver = RemoteSaver;
+                Func<SeriesChunk, Task<long>> remoteSaver = ch => RemoteSaver(ch, true);
 
                 // mapId, chunkKey, direction => whole map version
                 Func<long, long, Lookup, Task<long>> remoteRemover = (mapId, key, direction) => {
@@ -312,15 +308,17 @@ namespace Spreads.Storage {
             throw new NotSupportedException("Only type that have IKeyComparer<K> are supported");
         }
 
-        internal Task<long> RemoteSaver(SeriesChunk chunk)
-        {
+        internal Task<long> RemoteSaver(SeriesChunk chunk, bool invoke) {
             var setSQL = @"INSERT OR REPLACE INTO " + ChunkTableName + " (Id,ChunkKey,Count,Version,ChunkValue)" + " VALUES ( @id, @chKey, @count, @version, @chVal)";
-            var processedTmp = _connection.Execute(setSQL, new
-            {
-                id = chunk.Id, chKey = chunk.ChunkKey, count = chunk.Count, version = chunk.Version, chVal = chunk.ChunkValue
+            var processedTmp = _connection.Execute(setSQL, new {
+                id = chunk.Id,
+                chKey = chunk.ChunkKey,
+                count = chunk.Count,
+                version = chunk.Version,
+                chVal = chunk.ChunkValue
             });
             if (processedTmp < 1) throw new ApplicationException("Cannot set value");
-            OnChunkSave?.Invoke(chunk);
+            if (invoke) { OnChunkSave?.Invoke(chunk); }
             return Task.FromResult(0L);
             //}
         }

@@ -397,7 +397,7 @@ type SortedMap<'K,'V>
   // external world should not care about this
   // TODO internal
   member this.IsRegular with get() = couldHaveRegularKeys and private set (v) = couldHaveRegularKeys <- v
-  member this.RegularStep with get() = this.rkGetStep()
+  member this.RegularStep with get() = try this.rkGetStep() with | _ -> 0L
   member this.SyncRoot with get() = syncRoot
   member this.Version with get() = this.version and internal set v = this.version <- v // NB setter only for deserializer
 

@@ -237,6 +237,9 @@ type SortedChunkedMap<'K,'V>
               outerMap.Version <- outerMap.Version + 1L
               if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
             else
+              if prevBucketIsSet then
+                outerMap.Version <- outerMap.Version - 1L // set operation increments version, here not needed
+                outerMap.[prevHash] <- prevBucket // will store bucket if outer is persistent
               // create a new bucket at key
               let newSm = new SortedMap<'K,'V>(4, comparer)
               newSm.IsSynchronized <- this.IsSynchronized
@@ -703,6 +706,9 @@ type SortedChunkedMap<'K,'V>
             outerMap.Version <- outerMap.Version + 1L
             if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
           else
+            if prevBucketIsSet then
+              outerMap.Version <- outerMap.Version - 1L // set operation increments version, here not needed
+              outerMap.[prevHash] <- prevBucket // will store bucket if outer is persistent
             // create a new bucket at key
             let newSm = new SortedMap<'K,'V>(4, comparer)
             newSm.IsSynchronized <- this.IsSynchronized
