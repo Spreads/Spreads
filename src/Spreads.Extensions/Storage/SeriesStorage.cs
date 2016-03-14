@@ -55,9 +55,9 @@ namespace Spreads.Storage {
         }
 
         private static readonly string _defaultPath = Bootstrap.Bootstrapper.Instance.DataFolder;
-        public static SeriesStorage GetDefault()
+        public static SeriesStorage GetDefault(string filename = "default.db")
         {
-            return new SeriesStorage($"Filename={Path.Combine(_defaultPath, "default.db")}");
+            return new SeriesStorage($"Filename={Path.Combine(_defaultPath, filename)}");
         }
 
         public SqliteConnection Connection
