@@ -38,7 +38,7 @@ namespace Spreads.Storage {
         public string IdTableName { get; }
         public string ChunkTableName { get; }
 
-        private static SqliteConnection CreateConnection(string connectionString, bool async = false) {
+        private static SqliteConnection CreateConnection(string connectionString, bool async = true) {
             var connection = new SqliteConnection(connectionString);
             connection.Open();
             connection.ExecuteNonQuery("PRAGMA main.page_size = 4096; ");
@@ -78,6 +78,7 @@ namespace Spreads.Storage {
                 "  `UUID` BLOB NOT NULL,\n" +
                 "  `KeyType` TEXT NOT NULL,\n" +
                 "  `ValueType` TEXT NOT NULL,\n" +
+                "  `Version` INTEGER NOT NULL,\n" +
                 "  CONSTRAINT `UX_TextId` UNIQUE (`TextId`)\n" +
                 "  CONSTRAINT `UX_UUID` UNIQUE (`UUID`)\n" +
                 ")";
@@ -103,7 +104,7 @@ namespace Spreads.Storage {
         }
 
         internal virtual Task<long> SaveChunk(SeriesChunk chunk) {
-            var setSQL = @"INSERT OR REPLACE INTO " + ChunkTableName + " (Id,ChunkKey,Count,Version,ChunkValue)" + " VALUES ( @id, @chKey, @count, @version, @chVal)";
+            var setSQL = @"INSERT OR REPLACE INTO " + ChunkTableName + " (Id,ChunkKey,Count,Version,ChunkValue)" + " VALUES ( @id, @chKey, @count, @version, @chVal); UPDATE " + IdTableName + " SET Version = @version WHERE Id = @id;";
             var processedTmp = _connection.Execute(setSQL, new {
                 id = chunk.Id,
                 chKey = chunk.ChunkKey,
@@ -116,14 +117,14 @@ namespace Spreads.Storage {
         }
 
         // mapId, chunkKey, direction => whole map version
-        internal virtual Task<long> RemoveChunk(long mapId, long key, Lookup direction) {
+        internal virtual Task<long> RemoveChunk(long mapId, long key, long version, Lookup direction) {
             bool r2 = false;
             string setSQL;
             int processedTmp;
             switch (direction) {
                 case Lookup.EQ:
-                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey = @dt LIMIT 1";
-                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
+                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey = @dt; UPDATE " + IdTableName + " SET Version = @Version WHERE Id = @id;";
+                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key, Version = version });
                     if (processedTmp == 0) {
                         // ReSharper disable once RedundantAssignment
                         r2 = false;
@@ -132,35 +133,34 @@ namespace Spreads.Storage {
                     } else {
                         r2 = true;
                     }
-
                     break;
+
                 case Lookup.LT:
-
-                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey < @dt ";
-                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
+                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey < @dt; UPDATE " + IdTableName + " SET Version = @Version WHERE Id = @id;";
+                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key, Version = version });
                     r2 = processedTmp > 0;
-
                     break;
+
                 case Lookup.LE:
-                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey <= @dt ";
-                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
+                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey <= @dt; UPDATE " + IdTableName + " SET Version = @Version WHERE Id = @id;";
+                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key, Version = version });
                     r2 = processedTmp > 0;
-
                     break;
+
                 case Lookup.GE:
-                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey >= @dt ";
-                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
+                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey >= @dt; UPDATE " + IdTableName + " SET Version = @Version WHERE Id = @id;";
+                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key, Version = version });
                     r2 = processedTmp > 0;
-
                     break;
+
                 case Lookup.GT:
-                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey > @dt ";
-                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
+                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey > @dt; UPDATE " + IdTableName + " SET Version = @Version WHERE Id = @id;";
+                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key, Version = version });
                     r2 = processedTmp > 0;
                     break;
             }
             // RemoteSeries treats positive as true
-            return r2 ? Task.FromResult(1L) : Task.FromResult(-1L);
+            return r2 ? Task.FromResult(version) : Task.FromResult(0L);
         }
 
         internal virtual Task<SortedMap<long, SeriesChunk>> LoadKeys(long mapid, long version) {
@@ -183,15 +183,15 @@ namespace Spreads.Storage {
         public IPersistentOrderedMap<K, V> GetPersistentOrderedMap<K, V>(string seriesId, bool readOnly = false) {
             if (readOnly) {
                 seriesId = seriesId.ToLowerInvariant().Trim();
-                var id = GetLongId<K, V>(seriesId);
-                return _readOnlySeriesStore.GetOrAdd(id, id2 => {
-                    return GetSeries<K, V>(id2, true);
+                var idRow = GetExtendedSeriesId<K, V>(seriesId);
+                return _readOnlySeriesStore.GetOrAdd(idRow.Id, id2 => {
+                    return GetSeries<K, V>(id2, idRow.Version, true);
                 }) as IPersistentOrderedMap<K, V>;
             } else {
                 seriesId = seriesId.ToLowerInvariant().Trim();
-                var id = GetLongId<K, V>(seriesId);
-                return _writableSeriesStore.GetOrAdd(id, id2 => {
-                    return GetSeries<K, V>(id2, false);
+                var idRow = GetExtendedSeriesId<K, V>(seriesId);
+                return _writableSeriesStore.GetOrAdd(idRow.Id, id2 => {
+                    return GetSeries<K, V>(id2, idRow.Version, false);
                 }) as IPersistentOrderedMap<K, V>;
             }
         }
@@ -202,7 +202,7 @@ namespace Spreads.Storage {
             var keyType = typeof(K).FullName;
             var valueType = typeof(V).FullName;
 
-            var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType from " + IdTableName + "" + " WHERE TextId = @TextId", new { TextId = seriesId }, buffered: false).SingleOrDefault();
+            var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType, Version from " + IdTableName + "" + " WHERE TextId = @TextId", new { TextId = seriesId }, buffered: false).SingleOrDefault();
             if (seriesIdRow != null) {
                 if (seriesIdRow.KeyType != keyType || seriesIdRow.ValueType != valueType) {
                     throw new ArgumentException(
@@ -211,12 +211,13 @@ namespace Spreads.Storage {
                 return seriesIdRow.Id;
             }
 
-            var setSql = @"INSERT INTO " + IdTableName + " (TextId, UUID, KeyType, ValueType) VALUES ( @TextId, @UUID, @KeyType, @ValueType ); " + "SELECT Id from " + IdTableName + " WHERE TextId = @TextId;";
+            var setSql = @"INSERT INTO " + IdTableName + " (TextId, UUID, KeyType, ValueType, Version) VALUES ( @TextId, @UUID, @KeyType, @ValueType, @Version ); " + "SELECT Id from " + IdTableName + " WHERE TextId = @TextId;";
             var id = _connection.ExecuteScalar<long>(setSql, new {
                 TextId = seriesId,
                 UUID = seriesId.MD5Bytes(),
                 KeyType = keyType,
-                ValueType = valueType
+                ValueType = valueType,
+                Version = 0L
             });
             return id;
         }
@@ -227,7 +228,7 @@ namespace Spreads.Storage {
             var keyType = sid.KeyType;
             var valueType = sid.ValueType;
 
-            var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType from " + IdTableName + "" + " WHERE TextId = @TextId", new { TextId = seriesId }, buffered: false).SingleOrDefault();
+            var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType, Version from " + IdTableName + "" + " WHERE TextId = @TextId", new { TextId = seriesId }, buffered: false).SingleOrDefault();
             if (seriesIdRow != null) {
                 if (seriesIdRow.KeyType != keyType || seriesIdRow.ValueType != valueType) {
                     throw new ArgumentException(
@@ -236,46 +237,53 @@ namespace Spreads.Storage {
                 return seriesIdRow.Id;
             }
 
-            var setSql = @"INSERT INTO " + IdTableName + " (TextId, UUID, KeyType, ValueType) VALUES ( @TextId, @UUID, @KeyType, @ValueType ); " + "SELECT Id from " + IdTableName + " WHERE TextId = @TextId;";
+            var setSql = @"INSERT INTO " + IdTableName + " (TextId, UUID, KeyType, ValueType, Version) VALUES ( @TextId, @UUID, @KeyType, @ValueType, @Version ); " + "SELECT Id from " + IdTableName + " WHERE TextId = @TextId;";
             var id = _connection.ExecuteScalar<long>(setSql, new {
                 TextId = seriesId,
                 UUID = seriesId.MD5Bytes(),
                 KeyType = keyType,
-                ValueType = valueType
+                ValueType = valueType,
+                Version = 0L
             });
             return id;
         }
 
         internal SeriesId GetExtendedSeriesId(long id) {
-            var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType from " + IdTableName + "" + " WHERE Id = @Id", new { Id = id }, buffered: false).Single();
+            var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType, Version from " + IdTableName + "" + " WHERE Id = @Id", new { Id = id }, buffered: false).Single();
             return seriesIdRow;
         }
 
-        internal string GetExtendedSeriesId<K, V>(string seriesId) {
+        //internal SeriesId GetExtendedSeriesId(string textId) {
+        //    var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType, Version from " + IdTableName + "" + " WHERE TextId = @TextId", new { TextId = textId }, buffered: false).Single();
+        //    return seriesIdRow;
+        //}
+
+        internal SeriesId GetExtendedSeriesId<K, V>(string seriesId) {
             seriesId = seriesId.ToLowerInvariant().Trim();
             var keyType = typeof(K).FullName;
             var valueType = typeof(V).FullName;
 
-            var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType from " + IdTableName + "" + " WHERE TextId = @TextId", new { TextId = seriesId }, buffered: false).SingleOrDefault();
+            var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType, Version from " + IdTableName + "" + " WHERE TextId = @TextId", new { TextId = seriesId }, buffered: false).SingleOrDefault();
             if (seriesIdRow != null) {
                 if (seriesIdRow.KeyType != keyType || seriesIdRow.ValueType != valueType) {
                     throw new ArgumentException(
                         $"Wrong types for {seriesId}: expexting <{seriesIdRow.KeyType},{seriesIdRow.ValueType}> but requested <{keyType},{valueType}>");
                 }
-                return seriesIdRow.ToString();
+                return seriesIdRow;
             }
 
-            var setSql = @"INSERT INTO " + IdTableName + " (TextId, UUID, KeyType, ValueType) VALUES ( @TextId, @UUID, @KeyType, @ValueType ); " + "SELECT Id from " + IdTableName + " WHERE TextId = @TextId;";
+            var setSql = @"INSERT INTO " + IdTableName + " (TextId, UUID, KeyType, ValueType, Version) VALUES ( @TextId, @UUID, @KeyType, @ValueType, @Version ); " + "SELECT Id from " + IdTableName + " WHERE TextId = @TextId;";
             var id = _connection.ExecuteScalar<long>(setSql, new {
                 TextId = seriesId,
                 UUID = seriesId.MD5Bytes(),
                 KeyType = keyType,
-                ValueType = valueType
+                ValueType = valueType,
+                Version = 0L
             });
             return id > 0 ? GetExtendedSeriesId<K, V>(seriesId) : null;
         }
 
-        private SortedChunkedMap<K, V> GetSeries<K, V>(long seriesId, bool readOnly, int chunkSize = 4096) {
+        private SortedChunkedMap<K, V> GetSeries<K, V>(long seriesId, long version, bool readOnly, int chunkSize = 4096) {
             SortedChunkedMap<K, V> series;
             var comparer = KeyComparer.GetDefault<K>() as IKeyComparer<K>;
             if (comparer == null) throw new NotSupportedException("Only type that have IKeyComparer<K> are supported");
@@ -287,6 +295,7 @@ namespace Spreads.Storage {
                     LoadChunk,
                     SaveChunk,
                     RemoveChunk,
+                    version,
                     readOnly);
 
             series = new SortedChunkedMap<K, V>(outerFactory, comparer, chunkSize) {

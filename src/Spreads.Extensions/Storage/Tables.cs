@@ -18,6 +18,7 @@ namespace Spreads.Storage {
         // the easiest way to avoid collisions by string TextId name is to store type names together with series id, e.g. my_series<>
         public string KeyType { get; set; }
         public string ValueType { get; set; }
+        public long Version { get; set; }
 
         public override string ToString() {
             return TextId + "|" + KeyType + "|" + ValueType;

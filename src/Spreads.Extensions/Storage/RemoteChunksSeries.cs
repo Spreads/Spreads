@@ -48,7 +48,8 @@ namespace Spreads.Storage {
         private readonly Func<long, long, Task<SeriesChunk>> _remoteLoader;
         private readonly Func<SeriesChunk, Task<long>> _remoteSaver;
 
-        private readonly Func<long, long, Lookup, Task<long>> _remoteRemover;
+        private readonly Func<long, long, long, Lookup, Task<long>> _remoteRemover;
+        private readonly long _version;
         private readonly bool _readOnly;
 
         internal IOrderedMap<long, LazyValue> _chunksCache;
@@ -130,8 +131,8 @@ namespace Spreads.Storage {
             // mapId, chunkKey, deserialied chunk => whole map version
             Func<SeriesChunk, Task<long>> remoteSaver, // TODO corresponding updates
                                                        // mapId, chunkKey, direction => whole map version
-            Func<long, long, Lookup,
-            Task<long>> remoteRemover,
+            Func<long, long, long, Lookup, Task<long>> remoteRemover,
+            long version,
             bool readOnly = false) {
             _mapId = mapId;
             _comparer = comparer;
@@ -139,10 +140,14 @@ namespace Spreads.Storage {
             _remoteLoader = remoteLoader;
             _remoteSaver = remoteSaver;
             _remoteRemover = remoteRemover;
+            _version = version;
             _readOnly = readOnly;
 
-            UpdateLocalKeysCacheAsync().Wait();
-
+            var renewedKeys = _remoteKeysLoader(_mapId, 0).Result;
+            _chunksCache = renewedKeys.Map((k, ch) => new LazyValue(k, ch.Count, ch.Version, this)).ToSortedMap();
+            var maxChunkVersion = _chunksCache.Values.Max(x => x.ChunkVersion);
+            if (maxChunkVersion != version) Trace.TraceWarning("Inconsistent series version in chunks and series definition.");
+            _chunksCache.Version = Math.Max(version, maxChunkVersion);
         }
 
 
@@ -152,12 +157,6 @@ namespace Spreads.Storage {
 
         internal K FromInt64(long value) {
             return _comparer.Add(default(K), value);
-        }
-
-        private async Task UpdateLocalKeysCacheAsync() {
-            var renewedKeys = await _remoteKeysLoader(_mapId, 0);
-            _chunksCache = renewedKeys.Map((k, ch) => new LazyValue(k, ch.Count, ch.Version, this)).ToSortedMap();
-            _chunksCache.Version = _chunksCache.Values.Max(x => x.ChunkVersion);
         }
 
 
@@ -221,7 +220,7 @@ namespace Spreads.Storage {
         public bool RemoveMany(K k, Lookup direction) {
             var intKey = ToInt64(k);
             var r1 = _chunksCache.RemoveMany(intKey, direction);
-            return r1 && (_readOnly || _remoteRemover(_mapId, intKey, direction).Result > 0);
+            return r1 && (_readOnly || _remoteRemover(_mapId, intKey, _chunksCache.Version, direction).Result > 0);
         }
 
         public int Append(IReadOnlyOrderedMap<K, SortedMap<K, V>> appendMap, AppendOption option) {
@@ -232,8 +231,9 @@ namespace Spreads.Storage {
             throw new NotSupportedException();
         }
 
-        public SortedMap<K, V> GetAt(int idx) {
-            throw new NotSupportedException();
+        public SortedMap<K, V> GetAt(int idx)
+        {
+            return this.Skip(idx).FirstOrDefault().Value;
         }
 
         public bool TryFind(K key, Lookup direction, out KeyValuePair<K, SortedMap<K, V>> value) {
