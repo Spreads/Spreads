@@ -18,7 +18,7 @@ namespace Spreads.Extensions.Tests.Storage {
         public void CouldCreateSeriesStorage() {
             var folder = Bootstrap.Bootstrapper.Instance.DataFolder;
             Console.WriteLine(folder);
-            var storage = SeriesStorage.Default;
+            var storage = SeriesStorage.GetDefault();
             storage.GetPersistentOrderedMap<int, int>("int_map");
 
             Assert.Throws(typeof(ArgumentException), () => {

@@ -553,7 +553,7 @@ type SortedChunkedMap<'K,'V>
                 if !isBatch then isBatch := false
                 true
               else
-                let currentKey = inner.CurrentKey
+                //let currentKey = inner.CurrentKey
                 if outer.Value.MoveNext() then // go to the next bucket
                   inner <- outer.Value.CurrentValue.GetSMCursor()
                   let res = inner.MoveFirst()

@@ -17,11 +17,9 @@
     along with this program.If not, see<http://www.gnu.org/licenses/>.
 */
 
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Data;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -36,13 +34,9 @@ namespace Spreads.Storage {
         private readonly SqliteConnection _connection;
         private readonly ConcurrentDictionary<long, object> _writableSeriesStore = new ConcurrentDictionary<long, object>();
         private readonly ConcurrentDictionary<long, object> _readOnlySeriesStore = new ConcurrentDictionary<long, object>();
-        private readonly Func<long, long, Task<SortedMap<long, SeriesChunk>>> _remoteKeysLoader;
-        private readonly Func<long, long, Task<SeriesChunk>> _remoteChunkLoader;
-
 
         public string IdTableName { get; }
         public string ChunkTableName { get; }
-
 
         private static SqliteConnection CreateConnection(string connectionString, bool async = false) {
             var connection = new SqliteConnection(connectionString);
@@ -55,8 +49,7 @@ namespace Spreads.Storage {
         }
 
         private static readonly string _defaultPath = Bootstrap.Bootstrapper.Instance.DataFolder;
-        public static SeriesStorage GetDefault(string filename = "default.db")
-        {
+        public static SeriesStorage GetDefault(string filename = "default.db") {
             return new SeriesStorage($"Filename={Path.Combine(_defaultPath, filename)}");
         }
 
@@ -95,23 +88,84 @@ namespace Spreads.Storage {
 
             _connection.Execute(createSeriesIdTable);
             _connection.Execute(createSeriesChunksTable);
+        }
 
-            _remoteKeysLoader = (mapid, version) => {
-                var sm = new SortedMap<long, SeriesChunk>();
-                var chunks = _connection.Query<SeriesChunk>("SELECT Id, ChunkKey, Count, Version from " + ChunkTableName + "" + " WHERE Id = @Id ORDER BY ChunkKey", new { Id = mapid });
-                foreach (var ch in chunks) {
-                    sm.AddLast(ch.ChunkKey, ch);
-                }
-                return Task.FromResult(sm);
-            };
+        internal virtual Task<SeriesChunk> LoadChunk(long mapid, long chunkId) {
+            var sod = _connection.Query<SeriesChunk>("SELECT Id, ChunkKey, ChunkValue, Count, Version from " + ChunkTableName + "" + " WHERE Id = @Id AND ChunkKey = @Dt", new { Dt = chunkId, Id = mapid }).SingleOrDefault();
+            if (sod != null) {
+                return Task.FromResult(sod);
+            }
+            throw new KeyNotFoundException();
+        }
 
-            _remoteChunkLoader = (mapid, chunkId) => {
-                var sod = _connection.Query<SeriesChunk>("SELECT Id, ChunkKey, ChunkValue, Count, Version from " + ChunkTableName + "" + " WHERE Id = @Id AND ChunkKey = @Dt", new { Dt = chunkId, Id = mapid }).SingleOrDefault();
-                if (sod != null) {
-                    return Task.FromResult(sod);
-                }
-                throw new KeyNotFoundException();
-            };
+        internal virtual Task<long> SaveChunk(SeriesChunk chunk) {
+            var setSQL = @"INSERT OR REPLACE INTO " + ChunkTableName + " (Id,ChunkKey,Count,Version,ChunkValue)" + " VALUES ( @id, @chKey, @count, @version, @chVal)";
+            var processedTmp = _connection.Execute(setSQL, new {
+                id = chunk.Id,
+                chKey = chunk.ChunkKey,
+                count = chunk.Count,
+                version = chunk.Version,
+                chVal = chunk.ChunkValue
+            });
+            if (processedTmp < 1) throw new ApplicationException("Cannot set value");
+            return Task.FromResult(0L);
+        }
+
+        // mapId, chunkKey, direction => whole map version
+        internal virtual Task<long> RemoveChunk(long mapId, long key, Lookup direction) {
+            bool r2 = false;
+            string setSQL;
+            int processedTmp;
+            switch (direction) {
+                case Lookup.EQ:
+                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey = @dt LIMIT 1";
+                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
+                    if (processedTmp == 0) {
+                        // ReSharper disable once RedundantAssignment
+                        r2 = false;
+                    } else if (processedTmp > 1) {
+                        throw new ApplicationException("Deleted more than one row");
+                    } else {
+                        r2 = true;
+                    }
+
+                    break;
+                case Lookup.LT:
+
+                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey < @dt ";
+                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
+                    r2 = processedTmp > 0;
+
+                    break;
+                case Lookup.LE:
+                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey <= @dt ";
+                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
+                    r2 = processedTmp > 0;
+
+                    break;
+                case Lookup.GE:
+                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey >= @dt ";
+                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
+                    r2 = processedTmp > 0;
+
+                    break;
+                case Lookup.GT:
+                    setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey > @dt ";
+                    processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
+                    r2 = processedTmp > 0;
+                    break;
+            }
+            // RemoteSeries treats positive as true
+            return r2 ? Task.FromResult(1L) : Task.FromResult(-1L);
+        }
+
+        internal virtual Task<SortedMap<long, SeriesChunk>> LoadKeys(long mapid, long version) {
+            var sm = new SortedMap<long, SeriesChunk>();
+            var chunks = _connection.Query<SeriesChunk>("SELECT Id, ChunkKey, Count, Version from " + ChunkTableName + "" + " WHERE Id = @Id ORDER BY ChunkKey", new { Id = mapid });
+            foreach (var ch in chunks) {
+                sm.AddLast(ch.ChunkKey, ch);
+            }
+            return Task.FromResult(sm);
         }
 
         private async void FlushAll() {
@@ -217,110 +271,26 @@ namespace Spreads.Storage {
             return id > 0 ? GetExtendedSeriesId<K, V>(seriesId) : null;
         }
 
-        // assert consistency
-        internal delegate void ChunkSaveHandler(SeriesChunk chunk);
-        internal event ChunkSaveHandler OnChunkSave;
-        internal bool AssertChunkSet<K, V>(SeriesChunk chunk) {
-            if (!_readOnlySeriesStore.ContainsKey(chunk.Id)) return false;
-            var outer =
-                (_readOnlySeriesStore[chunk.Id] as SortedChunkedMap<K, V>)?.outerMap as RemoteChunksSeries<K, V>;
-            if (outer == null) return false;
-            //var k = outer.FromInt64(chunk.ChunkKey);
-            try {
-                var lv = outer._chunksCache[chunk.ChunkKey];
-                return lv.ChunkSize == chunk.Count && lv.ChunkVersion == chunk.Version;
-            } catch (KeyNotFoundException e) {
-                return false;
-            }
-            return false;
-        }
-
         private SortedChunkedMap<K, V> GetSeries<K, V>(long seriesId, bool readOnly, int chunkSize = 4096) {
             SortedChunkedMap<K, V> series;
             var comparer = KeyComparer.GetDefault<K>() as IKeyComparer<K>;
-            if (comparer != null) {
+            if (comparer == null) throw new NotSupportedException("Only type that have IKeyComparer<K> are supported");
+            Func<IComparer<K>, IOrderedMap<K, SortedMap<K, V>>> outerFactory =
+                cmp => new RemoteChunksSeries<K, V>(
+                    seriesId,
+                    cmp as IKeyComparer<K>,
+                    LoadKeys,
+                    LoadChunk,
+                    SaveChunk,
+                    RemoveChunk,
+                    readOnly);
 
-                //// mapId, chunkKey, deserialied chunk => whole map version
-                Func<SeriesChunk, Task<long>> remoteSaver = ch => RemoteSaver(ch, true);
-
-                // mapId, chunkKey, direction => whole map version
-                Func<long, long, Lookup, Task<long>> remoteRemover = (mapId, key, direction) => {
-                    bool r2 = false;
-                    string setSQL;
-                    int processedTmp;
-                    switch (direction) {
-                        case Lookup.EQ:
-                            setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey = @dt LIMIT 1";
-                            processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
-                            if (processedTmp == 0) {
-                                // ReSharper disable once RedundantAssignment
-                                r2 = false;
-                            } else if (processedTmp > 1) {
-                                throw new ApplicationException("Deleted more than one row");
-                            } else {
-                                r2 = true;
-                            }
-
-                            break;
-                        case Lookup.LT:
-
-                            setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey < @dt ";
-                            processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
-                            r2 = processedTmp > 0;
-
-                            break;
-                        case Lookup.LE:
-                            setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey <= @dt ";
-                            processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
-                            r2 = processedTmp > 0;
-
-                            break;
-                        case Lookup.GE:
-                            setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey >= @dt ";
-                            processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
-                            r2 = processedTmp > 0;
-
-                            break;
-                        case Lookup.GT:
-                            setSQL = @"DELETE FROM " + ChunkTableName + "" + " WHERE Id = @id AND ChunkKey > @dt ";
-                            processedTmp = _connection.Execute(setSQL, new { id = mapId, dt = key });
-                            r2 = processedTmp > 0;
-                            break;
-                    }
-                    // RemoteSeries treats positive as true
-                    return r2 ? Task.FromResult(1L) : Task.FromResult(-1L);
-                };
-
-                Func<IComparer<K>, IOrderedMap<K, SortedMap<K, V>>> outerFactory =
-                    cmp => new RemoteChunksSeries<K, V>(
-                        seriesId,
-                        cmp as IKeyComparer<K>,
-                        _remoteKeysLoader,
-                        _remoteChunkLoader,
-                        remoteSaver,
-                        remoteRemover, readOnly);
-
-                series = new SortedChunkedMap<K, V>(outerFactory, comparer, chunkSize);
+            series = new SortedChunkedMap<K, V>(outerFactory, comparer, chunkSize) {
                 // better be safe
-                series.IsSynchronized = true;
-                return series;
-            }
-            throw new NotSupportedException("Only type that have IKeyComparer<K> are supported");
-        }
+                IsSynchronized = true
+            };
 
-        internal Task<long> RemoteSaver(SeriesChunk chunk, bool invoke) {
-            var setSQL = @"INSERT OR REPLACE INTO " + ChunkTableName + " (Id,ChunkKey,Count,Version,ChunkValue)" + " VALUES ( @id, @chKey, @count, @version, @chVal)";
-            var processedTmp = _connection.Execute(setSQL, new {
-                id = chunk.Id,
-                chKey = chunk.ChunkKey,
-                count = chunk.Count,
-                version = chunk.Version,
-                chVal = chunk.ChunkValue
-            });
-            if (processedTmp < 1) throw new ApplicationException("Cannot set value");
-            if (invoke) { OnChunkSave?.Invoke(chunk); }
-            return Task.FromResult(0L);
-            //}
+            return series;
         }
 
         public void Dispose() {
