@@ -311,8 +311,8 @@ type SortedChunkedMap<'K,'V>
     let nextBatch : Task<IReadOnlyOrderedMap<'K,'V>> ref = ref Unchecked.defaultof<Task<IReadOnlyOrderedMap<'K,'V>>>
     
     let outer = ref outer
-    outer.Value.MoveFirst() |> ignore // otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SHM even when outer is started
-    let mutable inner : SortedMapCursor<'K,'V> = Unchecked.defaultof<_> // outer.Value.CurrentValue.GetSMCursor() //  
+    // Need to move, otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SCM even when outer is started
+    let mutable inner : SortedMapCursor<'K,'V> = if outer.Value.MoveFirst() then outer.Value.CurrentValue.GetSMCursor() else Unchecked.defaultof<_>
     let isReset = ref isReset
     let mutable currentBatch : IReadOnlyOrderedMap<'K,'V> = currentBatch
     let isBatch = ref isBatch

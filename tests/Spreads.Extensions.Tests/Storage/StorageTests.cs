@@ -47,7 +47,7 @@ namespace Spreads.Extensions.Tests.Storage {
             }
 
             var sw = new Stopwatch();
-            var count = 50000000000L;
+            var count = 10000000L;
             Console.WriteLine($"Count: {count}");
 
             var date = DateTime.UtcNow.Date;
@@ -56,7 +56,7 @@ namespace Spreads.Extensions.Tests.Storage {
             for (long i = 0; i < count; i++) {
                 timeseries.Add(date, Math.Round(i + rng.NextDouble(), 2));
                 date = date.AddTicks(rng.Next(1, 100));
-                if (i % 10000000 == 0)
+                if (i % 1000000 == 0)
                 {
                     var msec = (DateTime.UtcNow - start).TotalMilliseconds;
                     var mops = i*0.001/ msec;

@@ -164,7 +164,8 @@ namespace Spreads.Storage {
         {
             get { return _chunksCache[ToInt64(key)].Value; }
 
-            set {
+            set
+            {
                 var bytes = Serializer.Serialize(value);
                 var k = ToInt64(key);
                 var lv = new LazyValue(k, value.Count, _chunksCache.Version, this);
@@ -231,8 +232,7 @@ namespace Spreads.Storage {
             throw new NotSupportedException();
         }
 
-        public SortedMap<K, V> GetAt(int idx)
-        {
+        public SortedMap<K, V> GetAt(int idx) {
             return this.Skip(idx).FirstOrDefault().Value;
         }
 

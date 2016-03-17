@@ -25,6 +25,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Data.Sqlite;
+using Microsoft.Data.Sqlite.Interop;
 using Microsoft.Data.Sqlite.Utilities;
 using Spreads.Collections;
 
@@ -41,6 +42,7 @@ namespace Spreads.Storage {
         private static SqliteConnection CreateConnection(string connectionString, bool async = true) {
             var connection = new SqliteConnection(connectionString);
             connection.Open();
+            //NativeMethods.sqlite3_exec(connection.DbHandle, "PRAGMA locking_mode=EXCLUSIVE; PRAGMA synchronous = 0; PRAGMA journal_mode = WAL;");
             connection.ExecuteNonQuery("PRAGMA main.page_size = 4096; ");
             connection.ExecuteNonQuery("PRAGMA main.cache_size = 25000;");
             connection.ExecuteNonQuery(!async ? "PRAGMA synchronous = NORMAL;" : "PRAGMA synchronous = OFF;");
@@ -72,7 +74,7 @@ namespace Spreads.Storage {
             ChunkTableName = chunkTableName;
 
             var createSeriesIdTable =
-                $"CREATE TABLE IF NOT EXISTS `{IdTableName}` (\n" +
+                $"PRAGMA locking_mode=EXCLUSIVE;PRAGMA journal_mode=wal;CREATE TABLE IF NOT EXISTS `{IdTableName}` (\n" +
                 "  `Id` INTEGER  PRIMARY KEY,\n" +
                 "  `TextId` TEXT NOT NULL,\n" +
                 "  `UUID` BLOB NOT NULL,\n" +
@@ -83,14 +85,15 @@ namespace Spreads.Storage {
                 "  CONSTRAINT `UX_UUID` UNIQUE (`UUID`)\n" +
                 ")";
             var createSeriesChunksTable =
-                $"CREATE TABLE IF NOT EXISTS `{ChunkTableName}` (\n" +
+                $"PRAGMA locking_mode=EXCLUSIVE;PRAGMA journal_mode=wal;CREATE TABLE IF NOT EXISTS `{ChunkTableName}` (\n" +
                 "  `Id` INTEGER NOT NULL,\n" +
                 "  `ChunkKey` INTEGER NOT NULL,\n" +
                 "  `Count` INTEGER NOT NULL,\n" +
                 "  `Version` INTEGER NOT NULL,\n" +
                 "  `ChunkValue` BLOB NOT NULL,\n" +
                 "  PRIMARY KEY (`Id`,`ChunkKey`)\n)";
-
+            //NativeMethods.sqlite3_exec(connection.DbHandle, createSeriesIdTable);
+            //NativeMethods.sqlite3_exec(connection.DbHandle, createSeriesChunksTable);
             _connection.Execute(createSeriesIdTable);
             _connection.Execute(createSeriesChunksTable);
         }
