@@ -98,7 +98,7 @@ evaluated on demand.
 
 #### Missing values replacement
 
-Missing values are really missing is Spreads, not represented as a special NA or option value.
+Missing values are really missing in Spreads, not represented as a special NA or option value.
 When missing values are present as special values, one need to spend memory and CPU cycles to
 process them (and a lot of brain cycles to comprehend why missing values are somehow present, and not
 missing).
