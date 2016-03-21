@@ -76,6 +76,7 @@ type SortedMap<'K,'V>
   [<DefaultValueAttribute>]
   val mutable internal values : 'V array
 
+  static let empty = lazy (let sm = new SortedMap<'K,'V>() in sm.Complete();sm)
 
 
   /// used for cursors, incremented on any out of order data change that require a cursor either to throw to to recover with repositioning
@@ -1529,6 +1530,8 @@ type SortedMap<'K,'V>
     else
       // this is very slow to be used in any "optimization", should use BytesExtensions.UnsafeCompare
       System.Linq.Enumerable.SequenceEqual(smA.keys, smB.keys)
+
+  static member Empty = empty.Value
 
 and
   public SortedMapCursor<'K,'V> =

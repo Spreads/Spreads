@@ -164,34 +164,45 @@ type SeriesExtensions () =
 
     /// Invoke action on each key/value sequentially
     [<Extension>]
-    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>, token:CancellationToken) : Task<bool> =
+    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>, maxIterations:int64, token:CancellationToken) : Task<bool> =
       let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
       let returnTask = tcs.Task
       let cursor = source.GetCursor()
+      let maxIterations = if maxIterations = 0L then Int64.MaxValue else maxIterations
+      let mutable iterations = 0L
       let rec loop() =
-        while cursor.MoveNext() do
+        while cursor.MoveNext() && iterations < maxIterations do
           action.Invoke(cursor.CurrentKey, cursor.CurrentValue)
-        let moveTask = cursor.MoveNext(token)
-        let awaiter = moveTask.GetAwaiter()
-        awaiter.UnsafeOnCompleted(fun _ ->
-          match moveTask.Status with
-          | TaskStatus.RanToCompletion ->
-            if moveTask.Result then
-              action.Invoke(cursor.CurrentKey, cursor.CurrentValue)
-              loop()
-            else
-              tcs.SetResult(true) // finish on complete
-          | TaskStatus.Canceled -> tcs.SetException(OperationCanceledException())
-          | TaskStatus.Faulted -> tcs.SetException(moveTask.Exception)
-          | _ -> failwith "TODO process all task statuses"
-          ()
-        )
+          iterations <- iterations + 1L
+        if iterations < maxIterations then
+          let moveTask = cursor.MoveNext(token)
+          let awaiter = moveTask.GetAwaiter()
+          awaiter.UnsafeOnCompleted(fun _ ->
+            match moveTask.Status with
+            | TaskStatus.RanToCompletion ->
+              if moveTask.Result then
+                action.Invoke(cursor.CurrentKey, cursor.CurrentValue)
+                iterations <- iterations + 1L
+                loop()
+              else
+                tcs.SetResult(true) // finish on complete
+            | TaskStatus.Canceled -> tcs.SetException(OperationCanceledException())
+            | TaskStatus.Faulted -> tcs.SetException(moveTask.Exception)
+            | _ -> failwith "TODO process all task statuses"
+            ()
+          )
+        else
+          tcs.SetResult(true) // finish on iteration
       loop()
       returnTask
 
     [<Extension>]
+    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>, token:CancellationToken) : Task<bool> =
+      SeriesExtensions.Do(source, action, 0L, token)
+
+    [<Extension>]
     static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>) : Task<bool> =
-      SeriesExtensions.Do(source, action, CancellationToken.None)
+      SeriesExtensions.Do(source, action, 0L, CancellationToken.None)
 
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
     [<Extension>]

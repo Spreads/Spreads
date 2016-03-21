@@ -49,6 +49,8 @@ type SortedChunkedMap<'K,'V>
 
   // TODO (low) replace outer with MapDeque, see comments in MapDeque.fs
   let outerMap = outerFactory(comparer)
+  [<NonSerializedAttribute>]
+  let mutable outerCursor = outerMap.GetCursor()
 
   // TODO serialize size, add a method to calculate size based on outerMap only
 //  [<NonSerializedAttribute>]
@@ -91,9 +93,10 @@ type SortedChunkedMap<'K,'V>
   let existingHash key =
     if chunkUpperLimit = 0 then hasher.Hash(key) 
     else
-      let mutable h = Unchecked.defaultof<_>
-      outerMap.TryFind(key, Lookup.LE, &h) |> ignore
-      h.Key
+      if outerCursor.MoveAt(key, Lookup.LE) then outerCursor.CurrentKey else Unchecked.defaultof<_>
+//      let mutable h = Unchecked.defaultof<_>
+//      outerMap.TryFind(key, Lookup.LE, &h) |> ignore
+//      h.Key
 
   [<OnDeserialized>]
   member private this.Init(context:StreamingContext) =
@@ -605,20 +608,22 @@ type SortedChunkedMap<'K,'V>
         match direction with
         | Lookup.LT | Lookup.LE ->
           // look into previous bucket and take last
-          let tf = outerMap.TryFind(hash, Lookup.LT)
-          if (fst tf) then
-            Trace.Assert(not (snd tf).Value.IsEmpty) // if previous was found it shoudn't be empty
-            let pair = (snd tf).Value.Last
+          let mutable innerMapKvp = Unchecked.defaultof<_>
+          let ok = outerMap.TryFind(hash, Lookup.LT, &innerMapKvp)
+          if ok then
+            Trace.Assert(not innerMapKvp.Value.IsEmpty) // if previous was found it shoudn't be empty
+            let pair = innerMapKvp.Value.Last
             result <- pair
             true
           else
             false
         | Lookup.GT | Lookup.GE ->
           // look into next bucket and take first
-          let tf = outerMap.TryFind(hash, Lookup.GT)
-          if (fst tf) then
-            Trace.Assert(not (snd tf).Value.IsEmpty) // if previous was found it shoudn't be empty
-            let pair = (snd tf).Value.First
+          let mutable innerMapKvp = Unchecked.defaultof<_>
+          let ok = outerMap.TryFind(hash, Lookup.GT, &innerMapKvp)
+          if ok then
+            Trace.Assert(not innerMapKvp.Value.IsEmpty) // if previous was found it shoudn't be empty
+            let pair = innerMapKvp.Value.First
             result <- pair
             true
           else
@@ -1027,9 +1032,9 @@ type SortedChunkedMap<'K,'V>
     member this.Last with get() = this.Last
     member this.TryFind(k:'K, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-      let tr = this.TryFind(k, direction)
-      if (fst tr) then
-        res <- snd tr
+      let ok, value = this.TryFind(k, direction)
+      if ok then
+        res <- value
         true
       else
         false

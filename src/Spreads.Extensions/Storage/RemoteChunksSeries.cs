@@ -81,7 +81,10 @@ namespace Spreads.Storage {
         {
             get
             {
-                return new KeyValuePair<K, SortedMap<K, V>>(FromInt64(_chunksCache.First.Key), _chunksCache.First.Value.Value);
+                lock (_syncRoot) {
+                    return new KeyValuePair<K, SortedMap<K, V>>(FromInt64(_chunksCache.First.Key), _chunksCache.First.Value.Value);
+                }
+
             }
         }
 
@@ -89,7 +92,10 @@ namespace Spreads.Storage {
         {
             get
             {
-                return new KeyValuePair<K, SortedMap<K, V>>(FromInt64(_chunksCache.Last.Key), _chunksCache.Last.Value.Value);
+                lock (_syncRoot) {
+                    return new KeyValuePair<K, SortedMap<K, V>>(FromInt64(_chunksCache.Last.Key),
+                        _chunksCache.Last.Value.Value);
+                }
             }
         }
 
@@ -97,7 +103,9 @@ namespace Spreads.Storage {
         {
             get
             {
-                return _chunksCache.Keys.Select(FromInt64);
+                lock (_syncRoot) {
+                    return _chunksCache.Keys.Select(FromInt64);
+                }
             }
         }
 
@@ -105,7 +113,9 @@ namespace Spreads.Storage {
         {
             get
             {
-                return _chunksCache.Values.Select(lv => lv.Value);
+                lock (_syncRoot) {
+                    return _chunksCache.Values.Select(lv => lv.Value);
+                }
             }
         }
 
@@ -144,7 +154,9 @@ namespace Spreads.Storage {
             _readOnly = readOnly;
 
             var renewedKeys = _remoteKeysLoader(_mapId, 0).Result;
-            _chunksCache = renewedKeys.Map((k, ch) => new LazyValue(k, ch.Count, ch.Version, this)).ToSortedMap();
+            var sm = renewedKeys.Map((k, ch) => new LazyValue(k, ch.Count, ch.Version, this)).ToSortedMap();
+            sm.IsSynchronized = true;
+            _chunksCache = sm;
             var maxChunkVersion = _chunksCache.Values.Max(x => x.ChunkVersion);
             if (maxChunkVersion != version) Trace.TraceWarning("Inconsistent series version in chunks and series definition.");
             _chunksCache.Version = Math.Max(version, maxChunkVersion);
@@ -162,24 +174,31 @@ namespace Spreads.Storage {
 
         public SortedMap<K, V> this[K key]
         {
-            get { return _chunksCache[ToInt64(key)].Value; }
+            get
+            {
+                lock (_syncRoot) {
+                    return _chunksCache[ToInt64(key)].Value;
+                }
+            }
 
             set
             {
-                var bytes = Serializer.Serialize(value);
-                var k = ToInt64(key);
-                var lv = new LazyValue(k, value.Count, _chunksCache.Version, this);
-                lv.Value = value;
-                // this line increments version, must go before _remoteSaver
-                _chunksCache[k] = lv;
-                if (!_readOnly) {
-                    _remoteSaver(new SeriesChunk {
-                        Id = _mapId,
-                        ChunkKey = k,
-                        Count = value.Count,
-                        Version = _chunksCache.Version,
-                        ChunkValue = bytes
-                    }).Wait();
+                lock (_syncRoot) {
+                    var bytes = Serializer.Serialize(value);
+                    var k = ToInt64(key);
+                    var lv = new LazyValue(k, value.Count, _chunksCache.Version, this);
+                    lv.Value = value;
+                    // this line increments version, must go before _remoteSaver
+                    _chunksCache[k] = lv;
+                    if (!_readOnly) {
+                        _remoteSaver(new SeriesChunk {
+                            Id = _mapId,
+                            ChunkKey = k,
+                            Count = value.Count,
+                            Version = _chunksCache.Version,
+                            ChunkValue = bytes
+                        }).Wait();
+                    }
                 }
             }
         }
@@ -189,7 +208,9 @@ namespace Spreads.Storage {
         }
 
         public ICursor<K, SortedMap<K, V>> GetCursor() {
-            return new RemoteCursor(this);
+            lock (_syncRoot) {
+                return new RemoteCursor(this);
+            }
         }
 
         public void Add(K k, SortedMap<K, V> v) {
@@ -205,23 +226,31 @@ namespace Spreads.Storage {
         }
 
         public bool Remove(K k) {
-            return RemoveMany(k, Lookup.EQ);
+            lock (_syncRoot) {
+                return RemoveMany(k, Lookup.EQ);
+            }
         }
 
         public bool RemoveLast(out KeyValuePair<K, SortedMap<K, V>> value) {
-            value = this.Last;
-            return RemoveMany(value.Key, Lookup.EQ);
+            lock (_syncRoot) {
+                value = this.Last;
+                return RemoveMany(value.Key, Lookup.EQ);
+            }
         }
 
         public bool RemoveFirst(out KeyValuePair<K, SortedMap<K, V>> value) {
-            value = this.First;
-            return RemoveMany(value.Key, Lookup.EQ);
+            lock (_syncRoot) {
+                value = this.First;
+                return RemoveMany(value.Key, Lookup.EQ);
+            }
         }
 
         public bool RemoveMany(K k, Lookup direction) {
-            var intKey = ToInt64(k);
-            var r1 = _chunksCache.RemoveMany(intKey, direction);
-            return r1 && (_readOnly || _remoteRemover(_mapId, intKey, _chunksCache.Version, direction).Result > 0);
+            lock (_syncRoot) {
+                var intKey = ToInt64(k);
+                var r1 = _chunksCache.RemoveMany(intKey, direction);
+                return r1 && (_readOnly || _remoteRemover(_mapId, intKey, _chunksCache.Version, direction).Result > 0);
+            }
         }
 
         public int Append(IReadOnlyOrderedMap<K, SortedMap<K, V>> appendMap, AppendOption option) {
@@ -233,15 +262,19 @@ namespace Spreads.Storage {
         }
 
         public SortedMap<K, V> GetAt(int idx) {
-            return this.Skip(idx).FirstOrDefault().Value;
+            lock (_syncRoot) {
+                return this.Skip(idx).FirstOrDefault().Value;
+            }
         }
 
         public bool TryFind(K key, Lookup direction, out KeyValuePair<K, SortedMap<K, V>> value) {
-            value = default(KeyValuePair<K, SortedMap<K, V>>);
-            KeyValuePair<long, LazyValue> tmp;
-            if (!_chunksCache.TryFind(ToInt64(key), direction, out tmp)) return false;
-            value = new KeyValuePair<K, SortedMap<K, V>>(FromInt64(tmp.Key), tmp.Value.Value);
-            return true;
+            lock (_syncRoot) {
+                value = default(KeyValuePair<K, SortedMap<K, V>>);
+                KeyValuePair<long, LazyValue> tmp;
+                if (!_chunksCache.TryFind(ToInt64(key), direction, out tmp)) return false;
+                value = new KeyValuePair<K, SortedMap<K, V>>(FromInt64(tmp.Key), tmp.Value.Value);
+                return true;
+            }
         }
 
         public bool TryGetFirst(out KeyValuePair<K, SortedMap<K, V>> value) {
@@ -253,13 +286,15 @@ namespace Spreads.Storage {
         }
 
         public bool TryGetValue(K key, out SortedMap<K, V> value) {
-            KeyValuePair<K, SortedMap<K, V>> tmp;
-            if (TryFind(key, Lookup.EQ, out tmp)) {
-                value = tmp.Value;
-                return true;
+            lock (_syncRoot) {
+                KeyValuePair<K, SortedMap<K, V>> tmp;
+                if (TryFind(key, Lookup.EQ, out tmp)) {
+                    value = tmp.Value;
+                    return true;
+                }
+                value = null;
+                return false;
             }
-            value = null;
-            return false;
         }
 
         public IDisposable Subscribe(IObserver<KeyValuePair<K, SortedMap<K, V>>> observer) {
@@ -286,6 +321,7 @@ namespace Spreads.Storage {
             public RemoteCursor(RemoteChunksSeries<K, V> source) {
                 _source = source;
                 _keysCursor = source._chunksCache.Map(lv => lv.Value).GetCursor();
+
             }
 
             public IComparer<K> Comparer
@@ -300,7 +336,9 @@ namespace Spreads.Storage {
             {
                 get
                 {
-                    return new KeyValuePair<K, SortedMap<K, V>>(this.CurrentKey, this.CurrentValue);
+                    lock (_source._syncRoot) {
+                        return new KeyValuePair<K, SortedMap<K, V>>(this.CurrentKey, this.CurrentValue);
+                    }
                 }
             }
 
@@ -316,8 +354,10 @@ namespace Spreads.Storage {
             {
                 get
                 {
-                    Debug.Assert(!_isReset, "Should not access current chunkKey of reset cursor");
-                    return _isReset ? default(K) : _source.FromInt64(_keysCursor.CurrentKey);
+                    lock (_source._syncRoot) {
+                        Debug.Assert(!_isReset, "Should not access current chunkKey of reset cursor");
+                        return _isReset ? default(K) : _source.FromInt64(_keysCursor.CurrentKey);
+                    }
                 }
             }
 
@@ -325,8 +365,10 @@ namespace Spreads.Storage {
             {
                 get
                 {
-                    Debug.Assert(!_isReset, "Should not access current value of reset cursor");
-                    return _isReset ? null : _keysCursor.CurrentValue;
+                    lock (_source._syncRoot) {
+                        Debug.Assert(!_isReset, "Should not access current value of reset cursor");
+                        return _isReset ? null : _keysCursor.CurrentValue;
+                    }
                 }
             }
 
@@ -363,41 +405,49 @@ namespace Spreads.Storage {
             }
 
             public bool MoveAt(K index, Lookup direction) {
-                var moved = _keysCursor.MoveAt(_source.ToInt64(index), direction);
-                if (moved) {
-                    _isReset = false;
-                } else {
-                    _isReset = true;
+                lock (_source._syncRoot) {
+                    var moved = _keysCursor.MoveAt(_source.ToInt64(index), direction);
+                    if (moved) {
+                        _isReset = false;
+                    } else {
+                        _isReset = true;
+                    }
+                    return moved;
                 }
-                return moved;
             }
 
             public bool MoveFirst() {
-                var moved = _keysCursor.MoveFirst();
-                if (moved) {
-                    _isReset = false;
-                } else {
-                    _isReset = true;
+                lock (_source._syncRoot) {
+                    var moved = _keysCursor.MoveFirst();
+                    if (moved) {
+                        _isReset = false;
+                    } else {
+                        _isReset = true;
+                    }
+                    return moved;
                 }
-                return moved;
             }
 
             public bool MoveLast() {
-                var moved = _keysCursor.MoveLast();
-                if (moved) {
-                    _isReset = false;
-                } else {
-                    _isReset = true;
+                lock (_source._syncRoot) {
+                    var moved = _keysCursor.MoveLast();
+                    if (moved) {
+                        _isReset = false;
+                    } else {
+                        _isReset = true;
+                    }
+                    return moved;
                 }
-                return moved;
             }
 
             public bool MoveNext() {
-                var moved = _keysCursor.MoveNext();
-                if (moved) {
-                    _isReset = false;
+                lock (_source._syncRoot) {
+                    var moved = _keysCursor.MoveNext();
+                    if (moved) {
+                        _isReset = false;
+                    }
+                    return moved;
                 }
-                return moved;
             }
 
             public async Task<bool> MoveNext(CancellationToken cancellationToken) {
@@ -417,11 +467,13 @@ namespace Spreads.Storage {
             }
 
             public bool MovePrevious() {
-                var moved = _keysCursor.MovePrevious();
-                if (moved) {
-                    _isReset = false;
+                lock (_source._syncRoot) {
+                    var moved = _keysCursor.MovePrevious();
+                    if (moved) {
+                        _isReset = false;
+                    }
+                    return moved;
                 }
-                return moved;
             }
 
             public void Reset() {
@@ -430,10 +482,12 @@ namespace Spreads.Storage {
             }
 
             public bool TryGetValue(K key, out SortedMap<K, V> value) {
-                if (_keysCursor.TryGetValue(_source.ToInt64(key), out value)) {
-                    return true;
+                lock (_source._syncRoot) {
+                    if (_keysCursor.TryGetValue(_source.ToInt64(key), out value)) {
+                        return true;
+                    }
+                    return false;
                 }
-                return false;
             }
         }
 
@@ -465,6 +519,10 @@ namespace Spreads.Storage {
                     } else {
                         // TODO ... cache update
                         var chunkRow = _source.LoadChunkAsync(_chunkKey).Result;
+                        if (chunkRow == null) {
+                            throw new ApplicationException("chunkRow is null");
+                            return SortedMap<K, V>.Empty;
+                        }
                         _chunkSize = chunkRow.Count;
                         _chunkVersion = chunkRow.Version;
                         target = Serializer.Deserialize<SortedMap<K, V>>(chunkRow.ChunkValue);
