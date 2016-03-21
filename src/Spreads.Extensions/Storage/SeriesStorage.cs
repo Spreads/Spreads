@@ -74,7 +74,7 @@ namespace Spreads.Storage {
             ChunkTableName = chunkTableName;
 
             var createSeriesIdTable =
-                $"PRAGMA locking_mode=EXCLUSIVE;PRAGMA journal_mode=wal;CREATE TABLE IF NOT EXISTS `{IdTableName}` (\n" +
+                $"CREATE TABLE IF NOT EXISTS `{IdTableName}` (\n" +
                 "  `Id` INTEGER  PRIMARY KEY,\n" +
                 "  `TextId` TEXT NOT NULL,\n" +
                 "  `UUID` BLOB NOT NULL,\n" +
@@ -85,7 +85,7 @@ namespace Spreads.Storage {
                 "  CONSTRAINT `UX_UUID` UNIQUE (`UUID`)\n" +
                 ")";
             var createSeriesChunksTable =
-                $"PRAGMA locking_mode=EXCLUSIVE;PRAGMA journal_mode=wal;CREATE TABLE IF NOT EXISTS `{ChunkTableName}` (\n" +
+                $"CREATE TABLE IF NOT EXISTS `{ChunkTableName}` (\n" +
                 "  `Id` INTEGER NOT NULL,\n" +
                 "  `ChunkKey` INTEGER NOT NULL,\n" +
                 "  `Count` INTEGER NOT NULL,\n" +
