@@ -307,7 +307,11 @@ type SortedChunkedMap<'K,'V>
     
 
   override this.GetCursor() : ICursor<'K,'V> =
-    this.GetCursor(outerMap.GetCursor(), true, Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>, false)
+    let entered = enterLockIf this.SyncRoot this.IsSynchronized
+    try
+      this.GetCursor(outerMap.GetCursor(), true, Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>, false)
+    finally
+      exitLockIf this.SyncRoot entered
 
   member private this.GetCursor(outer:ICursor<'K,SortedMap<'K,'V>>, isReset:bool,currentBatch:IReadOnlyOrderedMap<'K,'V>, isBatch:bool) : ICursor<'K,'V> =
     // TODO
