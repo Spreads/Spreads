@@ -418,13 +418,17 @@ namespace Spreads.Storage {
 
             public bool MoveFirst() {
                 lock (_source._syncRoot) {
-                    var moved = _keysCursor.MoveFirst();
-                    if (moved) {
-                        _isReset = false;
-                    } else {
-                        _isReset = true;
+                    try {
+                        var moved = _keysCursor.MoveFirst();
+                        if (moved) {
+                            _isReset = false;
+                        } else {
+                            _isReset = true;
+                        }
+                        return moved;
+                    } catch {
+                        return false;
                     }
-                    return moved;
                 }
             }
 

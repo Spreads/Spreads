@@ -315,7 +315,7 @@ type SortedChunkedMap<'K,'V>
     
     let outer = ref outer
     // Need to move, otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SCM even when outer is started
-    let mutable inner : SortedMapCursor<'K,'V> = if outer.Value.MoveFirst() then outer.Value.CurrentValue.GetSMCursor() else Unchecked.defaultof<_>
+    let mutable inner : SortedMapCursor<'K,'V> = if outer.Value.MoveFirst() then try outer.Value.CurrentValue.GetSMCursor() with | _ -> Unchecked.defaultof<_> else Unchecked.defaultof<_>
     let isReset = ref isReset
     let mutable currentBatch : IReadOnlyOrderedMap<'K,'V> = currentBatch
     let isBatch = ref isBatch
@@ -473,7 +473,7 @@ type SortedChunkedMap<'K,'V>
           let entered = enterLockIf this.SyncRoot this.IsSynchronized
           try
             if this.IsEmpty then false
-            else p.MoveAt(this.First.Key, Lookup.EQ)
+            else try p.MoveAt(this.First.Key, Lookup.EQ) with | _ -> false
           finally
             exitLockIf this.SyncRoot entered
 
