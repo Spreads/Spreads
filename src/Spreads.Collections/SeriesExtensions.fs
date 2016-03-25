@@ -280,3 +280,13 @@ type SeriesExtensions () =
       CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(resultSelector, series |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
 
 
+    /// A shortcut for atomic (locked on SyncRoot) `if not orderedMap.IsEmpty then IOrderedMap.RemoveMany(orderedMap.First.Key, Lookup.GE) else false`
+    [<Extension>]
+    static member inline RemoveAll<'K,'V when 'K : comparison>(orderedMap: IOrderedMap<'K,'V>) =
+      lock ((orderedMap :> ISeries<'K,'V>).SyncRoot) (fun _ ->
+        if not orderedMap.IsEmpty then orderedMap.RemoveMany(orderedMap.First.Key, Lookup.GE)
+        else false
+      )
+      
+
+
