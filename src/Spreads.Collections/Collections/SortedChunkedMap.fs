@@ -227,6 +227,7 @@ type SortedChunkedMap<'K,'V>
           if prevBucketIsSet && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket.Last.Key) <= 0 then
             prevBucket.[key] <- value
             outerMap.Version <- outerMap.Version + 1L
+            if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
           else
             let mutable kvp = Unchecked.defaultof<_>
             let ok = outerMap.TryFind(key, Lookup.LE, &kvp)
@@ -312,6 +313,13 @@ type SortedChunkedMap<'K,'V>
       this.GetCursor(outerMap.GetCursor(), true, Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>, false)
     finally
       exitLockIf this.SyncRoot entered
+
+
+  member private this.GetCursor2(outer:ICursor<'K,SortedMap<'K,'V>>, isReset:bool,currentBatch:IReadOnlyOrderedMap<'K,'V>, isBatch:bool) : ICursor<'K,'V> =
+
+    failwith ""
+
+
 
   member private this.GetCursor(outer:ICursor<'K,SortedMap<'K,'V>>, isReset:bool,currentBatch:IReadOnlyOrderedMap<'K,'V>, isBatch:bool) : ICursor<'K,'V> =
     // TODO
@@ -702,6 +710,7 @@ type SortedChunkedMap<'K,'V>
         if prevBucketIsSet && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket.Last.Key) <= 0 then
           prevBucket.Add(key,value)
           outerMap.Version <- outerMap.Version + 1L
+          if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
         else
           let mutable kvp = Unchecked.defaultof<_>
           let ok = outerMap.TryFind(key, Lookup.LE, &kvp)
@@ -841,7 +850,11 @@ type SortedChunkedMap<'K,'V>
     try
       let version = outerMap.Version
       let result = 
-        if outerMap.Count = 0L then false
+        if outerMap.Count = 0L then
+          // TODO(!) trace assert that they are no set
+          prevBucketIsSet <- false
+          prevBucket <- Unchecked.defaultof<_>
+          false
         else
           let removed =
             match direction with
@@ -891,9 +904,10 @@ type SortedChunkedMap<'K,'V>
                 elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
                 else false
             | _ -> failwith "wrong direction"
-          if removed then // we have Flushed, when needed for partial bucket change, above - just invalidate cache
-            prevBucketIsSet <- false
-            prevBucket <- Unchecked.defaultof<_>
+          // TODO return condition
+          //if removed then // we have Flushed, when needed for partial bucket change, above - just invalidate cache
+          prevBucketIsSet <- false
+          prevBucket <- Unchecked.defaultof<_>
           removed
       if result then 
         outerMap.Version <- version + 1L
@@ -1168,3 +1182,13 @@ type SortedChunkedMap<'K,'V>
     SortedChunkedMap(outerFactory.Invoke, comparer, Some(hasher))
   new(outerFactory:Func<IComparer<'K>,IOrderedMap<'K, SortedMap<'K,'V>>>,comparer:IComparer<'K>,chunkMaxSize:int) = 
     SortedChunkedMap(outerFactory.Invoke, comparer, None, chunkMaxSize)
+
+
+
+
+and
+  public SortedChunkedMapCursor<'K,'V> =
+    struct
+
+    end
+
