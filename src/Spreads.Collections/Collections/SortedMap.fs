@@ -588,17 +588,25 @@ type SortedMap<'K,'V>
 
 
   member this.First
-    with get() = 
-      if this.size = 0 then raise (InvalidOperationException("Could not get the first element of an empty map"))
-      KeyValuePair(this.keys.[0], this.values.[0])
+    with get() =
+      let entered = enterLockIf syncRoot  isSynchronized
+      try
+        if this.size = 0 then raise (InvalidOperationException("Could not get the first element of an empty map"))
+        KeyValuePair(this.keys.[0], this.values.[0])
+      finally
+        exitLockIf syncRoot entered
 
   member this.Last
     with get() =
-      if this.size = 0 then raise (InvalidOperationException("Could not get the last element of an empty map"))
-      if couldHaveRegularKeys && this.size > 1 then 
-        Trace.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
-        KeyValuePair(rkLast, this.values.[this.size - 1])
-      else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
+      let entered = enterLockIf syncRoot  isSynchronized
+      try
+        if this.size = 0 then raise (InvalidOperationException("Could not get the last element of an empty map"))
+        if couldHaveRegularKeys && this.size > 1 then 
+          Trace.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
+          KeyValuePair(rkLast, this.values.[this.size - 1])
+        else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
+      finally
+        exitLockIf syncRoot entered
 
   member this.Item
       with get key =
@@ -1038,9 +1046,14 @@ type SortedMap<'K,'V>
       false
 
   override this.GetCursor() =
-    if isMutable then
-      this.GetCursor(-1,  this.orderVersion, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>) :> ICursor<'K,'V>
-    else new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
+    let entered = enterLockIf syncRoot  isSynchronized
+    try
+      if isMutable then
+        this.GetCursor(-1,  this.orderVersion, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>) :> ICursor<'K,'V>
+      else new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
+    finally
+      exitLockIf syncRoot entered
+
   // foreach optimization
   member this.GetEnumerator() = new SortedMapCursor<'K,'V>(this)
 
@@ -1551,7 +1564,7 @@ and
           cursorVersion = source.orderVersion;
           isBatch = false;
         }
-    end 
+    end
 
     member this.Comparer: IComparer<'K> = this.source.Comparer
     member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
