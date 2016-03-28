@@ -82,7 +82,8 @@ and
     inherit Series()
     let mutable syncRoot = Unchecked.defaultof<_> // avoid allocation on each series creation, many of them are lighweight and never need a sync root
     
-    let c = new ThreadLocal<_>(Func<_>(this.GetCursor), true) // 
+    // TODO lock around c or proper implementation of thread-locals?
+    let c = lazy(this.GetCursor())
 
     [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
@@ -197,11 +198,8 @@ and
         }
 
     override x.Finalize() =
-      // TODO (!) make it work without try..catch
       try
-        for v in c.Values do
-          v.Dispose()
-        c.Dispose()
+        if c.IsValueCreated then c.Value.Dispose()
       with
       | :? ObjectDisposedException -> ()
 
