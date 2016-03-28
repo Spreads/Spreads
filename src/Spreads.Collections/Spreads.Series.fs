@@ -82,8 +82,7 @@ and
     inherit Series()
     let mutable syncRoot = Unchecked.defaultof<_> // avoid allocation on each series creation, many of them are lighweight and never need a sync root
     
-    // TODO lock around c or proper implementation of thread-locals?
-    let c = lazy(this.GetCursor())
+    let c = new ThreadLocal<_>(Func<_>(this.GetCursor), true) 
 
     [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
@@ -199,9 +198,14 @@ and
 
     override x.Finalize() =
       try
-        if c.IsValueCreated then c.Value.Dispose()
-      with
-      | :? ObjectDisposedException -> ()
+        for v in c.Values do
+          try
+            v.Dispose()
+          with
+          | :? ObjectDisposedException -> ()
+      finally
+        c.Dispose()
+      
 
     interface IEnumerable<KeyValuePair<'K, 'V>> with
       member this.GetEnumerator() = this.GetCursor() :> IEnumerator<KeyValuePair<'K, 'V>>
