@@ -1350,6 +1350,7 @@ namespace Spreads.Collections.Tests.Cursors {
         }
 
         [Test]
+        [Ignore]
         public void CouldZipManyContinuousInRealTimeManyRounds() {
             for (int i = 0; i < 10; i++) {
                 CouldZipManyContinuousInRealTime();
@@ -1490,6 +1491,7 @@ namespace Spreads.Collections.Tests.Cursors {
         }
 
         [Test]
+        [Ignore]
         public void NonContinuousZipIsCorrectByRandomCheckMultipleRun() {
             for (int i = 0; i < 5; i++) {
                 NonContinuousZipIsCorrectByRandomCheck();

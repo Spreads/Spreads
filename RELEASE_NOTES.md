@@ -1,3 +1,8 @@
+#### 0.3.6 - March 29, 2016
+* Refine Storage;
+* Update Blosc to 1.7.1;
+* Misc fixes.
+
 #### 0.3.5 - March 2, 2016
 * Add local SeriesStorage based on SQLite
 

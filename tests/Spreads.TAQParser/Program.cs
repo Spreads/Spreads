@@ -36,7 +36,7 @@ namespace TAQParse {
 
         static unsafe void Main(string[] args) {
 
-            var store = new SeriesStorage(SeriesStorage.GetDefaultConnectionString("TAQSample.db"));
+            var store = new SeriesStorage(SeriesStorage.GetDefaultConnectionString("TAQSample2.db"));
 
 
             var date = new DateTime(2015, 8, 5);

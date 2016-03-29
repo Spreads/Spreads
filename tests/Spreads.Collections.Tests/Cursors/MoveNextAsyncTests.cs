@@ -70,6 +70,7 @@ namespace Spreads.Collections.Tests.Cursors {
         }
 
         [Test]
+        [Ignore]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes() {
             for (int round = 0; round < 10; round++) {
                 CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
