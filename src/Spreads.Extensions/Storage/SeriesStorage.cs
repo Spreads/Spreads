@@ -184,19 +184,16 @@ namespace Spreads.Storage {
 
 
         public IPersistentOrderedMap<K, V> GetPersistentOrderedMap<K, V>(string seriesId, bool readOnly = false) {
+            seriesId = seriesId.ToLowerInvariant().Trim();
+            var idRow = GetExtendedSeriesId<K, V>(seriesId);
             if (readOnly) {
-                seriesId = seriesId.ToLowerInvariant().Trim();
-                var idRow = GetExtendedSeriesId<K, V>(seriesId);
                 return _readOnlySeriesStore.GetOrAdd(idRow.Id, id2 => {
                     return GetSeries<K, V>(id2, idRow.Version, true);
                 }) as IPersistentOrderedMap<K, V>;
-            } else {
-                seriesId = seriesId.ToLowerInvariant().Trim();
-                var idRow = GetExtendedSeriesId<K, V>(seriesId);
-                return _writableSeriesStore.GetOrAdd(idRow.Id, id2 => {
-                    return GetSeries<K, V>(id2, idRow.Version, false);
-                }) as IPersistentOrderedMap<K, V>;
             }
+            return _writableSeriesStore.GetOrAdd(idRow.Id, id2 => {
+                return GetSeries<K, V>(id2, idRow.Version, false);
+            }) as IPersistentOrderedMap<K, V>;
         }
 
 
@@ -249,6 +246,23 @@ namespace Spreads.Storage {
                 Version = 0L
             });
             return id;
+        }
+
+        internal long GetLastVersion(string extendedSeriesId) {
+            var sid = new SeriesId(extendedSeriesId);
+            var seriesId = sid.TextId;
+            var keyType = sid.KeyType;
+            var valueType = sid.ValueType;
+
+            var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType, Version from " + IdTableName + "" + " WHERE TextId = @TextId", new { TextId = seriesId }, buffered: false).SingleOrDefault();
+            if (seriesIdRow != null) {
+                if (seriesIdRow.KeyType != keyType || seriesIdRow.ValueType != valueType) {
+                    throw new ArgumentException(
+                        $"Wrong types for {seriesId}: expexting <{seriesIdRow.KeyType},{seriesIdRow.ValueType}> but requested <{keyType},{valueType}>");
+                }
+                return seriesIdRow.Version;
+            }
+            return -1L;
         }
 
         internal SeriesId GetExtendedSeriesId(long id) {

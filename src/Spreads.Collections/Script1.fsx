@@ -407,3 +407,38 @@ modSum <- 0L
 for i in 0L..10000000L do
   modSum <- modSum + (i % (125L))
 modSum
+
+
+
+type SubmessageStr =
+  struct
+    val mutable var1 : int
+    val mutable var2 : int64
+  end
+
+type SubmessageRecord =
+  {
+    mutable var1 : int;
+    mutable var2 : int64
+  }
+
+[<RequireQualifiedAccessAttribute>]
+type Message = 
+  | Submessage of var1:int * var2:int64
+  | SubmessageR of SubmessageRecord
+  | SubmessageStr of SubmessageStr
+  | SubmessageFlyweight of SubmessageStr
+
+
+let myMessage = Message.Submessage(1, 2L)
+let mutable myStr = new SubmessageStr()
+myStr.var1 <- 1
+myStr.var2 <- 2L
+let myMessageStr = Message.SubmessageStr(myStr)
+
+let myRec = { var1 = 1; var2 = 2L }
+let myMessageRec = Message.SubmessageR(myRec)
+
+let v1 = let (Message.SubmessageStr str2) = myMessageStr in str2.var1
+let (Message.Submessage (v1',v2') ) = myMessage
+

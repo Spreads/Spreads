@@ -203,8 +203,9 @@ and
             v.Dispose()
           with
           | :? ObjectDisposedException -> ()
-      finally
         c.Dispose()
+      with
+      | :? ObjectDisposedException -> ()
       
 
     interface IEnumerable<KeyValuePair<'K, 'V>> with

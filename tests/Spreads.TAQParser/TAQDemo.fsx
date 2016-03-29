@@ -10,9 +10,6 @@
 #r "MySql.Data.Entity.EF6.dll"
 #r "Newtonsoft.Json.dll"
 #r "NodaTime.dll"
-#r "Prism.Contracts.dll"
-#r "Prism.DataModel.dll"
-#r "Prism.Desktop.dll"
 #r "Ractor.Persistence.dll"
 #r "System.Configuration"
 #r "TAQParse.exe"
@@ -23,8 +20,8 @@
 
 open System
 open Spreads
+open Spreads.Storage
 open Spreads.Collections
-open Prism.DataModel;
 open Ractor;
 open System.Configuration;
 open TAQParse
@@ -32,10 +29,7 @@ open System.Linq
 open FSharp.Charting
 open System.IO
 
-// From Ractor.CLR, applies changes in POCOs automatically
-let dbPersistor = DatabasePersistor("taq", new MySqlMigrationsConfiguration(), new MySqlDistributedMigrationsConfiguration());
-// Sql backed storage for series, using EF + Dapper
-let store = new DbPersistentStore(dbPersistor);
+let store = new SeriesStorage(SeriesStorage.GetDefaultConnectionString("TAQSample.db"));
 
 // Lazy series, DB is not touched until data is requested
 let aapl = store.GetPersistentOrderedMap<DateTime, TaqTrade>("aapl").Map(fun t -> float(t.TradePrice)/10000.0);

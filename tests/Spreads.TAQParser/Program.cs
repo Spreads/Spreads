@@ -9,9 +9,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Serialization;
-using Prism.DataModel;
 using Ractor;
 using Spreads;
+using Spreads.Storage;
 
 
 namespace TAQParse {
@@ -20,9 +20,9 @@ namespace TAQParse {
         // 654 MB compressed, 3.8GB uncompressed. ASCII with fixed 106 byte row size + 2 bytes for \r\n
         // 35232194 records
         // in MySql, storage takes 743 MB, with random access to any TAQ value
-        private static string path = @"E:\Data\EQY_US_ALL_TRADE_20150805.zip";
+        private static string path = @"C:\EQY_US_ALL_TRADE_20150805.zip";
 
-        private static void Main(string[] args)
+        private static void Main3(string[] args)
         {
             var t = Task.FromResult(1);
             Interlocked.Exchange(ref t, t.ContinueWith(x =>
@@ -34,10 +34,9 @@ namespace TAQParse {
         }
 
 
-        static unsafe void Main3(string[] args) {
+        static unsafe void Main(string[] args) {
 
-            var dbPersistor = new DatabasePersistor("taq2", new MySqlMigrationsConfiguration(), new MySqlDistributedMigrationsConfiguration(), updateMigrations: true);
-            var store = new DbPersistentStore(dbPersistor);
+            var store = new SeriesStorage(SeriesStorage.GetDefaultConnectionString("TAQSample.db"));
 
 
             var date = new DateTime(2015, 8, 5);
@@ -102,8 +101,7 @@ namespace TAQParse {
 
         private static void Main2(string[] args) {
             // from Ractor.Persistence
-            var dbPersistor = new DatabasePersistor("taq", new MySqlMigrationsConfiguration(), new MySqlDistributedMigrationsConfiguration(), updateMigrations: true);
-            var store = new DbPersistentStore(dbPersistor);
+            var store = new SeriesStorage(SeriesStorage.GetDefaultConnectionString("TAQSample.db"));
 
             var aapl = store.GetPersistentOrderedMap<DateTime, TaqTrade>("aapl").Map(t => t.TradePrice / 10000.0);
             Console.WriteLine("Count: " + aapl.Count());

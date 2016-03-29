@@ -78,15 +78,6 @@
       <HintPath>..\..\packages\Newtonsoft.Json.8.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Prism.Contracts">
-      <HintPath>..\..\..\Prism\bin\Prism.Contracts.dll</HintPath>
-    </Reference>
-    <Reference Include="Prism.DataModel">
-      <HintPath>..\..\..\Prism\bin\Prism.DataModel.dll</HintPath>
-    </Reference>
-    <Reference Include="Prism.Desktop">
-      <HintPath>..\..\..\Prism\bin\Prism.Desktop.dll</HintPath>
-    </Reference>
     <Reference Include="Ractor.Persistence">
       <HintPath>..\..\..\Prism\bin\Ractor.Persistence.dll</HintPath>
     </Reference>
