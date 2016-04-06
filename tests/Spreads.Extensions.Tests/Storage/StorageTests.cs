@@ -47,7 +47,7 @@ namespace Spreads.Extensions.Tests.Storage {
             }
 
             var sw = new Stopwatch();
-            var count = 10000000L;
+            var count = 50000000L;
             Console.WriteLine($"Count: {count}");
 
             var date = DateTime.UtcNow.Date;

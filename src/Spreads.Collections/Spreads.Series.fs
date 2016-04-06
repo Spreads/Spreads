@@ -108,10 +108,8 @@ and
 
     abstract Subscribe: observer:IObserver<KVP<'K,'V>> -> IDisposable
     override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
+      raise (NotImplementedException("TODO Rx"))
       match box observer with
-      | :? ISeriesSubscriber<'K, 'V> as seriesSubscriber -> 
-        let seriesSubscription : ISeriesSubscription<'K> = Unchecked.defaultof<_>
-        seriesSubscription :> IDisposable
       | :? ISubscriber<KVP<'K,'V>> as subscriber -> 
         let subscription : ISubscription = Unchecked.defaultof<_>
         subscription :> IDisposable
@@ -597,9 +595,6 @@ and
       // there is a bug in F#, have to copy-paste for now https://github.com/Microsoft/visualfsharp/issues/671
       //base.Subscribe(observer)
       match box observer with
-      | :? ISeriesSubscriber<'K, 'V> as seriesSubscriber -> 
-        let seriesSubscription : ISeriesSubscription<'K> = Unchecked.defaultof<_>
-        seriesSubscription :> IDisposable
       | :? ISubscriber<KVP<'K,'V>> as subscriber -> 
         let subscription : ISubscription = Unchecked.defaultof<_>
         subscription :> IDisposable

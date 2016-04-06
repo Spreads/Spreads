@@ -166,4 +166,34 @@ type ScanCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, init:'R, folder:Fu
     base.Dispose()
 
 
+//
+//[<SealedAttribute>]
+//type IgnoreOrderCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) as this =
+//  let c = cursorFactory.Invoke()
+//  interface ICursor<'K,'V> with
+//    member x.Clone() = failwith "Not implemented yet"
+//    member x.Comparer = failwith "Not implemented yet"
+//    member x.Current = failwith "Not implemented yet"
+//    member x.CurrentBatch = failwith "Not implemented yet"
+//    member x.CurrentKey = failwith "Not implemented yet"
+//    member x.CurrentValue = failwith "Not implemented yet"
+//    member x.Dispose() = failwith "Not implemented yet"
+//    member x.IsContinuous = failwith "Not implemented yet"
+//    member x.MoveAt(key, direction) = failwith "Not implemented yet"
+//    member x.MoveFirst() = failwith "Not implemented yet"
+//    member x.MoveLast() = failwith "Not implemented yet"
+//    member x.MoveNext(cancellationToken) = failwith "Not implemented yet"
+//    member x.MoveNextBatch(cancellationToken) = failwith "Not implemented yet"
+//    member x.MovePrevious() = failwith "Not implemented yet"
+//    member x.Reset() = failwith "Not implemented yet"
+//    member x.Source = failwith "Not implemented yet"
+//    member x.TryGetValue(key, value) = failwith "Not implemented yet"
+//    member x.MoveNext() = 
+//      try c.MoveNext()
+//      with
+//      | :? OutOfOrderKeyException<'K> as ooex ->
+//        // TODO GT? or cache key and hasValidState and then EQ+MN or GE+compare+MN
+//        c.MoveAt(ooex.CurrentKey, Lookup.GT)
+//  end
+
 

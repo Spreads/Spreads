@@ -239,7 +239,6 @@ namespace Bootstrap {
             if (managedLibNames != null) {
                 foreach (var managedName in managedLibNames) {
                     if (managedLibraries.ContainsKey(managedName)) continue;
-                    Trace.Assert(managedName.EndsWith(".dll"));
                     //if (!Environment.UserInteractive){
                     //    Debugger.Launch();
                     //}

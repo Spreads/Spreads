@@ -100,11 +100,15 @@ namespace Spreads {
     // MoveLast()       -> Request(1, lastKey, Lookup.LE)
     // MoveAt(key, direction) -> Request(1, key, direction)
 
-    public interface ISeriesSubscription<TKey> : ISubscription {
-        void Request(long n, TKey from);
-        void Request(long n, TKey from, Lookup direction);
-        void Request(long n, Lookup direction);
-    }
+    // NB: this could be done via Range, Reverse, etc. We need async only for incoming data (forward move), for all other cases we could use cursors
+    //public interface ISeriesSubscription<TKey> : ISubscription {
+    //    void Request(long n, TKey from);
+    //    void Request(long n, TKey from, Lookup direction);
+    //    void Request(long n, Lookup direction);
+    //}
+    //public interface ISeriesSubscriber<TKey, TValue> : ISubscriber<KeyValuePair<TKey, TValue>> {
+    //    void OnSubscribe(ISeriesSubscription<TKey> s);
+    //}
 
     public interface ISubscriber<in T> : IObserver<T> {
         void OnSubscribe(ISubscription s);
@@ -113,15 +117,12 @@ namespace Spreads {
         //void OnNext(T value);
     }
 
-    public interface ISeriesSubscriber<TKey, TValue> : ISubscriber<KeyValuePair<TKey, TValue>> {
-        void OnSubscribe(ISeriesSubscription<TKey> s);
-    }
-
+    
     public interface IPublisher<out T> : IObservable<T> {
         // We do not need to expose ISubscription to publisher, only subscriber could request new data
         // However, publisher could cancel a subscription via Dispose()
-        [Obsolete("Use typecheck in implementations")]
-        new ISubscription Subscribe(IObserver<T> subscriber);
+        //[Obsolete("Use typecheck in implementations")]
+        //new ISubscription Subscribe(IObserver<T> subscriber);
     }
 
     public interface IDataStream<T> : IAsyncEnumerable<T>, IPublisher<T> { }
