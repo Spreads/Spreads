@@ -287,6 +287,15 @@ type SeriesExtensions () =
         if not orderedMap.IsEmpty then orderedMap.RemoveMany(orderedMap.First.Key, Lookup.GE)
         else false
       )
-      
+
+    [<Extension>]
+    static member inline Reverse<'K,'V when 'K : comparison>(series: ISeries<'K,'V>) : IEnumerable<KVP<'K,'V>> =
+      use c = series.GetCursor()
+      // TODO rewrite as object expression without seq
+      // TODO return series with flipped comparer
+      seq {
+        while c.MovePrevious() do
+          yield c.Current
+      }
 
 
