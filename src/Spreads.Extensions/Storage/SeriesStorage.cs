@@ -201,7 +201,7 @@ namespace Spreads.Storage {
             seriesId = seriesId.ToLowerInvariant().Trim();
             var keyType = typeof(K).FullName;
             var valueType = typeof(V).FullName;
-
+            
             var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType, Version from " + IdTableName + "" + " WHERE TextId = @TextId", new { TextId = seriesId }, buffered: false).SingleOrDefault();
             if (seriesIdRow != null) {
                 if (seriesIdRow.KeyType != keyType || seriesIdRow.ValueType != valueType) {
