@@ -28,6 +28,7 @@ namespace Spreads.Experimental {
         [ContractPublicPropertyName("Count")]
         private int _size;
         private int _version;
+        private int _nextVersion;
         private int _waiting;
         private Object _syncRoot;
 
@@ -48,8 +49,8 @@ namespace Spreads.Experimental {
 
         private static void ReleaseLock(ref int waiting) {
             //while (Interlocked.CompareExchange(ref waiting, 0L, 1L) != 1L) { }
-            //Interlocked.Exchange(ref waiting, 0L);
-            Volatile.Write(ref waiting, 0);
+            Interlocked.Exchange(ref waiting, 0);
+            //Volatile.Write(ref waiting, 0);
             //Interlocked.Decrement(ref waiting);
         }
 
@@ -191,17 +192,29 @@ namespace Spreads.Experimental {
         {
             get
             {
-                try {
-                    AcquireLock(ref _waiting);
+                T value;
+                int version;
+                int nextVersion;
+                SpinWait sw = new SpinWait();
+                while (true)
+                {
+                    version = Volatile.Read(ref _version);
                     // Following trick can reduce the range check by one
-                    if ((uint)index >= (uint)_size) {
+                    if ((uint) index >= (uint) _size)
+                    {
                         throw new ArgumentOutOfRangeException();
                     }
                     Contract.EndContractBlock();
-                    return _items[index];
-                } finally {
-                    ReleaseLock(ref _waiting);
+                    value = _items[index];
+                    nextVersion = Volatile.Read(ref _nextVersion);
+                    if (version == nextVersion)
+                    {
+                        break;
+                    }
+                    sw.SpinOnce();
                 }
+                
+                return value;
             }
 
             set
@@ -211,6 +224,7 @@ namespace Spreads.Experimental {
                     if ((uint)index >= (uint)_size) {
                         throw new ArgumentOutOfRangeException();
                     }
+                    _nextVersion++;
                     Contract.EndContractBlock();
                     _items[index] = value;
                     _version++;
