@@ -21,37 +21,38 @@ namespace Spreads.Experimental {
     // internal array.
     // 
     [DebuggerDisplay("Count = {Count}")]
+    [Serializable]
     public class Vector<T> : IList<T>, System.Collections.IList, IReadOnlyList<T>, IDisposable {
         private const int _defaultCapacity = 4;
 
-        private T[] _items;
         [ContractPublicPropertyName("Count")]
         private int _size;
         private int _version;
+        private T[] _items;
+        [NonSerialized]
         private int _nextVersion;
+        [NonSerialized]
         private int _waiting;
+        [NonSerialized]
         private Object _syncRoot;
+
+        private bool _isSynchronized = false;
 
         static readonly T[] _emptyArray = new T[0];
 
 
         private static void AcquireLock(ref int waiting)
         {
-            var local = -1;
-            while (local != 0)
+            var sw = new SpinWait();
+            while (true)
             {
-                local = Interlocked.CompareExchange(ref waiting, 1, 0);
+                if (Interlocked.CompareExchange(ref waiting, 1, 0) == 0) break;
+                sw.SpinOnce();
             }
-            //if (Interlocked.Increment(ref waiting) != 1L) {
-            //    while (Interlocked.Read(ref waiting) != 1L) {}
-            //}
         }
 
         private static void ReleaseLock(ref int waiting) {
-            //while (Interlocked.CompareExchange(ref waiting, 0L, 1L) != 1L) { }
             Interlocked.Exchange(ref waiting, 0);
-            //Volatile.Write(ref waiting, 0);
-            //Interlocked.Decrement(ref waiting);
         }
 
         // Constructs a Vector. The list is initially empty and has a capacity
@@ -170,9 +171,15 @@ namespace Spreads.Experimental {
         }
 
         // Is this Vector synchronized (thread-safe)?
-        bool System.Collections.ICollection.IsSynchronized
+        public bool IsSynchronized
         {
-            get { return false; }
+            get { return _isSynchronized; }
+            set
+            {
+                AcquireLock(ref _waiting);
+                _isSynchronized = value;
+                ReleaseLock(ref _waiting);
+            }
         }
 
         // Synchronization root for this object.
@@ -181,7 +188,7 @@ namespace Spreads.Experimental {
             get
             {
                 if (_syncRoot == null) {
-                    System.Threading.Interlocked.CompareExchange<Object>(ref _syncRoot, new Object(), null);
+                    Interlocked.CompareExchange<Object>(ref _syncRoot, new Object(), null);
                 }
                 return _syncRoot;
             }
@@ -192,35 +199,34 @@ namespace Spreads.Experimental {
         {
             get
             {
+                // Following trick can reduce the range check by one
+                if ((uint)index >= (uint)_size) {
+                    throw new ArgumentOutOfRangeException();
+                }
+                Contract.EndContractBlock();
+                if (!_isSynchronized) return _items[index];
                 T value;
-                int version;
-                int nextVersion;
-                SpinWait sw = new SpinWait();
+                var sw = new SpinWait();
                 while (true)
                 {
-                    version = Volatile.Read(ref _version);
-                    // Following trick can reduce the range check by one
-                    if ((uint) index >= (uint) _size)
-                    {
-                        throw new ArgumentOutOfRangeException();
-                    }
-                    Contract.EndContractBlock();
+                    var version = Volatile.Read(ref _version);
                     value = _items[index];
-                    nextVersion = Volatile.Read(ref _nextVersion);
+                    var nextVersion = Volatile.Read(ref _nextVersion);
                     if (version == nextVersion)
                     {
                         break;
                     }
                     sw.SpinOnce();
                 }
-                
                 return value;
             }
-
             set
             {
-                try {
-                    AcquireLock(ref _waiting);
+                var synced = false;
+                try
+                {
+                    synced = _isSynchronized;
+                    if (synced) AcquireLock(ref _waiting);
                     if ((uint)index >= (uint)_size) {
                         throw new ArgumentOutOfRangeException();
                     }
@@ -229,7 +235,7 @@ namespace Spreads.Experimental {
                     _items[index] = value;
                     _version++;
                 } finally {
-                    ReleaseLock(ref _waiting);
+                    if (synced) ReleaseLock(ref _waiting);
                 }
             }
         }
@@ -327,7 +333,7 @@ namespace Spreads.Experimental {
             Contract.Ensures(Contract.Result<int>() <= index + count);
             Contract.EndContractBlock();
 
-            return Array.BinarySearch<T>(_items, index, count, item, comparer);
+            return Array.BinarySearch(_items, index, count, item, comparer);
         }
 
         public int BinarySearch(T item) {

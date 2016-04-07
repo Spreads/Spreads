@@ -48,7 +48,7 @@ namespace Spreads.Core.Tests {
 
 
             var vector = new Spreads.Experimental.Vector<double>(arr);
-
+            vector.IsSynchronized = true;
 
             var idxs = new int[len / 10];
             var rng = new System.Random();
