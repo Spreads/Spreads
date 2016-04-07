@@ -61,6 +61,8 @@ open Spreads.Collections
 /// Mutable sorted IOrderedMap<'K,'V> implementation based similar to SCG.SortedList<'K,'V>
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
+[<DebuggerTypeProxy(typeof<IDictionaryDebugView<_,_>>)>]
+[<DebuggerDisplay("Count = {Count}")>]
 type SortedMap<'K,'V>
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
   inherit Series<'K,'V>()

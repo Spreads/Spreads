@@ -23,7 +23,7 @@ namespace Spreads.Experimental {
     [DebuggerDisplay("Count = {Count}")]
     [Serializable]
     public class Vector<T> : IList<T>, System.Collections.IList, IReadOnlyList<T>, IDisposable {
-        private const int _defaultCapacity = 4;
+        private const int DefaultCapacity = 4;
 
         [ContractPublicPropertyName("Count")]
         private int _size;
@@ -38,14 +38,12 @@ namespace Spreads.Experimental {
 
         private bool _isSynchronized = false;
 
-        static readonly T[] _emptyArray = new T[0];
+        static readonly T[] EmptyArray = new T[0];
 
 
-        private static void AcquireLock(ref int waiting)
-        {
+        private static void AcquireLock(ref int waiting) {
             var sw = new SpinWait();
-            while (true)
-            {
+            while (true) {
                 if (Interlocked.CompareExchange(ref waiting, 1, 0) == 0) break;
                 sw.SpinOnce();
             }
@@ -60,7 +58,7 @@ namespace Spreads.Experimental {
         // increased to _defaultCapacity, and then increased in multiples of two
         // as required.
         public Vector() {
-            _items = _emptyArray;
+            _items = EmptyArray;
         }
 
         // Constructs a Vector with a given initial capacity. The list is
@@ -70,11 +68,8 @@ namespace Spreads.Experimental {
         public Vector(int capacity) {
             if (capacity < 0) throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "ArgumentOutOfRange_NeedNonNegNum");
             Contract.EndContractBlock();
-
-            if (capacity == 0)
-                _items = _emptyArray;
-            else
-                _items = ArrayPool<T>.Shared.Rent(capacity);
+            if (capacity == 0) _items = EmptyArray;
+            else _items = ArrayPool<T>.Shared.Rent(capacity);
         }
 
         // Constructs a Vector, copying the contents of the given collection. The
@@ -90,7 +85,7 @@ namespace Spreads.Experimental {
             if (c != null) {
                 int count = c.Count;
                 if (count == 0) {
-                    _items = _emptyArray;
+                    _items = EmptyArray;
                 } else {
                     _items = ArrayPool<T>.Shared.Rent(count);
                     c.CopyTo(_items, 0);
@@ -98,7 +93,7 @@ namespace Spreads.Experimental {
                 }
             } else {
                 _size = 0;
-                _items = _emptyArray;
+                _items = EmptyArray;
                 // This enumerable could be empty.  Let Add allocate a new array, if needed.
                 // Note it will also go to _defaultCapacity first, not 1, then 2, etc.
 
@@ -137,7 +132,7 @@ namespace Spreads.Experimental {
                         // clear array in background
                         Task.Run(() => ArrayPool<T>.Shared.Return(oldItems, true));
                     } else {
-                        _items = _emptyArray;
+                        _items = EmptyArray;
                     }
                 }
             }
@@ -153,22 +148,13 @@ namespace Spreads.Experimental {
             }
         }
 
-        bool System.Collections.IList.IsFixedSize
-        {
-            get { return false; }
-        }
+        bool System.Collections.IList.IsFixedSize => false;
 
 
         // Is this Vector read-only?
-        bool ICollection<T>.IsReadOnly
-        {
-            get { return false; }
-        }
+        bool ICollection<T>.IsReadOnly => false;
 
-        bool System.Collections.IList.IsReadOnly
-        {
-            get { return false; }
-        }
+        bool System.Collections.IList.IsReadOnly => false;
 
         // Is this Vector synchronized (thread-safe)?
         public bool IsSynchronized
@@ -207,13 +193,11 @@ namespace Spreads.Experimental {
                 if (!_isSynchronized) return _items[index];
                 T value;
                 var sw = new SpinWait();
-                while (true)
-                {
+                while (true) {
                     var version = Volatile.Read(ref _version);
                     value = _items[index];
                     var nextVersion = Volatile.Read(ref _nextVersion);
-                    if (version == nextVersion)
-                    {
+                    if (version == nextVersion) {
                         break;
                     }
                     sw.SpinOnce();
@@ -223,8 +207,7 @@ namespace Spreads.Experimental {
             set
             {
                 var synced = false;
-                try
-                {
+                try {
                     synced = _isSynchronized;
                     if (synced) AcquireLock(ref _waiting);
                     if ((uint)index >= (uint)_size) {
@@ -431,7 +414,7 @@ namespace Spreads.Experimental {
         // whichever is larger.
         private void EnsureCapacity(int min) {
             if (_items.Length < min) {
-                int newCapacity = _items.Length == 0 ? _defaultCapacity : _items.Length * 2;
+                int newCapacity = _items.Length == 0 ? DefaultCapacity : _items.Length * 2;
                 // Allow the list to grow to maximum possible capacity (~2G elements) before encountering overflow.
                 // Note that this check works even when _items.Length overflowed thanks to the (uint) cast
                 //if ((uint)newCapacity > Array.MaxArrayLength) newCapacity = Array.MaxArrayLength;
@@ -1027,7 +1010,7 @@ namespace Spreads.Experimental {
             Contract.Ensures(Contract.Result<T[]>().Length == Count);
 
             if (_size == 0) {
-                return _emptyArray;
+                return EmptyArray;
             }
 
             T[] array = new T[_size];
@@ -1140,13 +1123,11 @@ namespace Spreads.Experimental {
         }
 
 
-        public void Dispose() 
-        {
+        public void Dispose() {
             Dispose(true);
         }
-        
-        ~Vector()
-        {
+
+        ~Vector() {
             Dispose(false);
         }
     }
