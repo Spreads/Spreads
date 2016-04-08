@@ -216,8 +216,8 @@ namespace Spreads.Experimental {
                     if ((uint)index >= (uint)_size) {
                         throw new ArgumentOutOfRangeException();
                     }
-                    _nextVersion++;
                     Contract.EndContractBlock();
+                    _nextVersion++;
                     _items[index] = value;
                     _version++;
                 } finally {

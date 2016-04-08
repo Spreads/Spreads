@@ -16,6 +16,23 @@ namespace Spreads.Core.Tests {
     [TestFixture]
     public class NanoOptimizationTests {
 
+        [Test]
+        public void SOVolatileQuestion()
+        {
+            long counter = 0;
+            var values = new double[1000000];
+
+            values[42] = 3.1415;
+            // Is this line needed instead of simple assignment above,
+            // or the implicit full-fence of Interlocked will guarantee that 
+            // all threads will see the values[42] after interlocked increment?
+            //Volatile.Write(ref values[42], 3.1415);
+            Interlocked.Increment(ref counter);
+
+        }
+
+
+
         [Test, Ignore]
         public void ArrayVsListVsIListManyTimes() {
             for (int times = 0; times < 5; times++) {

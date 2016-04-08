@@ -80,7 +80,26 @@ module Utils =
   let inline exitLockIf locker (condition:bool) = 
     if condition then System.Threading.Monitor.Exit(locker)
 
+  let inline enterWriteLockIf (locker:int byref) (condition:bool) = 
+    if condition then 
+      let sw = new SpinWait()
+      let mutable cont = true
+      while cont do
+        if Interlocked.CompareExchange(&locker, 1, 0) = 0 then
+          cont <- false
+        else sw.SpinOnce()
+    condition
+
+  let inline exitWriteLockIf (locker:int byref) (condition:bool) = 
+    if condition then 
+      #if PRERELEASE
+      Trace.Assert((1 = Interlocked.Exchange(&locker, 0)))
+      #else
+      Interlocked.Exchange(&locker, 0) |> ignore
+      #endif
+
   let increment (value:byref<int>) = value <- value + 1
+
 
 // TODO add back cancellation. this was taken from F#x and stripped from everything that is not needed for MoveNextAsync in cursors
 
