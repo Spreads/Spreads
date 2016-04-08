@@ -14,6 +14,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace Spreads.Experimental {
+
+    // Spreads: POC for thread-safe low-lock C++-like vector (IList) that uses a shared buffer pool
+
     // Implements a variable-size Vector that uses an array of objects to store the
     // elements. A Vector has a capacity, which is the allocated length
     // of the internal array. As elements are added to a Vector, the capacity

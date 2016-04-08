@@ -72,6 +72,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FunctionCombinationTests.cs" />
+    <Compile Include="UnsafeCastTests.cs" />
     <Compile Include="NanoOptimizationTests.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="SingleEnumerableTests.cs" />

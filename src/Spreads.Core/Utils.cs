@@ -19,6 +19,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Spreads {
@@ -36,7 +37,8 @@ namespace Spreads {
         }
 
         public class IdentityFunction<TElement> {
-            public static Func<TElement, TElement> Instance {
+            public static Func<TElement, TElement> Instance
+            {
                 get { return x => x; }
             }
         }
@@ -85,6 +87,16 @@ namespace Spreads {
                 return result.Key && filter2(result.Value) ? new KeyValuePair<bool, TResult>(true, result.Value) : new KeyValuePair<bool, TResult>(false, default(TResult));
             };
         }
+
+        // Doesn't work http://stackoverflow.com/questions/32864239/get-unsafe-pointer-to-array-of-keyvaluepairdatetime-decimal-in-c-sharp
+        //public static T UnsafeCast<T>(Object o) where T : class
+        //{
+        //    var type = typeof (System.Runtime.CompilerServices.CallSite).Assembly.GetType("System.Runtime.CompilerServices.JitHelpers");
+        //    var method = type.GetMethod("UnsafeCast", BindingFlags.NonPublic | BindingFlags.Static);
+        //    var generic = method.MakeGenericMethod(typeof(T));
+        //    var ret = (T)generic.Invoke(o, null);
+        //    return ret;
+        //}
 
     }
 }
