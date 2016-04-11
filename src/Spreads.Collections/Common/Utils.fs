@@ -95,10 +95,14 @@ module Utils =
       #if PRERELEASE
       Trace.Assert((1 = Interlocked.Exchange(&locker, 0)))
       #else
-      Interlocked.Exchange(&locker, 0) |> ignore
+      // TODO examine if full fence is needed, or volatile write is enough
+      Volatile.Write(&locker, 0)
+      //Interlocked.Exchange(&locker, 0) |> ignore
       #endif
 
-  let increment (value:byref<int>) = value <- value + 1
+  //let inline readLock (nextVersion:int64)
+
+  let inline increment (value:byref<_>) = value <- value + LanguagePrimitives.GenericOne
 
 
 // TODO add back cancellation. this was taken from F#x and stripped from everything that is not needed for MoveNextAsync in cursors

@@ -34,6 +34,13 @@ open Spreads.Collections
 
 // TODO single writer doesn't need locks, but needs atomic increments
 
+// isSyncronized means completely thread unsafe. When it is false, the only cost should be checking it and incrementing next order version
+// TODO set isSync to true whenever we create a cursor from a thread different from the constructor thread. All other cases should be manual.
+// E.g. concurrent reading from a different thread must explicitly set isSynced to true
+
+// TODO nextOrder increment must happen before entering write lock, so that implicit memory barrie will affect it
+
+
 
 // TODO settable IsSyncronized with check on every mutation
 // TODO Size to Count
@@ -70,8 +77,8 @@ type SortedMap<'K,'V>
   inherit Series<'K,'V>()
   
   // data fields
-  [<DefaultValueAttribute>] 
-  val mutable internal version : int
+  [<DefaultValueAttribute>]
+  val mutable internal version : int64
   [<DefaultValueAttribute>]
   val mutable internal size : int
   // TODO isMutable as field
@@ -82,18 +89,19 @@ type SortedMap<'K,'V>
 
   static let empty = lazy (let sm = new SortedMap<'K,'V>() in sm.Complete();sm)
 
-
-  /// used for cursors, incremented on any out of order data change that require a cursor either to throw to to recover with repositioning
   [<NonSerializedAttribute>]
   [<DefaultValueAttribute>] 
-  val mutable orderVersion : int
+  val mutable internal orderVersion : int64
   [<NonSerializedAttribute>]
   [<DefaultValueAttribute>] 
-  val mutable nextOrderVersion : int
+  val mutable internal nextOrderVersion : int64
+  /// If a cursor is requested from a different thread then IsSynchronized will be set to true
+  [<NonSerializedAttribute>]
+  [<DefaultValueAttribute>] 
+  val mutable internal constructorThread : int
 
   // util fields
   [<NonSerializedAttribute>]
-  // This type is logically immutable. This field is only mutated during deserialization. 
   let mutable comparer : IComparer<'K> = 
     if comparerOpt.IsNone || Comparer<'K>.Default.Equals(comparerOpt.Value) then
       let kc = KeyComparer.GetDefault<'K>()
@@ -108,7 +116,6 @@ type SortedMap<'K,'V>
   // TODO this should be synchronized with writes
   let mutable subscribersCounter : int = 1
   
-
   // TODO use IDC resolution via KeyHelper.diffCalculators here or befor ctor
   [<NonSerializedAttribute>]
   let mutable couldHaveRegularKeys : bool = comparer :? IKeyComparer<'K>
@@ -135,6 +142,8 @@ type SortedMap<'K,'V>
 
 
   do
+    this.constructorThread <- Thread.CurrentThread.ManagedThreadId
+
     let tempCap = if capacity.IsSome then capacity.Value else 1
     if dictionary.IsNone || dictionary.Value.Count = 0 then // otherwise we will set them in dict processing part
       this.keys <- OptimizationSettings.ArrayPool.TakeBuffer (if couldHaveRegularKeys then 2 else tempCap) // regular keys are the first and the second value, their diff is the step
@@ -288,17 +297,21 @@ type SortedMap<'K,'V>
     if couldHaveRegularKeys && this.size > 1 then this.rkKeyAtIndex index
     else this.keys.[index]
 
+  // TODO (perf) replace with unchecked where appropriate
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member internal this.GetKeyByIndex(index) =
-    if index < 0 || index >= this.size then raise (ArgumentOutOfRangeException("index"))
+    if uint32 index >= uint32 this.size then raise (ArgumentOutOfRangeException("index"))
     this.GetKeyByIndexUnchecked(index)
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.GetPairByIndexUnchecked(index) =
     if couldHaveRegularKeys && this.size > 1 then
-      // TODO why we check here if the method is named 'unchecked'?
       // Following unit trick can reduce the range check by one
-      if uint32 index >= uint32 this.size then raise (ArgumentOutOfRangeException("index"))
+      #if PRERELEASE
+      // TODO why we check here if the method is named 'unchecked'?
+      // (TODO clean this two comment lines) if uint32 index >= uint32 this.size then raise (ArgumentOutOfRangeException("index"))
+      Trace.Assert(uint32 index >= uint32 this.size, "Index must be checked before calling GetPairByIndexUnchecked")
+      #endif
       KeyValuePair(this.rkKeyAtIndex index, this.values.[index])
     else KeyValuePair(this.keys.[index], this.values.[index]) 
   
@@ -328,7 +341,7 @@ type SortedMap<'K,'V>
     
     let nextOrderVersion =
       if isSynchronized then Interlocked.Increment(&this.nextOrderVersion)
-      else this.orderVersion + 1
+      else increment &this.orderVersion; this.orderVersion
 
     let mutable keepOrderVersion = false
     if this.size = this.values.Length then this.EnsureCapacity(this.size + 1)
@@ -390,7 +403,7 @@ type SortedMap<'K,'V>
       // bucket switch in SHM (TODO really? check) and before serialization
       // the 99% use case is when we load data from a sequential stream or deserialize a map with already regularized keys
     this.size <- this.size + 1
-    this.version <- this.version + 1
+    increment &this.version
     if subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
 
     // keepVersion = true only for AddLast (Append)
@@ -405,7 +418,7 @@ type SortedMap<'K,'V>
       else Interlocked.Decrement(&this.nextOrderVersion) |> ignore
     else
       if not keepOrderVersion then
-        this.orderVersion <- this.orderVersion + 1
+        increment &this.orderVersion
         #if PRERELEASE
         Trace.Assert((nextOrderVersion = this.orderVersion))
         #endif
@@ -447,7 +460,12 @@ type SortedMap<'K,'V>
   //#region Public members
 
   member this.Capacity
-    with get() = this.values.Length
+    with get() = 
+      let entered = enterLockIf syncRoot  isSynchronized
+      try
+        this.values.Length
+      finally
+        exitLockIf syncRoot entered
     and set(value) =
       let entered = enterWriteLockIf &locker isSynchronized
       try
@@ -464,7 +482,6 @@ type SortedMap<'K,'V>
             let toReturn = this.keys
             this.keys <- kArr
             OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore
-            
 
           let vArr : 'V array = OptimizationSettings.ArrayPool.TakeBuffer(c)
           Array.Copy(this.values, 0, vArr, 0, this.size)
@@ -480,8 +497,7 @@ type SortedMap<'K,'V>
   member this.Clear() =
     let entered = enterWriteLockIf &locker isSynchronized
     try
-      this.version <- this.version + 1
-      this.orderVersion <- this.orderVersion + 1
+      increment &this.version
       if couldHaveRegularKeys then
         Trace.Assert(this.keys.Length = 2)
         Array.Clear(this.keys, 0, 2)
@@ -489,6 +505,7 @@ type SortedMap<'K,'V>
         Array.Clear(this.keys, 0, this.size)
       Array.Clear(this.values, 0, this.size)
       this.size <- 0
+      if entered then increment &this.orderVersion else Interlocked.Increment(&this.orderVersion) |> ignore
     finally
       exitWriteLockIf &locker entered
 
@@ -599,20 +616,20 @@ type SortedMap<'K,'V>
 
   member this.ContainsValue(value) = this.IndexOfValue(value) >= 0
 
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member internal this.IndexOfKeyUnchecked(key:'K) : int =
+    if couldHaveRegularKeys && this.size > 1 then this.rkIndexOfKey key
+    else Array.BinarySearch(this.keys, 0, this.size, key, comparer)
+
+  // TODO replace all internal usages with the Unchecked version and add the null check to the calling methods
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  member this.IndexOfKey(key:'K) : int =
+    if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
     let entered = enterLockIf syncRoot isSynchronized
     try
-      if couldHaveRegularKeys && this.size > 1 then 
-        this.rkIndexOfKey key
-      else 
-        Array.BinarySearch(this.keys, 0, this.size, key, comparer)
+      this.IndexOfKeyUnchecked(key)
     finally
       exitLockIf syncRoot entered
-
-  member this.IndexOfKey(key:'K) : int =
-    if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then 
-      raise (ArgumentNullException("key"))
-    this.IndexOfKeyUnchecked(key)
 
   member this.IndexOfValue(value:'V) : int =
     let entered = enterLockIf syncRoot  isSynchronized
@@ -643,7 +660,7 @@ type SortedMap<'K,'V>
       let entered = enterLockIf syncRoot  isSynchronized
       try
         if this.size = 0 then raise (InvalidOperationException("Could not get the last element of an empty map"))
-        if couldHaveRegularKeys && this.size > 1 then 
+        if couldHaveRegularKeys && this.size > 1 then
           Trace.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
           KeyValuePair(rkLast, this.values.[this.size - 1])
         else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
@@ -675,42 +692,33 @@ type SortedMap<'K,'V>
       and set k v =
         if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(k, Unchecked.defaultof<'K>) then 
           raise (ArgumentNullException("key"))
-        this.SetWithIndex(k, v) |> ignore
-
-  // TODO!!!! increment order when not using insert
-  /// Sets the value to the key position and returns the index of the key
-  member internal this.SetWithIndex(k, v) =
-    let entered = enterWriteLockIf &locker isSynchronized
-    try
-      // first/last optimization (only last here)
-      if this.size = 0 then
-        this.Insert(0, k, v)
-        0
-      else
-        let lastIdx = this.size-1
-        let lc = this.CompareToLast k
-        if lc = 0 then // key = last key
-          this.values.[lastIdx] <- v
-          this.version <- this.version + 1
-          this.orderVersion <-  this.orderVersion + 1
-          if subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
-          lastIdx
-        elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
-          this.Insert(this.size, k, v)
-          this.size
-        else
-          let index = this.IndexOfKeyUnchecked(k)
-          if index >= 0 then // contains key 
-            this.values.[index] <- v
-            this.version <- this.version + 1
-            this.orderVersion <- this.orderVersion + 1
-            if subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
-            index
+        // TODO!!!! increment order when not using insert
+        /// Sets the value to the key position and returns the index of the key
+        let entered = enterWriteLockIf &locker isSynchronized
+        try
+          // first/last optimization (only last here)
+          if this.size = 0 then
+            this.Insert(0, k, v)
           else
-            this.Insert(~~~index, k, v)
-            ~~~index
-    finally
-      exitWriteLockIf &locker entered
+            let lc = this.CompareToLast k
+            if lc = 0 then // key = last key
+              this.values.[this.size-1] <- v
+              increment &this.version
+              increment &this.orderVersion
+              if subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
+            elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
+              this.Insert(this.size, k, v)
+            else
+              let index = this.IndexOfKeyUnchecked(k)
+              if index >= 0 then // contains key 
+                this.values.[index] <- v
+                increment &this.version
+                increment &this.orderVersion
+                if subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
+              else
+                this.Insert(~~~index, k, v)
+        finally
+          exitWriteLockIf &locker entered
 
   // TODO remove try finally
   member this.Add(key, value) : unit =
@@ -769,91 +777,84 @@ type SortedMap<'K,'V>
       exitWriteLockIf &locker entered
     
   // TODO!! move to RemoveMany EQ case, add orderVersion interlocked increments
-  member internal this.RemoveAt(index):unit =
-    let entered = enterWriteLockIf &locker isSynchronized
-    try
-      if index < 0 || index >= this.size then raise (ArgumentOutOfRangeException("index"))
-      let newSize = this.size - 1
-      // TODO review, check for off by 1 bugs, could had lost focus at 3 AM
-      // keys
-      if couldHaveRegularKeys && this.size > 2 then // will have >= 2 after removal
-        if index = 0 then
-          this.keys.[0] <- (diffCalc.Add(this.keys.[0], this.rkGetStep())) // change first key to next and size--
-          this.keys.[1] <- (diffCalc.Add(this.keys.[0], this.rkGetStep())) // add step to the new first value
-        elif index = newSize then 
-          rkLast <- diffCalc.Add(this.keys.[0], (int64 (newSize-1))*this.rkGetStep()) // removing last, only size--
-        else
-          // removing within range,  creating a hole
-          this.keys <- this.rkMaterialize()
-          couldHaveRegularKeys <- false
-      elif couldHaveRegularKeys && this.size = 2 then // will have single value with undefined step
-        if index = 0 then
-          this.keys.[0] <- this.keys.[1]
-          this.keys.[1] <- Unchecked.defaultof<'K>
-        elif index = 1 then
-          rkLast <- this.keys.[0]
-        rkStep_ <- 0L
+  member private this.RemoveAt(index):unit =
+    if uint32 index >= uint32 this.size then raise (ArgumentOutOfRangeException("index"))
+    let newSize = this.size - 1
+    // TODO review, check for off by 1 bugs, could had lost focus at 3 AM
+    // keys
+    if couldHaveRegularKeys && this.size > 2 then // will have >= 2 after removal
+      if index = 0 then
+        this.keys.[0] <- (diffCalc.Add(this.keys.[0], this.rkGetStep())) // change first key to next and size--
+        this.keys.[1] <- (diffCalc.Add(this.keys.[0], this.rkGetStep())) // add step to the new first value
+      elif index = newSize then 
+        rkLast <- diffCalc.Add(this.keys.[0], (int64 (newSize-1))*this.rkGetStep()) // removing last, only size--
+      else
+        // removing within range,  creating a hole
+        this.keys <- this.rkMaterialize()
+        couldHaveRegularKeys <- false
+    elif couldHaveRegularKeys && this.size = 2 then // will have single value with undefined step
+      if index = 0 then
+        this.keys.[0] <- this.keys.[1]
+        this.keys.[1] <- Unchecked.defaultof<'K>
+      elif index = 1 then
+        rkLast <- this.keys.[0]
+      rkStep_ <- 0L
 
-
-      if not couldHaveRegularKeys || this.size = 1 then
-        if index < this.size then
-          Array.Copy(this.keys, index + 1, this.keys, index, newSize - index) // this.size
-        this.keys.[newSize] <- Unchecked.defaultof<'K>
+    if not couldHaveRegularKeys || this.size = 1 then
+      if index < this.size then
+        Array.Copy(this.keys, index + 1, this.keys, index, newSize - index) // this.size
+      this.keys.[newSize] <- Unchecked.defaultof<'K>
       
-      // values
-      if index < newSize then
-        Array.Copy(this.values, index + 1, this.values, index, newSize - index) //this.size
-      this.values.[newSize] <- Unchecked.defaultof<'V>
+    // values
+    if index < newSize then
+      Array.Copy(this.values, index + 1, this.values, index, newSize - index) //this.size
+    this.values.[newSize] <- Unchecked.defaultof<'V>
 
-      this.size <- newSize
-      this.version <- this.version + 1
-      this.orderVersion <-  this.orderVersion + 1
+    this.size <- newSize
+    increment &this.version
+    increment &this.orderVersion
 
-      if subscribersCounter > 0 then
-        this.onErrorEvent.Trigger(NotImplementedException("TODO remove should trigger a special exception"))
-        // on removal, the next valid value is the previous one and all downstreams must reposition and replay from it
-//        if index > 0 then this.onNextEvent.Trigger(this.GetPairByIndexUnchecked(index - 1)) // after removal (index - 1) is unchanged
-//        else this.onNextEvent.Trigger(Unchecked.defaultof<_>)
-    finally
-      exitWriteLockIf &locker entered
+    if subscribersCounter > 0 then
+      this.onErrorEvent.Trigger(NotImplementedException("TODO remove should trigger a special exception"))
+
 
   member this.Remove(key):bool =
+    if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
     let entered = enterWriteLockIf &locker isSynchronized
     try
       if not isMutable then invalidOp "SortedMap is not mutable"
-      let index = this.IndexOfKey(key)
+      let index = this.IndexOfKeyUnchecked(key)
       if index >= 0 then this.RemoveAt(index)
       index >= 0
     finally
       exitWriteLockIf &locker entered
 
-  // TODO why not just remove from idx 0?
+
   member this.RemoveFirst([<Out>]result: byref<KVP<'K,'V>>):bool =
     let entered = enterWriteLockIf &locker isSynchronized
     try
-      try
-        result <- this.First // could throw
-        // TODO! Nested writer locks won't work
-        let ret = this.Remove(result.Key)
-        ret
-      with | _ -> false
+      if this.size > 0 then
+        result <- this.First
+        this.RemoveAt(0)
+        true
+      else false
     finally
       exitWriteLockIf &locker entered
 
-  // TODO why not just remove from idx (size - 1)?
+
   member this.RemoveLast([<Out>]result: byref<KeyValuePair<'K, 'V>>):bool =
     let entered = enterWriteLockIf &locker isSynchronized
     try
-      try
-        result <-this.Last // could throw
-        // TODO! Nested writer locks won't work
-        this.Remove(result.Key)
-      with | _ -> false
+      if this.size > 0 then
+        result <-this.Last
+        this.RemoveAt(this.size - 1)
+        true
+      else false
     finally
       exitWriteLockIf &locker entered
 
   /// Removes all elements that are to `direction` from `key`
-  member this.RemoveMany(key:'K,direction:Lookup):bool =
+  member this.RemoveMany(key:'K,direction:Lookup) : bool =
     let entered = enterWriteLockIf &locker isSynchronized
     try
       if not isMutable then invalidOp "SortedMap is not mutable"
@@ -863,14 +864,19 @@ type SortedMap<'K,'V>
         let pivotIndex = this.TryFindWithIndex(key, direction, &kvp)
         // pivot should be removed, after calling TFWI pivot is always inclusive
         match direction with
-        | Lookup.EQ -> this.Remove(key)
+        | Lookup.EQ -> 
+          let index = this.IndexOfKeyUnchecked(key)
+          if index >= 0 then 
+            this.RemoveAt(index)
+            true
+          else false
         | Lookup.LT | Lookup.LE ->
           if pivotIndex = -1 then // pivot is not here but to the left, keep all elements
             false
           elif pivotIndex >=0 then // remove elements below pivot and pivot
             this.size <- this.size - (pivotIndex + 1)
-            this.version <- this.version + 1
-            this.orderVersion <-  this.orderVersion + 1
+            increment &this.version
+            increment &this.orderVersion
             if couldHaveRegularKeys then
               this.keys.[0] <- (diffCalc.Add(this.keys.[0], int64 (pivotIndex+1)))
               if this.size > 1 then 
@@ -903,8 +909,8 @@ type SortedMap<'K,'V>
             if not couldHaveRegularKeys then
               Array.fill this.keys pivotIndex (this.values.Length - pivotIndex) Unchecked.defaultof<'K>
             Array.fill this.values pivotIndex (this.values.Length - pivotIndex) Unchecked.defaultof<'V>
-            this.version <- this.version + 1
-            this.orderVersion <-  this.orderVersion + 1
+            increment &this.version
+            increment &this.orderVersion
             this.Capacity <- this.size
             true
           else
@@ -920,137 +926,143 @@ type SortedMap<'K,'V>
   /// -3 if the non-found key is within the key range (for EQ direction only)
   /// -4 empty
   /// Example: (-1) [...current...(-3)...map ...] (-2)
-  member internal this.TryFindWithIndex(key:'K,direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>) : int = // rkok
-    let entered = enterLockIf syncRoot  isSynchronized
-    try
-      if this.size = 0 then -4
-      else
-        // TODO first/last optimization
-        match direction with
-        | Lookup.EQ ->
-          let lastIdx = this.size-1
-          if this.size > 0 && this.CompareToLast(key) = 0 then // key = last key
-            result <-  this.GetPairByIndexUnchecked(lastIdx)
-            lastIdx
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  member internal this.TryFindWithIndex(key:'K, direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>) : int =
+    if this.size = 0 then -4
+    else
+      // TODO first/last optimization
+      match direction with
+      | Lookup.EQ ->
+        let lastIdx = this.size-1
+        if this.size > 0 && this.CompareToLast(key) = 0 then // key = last key
+          result <- 
+            if couldHaveRegularKeys && this.size > 1 then 
+              Trace.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
+              KeyValuePair(rkLast, this.values.[this.size - 1])
+            else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
+          lastIdx
+        else
+          let index = this.IndexOfKey(key)
+          if index >= 0 then
+            result <-  this.GetPairByIndexUnchecked(index)
+            index
           else
-            let index = this.IndexOfKey(key)
-            if index >= 0 then
-              result <-  this.GetPairByIndexUnchecked(index)
-              index
+            let index2 = ~~~index
+            if index2 >= this.Count then // there are no elements larger than key, all this.keys are smaller
+              -2 // the key could be in the next bucket
+            elif index2 = 0 then //it is the index of the first element that is larger than value
+              -1 // all this.keys in the map are larger than the desired key
             else
-              let index2 = ~~~index
-              if index2 >= this.Count then // there are no elements larger than key, all this.keys are smaller
-                -2 // the key could be in the next bucket
-              elif index2 = 0 then //it is the index of the first element that is larger than value
-                -1 // all this.keys in the map are larger than the desired key
-              else
-                -3
-        | Lookup.LT ->
-          let lastIdx = this.size-1
-          let lc = if this.size > 0 then this.CompareToLast(key) else -2
-          if lc = 0 then // key = last key
-            if this.size > 1 then
-              result <-  this.GetPairByIndexUnchecked(lastIdx-1) // return item beforelast
-              lastIdx - 1
-            else -1
-          elif lc > 0 then // key greater than the last
-            result <-  this.GetPairByIndexUnchecked(lastIdx) // return the last item 
-            lastIdx
+              -3
+      | Lookup.LT ->
+        let lastIdx = this.size-1
+        let lc = if this.size > 0 then this.CompareToLast(key) else -2
+        if lc = 0 then // key = last key
+          if this.size > 1 then
+            result <- this.GetPairByIndexUnchecked(lastIdx - 1) // return item beforelast
+            lastIdx - 1
+          else -1
+        elif lc > 0 then // key greater than the last
+          result <- this.GetPairByIndexUnchecked(lastIdx) // return the last item 
+          lastIdx
+        else
+          let index = this.IndexOfKey(key)
+          if index > 0 then
+            result <- this.GetPairByIndexUnchecked(index - 1)
+            index - 1
+          elif index = 0 then
+              -1 // 
           else
-            let index = this.IndexOfKey(key)
-            if index > 0 then
-              result <- this.GetPairByIndexUnchecked(index - 1)
-              index - 1
-            elif index = 0 then
-               -1 // 
-            else
-              let index2 = ~~~index
-              if index2 >= this.Count then // there are no elements larger than key
-                result <-  this.GetPairByIndexUnchecked(this.Count - 1) // last element is the one that LT key
-                this.Count - 1
-              elif index2 = 0 then
-                -1
-              else //  it is the index of the first element that is larger than value
-                result <-  this.GetPairByIndexUnchecked(index2 - 1)
-                index2 - 1
-        | Lookup.LE ->
-          let lastIdx = this.size-1
-          let lc = if this.size > 0 then this.CompareToLast(key) else -2
-          if lc >= 0 then // key = last key or greater than the last key
-            result <-  this.GetPairByIndexUnchecked(lastIdx)
-            lastIdx
+            let index2 = ~~~index
+            if index2 >= this.Count then // there are no elements larger than key
+              result <- this.GetPairByIndexUnchecked(this.Count - 1) // last element is the one that LT key
+              this.Count - 1
+            elif index2 = 0 then
+              -1
+            else //  it is the index of the first element that is larger than value
+              result <- this.GetPairByIndexUnchecked(index2 - 1)
+              index2 - 1
+      | Lookup.LE ->
+        let lastIdx = this.size-1
+        let lc = if this.size > 0 then this.CompareToLast(key) else -2
+        if lc >= 0 then // key = last key or greater than the last key
+          result <- this.GetPairByIndexUnchecked(lastIdx)
+          lastIdx
+        else
+          let index = this.IndexOfKey(key)
+          if index >= 0 then
+            result <- this.GetPairByIndexUnchecked(index) // equal
+            index
           else
-            let index = this.IndexOfKey(key)
-            if index >= 0 then
-              result <-  this.GetPairByIndexUnchecked(index) // equal
-              index
-            else
-              let index2 = ~~~index
-              if index2 >= this.size then // there are no elements larger than key
-                result <-  this.GetPairByIndexUnchecked(this.size - 1)
-                this.size - 1
-              elif index2 = 0 then
-                -1
-              else //  it is the index of the first element that is larger than value
-                result <-   this.GetPairByIndexUnchecked(index2 - 1)
-                index2 - 1
-        | Lookup.GT ->
-          let lc = if this.size > 0 then comparer.Compare(key, this.keys.[0]) else 2
-          if lc = 0 then // key = first key
-            if this.size > 1 then
-              result <-  this.GetPairByIndexUnchecked(1) // return item after first
-              1
-            else -2 // cannot get greater than a single value when k equals to it
-          elif lc < 0 then
-            result <-  this.GetPairByIndexUnchecked(0) // return first
-            0
+            let index2 = ~~~index
+            if index2 >= this.size then // there are no elements larger than key
+              result <- this.GetPairByIndexUnchecked(this.size - 1)
+              this.size - 1
+            elif index2 = 0 then
+              -1
+            else //  it is the index of the first element that is larger than value
+              result <- this.GetPairByIndexUnchecked(index2 - 1)
+              index2 - 1
+      | Lookup.GT ->
+        let lc = if this.size > 0 then comparer.Compare(key, this.keys.[0]) else 2
+        if lc = 0 then // key = first key
+          if this.size > 1 then
+            result <- this.GetPairByIndexUnchecked(1) // return item after first
+            1
+          else -2 // cannot get greater than a single value when k equals to it
+        elif lc < 0 then
+          result <- this.GetPairByIndexUnchecked(0) // return first
+          0
+        else
+          let index = this.IndexOfKey(key)
+          if index >= 0 && index < this.Count - 1 then
+            result <- this.GetPairByIndexUnchecked(index + 1)
+            index + 1
+          elif index >= this.Count - 1 then
+            -2
           else
-            let index = this.IndexOfKey(key)
-            if index >= 0 && index < this.Count - 1 then
-              result <- this.GetPairByIndexUnchecked(index + 1)
-              index + 1
-            elif index >= this.Count - 1 then
+            let index2 = ~~~index
+            if index2 >= this.Count then // there are no elements larger than key
               -2
-            else
-              let index2 = ~~~index
-              if index2 >= this.Count then // there are no elements larger than key
-                -2
-              else //  it is the index of the first element that is larger than value
-                result <- this.GetPairByIndexUnchecked(index2)
-                index2
-        | Lookup.GE ->
-          let lc = if this.size > 0 then comparer.Compare(key, this.keys.[0]) else 2
-          if lc <= 0 then // key = first key or smaller than the first key
-            result <-  this.GetPairByIndexUnchecked(0)
-            0
+            else //  it is the index of the first element that is larger than value
+              result <- this.GetPairByIndexUnchecked(index2)
+              index2
+      | Lookup.GE ->
+        let lc = if this.size > 0 then comparer.Compare(key, this.keys.[0]) else 2
+        if lc <= 0 then // key = first key or smaller than the first key
+          result <- this.GetPairByIndexUnchecked(0)
+          0
+        else
+          let index = this.IndexOfKey(key)
+          if index >= 0 && index < this.Count then
+            result <- this.GetPairByIndexUnchecked(index) // equal
+            index
           else
-            let index = this.IndexOfKey(key)
-            if index >= 0 && index < this.Count then
-              result <-  this.GetPairByIndexUnchecked(index) // equal
-              index
-            else
-              let index2 = ~~~index
-              if index2 >= this.Count then // there are no elements larger than key
-                -2
-              else //  it is the index of the first element that is larger than value
-                result <-   this.GetPairByIndexUnchecked(index2)
-                index2
-        | _ -> raise (ApplicationException("Wrong lookup direction"))
-    finally
-      exitLockIf syncRoot entered
+            let index2 = ~~~index
+            if index2 >= this.Count then // there are no elements larger than key
+              -2
+            else //  it is the index of the first element that is larger than value
+              result <- this.GetPairByIndexUnchecked(index2)
+              index2
+      | _ -> raise (ApplicationException("Wrong lookup direction"))
 
 
   member this.TryFind(k:'K, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-    res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-    let mutable kvp = Unchecked.defaultof<_>
-    let idx = this.TryFindWithIndex(k, direction, &kvp)
-    if idx >= 0 then
-        res <- kvp
-        true
-    else false
+    let entered = enterLockIf syncRoot  isSynchronized
+    try
+      res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
+      let mutable kvp = Unchecked.defaultof<_>
+      let idx = this.TryFindWithIndex(k, direction, &kvp)
+      if idx >= 0 then
+          res <- kvp
+          true
+      else false
+    finally
+      exitLockIf syncRoot entered
 
   /// Return true if found exact key
   member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
+    if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
     let entered = enterLockIf syncRoot  isSynchronized
     try
       // first/last optimization
@@ -1063,7 +1075,7 @@ type SortedMap<'K,'V>
           value <- this.values.[this.size-1]
           true
         else
-          let index = this.IndexOfKey(key)
+          let index = this.IndexOfKeyUnchecked(key)
           if index >= 0 then
             value <- this.values.[index]
             true
@@ -1101,15 +1113,16 @@ type SortedMap<'K,'V>
     finally
       exitLockIf syncRoot entered
 
-  // foreach optimization
+
+  // .NETs foreach optimization
   member this.GetEnumerator() = new SortedMapCursor<'K,'V>(this)
+
 
   member internal this.GetSMCursor() = new SortedMapCursor<'K,'V>(this)
 
-  // for foreach optimization
-  // TODO(?) replace with a mutable struct, like in SCG.SortedList<T>, there are too many virtual calls and reference cells in the most critical paths like MoveNext
+
   // NB Object expression with ref cells are surprisingly fast compared to a custom class or even a struct
-  member internal this.GetCursor(index:int,cursorVersion:int,currentKey:'K, currentValue:'V) =
+  member internal this.GetCursor(index:int, cursorVersion:int64, currentKey:'K, currentValue:'V) =
     let mutable index = index
     let mutable cursorVersion = cursorVersion
     let mutable currentKey : 'K = currentKey
@@ -1312,7 +1325,14 @@ type SortedMap<'K,'V>
             this.onCompletedEvent.Publish.RemoveHandler(onCompletedHandler)
     }
 
-  member this.GetAt(idx:int) = if idx >= 0 && idx < this.size then this.values.[idx] else raise (ArgumentOutOfRangeException("idx", "Idx is out of range in SortedMap GetAt method."))
+
+  member this.GetAt(idx:int) =
+    let entered = enterLockIf syncRoot  isSynchronized
+    try
+      if idx >= 0 && idx < this.size then this.values.[idx] else raise (ArgumentOutOfRangeException("idx", "Idx is out of range in SortedMap GetAt method."))
+    finally
+      exitLockIf syncRoot entered
+
 
   /// Make the capacity equal to the size
   member this.TrimExcess() = this.Capacity <- this.size
@@ -1332,12 +1352,16 @@ type SortedMap<'K,'V>
   interface ICollection  with
     member this.SyncRoot = this.SyncRoot
     member this.CopyTo(array, arrayIndex) =
-      if array = null then raise (ArgumentNullException("array"))
-      if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
-      if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
-      for index in 0..this.size do
-        let kvp = KeyValuePair(this.GetKeyByIndex(index), this.values.[index])
-        array.SetValue(kvp, arrayIndex + index)
+      let entered = enterWriteLockIf &locker isSynchronized
+      try
+        if array = null then raise (ArgumentNullException("array"))
+        if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
+        if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
+        for index in 0..this.size do
+          let kvp = KeyValuePair(this.GetKeyByIndex(index), this.values.[index])
+          array.SetValue(kvp, arrayIndex + index)
+      finally
+        exitWriteLockIf &locker entered
     member this.Count = this.Count
     member this.IsSynchronized with get() =  isSynchronized
 
@@ -1353,24 +1377,22 @@ type SortedMap<'K,'V>
     member this.ContainsKey(key) = this.ContainsKey(key)
     member this.Contains(kvp:KeyValuePair<'K,'V>) = this.ContainsKey(kvp.Key)
     member this.CopyTo(array, arrayIndex) =
-      if array = null then raise (ArgumentNullException("array"))
-      if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
-      if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
-      for index in 0..this.Count do
-        let kvp = KeyValuePair(this.Keys.[index], this.Values.[index])
-        array.[arrayIndex + index] <- kvp
+      let entered = enterWriteLockIf &locker isSynchronized
+      try
+        if array = null then raise (ArgumentNullException("array"))
+        if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
+        if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
+        for index in 0..this.Count do
+          let kvp = KeyValuePair(this.Keys.[index], this.Values.[index])
+          array.[arrayIndex + index] <- kvp
+      finally
+        exitWriteLockIf &locker entered
     member this.Add(key, value) = this.Add(key, value)
     member this.Add(kvp:KeyValuePair<'K,'V>) = this.Add(kvp.Key, kvp.Value)
     member this.Remove(key) = this.Remove(key)
     member this.Remove(kvp:KeyValuePair<'K,'V>) = this.Remove(kvp.Key)
-    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
-      let index = this.IndexOfKey(key)
-      if index >= 0 then
-        value <- this.values.[index]
-        true
-      else
-        value <- Unchecked.defaultof<'V>
-        false
+    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.TryGetValue(key, &value)
+
 
   interface IReadOnlyOrderedMap<'K,'V> with
     member this.Comparer with get() = this.Comparer
@@ -1381,24 +1403,9 @@ type SortedMap<'K,'V>
     member this.IsReadOnly with get() = this.IsReadOnly
     member this.First with get() = this.First
     member this.Last with get() = this.Last
-    member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      this.TryFindWithIndex(k, direction, &result) >=0
-    member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      try
-        res <- this.First
-        true
-      with
-      | _ -> 
-        res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-        false
-    member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      try
-        res <- this.Last
-        true
-      with
-      | _ -> 
-        res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-        false
+    member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryFindWithIndex(k, direction, &result) >=0
+    member this.TryGetFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryGetFirst(&result)
+    member this.TryGetLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryGetLast(&result)
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
     member this.Item with get k = this.Item(k)
     member this.GetAt(idx:int) = this.GetAt(idx:int)
@@ -1409,19 +1416,16 @@ type SortedMap<'K,'V>
 
   interface IOrderedMap<'K,'V> with
     member this.Complete() = this.Complete()
-    member this.Version with get() = int64(this.Version) and set v = this.version <- int v
+    member this.Version with get() = int64(this.Version) and set v = this.version <- v
     member this.Count with get() = int64(this.size)
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
     member this.Add(k, v) = this.Add(k,v)
     member this.AddLast(k, v) = this.AddLast(k, v)
     member this.AddFirst(k, v) = this.AddFirst(k, v)
     member this.Remove(k) = this.Remove(k)
-    member this.RemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      this.RemoveFirst(&result)
-    member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      this.RemoveLast(&result)
-    member this.RemoveMany(key:'K,direction:Lookup) = 
-      this.RemoveMany(key, direction)
+    member this.RemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.RemoveFirst(&result)
+    member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.RemoveLast(&result)
+    member this.RemoveMany(key:'K,direction:Lookup) = this.RemoveMany(key, direction)
 
     // TODO move to type memeber, cheack if IROOM is SM and copy arrays in one go
     // TODO atomic append with single version increase, now it is a sequence of remove/add mutations
@@ -1530,8 +1534,8 @@ type SortedMap<'K,'V>
 
   // TODO try resolve KeyComparer for know types
   new() = SortedMap(None, None, None)
-  new(dictionary:IDictionary<'K,'V>) = SortedMap(Some(dictionary), Some(dictionary.Count), Some(Comparer<'K>.Default :> IComparer<'K>))
-  new(minimumCapacity:int) = SortedMap(None, Some(minimumCapacity), Some(Comparer<'K>.Default :> IComparer<'K>))
+  new(dictionary:IDictionary<'K,'V>) = SortedMap(Some(dictionary), Some(dictionary.Count), None)
+  new(minimumCapacity:int) = SortedMap(None, Some(minimumCapacity), None)
 
   // do not expose ctors with comparer to public
   internal new(comparer:IComparer<'K>) = SortedMap(None, None, Some(comparer))
@@ -1567,14 +1571,23 @@ type SortedMap<'K,'V>
     if sm.size > 0 then sm.SetRkLast(sm.GetKeyByIndex(sm.size - 1))
     sm
 
+  /// Create a SortedMap using the first `size` elements of the provided keys and values.
+  static member OfSortedKeysAndValues(keys:'K[], values:'V[], size:int, comparer:IComparer<'K>) =
+    if comparer = Unchecked.defaultof<_> then raise (ArgumentNullException("comparer"))
+    else SortedMap.OfSortedKeysAndValues(keys, values, size, comparer, true, false)
+
+  /// Create a SortedMap using the first `size` elements of the provided keys and values, with default comparer.
   static member OfSortedKeysAndValues(keys:'K[], values:'V[], size:int) =
-    let sm = new SortedMap<'K,'V>()
-    let comparer = sm.Comparer
+    let comparer =
+      let kc = KeyComparer.GetDefault<'K>()
+      if kc = Unchecked.defaultof<_> then Comparer<'K>.Default :> IComparer<'K> 
+      else kc
     SortedMap.OfSortedKeysAndValues(keys, values, size, comparer, true, false)
 
   static member OfSortedKeysAndValues(keys:'K[], values:'V[]) =
     if keys.Length <> values.Length then raise (new ArgumentException("Keys and values arrays are of different sizes"))
     SortedMap.OfSortedKeysAndValues(keys, values, values.Length)
+
   //#endregion
 
 
@@ -1600,7 +1613,7 @@ and
       val mutable index : int
       val mutable currentKey : 'K
       val mutable currentValue: 'V
-      val mutable cursorVersion : int
+      val mutable cursorVersion : int64
       val mutable isBatch : bool
 
       new(source:SortedMap<'K,'V>) = 
@@ -1661,9 +1674,9 @@ and
     member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
       let entered = enterLockIf this.source.SyncRoot this.source.IsSynchronized
       try
-        if (not this.source.IsMutable) && (this.index = -1) then
+        if (not this.source.IsMutable) && (this.index = -1) && this.source.size > 0 then
           this.index <- this.source.size - 1 // at the last element of the batch
-          this.currentKey <- this.source.GetKeyByIndex(this.index)
+          this.currentKey <- this.source.GetKeyByIndexUnchecked(this.index)
           this.currentValue <- this.source.values.[this.index]
           this.isBatch <- true
           trueTask
