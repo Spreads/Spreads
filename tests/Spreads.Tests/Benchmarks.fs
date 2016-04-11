@@ -439,12 +439,33 @@ module CollectionsBenchmarks =
           if res <> i then failwith "SortedMap failed"
           ()
       )
+
+    smap.Value.IsSynchronized <- true
+    for i in 0..4 do
+      perf count "SortedMap Read Synced" (fun _ ->
+        for i in 2L..count do
+          let res = smap.Value.Item(i)
+          if res <> i then failwith "SortedMap failed"
+          ()
+      )
+    smap.Value.IsSynchronized <- false
+
     for i in 0..9 do
       perf count "SortedMap Iterate" (fun _ ->
         for i in smap.Value do
           let res = i.Value
           ()
       )
+      
+    smap.Value.IsSynchronized <- true
+    for i in 0..9 do
+      perf count "SortedMap Synced Iterate" (fun _ ->
+        for i in smap.Value do
+          let res = i.Value
+          ()
+      )
+
+    smap.Value.IsSynchronized <- false
     for i in 0..9 do
       perf count "SortedMap Iterate Values" (fun _ ->
         for i in smap.Value.Values do
@@ -572,6 +593,16 @@ module CollectionsBenchmarks =
           ()
       )
 
+    smap.Value.IsSynchronized <- true
+    for i in 0..4 do
+      perf count "SortedMapRegular Read Synced" (fun _ ->
+        for i in 2L..count do
+          let res = smap.Value.Item(i)
+          if res <> i then failwith "SortedMap failed"
+          ()
+      )
+    smap.Value.IsSynchronized <- false
+
     for i in 0..4 do
       //Console.WriteLine("SortedMapRegular Read as RO")
       perf count "SortedMapRegular Read as RO" (fun _ ->
@@ -589,6 +620,16 @@ module CollectionsBenchmarks =
           let res = i.Value
           ()
       )
+
+    smap.Value.IsSynchronized <- true
+    for i in 0..9 do
+      perf count "SortedMapRegular Synced Iterate" (fun _ ->
+        for i in smap.Value do
+          let res = i.Value
+          ()
+      )
+    smap.Value.IsSynchronized <- false
+
     for i in 0..9 do
       perf count "SortedMapRegular Iterate as RO" (fun _ ->
         let ro = smap.Value.ReadOnly() :> IReadOnlyOrderedMap<int64,int64>
@@ -733,7 +774,7 @@ module CollectionsBenchmarks =
           //if res <> double i then failwith "SortedMap failed"
           ()
       )
-        
+    
     for i in 0..9 do
       let mutable res = Unchecked.defaultof<_>
       perf count "Series Add/divide Chained" (fun _ ->

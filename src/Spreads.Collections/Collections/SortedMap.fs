@@ -154,7 +154,7 @@ type SortedMap<'K,'V>
       match dictionary.Value with
       | :? SortedMap<'K,'V> as map ->
         couldHaveRegularKeys <- map.IsRegular
-        this.Capacity <- map.Capacity
+        this.SetCapacity(map.Capacity)
         this.size <- map.size
         this.isSynchronized <- map.isSynchronized
         map.keys.CopyTo(this.keys, 0)
@@ -163,7 +163,7 @@ type SortedMap<'K,'V>
         if capacity.IsSome && capacity.Value < dictionary.Value.Count then 
           raise (ArgumentException("capacity is less then dictionary this.size"))
         else
-          this.Capacity <- dictionary.Value.Count
+          this.SetCapacity(dictionary.Value.Count)
         let tempKeys = dictionary.Value.Keys |> Seq.toArray
         dictionary.Value.Values.CopyTo(this.values, 0)
         Array.Sort(tempKeys, this.values, comparer)
@@ -330,19 +330,14 @@ type SortedMap<'K,'V>
     let mutable num = this.values.Length * 2 
     if num > 2146435071 then num <- 2146435071
     if num < min then num <- min // either double or min if min > 2xprevious
-    this.Capacity <- num
+    this.SetCapacity(num)
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.Insert(index:int, k, v) = 
     if not isMutable then invalidOp "SortedMap is not mutable"
     // key is always new, checks are before this method
     // already inside a lock statement in a caller method if synchronized
-    
-    let nextOrderVersion =
-      if this.isSynchronized then Interlocked.Increment(&this.nextOrderVersion)
-      else increment &this.orderVersion; this.orderVersion
-
-    let mutable keepOrderVersion = false
+   
     if this.size = this.values.Length then this.EnsureCapacity(this.size + 1)
     
     #if PRERELEASE
@@ -360,7 +355,6 @@ type SortedMap<'K,'V>
         if comparer.Compare(diffCalc.Add(rkLast, step), k) = 0 then
           // adding next regular, only rkLast changes
           rkLast <- k
-          keepOrderVersion <- true
         elif comparer.Compare(diffCalc.Add(this.keys.[0], -step), k) = 0 then
           this.keys.[1] <- this.keys.[0]
           this.keys.[0] <- k // change first key and size++ at the bottom
@@ -373,12 +367,7 @@ type SortedMap<'K,'V>
           if modIsOk && idx > -1 && idx < this.size then
             // error for regular keys, this means we insert existing key
             let msg = "Existing key check must be done before insert. SortedMap code is wrong."
-            #if PRERELEASE
-            if this.isSynchronized then Interlocked.Decrement(&this.nextOrderVersion) |> ignore // rollback
-            raise (new ApplicationException(msg))
-            #else
             Environment.FailFast(msg, new ApplicationException(msg))            
-            #endif
           else
             // insertting more than 1 away from end or before start, with a hole
             this.keys <- this.rkMaterialize() 
@@ -387,7 +376,6 @@ type SortedMap<'K,'V>
         if index < this.size then
           Array.Copy(this.keys, index, this.keys, index + 1, this.size - index);
         else 
-          keepOrderVersion <- true
           rkLast <- k
         this.keys.[index] <- k
         
@@ -395,7 +383,6 @@ type SortedMap<'K,'V>
     if not couldHaveRegularKeys then
       if index < this.size then
         Array.Copy(this.keys, index, this.keys, index + 1, this.size - index);
-      else keepOrderVersion <- true
       this.keys.[index] <- k
       // do not check if could regularize back, it is very rare 
       // that an irregular becomes a regular one, and such check is always done on
@@ -405,22 +392,6 @@ type SortedMap<'K,'V>
     increment &this.version
     if subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
 
-    // keepVersion = true only for AddLast (Append)
-    if this.isSynchronized then 
-      if not keepOrderVersion then
-        let updatedVersion = Interlocked.Increment(&this.orderVersion)
-        #if PRERELEASE
-        Trace.Assert((nextOrderVersion = updatedVersion))
-        #else
-        ()
-        #endif
-      else Interlocked.Decrement(&this.nextOrderVersion) |> ignore
-    else
-      if not keepOrderVersion then
-        increment &this.orderVersion
-        #if PRERELEASE
-        Trace.Assert((nextOrderVersion = this.orderVersion))
-        #endif
 
   member this.Complete() =
     let entered = enterWriteLockIf &locker true
@@ -442,15 +413,17 @@ type SortedMap<'K,'V>
     and set(synced:bool) =
       let entered = enterWriteLockIf &locker this.isSynchronized
       this.isSynchronized <- synced
+      if this.isSynchronized then this.nextOrderVersion <- this.orderVersion else this.nextOrderVersion <- 0L
       exitWriteLockIf &locker entered
 
   member internal this.MapKey with get() = mapKey and set(key:string) = mapKey <- key
 
   member this.IsRegular with get() = couldHaveRegularKeys and private set (v) = couldHaveRegularKeys <- v
   member this.RegularStep with get() = try this.rkGetStep() with | _ -> 0L
-  member this.SyncRoot with get() = 
-    if syncRoot = null then Interlocked.CompareExchange<obj>(&syncRoot, new Object(), null)
-    else syncRoot
+  member this.SyncRoot 
+    with get() = 
+      if syncRoot = null then Interlocked.CompareExchange<obj>(&syncRoot, new Object(), null) |> ignore
+      syncRoot
   member this.Version with get() = this.version and internal set v = this.version <- v // NB setter only for deserializer
 
   //#endregion
@@ -458,34 +431,37 @@ type SortedMap<'K,'V>
 
   //#region Public members
 
+  member private this.SetCapacity(value) =
+    match value with
+    | c when c = this.values.Length -> ()
+    | c when c < this.size -> raise (ArgumentOutOfRangeException("Small capacity"))
+    | c when c > 0 -> 
+      if not isMutable then invalidOp "SortedMap is not mutable"
+      if couldHaveRegularKeys then
+        Trace.Assert(this.keys.Length = 2)
+      else
+        let kArr : 'K array = OptimizationSettings.ArrayPool.TakeBuffer(c)
+        Array.Copy(this.keys, 0, kArr, 0, this.size)
+        let toReturn = this.keys
+        this.keys <- kArr
+        OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore
+
+      let vArr : 'V array = OptimizationSettings.ArrayPool.TakeBuffer(c)
+      Array.Copy(this.values, 0, vArr, 0, this.size)
+      let toReturn = this.values
+      this.values <- vArr
+      OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore
+    | _ -> ()
+
   member this.Capacity
     with get() = 
-      readLockIf &this.nextOrderVersion &this.orderVersion this.IsSynchronized (fun _ ->
+      readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
         this.values.Length
       )
     and set(value) =
       let entered = enterWriteLockIf &locker this.isSynchronized
       try
-        match value with
-        | c when c = this.values.Length -> ()
-        | c when c < this.size -> raise (ArgumentOutOfRangeException("Small capacity"))
-        | c when c > 0 -> 
-          if not isMutable then invalidOp "SortedMap is not mutable"
-          if couldHaveRegularKeys then
-            Trace.Assert(this.keys.Length = 2)
-          else
-            let kArr : 'K array = OptimizationSettings.ArrayPool.TakeBuffer(c)
-            Array.Copy(this.keys, 0, kArr, 0, this.size)
-            let toReturn = this.keys
-            this.keys <- kArr
-            OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore
-
-          let vArr : 'V array = OptimizationSettings.ArrayPool.TakeBuffer(c)
-          Array.Copy(this.values, 0, vArr, 0, this.size)
-          let toReturn = this.values
-          this.values <- vArr
-          OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore
-        | _ -> ()
+        this.SetCapacity(value)
       finally
         exitWriteLockIf &locker entered
 
@@ -562,7 +538,7 @@ type SortedMap<'K,'V>
           }
       }
 
-  member this.Values 
+  member this.Values
     with get() : IList<'V> =
       { new IList<'V> with
         member x.Count with get() = this.size
@@ -622,12 +598,12 @@ type SortedMap<'K,'V>
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.IndexOfKey(key:'K) : int =
     if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
-    readLockIf &this.nextOrderVersion &this.orderVersion this.IsSynchronized (fun _ ->
+    readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
       this.IndexOfKeyUnchecked(key)
     )
 
   member this.IndexOfValue(value:'V) : int =
-    readLockIf &this.nextOrderVersion &this.orderVersion this.IsSynchronized (fun _ ->
+    readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
       let mutable res = 0
       let mutable found = false
       let valueComparer = Comparer<'V>.Default;
@@ -641,14 +617,14 @@ type SortedMap<'K,'V>
 
   member this.First
     with get() =
-      readLockIf &this.nextOrderVersion &this.orderVersion this.IsSynchronized (fun _ ->
+      readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
         if this.size = 0 then raise (InvalidOperationException("Could not get the first element of an empty map"))
         KeyValuePair(this.keys.[0], this.values.[0])
       )
 
   member this.Last
     with get() =
-      readLockIf &this.nextOrderVersion &this.orderVersion this.IsSynchronized (fun _ ->
+      readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
         if this.size = 0 then raise (InvalidOperationException("Could not get the last element of an empty map"))
         if couldHaveRegularKeys && this.size > 1 then
           Trace.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
@@ -659,7 +635,7 @@ type SortedMap<'K,'V>
   member this.Item
       with get key =
         if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
-        readLockIf &this.nextOrderVersion &this.orderVersion this.IsSynchronized (fun _ ->
+        readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
         // first/last optimization (only last here)
         if this.size = 0 then
           raise (KeyNotFoundException())
@@ -677,56 +653,81 @@ type SortedMap<'K,'V>
         if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(k, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
         // TODO!!!! increment order when not using insert
         /// Sets the value to the key position and returns the index of the key
+
+        let mutable keepOrderVersion = false
+        
+        // NB: we either have to always use InterLocked.Increment before entering the lock, or use volatile write after it
+        // TODO: could we really piggyback here somehow?
         let entered = enterWriteLockIf &locker this.isSynchronized
+        if entered then incrementVolatile64 &this.nextOrderVersion
+
         try
           // first/last optimization (only last here)
           if this.size = 0 then
             this.Insert(0, k, v)
+            keepOrderVersion <- true
           else
             let lc = this.CompareToLast k
             if lc = 0 then // key = last key
               this.values.[this.size-1] <- v
               increment &this.version
-              increment &this.orderVersion
               if subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
             elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
               this.Insert(this.size, k, v)
+              keepOrderVersion <- true
             else
               let index = this.IndexOfKeyUnchecked(k)
               if index >= 0 then // contains key 
                 this.values.[index] <- v
                 increment &this.version
-                increment &this.orderVersion
                 if subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
               else
                 this.Insert(~~~index, k, v)
         finally
-          exitWriteLockIf &locker entered
+          // NB using simple increment/decrement here. If synced then exitWriteLockIf will use 
+          // Interlocked.CAS (or Volatile.Write) which has an implicit full fence
+          if not keepOrderVersion then increment &this.orderVersion
+          if entered then
+            if keepOrderVersion then decrement &this.nextOrderVersion
+            exitWriteLockIf &locker true
+            #if PRERELEASE
+            if this.orderVersion <> this.nextOrderVersion then raise (ApplicationException("this.orderVersion <> this.nextOrderVersion in Item setter"))
+            #else
+            if this.orderVersion <> this.nextOrderVersion then Environment.FailFast("this.orderVersion <> this.nextOrderVersion in Item setter")
+            #endif
 
   // TODO remove try finally
   member this.Add(key, value) : unit =
     if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
+    
+    let mutable keepOrderVersion = false
     let entered = enterWriteLockIf &locker this.isSynchronized
-    //try
-    if this.size = 0 then
-      this.Insert(0, key, value)
-    else
-      // last optimization gives near 2x performance boost
-      let lc = this.CompareToLast key
-      if lc = 0 then // key = last key
-        exitWriteLockIf &locker entered
-        raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
-      elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
-        this.Insert(this.size, key, value)
+    if entered then incrementVolatile64 &this.nextOrderVersion
+    try
+      if this.size = 0 then
+        this.Insert(0, key, value)
+        keepOrderVersion <- true
       else
-        let index = this.IndexOfKeyUnchecked(key)
-        if index >= 0 then // contains key
+        // last optimization gives near 2x performance boost
+        let lc = this.CompareToLast key
+        if lc = 0 then // key = last key
           exitWriteLockIf &locker entered
           raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
+        elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
+          this.Insert(this.size, key, value)
+          keepOrderVersion <- true
         else
-          this.Insert(~~~index, key, value)
-    //finally
-    exitWriteLockIf &locker entered
+          let index = this.IndexOfKeyUnchecked(key)
+          if index >= 0 then // contains key
+            exitWriteLockIf &locker entered
+            raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
+          else
+            this.Insert(~~~index, key, value)
+    finally
+      if not keepOrderVersion then increment &this.orderVersion
+      if entered then
+        if keepOrderVersion then decrement &this.nextOrderVersion
+        exitWriteLockIf &locker true
 
   member this.AddLast(key, value):unit =
     let entered = enterWriteLockIf &locker this.isSynchronized
@@ -737,18 +738,33 @@ type SortedMap<'K,'V>
         let c = this.CompareToLast key
         if c > 0 then 
           this.Insert(this.size, key, value)
-        else 
+        else
           let exn = OutOfOrderKeyException(this.Last.Key, key, "SortedMap.AddLast: New key is smaller or equal to the largest existing key")
           this.onErrorEvent.Trigger(exn)
           raise (exn)
     finally
       exitWriteLockIf &locker entered
 
+  // TODO lockless AddLast for temporary Append implementation
+  [<ObsoleteAttribute("Temp solution, implement Append properly")>]
+  member private this.AddLastUnchecked(key, value) : unit =
+      if this.size = 0 then
+        this.Insert(0, key, value)
+      else
+        let c = this.CompareToLast key
+        if c > 0 then 
+          this.Insert(this.size, key, value)
+        else
+          Environment.FailFast("SortedMap.AddLastUnchecked: New key is smaller or equal to the largest existing key")
+
   member this.AddFirst(key, value):unit =
+    let mutable keepOrderVersion = false
     let entered = enterWriteLockIf &locker this.isSynchronized
+    if entered then incrementVolatile64 &this.nextOrderVersion
     try
       if this.size = 0 then
         this.Insert(0, key, value)
+        keepOrderVersion <- true
       else
         let c = this.CompareToFirst key
         if c < 0 then
@@ -758,7 +774,10 @@ type SortedMap<'K,'V>
           this.onErrorEvent.Trigger(exn)
           raise (exn)
     finally
-      exitWriteLockIf &locker entered
+      if not keepOrderVersion then increment &this.orderVersion
+      if entered then
+        if keepOrderVersion then decrement &this.nextOrderVersion
+        exitWriteLockIf &locker true
     
   // TODO!! move to RemoveMany EQ case, add orderVersion interlocked increments
   member private this.RemoveAt(index):unit =
@@ -895,7 +914,7 @@ type SortedMap<'K,'V>
             Array.fill this.values pivotIndex (this.values.Length - pivotIndex) Unchecked.defaultof<'V>
             increment &this.version
             increment &this.orderVersion
-            this.Capacity <- this.size
+            this.SetCapacity(this.size)
             true
           else
             raise (ApplicationException("wrong result of TryFindWithIndex with GT/GE direction"))
@@ -1038,34 +1057,30 @@ type SortedMap<'K,'V>
       let idx = this.TryFindWithIndex(key, direction, &kvp)
       if idx >= 0 then ValueTuple<_,_>(true, kvp)
       else ValueTuple<_,_>(false, kvp)
-    let tupleResult = readLockIf &this.nextOrderVersion &this.orderVersion this.IsSynchronized res
+    let tupleResult = readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized res
     result <- tupleResult.Value2
     tupleResult.Value1
 
   /// Return true if found exact key
   member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
     if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
-    let entered = enterLockIf syncRoot  this.isSynchronized
-    try
+    let res() = 
       // first/last optimization
       if this.size = 0 then
-        value <- Unchecked.defaultof<'V>
-        false
+        ValueTuple<_,_>(false, Unchecked.defaultof<'V>)
       else
         let lc = this.CompareToLast key
         if lc = 0 then // key = last key
-          value <- this.values.[this.size-1]
-          true
+          ValueTuple<_,_>(true, this.values.[this.size-1])
         else
           let index = this.IndexOfKeyUnchecked(key)
           if index >= 0 then
-            value <- this.values.[index]
-            true
+            ValueTuple<_,_>(true, this.values.[index])
           else
-            value <- Unchecked.defaultof<'V>
-            false
-    finally
-      exitLockIf syncRoot entered
+            ValueTuple<_,_>(false, Unchecked.defaultof<'V>)
+    let tupleResult = readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized res
+    value <- tupleResult.Value2
+    tupleResult.Value1
 
 
   member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
@@ -1087,7 +1102,7 @@ type SortedMap<'K,'V>
       false
 
   override this.GetCursor() =
-    readLockIf &this.nextOrderVersion &this.orderVersion this.IsSynchronized (fun _ ->
+    readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
       if isMutable then
         this.GetCursor(-1, this.orderVersion, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>) :> ICursor<'K,'V>
       else new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
@@ -1096,13 +1111,13 @@ type SortedMap<'K,'V>
 
   // .NETs foreach optimization
   member this.GetEnumerator() = 
-    readLockIf &this.nextOrderVersion &this.orderVersion this.IsSynchronized (fun _ ->
+    readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
       new SortedMapCursor<'K,'V>(this)
     )
 
 
   member internal this.GetSMCursor() = 
-    readLockIf &this.nextOrderVersion &this.orderVersion this.IsSynchronized (fun _ ->
+    readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
       new SortedMapCursor<'K,'V>(this)
     )
 
@@ -1167,19 +1182,16 @@ type SortedMap<'K,'V>
       
         member this.IsContinuous with get() = false
         member p.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
-          let entered = enterLockIf syncRoot  this.isSynchronized
-          try
+          readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
             // TODO! how to do this correct for mutable case. Looks like impossible without copying
             if isBatch then
               Trace.Assert((index = this.size - 1))
               Trace.Assert(not this.IsMutable)
               this :> IReadOnlyOrderedMap<'K,'V>
             else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
-          finally
-            exitLockIf syncRoot entered
+          )
         member p.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
-          let entered = enterLockIf syncRoot  this.isSynchronized
-          try
+          readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
             if (not this.IsMutable) && (index = -1) then
               index <- this.size - 1 // at the last element of the batch
               currentKey <- this.GetKeyByIndex(index)
@@ -1187,14 +1199,12 @@ type SortedMap<'K,'V>
               isBatch <- true
               trueTask
             else falseTask
-          finally
-            exitLockIf syncRoot entered
+          )
 
         member p.Clone() = this.GetCursor(index,cursorVersion, p.CurrentKey, p.CurrentValue) //!currentKey,!currentValue)
       
         member p.MovePrevious() = 
-          let entered = enterLockIf syncRoot  this.isSynchronized
-          try
+          readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
             if index = -1 then p.MoveLast()  // first move when index = -1
             elif cursorVersion =  this.orderVersion then
               if index > 0 && index < this.size then
@@ -1217,12 +1227,10 @@ type SortedMap<'K,'V>
               else  // not found
                 //p.Reset()
                 false
-          finally
-            exitLockIf syncRoot entered
+          )
 
         member p.MoveAt(key:'K, lookup:Lookup) = 
-          let entered = enterLockIf syncRoot  this.isSynchronized
-          try
+          readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
             let mutable kvp = Unchecked.defaultof<_>
             let position = this.TryFindWithIndex(key, lookup, &kvp)
             if position >= 0 then
@@ -1233,12 +1241,10 @@ type SortedMap<'K,'V>
             else
               p.Reset()
               false
-          finally
-            exitLockIf syncRoot entered
+          )
 
         member p.MoveFirst() = 
-          let entered = enterLockIf syncRoot  this.isSynchronized
-          try
+          readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
             if this.size > 0 then
               index <- 0
               currentKey <- this.GetKeyByIndex(index)
@@ -1247,12 +1253,10 @@ type SortedMap<'K,'V>
             else
               p.Reset()
               false
-          finally
-            exitLockIf syncRoot entered
+          )
 
         member p.MoveLast() = 
-          let entered = enterLockIf syncRoot  this.isSynchronized
-          try
+          readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
             if this.size > 0 then
               index <- this.size - 1
               currentKey <- this.GetKeyByIndex(index)
@@ -1261,8 +1265,7 @@ type SortedMap<'K,'V>
             else
               p.Reset()
               false
-          finally
-            exitLockIf syncRoot entered
+          )
 
         member p.CurrentKey with get() = currentKey
 
@@ -1272,7 +1275,7 @@ type SortedMap<'K,'V>
         member p.Current with get() : KVP<'K,'V> = KeyValuePair(currentKey, currentValue)
         member p.Current with get() : obj = box p.Current
         member p.MoveNext() = 
-          readLockIf &this.nextOrderVersion &this.orderVersion this.IsSynchronized (fun _ ->
+          readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
             if cursorVersion = this.orderVersion then
               if index < (this.size - 1) then
                 index <- index + 1
@@ -1311,11 +1314,9 @@ type SortedMap<'K,'V>
 
 
   member this.GetAt(idx:int) =
-    let entered = enterLockIf syncRoot  this.isSynchronized
-    try
+    readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
       if idx >= 0 && idx < this.size then this.values.[idx] else raise (ArgumentOutOfRangeException("idx", "Idx is out of range in SortedMap GetAt method."))
-    finally
-      exitLockIf syncRoot entered
+    )
 
 
   /// Make the capacity equal to the size
@@ -1436,7 +1437,7 @@ type SortedMap<'K,'V>
       if appendMap.IsEmpty then
         0
       else
-        let entered = enterLockIf this.SyncRoot this.isSynchronized
+        let entered = enterWriteLockIf &locker this.isSynchronized
         try
           match option with
           | AppendOption.ThrowOnOverlap _ ->
@@ -1444,7 +1445,7 @@ type SortedMap<'K,'V>
               let mutable c = 0
               for i in appendMap do
                 c <- c + 1
-                this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
               c
             else invalidOp "values overlap with existing"
           | AppendOption.DropOldOverlap ->
@@ -1452,7 +1453,7 @@ type SortedMap<'K,'V>
               let mutable c = 0
               for i in appendMap do
                 c <- c + 1
-                this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
               c
             else
               let removed = this.RemoveMany(appendMap.First.Key, Lookup.GE)
@@ -1460,24 +1461,24 @@ type SortedMap<'K,'V>
               let mutable c = 0
               for i in appendMap do
                 c <- c + 1
-                this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
               c
           | AppendOption.IgnoreEqualOverlap ->
             if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
               let mutable c = 0
               for i in appendMap do
                 c <- c + 1
-                this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
               c
             else
               let isEqOverlap = hasEqOverlap this appendMap
               if isEqOverlap then
                 let appC = appendMap.GetCursor();
                 if appC.MoveAt(this.Last.Key, Lookup.GT) then
-                  this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                  this.AddLastUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                   let mutable c = 1
                   while appC.MoveNext() do
-                    this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                    this.AddLastUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                     c <- c + 1
                   c
                 else 0
@@ -1487,7 +1488,7 @@ type SortedMap<'K,'V>
               let mutable c = 0
               for i in appendMap do
                 c <- c + 1
-                this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
               c
             elif comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
               invalidOp "values do not overlap with existing"
@@ -1496,17 +1497,17 @@ type SortedMap<'K,'V>
               if isEqOverlap then
                 let appC = appendMap.GetCursor();
                 if appC.MoveAt(this.Last.Key, Lookup.GT) then
-                  this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                  this.AddLastUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                   let mutable c = 1
                   while appC.MoveNext() do
-                    this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                    this.AddLastUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                     c <- c + 1
                   c
                 else 0
               else invalidOp "overlapping values are not equal" // TODO unit test
           | _ -> failwith "Unknown AppendOption"
         finally
-          exitLockIf this.SyncRoot entered
+          exitWriteLockIf &locker entered
     
   override this.Finalize() =
     OptimizationSettings.ArrayPool.ReturnBuffer(this.keys) |> ignore
@@ -1659,109 +1660,169 @@ and
     member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
     member this.IsContinuous with get() = false
     member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
-      let entered = enterLockIf this.source.SyncRoot  this.source.isSynchronized
-      try
-        // TODO! how to do this correct for mutable case. Looks like impossible without copying
-        if this.isBatch then
-          Trace.Assert(this.index = this.source.size - 1)
-          Trace.Assert(not this.source.IsMutable)
-          this.source :> IReadOnlyOrderedMap<'K,'V>
-        else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
-      finally
-        exitLockIf this.source.SyncRoot entered
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.orderVersion) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+
+          // TODO! how to do this correct for mutable case. Looks like impossible without copying
+          if this.isBatch then
+            Trace.Assert(this.index = this.source.size - 1)
+            Trace.Assert(not this.source.IsMutable)
+            this.source :> IReadOnlyOrderedMap<'K,'V>
+          else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
+
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextOrderVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      result
 
     member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
-      let entered = enterLockIf this.source.SyncRoot this.source.isSynchronized
-      try
-        if (not this.source.IsMutable) && (this.index = -1) && this.source.size > 0 then
-          this.index <- this.source.size - 1 // at the last element of the batch
-          this.currentKey <- this.source.GetKeyByIndexUnchecked(this.index)
-          this.currentValue <- this.source.values.[this.index]
-          this.isBatch <- true
-          trueTask
-        else falseTask
-      finally
-        exitLockIf this.source.SyncRoot entered
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.orderVersion) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+
+          if (not this.source.IsMutable) && (this.index = -1) && this.source.size > 0 then
+            this.index <- this.source.size - 1 // at the last element of the batch
+            this.currentKey <- this.source.GetKeyByIndexUnchecked(this.index)
+            this.currentValue <- this.source.values.[this.index]
+            this.isBatch <- true
+            trueTask
+          else falseTask
+
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextOrderVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      result
 
     member this.Clone() = 
-      let mutable clone = new SortedMapCursor<'K,'V>(this.source)
-      clone.index <- this.index
-      clone.currentKey <- this.currentKey
-      clone.currentValue <- this.CurrentValue
-      clone.isBatch <- this.isBatch
-      clone
+      let copy = this
+      copy
 
     member this.MovePrevious() = 
-      let entered = enterLockIf this.source.SyncRoot this.source.isSynchronized
-      try
-        if this.index = -1 then this.MoveLast()  // first move when index = -1
-        elif this.cursorVersion =  this.source.orderVersion then
-          if this.index > 0 && this.index < this.source.size then
-            this.index <- this.index - 1
-            this.currentKey <- this.source.GetKeyByIndex(this.index)
-            this.currentValue <- this.source.values.[this.index]
-            true
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.orderVersion) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          if this.index = -1 then this.MoveLast()  // first move when index = -1
+          elif this.cursorVersion =  this.source.orderVersion then
+            if this.index > 0 && this.index < this.source.size then
+              this.index <- this.index - 1
+              this.currentKey <- this.source.GetKeyByIndex(this.index)
+              this.currentValue <- this.source.values.[this.index]
+              true
+            else
+              //p.Reset()
+              false
           else
-            //p.Reset()
-            false
-        else
-          this.cursorVersion <-  this.source.orderVersion // update state to new this.source.version
+            this.cursorVersion <-  this.source.orderVersion // update state to new this.source.version
+            let mutable kvp = Unchecked.defaultof<_>
+            let position = this.source.TryFindWithIndex(this.currentKey, Lookup.LT, &kvp) //currentKey.Value
+            if position > 0 then
+              this.index <- position
+              this.currentKey <- kvp.Key
+              this.currentValue <- kvp.Value
+              true
+            else  // not found
+              //p.Reset()
+              false
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextOrderVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      result
+
+    member this.MoveAt(key:'K, lookup:Lookup) = 
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.orderVersion) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
           let mutable kvp = Unchecked.defaultof<_>
-          let position = this.source.TryFindWithIndex(this.currentKey, Lookup.LT, &kvp) //currentKey.Value
-          if position > 0 then
+          let position = this.source.TryFindWithIndex(key, lookup, &kvp)
+          if position >= 0 then
             this.index <- position
             this.currentKey <- kvp.Key
             this.currentValue <- kvp.Value
             true
-          else  // not found
-            //p.Reset()
+          else
+            this.Reset()
             false
-      finally
-        exitLockIf this.source.SyncRoot entered
-
-    member this.MoveAt(key:'K, lookup:Lookup) = 
-      let entered = enterLockIf this.source.SyncRoot this.source.isSynchronized
-      try
-        let mutable kvp = Unchecked.defaultof<_>
-        let position = this.source.TryFindWithIndex(key, lookup, &kvp)
-        if position >= 0 then
-          this.index <- position
-          this.currentKey <- kvp.Key
-          this.currentValue <- kvp.Value
-          true
-        else
-          this.Reset()
-          false
-      finally
-        exitLockIf this.source.SyncRoot entered
+      /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextOrderVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      result
 
     member this.MoveFirst() = 
-      let entered = enterLockIf this.source.SyncRoot this.source.isSynchronized
-      try
-        if this.source.size > 0 then
-          this.index <- 0
-          this.currentKey <- this.source.GetKeyByIndex(this.index)
-          this.currentValue <- this.source.values.[this.index]
-          true
-        else
-          this.Reset()
-          false
-      finally
-        exitLockIf this.source.SyncRoot entered
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.orderVersion) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          if this.source.size > 0 then
+            this.index <- 0
+            this.currentKey <- this.source.GetKeyByIndex(this.index)
+            this.currentValue <- this.source.values.[this.index]
+            true
+          else
+            this.Reset()
+            false
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextOrderVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      result
 
     member this.MoveLast() = 
-      let entered = enterLockIf this.source.SyncRoot this.source.isSynchronized
-      try
-        if this.source.size > 0 then
-          this.index <- this.source.size - 1
-          this.currentKey <- this.source.GetKeyByIndex(this.index)
-          this.currentValue <- this.source.values.[this.index]
-          true
-        else
-          this.Reset()
-          false
-      finally
-        exitLockIf this.source.SyncRoot entered
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.orderVersion) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          if this.source.size > 0 then
+            this.index <- this.source.size - 1
+            this.currentKey <- this.source.GetKeyByIndex(this.index)
+            this.currentValue <- this.source.values.[this.index]
+            true
+          else
+            this.Reset()
+            false
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextOrderVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      result
 
     member this.CurrentKey with get() = this.currentKey
     member this.CurrentValue with get() = this.currentValue

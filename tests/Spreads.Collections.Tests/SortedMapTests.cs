@@ -17,6 +17,7 @@ namespace Spreads.Collections.Tests {
             var sw = new Stopwatch();
             sw.Start();
             var sm = new SortedMap<DateTime, double>();
+            //sm.IsSynchronized = true;
             var c = sm.GetCursor();
 
             for (int i = 0; i < count; i++) {
@@ -37,6 +38,7 @@ namespace Spreads.Collections.Tests {
             var sw = new Stopwatch();
             sw.Start();
             var sm = new SortedMap<DateTime, double>();
+            //sm.IsSynchronized = true;
             var c = sm.GetCursor();
 
             for (int i = 0; i < count; i++) {
