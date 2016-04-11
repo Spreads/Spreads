@@ -56,7 +56,7 @@ module TestUtils =
 // TODO clean up this from unused snippets
 
 [<AutoOpen>]
-module Utils =
+module internal Utils =
   // locking using use keyword
   //[<ObsoleteAttribute("When performance is *critical*, consider using enter/exit with try/catch because this shortcut allocates new IDisposable")>]
   // TODO (low) this only remains in misc maps, not in the core ones. Replace later 
@@ -100,7 +100,20 @@ module Utils =
       //Interlocked.Exchange(&locker, 0) |> ignore
       #endif
 
-  //let inline readLock (nextVersion:int64)
+  // This read lock only reads values and is exception-safe. If f() throws, we do not corrupt any state.
+  let inline readLockIf (nextVersion:int64 byref) (currentVersion:int64 byref) (condition:bool) (f:unit -> 'T) : 'T =
+    let mutable value = Unchecked.defaultof<'T>
+    let mutable doSpin = true
+    let sw = new SpinWait()
+    while doSpin do
+      let version = if condition then Volatile.Read(&currentVersion) else currentVersion
+      value <- f()
+      if condition then
+        let nextVersion = Volatile.Read(&nextVersion)
+        if version = nextVersion then doSpin <- false
+        else sw.SpinOnce()
+      else doSpin <- false
+    value
 
   let inline increment (value:byref<_>) = value <- value + LanguagePrimitives.GenericOne
 
