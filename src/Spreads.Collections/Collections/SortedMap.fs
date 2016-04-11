@@ -139,6 +139,8 @@ type SortedMap<'K,'V>
   [<NonSerializedAttribute>]
   let mutable locker : int = 0
   [<NonSerializedAttribute>]
+  let ownerThreadId : int = Thread.CurrentThread.ManagedThreadId
+  [<NonSerializedAttribute>]
   let mutable mapKey = ""
 
 
@@ -411,10 +413,17 @@ type SortedMap<'K,'V>
   member this.IsSynchronized 
     with get() = this.isSynchronized
     and set(synced:bool) =
+      // TODO (!) This feels wrong. The only case we should care is when 
+      // we actively add to a map and then at the same time create a cursor
+      // that sets IsSynced to true from false. Must ensure that this works correctly.
       let entered = enterWriteLockIf &locker this.isSynchronized
       this.isSynchronized <- synced
       if this.isSynchronized then this.nextOrderVersion <- this.orderVersion else this.nextOrderVersion <- 0L
       exitWriteLockIf &locker entered
+      readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
+        // NB should return only after any ponential concurrent writer exited its lock
+        ()
+      )
 
   member internal this.MapKey with get() = mapKey and set(key:string) = mapKey <- key
 
@@ -821,13 +830,16 @@ type SortedMap<'K,'V>
       this.onErrorEvent.Trigger(NotImplementedException("TODO remove should trigger a special exception"))
 
 
-  member this.Remove(key):bool =
+  member this.Remove(key): bool =
     if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
     let entered = enterWriteLockIf &locker this.isSynchronized
+    if entered then incrementVolatile64 &this.nextOrderVersion
     try
       if not isMutable then invalidOp "SortedMap is not mutable"
       let index = this.IndexOfKeyUnchecked(key)
-      if index >= 0 then this.RemoveAt(index)
+      if index >= 0 then 
+        this.RemoveAt(index)
+        increment &this.orderVersion
       index >= 0
     finally
       exitWriteLockIf &locker entered
@@ -835,10 +847,12 @@ type SortedMap<'K,'V>
 
   member this.RemoveFirst([<Out>]result: byref<KVP<'K,'V>>):bool =
     let entered = enterWriteLockIf &locker this.isSynchronized
+    if entered then incrementVolatile64 &this.nextOrderVersion
     try
       if this.size > 0 then
         result <- this.First
         this.RemoveAt(0)
+        increment &this.orderVersion
         true
       else false
     finally
@@ -847,10 +861,12 @@ type SortedMap<'K,'V>
 
   member this.RemoveLast([<Out>]result: byref<KeyValuePair<'K, 'V>>):bool =
     let entered = enterWriteLockIf &locker this.isSynchronized
+    if entered then incrementVolatile64 &this.nextOrderVersion
     try
       if this.size > 0 then
         result <-this.Last
         this.RemoveAt(this.size - 1)
+        increment &this.orderVersion
         true
       else false
     finally
@@ -859,6 +875,7 @@ type SortedMap<'K,'V>
   /// Removes all elements that are to `direction` from `key`
   member this.RemoveMany(key:'K,direction:Lookup) : bool =
     let entered = enterWriteLockIf &locker this.isSynchronized
+    if entered then incrementVolatile64 &this.nextOrderVersion
     try
       if not isMutable then invalidOp "SortedMap is not mutable"
       if this.size = 0 then false
@@ -871,6 +888,7 @@ type SortedMap<'K,'V>
           let index = this.IndexOfKeyUnchecked(key)
           if index >= 0 then 
             this.RemoveAt(index)
+            increment &this.orderVersion
             true
           else false
         | Lookup.LT | Lookup.LE ->
@@ -878,8 +896,7 @@ type SortedMap<'K,'V>
             false
           elif pivotIndex >=0 then // remove elements below pivot and pivot
             this.size <- this.size - (pivotIndex + 1)
-            increment &this.version
-            increment &this.orderVersion
+            
             if couldHaveRegularKeys then
               this.keys.[0] <- (diffCalc.Add(this.keys.[0], int64 (pivotIndex+1)))
               if this.size > 1 then 
@@ -893,6 +910,9 @@ type SortedMap<'K,'V>
 
             Array.Copy(this.values, pivotIndex + 1, this.values, 0, this.size)
             Array.fill this.values this.size (this.values.Length - this.size) Unchecked.defaultof<'V>
+            
+            increment &this.version
+            increment &this.orderVersion
             true
           else
             raise (ApplicationException("wrong result of TryFindWithIndex with LT/LE direction"))
@@ -912,9 +932,10 @@ type SortedMap<'K,'V>
             if not couldHaveRegularKeys then
               Array.fill this.keys pivotIndex (this.values.Length - pivotIndex) Unchecked.defaultof<'K>
             Array.fill this.values pivotIndex (this.values.Length - pivotIndex) Unchecked.defaultof<'V>
+            this.SetCapacity(this.size)
+
             increment &this.version
             increment &this.orderVersion
-            this.SetCapacity(this.size)
             true
           else
             raise (ApplicationException("wrong result of TryFindWithIndex with GT/GE direction"))
@@ -1102,6 +1123,9 @@ type SortedMap<'K,'V>
       false
 
   override this.GetCursor() =
+    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then 
+      // NB: via property with locks
+      this.IsSynchronized <- true
     readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
       if isMutable then
         this.GetCursor(-1, this.orderVersion, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>) :> ICursor<'K,'V>
@@ -1110,13 +1134,19 @@ type SortedMap<'K,'V>
 
 
   // .NETs foreach optimization
-  member this.GetEnumerator() = 
+  member this.GetEnumerator() =
+    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then 
+      // NB: via property with locks
+      this.IsSynchronized <- true
     readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
       new SortedMapCursor<'K,'V>(this)
     )
 
 
-  member internal this.GetSMCursor() = 
+  member internal this.GetSMCursor() =
+    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then 
+      // NB: via property with locks
+      this.IsSynchronized <- true
     readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
       new SortedMapCursor<'K,'V>(this)
     )

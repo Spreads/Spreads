@@ -1221,7 +1221,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var sm1 = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
-
+            sm1.IsSynchronized = true;
+            sm2.IsSynchronized = true;
             var count = 100;
 
             for (int i = 0; i < count; i++) {
