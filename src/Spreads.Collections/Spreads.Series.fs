@@ -260,15 +260,12 @@ and
 //              OptionalValue(Func<_,_>(fBatch'))
 //            else None
         CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(source.GetCursor), mapF, fBatch) :> ICursor<_,_>) :> Series<'K,'V2>
-      #if PRERELEASE // we could switch off this optimization in prerelease builds
       if OptimizationSettings.CombineFilterMapDelegates then
         match box source with
         | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc)
         | _ ->  defaultMap()
       else defaultMap()
-      #else
-      defaultMap()
-      #endif
+
 
 
     // TODO! (perf) optimize ZipN for 2, or reimplement Zip for 'V/'V2->'R, see commented out cursor below

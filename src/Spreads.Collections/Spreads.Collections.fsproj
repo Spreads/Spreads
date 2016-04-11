@@ -51,7 +51,7 @@
     <WarningLevel>3</WarningLevel>
     <DocumentationFile />
     <OtherFlags>--warnon:52</OtherFlags>
-    <OutputPath>bin\Prerelease\</OutputPath>
+    <OutputPath>..\..\bin\</OutputPath>
   </PropertyGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '11.0'">

@@ -859,59 +859,59 @@ module CollectionsBenchmarks =
 
     GC.Collect();
 
-    let deedleSeries = ref (Series.ofObservations([]))
-    let mutable list1 = new List<int64>()
-    for r in 0..0 do
-      perf (count) "DeedleSeries insert" (fun _ ->
-        list1 <- new List<int64>()
-        let list2 = new List<double>()
-        //let arr = Array.zeroCreate ((int count)+1) // System.Collections.Generic.List(count |> int)
-        for i in 0L..(count) do
-          list1.Add(i)
-          list2.Add(double i)
-          //arr.[int i] <- i
-        deedleSeries := Deedle.Series(list1, list2)
-      )
-
-    for r in 0..0 do
-      let mutable res = Unchecked.defaultof<_>
-      perf (count) "DeedleSeries Add/divide Chained" (fun _ ->
-        res <- !deedleSeries 
-          |> Series.map (fun _ x -> x + 123456.0) 
-          |> Series.map (fun _ x -> x/789.0)
-          |> Series.map (fun _ x -> x*10.0)
-        ()
-      )
-      if res.ValueCount < 1 then failwith "avoid gc" 
-      ()
-
-    for r in 0..0 do
-      let mutable res = Unchecked.defaultof<_>
-      perf (count) "DeedleSeries Operator Add/divide Chained" (fun _ ->
-        res <- ((!deedleSeries + 123456.0) /789.0) * 10.0
-        ()
-      )
-      if res.ValueCount < 1 then failwith "avoid gc" 
-      ()
-
-    for r in 0..0 do
-      let mutable res = Unchecked.defaultof<_>
-      perf (count) "DeedleSeries Add/divide Inline" (fun _ ->
-        res <- !deedleSeries 
-          |> Series.map (fun _ x -> ((x + 123456.0)/789.0)*10.0) 
-        ()
-      )
-      if res.ValueCount < 1 then failwith "avoid gc" 
-      ()
-
-    for r in 0..0 do
-      let mutable res = Unchecked.defaultof<_>
-      perf (count) "DeedleSeries Operator Add/divide" (fun _ ->
-        res <- ((!deedleSeries + 123456.0)/789.0) * 10.0
-        ()
-      )
-      if res.ValueCount < 1 then failwith "avoid gc" 
-      ()
+//    let deedleSeries = ref (Series.ofObservations([]))
+//    let mutable list1 = new List<int64>()
+//    for r in 0..0 do
+//      perf (count) "DeedleSeries insert" (fun _ ->
+//        list1 <- new List<int64>()
+//        let list2 = new List<double>()
+//        //let arr = Array.zeroCreate ((int count)+1) // System.Collections.Generic.List(count |> int)
+//        for i in 0L..(count) do
+//          list1.Add(i)
+//          list2.Add(double i)
+//          //arr.[int i] <- i
+//        deedleSeries := Deedle.Series(list1, list2)
+//      )
+//
+//    for r in 0..0 do
+//      let mutable res = Unchecked.defaultof<_>
+//      perf (count) "DeedleSeries Add/divide Chained" (fun _ ->
+//        res <- !deedleSeries 
+//          |> Series.map (fun _ x -> x + 123456.0) 
+//          |> Series.map (fun _ x -> x/789.0)
+//          |> Series.map (fun _ x -> x*10.0)
+//        ()
+//      )
+//      if res.ValueCount < 1 then failwith "avoid gc" 
+//      ()
+//
+//    for r in 0..0 do
+//      let mutable res = Unchecked.defaultof<_>
+//      perf (count) "DeedleSeries Operator Add/divide Chained" (fun _ ->
+//        res <- ((!deedleSeries + 123456.0) /789.0) * 10.0
+//        ()
+//      )
+//      if res.ValueCount < 1 then failwith "avoid gc" 
+//      ()
+//
+//    for r in 0..0 do
+//      let mutable res = Unchecked.defaultof<_>
+//      perf (count) "DeedleSeries Add/divide Inline" (fun _ ->
+//        res <- !deedleSeries 
+//          |> Series.map (fun _ x -> ((x + 123456.0)/789.0)*10.0) 
+//        ()
+//      )
+//      if res.ValueCount < 1 then failwith "avoid gc" 
+//      ()
+//
+//    for r in 0..0 do
+//      let mutable res = Unchecked.defaultof<_>
+//      perf (count) "DeedleSeries Operator Add/divide" (fun _ ->
+//        res <- ((!deedleSeries + 123456.0)/789.0) * 10.0
+//        ()
+//      )
+//      if res.ValueCount < 1 then failwith "avoid gc" 
+//      ()
 
     Console.WriteLine("----------------")
   [<Test>]
@@ -1015,6 +1015,7 @@ module CollectionsBenchmarks =
       )
 
     Console.WriteLine("----------------")
+    OptimizationSettings.CombineFilterMapDelegates <- true
   [<Test>]
   let CompareFunctionalBindCursorWithCursorBind_run() = CompareFunctionalBindCursorWithCursorBind(1000000L)
 

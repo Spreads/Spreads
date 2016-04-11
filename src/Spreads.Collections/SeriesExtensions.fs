@@ -53,16 +53,13 @@ type SeriesExtensions () =
     /// a single mapFilter cursor with nested funcs. !!! Check if this gives any per gain !!! 
     [<Extension>]
     static member Map(source: ISeries<'K,'V>, mapFunc:Func<'V,'V2>) : Series<'K,'V2> =
-#if PRERELEASE // we could switch off this optimization in prerelease builds
       if OptimizationSettings.CombineFilterMapDelegates then
-#endif
         match source with
         | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc)
         | _ ->
           CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<_,_> ) :> Series<'K,'V2>
-#if PRERELEASE
       else CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<_,_> ) :> Series<'K,'V2>
-#endif
+
 //    [<Extension>]
 //    static member inline Map(source: Series<'K,'V>, mapFunc:Func<'K,'K>) : Series<'K,'V> =
 //      CursorSeries(fun _ -> new MapKeysCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
