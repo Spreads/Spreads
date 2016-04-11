@@ -310,7 +310,7 @@ type SortedMap<'K,'V>
       #if PRERELEASE
       // TODO why we check here if the method is named 'unchecked'?
       // (TODO clean this two comment lines) if uint32 index >= uint32 this.size then raise (ArgumentOutOfRangeException("index"))
-      Trace.Assert(uint32 index >= uint32 this.size, "Index must be checked before calling GetPairByIndexUnchecked")
+      Trace.Assert(uint32 index < uint32 this.size, "Index must be checked before calling GetPairByIndexUnchecked")
       #endif
       KeyValuePair(this.rkKeyAtIndex index, this.values.[index])
     else KeyValuePair(this.keys.[index], this.values.[index]) 
@@ -321,8 +321,10 @@ type SortedMap<'K,'V>
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.CompareToLast (k:'K) =
-    if couldHaveRegularKeys && this.size > 1 then 
-      Debug.Assert(not <| Unchecked.equals rkLast Unchecked.defaultof<'K>)
+    if couldHaveRegularKeys && this.size > 1 then
+      #if PRERELEASE
+      Trace.Assert(not <| Unchecked.equals rkLast Unchecked.defaultof<'K>)
+      #endif
       comparer.Compare(k, rkLast)
     else comparer.Compare(k, this.keys.[this.size-1])
 
@@ -1288,7 +1290,7 @@ type SortedMap<'K,'V>
         member p.MoveNext() = 
           let entered = enterLockIf syncRoot isSynchronized
           try
-            if cursorVersion =  this.orderVersion then
+            if cursorVersion = this.orderVersion then
               if index < (this.size - 1) then
                 index <- index + 1
                 // TODO!! (perf) regular keys were supposed to speed up things, not to slow down by 50%! 
