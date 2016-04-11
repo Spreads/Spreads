@@ -48,10 +48,13 @@ type internal OptimizationSettings() =
   /// The extension project has an implementation for doubles, and the performance gain is quite visible in benchmarks.
   static member val ArrayPool =
     {new IArrayPool with
-        member x.TakeBuffer<'T>(size) = Array.zeroCreate<'T> size
-        member x.ReturnBuffer(buffer): int = 0
-        member x.BorrowBuffer(buffer): int = 0
-        member x.ReferenceCount(buffer) = 0
+        member x.TakeBuffer<'T>(size) = System.Buffers.ArrayPool<'T>.Shared.Rent(size)
+        member x.ReturnBuffer(buffer): int = 
+          System.Buffers.ArrayPool<'T>.Shared.Return(buffer)
+          0
+        // TODO move ref count impl to .Core from .Extensions
+        member x.BorrowBuffer(buffer): int = raise (NotImplementedException())
+        member x.ReferenceCount(buffer) = raise (NotImplementedException())
         member x.Clear(): unit = ()
     } with get, set
 
