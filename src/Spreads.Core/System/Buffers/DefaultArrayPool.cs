@@ -11,7 +11,7 @@ namespace System.Buffers
         /// <summary>The default maximum length of each array in the pool (2^20).</summary>
         private const int DefaultMaxArrayLength = 1024 * 1024;
         /// <summary>The minimum length of an array in the pool.</summary>
-        private const int MinimumArrayLength = 16;
+        private const int MinimumArrayLength = 2;
 
         private readonly DefaultArrayPoolBucket<T>[] _buckets;
 
