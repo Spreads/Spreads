@@ -1,18 +1,19 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace Spreads.Collections.Tests {
 
     [TestFixture]
-	public class SortedMapTests {
+    public class SortedMapTests {
 
-		[SetUp]
-		public void Init() {
-		}
-		
-		[Test]
-		public void CouldEnumerateGrowingSM() {
+        [SetUp]
+        public void Init() {
+        }
+
+        [Test]
+        public void CouldEnumerateGrowingSM() {
             var count = 1000000;
             var sw = new Stopwatch();
             sw.Start();
@@ -44,8 +45,7 @@ namespace Spreads.Collections.Tests {
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 var version = sm.Version;
-                if (i > 10)
-                {
+                if (i > 10) {
                     sm[DateTime.UtcNow.Date.AddSeconds(i - 10)] = i - 10 + 1;
                     Assert.IsTrue(sm.Version > version);
                 }
@@ -82,7 +82,7 @@ namespace Spreads.Collections.Tests {
         [Test]
         public void CouldMoveAtLE() {
             var scm = new SortedMap<long, long>();
-            for (long i = int.MaxValue; i < int.MaxValue*4L; i = i + int.MaxValue) {
+            for (long i = int.MaxValue; i < int.MaxValue * 4L; i = i + int.MaxValue) {
                 scm[i] = i;
             }
 
@@ -103,6 +103,32 @@ namespace Spreads.Collections.Tests {
             Assert.AreEqual(1, sm2.First.Value);
             Assert.AreEqual(1, sm2.First.Key);
 
+        }
+
+
+        [Test]
+        public void IsSyncedIsSetAutomaticallyForCursor() {
+            var sm = new SortedMap<long, long>();
+            sm.Add(1, 1);
+
+            Task.Run(() => {
+                var c = sm.GetCursor();
+                c.MoveNext();
+            }).Wait();
+            Assert.IsTrue(sm.IsSynchronized);
+        }
+
+        [Test]
+        public void IsSyncedIsSetAutomaticallyForEnumerator() {
+            var sm = new SortedMap<long, long>();
+            sm.Add(1, 1);
+
+            Task.Run(() => {
+                foreach (var l in sm) {
+                    Assert.AreEqual(1, l.Value);
+                }
+            }).Wait();
+            Assert.IsTrue(sm.IsSynchronized);
         }
 
     }

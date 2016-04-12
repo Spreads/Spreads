@@ -32,42 +32,19 @@ open System.Threading.Tasks
 open Spreads
 open Spreads.Collections
 
-// TODO single writer doesn't need locks, but needs atomic increments
 
-// isSyncronized means completely thread unsafe. When it is false, the only cost should be checking it and incrementing next order version
-// TODO set isSync to true whenever we create a cursor from a thread different from the constructor thread. All other cases should be manual.
-// E.g. concurrent reading from a different thread must explicitly set isSynced to true
-
-// TODO nextOrder increment must happen before entering write lock, so that implicit memory barrie will affect it
+// NB: IsSyncronized = false means completely thread unsafe. When it is false, the only cost should be checking it and incrementing next order version.
+// IsSyncronized is set to true whenever we create a cursor from a thread different from the constructor thread. 
+// IsSyncronized is true by default - better to be safe than sorry.
 
 
-
-// TODO settable IsSyncronized with check on every mutation
-// TODO Size to Count
-
-// Why regular keys? Because we do not care about daily or hourly data, but there are 1440 (480) minutes in a day (trading hours)
+// NB: Why regular keys? Because we do not care about daily or hourly data, but there are 1440 (480) minutes in a day (trading hours)
 // with the same diff between each consequitive minute. The number is much bigger with seconds and msecs so that
 // memory saving is meaningful, while vectorized calculations on values benefit from fast comparison of regular keys.
 // Ticks (and seconds for illiquid instruments) are not regular, but they are never equal among different instruments.
 
-// TODOs
-// (done, do it again) test rkLast where it is used, possibly it is not updated in some place where an update is needed
-// TODO Test binary & JSON.NET (de)serialization
-// (done, KeyComparer was slow) regular add and iterate are slower than the default, which should not be the case at least for add (do we check for rkLast equality?)
-// TODO tests with regular keys and step > 1, especially for LT/LE/GT/GE lookups
-// TODO cursor tests: all directions, call finished cursor more than once should return false not error.
-// TODO events as they are kill performance, see http://v2matveev.blogspot.ru/2010/06/f-performance-of-events.html... - even the fast events from the blog
-// TODO read only must have internal setter (or forcedReadOnly internal field) that will indicate that the series will never mutate and it is safe to reuse
-// keys array, e.g. for mapValues.
 
-
-
-module internal RegularKeys =
-  
-  let foo = "bar"
-
-
-/// Mutable sorted IOrderedMap<'K,'V> implementation based similar to SCG.SortedList<'K,'V>
+/// Mutable sorted thread-safe IOrderedMap<'K,'V> implementation similar to SCG.SortedList<'K,'V>
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
 [<DebuggerTypeProxy(typeof<IDictionaryDebugView<_,_>>)>]
@@ -145,38 +122,49 @@ type SortedMap<'K,'V>
 
 
   do
+    this.isSynchronized <- true
     this.constructorThread <- Thread.CurrentThread.ManagedThreadId
 
     let tempCap = if capacity.IsSome then capacity.Value else 1
     if dictionary.IsNone || dictionary.Value.Count = 0 then // otherwise we will set them in dict processing part
-      this.keys <- OptimizationSettings.ArrayPool.TakeBuffer (if couldHaveRegularKeys then 2 else tempCap) // regular keys are the first and the second value, their diff is the step
+      this.keys <- 
+        if couldHaveRegularKeys then 
+          // regular keys are the first and the second value, their diff is the step
+          // NB: Buffer pools could return a buffer greater than the requested length,
+          // but for regular keys we alway need a fixed-length array of size 2, so we allocate a new one.
+          Array.zeroCreate 2 
+        else OptimizationSettings.ArrayPool.TakeBuffer (tempCap) 
     this.values <- OptimizationSettings.ArrayPool.TakeBuffer tempCap
 
     if dictionary.IsSome && dictionary.Value.Count > 0 then
       match dictionary.Value with
       | :? SortedMap<'K,'V> as map ->
+        if not map.IsMutable then Trace.TraceWarning("TODO: reuse arrays of immutable map")
         couldHaveRegularKeys <- map.IsRegular
-        this.SetCapacity(map.Capacity)
+        // NB We set capacity to the size of input map
+        // and then use Key/Value properties, not fields, to copy keys/values
+        this.SetCapacity(map.size)
         this.size <- map.size
-        this.isSynchronized <- map.isSynchronized
-        map.keys.CopyTo(this.keys, 0)
-        map.values.CopyTo(this.values, 0)
+        map.Keys.CopyTo(this.keys, 0) // NB property, not field
+        map.Values.CopyTo(this.values, 0) // // NB property, not field
       | _ ->
         if capacity.IsSome && capacity.Value < dictionary.Value.Count then 
           raise (ArgumentException("capacity is less then dictionary this.size"))
         else
           this.SetCapacity(dictionary.Value.Count)
-        let tempKeys = dictionary.Value.Keys |> Seq.toArray
+        
+        let tempKeys = OptimizationSettings.ArrayPool.TakeBuffer(dictionary.Value.Keys.Count)
+        dictionary.Value.Keys.CopyTo(tempKeys, 0)
         dictionary.Value.Values.CopyTo(this.values, 0)
+        // NB IDictionary guarantees there is no duplicates
         Array.Sort(tempKeys, this.values, comparer)
         this.size <- dictionary.Value.Count
 
-        // TODO review
         if couldHaveRegularKeys && this.size > 1 then // if could be regular based on initial check of comparer type
-          let isReg, step, firstArr = this.rkCheckArray tempKeys this.size (comparer :?> IKeyComparer<'K>)
+          let isReg, step, regularKeys = this.rkCheckArray tempKeys this.size (comparer :?> IKeyComparer<'K>)
           couldHaveRegularKeys <- isReg
           if couldHaveRegularKeys then 
-            this.keys <- firstArr
+            this.keys <- regularKeys
             OptimizationSettings.ArrayPool.ReturnBuffer tempKeys |> ignore
             rkLast <- this.rkKeyAtIndex (this.size - 1)
           else
@@ -184,8 +172,6 @@ type SortedMap<'K,'V>
         else
           this.keys <- tempKeys
         
-      
-
 
 #if FX_NO_BINARY_SERIALIZATION
 #else
@@ -401,7 +387,7 @@ type SortedMap<'K,'V>
       if isMutable then 
           isMutable <- false
           // immutable doesn't need sync
-          this.isSynchronized <- false // TODO the same for SCM
+          this.IsSynchronized <- false // TODO the same for SCM
           if subscribersCounter > 0 then this.onCompletedEvent.Trigger(true)
     finally
       exitWriteLockIf &locker entered
@@ -413,16 +399,13 @@ type SortedMap<'K,'V>
   member this.IsSynchronized 
     with get() = this.isSynchronized
     and set(synced:bool) =
-      // TODO (!) This feels wrong. The only case we should care is when 
-      // we actively add to a map and then at the same time create a cursor
-      // that sets IsSynced to true from false. Must ensure that this works correctly.
-      let entered = enterWriteLockIf &locker this.isSynchronized
-      this.isSynchronized <- synced
-      if this.isSynchronized then this.nextOrderVersion <- this.orderVersion else this.nextOrderVersion <- 0L
-      exitWriteLockIf &locker entered
-      readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
-        // NB should return only after any ponential concurrent writer exited its lock
-        ()
+      let wasSynced = Volatile.Read(&this.isSynchronized)
+      readLockIf &this.nextOrderVersion &this.orderVersion wasSynced (fun _ ->
+        // NB: multiple set of the same value is ok as long as all write method
+        // read this.isSynchronized into a local variable before writing
+        // (all write methods should use entered var and not touch this.isSynced after entering locks)
+        Volatile.Write(&this.isSynchronized, synced)
+        if synced && not wasSynced then this.nextOrderVersion <- this.orderVersion
       )
 
   member internal this.MapKey with get() = mapKey and set(key:string) = mapKey <- key
