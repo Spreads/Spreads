@@ -427,7 +427,7 @@ namespace Spreads.Collections.Tests.Cursors {
             //    Assert.AreEqual(c + 1, kvp.Value);
             //    c++;
             //}
-
+            OptimizationSettings.AlwaysBatch = false;
         }
 
 

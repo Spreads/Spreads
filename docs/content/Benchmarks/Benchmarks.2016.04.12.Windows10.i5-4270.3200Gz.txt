@@ -1,0 +1,388 @@
+Series Add, #1000000, ops: 5649717, pm: 33, em: 33, g+: 12
+Series Read, #1000000, ops: 52631578, pm: 0, em: 0, g+: 6
+Series Add/divide Chained, #1000000, ops: 19230769, pm: 0, em: 0, g+: 6
+Series Add/divide Chained, #1000000, ops: 35714285, pm: 0, em: 0, g+: 6
+Series Add/divide Chained, #1000000, ops: 35714285, pm: 0, em: 0, g+: 6
+Series Add/divide Chained, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+Series Add/divide Chained, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+Series Add/divide Chained, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+Series Add/divide Chained, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+Series Add/divide Chained, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+Series Add/divide Chained, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+Series Add/divide Chained, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+Series Add/Delete Inline, #1000000, ops: 43478260, pm: 0, em: 0, g+: 6
+Series Add/Delete Inline, #1000000, ops: 41666666, pm: 0, em: 0, g+: 6
+Series Add/Delete Inline, #1000000, ops: 45454545, pm: 0, em: 0, g+: 6
+Series NonOpt Add/divide Chained, #1000000, ops: 18181818, pm: 0, em: 0, g+: 6
+Series NonOpt Add/divide Chained, #1000000, ops: 21276595, pm: 0, em: 0, g+: 6
+Series NonOpt Add/divide Chained, #1000000, ops: 20408163, pm: 0, em: 0, g+: 6
+Series Opt Add/divide Chained, #1000000, ops: 30303030, pm: 0, em: 0, g+: 6
+Series Opt Add/divide Chained, #1000000, ops: 31250000, pm: 0, em: 0, g+: 6
+Series Opt Add/divide Chained, #1000000, ops: 31250000, pm: 0, em: 0, g+: 6
+Series Opt Add/divide Chained, #1000000, ops: 32258064, pm: 0, em: 0, g+: 6
+Series Opt Add/divide Chained, #1000000, ops: 31250000, pm: 0, em: 0, g+: 6
+Series Opt Add/divide Chained, #1000000, ops: 30303030, pm: 0, em: 0, g+: 6
+Series Opt Add/divide Chained, #1000000, ops: 29411764, pm: 0, em: 0, g+: 6
+Series Opt Add/divide Chained, #1000000, ops: 30303030, pm: 0, em: 0, g+: 6
+Series Opt Add/divide Chained, #1000000, ops: 31250000, pm: 0, em: 0, g+: 6
+Series Opt Add/divide Chained, #1000000, ops: 31250000, pm: 0, em: 0, g+: 6
+LINQ Add/divide Chained, #1000000, ops: 30303030, pm: 0, em: 0, g+: 6
+LINQ Add/divide Chained, #1000000, ops: 38461538, pm: 0, em: 0, g+: 6
+LINQ Add/divide Chained, #1000000, ops: 38461538, pm: 0, em: 0, g+: 6
+LINQ Add/Delete Inline, #1000000, ops: 45454545, pm: 0, em: 0, g+: 6
+LINQ Add/Delete Inline, #1000000, ops: 45454545, pm: 0, em: 0, g+: 6
+LINQ Add/Delete Inline, #1000000, ops: 47619047, pm: 0, em: 0, g+: 6
+Streams Add/divide Chained, #1000000, ops: 16129032, pm: 0, em: 0, g+: 6
+Streams Add/divide Chained, #1000000, ops: 31250000, pm: 0, em: 0, g+: 6
+Streams Add/divide Chained, #1000000, ops: 31250000, pm: 0, em: 0, g+: 6
+Streams Add/divide Inline, #1000000, ops: 29411764, pm: 0, em: 0, g+: 6
+Streams Add/divide Inline, #1000000, ops: 32258064, pm: 0, em: 0, g+: 6
+Streams Add/divide Inline, #1000000, ops: 31250000, pm: 0, em: 0, g+: 6
+----------------
+Series Add, #1000000, ops: 18518518, pm: 16, em: 16, g+: 6
+Series Read, #1000000, ops: 58823529, pm: 0, em: 0, g+: 6
+Series SMA->Map, #1000000, ops: 3412969, pm: 0, em: 0, g+: 6
+Series SMA->Map, #1000000, ops: 6578947, pm: 0, em: 0, g+: 6
+Series SMA->Map, #1000000, ops: 6410256, pm: 0, em: 0, g+: 6
+Series SMA->Map, #1000000, ops: 5952380, pm: 0, em: 0, g+: 6
+Series SMA->Map, #1000000, ops: 6493506, pm: 0, em: 0, g+: 6
+Series SMA->Map, #1000000, ops: 6711409, pm: 0, em: 0, g+: 6
+Series SMA->Map, #1000000, ops: 6369426, pm: 0, em: 0, g+: 6
+Series SMA->Map, #1000000, ops: 6134969, pm: 0, em: 0, g+: 6
+Series SMA->Map, #1000000, ops: 4464285, pm: 0, em: 0, g+: 6
+Series SMA->Map, #1000000, ops: 6250000, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 19607843, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 20000000, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 19230769, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 19607843, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 20000000, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 20408163, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 20408163, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 20000000, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 19607843, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 20408163, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 15625000, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 16393442, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 15873015, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 16129032, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 15151515, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 10526315, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 14285714, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 13698630, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 15873015, pm: 0, em: 0, g+: 6
+Series ZipLag->Map, #1000000, ops: 16129032, pm: 0, em: 0, g+: 6
+DeedleSeries insert, #100000, ops: 11111111, pm: 99, em: 26, g+: 6
+DeedleSeries Lag ->Map, #100000, ops: 80192, pm: 212, em: 43, g+: 59
+DeedleSeries Lag ->Map, #100000, ops: 119474, pm: 249, em: 0, g+: 55
+DeedleSeries Lag ->Map, #100000, ops: 128205, pm: 249, em: 0, g+: 56
+----------------
+SortedMap Add, #1000000, ops: 17543859, pm: 25, em: 25, g+: 6
+SortedMap Add, #1000000, ops: 22222222, pm: 0, em: 0, g+: 6
+SortedMap Add, #1000000, ops: 22222222, pm: 0, em: 0, g+: 6
+SortedMap Add, #1000000, ops: 16393442, pm: 0, em: 0, g+: 6
+SortedMap Add, #1000000, ops: 20408163, pm: 0, em: 0, g+: 6
+SortedMap Read, #1000000, ops: 4405286, pm: 0, em: 0, g+: 6
+SortedMap Read, #1000000, ops: 4694835, pm: 0, em: 0, g+: 6
+SortedMap Read, #1000000, ops: 5464480, pm: 0, em: 0, g+: 6
+SortedMap Read, #1000000, ops: 5524861, pm: 0, em: 0, g+: 6
+SortedMap Read, #1000000, ops: 5555555, pm: 0, em: 0, g+: 6
+SortedMap Read Synced, #1000000, ops: 5586592, pm: 0, em: 0, g+: 6
+SortedMap Read Synced, #1000000, ops: 5524861, pm: 0, em: 0, g+: 6
+SortedMap Read Synced, #1000000, ops: 5555555, pm: 0, em: 0, g+: 6
+SortedMap Read Synced, #1000000, ops: 5617977, pm: 0, em: 0, g+: 6
+SortedMap Read Synced, #1000000, ops: 5555555, pm: 0, em: 0, g+: 6
+SortedMap Iterate, #1000000, ops: 58823529, pm: 0, em: 0, g+: 6
+SortedMap Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Iterate, #1000000, ops: 62500000, pm: 0, em: 0, g+: 6
+SortedMap Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Iterate, #1000000, ops: 62500000, pm: 0, em: 0, g+: 6
+SortedMap Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Synced Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Synced Iterate, #1000000, ops: 62500000, pm: 0, em: 0, g+: 6
+SortedMap Synced Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Synced Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Synced Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Synced Iterate, #1000000, ops: 62500000, pm: 0, em: 0, g+: 6
+SortedMap Synced Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Synced Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Synced Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Synced Iterate, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Iterate Values, #1000000, ops: 66666666, pm: 0, em: 0, g+: 6
+SortedMap Iterate Values, #1000000, ops: 100000000, pm: 0, em: 0, g+: 6
+SortedMap Iterate Values, #1000000, ops: 90909090, pm: 0, em: 0, g+: 6
+SortedMap Iterate Values, #1000000, ops: 100000000, pm: 0, em: 0, g+: 6
+SortedMap Iterate Values, #1000000, ops: 111111111, pm: 0, em: 0, g+: 6
+SortedMap Iterate Values, #1000000, ops: 100000000, pm: 0, em: 0, g+: 6
+SortedMap Iterate Values, #1000000, ops: 100000000, pm: 0, em: 0, g+: 6
+SortedMap Iterate Values, #1000000, ops: 111111111, pm: 0, em: 0, g+: 6
+SortedMap Iterate Values, #1000000, ops: 111111111, pm: 0, em: 0, g+: 6
+SortedMap Iterate Values, #1000000, ops: 111111111, pm: 0, em: 0, g+: 6
+SortedMap Iterate with load, #1000000, ops: 13888888, pm: 0, em: 0, g+: 6
+SortedMap Iterate with load, #1000000, ops: 15151515, pm: 0, em: 0, g+: 6
+SortedMap Iterate with load, #1000000, ops: 14925373, pm: 0, em: 0, g+: 6
+SortedMap Iterate with load, #1000000, ops: 15151515, pm: 0, em: 0, g+: 6
+SortedMap Iterate with load, #1000000, ops: 15151515, pm: 0, em: 0, g+: 6
+SortedMap Iterate with load, #1000000, ops: 14925373, pm: 0, em: 0, g+: 6
+SortedMap Iterate with load, #1000000, ops: 15151515, pm: 0, em: 0, g+: 6
+SortedMap Iterate with load, #1000000, ops: 15151515, pm: 0, em: 0, g+: 6
+SortedMap Iterate with load, #1000000, ops: 15151515, pm: 0, em: 0, g+: 6
+SortedMap Iterate with load, #1000000, ops: 15151515, pm: 0, em: 0, g+: 6
+----------------
+SortedMapRegular Add, #1000000, ops: 19607843, pm: 0, em: 0, g+: 6
+SortedMapRegular Add, #1000000, ops: 20408163, pm: 0, em: 0, g+: 6
+SortedMapRegular Add, #1000000, ops: 20000000, pm: 0, em: 0, g+: 6
+SortedMapRegular Add, #1000000, ops: 19230769, pm: 0, em: 0, g+: 6
+SortedMapRegular Add, #1000000, ops: 18181818, pm: 0, em: 0, g+: 6
+SortedMapRegular Read, #1000000, ops: 21739130, pm: 0, em: 0, g+: 6
+SortedMapRegular Read, #1000000, ops: 22222222, pm: 0, em: 0, g+: 6
+SortedMapRegular Read, #1000000, ops: 22222222, pm: 0, em: 0, g+: 6
+SortedMapRegular Read, #1000000, ops: 20833333, pm: 0, em: 0, g+: 6
+SortedMapRegular Read, #1000000, ops: 22222222, pm: 0, em: 0, g+: 6
+SortedMapRegular Read Synced, #1000000, ops: 21276595, pm: 0, em: 0, g+: 6
+SortedMapRegular Read Synced, #1000000, ops: 22222222, pm: 0, em: 0, g+: 6
+SortedMapRegular Read Synced, #1000000, ops: 22222222, pm: 0, em: 0, g+: 6
+SortedMapRegular Read Synced, #1000000, ops: 21276595, pm: 0, em: 0, g+: 6
+SortedMapRegular Read Synced, #1000000, ops: 21739130, pm: 0, em: 0, g+: 6
+SortedMapRegular Read as RO, #1000000, ops: 9174311, pm: 0, em: 0, g+: 6
+SortedMapRegular Read as RO, #1000000, ops: 10101010, pm: 0, em: 0, g+: 6
+SortedMapRegular Read as RO, #1000000, ops: 10000000, pm: 0, em: 0, g+: 6
+SortedMapRegular Read as RO, #1000000, ops: 9803921, pm: 0, em: 0, g+: 6
+SortedMapRegular Read as RO, #1000000, ops: 9433962, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate, #1000000, ops: 50000000, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate, #1000000, ops: 50000000, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate, #1000000, ops: 52631578, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate, #1000000, ops: 52631578, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate, #1000000, ops: 52631578, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate, #1000000, ops: 52631578, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate, #1000000, ops: 52631578, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate, #1000000, ops: 50000000, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate, #1000000, ops: 52631578, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate, #1000000, ops: 52631578, pm: 0, em: 0, g+: 6
+SortedMapRegular Synced Iterate, #1000000, ops: 47619047, pm: 0, em: 0, g+: 6
+SortedMapRegular Synced Iterate, #1000000, ops: 47619047, pm: 0, em: 0, g+: 6
+SortedMapRegular Synced Iterate, #1000000, ops: 47619047, pm: 0, em: 0, g+: 6
+SortedMapRegular Synced Iterate, #1000000, ops: 47619047, pm: 0, em: 0, g+: 6
+SortedMapRegular Synced Iterate, #1000000, ops: 47619047, pm: 0, em: 0, g+: 6
+SortedMapRegular Synced Iterate, #1000000, ops: 47619047, pm: 0, em: 0, g+: 6
+SortedMapRegular Synced Iterate, #1000000, ops: 47619047, pm: 0, em: 0, g+: 6
+SortedMapRegular Synced Iterate, #1000000, ops: 47619047, pm: 0, em: 0, g+: 6
+SortedMapRegular Synced Iterate, #1000000, ops: 47619047, pm: 0, em: 0, g+: 6
+SortedMapRegular Synced Iterate, #1000000, ops: 47619047, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate as RO, #1000000, ops: 47619047, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate as RO, #1000000, ops: 55555555, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate as RO, #1000000, ops: 52631578, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate as RO, #1000000, ops: 52631578, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate as RO, #1000000, ops: 52631578, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate as RO, #1000000, ops: 55555555, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate as RO, #1000000, ops: 52631578, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate as RO, #1000000, ops: 55555555, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate as RO, #1000000, ops: 55555555, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate as RO, #1000000, ops: 55555555, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add, #1000000, ops: 30303030, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add, #1000000, ops: 35714285, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add, #1000000, ops: 35714285, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add, #1000000, ops: 32258064, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Map(Add), #1000000, ops: 32258064, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Map(Add), #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Map(Add), #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Map(Add), #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Map(Add), #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Map(Add), #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Map(Add), #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Map(Add), #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Map(Add), #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Map(Add), #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, #1000000, ops: 35714285, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, batch, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, batch, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, batch, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, batch, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, batch, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, batch, #1000000, ops: 34482758, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, batch, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, batch, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, batch, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+SMR Iterate with plus operator, batch, #1000000, ops: 33333333, pm: 0, em: 0, g+: 6
+SMR Add Two with operator, #1000000, ops: 3759398, pm: 0, em: 0, g+: 6
+SMR Add Two with operator, #1000000, ops: 4098360, pm: 0, em: 0, g+: 6
+SMR Add Two with operator, #1000000, ops: 4081632, pm: 0, em: 0, g+: 6
+SMR Add Two with operator, #1000000, ops: 4016064, pm: 0, em: 0, g+: 6
+SMR Add Two with operator, #1000000, ops: 4000000, pm: 0, em: 0, g+: 6
+SMR Add Two with operator, #1000000, ops: 4016064, pm: 0, em: 0, g+: 6
+SMR Add Two with operator, #1000000, ops: 4081632, pm: 0, em: 0, g+: 6
+SMR Add Two with operator, #1000000, ops: 4032258, pm: 0, em: 0, g+: 6
+SMR Add Two with operator, #1000000, ops: 4016064, pm: 0, em: 0, g+: 6
+SMR Add Two with operator, #1000000, ops: 4032258, pm: 0, em: 0, g+: 6
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 14492753, pm: 0, em: 0, g+: 6
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 14925373, pm: 0, em: 0, g+: 6
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 15873015, pm: 0, em: 0, g+: 6
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 15625000, pm: 0, em: 0, g+: 6
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 15384615, pm: 0, em: 0, g+: 6
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 15384615, pm: 0, em: 0, g+: 6
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 15625000, pm: 0, em: 0, g+: 6
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 15625000, pm: 0, em: 0, g+: 6
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 15625000, pm: 0, em: 0, g+: 6
+The count is 1000001
+SMR Iterate with plus LINQ, #1000000, ops: 15625000, pm: 0, em: 0, g+: 6
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 23255813, pm: 0, em: 0, g+: 6
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 27777777, pm: 0, em: 0, g+: 6
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 27777777, pm: 0, em: 0, g+: 6
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 27777777, pm: 0, em: 0, g+: 6
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 27777777, pm: 0, em: 0, g+: 6
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 28571428, pm: 0, em: 0, g+: 6
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 28571428, pm: 0, em: 0, g+: 6
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 27777777, pm: 0, em: 0, g+: 6
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 28571428, pm: 0, em: 0, g+: 6
+Filtered number: 500001
+SMR Iterate as RO+Filter + Mapp(Add), #1000000, ops: 27777777, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 13888888, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 14285714, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 13698630, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 14285714, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 13157894, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 14084507, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 13513513, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 14285714, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 14084507, pm: 0, em: 0, g+: 6
+SMR Iterate as RO+Add+ToMap, #1000000, ops: 14084507, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate with load, #1000000, ops: 13698630, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate with load, #1000000, ops: 13513513, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate with load, #1000000, ops: 13698630, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate with load, #1000000, ops: 13698630, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate with load, #1000000, ops: 13698630, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate with load, #1000000, ops: 13698630, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate with load, #1000000, ops: 13698630, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate with load, #1000000, ops: 13157894, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate with load, #1000000, ops: 13698630, pm: 0, em: 0, g+: 6
+SortedMapRegular Iterate with load, #1000000, ops: 13698630, pm: 0, em: 0, g+: 6
+----------------
+SCM<Auto> Add, #1000000, ops: 4716981, pm: 46, em: 37, g+: 7
+SCM<Auto> Add, #1000000, ops: 5181347, pm: 1, em: 0, g+: 6
+SCM<Auto> Add, #1000000, ops: 5181347, pm: 1, em: 0, g+: 6
+SCM<Auto> Add, #1000000, ops: 5181347, pm: 1, em: 0, g+: 6
+SCM<Auto> Add, #1000000, ops: 5102040, pm: 1, em: 0, g+: 6
+SCM<Auto> Add, #1000000, ops: 5319148, pm: 1, em: 0, g+: 6
+SCM<Auto> Add, #1000000, ops: 5263157, pm: 1, em: 0, g+: 6
+SCM<Auto> Add, #1000000, ops: 5319148, pm: 1, em: 0, g+: 6
+SCM<Auto> Add, #1000000, ops: 5181347, pm: 1, em: 0, g+: 6
+SCM<Auto> Add, #1000000, ops: 5154639, pm: 1, em: 0, g+: 6
+SCM<Auto> Read, #1000000, ops: 7633587, pm: 0, em: 0, g+: 6
+SCM<Auto> Read, #1000000, ops: 7575757, pm: 0, em: 0, g+: 6
+SCM<Auto> Read, #1000000, ops: 7692307, pm: 0, em: 0, g+: 6
+SCM<Auto> Read, #1000000, ops: 7751937, pm: 0, em: 0, g+: 6
+SCM<Auto> Read, #1000000, ops: 6134969, pm: 0, em: 0, g+: 6
+SCM<Auto> Read, #1000000, ops: 7352941, pm: 0, em: 0, g+: 6
+SCM<Auto> Read, #1000000, ops: 7692307, pm: 0, em: 0, g+: 6
+SCM<Auto> Read, #1000000, ops: 7633587, pm: 0, em: 0, g+: 6
+SCM<Auto> Read, #1000000, ops: 7692307, pm: 0, em: 0, g+: 6
+SCM<Auto> Read, #1000000, ops: 7633587, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate, #1000000, ops: 10309278, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate, #1000000, ops: 12195121, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate, #1000000, ops: 12500000, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate, #1000000, ops: 12195121, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate, #1000000, ops: 12345679, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate, #1000000, ops: 10752688, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate, #1000000, ops: 12500000, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate, #1000000, ops: 12658227, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate, #1000000, ops: 12195121, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate, #1000000, ops: 12195121, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, #1000000, ops: 10309278, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, #1000000, ops: 10416666, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, #1000000, ops: 10526315, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, #1000000, ops: 10752688, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, #1000000, ops: 10638297, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, #1000000, ops: 10416666, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, #1000000, ops: 10101010, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, #1000000, ops: 10416666, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, #1000000, ops: 10309278, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, #1000000, ops: 10416666, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 10638297, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 10526315, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 10526315, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 10638297, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 10416666, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 10638297, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 10309278, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 10638297, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 10309278, pm: 0, em: 0, g+: 6
+SCM<Auto> Iterate with plus operator, batch, #1000000, ops: 9523809, pm: 0, em: 0, g+: 6
+SCM<1024> Add, #1000000, ops: 7194244, pm: 0, em: 0, g+: 6
+SCM<1024> Add, #1000000, ops: 7518796, pm: 0, em: 0, g+: 6
+SCM<1024> Add, #1000000, ops: 7299270, pm: 0, em: 0, g+: 6
+SCM<1024> Add, #1000000, ops: 7407407, pm: 0, em: 0, g+: 6
+SCM<1024> Add, #1000000, ops: 7299270, pm: 0, em: 0, g+: 6
+SCM<1024> Add, #1000000, ops: 7246376, pm: 0, em: 0, g+: 6
+SCM<1024> Add, #1000000, ops: 7194244, pm: 0, em: 0, g+: 6
+SCM<1024> Add, #1000000, ops: 7246376, pm: 0, em: 0, g+: 6
+SCM<1024> Add, #1000000, ops: 7194244, pm: 0, em: 0, g+: 6
+SCM<1024> Add, #1000000, ops: 7246376, pm: 0, em: 0, g+: 6
+SCM Read, #1000000, ops: 8695652, pm: 0, em: 0, g+: 6
+SCM Read, #1000000, ops: 8771929, pm: 0, em: 0, g+: 6
+SCM Read, #1000000, ops: 8928571, pm: 0, em: 0, g+: 6
+SCM Read, #1000000, ops: 8928571, pm: 0, em: 0, g+: 6
+SCM Read, #1000000, ops: 8928571, pm: 0, em: 0, g+: 6
+SCM Read, #1000000, ops: 8771929, pm: 0, em: 0, g+: 6
+SCM Read, #1000000, ops: 8928571, pm: 0, em: 0, g+: 6
+SCM Read, #1000000, ops: 8928571, pm: 0, em: 0, g+: 6
+SCM Read, #1000000, ops: 8771929, pm: 0, em: 0, g+: 6
+SCM Read, #1000000, ops: 8695652, pm: 0, em: 0, g+: 6
+SCM Iterate, #1000000, ops: 11764705, pm: 0, em: 0, g+: 6
+SCM Iterate, #1000000, ops: 12345679, pm: 0, em: 0, g+: 6
+SCM Iterate, #1000000, ops: 12195121, pm: 0, em: 0, g+: 6
+SCM Iterate, #1000000, ops: 12048192, pm: 0, em: 0, g+: 6
+SCM Iterate, #1000000, ops: 12345679, pm: 0, em: 0, g+: 6
+SCM Iterate, #1000000, ops: 12195121, pm: 0, em: 0, g+: 6
+SCM Iterate, #1000000, ops: 12345679, pm: 0, em: 0, g+: 6
+SCM Iterate, #1000000, ops: 12195121, pm: 0, em: 0, g+: 6
+SCM Iterate, #1000000, ops: 12500000, pm: 0, em: 0, g+: 6
+SCM Iterate, #1000000, ops: 12195121, pm: 0, em: 0, g+: 6
+SCM Iterate with load, #1000000, ops: 6622516, pm: 0, em: 0, g+: 6
+SCM Iterate with load, #1000000, ops: 6666666, pm: 0, em: 0, g+: 6
+SCM Iterate with load, #1000000, ops: 6493506, pm: 0, em: 0, g+: 6
+SCM Iterate with load, #1000000, ops: 6250000, pm: 0, em: 0, g+: 6
+SCM Iterate with load, #1000000, ops: 6711409, pm: 0, em: 0, g+: 6
+SCM Iterate with load, #1000000, ops: 6711409, pm: 0, em: 0, g+: 6
+SCM Iterate with load, #1000000, ops: 6666666, pm: 0, em: 0, g+: 6
+SCM Iterate with load, #1000000, ops: 6622516, pm: 0, em: 0, g+: 6
+SCM Iterate with load, #1000000, ops: 6666666, pm: 0, em: 0, g+: 6
+SCM Iterate with load, #1000000, ops: 6711409, pm: 0, em: 0, g+: 6
+SCM<1024> Add Reverse, #100000, ops: 17507, pm: 8098, em: 8096, g+: 29
+SCM Read Reverse, #100000, ops: 5555555, pm: 0, em: -651, g+: 14
+

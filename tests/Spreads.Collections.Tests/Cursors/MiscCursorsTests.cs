@@ -32,7 +32,19 @@ namespace Spreads.Collections.Tests.Cursors {
             var count = 1000000;
 
             for (int i = 0; i < count; i++) {
-                sm.Add(i, i);
+                try
+                {
+                    sm.Add(i, i);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"i: {i}");
+                    Console.WriteLine($"sm.count: {sm.Count}");
+                    Console.WriteLine($"sm.IsRegular: {sm.IsRegular}");
+                    Console.WriteLine(e.Message);
+                    Console.WriteLine(e.StackTrace);
+                    throw e;
+                }
             }
 
             // slow implementation
