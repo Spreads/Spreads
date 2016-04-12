@@ -122,6 +122,8 @@ type SortedMap<'K,'V>
 
 
   do
+    // NB: There is no single imaginable reason not to have it true by default!
+    // Uncontended performance is close to non-synced.
     this.isSynchronized <- true
     this.constructorThread <- Thread.CurrentThread.ManagedThreadId
 
@@ -182,8 +184,10 @@ type SortedMap<'K,'V>
   [<System.Runtime.Serialization.OnDeserializedAttribute>]
   member __.OnDeserialized(context: System.Runtime.Serialization.StreamingContext) =
     ignore(context)
-    // TODO check if we have a default special IKeyComparer for the type
-    comparer <- Comparer<'K>.Default :> IComparer<'K> //LanguagePrimitives.FastGenericComparer<'K>
+    comparer <- 
+      let kc = KeyComparer.GetDefault<'K>()
+      if kc = Unchecked.defaultof<_> then Comparer<'K>.Default :> IComparer<'K> 
+      else kc
     // TODO assign all fields that are marked with NonSerializable
     if this.size > this.keys.Length then // regular keys
       rkLast <- this.GetKeyByIndex(this.size - 1)
