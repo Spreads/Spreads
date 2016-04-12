@@ -491,19 +491,22 @@ type SortedMap<'K,'V>
   member this.Keys 
     with get() : IList<'K> =
       {new IList<'K> with
-        member x.Count with get() = this.size
+        member x.Count with get() = readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ -> this.size)
         member x.IsReadOnly with get() = true
         member x.Item 
-          with get index : 'K = this.GetKeyByIndex(index)
+          with get index : 'K = readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ -> this.GetKeyByIndex(index))
           and set index value = raise (NotSupportedException("Keys collection is read-only"))
         member x.Add(k) = raise (NotSupportedException("Keys collection is read-only"))
         member x.Clear() = raise (NotSupportedException("Keys collection is read-only"))
         member x.Contains(key) = this.ContainsKey(key)
-        member x.CopyTo(array, arrayIndex) = 
+        member x.CopyTo(array, arrayIndex) =
+          let entered = enterWriteLockIf &locker this.IsSynchronized
           if couldHaveRegularKeys && this.size > 2 then
             Array.Copy(this.rkMaterialize(), 0, array, arrayIndex, this.size)
           else
             Array.Copy(this.keys, 0, array, arrayIndex, this.size)
+          exitWriteLockIf &locker entered
+
         member x.IndexOf(key:'K) = this.IndexOfKey(key)
         member x.Insert(index, value) = raise (NotSupportedException("Keys collection is read-only"))
         member x.Remove(key:'K) = raise (NotSupportedException("Keys collection is read-only"))
@@ -516,24 +519,29 @@ type SortedMap<'K,'V>
           { new IEnumerator<'K> with
             member e.Current with get() = currentKey.Value
             member e.Current with get() = box e.Current
-            member e.MoveNext() = 
-              if eVersion.Value <> this.version then
-                raise (InvalidOperationException("Collection changed during enumeration"))
-              if index.Value < this.size then
-                currentKey := 
-                  if couldHaveRegularKeys && this.size > 1 then diffCalc.Add(this.keys.[0], (int64 !index)*this.rkGetStep()) 
-                  else this.keys.[!index]
-                index := index.Value + 1
-                true
-              else
-                index := this.size + 1
+            member e.MoveNext() =
+              let nextIndex = index.Value + 1
+              readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
+                if eVersion.Value <> this.version then
+                  raise (InvalidOperationException("Collection changed during enumeration"))
+                if index.Value < this.size then
+                  currentKey := 
+                    if couldHaveRegularKeys && this.size > 1 then diffCalc.Add(this.keys.[0], (int64 !index)*this.rkGetStep()) 
+                    else this.keys.[!index]
+                  index := nextIndex
+                  true
+                else
+                  index := this.size + 1
+                  currentKey := Unchecked.defaultof<'K>
+                  false
+              )
+            member e.Reset() =
+              readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
+                if eVersion.Value <> this.version then
+                  raise (InvalidOperationException("Collection changed during enumeration"))
+                index := 0
                 currentKey := Unchecked.defaultof<'K>
-                false
-            member e.Reset() = 
-              if eVersion.Value <> this.version then
-                raise (InvalidOperationException("Collection changed during enumeration"))
-              index := 0
-              currentKey := Unchecked.defaultof<'K>
+              )
             member e.Dispose() = 
               index := 0
               currentKey := Unchecked.defaultof<'K>
@@ -543,16 +551,19 @@ type SortedMap<'K,'V>
   member this.Values
     with get() : IList<'V> =
       { new IList<'V> with
-        member x.Count with get() = this.size
+        member x.Count with get() = readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ -> this.size)
         member x.IsReadOnly with get() = true
         member x.Item 
-          with get index : 'V = this.values.[index]
+          with get index : 'V = readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ -> this.values.[index])
           and set index value = raise (NotSupportedException("Values collection is read-only"))
         member x.Add(k) = raise (NotSupportedException("Values colelction is read-only"))
         member x.Clear() = raise (NotSupportedException("Values colelction is read-only"))
         member x.Contains(value) = this.ContainsValue(value)
-        member x.CopyTo(array, arrayIndex) = 
+        member x.CopyTo(array, arrayIndex) =
+          let entered = enterWriteLockIf &locker this.IsSynchronized
           Array.Copy(this.values, 0, array, arrayIndex, this.size)
+          exitWriteLockIf &locker entered
+          
         member x.IndexOf(value:'V) = this.IndexOfValue(value)
         member x.Insert(index, value) = raise (NotSupportedException("Values collection is read-only"))
         member x.Remove(value:'V) = raise (NotSupportedException("Values collection is read-only"))
@@ -565,22 +576,27 @@ type SortedMap<'K,'V>
           { new IEnumerator<'V> with
             member e.Current with get() = currentValue.Value
             member e.Current with get() = box e.Current
-            member e.MoveNext() = 
-              if eVersion.Value <> this.version then
-                raise (InvalidOperationException("Collection changed during enumeration"))
-              if index.Value < this.size then
-                currentValue := this.values.[index.Value]
-                index := index.Value + 1
-                true
-              else
-                index := this.size + 1
+            member e.MoveNext() =
+              let nextIndex = index.Value + 1
+              readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
+                if eVersion.Value <> this.version then
+                  raise (InvalidOperationException("Collection changed during enumeration"))
+                if index.Value < this.size then
+                  currentValue := this.values.[index.Value]
+                  index := nextIndex
+                  true
+                else
+                  index := this.size + 1
+                  currentValue := Unchecked.defaultof<'V>
+                  false
+              )
+            member e.Reset() =
+              readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
+                if eVersion.Value <> this.version then
+                  raise (InvalidOperationException("Collection changed during enumeration"))
+                index := 0
                 currentValue := Unchecked.defaultof<'V>
-                false
-            member e.Reset() = 
-              if eVersion.Value <> this.version then
-                raise (InvalidOperationException("Collection changed during enumeration"))
-              index := 0
-              currentValue := Unchecked.defaultof<'V>
+              )
             member e.Dispose() = 
               index := 0
               currentValue := Unchecked.defaultof<'V>

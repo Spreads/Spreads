@@ -111,7 +111,7 @@ and
 
     abstract Subscribe: observer:IObserver<KVP<'K,'V>> -> IDisposable
     override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
-      raise (NotImplementedException("TODO Rx. Subscribe must be implemented via a cursor"))
+      raise (NotImplementedException("TODO Rx. Subscribe must be implemented via a cursor."))
       match box observer with
       | :? ISubscriber<KVP<'K,'V>> as subscriber -> 
         let subscription : ISubscription = Unchecked.defaultof<_>
@@ -123,11 +123,15 @@ and
           let completedHandler = OnCompletedHandler(fun isCompleted -> if isCompleted then observer.OnCompleted())
           this.onCompletedEvent.Publish.AddHandler(completedHandler)
           this.onErrorEvent.Publish.AddHandler(OnErrorHandler(observer.OnError))
-          { new IDisposable with
+          { 
+            new Object() with
+              member x.Finalize() = (x :?> IDisposable).Dispose()
+            interface IDisposable with
               member x.Dispose() = 
                 this.onNextEvent.Publish.RemoveHandler(OnNextHandler(observer.OnNext))
                 this.onCompletedEvent.Publish.RemoveHandler(completedHandler)
                 this.onErrorEvent.Publish.RemoveHandler(OnErrorHandler(observer.OnError))
+                GC.SuppressFinalize(x)
           }
         else
           observer.OnCompleted()
