@@ -392,12 +392,12 @@ type SortedMap<'K,'V>
     finally
       exitWriteLockIf &locker entered
 
-  member internal this.IsMutable with get() = isMutable
-  override this.IsReadOnly with get() = not isMutable
+  member internal this.IsMutable with get() = readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ -> isMutable)
+  override this.IsReadOnly with get() = readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ -> not isMutable)
   override this.IsIndexed with get() = false
 
   member this.IsSynchronized 
-    with get() = this.isSynchronized
+    with get() = readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ -> Volatile.Read(&this.isSynchronized))
     and set(synced:bool) =
       let wasSynced = Volatile.Read(&this.isSynchronized)
       readLockIf &this.nextOrderVersion &this.orderVersion wasSynced (fun _ ->
@@ -410,8 +410,14 @@ type SortedMap<'K,'V>
 
   member internal this.MapKey with get() = mapKey and set(key:string) = mapKey <- key
 
-  member this.IsRegular with get() = couldHaveRegularKeys and private set (v) = couldHaveRegularKeys <- v
-  member this.RegularStep with get() = try this.rkGetStep() with | _ -> 0L
+  member this.IsRegular 
+    with get() = readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ -> couldHaveRegularKeys) 
+    and private set (v) = couldHaveRegularKeys <- v
+
+  member this.RegularStep 
+    with get() = 
+      readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ -> try this.rkGetStep() with | _ -> 0L)
+
   member this.SyncRoot 
     with get() = 
       if syncRoot = null then Interlocked.CompareExchange<obj>(&syncRoot, new Object(), null) |> ignore
