@@ -58,7 +58,6 @@ type SortedMap<'K,'V>
   val mutable internal version : int64
   [<DefaultValueAttribute>]
   val mutable internal size : int
-  // TODO isMutable as field
   [<DefaultValueAttribute>]
   val mutable internal keys : 'K array
   [<DefaultValueAttribute>]
@@ -88,10 +87,6 @@ type SortedMap<'K,'V>
 
   [<NonSerializedAttribute>]
   let isKeyReferenceType : bool = not typeof<'K>.IsValueType
-  
-  [<NonSerializedAttribute>]
-  // TODO this should be synchronized with writes
-  let mutable subscribersCounter : int = 1
   
   // TODO use IDC resolution via KeyHelper.diffCalculators here or befor ctor
   [<NonSerializedAttribute>]
@@ -127,14 +122,19 @@ type SortedMap<'K,'V>
     this.isSynchronized <- true
     this.constructorThread <- Thread.CurrentThread.ManagedThreadId
 
-    let tempCap = if capacity.IsSome then capacity.Value else 1
+    let tempCap = if capacity.IsSome && capacity.Value > 0 then capacity.Value else 2
     if dictionary.IsNone || dictionary.Value.Count = 0 then // otherwise we will set them in dict processing part
       this.keys <- 
         if couldHaveRegularKeys then 
           // regular keys are the first and the second value, their diff is the step
           // NB: Buffer pools could return a buffer greater than the requested length,
           // but for regular keys we alway need a fixed-length array of size 2, so we allocate a new one.
-          Array.zeroCreate 2 
+          // Array.zeroCreate 2
+          let regularBuffer = OptimizationSettings.ArrayPool.TakeBuffer 2
+          #if PRERELEASE
+          Trace.Assert(regularBuffer.Length = 2)
+          #endif
+          regularBuffer
         else OptimizationSettings.ArrayPool.TakeBuffer (tempCap) 
     this.values <- OptimizationSettings.ArrayPool.TakeBuffer tempCap
 
@@ -382,7 +382,7 @@ type SortedMap<'K,'V>
       // the 99% use case is when we load data from a sequential stream or deserialize a map with already regularized keys
     this.size <- this.size + 1
     increment &this.version
-    if subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
+    if this.subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
 
 
   member this.Complete() =
@@ -392,7 +392,7 @@ type SortedMap<'K,'V>
           isMutable <- false
           // immutable doesn't need sync
           this.IsSynchronized <- false // TODO the same for SCM
-          if subscribersCounter > 0 then this.onCompletedEvent.Trigger(true)
+          if this.subscribersCounter > 0 then this.onCompletedEvent.Trigger(true)
     finally
       exitWriteLockIf &locker entered
 
@@ -673,7 +673,7 @@ type SortedMap<'K,'V>
             if lc = 0 then // key = last key
               this.values.[this.size-1] <- v
               increment &this.version
-              if subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
+              if this.subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
             elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
               this.Insert(this.size, k, v)
               keepOrderVersion <- true
@@ -682,7 +682,7 @@ type SortedMap<'K,'V>
               if index >= 0 then // contains key 
                 this.values.[index] <- v
                 increment &this.version
-                if subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
+                if this.subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
               else
                 this.Insert(~~~index, k, v)
         finally
@@ -819,7 +819,7 @@ type SortedMap<'K,'V>
     increment &this.version
     increment &this.orderVersion
 
-    if subscribersCounter > 0 then
+    if this.subscribersCounter > 0 then
       this.onErrorEvent.Trigger(NotImplementedException("TODO remove should trigger a special exception"))
 
 
@@ -1165,7 +1165,9 @@ type SortedMap<'K,'V>
       )
       
     { 
-      new ICursor<'K,'V> with
+      new Object() with 
+        member x.Finalize() = (x :?> IDisposable).Dispose()
+      interface  ICursor<'K,'V> with
         member x.Comparer: IComparer<'K> = this.Comparer
         member x.TryGetValue(key: 'K, value: byref<'V>): bool = this.TryGetValue(key, &value)
         member x.MoveNext(ct: CancellationToken): Task<bool> = 
@@ -1197,9 +1199,9 @@ type SortedMap<'K,'V>
               if not doSpin then // exited loop due to successful MN, not due to sw.NextSpinWillYield
                 trueTask
               else
-                // TODO atomically increment number of subscribers (now we always trigger events)
                 let upd = this :> IObservableEvents<'K,'V>
                 if not !observerStarted then
+                  Interlocked.Increment(&this.subscribersCounter) |> ignore
                   semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
                   this.onNextEvent.Publish.AddHandler onNextHandler
                   this.onCompletedEvent.Publish.AddHandler onCompletedHandler
@@ -1346,9 +1348,10 @@ type SortedMap<'K,'V>
         member p.Dispose() = 
           p.Reset()
           if !observerStarted then
-            // TODO atomically decrement number of subscribers
+            Interlocked.Decrement(&this.subscribersCounter) |> ignore
             this.onNextEvent.Publish.RemoveHandler(onNextHandler)
             this.onCompletedEvent.Publish.RemoveHandler(onCompletedHandler)
+          GC.SuppressFinalize(this)
     }
 
 

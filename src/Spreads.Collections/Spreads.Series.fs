@@ -93,6 +93,9 @@ and
     [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
     val mutable internal onErrorEvent : EventV2<OnErrorHandler,Exception>
+    [<NonSerializedAttribute>]
+    [<DefaultValueAttribute>]
+    val mutable internal subscribersCounter : int
     do
       this.onNextEvent <- new EventV2<OnNextHandler<'K,'V>,KVP<'K,'V>>()
       this.onCompletedEvent <- new EventV2<OnCompletedHandler,bool>()
@@ -108,7 +111,7 @@ and
 
     abstract Subscribe: observer:IObserver<KVP<'K,'V>> -> IDisposable
     override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
-      //raise (NotImplementedException("TODO Rx"))
+      raise (NotImplementedException("TODO Rx. Subscribe must be implemented via a cursor"))
       match box observer with
       | :? ISubscriber<KVP<'K,'V>> as subscriber -> 
         let subscription : ISubscription = Unchecked.defaultof<_>
