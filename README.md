@@ -30,9 +30,10 @@ Google/Facebook and similar user event streams could be processed independently.
 ## Performance
 
 Spreads library is optimized for performance and memory usage.
-It is several times faster than [Deedle](https://github.com/BlueMountainCapital/Deedle),
+It is several times faster than other open source [projects](https://github.com/BlueMountainCapital/Deedle),
 does not allocate memory for intermediate calculations or windows,
-and provides real-time incremental calculations. You could run tests and [benchmarks](https://github.com/Spreads/Spreads/blob/master/tests/Spreads.Tests/Benchmarks.fs) 
+and provides real-time incremental calculations with low-latency lock-free synchronization 
+between data producers and consumers. You could run tests and [benchmarks](https://github.com/Spreads/Spreads/blob/master/tests/Spreads.Tests/Benchmarks.fs) 
 to see the exact numbers.
 
 For regular keys - keys that have equal difference between them (e.g. seconds) - Spreads stores
@@ -211,6 +212,7 @@ data.
 
 The project and NuGet package `Spreads.Extensions` contain:
 
++ Fast on-disk series storage based on SqLite;
 + Very efficient binary serializer of arrays and series based on [Blosc](https://github.com/Blosc/c-blosc);
 + [Interactive Extensions](https://github.com/Spreads/Spreads.Ix) adapted for Spreads;
 + [Yeppp](http://www.yeppp.info/) math library for SIMD calculations;
@@ -252,16 +254,6 @@ under the terms of the GNU General Public License as published
 by the Free Software Foundation; either version 3 of the License, 
 or (at your option) any later version.
 
-##Roadmap
-
-Persistence and network replication is already implemented and 
-will be gradually released. Persistence could be implemented on any ordered
-key-value storage, including relational data bases. On MySQL, we could get 
-around 1 million `<DateTime,decimal>` read/write performance (batched) with dev settings.
-For replication, we use NetMQ's clone pattern and a [broadcast](https://github.com/zeromq/netmq/pull/401)
- feature of Pub/Sub. We are working on making storage and transport pluggable,
-so that we could use any existing high-performance storages like 
-Cassandra/Scylla or any messaging system like Aeron/NATS.
 
 ## Status and version
 Current status is alpha and it will remain alpha until 1.0-... releases. 
@@ -270,6 +262,7 @@ We will use [semantic versioning](http://semver.org/).
 Releases that are not marked with alpha/beta 
 could be considered stable for core functionality starting from 0.3.
 
+Starting from 0.4 we implement lock-free synchronization - sorry if something blows up before beta :)
 
 ## Links
 

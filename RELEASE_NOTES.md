@@ -1,3 +1,8 @@
+#### 0.4.0 - April 12, 2016
+* Lock-free thread-safe SortedMap;
+* Generic buffer pool from corefx;
+* Further performance improvement and minor fixes.
+
 #### 0.3.6 - March 29, 2016
 * Refine Storage;
 * Update Blosc to 1.7.1;
