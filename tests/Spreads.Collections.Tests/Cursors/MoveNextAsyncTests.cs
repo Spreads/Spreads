@@ -72,7 +72,7 @@ namespace Spreads.Collections.Tests.Cursors {
         [Test]
         [Ignore]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes() {
-            for (int round = 0; round < 10; round++) {
+            for (int round = 0; round < 100; round++) {
                 CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
             }
         }
@@ -84,8 +84,8 @@ namespace Spreads.Collections.Tests.Cursors {
             //var mre = new ManualResetEventSlim(true);
             sw.Start();
 
-            //var sm = new SortedMap<DateTime, double>();
-            var sm = new SortedChunkedMap<DateTime, double>();
+            var sm = new SortedMap<DateTime, double>();
+            //var sm = new SortedChunkedMap<DateTime, double>();
             //sm.Add(DateTime.UtcNow.Date.AddSeconds(-2), 0);
 
             sm.IsSynchronized = true;
@@ -129,14 +129,14 @@ namespace Spreads.Collections.Tests.Cursors {
                     sum += c.CurrentValue;
                     if ((int)c.CurrentValue != cnt) {
                         //Console.WriteLine("Wrong sequence");
-                        Assert.Fail("Wrong sequence");
+                        Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
                     } else {
                         //Console.WriteLine("Async move");
                     }
                     cnt++;
                     //mre.Set();
                 }
-                Console.WriteLine("Finished 1");
+                //Console.WriteLine("Finished 1");
             });
 
             double sum2 = 0.0;
@@ -153,7 +153,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     sum2 += c.CurrentValue;
                     //mre.Set();
                 }
-                Console.WriteLine("Finished 2");
+                //Console.WriteLine("Finished 2");
             });
 
             double sum3 = 0.0;
@@ -170,7 +170,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     sum3 += c.CurrentValue;
                     //mre.Set();
                 }
-                Console.WriteLine("Finished 3");
+                //Console.WriteLine("Finished 3");
             });
 
             sumTask.Wait();
@@ -179,8 +179,8 @@ namespace Spreads.Collections.Tests.Cursors {
             addTask.Wait();
 
             sw.Stop();
-            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds - 50);
-            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
+            Console.Write($"Elapsed msec: {sw.ElapsedMilliseconds - 50}; ");
+            Console.WriteLine(@"Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
 
             double expectedSum = 0.0;
             for (int i = 0; i < count; i++) {
@@ -206,7 +206,7 @@ namespace Spreads.Collections.Tests.Cursors {
                 var sw = new Stopwatch();
 
 
-                var sm = new SortedChunkedMap<DateTime, double>();
+                var sm = new SortedMap<DateTime, double>();
                 sm.IsSynchronized = true;
                 for (int i = 0; i < 5; i++) {
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -268,7 +268,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sw = new Stopwatch();
             sw.Start();
 
-            var sm = new SortedChunkedMap<DateTime, double>();
+            var sm = new SortedMap<DateTime, double>();
             sm.IsSynchronized = true;
 
             var addTask = Task.Run(async () => {
@@ -321,7 +321,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sw = new Stopwatch();
             sw.Start();
 
-            var sm = new SortedChunkedMap<DateTime, double>();
+            var sm = new SortedMap<DateTime, double>();
             sm.IsSynchronized = true;
 
             var addTask = Task.Run(async () => {
@@ -470,8 +470,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sw = new Stopwatch();
 
             var sm = new SortedMap<DateTime, double>();
-            //sm.IsSynchronized = true;
-
+            
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }

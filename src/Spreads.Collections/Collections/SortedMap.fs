@@ -1185,16 +1185,25 @@ type SortedMap<'K,'V>
           | false ->
             match this.IsMutable with
             | true ->
-              let upd = this :> IObservableEvents<'K,'V>
-              if not !observerStarted then
-                semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
-                this.onNextEvent.Publish.AddHandler onNextHandler
-                this.onCompletedEvent.Publish.AddHandler onCompletedHandler
-                observerStarted := true
-              let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
-              let returnTask = tcs.Task
-              completeTcs(tcs, ct)
-              returnTask
+              let sw = SpinWait()
+              let mutable doSpin = true
+              while doSpin && not sw.NextSpinWillYield do
+                doSpin <- not <| x.MoveNext()
+                if doSpin then sw.SpinOnce()
+              if not doSpin then // exited loop due to successful MN, not due to sw.NextSpinWillYield
+                trueTask
+              else
+                // TODO atomically increment number of subscribers (now we always trigger events)
+                let upd = this :> IObservableEvents<'K,'V>
+                if not !observerStarted then
+                  semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
+                  this.onNextEvent.Publish.AddHandler onNextHandler
+                  this.onCompletedEvent.Publish.AddHandler onCompletedHandler
+                  observerStarted := true
+                let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
+                let returnTask = tcs.Task
+                completeTcs(tcs, ct)
+                returnTask
             | _ -> falseTask
 
         member x.Source: ISeries<'K,'V> = this :> ISeries<'K,'V>
@@ -1222,12 +1231,14 @@ type SortedMap<'K,'V>
 
         member p.Clone() = this.GetCursor(index,cursorVersion, p.CurrentKey, p.CurrentValue) //!currentKey,!currentValue)
       
-        member p.MovePrevious() = 
+        member p.MovePrevious() =
+          // NB: this must be outside lock to avoid multiple decrements
+          let previousIndex = index - 1
           readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
             if index = -1 then p.MoveLast()  // first move when index = -1
             elif cursorVersion =  this.orderVersion then
               if index > 0 && index < this.size then
-                index <- index - 1
+                index <- previousIndex
                 currentKey <- this.GetKeyByIndex(index)
                 currentValue <- this.values.[index]
                 true
@@ -1274,7 +1285,7 @@ type SortedMap<'K,'V>
               false
           )
 
-        member p.MoveLast() = 
+        member p.MoveLast() =
           readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
             if this.size > 0 then
               index <- this.size - 1
@@ -1293,11 +1304,13 @@ type SortedMap<'K,'V>
       interface IEnumerator<KVP<'K,'V>> with
         member p.Current with get() : KVP<'K,'V> = KeyValuePair(currentKey, currentValue)
         member p.Current with get() : obj = box p.Current
-        member p.MoveNext() = 
+        member p.MoveNext() =
+          // NB: this must be outside lock to avoid multiple increments
+          let nextIndex = index + 1
           readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
             if cursorVersion = this.orderVersion then
               if index < (this.size - 1) then
-                index <- index + 1
+                index <- nextIndex
                 // TODO!! (perf) regular keys were supposed to speed up things, not to slow down by 50%! 
                 currentKey <- this.GetKeyByIndexUnchecked(index)
                 currentValue <- this.values.[index]
@@ -1319,14 +1332,17 @@ type SortedMap<'K,'V>
                 false
           )
         member p.Reset() = 
-          cursorVersion <-  this.orderVersion // update state to new this.version
-          index <- -1
-          currentKey <- Unchecked.defaultof<'K>
-          currentValue <- Unchecked.defaultof<'V>
+          readLockIf &this.nextOrderVersion &this.orderVersion this.isSynchronized (fun _ ->
+            cursorVersion <-  this.orderVersion // update state to new this.version
+            index <- -1
+            currentKey <- Unchecked.defaultof<'K>
+            currentValue <- Unchecked.defaultof<'V>
+          )
 
         member p.Dispose() = 
           p.Reset()
           if !observerStarted then
+            // TODO atomically decrement number of subscribers
             this.onNextEvent.Publish.RemoveHandler(onNextHandler)
             this.onCompletedEvent.Publish.RemoveHandler(onCompletedHandler)
     }
@@ -1634,6 +1650,8 @@ and
     member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
     
     member this.MoveNext() =
+      // NB: this must be outside lock to avoid multiple increments
+      let nextIndex = this.index + 1
       let mutable moved = false
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -1645,7 +1663,7 @@ and
 
           if this.cursorVersion = this.source.orderVersion then
             if this.index < (this.source.size - 1) then
-              this.index <- this.index + 1
+              this.index <- nextIndex
               // TODO!! (perf) regular keys were supposed to speed up things, not to slow down by 50%! 
               this.currentKey <- this.source.GetKeyByIndexUnchecked(this.index)
               this.currentValue <- this.source.values.[this.index]
@@ -1672,7 +1690,6 @@ and
       moved
 
       
-    
     member this.MoveNext(ct: CancellationToken): Task<bool> = 
       if this.MoveNext() then trueTask else falseTask
 
@@ -1732,6 +1749,8 @@ and
       copy
 
     member this.MovePrevious() = 
+      // NB: this must be outside lock to avoid multiple decrements
+      let previousIndex = this.index - 1
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -1743,7 +1762,7 @@ and
           if this.index = -1 then this.MoveLast()  // first move when index = -1
           elif this.cursorVersion =  this.source.orderVersion then
             if this.index > 0 && this.index < this.source.size then
-              this.index <- this.index - 1
+              this.index <- previousIndex
               this.currentKey <- this.source.GetKeyByIndex(this.index)
               this.currentValue <- this.source.values.[this.index]
               true
