@@ -72,7 +72,7 @@ namespace Spreads.Collections.Tests.Cursors {
         [Test]
         [Ignore]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes() {
-            for (int round = 0; round < 100; round++) {
+            for (int round = 0; round < 10000; round++) {
                 CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
             }
         }
@@ -87,8 +87,6 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm = new SortedMap<DateTime, double>();
             //var sm = new SortedChunkedMap<DateTime, double>();
             //sm.Add(DateTime.UtcNow.Date.AddSeconds(-2), 0);
-
-            sm.IsSynchronized = true;
 
             for (int i = 0; i < 5; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -192,6 +190,9 @@ namespace Spreads.Collections.Tests.Cursors {
             Assert.AreEqual(expectedSum, sum, "Sum 1");
             Assert.AreEqual(expectedSum, sum2, "Sum 2");
             Assert.AreEqual(expectedSum, sum3, "Sum 3");
+
+            sm.Dispose();
+
         }
 
 

@@ -1357,10 +1357,20 @@ type SortedMap<'K,'V>
   /// Make the capacity equal to the size
   member this.TrimExcess() = this.Capacity <- this.size
 
+  member private this.Dispose(disposing:bool) =
+    if not couldHaveRegularKeys then OptimizationSettings.ArrayPool.ReturnBuffer(this.keys) |> ignore
+    OptimizationSettings.ArrayPool.ReturnBuffer(this.values) |> ignore
+    if disposing then GC.SuppressFinalize(this)
+  
+  member this.Dispose() = this.Dispose(true)
+  override this.Finalize() = this.Dispose(false)
+
   //#endregion
 
 
   //#region Interfaces
+  interface IDisposable with
+    member this.Dispose() = this.Dispose(true)
 
   interface IEnumerable with
     member this.GetEnumerator() = this.GetCursor() :> IEnumerator
@@ -1544,10 +1554,8 @@ type SortedMap<'K,'V>
         finally
           exitWriteLockIf &locker entered
     
-  override this.Finalize() =
-    OptimizationSettings.ArrayPool.ReturnBuffer(this.keys) |> ignore
-    OptimizationSettings.ArrayPool.ReturnBuffer(this.values) |> ignore
 
+    
   //#endregion
 
   //#region Constructors
