@@ -15,7 +15,16 @@ namespace Spreads.Collections.Tests.Cursors {
 
     [TestFixture]
     public class MiscCursorsTests {
-        
+        [Test]
+        [Ignore("This test fails when using RunAll")]
+        public void CouldLagSeriesManyTimes()
+        {
+            Parallel.For(0, 100, (x) =>
+            {
+                CouldLagSeries();
+            });
+        }
+
         [Test]
         public void CouldLagSeries() {
             var sm = new SortedMap<double, double>();
@@ -43,10 +52,9 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var repeated = lag.Repeat();
 
-            for (int i = 1; i < 1000; i++)
-            {
+            for (int i = 1; i < 1000; i++) {
                 double v;
-                Assert.IsTrue(repeated.TryGetValue(i+1.5, out v));
+                Assert.IsTrue(repeated.TryGetValue(i + 1.5, out v));
                 Assert.AreEqual(i, v);
             }
 
@@ -82,7 +90,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         public void CouldCloneZipLagSeries() {
-            
+
 
             var count = 1000;
             var sm = new SortedMap<int, double>();
@@ -107,8 +115,7 @@ namespace Spreads.Collections.Tests.Cursors {
             Assert.AreEqual(zc.CurrentKey, zc2.CurrentKey);
 
 
-            for (int i = 1; i < count; i++)
-            {
+            for (int i = 1; i < count; i++) {
                 var expected = i + i - 1;
                 double actual;
                 var ok = zc.TryGetValue(i, out actual);
@@ -118,11 +125,9 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm2 = new SortedMap<int, double>();
             var zc3 = sm2.ZipLag(1, (cur, prev) => cur + prev).GetCursor();
 
-            var t = Task.Run(async () =>
-            {
+            var t = Task.Run(async () => {
                 var c = 1; // first key is missing because we cannot create state at it
-                while (await zc3.MoveNext(CancellationToken.None))
-                {
+                while (await zc3.MoveNext(CancellationToken.None)) {
                     var expected = c + c - 1;
                     Assert.AreEqual(expected, zc3.CurrentValue);
                     c++;
@@ -263,15 +268,13 @@ namespace Spreads.Collections.Tests.Cursors {
             //foreach (var m in ma) {
             cursor.Reset();
             while (cursor.MoveNext()) {
-                if (cursor.CurrentValue != c + 8.5)
-                {
+                if (cursor.CurrentValue != c + 8.5) {
                     Console.WriteLine(cursor.CurrentValue);// m.Value);
                     Console.WriteLine($"Error c: {c}");
                     throw new ApplicationException("Invalid value");
                 }
                 c++;
-                if (c == 999982)
-                {
+                if (c == 999982) {
                     Console.WriteLine("Catch me");
                 }
             }
@@ -279,11 +282,11 @@ namespace Spreads.Collections.Tests.Cursors {
             Console.WriteLine($"Final c: {c}");
             Console.WriteLine("SMA, elapsed: {0}, ops: {1}", sw.ElapsedMilliseconds, (int)((double)count / (sw.ElapsedMilliseconds / 1000.0)));
             ma = null;
-            
+
             GC.Collect(3, GCCollectionMode.Forced, true);
             Thread.Sleep(2000);
             // NB! In release mode this must print that ToSortedMap task exited, in Debug mode GC does not collect SM and weak reference stays alive
-             
+
         }
 
         [Test]

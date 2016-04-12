@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -60,12 +61,13 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void CouldMoveAtGE() {
-            var scm = new SortedMap<int, int>(50);
+            var sm = new SortedMap<int, int>(50);
             for (int i = 0; i < 100; i++) {
-                scm[i] = i;
+                sm[i] = i;
             }
-
-            var cursor = scm.GetCursor();
+            Assert.IsTrue(sm.IsRegular);
+            Assert.AreEqual(99, sm.rkLast);
+            var cursor = sm.GetCursor();
 
             cursor.MoveAt(-100, Lookup.GE);
 
@@ -75,6 +77,31 @@ namespace Spreads.Collections.Tests {
             var shouldBeFalse = cursor.MoveAt(-100, Lookup.LE);
             Assert.IsFalse(shouldBeFalse);
 
+        }
+
+        [Test]
+        public void CouldMoveAtFromDict() {
+
+            var sm = new SortedMap<int, int>(new Dictionary<int, int>()
+                {
+                    { 1, 1},
+                    //{ 2, 2},
+                    { 3, 3},
+                    //{ 4, 4},
+                    { 5, 5}
+                });
+
+            Assert.IsTrue(sm.IsRegular);
+            Assert.AreEqual(5, sm.rkLast);
+            var cursor = sm.GetCursor();
+
+            cursor.MoveAt(-100, Lookup.GE);
+
+            Assert.AreEqual(1, cursor.CurrentKey);
+            Assert.AreEqual(1, cursor.CurrentValue);
+
+            var shouldBeFalse = cursor.MoveAt(-100, Lookup.LE);
+            Assert.IsFalse(shouldBeFalse);
 
         }
 

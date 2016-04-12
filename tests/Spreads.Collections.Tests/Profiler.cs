@@ -12,7 +12,7 @@ namespace Spreads.Collections.Tests {
             //test.CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
 
 
-            (new BatchMapValuesCursorTests()).CouldAddWithSimdMathProvider();
+            //(new BatchMapValuesCursorTests()).CouldAddWithSimdMathProvider();
             ////////////////////////////////////////
             Console.WriteLine("Finished profiling");
             Console.ReadLine();

@@ -116,19 +116,15 @@ type SortedMap<'K,'V>
     this.isSynchronized <- true
 
     let tempCap = if capacity.IsSome && capacity.Value > 0 then capacity.Value else 2
-    if dictionary.IsNone || dictionary.Value.Count = 0 then // otherwise we will set them in dict processing part
-      this.keys <- 
-        if couldHaveRegularKeys then 
-          // regular keys are the first and the second value, their diff is the step
-          // NB: Buffer pools could return a buffer greater than the requested length,
-          // but for regular keys we alway need a fixed-length array of size 2, so we allocate a new one.
-          // Array.zeroCreate 2
-          let regularBuffer = OptimizationSettings.ArrayPool.TakeBuffer 2
-          #if PRERELEASE
-          Trace.Assert(regularBuffer.Length = 2)
-          #endif
-          regularBuffer
-        else OptimizationSettings.ArrayPool.TakeBuffer (tempCap) 
+    this.keys <- 
+      if couldHaveRegularKeys then 
+        // regular keys are the first and the second value, their diff is the step
+        // NB: Buffer pools could return a buffer greater than the requested length,
+        // but for regular keys we alway need a fixed-length array of size 2, so we allocate a new one.
+        // TODO wrap the corefx buffer and for len = 2 use a special self-adjusting ObjectPool, because these 
+        // arrays are not short-lived and could accumulate in gen 1+ easily.
+        Array.zeroCreate 2
+      else OptimizationSettings.ArrayPool.TakeBuffer (tempCap) 
     this.values <- OptimizationSettings.ArrayPool.TakeBuffer tempCap
 
     if dictionary.IsSome && dictionary.Value.Count > 0 then
@@ -152,7 +148,7 @@ type SortedMap<'K,'V>
         dictionary.Value.Keys.CopyTo(tempKeys, 0)
         dictionary.Value.Values.CopyTo(this.values, 0)
         // NB IDictionary guarantees there is no duplicates
-        Array.Sort(tempKeys, this.values, comparer)
+        Array.Sort(tempKeys, this.values, 0, dictionary.Value.Keys.Count, comparer)
         this.size <- dictionary.Value.Count
 
         if couldHaveRegularKeys && this.size > 1 then // if could be regular based on initial check of comparer type
@@ -160,7 +156,7 @@ type SortedMap<'K,'V>
           couldHaveRegularKeys <- isReg
           if couldHaveRegularKeys then 
             this.keys <- regularKeys
-            OptimizationSettings.ArrayPool.ReturnBuffer tempKeys |> ignore
+            Task.Run(fun _ -> OptimizationSettings.ArrayPool.ReturnBuffer tempKeys |> ignore) |> ignore
             rkLast <- this.rkKeyAtIndex (this.size - 1)
           else
             this.keys <- tempKeys
@@ -436,13 +432,13 @@ type SortedMap<'K,'V>
         Array.Copy(this.keys, 0, kArr, 0, this.size)
         let toReturn = this.keys
         this.keys <- kArr
-        OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore
+        Task.Run(fun _ -> OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore) |> ignore
 
       let vArr : 'V array = OptimizationSettings.ArrayPool.TakeBuffer(c)
       Array.Copy(this.values, 0, vArr, 0, this.size)
       let toReturn = this.values
       this.values <- vArr
-      OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore
+      Task.Run(fun _ -> OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore) |> ignore
     | _ -> ()
 
   member this.Capacity
@@ -819,7 +815,6 @@ type SortedMap<'K,'V>
 
     this.size <- newSize
     increment &this.version
-    increment &this.orderVersion
 
     if this.subscribersCounter > 0 then
       this.onErrorEvent.Trigger(NotImplementedException("TODO remove should trigger a special exception"))
@@ -1368,8 +1363,10 @@ type SortedMap<'K,'V>
   member this.TrimExcess() = this.Capacity <- this.size
 
   member private this.Dispose(disposing:bool) =
-    if not couldHaveRegularKeys then OptimizationSettings.ArrayPool.ReturnBuffer(this.keys) |> ignore
-    OptimizationSettings.ArrayPool.ReturnBuffer(this.values) |> ignore
+    Task.Run(fun _ -> 
+      if not couldHaveRegularKeys then OptimizationSettings.ArrayPool.ReturnBuffer(this.keys) |> ignore
+      OptimizationSettings.ArrayPool.ReturnBuffer(this.values) |> ignore
+    ) |> ignore
     if disposing then GC.SuppressFinalize(this)
   
   member this.Dispose() = this.Dispose(true)
@@ -1582,11 +1579,11 @@ type SortedMap<'K,'V>
   internal new(dictionary:IDictionary<'K,'V>,comparer:IComparer<'K>) = new SortedMap<_,_>(Some(dictionary), Some(dictionary.Count), Some(comparer))
   internal new(minimumCapacity:int,comparer:IComparer<'K>) = new SortedMap<_,_>(None, Some(minimumCapacity), Some(comparer))
 
-  static member internal OfSortedKeysAndValues(keys:'K[], values:'V[], size:int, comparer:IComparer<'K>, sortChecked:bool, isAlreadyRegular) =
+  static member internal OfSortedKeysAndValues(keys:'K[], values:'V[], size:int, comparer:IComparer<'K>, doCheckSorted:bool, isAlreadyRegular) =
     if keys.Length < size && not isAlreadyRegular then raise (new ArgumentException("Keys array is smaller than provided size"))
     if values.Length < size then raise (new ArgumentException("Values array is smaller than provided size"))
     let sm = new SortedMap<'K,'V>(comparer)
-    if sortChecked then
+    if doCheckSorted then
       for i in 1..size-1 do
         if comparer.Compare(keys.[i-1], keys.[i]) >= 0 then raise (new ArgumentException("Keys are not sorted"))
 

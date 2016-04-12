@@ -111,7 +111,8 @@ and
 
     abstract Subscribe: observer:IObserver<KVP<'K,'V>> -> IDisposable
     override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
-      raise (NotImplementedException("TODO Rx. Subscribe must be implemented via a cursor."))
+      Interlocked.Increment(&this.subscribersCounter) |> ignore
+      //raise (NotImplementedException("TODO Rx. Subscribe must be implemented via a cursor."))
       match box observer with
       | :? ISubscriber<KVP<'K,'V>> as subscriber -> 
         let subscription : ISubscription = Unchecked.defaultof<_>

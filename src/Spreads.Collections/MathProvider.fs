@@ -50,7 +50,8 @@ type internal OptimizationSettings() =
     {new IArrayPool with
         member x.TakeBuffer<'T>(size) = System.Buffers.ArrayPool<'T>.Shared.Rent(size)
         member x.ReturnBuffer(buffer): int = 
-          System.Buffers.ArrayPool<'T>.Shared.Return(buffer)
+          System.Buffers.ArrayPool<'T>.Shared.Return(buffer, true)
+          Thread.MemoryBarrier()
           0
         // TODO move ref count impl to .Core from .Extensions
         member x.BorrowBuffer(buffer): int = raise (NotImplementedException())
