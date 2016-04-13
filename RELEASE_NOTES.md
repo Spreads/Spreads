@@ -1,3 +1,6 @@
+#### 0.4.1 - April 13, 2016
+* Fix subtle syncronization bugs.
+
 #### 0.4.0 - April 12, 2016
 * Lock-free thread-safe SortedMap;
 * Generic buffer pool from corefx;
