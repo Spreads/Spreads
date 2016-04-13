@@ -586,8 +586,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var sw = new Stopwatch();
 
-            var sm1 = new SortedChunkedMap<int, int>();
-            var sm2 = new SortedChunkedMap<int, int>();
+            var sm1 = new SortedMap<int, int>();
+            var sm2 = new SortedMap<int, int>();
 
             sm1.Add(0, 0);
             sm2.Add(-100500, 0);
