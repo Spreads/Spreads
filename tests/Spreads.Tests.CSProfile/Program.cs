@@ -16,12 +16,12 @@ namespace Spreads.Tests.CSProfile {
         static void Main(string[] args)
         {
 
-            //new MoveNextAsyncTests().CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes();
+            new MoveNextAsyncTests().CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes();
 
-            var bs = Bootstrap.Bootstrapper.Instance;
-            new StorageTests().CouldCRUDSeriesStorage();
+            //var bs = Bootstrap.Bootstrapper.Instance;
+            //new StorageTests().CouldCRUDSeriesStorage();
             Console.ReadLine();
-            Console.WriteLine(bs.AppFolder);
+            //Console.WriteLine(bs.AppFolder);
         }
     }
 }

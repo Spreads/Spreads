@@ -1227,6 +1227,8 @@ type SortedMap<'K,'V>
             if x.MoveNext() then
               OptimizationSettings.TraceVerbose("SM_MNA: MN inside completeTcs")
               tcs.SetResult(true)
+            elif not this.IsMutable then
+              tcs.SetResult(false)
             else
               OptimizationSettings.TraceVerbose("SM_MNA: waiting on semaphore")
               let semaphoreTask = semaphore.WaitAsync(-1, token)
@@ -1253,17 +1255,25 @@ type SortedMap<'K,'V>
             trueTask            
           | false ->
             OptimizationSettings.TraceVerbose("SM_MNA: sync MN false")
-            match this.IsMutable with
+            match isMutable with
             | true ->
               let sw = SpinWait()
               let mutable doSpin = true
-              while doSpin do // && not sw.NextSpinWillYield do
+              let mutable spinCount = 0
+              // spin 10 times longer than default SpinWait implementation
+              while doSpin && isMutable do // && spinCount < 10 do
                 OptimizationSettings.TraceVerbose("SM_MNA: spinning")
-                doSpin <- not <| x.MoveNext()
-                if doSpin then sw.SpinOnce()
+                doSpin <- (not <| x.MoveNext()) 
+                if doSpin then
+//                  if sw.NextSpinWillYield then 
+//                    increment &spinCount
+//                    sw.Reset()
+                  sw.SpinOnce()
               if not doSpin then // exited loop due to successful MN, not due to sw.NextSpinWillYield
                 OptimizationSettings.TraceVerbose("SM_MNA: spin wait success")
                 trueTask
+              elif not isMutable then
+                falseTask
               else
                 let upd = this :> IObservableEvents<'K,'V>
                 if not !observerStarted then
@@ -1277,7 +1287,7 @@ type SortedMap<'K,'V>
                 OptimizationSettings.TraceVerbose("SM_MNA: calling completeTcs")
                 completeTcs(tcs, ct)
                 returnTask
-            | _ -> falseTask
+            | _ -> if x.MoveNext() then trueTask else falseTask
 
         member x.Source: ISeries<'K,'V> = this :> ISeries<'K,'V>
       

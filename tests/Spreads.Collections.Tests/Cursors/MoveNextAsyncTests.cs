@@ -97,7 +97,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sumTask = Task.Run(async () => {
                 var c = sm.GetCursor();
                 
-                while (cnt < count && await c.MoveNext(CancellationToken.None)) {
+                while (await c.MoveNext(CancellationToken.None)) {
                     sum += c.CurrentValue;
                     if ((int)c.CurrentValue != cnt) {
                         //Console.WriteLine("Wrong sequence");
@@ -115,7 +115,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sumTask2 = Task.Run(async () => {
                 var c = sm.GetCursor();
 
-                while (cnt2 < count && await c.MoveNext(CancellationToken.None)) {
+                while (await c.MoveNext(CancellationToken.None)) {
                     sum2 += c.CurrentValue;
                     if ((int)c.CurrentValue != cnt2) {
                         //Console.WriteLine("Wrong sequence");
@@ -133,7 +133,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sumTask3 = Task.Run(async () => {
                 var c = sm.GetCursor();
 
-                while (cnt3 < count && await c.MoveNext(CancellationToken.None)) {
+                while (await c.MoveNext(CancellationToken.None)) {
                     sum3 += c.CurrentValue;
                     if ((int)c.CurrentValue != cnt3) {
                         //Console.WriteLine("Wrong sequence");
