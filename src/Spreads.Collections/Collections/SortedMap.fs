@@ -1278,84 +1278,120 @@ type SortedMap<'K,'V>
             else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
           )
         member p.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
-          readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
+          let mutable newIndex = index
+          let mutable newKey = currentKey
+          let mutable newValue = currentValue
+          let moved = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
             if (not this.IsMutable) && (index = -1) then
-              index <- this.size - 1 // at the last element of the batch
-              currentKey <- this.GetKeyByIndexUnchecked(index)
-              currentValue <- this.values.[index]
+              newIndex <- this.size - 1 // at the last element of the batch
+              newKey <- this.GetKeyByIndexUnchecked(newIndex)
+              newValue <- this.values.[newIndex]
               isBatch <- true
               trueTask
             else falseTask
           )
+          if moved.Result then
+            index <- newIndex
+            currentKey <- newKey
+            currentValue <- newValue
+          moved
 
         member p.Clone() = this.GetCursor(index,cursorVersion, p.CurrentKey, p.CurrentValue) //!currentKey,!currentValue)
       
         member p.MovePrevious() =
-          // NB: this must be outside lock to avoid multiple decrements
-          let previousIndex = index - 1
-          readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
+          let mutable newIndex = index
+          let mutable newKey = currentKey
+          let mutable newValue = currentValue
+          let moved = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
             if index = -1 then p.MoveLast()  // first move when index = -1
             elif cursorVersion =  this.orderVersion then
               if index > 0 && index < this.size then
-                index <- previousIndex
-                currentKey <- this.GetKeyByIndexUnchecked(index)
-                currentValue <- this.values.[index]
+                newIndex <- index - 1
+                newKey <- this.GetKeyByIndexUnchecked(newIndex)
+                newValue <- this.values.[newIndex]
                 true
               else
-                //p.Reset()
                 false
             else
               cursorVersion <-  this.orderVersion // update state to new this.version
               let mutable kvp = Unchecked.defaultof<_>
               let position = this.TryFindWithIndex(p.CurrentKey, Lookup.LT, &kvp) //currentKey.Value
               if position > 0 then
-                index <- position
-                currentKey <- kvp.Key
-                currentValue <- kvp.Value
+                newIndex <- position
+                newKey <- kvp.Key
+                newValue <- kvp.Value
                 true
               else  // not found
-                //p.Reset()
                 false
           )
+          if moved then
+            index <- newIndex
+            currentKey <- newKey
+            currentValue <- newValue
+          moved
 
         member p.MoveAt(key:'K, lookup:Lookup) =
           if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
-          readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
+          let mutable newIndex = index
+          let mutable newKey = currentKey
+          let mutable newValue = currentValue
+          let moved = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
             let mutable kvp = Unchecked.defaultof<_>
             let position = this.TryFindWithIndex(key, lookup, &kvp)
             if position >= 0 then
-              index <- position
-              currentKey <- kvp.Key
-              currentValue <- kvp.Value
+              newIndex <- position
+              newKey <- kvp.Key
+              newValue <- kvp.Value
               true
             else
               p.Reset()
               false
           )
+          if moved then
+            index <- newIndex
+            currentKey <- newKey
+            currentValue <- newValue
+          moved
 
-        member p.MoveFirst() = 
-          readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
+        member p.MoveFirst() =
+          let mutable newIndex = index
+          let mutable newKey = currentKey
+          let mutable newValue = currentValue
+          let moved = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
             if this.size > 0 then
-              index <- 0
-              currentKey <- this.GetKeyByIndexUnchecked(index)
-              currentValue <- this.values.[index]
+              newIndex <- 0
+              newKey <- this.GetKeyByIndexUnchecked(newIndex)
+              newValue <- this.values.[newIndex]
               true
             else
               p.Reset()
               false
           )
+          if moved then
+            index <- newIndex
+            currentKey <- newKey
+            currentValue <- newValue
+          moved
 
         member p.MoveLast() =
-          readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
+          let mutable newIndex = index
+          let mutable newKey = currentKey
+          let mutable newValue = currentValue
+          let moved = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
             if this.size > 0 then
-              index <- this.size - 1
-              currentKey <- this.GetKeyByIndexUnchecked(index)
-              currentValue <- this.values.[index]
+              newIndex <- this.size - 1
+              newKey <- this.GetKeyByIndexUnchecked(newIndex)
+              newValue <- this.values.[newIndex]
               true
             else
               p.Reset()
               false
           )
+          if moved then
+            index <- newIndex
+            currentKey <- newKey
+            currentValue <- newValue
+          moved
 
         member p.CurrentKey with get() = currentKey
 
@@ -1366,31 +1402,38 @@ type SortedMap<'K,'V>
         member p.Current with get() : obj = box p.Current
         member p.MoveNext() =
           // NB: this must be outside lock to avoid multiple increments
-          let nextIndex = index + 1
-          readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
+          let initialIndex = index
+          let mutable newIndex = index
+          let mutable newKey = currentKey
+          let mutable newValue = currentValue
+          let moved = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
             if cursorVersion = this.orderVersion then
               if index < (this.size - 1) then
-                index <- nextIndex
-                currentKey <- this.GetKeyByIndexUnchecked(index)
-                currentValue <- this.values.[index]
+                newIndex <- index + 1
+                newKey <- this.GetKeyByIndexUnchecked(newIndex)
+                newValue <- this.values.[newIndex]
                 true
               else
-                //p.Reset() // NB! Do not reset cursor on false MoveNext
                 false
             else  // source change
               cursorVersion <- this.orderVersion // update state to new this.version
               let mutable kvp = Unchecked.defaultof<_>
               let position = this.TryFindWithIndex(currentKey, Lookup.GT, &kvp) // reposition cursor after source change //currentKey.Value
               if position > 0 then
-                index <- position
-                currentKey <- kvp.Key
-                currentValue <- kvp.Value
+                newIndex <- position
+                newKey <- kvp.Key
+                newValue <- kvp.Value
                 true
               else  // not found
-                //p.Reset() // NB! Do not reset cursor on false MoveNext
                 false
           )
-        member p.Reset() = 
+          if moved then
+            index <- newIndex
+            currentKey <- newKey
+            currentValue <- newValue
+          moved
+
+        member p.Reset() =
           readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
             cursorVersion <-  this.orderVersion // update state to new this.version
             index <- -1

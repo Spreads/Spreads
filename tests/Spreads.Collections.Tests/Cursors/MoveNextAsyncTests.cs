@@ -96,13 +96,13 @@ namespace Spreads.Collections.Tests.Cursors {
             var cnt = 0;
             var sumTask = Task.Run(async () => {
                 var c = sm.GetCursor();
-
+                
                 while (cnt < count && await c.MoveNext(CancellationToken.None)) {
                     sum += c.CurrentValue;
                     if ((int)c.CurrentValue != cnt) {
                         //Console.WriteLine("Wrong sequence");
                         //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
-                        Trace.WriteLine($"Wrong sequence: {c.CurrentValue} != {cnt}; thread {Thread.CurrentThread.ManagedThreadId}");
+                        Trace.WriteLine($"Wrong sequence1: {c.CurrentValue} != {cnt}; thread {Thread.CurrentThread.ManagedThreadId}");
                     } else {
                         //Console.WriteLine("Async move");
                     }
@@ -120,7 +120,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     if ((int)c.CurrentValue != cnt2) {
                         //Console.WriteLine("Wrong sequence");
                         //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
-                        Trace.WriteLine($"Wrong sequence: {c.CurrentValue} != {cnt}; thread {Thread.CurrentThread.ManagedThreadId}");
+                        Trace.WriteLine($"Wrong sequence2: {c.CurrentValue} != {cnt2}; thread {Thread.CurrentThread.ManagedThreadId}");
                     } else {
                         //Console.WriteLine("Async move");
                     }
@@ -138,7 +138,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     if ((int)c.CurrentValue != cnt3) {
                         //Console.WriteLine("Wrong sequence");
                         //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
-                        Trace.WriteLine($"Wrong sequence: {c.CurrentValue} != {cnt}; thread {Thread.CurrentThread.ManagedThreadId}");
+                        Trace.WriteLine($"Wrong sequence3: {c.CurrentValue} != {cnt3}; thread {Thread.CurrentThread.ManagedThreadId}");
                     } else {
                         //Console.WriteLine("Async move");
                     }
@@ -150,12 +150,9 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var addTask = Task.Run(() => {
                 //Console.WriteLine($"Adding from thread {Thread.CurrentThread.ManagedThreadId}");
-                //await Task.Delay(10);
+
                 for (int i = 5; i < count; i++) {
-                    //mre.Wait();
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
-                    //await Task.Delay(1);
-                    //NOP(500);
                 }
                 sm.Complete();
 
@@ -164,7 +161,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
             while (!sumTask.Wait(2000)) {
-                //OptimizationSettings.Verbose = true;
+                OptimizationSettings.Verbose = true;
                 Trace.WriteLine($"cnt: {cnt}");
             }
             while (!sumTask2.Wait(2000)) {
