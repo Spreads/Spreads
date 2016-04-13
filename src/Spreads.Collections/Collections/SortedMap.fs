@@ -410,7 +410,16 @@ type SortedMap<'K,'V>
     with get() = 
       if syncRoot = null then Interlocked.CompareExchange<obj>(&syncRoot, new Object(), null) |> ignore
       syncRoot
-  member this.Version with get() = this.version and internal set v = this.version <- v // NB setter only for deserializer
+
+  member this.Version 
+    with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.version)
+    and internal set v = 
+      let entered = enterWriteLockIf &locker true
+      try
+        this.version <- v // NB setter only for deserializer
+        this.nextVersion <- v
+      finally
+        exitWriteLockIf &locker entered
 
   //#endregion
 
@@ -857,7 +866,7 @@ type SortedMap<'K,'V>
     let mutable removed = false
     try
       if this.size > 0 then
-        result <- this.First
+        result <- KeyValuePair(this.keys.[0], this.values.[0])
         this.RemoveAt(0)
         increment &this.orderVersion
         removed <- true
@@ -879,7 +888,11 @@ type SortedMap<'K,'V>
     let mutable removed = false
     try
       if this.size > 0 then
-        result <-this.Last
+        result <-
+          if couldHaveRegularKeys && this.size > 1 then
+            Trace.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
+            KeyValuePair(rkLast, this.values.[this.size - 1])
+          else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
         this.RemoveAt(this.size - 1)
         increment &this.orderVersion
         removed <- true
@@ -1553,7 +1566,7 @@ type SortedMap<'K,'V>
 
   interface IOrderedMap<'K,'V> with
     member this.Complete() = this.Complete()
-    member this.Version with get() = int64(this.Version) and set v = this.version <- v
+    member this.Version with get() = this.Version and set v = this.Version <- v
     member this.Count with get() = int64(this.size)
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
     member this.Add(k, v) = this.Add(k,v)

@@ -16,7 +16,7 @@ namespace Spreads.Tests.CSProfile {
         static void Main(string[] args)
         {
 
-            new MoveNextAsyncTests().CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes();
+            //new MoveNextAsyncTests().CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes();
 
             var bs = Bootstrap.Bootstrapper.Instance;
             new StorageTests().CouldCRUDSeriesStorage();
