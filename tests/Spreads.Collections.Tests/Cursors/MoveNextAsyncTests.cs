@@ -72,7 +72,7 @@ namespace Spreads.Collections.Tests.Cursors {
         [Test]
         [Ignore]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes() {
-            for (int round = 0; round < 100; round++) {
+            for (int round = 0; round < 10000; round++) {
                 CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
             }
         }
@@ -81,7 +81,6 @@ namespace Spreads.Collections.Tests.Cursors {
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor() {
             var count = 1000000;
             var sw = new Stopwatch();
-            //var mre = new ManualResetEventSlim(true);
             sw.Start();
 
             var sm = new SortedMap<DateTime, double>();
@@ -92,9 +91,66 @@ namespace Spreads.Collections.Tests.Cursors {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
 
-            var addTask = Task.Run(async () => {
 
-                await Task.Delay(10);
+            double sum = 0;
+            var cnt = 0;
+            var sumTask = Task.Run(async () => {
+                var c = sm.GetCursor();
+
+                while (cnt < count && await c.MoveNext(CancellationToken.None)) {
+                    sum += c.CurrentValue;
+                    if ((int)c.CurrentValue != cnt) {
+                        //Console.WriteLine("Wrong sequence");
+                        //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
+                        Trace.WriteLine($"Wrong sequence: {c.CurrentValue} != {cnt}; thread {Thread.CurrentThread.ManagedThreadId}");
+                    } else {
+                        //Console.WriteLine("Async move");
+                    }
+                    cnt++;
+                }
+            });
+
+            double sum2 = 0;
+            var cnt2 = 0;
+            var sumTask2 = Task.Run(async () => {
+                var c = sm.GetCursor();
+
+                while (cnt2 < count && await c.MoveNext(CancellationToken.None)) {
+                    sum2 += c.CurrentValue;
+                    if ((int)c.CurrentValue != cnt2) {
+                        //Console.WriteLine("Wrong sequence");
+                        //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
+                        Trace.WriteLine($"Wrong sequence: {c.CurrentValue} != {cnt}; thread {Thread.CurrentThread.ManagedThreadId}");
+                    } else {
+                        //Console.WriteLine("Async move");
+                    }
+                    cnt2++;
+                }
+            });
+
+            double sum3 = 0;
+            var cnt3 = 0;
+            var sumTask3 = Task.Run(async () => {
+                var c = sm.GetCursor();
+
+                while (cnt3 < count && await c.MoveNext(CancellationToken.None)) {
+                    sum3 += c.CurrentValue;
+                    if ((int)c.CurrentValue != cnt3) {
+                        //Console.WriteLine("Wrong sequence");
+                        //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
+                        Trace.WriteLine($"Wrong sequence: {c.CurrentValue} != {cnt}; thread {Thread.CurrentThread.ManagedThreadId}");
+                    } else {
+                        //Console.WriteLine("Async move");
+                    }
+                    cnt3++;
+                }
+            });
+
+            Thread.Sleep(1);
+
+            var addTask = Task.Run(() => {
+                //Console.WriteLine($"Adding from thread {Thread.CurrentThread.ManagedThreadId}");
+                //await Task.Delay(10);
                 for (int i = 5; i < count; i++) {
                     //mre.Wait();
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
@@ -105,88 +161,33 @@ namespace Spreads.Collections.Tests.Cursors {
 
             });
 
-            double sum = 0.0;
-            int cnt = 0;
-            var sumTask = Task.Run(async () => {
-                var c = sm.GetCursor();
-                while (c.MoveNext()) {
-                    if ((int)c.CurrentValue != cnt) {
-                        Console.WriteLine("Wrong sequence");
-                    } else {
-                        //Console.WriteLine("Sync move");
-                    }
 
-                    sum += c.CurrentValue;
-                    cnt++;
-                }
-                //Assert.AreEqual(10, sum);
 
-                await Task.Delay(30);
-                while (await c.MoveNext(CancellationToken.None)) {
-                    //mre.Reset();
-                    sum += c.CurrentValue;
-                    if ((int)c.CurrentValue != cnt) {
-                        //Console.WriteLine("Wrong sequence");
-                        Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
-                    } else {
-                        //Console.WriteLine("Async move");
-                    }
-                    cnt++;
-                    //mre.Set();
-                }
-                //Console.WriteLine("Finished 1");
-            });
-
-            double sum2 = 0.0;
-            var sumTask2 = Task.Run(async () => {
-                var c = sm.GetCursor();
-                while (c.MoveNext()) {
-                    sum2 += c.CurrentValue;
-                }
-                Assert.AreEqual(10, sum2);
-
-                await Task.Delay(50);
-                while (await c.MoveNext(CancellationToken.None)) {
-                    //mre.Reset();
-                    sum2 += c.CurrentValue;
-                    //mre.Set();
-                }
-                //Console.WriteLine("Finished 2");
-            });
-
-            double sum3 = 0.0;
-            var sumTask3 = Task.Run(async () => {
-                var c = sm.GetCursor();
-                while (c.MoveNext()) {
-                    sum3 += c.CurrentValue;
-                }
-                Assert.AreEqual(10, sum3);
-
-                await Task.Delay(100);
-                while (await c.MoveNext(CancellationToken.None)) {
-                    //mre.Reset();
-                    sum3 += c.CurrentValue;
-                    //mre.Set();
-                }
-                //Console.WriteLine("Finished 3");
-            });
-
-            sumTask.Wait();
-            sumTask2.Wait();
-            sumTask3.Wait();
+            while (!sumTask.Wait(2000)) {
+                //OptimizationSettings.Verbose = true;
+                Trace.WriteLine($"cnt: {cnt}");
+            }
+            while (!sumTask2.Wait(2000)) {
+                //OptimizationSettings.Verbose = true;
+                Trace.WriteLine($"cnt2: {cnt2}");
+            }
+            while (!sumTask3.Wait(2000)) {
+                //OptimizationSettings.Verbose = true;
+                Trace.WriteLine($"cnt3: {cnt3}");
+            }
             addTask.Wait();
 
             sw.Stop();
-            Console.Write($"Elapsed msec: {sw.ElapsedMilliseconds - 50}; ");
-            Console.WriteLine(@"Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
+            Trace.Write($"Elapsed msec: {sw.ElapsedMilliseconds}; ");
+            Trace.WriteLine($"Ops: {Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2)}");
 
             double expectedSum = 0.0;
             for (int i = 0; i < count; i++) {
                 expectedSum += i;
             }
-            if (expectedSum != sum) Console.WriteLine("Sum 1 is wrong");
-            if (expectedSum != sum2) Console.WriteLine("Sum 2 is wrong");
-            if (expectedSum != sum3) Console.WriteLine("Sum 3 is wrong");
+            if (expectedSum != sum) Trace.WriteLine("Sum 1 is wrong");
+            if (expectedSum != sum2) Trace.WriteLine("Sum 2 is wrong");
+            if (expectedSum != sum3) Trace.WriteLine("Sum 3 is wrong");
             Assert.AreEqual(expectedSum, sum, "Sum 1");
             Assert.AreEqual(expectedSum, sum2, "Sum 2");
             Assert.AreEqual(expectedSum, sum3, "Sum 3");
@@ -471,7 +472,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sw = new Stopwatch();
 
             var sm = new SortedMap<DateTime, double>();
-            
+
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }

@@ -116,10 +116,6 @@ module internal Utils =
     value
 
   let inline increment (value:byref<_>) = value <- value + LanguagePrimitives.GenericOne
-  
-  let inline incrementVolatile64 (value:byref<int64>) = Volatile.Write(&value, value + 1L)
-  let inline incrementVolatile (value:byref<int>) = Volatile.Write(&value, value + 1)
-
 
   let inline decrement (value:byref<_>) = value <- value - LanguagePrimitives.GenericOne
 

@@ -25,6 +25,7 @@ open System.Collections.Generic
 open System.Threading
 open System.Threading.Tasks
 open System.Runtime.InteropServices
+open System.Diagnostics
 
 // TODO add config class to S.Extensions project, that class will init 
 // all extensions 
@@ -44,6 +45,11 @@ type internal OptimizationSettings() =
   static member val MinVectorLengthForNative = 100 with get, set // TODO should probably be higher
   /// Default chunk length of SortedChunkedMap
   static member val SCMDefaultChunkLength = 4096 with get, set
+  /// Print detailed debug information to console
+  static member val Verbose = false with get, set
+  [<ConditionalAttribute("PRERELEASE")>]
+  static member TraceVerbose(message) = System.Diagnostics.Trace.WriteLineIf(OptimizationSettings.Verbose, message)
+
   /// Generic array pool implementation. Default is GC.
   /// The extension project has an implementation for doubles, and the performance gain is quite visible in benchmarks.
   static member val ArrayPool =
