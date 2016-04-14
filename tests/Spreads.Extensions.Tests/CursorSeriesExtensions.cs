@@ -19,7 +19,7 @@ namespace Spreads.Extensions.Tests {
 
         [Test]
         public void CouldCalculateIncompleteMovingAverage() {
-            var sm = new SortedMap<int, double>();
+            var sm = new Spreads.Collections.SortedMap<int, double>();
             for (int i = 0; i < 20; i++) {
                 sm.Add(i, i);
             }

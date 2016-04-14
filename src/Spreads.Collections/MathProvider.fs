@@ -20,6 +20,7 @@
 namespace Spreads
 
 open System
+open System.Buffers
 open System.Collections
 open System.Collections.Generic
 open System.Threading
@@ -52,18 +53,7 @@ type internal OptimizationSettings() =
 
   /// Generic array pool implementation. Default is GC.
   /// The extension project has an implementation for doubles, and the performance gain is quite visible in benchmarks.
-  static member val ArrayPool =
-    {new IArrayPool with
-        member x.TakeBuffer<'T>(size) = System.Buffers.ArrayPool<'T>.Shared.Rent(size)
-        member x.ReturnBuffer(buffer): int = 
-          System.Buffers.ArrayPool<'T>.Shared.Return(buffer, true)
-          Thread.MemoryBarrier()
-          0
-        // TODO move ref count impl to .Core from .Extensions
-        member x.BorrowBuffer(buffer): int = raise (NotImplementedException())
-        member x.ReferenceCount(buffer) = raise (NotImplementedException())
-        member x.Clear(): unit = ()
-    } with get, set
+  static member val ArrayPool : IGenericArrayPool = new GenericArrayPool() :> IGenericArrayPool
 
 
 // It is tempting to use ILinearAlgebraProvider from MathNet.Numerics, but there are not so many members to wrap around it;

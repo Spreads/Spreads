@@ -80,8 +80,8 @@ type IndexedMap<'K,'V> // when 'K:equality
   do
     let tempCap = if capacity.IsSome then capacity.Value else 1
     if dictionary.IsNone then // otherwise we will set them in dict processing part
-      this.keys <- OptimizationSettings.ArrayPool.TakeBuffer tempCap
-    this.values <- OptimizationSettings.ArrayPool.TakeBuffer tempCap
+      this.keys <- OptimizationSettings.ArrayPool.Take tempCap
+    this.values <- OptimizationSettings.ArrayPool.Take tempCap
 
     if dictionary.IsSome && dictionary.Value.Count > 0 then
       match dictionary.Value with
@@ -186,17 +186,17 @@ type IndexedMap<'K,'V> // when 'K:equality
         | c when c = this.values.Length -> ()
         | c when c < this.size -> raise (ArgumentOutOfRangeException("Small capacity"))
         | c when c > 0 -> 
-          let kArr : 'K array = OptimizationSettings.ArrayPool.TakeBuffer(c)
+          let kArr : 'K array = OptimizationSettings.ArrayPool.Take(c)
           Array.Copy(this.keys, 0, kArr, 0, this.size)
           let toReturn = this.keys
           this.keys <- kArr
-          OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore
+          OptimizationSettings.ArrayPool.Return(toReturn) |> ignore
 
-          let vArr : 'V array = OptimizationSettings.ArrayPool.TakeBuffer(c)
+          let vArr : 'V array = OptimizationSettings.ArrayPool.Take(c)
           Array.Copy(this.values, 0, vArr, 0, this.size)
           let toReturn = this.values
           this.values <- vArr
-          OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore
+          OptimizationSettings.ArrayPool.Return(toReturn) |> ignore
         | _ -> ()
       finally
         exitLockIf syncRoot entered

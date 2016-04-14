@@ -9,8 +9,7 @@ using Spreads.Collections;
 
 namespace Spreads.NativeMath {
     public class YepppMathProvider : IVectorMathProvider {
-        static YepppMathProvider()
-        {
+        static YepppMathProvider() {
             Yeppp.Library.Init();
         }
 
@@ -18,15 +17,19 @@ namespace Spreads.NativeMath {
             throw new NotImplementedException();
         }
 
-        public bool AddBatch<K>(double scalar, IReadOnlyOrderedMap<K, double> batch, out IReadOnlyOrderedMap<K, double> value)
-        {
+        public bool AddBatch<K>(double scalar, IReadOnlyOrderedMap<K, double> batch, out IReadOnlyOrderedMap<K, double> value) {
             var sm = batch as SortedMap<K, double>;
-            if (!ReferenceEquals(sm, null))
-            {
+            if (!ReferenceEquals(sm, null)) {
                 double[] newValues = new double[sm.size];
                 Yeppp.Core.Add_V64fS64f_V64f(sm.values, 0, scalar, newValues, 0, sm.size);
                 //Yeppp.Math.Log_V64f_V64f(sm.values, 0, newValues, 0, sm.size);
-                var newKeys = sm.IsMutable ? sm.keys.ToArray() : sm.keys;
+                K[] newKeys;
+                if (!sm.IsReadOnly) {
+                    newKeys = sm.keys.ToArray();
+                } else {
+                    OptimizationSettings.ArrayPool.Borrow(sm.keys);
+                    newKeys = sm.keys;
+                }
                 var newSm = SortedMap<K, double>.OfSortedKeysAndValues(newKeys, newValues, sm.size, sm.Comparer, false, sm.IsRegular);
                 value = newSm;
                 return true;
@@ -39,7 +42,7 @@ namespace Spreads.NativeMath {
             if (!ReferenceEquals(sm, null)) {
                 double[] newValues = new double[sm.size];
                 //Yeppp.Core.Add_V64fS64f_V64f(sm.values, 0, scalar, newValues, 0, sm.size);
-                value = Yeppp.Core.Sum_V64f_S64f(sm.values, 0,  sm.size);
+                value = Yeppp.Core.Sum_V64f_S64f(sm.values, 0, sm.size);
                 return true;
             }
             throw new NotImplementedException();

@@ -71,6 +71,8 @@
     <Compile Include="System\Buffers\ArrayPoolEventSource.cs" />
     <Compile Include="System\Buffers\DefaultArrayPool.cs" />
     <Compile Include="System\Buffers\DefaultArrayPoolBucket.cs" />
+    <Compile Include="System\Buffers\GenericArrayPool.cs" />
+    <Compile Include="System\Buffers\IGenericArrayPool.cs" />
     <Compile Include="System\Buffers\Utilities.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="Lookup.cs" />

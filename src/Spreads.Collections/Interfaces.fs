@@ -332,20 +332,6 @@ type IPanel<'TRowKey,'TColumnKey, 'TValue> =
 
 
 
-/// Generic array pool with reference counting.
-type IArrayPool =
-  /// Take a new buffer from the pool
-  abstract TakeBuffer<'T> : bufferCount:int -> 'T[]
-  /// Increment reference count on the buffer if it was taken from the buffer
-  abstract BorrowBuffer<'T> : 'T[] -> int
-  /// Decrement reference count on a buffer and return the buffer to the pool if refcount is zero
-  abstract ReturnBuffer<'T> : 'T[] -> int
-  /// Get current reference count 
-  abstract ReferenceCount<'T> : 'T[] -> int
-  /// Clear the entire pool
-  abstract Clear: unit -> unit
-
-
 // TODO! use ArraySegment instead of byte[] everywhere where byte[] could be a reusable buffer
 type ISerializer =
   abstract Serialize: 'T -> byte[]

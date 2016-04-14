@@ -465,7 +465,7 @@ namespace Spreads.Serialization {
 
 			//src.CheckRegular(); // TODO? Need this?
 			var isRegular = src.IsRegular;
-            var isMutable = src.IsMutable;
+            var isMutable = !src.IsReadOnly;
             FixedBufferTransformer<Tuple<byte[], int>> passThrough = (source, length, self) => {
 				// NB! here was a real example of leaving fixed region with pointer and GC moving the object
 				//unsafe
@@ -543,7 +543,7 @@ namespace Spreads.Serialization {
 
 			//src.CheckRegular(); // TODO? Need this?
 			var isRegular = src.IsRegular;
-            var isMutable = src.IsMutable;
+            var isMutable = !src.IsReadOnly;
 
             // NB lowcase internal field access, not properties. Null check if later will use IOrderedMap instead of map
             K[] keys = src.keys as K[] ?? src.Keys.ToArray();

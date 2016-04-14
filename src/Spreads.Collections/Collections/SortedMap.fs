@@ -99,7 +99,8 @@ type SortedMap<'K,'V>
   [<DefaultValueAttribute>] 
   val mutable isSynchronized : bool
   // NB it is serializable, but stored as sign bit of version in our default serialization
-  let mutable isMutable : bool = true
+  [<DefaultValueAttribute>] 
+  val mutable isReadOnly : bool
   [<NonSerializedAttribute>]
   let mutable syncRoot : obj = null
   [<NonSerializedAttribute>]
@@ -125,14 +126,14 @@ type SortedMap<'K,'V>
         // TODO wrap the corefx buffer and for len = 2 use a special self-adjusting ObjectPool, because these 
         // arrays are not short-lived and could accumulate in gen 1+ easily.
         Array.zeroCreate 2
-      else OptimizationSettings.ArrayPool.TakeBuffer (tempCap) 
-    this.values <- OptimizationSettings.ArrayPool.TakeBuffer tempCap
+      else OptimizationSettings.ArrayPool.Take (tempCap) 
+    this.values <- OptimizationSettings.ArrayPool.Take tempCap
 
     if dictionary.IsSome && dictionary.Value.Count > 0 then
       match dictionary.Value with
       // TODO SCM
       | :? SortedMap<'K,'V> as map ->
-        if not map.IsMutable then Trace.TraceWarning("TODO: reuse arrays of immutable map")
+        if map.IsReadOnly then Trace.TraceWarning("TODO: reuse arrays of immutable map")
         let entered = enterWriteLockIf &map.locker true
         try
           couldHaveRegularKeys <- map.IsRegular
@@ -152,7 +153,7 @@ type SortedMap<'K,'V>
           else
             this.SetCapacity(dictionary.Value.Count)
         
-          let tempKeys = OptimizationSettings.ArrayPool.TakeBuffer(dictionary.Value.Keys.Count)
+          let tempKeys = OptimizationSettings.ArrayPool.Take(dictionary.Value.Keys.Count)
           dictionary.Value.Keys.CopyTo(tempKeys, 0)
           dictionary.Value.Values.CopyTo(this.values, 0)
           // NB IDictionary guarantees there is no duplicates
@@ -164,7 +165,7 @@ type SortedMap<'K,'V>
             couldHaveRegularKeys <- isReg
             if couldHaveRegularKeys then 
               this.keys <- regularKeys
-              Task.Run(fun _ -> OptimizationSettings.ArrayPool.ReturnBuffer tempKeys |> ignore) |> ignore
+              Task.Run(fun _ -> OptimizationSettings.ArrayPool.Return tempKeys |> ignore) |> ignore
               rkLast <- this.rkKeyAtIndex (this.size - 1)
             else
               this.keys <- tempKeys
@@ -322,7 +323,7 @@ type SortedMap<'K,'V>
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.Insert(index:int, k, v) = 
-    if not isMutable then invalidOp "SortedMap is not mutable"
+    if this.isReadOnly then invalidOp "SortedMap is not mutable"
     // key is always new, checks are before this method
     // already inside a lock statement in a caller method if synchronized
    
@@ -382,16 +383,15 @@ type SortedMap<'K,'V>
   member this.Complete() =
     let entered = enterWriteLockIf &this.locker true
     try
-      if isMutable then 
-          isMutable <- false
+      if not this.isReadOnly then 
+          this.isReadOnly <- true
           // immutable doesn't need sync
           this.IsSynchronized <- false // TODO the same for SCM
           if this.subscribersCounter > 0 then this.onCompletedEvent.Trigger(true)
     finally
       exitWriteLockIf &this.locker entered
 
-  member internal this.IsMutable with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> isMutable)
-  override this.IsReadOnly with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> not isMutable)
+  override this.IsReadOnly with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.isReadOnly)
   override this.IsIndexed with get() = false
 
   member this.IsSynchronized 
@@ -441,21 +441,21 @@ type SortedMap<'K,'V>
     | c when c = this.values.Length -> ()
     | c when c < this.size -> raise (ArgumentOutOfRangeException("Small capacity"))
     | c when c > 0 -> 
-      if not isMutable then invalidOp "SortedMap is not mutable"
+      if this.isReadOnly then invalidOp "SortedMap is read-only"
       if couldHaveRegularKeys then
         Trace.Assert(this.keys.Length = 2)
       else
-        let kArr : 'K array = OptimizationSettings.ArrayPool.TakeBuffer(c)
+        let kArr : 'K array = OptimizationSettings.ArrayPool.Take(c)
         Array.Copy(this.keys, 0, kArr, 0, this.size)
         let toReturn = this.keys
         this.keys <- kArr
-        Task.Run(fun _ -> OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore) |> ignore
+        Task.Run(fun _ -> OptimizationSettings.ArrayPool.Return(toReturn) |> ignore) |> ignore
 
-      let vArr : 'V array = OptimizationSettings.ArrayPool.TakeBuffer(c)
+      let vArr : 'V array = OptimizationSettings.ArrayPool.Take(c)
       Array.Copy(this.values, 0, vArr, 0, this.size)
       let toReturn = this.values
       this.values <- vArr
-      Task.Run(fun _ -> OptimizationSettings.ArrayPool.ReturnBuffer(toReturn) |> ignore) |> ignore
+      Task.Run(fun _ -> OptimizationSettings.ArrayPool.Return(toReturn) |> ignore) |> ignore
     | _ -> ()
 
   member this.Capacity
@@ -853,7 +853,7 @@ type SortedMap<'K,'V>
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     let mutable removed = false
     try
-      if not isMutable then invalidOp "SortedMap is not mutable"
+      if this.isReadOnly then invalidOp "SortedMap is read-only"
       let index = this.IndexOfKeyUnchecked(key)
       if index >= 0 then 
         this.RemoveAt(index)
@@ -924,7 +924,7 @@ type SortedMap<'K,'V>
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     let mutable removed = false
     try
-      if not isMutable then invalidOp "SortedMap is not mutable"
+      if this.isReadOnly then invalidOp "SortedMap is read-only"
       if this.size = 0 then false
       else
         let mutable kvp = Unchecked.defaultof<_>
@@ -1182,7 +1182,7 @@ type SortedMap<'K,'V>
       // NB: via property with locks
       this.IsSynchronized <- true
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-      if isMutable then
+      if not this.isReadOnly then
         this.GetCursor(-1, this.orderVersion, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>) :> ICursor<'K,'V>
       else new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
     )
@@ -1265,13 +1265,13 @@ type SortedMap<'K,'V>
             trueTask            
           | false ->
             OptimizationSettings.TraceVerbose("SM_MNA: sync MN false")
-            match isMutable with
-            | true ->
+            match this.isReadOnly with
+            | false ->
               let sw = SpinWait()
               let mutable doSpin = true
               let mutable spinCount = 0
               // spin 10 times longer than default SpinWait implementation
-              while doSpin && isMutable && not ct.IsCancellationRequested do // && spinCount < 10 do
+              while doSpin && not this.isReadOnly && not ct.IsCancellationRequested do // && spinCount < 10 do
                 OptimizationSettings.TraceVerbose("SM_MNA: spinning")
                 doSpin <- (not <| x.MoveNext()) 
                 if doSpin then
@@ -1282,7 +1282,7 @@ type SortedMap<'K,'V>
               if not doSpin then // exited loop due to successful MN, not due to sw.NextSpinWillYield
                 OptimizationSettings.TraceVerbose("SM_MNA: spin wait success")
                 trueTask
-              elif not isMutable then
+              elif this.isReadOnly then
                 falseTask
               elif ct.IsCancellationRequested then
                 raise (OperationCanceledException(ct))
@@ -1310,7 +1310,7 @@ type SortedMap<'K,'V>
           readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
             if isBatch then
               Trace.Assert((index = this.size - 1))
-              Trace.Assert(not this.IsMutable)
+              Trace.Assert(this.isReadOnly)
               this :> IReadOnlyOrderedMap<'K,'V>
             else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
           )
@@ -1319,7 +1319,7 @@ type SortedMap<'K,'V>
           let mutable newKey = currentKey
           let mutable newValue = currentValue
           let moved = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-            if (not this.IsMutable) && (index = -1) then
+            if (this.isReadOnly) && (index = -1) then
               newIndex <- this.size - 1 // at the last element of the batch
               newKey <- this.GetKeyByIndexUnchecked(newIndex)
               newValue <- this.values.[newIndex]
@@ -1499,8 +1499,8 @@ type SortedMap<'K,'V>
 
   member private this.Dispose(disposing:bool) =
     Task.Run(fun _ -> 
-      if not couldHaveRegularKeys then OptimizationSettings.ArrayPool.ReturnBuffer(this.keys) |> ignore
-      OptimizationSettings.ArrayPool.ReturnBuffer(this.values) |> ignore
+      if not couldHaveRegularKeys then OptimizationSettings.ArrayPool.Return(this.keys) |> ignore
+      OptimizationSettings.ArrayPool.Return(this.values) |> ignore
     ) |> ignore
     if disposing then GC.SuppressFinalize(this)
   
@@ -1539,7 +1539,7 @@ type SortedMap<'K,'V>
 
   interface IDictionary<'K,'V> with
     member this.Count = this.Count
-    member this.IsReadOnly with get() = not this.IsMutable
+    member this.IsReadOnly with get() = this.IsReadOnly
     member this.Item
       with get key = this.Item(key)
       and set key value = this.[key] <- value
@@ -1858,7 +1858,7 @@ and
 
           if this.isBatch then
             Trace.Assert(this.index = this.source.size - 1)
-            Trace.Assert(not this.source.IsMutable)
+            Trace.Assert(this.source.isReadOnly)
             this.source :> IReadOnlyOrderedMap<'K,'V>
           else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
 
@@ -1879,7 +1879,7 @@ and
         result <-
         /////////// Start read-locked code /////////////
 
-          if (not this.source.IsMutable) && (this.index = -1) && this.source.size > 0 then
+          if (this.source.isReadOnly) && (this.index = -1) && this.source.size > 0 then
             this.index <- this.source.size - 1 // at the last element of the batch
             this.currentKey <- this.source.GetKeyByIndexUnchecked(this.index)
             this.currentValue <- this.source.values.[this.index]

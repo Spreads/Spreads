@@ -22,7 +22,7 @@ namespace Spreads.Collections.Tests.Cursors {
         public bool AddBatch<K>(double scalar, IReadOnlyOrderedMap<K, double> batch, out IReadOnlyOrderedMap<K, double> value) {
             var sm = batch as SortedMap<K, double>;
             if (!ReferenceEquals(sm, null)) {
-                double[] newValues = OptimizationSettings.ArrayPool.TakeBuffer<double>(sm.size);
+                double[] newValues = OptimizationSettings.ArrayPool.Take<double>(sm.size);
                 double[] buffer = new double[Vector<double>.Count];
                 for (int c = 0; c < Vector<double>.Count; c++) {
                     buffer[c] = scalar;
@@ -38,7 +38,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     newValues[i] = sm.values[i] + scalar;
                 }
 
-                var newKeys = sm.IsMutable ? sm.keys.ToArray() : sm.keys;
+                var newKeys = sm.keys.ToArray();
                 var newSm = SortedMap<K, double>.OfSortedKeysAndValues(newKeys, newValues, sm.size, sm.Comparer, false, sm.IsRegular);
                 value = newSm;
                 return true;

@@ -38,8 +38,10 @@ type MathProviderImpl() =
           // NB when savings on key memory matters most, they are usually already regular
           // but it still helps to avoid copying, churning caches and just save memory
           let keys2 =
-            if sm.IsMutable then Array.copy sm.keys
-            else sm.keys // NB borrow keys from the source batch
+            if not sm.IsReadOnly then Array.copy sm.keys
+            else 
+              OptimizationSettings.ArrayPool.Borrow(sm.keys) |> ignore
+              sm.keys // NB borrow keys from the source batch
           let sm2 = SortedMap.OfSortedKeysAndValues(keys2, values2, sm.size, sm.Comparer, false, sm.IsRegular)
           // NB source was mutable or we have created a copy that is supposed to be accessed as IReadOnlyOrderedMap externally
           sm2.Complete()
