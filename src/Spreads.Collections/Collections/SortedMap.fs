@@ -1438,37 +1438,50 @@ type SortedMap<'K,'V>
         member p.Current with get() : KVP<'K,'V> = KeyValuePair(currentKey, currentValue)
         member p.Current with get() : obj = box p.Current
         member p.MoveNext() =
+          
           // NB: this must be outside lock to avoid multiple increments
           let initialIndex = index
           let mutable newIndex = index
           let mutable newKey = currentKey
           let mutable newValue = currentValue
-          let moved = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-            if cursorVersion = this.orderVersion then
-              if index < (this.size - 1) then
-                newIndex <- index + 1
-                newKey <- this.GetKeyByIndexUnchecked(newIndex)
-                newValue <- this.values.[newIndex]
-                true
-              else
-                false
-            else  // source change
-              cursorVersion <- this.orderVersion // update state to new this.version
-              let mutable kvp = Unchecked.defaultof<_>
-              let position = this.TryFindWithIndex(currentKey, Lookup.GT, &kvp) // reposition cursor after source change //currentKey.Value
-              if position > 0 then
-                newIndex <- position
-                newKey <- kvp.Key
-                newValue <- kvp.Value
-                true
-              else  // not found
-                false
-          )
-          if moved then
+
+          let mutable result = Unchecked.defaultof<_>
+          let mutable doSpin = true
+          let sw = new SpinWait()
+          while doSpin do
+            doSpin <- this.isSynchronized
+            let version = if doSpin then Volatile.Read(&this.version) else this.orderVersion
+            result <-
+            /////////// Start read-locked code /////////////
+              if cursorVersion = this.orderVersion then
+                if index < (this.size - 1) then
+                  newIndex <- index + 1
+                  newKey <- this.GetKeyByIndexUnchecked(newIndex)
+                  newValue <- this.values.[newIndex]
+                  true
+                else
+                  false
+              else  // source change
+                cursorVersion <- this.orderVersion // update state to new this.version
+                let mutable kvp = Unchecked.defaultof<_>
+                let position = this.TryFindWithIndex(currentKey, Lookup.GT, &kvp) // reposition cursor after source change //currentKey.Value
+                if position > 0 then
+                  newIndex <- position
+                  newKey <- kvp.Key
+                  newValue <- kvp.Value
+                  true
+                else  // not found
+                  false
+            /////////// End read-locked code /////////////
+            if doSpin then
+              let nextVersion = Volatile.Read(&this.nextVersion)
+              if version = nextVersion then doSpin <- false
+              else sw.SpinOnce()
+          if result then
             index <- newIndex
             currentKey <- newKey
             currentValue <- newValue
-          moved
+          result
 
         member p.Reset() =
           readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->

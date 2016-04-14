@@ -83,10 +83,10 @@ let main argv =
 //  let circular = TheSimplestTradingStrategy(state)
 //
 //  circular.Execute()
-//  CollectionsBenchmarks.SeriesNestedMap_run()
+  CollectionsBenchmarks.SeriesNestedMap_run()
   
-  System.Runtime.GCSettings.LatencyMode <- System.Runtime.GCLatencyMode.SustainedLowLatency
-  (Spreads.Tests.Series.ReadmeTestsModule()).CouldCalculateSimpleIndexInRealTime()
+//  System.Runtime.GCSettings.LatencyMode <- System.Runtime.GCLatencyMode.SustainedLowLatency
+//  (Spreads.Tests.Series.ReadmeTestsModule()).CouldCalculateSimpleIndexInRealTime()
 
 
   Console.ReadLine();
