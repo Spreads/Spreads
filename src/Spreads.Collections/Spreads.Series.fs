@@ -86,13 +86,21 @@ and
 
     [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
+    [<ObsoleteAttribute>]
     val mutable internal onNextEvent : EventV2<OnNextHandler<'K,'V>,KVP<'K,'V>>
     [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
+    [<ObsoleteAttribute>]
     val mutable internal onCompletedEvent : EventV2<OnCompletedHandler,bool>
     [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
+    [<ObsoleteAttribute>]
     val mutable internal onErrorEvent : EventV2<OnErrorHandler,Exception>
+
+    [<NonSerializedAttribute>]
+    [<DefaultValueAttribute>]
+    val mutable internal onUpdateEvent : EventV2<OnUpdateHandler,bool>
+
     [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
     val mutable internal subscribersCounter : int
@@ -100,6 +108,7 @@ and
       this.onNextEvent <- new EventV2<OnNextHandler<'K,'V>,KVP<'K,'V>>()
       this.onCompletedEvent <- new EventV2<OnCompletedHandler,bool>()
       this.onErrorEvent <- new EventV2<OnErrorHandler,Exception>()
+      this.onUpdateEvent <- new EventV2<OnUpdateHandler,bool>()
 
     /// Main method to override
     abstract GetCursor : unit -> ICursor<'K,'V>

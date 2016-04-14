@@ -35,7 +35,7 @@ type BaseCursorOld<'K,'V>
   (source:IReadOnlyOrderedMap<'K,'V>) as this =
 
   // implement default MoveNextAsync logic using only MoveNext
-  let isUpdateable = match source with | :? IObservableEvents<'K,'V> -> true | _ -> false
+  let isUpdateable = match source with | :? IUpdateable -> true | _ -> false
   let observerStarted = ref false
   //let tcs = ref (TaskCompletionSource<bool>())
   let mutable tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create())
@@ -83,14 +83,8 @@ type BaseCursorOld<'K,'V>
             return false // stop the loop
     }
 
-  let updateHandler : OnNextHandler<'K,'V> = 
-    OnNextHandler(fun (kvp:KVP<'K,'V>) ->
-        if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
-    )
-
-  // temp solution, this implementation them checks IsMutable property
-  let completeHandler : OnCompletedHandler = 
-    OnCompletedHandler(fun _ ->
+  let updateHandler : OnUpdateHandler = 
+    OnUpdateHandler(fun _ ->
         if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
     )
       
@@ -118,9 +112,8 @@ type BaseCursorOld<'K,'V>
   override this.Dispose() =
     lock(sr) (fun _ ->
       if !observerStarted then
-        Trace.Assert(source :? IObservableEvents<'K,'V>)
-        (source :?> IObservableEvents<'K,'V>).remove_OnNext(updateHandler)
-        (source :?> IObservableEvents<'K,'V>).remove_OnComplete(completeHandler)
+        Trace.Assert(source :? IUpdateable)
+        (source :?> IUpdateable).remove_OnUpdate(updateHandler)
     )
 
   abstract member Reset : unit -> unit
@@ -132,10 +125,9 @@ type BaseCursorOld<'K,'V>
       | false ->
         match isUpdateable, source.IsReadOnly with
         | true, false ->
-          let upd = source :?> IObservableEvents<'K,'V>
+          let upd = source :?> IUpdateable
           if not !observerStarted then 
-            upd.add_OnNext(updateHandler)
-            upd.add_OnComplete(completeHandler)
+            upd.add_OnUpdate(updateHandler)
             observerStarted := true
             taskCompleter := completeTcs()
 

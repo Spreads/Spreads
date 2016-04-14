@@ -35,14 +35,20 @@ namespace Spreads {
         /// <summary>
         /// Key/value of an out-of-order data point
         /// </summary>
+        [Obsolete("try to avoid using it and recover state only using CurrentKey")]
         public K NewKey { get; }
 
-        public OutOfOrderKeyException(K currentKey, K newKey)
-            : this(currentKey, newKey, "New key is snaller than the current key") { }
+        public bool HasKnownNewKey { get; }
 
-        public OutOfOrderKeyException(K currentKey, K newKey, string message) : base(message) {
+        public OutOfOrderKeyException(K currentKey, K newKey, string message = "Out of order data") : base(message) {
             CurrentKey = currentKey;
             NewKey = newKey;
+            HasKnownNewKey = true;
+        }
+
+        public OutOfOrderKeyException(K currentKey, string message = "Out of order data") : base(message) {
+            CurrentKey = currentKey;
+            HasKnownNewKey = false;
         }
     }
 

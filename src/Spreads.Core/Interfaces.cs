@@ -188,6 +188,10 @@ namespace Spreads {
     //    bool TryGetValue(K key, out V value);
     //}
 
+    internal delegate void OnUpdateHandler(bool flag);
+    internal interface IUpdateable {
+        event OnUpdateHandler OnUpdate;
+    }
 
     internal delegate void OnNextHandler<K, V>(KeyValuePair<K, V> kvp);
     internal delegate void OnCompletedHandler(bool isComplete);
