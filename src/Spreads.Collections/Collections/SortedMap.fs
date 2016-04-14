@@ -103,7 +103,8 @@ type SortedMap<'K,'V>
   [<NonSerializedAttribute>]
   let mutable syncRoot : obj = null
   [<NonSerializedAttribute>]
-  let mutable locker : int = 0
+  [<DefaultValueAttribute>] 
+  val mutable locker : int
   [<NonSerializedAttribute>]
   let ownerThreadId : int = Thread.CurrentThread.ManagedThreadId
   [<NonSerializedAttribute>]
@@ -129,39 +130,48 @@ type SortedMap<'K,'V>
 
     if dictionary.IsSome && dictionary.Value.Count > 0 then
       match dictionary.Value with
+      // TODO SCM
       | :? SortedMap<'K,'V> as map ->
         if not map.IsMutable then Trace.TraceWarning("TODO: reuse arrays of immutable map")
-        couldHaveRegularKeys <- map.IsRegular
-        // NB We set capacity to the size of input map
-        // and then use Key/Value properties, not fields, to copy keys/values
-        this.SetCapacity(map.size)
-        this.size <- map.size
-        map.Keys.CopyTo(this.keys, 0) // NB property, not field
-        map.Values.CopyTo(this.values, 0) // // NB property, not field
+        let entered = enterWriteLockIf &map.locker true
+        try
+          couldHaveRegularKeys <- map.IsRegular
+          this.SetCapacity(map.size)
+          this.size <- map.size
+          Array.Copy(map.keys, 0, this.keys, 0, map.size)
+          Array.Copy(map.values, 0, this.values, 0, map.size)
+        finally
+          exitWriteLockIf &map.locker entered
       | _ ->
-        if capacity.IsSome && capacity.Value < dictionary.Value.Count then 
-          raise (ArgumentException("capacity is less then dictionary this.size"))
-        else
-          this.SetCapacity(dictionary.Value.Count)
+        // TODO ICollection interface to IOrderedMap
+        let locked, sr = match dictionary.Value with | :? ICollection as col -> col.IsSynchronized, col.SyncRoot | _ -> false, null
+        let entered = enterLockIf sr locked
+        try
+          if capacity.IsSome && capacity.Value < dictionary.Value.Count then 
+            raise (ArgumentException("capacity is less then dictionary this.size"))
+          else
+            this.SetCapacity(dictionary.Value.Count)
         
-        let tempKeys = OptimizationSettings.ArrayPool.TakeBuffer(dictionary.Value.Keys.Count)
-        dictionary.Value.Keys.CopyTo(tempKeys, 0)
-        dictionary.Value.Values.CopyTo(this.values, 0)
-        // NB IDictionary guarantees there is no duplicates
-        Array.Sort(tempKeys, this.values, 0, dictionary.Value.Keys.Count, comparer)
-        this.size <- dictionary.Value.Count
+          let tempKeys = OptimizationSettings.ArrayPool.TakeBuffer(dictionary.Value.Keys.Count)
+          dictionary.Value.Keys.CopyTo(tempKeys, 0)
+          dictionary.Value.Values.CopyTo(this.values, 0)
+          // NB IDictionary guarantees there is no duplicates
+          Array.Sort(tempKeys, this.values, 0, dictionary.Value.Keys.Count, comparer)
+          this.size <- dictionary.Value.Count
 
-        if couldHaveRegularKeys && this.size > 1 then // if could be regular based on initial check of comparer type
-          let isReg, step, regularKeys = this.rkCheckArray tempKeys this.size (comparer :?> IKeyComparer<'K>)
-          couldHaveRegularKeys <- isReg
-          if couldHaveRegularKeys then 
-            this.keys <- regularKeys
-            Task.Run(fun _ -> OptimizationSettings.ArrayPool.ReturnBuffer tempKeys |> ignore) |> ignore
-            rkLast <- this.rkKeyAtIndex (this.size - 1)
+          if couldHaveRegularKeys && this.size > 1 then // if could be regular based on initial check of comparer type
+            let isReg, step, regularKeys = this.rkCheckArray tempKeys this.size (comparer :?> IKeyComparer<'K>)
+            couldHaveRegularKeys <- isReg
+            if couldHaveRegularKeys then 
+              this.keys <- regularKeys
+              Task.Run(fun _ -> OptimizationSettings.ArrayPool.ReturnBuffer tempKeys |> ignore) |> ignore
+              rkLast <- this.rkKeyAtIndex (this.size - 1)
+            else
+              this.keys <- tempKeys
           else
             this.keys <- tempKeys
-        else
-          this.keys <- tempKeys
+        finally
+          exitLockIf sr entered
         
 
 #if FX_NO_BINARY_SERIALIZATION
@@ -370,7 +380,7 @@ type SortedMap<'K,'V>
 
 
   member this.Complete() =
-    let entered = enterWriteLockIf &locker true
+    let entered = enterWriteLockIf &this.locker true
     try
       if isMutable then 
           isMutable <- false
@@ -378,7 +388,7 @@ type SortedMap<'K,'V>
           this.IsSynchronized <- false // TODO the same for SCM
           if this.subscribersCounter > 0 then this.onCompletedEvent.Trigger(true)
     finally
-      exitWriteLockIf &locker entered
+      exitWriteLockIf &this.locker entered
 
   member internal this.IsMutable with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> isMutable)
   override this.IsReadOnly with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> not isMutable)
@@ -414,12 +424,12 @@ type SortedMap<'K,'V>
   member this.Version 
     with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.version)
     and internal set v = 
-      let entered = enterWriteLockIf &locker true
+      let entered = enterWriteLockIf &this.locker true
       try
         this.version <- v // NB setter only for deserializer
         this.nextVersion <- v
       finally
-        exitWriteLockIf &locker entered
+        exitWriteLockIf &this.locker entered
 
   //#endregion
 
@@ -454,16 +464,16 @@ type SortedMap<'K,'V>
         this.values.Length
       )
     and set(value) =
-      let entered = enterWriteLockIf &locker this.isSynchronized
+      let entered = enterWriteLockIf &this.locker this.isSynchronized
       try
         this.SetCapacity(value)
       finally
-        exitWriteLockIf &locker entered
+        exitWriteLockIf &this.locker entered
 
   member this.Comparer with get() = comparer
 
   member this.Clear() =
-    let entered = enterWriteLockIf &locker this.isSynchronized
+    let entered = enterWriteLockIf &this.locker this.isSynchronized
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     try
       if couldHaveRegularKeys then
@@ -476,7 +486,7 @@ type SortedMap<'K,'V>
       increment &this.orderVersion
     finally
       Interlocked.Increment(&this.version) |> ignore
-      exitWriteLockIf &locker entered
+      exitWriteLockIf &this.locker entered
 
   member this.Count with get() = this.size
 
@@ -494,12 +504,12 @@ type SortedMap<'K,'V>
         member x.Clear() = raise (NotSupportedException("Keys collection is read-only"))
         member x.Contains(key) = this.ContainsKey(key)
         member x.CopyTo(array, arrayIndex) =
-          let entered = enterWriteLockIf &locker this.IsSynchronized
+          let entered = enterWriteLockIf &this.locker this.IsSynchronized
           if couldHaveRegularKeys && this.size > 2 then
             Array.Copy(this.rkMaterialize(), 0, array, arrayIndex, this.size)
           else
             Array.Copy(this.keys, 0, array, arrayIndex, this.size)
-          exitWriteLockIf &locker entered
+          exitWriteLockIf &this.locker entered
 
         member x.IndexOf(key:'K) = this.IndexOfKey(key)
         member x.Insert(index, value) = raise (NotSupportedException("Keys collection is read-only"))
@@ -554,9 +564,9 @@ type SortedMap<'K,'V>
         member x.Clear() = raise (NotSupportedException("Values colelction is read-only"))
         member x.Contains(value) = this.ContainsValue(value)
         member x.CopyTo(array, arrayIndex) =
-          let entered = enterWriteLockIf &locker this.IsSynchronized
+          let entered = enterWriteLockIf &this.locker this.IsSynchronized
           Array.Copy(this.values, 0, array, arrayIndex, this.size)
-          exitWriteLockIf &locker entered
+          exitWriteLockIf &this.locker entered
           
         member x.IndexOf(value:'V) = this.IndexOfValue(value)
         member x.Insert(index, value) = raise (NotSupportedException("Values collection is read-only"))
@@ -666,7 +676,7 @@ type SortedMap<'K,'V>
         let mutable keepOrderVersion = false
         
         // NB: we either have to always use InterLocked.Increment before entering the lock, or use volatile write after it. The later is likely cheaper.
-        let entered = enterWriteLockIf &locker this.isSynchronized
+        let entered = enterWriteLockIf &this.locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
 
         try
@@ -692,7 +702,7 @@ type SortedMap<'K,'V>
         finally
           if not keepOrderVersion then increment(&this.orderVersion)
           Interlocked.Increment(&this.version) |> ignore
-          exitWriteLockIf &locker entered
+          exitWriteLockIf &this.locker entered
           #if PRERELEASE
           if this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
           #else
@@ -704,7 +714,7 @@ type SortedMap<'K,'V>
     if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
     
     let mutable keepOrderVersion = false
-    let entered = enterWriteLockIf &locker this.isSynchronized
+    let entered = enterWriteLockIf &this.locker this.isSynchronized
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     try
       if this.size = 0 then
@@ -714,7 +724,7 @@ type SortedMap<'K,'V>
         // last optimization gives near 2x performance boost
         let lc = this.CompareToLast key
         if lc = 0 then // key = last key
-          exitWriteLockIf &locker entered
+          exitWriteLockIf &this.locker entered
           raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
         elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
           this.Insert(this.size, key, value)
@@ -722,14 +732,14 @@ type SortedMap<'K,'V>
         else
           let index = this.IndexOfKeyUnchecked(key)
           if index >= 0 then // contains key
-            exitWriteLockIf &locker entered
+            exitWriteLockIf &this.locker entered
             raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
           else
             this.Insert(~~~index, key, value)
     finally
       if not keepOrderVersion then increment(&this.orderVersion)
       Interlocked.Increment(&this.version) |> ignore
-      exitWriteLockIf &locker entered
+      exitWriteLockIf &this.locker entered
       #if PRERELEASE
       if this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -737,7 +747,7 @@ type SortedMap<'K,'V>
       #endif
 
   member this.AddLast(key, value):unit =
-    let entered = enterWriteLockIf &locker this.isSynchronized
+    let entered = enterWriteLockIf &this.locker this.isSynchronized
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     try
       if this.size = 0 then
@@ -752,7 +762,7 @@ type SortedMap<'K,'V>
           raise (exn)
     finally
       Interlocked.Increment(&this.version) |> ignore
-      exitWriteLockIf &locker entered
+      exitWriteLockIf &this.locker entered
       #if PRERELEASE
       if this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -773,7 +783,7 @@ type SortedMap<'K,'V>
 
   member this.AddFirst(key, value):unit =
     let mutable keepOrderVersion = false
-    let entered = enterWriteLockIf &locker this.isSynchronized
+    let entered = enterWriteLockIf &this.locker this.isSynchronized
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     try
       if this.size = 0 then
@@ -790,7 +800,7 @@ type SortedMap<'K,'V>
     finally
       if not keepOrderVersion then increment(&this.orderVersion)
       Interlocked.Increment(&this.version) |> ignore
-      exitWriteLockIf &locker entered
+      exitWriteLockIf &this.locker entered
       #if PRERELEASE
       if this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -839,7 +849,7 @@ type SortedMap<'K,'V>
 
   member this.Remove(key): bool =
     if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
-    let entered = enterWriteLockIf &locker this.isSynchronized
+    let entered = enterWriteLockIf &this.locker this.isSynchronized
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     let mutable removed = false
     try
@@ -852,7 +862,7 @@ type SortedMap<'K,'V>
       index >= 0
     finally
       if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &locker entered
+      exitWriteLockIf &this.locker entered
       #if PRERELEASE
       if this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -861,7 +871,7 @@ type SortedMap<'K,'V>
 
 
   member this.RemoveFirst([<Out>]result: byref<KVP<'K,'V>>):bool =
-    let entered = enterWriteLockIf &locker this.isSynchronized
+    let entered = enterWriteLockIf &this.locker this.isSynchronized
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     let mutable removed = false
     try
@@ -874,7 +884,7 @@ type SortedMap<'K,'V>
       else false
     finally
       if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &locker entered
+      exitWriteLockIf &this.locker entered
       #if PRERELEASE
       if this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -883,7 +893,7 @@ type SortedMap<'K,'V>
 
 
   member this.RemoveLast([<Out>]result: byref<KeyValuePair<'K, 'V>>):bool =
-    let entered = enterWriteLockIf &locker this.isSynchronized
+    let entered = enterWriteLockIf &this.locker this.isSynchronized
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     let mutable removed = false
     try
@@ -900,7 +910,7 @@ type SortedMap<'K,'V>
       else false
     finally
       if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &locker entered
+      exitWriteLockIf &this.locker entered
       #if PRERELEASE
       if this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -910,7 +920,7 @@ type SortedMap<'K,'V>
   /// Removes all elements that are to `direction` from `key`
   member this.RemoveMany(key:'K,direction:Lookup) : bool =
     if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
-    let entered = enterWriteLockIf &locker this.isSynchronized
+    let entered = enterWriteLockIf &this.locker this.isSynchronized
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     let mutable removed = false
     try
@@ -981,7 +991,7 @@ type SortedMap<'K,'V>
     finally
       this.onErrorEvent.Trigger(NotImplementedException("TODO remove should trigger a special exception"))
       if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &locker entered
+      exitWriteLockIf &this.locker entered
       #if PRERELEASE
       if this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -1223,32 +1233,32 @@ type SortedMap<'K,'V>
         member x.Comparer: IComparer<'K> = this.Comparer
         member x.TryGetValue(key: 'K, value: byref<'V>): bool = this.TryGetValue(key, &value)
         member x.MoveNext(ct: CancellationToken): Task<bool> = 
-          let rec completeTcs(tcs:AsyncTaskMethodBuilder<bool>, token: CancellationToken) : unit = // Task<bool> = 
-            if x.MoveNext() then
-              OptimizationSettings.TraceVerbose("SM_MNA: MN inside completeTcs")
-              tcs.SetResult(true)
-            elif not this.IsMutable then
-              tcs.SetResult(false)
-            else
-              OptimizationSettings.TraceVerbose("SM_MNA: waiting on semaphore")
-              let semaphoreTask = semaphore.WaitAsync(-1, token)
-              let awaiter = semaphoreTask.GetAwaiter()
-              awaiter.UnsafeOnCompleted(fun _ ->
-                OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed")
-                match semaphoreTask.Status with
-                | TaskStatus.RanToCompletion -> 
-                  if x.MoveNext() then 
-                    OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed MN true")
-                    tcs.SetResult(true)
-                  elif not this.IsMutable then 
-                    OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed immutable")
-                    tcs.SetResult(false)
-                  else 
-                    OptimizationSettings.TraceVerbose("SM_MNA: recursive calling completeTcs")
-                    completeTcs(tcs, token)
-                | _ -> failwith "TODO process all task results, e.g. cancelled"
-                ()
-              )
+//          let rec completeTcs(tcs:AsyncTaskMethodBuilder<bool>, token: CancellationToken) : unit = // Task<bool> = 
+//            if x.MoveNext() then
+//              OptimizationSettings.TraceVerbose("SM_MNA: MN inside completeTcs")
+//              tcs.SetResult(true)
+//            elif not this.IsMutable then
+//              tcs.SetResult(false)
+//            else
+//              OptimizationSettings.TraceVerbose("SM_MNA: waiting on semaphore")
+//              let semaphoreTask = semaphore.WaitAsync(-1, token)
+//              let awaiter = semaphoreTask.GetAwaiter()
+//              awaiter.UnsafeOnCompleted(fun _ ->
+//                OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed")
+//                match semaphoreTask.Status with
+//                | TaskStatus.RanToCompletion -> 
+//                  if x.MoveNext() then 
+//                    OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed MN true")
+//                    tcs.SetResult(true)
+//                  elif not this.IsMutable then 
+//                    OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed immutable")
+//                    tcs.SetResult(false)
+//                  else 
+//                    OptimizationSettings.TraceVerbose("SM_MNA: recursive calling completeTcs")
+//                    completeTcs(tcs, token)
+//                | _ -> failwith "TODO process all task results, e.g. cancelled"
+//                ()
+//              )
           match x.MoveNext() with
           | true -> 
             OptimizationSettings.TraceVerbose("SM_MNA: sync MN true")
@@ -1261,7 +1271,7 @@ type SortedMap<'K,'V>
               let mutable doSpin = true
               let mutable spinCount = 0
               // spin 10 times longer than default SpinWait implementation
-              while doSpin && isMutable do // && spinCount < 10 do
+              while doSpin && isMutable && not ct.IsCancellationRequested do // && spinCount < 10 do
                 OptimizationSettings.TraceVerbose("SM_MNA: spinning")
                 doSpin <- (not <| x.MoveNext()) 
                 if doSpin then
@@ -1274,19 +1284,23 @@ type SortedMap<'K,'V>
                 trueTask
               elif not isMutable then
                 falseTask
+              elif ct.IsCancellationRequested then
+                raise (OperationCanceledException(ct))
               else
-                let upd = this :> IObservableEvents<'K,'V>
-                if not !observerStarted then
-                  Interlocked.Increment(&this.subscribersCounter) |> ignore
-                  semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
-                  this.onNextEvent.Publish.AddHandler onNextHandler
-                  this.onCompletedEvent.Publish.AddHandler onCompletedHandler
-                  observerStarted := true
-                let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
-                let returnTask = tcs.Task
-                OptimizationSettings.TraceVerbose("SM_MNA: calling completeTcs")
-                completeTcs(tcs, ct)
-                returnTask
+                // NB expect huge amount of idle tasks. Spinning on all of them is questionable.
+                failwith "TODO exit spinning on some condition"
+//                let upd = this :> IObservableEvents<'K,'V>
+//                if not !observerStarted then
+//                  Interlocked.Increment(&this.subscribersCounter) |> ignore
+//                  semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
+//                  this.onNextEvent.Publish.AddHandler onNextHandler
+//                  this.onCompletedEvent.Publish.AddHandler onCompletedHandler
+//                  observerStarted := true
+//                let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
+//                let returnTask = tcs.Task
+//                OptimizationSettings.TraceVerbose("SM_MNA: calling completeTcs")
+//                completeTcs(tcs, ct)
+//                returnTask
             | _ -> if x.MoveNext() then trueTask else falseTask
 
         member x.Source: ISeries<'K,'V> = this :> ISeries<'K,'V>
@@ -1510,7 +1524,7 @@ type SortedMap<'K,'V>
   interface ICollection  with
     member this.SyncRoot = this.SyncRoot
     member this.CopyTo(array, arrayIndex) =
-      let entered = enterWriteLockIf &locker this.isSynchronized
+      let entered = enterWriteLockIf &this.locker this.isSynchronized
       try
         if array = null then raise (ArgumentNullException("array"))
         if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
@@ -1519,7 +1533,7 @@ type SortedMap<'K,'V>
           let kvp = KeyValuePair(this.GetKeyByIndexUnchecked(index), this.values.[index])
           array.SetValue(kvp, arrayIndex + index)
       finally
-        exitWriteLockIf &locker entered
+        exitWriteLockIf &this.locker entered
     member this.Count = this.Count
     member this.IsSynchronized with get() =  this.isSynchronized
 
@@ -1535,7 +1549,7 @@ type SortedMap<'K,'V>
     member this.ContainsKey(key) = this.ContainsKey(key)
     member this.Contains(kvp:KeyValuePair<'K,'V>) = this.ContainsKey(kvp.Key)
     member this.CopyTo(array, arrayIndex) =
-      let entered = enterWriteLockIf &locker this.isSynchronized
+      let entered = enterWriteLockIf &this.locker this.isSynchronized
       try
         if array = null then raise (ArgumentNullException("array"))
         if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
@@ -1544,7 +1558,7 @@ type SortedMap<'K,'V>
           let kvp = KeyValuePair(this.Keys.[index], this.Values.[index])
           array.[arrayIndex + index] <- kvp
       finally
-        exitWriteLockIf &locker entered
+        exitWriteLockIf &this.locker entered
     member this.Add(key, value) = this.Add(key, value)
     member this.Add(kvp:KeyValuePair<'K,'V>) = this.Add(kvp.Key, kvp.Value)
     member this.Remove(key) = this.Remove(key)
@@ -1612,7 +1626,7 @@ type SortedMap<'K,'V>
       if appendMap.IsEmpty then
         0
       else
-        let entered = enterWriteLockIf &locker this.isSynchronized
+        let entered = enterWriteLockIf &this.locker this.isSynchronized
         try
           match option with
           | AppendOption.ThrowOnOverlap _ ->
@@ -1682,7 +1696,7 @@ type SortedMap<'K,'V>
               else invalidOp "overlapping values are not equal" // TODO unit test
           | _ -> failwith "Unknown AppendOption"
         finally
-          exitWriteLockIf &locker entered
+          exitWriteLockIf &this.locker entered
     
 
     
@@ -1826,7 +1840,8 @@ and
       moved
 
       
-    member this.MoveNext(ct: CancellationToken): Task<bool> = 
+    member this.MoveNext(ct: CancellationToken): Task<bool> =
+      failwith "TODO MNA with spinning"
       if this.MoveNext() then trueTask else falseTask
 
     member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      

@@ -72,7 +72,7 @@ namespace Spreads.Collections.Tests.Cursors {
         [Test]
         [Ignore]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes() {
-            for (int round = 0; round < 10000; round++) {
+            for (int round = 0; round < 100000; round++) {
                 CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
             }
         }
@@ -96,7 +96,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var cnt = 0;
             var sumTask = Task.Run(async () => {
                 var c = sm.GetCursor();
-                
+
                 while (await c.MoveNext(CancellationToken.None)) {
                     sum += c.CurrentValue;
                     if ((int)c.CurrentValue != cnt) {
@@ -159,7 +159,6 @@ namespace Spreads.Collections.Tests.Cursors {
             });
 
 
-
             while (!sumTask.Wait(2000)) {
                 OptimizationSettings.Verbose = true;
                 Trace.WriteLine($"cnt: {cnt}");
@@ -192,6 +191,25 @@ namespace Spreads.Collections.Tests.Cursors {
             sm.Dispose();
 
         }
+
+        //[Test]
+        //[Ignore("This hangs by construction")]
+        //public void SpinWait()
+        //{
+        //    ThreadPool.SetMaxThreads(20, 20);
+        //    for (int i = 0; i < 10000; i++)
+        //    {
+        //        Task.Factory.StartNew(() =>
+        //        {
+        //            var sw = new SpinWait();
+        //            while (true)
+        //            {
+        //                sw.SpinOnce();
+        //            }
+        //        });
+        //    }
+        //}
+
 
 
         [Test]
