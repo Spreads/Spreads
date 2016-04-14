@@ -71,7 +71,9 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         [Ignore]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes() {
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes()
+        {
+            System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.LowLatency;
             for (int round = 0; round < 100000; round++) {
                 CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
             }

@@ -48,6 +48,7 @@ type internal OptimizationSettings() =
   static member val SCMDefaultChunkLength = 4096 with get, set
   /// Print detailed debug information to console
   static member val Verbose = false with get, set
+  /// Conditional trasing when OptimizationSettings.Verbose is set to true
   [<ConditionalAttribute("PRERELEASE")>]
   static member TraceVerbose(message) = System.Diagnostics.Trace.WriteLineIf(OptimizationSettings.Verbose, message)
 
