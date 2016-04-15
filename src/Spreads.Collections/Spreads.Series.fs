@@ -1608,7 +1608,7 @@ and
 
     // Current values of all cursors. We keep them in an array because for continuous cursors there is no current value,
     // they just return TryGetValue at a key. Also applying a resultSelector function to an array is fast.
-    let currentValues = OptimizationSettings.ArrayPool.Take<'V>(cursors.Length)
+    let currentValues = Array.zeroCreate cursors.Length // OptimizationSettings.ArrayPool.Take<'V>(cursors.Length)
     
     let cmp = 
       let c' = cursors.[0].Comparer
@@ -1869,7 +1869,7 @@ and
     member this.Dispose() = 
       hasValidState <- false
       cursors |> Array.map (fun x -> x.Dispose()) |> ignore
-      OptimizationSettings.ArrayPool.Return(currentValues) |> ignore
+      //OptimizationSettings.ArrayPool.Return(currentValues) |> ignore
     
     member this.Clone(): ICursor<'K,'R> =
       // run-time type of the instance, could be derived type
