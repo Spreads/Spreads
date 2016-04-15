@@ -1,3 +1,11 @@
+#### 0.4.2 - April 15, 2016
+* SortedMap got a lot of love: eliminated needless allocations, 
+further improved performance, fixed subtle syncronization bugs.
+Since SortedMap is the main data structure used everywhere in Spreads,
+overall performance has significantly improved in 0.4. E.g. SeriesStorage
+now supports 2 Mops for writes and 6 Mops for reads, almost 50% up since 0.3.6.
+* IObservable implementation via cursors (POC).
+
 #### 0.4.1 - April 13, 2016
 * Fix subtle syncronization bugs.
 

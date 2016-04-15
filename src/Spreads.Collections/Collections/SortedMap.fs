@@ -105,9 +105,6 @@ type SortedMap<'K,'V>
   [<NonSerializedAttribute>]
   let mutable syncRoot : obj = null
   [<NonSerializedAttribute>]
-  [<DefaultValueAttribute>] 
-  val mutable locker : int
-  [<NonSerializedAttribute>]
   let ownerThreadId : int = Thread.CurrentThread.ManagedThreadId
   [<NonSerializedAttribute>]
   let mutable mapKey = ""
@@ -1198,9 +1195,7 @@ type SortedMap<'K,'V>
 
 
   member internal this.GetSMCursor() =
-    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then 
-      // NB: via property with locks
-      this.IsSynchronized <- true
+    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then this.IsSynchronized <- true // NB: via property with locks
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       new SortedMapCursor<'K,'V>(this)
     )
@@ -1603,8 +1598,8 @@ and
 
           if (this.source.isReadOnly) && (this.index = -1) && this.source.size > 0 then
             newIndex <- this.source.size - 1 // at the last element of the batch
-            newKey <- this.source.GetKeyByIndexUnchecked(this.index)
-            newValue <- this.source.values.[this.index]
+            newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
+            newValue <- this.source.values.[newIndex]
             newIsBatch <- true
             trueTask
           else falseTask
@@ -1638,12 +1633,20 @@ and
         let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
         result <-
         /////////// Start read-locked code /////////////
-          if this.index = -1 then this.MoveLast()  // first move when index = -1
+          if this.index = -1 then
+            if this.source.size > 0 then
+              newIndex <- this.source.size - 1
+              newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
+              newValue <- this.source.values.[newIndex]
+              true
+            else
+              this.Reset()
+              false
           elif this.cursorVersion =  this.source.orderVersion then
             if this.index > 0 && this.index < this.source.size then
               newIndex <- this.index - 1
-              newKey <- this.source.GetKeyByIndexUnchecked(this.index)
-              newValue <- this.source.values.[this.index]
+              newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
+              newValue <- this.source.values.[newIndex]
               true
             else
               false
@@ -1716,8 +1719,8 @@ and
         /////////// Start read-locked code /////////////
           if this.source.size > 0 then
             newIndex <- 0
-            newKey <- this.source.GetKeyByIndexUnchecked(this.index)
-            newValue <- this.source.values.[this.index]
+            newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
+            newValue <- this.source.values.[newIndex]
             true
           else
             this.Reset()
@@ -1747,8 +1750,8 @@ and
         /////////// Start read-locked code /////////////
           if this.source.size > 0 then
             newIndex <- this.source.size - 1
-            newKey <- this.source.GetKeyByIndexUnchecked(this.index)
-            newValue <- this.source.values.[this.index]
+            newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
+            newValue <- this.source.values.[newIndex]
             true
           else
             this.Reset()

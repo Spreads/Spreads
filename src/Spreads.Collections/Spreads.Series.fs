@@ -101,6 +101,9 @@ and
     val mutable internal onUpdateEvent : EventV2<OnUpdateHandler,bool>
 
     [<NonSerializedAttribute>]
+    [<DefaultValueAttribute>] 
+    val mutable locker : int
+    [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
     val mutable internal subscribersCounter : int
     do
@@ -117,34 +120,43 @@ and
     override this.IsIndexed with get() = c.Value.Source.IsIndexed
     override this.IsReadOnly = c.Value.Source.IsReadOnly
 
+    // TODO (!) IObservable needs much more love and adherence to Rx contracts, see #40
     abstract Subscribe: observer:IObserver<KVP<'K,'V>> -> IDisposable
     override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
-      Interlocked.Increment(&this.subscribersCounter) |> ignore
-      //raise (NotImplementedException("TODO Rx. Subscribe must be implemented via a cursor."))
-      match box observer with
-      | :? ISubscriber<KVP<'K,'V>> as subscriber -> 
-        let subscription : ISubscription = Unchecked.defaultof<_>
-        subscription :> IDisposable
-      | _ ->
-        // TODO locks in Complete() and Subscribe()
-        if not this.IsReadOnly then
-          this.onNextEvent.Publish.AddHandler(OnNextHandler(observer.OnNext))
-          let completedHandler = OnCompletedHandler(fun isCompleted -> if isCompleted then observer.OnCompleted())
-          this.onCompletedEvent.Publish.AddHandler(completedHandler)
-          this.onErrorEvent.Publish.AddHandler(OnErrorHandler(observer.OnError))
+      let entered = enterWriteLockIf &this.locker true
+      try
+        Interlocked.Increment(&this.subscribersCounter) |> ignore
+        //raise (NotImplementedException("TODO Rx. Subscribe must be implemented via a cursor."))
+        match box observer with
+        | :? ISubscriber<KVP<'K,'V>> as subscriber ->
+          failwith "not supported"
+          let subscription : ISubscription = Unchecked.defaultof<_>
+          subscription :> IDisposable
+        | _ ->
+          let cts = new CancellationTokenSource()
+          let ct = cts.Token
+          Task.Run(fun _ ->
+            this.Do((fun k v -> observer.OnNext(KVP(k,v))), ct).ContinueWith(fun (t:Task<bool>) ->
+              match t.Status with
+              | TaskStatus.RanToCompletion ->
+                if t.Result then
+                  observer.OnCompleted()
+                else
+                  failwith "not supported"
+              | TaskStatus.Canceled -> observer.OnError(OperationCanceledException())
+              | TaskStatus.Faulted -> observer.OnError(t.Exception)
+              | _ -> failwith "TODO process all task statuses"
+              ()
+            ) 
+          ) |> ignore
           { 
             new Object() with
               member x.Finalize() = (x :?> IDisposable).Dispose()
             interface IDisposable with
-              member x.Dispose() = 
-                this.onNextEvent.Publish.RemoveHandler(OnNextHandler(observer.OnNext))
-                this.onCompletedEvent.Publish.RemoveHandler(completedHandler)
-                this.onErrorEvent.Publish.RemoveHandler(OnErrorHandler(observer.OnError))
-                GC.SuppressFinalize(x)
+              member x.Dispose() = cts.Cancel();cts.Dispose();
           }
-        else
-          observer.OnCompleted()
-          DummyDisposable.Instance
+      finally
+        exitWriteLockIf &this.locker true
 
     /// Locks any mutations for mutable implementations
     member this.SyncRoot 

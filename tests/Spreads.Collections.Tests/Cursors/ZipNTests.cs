@@ -175,10 +175,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void CouldMoveAtPositionOfThreeDifferentSeriesManyTimes()
-        {
-            for (int rounds = 0; rounds < 10; rounds++)
-            {
+        public void CouldMoveAtPositionOfThreeDifferentSeriesManyTimes() {
+            for (int rounds = 0; rounds < 10; rounds++) {
                 CouldMoveAtPositionOfThreeDifferentSeries();
             }
         }
@@ -334,7 +332,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
             sm1.Add(7, 1);
             sm1.Add(8, 1);
-            Thread.Sleep(50);
+            Thread.Sleep(500);
             task.Wait();
             Assert.AreEqual(TaskStatus.RanToCompletion, task.Status);
             Assert.AreEqual(7, c1.CurrentKey);
@@ -1427,8 +1425,7 @@ namespace Spreads.Collections.Tests.Cursors {
                 c++;
             }
 
-            var t3 = Task.Run(async () =>
-            {
+            var t3 = Task.Run(async () => {
                 var previous = sumCursor.CurrentKey;
                 while (await sumCursor.MoveNext(CancellationToken.None)) {
                     //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
@@ -1805,11 +1802,12 @@ namespace Spreads.Collections.Tests.Cursors {
             Assert.AreEqual(3, c.CurrentValue);
 
             var t = Task.Run(async () => {
-                return await c.MoveNext(CancellationToken.None);
+                var res = await c.MoveNext(CancellationToken.None);
+                return res;
             });
             Thread.Sleep(15);
             sm2.Add(4, 4);
-            Assert.IsTrue(t.Wait(50));
+            t.Wait();
             Assert.IsTrue(t.Result);
             Assert.AreEqual(4, c.CurrentKey);
             Assert.AreEqual(7, c.CurrentValue);
