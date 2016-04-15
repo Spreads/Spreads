@@ -330,6 +330,7 @@ type SortedMap<'K,'V>
     
     #if PRERELEASE
     Trace.Assert(index <= this.size, "index must be <= this.size")
+    Trace.Assert(couldHaveRegularKeys || (this.values.Length = this.keys.Length), "keys and values must have equal length for non-regular case")
     #endif
     // for values it is alway the same operation
     if index < this.size then Array.Copy(this.values, index, this.values, index + 1, this.size - index);
@@ -449,7 +450,6 @@ type SortedMap<'K,'V>
         let toReturn = this.keys
         this.keys <- kArr
         OptimizationSettings.ArrayPool.Return(toReturn) |> ignore
-
       let vArr : 'V array = OptimizationSettings.ArrayPool.Take(c)
       Array.Copy(this.values, 0, vArr, 0, this.size)
       let toReturn = this.values

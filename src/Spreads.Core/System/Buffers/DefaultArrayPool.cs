@@ -44,17 +44,17 @@ namespace System.Buffers {
             if (index < _buckets.Length) {
                 // Search for an array starting at the 'index' bucket. If the bucket
                 // is empty, bump up to the next higher bucket and try that one.
-                for (int i = index; i < _buckets.Length; i++) {
-                    buffer = _buckets[i].Rent();
+                //for (int i = index; i < _buckets.Length; i++) {
+                //    buffer = _buckets[i].Rent();
 
-                    // If the bucket has an array left and returned it, give it to the caller
-                    if (buffer != null) {
-                        if (log.IsEnabled()) {
-                            log.BufferRented(Utilities.GetBufferId(buffer), buffer.Length, Utilities.GetBucketId(_buckets[i]), Utilities.GetPoolId(this));
-                        }
-                        return buffer;
-                    }
-                }
+                //    // If the bucket has an array left and returned it, give it to the caller
+                //    if (buffer != null) {
+                //        if (log.IsEnabled()) {
+                //            log.BufferRented(Utilities.GetBufferId(buffer), buffer.Length, Utilities.GetBucketId(_buckets[i]), Utilities.GetPoolId(this));
+                //        }
+                //        return buffer;
+                //    }
+                //}
 
                 // The pool was exhausted.  Allocate a new buffer with a size corresponding to the appropriate bucket.
                 buffer = new T[_buckets[index]._bufferLength];
