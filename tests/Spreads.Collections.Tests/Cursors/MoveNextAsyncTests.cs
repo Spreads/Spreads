@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using NUnit.Framework;
 using System.Runtime.InteropServices;
 using Spreads.Collections;
@@ -74,8 +75,16 @@ namespace Spreads.Collections.Tests.Cursors {
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes()
         {
             System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.LowLatency;
-            for (int round = 0; round < 100000; round++) {
-                CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
+            for (int round = 0; round < 100000; round++)
+            {
+                GCLatencyMode oldMode = GCSettings.LatencyMode;
+                GCSettings.LatencyMode = GCLatencyMode.LowLatency;
+                if (GC.TryStartNoGCRegion(100*1024*1024))
+                {
+                    CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
+                    GC.EndNoGCRegion();
+                }
+                GCSettings.LatencyMode = oldMode;
             }
         }
 
