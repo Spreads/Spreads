@@ -67,8 +67,7 @@ and
     // NB this is ugly, but rewriting the whole project structure is uglier // TODO "proper" methods DI
     static do
       let moduleInfo = 
-        Reflection.Assembly.GetExecutingAssembly().GetTypes()
-        |> Seq.find (fun t -> t.Name = "Initializer")
+        Reflection.Assembly.GetExecutingAssembly().GetType("Spreads.Initializer")
       //let ty = typeof<BaseSeries>
       let mi = moduleInfo.GetMethod("init", (Reflection.BindingFlags.Static ||| Reflection.BindingFlags.NonPublic) )
       mi.Invoke(null, [||]) |> ignore
