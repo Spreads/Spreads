@@ -93,7 +93,6 @@ namespace Spreads.Collections.Tests.Cursors {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
 
-
             double sum = 0;
             var cnt = 0;
             var sumTask = Task.Run(async () => {

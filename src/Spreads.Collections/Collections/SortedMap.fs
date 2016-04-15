@@ -167,7 +167,7 @@ type SortedMap<'K,'V>
             couldHaveRegularKeys <- isReg
             if couldHaveRegularKeys then 
               this.keys <- regularKeys
-              Task.Run(fun _ -> OptimizationSettings.ArrayPool.Return tempKeys |> ignore) |> ignore
+              OptimizationSettings.ArrayPool.Return tempKeys |> ignore
               rkLast <- this.rkKeyAtIndex (this.size - 1)
             else
               this.keys <- tempKeys
@@ -451,13 +451,13 @@ type SortedMap<'K,'V>
         Array.Copy(this.keys, 0, kArr, 0, this.size)
         let toReturn = this.keys
         this.keys <- kArr
-        Task.Run(fun _ -> OptimizationSettings.ArrayPool.Return(toReturn) |> ignore) |> ignore
+        OptimizationSettings.ArrayPool.Return(toReturn) |> ignore
 
       let vArr : 'V array = OptimizationSettings.ArrayPool.Take(c)
       Array.Copy(this.values, 0, vArr, 0, this.size)
       let toReturn = this.values
       this.values <- vArr
-      Task.Run(fun _ -> OptimizationSettings.ArrayPool.Return(toReturn) |> ignore) |> ignore
+      OptimizationSettings.ArrayPool.Return(toReturn) |> ignore
     | _ -> ()
 
   member this.Capacity
@@ -1177,18 +1177,13 @@ type SortedMap<'K,'V>
       false
 
   override this.GetCursor() =
-    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then 
-      // NB: via property with locks
-      this.IsSynchronized <- true
+    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then this.IsSynchronized <- true // NB: via property with locks
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-      if not this.isReadOnly then
-        let c = SortedMapCursorAsync()
-        c.source <- this
-        c.index <- -1
-        c.cursorVersion <- this.orderVersion
-        c :> ICursor<'K,'V>
-        //this.GetCursor(-1, this.orderVersion, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>) :> ICursor<'K,'V>
-      else new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
+      let c = SortedMapCursorAsync()
+      c.state.source <- this
+      c.state.index <- -1
+      c.state.cursorVersion <- this.orderVersion
+      c :> ICursor<'K,'V>
     )
 
 
@@ -1221,10 +1216,8 @@ type SortedMap<'K,'V>
   member this.TrimExcess() = this.Capacity <- this.size
 
   member private this.Dispose(disposing:bool) =
-    Task.Run(fun _ -> 
-      if not couldHaveRegularKeys then OptimizationSettings.ArrayPool.Return(this.keys) |> ignore
-      OptimizationSettings.ArrayPool.Return(this.values) |> ignore
-    ) |> ignore
+    if not couldHaveRegularKeys then OptimizationSettings.ArrayPool.Return(this.keys) |> ignore
+    OptimizationSettings.ArrayPool.Return(this.values) |> ignore
     if disposing then GC.SuppressFinalize(this)
   
   member this.Dispose() = this.Dispose(true)
@@ -1500,262 +1493,31 @@ type SortedMap<'K,'V>
 
   static member Empty = empty.Value
 
+
 and
-  internal SortedMapCursorAsync<'K,'V>() =
-    [<DefaultValueAttribute(false)>]
-    val mutable source : SortedMap<'K,'V>
-    [<DefaultValueAttribute(false)>]
-    val mutable index : int
-    [<DefaultValueAttribute(false)>]
-    val mutable currentKey : 'K
-    [<DefaultValueAttribute(false)>]
-    val mutable currentValue: 'V
-    [<DefaultValueAttribute(false)>]
-    val mutable cursorVersion : int64
-    [<DefaultValueAttribute(false)>]
-    val mutable isBatch : bool
-    [<DefaultValueAttribute(false)>]
-    val mutable semaphore : SemaphoreSlim
-    [<DefaultValueAttribute(false)>]
-    val mutable onUpdateHandler : OnUpdateHandler
-    member this.Finalize() = this.Dispose()
+  public SortedMapCursor<'K,'V> =
+    struct
+      val mutable internal source : SortedMap<'K,'V>
+      val mutable internal index : int
+      val mutable internal currentKey : 'K
+      val mutable internal currentValue: 'V
+      val mutable internal cursorVersion : int64
+      val mutable internal isBatch : bool
+
+      new(source:SortedMap<'K,'V>) = 
+        { source = source; 
+          index = -1;
+          currentKey = Unchecked.defaultof<_>;
+          currentValue = Unchecked.defaultof<_>;
+          cursorVersion = source.orderVersion;
+          isBatch = false;
+        }
+    end
 
     member this.Comparer: IComparer<'K> = this.source.Comparer
     member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
-     
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-    member private this.CompleteTcsCallback(semaphoreTask : Task<bool>, tcs:AsyncTaskMethodBuilder<bool>, token: CancellationToken) =
-      OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed")
-      match semaphoreTask.Status with
-      | TaskStatus.RanToCompletion -> 
-        if not semaphoreTask.Result then 
-          OptimizationSettings.TraceVerbose("semaphore timeout " + this.source.subscribersCounter.ToString() + " " + this.source.isReadOnly.ToString())
-        if this.MoveNext() then
-          OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed MN true")
-          tcs.SetResult(true)
-        elif this.source.isReadOnly then 
-          OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed immutable")
-          tcs.SetResult(false)
-        else
-          OptimizationSettings.TraceVerbose("SM_MNA: recursive calling completeTcs")
-          this.CompleteTcs(tcs, token)
-      | _ -> failwith "TODO process all task results, e.g. cancelled"
-      ()
-
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-    member private this.CompleteTcs(tcs:AsyncTaskMethodBuilder<bool>, token: CancellationToken) : unit =
-      if this.MoveNext() then
-          OptimizationSettings.TraceVerbose("SM_MNA: MN inside completeTcs")
-          tcs.SetResult(true)
-        else
-          OptimizationSettings.TraceVerbose("SM_MNA: waiting on semaphore")
-          // NB this.source.isReadOnly could be set to true right before semaphore.WaitAsync call
-          // and we will never get signal after that
-          let entered = enterWriteLockIf &this.source.locker this.source.isSynchronized
-          if this.source.isReadOnly then
-            if this.MoveNext() then tcs.SetResult(true) else tcs.SetResult(false)
-          else
-            let semaphoreTask = this.semaphore.WaitAsync(500, token)
-            let awaiter = semaphoreTask.GetAwaiter()
-            awaiter.UnsafeOnCompleted(fun _ ->
-              this.CompleteTcsCallback(semaphoreTask, tcs, token)
-            )
-          exitWriteLockIf &this.source.locker entered
-
-    member this.MoveNext(ct: CancellationToken): Task<bool> =      
-      match this.MoveNext() with
-      | true -> 
-        OptimizationSettings.TraceVerbose("SM_MNA: sync MN true")
-        trueTask            
-      | false ->
-        OptimizationSettings.TraceVerbose("SM_MNA: sync MN false")
-        match this.source.isReadOnly with
-        | false ->
-          let sw = SpinWait()
-          let mutable doSpin = true
-          let mutable spinCount = 0
-          // spin 10 times longer than default SpinWait implementation
-          while doSpin && not this.source.isReadOnly && not ct.IsCancellationRequested && spinCount < 100 do
-            OptimizationSettings.TraceVerbose("SM_MNA: spinning")
-            doSpin <- (not <| this.MoveNext()) 
-            if doSpin then
-              if sw.NextSpinWillYield then 
-                increment &spinCount
-                sw.Reset()
-              sw.SpinOnce()
-          if not doSpin then // exited loop due to successful MN, not due to sw.NextSpinWillYield
-            OptimizationSettings.TraceVerbose("SM_MNA: spin wait success")
-            trueTask
-          elif this.source.isReadOnly then
-            if this.MoveNext() then trueTask else falseTask
-          elif ct.IsCancellationRequested then
-            raise (OperationCanceledException(ct))
-          else
-            // NB expect huge amount of idle tasks. Spinning on all of them is questionable.
-            //failwith "TODO exit spinning on some condition"
-            if this.onUpdateHandler = Unchecked.defaultof<_> then
-              let entered = enterWriteLockIf &this.source.locker this.source.isSynchronized
-              this.semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
-              this.onUpdateHandler <- OnUpdateHandler(fun _ ->
-                  if this.semaphore.CurrentCount <> Int32.MaxValue then this.semaphore.Release() |> ignore
-              )
-              this.source.onUpdateEvent.Publish.AddHandler this.onUpdateHandler
-              Interlocked.Increment(&this.source.subscribersCounter) |> ignore
-              exitWriteLockIf &this.source.locker entered
-            if this.MoveNext() then trueTask
-            else
-              let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
-              let returnTask = tcs.Task
-              OptimizationSettings.TraceVerbose("SM_MNA: calling completeTcs")
-              this.CompleteTcs(tcs, ct)
-              returnTask
-        | _ -> if this.MoveNext() then trueTask else falseTask
-
-    member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>
-      
-    member this.IsContinuous with get() = false
-
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
-      readLockIf &this.source.nextVersion &this.source.version this.source.isSynchronized (fun _ ->
-        if this.isBatch then
-          Trace.Assert((this.index = this.source.size - 1))
-          Trace.Assert(this.source.isReadOnly)
-          this.source :> IReadOnlyOrderedMap<'K,'V>
-        else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
-      )
-    member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
-      let mutable newIndex = this.index
-      let mutable newKey = this.currentKey
-      let mutable newValue = this.currentValue
-      let moved = readLockIf &this.source.nextVersion &this.source.version this.source.isSynchronized (fun _ ->
-        if (this.source.isReadOnly) && (this.index = -1) then
-          newIndex <- this.source.size - 1 // at the last element of the batch
-          newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
-          newValue <- this.source.values.[newIndex]
-          this.isBatch <- true
-          trueTask
-        else falseTask
-      )
-      if moved.Result then
-        this.index <- newIndex
-        this.currentKey <- newKey
-        this.currentValue <- newValue
-      moved
-
-    member this.Clone() = 
-      let entered = enterWriteLockIf &this.source.locker this.source.isSynchronized
-      let c = SortedMapCursorAsync()
-      c.source <- this.source
-      c.index <- this.index
-      c.cursorVersion <- this.cursorVersion
-      c.currentKey <- this.currentKey
-      c.currentValue <- this.currentValue
-      exitWriteLockIf &this.source.locker entered
-      c
-      
-    member this.MovePrevious() =
-      let mutable newIndex = this.index
-      let mutable newKey = this.currentKey
-      let mutable newValue = this.currentValue
-      let moved = readLockIf &this.source.nextVersion &this.source.version this.source.isSynchronized (fun _ ->
-        if this.index = -1 then this.MoveLast()  // first move when index = -1
-        elif this.cursorVersion =  this.source.orderVersion then
-          if this.index > 0 && this.index < this.source.size then
-            newIndex <- this.index - 1
-            newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
-            newValue <- this.source.values.[newIndex]
-            true
-          else
-            false
-        else
-          this.cursorVersion <-  this.source.orderVersion // update state to new this.source.version
-          let mutable kvp = Unchecked.defaultof<_>
-          let position = this.source.TryFindWithIndex(this.CurrentKey, Lookup.LT, &kvp) //currentKey.Value
-          if position > 0 then
-            newIndex <- position
-            newKey <- kvp.Key
-            newValue <- kvp.Value
-            true
-          else  // not found
-            false
-      )
-      if moved then
-        this.index <- newIndex
-        this.currentKey <- newKey
-        this.currentValue <- newValue
-      moved
-
-    member this.MoveAt(key:'K, lookup:Lookup) =
-      if this.source.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
-      let mutable newIndex = this.index
-      let mutable newKey = this.currentKey
-      let mutable newValue = this.currentValue
-      let moved = readLockIf &this.source.nextVersion &this.source.version this.source.isSynchronized (fun _ ->
-        let mutable kvp = Unchecked.defaultof<_>
-        let position = this.source.TryFindWithIndex(key, lookup, &kvp)
-        if position >= 0 then
-          newIndex <- position
-          newKey <- kvp.Key
-          newValue <- kvp.Value
-          true
-        else
-          this.Reset()
-          false
-      )
-      if moved then
-        this.index <- newIndex
-        this.currentKey <- newKey
-        this.currentValue <- newValue
-      moved
-
-    member this.MoveFirst() =
-      let mutable newIndex = this.index
-      let mutable newKey = this.currentKey
-      let mutable newValue = this.currentValue
-      let moved = readLockIf &this.source.nextVersion &this.source.version this.source.isSynchronized (fun _ ->
-        if this.source.size > 0 then
-          newIndex <- 0
-          newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
-          newValue <- this.source.values.[newIndex]
-          true
-        else
-          this.Reset()
-          false
-      )
-      if moved then
-        this.index <- newIndex
-        this.currentKey <- newKey
-        this.currentValue <- newValue
-      moved
-
-    member this.MoveLast() =
-      let mutable newIndex = this.index
-      let mutable newKey = this.currentKey
-      let mutable newValue = this.currentValue
-      let moved = readLockIf &this.source.nextVersion &this.source.version this.source.isSynchronized (fun _ ->
-        if this.source.size > 0 then
-          newIndex <- this.source.size - 1
-          newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
-          newValue <- this.source.values.[newIndex]
-          true
-        else
-          this.Reset()
-          false
-      )
-      if moved then
-        this.index <- newIndex
-        this.currentKey <- newKey
-        this.currentValue <- newValue
-      moved
-
-    member this.CurrentKey with get() = this.currentKey
-
-    member this.CurrentValue with get() = this.currentValue
-
-    member this.Current with get() : KVP<'K,'V> = KeyValuePair(this.currentKey, this.currentValue)
-
+    
     member this.MoveNext() =
-      // NB: this must be outside lock to avoid multiple increments
       let initialIndex = this.index
       let mutable newIndex = this.index
       let mutable newKey = this.currentKey
@@ -1799,116 +1561,6 @@ and
         this.currentValue <- newValue
       result
 
-    member this.Reset() =
-      readLockIf &this.source.nextVersion &this.source.version this.source.isSynchronized (fun _ ->
-        this.cursorVersion <-  this.source.orderVersion // update state to new this.source.version
-        this.index <- -1
-        this.currentKey <- Unchecked.defaultof<'K>
-        this.currentValue <- Unchecked.defaultof<'V>
-      )
-
-    member this.Dispose() = 
-      this.Reset()
-      if this.onUpdateHandler <> Unchecked.defaultof<_> then
-        Interlocked.Decrement(&this.source.subscribersCounter) |> ignore
-        this.source.onUpdateEvent.Publish.RemoveHandler(this.onUpdateHandler)
-      GC.SuppressFinalize(this)
-
-    interface IDisposable with
-      member this.Dispose() = this.Dispose()
-
-    interface IEnumerator<KVP<'K,'V>> with    
-      member this.Reset() = this.Reset()
-      member this.MoveNext():bool = this.MoveNext()
-      member this.Current with get(): KVP<'K, 'V> = this.Current
-      member this.Current with get(): obj = this.Current :> obj
-
-    interface IAsyncEnumerator<KVP<'K,'V>> with
-      member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = this.MoveNext(cancellationToken) 
-
-    interface ICursor<'K,'V> with
-      member this.Comparer with get() = this.source.Comparer
-      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
-      member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatch(cancellationToken)
-      member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
-      member this.MoveFirst():bool = this.MoveFirst()
-      member this.MoveLast():bool =  this.MoveLast()
-      member this.MovePrevious():bool = this.MovePrevious()
-      member this.CurrentKey with get():'K = this.CurrentKey
-      member this.CurrentValue with get():'V = this.CurrentValue
-      member this.Source with get() = this.source :> ISeries<'K,'V>
-      member this.Clone() = this.Clone() :> ICursor<'K,'V>
-      member this.IsContinuous with get() = false
-      member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)
-
-
-and
-  public SortedMapCursor<'K,'V> =
-    struct
-      val public source : SortedMap<'K,'V>
-      val mutable index : int
-      val mutable currentKey : 'K
-      val mutable currentValue: 'V
-      val mutable cursorVersion : int64
-      val mutable isBatch : bool
-
-      new(source:SortedMap<'K,'V>) = 
-        { source = source; 
-          index = -1;
-          currentKey = Unchecked.defaultof<_>;
-          currentValue = Unchecked.defaultof<_>;
-          cursorVersion = source.orderVersion;
-          isBatch = false;
-        }
-    end
-
-    member this.Comparer: IComparer<'K> = this.source.Comparer
-    member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
-    
-    member this.MoveNext() =
-      // NB: this must be outside lock to avoid multiple increments
-      let nextIndex = this.index + 1
-      let mutable moved = false
-      let mutable doSpin = true
-      let sw = new SpinWait()
-      while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
-        moved <-
-        /////////// Start read-locked code /////////////
-
-          if this.cursorVersion = this.source.orderVersion then
-            if this.index < (this.source.size - 1) then
-              this.index <- nextIndex
-              this.currentKey <- this.source.GetKeyByIndexUnchecked(this.index)
-              this.currentValue <- this.source.values.[this.index]
-              true
-            else
-              false // NB! Do not reset cursor on false MoveNext
-          else  // source change
-            this.cursorVersion <- this.source.orderVersion // update state to new this.source.version
-            let mutable kvp = Unchecked.defaultof<_>
-            let position = this.source.TryFindWithIndex(this.currentKey, Lookup.GT, &kvp) // reposition cursor after source change //currentKey.Value
-            if position > 0 then
-              this.index <- position
-              this.currentKey <- kvp.Key
-              this.currentValue <- kvp.Value
-              true
-            else  // not found
-              false // NB! Do not reset cursor on false MoveNext
-        
-        /////////// End read-locked code /////////////
-        if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion then doSpin <- false
-          else sw.SpinOnce()
-      moved
-
-      
-    member this.MoveNext(ct: CancellationToken): Task<bool> =
-      //failwith "TODO MNA with spinning"
-      if this.MoveNext() then trueTask else falseTask
-
     member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
     member this.IsContinuous with get() = false
     member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
@@ -1935,6 +1587,11 @@ and
       result
 
     member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
+      let mutable newIndex = this.index
+      let mutable newKey = this.currentKey
+      let mutable newValue = this.currentValue
+      let mutable newIsBatch = this.isBatch
+
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -1945,10 +1602,10 @@ and
         /////////// Start read-locked code /////////////
 
           if (this.source.isReadOnly) && (this.index = -1) && this.source.size > 0 then
-            this.index <- this.source.size - 1 // at the last element of the batch
-            this.currentKey <- this.source.GetKeyByIndexUnchecked(this.index)
-            this.currentValue <- this.source.values.[this.index]
-            this.isBatch <- true
+            newIndex <- this.source.size - 1 // at the last element of the batch
+            newKey <- this.source.GetKeyByIndexUnchecked(this.index)
+            newValue <- this.source.values.[this.index]
+            newIsBatch <- true
             trueTask
           else falseTask
 
@@ -1957,6 +1614,11 @@ and
           let nextVersion = Volatile.Read(&this.source.nextVersion)
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
+      if result.Result then
+        this.index <- newIndex
+        this.currentKey <- newKey
+        this.currentValue <- newValue
+        this.isBatch <- newIsBatch
       result
 
     member this.Clone() = 
@@ -1964,8 +1626,10 @@ and
       copy
 
     member this.MovePrevious() = 
-      // NB: this must be outside lock to avoid multiple decrements
-      let previousIndex = this.index - 1
+      let mutable newIndex = this.index
+      let mutable newKey = this.currentKey
+      let mutable newValue = this.currentValue
+
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -1977,33 +1641,38 @@ and
           if this.index = -1 then this.MoveLast()  // first move when index = -1
           elif this.cursorVersion =  this.source.orderVersion then
             if this.index > 0 && this.index < this.source.size then
-              this.index <- previousIndex
-              this.currentKey <- this.source.GetKeyByIndexUnchecked(this.index)
-              this.currentValue <- this.source.values.[this.index]
+              newIndex <- this.index - 1
+              newKey <- this.source.GetKeyByIndexUnchecked(this.index)
+              newValue <- this.source.values.[this.index]
               true
             else
-              //p.Reset()
               false
           else
             this.cursorVersion <-  this.source.orderVersion // update state to new this.source.version
             let mutable kvp = Unchecked.defaultof<_>
             let position = this.source.TryFindWithIndex(this.currentKey, Lookup.LT, &kvp) //currentKey.Value
             if position > 0 then
-              this.index <- position
-              this.currentKey <- kvp.Key
-              this.currentValue <- kvp.Value
+              newIndex <- position
+              newKey <- kvp.Key
+              newValue <- kvp.Value
               true
             else  // not found
-              //p.Reset()
               false
         /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source.nextVersion)
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
+      if result then
+        this.index <- newIndex
+        this.currentKey <- newKey
+        this.currentValue <- newValue
       result
 
     member this.MoveAt(key:'K, lookup:Lookup) =
+      let mutable newIndex = this.index
+      let mutable newKey = this.currentKey
+      let mutable newValue = this.currentValue
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -2015,9 +1684,9 @@ and
           let mutable kvp = Unchecked.defaultof<_>
           let position = this.source.TryFindWithIndex(key, lookup, &kvp)
           if position >= 0 then
-            this.index <- position
-            this.currentKey <- kvp.Key
-            this.currentValue <- kvp.Value
+            newIndex <- position
+            newKey <- kvp.Key
+            newValue <- kvp.Value
             true
           else
             this.Reset()
@@ -2027,9 +1696,16 @@ and
           let nextVersion = Volatile.Read(&this.source.nextVersion)
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
+      if result then
+        this.index <- newIndex
+        this.currentKey <- newKey
+        this.currentValue <- newValue
       result
 
-    member this.MoveFirst() = 
+    member this.MoveFirst() =
+      let mutable newIndex = this.index
+      let mutable newKey = this.currentKey
+      let mutable newValue = this.currentValue
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -2039,9 +1715,9 @@ and
         result <-
         /////////// Start read-locked code /////////////
           if this.source.size > 0 then
-            this.index <- 0
-            this.currentKey <- this.source.GetKeyByIndexUnchecked(this.index)
-            this.currentValue <- this.source.values.[this.index]
+            newIndex <- 0
+            newKey <- this.source.GetKeyByIndexUnchecked(this.index)
+            newValue <- this.source.values.[this.index]
             true
           else
             this.Reset()
@@ -2051,9 +1727,16 @@ and
           let nextVersion = Volatile.Read(&this.source.nextVersion)
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
+      if result then
+        this.index <- newIndex
+        this.currentKey <- newKey
+        this.currentValue <- newValue
       result
 
-    member this.MoveLast() = 
+    member this.MoveLast() =
+      let mutable newIndex = this.index
+      let mutable newKey = this.currentKey
+      let mutable newValue = this.currentValue
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -2063,9 +1746,9 @@ and
         result <-
         /////////// Start read-locked code /////////////
           if this.source.size > 0 then
-            this.index <- this.source.size - 1
-            this.currentKey <- this.source.GetKeyByIndexUnchecked(this.index)
-            this.currentValue <- this.source.values.[this.index]
+            newIndex <- this.source.size - 1
+            newKey <- this.source.GetKeyByIndexUnchecked(this.index)
+            newValue <- this.source.values.[this.index]
             true
           else
             this.Reset()
@@ -2075,6 +1758,10 @@ and
           let nextVersion = Volatile.Read(&this.source.nextVersion)
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
+      if result then
+        this.index <- newIndex
+        this.currentKey <- newKey
+        this.currentValue <- newValue
       result
 
     member this.CurrentKey with get() = this.currentKey
@@ -2082,7 +1769,9 @@ and
     member this.Current with get() : KVP<'K,'V> = KeyValuePair(this.currentKey, this.currentValue)
 
     member this.Reset() = 
-      this.cursorVersion <-  this.source.orderVersion
+      this.cursorVersion <- this.source.orderVersion
+      this.currentKey <- Unchecked.defaultof<'K>
+      this.currentValue <- Unchecked.defaultof<'V>
       this.index <- -1
 
     member this.Dispose() = this.Reset()
@@ -2097,7 +1786,7 @@ and
       member this.Current with get(): obj = this.Current :> obj
 
     interface IAsyncEnumerator<KVP<'K,'V>> with
-      member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = this.MoveNext(cancellationToken) 
+      member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = raise (NotSupportedException("Use SortedMapCursorAsync instead"))
 
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.source.Comparer
@@ -2113,3 +1802,161 @@ and
       member this.Clone() = this.Clone() :> ICursor<'K,'V>
       member this.IsContinuous with get() = false
       member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)
+
+
+and
+  public SortedMapCursorAsync<'K,'V>() =
+    [<DefaultValueAttribute(false)>]
+    val mutable internal state : SortedMapCursor<'K,'V>
+    [<DefaultValueAttribute(false)>]
+    val mutable internal semaphore : SemaphoreSlim
+    [<DefaultValueAttribute(false)>]
+    val mutable internal onUpdateHandler : OnUpdateHandler
+
+    override this.Finalize() = this.Dispose()
+     
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member private this.CompleteTcsCallback(semaphoreTask : Task<bool>, tcs:AsyncTaskMethodBuilder<bool>, token: CancellationToken) =
+      OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed")
+      match semaphoreTask.Status with
+      | TaskStatus.RanToCompletion -> 
+        if not semaphoreTask.Result then 
+          OptimizationSettings.TraceVerbose("semaphore timeout " + this.state.source.subscribersCounter.ToString() + " " + this.state.source.isReadOnly.ToString())
+        if this.state.MoveNext() then
+          OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed MN true")
+          tcs.SetResult(true)
+        elif this.state.source.isReadOnly then 
+          OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed immutable")
+          tcs.SetResult(false)
+        else
+          OptimizationSettings.TraceVerbose("SM_MNA: recursive calling completeTcs")
+          this.CompleteTcs(tcs, token)
+      | _ -> failwith "TODO process all task results, e.g. cancelled"
+      ()
+
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member private this.CompleteTcs(tcs:AsyncTaskMethodBuilder<bool>, token: CancellationToken) : unit =
+      if this.state.MoveNext() then
+          OptimizationSettings.TraceVerbose("SM_MNA: MN inside completeTcs")
+          tcs.SetResult(true)
+        else
+          OptimizationSettings.TraceVerbose("SM_MNA: waiting on semaphore")
+          // NB this.source.isReadOnly could be set to true right before semaphore.WaitAsync call
+          // and we will never get signal after that
+          let entered = enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
+          if this.state.source.isReadOnly then
+            if this.state.MoveNext() then tcs.SetResult(true) else tcs.SetResult(false)
+          else
+            let semaphoreTask = this.semaphore.WaitAsync(500, token)
+            let awaiter = semaphoreTask.GetAwaiter()
+            awaiter.UnsafeOnCompleted(fun _ ->
+              this.CompleteTcsCallback(semaphoreTask, tcs, token)
+            )
+          exitWriteLockIf &this.state.source.locker entered
+
+    member this.MoveNext(ct: CancellationToken): Task<bool> =      
+      match this.state.MoveNext() with
+      | true -> 
+        OptimizationSettings.TraceVerbose("SM_MNA: sync MN true")
+        trueTask            
+      | false ->
+        OptimizationSettings.TraceVerbose("SM_MNA: sync MN false")
+        match this.state.source.isReadOnly with
+        | false ->
+          let sw = SpinWait()
+          let mutable doSpin = true
+          let mutable spinCount = 0
+          // spin 10 times longer than default SpinWait implementation
+          while doSpin && not this.state.source.isReadOnly && not ct.IsCancellationRequested && spinCount < 100 do
+            OptimizationSettings.TraceVerbose("SM_MNA: spinning")
+            doSpin <- (not <| this.state.MoveNext()) 
+            if doSpin then
+              if sw.NextSpinWillYield then 
+                increment &spinCount
+                sw.Reset()
+              sw.SpinOnce()
+          if not doSpin then // exited loop due to successful MN, not due to sw.NextSpinWillYield
+            OptimizationSettings.TraceVerbose("SM_MNA: spin wait success")
+            trueTask
+          elif this.state.source.isReadOnly then
+            if this.state.MoveNext() then trueTask else falseTask
+          elif ct.IsCancellationRequested then
+            raise (OperationCanceledException(ct))
+          else
+            // NB expect huge amount of idle tasks. Spinning on all of them is questionable.
+            //failwith "TODO exit spinning on some condition"
+            if this.onUpdateHandler = Unchecked.defaultof<_> then
+              let entered = enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
+              this.semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
+              this.onUpdateHandler <- OnUpdateHandler(fun _ ->
+                  if this.semaphore.CurrentCount <> Int32.MaxValue then this.semaphore.Release() |> ignore
+              )
+              this.state.source.onUpdateEvent.Publish.AddHandler this.onUpdateHandler
+              Interlocked.Increment(&this.state.source.subscribersCounter) |> ignore
+              exitWriteLockIf &this.state.source.locker entered
+            if this.state.MoveNext() then trueTask
+            else
+              let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
+              let returnTask = tcs.Task
+              OptimizationSettings.TraceVerbose("SM_MNA: calling completeTcs")
+              this.CompleteTcs(tcs, ct)
+              returnTask
+        | _ -> if this.state.MoveNext() then trueTask else falseTask
+      
+    member this.Clone() = 
+      let entered = enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
+      let clone = new SortedMapCursorAsync<'K,'V>()
+      clone.state <- this.state
+      exitWriteLockIf &this.state.source.locker entered
+      clone
+
+    member this.Dispose() = 
+      this.state.Reset()
+      if this.onUpdateHandler <> Unchecked.defaultof<_> then
+        Interlocked.Decrement(&this.state.source.subscribersCounter) |> ignore
+        this.state.source.onUpdateEvent.Publish.RemoveHandler(this.onUpdateHandler)
+      GC.SuppressFinalize(this)
+
+    // C#-like methods to avoid casting to ICursor all the time
+    member this.Reset() = this.state.Reset()
+    member this.MoveNext():bool = this.state.MoveNext()
+    member this.Current with get(): KVP<'K, 'V> = this.state.Current
+    member this.Comparer with get() = this.state.source.Comparer
+    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.state.CurrentBatch
+    member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.state.MoveNextBatch(cancellationToken)
+    member this.MoveAt(index:'K, lookup:Lookup) = this.state.MoveAt(index, lookup)
+    member this.MoveFirst():bool = this.state.MoveFirst()
+    member this.MoveLast():bool =  this.state.MoveLast()
+    member this.MovePrevious():bool = this.state.MovePrevious()
+    member this.CurrentKey with get():'K = this.state.CurrentKey
+    member this.CurrentValue with get():'V = this.state.CurrentValue
+    member this.Source with get() = this.state.source :> ISeries<'K,'V>
+    member this.IsContinuous with get() = false
+    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.state.source.TryGetValue(key, &value)
+
+    interface IDisposable with
+      member this.Dispose() = this.Dispose()
+
+    interface IEnumerator<KVP<'K,'V>> with    
+      member this.Reset() = this.state.Reset()
+      member this.MoveNext():bool = this.state.MoveNext()
+      member this.Current with get(): KVP<'K, 'V> = this.state.Current
+      member this.Current with get(): obj = this.state.Current :> obj
+
+    interface IAsyncEnumerator<KVP<'K,'V>> with
+      member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = this.MoveNext(cancellationToken) 
+
+    interface ICursor<'K,'V> with
+      member this.Comparer with get() = this.state.source.Comparer
+      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.state.CurrentBatch
+      member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.state.MoveNextBatch(cancellationToken)
+      member this.MoveAt(index:'K, lookup:Lookup) = this.state.MoveAt(index, lookup)
+      member this.MoveFirst():bool = this.state.MoveFirst()
+      member this.MoveLast():bool =  this.state.MoveLast()
+      member this.MovePrevious():bool = this.state.MovePrevious()
+      member this.CurrentKey with get():'K = this.state.CurrentKey
+      member this.CurrentValue with get():'V = this.state.CurrentValue
+      member this.Source with get() = this.state.source :> ISeries<'K,'V>
+      member this.Clone() = this.Clone() :> ICursor<'K,'V>
+      member this.IsContinuous with get() = false
+      member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.state.source.TryGetValue(key, &value)
