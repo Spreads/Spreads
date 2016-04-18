@@ -1197,13 +1197,19 @@ type SortedMap<'K,'V>
 
   override this.GetCursor() =
     if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then this.IsSynchronized <- true // NB: via property with locks
-    readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-      let c = SortedMapCursorAsync()
-      c.state.source <- this
-      c.state.index <- -1
-      c.state.cursorVersion <- this.orderVersion
-      c :> ICursor<'K,'V>
-    )
+    let mutable entered = false
+    try
+      entered <- enterWriteLockIf &this.locker this.isSynchronized
+      // if source is already read-only, MNA will always return false
+      if this.isReadOnly then new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
+      else 
+        let c = new SortedMapCursorAsync<'K,'V>()
+        c.state.source <- this
+        c.state.index <- -1
+        c.state.cursorVersion <- this.orderVersion
+        c :> ICursor<'K,'V>
+    finally
+      exitWriteLockIf &this.locker entered
 
   // .NETs foreach optimization
   member this.GetEnumerator() =
@@ -1819,7 +1825,10 @@ and
       member this.Current with get(): obj = this.Current :> obj
 
     interface IAsyncEnumerator<KVP<'K,'V>> with
-      member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = raise (NotSupportedException("Use SortedMapCursorAsync instead"))
+      member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = 
+        if this.source.IsReadOnly then
+          if this.MoveNext() then trueTask else falseTask
+        else raise (NotSupportedException("Use SortedMapCursorAsync instead"))
 
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.source.Comparer
@@ -1838,7 +1847,7 @@ and
 
 
 and
-  public SortedMapCursorAsync<'K,'V>() =
+  internal SortedMapCursorAsync<'K,'V>() as this =
     [<DefaultValueAttribute(false)>]
     val mutable internal state : SortedMapCursor<'K,'V>
     [<DefaultValueAttribute(false)>]
@@ -1846,43 +1855,56 @@ and
     [<DefaultValueAttribute(false)>]
     val mutable internal onUpdateHandler : OnUpdateHandler
 
+
+    [<DefaultValueAttribute(false)>]
+    val mutable private semaphoreTask : Task<bool>
+    [<DefaultValueAttribute(false)>]
+    val mutable private tcs : AsyncTaskMethodBuilder<bool>
+    [<DefaultValueAttribute(false)>]
+    val mutable private token: CancellationToken
+    [<DefaultValueAttribute(false)>]
+    val mutable private callbackAction: Action
+
     override this.Finalize() = this.Dispose()
      
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-    member private this.CompleteTcsCallback(semaphoreTask : Task<bool>, tcs:AsyncTaskMethodBuilder<bool>, token: CancellationToken) =
+    member private this.CompleteTcsCallback() =
       OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed")
-      match semaphoreTask.Status with
+      match this.semaphoreTask.Status with
       | TaskStatus.RanToCompletion -> 
-        if not semaphoreTask.Result then 
+        if not this.semaphoreTask.Result then 
           OptimizationSettings.TraceVerbose("semaphore timeout " + this.state.source.subscribersCounter.ToString() + " " + this.state.source.isReadOnly.ToString())
         if this.state.MoveNext() then
           OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed MN true")
-          tcs.SetResult(true)
+          this.tcs.SetResult(true)
         elif this.state.source.isReadOnly then 
           OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed immutable")
-          tcs.SetResult(false)
+          this.tcs.SetResult(false)
         else
           OptimizationSettings.TraceVerbose("SM_MNA: recursive calling completeTcs")
-          this.CompleteTcs(tcs, token)
+          this.CompleteTcs()
       | _ -> failwith "TODO process all task results, e.g. cancelled"
       ()
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-    member private this.CompleteTcs(tcs:AsyncTaskMethodBuilder<bool>, token: CancellationToken) : unit =
+    member private this.CompleteTcs() : unit =
       if this.state.MoveNext() then
           OptimizationSettings.TraceVerbose("SM_MNA: MN inside completeTcs")
-          tcs.SetResult(true)
+          this.tcs.SetResult(true)
         else
           OptimizationSettings.TraceVerbose("SM_MNA: waiting on semaphore")
           // NB this.source.isReadOnly could be set to true right before semaphore.WaitAsync call
           // and we will never get signal after that
           let entered = enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
           if this.state.source.isReadOnly then
-            if this.state.MoveNext() then tcs.SetResult(true) else tcs.SetResult(false)
+            if this.state.MoveNext() then this.tcs.SetResult(true) else this.tcs.SetResult(false)
           else
-            let semaphoreTask = this.semaphore.WaitAsync(500, token)
-            let awaiter = semaphoreTask.GetAwaiter()
-            awaiter.UnsafeOnCompleted(fun _ -> this.CompleteTcsCallback(semaphoreTask, tcs, token))
+            this.semaphoreTask <- this.semaphore.WaitAsync(500, this.token)
+            let awaiter = this.semaphoreTask.GetAwaiter()
+            // TODO profiler says this allocates. This is because we close over the three variables.
+            // We could turn them into mutable fields and then closure could be allocated just once.
+            // But then the cursor will become heavier.
+            awaiter.UnsafeOnCompleted(this.callbackAction)
           exitWriteLockIf &this.state.source.locker entered
 
     member this.MoveNext(ct: CancellationToken): Task<bool> =      
@@ -1927,10 +1949,12 @@ and
               exitWriteLockIf &this.state.source.locker entered
             if this.state.MoveNext() then trueTask
             else
-              let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
-              let returnTask = tcs.Task
+              this.tcs <- Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
+              let returnTask = this.tcs.Task
               OptimizationSettings.TraceVerbose("SM_MNA: calling completeTcs")
-              this.CompleteTcs(tcs, ct)
+              this.token <- ct
+              if this.callbackAction = Unchecked.defaultof<_> then this.callbackAction <- Action(this.CompleteTcsCallback)
+              this.CompleteTcs()
               returnTask
         | _ -> if this.state.MoveNext() then trueTask else falseTask
       
@@ -1946,6 +1970,10 @@ and
       if this.onUpdateHandler <> Unchecked.defaultof<_> then
         Interlocked.Decrement(&this.state.source.subscribersCounter) |> ignore
         this.state.source.onUpdateEvent.Publish.RemoveHandler(this.onUpdateHandler)
+        this.semaphore.Dispose()
+        this.semaphoreTask <- Unchecked.defaultof<_>
+        this.token <- Unchecked.defaultof<_>
+        this.tcs <- Unchecked.defaultof<_>
       GC.SuppressFinalize(this)
 
     // C#-like methods to avoid casting to ICursor all the time

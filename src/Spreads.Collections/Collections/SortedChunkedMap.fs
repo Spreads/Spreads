@@ -58,11 +58,11 @@ type SortedChunkedMap<'K,'V>
 //  [<NonSerializedAttribute>]
 //  let mutable version = outerMap.Version
   [<NonSerializedAttribute>]
-  let mutable prevHash  = Unchecked.defaultof<'K>
+  let mutable prevHash = Unchecked.defaultof<'K>
   [<NonSerializedAttribute>]
   let mutable prevBucket = Unchecked.defaultof<SortedMap<'K,'V>>
   [<NonSerializedAttribute>]
-  let mutable prevBucketIsSet  = false
+  let mutable prevBucketIsSet = false
   [<NonSerializedAttribute>]
   let mutable flushedVersion = outerMap.Version
   [<NonSerializedAttribute>]
@@ -125,7 +125,6 @@ type SortedChunkedMap<'K,'V>
 
   member internal this.OuterMap with get() = outerMap
   member this.Version with get() = outerMap.Version and set value = outerMap.Version <- value
-
 
   member this.IsEmpty
       with get() =
