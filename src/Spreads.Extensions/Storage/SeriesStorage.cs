@@ -22,6 +22,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Data.Sqlite;
@@ -35,6 +36,9 @@ namespace Spreads.Storage {
         private readonly SqliteConnection _connection;
         private readonly ConcurrentDictionary<long, object> _writableSeriesStore = new ConcurrentDictionary<long, object>();
         private readonly ConcurrentDictionary<long, object> _readOnlySeriesStore = new ConcurrentDictionary<long, object>();
+
+        private CancellationTokenSource Cts = new CancellationTokenSource();
+        private Task _flusher;
 
         public string IdTableName { get; }
         public string ChunkTableName { get; }
@@ -96,6 +100,15 @@ namespace Spreads.Storage {
             //NativeMethods.sqlite3_exec(connection.DbHandle, createSeriesChunksTable);
             _connection.Execute(createSeriesIdTable);
             _connection.Execute(createSeriesChunksTable);
+
+            _flusher = Task.Run(async () =>
+            {
+                while (!Cts.IsCancellationRequested)
+                {
+                    await FlushAll(50);
+                    await Task.Delay(1000);
+                }
+            });
         }
 
         internal virtual Task<SeriesChunk> LoadChunk(long mapid, long chunkId) {
@@ -175,9 +188,9 @@ namespace Spreads.Storage {
             return Task.FromResult(sm);
         }
 
-        private async void FlushAll() {
-            foreach (var scm in _writableSeriesStore.Values.Select(obj => obj as IPersistentOrderedMap<DateTime, decimal>)) {
-                await Task.Delay(250);
+        private async Task FlushAll(int delay) {
+            foreach (var scm in _writableSeriesStore.Values.Select(obj => obj as IPersistentObject)) {
+                await Task.Delay(delay);
                 scm?.Flush();
             }
         }
@@ -323,8 +336,10 @@ namespace Spreads.Storage {
             return series;
         }
 
-        public void Dispose() {
-            FlushAll();
+        public void Dispose()
+        {
+            Cts.Cancel();
+            FlushAll(0).Wait();
             _connection.Dispose();
         }
 

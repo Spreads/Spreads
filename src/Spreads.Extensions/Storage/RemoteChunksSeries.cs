@@ -36,12 +36,14 @@ namespace Spreads.Storage {
     /// <summary>
     /// Boilerplate to implement persistent series
     /// </summary>
-    public class RemoteChunksSeries<K, V> : IOrderedMap<K, SortedMap<K, V>> { // Series<K, SortedMap<K, V>>,
+    public class RemoteChunksSeries<K, V> : IPersistentOrderedMap<K, SortedMap<K, V>> { // Series<K, SortedMap<K, V>>,
 
         public delegate void ChunkSaveHandler(SeriesChunk chunk);
 
         private readonly long _mapId;
         private readonly IKeyComparer<K> _comparer;
+
+        private KeyValuePair<K, SortedMap<K, V>> _lastAccessedElement;
 
         private readonly Func<long, long, Task<SortedMap<long, SeriesChunk>>> _remoteKeysLoader;
 
@@ -177,7 +179,9 @@ namespace Spreads.Storage {
             get
             {
                 lock (_syncRoot) {
-                    return _chunksCache[ToInt64(key)].Value;
+                    var value = _chunksCache[ToInt64(key)].Value;
+                    _lastAccessedElement = new KeyValuePair<K, SortedMap<K, V>>(key, value);
+                    return value;
                 }
             }
 
@@ -199,6 +203,7 @@ namespace Spreads.Storage {
                             ChunkValue = bytes
                         }).Wait();
                     }
+                    _lastAccessedElement = new KeyValuePair<K, SortedMap<K, V>>(key, value);
                 }
             }
         }
@@ -273,6 +278,7 @@ namespace Spreads.Storage {
                 KeyValuePair<long, LazyValue> tmp;
                 if (!_chunksCache.TryFind(ToInt64(key), direction, out tmp)) return false;
                 value = new KeyValuePair<K, SortedMap<K, V>>(FromInt64(tmp.Key), tmp.Value.Value);
+                _lastAccessedElement = value;
                 return true;
             }
         }
@@ -290,6 +296,7 @@ namespace Spreads.Storage {
                 KeyValuePair<K, SortedMap<K, V>> tmp;
                 if (TryFind(key, Lookup.EQ, out tmp)) {
                     value = tmp.Value;
+                    _lastAccessedElement = new KeyValuePair<K, SortedMap<K, V>>(key, value);
                     return true;
                 }
                 value = null;
@@ -545,6 +552,17 @@ namespace Spreads.Storage {
             public long ChunkVersion => _chunkVersion;
         }
 
+        public void Dispose() {
+            this.Flush();
+        }
+
+        public void Flush() {
+            // this is what SCM Flush did before
+            if(_lastAccessedElement.Value != null) this[_lastAccessedElement.Key] = _lastAccessedElement.Value;
+            _lastAccessedElement = default(KeyValuePair<K, SortedMap<K, V>>);
+        }
+
+        public string Id { get; }
     }
 
 

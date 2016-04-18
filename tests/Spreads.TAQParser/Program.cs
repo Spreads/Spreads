@@ -35,7 +35,7 @@ namespace TAQParse {
 
 
         static unsafe void Main(string[] args) {
-
+            GC.Collect(3, GCCollectionMode.Forced, true);
             var store = new SeriesStorage(SeriesStorage.GetDefaultConnectionString("TAQSample2.db"));
 
 
@@ -95,6 +95,8 @@ namespace TAQParse {
             }
 
             Console.WriteLine("Finished");
+            GC.Collect(3, GCCollectionMode.Forced, true);
+            Console.WriteLine($"Total memory: {GC.GetTotalMemory(true)}");
             Console.ReadLine();
 
         }

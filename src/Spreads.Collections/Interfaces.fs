@@ -243,11 +243,16 @@ type IOrderedMap<'K,'V> =
 /// `Flush` has a standard meaning, e.g. as in Stream, and saves all changes. `Dispose` calls `Flush`. `Id` is globally unique.
 [<Interface>]
 [<AllowNullLiteral>]
-type IPersistentOrderedMap<'K,'V> =
-  inherit IOrderedMap<'K,'V>
+type IPersistentObject =
   inherit IDisposable
   abstract Flush : unit -> unit
   abstract Id : string with get
+
+[<Interface>]
+[<AllowNullLiteral>]
+type IPersistentOrderedMap<'K,'V> =
+  inherit IOrderedMap<'K,'V>
+  inherit IPersistentObject
 
 [<Interface>]
 [<AllowNullLiteral>]

@@ -234,6 +234,7 @@ namespace Spreads.Collections.Tests {
             for (int i = 0; i < 10000; i++) {
                 scm.Add(i, i);
             }
+            Assert.AreEqual(10000, scm.Count, "Count is not equal");
             KeyValuePair<int, int> result;
             var removed = scm.RemoveFirst(out result);
             Assert.IsTrue(removed);
