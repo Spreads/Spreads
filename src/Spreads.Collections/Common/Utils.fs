@@ -87,7 +87,7 @@ module internal Utils =
   //[<ReliabilityContractAttribute(Consistency.WillNotCorruptState, Cer.MayFail)>]
   let inline enterWriteLockIf (locker:int byref) (condition:bool) =
     if condition then
-      Thread.BeginCriticalRegion()
+      //Thread.BeginCriticalRegion()
       let sw = new SpinWait()
       let mutable cont = true
       while cont do

@@ -1838,10 +1838,6 @@ and
         this.currentValue <- newValue
       result
 
-    member this.MoveNext(ct: CancellationToken) =
-      let mutable this' = this
-      let handler = OnUpdateHandler(fun _ -> this'.index <- this'.index + 1)
-      ()
 
     member this.CurrentKey with get() = this.currentKey
     member this.CurrentValue with get() = this.currentValue
