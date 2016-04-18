@@ -74,6 +74,9 @@
     <Compile Include="System\Buffers\GenericArrayPool.cs" />
     <Compile Include="System\Buffers\IGenericArrayPool.cs" />
     <Compile Include="System\Buffers\Utilities.cs" />
+    <Compile Include="System\Runtime\ArrayPool.cs" />
+    <Compile Include="System\Runtime\BufferPool.cs" />
+    <Compile Include="System\Runtime\SynchronizedPool.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="Lookup.cs" />
     <Compile Include="Interfaces.cs" />
