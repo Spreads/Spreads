@@ -46,10 +46,10 @@ namespace Spreads.Collections.Tests {
             for (int i = 0; i < count; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 var version = sm.Version;
-                if (i > 10) {
-                    sm[DateTime.UtcNow.Date.AddSeconds(i - 10)] = i - 10 + 1;
-                    Assert.IsTrue(sm.Version > version);
-                }
+                //if (i > 10) {
+                //    sm.Add(DateTime.UtcNow.Date.AddSeconds(i - 10), i - 10 + 1);
+                //    Assert.IsTrue(sm.Version > version);
+                //}
                 c.MoveNext();
                 Assert.AreEqual(i, c.CurrentValue);
             }

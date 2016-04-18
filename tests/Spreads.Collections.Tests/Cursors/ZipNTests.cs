@@ -1775,42 +1775,49 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void UnionKeysTest() {
-            var sm1 = new SortedMap<int, int>();
-            var sm2 = new SortedMap<int, int>();
-            var zip = sm1.Repeat() + sm2.Repeat();
-            var c = zip.GetCursor();
+        public void UnionKeysTest()
+        {
+
+            Assert.Throws<OutOfOrderKeyException<int>>(() =>
+            {
+                var sm1 = new SortedMap<int, int>();
+                var sm2 = new SortedMap<int, int>();
+                var zip = sm1.Repeat() + sm2.Repeat();
+                var c = zip.GetCursor();
 
 
-            sm1.Add(1, 1);
-            Assert.IsFalse(c.MoveNext());
-            sm2.Add(0, 0);
-            Assert.IsTrue(c.MoveNext());
-            Assert.AreEqual(1, c.CurrentKey);
+                sm1.Add(1, 1);
+                Assert.IsFalse(c.MoveNext());
+                sm2.Add(0, 0);
+                Assert.IsTrue(c.MoveNext());
+                Assert.AreEqual(1, c.CurrentKey);
 
-            sm1.Add(0, 0);
-            Assert.IsFalse(c.MoveNext());
-            Assert.IsTrue(c.MovePrevious());
-            Assert.AreEqual(0, c.CurrentKey);
-            Assert.IsFalse(c.MovePrevious());
-            Assert.IsTrue(c.MoveNext());
-            Assert.AreEqual(1, c.CurrentKey);
+                sm1.Add(0, 0);
+                Assert.IsFalse(c.MoveNext());
+                Assert.IsTrue(c.MovePrevious());
+                Assert.AreEqual(0, c.CurrentKey);
+                Assert.IsFalse(c.MovePrevious());
+                Assert.IsTrue(c.MoveNext());
+                Assert.AreEqual(1, c.CurrentKey);
 
-            sm1.Add(3, 3);
-            Assert.IsTrue(c.MoveNext());
-            Assert.AreEqual(3, c.CurrentKey);
-            Assert.AreEqual(3, c.CurrentValue);
+                sm1.Add(3, 3);
+                Assert.IsTrue(c.MoveNext());
+                Assert.AreEqual(3, c.CurrentKey);
+                Assert.AreEqual(3, c.CurrentValue);
 
-            var t = Task.Run(async () => {
-                var res = await c.MoveNext(CancellationToken.None);
-                return res;
+                var t = Task.Run(async () => {
+                    var res = await c.MoveNext(CancellationToken.None);
+                    return res;
+                });
+                Thread.Sleep(15);
+                sm2.Add(4, 4);
+                t.Wait();
+                Assert.IsTrue(t.Result);
+                Assert.AreEqual(4, c.CurrentKey);
+                Assert.AreEqual(7, c.CurrentValue);
             });
-            Thread.Sleep(15);
-            sm2.Add(4, 4);
-            t.Wait();
-            Assert.IsTrue(t.Result);
-            Assert.AreEqual(4, c.CurrentKey);
-            Assert.AreEqual(7, c.CurrentValue);
+
+            
         }
 
     }
