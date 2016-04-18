@@ -33,12 +33,6 @@ open System.Diagnostics
 open Spreads
 open Spreads.Collections
 
-// TODO ensure that on every prevBucket change we check its version and set to outer if versions differ
-// TODO subscribe to update events on prevBucket and Flush at least every second
-// TODO do not flush unchanged buckets, e.g. when chunkSize = 1 we flush twice
-// TODO IsMutable property
-// TODO (low) name is bad, but it is rarely used directly, but rather as Series or IOrderedMap
-// TODO (perf) SM cursor as struct, and here work with its members directly, not via interfaces call
 
 
 [<AllowNullLiteral>]
@@ -56,7 +50,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
   let outerMap = outerFactory(comparer)
 
   [<NonSerializedAttribute>]
-  let isOuterPersistent, outerAsPersistent = match outerMap with | :? IPersistentOrderedMap<'K, IOrderedMap<'K,'V>> as pm -> true, pm | _ -> false, Unchecked.defaultof<_>
+  let isOuterPersistent, outerAsPersistent = match outerMap with | :? IPersistentObject as pm -> true, pm | _ -> false, Unchecked.defaultof<_>
   [<NonSerializedAttribute>]
   let isInnerSortedMap = typedefof<'TContainer> = typedefof<SortedMap<'K,'V>>
 
