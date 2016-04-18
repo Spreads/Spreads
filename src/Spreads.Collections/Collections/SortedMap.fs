@@ -27,7 +27,8 @@ open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
 open System.Threading
 open System.Threading.Tasks
-
+open System.Runtime.CompilerServices
+open System.Runtime.ConstrainedExecution
 
 open Spreads
 open Spreads.Collections
@@ -321,7 +322,8 @@ type SortedMap<'K,'V>
     this.SetCapacity(num)
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member private this.Insert(index:int, k, v) = 
+  //[<ReliabilityContractAttribute(Consistency.MayCorruptInstance, Cer.MayFail)>]
+  member private this.Insert(index:int, k, v) =
     if this.isReadOnly then invalidOp "SortedMap is not mutable"
     // key is always new, checks are before this method
     // already inside a lock statement in a caller method if synchronized
@@ -442,19 +444,37 @@ type SortedMap<'K,'V>
     | c when c < this.size -> raise (ArgumentOutOfRangeException("Small capacity"))
     | c when c > 0 -> 
       if this.isReadOnly then invalidOp "SortedMap is read-only"
-      if couldHaveRegularKeys then
-        Trace.Assert(this.keys.Length = 2)
-      else
-        let kArr : 'K array = OptimizationSettings.ArrayPool.Take(c)
-        Array.Copy(this.keys, 0, kArr, 0, this.size)
-        let toReturn = this.keys
-        this.keys <- kArr
-        OptimizationSettings.ArrayPool.Return(toReturn) |> ignore
+      
+      // first, take new buffers. this could cause out-of-memory
+      let kArr : 'K array = 
+        if couldHaveRegularKeys then
+          Trace.Assert(this.keys.Length = 2)
+          Unchecked.defaultof<_>
+        else
+          OptimizationSettings.ArrayPool.Take(c)
       let vArr : 'V array = OptimizationSettings.ArrayPool.Take(c)
-      Array.Copy(this.values, 0, vArr, 0, this.size)
-      let toReturn = this.values
-      this.values <- vArr
-      OptimizationSettings.ArrayPool.Return(toReturn) |> ignore
+
+      try
+        // TODO this needs review. Looks like very overcompicated for almost imaginary edge case.
+        // Basically, we want to protect from async exceptions
+        // such as Thread.Abort, Out-of-memory, SO. The region in the finally should be executed entirely
+        //RuntimeHelpers.PrepareConstrainedRegions()
+        //try ()
+        //finally
+        if not couldHaveRegularKeys then
+          Array.Copy(this.keys, 0, kArr, 0, this.size)
+          let toReturn = this.keys
+          this.keys <- kArr
+          OptimizationSettings.ArrayPool.Return(toReturn) |> ignore
+        Array.Copy(this.values, 0, vArr, 0, this.size)
+        let toReturn = this.values
+        this.values <- vArr
+        OptimizationSettings.ArrayPool.Return(toReturn) |> ignore
+      with
+      // NB see enterWriteLockIf comment and https://github.com/dotnet/corefx/issues/1345#issuecomment-147569967
+      // If we were able to get new arrays without OOM but got some out-of-band exception during
+      // copying, then we corrupted state and should die
+      | _ as ex -> Environment.FailFast(ex.Message, ex)
     | _ -> ()
 
   member this.Capacity
@@ -652,6 +672,7 @@ type SortedMap<'K,'V>
         else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
       )
 
+  
   member this.Item
       with get key =
         if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
@@ -669,44 +690,45 @@ type SortedMap<'K,'V>
             this.values.[this.size-1]
           else raise (KeyNotFoundException())              
         )
-      and set k v =
-        if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(k, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
+      and
+        //[<ReliabilityContractAttribute(Consistency.MayCorruptInstance, Cer.MayFail)>]
+        set k v =
+          if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(k, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
 
-        let mutable keepOrderVersion = false
+          let mutable keepOrderVersion = false
         
-        // NB: we either have to always use InterLocked.Increment before entering the lock, or use volatile write after it. The later is likely cheaper.
-        let entered = enterWriteLockIf &this.locker this.isSynchronized
-        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
-
-        try
-          // first/last optimization (only last here)
-          if this.size = 0 then
-            this.Insert(0, k, v)
-            keepOrderVersion <- true
-          else
-            let lc = this.CompareToLast k
-            if lc = 0 then // key = last key
-              this.values.[this.size-1] <- v
-              if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
-            elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
-              this.Insert(this.size, k, v)
+          let mutable entered = false
+          try
+            entered <- enterWriteLockIf &this.locker this.isSynchronized
+            if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+            // first/last optimization (only last here)
+            if this.size = 0 then
+              this.Insert(0, k, v)
               keepOrderVersion <- true
             else
-              let index = this.IndexOfKeyUnchecked(k)
-              if index >= 0 then // contains key 
-                this.values.[index] <- v
+              let lc = this.CompareToLast k
+              if lc = 0 then // key = last key
+                this.values.[this.size-1] <- v
                 if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+              elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
+                this.Insert(this.size, k, v)
+                keepOrderVersion <- true
               else
-                this.Insert(~~~index, k, v)
-        finally
-          if not keepOrderVersion then increment(&this.orderVersion)
-          Interlocked.Increment(&this.version) |> ignore
-          exitWriteLockIf &this.locker entered
-          #if PRERELEASE
-          if this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
-          #else
-          if this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
-          #endif
+                let index = this.IndexOfKeyUnchecked(k)
+                if index >= 0 then // contains key 
+                  this.values.[index] <- v
+                  if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+                else
+                  this.Insert(~~~index, k, v)
+          finally
+            if not keepOrderVersion then increment(&this.orderVersion)
+            Interlocked.Increment(&this.version) |> ignore
+            exitWriteLockIf &this.locker entered
+            #if PRERELEASE
+            if this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+            #else
+            if this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+            #endif
 
 
   member this.Add(key, value) : unit =

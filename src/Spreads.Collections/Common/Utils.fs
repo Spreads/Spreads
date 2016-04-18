@@ -24,6 +24,8 @@ open System.IO
 open System.Threading
 open System.Threading.Tasks
 open System.Diagnostics
+open System.Runtime.CompilerServices
+open System.Runtime.ConstrainedExecution
 
 [<AutoOpenAttribute>]
 module TestUtils =
@@ -80,25 +82,32 @@ module internal Utils =
   let inline exitLockIf locker (condition:bool) = 
     if condition then System.Threading.Monitor.Exit(locker)
 
-  let inline enterWriteLockIf (locker:int byref) (condition:bool) = 
-    if condition then 
+  // NB corefx will deprecate all CER stuff: https://github.com/dotnet/corefx/issues/1345#issuecomment-147569967
+  // these commented-out lines are from Joe Duffy examples
+  //[<ReliabilityContractAttribute(Consistency.WillNotCorruptState, Cer.MayFail)>]
+  let inline enterWriteLockIf (locker:int byref) (condition:bool) =
+    if condition then
+      Thread.BeginCriticalRegion()
       let sw = new SpinWait()
       let mutable cont = true
       while cont do
+        //RuntimeHelpers.PrepareConstrainedRegions()
+        //try ()
+        //finally
         if Interlocked.CompareExchange(&locker, 1, 0) = 0 then
           cont <- false
-        else sw.SpinOnce()
-    condition
+        if cont then sw.SpinOnce()
+      not cont
+    else false
 
   let inline exitWriteLockIf (locker:int byref) (condition:bool) = 
     if condition then 
       #if PRERELEASE
       Trace.Assert((1 = Interlocked.Exchange(&locker, 0)))
       #else
-      // TODO examine if full fence is needed, or volatile write is enough
-      Volatile.Write(&locker, 0)
-      //Interlocked.Exchange(&locker, 0) |> ignore
+      Interlocked.Exchange(&locker, 0) |> ignore
       #endif
+      //Thread.EndCriticalRegion()
 
   // This read lock only reads values and is exception-safe. If f() throws, we do not corrupt any state.
   let inline readLockIf (nextVersion:int64 byref) (currentVersion:int64 byref) (condition:bool) (f:unit -> 'T) : 'T =
