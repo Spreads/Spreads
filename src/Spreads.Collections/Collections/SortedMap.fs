@@ -134,8 +134,9 @@ type SortedMap<'K,'V>
       // TODO SCM
       | :? SortedMap<'K,'V> as map ->
         if map.IsReadOnly then Trace.TraceWarning("TODO: reuse arrays of immutable map")
-        let entered = enterWriteLockIf &map.locker true
+        let mutable entered = false
         try
+          entered <- enterWriteLockIf &map.locker true
           couldHaveRegularKeys <- map.IsRegular
           this.SetCapacity(map.size)
           this.size <- map.size
@@ -383,8 +384,9 @@ type SortedMap<'K,'V>
 
 
   member this.Complete() =
-    let entered = enterWriteLockIf &this.locker true
+    let mutable entered = false
     try
+      entered <- enterWriteLockIf &this.locker true
       if not this.isReadOnly then 
           this.isReadOnly <- true
           // immutable doesn't need sync
@@ -426,8 +428,9 @@ type SortedMap<'K,'V>
   member this.Version 
     with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.version)
     and internal set v = 
-      let entered = enterWriteLockIf &this.locker true
+      let mutable entered = false
       try
+        entered <- enterWriteLockIf &this.locker true
         this.version <- v // NB setter only for deserializer
         this.nextVersion <- v
       finally
@@ -483,8 +486,9 @@ type SortedMap<'K,'V>
         this.values.Length
       )
     and set(value) =
-      let entered = enterWriteLockIf &this.locker this.isSynchronized
+      let mutable entered = false
       try
+        entered <- enterWriteLockIf &this.locker this.isSynchronized
         this.SetCapacity(value)
       finally
         exitWriteLockIf &this.locker entered
@@ -492,9 +496,12 @@ type SortedMap<'K,'V>
   member this.Comparer with get() = comparer
 
   member this.Clear() =
-    let entered = enterWriteLockIf &this.locker this.isSynchronized
-    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+    let mutable entered = false
     try
+      try ()
+      finally
+        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if couldHaveRegularKeys then
         Trace.Assert(this.keys.Length = 2)
         Array.Clear(this.keys, 0, 2)
@@ -523,12 +530,15 @@ type SortedMap<'K,'V>
         member x.Clear() = raise (NotSupportedException("Keys collection is read-only"))
         member x.Contains(key) = this.ContainsKey(key)
         member x.CopyTo(array, arrayIndex) =
-          let entered = enterWriteLockIf &this.locker this.IsSynchronized
-          if couldHaveRegularKeys && this.size > 2 then
-            Array.Copy(this.rkMaterialize(), 0, array, arrayIndex, this.size)
-          else
-            Array.Copy(this.keys, 0, array, arrayIndex, this.size)
-          exitWriteLockIf &this.locker entered
+          let mutable entered = false
+          try
+            entered <- enterWriteLockIf &this.locker this.IsSynchronized
+            if couldHaveRegularKeys && this.size > 2 then
+              Array.Copy(this.rkMaterialize(), 0, array, arrayIndex, this.size)
+            else
+              Array.Copy(this.keys, 0, array, arrayIndex, this.size)
+          finally
+            exitWriteLockIf &this.locker entered
 
         member x.IndexOf(key:'K) = this.IndexOfKey(key)
         member x.Insert(index, value) = raise (NotSupportedException("Keys collection is read-only"))
@@ -583,9 +593,12 @@ type SortedMap<'K,'V>
         member x.Clear() = raise (NotSupportedException("Values colelction is read-only"))
         member x.Contains(value) = this.ContainsValue(value)
         member x.CopyTo(array, arrayIndex) =
-          let entered = enterWriteLockIf &this.locker this.IsSynchronized
-          Array.Copy(this.values, 0, array, arrayIndex, this.size)
-          exitWriteLockIf &this.locker entered
+          let mutable entered = false
+          try
+            entered <- enterWriteLockIf &this.locker this.IsSynchronized
+            Array.Copy(this.values, 0, array, arrayIndex, this.size)
+          finally
+            exitWriteLockIf &this.locker entered
           
         member x.IndexOf(value:'V) = this.IndexOfValue(value)
         member x.Insert(index, value) = raise (NotSupportedException("Values collection is read-only"))
@@ -699,8 +712,10 @@ type SortedMap<'K,'V>
         
           let mutable entered = false
           try
-            entered <- enterWriteLockIf &this.locker this.isSynchronized
-            if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+            try ()
+            finally
+              entered <- enterWriteLockIf &this.locker this.isSynchronized
+              if entered then Interlocked.Increment(&this.nextVersion) |> ignore
             // first/last optimization (only last here)
             if this.size = 0 then
               this.Insert(0, k, v)
@@ -735,9 +750,12 @@ type SortedMap<'K,'V>
     if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
     
     let mutable keepOrderVersion = false
-    let entered = enterWriteLockIf &this.locker this.isSynchronized
-    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+    let mutable entered = false
     try
+      try ()
+      finally
+        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size = 0 then
         this.Insert(0, key, value)
         keepOrderVersion <- true
@@ -745,7 +763,7 @@ type SortedMap<'K,'V>
         // last optimization gives near 2x performance boost
         let lc = this.CompareToLast key
         if lc = 0 then // key = last key
-          exitWriteLockIf &this.locker entered
+          //exitWriteLockIf &this.locker entered
           raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
         elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
           this.Insert(this.size, key, value)
@@ -753,7 +771,7 @@ type SortedMap<'K,'V>
         else
           let index = this.IndexOfKeyUnchecked(key)
           if index >= 0 then // contains key
-            exitWriteLockIf &this.locker entered
+            //exitWriteLockIf &this.locker entered
             raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
           else
             this.Insert(~~~index, key, value)
@@ -768,9 +786,12 @@ type SortedMap<'K,'V>
       #endif
 
   member this.AddLast(key, value):unit =
-    let entered = enterWriteLockIf &this.locker this.isSynchronized
-    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+    let mutable entered = false
     try
+      try ()
+      finally
+        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size = 0 then
         this.Insert(0, key, value)
       else
@@ -803,9 +824,12 @@ type SortedMap<'K,'V>
 
   member this.AddFirst(key, value):unit =
     let mutable keepOrderVersion = false
-    let entered = enterWriteLockIf &this.locker this.isSynchronized
-    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+    let mutable entered = false
     try
+      try ()
+      finally
+        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size = 0 then
         this.Insert(0, key, value)
         keepOrderVersion <- true
@@ -867,10 +891,13 @@ type SortedMap<'K,'V>
 
   member this.Remove(key): bool =
     if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
-    let entered = enterWriteLockIf &this.locker this.isSynchronized
-    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     let mutable removed = false
+    let mutable entered = false
     try
+      try ()
+      finally
+        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.isReadOnly then invalidOp "SortedMap is read-only"
       let index = this.IndexOfKeyUnchecked(key)
       if index >= 0 then 
@@ -889,10 +916,13 @@ type SortedMap<'K,'V>
 
 
   member this.RemoveFirst([<Out>]result: byref<KVP<'K,'V>>):bool =
-    let entered = enterWriteLockIf &this.locker this.isSynchronized
-    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     let mutable removed = false
+    let mutable entered = false
     try
+      try ()
+      finally
+        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size > 0 then
         result <- KeyValuePair(this.keys.[0], this.values.[0])
         this.RemoveAt(0)
@@ -911,10 +941,13 @@ type SortedMap<'K,'V>
 
 
   member this.RemoveLast([<Out>]result: byref<KeyValuePair<'K, 'V>>):bool =
-    let entered = enterWriteLockIf &this.locker this.isSynchronized
-    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     let mutable removed = false
+    let mutable entered = false
     try
+      try ()
+      finally
+        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size > 0 then
         result <-
           if couldHaveRegularKeys && this.size > 1 then
@@ -938,10 +971,13 @@ type SortedMap<'K,'V>
   /// Removes all elements that are to `direction` from `key`
   member this.RemoveMany(key:'K,direction:Lookup) : bool =
     if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
-    let entered = enterWriteLockIf &this.locker this.isSynchronized
-    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     let mutable removed = false
+    let mutable entered = false
     try
+      try ()
+      finally
+        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.isReadOnly then invalidOp "SortedMap is read-only"
       if this.size = 0 then false
       else
@@ -1263,8 +1299,11 @@ type SortedMap<'K,'V>
   interface ICollection  with
     member this.SyncRoot = this.SyncRoot
     member this.CopyTo(array, arrayIndex) =
-      let entered = enterWriteLockIf &this.locker this.isSynchronized
+      let mutable entered = false
       try
+        try ()
+        finally
+          entered <- enterWriteLockIf &this.locker this.isSynchronized
         if array = null then raise (ArgumentNullException("array"))
         if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
         if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
@@ -1288,8 +1327,11 @@ type SortedMap<'K,'V>
     member this.ContainsKey(key) = this.ContainsKey(key)
     member this.Contains(kvp:KeyValuePair<'K,'V>) = this.ContainsKey(kvp.Key)
     member this.CopyTo(array, arrayIndex) =
-      let entered = enterWriteLockIf &this.locker this.isSynchronized
+      let mutable entered = false
       try
+        try ()
+        finally
+          entered <- enterWriteLockIf &this.locker this.isSynchronized
         if array = null then raise (ArgumentNullException("array"))
         if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
         if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
@@ -1365,8 +1407,9 @@ type SortedMap<'K,'V>
       if appendMap.IsEmpty then
         0
       else
-        let entered = enterWriteLockIf &this.locker this.isSynchronized
+        let mutable entered = false
         try
+          entered <- enterWriteLockIf &this.locker this.isSynchronized
           match option with
           | AppendOption.ThrowOnOverlap _ ->
             if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
@@ -1895,17 +1938,20 @@ and
           OptimizationSettings.TraceVerbose("SM_MNA: waiting on semaphore")
           // NB this.source.isReadOnly could be set to true right before semaphore.WaitAsync call
           // and we will never get signal after that
-          let entered = enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
-          if this.state.source.isReadOnly then
-            if this.state.MoveNext() then this.tcs.SetResult(true) else this.tcs.SetResult(false)
-          else
-            this.semaphoreTask <- this.semaphore.WaitAsync(500, this.token)
-            let awaiter = this.semaphoreTask.GetAwaiter()
-            // TODO profiler says this allocates. This is because we close over the three variables.
-            // We could turn them into mutable fields and then closure could be allocated just once.
-            // But then the cursor will become heavier.
-            awaiter.UnsafeOnCompleted(this.callbackAction)
-          exitWriteLockIf &this.state.source.locker entered
+          let mutable entered = false
+          try
+            entered <- enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
+            if this.state.source.isReadOnly then
+              if this.state.MoveNext() then this.tcs.SetResult(true) else this.tcs.SetResult(false)
+            else
+              this.semaphoreTask <- this.semaphore.WaitAsync(500, this.token)
+              let awaiter = this.semaphoreTask.GetAwaiter()
+              // TODO profiler says this allocates. This is because we close over the three variables.
+              // We could turn them into mutable fields and then closure could be allocated just once.
+              // But then the cursor will become heavier.
+              awaiter.UnsafeOnCompleted(this.callbackAction)
+          finally
+            exitWriteLockIf &this.state.source.locker entered
 
     member this.MoveNext(ct: CancellationToken): Task<bool> =      
       match this.state.MoveNext() with
@@ -1939,14 +1985,17 @@ and
             // NB expect huge amount of idle tasks. Spinning on all of them is questionable.
             //failwith "TODO exit spinning on some condition"
             if this.onUpdateHandler = Unchecked.defaultof<_> then
-              let entered = enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
-              this.semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
-              this.onUpdateHandler <- OnUpdateHandler(fun _ ->
-                  if this.semaphore.CurrentCount <> Int32.MaxValue then this.semaphore.Release() |> ignore
-              )
-              this.state.source.onUpdateEvent.Publish.AddHandler this.onUpdateHandler
-              Interlocked.Increment(&this.state.source.subscribersCounter) |> ignore
-              exitWriteLockIf &this.state.source.locker entered
+              let mutable entered = false
+              try
+                entered <- enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
+                this.semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
+                this.onUpdateHandler <- OnUpdateHandler(fun _ ->
+                    if this.semaphore.CurrentCount <> Int32.MaxValue then this.semaphore.Release() |> ignore
+                )
+                this.state.source.onUpdateEvent.Publish.AddHandler this.onUpdateHandler
+                Interlocked.Increment(&this.state.source.subscribersCounter) |> ignore
+              finally
+                exitWriteLockIf &this.state.source.locker entered
             if this.state.MoveNext() then trueTask
             else
               this.tcs <- Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
@@ -1959,11 +2008,15 @@ and
         | _ -> if this.state.MoveNext() then trueTask else falseTask
       
     member this.Clone() = 
-      let entered = enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
-      let clone = new SortedMapCursorAsync<'K,'V>(this.state.source)
-      clone.state <- this.state
-      exitWriteLockIf &this.state.source.locker entered
-      clone
+      let mutable entered = false
+      try
+        entered <- enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
+        let clone = new SortedMapCursorAsync<'K,'V>(this.state.source)
+        clone.state <- this.state
+        clone
+      finally
+        exitWriteLockIf &this.state.source.locker entered
+      
 
     member this.Dispose() = 
       this.state.Reset()
