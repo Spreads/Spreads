@@ -15,6 +15,19 @@ using Spreads.Storage;
 
 
 namespace TAQParse {
+    public static class StreamExtension {
+        public static int ReadLineIntoBuffer(this Stream stream, byte[] buffer) {
+            int byteValue;
+            var idx = -1;
+            while ((byteValue = stream.ReadByte()) != -1 && (byteValue != '\n'))
+                if (byteValue != '\r' && byteValue != '\n') {
+                    buffer[++idx] = (byte)byteValue;
+                }
+            return idx + 1;
+        }
+
+    }
+
     public class Program {
         // this is a file from ftp://ftp.nyxdata.com/Historical%20Data%20Samples/Daily%20TAQ/EQY_US_ALL_TRADE_20150805.zip
         // 654 MB compressed, 3.8GB uncompressed. ASCII with fixed 106 byte row size + 2 bytes for \r\n
@@ -22,11 +35,9 @@ namespace TAQParse {
         // in MySql, storage takes 743 MB, with random access to any TAQ value
         private static string path = @"C:\EQY_US_ALL_TRADE_20150805.zip";
 
-        private static void Main3(string[] args)
-        {
+        private static void Main3(string[] args) {
             var t = Task.FromResult(1);
-            Interlocked.Exchange(ref t, t.ContinueWith(x =>
-            {
+            Interlocked.Exchange(ref t, t.ContinueWith(x => {
                 Console.WriteLine("Cont 1");
                 return 0;
             }));
@@ -49,23 +60,21 @@ namespace TAQParse {
 
             var seriesDictionary = new Dictionary<string, IPersistentOrderedMap<DateTime, TaqTrade>>();
 
-            using (var reader = new StreamReader(stream, Encoding.ASCII))
-            using (var bReader = new BinaryReader(stream, Encoding.ASCII)) {
+            using (BufferedStream bs = new BufferedStream(stream, 2 * 1024 * 1024))
+            using (var reader = new StreamReader(bs, Encoding.ASCII)) {
                 byte[] compressedBuffer = null;
                 var byteBuffer = new byte[106];
+                int len;
                 var line = reader.ReadLine();
+                len = bs.ReadLineIntoBuffer(byteBuffer);
                 Console.WriteLine(line);
                 Console.WriteLine("Press enter to continue");
                 Console.ReadLine();
                 var sw = new Stopwatch();
                 sw.Start();
                 var c = 0;
-                while (!reader.EndOfStream) { // && c < 100
-                    // these two lines take 57% time
-                    line = reader.ReadLine();
-                    Encoding.ASCII.GetBytes(line, 0, 106, byteBuffer, 0);
-
-                    var fb = new FixedBuffer(byteBuffer);
+                while ((len = bs.ReadLineIntoBuffer(byteBuffer)) != 0) { // && c < 100
+                    var fb = new FixedBuffer(byteBuffer, 0, len);
                     var trade = new TaqTrade(date, fb);
 
                     var symbol = trade.Symbol.ToLowerInvariant().Trim();
@@ -87,8 +96,7 @@ namespace TAQParse {
                     }
                 }
                 sw.Stop();
-                foreach (var series in seriesDictionary)
-                {
+                foreach (var series in seriesDictionary) {
                     series.Value.Flush();
                 }
                 Console.WriteLine($"Lines read: ${c} in msecs: {sw.ElapsedMilliseconds}");
@@ -116,7 +124,7 @@ namespace TAQParse {
             //https://uk.finance.yahoo.com/q/hp?s=AAPL&b=5&a=07&c=2015&e=5&d=07&f=2015&g=d
 
             var msft = store.GetPersistentOrderedMap<DateTime, TaqTrade>("msft").Map(t => t.TradePrice / 10000.0); ;
-            var spread = (aapl.Repeat()/msft.Repeat() - 1.0).ToSortedMap();
+            var spread = (aapl.Repeat() / msft.Repeat() - 1.0).ToSortedMap();
 
             Console.ReadLine();
         }
