@@ -1205,7 +1205,6 @@ type SortedMap<'K,'V>
       c :> ICursor<'K,'V>
     )
 
-
   // .NETs foreach optimization
   member this.GetEnumerator() =
     if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then 
@@ -1215,12 +1214,16 @@ type SortedMap<'K,'V>
       new SortedMapCursor<'K,'V>(this)
     )
 
-
   member internal this.GetSMCursor() =
     if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then this.IsSynchronized <- true // NB: via property with locks
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       new SortedMapCursor<'K,'V>(this)
     )
+
+  // TODO Implement MoveNextAsync+Do logic for pushing values directly using the struct cursor or index
+  // By default, do it in a separate task. But then add an option to do a sync push in an event handler.
+  override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
+    base.Subscribe(observer : IObserver<KVP<'K,'V>>)
 
 
   member this.GetAt(idx:int) =
@@ -1789,6 +1792,11 @@ and
         this.currentValue <- newValue
       result
 
+    member this.MoveNext(ct: CancellationToken) =
+      let mutable this' = this
+      let handler = OnUpdateHandler(fun _ -> this'.index <- this'.index + 1)
+      ()
+
     member this.CurrentKey with get() = this.currentKey
     member this.CurrentValue with get() = this.currentValue
     member this.Current with get() : KVP<'K,'V> = KeyValuePair(this.currentKey, this.currentValue)
@@ -1874,9 +1882,7 @@ and
           else
             let semaphoreTask = this.semaphore.WaitAsync(500, token)
             let awaiter = semaphoreTask.GetAwaiter()
-            awaiter.UnsafeOnCompleted(fun _ ->
-              this.CompleteTcsCallback(semaphoreTask, tcs, token)
-            )
+            awaiter.UnsafeOnCompleted(fun _ -> this.CompleteTcsCallback(semaphoreTask, tcs, token))
           exitWriteLockIf &this.state.source.locker entered
 
     member this.MoveNext(ct: CancellationToken): Task<bool> =      

@@ -129,7 +129,7 @@ and
         //raise (NotImplementedException("TODO Rx. Subscribe must be implemented via a cursor."))
         match box observer with
         | :? ISubscriber<KVP<'K,'V>> as subscriber ->
-          failwith "not supported"
+          raise (NotSupportedException("TODO Add reactive streams support"))
           let subscription : ISubscription = Unchecked.defaultof<_>
           subscription :> IDisposable
         | _ ->
@@ -142,12 +142,12 @@ and
                 if t.Result then
                   observer.OnCompleted()
                 else
-                  failwith "not supported"
+                  raise (NotSupportedException("This overload of Do() should only return true"))
               | TaskStatus.Canceled -> observer.OnError(OperationCanceledException())
               | TaskStatus.Faulted -> observer.OnError(t.Exception)
-              | _ -> failwith "TODO process all task statuses"
+              | _ -> raise (NotSupportedException("TODO process all task statuses"))
               ()
-            ) 
+            )
           ) |> ignore
           { 
             new Object() with
