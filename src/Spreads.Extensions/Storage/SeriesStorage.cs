@@ -317,7 +317,7 @@ namespace Spreads.Storage {
             SortedChunkedMap<K, V> series;
             var comparer = KeyComparer.GetDefault<K>() as IKeyComparer<K>;
             if (comparer == null) throw new NotSupportedException("Only type that have IKeyComparer<K> are supported");
-            Func<IComparer<K>, IOrderedMap<K, IOrderedMap<K, V>>> outerFactory =
+            Func<IComparer<K>, IOrderedMap<K, SortedMap<K, V>>> outerFactory =
                 cmp => new RemoteChunksSeries<K, V>(
                     seriesId,
                     cmp as IKeyComparer<K>,
