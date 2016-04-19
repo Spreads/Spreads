@@ -1036,7 +1036,7 @@ type SortedMap<'K,'V>
             raise (ApplicationException("wrong result of TryFindWithIndex with GT/GE direction"))
         | _ -> failwith "wrong direction"
     finally
-      this.onUpdateEvent.Trigger(false)
+      if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
       if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.locker entered
       #if PRERELEASE

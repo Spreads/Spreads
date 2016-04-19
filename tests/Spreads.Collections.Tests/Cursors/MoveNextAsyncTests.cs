@@ -96,7 +96,8 @@ namespace Spreads.Collections.Tests.Cursors {
             var sw = new Stopwatch();
             sw.Start();
 
-            var sm = new SortedMap<DateTime, double>();
+            var sm = new SortedChunkedMap<DateTime, double>();
+            sm.IsSynchronized = true;
             //var sm = new SortedChunkedMap<DateTime, double>();
             //sm.Add(DateTime.UtcNow.Date.AddSeconds(-2), 0);
 
@@ -200,7 +201,7 @@ namespace Spreads.Collections.Tests.Cursors {
             Assert.AreEqual(expectedSum, sum2, "Sum 2");
             Assert.AreEqual(expectedSum, sum3, "Sum 3");
 
-            sm.Dispose();
+            //sm.Dispose();
 
         }
 

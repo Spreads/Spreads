@@ -99,6 +99,7 @@ namespace Spreads.Collections.Tests {
                 }
             }
             addTask.Wait();
+            Thread.Sleep(200);
             Assert.AreEqual(cnt, total + 1);
             Console.WriteLine("Writer IsReadOnly: {0}", scm.IsReadOnly);
             Console.WriteLine("Reader IsReadOnly: {0}", reader.IsReadOnly);
