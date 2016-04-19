@@ -274,6 +274,7 @@ namespace Spreads.Collections.Tests.Cursors {
         }
 
         [Test]
+        [Ignore("Yeppp need rework and just throw it away. No test showed visivle gains yet.")]
         public void CouldAddWithYeppMathProvider() {
 
             var sm = new SortedChunkedMap<DateTime, double>();
