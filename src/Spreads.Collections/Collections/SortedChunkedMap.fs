@@ -1718,6 +1718,7 @@ and
       let mutable doSwitchInner = false
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
+      let mutable outerMoved = false
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
@@ -1741,12 +1742,16 @@ and
                   doSwitchInner <- true
                   true
                 else
-                  if this.outerCursor.MoveNext() then
+                  if outerMoved || this.outerCursor.MoveNext() then
+                    outerMoved <- true
                     this.isBatch <- false // if was batch, moved to the first element of the new batch
                     newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
                     doSwitchInner <- true
-                    newInner.MoveNext()
-                  else false
+                    if newInner.MoveNext() then true
+                    else outerMoved <- false; false // need to try to move outer again
+                  else
+                    outerMoved <- false
+                    false
               finally
                 exitWriteLockIf &this.source.locker entered
           with
@@ -1823,6 +1828,7 @@ and
       let mutable doSwitchInner = false
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
+      let mutable outerMoved = false
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
@@ -1846,12 +1852,16 @@ and
                   doSwitchInner <- true
                   true
                 else
-                  if this.outerCursor.MovePrevious() then
+                  if outerMoved || this.outerCursor.MovePrevious() then
+                    outerMoved <- true
                     this.isBatch <- false // if was batch, moved to the first element of the new batch
                     newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
                     doSwitchInner <- true
-                    newInner.MovePrevious()
-                  else false
+                    if newInner.MovePrevious() then true
+                    else outerMoved <- false; false // need to try to move outer again
+                  else
+                    outerMoved <- false
+                    false
               finally
                 exitWriteLockIf &this.source.locker entered
           with
