@@ -425,6 +425,7 @@ module CollectionsBenchmarks =
 
   let SortedMapTest(count:int64) =
     let smap = ref (SortedMap())
+    smap.Value.IsSynchronized <- false
     for i in 0..4 do
       smap := SortedMap()
       perf count "SortedMap Add" (fun _ ->
@@ -552,6 +553,9 @@ module CollectionsBenchmarks =
     let dc : IKeyComparer<int64> = SpreadsComparerInt64() :> IKeyComparer<int64> 
 
     let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
+
+    smap.Value.IsSynchronized <- false
+
     for i in 0..4 do
       smap := Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>))
       perf count "SortedMapRegular Add" (fun _ ->
@@ -761,6 +765,9 @@ module CollectionsBenchmarks =
     let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
     
     smap := Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>))
+
+    smap.Value.IsSynchronized <- false
+
     perf count "Series Add" (fun _ ->
       smap.Value.Add(0L, 0.0)
       for i in 2L..count do
@@ -1025,7 +1032,7 @@ module CollectionsBenchmarks =
   let SCM(count:int64) =
     let batchSize = 1024L //8192us
     let shm = ref (SortedChunkedMap(SpreadsComparerInt64()))
-
+    shm.Value.IsSynchronized <- false
     for i in 0..9 do
       shm := SortedChunkedMap()
       perf count "SCM<Auto> Add" (fun _ ->
