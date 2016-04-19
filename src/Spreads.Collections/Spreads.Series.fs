@@ -79,9 +79,12 @@ and
   //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   Series<'K,'V>() as this =
     inherit Series()
-    let mutable syncRoot = Unchecked.defaultof<_> // avoid allocation on each series creation, many of them are lighweight and never need a sync root
     
     let c = new ThreadLocal<_>(Func<_>(this.GetCursor), true) 
+
+    [<NonSerializedAttribute>]
+    [<DefaultValueAttribute>]
+    val mutable syncRoot : obj
 
     [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
@@ -158,11 +161,11 @@ and
       finally
         exitWriteLockIf &this.locker true
 
-    /// Locks any mutations for mutable implementations
+
     member this.SyncRoot 
       with get() = 
-        if syncRoot = Unchecked.defaultof<_> then syncRoot <- c.Value.Source.SyncRoot
-        syncRoot
+        if this.syncRoot = null then Interlocked.CompareExchange<obj>(&this.syncRoot, new Object(), null) |> ignore
+        this.syncRoot
 
     member this.Comparer with get() = c.Value.Comparer
     member this.IsEmpty = not (c.Value.MoveFirst())

@@ -104,11 +104,9 @@ type SortedMap<'K,'V>
   [<DefaultValueAttribute>] 
   val mutable isReadOnly : bool
   [<NonSerializedAttribute>]
-  let mutable syncRoot : obj = null
-  [<NonSerializedAttribute>]
   let ownerThreadId : int = Thread.CurrentThread.ManagedThreadId
   [<NonSerializedAttribute>]
-  let mutable mapKey = ""
+  let mutable mapKey = String.Empty
 
 
   do
@@ -419,11 +417,6 @@ type SortedMap<'K,'V>
   member this.RegularStep 
     with get() = 
       readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> try this.rkGetStep() with | _ -> 0L)
-
-  member this.SyncRoot 
-    with get() = 
-      if syncRoot = null then Interlocked.CompareExchange<obj>(&syncRoot, new Object(), null) |> ignore
-      syncRoot
 
   member this.Version 
     with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.version)
@@ -1253,6 +1246,7 @@ type SortedMap<'K,'V>
       new SortedMapCursor<'K,'V>(this)
     )
 
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member internal this.GetSMCursor() =
     if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then this.IsSynchronized <- true // NB: via property with locks
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
@@ -1580,6 +1574,11 @@ and
         }
     end
 
+    member this.CurrentKey with get() = this.currentKey
+    member this.CurrentValue with get() = this.currentValue
+    member this.Current with get() : KVP<'K,'V> = KeyValuePair(this.currentKey, this.currentValue)
+    member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
+    member this.IsContinuous with get() = false
     member this.Comparer: IComparer<'K> = this.source.Comparer
     member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
     
@@ -1630,8 +1629,7 @@ and
         this.currentValue <- newValue
       result
 
-    member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
-    member this.IsContinuous with get() = false
+
     member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
@@ -1691,9 +1689,6 @@ and
         this.isBatch <- newIsBatch
       result
 
-    member this.Clone() = 
-      let copy = this
-      copy
 
     member this.MovePrevious() = 
       let mutable newIndex = this.index
@@ -1839,9 +1834,10 @@ and
       result
 
 
-    member this.CurrentKey with get() = this.currentKey
-    member this.CurrentValue with get() = this.currentValue
-    member this.Current with get() : KVP<'K,'V> = KeyValuePair(this.currentKey, this.currentValue)
+
+    member this.Clone() = 
+      let copy = this
+      copy
 
     member this.Reset() = 
       this.cursorVersion <- -1L
@@ -1891,7 +1887,8 @@ and
     [<DefaultValueAttribute(false)>]
     val mutable private onUpdateHandler : OnUpdateHandler
 
-
+    // NB Async cursors are supposed to be long-lived, therefore we opt for fatter 
+    // cursor object with these fields but avoid closure allocation in the callback.
     [<DefaultValueAttribute(false)>]
     val mutable private semaphoreTask : Task<bool>
     [<DefaultValueAttribute(false)>]

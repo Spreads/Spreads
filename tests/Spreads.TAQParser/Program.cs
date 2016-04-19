@@ -25,7 +25,6 @@ namespace TAQParse {
                 }
             return idx + 1;
         }
-
     }
 
     public class Program {

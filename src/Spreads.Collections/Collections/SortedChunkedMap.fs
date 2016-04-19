@@ -34,6 +34,8 @@ open Spreads
 open Spreads.Collections
 
 
+// TODO IDictionary interface
+// TODO count property?
 
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
@@ -44,41 +46,45 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     innerFactory:int * IComparer<'K>->'TContainer, 
     comparer:IComparer<'K>,
     hasher:IKeyHasher<'K> option, 
-    chunkMaxSize:int option) =
+    chunkMaxSize:int option) as this=
   inherit Series<'K,'V>()
 
   let outerMap = outerFactory(comparer)
 
   [<NonSerializedAttribute>]
   let isOuterPersistent, outerAsPersistent = match outerMap with | :? IPersistentObject as pm -> true, pm | _ -> false, Unchecked.defaultof<_>
-  [<NonSerializedAttribute>]
-  let isInnerSortedMap = typedefof<'TContainer> = typedefof<SortedMap<'K,'V>>
-
-  [<NonSerializedAttribute>]
-  let mutable outerCursor = outerMap.GetCursor()
+  
 
   // TODO serialize size, add a method to calculate size based on outerMap only
 //  [<NonSerializedAttribute>]
 //  let mutable size = 0L
-//  [<NonSerializedAttribute>]
-//  let mutable version = outerMap.Version
+  [<DefaultValueAttribute>]
+  val mutable internal version : int64
+
+
   [<NonSerializedAttribute>]
   let mutable prevHash = Unchecked.defaultof<'K>
   [<NonSerializedAttribute>]
   let mutable prevBucket = WeakReference<IOrderedMap<'K,'V>>(null)
-
   let prevBucketIsSet (prevBucket':IOrderedMap<'K,'V> byref) : bool = 
     let hasValue = prevBucket.TryGetTarget(&prevBucket') 
     hasValue && prevBucket' <> null
 
-//  [<NonSerializedAttribute>]
-//  let mutable flushedVersion = outerMap.Version
+
   [<NonSerializedAttribute>]
-  let mutable isMutable : bool = true
+  [<DefaultValueAttribute>] 
+  val mutable isSynchronized : bool
+  [<DefaultValueAttribute>] 
+  val mutable isReadOnly : bool
   [<NonSerializedAttribute>]
-  let mutable cursorCounter : int = 1 // TODO either delete this or add decrement to cursor disposal
+  let ownerThreadId : int = Thread.CurrentThread.ManagedThreadId
+
   [<NonSerializedAttribute>]
-  let mutable isSync  = true
+  [<DefaultValueAttribute>] 
+  val mutable internal orderVersion : int64
+  [<NonSerializedAttribute>]
+  [<DefaultValueAttribute>] 
+  val mutable internal nextVersion : int64
 
   /// Non-zero only for the defaul slicing logic. When zero, we do not check for chunk size
   [<NonSerializedAttribute>]
@@ -101,10 +107,14 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
   let existingHash key =
     if chunkUpperLimit = 0 then hasher.Hash(key) 
     else
-      if outerCursor.MoveAt(key, Lookup.LE) then outerCursor.CurrentKey else Unchecked.defaultof<_>
-//      let mutable h = Unchecked.defaultof<_>
-//      outerMap.TryFind(key, Lookup.LE, &h) |> ignore
-//      h.Key
+      //if outerCursor.MoveAt(key, Lookup.LE) then outerCursor.CurrentKey else Unchecked.defaultof<_>
+      let mutable h = Unchecked.defaultof<_>
+      outerMap.TryFind(key, Lookup.LE, &h) |> ignore
+      h.Key
+
+  do
+    this.isSynchronized <- false
+
 
   [<OnDeserialized>]
   member private this.Init(context:StreamingContext) =
@@ -130,7 +140,19 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
           exitLockIf this.SyncRoot entered
 
   member internal this.OuterMap with get() = outerMap
-  member this.Version with get() = outerMap.Version and set value = outerMap.Version <- value
+  member internal this.ChunkUpperLimit with get() = chunkUpperLimit
+  member internal this.Hasher with get() = hasher
+
+  member this.Version 
+    with get() = readLockIf &this.nextVersion &this.version true (fun _ -> this.version)
+    and internal set v = 
+      let mutable entered = false
+      try
+        entered <- enterWriteLockIf &this.locker true
+        this.version <- v // NB setter only for deserializer
+        this.nextVersion <- v
+      finally
+        exitWriteLockIf &this.locker entered
 
   member this.IsEmpty
       with get() =
@@ -141,18 +163,32 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
         finally
           exitLockIf this.SyncRoot entered
 
-  member this.Complete() = 
-    if isMutable then 
-        isMutable <- false
-        if cursorCounter > 0 then 
-          this.onCompletedEvent.Trigger(true)
-  member internal this.IsMutable with get() = isMutable
-  override this.IsReadOnly with get() = not isMutable
+  member this.Complete() =
+    let mutable entered = false
+    try
+      entered <- enterWriteLockIf &this.locker true
+      if not this.isReadOnly then 
+          this.isReadOnly <- true
+          // immutable doesn't need sync
+          this.IsSynchronized <- false // TODO the same for SCM
+          if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+    finally
+      exitWriteLockIf &this.locker entered
+
+  override this.IsReadOnly with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.isReadOnly)
   override this.IsIndexed with get() = false
 
-  member this.IsSynchronized with get() = isSync and set v = isSync <- v
-
-  member this.SyncRoot with get() = outerMap.SyncRoot
+  member this.IsSynchronized 
+    with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> Volatile.Read(&this.isSynchronized))
+    and set(synced:bool) =
+      let wasSynced = Volatile.Read(&this.isSynchronized)
+      readLockIf &this.nextVersion &this.version wasSynced (fun _ ->
+        // NB: multiple set of the same value is ok as long as all write method
+        // read this.isSynchronized into a local variable before writing
+        // (all write methods should use entered var and not touch this.isSynced after entering locks)
+        Volatile.Write(&this.isSynchronized, synced)
+        if synced && not wasSynced then this.nextVersion <- this.version
+      )
 
   // TODO! there must be a smarter locking strategy at buckets level (instead of syncRoot)
   member this.Item
@@ -203,7 +239,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
           if c = 0 && prevBucketIsSet(&prevBucket') then // avoid generic equality and null compare
             prevBucket'.[key] <- value
             outerMap.Version <- outerMap.Version + 1L
-            if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+            if this.subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
           else
             if prevBucketIsSet(&prevBucket') then this.Flush()
             let isNew, bucket = 
@@ -221,7 +257,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
               outerMap.Version <- outerMap.Version + 1L
             //let s2 = bucket.size
             //size <- size + int64(s2 - s1)
-            if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+            if this.subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
             prevHash <- hash
             prevBucket.SetTarget(bucket)
         else
@@ -230,7 +266,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
           if prevBucketIsSet(&prevBucket') && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket'.Last.Key) <= 0 then
             prevBucket'.[key] <- value
             outerMap.Version <- outerMap.Version + 1L
-            if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+            if this.subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
           else
             let mutable kvp = Unchecked.defaultof<_>
             let ok = outerMap.TryFind(key, Lookup.LE, &kvp)
@@ -241,7 +277,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
               prevHash <- kvp.Key
               prevBucket.SetTarget kvp.Value
               outerMap.Version <- outerMap.Version + 1L
-              if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+              if this.subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
             else
               if prevBucketIsSet(&prevBucket') then this.Flush()
               // create a new bucket at key
@@ -256,7 +292,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
               #endif
               prevHash <- key
               prevBucket.SetTarget newSm
-              if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+              if this.subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
       finally
         exitLockIf this.SyncRoot entered
 
@@ -291,15 +327,36 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
 
   override this.Finalize() = this.Flush()
 
-  override this.GetCursor() : ICursor<'K,'V> =
+  member this.GetCursorOld() : ICursor<'K,'V> =
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
     try
-      this.GetCursor(outerMap.GetCursor(), true, Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>, false)
+      this.GetCursorOld(outerMap.GetCursor(), true, Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>, false)
     finally
       exitLockIf this.SyncRoot entered
 
+  override this.GetCursor() =
+    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then this.IsSynchronized <- true // NB: via property with locks
+    let mutable entered = false
+    try
+      entered <- enterWriteLockIf &this.locker this.isSynchronized
+      // if source is already read-only, MNA will always return false
+      if this.isReadOnly then new SortedChunkedMapGenericCursor<_,_,_>(this) :> ICursor<'K,'V>
+      else 
+        let c = new SortedChunkedMapGenericCursor<_,_,_>(this)
+        c :> ICursor<'K,'V>
+    finally
+      exitWriteLockIf &this.locker entered
 
-  member private this.GetCursor(outer:ICursor<'K,'TContainer>, isReset:bool,currentBatch:IReadOnlyOrderedMap<'K,'V>, isBatch:bool) : ICursor<'K,'V> =
+  // .NETs foreach optimization
+  member this.GetEnumerator() =
+    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then 
+      // NB: via property with locks
+      this.IsSynchronized <- true
+    readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
+      new SortedChunkedMapGenericCursor<_,_,_>(this)
+    )
+
+  member private this.GetCursorOld(outer:ICursor<'K,'TContainer>, isReset:bool,currentBatch:IReadOnlyOrderedMap<'K,'V>, isBatch:bool) : ICursor<'K,'V> =
     // TODO
     let nextBatch : Task<IReadOnlyOrderedMap<'K,'V>> ref = ref Unchecked.defaultof<Task<IReadOnlyOrderedMap<'K,'V>>>
     
@@ -326,8 +383,8 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
         member c.Comparer: IComparer<'K> = comparer
         member c.Source with get() = this :> ISeries<_,_>
         member c.IsContinuous with get() = false
-        member c.Clone() = 
-          let clone = this.GetCursor(outer.Value.Clone(), !isReset, currentBatch, !isBatch)
+        member c.Clone() =
+          let clone = this.GetCursorOld(outer.Value.Clone(), !isReset, currentBatch, !isBatch)
           if not !isReset then
             let moved = clone.MoveAt(c.CurrentKey, Lookup.EQ)
             if not moved then invalidOp "cannot correctly clone SCM cursor"
@@ -344,7 +401,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
                 match semaphoreTask.Status with
                 | TaskStatus.RanToCompletion -> 
                   if x.MoveNext() then tcs.SetResult(true)
-                  elif not this.IsMutable then tcs.SetResult(false)
+                  elif this.IsReadOnly then tcs.SetResult(false)
                   else completeTcs(tcs, token)
                 | _ -> failwith "TODO process all task results"
                 ()
@@ -352,8 +409,8 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
           match x.MoveNext() with
           | true -> trueTask            
           | false ->
-            match this.IsMutable with
-            | true ->
+            match this.IsReadOnly with
+            | false ->
               let upd = this :> IObservableEvents<'K,'V>
               if not !observerStarted then
                 semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
@@ -658,7 +715,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
           prevBucket'.Add(key, value)
           outerMap.Version <- outerMap.Version + 1L
           //size <- size + 1L
-          if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+          if this.subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
         else
           if prevBucketIsSet(&prevBucket') then this.Flush()
           let bucket = 
@@ -675,7 +732,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
               newSm
           outerMap.Version <- outerMap.Version + 1L
           //size <- size + 1L
-          if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+          if this.subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
           prevHash <- hash
           prevBucket.SetTarget bucket
       else
@@ -684,7 +741,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
         if prevBucketIsSet(&prevBucket') && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket'.Last.Key) <= 0 then
           prevBucket'.Add(key,value)
           outerMap.Version <- outerMap.Version + 1L
-          if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+          if this.subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
         else
           let mutable kvp = Unchecked.defaultof<_>
           let ok = outerMap.TryFind(key, Lookup.LE, &kvp)
@@ -695,7 +752,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
             prevHash <- kvp.Key
             prevBucket.SetTarget kvp.Value
             outerMap.Version <- outerMap.Version + 1L
-            if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+            if this.subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
           else
             let mutable prevBucket' = Unchecked.defaultof<_>
             if prevBucketIsSet(&prevBucket') then this.Flush()
@@ -711,7 +768,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
             #endif
             prevHash <- key
             prevBucket.SetTarget newSm
-            if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
+            if this.subscribersCounter > 0 then this.onNextEvent.Trigger(KVP(key,value))
     finally
       exitLockIf this.SyncRoot entered
 
@@ -1011,7 +1068,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     member this.GetCursor() = this.GetCursor()
     member this.IsEmpty = this.IsEmpty
     member this.IsIndexed with get() = false
-    member this.IsReadOnly with get() = not this.IsMutable
+    member this.IsReadOnly with get() = this.IsReadOnly
     member this.First with get() = this.First
     member this.Last with get() = this.Last
     member this.TryFind(k:'K, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
@@ -1083,10 +1140,351 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
   //#endregion
 
 and
-  public SortedChunkedMapCursor<'K,'V> =
+  public SortedChunkedMapGenericCursor<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'K,'V>> =
     struct
-
+      val mutable internal source : SortedChunkedMapGeneric<'K,'V,'TContainer>
+      val mutable internal outerCursor : ICursor<'K,'TContainer>
+      val mutable internal innerCursor : ICursor<'K,'V>
+      val mutable internal isBatch : bool
+      new(source:SortedChunkedMapGeneric<'K,'V,'TContainer>) = 
+        { source = source; 
+          outerCursor = source.OuterMap.GetCursor();
+          innerCursor = Unchecked.defaultof<_>;
+          isBatch = false;
+        }
     end
+
+    member private this.HasValidInner with get() = this.innerCursor <> Unchecked.defaultof<_>
+    
+    member this.CurrentKey with get() = this.innerCursor.CurrentKey
+    member this.CurrentValue with get() = this.innerCursor.CurrentValue
+    member this.Current with get() : KVP<'K,'V> = KeyValuePair(this.innerCursor.CurrentKey, this.innerCursor.CurrentValue)
+
+    member this.Comparer: IComparer<'K> = this.source.Comparer
+    member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
+
+    member this.MoveNext() =
+      let mutable newInner = this.innerCursor
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          try
+            if (not this.HasValidInner) && (not this.isBatch) then
+              if this.outerCursor.MoveFirst() then
+                newInner <- this.outerCursor.CurrentValue.GetCursor()
+                newInner.MoveFirst()
+              else false
+            else
+              if this.HasValidInner && newInner.MoveNext() then true
+              else
+                if this.outerCursor.MoveNext() then
+                  this.isBatch <- false // if was batch, moved to the first element of the new batch
+                  newInner <- this.outerCursor.CurrentValue.GetCursor()
+                  newInner.MoveNext()
+                else false
+          with
+          | :? OutOfOrderKeyException<'K> as ooex ->
+             raise (new OutOfOrderKeyException<'K>((if this.isBatch then this.outerCursor.CurrentValue.Last.Key else this.innerCursor.CurrentKey), "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
+            
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      if result then
+        //if this.HasValidInner then this.innerCursor.Dispose()
+        this.innerCursor <- newInner
+      result
+
+    member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
+    member this.IsContinuous with get() = false
+    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+
+          if this.isBatch then this.outerCursor.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
+          else raise (InvalidOperationException("SortedChunkedMapGenericCursor cursor is not at a batch position"))
+
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      result
+
+    member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
+      let mutable newIsBatch = this.isBatch
+
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          // TODO test & review
+          raise (NotImplementedException("TODO test & review"))
+          try
+            if (not this.HasValidInner || this.isBatch) && this.outerCursor.MoveNext() then
+                newIsBatch <- true
+                trueTask
+            else falseTask
+          with
+          | :? OutOfOrderKeyException<'K> as ooex ->
+            Trace.Assert(this.isBatch)
+            raise (new OutOfOrderKeyException<'K>(this.outerCursor.CurrentValue.Last.Key, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
+            
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      if result.Result then
+        this.isBatch <- newIsBatch
+      result
+
+
+    member this.MovePrevious() = 
+      let mutable newInner = this.innerCursor
+
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          try
+            if this.isBatch then
+              raise (NotImplementedException("TODO test & review"))
+              this.isBatch <- false
+              newInner <- this.outerCursor.CurrentValue.GetCursor()
+              newInner.MoveLast() |> ignore
+
+            if not this.HasValidInner then
+              if this.outerCursor.MoveLast() then
+                newInner <- this.outerCursor.CurrentValue.GetCursor()
+                newInner.MoveLast()
+              else false
+            else
+              if this.HasValidInner && newInner.MovePrevious() then true
+              else
+                if this.outerCursor.MovePrevious() then
+                  this.isBatch <- false
+                  newInner <- this.outerCursor.CurrentValue.GetCursor()
+                  newInner.MovePrevious()
+                else false
+          with
+          | :? OutOfOrderKeyException<'K> as ooex ->
+             raise (new OutOfOrderKeyException<'K>((if this.isBatch then this.outerCursor.CurrentValue.Last.Key else this.innerCursor.CurrentKey), "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
+            
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      if result then
+        //if this.HasValidInner then this.innerCursor.Dispose()
+        this.innerCursor <- newInner
+      result
+
+    member this.MoveFirst() =
+      let mutable newInner = this.innerCursor
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          if this.outerCursor.MoveFirst() then
+            newInner <- this.outerCursor.CurrentValue.GetCursor()
+            if newInner.MoveFirst() then
+              this.isBatch <- false
+              true
+            else 
+              Trace.Fail("If outer moved first then inned must be non-empty")
+              false
+          else false
+            
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      if result then
+        //if this.HasValidInner then this.innerCursor.Dispose()
+        this.innerCursor <- newInner
+      result
+
+    member this.MoveLast() =
+      let mutable newInner = this.innerCursor
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          if this.outerCursor.MoveLast() then
+            newInner <- this.outerCursor.CurrentValue.GetCursor()
+            if newInner.MoveLast() then
+              this.isBatch <- false
+              true
+            else
+              Trace.Fail("If outer moved last then inned must be non-empty")
+              false
+          else false
+            
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      if result then
+        //if this.HasValidInner then this.innerCursor.Dispose()
+        this.innerCursor <- newInner
+      result
+
+    member this.MoveAt(key:'K, direction:Lookup) =
+      let mutable newInner = this.innerCursor
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          let res =
+            if this.source.ChunkUpperLimit = 0 then
+              let hash = this.source.Hasher.Hash(key)
+              let c = 
+                if not this.HasValidInner then 2 // <> 0 below
+                else this.source.Comparer.Compare(hash, this.outerCursor.CurrentKey)
+              
+              if c <> 0 then // not in the current bucket, switch bucket
+                if this.outerCursor.MoveAt(hash, Lookup.EQ) then // Equal!
+                  newInner <- this.outerCursor.CurrentValue.GetCursor()
+                  newInner.MoveAt(key, direction)
+                else
+                  false
+              else
+                newInner.MoveAt(key, direction)
+            else
+              if this.outerCursor.MoveAt(key, Lookup.LE) then // LE!
+                newInner <- this.outerCursor.CurrentValue.GetCursor()
+                newInner.MoveAt(key, direction)
+              else
+                false
+
+          if res then
+            this.isBatch <- false
+            true
+          else
+              match direction with
+              | Lookup.LT | Lookup.LE ->
+                // look into previous bucket
+                if this.outerCursor.MovePrevious() then
+                  newInner <- this.outerCursor.CurrentValue.GetCursor()
+                  let res = newInner.MoveAt(key, direction)
+                  if res then
+                    this.isBatch <- false
+                    true
+                  else
+                    this.Reset()
+                    false
+                else
+                  this.Reset()
+                  false
+              | Lookup.GT | Lookup.GE ->
+                // look into next bucket
+                let moved = this.outerCursor.MoveNext() 
+                if moved then
+                  newInner <- this.outerCursor.CurrentValue.GetCursor()
+                  let res = newInner.MoveAt(key, direction)
+                  if res then
+                    this.isBatch <- false
+                    true
+                  else
+                    this.Reset()
+                    false 
+                else
+                  this.Reset()
+                  false
+              | _ -> false // LookupDirection.EQ
+      /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      if result then
+        //if this.HasValidInner then this.innerCursor.Dispose()
+        this.innerCursor <- newInner
+      result
+
+
+    member this.Clone() =
+      let mutable entered = false
+      try
+        entered <- enterWriteLockIf &this.source.locker this.source.isSynchronized
+        let clone = new SortedChunkedMapGenericCursor<_,_,_>(this.source)
+        clone.MoveAt(this.CurrentKey, Lookup.EQ) |> ignore
+        clone
+      finally
+        exitWriteLockIf &this.source.locker entered  
+      
+    member this.Reset() = 
+      if this.HasValidInner then this.innerCursor.Dispose()
+      this.innerCursor <- Unchecked.defaultof<_>
+      this.outerCursor.Reset()
+
+    member this.Dispose() = this.Reset()
+
+    interface IDisposable with
+      member this.Dispose() = this.Dispose()
+
+    interface IEnumerator<KVP<'K,'V>> with    
+      member this.Reset() = this.Reset()
+      member this.MoveNext():bool = this.MoveNext()
+      member this.Current with get(): KVP<'K, 'V> = this.Current
+      member this.Current with get(): obj = this.Current :> obj
+
+    interface IAsyncEnumerator<KVP<'K,'V>> with
+      member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = 
+        if this.source.IsReadOnly then
+          if this.MoveNext() then trueTask else falseTask
+        else raise (NotSupportedException("Use SortedChunkedMapGenericCursorAsync instead"))
+
+    interface ICursor<'K,'V> with
+      member this.Comparer with get() = this.source.Comparer
+      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
+      member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatch(cancellationToken)
+      member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
+      member this.MoveFirst():bool = this.MoveFirst()
+      member this.MoveLast():bool =  this.MoveLast()
+      member this.MovePrevious():bool = this.MovePrevious()
+      member this.CurrentKey with get():'K = this.CurrentKey
+      member this.CurrentValue with get():'V = this.CurrentValue
+      member this.Source with get() = this.source :> ISeries<'K,'V>
+      member this.Clone() = this.Clone() :> ICursor<'K,'V>
+      member this.IsContinuous with get() = false
+      member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)
 
 
 
@@ -1101,6 +1499,30 @@ type SortedChunkedMap<'K,'V>
     hasher:IKeyHasher<'K> option, 
     chunkMaxSize:int option) =
   inherit SortedChunkedMapGeneric<'K,'V,SortedMap<'K,'V>>(outerFactory, innerFactory, comparer, hasher, chunkMaxSize)
+
+
+  override this.GetCursor() =
+    //if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then this.IsSynchronized <- true // NB: via property with locks
+    let mutable entered = false
+    try
+      entered <- enterWriteLockIf &this.locker this.isSynchronized
+      // if source is already read-only, MNA will always return false
+      if this.isReadOnly then new SortedChunkedMapCursor<_,_>(this) :> ICursor<'K,'V>
+      else
+        let c = new SortedChunkedMapGenericCursor<_,_,_>(this)
+        c :> ICursor<'K,'V>
+    finally
+      exitWriteLockIf &this.locker entered
+
+  // .NETs foreach optimization
+  member this.GetEnumerator() =
+//    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then 
+//      // NB: via property with locks
+//      this.IsSynchronized <- true
+    readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
+      new SortedChunkedMapCursor<_,_>(this)
+    )
+
 
   // x0
   
@@ -1173,6 +1595,352 @@ type SortedChunkedMap<'K,'V>
     new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer) :> SortedMap<'K,'V>), comparer, None, Some(chunkMaxSize))
 
 
+and
+  public SortedChunkedMapCursor<'K,'V> =
+    struct
+      val mutable internal source : SortedChunkedMap<'K,'V>
+      val mutable internal outerCursor : ICursor<'K,SortedMap<'K,'V>>
+      val mutable internal innerCursor : SortedMapCursor<'K,'V>
+      val mutable internal isBatch : bool
+      new(source:SortedChunkedMap<'K,'V>) = 
+        { source = source; 
+          outerCursor = source.OuterMap.GetCursor();
+          innerCursor = Unchecked.defaultof<_>;
+          isBatch = false;
+        }
+    end
+
+    member private this.HasValidInner with get() = this.innerCursor.source <> Unchecked.defaultof<_>
+    
+    member this.CurrentKey with get() = this.innerCursor.CurrentKey
+    member this.CurrentValue with get() = this.innerCursor.CurrentValue
+    member this.Current with get() : KVP<'K,'V> = KeyValuePair(this.innerCursor.CurrentKey, this.innerCursor.CurrentValue)
+
+    member this.Comparer: IComparer<'K> = this.source.Comparer
+    member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
+
+    member this.MoveNext() =
+      let mutable newInner = this.innerCursor
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          try
+            if (not this.HasValidInner) && (not this.isBatch) then
+              if this.outerCursor.MoveFirst() then
+                newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+                newInner.MoveFirst()
+              else false
+            else
+              if this.HasValidInner && newInner.MoveNext() then true
+              else
+                if this.outerCursor.MoveNext() then
+                  this.isBatch <- false // if was batch, moved to the first element of the new batch
+                  newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+                  newInner.MoveNext()
+                else false
+          with
+          | :? OutOfOrderKeyException<'K> as ooex ->
+             raise (new OutOfOrderKeyException<'K>((if this.isBatch then this.outerCursor.CurrentValue.Last.Key else this.innerCursor.CurrentKey), "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
+            
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      if result then
+        //if this.HasValidInner then this.innerCursor.Dispose()
+        this.innerCursor <- newInner
+      result
+
+    member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
+    member this.IsContinuous with get() = false
+    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+
+          if this.isBatch then this.outerCursor.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
+          else raise (InvalidOperationException("SortedChunkedMapGenericCursor cursor is not at a batch position"))
+
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      result
+
+    member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
+      let mutable newIsBatch = this.isBatch
+
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          // TODO test & review
+          raise (NotImplementedException("TODO test & review"))
+          try
+            if (not this.HasValidInner || this.isBatch) && this.outerCursor.MoveNext() then
+                newIsBatch <- true
+                trueTask
+            else falseTask
+          with
+          | :? OutOfOrderKeyException<'K> as ooex ->
+            Trace.Assert(this.isBatch)
+            raise (new OutOfOrderKeyException<'K>(this.outerCursor.CurrentValue.Last.Key, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
+            
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      if result.Result then
+        this.isBatch <- newIsBatch
+      result
+
+
+    member this.MovePrevious() = 
+      let mutable newInner = this.innerCursor
+
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          try
+            if this.isBatch then
+              raise (NotImplementedException("TODO test & review"))
+              this.isBatch <- false
+              newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+              newInner.MoveLast() |> ignore
+
+            if not this.HasValidInner then
+              if this.outerCursor.MoveLast() then
+                newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+                newInner.MoveLast()
+              else false
+            else
+              if this.HasValidInner && newInner.MovePrevious() then true
+              else
+                if this.outerCursor.MovePrevious() then
+                  this.isBatch <- false
+                  newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+                  newInner.MovePrevious()
+                else false
+          with
+          | :? OutOfOrderKeyException<'K> as ooex ->
+             raise (new OutOfOrderKeyException<'K>((if this.isBatch then this.outerCursor.CurrentValue.Last.Key else this.innerCursor.CurrentKey), "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
+            
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      if result then
+        //if this.HasValidInner then this.innerCursor.Dispose()
+        this.innerCursor <- newInner
+      result
+
+    member this.MoveFirst() =
+      let mutable newInner = this.innerCursor
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          if this.outerCursor.MoveFirst() then
+            newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+            if newInner.MoveFirst() then
+              this.isBatch <- false
+              true
+            else 
+              Trace.Fail("If outer moved first then inned must be non-empty")
+              false
+          else false
+            
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      if result then
+        //if this.HasValidInner then this.innerCursor.Dispose()
+        this.innerCursor <- newInner
+      result
+
+    member this.MoveLast() =
+      let mutable newInner = this.innerCursor
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          if this.outerCursor.MoveLast() then
+            newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+            if newInner.MoveLast() then
+              this.isBatch <- false
+              true
+            else
+              Trace.Fail("If outer moved last then inned must be non-empty")
+              false
+          else false
+            
+        /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      if result then
+        //if this.HasValidInner then this.innerCursor.Dispose()
+        this.innerCursor <- newInner
+      result
+
+    member this.MoveAt(key:'K, direction:Lookup) =
+      let mutable newInner = this.innerCursor
+      let mutable result = Unchecked.defaultof<_>
+      let mutable doSpin = true
+      let sw = new SpinWait()
+      while doSpin do
+        doSpin <- this.source.isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        result <-
+        /////////// Start read-locked code /////////////
+          let res =
+            if this.source.ChunkUpperLimit = 0 then
+              let hash = this.source.Hasher.Hash(key)
+              let c = 
+                if not this.HasValidInner then 2 // <> 0 below
+                else this.source.Comparer.Compare(hash, this.outerCursor.CurrentKey)
+              
+              if c <> 0 then // not in the current bucket, switch bucket
+                if this.outerCursor.MoveAt(hash, Lookup.EQ) then // Equal!
+                  newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+                  newInner.MoveAt(key, direction)
+                else
+                  false
+              else
+                newInner.MoveAt(key, direction)
+            else
+              if this.outerCursor.MoveAt(key, Lookup.LE) then // LE!
+                newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+                newInner.MoveAt(key, direction)
+              else
+                false
+
+          if res then
+            this.isBatch <- false
+            true
+          else
+              match direction with
+              | Lookup.LT | Lookup.LE ->
+                // look into previous bucket
+                if this.outerCursor.MovePrevious() then
+                  newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+                  let res = newInner.MoveAt(key, direction)
+                  if res then
+                    this.isBatch <- false
+                    true
+                  else
+                    this.Reset()
+                    false
+                else
+                  this.Reset()
+                  false
+              | Lookup.GT | Lookup.GE ->
+                // look into next bucket
+                let moved = this.outerCursor.MoveNext() 
+                if moved then
+                  newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+                  let res = newInner.MoveAt(key, direction)
+                  if res then
+                    this.isBatch <- false
+                    true
+                  else
+                    this.Reset()
+                    false 
+                else
+                  this.Reset()
+                  false
+              | _ -> false // LookupDirection.EQ
+      /////////// End read-locked code /////////////
+        if doSpin then
+          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          if version = nextVersion then doSpin <- false
+          else sw.SpinOnce()
+      if result then
+        //if this.HasValidInner then this.innerCursor.Dispose()
+        this.innerCursor <- newInner
+      result
+
+
+    member this.Clone() =
+      let mutable entered = false
+      try
+        entered <- enterWriteLockIf &this.source.locker this.source.isSynchronized
+        let clone = new SortedChunkedMapGenericCursor<_,_,_>(this.source)
+        clone.MoveAt(this.CurrentKey, Lookup.EQ) |> ignore
+        clone
+      finally
+        exitWriteLockIf &this.source.locker entered  
+      
+    member this.Reset() = 
+      if this.HasValidInner then this.innerCursor.Dispose()
+      this.innerCursor <- Unchecked.defaultof<_>
+      this.outerCursor.Reset()
+
+    member this.Dispose() = this.Reset()
+
+    interface IDisposable with
+      member this.Dispose() = this.Dispose()
+
+    interface IEnumerator<KVP<'K,'V>> with    
+      member this.Reset() = this.Reset()
+      member this.MoveNext():bool = this.MoveNext()
+      member this.Current with get(): KVP<'K, 'V> = KeyValuePair(this.innerCursor.CurrentKey, this.innerCursor.CurrentValue)
+      member this.Current with get(): obj = this.Current :> obj
+
+    interface IAsyncEnumerator<KVP<'K,'V>> with
+      member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = 
+        if this.source.IsReadOnly then
+          if this.MoveNext() then trueTask else falseTask
+        else raise (NotSupportedException("Use SortedChunkedMapGenericCursorAsync instead"))
+
+    interface ICursor<'K,'V> with
+      member this.Comparer with get() = this.source.Comparer
+      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
+      member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatch(cancellationToken)
+      member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
+      member this.MoveFirst():bool = this.MoveFirst()
+      member this.MoveLast():bool =  this.MoveLast()
+      member this.MovePrevious():bool = this.MovePrevious()
+      member this.CurrentKey with get() = this.innerCursor.CurrentKey
+      member this.CurrentValue with get() = this.innerCursor.CurrentValue
+      member this.Source with get() = this.source :> ISeries<'K,'V>
+      member this.Clone() = this.Clone() :> ICursor<'K,'V>
+      member this.IsContinuous with get() = false
+      member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)
 
 
 
