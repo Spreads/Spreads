@@ -1,4 +1,23 @@
-﻿using System;
+﻿/*
+    Copyright(c) 2014-2016 Victor Baybekov.
+
+    This file is a part of Spreads library.
+
+    Spreads library is free software; you can redistribute it and/or modify it under
+    the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+
+    Spreads library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.If not, see<http://www.gnu.org/licenses/>.
+*/
+
+using System;
 using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes {
@@ -6,6 +25,15 @@ namespace Spreads.DataTypes {
     /// <summary>
     /// A blittable structure to store positive price values with decimal precision up to 15 digits.
     /// </summary>
+    /// <remarks>
+    ///  0                   1                   2                   3
+    ///  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    /// |R R R R|  -exp |        Int56 mantissa                         |
+    /// +-------------------------------+-+-+---------------------------+
+    /// |               Int56 mantissa                                  |
+    /// +-------------------------------+-+-+---------------------------+
+    /// </remarks>
     [StructLayout(LayoutKind.Sequential)]
     public struct Price : IComparable<Price>, IEquatable<Price> {
         private const ulong MantissaMask = ((1L << 56) - 1L);
@@ -74,26 +102,28 @@ namespace Spreads.DataTypes {
             1000000000000000,
         };
 
-        public const Decimal MaxDecimal = 79228162514264337593543950335m;
-
         public Price(int exponent, long mantissa) {
             if ((ulong)exponent > 15) throw new ArgumentOutOfRangeException(nameof(exponent));
             if ((ulong)mantissa > MantissaMask) throw new ArgumentOutOfRangeException(nameof(mantissa));
             _value = ((ulong)exponent << 56) | ((ulong)mantissa);
         }
 
-        public Price(decimal value, int precision) {
+        public Price(decimal value, int precision = 5) {
             if ((ulong)precision > 15) throw new ArgumentOutOfRangeException(nameof(precision));
             if (value > MantissaMask * DecimalFractions10[precision]) throw new ArgumentOutOfRangeException(nameof(value));
             var mantissa = decimal.ToUInt64(value * Powers10[precision]);
             _value = ((ulong)precision << 56) | ((ulong)mantissa);
         }
 
-        public Price(double value, int precision) {
+        public Price(double value, int precision = 5) {
             if ((ulong)precision > 15) throw new ArgumentOutOfRangeException(nameof(precision));
             if (value > MantissaMask * DoubleFractions10[precision]) throw new ArgumentOutOfRangeException(nameof(value));
             var mantissa = (ulong)(value * Powers10[precision]);
             _value = ((ulong)precision << 56) | ((ulong)mantissa);
+        }
+
+        public Price(int value) {
+            _value = (ulong)value;
         }
 
         public static implicit operator double(Price price) {
@@ -122,6 +152,13 @@ namespace Spreads.DataTypes {
 
         public bool Equals(Price other) {
             return this.CompareTo(other) == 0;
+        }
+
+        public static bool operator ==(Price x, Price y) {
+            return x.Equals(y);
+        }
+        public static bool operator !=(Price x, Price y) {
+            return !x.Equals(y);
         }
     }
 }

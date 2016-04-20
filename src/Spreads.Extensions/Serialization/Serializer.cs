@@ -861,28 +861,6 @@ namespace Spreads.Serialization {
 							//}
 							return CompressArray<long, TResult>(newSrc, bufferTransform, 0, length, level1, shuffle1,
 								sizeof(long), method1, false); // NB always false
-						} else if (ty == typeof(Tick)) {
-							var tickSrc = src as Tick[];
-							typeSize1 = Marshal.SizeOf(tickSrc[0]);
-							/// Blosc header 16 bytes
-							var maxLength = length * typeSize1 + 16;
-                            // TODO! (perf) use pool
-                            var buffer = new byte[maxLength];
-							var bufferSize = new UIntPtr((uint)maxLength);
-							fixed (Tick* srcPtr = &tickSrc[0])
-							fixed (byte* bufferPtr = &buffer[0])
-							{
-								var compSize = NativeMethods.blosc_compress_ctx(
-									new IntPtr(level1), new IntPtr(shuffle1 ? 1 : 0),
-									new UIntPtr((uint)typeSize1),
-									new UIntPtr((uint)(length * typeSize1)),
-									(IntPtr)srcPtr, new IntPtr(bufferPtr), bufferSize,
-									method1.ToString(), new UIntPtr((uint)0),
-									NumThreads
-									);
-								if (compSize <= 0) throw new ApplicationException("Invalid compression input");
-								return bufferTransform(buffer, compSize);
-							}
 						} else {
 							//                 if (length == 0)
 							//                 {
@@ -1066,26 +1044,6 @@ namespace Spreads.Serialization {
 						previous = current;
 					}
 					return (T[])(object)newSrc;
-				} else if (ty == typeof(Tick)) {
-					typeSize1 = Marshal.SizeOf(ty);
-					unsafe
-					{
-						byte* srcPtr2 = &(((byte*)srcPtr)[start]);
-
-						var nbytes = new UIntPtr();
-						var cbytes = new UIntPtr();
-						var blocksize = new UIntPtr();
-						// TODO refactor extract the common part that operates on pointers
-						NativeMethods.blosc_cbuffer_sizes((IntPtr)srcPtr2, ref nbytes, ref cbytes, ref blocksize);
-						var dest = new Tick[(int)(nbytes.ToUInt32()) / typeSize1];
-						fixed (Tick* destPtr = &dest[0])
-						{
-							var decompSize = NativeMethods.blosc_decompress_ctx(
-								(IntPtr)srcPtr2, (IntPtr)destPtr, nbytes, NumThreads);
-							if (decompSize <= 0) throw new ApplicationException("Invalid compression input");
-							return dest as T[];
-						}
-					}
 				} else {
 					typeSize1 = Marshal.SizeOf(ty);
 					unsafe

@@ -11,6 +11,7 @@ using Spreads;
 using Spreads.Serialization;
 using Newtonsoft.Json.Bson;
 using Newtonsoft.Json;
+using Spreads.DataTypes;
 
 namespace Spreads.Extensions.Tests {
     [TestFixture]
@@ -27,8 +28,8 @@ namespace Spreads.Extensions.Tests {
         private long[] _longsBig = new long[_big];
         private DateTime[] _datesSmall = new DateTime[_small];
         private DateTime[] _datesBig = new DateTime[_big];
-        private Tick[] _tickSmall = new Tick[_small];
-        private Tick[] _tickBig = new Tick[_big];
+        private Quote[] _tickSmall = new Quote[_small];
+        private Quote[] _tickBig = new Quote[_big];
         private ComplexObject[] _complexSmall = new ComplexObject[10];
         private string[] _stringSmall = new string[_small];
         private Random _rng = new Random(0);
@@ -44,7 +45,7 @@ namespace Spreads.Extensions.Tests {
                     _decsSmall[i] = (decimal)val;
                     _longsSmall[i] = i;
                     _datesSmall[i] = DateTime.UtcNow.Date.AddDays(i);
-                    _tickSmall[i] = new Tick(DateTime.UtcNow.Date.AddSeconds(i), i, i);
+                    _tickSmall[i] = new Quote(DateTime.UtcNow.Date.AddSeconds(i), new Price((double)i, 5), i);
                     if (i < 10) _complexSmall[i] = ComplexObject.Create();
                     _stringSmall[i] = _rng.NextDouble().ToString();
                 }
@@ -52,14 +53,14 @@ namespace Spreads.Extensions.Tests {
                 _decsBig[i] = (decimal)val;
                 _longsBig[i] = i;
                 _datesBig[i] = DateTime.UtcNow.Date.AddDays(i);
-                _tickBig[i] = new Tick(DateTime.UtcNow.Date.AddSeconds(i), i, i);
+                _tickBig[i] = new Quote(DateTime.UtcNow.Date.AddSeconds(i), new Price((double)i, 5), i);
                 var dt = DateTimeOffset.Now;
                 previous = val;
             }
 
             unsafe
             {
-                fixed (Tick* destPtr = &_tickSmall[0])
+                fixed (Quote* destPtr = &_tickSmall[0])
                 {
                     Console.WriteLine("Ticks pointer: " + ((IntPtr)destPtr));
                 }
@@ -206,17 +207,17 @@ namespace Spreads.Extensions.Tests {
         [Test]
         public void MarshalDoesRoundsDateTime() {
             for (int i = 0; i < 1000; i++) {
-                var now = new Tick(DateTime.Now.AddSeconds(i), i, i);
+                var now = new Quote(DateTime.UtcNow.AddSeconds(i), new Price((double)i, 5), i);
                 var now2 = now;
 
-                var ticks = new Tick[1];
+                var ticks = new Quote[1];
                 unsafe
                 {
-                    fixed (Tick* ptr = &ticks[0])
+                    fixed (Quote* ptr = &ticks[0])
                     {
                         Marshal.StructureToPtr(now2, (IntPtr)ptr, false);
-                        now2 = (Tick)Marshal.PtrToStructure((IntPtr)ptr, typeof(Tick));
-                        Assert.AreEqual(now.DateTime, now2.DateTime);
+                        now2 = (Quote)Marshal.PtrToStructure((IntPtr)ptr, typeof(Quote));
+                        Assert.AreEqual(now.DateTimeUtc, now2.DateTimeUtc);
                     }
                 }
             }
@@ -226,18 +227,18 @@ namespace Spreads.Extensions.Tests {
         [Test]
         public void MarshalDoesntRoundsDateTime() {
             for (int i = 0; i < 1000; i++) {
-                var now = new Tick(DateTime.Now.AddSeconds(i), i, i);
+                var now = new Quote(DateTime.UtcNow.AddSeconds(i), new Price((double)i, 5), i);
                 var now2 = now;
 
-                var ticks = new Tick[1];
+                var ticks = new Quote[1];
                 ticks[0] = now2;
                 unsafe
                 {
-                    fixed (Tick* ptr = &ticks[0])
+                    fixed (Quote* ptr = &ticks[0])
                     {
                         //Marshal.StructureToPtr(now2, (IntPtr)ptr, false);
-                        now2 = (Tick)Marshal.PtrToStructure((IntPtr)ptr, typeof(Tick));
-                        Assert.AreEqual(now.DateTime, now2.DateTime);
+                        now2 = (Quote)Marshal.PtrToStructure((IntPtr)ptr, typeof(Quote));
+                        Assert.AreEqual(now.DateTimeUtc, now2.DateTimeUtc);
                     }
                 }
             }
@@ -278,10 +279,10 @@ namespace Spreads.Extensions.Tests {
             CompressDynamicResolution<DateTime>(_datesBig);
 
             Console.WriteLine("tick: " + _small);
-            CompressDynamicResolution<Tick>(_tickSmall);
+            CompressDynamicResolution<Quote>(_tickSmall);
 
             Console.WriteLine("tick: " + _big);
-            CompressDynamicResolution<Tick>(_tickBig);
+            CompressDynamicResolution<Quote>(_tickBig);
 
             //Console.WriteLine("complex: " + _small);
             //CompressDynamicResolution<ComplexObject>(_complexSmall);
@@ -313,10 +314,10 @@ namespace Spreads.Extensions.Tests {
             CompressDiffMethods<DateTime>(_datesBig);
 
             Console.WriteLine("tick: " + _small);
-            CompressDiffMethods<Tick>(_tickSmall);
+            CompressDiffMethods<Quote>(_tickSmall);
 
             Console.WriteLine("tick: " + _big);
-            CompressDiffMethods<Tick>(_tickBig);
+            CompressDiffMethods<Quote>(_tickBig);
 
             Console.WriteLine("string: " + _small);
             CompressDiffMethods<string>(_stringSmall);
@@ -695,10 +696,10 @@ namespace Spreads.Extensions.Tests {
         [Test]
         public void CouldS() {
             for (int i = 0; i < 1000; i++) {
-                var now = new Tick(DateTime.Now.AddSeconds(i), i, i);
+                var now = new Quote(DateTime.UtcNow.AddSeconds(i), new Price((double)i, 5), i);
                 var now2 = now;
 
-                var ticks = new Tick[1];
+                var ticks = new Quote[1];
                 ticks[0] = now2;
             }
         }
