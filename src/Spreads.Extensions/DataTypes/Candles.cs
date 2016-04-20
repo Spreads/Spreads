@@ -25,7 +25,7 @@ namespace Spreads.DataTypes {
     /// <summary>
     /// A blittable structure for bars
     /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 20)]
     public struct OHLC {
         // Uses 3*4 + 8 = 20 instead of 4*16 = 64 bytes for decimal
         private readonly int _open;
@@ -59,7 +59,7 @@ namespace Spreads.DataTypes {
     /// <summary>
     /// A blittable structure for bars with volume
     /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 24)]
     public struct OHLCVol {
         private readonly OHLC _ohlc;
         private readonly int _volume;
@@ -84,7 +84,7 @@ namespace Spreads.DataTypes {
     /// <summary>
     /// A blittable structure for bars with volume and weighted average price
     /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
     public struct OHLCFull {
         private readonly OHLCVol _ohlcVol;
         private readonly double _vWap;

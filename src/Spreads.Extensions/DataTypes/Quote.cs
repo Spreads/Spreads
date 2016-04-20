@@ -25,11 +25,12 @@ namespace Spreads.DataTypes {
     /// <summary>
     /// A blittable structure to store quotes or ticks.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 20)]
     public struct Quote : IEquatable<Quote> {
         private readonly long _dateTimeUtcTicks;
         private readonly Price _price;
         private readonly int _amount;
+        
 
         /// <summary>
         /// UTC DateTime 

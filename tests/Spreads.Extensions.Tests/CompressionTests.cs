@@ -60,6 +60,9 @@ namespace Spreads.Extensions.Tests {
 
             unsafe
             {
+                Console.WriteLine($"Size of Quote: {Marshal.SizeOf(typeof(Quote))}");
+                Console.WriteLine($"Size of Price: {Marshal.SizeOf(typeof(Price))}");
+                Console.WriteLine($"Size of OHLC: {Marshal.SizeOf(typeof(OHLC))}");
                 fixed (Quote* destPtr = &_tickSmall[0])
                 {
                     Console.WriteLine("Ticks pointer: " + ((IntPtr)destPtr));
