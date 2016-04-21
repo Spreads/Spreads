@@ -23,32 +23,23 @@ using System.Runtime.InteropServices;
 namespace Spreads.DataTypes {
 
     /// <summary>
-    /// A blittable structure to store quotes or ticks.
+    /// A blittable structure to store quotes.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 20)]
+    [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 12)]
     public struct Quote : IEquatable<Quote> {
-        private readonly long _dateTimeUtcTicks;
         private readonly Price _price;
-        private readonly int _amount;
+        private readonly int _volume;
         
-
-        /// <summary>
-        /// UTC DateTime 
-        /// </summary>
-        public DateTime DateTimeUtc => new DateTime(_dateTimeUtcTicks, DateTimeKind.Unspecified);
         public Price Price => _price;
-        public int Amount => _amount;
+        public int Volume => _volume;
 
-        public Quote(DateTime dateTimeUtc, Price price, int amount) {
-            // TODO (docs) need to document this behavior
-            if (dateTimeUtc.Kind == DateTimeKind.Local) throw new ArgumentException(@"dateTime kind must be UTC or unspecified", nameof(dateTimeUtc));
-            _dateTimeUtcTicks = dateTimeUtc.Ticks;
+        public Quote(Price price, int volume) {
             _price = price;
-            _amount = amount;
+            _volume = volume;
         }
 
         public bool Equals(Quote other) {
-            return _dateTimeUtcTicks == other._dateTimeUtcTicks && _price == other._price && _amount == other._amount;
+            return _price == other._price && _volume == other._volume;
         }
 
         public override bool Equals(object obj) {
@@ -60,4 +51,43 @@ namespace Spreads.DataTypes {
             }
         }
     }
+
+    /// <summary>
+    /// A blittable structure to store ticks.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 20)]
+    public struct Tick : IEquatable<Tick> {
+        private readonly long _dateTimeUtcTicks;
+        private readonly Quote _quote;
+
+
+        /// <summary>
+        /// UTC DateTime 
+        /// </summary>
+        public DateTime DateTimeUtc => new DateTime(_dateTimeUtcTicks, DateTimeKind.Unspecified);
+        public Price Price => _quote.Price;
+        public int Volume => _quote.Volume;
+
+        public Tick(DateTime dateTimeUtc, Price price, int volume) {
+            // TODO (docs) need to document this behavior
+            if (dateTimeUtc.Kind == DateTimeKind.Local) throw new ArgumentException(@"dateTime kind must be UTC or unspecified", nameof(dateTimeUtc));
+            _dateTimeUtcTicks = dateTimeUtc.Ticks;
+            _quote = new Quote(price, volume);
+
+        }
+
+        public bool Equals(Tick other) {
+            return _dateTimeUtcTicks == other._dateTimeUtcTicks && _quote.Price == other.Price && _quote.Volume == other.Volume;
+        }
+
+        public override bool Equals(object obj) {
+            try {
+                var otherQuote = (Tick)obj;
+                return this.Equals(otherQuote);
+            } catch (InvalidCastException) {
+                return false;
+            }
+        }
+    }
+
 }
