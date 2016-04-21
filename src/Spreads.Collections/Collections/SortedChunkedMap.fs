@@ -630,8 +630,8 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     }
 
 
-  member this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-    let res() =
+  member private this.TryFindTuple(key:'K, direction:Lookup) = 
+    let tupleResult =
       let mutable kvp = Unchecked.defaultof<KeyValuePair<'K, 'V>>
         
       let hash = existingHash key
@@ -679,6 +679,15 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
           else
             ValueTuple<_,_>(false, kvp)
         | _ -> ValueTuple<_,_>(false, kvp) // LookupDirection.EQ
+    tupleResult
+
+  member this.TryFindUnchecked(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
+    let tupleResult = this.TryFindTuple(key, direction)
+    result <- tupleResult.Value2
+    tupleResult.Value1
+
+  member this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
+    let res() = this.TryFindTuple(key, direction)
     let tupleResult = readLockIf &this.nextVersion &this.version this.isSynchronized res
     result <- tupleResult.Value2
     tupleResult.Value1
@@ -976,7 +985,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
               this.Remove(key)
             | Lookup.LT | Lookup.LE ->
               let hash = existingHash key
-              let hasPivot, pivot = this.TryFind(key, direction)
+              let hasPivot, pivot = this.TryFindUnchecked(key, direction)
               if hasPivot then
                 let r1 = outerMap.RemoveMany(hash, Lookup.LT)  // strictly LT
                 let r2 = outerMap.First.Value.RemoveMany(key, direction) // same direction
@@ -997,7 +1006,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
             | Lookup.GT | Lookup.GE ->
               let hash = existingHash key
               let subKey = key
-              let hasPivot, pivot = this.TryFind(key, direction)
+              let hasPivot, pivot = this.TryFindUnchecked(key, direction)
               if hasPivot then
                 if comparer.Compare(key, hash) = 0 && direction = Lookup.GE then
                   outerMap.RemoveMany(hash, Lookup.GE) // remove in one go
