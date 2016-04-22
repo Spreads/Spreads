@@ -366,8 +366,10 @@
       <Link>Storage\SQLite\Utilities\TypeExtensions.cs</Link>
     </Compile>
     <Compile Include="DataTypes\Candles.cs" />
+    <Compile Include="DataTypes\OrderBook.cs" />
     <Compile Include="DataTypes\Price.cs" />
     <Compile Include="DataTypes\Quote.cs" />
+    <Compile Include="DataTypes\Side.cs" />
     <Compile Include="Generation\SeriesGenerator.cs" />
     <Compile Include="Properties\Attributes.cs" />
     <Compile Include="Bootstrapper\ABI.cs" />

@@ -22,11 +22,21 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes {
 
+    public interface IQuote
+    {
+        Price Price { get; }
+        int Volume { get; }
+    }
+
+    public interface ITick : IQuote {
+        DateTime DateTimeUtc { get; }
+    }
+
     /// <summary>
     /// A blittable structure to store quotes.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 12)]
-    public struct Quote : IEquatable<Quote> {
+    public struct Quote : IEquatable<Quote>, IQuote {
         private readonly Price _price;
         private readonly int _volume;
         
@@ -56,7 +66,7 @@ namespace Spreads.DataTypes {
     /// A blittable structure to store ticks.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 20)]
-    public struct Tick : IEquatable<Tick> {
+    public struct Tick : IEquatable<Tick>, ITick {
         private readonly long _dateTimeUtcTicks;
         private readonly Quote _quote;
 

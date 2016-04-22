@@ -24,25 +24,36 @@ namespace Spreads.DataTypes {
 
     /// <summary>
     /// A blittable structure to store positive price values with decimal precision up to 15 digits.
+    /// Could be qualified to trade/buy/sell to add additional checks and logic to trading applications.
+    /// Qualification is optional and doesn't affect eqiality and comparison.
     /// </summary>
     /// <remarks>
     ///  0                   1                   2                   3
     ///  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    /// |R R R R|  -exp |        Int56 mantissa                         |
+    /// |Q T S B|  -exp |        Int56 mantissa                         |
     /// +-------------------------------+-+-+---------------------------+
     /// |               Int56 mantissa                                  |
     /// +-------------------------------+-+-+---------------------------+
+    /// R - reserved
+    /// Q - is qualified, when set to 1 then T,S,B could be set to 1, otherwise T,S,B must be zero and do not have a special meaning
+    /// T (trade) - is trade, when 1 then the price is of some actual trade
+    /// S (sell)  - is Sell (Ask). When T = 0, S = 1 indicates an Ask order.
+    /// B (buy)   - is Buy (Bid). When T = 0, B = 1 indicates an Bid order.
+    /// When T = 1, S/B flags could have a special meaning depending on context.
+    /// S and B are mutually exlusive.
     /// </remarks>
     [StructLayout(LayoutKind.Sequential)]
     public struct Price : IComparable<Price>, IEquatable<Price> {
-        private const ulong MantissaMask = ((1L << 56) - 1L);
-        private readonly ulong _value;
 
-        public ulong Exponent => (_value >> 56); // needs & 15UL when the first 4 bits are used
-        public ulong Mantissa => _value & MantissaMask;
-        public decimal AsDecimal => (this);
-        public double AsDouble => (this);
+
+        public override int GetHashCode() {
+            return _value.GetHashCode();
+        }
+
+        private const ulong MantissaMask = ((1L << 56) - 1L);
+        private const ulong UnqualifiedMask = ((1L << 56) - 1L);
+        private readonly ulong _value;
 
         private static decimal[] DecimalFractions10 = new decimal[] {
             1M,
@@ -102,24 +113,141 @@ namespace Spreads.DataTypes {
             1000000000000000,
         };
 
+        public ulong Exponent => (_value >> 56) & 15UL;
+        public ulong Mantissa => _value & MantissaMask;
+        public decimal AsDecimal => (this);
+        public double AsDouble => (this);
+        public Price AsUnqualified => IsQualified ? new Price(_value) : this;
+
+        public bool IsQualified => _value >> 63 == 1UL;
+
+        public bool? IsTrade
+        {
+            get
+            {
+                var firstTwo = _value >> 62;
+                // 11
+                if (firstTwo == 3UL) {
+                    return true;
+                }
+                // 10
+                if (firstTwo == 2UL) {
+                    return false;
+                }
+                // 00
+                if (firstTwo == 0UL) {
+                    return null;
+                }
+                // 01
+                throw new ApplicationException("IsTrade bit could only be set together with IsQualified bit");
+            }
+        }
+
+        public bool? IsBuy
+        {
+            get
+            {
+                if (!IsQualified) return null;
+                var thirdAndForth = (_value >> 60) & 3UL;
+                // 1_11
+                if (thirdAndForth == 3UL) {
+                    throw new ApplicationException("IsSell and IsBuy bits must be mutually exclusive");
+                }
+                // 1_01
+                if (thirdAndForth == 1UL) {
+                    return true;
+                }
+                // 1_00 or 1_10
+                return false;
+            }
+        }
+
+        public bool? IsSell
+        {
+            get
+            {
+                if (!IsQualified) return null;
+                var thirdAndForth = (_value >> 60) & 3UL;
+                // 1_11
+                if (thirdAndForth == 3UL) {
+                    throw new ApplicationException("IsSell and IsBuy bits must be mutually exclusive");
+                }
+                // 1_10
+                if (thirdAndForth == 2UL) {
+                    return true;
+                }
+                // 1_00 or 1_01
+                return false;
+            }
+        }
+
+        public Side? Side
+        {
+            get
+            {
+                if (!IsQualified) return null;
+                // ReSharper disable once PossibleInvalidOperationException
+                if (IsBuy.Value) {
+                    return DataTypes.Side.Buy;
+                }
+                // ReSharper disable once PossibleInvalidOperationException
+                if (IsSell.Value) {
+                    return DataTypes.Side.Sell;
+                }
+                return DataTypes.Side.None;
+            }
+        }
+
+        
         public Price(int exponent, long mantissa) {
             if ((ulong)exponent > 15) throw new ArgumentOutOfRangeException(nameof(exponent));
             if ((ulong)mantissa > MantissaMask) throw new ArgumentOutOfRangeException(nameof(mantissa));
             _value = ((ulong)exponent << 56) | ((ulong)mantissa);
         }
 
-        public Price(decimal value, int precision = 5) {
+        private Price(ulong value, Side? side = null, bool? isTrade = null)
+        {
+            _value = value & UnqualifiedMask;
+            if (side != null && side.Value != DataTypes.Side.None) {
+                if (side == DataTypes.Side.Buy) {
+                    _value = _value | (9UL << 60); // 9 ~ 1001
+                } else if (side == DataTypes.Side.Sell) { // 10 ~ 1010
+                    _value = _value | (10UL << 60);
+                }
+            }
+            if (isTrade != null && isTrade.Value) {
+                _value = _value | (12UL << 60); // 12 ~ 1100
+            }
+        }
+
+        public Price(decimal value, int precision = 5) : this(value, precision, null, null) {}
+
+        public Price(decimal value, int precision = 5, Side? side = null, bool? isTrade = null) {
             if ((ulong)precision > 15) throw new ArgumentOutOfRangeException(nameof(precision));
             if (value > MantissaMask * DecimalFractions10[precision]) throw new ArgumentOutOfRangeException(nameof(value));
             var mantissa = decimal.ToUInt64(value * Powers10[precision]);
-            _value = ((ulong)precision << 56) | ((ulong)mantissa);
+            _value = ((ulong)precision << 56) | mantissa;
+            if (side != null && side.Value != DataTypes.Side.None) {
+                if (side == DataTypes.Side.Buy) {
+                    _value = _value | (9UL << 60); // 9 ~ 1001
+                } else if (side == DataTypes.Side.Sell) { // 10 ~ 1010
+                    _value = _value | (10UL << 60);
+                }
+            }
+            if (isTrade != null && isTrade.Value) {
+                _value = _value | (12UL << 60); // 12 ~ 1100
+            }
+        }
+
+        public Price(Price price, Side? side = null, bool? isTrade = null) : this(price._value, side, isTrade)
+        {
         }
 
         public Price(double value, int precision = 5) {
             if ((ulong)precision > 15) throw new ArgumentOutOfRangeException(nameof(precision));
             if (value > MantissaMask * DoubleFractions10[precision]) throw new ArgumentOutOfRangeException(nameof(value));
             var mantissa = (ulong)(value * Powers10[precision]);
-            _value = ((ulong)precision << 56) | ((ulong)mantissa);
+            _value = ((ulong)precision << 56) | mantissa;
         }
 
         public Price(int value) {
@@ -152,6 +280,11 @@ namespace Spreads.DataTypes {
 
         public bool Equals(Price other) {
             return this.CompareTo(other) == 0;
+        }
+
+        public override bool Equals(object obj) {
+            if (ReferenceEquals(null, obj)) return false;
+            return obj is Price && Equals((Price)obj);
         }
 
         public static bool operator ==(Price x, Price y) {
