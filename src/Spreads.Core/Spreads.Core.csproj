@@ -53,6 +53,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Collections\Dictionary.cs" />
     <Compile Include="Collections\IDictionaryDebugView.cs" />
     <Compile Include="Exceptions.cs" />
     <Compile Include="MemoryCache.cs" />
