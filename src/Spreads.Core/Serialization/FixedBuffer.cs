@@ -143,8 +143,10 @@ namespace Spreads.Serialization {
 
 
         [Obsolete("Unpinner must remain in scope. Use Fixed() method with lambdas instead.")]
-        internal DirectBuffer DirectBuffer {
-            get {
+        internal DirectBuffer DirectBuffer
+        {
+            get
+            {
                 PinBuffer();
                 return new DirectBuffer(_length, _unpinner.PinnedGCHandle.AddrOfPinnedObject() + _offset);
             }
@@ -259,15 +261,18 @@ namespace Spreads.Serialization {
             }
         }
 
-        public byte this[int index] {
-            get {
+        public byte this[int index]
+        {
+            get
+            {
                 Assert(index, 1);
                 fixed (byte* ptr = &_buffer[_offset])
                 {
                     return *((byte*)ptr + index);
                 }
             }
-            set {
+            set
+            {
                 Assert(index, 1);
                 fixed (byte* ptr = &_buffer[_offset])
                 {
@@ -667,6 +672,55 @@ namespace Spreads.Serialization {
             {
                 *(UUID*)(ptr + index) = value;
             }
+        }
+
+        public T Read<T>(int index) where T : struct {
+#if !FEATURE_CORECLR // TODO what is the correct directive?
+            var ty = typeof(T);
+            var len = TypeSizeHelper<T>.Size;
+            Assert(index, len);
+            var obj = default(T);
+            var tr = __makeref(obj);
+            fixed (byte* ptr = &_buffer[_offset])
+            {
+                var address = ptr + index;
+                *(IntPtr*)(&tr) = (IntPtr)address;
+                return __refvalue(tr, T);
+            }
+
+#else
+            var ty = typeof(T);
+            var len = TypeSizeHelper<T>.Size;
+            Assert(index, len);
+            fixed (byte* ptr = &_buffer[_offset + index])
+            {
+                return (T)Marshal.PtrToStructure((IntPtr)ptr, ty);
+            }
+            
+#endif
+        }
+
+
+        public void Write<T>(int index, T value) where T : struct {
+#if !FEATURE_CORECLR // TODO what is the correct directive?
+            // this is as fast as non-generic methods
+            var obj = default(T);
+            var len = TypeSizeHelper<T>.Size;
+            Assert(index, len);
+            var tr = __makeref(obj);
+            fixed (byte* ptr = &_buffer[_offset + index])
+            {
+                *(IntPtr*)(&tr) = (IntPtr)ptr;
+                __refvalue(tr, T) = value;
+            }
+#else
+            var len = TypeSizeHelper<T>.Size;
+            Assert(index, len);
+            fixed (byte* ptr = &_buffer[_offset + index])
+            {
+                Marshal.StructureToPtr(value, (IntPtr)ptr, false);
+            }
+#endif
         }
 
         public int ReadAsciiDigit(int index) {

@@ -33,8 +33,7 @@ namespace Spreads.Serialization {
     /// not checked for bounds/ranges/overflows.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct DirectBuffer : IDirectBuffer
-    {
+    public unsafe struct DirectBuffer : IDirectBuffer {
         private readonly long _length;
         private IntPtr _data;
 
@@ -54,11 +53,10 @@ namespace Spreads.Serialization {
         public DirectBuffer(long length, SafeBuffer buffer) : this(length, PtrFromSafeBuffer(buffer)) {
         }
 
-        private static IntPtr PtrFromSafeBuffer(SafeBuffer buffer)
-        {
+        private static IntPtr PtrFromSafeBuffer(SafeBuffer buffer) {
             byte* bPtr = null;
             buffer.AcquirePointer(ref bPtr);
-            return (IntPtr) bPtr;
+            return (IntPtr)bPtr;
         }
 
         /// <summary>
@@ -105,6 +103,9 @@ namespace Spreads.Serialization {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Assert(int index, int length) {
+            if (length <= 0) {
+                throw new ArgumentOutOfRangeException(nameof(length));
+            }
             if (index + length > _length) {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
@@ -173,7 +174,8 @@ namespace Spreads.Serialization {
             *((byte*)_data + index) = value;
         }
 
-        public byte this[int index] {
+        public byte this[int index]
+        {
             get
             {
                 Assert(index, 1);
@@ -229,7 +231,7 @@ namespace Spreads.Serialization {
 
         public int VolatileReadInt32(int index) {
             Assert(index, 4);
-            return Volatile.Read(ref * (int*)(_data + index));
+            return Volatile.Read(ref *(int*)(_data + index));
         }
 
         public void VolatileWriteInt32(int index, int value) {
@@ -473,6 +475,52 @@ namespace Spreads.Serialization {
             *(UUID*)(_data + index) = value;
         }
 
+
+        public T Read<T>(int index) where T : struct {
+#if !FEATURE_CORECLR // TODO what is the correct directive?
+            var ty = typeof(T);
+            var len = TypeSizeHelper<T>.Size;
+            Assert(index, len);
+            var obj = default(T);
+            var tr = __makeref(obj);
+            var address = _data + index;
+            //This is equivalent to shooting yourself in the foot
+            //but it's the only high-perf solution in some cases
+            //it sets the first field of the TypedReference (which is a pointer)
+            //to the address you give it, then it dereferences the value.
+            //Better be 10000% sure that your type T is unmanaged/blittable...
+            *(IntPtr*)(&tr) = address;
+            return __refvalue(tr, T);
+#else
+            var ty = typeof(T);
+            var len = TypeSizeHelper<T>.Size;
+            Assert(index, len);
+            var ptr = _data + index;
+            return (T)Marshal.PtrToStructure(ptr, ty);
+#endif
+        }
+
+
+        public void Write<T>(int index, T value) where T : struct {
+#if !FEATURE_CORECLR // TODO what is the correct directive?
+            // this is as fast as non-generic methods
+            var obj = default(T);
+            var len = TypeSizeHelper<T>.Size;
+            Assert(index, len);
+            var tr = __makeref(obj);
+            var ptr = _data + index;
+            *(IntPtr*)(&tr) = ptr;
+            __refvalue(tr, T) = value;
+#else
+            var len = TypeSizeHelper<T>.Size;
+            Assert(index, len);
+            var ptr = _data + index;
+            Marshal.StructureToPtr(value, ptr, false);
+#endif
+        }
+
+
+
         public int ReadAsciiDigit(int index) {
             Assert(index, 1);
             return (*((byte*)_data + index)) - '0';
@@ -496,7 +544,7 @@ namespace Spreads.Serialization {
         }
 
 
-        internal sealed unsafe class SafeDirectBuffer : SafeBuffer {
+        internal sealed class SafeDirectBuffer : SafeBuffer {
             private readonly DirectBuffer _directBuffer;
 
             public SafeDirectBuffer(ref DirectBuffer directBuffer) : base(false) {
@@ -509,7 +557,7 @@ namespace Spreads.Serialization {
                 return true;
             }
         }
+
+
     }
-
-
 }
