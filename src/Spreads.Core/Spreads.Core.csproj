@@ -11,6 +11,7 @@
     <AssemblyName>Spreads.Core</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -54,6 +55,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Collections\Dictionary.cs" />
+    <Compile Include="Collections\DirectArray.cs" />
     <Compile Include="Collections\IDictionaryDebugView.cs" />
     <Compile Include="Exceptions.cs" />
     <Compile Include="MemoryCache.cs" />
@@ -67,6 +69,7 @@
     <Compile Include="Serialization\IDirectBufferExtensions.cs" />
     <Compile Include="Serialization\SafeBufferAccessor.cs" />
     <Compile Include="Serialization\SafeBufferStream.cs" />
+    <Compile Include="TypeSizeHelper.cs" />
     <Compile Include="System\Buffers\ArrayPool.cs" />
     <Compile Include="System\Buffers\ArrayPoolEventSource.cs" />
     <Compile Include="System\Buffers\DefaultArrayPool.cs" />

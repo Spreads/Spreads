@@ -95,14 +95,22 @@ namespace Spreads.Experimental.Collections.Generic {
             return newEntries;
         }
 
-        //public static List<T> GrowGen<T>(this List<T> list, int newGeneration) {
-        //    var newSize = list.Count + (1L) Primes[newGeneration]
-        //    var newEntries = new List<T>(newSize);
-        //    for (int i = 0; i < list.Count; i++) {
-        //        newEntries[i] = list[i];
-        //    }
-        //    return newEntries;
-        //}
+        public static List<T> GrowGen<T>(this List<T> list, int newGeneration)
+        {
+            long newSize;
+            if (newGeneration > MaxGen)
+            {
+                newSize = list.Count + (1L << MaxGen);
+            }
+            Trace.Assert(list.Count == GenSize(newGeneration - 1));
+            
+            newSize = list.Count + (1L << newGeneration);
+            var newEntries = new List<T>((int)newSize);
+            for (int i = 0; i < list.Count; i++) {
+                newEntries[i] = list[i];
+            }
+            return newEntries;
+        }
 
         public static long GenSize(int generation) {
             if (generation > MaxGen) {
