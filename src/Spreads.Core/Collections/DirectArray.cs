@@ -13,32 +13,24 @@ namespace Spreads.Collections {
         internal static int DataOffset = HeaderLength + TypeHelper<T>.Size;
         private readonly string _filename;
         private long _capacity;
-        private static int ItemSize;
+        public static readonly int ItemSize;
         private MemoryMappedFile _mmf;
         private readonly FileStream _fileStream;
         private DirectBuffer _buffer;
 
         // MMaped pointers in the header for custom use
-        internal IntPtr Slot0 => _buffer.Data;
-        internal IntPtr Slot1 => _buffer.Data + 8;
-        internal IntPtr Slot2 => _buffer.Data + 16;
-        internal IntPtr Slot3 => _buffer.Data + 24;
-        internal IntPtr Slot4 => _buffer.Data + 32;
-        internal IntPtr Slot5 => _buffer.Data + 40;
-        internal IntPtr Slot6 => _buffer.Data + 48;
-        internal IntPtr Slot7 => _buffer.Data + 56;
+        internal IntPtr Slot0 => _buffer._data;
+        internal IntPtr Slot1 => _buffer._data + 8;
+        internal IntPtr Slot2 => _buffer._data + 16;
+        internal IntPtr Slot3 => _buffer._data + 24;
+        internal IntPtr Slot4 => _buffer._data + 32;
+        internal IntPtr Slot5 => _buffer._data + 40;
+        internal IntPtr Slot6 => _buffer._data + 48;
+        internal IntPtr Slot7 => _buffer._data + 56;
 
         static DirectArray() {
             // start with only blittables as POC
             ItemSize = TypeHelper<T>.Size; // Marshal.SizeOf(typeof(T));
-        }
-
-        private static long IdxToOffset(long idx) {
-            return idx * ItemSize;
-        }
-
-        private static long OffsetToIdx(long offset) {
-            return offset / ItemSize;
         }
 
         public DirectArray(string filename, long capacity = 4L) {
@@ -55,7 +47,7 @@ namespace Spreads.Collections {
             _capacity = newCapacity;
             var mmfs = new MemoryMappedFileSecurity();
 
-            var bytesCapacity = Math.Max(_fileStream.Length, DataOffset + IdxToOffset(newCapacity));
+            var bytesCapacity = Math.Max(_fileStream.Length, DataOffset + newCapacity * ItemSize);
             _mmf?.Dispose();
             var mmf = MemoryMappedFile.CreateFromFile(_fileStream,
                 Path.GetFileName(_filename), bytesCapacity,
@@ -99,8 +91,6 @@ namespace Spreads.Collections {
             }
         }
 
-
-
         public int Count => _capacity > int.MaxValue ? -1 : (int)_capacity;
         public long LongCount => _capacity;
         public bool IsReadOnly => false;
@@ -110,17 +100,17 @@ namespace Spreads.Collections {
             get
             {
                 if (index < -1 || index >= _capacity) throw new ArgumentOutOfRangeException();
-                return _buffer.Read<T>(DataOffset + IdxToOffset(index));
+                return _buffer.Read<T>(DataOffset + index * ItemSize);
             }
             set
             {
                 if (index < -1 || index >= _capacity) throw new ArgumentOutOfRangeException();
-                _buffer.Write(DataOffset + IdxToOffset(index), value);
+                _buffer.Write(DataOffset + index * ItemSize, value);
             }
         }
 
         private void Copy(long source, long target) {
-            _buffer.Copy<T>(DataOffset + IdxToOffset(source), DataOffset + IdxToOffset(target));
+            _buffer.Copy<T>(DataOffset + source * ItemSize, DataOffset + target * ItemSize);
         }
     }
 }

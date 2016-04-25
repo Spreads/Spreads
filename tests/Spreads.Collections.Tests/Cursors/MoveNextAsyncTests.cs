@@ -11,6 +11,7 @@ using Spreads.Collections;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Runtime.CompilerServices;
+using HdrHistogram;
 
 
 namespace Spreads.Collections.Tests.Cursors {
@@ -74,18 +75,24 @@ namespace Spreads.Collections.Tests.Cursors {
         [Ignore]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes()
         {
+            ////use the second Core/Processor for the test
+            //Process.GetCurrentProcess().ProcessorAffinity = new IntPtr(2);
+            ////prevent "Normal" Processes from interrupting Threads
+            //Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.RealTime;
+            ////prevent "Normal" Threads from interrupting this thread
+            //Thread.CurrentThread.Priority = ThreadPriority.Highest;
+
             System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.LowLatency;
             GCLatencyMode oldMode = GCSettings.LatencyMode;
-            GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
-            for (int round = 0; round < 100000; round++)
+            GCSettings.LatencyMode = GCLatencyMode.LowLatency;
+            for (int round = 0; round < 50; round++)
             {
-                CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
-                //if (GC.TryStartNoGCRegion(100*1024*1024))
-                //{
-                    
-                //    GC.EndNoGCRegion();
-                //}
                 
+                if (GC.TryStartNoGCRegion(100 * 1024 * 1024)) {
+                    CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
+                    GC.EndNoGCRegion();
+                }
+
             }
             GCSettings.LatencyMode = oldMode;
         }
@@ -96,7 +103,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sw = new Stopwatch();
             sw.Start();
 
-            var sm = new SortedChunkedMap<DateTime, double>();
+            var sm = new SortedMap<DateTime, double>();
             sm.IsSynchronized = true;
             //var sm = new SortedChunkedMap<DateTime, double>();
             //sm.Add(DateTime.UtcNow.Date.AddSeconds(-2), 0);
@@ -104,11 +111,14 @@ namespace Spreads.Collections.Tests.Cursors {
             for (int i = 0; i < 5; i++) {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
-
+            var histogram = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
             double sum = 0;
             var cnt = 0;
+            var histogram1 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
             var sumTask = Task.Run(async () => {
                 var c = sm.GetCursor();
+
+                var startTick = sw.ElapsedTicks;
 
                 while (await c.MoveNext(CancellationToken.None)) {
                     sum += c.CurrentValue;
@@ -120,13 +130,20 @@ namespace Spreads.Collections.Tests.Cursors {
                         //Console.WriteLine("Async move");
                     }
                     cnt++;
+                    var ticks = sw.ElapsedTicks - startTick;
+                    var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
+                    histogram1.RecordValue(nanos);
+                    startTick = sw.ElapsedTicks;
                 }
             });
 
             double sum2 = 0;
             var cnt2 = 0;
+            var histogram2 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
             var sumTask2 = Task.Run(async () => {
                 var c = sm.GetCursor();
+
+                var startTick = sw.ElapsedTicks;
 
                 while (await c.MoveNext(CancellationToken.None)) {
                     sum2 += c.CurrentValue;
@@ -138,14 +155,21 @@ namespace Spreads.Collections.Tests.Cursors {
                         //Console.WriteLine("Async move");
                     }
                     cnt2++;
+                    var ticks = sw.ElapsedTicks - startTick;
+                    var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
+                    histogram2.RecordValue(nanos);
+                    startTick = sw.ElapsedTicks;
                 }
             });
 
             double sum3 = 0;
             var cnt3 = 0;
+            var histogram3 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
             var sumTask3 = Task.Run(async () => {
                 var c = sm.GetCursor();
-
+                
+                var startTick = sw.ElapsedTicks;
+                
                 while (await c.MoveNext(CancellationToken.None)) {
                     sum3 += c.CurrentValue;
                     if ((int)c.CurrentValue != cnt3) {
@@ -156,7 +180,13 @@ namespace Spreads.Collections.Tests.Cursors {
                         //Console.WriteLine("Async move");
                     }
                     cnt3++;
+                    var ticks = sw.ElapsedTicks - startTick;
+                    var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
+                    histogram3.RecordValue(nanos);
+                    startTick = sw.ElapsedTicks;
                 }
+
+                
             });
 
             Thread.Sleep(1);
@@ -185,6 +215,13 @@ namespace Spreads.Collections.Tests.Cursors {
                 Trace.WriteLine($"cnt3: {cnt3}");
             }
             addTask.Wait();
+            histogram.Add(histogram1);
+            histogram.Add(histogram2);
+            histogram.Add(histogram3);
+            histogram.OutputPercentileDistribution(
+                    printStream: Console.Out,
+                    percentileTicksPerHalfDistance: 3,
+                    outputValueUnitScalingRatio: OutputScalingFactor.None);
 
             sw.Stop();
             Trace.Write($"Elapsed msec: {sw.ElapsedMilliseconds}; ");
