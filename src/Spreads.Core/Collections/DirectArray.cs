@@ -43,7 +43,7 @@ namespace Spreads.Collections {
 
         public DirectArray(string filename, long capacity = 4L) {
             _filename = filename;
-            _fileStream = new FileStream(_filename, FileMode.Truncate,
+            _fileStream = new FileStream(_filename, FileMode.OpenOrCreate,
                             FileAccess.ReadWrite, FileShare.ReadWrite, 4096,
                             //FileOptions.Asynchronous | FileOptions.RandomAccess);
                             FileOptions.None);

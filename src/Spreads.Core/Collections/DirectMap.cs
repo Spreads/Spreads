@@ -463,7 +463,7 @@ namespace Spreads.Experimental.Collections.Generic {
 
                         // if we failed before, 
 
-                        var entry1 = new Entry<TKey, TValue>();
+                        var entry1 = new Entry();
                         entry1.hashCode = -1;
                         // todo 
                         entry1.next = freeList;

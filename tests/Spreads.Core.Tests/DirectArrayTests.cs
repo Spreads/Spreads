@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using HdrHistogram;
 using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Experimental.Collections.Generic;
@@ -34,22 +35,30 @@ namespace Spreads.Core.Tests {
         public void CouldCRUDDirectDict() {
             var dd = new DirectMap<long, long>("../CouldCRUDDirectDict");
             //var dd = new Dictionary<long, long>();
-            
-            var count = 1000000;
+
+            var count = 10000000;
             var sw = new Stopwatch();
-            
-            for (int rounds = 0; rounds < 20; rounds++) {
+            var histogram = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
+            for (int rounds = 0; rounds < 10; rounds++) {
                 dd.Clear();
                 sw.Restart();
-                
+
                 for (int i = 0; i < count; i++) {
+                    var startTick = sw.ElapsedTicks;
                     dd[i] = i;
+                    var ticks = sw.ElapsedTicks - startTick;
+                    var nanos = (long) (1000000000.0 * (double)ticks / Stopwatch.Frequency);
+                    if (rounds > 2) histogram.RecordValue(nanos);
                 }
                 Assert.AreEqual(count, dd.Count);
                 sw.Stop();
+
                 Console.WriteLine($"Add elapsed msec: {sw.ElapsedMilliseconds}");
             }
-
+            histogram.OutputPercentileDistribution(
+                    printStream: Console.Out,
+                    percentileTicksPerHalfDistance: 3,
+                    outputValueUnitScalingRatio: OutputScalingFactor.None);
             for (int rounds = 0; rounds < 10; rounds++) {
                 sw.Restart();
                 var cnt = 0;
