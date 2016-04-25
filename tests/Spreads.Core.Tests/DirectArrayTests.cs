@@ -43,13 +43,13 @@ namespace Spreads.Core.Tests {
 
             var dd = new DirectMap<long, long>("../CouldCRUDDirectDict");
             //var dd = new Dictionary<long, long>();
-            
+            dd.Clear();
             var count = 1000000;
             var sw = new Stopwatch();
 
             var histogram = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
             for (int rounds = 0; rounds < 5; rounds++) {
-                dd.Clear();
+                
                 sw.Restart();
 
                 for (int i = 0; i < count; i++) {

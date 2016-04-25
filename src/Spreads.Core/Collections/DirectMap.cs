@@ -235,24 +235,25 @@ namespace Spreads.Experimental.Collections.Generic {
             }
             set
             {
-                try {
-                    EnterWriteLock(buckets.Slot0);
-                    Insert(key, value, false);
-                } finally {
-                    ExitWriteLock(buckets.Slot0);
-                }
+                //try {
+                //    EnterWriteLock(buckets.Slot0);
+                //    Insert(key, value, false);
+                //} finally {
+                //    ExitWriteLock(buckets.Slot0);
+                //}
                 // TODO manually inline locking, it gives c.25 ns
-                //WriteLock(buckets.Slot0, (cleanup) => Insert(key, value, false));
+                WriteLock(buckets.Slot0, (cleanup) => Insert(key, value, false));
             }
         }
 
         public void Add(TKey key, TValue value) {
-            try {
-                EnterWriteLock(buckets.Slot0);
-                Insert(key, value, true);
-            } finally {
-                ExitWriteLock(buckets.Slot0);
-            }
+            //try {
+            //    EnterWriteLock(buckets.Slot0);
+            //    Insert(key, value, true);
+            //} finally {
+            //    ExitWriteLock(buckets.Slot0);
+            //}
+            WriteLock(buckets.Slot0, (cleanup) => Insert(key, value, true));
         }
 
         void ICollection<KeyValuePair<TKey, TValue>>.Add(KeyValuePair<TKey, TValue> keyValuePair) {
@@ -506,12 +507,15 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
         public bool Remove(TKey key) {
-            try {
-                EnterWriteLock(buckets.Slot0);
-                return DoRemove(key);
-            } finally {
-                ExitWriteLock(buckets.Slot0);
-            }
+            //try {
+            //    EnterWriteLock(buckets.Slot0);
+            //    return DoRemove(key);
+            //} finally {
+            //    ExitWriteLock(buckets.Slot0);
+            //}
+            bool ret = false;
+            WriteLock(buckets.Slot0, (recovery) => ret = DoRemove(key));
+            return ret;
         }
 
         private bool DoRemove(TKey key) {
