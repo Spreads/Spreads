@@ -1,26 +1,47 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Spreads.Collections {
 
     public unsafe static class SyncUtils {
-        public static void WriteLock(IntPtr locker, Action action) {
+        private static int _pid = Process.GetCurrentProcess().Id;
+
+        public static void WriteLock(IntPtr locker, Action<bool> action) {
             try {
                 var sw = new SpinWait();
                 var cont = true;
+                var cleanup = false;
                 try {
                 } finally {
                     while (cont) {
-                        if (Interlocked.CompareExchange(ref *(int*)(locker), 1, 0) == 0) {
+                        var pid = Interlocked.CompareExchange(ref *(int*)(locker), _pid, 0);
+                        if (pid == 0) {
                             cont = false;
+                        }
+                        // TODO Add managed thread id to timeout logic
+                        if (sw.Count > 100 && pid != _pid) {
+                            try {
+                                var p = Process.GetProcessById(pid);
+                                throw new ApplicationException($"Cannot acquire lock, process {p.Id} has it for a long time");
+                            } catch (ArgumentException ex) {
+                                // pid is not running anymore, try to take it
+                                if (pid == Interlocked.CompareExchange(ref *(int*)(locker), _pid, pid)) {
+                                    cleanup = true;
+                                    break;
+                                }
+                            }
                         }
                         sw.SpinOnce();
                     }
                 }
-                action.Invoke();
+                action.Invoke(cleanup);
             } finally {
-                Interlocked.Exchange(ref *(int*)(locker), 0);
+                var pid = Interlocked.CompareExchange(ref *(int*)(locker), 0, _pid);
+                if (pid != _pid) {
+                    throw new ApplicationException("Cannot release lock, it was stolen");
+                }
             }
         }
 
@@ -30,7 +51,7 @@ namespace Spreads.Collections {
             var cont = true;
             try { } finally {
                 while (cont) {
-                    if (Interlocked.CompareExchange(ref *(int*)(locker), 1, 0) == 0) {
+                    if (Interlocked.CompareExchange(ref *(int*)(locker), _pid, 0) == 0) {
                         cont = false;
                     }
                     sw.SpinOnce();
@@ -41,8 +62,10 @@ namespace Spreads.Collections {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ExitWriteLock(IntPtr locker) {
-            Interlocked.Exchange(ref *(int*)(locker), 0);
-
+            var pid = Interlocked.CompareExchange(ref *(int*)(locker), 0, _pid);
+            if (pid != _pid) {
+                throw new ApplicationException("Cannot release lock, it was stolen");
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

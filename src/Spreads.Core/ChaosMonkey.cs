@@ -45,6 +45,14 @@ namespace Spreads {
         }
 
         [Conditional("CHAOS_MONKEY")]
+        public static void Slowpoke(double probability = 0.1) {
+            if (probability == 0.0) return;
+            if (_rng == null) _rng = new Random();
+            if (_rng.NextDouble() > probability) return;
+            Thread.Sleep(50);
+        }
+
+        [Conditional("CHAOS_MONKEY")]
         public static void Chaos(double probability = 0.1) {
             if (probability == 0.0) return;
             if (_rng == null) _rng = new Random();

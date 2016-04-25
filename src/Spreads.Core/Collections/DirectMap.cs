@@ -193,12 +193,13 @@ namespace Spreads.Experimental.Collections.Generic {
             }
             set
             {
-                try {
-                    EnterWriteLock(buckets.Slot0);
-                    Insert(key, value, false);
-                } finally {
-                    ExitWriteLock(buckets.Slot0);
-                }
+                //try {
+                //    EnterWriteLock(buckets.Slot0);
+                //    Insert(key, value, false);
+                //} finally {
+                //    ExitWriteLock(buckets.Slot0);
+                //}
+                WriteLock(buckets.Slot0, (cleanup) => Insert(key, value, false));
             }
         }
 
