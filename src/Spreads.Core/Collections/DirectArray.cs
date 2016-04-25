@@ -119,7 +119,7 @@ namespace Spreads.Collections {
             }
         }
 
-        public void Copy(long source, long target) {
+        private void Copy(long source, long target) {
             _buffer.Copy<T>(DataOffset + IdxToOffset(source), DataOffset + IdxToOffset(target));
         }
     }

@@ -13,6 +13,18 @@ using Spreads.Collections;
 using static Spreads.Collections.SyncUtils;
 
 namespace Spreads.Experimental.Collections.Generic {
+
+
+    // NB Recovery process: 95% of work, but even during testing and program shutdown there was a non-exited lock.
+    // If we steal a lock, we must do recovery. Before any change to data, we store 
+    // enough info to do a recovery.
+    // Set
+    // For set (replace), we store new value, then Volatile.Write set flag (1).
+    // For recovery, we set (replace) previous value with the new saved one and increment version.
+    // Add
+    // For add (new item), we store the new value
+
+
     [DebuggerTypeProxy(typeof(IDictionaryDebugView<,>))]
     [DebuggerDisplay("Count = {Count}")]
     [System.Runtime.InteropServices.ComVisible(false)]
@@ -41,6 +53,12 @@ namespace Spreads.Experimental.Collections.Generic {
             set { *(int*)(buckets.Slot3) = value; }
         }
 
+        private unsafe int countCopy
+        {
+            get { return *(int*)(entries.Slot3); }
+            set { *(int*)(entries.Slot3) = value; }
+        }
+
         private unsafe long version => Volatile.Read(ref *(long*)(buckets.Slot1));
 
         private unsafe int freeList
@@ -48,16 +66,41 @@ namespace Spreads.Experimental.Collections.Generic {
             get { return *(int*)(buckets.Slot4); }
             set { *(int*)(buckets.Slot4) = value; }
         }
+        private unsafe long freeListCountCopy
+        {
+            get { return *(long*)(entries.Slot4); }
+            set { *(long*)(entries.Slot4) = value; }
+        }
+
         private unsafe int freeCount
         {
-            get
-            {
-                var value = Volatile.Read(ref *(int*)(buckets.Slot5));
-                return value;
-            }
+            get { return *(int*)(buckets.Slot5); }
             set { *(int*)(buckets.Slot5) = value; }
         }
 
+        private unsafe int freeCountCopy
+        {
+            get { return *(int*)(entries.Slot5); }
+            set { *(int*)(entries.Slot5) = value; }
+        }
+
+        private unsafe int indexCopy
+        {
+            get { return *(int*)(entries.Slot6); }
+            set { *(int*)(entries.Slot6) = value; }
+        }
+
+        private unsafe int bucketCopy
+        {
+            get { return *(int*)(entries.Slot7); }
+            set { *(int*)(entries.Slot7) = value; }
+        }
+
+        private unsafe int recoveryStep
+        {
+            get { return *(int*)(entries.Slot0); }
+            set { *(int*)(entries.Slot0) = value; }
+        }
 
         private IEqualityComparer<TKey> comparer;
         private KeyCollection keys;
@@ -83,7 +126,6 @@ namespace Spreads.Experimental.Collections.Generic {
             if (capacity < 0) throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "ArgumentOutOfRange_NeedNonNegNum");
             if (capacity >= 0) Initialize(capacity);
             this.comparer = comparer ?? EqualityComparer<TKey>.Default;
-
         }
 
         public DirectMap(string fileName, IDictionary<TKey, TValue> dictionary) : this(fileName, dictionary, null) { }
@@ -193,13 +235,14 @@ namespace Spreads.Experimental.Collections.Generic {
             }
             set
             {
-                //try {
-                //    EnterWriteLock(buckets.Slot0);
-                //    Insert(key, value, false);
-                //} finally {
-                //    ExitWriteLock(buckets.Slot0);
-                //}
-                WriteLock(buckets.Slot0, (cleanup) => Insert(key, value, false));
+                try {
+                    EnterWriteLock(buckets.Slot0);
+                    Insert(key, value, false);
+                } finally {
+                    ExitWriteLock(buckets.Slot0);
+                }
+                // TODO manually inline locking, it gives c.25 ns
+                //WriteLock(buckets.Slot0, (cleanup) => Insert(key, value, false));
             }
         }
 
@@ -240,8 +283,10 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
         public void Clear() {
-            try {
-                EnterWriteLock(buckets.Slot0);
+            WriteLock(buckets.Slot0, (recovery) => {
+                if (recovery) {
+                    Console.WriteLine("TODO recovery");
+                }
                 if (count > 0) {
                     for (int i = 0; i < buckets.Count; i++) buckets[i] = -1;
                     entries.Clear();
@@ -250,9 +295,20 @@ namespace Spreads.Experimental.Collections.Generic {
                     freeCount = 0;
                     //version++;
                 }
-            } finally {
-                ExitWriteLock(buckets.Slot0);
-            }
+            });
+            //try {
+            //    EnterWriteLock(buckets.Slot0);
+            //    if (count > 0) {
+            //        for (int i = 0; i < buckets.Count; i++) buckets[i] = -1;
+            //        entries.Clear();
+            //        freeList = -1;
+            //        count = 0;
+            //        freeCount = 0;
+            //        //version++;
+            //    }
+            //} finally {
+            //    ExitWriteLock(buckets.Slot0);
+            //}
         }
 
         public bool ContainsKey(TKey key) {
@@ -332,6 +388,19 @@ namespace Spreads.Experimental.Collections.Generic {
             freeList = -1;
         }
 
+
+        private void Recover() {
+            var step = recoveryStep;
+            switch (step) {
+                case 1:
+                    break;
+                case 2:
+                    break;
+                case 3:
+                    break;
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Insert(TKey key, TValue value, bool add) {
             if (key == null) {
@@ -351,10 +420,14 @@ namespace Spreads.Experimental.Collections.Generic {
 
                     var entry = entries[i];
                     
-                    // make a defensive copy
+                    // make a snapshot copy of the old value
                     entries[-1] = entry;
+                    recoveryStep = 1;
                     Thread.MemoryBarrier();
-
+                    // by now, we have saved everything that is needed for repeating this step
+                    // if we steal the lock and see recoveryStep = 1, then we failed
+                    // either right here, during the next line, or during exiting lock
+                    // In any case, we just need to reapply the snapshot copy on recovery
                     entry.value = value;
                     entries[i] = entry;
                     //version++;
@@ -366,32 +439,47 @@ namespace Spreads.Experimental.Collections.Generic {
 
             if (freeCount > 0) {
                 index = freeList;
+
+                // Save freeList+Count value.
+                var previousFreeCount = freeCount;
+                freeListCountCopy = (freeList << 32) | previousFreeCount;
+                recoveryStep = 2;
+                Thread.MemoryBarrier();
+
                 freeList = entries[index].next;
-                freeCount--;
+                freeCount = previousFreeCount - 1;
             } else {
                 if (count == entries.Count) {
                     Resize();
                     targetBucket = hashCode % buckets.Count;
                 }
                 index = count;
-                count++;
+                countCopy = index;
+                recoveryStep = 3;
+                Thread.MemoryBarrier();
+                count = index + 1;
             }
+            // NB Index is saved above indirectly
 
-            var entry1 = entries[index];
-            // TODO do not need a defentive copy here, the new slot is clean
-            // make a defensive copy
-            //entries[-1] = entry1;
-            //entries.Copy(index, -1);
-            //Thread.MemoryBarrier();
+           
+            var prevousBucketIdx = buckets[targetBucket];
 
+            // save buckets state
+            bucketCopy = targetBucket;
+            indexCopy = prevousBucketIdx;
+            recoveryStep = 4;
+            Thread.MemoryBarrier();
+
+            // if we fail after that, we have enough info to undo everything and cleanup entries[index] during recovery
+
+            var entry1 = new Entry(); // entries[index];
             entry1.hashCode = hashCode;
-            entry1.next = buckets[targetBucket];
+            entry1.next = prevousBucketIdx;
             entry1.key = key;
             entry1.value = value;
             entries[index] = entry1;
             buckets[targetBucket] = index;
             //version++;
-
 
         }
 
@@ -443,10 +531,10 @@ namespace Spreads.Experimental.Collections.Generic {
                         // entries[freeList] remains free, must erase KV
 
                         // make a defensive copy
-                        entries.Copy(i, -1);
-                        // TODO write automic flag so that we will know our copy is made
-                        // without a flag, assume we haven't deleted anything
-                        Thread.MemoryBarrier();
+                        //entries.Copy(i, -1);
+                        //// TODO write automic flag so that we will know our copy is made
+                        //// without a flag, assume we haven't deleted anything
+                        //Thread.MemoryBarrier();
 
                         if (last < 0) {
                             // TODO just write ints with correct offsets
@@ -461,7 +549,7 @@ namespace Spreads.Experimental.Collections.Generic {
                         // we must store a copy before this place and then
                         // just add KV
 
-                        // if we failed before, 
+                        // if we failed before,
 
                         var entry1 = new Entry();
                         entry1.hashCode = -1;

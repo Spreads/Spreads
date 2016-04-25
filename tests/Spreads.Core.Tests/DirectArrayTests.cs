@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using HdrHistogram;
 using NUnit.Framework;
@@ -33,13 +34,21 @@ namespace Spreads.Core.Tests {
 
         [Test]
         public void CouldCRUDDirectDict() {
+            //use the second Core/Processor for the test
+            //Process.GetCurrentProcess().ProcessorAffinity = new IntPtr(2);
+            //prevent "Normal" Processes from interrupting Threads
+            //Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
+            //prevent "Normal" Threads from interrupting this thread
+            //Thread.CurrentThread.Priority = ThreadPriority.Highest;
+
             var dd = new DirectMap<long, long>("../CouldCRUDDirectDict");
             //var dd = new Dictionary<long, long>();
-
-            var count = 10000000;
+            
+            var count = 1000000;
             var sw = new Stopwatch();
+
             var histogram = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
-            for (int rounds = 0; rounds < 10; rounds++) {
+            for (int rounds = 0; rounds < 5; rounds++) {
                 dd.Clear();
                 sw.Restart();
 
@@ -48,7 +57,7 @@ namespace Spreads.Core.Tests {
                     dd[i] = i;
                     var ticks = sw.ElapsedTicks - startTick;
                     var nanos = (long) (1000000000.0 * (double)ticks / Stopwatch.Frequency);
-                    if (rounds > 2) histogram.RecordValue(nanos);
+                    if (rounds > 1) histogram.RecordValue(nanos);
                 }
                 Assert.AreEqual(count, dd.Count);
                 sw.Stop();
