@@ -34,11 +34,12 @@ namespace Spreads.Core.Tests {
         public void CouldCRUDDirectDict() {
             var dd = new DirectMap<long, long>("../CouldCRUDDirectDict");
             //var dd = new Dictionary<long, long>();
-            dd.Clear();
+            
             var count = 1000000;
             var sw = new Stopwatch();
             
             for (int rounds = 0; rounds < 20; rounds++) {
+                dd.Clear();
                 sw.Restart();
                 
                 for (int i = 0; i < count; i++) {

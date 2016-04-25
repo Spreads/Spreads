@@ -342,24 +342,24 @@ namespace Spreads.Experimental.Collections.Generic {
             int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
             int targetBucket = hashCode % buckets.Count;
 
-#if FEATURE_RANDOMIZED_STRING_HASHING
-            int collisionCount = 0;
-#endif
 
             for (int i = buckets[targetBucket]; i >= 0; i = entries[i].next) {
                 if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
                     if (add) {
                         throw new ArgumentException("Format(Argument_AddingDuplicate, key)");
                     }
+
                     var entry = entries[i];
+                    
+                    // make a defensive copy
+                    entries[-1] = entry;
+                    Thread.MemoryBarrier();
+
                     entry.value = value;
                     entries[i] = entry;
                     //version++;
                     return;
                 }
-#if FEATURE_RANDOMIZED_STRING_HASHING
-                collisionCount++;
-#endif
             }
 
             int index;
@@ -376,7 +376,14 @@ namespace Spreads.Experimental.Collections.Generic {
                 index = count;
                 count++;
             }
+
             var entry1 = entries[index];
+            // TODO do not need a defentive copy here, the new slot is clean
+            // make a defensive copy
+            //entries[-1] = entry1;
+            //entries.Copy(index, -1);
+            //Thread.MemoryBarrier();
+
             entry1.hashCode = hashCode;
             entry1.next = buckets[targetBucket];
             entry1.key = key;
@@ -384,51 +391,30 @@ namespace Spreads.Experimental.Collections.Generic {
             entries[index] = entry1;
             buckets[targetBucket] = index;
             //version++;
-#if FEATURE_RANDOMIZED_STRING_HASHING
-            if (collisionCount > HashHelpers.HashCollisionThreshold && HashHelpers.IsWellKnownEqualityComparer(comparer))
-            {
-                comparer = (IEqualityComparer<TKey>)HashHelpers.GetRandomizedEqualityComparer(comparer);
-                Resize(entries.Length, true);
-            }
-#endif
+
 
         }
 
         private void Resize() {
-            Resize(HashHelpers.ExpandPrime(count), false);
+            Resize(HashHelpers.ExpandPrime(count));
         }
 
-        private void Resize(int newSize, bool forceNewHashCodes) {
+        private void Resize(int newSize) {
             Contract.Assert(newSize >= entries.Count);
             buckets.Grow(newSize);
-            var newBuckets = buckets;
-            for (int i = 0; i < newBuckets.Count; i++) newBuckets[i] = -1;
-
             entries.Grow(newSize);
-            var newEntries = entries;
 
-            if (forceNewHashCodes) {
-                for (int i = 0; i < count; i++) {
-                    if (newEntries[i].hashCode != -1) {
-                        var entry = newEntries[i];
-                        entry.hashCode = (comparer.GetHashCode(newEntries[i].key) & 0x7FFFFFFF);
-                        newEntries[i] = entry;
-                    }
-                }
-            }
-
+            // Todo either incremental rehashing (Redis), or generational hashing
+            for (int i = 0; i < buckets.Count; i++) buckets[i] = -1;
             for (int i = 0; i < count; i++) {
-                if (newEntries[i].hashCode >= 0) {
-                    int bucket = newEntries[i].hashCode % newSize;
-                    var entry = newEntries[i];
-                    entry.next = newBuckets[bucket];
-                    newEntries[i] = entry;
-                    newBuckets[bucket] = i;
+                if (entries[i].hashCode >= 0) {
+                    int bucket = entries[i].hashCode % newSize;
+                    var entry = entries[i];
+                    entry.next = buckets[bucket];
+                    entries[i] = entry;
+                    buckets[bucket] = i;
                 }
             }
-
-            buckets = newBuckets;
-            entries = newEntries;
         }
 
         public bool Remove(TKey key) {
@@ -438,7 +424,6 @@ namespace Spreads.Experimental.Collections.Generic {
             } finally {
                 ExitWriteLock(buckets.Slot0);
             }
-
         }
 
         private bool DoRemove(TKey key) {
@@ -452,15 +437,35 @@ namespace Spreads.Experimental.Collections.Generic {
                 int last = -1;
                 for (int i = buckets[bucket]; i >= 0; last = i, i = entries[i].next) {
                     if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
+                        // TODO set is reverse to remove.
+                        // On recover need to re-clean entries[freeList] and 
+                        // just add the defensive copy back
+                        // entries[freeList] remains free, must erase KV
+
+                        // make a defensive copy
+                        entries.Copy(i, -1);
+                        // TODO write automic flag so that we will know our copy is made
+                        // without a flag, assume we haven't deleted anything
+                        Thread.MemoryBarrier();
+
                         if (last < 0) {
+                            // TODO just write ints with correct offsets
                             buckets[bucket] = entries[i].next;
                         } else {
-                            var entry = entries[last];
-                            entry.next = entries[i].next;
-                            entries[last] = entry;
+                            var lastEntry = entries[last];
+                            // TODO just write ints with correct offsets
+                            lastEntry.next = entries[i].next;
+                            entries[last] = lastEntry;
                         }
-                        var entry1 = entries[i];
+                        // by this line, we have removed an entry from a linked list
+                        // we must store a copy before this place and then
+                        // just add KV
+
+                        // if we failed before, 
+
+                        var entry1 = new Entry<TKey, TValue>();
                         entry1.hashCode = -1;
+                        // todo 
                         entry1.next = freeList;
                         entry1.key = default(TKey);
                         entry1.value = default(TValue);

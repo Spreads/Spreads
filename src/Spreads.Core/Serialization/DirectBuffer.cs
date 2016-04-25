@@ -491,7 +491,15 @@ namespace Spreads.Serialization {
             TypeHelper<T>.StructureToPtr(value, ptr);
         }
 
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Copy<T>(long source, long target) where T : struct {
+            var len = TypeHelper<T>.Size;
+            Assert(source, len);
+            Assert(target, len);
+            var src = new IntPtr(_data.ToInt64() + source);
+            var tgt = new IntPtr(_data.ToInt64() + target);
+            TypeHelper<T>.PtrToPtr(src, tgt);
+        }
 
         public int ReadAsciiDigit(long index) {
             Assert(index, 1);

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -105,6 +106,20 @@ namespace Spreads {
                 pos++;
             }
             Array[1] = default(T);
+#endif
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void PtrToPtr(IntPtr source, IntPtr target) {
+
+#if TYPED_REF
+            var obj = default(T);
+            var tr = __makeref(obj);
+            *(IntPtr*)(&tr) = source;
+            T value = __refvalue(tr, T);
+            *(IntPtr*)(&tr) = target;
+            __refvalue(tr, T) = value;
+#else
 #endif
         }
 

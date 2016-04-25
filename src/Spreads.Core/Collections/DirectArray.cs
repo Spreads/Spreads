@@ -9,7 +9,8 @@ using Spreads.Serialization;
 namespace Spreads.Collections {
 
     public class DirectArray<T> : IEnumerable<T>, IDisposable where T : struct {
-        private const int HeaderOffset = 256;
+        internal const int HeaderLength = 256;
+        internal static int DataOffset = HeaderLength + TypeHelper<T>.Size;
         private readonly string _filename;
         private long _capacity;
         private static int ItemSize;
@@ -53,8 +54,8 @@ namespace Spreads.Collections {
             if (newCapacity <= _capacity) return;
             _capacity = newCapacity;
             var mmfs = new MemoryMappedFileSecurity();
-            
-            var bytesCapacity = HeaderOffset + Math.Max(_fileStream.Length, IdxToOffset(newCapacity));
+
+            var bytesCapacity = Math.Max(_fileStream.Length, DataOffset + IdxToOffset(newCapacity));
             _mmf?.Dispose();
             var mmf = MemoryMappedFile.CreateFromFile(_fileStream,
                 Path.GetFileName(_filename), bytesCapacity,
@@ -78,11 +79,9 @@ namespace Spreads.Collections {
             _fileStream.Close();
         }
 
-        private IEnumerable<T> AsEnumerable()
-        {
-            for (int i = 0; i < _capacity; i++)
-            {
-             yield return this[i];
+        private IEnumerable<T> AsEnumerable() {
+            for (int i = 0; i < _capacity; i++) {
+                yield return this[i];
             }
         }
         public IEnumerator<T> GetEnumerator() {
@@ -93,15 +92,14 @@ namespace Spreads.Collections {
             return GetEnumerator();
         }
 
-        
+
         public void Clear() {
-            for (int i = 0; i < _capacity; i++)
-            {
+            for (int i = 0; i < _capacity; i++) {
                 this[i] = default(T);
             }
         }
 
-        
+
 
         public int Count => _capacity > int.MaxValue ? -1 : (int)_capacity;
         public long LongCount => _capacity;
@@ -111,12 +109,18 @@ namespace Spreads.Collections {
         {
             get
             {
-                return _buffer.Read<T>(HeaderOffset + IdxToOffset(index));
+                if (index < -1 || index >= _capacity) throw new ArgumentOutOfRangeException();
+                return _buffer.Read<T>(DataOffset + IdxToOffset(index));
             }
             set
             {
-                _buffer.Write(HeaderOffset + IdxToOffset(index), value);
+                if (index < -1 || index >= _capacity) throw new ArgumentOutOfRangeException();
+                _buffer.Write(DataOffset + IdxToOffset(index), value);
             }
+        }
+
+        public void Copy(long source, long target) {
+            _buffer.Copy<T>(DataOffset + IdxToOffset(source), DataOffset + IdxToOffset(target));
         }
     }
 }
