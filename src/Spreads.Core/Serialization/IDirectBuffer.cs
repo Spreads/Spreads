@@ -16,156 +16,156 @@ namespace Spreads.Serialization
         /// </summary>
         /// <param name="index">index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        char ReadChar(int index);
+        char ReadChar(long index);
 
         /// <summary>
         /// Writes a <see cref="byte"/> value to a given index.
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        void WriteChar(int index, char value);
+        void WriteChar(long index, char value);
 
         /// <summary>
         /// Gets the <see cref="sbyte"/> value at a given index.
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        sbyte ReadSByte(int index);
+        sbyte ReadSByte(long index);
 
         /// <summary>
         /// Writes a <see cref="sbyte"/> value to a given index.
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        void WriteSByte(int index, sbyte value);
+        void WriteSByte(long index, sbyte value);
 
         /// <summary>
         /// Gets the <see cref="byte"/> value at a given index.
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        byte ReadByte(int index);
+        byte ReadByte(long index);
 
         /// <summary>
         /// Writes a <see cref="byte"/> value to a given index.
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        void WriteByte(int index, byte value);
+        void WriteByte(long index, byte value);
 
-        byte this[int index] { get; set; }
+        byte this[long index] { get; set; }
 
         /// <summary>
         /// Gets the <see cref="short"/> value at a given index.
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        short ReadInt16(int index);
+        short ReadInt16(long index);
 
         /// <summary>
         /// Writes a <see cref="short"/> value to a given index.
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        void WriteInt16(int index, short value);
+        void WriteInt16(long index, short value);
 
         /// <summary>
         /// Gets the <see cref="int"/> value at a given index.
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        int ReadInt32(int index);
+        int ReadInt32(long index);
 
         /// <summary>
         /// Writes a <see cref="int"/> value to a given index.
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        void WriteInt32(int index, int value);
+        void WriteInt32(long index, int value);
 
         /// <summary>
         /// Gets the <see cref="long"/> value at a given index.
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        long ReadInt64(int index);
+        long ReadInt64(long index);
 
         /// <summary>
         /// Writes a <see cref="long"/> value to a given index.
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        void WriteInt64(int index, long value);
+        void WriteInt64(long index, long value);
 
         /// <summary>
         /// Gets the <see cref="ushort"/> value at a given index.
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        ushort ReadUint16(int index);
+        ushort ReadUint16(long index);
 
         /// <summary>
         /// Writes a <see cref="ushort"/> value to a given index.
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        void WriteUint16(int index, ushort value);
+        void WriteUint16(long index, ushort value);
 
         /// <summary>
         /// Gets the <see cref="uint"/> value at a given index.
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        uint ReadUint32(int index);
+        uint ReadUint32(long index);
 
         /// <summary>
         /// Writes a <see cref="uint"/> value to a given index.
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        void WriteUint32(int index, uint value);
+        void WriteUint32(long index, uint value);
 
         /// <summary>
         /// Gets the <see cref="ulong"/> value at a given index.
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        ulong ReadUint64(int index);
+        ulong ReadUint64(long index);
 
         /// <summary>
         /// Writes a <see cref="ulong"/> value to a given index.
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        void WriteUint64(int index, ulong value);
+        void WriteUint64(long index, ulong value);
 
         /// <summary>
         /// Gets the <see cref="float"/> value at a given index.
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        float ReadFloat(int index);
+        float ReadFloat(long index);
 
         /// <summary>
         /// Writes a <see cref="float"/> value to a given index.
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        void WriteFloat(int index, float value);
+        void WriteFloat(long index, float value);
 
         /// <summary>
         /// Gets the <see cref="double"/> value at a given index.
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        double ReadDouble(int index);
+        double ReadDouble(long index);
 
         /// <summary>
         /// Writes a <see cref="double"/> value to a given index.
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        void WriteDouble(int index, double value);
+        void WriteDouble(long index, double value);
 
         /// <summary>
         /// Copies a range of bytes from the underlying into a supplied byte array.
@@ -176,7 +176,7 @@ namespace Spreads.Serialization
         /// <param name="len">length of the supplied buffer to use.</param>
         /// <returns>count of bytes copied.</returns>
 // TODO test if that has an impact
-        int ReadBytes(int index, byte[] destination, int offsetDestination, int len);
+        int ReadBytes(long index, byte[] destination, int offsetDestination, int len);
 
         int ReadAllBytes(byte[] destination);
 
@@ -189,16 +189,16 @@ namespace Spreads.Serialization
         /// <param name="len">length of the supplied buffer to copy.</param>
         /// <returns>count of bytes copied.</returns>
 // TODO test if that has an impact
-        int WriteBytes(int index, byte[] src, int offset, int len);
+        int WriteBytes(long index, byte[] src, int offset, int len);
 
-        UUID ReadUUID(int index);
-        void WriteUUID(int index, UUID value);
+        UUID ReadUUID(long index);
+        void WriteUUID(long index, UUID value);
 
-        T Read<T>(int index) where T : struct;
-        void Write<T>(int index, T value) where T : struct;
+        T Read<T>(long index) where T : struct;
+        void Write<T>(long index, T value) where T : struct;
 
-        int ReadAsciiDigit(int index);
-        void WriteAsciiDigit(int index, int value);
+        int ReadAsciiDigit(long index);
+        void WriteAsciiDigit(long index, int value);
 
         /// <summary>
         /// 
@@ -226,19 +226,19 @@ namespace Spreads.Serialization
         /// </summary>
         IDirectBuffer Move(byte[] destination, int srcOffset, int destOffset, int length);
 
-        int InterlockedIncrementInt32(int index);
-        int InterlockedDecrementInt32(int index);
-        int InterlockedAddInt32(int index, int value);
-        int InterlockedReadInt32(int index);
-        int InterlockedCompareExchangeInt32(int index, int value, int comparand);
-        long InterlockedIncrementInt64(int index);
-        long InterlockedDecrementInt64(int index);
-        long InterlockedAddInt64(int index, long value);
-        long InterlockedReadInt64(int index);
-        long InterlockedCompareExchangeInt64(int index, long value, long comparand);
-        int VolatileReadInt32(int index);
-        void VolatileWriteInt32(int index, int value);
-        long VolatileReadInt64(int index);
-        void VolatileWriteInt64(int index, long value);
+        int InterlockedIncrementInt32(long index);
+        int InterlockedDecrementInt32(long index);
+        int InterlockedAddInt32(long index, int value);
+        int InterlockedReadInt32(long index);
+        int InterlockedCompareExchangeInt32(long index, int value, int comparand);
+        long InterlockedIncrementInt64(long index);
+        long InterlockedDecrementInt64(long index);
+        long InterlockedAddInt64(long index, long value);
+        long InterlockedReadInt64(long index);
+        long InterlockedCompareExchangeInt64(long index, long value, long comparand);
+        int VolatileReadInt32(long index);
+        void VolatileWriteInt32(long index, int value);
+        long VolatileReadInt64(long index);
+        void VolatileWriteInt64(long index, long value);
     }
 }

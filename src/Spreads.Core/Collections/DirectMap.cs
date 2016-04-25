@@ -8,137 +8,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using Spreads.Collections;
+using static Spreads.Collections.SyncUtils;
 
 namespace Spreads.Experimental.Collections.Generic {
-
-    public static class DictionaryHelpers {
-        private const int MaxGen = 20;
-
-        private static uint[] Primes = new uint[] {
-            1,
-            2,
-            3,
-            7,
-            13,
-            31,
-            61,
-            127,
-            251,
-            509,
-            1021,
-            2039,
-            4093,
-            8191,
-            16381,
-            32749,
-            65521,
-            131071,
-            262139,
-            524287,
-            1048573,
-            2097143,
-            4194301,
-            8388593,
-            16777213,
-            33554393,
-            67108859,
-            134217689,
-            268435399,
-            536870909,
-            1073741789,
-            2147483647,
-            4294967291,
-        };
-
-        // Total size at generation
-        private static uint[] GenSizes = new uint[]
-        {
-            1,
-            3,
-            7,
-            15,
-            31,
-            63,
-            127,
-            255,
-            511,
-            1023,
-            2047,
-            4095,
-            8191,
-            16383,
-            32767,
-            65535,
-            131071,
-            262143,
-            524287,
-            1048575,
-            2097151,
-            4194303,
-            8388607,
-            16777215,
-            33554431,
-            67108863,
-            134217727,
-            268435455,
-            536870911,
-            1073741823,
-            2147483647,
-            4294967295,
-        };
-
-        public static List<T> Grow<T>(this List<T> list, int newSize) {
-            var newEntries = new List<T>(newSize);
-            for (int i = 0; i < list.Count; i++) {
-                newEntries[i] = list[i];
-            }
-            return newEntries;
-        }
-
-        public static List<T> GrowGen<T>(this List<T> list, int newGeneration)
-        {
-            long newSize;
-            if (newGeneration > MaxGen)
-            {
-                newSize = list.Count + (1L << MaxGen);
-            }
-            Trace.Assert(list.Count == GenSize(newGeneration - 1));
-            
-            newSize = list.Count + (1L << newGeneration);
-            var newEntries = new List<T>((int)newSize);
-            for (int i = 0; i < list.Count; i++) {
-                newEntries[i] = list[i];
-            }
-            return newEntries;
-        }
-
-        public static long GenSize(int generation) {
-            if (generation > MaxGen) {
-                var delta = generation - MaxGen;
-                // after max gen we allocate by (1L << MaxGen) increments
-                var size = GenSizes[MaxGen] + (1L << MaxGen) * delta;
-                return size;
-            }
-            return GenSizes[generation];
-        }
-
-        public static long Bucket(int hashCode, int generation) {
-            if (generation > MaxGen) {
-                // After max gen we scatter bukets evenly
-                return hashCode % Primes[MaxGen + 1];
-            }
-            var bucketWithinIncrement = hashCode%Primes[generation];
-            var absoluteBucketPosition = GenSizes[generation - 1] + bucketWithinIncrement;
-            return absoluteBucketPosition;
-        }
-    }
-
-
-
     [DebuggerTypeProxy(typeof(IDictionaryDebugView<,>))]
     [DebuggerDisplay("Count = {Count}")]
     [System.Runtime.InteropServices.ComVisible(false)]
-    public class Dictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> {
+    public class DirectMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> {
         private struct Entry {
             public int hashCode;    // Lower 31 bits of hash code, -1 if unused
             public int next;        // Index of next entry, -1 if last
@@ -146,18 +24,46 @@ namespace Spreads.Experimental.Collections.Generic {
             public TValue value;         // Value of entry
         }
 
-        private int[] buckets;
-        private int generation = 2;
-        private List<Entry> entries;
-        private int count;
-        private int version;
+        private DirectArray<int> buckets;
+        private DirectArray<Entry> entries;
 
-        private int freeList;
-        private int freeCount;
+        // buckets header has
+        // Slot0 - locker
+        // Slot1 - version
+        // Slot2 - nextVersion
+        // Slot3 - count
+        // Slot4 - freeList
+        // Slot5 - freeCount
+
+        private unsafe int count
+        {
+            get { return *(int*)(buckets.Slot3); }
+            set { *(int*)(buckets.Slot3) = value; }
+        }
+
+        private unsafe long version => Volatile.Read(ref *(long*)(buckets.Slot1));
+
+        private unsafe int freeList
+        {
+            get { return *(int*)(buckets.Slot4); }
+            set { *(int*)(buckets.Slot4) = value; }
+        }
+        private unsafe int freeCount
+        {
+            get
+            {
+                var value = Volatile.Read(ref *(int*)(buckets.Slot5));
+                return value;
+            }
+            set { *(int*)(buckets.Slot5) = value; }
+        }
+
+
         private IEqualityComparer<TKey> comparer;
         private KeyCollection keys;
         private ValueCollection values;
         private Object _syncRoot;
+        private string _fileName;
 
         // constants for serialization
         private const String VersionName = "Version";
@@ -165,22 +71,25 @@ namespace Spreads.Experimental.Collections.Generic {
         private const String KeyValuePairsName = "KeyValuePairs";
         private const String ComparerName = "Comparer";
 
-        public Dictionary() : this(0, null) { }
+        public DirectMap(string fileName) : this(fileName, 0, null) { }
 
-        public Dictionary(int capacity) : this(capacity, null) { }
+        public DirectMap(string fileName, int capacity) : this(fileName, capacity, null) { }
 
-        public Dictionary(IEqualityComparer<TKey> comparer) : this(0, comparer) { }
+        public DirectMap(string fileName, IEqualityComparer<TKey> comparer) : this(fileName, 0, comparer) { }
 
-        public Dictionary(int capacity, IEqualityComparer<TKey> comparer) {
+        public DirectMap(string fileName, int capacity, IEqualityComparer<TKey> comparer) {
+            if (fileName == null) throw new ArgumentNullException(nameof(fileName));
+            _fileName = fileName;
             if (capacity < 0) throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "ArgumentOutOfRange_NeedNonNegNum");
-            if (capacity > 0) Initialize(capacity);
+            if (capacity >= 0) Initialize(capacity);
             this.comparer = comparer ?? EqualityComparer<TKey>.Default;
+
         }
 
-        public Dictionary(IDictionary<TKey, TValue> dictionary) : this(dictionary, null) { }
+        public DirectMap(string fileName, IDictionary<TKey, TValue> dictionary) : this(fileName, dictionary, null) { }
 
-        public Dictionary(IDictionary<TKey, TValue> dictionary, IEqualityComparer<TKey> comparer) :
-            this(dictionary != null ? dictionary.Count : 0, comparer) {
+        public DirectMap(string fileName, IDictionary<TKey, TValue> dictionary, IEqualityComparer<TKey> comparer) :
+            this(fileName, dictionary != null ? dictionary.Count : 0, comparer) {
             if (dictionary == null) {
                 throw new ArgumentNullException(nameof(dictionary));
             }
@@ -189,10 +98,10 @@ namespace Spreads.Experimental.Collections.Generic {
             // avoid the enumerator allocation and overhead by looping through the entries array directly.
             // We only do this when dictionary is Dictionary<TKey,TValue> and not a subclass, to maintain
             // back-compat with subclasses that may have overridden the enumerator behavior.
-            if (dictionary.GetType() == typeof(Dictionary<TKey, TValue>)) {
-                Dictionary<TKey, TValue> d = (Dictionary<TKey, TValue>)dictionary;
+            if (dictionary.GetType() == typeof(DirectMap<TKey, TValue>)) {
+                DirectMap<TKey, TValue> d = (DirectMap<TKey, TValue>)dictionary;
                 int count = d.count;
-                List<Entry> entries = d.entries;
+                DirectArray<Entry> entries = d.entries;
                 for (int i = 0; i < count; i++) {
                     if (entries[i].hashCode >= 0) {
                         Add(entries[i].key, entries[i].value);
@@ -214,10 +123,7 @@ namespace Spreads.Experimental.Collections.Generic {
             }
         }
 
-        public int Count
-        {
-            get { return count - freeCount; }
-        }
+        public int Count => SyncUtils.ReadLockIf(buckets.Slot2, buckets.Slot1, true, () => count - freeCount);
 
         public KeyCollection Keys
         {
@@ -279,18 +185,30 @@ namespace Spreads.Experimental.Collections.Generic {
         {
             get
             {
-                int i = FindEntry(key);
-                if (i >= 0) return entries[i].value;
-                throw new KeyNotFoundException();
+                return ReadLockIf(buckets.Slot2, buckets.Slot1, true, () => {
+                    int i = FindEntry(key);
+                    if (i >= 0) return entries[i].value;
+                    throw new KeyNotFoundException();
+                });
             }
             set
             {
-                Insert(key, value, false);
+                try {
+                    EnterWriteLock(buckets.Slot0);
+                    Insert(key, value, false);
+                } finally {
+                    ExitWriteLock(buckets.Slot0);
+                }
             }
         }
 
         public void Add(TKey key, TValue value) {
-            Insert(key, value, true);
+            try {
+                EnterWriteLock(buckets.Slot0);
+                Insert(key, value, true);
+            } finally {
+                ExitWriteLock(buckets.Slot0);
+            }
         }
 
         void ICollection<KeyValuePair<TKey, TValue>>.Add(KeyValuePair<TKey, TValue> keyValuePair) {
@@ -306,22 +224,33 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair) {
-            int i = FindEntry(keyValuePair.Key);
-            if (i >= 0 && EqualityComparer<TValue>.Default.Equals(entries[i].value, keyValuePair.Value)) {
-                Remove(keyValuePair.Key);
-                return true;
+            try {
+                EnterWriteLock(buckets.Slot0);
+                int i = FindEntry(keyValuePair.Key);
+                if (i >= 0 && EqualityComparer<TValue>.Default.Equals(entries[i].value, keyValuePair.Value)) {
+                    DoRemove(keyValuePair.Key);
+                    return true;
+                }
+                return false;
+            } finally {
+                ExitWriteLock(buckets.Slot0);
             }
-            return false;
+
         }
 
         public void Clear() {
-            if (count > 0) {
-                for (int i = 0; i < buckets.Length; i++) buckets[i] = -1;
-                entries.Clear();
-                freeList = -1;
-                count = 0;
-                freeCount = 0;
-                version++;
+            try {
+                EnterWriteLock(buckets.Slot0);
+                if (count > 0) {
+                    for (int i = 0; i < buckets.Count; i++) buckets[i] = -1;
+                    entries.Clear();
+                    freeList = -1;
+                    count = 0;
+                    freeCount = 0;
+                    //version++;
+                }
+            } finally {
+                ExitWriteLock(buckets.Slot0);
             }
         }
 
@@ -344,25 +273,31 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
         private void CopyTo(KeyValuePair<TKey, TValue>[] array, int index) {
-            if (array == null) {
-                throw new ArgumentNullException(nameof(array));
-            }
-
-            if (index < 0 || index > array.Length) {
-                throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
-            }
-
-            if (array.Length - index < Count) {
-                throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
-            }
-
-            int count = this.count;
-            List<Entry> entries = this.entries;
-            for (int i = 0; i < count; i++) {
-                if (entries[i].hashCode >= 0) {
-                    array[index++] = new KeyValuePair<TKey, TValue>(entries[i].key, entries[i].value);
+            try {
+                EnterWriteLock(buckets.Slot0);
+                if (array == null) {
+                    throw new ArgumentNullException(nameof(array));
                 }
+
+                if (index < 0 || index > array.Length) {
+                    throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
+                }
+
+                if (array.Length - index < Count) {
+                    throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
+                }
+
+                int count = this.count;
+                DirectArray<Entry> entries = this.entries;
+                for (int i = 0; i < count; i++) {
+                    if (entries[i].hashCode >= 0) {
+                        array[index++] = new KeyValuePair<TKey, TValue>(entries[i].key, entries[i].value);
+                    }
+                }
+            } finally {
+                ExitWriteLock(buckets.Slot0);
             }
+
         }
 
         public Enumerator GetEnumerator() {
@@ -373,6 +308,7 @@ namespace Spreads.Experimental.Collections.Generic {
             return new Enumerator(this, Enumerator.KeyValuePair);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int FindEntry(TKey key) {
             if (key == null) {
                 throw new ArgumentNullException(nameof(key));
@@ -380,7 +316,7 @@ namespace Spreads.Experimental.Collections.Generic {
 
             if (buckets != null) {
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-                for (int i = buckets[hashCode % buckets.Length]; i >= 0; i = entries[i].next) {
+                for (int i = buckets[hashCode % buckets.Count]; i >= 0; i = entries[i].next) {
                     if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) return i;
                 }
             }
@@ -389,12 +325,13 @@ namespace Spreads.Experimental.Collections.Generic {
 
         private void Initialize(int capacity) {
             int size = HashHelpers.GetPrime(capacity);
-            buckets = new int[size];
-            for (int i = 0; i < buckets.Length; i++) buckets[i] = -1;
-            entries = new List<Entry>(size);
+            buckets = new DirectArray<int>(_fileName + "-buckets", size);
+            for (int i = 0; i < buckets.Count; i++) buckets[i] = -1;
+            entries = new DirectArray<Entry>(_fileName + "-entries", size);
             freeList = -1;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Insert(TKey key, TValue value, bool add) {
             if (key == null) {
                 throw new ArgumentNullException(nameof(key));
@@ -402,7 +339,7 @@ namespace Spreads.Experimental.Collections.Generic {
 
             if (buckets == null) Initialize(0);
             int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-            int targetBucket = hashCode % buckets.Length;
+            int targetBucket = hashCode % buckets.Count;
 
 #if FEATURE_RANDOMIZED_STRING_HASHING
             int collisionCount = 0;
@@ -416,7 +353,7 @@ namespace Spreads.Experimental.Collections.Generic {
                     var entry = entries[i];
                     entry.value = value;
                     entries[i] = entry;
-                    version++;
+                    //version++;
                     return;
                 }
 #if FEATURE_RANDOMIZED_STRING_HASHING
@@ -431,9 +368,9 @@ namespace Spreads.Experimental.Collections.Generic {
                 freeList = entries[index].next;
                 freeCount--;
             } else {
-                if (count == entries.Capacity) {
+                if (count == entries.Count) {
                     Resize();
-                    targetBucket = hashCode % buckets.Length;
+                    targetBucket = hashCode % buckets.Count;
                 }
                 index = count;
                 count++;
@@ -445,7 +382,7 @@ namespace Spreads.Experimental.Collections.Generic {
             entry1.value = value;
             entries[index] = entry1;
             buckets[targetBucket] = index;
-            version++;
+            //version++;
 #if FEATURE_RANDOMIZED_STRING_HASHING
             if (collisionCount > HashHelpers.HashCollisionThreshold && HashHelpers.IsWellKnownEqualityComparer(comparer))
             {
@@ -461,11 +398,13 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
         private void Resize(int newSize, bool forceNewHashCodes) {
-            Contract.Assert(newSize >= entries.Capacity);
-            int[] newBuckets = new int[newSize];
-            for (int i = 0; i < newBuckets.Length; i++) newBuckets[i] = -1;
+            Contract.Assert(newSize >= entries.Count);
+            buckets.Grow(newSize);
+            var newBuckets = buckets;
+            for (int i = 0; i < newBuckets.Count; i++) newBuckets[i] = -1;
 
-            var newEntries = entries.Grow(newSize);
+            entries.Grow(newSize);
+            var newEntries = entries;
 
             if (forceNewHashCodes) {
                 for (int i = 0; i < count; i++) {
@@ -492,13 +431,23 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
         public bool Remove(TKey key) {
+            try {
+                EnterWriteLock(buckets.Slot0);
+                return DoRemove(key);
+            } finally {
+                ExitWriteLock(buckets.Slot0);
+            }
+
+        }
+
+        private bool DoRemove(TKey key) {
             if (key == null) {
                 throw new ArgumentNullException(nameof(key));
             }
 
             if (buckets != null) {
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-                int bucket = hashCode % buckets.Length;
+                int bucket = hashCode % buckets.Count;
                 int last = -1;
                 for (int i = buckets[bucket]; i >= 0; last = i, i = entries[i].next) {
                     if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
@@ -517,7 +466,7 @@ namespace Spreads.Experimental.Collections.Generic {
                         entries[i] = entry1;
                         freeList = i;
                         freeCount++;
-                        version++;
+                        //version++;
                         return true;
                     }
                 }
@@ -547,10 +496,7 @@ namespace Spreads.Experimental.Collections.Generic {
             return default(TValue);
         }
 
-        bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly
-        {
-            get { return false; }
-        }
+        bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly => false;
 
         void ICollection<KeyValuePair<TKey, TValue>>.CopyTo(KeyValuePair<TKey, TValue>[] array, int index) {
             CopyTo(array, index);
@@ -613,10 +559,7 @@ namespace Spreads.Experimental.Collections.Generic {
             return new Enumerator(this, Enumerator.KeyValuePair);
         }
 
-        bool ICollection.IsSynchronized
-        {
-            get { return false; }
-        }
+        bool ICollection.IsSynchronized => true;
 
         object ICollection.SyncRoot
         {
@@ -629,25 +572,13 @@ namespace Spreads.Experimental.Collections.Generic {
             }
         }
 
-        bool IDictionary.IsFixedSize
-        {
-            get { return false; }
-        }
+        bool IDictionary.IsFixedSize => false;
 
-        bool IDictionary.IsReadOnly
-        {
-            get { return false; }
-        }
+        bool IDictionary.IsReadOnly => false;
 
-        ICollection IDictionary.Keys
-        {
-            get { return (ICollection)Keys; }
-        }
+        ICollection IDictionary.Keys => (ICollection)Keys;
 
-        ICollection IDictionary.Values
-        {
-            get { return (ICollection)Values; }
-        }
+        ICollection IDictionary.Values => (ICollection)Values;
 
         object IDictionary.this[object key]
         {
@@ -730,8 +661,8 @@ namespace Spreads.Experimental.Collections.Generic {
 
         public struct Enumerator : IEnumerator<KeyValuePair<TKey, TValue>>,
             IDictionaryEnumerator {
-            private Dictionary<TKey, TValue> dictionary;
-            private int version;
+            private DirectMap<TKey, TValue> _directMap;
+            private long version;
             private int index;
             private KeyValuePair<TKey, TValue> current;
             private int getEnumeratorRetType;  // What should Enumerator.Current return?
@@ -739,31 +670,31 @@ namespace Spreads.Experimental.Collections.Generic {
             internal const int DictEntry = 1;
             internal const int KeyValuePair = 2;
 
-            internal Enumerator(Dictionary<TKey, TValue> dictionary, int getEnumeratorRetType) {
-                this.dictionary = dictionary;
-                version = dictionary.version;
+            internal Enumerator(DirectMap<TKey, TValue> _directMap, int getEnumeratorRetType) {
+                this._directMap = _directMap;
+                version = _directMap.version;
                 index = 0;
                 this.getEnumeratorRetType = getEnumeratorRetType;
                 current = new KeyValuePair<TKey, TValue>();
             }
 
             public bool MoveNext() {
-                if (version != dictionary.version) {
+                if (version != _directMap.version) {
                     throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
                 }
 
                 // Use unsigned comparison since we set index to dictionary.count+1 when the enumeration ends.
                 // dictionary.count+1 could be negative if dictionary.count is Int32.MaxValue
-                while ((uint)index < (uint)dictionary.count) {
-                    if (dictionary.entries[index].hashCode >= 0) {
-                        current = new KeyValuePair<TKey, TValue>(dictionary.entries[index].key, dictionary.entries[index].value);
+                while ((uint)index < (uint)_directMap.count) {
+                    if (_directMap.entries[index].hashCode >= 0) {
+                        current = new KeyValuePair<TKey, TValue>(_directMap.entries[index].key, _directMap.entries[index].value);
                         index++;
                         return true;
                     }
                     index++;
                 }
 
-                index = dictionary.count + 1;
+                index = _directMap.count + 1;
                 current = new KeyValuePair<TKey, TValue>();
                 return false;
             }
@@ -780,7 +711,7 @@ namespace Spreads.Experimental.Collections.Generic {
             {
                 get
                 {
-                    if (index == 0 || (index == dictionary.count + 1)) {
+                    if (index == 0 || (index == _directMap.count + 1)) {
                         throw new InvalidOperationException("InvalidOperation_EnumOpCantHappen");
                     }
 
@@ -793,7 +724,7 @@ namespace Spreads.Experimental.Collections.Generic {
             }
 
             void IEnumerator.Reset() {
-                if (version != dictionary.version) {
+                if (version != _directMap.version) {
                     throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
                 }
 
@@ -805,7 +736,7 @@ namespace Spreads.Experimental.Collections.Generic {
             {
                 get
                 {
-                    if (index == 0 || (index == dictionary.count + 1)) {
+                    if (index == 0 || (index == _directMap.count + 1)) {
                         throw new InvalidOperationException("InvalidOperation_EnumOpCantHappen");
                     }
 
@@ -817,7 +748,7 @@ namespace Spreads.Experimental.Collections.Generic {
             {
                 get
                 {
-                    if (index == 0 || (index == dictionary.count + 1)) {
+                    if (index == 0 || (index == _directMap.count + 1)) {
                         throw new InvalidOperationException("InvalidOperation_EnumOpCantHappen");
                     }
 
@@ -829,7 +760,7 @@ namespace Spreads.Experimental.Collections.Generic {
             {
                 get
                 {
-                    if (index == 0 || (index == dictionary.count + 1)) {
+                    if (index == 0 || (index == _directMap.count + 1)) {
                         throw new InvalidOperationException("InvalidOperation_EnumOpCantHappen");
                     }
 
@@ -841,17 +772,17 @@ namespace Spreads.Experimental.Collections.Generic {
         [DebuggerTypeProxy(typeof(DictionaryKeyCollectionDebugView<,>))]
         [DebuggerDisplay("Count = {Count}")]
         public sealed class KeyCollection : ICollection<TKey>, ICollection, IReadOnlyCollection<TKey> {
-            private Dictionary<TKey, TValue> dictionary;
+            private DirectMap<TKey, TValue> _directMap;
 
-            public KeyCollection(Dictionary<TKey, TValue> dictionary) {
-                if (dictionary == null) {
-                    throw new ArgumentNullException(nameof(dictionary));
+            public KeyCollection(DirectMap<TKey, TValue> _directMap) {
+                if (_directMap == null) {
+                    throw new ArgumentNullException(nameof(_directMap));
                 }
-                this.dictionary = dictionary;
+                this._directMap = _directMap;
             }
 
             public Enumerator GetEnumerator() {
-                return new Enumerator(dictionary);
+                return new Enumerator(_directMap);
             }
 
             public void CopyTo(TKey[] array, int index) {
@@ -863,12 +794,12 @@ namespace Spreads.Experimental.Collections.Generic {
                     throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
                 }
 
-                if (array.Length - index < dictionary.Count) {
+                if (array.Length - index < _directMap.Count) {
                     throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
                 }
 
-                int count = dictionary.count;
-                var entries = dictionary.entries;
+                int count = _directMap.count;
+                var entries = _directMap.entries;
 
                 for (int i = 0; i < count; i++) {
                     if (entries[i].hashCode >= 0) array[index++] = entries[i].key;
@@ -877,7 +808,7 @@ namespace Spreads.Experimental.Collections.Generic {
 
             public int Count
             {
-                get { return dictionary.Count; }
+                get { return _directMap.Count; }
             }
 
             bool ICollection<TKey>.IsReadOnly
@@ -894,7 +825,7 @@ namespace Spreads.Experimental.Collections.Generic {
             }
 
             bool ICollection<TKey>.Contains(TKey item) {
-                return dictionary.ContainsKey(item);
+                return _directMap.ContainsKey(item);
             }
 
             bool ICollection<TKey>.Remove(TKey item) {
@@ -902,11 +833,11 @@ namespace Spreads.Experimental.Collections.Generic {
             }
 
             IEnumerator<TKey> IEnumerable<TKey>.GetEnumerator() {
-                return new Enumerator(dictionary);
+                return new Enumerator(_directMap);
             }
 
             IEnumerator IEnumerable.GetEnumerator() {
-                return new Enumerator(dictionary);
+                return new Enumerator(_directMap);
             }
 
             void ICollection.CopyTo(Array array, int index) {
@@ -926,7 +857,7 @@ namespace Spreads.Experimental.Collections.Generic {
                     throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
                 }
 
-                if (array.Length - index < dictionary.Count) {
+                if (array.Length - index < _directMap.Count) {
                     throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
                 }
 
@@ -939,8 +870,8 @@ namespace Spreads.Experimental.Collections.Generic {
                         throw new ArgumentException("Argument_InvalidArrayType, nameof(array)");
                     }
 
-                    int count = dictionary.count;
-                    var entries = dictionary.entries;
+                    int count = _directMap.count;
+                    var entries = _directMap.entries;
 
                     try {
                         for (int i = 0; i < count; i++) {
@@ -959,18 +890,18 @@ namespace Spreads.Experimental.Collections.Generic {
 
             Object ICollection.SyncRoot
             {
-                get { return ((ICollection)dictionary).SyncRoot; }
+                get { return ((ICollection)_directMap).SyncRoot; }
             }
 
             public struct Enumerator : IEnumerator<TKey>, System.Collections.IEnumerator {
-                private Dictionary<TKey, TValue> dictionary;
+                private DirectMap<TKey, TValue> _directMap;
                 private int index;
-                private int version;
+                private long version;
                 private TKey currentKey;
 
-                internal Enumerator(Dictionary<TKey, TValue> dictionary) {
-                    this.dictionary = dictionary;
-                    version = dictionary.version;
+                internal Enumerator(DirectMap<TKey, TValue> _directMap) {
+                    this._directMap = _directMap;
+                    version = _directMap.version;
                     index = 0;
                     currentKey = default(TKey);
                 }
@@ -979,20 +910,20 @@ namespace Spreads.Experimental.Collections.Generic {
                 }
 
                 public bool MoveNext() {
-                    if (version != dictionary.version) {
+                    if (version != _directMap.version) {
                         throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
                     }
 
-                    while ((uint)index < (uint)dictionary.count) {
-                        if (dictionary.entries[index].hashCode >= 0) {
-                            currentKey = dictionary.entries[index].key;
+                    while ((uint)index < (uint)_directMap.count) {
+                        if (_directMap.entries[index].hashCode >= 0) {
+                            currentKey = _directMap.entries[index].key;
                             index++;
                             return true;
                         }
                         index++;
                     }
 
-                    index = dictionary.count + 1;
+                    index = _directMap.count + 1;
                     currentKey = default(TKey);
                     return false;
                 }
@@ -1009,7 +940,7 @@ namespace Spreads.Experimental.Collections.Generic {
                 {
                     get
                     {
-                        if (index == 0 || (index == dictionary.count + 1)) {
+                        if (index == 0 || (index == _directMap.count + 1)) {
                             throw new InvalidOperationException("InvalidOperation_EnumOpCantHappen");
                         }
 
@@ -1018,7 +949,7 @@ namespace Spreads.Experimental.Collections.Generic {
                 }
 
                 void System.Collections.IEnumerator.Reset() {
-                    if (version != dictionary.version) {
+                    if (version != _directMap.version) {
                         throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
                     }
 
@@ -1031,17 +962,17 @@ namespace Spreads.Experimental.Collections.Generic {
         [DebuggerTypeProxy(typeof(DictionaryValueCollectionDebugView<,>))]
         [DebuggerDisplay("Count = {Count}")]
         public sealed class ValueCollection : ICollection<TValue>, ICollection, IReadOnlyCollection<TValue> {
-            private Dictionary<TKey, TValue> dictionary;
+            private DirectMap<TKey, TValue> _directMap;
 
-            public ValueCollection(Dictionary<TKey, TValue> dictionary) {
-                if (dictionary == null) {
-                    throw new ArgumentNullException(nameof(dictionary));
+            public ValueCollection(DirectMap<TKey, TValue> _directMap) {
+                if (_directMap == null) {
+                    throw new ArgumentNullException(nameof(_directMap));
                 }
-                this.dictionary = dictionary;
+                this._directMap = _directMap;
             }
 
             public Enumerator GetEnumerator() {
-                return new Enumerator(dictionary);
+                return new Enumerator(_directMap);
             }
 
             public void CopyTo(TValue[] array, int index) {
@@ -1053,12 +984,12 @@ namespace Spreads.Experimental.Collections.Generic {
                     throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
                 }
 
-                if (array.Length - index < dictionary.Count) {
+                if (array.Length - index < _directMap.Count) {
                     throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
                 }
 
-                int count = dictionary.count;
-                var entries = dictionary.entries;
+                int count = _directMap.count;
+                var entries = _directMap.entries;
 
                 for (int i = 0; i < count; i++) {
                     if (entries[i].hashCode >= 0) array[index++] = entries[i].value;
@@ -1067,7 +998,7 @@ namespace Spreads.Experimental.Collections.Generic {
 
             public int Count
             {
-                get { return dictionary.Count; }
+                get { return _directMap.Count; }
             }
 
             bool ICollection<TValue>.IsReadOnly
@@ -1088,15 +1019,15 @@ namespace Spreads.Experimental.Collections.Generic {
             }
 
             bool ICollection<TValue>.Contains(TValue item) {
-                return dictionary.ContainsValue(item);
+                return _directMap.ContainsValue(item);
             }
 
             IEnumerator<TValue> IEnumerable<TValue>.GetEnumerator() {
-                return new Enumerator(dictionary);
+                return new Enumerator(_directMap);
             }
 
             IEnumerator IEnumerable.GetEnumerator() {
-                return new Enumerator(dictionary);
+                return new Enumerator(_directMap);
             }
 
             void ICollection.CopyTo(Array array, int index) {
@@ -1116,7 +1047,7 @@ namespace Spreads.Experimental.Collections.Generic {
                     throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
                 }
 
-                if (array.Length - index < dictionary.Count)
+                if (array.Length - index < _directMap.Count)
                     throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
 
                 TValue[] values = array as TValue[];
@@ -1128,8 +1059,8 @@ namespace Spreads.Experimental.Collections.Generic {
                         throw new ArgumentException("Argument_InvalidArrayType, nameof(array)");
                     }
 
-                    int count = dictionary.count;
-                    var entries = dictionary.entries;
+                    int count = _directMap.count;
+                    var entries = _directMap.entries;
 
                     try {
                         for (int i = 0; i < count; i++) {
@@ -1148,18 +1079,18 @@ namespace Spreads.Experimental.Collections.Generic {
 
             Object ICollection.SyncRoot
             {
-                get { return ((ICollection)dictionary).SyncRoot; }
+                get { return ((ICollection)_directMap).SyncRoot; }
             }
 
             public struct Enumerator : IEnumerator<TValue>, System.Collections.IEnumerator {
-                private Dictionary<TKey, TValue> dictionary;
+                private DirectMap<TKey, TValue> _directMap;
                 private int index;
-                private int version;
+                private long version;
                 private TValue currentValue;
 
-                internal Enumerator(Dictionary<TKey, TValue> dictionary) {
-                    this.dictionary = dictionary;
-                    version = dictionary.version;
+                internal Enumerator(DirectMap<TKey, TValue> _directMap) {
+                    this._directMap = _directMap;
+                    version = _directMap.version;
                     index = 0;
                     currentValue = default(TValue);
                 }
@@ -1168,19 +1099,19 @@ namespace Spreads.Experimental.Collections.Generic {
                 }
 
                 public bool MoveNext() {
-                    if (version != dictionary.version) {
+                    if (version != _directMap.version) {
                         throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
                     }
 
-                    while ((uint)index < (uint)dictionary.count) {
-                        if (dictionary.entries[index].hashCode >= 0) {
-                            currentValue = dictionary.entries[index].value;
+                    while ((uint)index < (uint)_directMap.count) {
+                        if (_directMap.entries[index].hashCode >= 0) {
+                            currentValue = _directMap.entries[index].value;
                             index++;
                             return true;
                         }
                         index++;
                     }
-                    index = dictionary.count + 1;
+                    index = _directMap.count + 1;
                     currentValue = default(TValue);
                     return false;
                 }
@@ -1197,7 +1128,7 @@ namespace Spreads.Experimental.Collections.Generic {
                 {
                     get
                     {
-                        if (index == 0 || (index == dictionary.count + 1)) {
+                        if (index == 0 || (index == _directMap.count + 1)) {
                             throw new InvalidOperationException("InvalidOperation_EnumOpCantHappen");
                         }
 
@@ -1206,7 +1137,7 @@ namespace Spreads.Experimental.Collections.Generic {
                 }
 
                 void System.Collections.IEnumerator.Reset() {
-                    if (version != dictionary.version) {
+                    if (version != _directMap.version) {
                         throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
                     }
                     index = 0;
