@@ -239,13 +239,6 @@ namespace Spreads.Experimental.Collections.Generic {
             }
             set
             {
-                //try {
-                //    EnterWriteLock(buckets.Slot0);
-                //    Insert(key, value, false);
-                //} finally {
-                //    ExitWriteLock(buckets.Slot0);
-                //}
-                // TODO manually inline locking, it gives c.25 ns
                 WriteLock(buckets.Slot0, (recover) => {
                     if (recover) { Recover(); }
                     Insert(key, value, false);
@@ -254,12 +247,6 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
         public void Add(TKey key, TValue value) {
-            //try {
-            //    EnterWriteLock(buckets.Slot0);
-            //    Insert(key, value, true);
-            //} finally {
-            //    ExitWriteLock(buckets.Slot0);
-            //}
             WriteLock(buckets.Slot0, (recover) => {
                 if (recover) { Recover(); }
                 Insert(key, value, true);
@@ -305,19 +292,6 @@ namespace Spreads.Experimental.Collections.Generic {
                     //version++;
                 }
             });
-            //try {
-            //    EnterWriteLock(buckets.Slot0);
-            //    if (count > 0) {
-            //        for (int i = 0; i < buckets.Count; i++) buckets[i] = -1;
-            //        entries.Clear();
-            //        freeList = -1;
-            //        count = 0;
-            //        freeCount = 0;
-            //        //version++;
-            //    }
-            //} finally {
-            //    ExitWriteLock(buckets.Slot0);
-            //}
         }
 
         public bool ContainsKey(TKey key) {
@@ -427,10 +401,11 @@ namespace Spreads.Experimental.Collections.Generic {
                 recoveryFlags &= ~(1 << 4);
                 Recover(true);
             }
-            if ((recoveryFlags & (1 << 3)) > 0) {
-                throw new NotImplementedException("TODO recovery from scenario 3");
+            if ((recoveryFlags & (1 << 3)) > 0)
+            {
+                Debug.WriteLine("Recovering from flag 3");
+                count = countCopy;
 
-                ChaosMonkey.Exception(scenario: 113); // fail during recovery
                 recoveryFlags &= ~(1 << 3);
                 Recover(true);
             }
@@ -530,14 +505,17 @@ namespace Spreads.Experimental.Collections.Generic {
             // NB Index is saved above indirectly
 
             ChaosMonkey.Exception(scenario: 24);
+            ChaosMonkey.Exception(scenario: 33);
             var prevousBucketIdx = buckets[targetBucket];
             // save buckets state
             bucketOrLastNextCopy = targetBucket;
             ChaosMonkey.Exception(scenario: 25);
+            ChaosMonkey.Exception(scenario: 34);
             indexCopy = prevousBucketIdx;
             ChaosMonkey.Exception(scenario: 26);
+            ChaosMonkey.Exception(scenario: 35);
             recoveryFlags |= 1 << 4;
-            ChaosMonkey.Exception(scenario: 4);
+            ChaosMonkey.Exception(scenario: 41);
             // if we fail after that, we have enough info to undo everything and cleanup entries[index] during recovery
 
             var entry1 = new Entry(); // entries[index];
@@ -546,10 +524,15 @@ namespace Spreads.Experimental.Collections.Generic {
             entry1.key = key;
             entry1.value = value;
             entries[index] = entry1;
+            ChaosMonkey.Exception(scenario: 42);
             buckets[targetBucket] = index;
+            ChaosMonkey.Exception(scenario: 43);
             //version++;
 
             recoveryFlags = 0;
+
+            // special case, only lock should be stolen without recovery
+            ChaosMonkey.Exception(scenario: 44);
         }
 
         private void Resize() {

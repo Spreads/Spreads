@@ -151,5 +151,51 @@ namespace Spreads.Core.Tests {
 
             
         }
+
+
+        [Test]
+        public unsafe void CouldRecoverFromFailuresScenario3() {
+            if (!ChaosMonkey.Enabled) Assert.Inconclusive("Chaos monkey must be enabled for recovery tests.");
+
+            var dm = new DirectMap<long, long>("../CouldRecoverFromFailuresScenario3");
+            dm.Clear();
+            dm[dm.Count + 1] = dm.Count + 1;
+            // scenario 3: fail during adding new key when free list = 0
+
+            for (int scenario = 31; scenario <= 35; scenario++) {
+                Console.WriteLine($"Scenario {scenario}");
+                Assert.IsTrue(dm.freeCount == 0);
+                ChaosMonkey.Force = true;
+                ChaosMonkey.Scenario = scenario;
+
+                var initCount = dm.count;
+
+                Assert.Throws<ChaosMonkeyException>(() => {
+                    dm[initCount + 1] = initCount + 1;
+                });
+
+                // Now we must have recoverFlags set to (1 << 3)
+                Assert.AreEqual(1 << 3, dm.recoveryFlags);
+
+                Assert.AreEqual(initCount, dm.countCopy);
+
+                Assert.AreEqual(Process.GetCurrentProcess().Id, *(int*)dm.buckets.Slot0, "Lock must be held by current process");
+
+                long thisWasNotStored = 0;
+                Assert.Throws<KeyNotFoundException>(() => {
+                    // Item.Get should recover and undo set
+                    thisWasNotStored = dm[initCount + 1];
+                });
+
+                Assert.AreEqual(initCount, dm.Count);
+                Assert.AreEqual(0, thisWasNotStored);
+                Assert.AreEqual(0, dm.recoveryFlags, "Must recover from all scenarios");
+                Assert.AreEqual(0, *(int*)dm.buckets.Slot0, "Lock must be released");
+            }
+
+
+        }
+
+
     }
 }

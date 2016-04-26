@@ -54,14 +54,6 @@ namespace Spreads {
             if (_rng.NextDouble() > probability) return;
             Force = false;
             throw new OutOfMemoryException();
-            //var list = new List<List<long>>();
-            //try {
-            //    while (true) {
-            //        list.Add(new List<long>(int.MaxValue));
-            //    }
-            //} catch (OutOfMemoryException ooex) {
-            //    throw;
-            //}
         }
 
         [Conditional("CHAOS_MONKEY")]
@@ -73,6 +65,7 @@ namespace Spreads {
             Force = false;
             throw new StackOverflowException();
         }
+
 
         [Conditional("CHAOS_MONKEY")]
         public static void Exception(double probability = 0.0, int scenario = 0) {
