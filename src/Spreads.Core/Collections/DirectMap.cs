@@ -1428,9 +1428,9 @@ namespace Spreads.Experimental.Collections.Generic {
             }
 #else
             } finally {
-                var pid = Interlocked.CompareExchange(ref *(int*)(locker), 0, _pid);
+                var pid = Interlocked.CompareExchange(ref *(int*)(locker), 0, Pid);
                 if (!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot1));
-                if (pid != _pid) {
+                if (pid != Pid) {
                     Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
                 }
             }
