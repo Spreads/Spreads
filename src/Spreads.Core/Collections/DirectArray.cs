@@ -95,6 +95,8 @@ namespace Spreads.Collections {
         public long LongCount => _capacity;
         public bool IsReadOnly => false;
 
+        internal DirectBuffer Buffer => _buffer;
+
         public T this[long index]
         {
             get

@@ -10,7 +10,6 @@ using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Spreads.Collections;
-using static Spreads.Collections.SyncUtils;
 
 namespace Spreads.Experimental.Collections.Generic {
 
@@ -29,15 +28,15 @@ namespace Spreads.Experimental.Collections.Generic {
     [DebuggerDisplay("Count = {Count}")]
     [System.Runtime.InteropServices.ComVisible(false)]
     public class DirectMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> {
-        private struct Entry {
+        internal struct Entry {
             public int hashCode;    // Lower 31 bits of hash code, -1 if unused
             public int next;        // Index of next entry, -1 if last
             public TKey key;           // Key of entry
             public TValue value;         // Value of entry
         }
 
-        private DirectArray<int> buckets;
-        private DirectArray<Entry> entries;
+        internal DirectArray<int> buckets;
+        internal DirectArray<Entry> entries;
 
         // buckets header has
         // Slot0 - locker
@@ -47,59 +46,61 @@ namespace Spreads.Experimental.Collections.Generic {
         // Slot4 - freeList
         // Slot5 - freeCount
 
-        private unsafe int count
+        internal unsafe int count
         {
             get { return *(int*)(buckets.Slot3); }
-            set { *(int*)(buckets.Slot3) = value; }
+            private set { *(int*)(buckets.Slot3) = value; }
         }
 
-        private unsafe int countCopy
+        internal unsafe int countCopy
         {
             get { return *(int*)(entries.Slot3); }
-            set { *(int*)(entries.Slot3) = value; }
+            private set { *(int*)(entries.Slot3) = value; }
         }
 
-        private unsafe long version => Volatile.Read(ref *(long*)(buckets.Slot1));
+        internal unsafe long version => Volatile.Read(ref *(long*)(buckets.Slot1));
 
-        private unsafe int freeList
+        internal unsafe int freeList
         {
             get { return *(int*)(buckets.Slot4); }
-            set { *(int*)(buckets.Slot4) = value; }
-        }
-        private unsafe long freeListCountCopy
-        {
-            get { return *(long*)(entries.Slot4); }
-            set { *(long*)(entries.Slot4) = value; }
+            private set { *(int*)(buckets.Slot4) = value; }
         }
 
-        private unsafe int freeCount
+        internal unsafe int freeCount
         {
             get { return *(int*)(buckets.Slot5); }
-            set { *(int*)(buckets.Slot5) = value; }
+            private set { *(int*)(buckets.Slot5) = value; }
         }
 
-        private unsafe int freeCountCopy
+        internal unsafe int freeListCopy
+        {
+            get { return *(int*)(entries.Slot4); }
+            private set { *(int*)(entries.Slot4) = value; }
+        }
+
+        internal unsafe int freeCountCopy
         {
             get { return *(int*)(entries.Slot5); }
-            set { *(int*)(entries.Slot5) = value; }
+            private set { *(int*)(entries.Slot5) = value; }
         }
 
-        private unsafe int indexCopy
+        internal unsafe int indexCopy
         {
             get { return *(int*)(entries.Slot6); }
-            set { *(int*)(entries.Slot6) = value; }
+            private set { *(int*)(entries.Slot6) = value; }
         }
 
-        private unsafe int bucketCopy
+        internal unsafe int bucketOrLastNextCopy
         {
             get { return *(int*)(entries.Slot7); }
-            set { *(int*)(entries.Slot7) = value; }
+            private set { *(int*)(entries.Slot7) = value; }
         }
 
-        private unsafe int recoveryStep
+        internal unsafe int recoveryFlags
         {
             get { return *(int*)(entries.Slot0); }
-            set { *(int*)(entries.Slot0) = value; }
+            // NB Volatile.Write is crucial to correctly save all copies before setting recoveryStep value
+            private set { Volatile.Write(ref *(int*)(entries.Slot0), value); }
         }
 
         private IEqualityComparer<TKey> comparer;
@@ -108,11 +109,6 @@ namespace Spreads.Experimental.Collections.Generic {
         private Object _syncRoot;
         private string _fileName;
 
-        // constants for serialization
-        private const String VersionName = "Version";
-        private const String HashSizeName = "HashSize";  // Must save buckets.Length
-        private const String KeyValuePairsName = "KeyValuePairs";
-        private const String ComparerName = "Comparer";
 
         public DirectMap(string fileName) : this(fileName, 0, null) { }
 
@@ -165,7 +161,7 @@ namespace Spreads.Experimental.Collections.Generic {
             }
         }
 
-        public int Count => SyncUtils.ReadLockIf(buckets.Slot2, buckets.Slot1, true, () => count - freeCount);
+        public int Count => ReadLockIf(buckets.Slot2, buckets.Slot1, () => count - freeCount);
 
         public KeyCollection Keys
         {
@@ -227,7 +223,7 @@ namespace Spreads.Experimental.Collections.Generic {
         {
             get
             {
-                return ReadLockIf(buckets.Slot2, buckets.Slot1, true, () => {
+                return ReadLockIf(buckets.Slot2, buckets.Slot1, () => {
                     int i = FindEntry(key);
                     if (i >= 0) return entries[i].value;
                     throw new KeyNotFoundException();
@@ -242,7 +238,10 @@ namespace Spreads.Experimental.Collections.Generic {
                 //    ExitWriteLock(buckets.Slot0);
                 //}
                 // TODO manually inline locking, it gives c.25 ns
-                WriteLock(buckets.Slot0, (cleanup) => Insert(key, value, false));
+                WriteLock(buckets.Slot0, (recover) => {
+                    if (recover) { Recover(); }
+                    Insert(key, value, false);
+                });
             }
         }
 
@@ -253,7 +252,10 @@ namespace Spreads.Experimental.Collections.Generic {
             //} finally {
             //    ExitWriteLock(buckets.Slot0);
             //}
-            WriteLock(buckets.Slot0, (cleanup) => Insert(key, value, true));
+            WriteLock(buckets.Slot0, (recover) => {
+                if (recover) { Recover(); }
+                Insert(key, value, true);
+            });
         }
 
         void ICollection<KeyValuePair<TKey, TValue>>.Add(KeyValuePair<TKey, TValue> keyValuePair) {
@@ -269,24 +271,22 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair) {
-            try {
-                EnterWriteLock(buckets.Slot0);
+            bool ret = false;
+            WriteLock(buckets.Slot0, (recover) => {
                 int i = FindEntry(keyValuePair.Key);
                 if (i >= 0 && EqualityComparer<TValue>.Default.Equals(entries[i].value, keyValuePair.Value)) {
                     DoRemove(keyValuePair.Key);
-                    return true;
+                    ret = true;
                 }
-                return false;
-            } finally {
-                ExitWriteLock(buckets.Slot0);
-            }
-
+                ret = false;
+            });
+            return ret;
         }
 
         public void Clear() {
             WriteLock(buckets.Slot0, (recovery) => {
                 if (recovery) {
-                    Console.WriteLine("TODO recovery");
+                    Recover();
                 }
                 if (count > 0) {
                     for (int i = 0; i < buckets.Count; i++) buckets[i] = -1;
@@ -331,8 +331,7 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
         private void CopyTo(KeyValuePair<TKey, TValue>[] array, int index) {
-            try {
-                EnterWriteLock(buckets.Slot0);
+            WriteLock(buckets.Slot0, (recover) => {
                 if (array == null) {
                     throw new ArgumentNullException(nameof(array));
                 }
@@ -352,10 +351,7 @@ namespace Spreads.Experimental.Collections.Generic {
                         array[index++] = new KeyValuePair<TKey, TValue>(entries[i].key, entries[i].value);
                     }
                 }
-            } finally {
-                ExitWriteLock(buckets.Slot0);
-            }
-
+            });
         }
 
         public Enumerator GetEnumerator() {
@@ -390,15 +386,62 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
 
-        private void Recover() {
-            var step = recoveryStep;
-            switch (step) {
-                case 1:
-                    break;
-                case 2:
-                    break;
-                case 3:
-                    break;
+        private void Recover(bool recursive = false) {
+            if (recoveryFlags == 0) {
+                if (!recursive) Debug.WriteLine("Nothing to recover from");
+                return;
+            }
+            if ((recoveryFlags & (1 << 7)) > 0) {
+                throw new NotImplementedException("TODO recovery from scenario 7");
+
+                ChaosMonkey.Exception(scenario: 117); // fail during recovery
+                recoveryFlags &= ~(1 << 7);
+                Recover(true);
+            }
+            if ((recoveryFlags & (1 << 6)) > 0) {
+                throw new NotImplementedException("TODO recovery from scenario 6");
+
+                ChaosMonkey.Exception(scenario: 116); // fail during recovery
+                recoveryFlags &= ~(1 << 6);
+                Recover(true);
+            }
+            if ((recoveryFlags & (1 << 5)) > 0) {
+                throw new NotImplementedException("TODO recovery from scenario 5");
+
+                ChaosMonkey.Exception(scenario: 115); // fail during recovery
+                recoveryFlags &= ~(1 << 5);
+                Recover(true);
+            }
+            if ((recoveryFlags & (1 << 4)) > 0) {
+                throw new NotImplementedException("TODO recovery from scenario 4");
+
+                ChaosMonkey.Exception(scenario: 114); // fail during recovery
+                recoveryFlags &= ~(1 << 4);
+                Recover(true);
+            }
+            if ((recoveryFlags & (1 << 3)) > 0) {
+                throw new NotImplementedException("TODO recovery from scenario 3");
+
+                ChaosMonkey.Exception(scenario: 113); // fail during recovery
+                recoveryFlags &= ~(1 << 3);
+                Recover(true);
+            }
+            if ((recoveryFlags & (1 << 2)) > 0) {
+                throw new NotImplementedException("TODO recovery from scenario 2");
+
+                ChaosMonkey.Exception(scenario: 112); // fail during recovery
+                recoveryFlags &= ~(1 << 2);
+                Recover(true);
+            }
+            if ((recoveryFlags & (1 << 1)) > 0) {
+                Debug.WriteLine("Recovering from flag 1");
+                // we have saved entry and index,
+                // we just set the saved entry snapshot back to its place
+                var snapShorEntry = entries[-1];
+                entries[indexCopy] = snapShorEntry;
+                ChaosMonkey.Exception(scenario: 111); // fail during recovery
+                recoveryFlags &= ~(1 << 1);
+                Recover(true);
             }
         }
 
@@ -420,18 +463,24 @@ namespace Spreads.Experimental.Collections.Generic {
                     }
 
                     var entry = entries[i];
-                    
+
                     // make a snapshot copy of the old value
                     entries[-1] = entry;
-                    recoveryStep = 1;
-                    Thread.MemoryBarrier();
-                    // by now, we have saved everything that is needed for repeating this step
+                    indexCopy = i;
+                    recoveryFlags |= 1 << 1;
+                    ChaosMonkey.Exception(scenario: 11);
+
+                    // by now, we have saved everything that is needed for undoing this step
                     // if we steal the lock and see recoveryStep = 1, then we failed
                     // either right here, during the next line, or during exiting lock
-                    // In any case, we just need to reapply the snapshot copy on recovery
+                    // In any case, we just need to reapply the snapshot copy on recovery to undo set operation
+
                     entry.value = value;
+                    ChaosMonkey.Exception(scenario: 12);
                     entries[i] = entry;
+                    ChaosMonkey.Exception(scenario: 13);
                     //version++;
+                    recoveryFlags = 0;
                     return;
                 }
             }
@@ -443,34 +492,48 @@ namespace Spreads.Experimental.Collections.Generic {
 
                 // Save freeList+Count value.
                 var previousFreeCount = freeCount;
-                freeListCountCopy = (freeList << 32) | previousFreeCount;
-                recoveryStep = 2;
-                Thread.MemoryBarrier();
+                freeListCopy = freeList;
+                freeCountCopy = previousFreeCount;
+                recoveryFlags |= 1 << 2;
+                ChaosMonkey.Exception(scenario: 21);
+                // NB each of the three writes are atomic 32 bit
+                // unless recoveryStep is set to 2 we will ignore them and the order
+                // of writes before the barrier doesn't matter
 
                 freeList = entries[index].next;
+                ChaosMonkey.Exception(scenario: 22);
                 freeCount = previousFreeCount - 1;
+                ChaosMonkey.Exception(scenario: 23);
             } else {
                 if (count == entries.Count) {
                     Resize();
                     targetBucket = hashCode % buckets.Count;
                 }
                 index = count;
+
+                // save count before inceremting it.
+                // if we fail after the barrier, we never know if count was already incremented or not
                 countCopy = index;
-                recoveryStep = 3;
-                Thread.MemoryBarrier();
+                recoveryFlags |= 1 << 3;
+                ChaosMonkey.Exception(scenario: 31);
                 count = index + 1;
+                ChaosMonkey.Exception(scenario: 32);
             }
             // NB Index is saved above indirectly
 
-           
+
             var prevousBucketIdx = buckets[targetBucket];
-
+            ChaosMonkey.Exception(scenario: 24);
+            ChaosMonkey.Exception(scenario: 33);
             // save buckets state
-            bucketCopy = targetBucket;
+            bucketOrLastNextCopy = targetBucket;
+            ChaosMonkey.Exception(scenario: 25);
+            ChaosMonkey.Exception(scenario: 34);
             indexCopy = prevousBucketIdx;
-            recoveryStep = 4;
-            Thread.MemoryBarrier();
-
+            ChaosMonkey.Exception(scenario: 26);
+            ChaosMonkey.Exception(scenario: 35);
+            recoveryFlags |= 1 << 4;
+            ChaosMonkey.Exception(scenario: 4);
             // if we fail after that, we have enough info to undo everything and cleanup entries[index] during recovery
 
             var entry1 = new Entry(); // entries[index];
@@ -482,6 +545,8 @@ namespace Spreads.Experimental.Collections.Generic {
             buckets[targetBucket] = index;
             //version++;
 
+            // TODO this could be done after lock exit without a barrier or omitter completely
+            recoveryFlags = 0;
         }
 
         private void Resize() {
@@ -529,42 +594,57 @@ namespace Spreads.Experimental.Collections.Generic {
                 int last = -1;
                 for (int i = buckets[bucket]; i >= 0; last = i, i = entries[i].next) {
                     if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
-                        // TODO set is reverse to remove.
-                        // On recover need to re-clean entries[freeList] and 
-                        // just add the defensive copy back
-                        // entries[freeList] remains free, must erase KV
-
-                        // make a defensive copy
-                        //entries.Copy(i, -1);
-                        //// TODO write automic flag so that we will know our copy is made
-                        //// without a flag, assume we haven't deleted anything
-                        //Thread.MemoryBarrier();
-
                         if (last < 0) {
-                            // TODO just write ints with correct offsets
-                            buckets[bucket] = entries[i].next;
+                            indexCopy = bucket;
+                            bucketOrLastNextCopy = buckets[bucket];
+                            recoveryFlags |= 1 << 5;
+                            ChaosMonkey.Exception(scenario: 5);
+                            //NB entries[i].next; 
+                            var ithNext = entries.Buffer.ReadInt32(DirectArray<Entry>.DataOffset + i * DirectArray<Entry>.ItemSize + 4);
+                            buckets[bucket] = ithNext;
+
                         } else {
-                            var lastEntry = entries[last];
-                            // TODO just write ints with correct offsets
-                            lastEntry.next = entries[i].next;
-                            entries[last] = lastEntry;
+                            var lastEntryOffset = DirectArray<Entry>.DataOffset + last * DirectArray<Entry>.ItemSize;
+                            indexCopy = last;
+                            // NB reuse bucketOrLastNextCopy slot to save next of the last value, instead of creating one more property
+                            bucketOrLastNextCopy = entries.Buffer.ReadInt32(lastEntryOffset + 4);
+                            recoveryFlags |= 1 << 6;
+                            ChaosMonkey.Exception(scenario: 6);
+                            //NB entries[i].next; 
+                            var ithNext = entries.Buffer.ReadInt32(DirectArray<Entry>.DataOffset + i * DirectArray<Entry>.ItemSize + 4);
+                            entries.Buffer.WriteInt32(lastEntryOffset + 4, ithNext);
+                            //var lastEntry = entries[last];
+                            //lastEntry.next = entries[i].next;
+                            //entries[last] = lastEntry;
                         }
-                        // by this line, we have removed an entry from a linked list
-                        // we must store a copy before this place and then
-                        // just add KV
 
-                        // if we failed before,
+                        var entryOffset = DirectArray<Entry>.DataOffset + i * DirectArray<Entry>.ItemSize;
+                        freeListCopy = freeList;
+                        freeCountCopy = freeCount;
+                        // Save Hash and Next fields of the entry in a special -1 position of entries
+                        entries.Buffer.WriteInt64(DirectArray<Entry>.DataOffset - 1 * DirectArray<Entry>.ItemSize,
+                            entries.Buffer.ReadInt64(entryOffset));
+                        recoveryFlags |= 1 << 7;
+                        ChaosMonkey.Exception(scenario: 7);
+                        // NB instead of these 4 lines, we write directly
+                        // // var entry //= entries[i]; //new Entry();
+                        // // entry.hashCode //= -1;
+                        // // entry.next //= freeList;
+                        // // entries[i] //= entry;
+                        // NB do not cleanup key and value, because on recovery we will reuse them and undo removal
+                        // // entry.key //= default(TKey);
+                        // // entry.value //= default(TValue);
 
-                        var entry1 = new Entry();
-                        entry1.hashCode = -1;
-                        // todo 
-                        entry1.next = freeList;
-                        entry1.key = default(TKey);
-                        entry1.value = default(TValue);
-                        entries[i] = entry1;
+                        entries.Buffer.WriteInt32(entryOffset, -1);
+                        entries.Buffer.WriteInt32(entryOffset + 4, freeList);
+
                         freeList = i;
                         freeCount++;
                         //version++;
+
+                        // if this write succeeds, we are done even if fail to release the lock
+                        recoveryFlags = 0;
+
                         return true;
                     }
                 }
@@ -1242,6 +1322,118 @@ namespace Spreads.Experimental.Collections.Generic {
                     currentValue = default(TValue);
                 }
             }
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private unsafe T ReadLockIf<T>(IntPtr nextVersion, IntPtr currentVersion, Func<T> f) {
+            T value;
+            var sw = new SpinWait();
+            while (true) {
+                var ver = Volatile.Read(ref *(long*)(currentVersion));
+                value = f.Invoke();
+                var nextVer = Volatile.Read(ref *(long*)nextVersion);
+                if (ver == nextVer) { break; }
+                if (sw.Count > 100 && recoveryFlags > 0) {
+                    // Take or steal write lock and recover
+                    // Currently versions could be different due to premature exit of some locker
+                    WriteLock(buckets.Slot0, (recover) => {
+                        if (recover) {
+                            Recover();
+                        } else {
+                            throw new ApplicationException("This should happen only when lock was not released");
+                        }
+                    }, true);
+
+                }
+                sw.SpinOnce();
+            }
+            return value;
+        }
+
+        private static int _pid = Process.GetCurrentProcess().Id;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private unsafe void WriteLock(IntPtr locker, Action<bool> action, bool fixVersions = false) {
+            try {
+                var sw = new SpinWait();
+                var cleanup = false;
+                try {
+                } finally {
+                    while (true) {
+                        var pid = Interlocked.CompareExchange(ref *(int*)(locker), _pid, 0);
+                        if (pid == 0) {
+                            if (!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot2));
+                            break;
+                        }
+                        if (sw.Count > 100) {
+                            if (pid == _pid && ChaosMonkey.Enabled) {
+                                // Current process is still alive and haven't released lock
+                                // We try to handle only situations when a process was killed
+                                // If a process is alive, it must release a lock very soon
+                                // Do nothing here, since (pid == _pid) case must be covered by 
+                                // Process.GetProcessById(pid) returning without exception.
+
+                                // steal lock of this process
+                                if (pid == Interlocked.CompareExchange(ref *(int*)(locker), _pid, pid)) {
+                                    cleanup = true;
+                                    if (fixVersions) {
+                                        Interlocked.Exchange(ref *(long*)(buckets.Slot2), *(long*)(buckets.Slot1));
+                                    } else {
+                                        Interlocked.Increment(ref *(long*)(buckets.Slot2));
+                                    }
+                                    break;
+                                }
+                            } else {
+                                try {
+                                    var p = Process.GetProcessById(pid);
+                                    throw new ApplicationException(
+                                        $"Cannot acquire lock, process {p.Id} has it for a long time");
+                                } catch (ArgumentException ex) {
+                                    // pid is not running anymore, try to take it
+                                    if (pid == Interlocked.CompareExchange(ref *(int*)(locker), _pid, pid)) {
+                                        cleanup = true;
+                                        if (fixVersions) {
+                                            Interlocked.Exchange(ref *(long*)(buckets.Slot2), *(long*)(buckets.Slot1));
+                                        } else {
+                                            Interlocked.Increment(ref *(long*)(buckets.Slot2));
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        sw.SpinOnce();
+                    }
+                }
+                action.Invoke(cleanup);
+#if CHAOS_MONKEY
+            } catch (ChaosMonkeyException ex) {
+                // Do nothing, do not release lock. We are testing different failures now.
+                throw;
+            } catch { // same as finally below
+                var pid = Interlocked.CompareExchange(ref *(int*)(locker), 0, _pid);
+                if (!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot1));
+                if (pid != _pid) {
+                    Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
+                }
+                throw;
+            }
+            // normal case without exceptions
+            var pid2 = Interlocked.CompareExchange(ref *(int*)(locker), 0, _pid);
+            if (!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot1));
+            if (pid2 != _pid) {
+                Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
+            }
+#else
+            } finally {
+                var pid = Interlocked.CompareExchange(ref *(int*)(locker), 0, _pid);
+                if(!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot1));
+                if (pid != _pid) {
+                    Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
+                }
+            }
+#endif
         }
     }
 

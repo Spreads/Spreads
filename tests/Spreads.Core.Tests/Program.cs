@@ -4,7 +4,7 @@ namespace Spreads.Core.Tests {
     class Program {
         static void Main(string[] args)
         {
-            new DirectArrayTests().CouldCRUDDirectDict();
+            new DirectMapTests().CouldCRUDDirectDict();
             Console.ReadLine();
         }
     }

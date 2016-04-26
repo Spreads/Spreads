@@ -18,7 +18,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>..\..\bin\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;TYPED_REF</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;TYPED_REF;CHAOS_MONKEY</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -34,13 +34,20 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Prerelease|AnyCPU'">
     <OutputPath>bin\Prerelease\</OutputPath>
-    <DefineConstants>TRACE;TYPED_REF</DefineConstants>
+    <DefineConstants>TRACE;TYPED_REF;CHAOS_MONKEY</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Optimize>true</Optimize>
     <DebugType>pdbonly</DebugType>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>
+    </AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -54,11 +61,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ChaosMonkey.cs" />
     <Compile Include="Collections\DictionaryHelpers.cs" />
     <Compile Include="Collections\DirectMap.cs" />
     <Compile Include="Collections\DirectArray.cs" />
     <Compile Include="Collections\IDictionaryDebugView.cs" />
-    <Compile Include="Collections\SyncUtils.cs" />
     <Compile Include="Exceptions.cs" />
     <Compile Include="MemoryCache.cs" />
     <Compile Include="Properties\Attributes.cs" />
