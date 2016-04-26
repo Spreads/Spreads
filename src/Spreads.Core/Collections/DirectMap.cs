@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using Spreads.Collections;
 
+// ReSharper disable once CheckNamespace
 namespace Spreads.Experimental.Collections.Generic {
 
 
@@ -138,11 +139,11 @@ namespace Spreads.Experimental.Collections.Generic {
             // back-compat with subclasses that may have overridden the enumerator behavior.
             if (dictionary.GetType() == typeof(DirectMap<TKey, TValue>)) {
                 DirectMap<TKey, TValue> d = (DirectMap<TKey, TValue>)dictionary;
-                int count = d.count;
-                DirectArray<Entry> entries = d.entries;
-                for (int i = 0; i < count; i++) {
-                    if (entries[i].hashCode >= 0) {
-                        Add(entries[i].key, entries[i].value);
+                int count1 = d.count;
+                DirectArray<Entry> entries1 = d.entries;
+                for (int i = 0; i < count1; i++) {
+                    if (entries1[i].hashCode >= 0) {
+                        Add(entries1[i].key, entries1[i].value);
                     }
                 }
                 return;
@@ -239,7 +240,7 @@ namespace Spreads.Experimental.Collections.Generic {
             }
             set
             {
-                WriteLock(buckets.Slot0, (recover) => {
+                WriteLock(buckets.Slot0, recover => {
                     if (recover) { Recover(); }
                     Insert(key, value, false);
                 });
@@ -247,7 +248,7 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
         public void Add(TKey key, TValue value) {
-            WriteLock(buckets.Slot0, (recover) => {
+            WriteLock(buckets.Slot0, recover => {
                 if (recover) { Recover(); }
                 Insert(key, value, true);
             });
@@ -267,7 +268,7 @@ namespace Spreads.Experimental.Collections.Generic {
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair) {
             bool ret = false;
-            WriteLock(buckets.Slot0, (recover) => {
+            WriteLock(buckets.Slot0, recover => {
                 int i = FindEntry(keyValuePair.Key);
                 if (i >= 0 && EqualityComparer<TValue>.Default.Equals(entries[i].value, keyValuePair.Value)) {
                     DoRemove(keyValuePair.Key);
@@ -279,7 +280,7 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
         public void Clear() {
-            WriteLock(buckets.Slot0, (recovery) => {
+            WriteLock(buckets.Slot0, recovery => {
                 if (recovery) {
                     Recover();
                 }
@@ -312,7 +313,7 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
         private void CopyTo(KeyValuePair<TKey, TValue>[] array, int index) {
-            WriteLock(buckets.Slot0, (recover) => {
+            WriteLock(buckets.Slot0, recover => {
                 if (array == null) {
                     throw new ArgumentNullException(nameof(array));
                 }
@@ -325,11 +326,11 @@ namespace Spreads.Experimental.Collections.Generic {
                     throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
                 }
 
-                int count = this.count;
-                DirectArray<Entry> entries = this.entries;
-                for (int i = 0; i < count; i++) {
-                    if (entries[i].hashCode >= 0) {
-                        array[index++] = new KeyValuePair<TKey, TValue>(entries[i].key, entries[i].value);
+                int count1 = this.count;
+                DirectArray<Entry> entries1 = this.entries;
+                for (int i = 0; i < count1; i++) {
+                    if (entries1[i].hashCode >= 0) {
+                        array[index++] = new KeyValuePair<TKey, TValue>(entries1[i].key, entries1[i].value);
                     }
                 }
             });
@@ -385,7 +386,6 @@ namespace Spreads.Experimental.Collections.Generic {
             if ((recoveryFlags & (1 << 6)) > 0) {
                 throw new NotImplementedException("TODO recovery from scenario 6");
 
-                ChaosMonkey.Exception(scenario: 116); // fail during recovery
                 recoveryFlags &= ~(1 << 6);
                 Recover(true);
             }
@@ -437,6 +437,7 @@ namespace Spreads.Experimental.Collections.Generic {
             }
 
             if (buckets == null) Initialize(0);
+            Contract.Assert(buckets != null);
             int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
             int targetBucket = hashCode % buckets.Count;
 
@@ -558,14 +559,8 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
         public bool Remove(TKey key) {
-            //try {
-            //    EnterWriteLock(buckets.Slot0);
-            //    return DoRemove(key);
-            //} finally {
-            //    ExitWriteLock(buckets.Slot0);
-            //}
             bool ret = false;
-            WriteLock(buckets.Slot0, (recovery) => ret = DoRemove(key));
+            WriteLock(buckets.Slot0, recovery => ret = DoRemove(key));
             return ret;
         }
 
@@ -703,11 +698,11 @@ namespace Spreads.Experimental.Collections.Generic {
                 CopyTo(pairs, index);
             } else if (array is DictionaryEntry[]) {
                 DictionaryEntry[] dictEntryArray = array as DictionaryEntry[];
-                var entries = this.entries;
+                var entries1 = this.entries;
 
                 for (int i = 0; i < count; i++) {
-                    if (entries[i].hashCode >= 0) {
-                        dictEntryArray[index++] = new DictionaryEntry(entries[i].key, entries[i].value);
+                    if (entries1[i].hashCode >= 0) {
+                        dictEntryArray[index++] = new DictionaryEntry(entries1[i].key, entries1[i].value);
                     }
                 }
             } else {
@@ -717,11 +712,11 @@ namespace Spreads.Experimental.Collections.Generic {
                 }
 
                 try {
-                    int count = this.count;
-                    var entries = this.entries;
-                    for (int i = 0; i < count; i++) {
-                        if (entries[i].hashCode >= 0) {
-                            objects[index++] = new KeyValuePair<TKey, TValue>(entries[i].key, entries[i].value);
+                    int count1 = this.count;
+                    var entries1 = this.entries;
+                    for (int i = 0; i < count1; i++) {
+                        if (entries1[i].hashCode >= 0) {
+                            objects[index++] = new KeyValuePair<TKey, TValue>(entries1[i].key, entries1[i].value);
                         }
                     }
                 } catch (ArrayTypeMismatchException) {
@@ -741,7 +736,7 @@ namespace Spreads.Experimental.Collections.Generic {
             get
             {
                 if (_syncRoot == null) {
-                    System.Threading.Interlocked.CompareExchange<Object>(ref _syncRoot, new Object(), null);
+                    Interlocked.CompareExchange<Object>(ref _syncRoot, new Object(), null);
                 }
                 return _syncRoot;
             }
@@ -891,7 +886,7 @@ namespace Spreads.Experimental.Collections.Generic {
                     }
 
                     if (getEnumeratorRetType == DictEntry) {
-                        return new System.Collections.DictionaryEntry(current.Key, current.Value);
+                        return new DictionaryEntry(current.Key, current.Value);
                     } else {
                         return new KeyValuePair<TKey, TValue>(current.Key, current.Value);
                     }
@@ -1068,7 +1063,8 @@ namespace Spreads.Experimental.Collections.Generic {
                 get { return ((ICollection)_directMap).SyncRoot; }
             }
 
-            public struct Enumerator : IEnumerator<TKey>, System.Collections.IEnumerator {
+            // ReSharper disable once MemberHidesStaticFromOuterClass
+            public struct Enumerator : IEnumerator<TKey> {
                 private DirectMap<TKey, TValue> _directMap;
                 private int index;
                 private long version;
@@ -1111,7 +1107,7 @@ namespace Spreads.Experimental.Collections.Generic {
                     }
                 }
 
-                Object System.Collections.IEnumerator.Current
+                Object IEnumerator.Current
                 {
                     get
                     {
@@ -1123,7 +1119,7 @@ namespace Spreads.Experimental.Collections.Generic {
                     }
                 }
 
-                void System.Collections.IEnumerator.Reset() {
+                void IEnumerator.Reset() {
                     if (version != _directMap.version) {
                         throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
                     }
@@ -1257,7 +1253,8 @@ namespace Spreads.Experimental.Collections.Generic {
                 get { return ((ICollection)_directMap).SyncRoot; }
             }
 
-            public struct Enumerator : IEnumerator<TValue>, System.Collections.IEnumerator {
+            // ReSharper disable once MemberHidesStaticFromOuterClass
+            public struct Enumerator : IEnumerator<TValue> {
                 private DirectMap<TKey, TValue> _directMap;
                 private int index;
                 private long version;
@@ -1299,7 +1296,7 @@ namespace Spreads.Experimental.Collections.Generic {
                     }
                 }
 
-                Object System.Collections.IEnumerator.Current
+                Object IEnumerator.Current
                 {
                     get
                     {
@@ -1311,7 +1308,7 @@ namespace Spreads.Experimental.Collections.Generic {
                     }
                 }
 
-                void System.Collections.IEnumerator.Reset() {
+                void IEnumerator.Reset() {
                     if (version != _directMap.version) {
                         throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
                     }
@@ -1334,7 +1331,7 @@ namespace Spreads.Experimental.Collections.Generic {
                 if (sw.Count > 100) { // TODO play with this number
                     // Take or steal write lock and recover
                     // Currently versions could be different due to premature exit of some locker
-                    WriteLock(buckets.Slot0, (recover) => {
+                    WriteLock(buckets.Slot0, recover => {
                         if (recover) {
                             Recover();
                         } else {
@@ -1348,7 +1345,8 @@ namespace Spreads.Experimental.Collections.Generic {
             return value;
         }
 
-        private static int _pid = Process.GetCurrentProcess().Id;
+        // ReSharper disable once StaticMemberInGenericType
+        private static readonly int Pid = Process.GetCurrentProcess().Id;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private unsafe void WriteLock(IntPtr locker, Action<bool> action, bool fixVersions = false) {
@@ -1358,21 +1356,22 @@ namespace Spreads.Experimental.Collections.Generic {
                 try {
                 } finally {
                     while (true) {
-                        var pid = Interlocked.CompareExchange(ref *(int*)(locker), _pid, 0);
+                        var pid = Interlocked.CompareExchange(ref *(int*)(locker), Pid, 0);
                         if (pid == 0) {
                             if (!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot2));
                             break;
                         }
                         if (sw.Count > 100) {
-                            if (pid == _pid && ChaosMonkey.Enabled) {
+                            // ReSharper disable once RedundantLogicalConditionalExpressionOperand
+                            if (pid == Pid && ChaosMonkey.Enabled) {
                                 // Current process is still alive and haven't released lock
                                 // We try to handle only situations when a process was killed
                                 // If a process is alive, it must release a lock very soon
-                                // Do nothing here, since (pid == _pid) case must be covered by 
+                                // Do nothing here unless ChaosMonkey.Enabled, since (pid == _pid) case must be covered by 
                                 // Process.GetProcessById(pid) returning without exception.
 
-                                // steal lock of this process
-                                if (pid == Interlocked.CompareExchange(ref *(int*)(locker), _pid, pid)) {
+                                // steal lock of this process when ChaosMonkey.Enabled
+                                if (pid == Interlocked.CompareExchange(ref *(int*)(locker), Pid, pid)) {
                                     cleanup = true;
                                     if (fixVersions) {
                                         Interlocked.Exchange(ref *(long*)(buckets.Slot2), *(long*)(buckets.Slot1));
@@ -1386,9 +1385,9 @@ namespace Spreads.Experimental.Collections.Generic {
                                     var p = Process.GetProcessById(pid);
                                     throw new ApplicationException(
                                         $"Cannot acquire lock, process {p.Id} has it for a long time");
-                                } catch (ArgumentException ex) {
+                                } catch (ArgumentException) {
                                     // pid is not running anymore, try to take it
-                                    if (pid == Interlocked.CompareExchange(ref *(int*)(locker), _pid, pid)) {
+                                    if (pid == Interlocked.CompareExchange(ref *(int*)(locker), Pid, pid)) {
                                         cleanup = true;
                                         if (fixVersions) {
                                             Interlocked.Exchange(ref *(long*)(buckets.Slot2), *(long*)(buckets.Slot1));
@@ -1405,21 +1404,21 @@ namespace Spreads.Experimental.Collections.Generic {
                 }
                 action.Invoke(cleanup);
 #if CHAOS_MONKEY
-            } catch (ChaosMonkeyException ex) {
+            } catch (ChaosMonkeyException) {
                 // Do nothing, do not release lock. We are testing different failures now.
                 throw;
             } catch { // same as finally below
-                var pid = Interlocked.CompareExchange(ref *(int*)(locker), 0, _pid);
+                var pid = Interlocked.CompareExchange(ref *(int*)(locker), 0, Pid);
                 if (!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot1));
-                if (pid != _pid) {
+                if (pid != Pid) {
                     Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
                 }
                 throw;
             }
             // normal case without exceptions
-            var pid2 = Interlocked.CompareExchange(ref *(int*)(locker), 0, _pid);
+            var pid2 = Interlocked.CompareExchange(ref *(int*)(locker), 0, Pid);
             if (!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot1));
-            if (pid2 != _pid) {
+            if (pid2 != Pid) {
                 Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
             }
 #else
