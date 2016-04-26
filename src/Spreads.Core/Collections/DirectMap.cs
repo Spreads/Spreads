@@ -384,7 +384,8 @@ namespace Spreads.Experimental.Collections.Generic {
                 Recover(true);
             }
             if ((recoveryFlags & (1 << 6)) > 0) {
-                throw new NotImplementedException("TODO recovery from scenario 6");
+                Debug.WriteLine("Recovering from flag 6");
+                entries.Buffer.WriteInt32(DirectArray<Entry>.DataOffset + indexCopy * DirectArray<Entry>.ItemSize + 4, bucketOrLastNextCopy);
 
                 recoveryFlags &= ~(1 << 6);
                 Recover(true);
@@ -594,6 +595,10 @@ namespace Spreads.Experimental.Collections.Generic {
                             //NB entries[i].next; 
                             var ithNext = entries.Buffer.ReadInt32(DirectArray<Entry>.DataOffset + i * DirectArray<Entry>.ItemSize + 4);
                             entries.Buffer.WriteInt32(lastEntryOffset + 4, ithNext);
+
+                            // To recover
+                            //entries.Buffer.WriteInt32(DirectArray<Entry>.DataOffset + indexCopy * DirectArray<Entry>.ItemSize + 4, bucketOrLastNextCopy);
+
                             //var lastEntry = entries[last];
                             //lastEntry.next = entries[i].next;
                             //entries[last] = lastEntry;
