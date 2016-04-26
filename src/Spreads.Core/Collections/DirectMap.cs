@@ -373,9 +373,12 @@ namespace Spreads.Experimental.Collections.Generic {
                 return;
             }
             if ((recoveryFlags & (1 << 7)) > 0) {
-                throw new NotImplementedException("TODO recovery from scenario 7");
+                Debug.WriteLine("Recovering from flag 7");
+                freeList = freeListCopy;
+                freeCount = freeCountCopy;
+                entries.Buffer.WriteInt64(DirectArray<Entry>.DataOffset + countCopy * DirectArray<Entry>.ItemSize,
+                    entries.Buffer.ReadInt64(DirectArray<Entry>.DataOffset - 1 * DirectArray<Entry>.ItemSize));
 
-                ChaosMonkey.Exception(scenario: 117); // fail during recovery
                 recoveryFlags &= ~(1 << 7);
                 Recover(true);
             }
@@ -387,9 +390,9 @@ namespace Spreads.Experimental.Collections.Generic {
                 Recover(true);
             }
             if ((recoveryFlags & (1 << 5)) > 0) {
-                throw new NotImplementedException("TODO recovery from scenario 5");
+                Debug.WriteLine("Recovering from flag 5");
+                buckets[bucketOrLastNextCopy] = indexCopy;
 
-                ChaosMonkey.Exception(scenario: 115); // fail during recovery
                 recoveryFlags &= ~(1 << 5);
                 Recover(true);
             }
@@ -578,14 +581,14 @@ namespace Spreads.Experimental.Collections.Generic {
                 for (int i = buckets[bucket]; i >= 0; last = i, i = entries[i].next) {
                     if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
                         if (last < 0) {
-                            indexCopy = bucket;
-                            bucketOrLastNextCopy = buckets[bucket];
+                            bucketOrLastNextCopy = bucket;
+                            indexCopy = buckets[bucket];
                             recoveryFlags |= 1 << 5;
-                            ChaosMonkey.Exception(scenario: 5);
+                            ChaosMonkey.Exception(scenario: 51);
                             //NB entries[i].next; 
                             var ithNext = entries.Buffer.ReadInt32(DirectArray<Entry>.DataOffset + i * DirectArray<Entry>.ItemSize + 4);
                             buckets[bucket] = ithNext;
-
+                            ChaosMonkey.Exception(scenario: 52);
                         } else {
                             var lastEntryOffset = DirectArray<Entry>.DataOffset + last * DirectArray<Entry>.ItemSize;
                             indexCopy = last;
@@ -602,13 +605,22 @@ namespace Spreads.Experimental.Collections.Generic {
                         }
 
                         var entryOffset = DirectArray<Entry>.DataOffset + i * DirectArray<Entry>.ItemSize;
+                        // TODO rename, this is not a count but the only unused copy slot
+                        countCopy = i;
                         freeListCopy = freeList;
                         freeCountCopy = freeCount;
                         // Save Hash and Next fields of the entry in a special -1 position of entries
                         entries.Buffer.WriteInt64(DirectArray<Entry>.DataOffset - 1 * DirectArray<Entry>.ItemSize,
                             entries.Buffer.ReadInt64(entryOffset));
+
+                        // To recover:
+                        //freeList = freeListCopy;
+                        //freeCount = freeCountCopy;
+                        //entries.Buffer.WriteInt64(DirectArray<Entry>.DataOffset + countCopy * DirectArray<Entry>.ItemSize,
+                        //    entries.Buffer.ReadInt64(DirectArray<Entry>.DataOffset - 1 * DirectArray<Entry>.ItemSize));
+
                         recoveryFlags |= 1 << 7;
-                        ChaosMonkey.Exception(scenario: 7);
+                        ChaosMonkey.Exception(scenario: 71);
                         // NB instead of these 4 lines, we write directly
                         // // var entry //= entries[i]; //new Entry();
                         // // entry.hashCode //= -1;
@@ -619,10 +631,13 @@ namespace Spreads.Experimental.Collections.Generic {
                         // // entry.value //= default(TValue);
 
                         entries.Buffer.WriteInt32(entryOffset, -1);
+                        ChaosMonkey.Exception(scenario: 72);
                         entries.Buffer.WriteInt32(entryOffset + 4, freeList);
-
+                        ChaosMonkey.Exception(scenario: 73);
                         freeList = i;
+                        ChaosMonkey.Exception(scenario: 74);
                         freeCount++;
+                        ChaosMonkey.Exception(scenario: 75);
 
                         // if this write succeeds, we are done even if fail to release the lock
                         recoveryFlags = 0;
@@ -1316,7 +1331,7 @@ namespace Spreads.Experimental.Collections.Generic {
                 value = f.Invoke();
                 var nextVer = Volatile.Read(ref *(long*)nextVersion);
                 if (ver == nextVer) { break; }
-                if (sw.Count > 100 && recoveryFlags > 0) {
+                if (sw.Count > 100) { // TODO play with this number
                     // Take or steal write lock and recover
                     // Currently versions could be different due to premature exit of some locker
                     WriteLock(buckets.Slot0, (recover) => {
