@@ -289,7 +289,6 @@ namespace Spreads.Experimental.Collections.Generic {
                     freeList = -1;
                     count = 0;
                     freeCount = 0;
-                    //version++;
                 }
             });
         }
@@ -395,9 +394,9 @@ namespace Spreads.Experimental.Collections.Generic {
                 Recover(true);
             }
             if ((recoveryFlags & (1 << 4)) > 0) {
-                throw new NotImplementedException("TODO recovery from scenario 4");
+                Debug.WriteLine("Recovering from flag 4");
+                buckets[bucketOrLastNextCopy] = indexCopy;
 
-                ChaosMonkey.Exception(scenario: 114); // fail during recovery
                 recoveryFlags &= ~(1 << 4);
                 Recover(true);
             }
@@ -462,7 +461,6 @@ namespace Spreads.Experimental.Collections.Generic {
                     ChaosMonkey.Exception(scenario: 12);
                     entries[i] = entry;
                     ChaosMonkey.Exception(scenario: 13);
-                    //version++;
                     recoveryFlags = 0;
                     return;
                 }
@@ -527,7 +525,6 @@ namespace Spreads.Experimental.Collections.Generic {
             ChaosMonkey.Exception(scenario: 42);
             buckets[targetBucket] = index;
             ChaosMonkey.Exception(scenario: 43);
-            //version++;
 
             recoveryFlags = 0;
 
@@ -626,7 +623,6 @@ namespace Spreads.Experimental.Collections.Generic {
 
                         freeList = i;
                         freeCount++;
-                        //version++;
 
                         // if this write succeeds, we are done even if fail to release the lock
                         recoveryFlags = 0;
