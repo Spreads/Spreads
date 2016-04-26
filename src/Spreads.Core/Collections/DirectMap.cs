@@ -223,11 +223,19 @@ namespace Spreads.Experimental.Collections.Generic {
         {
             get
             {
-                return ReadLockIf(buckets.Slot2, buckets.Slot1, () => {
-                    int i = FindEntry(key);
-                    if (i >= 0) return entries[i].value;
-                    throw new KeyNotFoundException();
-                });
+                var kvp =
+                 ReadLockIf(buckets.Slot2, buckets.Slot1, () => {
+                     try {
+                         int i = FindEntry(key);
+                         if (i >= 0) return new KeyValuePair<TValue, Exception>(entries[i].value, null);
+                         throw new KeyNotFoundException();
+                     } catch (Exception e)
+                     {
+                        return new KeyValuePair<TValue, Exception>(default(TValue), e);
+                     }
+                 });
+                if (kvp.Value == null) return kvp.Key;
+                throw kvp.Value;
             }
             set
             {
@@ -427,9 +435,10 @@ namespace Spreads.Experimental.Collections.Generic {
                 Recover(true);
             }
             if ((recoveryFlags & (1 << 2)) > 0) {
-                throw new NotImplementedException("TODO recovery from scenario 2");
+                Debug.WriteLine("Recovering from flag 2");
+                freeList = freeListCopy;
+                freeCount = freeCountCopy;
 
-                ChaosMonkey.Exception(scenario: 112); // fail during recovery
                 recoveryFlags &= ~(1 << 2);
                 Recover(true);
             }
@@ -439,7 +448,6 @@ namespace Spreads.Experimental.Collections.Generic {
                 // we just set the saved entry snapshot back to its place
                 var snapShorEntry = entries[-1];
                 entries[indexCopy] = snapShorEntry;
-                ChaosMonkey.Exception(scenario: 111); // fail during recovery
                 recoveryFlags &= ~(1 << 1);
                 Recover(true);
             }
@@ -521,17 +529,13 @@ namespace Spreads.Experimental.Collections.Generic {
             }
             // NB Index is saved above indirectly
 
-
-            var prevousBucketIdx = buckets[targetBucket];
             ChaosMonkey.Exception(scenario: 24);
-            ChaosMonkey.Exception(scenario: 33);
+            var prevousBucketIdx = buckets[targetBucket];
             // save buckets state
             bucketOrLastNextCopy = targetBucket;
             ChaosMonkey.Exception(scenario: 25);
-            ChaosMonkey.Exception(scenario: 34);
             indexCopy = prevousBucketIdx;
             ChaosMonkey.Exception(scenario: 26);
-            ChaosMonkey.Exception(scenario: 35);
             recoveryFlags |= 1 << 4;
             ChaosMonkey.Exception(scenario: 4);
             // if we fail after that, we have enough info to undo everything and cleanup entries[index] during recovery
@@ -545,7 +549,6 @@ namespace Spreads.Experimental.Collections.Generic {
             buckets[targetBucket] = index;
             //version++;
 
-            // TODO this could be done after lock exit without a barrier or omitter completely
             recoveryFlags = 0;
         }
 
@@ -1428,7 +1431,7 @@ namespace Spreads.Experimental.Collections.Generic {
 #else
             } finally {
                 var pid = Interlocked.CompareExchange(ref *(int*)(locker), 0, _pid);
-                if(!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot1));
+                if (!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot1));
                 if (pid != _pid) {
                     Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
                 }
