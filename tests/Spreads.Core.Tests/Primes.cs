@@ -20,16 +20,26 @@ namespace Spreads.Core.Tests {
             return true;
         }
         [Test]
-        public void ClosestPrimesToPosersOfTwo()
+        public void ClosestPrimesToPowersOfTwo()
         {
-            for (int i = 0; i <= 33; i++)
+            var list = new List<long>();
+            long previous = long.MaxValue;
+            for (int i = 33; i >= 3; i--)
             {
                 var powerOfTwo = 1L << i - 1;
-                while (!isPrime(powerOfTwo))
+                while (!(isPrime(powerOfTwo) && previous / powerOfTwo >= 2))
                 {
                     powerOfTwo = powerOfTwo - 1L;
                 }
+                previous = powerOfTwo;
+                list.Add(powerOfTwo);
+                //Console.WriteLine($"{powerOfTwo},");
                 //Console.WriteLine($"primes[{i}] = {powerOfTwo}");
+                int x = 2147483629;
+            }
+            list.Sort();
+            foreach (var powerOfTwo in list)
+            {
                 Console.WriteLine($"{powerOfTwo},");
             }
         }

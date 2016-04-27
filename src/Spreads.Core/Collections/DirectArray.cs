@@ -8,11 +8,11 @@ using Spreads.Serialization;
 
 namespace Spreads.Collections {
 
-    public class DirectArray<T> : IEnumerable<T>, IDisposable where T : struct {
+    internal class DirectArray<T> : IEnumerable<T>, IDisposable where T : struct {
         internal const int HeaderLength = 256;
         internal static int DataOffset = HeaderLength + TypeHelper<T>.Size;
         private readonly string _filename;
-        private long _capacity;
+        internal long _capacity;
         public static readonly int ItemSize;
         private MemoryMappedFile _mmf;
         private readonly FileStream _fileStream;
@@ -33,21 +33,28 @@ namespace Spreads.Collections {
             ItemSize = TypeHelper<T>.Size; // Marshal.SizeOf(typeof(T));
         }
 
-        public DirectArray(string filename, long capacity = 4L) {
+        private DirectArray(string filename, long minCapacity, T fill)
+        {
             _filename = filename;
             _fileStream = new FileStream(_filename, FileMode.OpenOrCreate,
                             FileAccess.ReadWrite, FileShare.ReadWrite, 4096,
                             //FileOptions.Asynchronous | FileOptions.RandomAccess);
                             FileOptions.None);
-            Grow(capacity);
+            Grow(minCapacity);
         }
 
-        public void Grow(long newCapacity) {
-            if (newCapacity <= _capacity) return;
-            _capacity = newCapacity;
-            var mmfs = new MemoryMappedFileSecurity();
+        public DirectArray(string filename, long minCapacity = 5L) : this(filename, minCapacity, default(T)) {
+            
+        }
 
-            var bytesCapacity = Math.Max(_fileStream.Length, DataOffset + newCapacity * ItemSize);
+        internal void Grow(long minCapacity) {
+            var mmfs = new MemoryMappedFileSecurity();
+            _capacity = (_fileStream.Length - DataOffset) / ItemSize;
+            var newCapacity = Math.Max(_capacity, minCapacity);
+
+            long bytesCapacity = DataOffset + newCapacity * ItemSize;
+            _capacity = newCapacity;
+
             _mmf?.Dispose();
             var mmf = MemoryMappedFile.CreateFromFile(_fileStream,
                 Path.GetFileName(_filename), bytesCapacity,

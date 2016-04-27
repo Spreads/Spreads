@@ -16,22 +16,17 @@ namespace Spreads.Core.Tests {
 
         [Test]
         public void CouldCRUDDirectDict() {
-            //use the second Core/Processor for the test
-            //Process.GetCurrentProcess().ProcessorAffinity = new IntPtr(2);
-            //prevent "Normal" Processes from interrupting Threads
-            //Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
-            //prevent "Normal" Threads from interrupting this thread
-            //Thread.CurrentThread.Priority = ThreadPriority.Highest;
 
             var dd = new DirectMap<long, long>("../CouldCRUDDirectDict");
             //var dd = new Dictionary<long, long>();
             
             var count = 1000000;
             var sw = new Stopwatch();
+            dd.Clear();
 
-            var histogram = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
-            for (int rounds = 0; rounds < 10; rounds++) {
-                dd.Clear();
+            var histogram = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 10000, 3);
+            for (int rounds = 0; rounds < 15; rounds++) {
+                //dd.Clear();
                 sw.Restart();
                 
                 for (int i = 0; i < count; i++) {
@@ -39,7 +34,7 @@ namespace Spreads.Core.Tests {
                     dd[i] = i;
                     var ticks = sw.ElapsedTicks - startTick;
                     var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
-                    if (rounds > 3) histogram.RecordValue(nanos);
+                    if (rounds >= 5) histogram.RecordValue(nanos);
                 }
                 Assert.AreEqual(count, dd.Count);
                 sw.Stop();

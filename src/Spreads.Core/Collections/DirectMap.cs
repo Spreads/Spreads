@@ -36,7 +36,7 @@ namespace Spreads.Experimental.Collections.Generic {
             public TValue value;         // Value of entry
         }
 
-        internal DirectArray<int> buckets;
+        internal DirectArray<uint> buckets;
         internal DirectArray<Entry> entries;
 
         // buckets header has
@@ -46,6 +46,7 @@ namespace Spreads.Experimental.Collections.Generic {
         // Slot3 - count
         // Slot4 - freeList
         // Slot5 - freeCount
+        // Slot6 - generation
 
         internal unsafe int count
         {
@@ -61,16 +62,24 @@ namespace Spreads.Experimental.Collections.Generic {
 
         internal unsafe long version => Volatile.Read(ref *(long*)(buckets.Slot1));
 
+        // do not set it in Initialize(), it is 0 on disk when the bucket file 
+        // is new, and previous values when the file is reopened
         internal unsafe int freeList
         {
-            get { return *(int*)(buckets.Slot4); }
-            private set { *(int*)(buckets.Slot4) = value; }
+            get { return (int)(*(uint*)(buckets.Slot4) - 1u); }
+            private set { *(uint*)(buckets.Slot4) = (uint)(value + 1); }
         }
 
         internal unsafe int freeCount
         {
             get { return *(int*)(buckets.Slot5); }
             private set { *(int*)(buckets.Slot5) = value; }
+        }
+
+        internal unsafe int generation
+        {
+            get { return Volatile.Read(ref *(int*)(buckets.Slot6)); }
+            private set { Volatile.Write(ref *(int*)(buckets.Slot6), value); }
         }
 
         internal unsafe int freeListCopy
@@ -100,7 +109,8 @@ namespace Spreads.Experimental.Collections.Generic {
         internal unsafe int recoveryFlags
         {
             get { return *(int*)(entries.Slot0); }
-            // NB Volatile.Write is crucial to correctly save all copies before setting recoveryStep value
+            // NB Volatile.Write is crucial to correctly save all copies 
+            // before setting recoveryStep value because it generates a fence
             private set { Volatile.Write(ref *(int*)(entries.Slot0), value); }
         }
 
@@ -111,24 +121,24 @@ namespace Spreads.Experimental.Collections.Generic {
         private string _fileName;
 
 
-        public DirectMap(string fileName) : this(fileName, 0, null) { }
+        public DirectMap(string fileName) : this(fileName, 5, null) { }
 
         public DirectMap(string fileName, int capacity) : this(fileName, capacity, null) { }
 
-        public DirectMap(string fileName, IEqualityComparer<TKey> comparer) : this(fileName, 0, comparer) { }
+        public DirectMap(string fileName, IEqualityComparer<TKey> comparer) : this(fileName, 5, comparer) { }
 
         public DirectMap(string fileName, int capacity, IEqualityComparer<TKey> comparer) {
             if (fileName == null) throw new ArgumentNullException(nameof(fileName));
             _fileName = fileName;
             if (capacity < 0) throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "ArgumentOutOfRange_NeedNonNegNum");
-            if (capacity >= 0) Initialize(capacity);
+            if (capacity >= 0) Initialize(capacity < 5 ? 5 : capacity);
             this.comparer = comparer ?? EqualityComparer<TKey>.Default;
         }
 
         public DirectMap(string fileName, IDictionary<TKey, TValue> dictionary) : this(fileName, dictionary, null) { }
 
         public DirectMap(string fileName, IDictionary<TKey, TValue> dictionary, IEqualityComparer<TKey> comparer) :
-            this(fileName, dictionary != null ? dictionary.Count : 0, comparer) {
+            this(fileName, dictionary != null ? dictionary.Count : 5, comparer) {
             if (dictionary == null) {
                 throw new ArgumentNullException(nameof(dictionary));
             }
@@ -230,9 +240,8 @@ namespace Spreads.Experimental.Collections.Generic {
                          int i = FindEntry(key);
                          if (i >= 0) return new KeyValuePair<TValue, Exception>(entries[i].value, null);
                          throw new KeyNotFoundException();
-                     } catch (Exception e)
-                     {
-                        return new KeyValuePair<TValue, Exception>(default(TValue), e);
+                     } catch (Exception e) {
+                         return new KeyValuePair<TValue, Exception>(default(TValue), e);
                      }
                  });
                 if (kvp.Value == null) return kvp.Key;
@@ -284,13 +293,15 @@ namespace Spreads.Experimental.Collections.Generic {
                 if (recovery) {
                     Recover();
                 }
+                recoveryFlags |= 1 << 8;
                 if (count > 0) {
-                    for (int i = 0; i < buckets.Count; i++) buckets[i] = -1;
+                    buckets.Clear();
                     entries.Clear();
                     freeList = -1;
                     count = 0;
                     freeCount = 0;
                 }
+                recoveryFlags = 0;
             });
         }
 
@@ -352,19 +363,27 @@ namespace Spreads.Experimental.Collections.Generic {
 
             if (buckets != null) {
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-                for (int i = buckets[hashCode % buckets.Count]; i >= 0; i = entries[i].next) {
-                    if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) return i;
+                // try search all previous generations
+                for (int gen = generation; gen >= 0; gen--) {
+                    for (int i = -1 + (int)buckets[hashCode % HashHelpers.primes[gen]]; i >= 0; i = entries[i].next) {
+                        if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) return i;
+                    }
                 }
             }
             return -1;
         }
 
         private void Initialize(int capacity) {
-            int size = HashHelpers.GetPrime(capacity);
-            buckets = new DirectArray<int>(_fileName + "-buckets", size);
-            for (int i = 0; i < buckets.Count; i++) buckets[i] = -1;
-            entries = new DirectArray<Entry>(_fileName + "-entries", size);
-            freeList = -1;
+            var gen = HashHelpers.GetGeneratoin(capacity);
+
+            buckets = new DirectArray<uint>(_fileName + "-buckets");
+            entries = new DirectArray<Entry>(_fileName + "-entries");
+            if (generation < gen) {
+                generation = gen;
+                int newSize = HashHelpers.primes[gen];
+                buckets.Grow(newSize);
+                entries.Grow(newSize);
+            }
         }
 
 
@@ -372,6 +391,10 @@ namespace Spreads.Experimental.Collections.Generic {
             if (recoveryFlags == 0) {
                 if (!recursive) Debug.WriteLine("Nothing to recover from");
                 return;
+            }
+            if ((recoveryFlags & (1 << 8)) > 0) {
+                Debug.WriteLine("Recovering from flag 8");
+                this.Clear();
             }
             if ((recoveryFlags & (1 << 7)) > 0) {
                 Debug.WriteLine("Recovering from flag 7");
@@ -392,20 +415,19 @@ namespace Spreads.Experimental.Collections.Generic {
             }
             if ((recoveryFlags & (1 << 5)) > 0) {
                 Debug.WriteLine("Recovering from flag 5");
-                buckets[bucketOrLastNextCopy] = indexCopy;
+                buckets[bucketOrLastNextCopy] = (uint)indexCopy + 1;
 
                 recoveryFlags &= ~(1 << 5);
                 Recover(true);
             }
             if ((recoveryFlags & (1 << 4)) > 0) {
                 Debug.WriteLine("Recovering from flag 4");
-                buckets[bucketOrLastNextCopy] = indexCopy;
+                buckets[bucketOrLastNextCopy] = (uint)indexCopy + 1;
 
                 recoveryFlags &= ~(1 << 4);
                 Recover(true);
             }
-            if ((recoveryFlags & (1 << 3)) > 0)
-            {
+            if ((recoveryFlags & (1 << 3)) > 0) {
                 Debug.WriteLine("Recovering from flag 3");
                 count = countCopy;
 
@@ -440,37 +462,43 @@ namespace Spreads.Experimental.Collections.Generic {
             if (buckets == null) Initialize(0);
             Contract.Assert(buckets != null);
             int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-            int targetBucket = hashCode % buckets.Count;
 
 
-            for (int i = buckets[targetBucket]; i >= 0; i = entries[i].next) {
-                if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
-                    if (add) {
-                        throw new ArgumentException("Format(Argument_AddingDuplicate, key)");
+            // try search all previous generations
+            for (int gen = generation; gen >= 0; gen--) {
+                int searchBucket = hashCode % HashHelpers.primes[gen];
+                for (int i = -1 + (int)buckets[searchBucket]; i >= 0; i = entries[i].next) {
+                    if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
+                        if (add) {
+                            throw new ArgumentException("Format(Argument_AddingDuplicate, key)");
+                        }
+
+                        var entry = entries[i];
+
+                        // make a snapshot copy of the old value
+                        entries[-1] = entry;
+                        indexCopy = i;
+                        recoveryFlags |= 1 << 1;
+                        ChaosMonkey.Exception(scenario: 11);
+
+                        // by now, we have saved everything that is needed for undoing this step
+                        // if we steal the lock and see recoveryStep = 1, then we failed
+                        // either right here, during the next line, or during exiting lock
+                        // In any case, we just need to reapply the snapshot copy on recovery to undo set operation
+
+                        entry.value = value;
+                        ChaosMonkey.Exception(scenario: 12);
+                        entries[i] = entry;
+                        ChaosMonkey.Exception(scenario: 13);
+                        recoveryFlags = 0;
+                        return;
                     }
-
-                    var entry = entries[i];
-
-                    // make a snapshot copy of the old value
-                    entries[-1] = entry;
-                    indexCopy = i;
-                    recoveryFlags |= 1 << 1;
-                    ChaosMonkey.Exception(scenario: 11);
-
-                    // by now, we have saved everything that is needed for undoing this step
-                    // if we steal the lock and see recoveryStep = 1, then we failed
-                    // either right here, during the next line, or during exiting lock
-                    // In any case, we just need to reapply the snapshot copy on recovery to undo set operation
-
-                    entry.value = value;
-                    ChaosMonkey.Exception(scenario: 12);
-                    entries[i] = entry;
-                    ChaosMonkey.Exception(scenario: 13);
-                    recoveryFlags = 0;
-                    return;
                 }
             }
 
+
+
+            int targetBucket = hashCode % HashHelpers.primes[generation];
             int index;
 
             if (freeCount > 0) {
@@ -493,7 +521,8 @@ namespace Spreads.Experimental.Collections.Generic {
             } else {
                 if (count == entries.Count) {
                     Resize();
-                    targetBucket = hashCode % buckets.Count;
+                    //targetBucket = hashCode % buckets.Count;
+                    targetBucket = hashCode % HashHelpers.primes[generation];
                 }
                 index = count;
 
@@ -509,7 +538,7 @@ namespace Spreads.Experimental.Collections.Generic {
 
             ChaosMonkey.Exception(scenario: 24);
             ChaosMonkey.Exception(scenario: 33);
-            var prevousBucketIdx = buckets[targetBucket];
+            var prevousBucketIdx = -1 + (int)buckets[targetBucket];
             // save buckets state
             bucketOrLastNextCopy = targetBucket;
             ChaosMonkey.Exception(scenario: 25);
@@ -528,7 +557,7 @@ namespace Spreads.Experimental.Collections.Generic {
             entry1.value = value;
             entries[index] = entry1;
             ChaosMonkey.Exception(scenario: 42);
-            buckets[targetBucket] = index;
+            buckets[targetBucket] = (uint)index + 1;
             ChaosMonkey.Exception(scenario: 43);
 
             recoveryFlags = 0;
@@ -537,26 +566,24 @@ namespace Spreads.Experimental.Collections.Generic {
             ChaosMonkey.Exception(scenario: 44);
         }
 
-        private void Resize() {
-            Resize(HashHelpers.ExpandPrime(count));
-        }
 
-        private void Resize(int newSize) {
+        private void Resize() {
+            var newSize = HashHelpers.primes[generation + 1];
             Contract.Assert(newSize >= entries.Count);
             buckets.Grow(newSize);
             entries.Grow(newSize);
-
-            // Todo either incremental rehashing (Redis), or generational hashing
-            for (int i = 0; i < buckets.Count; i++) buckets[i] = -1;
-            for (int i = 0; i < count; i++) {
-                if (entries[i].hashCode >= 0) {
-                    int bucket = entries[i].hashCode % newSize;
-                    var entry = entries[i];
-                    entry.next = buckets[bucket];
-                    entries[i] = entry;
-                    buckets[bucket] = i;
-                }
-            }
+            //// Todo either incremental rehashing (Redis), or generational hashing
+            //for (int i = 0; i < buckets.Count; i++) buckets[i] = -1;
+            //for (int i = 0; i < count; i++) {
+            //    if (entries[i].hashCode >= 0) {
+            //        int bucket = entries[i].hashCode % newSize;
+            //        var entry = entries[i];
+            //        entry.next = buckets[bucket];
+            //        entries[i] = entry;
+            //        buckets[bucket] = i;
+            //    }
+            //}
+            generation++;
         }
 
         public bool Remove(TKey key) {
@@ -572,77 +599,84 @@ namespace Spreads.Experimental.Collections.Generic {
 
             if (buckets != null) {
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-                int bucket = hashCode % buckets.Count;
-                int last = -1;
-                for (int i = buckets[bucket]; i >= 0; last = i, i = entries[i].next) {
-                    if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
-                        if (last < 0) {
-                            bucketOrLastNextCopy = bucket;
-                            indexCopy = buckets[bucket];
-                            recoveryFlags |= 1 << 5;
-                            ChaosMonkey.Exception(scenario: 51);
-                            //NB entries[i].next; 
-                            var ithNext = entries.Buffer.ReadInt32(DirectArray<Entry>.DataOffset + i * DirectArray<Entry>.ItemSize + 4);
-                            buckets[bucket] = ithNext;
-                            ChaosMonkey.Exception(scenario: 52);
-                        } else {
-                            var lastEntryOffset = DirectArray<Entry>.DataOffset + last * DirectArray<Entry>.ItemSize;
-                            indexCopy = last;
-                            // NB reuse bucketOrLastNextCopy slot to save next of the last value, instead of creating one more property
-                            bucketOrLastNextCopy = entries.Buffer.ReadInt32(lastEntryOffset + 4);
-                            recoveryFlags |= 1 << 6;
-                            ChaosMonkey.Exception(scenario: 6);
-                            //NB entries[i].next; 
-                            var ithNext = entries.Buffer.ReadInt32(DirectArray<Entry>.DataOffset + i * DirectArray<Entry>.ItemSize + 4);
-                            entries.Buffer.WriteInt32(lastEntryOffset + 4, ithNext);
+                // try search all previous generations
+                for (int gen = generation; gen >= 0; gen--) {
+                    int bucket = hashCode % HashHelpers.primes[gen];
+                    int last = -1;
+                    for (int i = -1 + (int)buckets[bucket]; i >= 0; last = i, i = entries[i].next) {
+                        if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
+                            if (last < 0) {
+                                bucketOrLastNextCopy = bucket;
+                                indexCopy = -1 + (int)buckets[bucket];
+                                recoveryFlags |= 1 << 5;
+                                ChaosMonkey.Exception(scenario: 51);
+                                //NB entries[i].next; 
+                                var ithNext =
+                                    entries.Buffer.ReadInt32(DirectArray<Entry>.DataOffset +
+                                                             i * DirectArray<Entry>.ItemSize + 4);
+                                buckets[bucket] = (uint)ithNext + 1;
+                                ChaosMonkey.Exception(scenario: 52);
+                            } else {
+                                var lastEntryOffset = DirectArray<Entry>.DataOffset + last * DirectArray<Entry>.ItemSize;
+                                indexCopy = last;
+                                // NB reuse bucketOrLastNextCopy slot to save next of the last value, instead of creating one more property
+                                bucketOrLastNextCopy = entries.Buffer.ReadInt32(lastEntryOffset + 4);
+                                recoveryFlags |= 1 << 6;
+                                ChaosMonkey.Exception(scenario: 6);
+                                //NB entries[i].next; 
+                                var ithNext =
+                                    entries.Buffer.ReadInt32(DirectArray<Entry>.DataOffset +
+                                                             i * DirectArray<Entry>.ItemSize + 4);
+                                entries.Buffer.WriteInt32(lastEntryOffset + 4, ithNext);
 
-                            // To recover
-                            //entries.Buffer.WriteInt32(DirectArray<Entry>.DataOffset + indexCopy * DirectArray<Entry>.ItemSize + 4, bucketOrLastNextCopy);
+                                // To recover
+                                //entries.Buffer.WriteInt32(DirectArray<Entry>.DataOffset + indexCopy * DirectArray<Entry>.ItemSize + 4, bucketOrLastNextCopy);
 
-                            //var lastEntry = entries[last];
-                            //lastEntry.next = entries[i].next;
-                            //entries[last] = lastEntry;
+                                //var lastEntry = entries[last];
+                                //lastEntry.next = entries[i].next;
+                                //entries[last] = lastEntry;
+                            }
+
+                            var entryOffset = DirectArray<Entry>.DataOffset + i * DirectArray<Entry>.ItemSize;
+                            // TODO rename, this is not a count but the only unused copy slot
+                            countCopy = i;
+                            freeListCopy = freeList;
+                            freeCountCopy = freeCount;
+                            // Save Hash and Next fields of the entry in a special -1 position of entries
+                            entries.Buffer.WriteInt64(DirectArray<Entry>.DataOffset - 1 * DirectArray<Entry>.ItemSize,
+                                entries.Buffer.ReadInt64(entryOffset));
+
+                            // To recover:
+                            //freeList = freeListCopy;
+                            //freeCount = freeCountCopy;
+                            //entries.Buffer.WriteInt64(DirectArray<Entry>.DataOffset + countCopy * DirectArray<Entry>.ItemSize,
+                            //    entries.Buffer.ReadInt64(DirectArray<Entry>.DataOffset - 1 * DirectArray<Entry>.ItemSize));
+
+                            recoveryFlags |= 1 << 7;
+                            ChaosMonkey.Exception(scenario: 71);
+                            // NB instead of these 4 lines, we write directly
+                            // // var entry //= entries[i]; //new Entry();
+                            // // entry.hashCode //= -1;
+                            // // entry.next //= freeList;
+                            // // entries[i] //= entry;
+                            // NB do not cleanup key and value, because on recovery we will reuse them and undo removal
+                            // // entry.key //= default(TKey);
+                            // // entry.value //= default(TValue);
+
+                            entries.Buffer.WriteInt32(entryOffset, -1);
+                            ChaosMonkey.Exception(scenario: 72);
+                            entries.Buffer.WriteInt32(entryOffset + 4, freeList);
+                            ChaosMonkey.Exception(scenario: 73);
+                            freeList = i;
+                            ChaosMonkey.Exception(scenario: 74);
+                            freeCount++;
+                            ChaosMonkey.Exception(scenario: 75);
+
+                            // if this write succeeds, we are done even if fail to release the lock
+                            recoveryFlags = 0;
+
+                            return true;
                         }
-
-                        var entryOffset = DirectArray<Entry>.DataOffset + i * DirectArray<Entry>.ItemSize;
-                        // TODO rename, this is not a count but the only unused copy slot
-                        countCopy = i;
-                        freeListCopy = freeList;
-                        freeCountCopy = freeCount;
-                        // Save Hash and Next fields of the entry in a special -1 position of entries
-                        entries.Buffer.WriteInt64(DirectArray<Entry>.DataOffset - 1 * DirectArray<Entry>.ItemSize,
-                            entries.Buffer.ReadInt64(entryOffset));
-
-                        // To recover:
-                        //freeList = freeListCopy;
-                        //freeCount = freeCountCopy;
-                        //entries.Buffer.WriteInt64(DirectArray<Entry>.DataOffset + countCopy * DirectArray<Entry>.ItemSize,
-                        //    entries.Buffer.ReadInt64(DirectArray<Entry>.DataOffset - 1 * DirectArray<Entry>.ItemSize));
-
-                        recoveryFlags |= 1 << 7;
-                        ChaosMonkey.Exception(scenario: 71);
-                        // NB instead of these 4 lines, we write directly
-                        // // var entry //= entries[i]; //new Entry();
-                        // // entry.hashCode //= -1;
-                        // // entry.next //= freeList;
-                        // // entries[i] //= entry;
-                        // NB do not cleanup key and value, because on recovery we will reuse them and undo removal
-                        // // entry.key //= default(TKey);
-                        // // entry.value //= default(TValue);
-
-                        entries.Buffer.WriteInt32(entryOffset, -1);
-                        ChaosMonkey.Exception(scenario: 72);
-                        entries.Buffer.WriteInt32(entryOffset + 4, freeList);
-                        ChaosMonkey.Exception(scenario: 73);
-                        freeList = i;
-                        ChaosMonkey.Exception(scenario: 74);
-                        freeCount++;
-                        ChaosMonkey.Exception(scenario: 75);
-
-                        // if this write succeeds, we are done even if fail to release the lock
-                        recoveryFlags = 0;
-
-                        return true;
                     }
                 }
             }
@@ -1337,11 +1371,12 @@ namespace Spreads.Experimental.Collections.Generic {
                     // Take or steal write lock and recover
                     // Currently versions could be different due to premature exit of some locker
                     WriteLock(buckets.Slot0, recover => {
-                        if (recover) {
-                            Recover();
-                        } else {
-                            throw new ApplicationException("This should happen only when lock was not released");
-                        }
+                        Recover();
+                        //if (recover) {
+                        //    Recover();
+                        //} else {
+                        //    throw new ApplicationException("This should happen only when lock was not released");
+                        //}
                     }, true);
 
                 }
@@ -1363,6 +1398,8 @@ namespace Spreads.Experimental.Collections.Generic {
                     while (true) {
                         var pid = Interlocked.CompareExchange(ref *(int*)(locker), Pid, 0);
                         if (pid == 0) {
+                            var l1 = *(int*)(locker);
+                            Debug.Assert(l1 == Pid);
                             if (!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot2));
                             break;
                         }
@@ -1378,11 +1415,7 @@ namespace Spreads.Experimental.Collections.Generic {
                                 // steal lock of this process when ChaosMonkey.Enabled
                                 if (pid == Interlocked.CompareExchange(ref *(int*)(locker), Pid, pid)) {
                                     cleanup = true;
-                                    if (fixVersions) {
-                                        Interlocked.Exchange(ref *(long*)(buckets.Slot2), *(long*)(buckets.Slot1));
-                                    } else {
-                                        Interlocked.Increment(ref *(long*)(buckets.Slot2));
-                                    }
+                                    if (!fixVersions) { Interlocked.Increment(ref *(long*)(buckets.Slot2)); }
                                     break;
                                 }
                             } else {
@@ -1394,11 +1427,7 @@ namespace Spreads.Experimental.Collections.Generic {
                                     // pid is not running anymore, try to take it
                                     if (pid == Interlocked.CompareExchange(ref *(int*)(locker), Pid, pid)) {
                                         cleanup = true;
-                                        if (fixVersions) {
-                                            Interlocked.Exchange(ref *(long*)(buckets.Slot2), *(long*)(buckets.Slot1));
-                                        } else {
-                                            Interlocked.Increment(ref *(long*)(buckets.Slot2));
-                                        }
+                                        if (!fixVersions) { Interlocked.Increment(ref *(long*)(buckets.Slot2)); }
                                         break;
                                     }
                                 }
@@ -1414,23 +1443,40 @@ namespace Spreads.Experimental.Collections.Generic {
                 throw;
             } catch { // same as finally below
                 var pid = Interlocked.CompareExchange(ref *(int*)(locker), 0, Pid);
-                if (!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot1));
+                if (fixVersions) {
+                    Interlocked.Exchange(ref *(long*)(buckets.Slot2), *(long*)(buckets.Slot1));
+                } else {
+                    Interlocked.Increment(ref *(long*)(buckets.Slot1));
+                }
                 if (pid != Pid) {
-                    Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
+                    Trace.TraceWarning("Cannot release lock, it was stolen while this process is still alive");
+                    //Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
                 }
                 throw;
             }
             // normal case without exceptions
+            var l = *(int*) (locker);
+            Debug.Assert(l == Pid);
             var pid2 = Interlocked.CompareExchange(ref *(int*)(locker), 0, Pid);
-            if (!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot1));
+            if (fixVersions) {
+                Interlocked.Exchange(ref *(long*)(buckets.Slot2), *(long*)(buckets.Slot1));
+            } else {
+                Interlocked.Increment(ref *(long*)(buckets.Slot1));
+            }
             if (pid2 != Pid) {
-                Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
+                Trace.TraceWarning("Cannot release lock, it was stolen while this process is still alive");
+                //Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
             }
 #else
             } finally {
                 var pid = Interlocked.CompareExchange(ref *(int*)(locker), 0, Pid);
-                if (!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot1));
+                if (fixVersions) {
+                    Interlocked.Exchange(ref *(long*)(buckets.Slot2), *(long*)(buckets.Slot1));
+                } else {
+                    Interlocked.Increment(ref *(long*)(buckets.Slot1));
+                }
                 if (pid != Pid) {
+
                     Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
                 }
             }
@@ -1451,28 +1497,106 @@ namespace Spreads.Experimental.Collections.Generic {
         // hashtable operations such as add.  Having a prime guarantees that double 
         // hashing does not lead to infinite loops.  IE, your hash function will be 
         // h1(key) + i*h2(key), 0 <= i < size.  h2 and the size must be relatively prime.
-        public static readonly int[] primes = {
-            3, 7, 11, 17, 23, 29, 37, 47, 59, 71, 89, 107, 131, 163, 197, 239, 293, 353, 431, 521, 631, 761, 919,
-            1103, 1327, 1597, 1931, 2333, 2801, 3371, 4049, 4861, 5839, 7013, 8419, 10103, 12143, 14591,
-            17519, 21023, 25229, 30293, 36353, 43627, 52361, 62851, 75431, 90523, 108631, 130363, 156437,
-            187751, 225307, 270371, 324449, 389357, 467237, 560689, 672827, 807403, 968897, 1162687, 1395263,
-            1674319, 2009191, 2411033, 2893249, 3471899, 4166287, 4999559, 5999471, 7199369, 8639249, 10367101,
-            12440537, 14928671, 17914409, 21497293, 25796759, 30956117, 37147349, 44576837, 53492207, 64190669,
-            77028803, 92434613, 110921543, 133105859, 159727031, 191672443, 230006941, 276008387, 331210079,
-            397452101, 476942527, 572331049, 686797261, 824156741, 988988137, 1186785773, 1424142949, 1708971541,
-            2050765853, MaxPrimeArrayLength };
+        //public static readonly int[] primes = {
+        //    3, 7, 11, 17, 23, 29, 37, 47, 59, 71, 89, 107, 131, 163, 197, 239, 293, 353, 431, 521, 631, 761, 919,
+        //    1103, 1327, 1597, 1931, 2333, 2801, 3371, 4049, 4861, 5839, 7013, 8419, 10103, 12143, 14591,
+        //    17519, 21023, 25229, 30293, 36353, 43627, 52361, 62851, 75431, 90523, 108631, 130363, 156437,
+        //    187751, 225307, 270371, 324449, 389357, 467237, 560689, 672827, 807403, 968897, 1162687, 1395263,
+        //    1674319, 2009191, 2411033, 2893249, 3471899, 4166287, 4999559, 5999471, 7199369, 8639249, 10367101,
+        //    12440537, 14928671, 17914409, 21497293, 25796759, 30956117, 37147349, 44576837, 53492207, 64190669,
+        //    77028803, 92434613, 110921543, 133105859, 159727031, 191672443, 230006941, 276008387, 331210079,
+        //    397452101, 476942527, 572331049, 686797261, 824156741, 988988137, 1186785773, 1424142949, 1708971541,
+        //    2050765853, MaxPrimeArrayLength };
 
-        public static int GetPrime(int min) {
+        //internal static readonly int[] primes = new int[] {
+        //            3,
+        //            7,
+        //            13,
+        //            31,
+        //            61,
+        //            127,
+        //            251,
+        //            509,
+        //            1021,
+        //            2039,
+        //            4093,
+        //            8191,
+        //            16381,
+        //            32749,
+        //            65521,
+        //            131071,
+        //            262139,
+        //            524287,
+        //            1048573,
+        //            2097143,
+        //            4194301,
+        //            8388593,
+        //            16777213,
+        //            33554393,
+        //            67108859,
+        //            134217689,
+        //            268435399,
+        //            536870909,
+        //            1073741789,
+        //            MaxPrimeArrayLength // 2147483647,
+        //        };
+
+        // every next is 2+ times larger than previous
+        internal static readonly int[] primes = new int[] {
+                    5,
+                    11,
+                    23,
+                    53,
+                    113,
+                    251,
+                    509,
+                    1019,
+                    2039,
+                    4079,
+                    8179,
+                    16369,
+                    32749,
+                    65521,
+                    131063,
+                    262133,
+                    524269,
+                    1048571,
+                    2097143,
+                    4194287,
+                    8388587,
+                    16777183,
+                    33554393,
+                    67108837,
+                    134217689,
+                    268435399,
+                    536870879,
+                    1073741789,
+                    MaxPrimeArrayLength
+                };
+
+        //public static int GetPrime(int min) {
+        //    if (min < 0)
+        //        throw new ArgumentException("Arg_HTCapacityOverflow");
+        //    Contract.EndContractBlock();
+
+        //    for (int i = 0; i < primes.Length; i++) {
+        //        int prime = primes[i];
+        //        if (prime >= min) return prime;
+        //    }
+
+        //    return min;
+        //}
+
+        public static int GetGeneratoin(int min) {
             if (min < 0)
                 throw new ArgumentException("Arg_HTCapacityOverflow");
             Contract.EndContractBlock();
 
             for (int i = 0; i < primes.Length; i++) {
                 int prime = primes[i];
-                if (prime >= min) return prime;
+                if (prime >= min) return i;
             }
-
-            return min;
+            return -1;
         }
 
         public static int GetMinPrime() {
@@ -1480,21 +1604,22 @@ namespace Spreads.Experimental.Collections.Generic {
         }
 
         // Returns size of hashtable to grow to.
-        public static int ExpandPrime(int oldSize) {
-            int newSize = 2 * oldSize;
+        //public static int ExpandPrime(int oldSize) {
+        //    int newSize = 2 * oldSize;
 
-            // Allow the hashtables to grow to maximum possible size (~2G elements) before encoutering capacity overflow.
-            // Note that this check works even when _items.Length overflowed thanks to the (uint) cast
-            if ((uint)newSize > MaxPrimeArrayLength && MaxPrimeArrayLength > oldSize) {
-                Debug.Assert(MaxPrimeArrayLength == GetPrime(MaxPrimeArrayLength), "Invalid MaxPrimeArrayLength");
-                return MaxPrimeArrayLength;
-            }
+        //    // Allow the hashtables to grow to maximum possible size (~2G elements) before encoutering capacity overflow.
+        //    // Note that this check works even when _items.Length overflowed thanks to the (uint) cast
+        //    if ((uint)newSize > MaxPrimeArrayLength && MaxPrimeArrayLength > oldSize) {
+        //        Debug.Assert(MaxPrimeArrayLength == primes[GetGeneratoin(MaxPrimeArrayLength)], "Invalid MaxPrimeArrayLength");
+        //        return MaxPrimeArrayLength;
+        //    }
 
-            return GetPrime(newSize);
-        }
+        //    return primes[GetGeneratoin(newSize)];
+        //}
 
 
         // This is the maximum prime smaller than Array.MaxArrayLength
-        public const int MaxPrimeArrayLength = 0x7FEFFFFD;
+        public const int MaxPrimeArrayLength = 2147483629;
+
     }
 }
