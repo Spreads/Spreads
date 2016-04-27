@@ -14,6 +14,9 @@ namespace Spreads {
         [ThreadStatic]
         private static T[] Array;
 
+        private static IntPtr _tgt;
+        private static IntPtr _ptr;
+
         static TypeHelper() {
             try {
                 Size = SizeOf();
@@ -41,20 +44,22 @@ namespace Spreads {
                 if (Array == null) {
                     Array = new T[2];
                     _pinnedArray = GCHandle.Alloc(Array, GCHandleType.Pinned);
+                    _tgt = Marshal.UnsafeAddrOfPinnedArrayElement(Array, 0);
+                    _ptr = Marshal.UnsafeAddrOfPinnedArrayElement(Array, 1);
                 }
             }
-            var tgt = Marshal.UnsafeAddrOfPinnedArrayElement(Array, 0);
+
             var pos = 0;
             while (pos <= SizeMinus8) {
-                *(long*)(tgt + pos) = *(long*)(ptr + pos);
+                *(long*)(_tgt + pos) = *(long*)(ptr + pos);
                 pos += 8;
             }
             while (pos <= SizeMinus4) {
-                *(int*)(tgt + pos) = *(int*)(ptr + pos);
+                *(int*)(_tgt + pos) = *(int*)(ptr + pos);
                 pos += 4;
             }
             while (pos < Size) {
-                *(byte*)(tgt + pos) = *(byte*)(ptr + pos);
+                *(byte*)(_tgt + pos) = *(byte*)(ptr + pos);
                 pos++;
             }
             var ret = Array[0];
@@ -86,23 +91,25 @@ namespace Spreads {
                 if (Array == null) {
                     Array = new T[2];
                     _pinnedArray = GCHandle.Alloc(Array, GCHandleType.Pinned);
+                    _tgt = Marshal.UnsafeAddrOfPinnedArrayElement(Array, 0);
+                    _ptr = Marshal.UnsafeAddrOfPinnedArrayElement(Array, 1);
                 }
             }
 
             Array[1] = value;
             var tgt = pointer;
-            var ptr = Marshal.UnsafeAddrOfPinnedArrayElement(Array, 1);
+
             var pos = 0;
             while (pos <= SizeMinus8) {
-                *(long*)(tgt + pos) = *(long*)(ptr + pos);
+                *(long*)(tgt + pos) = *(long*)(_ptr + pos);
                 pos += 8;
             }
             while (pos <= SizeMinus4) {
-                *(int*)(tgt + pos) = *(int*)(ptr + pos);
+                *(int*)(tgt + pos) = *(int*)(_ptr + pos);
                 pos += 4;
             }
             while (pos < Size) {
-                *(byte*)(tgt + pos) = *(byte*)(ptr + pos);
+                *(byte*)(tgt + pos) = *(byte*)(_ptr + pos);
                 pos++;
             }
             Array[1] = default(T);
@@ -124,41 +131,48 @@ namespace Spreads {
         }
 
         private static int SizeOf() {
-#if TYPED_REF
-            unsafe
-            {
-                GCHandle handle = default(GCHandle);
-                try {
-                    var array = new T[2];
-                    handle = GCHandle.Alloc(array, GCHandleType.Pinned);
-                    TypedReference
-                        elem1 = __makeref(array[0]),
-                        elem2 = __makeref(array[1]);
-                    unsafe
-                    {
-                        return (int)((byte*)*(IntPtr*)(&elem2) - (byte*)*(IntPtr*)(&elem1));
-                    }
-                } finally {
-                    handle.Free();
-                }
-            }
-#else
+            //#if TYPED_REF
+            //            unsafe
+            //            {
+            //                GCHandle handle = default(GCHandle);
+            //                try {
+            //                    var array = new T[2];
+            //                    handle = GCHandle.Alloc(array, GCHandleType.Pinned);
+            //                    TypedReference
+            //                        elem1 = __makeref(array[0]),
+            //                        elem2 = __makeref(array[1]);
+            //                    unsafe
+            //                    {
+            //                        return (int)((byte*)*(IntPtr*)(&elem2) - (byte*)*(IntPtr*)(&elem1));
+            //                    }
+            //                } finally {
+            //                    handle.Free();
+            //                }
+            //            }
+            //#else
+            //#endif
             try {
-                if (!usePinnedArray) return Marshal.SizeOf(typeof(T));
+                return Marshal.SizeOf(typeof(T));
             } catch {
                 // throw only once, exceptions are expensive
-                usePinnedArray = true;
+                //usePinnedArray = true;
                 if (Array == null) {
                     Array = new T[2];
-                    _pinnedArray = GCHandle.Alloc(Array, GCHandleType.Pinned);
                 }
-            }
-            return
-                (int)
-                    (Marshal.UnsafeAddrOfPinnedArrayElement(Array, 1).ToInt64() -
-                     Marshal.UnsafeAddrOfPinnedArrayElement(Array, 0).ToInt64());
+                _pinnedArray = GCHandle.Alloc(Array, GCHandleType.Pinned);
+                _tgt = Marshal.UnsafeAddrOfPinnedArrayElement(Array, 0);
+                _ptr = Marshal.UnsafeAddrOfPinnedArrayElement(Array, 1);
+                var size = (int)
+                       (Marshal.UnsafeAddrOfPinnedArrayElement(Array, 1).ToInt64() -
+                        Marshal.UnsafeAddrOfPinnedArrayElement(Array, 0).ToInt64());
+                _pinnedArray.Free();
+                Array = null;
+                return size;
 
-#endif
+
+            }
+
+
         }
 
         public static int Size { get; }
