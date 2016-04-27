@@ -15,7 +15,7 @@ namespace Spreads.Core.Tests {
     public class DirectArrayTests {
         [Test]
         public void CouldCreateAndGrowDirectArray() {
-            var da = new DirectArray<long>("CouldCreateAndGrowDirectArray", 100);
+            var da = new DirectArray<long>("../DirectArrayTests.CouldCreateAndGrowDirectArray", 100);
             da[42] = 24;
             da.Grow(200);
             Assert.AreEqual(24, da[42]);
@@ -32,5 +32,21 @@ namespace Spreads.Core.Tests {
             }
         }
 
-           }
+
+        [Test]
+        public void CouldGrowParallel() {
+            var t = Task.Run(() => {
+                var da2 = new DirectArray<long>("../DirectArrayTests.CouldGrowParallel", 100);
+                //da.Grow(300);
+                da2[43] = 43;
+            });
+            Thread.Sleep(1000);
+            var da = new DirectArray<long>("../DirectArrayTests.CouldGrowParallel", 100);
+            
+            da[42] = 42;
+            //da.Grow(200);
+            t.Wait();
+        }
+
+    }
 }

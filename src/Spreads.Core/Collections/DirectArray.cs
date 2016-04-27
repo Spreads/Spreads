@@ -2,20 +2,21 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.MemoryMappedFiles;
+using DirectFiles;
 using System.Runtime.InteropServices;
 using Spreads.Serialization;
 
 namespace Spreads.Collections {
 
     internal class DirectArray<T> : IEnumerable<T>, IDisposable where T : struct {
+        private static object SyncRoot = new object();
         internal const int HeaderLength = 256;
         internal static int DataOffset = HeaderLength + TypeHelper<T>.Size;
         private readonly string _filename;
         internal long _capacity;
         public static readonly int ItemSize;
         private MemoryMappedFile _mmf;
-        private readonly FileStream _fileStream;
+        private FileStream _fileStream;
         private DirectBuffer _buffer;
 
         // MMaped pointers in the header for custom use
@@ -33,44 +34,49 @@ namespace Spreads.Collections {
             ItemSize = TypeHelper<T>.Size; // Marshal.SizeOf(typeof(T));
         }
 
-        private DirectArray(string filename, long minCapacity, T fill)
-        {
+        private DirectArray(string filename, long minCapacity, T fill) {
             _filename = filename;
-            _fileStream = new FileStream(_filename, FileMode.OpenOrCreate,
-                            FileAccess.ReadWrite, FileShare.ReadWrite, 4096,
-                            //FileOptions.Asynchronous | FileOptions.RandomAccess);
-                            FileOptions.None);
+
             Grow(minCapacity);
         }
 
         public DirectArray(string filename, long minCapacity = 5L) : this(filename, minCapacity, default(T)) {
-            
+
         }
 
         internal void Grow(long minCapacity) {
-            var mmfs = new MemoryMappedFileSecurity();
-            _capacity = (_fileStream.Length - DataOffset) / ItemSize;
-            var newCapacity = Math.Max(_capacity, minCapacity);
+            lock (SyncRoot) {
+                _fileStream?.Dispose();
+                _fileStream = new FileStream(_filename, FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite, FileShare.ReadWrite, 4096,
+                    FileOptions.Asynchronous | FileOptions.RandomAccess);
 
-            long bytesCapacity = DataOffset + newCapacity * ItemSize;
-            _capacity = newCapacity;
+                _capacity = (_fileStream.Length - DataOffset) / ItemSize;
+                var newCapacity = Math.Max(_capacity, minCapacity);
 
-            _mmf?.Dispose();
-            var mmf = MemoryMappedFile.CreateFromFile(_fileStream,
-                Path.GetFileName(_filename), bytesCapacity,
-                MemoryMappedFileAccess.ReadWrite, mmfs, HandleInheritability.Inheritable,
-                true);
-            // TODO sync
-            _mmf = mmf;
+                long bytesCapacity = DataOffset + newCapacity * ItemSize;
+                _capacity = newCapacity;
 
-            unsafe
-            {
-                byte* ptr = (byte*)0;
-                _mmf.CreateViewAccessor().SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);
-                var ptrV = new IntPtr(ptr);
-                _buffer = new DirectBuffer(bytesCapacity, ptrV);
+                _mmf?.Dispose();
+                var mmf = MemoryMappedFile.CreateFromFile(_fileStream,
+                    Path.GetFileName(_filename), bytesCapacity,
+                    MemoryMappedFileAccess.ReadWrite, HandleInheritability.Inheritable,
+                    false);
+                // TODO sync
+                _mmf = mmf;
+
+                unsafe
+                {
+                    byte* ptr = (byte*)0;
+                    var va = _mmf.CreateViewAccessor(0, bytesCapacity, MemoryMappedFileAccess.ReadWrite);
+
+                    var sh = va.SafeMemoryMappedViewHandle;
+                    sh.AcquirePointer(ref ptr);
+                    var ptrV = new IntPtr(ptr);
+                    _buffer = new DirectBuffer(bytesCapacity, ptrV);
+                    va.Dispose();
+                }
             }
-
         }
 
         public void Dispose() {

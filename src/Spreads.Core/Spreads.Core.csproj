@@ -78,6 +78,36 @@
     <Compile Include="Serialization\IDirectBufferExtensions.cs" />
     <Compile Include="Serialization\SafeBufferAccessor.cs" />
     <Compile Include="Serialization\SafeBufferStream.cs" />
+    <Compile Include="System\DirectFiles\SafeMemoryMappedFileHandle.Windows.cs" />
+    <Compile Include="System\DirectFiles\SafeMemoryMappedViewHandle.cs" />
+    <Compile Include="System\DirectFiles\SafeMemoryMappedViewHandle.Windows.cs" />
+    <Compile Include="System\Interop\Interop.CloseHandle.cs" />
+    <Compile Include="System\Interop\Interop.CreateFileMapping.cs" />
+    <Compile Include="System\Interop\Interop.Errors.cs" />
+    <Compile Include="System\Interop\Interop.FlushViewOfFile.cs" />
+    <Compile Include="System\Interop\Interop.FormatMessage.cs" />
+    <Compile Include="System\Interop\Interop.GetSystemInfo.cs" />
+    <Compile Include="System\Interop\Interop.GlobalMemoryStatusEx.cs" />
+    <Compile Include="System\Interop\Interop.MapViewOfFile.cs" />
+    <Compile Include="System\Interop\Interop.MemOptions.cs" />
+    <Compile Include="System\Interop\Interop.MEMORY_BASIC_INFO.cs" />
+    <Compile Include="System\Interop\Interop.OpenFileMapping.cs" />
+    <Compile Include="System\Interop\Interop.SECURITY_ATTRIBUTES.cs" />
+    <Compile Include="System\Interop\Interop.SYSTEM_INFO.cs" />
+    <Compile Include="System\Interop\Interop.UnmapViewOfFile.cs" />
+    <Compile Include="System\Interop\Interop.VirtualAlloc.cs" />
+    <Compile Include="System\Interop\Interop.VirtualQuery.cs" />
+    <Compile Include="System\Interop\Win32Marshal.cs" />
+    <Compile Include="System\SR.cs" />
+    <Compile Include="System\DirectFiles\MemoryMappedFile.cs" />
+    <Compile Include="System\DirectFiles\MemoryMappedFile.Windows.cs" />
+    <Compile Include="System\DirectFiles\MemoryMappedFileAccess.cs" />
+    <Compile Include="System\DirectFiles\MemoryMappedFileOptions.cs" />
+    <Compile Include="System\DirectFiles\MemoryMappedFileRights.cs" />
+    <Compile Include="System\DirectFiles\MemoryMappedView.cs" />
+    <Compile Include="System\DirectFiles\MemoryMappedView.Windows.cs" />
+    <Compile Include="System\DirectFiles\MemoryMappedViewAccessor.cs" />
+    <Compile Include="System\DirectFiles\MemoryMappedViewStream.cs" />
     <Compile Include="TypeHelper.cs" />
     <Compile Include="System\Buffers\ArrayPool.cs" />
     <Compile Include="System\Buffers\ArrayPoolEventSource.cs" />
@@ -96,6 +126,9 @@
     <Compile Include="UUID.cs" />
     <Compile Include="Variant.cs" />
     <Compile Include="Collections\Vector.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="System\DirectFiles\Win32\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
