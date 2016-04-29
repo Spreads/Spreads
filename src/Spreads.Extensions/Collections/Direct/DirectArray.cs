@@ -10,84 +10,46 @@ namespace Spreads.Collections.Direct {
 
     internal class DirectArray<T> : IEnumerable<T>, IDisposable where T : struct
     {
-        private static int counter = 0;
-        private static object SyncRoot = new object();
-        internal const int HeaderLength = 256;
-        internal static int DataOffset = HeaderLength + TypeHelper<T>.Size;
-        private readonly string _filename;
-        internal long _capacity;
+        private const int HeaderLength = 256;
+        internal static readonly int DataOffset = HeaderLength + TypeHelper<T>.Size;
         public static readonly int ItemSize;
-        private MemoryMappedFile _mmf;
-        private FileStream _fileStream;
-        private DirectBuffer _buffer;
+        private readonly DirectFile _df;
 
         // MMaped pointers in the header for custom use
-        internal IntPtr Slot0 => _buffer._data;
-        internal IntPtr Slot1 => _buffer._data + 8;
-        internal IntPtr Slot2 => _buffer._data + 16;
-        internal IntPtr Slot3 => _buffer._data + 24;
-        internal IntPtr Slot4 => _buffer._data + 32;
-        internal IntPtr Slot5 => _buffer._data + 40;
-        internal IntPtr Slot6 => _buffer._data + 48;
-        internal IntPtr Slot7 => _buffer._data + 56;
+        internal IntPtr Slot0 => _df.Buffer.Data;
+        internal IntPtr Slot1 => _df.Buffer.Data + 8;
+        internal IntPtr Slot2 => _df.Buffer.Data + 16;
+        internal IntPtr Slot3 => _df.Buffer.Data + 24;
+        internal IntPtr Slot4 => _df.Buffer.Data + 32;
+        internal IntPtr Slot5 => _df.Buffer.Data + 40;
+        internal IntPtr Slot6 => _df.Buffer.Data + 48;
+        internal IntPtr Slot7 => _df.Buffer.Data + 56;
 
         static DirectArray() {
-            // start with only blittables as POC
             ItemSize = TypeHelper<T>.Size;
         }
 
-        private DirectArray(string filename, long minCapacity, T fill) {
-            _filename = filename;
-
-            Grow(minCapacity);
+        private DirectArray(string filename, long minCapacity, T fill)
+        {
+            _df = new DirectFile(filename, DataOffset + minCapacity*ItemSize);
         }
 
         public DirectArray(string filename, long minCapacity = 5L) : this(filename, minCapacity, default(T)) {
 
         }
 
-        internal void Grow(long minCapacity) {
-            lock (SyncRoot) {
-                _fileStream?.Dispose();
-                _fileStream = new FileStream(_filename, FileMode.OpenOrCreate,
-                    FileAccess.ReadWrite, FileShare.ReadWrite, 4096,
-                    FileOptions.Asynchronous | FileOptions.RandomAccess);
-
-                _capacity = (_fileStream.Length - DataOffset) / ItemSize;
-                var newCapacity = Math.Max(_capacity, minCapacity);
-
-                long bytesCapacity = DataOffset + newCapacity * ItemSize;
-                _capacity = newCapacity;
-                var sec = new MemoryMappedFileSecurity();
-                _mmf?.Dispose();
-                var unique = ((long) Process.GetCurrentProcess().Id << 32) | (long)counter++;
-                var mmf = MemoryMappedFile.CreateFromFile(_fileStream,
-                    $@"{Path.GetFileName(_filename)}.{unique}", bytesCapacity, 
-                    MemoryMappedFileAccess.ReadWrite, sec, HandleInheritability.Inheritable,
-                    false);
-                _mmf = mmf;
-
-                unsafe
-                {
-                    byte* ptr = (byte*)0;
-                    var va = _mmf.CreateViewAccessor(0, bytesCapacity, MemoryMappedFileAccess.ReadWrite);
-
-                    var sh = va.SafeMemoryMappedViewHandle;
-                    sh.AcquirePointer(ref ptr);
-                    var ptrV = new IntPtr(ptr);
-                    _buffer = new DirectBuffer(bytesCapacity, ptrV);
-                    va.Dispose();
-                }
-            }
+        internal void Grow(long minCapacity)
+        {
+            _df.Grow(DataOffset + minCapacity*ItemSize);
         }
 
-        public void Dispose() {
-            _mmf.Dispose();
-            _fileStream.Close();
+        public void Dispose()
+        {
+            _df.Dispose();
         }
 
         private IEnumerable<T> AsEnumerable() {
-            for (int i = 0; i < _capacity; i++) {
+            for (int i = 0; i < LongCount; i++) {
                 yield return this[i];
             }
         }
@@ -101,33 +63,33 @@ namespace Spreads.Collections.Direct {
 
 
         public void Clear() {
-            for (int i = 0; i < _capacity; i++) {
+            for (int i = 0; i < LongCount; i++) {
                 this[i] = default(T);
             }
         }
 
-        public int Count => _capacity > int.MaxValue ? -1 : (int)_capacity;
-        public long LongCount => _capacity;
+        public int Count => LongCount > int.MaxValue ? -1 : (int)LongCount;
+        public long LongCount => (_df.Capacity - DataOffset) / ItemSize;
         public bool IsReadOnly => false;
 
-        internal DirectBuffer Buffer => _buffer;
+        internal DirectBuffer Buffer => _df.Buffer;
 
         public T this[long index]
         {
             get
             {
-                if (index < -1 || index >= _capacity) throw new ArgumentOutOfRangeException();
-                return _buffer.Read<T>(DataOffset + index * ItemSize);
+                if (index < -1 || index >= LongCount) throw new ArgumentOutOfRangeException();
+                return _df.Buffer.Read<T>(DataOffset + index * ItemSize);
             }
             set
             {
-                if (index < -1 || index >= _capacity) throw new ArgumentOutOfRangeException();
-                _buffer.Write(DataOffset + index * ItemSize, value);
+                if (index < -1 || index >= LongCount) throw new ArgumentOutOfRangeException();
+                _df.Buffer.Write(DataOffset + index * ItemSize, value);
             }
         }
 
         private void Copy(long source, long target) {
-            _buffer.Copy<T>(DataOffset + source * ItemSize, DataOffset + target * ItemSize);
+            _df.Buffer.Copy<T>(DataOffset + source * ItemSize, DataOffset + target * ItemSize);
         }
     }
 }

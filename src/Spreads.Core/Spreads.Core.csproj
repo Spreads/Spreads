@@ -70,6 +70,7 @@
       <DependentUpon>Utils.cs</DependentUpon>
     </Compile>
     <Compile Include="Serialization\DirectBuffer.cs" />
+    <Compile Include="Serialization\DirectFile.cs" />
     <Compile Include="Serialization\FixedBuffer.cs" />
     <Compile Include="Serialization\IDirectBuffer.cs" />
     <Compile Include="Serialization\IDirectBufferExtensions.cs" />

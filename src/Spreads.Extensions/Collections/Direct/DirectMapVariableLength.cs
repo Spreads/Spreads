@@ -9,57 +9,26 @@ using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using Spreads.Serialization;
 
 namespace Spreads.Collections.Direct {
-
-
-    // NB Recovery process: 95% of work, but even during testing and program shutdown there was a non-exited lock.
-    // If we steal a lock, we must do recovery. Before any change to data, we store 
-    // enough info to do a recovery.
 
 
     [DebuggerTypeProxy(typeof(IDictionaryDebugView<,>))]
     [DebuggerDisplay("Count = {Count}")]
     [System.Runtime.InteropServices.ComVisible(false)]
-    public sealed class DirectMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary,
-        IReadOnlyDictionary<TKey, TValue>, IDisposable {
+    public class DirectMapVariableLength<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> {
         internal struct Entry {
-            public int hashCode; // Lower 31 bits of hash code, -1 if unused
-            public int next; // Index of next entry, -1 if last
-            public TKey key; // Key of entry
-            public TValue value; // Value of entry
+            public int hashCode;    // Lower 31 bits of hash code, -1 if unused
+            public int next;        // Index of next entry, -1 if last
+            public long length;
+            public TKey key;           // Key of entry
+            public TValue value;         // Value of entry
         }
 
-        private const int HeaderLength = 256;
-        private static readonly int EntrySize = TypeHelper<Entry>.Size;
-        internal DirectFile _buckets;
-        internal DirectFile _entries;
+        internal DirectArray<ulong> buckets;
+        internal DirectArray<Entry> entries;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Entry GetEntry(int idx) {
-            return _entries._buffer.Read<Entry>(HeaderLength + idx * EntrySize);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetEntry(int idx, Entry entry) {
-            _entries._buffer.Write<Entry>(HeaderLength + idx * EntrySize, entry);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int GetBucket(int idx) {
-            return -1 + (int)_buckets._buffer.ReadUint32(HeaderLength + idx * 4);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetBucket(int idx, int value) {
-            _buckets._buffer.WriteUint32(HeaderLength + idx * 4, (uint)(value + 1));
-        }
-
-        //internal DirectArray<uint> buckets;
-        //internal DirectArray<Entry> entries;
-
-        // buckets header has 8-bytes slots:
+        // buckets header has
         // Slot0 - locker
         // Slot1 - version
         // Slot2 - nextVersion
@@ -70,68 +39,68 @@ namespace Spreads.Collections.Direct {
 
         internal unsafe int count
         {
-            get { return *(int*)(_buckets._buffer._data + 24); }
-            private set { *(int*)(_buckets._buffer._data + 24) = value; }
+            get { return *(int*)(buckets.Slot3); }
+            private set { *(int*)(buckets.Slot3) = value; }
         }
 
         internal unsafe int countCopy
         {
-            get { return *(int*)(_entries._buffer._data + 24); }
-            private set { *(int*)(_entries._buffer._data + 24) = value; }
+            get { return *(int*)(entries.Slot3); }
+            private set { *(int*)(entries.Slot3) = value; }
         }
 
-        internal unsafe long version => Volatile.Read(ref *(long*)(_buckets._buffer._data + 8));
+        internal unsafe long version => Volatile.Read(ref *(long*)(buckets.Slot1));
 
         // do not set it in Initialize(), it is 0 on disk when the bucket file 
         // is new, and previous values when the file is reopened
         internal unsafe int freeList
         {
-            get { return (int)(*(uint*)(_buckets._buffer._data + 32) - 1u); }
-            private set { *(uint*)(_buckets._buffer._data + 32) = (uint)(value + 1); }
+            get { return (int)(*(uint*)(buckets.Slot4) - 1u); }
+            private set { *(uint*)(buckets.Slot4) = (uint)(value + 1); }
         }
 
         internal unsafe int freeCount
         {
-            get { return *(int*)(_buckets._buffer._data + 40); }
-            private set { *(int*)(_buckets._buffer._data + 40) = value; }
+            get { return *(int*)(buckets.Slot5); }
+            private set { *(int*)(buckets.Slot5) = value; }
         }
 
         internal unsafe int generation
         {
-            get { return Volatile.Read(ref *(int*)(_buckets._buffer._data + 48)); }
-            private set { Volatile.Write(ref *(int*)(_buckets._buffer._data + 48), value); }
+            get { return Volatile.Read(ref *(int*)(buckets.Slot6)); }
+            private set { Volatile.Write(ref *(int*)(buckets.Slot6), value); }
         }
 
         internal unsafe int freeListCopy
         {
-            get { return *(int*)(_entries._buffer._data + 32); }
-            private set { *(int*)(_entries._buffer._data + 32) = value; }
+            get { return *(int*)(entries.Slot4); }
+            private set { *(int*)(entries.Slot4) = value; }
         }
 
         internal unsafe int freeCountCopy
         {
-            get { return *(int*)(_entries._buffer._data + 40); }
-            private set { *(int*)(_entries._buffer._data + 40) = value; }
+            get { return *(int*)(entries.Slot5); }
+            private set { *(int*)(entries.Slot5) = value; }
         }
 
         internal unsafe int indexCopy
         {
-            get { return *(int*)(_entries._buffer._data + 48); }
-            private set { *(int*)(_entries._buffer._data + 48) = value; }
+            get { return *(int*)(entries.Slot6); }
+            private set { *(int*)(entries.Slot6) = value; }
         }
 
         internal unsafe int bucketOrLastNextCopy
         {
-            get { return *(int*)(_entries._buffer._data + 56); }
-            private set { *(int*)(_entries._buffer._data + 56) = value; }
+            get { return *(int*)(entries.Slot7); }
+            private set { *(int*)(entries.Slot7) = value; }
         }
 
         internal unsafe int recoveryFlags
         {
-            get { return *(int*)(_entries._buffer._data); }
+            get { return *(int*)(entries.Slot0); }
             // NB Volatile.Write is crucial to correctly save all copies 
             // before setting recoveryStep value because it generates a fence
-            private set { Volatile.Write(ref *(int*)(_entries._buffer._data), value); }
+            private set { Volatile.Write(ref *(int*)(entries.Slot0), value); }
         }
 
         private IEqualityComparer<TKey> comparer;
@@ -141,28 +110,23 @@ namespace Spreads.Collections.Direct {
         private string _fileName;
 
 
-        public DirectMap(string fileName) : this(fileName, 5, null) {
-        }
+        public DirectMapVariableLength(string fileName) : this(fileName, 5, null) { }
 
-        public DirectMap(string fileName, int capacity) : this(fileName, capacity, null) {
-        }
+        public DirectMapVariableLength(string fileName, int capacity) : this(fileName, capacity, null) { }
 
-        public DirectMap(string fileName, IEqualityComparer<TKey> comparer) : this(fileName, 5, comparer) {
-        }
+        public DirectMapVariableLength(string fileName, IEqualityComparer<TKey> comparer) : this(fileName, 5, comparer) { }
 
-        public DirectMap(string fileName, int capacity, IEqualityComparer<TKey> comparer) {
+        public DirectMapVariableLength(string fileName, int capacity, IEqualityComparer<TKey> comparer) {
             if (fileName == null) throw new ArgumentNullException(nameof(fileName));
             _fileName = fileName;
-            if (capacity < 0)
-                throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "ArgumentOutOfRange_NeedNonNegNum");
-            Initialize(capacity < 5 ? 5 : capacity);
+            if (capacity < 0) throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "ArgumentOutOfRange_NeedNonNegNum");
+            if (capacity >= 0) Initialize(capacity < 5 ? 5 : capacity);
             this.comparer = comparer ?? EqualityComparer<TKey>.Default;
         }
 
-        public DirectMap(string fileName, IDictionary<TKey, TValue> dictionary) : this(fileName, dictionary, null) {
-        }
+        public DirectMapVariableLength(string fileName, IDictionary<TKey, TValue> dictionary) : this(fileName, dictionary, null) { }
 
-        public DirectMap(string fileName, IDictionary<TKey, TValue> dictionary, IEqualityComparer<TKey> comparer) :
+        public DirectMapVariableLength(string fileName, IDictionary<TKey, TValue> dictionary, IEqualityComparer<TKey> comparer) :
             this(fileName, dictionary != null ? dictionary.Count : 5, comparer) {
             if (dictionary == null) {
                 throw new ArgumentNullException(nameof(dictionary));
@@ -172,14 +136,13 @@ namespace Spreads.Collections.Direct {
             // avoid the enumerator allocation and overhead by looping through the entries array directly.
             // We only do this when dictionary is Dictionary<TKey,TValue> and not a subclass, to maintain
             // back-compat with subclasses that may have overridden the enumerator behavior.
-            if (dictionary.GetType() == typeof(DirectMap<TKey, TValue>)) {
-                DirectMap<TKey, TValue> d = (DirectMap<TKey, TValue>)dictionary;
+            if (dictionary.GetType() == typeof(DirectMapVariableLength<TKey, TValue>)) {
+                DirectMapVariableLength<TKey, TValue> d = (DirectMapVariableLength<TKey, TValue>)dictionary;
                 int count1 = d.count;
-                DirectFile entries1 = d._entries;
+                DirectArray<Entry> entries1 = d.entries;
                 for (int i = 0; i < count1; i++) {
-                    var e1 = _entries._buffer.Read<Entry>(HeaderLength + i * EntrySize);
-                    if (e1.hashCode >= 0) {
-                        Add(e1.key, e1.value);
+                    if (entries1[i].hashCode >= 0) {
+                        Add(entries1[i].key, entries1[i].value);
                     }
                 }
                 return;
@@ -192,10 +155,13 @@ namespace Spreads.Collections.Direct {
 
         public IEqualityComparer<TKey> Comparer
         {
-            get { return comparer; }
+            get
+            {
+                return comparer;
+            }
         }
 
-        public int Count => ReadLockIf(() => count - freeCount);
+        public int Count => ReadLockIf(buckets.Slot2, buckets.Slot1, () => count - freeCount);
 
         public KeyCollection Keys
         {
@@ -258,34 +224,30 @@ namespace Spreads.Collections.Direct {
             get
             {
                 var kvp =
-                    ReadLockIf(() => {
-                        try {
-                            var kvp2 = FindEntry(key);
-                            if (kvp2.Key >= 0) return new KeyValuePair<TValue, Exception>(kvp2.Value, null);
-                            throw new KeyNotFoundException();
-                        } catch (Exception e) {
-                            return new KeyValuePair<TValue, Exception>(default(TValue), e);
-                        }
-                    });
+                 ReadLockIf(buckets.Slot2, buckets.Slot1, () => {
+                     try {
+                         int i = FindEntry(key);
+                         if (i >= 0) return new KeyValuePair<TValue, Exception>(entries[i].value, null);
+                         throw new KeyNotFoundException();
+                     } catch (Exception e) {
+                         return new KeyValuePair<TValue, Exception>(default(TValue), e);
+                     }
+                 });
                 if (kvp.Value == null) return kvp.Key;
                 throw kvp.Value;
             }
             set
             {
-                WriteLock(recover => {
-                    if (recover) {
-                        Recover();
-                    }
+                WriteLock(buckets.Slot0, recover => {
+                    if (recover) { Recover(); }
                     Insert(key, value, false);
                 });
             }
         }
 
         public void Add(TKey key, TValue value) {
-            WriteLock(recover => {
-                if (recover) {
-                    Recover();
-                }
+            WriteLock(buckets.Slot0, recover => {
+                if (recover) { Recover(); }
                 Insert(key, value, true);
             });
         }
@@ -295,8 +257,8 @@ namespace Spreads.Collections.Direct {
         }
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> keyValuePair) {
-            var kvp = FindEntry(keyValuePair.Key);
-            if (kvp.Key >= 0 && EqualityComparer<TValue>.Default.Equals(kvp.Value, keyValuePair.Value)) {
+            int i = FindEntry(keyValuePair.Key);
+            if (i >= 0 && EqualityComparer<TValue>.Default.Equals(entries[i].value, keyValuePair.Value)) {
                 return true;
             }
             return false;
@@ -304,9 +266,9 @@ namespace Spreads.Collections.Direct {
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair) {
             bool ret = false;
-            WriteLock(recover => {
-                var kvp = FindEntry(keyValuePair.Key);
-                if (kvp.Key >= 0 && EqualityComparer<TValue>.Default.Equals(kvp.Value, keyValuePair.Value)) {
+            WriteLock(buckets.Slot0, recover => {
+                int i = FindEntry(keyValuePair.Key);
+                if (i >= 0 && EqualityComparer<TValue>.Default.Equals(entries[i].value, keyValuePair.Value)) {
                     DoRemove(keyValuePair.Key);
                     ret = true;
                 }
@@ -316,16 +278,14 @@ namespace Spreads.Collections.Direct {
         }
 
         public void Clear() {
-            WriteLock(recovery => {
+            WriteLock(buckets.Slot0, recovery => {
                 if (recovery) {
                     Recover();
                 }
                 recoveryFlags |= 1 << 8;
                 if (count > 0) {
-                    for (int i = 0; i < count; i++) {
-                        SetBucket(i, -1);
-                        SetEntry(i, default(Entry));
-                    }
+                    buckets.Clear();
+                    entries.Clear();
                     freeList = -1;
                     count = 0;
                     freeCount = 0;
@@ -335,27 +295,25 @@ namespace Spreads.Collections.Direct {
         }
 
         public bool ContainsKey(TKey key) {
-            return FindEntry(key).Key >= 0;
+            return FindEntry(key) >= 0;
         }
 
         public bool ContainsValue(TValue value) {
             if (value == null) {
                 for (int i = 0; i < count; i++) {
-                    var e = GetEntry(i);
-                    if (e.hashCode >= 0 && e.value == null) return true;
+                    if (entries[i].hashCode >= 0 && entries[i].value == null) return true;
                 }
             } else {
                 EqualityComparer<TValue> c = EqualityComparer<TValue>.Default;
                 for (int i = 0; i < count; i++) {
-                    var e = GetEntry(i);
-                    if (e.hashCode >= 0 && c.Equals(e.value, value)) return true;
+                    if (entries[i].hashCode >= 0 && c.Equals(entries[i].value, value)) return true;
                 }
             }
             return false;
         }
 
         private void CopyTo(KeyValuePair<TKey, TValue>[] array, int index) {
-            WriteLock(recover => {
+            WriteLock(buckets.Slot0, recover => {
                 if (array == null) {
                     throw new ArgumentNullException(nameof(array));
                 }
@@ -369,10 +327,10 @@ namespace Spreads.Collections.Direct {
                 }
 
                 int count1 = this.count;
+                DirectArray<Entry> entries1 = this.entries;
                 for (int i = 0; i < count1; i++) {
-                    var e = GetEntry(i);
-                    if (e.hashCode >= 0) {
-                        array[index++] = new KeyValuePair<TKey, TValue>(e.key, e.value);
+                    if (entries1[i].hashCode >= 0) {
+                        array[index++] = new KeyValuePair<TKey, TValue>(entries1[i].key, entries1[i].value);
                     }
                 }
             });
@@ -387,36 +345,33 @@ namespace Spreads.Collections.Direct {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private KeyValuePair<int, TValue> FindEntry(TKey key) {
+        private int FindEntry(TKey key) {
             if (key == null) {
                 throw new ArgumentNullException(nameof(key));
             }
 
-            if (Count > 0) {
+            if (buckets != null) {
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
                 // try search all previous generations
                 for (int gen = generation; gen >= 0; gen--) {
-                    var bucket = GetBucket(hashCode % HashHelpers.primes[gen]);
-                    Entry e = GetEntry(bucket);
-                    for (int i = bucket; i >= 0; i = e.next) {
-                        e = GetEntry(i);
-                        if (e.hashCode == hashCode && comparer.Equals(e.key, key))
-                            return new KeyValuePair<int, TValue>(i, e.value);
+                    for (int i = -1 + (int)buckets[hashCode % HashHelpers.primes[gen]]; i >= 0; i = entries[i].next) {
+                        if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) return i;
                     }
                 }
             }
-            return new KeyValuePair<int, TValue>(-1, default(TValue));
+            return -1;
         }
 
         private void Initialize(int capacity) {
             var gen = HashHelpers.GetGeneratoin(capacity);
-            _buckets = new DirectFile(_fileName + "-buckets", HeaderLength + capacity * 4);
-            _entries = new DirectFile(_fileName + "-entries", HeaderLength + capacity * EntrySize);
+
+            buckets = new DirectArray<ulong>(_fileName + "-buckets");
+            entries = new DirectArray<Entry>(_fileName + "-entries");
             if (generation < gen) {
                 generation = gen;
                 int newSize = HashHelpers.primes[gen];
-                _buckets.Grow(HeaderLength + newSize * 4);
-                _entries.Grow(HeaderLength + newSize * EntrySize);
+                buckets.Grow(newSize);
+                entries.Grow(newSize);
             }
         }
 
@@ -434,29 +389,29 @@ namespace Spreads.Collections.Direct {
                 Debug.WriteLine("Recovering from flag 7");
                 freeList = freeListCopy;
                 freeCount = freeCountCopy;
-                _entries._buffer.WriteInt64(HeaderLength + countCopy * EntrySize,
-                    _entries._buffer.ReadInt64(HeaderLength - 8));
+                entries.Buffer.WriteInt64(DirectArray<Entry>.DataOffset + countCopy * DirectArray<Entry>.ItemSize,
+                    entries.Buffer.ReadInt64(DirectArray<Entry>.DataOffset - 1 * DirectArray<Entry>.ItemSize));
 
                 recoveryFlags &= ~(1 << 7);
                 Recover(true);
             }
             if ((recoveryFlags & (1 << 6)) > 0) {
                 Debug.WriteLine("Recovering from flag 6");
-                _entries._buffer.WriteInt32(HeaderLength + indexCopy * EntrySize + 4, bucketOrLastNextCopy);
+                entries.Buffer.WriteInt32(DirectArray<Entry>.DataOffset + indexCopy * DirectArray<Entry>.ItemSize + 4, bucketOrLastNextCopy);
 
                 recoveryFlags &= ~(1 << 6);
                 Recover(true);
             }
             if ((recoveryFlags & (1 << 5)) > 0) {
                 Debug.WriteLine("Recovering from flag 5");
-                SetBucket(bucketOrLastNextCopy, indexCopy);
+                buckets[bucketOrLastNextCopy] = (uint)indexCopy + 1;
 
                 recoveryFlags &= ~(1 << 5);
                 Recover(true);
             }
             if ((recoveryFlags & (1 << 4)) > 0) {
                 Debug.WriteLine("Recovering from flag 4");
-                SetBucket(bucketOrLastNextCopy, indexCopy);
+                buckets[bucketOrLastNextCopy] = (uint)indexCopy + 1;
 
                 recoveryFlags &= ~(1 << 4);
                 Recover(true);
@@ -480,12 +435,10 @@ namespace Spreads.Collections.Direct {
                 Debug.WriteLine("Recovering from flag 1");
                 // we have saved entry and index,
                 // we just set the saved entry snapshot back to its place
-                throw new NotImplementedException();
-                // save a snapshot at freeList or next count
-                //var snapShorEntry = entries[-1];
-                //entries[indexCopy] = snapShorEntry;
-                //recoveryFlags &= ~(1 << 1);
-                //Recover(true);
+                var snapShorEntry = entries[-1];
+                entries[indexCopy] = snapShorEntry;
+                recoveryFlags &= ~(1 << 1);
+                Recover(true);
             }
         }
 
@@ -495,41 +448,24 @@ namespace Spreads.Collections.Direct {
                 throw new ArgumentNullException(nameof(key));
             }
 
+            if (buckets == null) Initialize(0);
+            Contract.Assert(buckets != null);
             int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
 
-            // try search all previous generations
-            var initGen = generation;
-            Debug.Assert(initGen >= 0);
-            for (int gen = initGen; gen >= 0; gen--) {
-                int idx = hashCode % HashHelpers.primes[gen];
-                var bucket = GetBucket(idx);
-                Entry e = GetEntry(bucket);
-                //for (int i = bucket; i >= 0; i = e.next, e = GetEntry(i)) {
 
-                for (int i = bucket; i >= 0; i = e.next) {
-                    e = GetEntry(i);
-                    if (e.hashCode == hashCode && comparer.Equals(e.key, key)) {
+            // try search all previous generations
+            for (int gen = generation; gen >= 0; gen--) {
+                int searchBucket = hashCode % HashHelpers.primes[gen];
+                for (int i = -1 + (int)buckets[searchBucket]; i >= 0; i = entries[i].next) {
+                    if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
                         if (add) {
                             throw new ArgumentException("Format(Argument_AddingDuplicate, key)");
                         }
 
-                        var entry = e;
+                        var entry = entries[i];
 
                         // make a snapshot copy of the old value
-                        if (freeCount > 0) {
-                            var snapShotPosition = HeaderLength + freeList * EntrySize + 8; // Tkey-TValue part only
-                            var originPosition = HeaderLength + i * EntrySize + 8; // Tkey-TValue part only
-                            _entries._buffer.Copy(_entries._buffer._data + snapShotPosition, originPosition,
-                                EntrySize - 8);
-                        } else {
-                            if (count == (_buckets._capacity - HeaderLength) / 4) {
-                                Resize();
-                            }
-                            var snapShotPosition = HeaderLength + count * EntrySize + 8; // Tkey-TValue part only
-                            var originPosition = HeaderLength + i * EntrySize + 8; // Tkey-TValue part only
-                            _entries._buffer.Copy(_entries._buffer._data + snapShotPosition, originPosition,
-                                EntrySize - 8);
-                        }
+                        entries[-1] = entry;
                         indexCopy = i;
                         recoveryFlags |= 1 << 1;
                         ChaosMonkey.Exception(scenario: 11);
@@ -541,7 +477,7 @@ namespace Spreads.Collections.Direct {
 
                         entry.value = value;
                         ChaosMonkey.Exception(scenario: 12);
-                        SetEntry(i, entry);
+                        entries[i] = entry;
                         ChaosMonkey.Exception(scenario: 13);
                         recoveryFlags = 0;
                         return;
@@ -553,7 +489,7 @@ namespace Spreads.Collections.Direct {
 
             int targetBucket = hashCode % HashHelpers.primes[generation];
             int index;
-            Debug.Assert(generation >= 0);
+
             if (freeCount > 0) {
                 index = freeList;
 
@@ -567,12 +503,12 @@ namespace Spreads.Collections.Direct {
                 // unless recoveryStep is set to 2 we will ignore them and the order
                 // of writes before the barrier doesn't matter
 
-                freeList = GetEntry(index).next; // TODO could read only next
+                freeList = entries[index].next;
                 ChaosMonkey.Exception(scenario: 22);
                 freeCount = previousFreeCount - 1;
                 ChaosMonkey.Exception(scenario: 23);
             } else {
-                if (count == (_buckets._capacity - HeaderLength) / 4) {
+                if (count == entries.Count) {
                     Resize();
                     //targetBucket = hashCode % buckets.Count;
                     targetBucket = hashCode % HashHelpers.primes[generation];
@@ -588,10 +524,10 @@ namespace Spreads.Collections.Direct {
                 ChaosMonkey.Exception(scenario: 32);
             }
             // NB Index is saved above indirectly
-            Debug.Assert(generation >= 0);
+
             ChaosMonkey.Exception(scenario: 24);
             ChaosMonkey.Exception(scenario: 33);
-            var prevousBucketIdx = GetBucket(targetBucket);
+            var prevousBucketIdx = -1 + (int)buckets[targetBucket];
             // save buckets state
             bucketOrLastNextCopy = targetBucket;
             ChaosMonkey.Exception(scenario: 25);
@@ -602,35 +538,46 @@ namespace Spreads.Collections.Direct {
             recoveryFlags |= 1 << 4;
             ChaosMonkey.Exception(scenario: 41);
             // if we fail after that, we have enough info to undo everything and cleanup entries[index] during recovery
-            Debug.Assert(generation >= 0);
+
             var entry1 = new Entry(); // entries[index];
             entry1.hashCode = hashCode;
             entry1.next = prevousBucketIdx;
             entry1.key = key;
             entry1.value = value;
-            SetEntry(index, entry1);
+            entries[index] = entry1;
             ChaosMonkey.Exception(scenario: 42);
-            SetBucket(targetBucket, index);
+            buckets[targetBucket] = (uint)index + 1;
             ChaosMonkey.Exception(scenario: 43);
 
             recoveryFlags = 0;
 
             // special case, only lock should be stolen without recovery
             ChaosMonkey.Exception(scenario: 44);
-            Debug.Assert(generation >= 0);
         }
 
 
         private void Resize() {
             var newSize = HashHelpers.primes[generation + 1];
-            _buckets.Grow(HeaderLength + newSize * 4);
-            _entries.Grow(HeaderLength + newSize * EntrySize);
+            Contract.Assert(newSize >= entries.Count);
+            buckets.Grow(newSize);
+            entries.Grow(newSize);
+            //// Todo either incremental rehashing (Redis), or generational hashing
+            //for (int i = 0; i < buckets.Count; i++) buckets[i] = -1;
+            //for (int i = 0; i < count; i++) {
+            //    if (entries[i].hashCode >= 0) {
+            //        int bucket = entries[i].hashCode % newSize;
+            //        var entry = entries[i];
+            //        entry.next = buckets[bucket];
+            //        entries[i] = entry;
+            //        buckets[bucket] = i;
+            //    }
+            //}
             generation++;
         }
 
         public bool Remove(TKey key) {
             bool ret = false;
-            WriteLock(recovery => ret = DoRemove(key));
+            WriteLock(buckets.Slot0, recovery => ret = DoRemove(key));
             return ret;
         }
 
@@ -639,38 +586,37 @@ namespace Spreads.Collections.Direct {
                 throw new ArgumentNullException(nameof(key));
             }
 
-            if (Count >= 0) {
+            if (buckets != null) {
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
                 // try search all previous generations
                 for (int gen = generation; gen >= 0; gen--) {
-                    int bucketIdx = hashCode % HashHelpers.primes[gen];
-                    var bucket = GetBucket(bucketIdx);
+                    int bucket = hashCode % HashHelpers.primes[gen];
                     int last = -1;
-                    var e = GetEntry(bucket);
-                    for (int i = bucket; i >= 0; last = i, i = e.next) {
-                        e = GetEntry(i);
-                        if (e.hashCode == hashCode && comparer.Equals(e.key, key)) {
+                    for (int i = -1 + (int)buckets[bucket]; i >= 0; last = i, i = entries[i].next) {
+                        if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
                             if (last < 0) {
-                                bucketOrLastNextCopy = bucketIdx;
-                                indexCopy = GetBucket(bucketIdx);
+                                bucketOrLastNextCopy = bucket;
+                                indexCopy = -1 + (int)buckets[bucket];
                                 recoveryFlags |= 1 << 5;
                                 ChaosMonkey.Exception(scenario: 51);
                                 //NB entries[i].next; 
                                 var ithNext =
-                                    _entries._buffer.ReadInt32(HeaderLength + i * EntrySize + 4);
-                                SetBucket(bucketIdx, ithNext);
+                                    entries.Buffer.ReadInt32(DirectArray<Entry>.DataOffset +
+                                                             i * DirectArray<Entry>.ItemSize + 4);
+                                buckets[bucket] = (uint)ithNext + 1;
                                 ChaosMonkey.Exception(scenario: 52);
                             } else {
-                                var lastEntryOffset = HeaderLength + last * EntrySize;
+                                var lastEntryOffset = DirectArray<Entry>.DataOffset + last * DirectArray<Entry>.ItemSize;
                                 indexCopy = last;
                                 // NB reuse bucketOrLastNextCopy slot to save next of the last value, instead of creating one more property
-                                bucketOrLastNextCopy = _entries._buffer.ReadInt32(lastEntryOffset + 4);
+                                bucketOrLastNextCopy = entries.Buffer.ReadInt32(lastEntryOffset + 4);
                                 recoveryFlags |= 1 << 6;
                                 ChaosMonkey.Exception(scenario: 6);
                                 //NB entries[i].next; 
                                 var ithNext =
-                                    _entries._buffer.ReadInt32(HeaderLength + i * EntrySize + 4);
-                                _entries._buffer.WriteInt32(lastEntryOffset + 4, ithNext);
+                                    entries.Buffer.ReadInt32(DirectArray<Entry>.DataOffset +
+                                                             i * DirectArray<Entry>.ItemSize + 4);
+                                entries.Buffer.WriteInt32(lastEntryOffset + 4, ithNext);
 
                                 // To recover
                                 //entries.Buffer.WriteInt32(DirectArray<Entry>.DataOffset + indexCopy * DirectArray<Entry>.ItemSize + 4, bucketOrLastNextCopy);
@@ -680,13 +626,14 @@ namespace Spreads.Collections.Direct {
                                 //entries[last] = lastEntry;
                             }
 
-                            var entryOffset = HeaderLength + i * EntrySize;
+                            var entryOffset = DirectArray<Entry>.DataOffset + i * DirectArray<Entry>.ItemSize;
                             // TODO rename, this is not a count but the only unused copy slot
                             countCopy = i;
                             freeListCopy = freeList;
                             freeCountCopy = freeCount;
                             // Save Hash and Next fields of the entry in a special -1 position of entries
-                            _entries._buffer.WriteInt64(HeaderLength - 8, _entries._buffer.ReadInt64(entryOffset));
+                            entries.Buffer.WriteInt64(DirectArray<Entry>.DataOffset - 1 * DirectArray<Entry>.ItemSize,
+                                entries.Buffer.ReadInt64(entryOffset));
 
                             // To recover:
                             //freeList = freeListCopy;
@@ -705,9 +652,9 @@ namespace Spreads.Collections.Direct {
                             // // entry.key //= default(TKey);
                             // // entry.value //= default(TValue);
 
-                            _entries._buffer.WriteInt32(entryOffset, -1);
+                            entries.Buffer.WriteInt32(entryOffset, -1);
                             ChaosMonkey.Exception(scenario: 72);
-                            _entries._buffer.WriteInt32(entryOffset + 4, freeList);
+                            entries.Buffer.WriteInt32(entryOffset + 4, freeList);
                             ChaosMonkey.Exception(scenario: 73);
                             freeList = i;
                             ChaosMonkey.Exception(scenario: 74);
@@ -726,9 +673,9 @@ namespace Spreads.Collections.Direct {
         }
 
         public bool TryGetValue(TKey key, out TValue value) {
-            var kvp = FindEntry(key);
-            if (kvp.Key >= 0) {
-                value = kvp.Value;
+            int i = FindEntry(key);
+            if (i >= 0) {
+                value = entries[i].value;
                 return true;
             }
             value = default(TValue);
@@ -740,9 +687,9 @@ namespace Spreads.Collections.Direct {
         // This allows them to continue getting that behavior with minimal code delta. This is basically
         // TryGetValue without the out param
         internal TValue GetValueOrDefault(TKey key) {
-            var kvp = FindEntry(key);
-            if (kvp.Key >= 0) {
-                return kvp.Value;
+            int i = FindEntry(key);
+            if (i >= 0) {
+                return entries[i].value;
             }
             return default(TValue);
         }
@@ -779,12 +726,11 @@ namespace Spreads.Collections.Direct {
                 CopyTo(pairs, index);
             } else if (array is DictionaryEntry[]) {
                 DictionaryEntry[] dictEntryArray = array as DictionaryEntry[];
-                var entries1 = this._entries;
+                var entries1 = this.entries;
 
                 for (int i = 0; i < count; i++) {
-                    var e = GetEntry(i);
-                    if (e.hashCode >= 0) {
-                        dictEntryArray[index++] = new DictionaryEntry(e.key, e.value);
+                    if (entries1[i].hashCode >= 0) {
+                        dictEntryArray[index++] = new DictionaryEntry(entries1[i].key, entries1[i].value);
                     }
                 }
             } else {
@@ -795,11 +741,10 @@ namespace Spreads.Collections.Direct {
 
                 try {
                     int count1 = this.count;
-                    var entries1 = this._entries;
+                    var entries1 = this.entries;
                     for (int i = 0; i < count1; i++) {
-                        var e = GetEntry(i);
-                        if (e.hashCode >= 0) {
-                            objects[index++] = new KeyValuePair<TKey, TValue>(e.key, e.value);
+                        if (entries1[i].hashCode >= 0) {
+                            objects[index++] = new KeyValuePair<TKey, TValue>(entries1[i].key, entries1[i].value);
                         }
                     }
                 } catch (ArrayTypeMismatchException) {
@@ -838,9 +783,9 @@ namespace Spreads.Collections.Direct {
             get
             {
                 if (IsCompatibleKey(key)) {
-                    var kvp = FindEntry((TKey)key);
-                    if (kvp.Key >= 0) {
-                        return kvp.Value;
+                    int i = FindEntry((TKey)key);
+                    if (i >= 0) {
+                        return entries[i].value;
                     }
                 }
                 return null;
@@ -914,16 +859,16 @@ namespace Spreads.Collections.Direct {
 
         public struct Enumerator : IEnumerator<KeyValuePair<TKey, TValue>>,
             IDictionaryEnumerator {
-            private DirectMap<TKey, TValue> _directMap;
+            private DirectMapVariableLength<TKey, TValue> _directMap;
             private long version;
             private int index;
             private KeyValuePair<TKey, TValue> current;
-            private int getEnumeratorRetType; // What should Enumerator.Current return?
+            private int getEnumeratorRetType;  // What should Enumerator.Current return?
 
             internal const int DictEntry = 1;
             internal const int KeyValuePair = 2;
 
-            internal Enumerator(DirectMap<TKey, TValue> _directMap, int getEnumeratorRetType) {
+            internal Enumerator(DirectMapVariableLength<TKey, TValue> _directMap, int getEnumeratorRetType) {
                 this._directMap = _directMap;
                 version = _directMap.version;
                 index = 0;
@@ -939,9 +884,8 @@ namespace Spreads.Collections.Direct {
                 // Use unsigned comparison since we set index to dictionary.count+1 when the enumeration ends.
                 // dictionary.count+1 could be negative if dictionary.count is Int32.MaxValue
                 while ((uint)index < (uint)_directMap.count) {
-                    var e = _directMap.GetEntry(index);
-                    if (e.hashCode >= 0) {
-                        current = new KeyValuePair<TKey, TValue>(e.key, e.value);
+                    if (_directMap.entries[index].hashCode >= 0) {
+                        current = new KeyValuePair<TKey, TValue>(_directMap.entries[index].key, _directMap.entries[index].value);
                         index++;
                         return true;
                     }
@@ -1026,9 +970,9 @@ namespace Spreads.Collections.Direct {
         [DebuggerTypeProxy(typeof(DictionaryKeyCollectionDebugView<,>))]
         [DebuggerDisplay("Count = {Count}")]
         public sealed class KeyCollection : ICollection<TKey>, ICollection, IReadOnlyCollection<TKey> {
-            private DirectMap<TKey, TValue> _directMap;
+            private DirectMapVariableLength<TKey, TValue> _directMap;
 
-            public KeyCollection(DirectMap<TKey, TValue> _directMap) {
+            public KeyCollection(DirectMapVariableLength<TKey, TValue> _directMap) {
                 if (_directMap == null) {
                     throw new ArgumentNullException(nameof(_directMap));
                 }
@@ -1053,10 +997,10 @@ namespace Spreads.Collections.Direct {
                 }
 
                 int count = _directMap.count;
+                var entries = _directMap.entries;
 
                 for (int i = 0; i < count; i++) {
-                    var e = _directMap.GetEntry(i);
-                    if (e.hashCode >= 0) array[index++] = e.key;
+                    if (entries[i].hashCode >= 0) array[index++] = entries[i].key;
                 }
             }
 
@@ -1125,11 +1069,11 @@ namespace Spreads.Collections.Direct {
                     }
 
                     int count = _directMap.count;
+                    var entries = _directMap.entries;
 
                     try {
                         for (int i = 0; i < count; i++) {
-                            var e = _directMap.GetEntry(i);
-                            if (e.hashCode >= 0) objects[index++] = e.key;
+                            if (entries[i].hashCode >= 0) objects[index++] = entries[i].key;
                         }
                     } catch (ArrayTypeMismatchException) {
                         throw new ArgumentException("Argument_InvalidArrayType, nameof(array)");
@@ -1149,12 +1093,12 @@ namespace Spreads.Collections.Direct {
 
             // ReSharper disable once MemberHidesStaticFromOuterClass
             public struct Enumerator : IEnumerator<TKey> {
-                private DirectMap<TKey, TValue> _directMap;
+                private DirectMapVariableLength<TKey, TValue> _directMap;
                 private int index;
                 private long version;
                 private TKey currentKey;
 
-                internal Enumerator(DirectMap<TKey, TValue> _directMap) {
+                internal Enumerator(DirectMapVariableLength<TKey, TValue> _directMap) {
                     this._directMap = _directMap;
                     version = _directMap.version;
                     index = 0;
@@ -1170,9 +1114,8 @@ namespace Spreads.Collections.Direct {
                     }
 
                     while ((uint)index < (uint)_directMap.count) {
-                        var e = _directMap.GetEntry(index);
-                        if (e.hashCode >= 0) {
-                            currentKey = e.key;
+                        if (_directMap.entries[index].hashCode >= 0) {
+                            currentKey = _directMap.entries[index].key;
                             index++;
                             return true;
                         }
@@ -1186,7 +1129,10 @@ namespace Spreads.Collections.Direct {
 
                 public TKey Current
                 {
-                    get { return currentKey; }
+                    get
+                    {
+                        return currentKey;
+                    }
                 }
 
                 Object IEnumerator.Current
@@ -1215,9 +1161,9 @@ namespace Spreads.Collections.Direct {
         [DebuggerTypeProxy(typeof(DictionaryValueCollectionDebugView<,>))]
         [DebuggerDisplay("Count = {Count}")]
         public sealed class ValueCollection : ICollection<TValue>, ICollection, IReadOnlyCollection<TValue> {
-            private DirectMap<TKey, TValue> _directMap;
+            private DirectMapVariableLength<TKey, TValue> _directMap;
 
-            public ValueCollection(DirectMap<TKey, TValue> _directMap) {
+            public ValueCollection(DirectMapVariableLength<TKey, TValue> _directMap) {
                 if (_directMap == null) {
                     throw new ArgumentNullException(nameof(_directMap));
                 }
@@ -1242,10 +1188,10 @@ namespace Spreads.Collections.Direct {
                 }
 
                 int count = _directMap.count;
+                var entries = _directMap.entries;
 
                 for (int i = 0; i < count; i++) {
-                    var e = _directMap.GetEntry(i);
-                    if (e.hashCode >= 0) array[index++] = e.value;
+                    if (entries[i].hashCode >= 0) array[index++] = entries[i].value;
                 }
             }
 
@@ -1313,11 +1259,11 @@ namespace Spreads.Collections.Direct {
                     }
 
                     int count = _directMap.count;
+                    var entries = _directMap.entries;
 
                     try {
                         for (int i = 0; i < count; i++) {
-                            var e = _directMap.GetEntry(i);
-                            if (e.hashCode >= 0) objects[index++] = e.value;
+                            if (entries[i].hashCode >= 0) objects[index++] = entries[i].value;
                         }
                     } catch (ArrayTypeMismatchException) {
                         throw new ArgumentException("Argument_InvalidArrayType, nameof(array)");
@@ -1337,12 +1283,12 @@ namespace Spreads.Collections.Direct {
 
             // ReSharper disable once MemberHidesStaticFromOuterClass
             public struct Enumerator : IEnumerator<TValue> {
-                private DirectMap<TKey, TValue> _directMap;
+                private DirectMapVariableLength<TKey, TValue> _directMap;
                 private int index;
                 private long version;
                 private TValue currentValue;
 
-                internal Enumerator(DirectMap<TKey, TValue> _directMap) {
+                internal Enumerator(DirectMapVariableLength<TKey, TValue> _directMap) {
                     this._directMap = _directMap;
                     version = _directMap.version;
                     index = 0;
@@ -1358,9 +1304,8 @@ namespace Spreads.Collections.Direct {
                     }
 
                     while ((uint)index < (uint)_directMap.count) {
-                        var e = _directMap.GetEntry(index);
-                        if (e.hashCode >= 0) {
-                            currentValue = e.value;
+                        if (_directMap.entries[index].hashCode >= 0) {
+                            currentValue = _directMap.entries[index].value;
                             index++;
                             return true;
                         }
@@ -1373,7 +1318,10 @@ namespace Spreads.Collections.Direct {
 
                 public TValue Current
                 {
-                    get { return currentValue; }
+                    get
+                    {
+                        return currentValue;
+                    }
                 }
 
                 Object IEnumerator.Current
@@ -1400,21 +1348,18 @@ namespace Spreads.Collections.Direct {
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe T ReadLockIf<T>(Func<T> f) {
+        private unsafe T ReadLockIf<T>(IntPtr nextVersion, IntPtr currentVersion, Func<T> f) {
             T value;
             var sw = new SpinWait();
             while (true) {
-                var ver = Volatile.Read(ref *(long*)(_buckets._buffer._data + 8));
+                var ver = Volatile.Read(ref *(long*)(currentVersion));
                 value = f.Invoke();
-                var nextVer = Volatile.Read(ref *(long*)(_buckets._buffer._data + 16));
-                if (ver == nextVer) {
-                    break;
-                }
-                if (sw.Count > 100) {
-                    // TODO play with this number
+                var nextVer = Volatile.Read(ref *(long*)nextVersion);
+                if (ver == nextVer) { break; }
+                if (sw.Count > 100) { // TODO play with this number
                     // Take or steal write lock and recover
                     // Currently versions could be different due to premature exit of some locker
-                    WriteLock(recover => {
+                    WriteLock(buckets.Slot0, recover => {
                         Recover();
                         //if (recover) {
                         //    Recover();
@@ -1433,18 +1378,18 @@ namespace Spreads.Collections.Direct {
         private static readonly int Pid = Process.GetCurrentProcess().Id;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe void WriteLock(Action<bool> action, bool fixVersions = false) {
+        private unsafe void WriteLock(IntPtr locker, Action<bool> action, bool fixVersions = false) {
             try {
                 var sw = new SpinWait();
                 var cleanup = false;
                 try {
                 } finally {
                     while (true) {
-                        var pid = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), Pid, 0);
+                        var pid = Interlocked.CompareExchange(ref *(int*)(locker), Pid, 0);
                         if (pid == 0) {
-                            var l1 = *(int*)(_buckets._buffer._data);
+                            var l1 = *(int*)(locker);
                             Debug.Assert(l1 == Pid);
-                            if (!fixVersions) Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 16));
+                            if (!fixVersions) Interlocked.Increment(ref *(long*)(buckets.Slot2));
                             break;
                         }
                         if (sw.Count > 100) {
@@ -1457,11 +1402,9 @@ namespace Spreads.Collections.Direct {
                                 // Process.GetProcessById(pid) returning without exception.
 
                                 // steal lock of this process when ChaosMonkey.Enabled
-                                if (pid == Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), Pid, pid)) {
+                                if (pid == Interlocked.CompareExchange(ref *(int*)(locker), Pid, pid)) {
                                     cleanup = true;
-                                    if (!fixVersions) {
-                                        Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 16));
-                                    }
+                                    if (!fixVersions) { Interlocked.Increment(ref *(long*)(buckets.Slot2)); }
                                     break;
                                 }
                             } else {
@@ -1471,12 +1414,9 @@ namespace Spreads.Collections.Direct {
                                         $"Cannot acquire lock, process {p.Id} has it for a long time");
                                 } catch (ArgumentException) {
                                     // pid is not running anymore, try to take it
-                                    if (pid ==
-                                        Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), Pid, pid)) {
+                                    if (pid == Interlocked.CompareExchange(ref *(int*)(locker), Pid, pid)) {
                                         cleanup = true;
-                                        if (!fixVersions) {
-                                            Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 16));
-                                        }
+                                        if (!fixVersions) { Interlocked.Increment(ref *(long*)(buckets.Slot2)); }
                                         break;
                                     }
                                 }
@@ -1485,19 +1425,17 @@ namespace Spreads.Collections.Direct {
                         sw.SpinOnce();
                     }
                 }
-                Debug.Assert(generation >= 0);
                 action.Invoke(cleanup);
-                Debug.Assert(generation >= 0);
 #if CHAOS_MONKEY
             } catch (ChaosMonkeyException) {
                 // Do nothing, do not release lock. We are testing different failures now.
                 throw;
             } catch { // same as finally below
-                var pid = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), 0, Pid);
+                var pid = Interlocked.CompareExchange(ref *(int*)(locker), 0, Pid);
                 if (fixVersions) {
-                    Interlocked.Exchange(ref *(long*)(_buckets._buffer._data + 16), *(long*)(_buckets._buffer._data + 8));
+                    Interlocked.Exchange(ref *(long*)(buckets.Slot2), *(long*)(buckets.Slot1));
                 } else {
-                    Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 8));
+                    Interlocked.Increment(ref *(long*)(buckets.Slot1));
                 }
                 if (pid != Pid) {
                     Trace.TraceWarning("Cannot release lock, it was stolen while this process is still alive");
@@ -1505,15 +1443,14 @@ namespace Spreads.Collections.Direct {
                 }
                 throw;
             }
-            Debug.Assert(generation >= 0);
             // normal case without exceptions
-            var l = *(int*) (_buckets._buffer._data);
+            var l = *(int*) (locker);
             Debug.Assert(l == Pid);
-            var pid2 = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), 0, Pid);
+            var pid2 = Interlocked.CompareExchange(ref *(int*)(locker), 0, Pid);
             if (fixVersions) {
-                Interlocked.Exchange(ref *(long*)(_buckets._buffer._data + 16), *(long*)(_buckets._buffer._data + 8));
+                Interlocked.Exchange(ref *(long*)(buckets.Slot2), *(long*)(buckets.Slot1));
             } else {
-                Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 8));
+                Interlocked.Increment(ref *(long*)(buckets.Slot1));
             }
             if (pid2 != Pid) {
                 Trace.TraceWarning("Cannot release lock, it was stolen while this process is still alive");
@@ -1521,12 +1458,11 @@ namespace Spreads.Collections.Direct {
             }
 #else
             } finally {
-                var pid = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), 0, Pid);
+                var pid = Interlocked.CompareExchange(ref *(int*)(locker), 0, Pid);
                 if (fixVersions) {
-                    Interlocked.Exchange(ref *(long*)(_buckets._buffer._data + 16),
-                        *(long*)(_buckets._buffer._data + 8));
+                    Interlocked.Exchange(ref *(long*)(buckets.Slot2), *(long*)(buckets.Slot1));
                 } else {
-                    Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 8));
+                    Interlocked.Increment(ref *(long*)(buckets.Slot1));
                 }
                 if (pid != Pid) {
 
@@ -1535,18 +1471,8 @@ namespace Spreads.Collections.Direct {
             }
 #endif
         }
-
-        public void Dispose() {
-            Dispose(true);
-        }
-
-        private void Dispose(bool disposing) {
-            _buckets.Dispose();
-            _entries.Dispose();
-        }
-
-        ~DirectMap() {
-            Dispose(false);
-        }
     }
+
+
+    
 }

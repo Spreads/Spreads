@@ -343,6 +343,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint ReadUint32(long index) {
             Assert(index, 2);
             return *(uint*)(new IntPtr(_data.ToInt64() + index));
@@ -353,6 +354,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteUint32(long index, uint value) {
             Assert(index, 4);
             *(uint*)(new IntPtr(_data.ToInt64() + index)) = value;
