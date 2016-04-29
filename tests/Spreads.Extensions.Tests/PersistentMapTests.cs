@@ -14,15 +14,15 @@ namespace Spreads.Extensions.Tests {
         public void CouldCRUDDirectDict() {
 
             var count = 1000000;
-            var dd = new PersistentMapFixedLength<long, long>("../CouldCRUDDirectDict", count);
-            //var dd = new Dictionary<long, long>();
-            
+            var dd = new PersistentMapFixedLength<long, long>("../CouldCRUDDirectDict");
+            //var dd = new Dictionary<DateTime, long>();
+
             var sw = new Stopwatch();
             dd.Clear();
 
             var histogram = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 10000, 3);
             for (int rounds = 0; rounds < 15; rounds++) {
-                //dd.Clear();
+                dd.Clear();
                 sw.Restart();
                 var dtInit = DateTime.Today;
                 for (int i = 0; i < count; i++) {

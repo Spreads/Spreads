@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Spreads {
+namespace Spreads.Serialization {
 
 
     internal class TypeHelper<T> {
@@ -16,6 +16,8 @@ namespace Spreads {
 
         private static IntPtr _tgt;
         private static IntPtr _ptr;
+        private static bool _isInterface;
+        private static IBlittableConverter<T> _instance;
 
         static TypeHelper() {
             try {
@@ -29,7 +31,9 @@ namespace Spreads {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe T PtrToStructure(IntPtr ptr) {
-
+            if (_isInterface) {
+                return _instance.FromPtr(ptr);
+            }
 #if TYPED_REF
             var obj = default(T);
             var tr = __makeref(obj);
@@ -71,7 +75,10 @@ namespace Spreads {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void StructureToPtr(T value, IntPtr pointer) {
-
+            if (_isInterface) {
+                _instance.ToPtr(value, pointer);
+                return;
+            }
 #if TYPED_REF
             // this is as fast as non-generic methods
             var obj = default(T);
@@ -131,7 +138,7 @@ namespace Spreads {
         }
 
         private static int SizeOf() {
-            if (!typeof(T).IsValueType) return -1;
+
             if (typeof(T) == typeof(DateTime)) return 8;
             //#if TYPED_REF
             //            unsafe
@@ -156,44 +163,62 @@ namespace Spreads {
             try {
                 return Marshal.SizeOf(typeof(T));
             } catch {
-                // throw only once, exceptions are expensive
-                //usePinnedArray = true;
-                if (Array == null) {
-                    Array = new T[2];
+                try {
+                    // throw only once, exceptions are expensive
+                    //usePinnedArray = true;
+                    if (Array == null) {
+                        Array = new T[2];
+                    }
+                    _pinnedArray = GCHandle.Alloc(Array, GCHandleType.Pinned);
+                    _tgt = Marshal.UnsafeAddrOfPinnedArrayElement(Array, 0);
+                    _ptr = Marshal.UnsafeAddrOfPinnedArrayElement(Array, 1);
+                    var size = (int)
+                        (Marshal.UnsafeAddrOfPinnedArrayElement(Array, 1).ToInt64() -
+                         Marshal.UnsafeAddrOfPinnedArrayElement(Array, 0).ToInt64());
+                    _pinnedArray.Free();
+                    Array = null;
+                    return size;
+                } catch {
+
+                    // NB we try to check interface as a last step, because some generic types 
+                    // could implement IBlittableConverter<T> but still be blittable for certain types,
+                    // e.g. DateTime vs long in PersistentMap<K,V>.Entry
+                    var tmp = default(T);
+                    if (tmp is IBlittableConverter<T>) {
+                        _isInterface = true;
+                        try {
+                            _instance = (IBlittableConverter<T>)Activator.CreateInstance<T>();
+                        } catch {
+                            //Trace.TraceWarning($"Type {typeof(T).FullName} is marked as IBlittableConverter and so it must have a parameterless constructor");
+                            throw new ApplicationException($"Type T ({typeof(T).FullName}) is marked as IBlittable<T> and so it must have a parameterless constructor.");
+                        }
+                        return _instance.IsBlittable ? ((IBlittableConverter<T>)_instance).Size : -1;
+                    }
+
+                    return -1;
                 }
-                _pinnedArray = GCHandle.Alloc(Array, GCHandleType.Pinned);
-                _tgt = Marshal.UnsafeAddrOfPinnedArrayElement(Array, 0);
-                _ptr = Marshal.UnsafeAddrOfPinnedArrayElement(Array, 1);
-                var size = (int)
-                       (Marshal.UnsafeAddrOfPinnedArrayElement(Array, 1).ToInt64() -
-                        Marshal.UnsafeAddrOfPinnedArrayElement(Array, 0).ToInt64());
-                _pinnedArray.Free();
-                Array = null;
-                return size;
-
-
             }
         }
 
-        internal static int SizeUnsafe() {
-#if TYPED_REF
-            unsafe
-            {
-                GCHandle handle = default(GCHandle);
-                var array = new T[2];
-                var local = __makeref(array);
-                TypedReference
-                    elem1 = __makeref(array[0]),
-                    elem2 = __makeref(array[1]);
-                unsafe
-                {
-                    return (int)((byte*)*(IntPtr*)(&elem2) - (byte*)*(IntPtr*)(&elem1));
-                }
-            }
-#else
-            throw new NotSupportedException();
-#endif
-        }
+        //        internal static int SizeUnsafe() {
+        //#if TYPED_REF
+        //            unsafe
+        //            {
+        //                GCHandle handle = default(GCHandle);
+        //                var array = new T[2];
+        //                var local = __makeref(array);
+        //                TypedReference
+        //                    elem1 = __makeref(array[0]),
+        //                    elem2 = __makeref(array[1]);
+        //                unsafe
+        //                {
+        //                    return (int)((byte*)*(IntPtr*)(&elem2) - (byte*)*(IntPtr*)(&elem1));
+        //                }
+        //            }
+        //#else
+        //            throw new NotSupportedException();
+        //#endif
+        //        }
 
         /// <summary>
         /// Returns a positive size of a blittable type T, or -1 if the type T is not blittable.

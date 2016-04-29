@@ -76,8 +76,9 @@
     <Compile Include="Serialization\IDirectBufferExtensions.cs" />
     <Compile Include="Serialization\SafeBufferAccessor.cs" />
     <Compile Include="Serialization\SafeBufferStream.cs" />
+    <Compile Include="Serialization\TypeHelper.cs" />
+    <Compile Include="Serialization\IBlittableConverter.cs" />
     <Compile Include="System\SR.cs" />
-    <Compile Include="TypeHelper.cs" />
     <Compile Include="System\Buffers\ArrayPool.cs" />
     <Compile Include="System\Buffers\ArrayPoolEventSource.cs" />
     <Compile Include="System\Buffers\DefaultArrayPool.cs" />

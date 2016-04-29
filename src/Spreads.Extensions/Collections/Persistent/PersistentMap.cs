@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using Spreads.Serialization;
 
 namespace Spreads.Collections.Persistent {
 

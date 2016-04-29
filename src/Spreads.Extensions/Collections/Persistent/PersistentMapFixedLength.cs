@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Spreads.Collections.Direct;
 using Spreads.Serialization;
@@ -25,65 +26,92 @@ namespace Spreads.Collections.Persistent {
     [DebuggerDisplay("Count = {Count}")]
     [System.Runtime.InteropServices.ComVisible(false)]
     public sealed class PersistentMapFixedLength<TKey, TValue> : IPersistentMap<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> {
-        internal struct Entry {
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        internal struct Entry : IBlittableConverter<Entry> {
             public int hashCode; // Lower 31 bits of hash code, -1 if unused
             public int next; // Index of next entry, -1 if last
             public TKey key; // Key of entry
             public TValue value; // Value of entry
+
+            // NB this interface methods are only called when Entry[] is not directly pinnable
+            // Otherwise more efficient direct conversion is used
+            public bool IsBlittable => TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
+            public int Size => 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public unsafe void ToPtr(Entry entry, IntPtr ptr) {
+                *(int*)ptr = entry.hashCode;
+                *(int*)(ptr + 4) = entry.next;
+                TypeHelper<TKey>.StructureToPtr(entry.key, (ptr + 8));
+                TypeHelper<TValue>.StructureToPtr(entry.value, (ptr + 8 + TypeHelper<TKey>.Size));
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public unsafe Entry FromPtr(IntPtr ptr) {
+                var entry = new Entry();
+                entry.hashCode = *(int*)ptr;
+                entry.next = *(int*)(ptr + 4);
+                entry.key = TypeHelper<TKey>.PtrToStructure((ptr + 8));
+                entry.value = TypeHelper<TValue>.PtrToStructure((ptr + 8 + TypeHelper<TKey>.Size));
+                return entry;
+            }
         }
 
         private const int HeaderLength = 256;
-        private static readonly int EntrySize = 0;
-        private static readonly int _directMode = -1;
+        private static readonly int EntrySize = TypeHelper<Entry>.Size;
+        //private static readonly int _directMode = -1;
 
-        static PersistentMapFixedLength() {
-            if (TypeHelper<Entry>.Size > 0) {
-                _directMode = 0;
-                EntrySize = TypeHelper<Entry>.Size;
-            } else if (TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0) {
-                _directMode = 1;
-                EntrySize = 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size;
-            } else {
-                EntrySize = -1;
-                _directMode = 3;
-            }
-        }
+        //static PersistentMapFixedLength() {
+        //    if (TypeHelper<Entry>.Size > 0) {
+        //        _directMode = 0;
+        //        EntrySize = TypeHelper<Entry>.Size;
+        //    } else if (TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0) {
+        //        _directMode = 1;
+        //        EntrySize = 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size;
+        //    } else {
+        //        EntrySize = -1;
+        //        _directMode = 3;
+        //    }
+        //}
 
         internal DirectFile _buckets;
         internal DirectFile _entries;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Entry GetEntry(int idx) {
-            if (_directMode == 0) {
-                return _entries._buffer.Read<Entry>(HeaderLength + idx * EntrySize);
-            }
-            if (_directMode == 1) {
-                var entry = new Entry();
-                var offset = HeaderLength + idx * EntrySize;
-                entry.hashCode = _entries._buffer.ReadInt32(offset);
-                entry.next = _entries._buffer.ReadInt32(offset + 4);
-                entry.key = _entries._buffer.Read<TKey>(offset + 8);
-                entry.value = _entries._buffer.Read<TValue>(offset + 8 + TypeHelper<TKey>.Size);
-                return entry;
-            }
-            throw new NotSupportedException();
+            return _entries._buffer.Read<Entry>(HeaderLength + idx * EntrySize);
+
+            //if (_directMode == 0) {
+            //    return _entries._buffer.Read<Entry>(HeaderLength + idx * EntrySize);
+            //}
+            //if (_directMode == 1) {
+            //    var entry = new Entry();
+            //    var offset = HeaderLength + idx * EntrySize;
+            //    entry.hashCode = _entries._buffer.ReadInt32(offset);
+            //    entry.next = _entries._buffer.ReadInt32(offset + 4);
+            //    entry.key = _entries._buffer.Read<TKey>(offset + 8);
+            //    entry.value = _entries._buffer.Read<TValue>(offset + 8 + TypeHelper<TKey>.Size);
+            //    return entry;
+            //}
+            //throw new NotSupportedException();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetEntry(int idx, Entry entry) {
-            if (_directMode == 0) {
-                _entries._buffer.Write<Entry>(HeaderLength + idx * EntrySize, entry);
-                return;
-            }
-            if (_directMode == 1) {
-                var offset = HeaderLength + idx * EntrySize;
-                _entries._buffer.WriteInt32(offset, entry.hashCode);
-                _entries._buffer.WriteInt32(offset + 4, entry.next);
-                _entries._buffer.Write<TKey>(offset + 8, entry.key);
-                _entries._buffer.Write<TValue>(offset + 8 + TypeHelper<TKey>.Size, entry.value);
-                return;
-            }
-            throw new NotSupportedException();
+            _entries._buffer.Write<Entry>(HeaderLength + idx * EntrySize, entry);
+            return;
+
+            //if (_directMode == 0) {
+            //    _entries._buffer.Write<Entry>(HeaderLength + idx * EntrySize, entry);
+            //    return;
+            //}
+            //if (_directMode == 1) {
+            //    var offset = HeaderLength + idx * EntrySize;
+            //    _entries._buffer.WriteInt32(offset, entry.hashCode);
+            //    _entries._buffer.WriteInt32(offset + 4, entry.next);
+            //    _entries._buffer.Write<TKey>(offset + 8, entry.key);
+            //    _entries._buffer.Write<TValue>(offset + 8 + TypeHelper<TKey>.Size, entry.value);
+            //    return;
+            //}
+            //throw new NotSupportedException();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -140,6 +168,24 @@ namespace Spreads.Collections.Persistent {
         {
             get { return Volatile.Read(ref *(int*)(_buckets._buffer._data + 48)); }
             private set { Volatile.Write(ref *(int*)(_buckets._buffer._data + 48), value); }
+        }
+
+        internal unsafe int initialGeneration
+        {
+            get { return Volatile.Read(ref *(int*)(_buckets._buffer._data + 56)); }
+            private set { Volatile.Write(ref *(int*)(_buckets._buffer._data + 56), value); }
+        }
+
+        internal unsafe int keySize
+        {
+            get { return *(int*)(_buckets._buffer._data + 64); }
+            private set { *(int*)(_buckets._buffer._data + 64) = value; }
+        }
+
+        internal unsafe int valueSize
+        {
+            get { return *(int*)(_buckets._buffer._data + 72); }
+            private set { *(int*)(_buckets._buffer._data + 72) = value; }
         }
 
         internal unsafe int freeListCopy
@@ -375,6 +421,7 @@ namespace Spreads.Collections.Persistent {
                     count = 0;
                     freeCount = 0;
                 }
+                initialGeneration = generation;
                 recoveryFlags = 0;
             });
         }
@@ -440,7 +487,8 @@ namespace Spreads.Collections.Persistent {
             if (Count > 0) {
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
                 // try search all previous generations
-                for (int gen = generation; gen >= 0; gen--) {
+                var initGen = initialGeneration;
+                for (int gen = generation; gen >= initGen; gen--) {
                     var bucket = GetBucket(hashCode % HashHelpers.primes[gen]);
                     Entry e = GetEntry(bucket);
                     for (int i = bucket; i >= 0; i = e.next) {
@@ -455,9 +503,28 @@ namespace Spreads.Collections.Persistent {
 
         private void Initialize(int capacity) {
             if (EntrySize <= 0) throw new NotSupportedException("TKey and TValues must be of fixed size");
+
             var gen = HashHelpers.GetGeneratoin(capacity);
             _buckets = new DirectFile(_fileName + "-buckets", HeaderLength + capacity * 4);
             _entries = new DirectFile(_fileName + "-entries", HeaderLength + capacity * EntrySize);
+
+            var keySize1 = TypeHelper<TKey>.Size;
+            var valueSize1 = TypeHelper<TValue>.Size;
+            if (keySize == 0) {
+                keySize = keySize1;
+            } else if (keySize != keySize1) {
+                throw new ApplicationException("Wrong type for key. The map was initialized with a different key size");
+            }
+            if (valueSize == 0) {
+                valueSize = valueSize1;
+            } else if (valueSize != valueSize1) {
+                throw new ApplicationException("Wrong type for value. The map was initialized with a different value size");
+            }
+            // TODO(?) store hash of TKey.FullName + TValue.FullName and compare&restrict
+
+            if (initialGeneration == 0) {
+                initialGeneration = gen;
+            }
             if (generation < gen) {
                 generation = gen;
                 int newSize = HashHelpers.primes[gen];
@@ -544,9 +611,8 @@ namespace Spreads.Collections.Persistent {
             int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
 
             // try search all previous generations
-            var initGen = generation;
-            Debug.Assert(initGen >= 0);
-            for (int gen = initGen; gen >= 0; gen--) {
+            var initGen = initialGeneration;
+            for (int gen = generation; gen >= initGen; gen--) {
                 int idx = hashCode % HashHelpers.primes[gen];
                 var bucket = GetBucket(idx);
                 Entry e = GetEntry(bucket);
@@ -599,7 +665,6 @@ namespace Spreads.Collections.Persistent {
 
             int targetBucket = hashCode % HashHelpers.primes[generation];
             int index;
-            Debug.Assert(generation >= 0);
             if (freeCount > 0) {
                 index = freeList;
 
@@ -634,7 +699,6 @@ namespace Spreads.Collections.Persistent {
                 ChaosMonkey.Exception(scenario: 32);
             }
             // NB Index is saved above indirectly
-            Debug.Assert(generation >= 0);
             ChaosMonkey.Exception(scenario: 24);
             ChaosMonkey.Exception(scenario: 33);
             var prevousBucketIdx = GetBucket(targetBucket);
@@ -648,7 +712,6 @@ namespace Spreads.Collections.Persistent {
             recoveryFlags |= 1 << 4;
             ChaosMonkey.Exception(scenario: 41);
             // if we fail after that, we have enough info to undo everything and cleanup entries[index] during recovery
-            Debug.Assert(generation >= 0);
             var entry1 = new Entry(); // entries[index];
             entry1.hashCode = hashCode;
             entry1.next = prevousBucketIdx;
@@ -663,7 +726,6 @@ namespace Spreads.Collections.Persistent {
 
             // special case, only lock should be stolen without recovery
             ChaosMonkey.Exception(scenario: 44);
-            Debug.Assert(generation >= 0);
         }
 
 
@@ -688,7 +750,8 @@ namespace Spreads.Collections.Persistent {
             if (Count >= 0) {
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
                 // try search all previous generations
-                for (int gen = generation; gen >= 0; gen--) {
+                var initGen = initialGeneration;
+                for (int gen = generation; gen >= initGen; gen--) {
                     int bucketIdx = hashCode % HashHelpers.primes[gen];
                     var bucket = GetBucket(bucketIdx);
                     int last = -1;
