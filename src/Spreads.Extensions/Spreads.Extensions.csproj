@@ -365,6 +365,7 @@
     <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Utilities\TypeExtensions.cs">
       <Link>Storage\SQLite\Utilities\TypeExtensions.cs</Link>
     </Compile>
+    <Compile Include="Collections\Direct\DirectArray.cs" />
     <Compile Include="DataTypes\Candles.cs" />
     <Compile Include="DataTypes\OrderBook.cs" />
     <Compile Include="DataTypes\Price.cs" />
@@ -386,6 +387,7 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="Collections\Direct\DirectMap.cs" />
     <Compile Include="Serialization\Serializer.cs" />
     <Compile Include="Series\ProjectValuesWrapper.cs" />
     <Compile Include="Series\CursorSeries.cs" />

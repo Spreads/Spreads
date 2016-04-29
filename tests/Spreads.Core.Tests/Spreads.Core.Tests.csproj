@@ -98,8 +98,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DirectMapTests.cs" />
-    <Compile Include="DirectArrayTests.cs" />
     <Compile Include="DynamicUtilTest.cs" />
     <Compile Include="FunctionCombinationTests.cs" />
     <Compile Include="Primes.cs" />

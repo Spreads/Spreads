@@ -1,16 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using HdrHistogram;
 using NUnit.Framework;
 using Spreads.Collections;
-using Spreads.Experimental.Collections.Generic;
+using Spreads.Collections.Direct;
 
-namespace Spreads.Core.Tests {
+namespace Spreads.Extensions.Tests {
     [TestFixture]
     public class DirectArrayTests {
         [Test]

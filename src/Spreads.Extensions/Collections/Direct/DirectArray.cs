@@ -4,11 +4,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.MemoryMappedFiles;
-using System.Runtime.InteropServices;
-using System.Threading;
 using Spreads.Serialization;
 
-namespace Spreads.Collections {
+namespace Spreads.Collections.Direct {
 
     internal class DirectArray<T> : IEnumerable<T>, IDisposable where T : struct
     {

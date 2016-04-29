@@ -1,24 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using HdrHistogram;
 using NUnit.Framework;
-using Spreads.Collections;
-using Spreads.Experimental.Collections.Generic;
+using Spreads.Collections.Direct;
 
-namespace Spreads.Core.Tests {
+namespace Spreads.Extensions.Tests {
     [TestFixture]
     public class DirectMapTests {
 
         [Test]
         public void CouldCRUDDirectDict() {
 
-            //var dd = new DirectMap<long, long>("../CouldCRUDDirectDict");
-            var dd = new Dictionary<long, long>();
+            var dd = new DirectMap<long, long>("../CouldCRUDDirectDict");
+            //var dd = new Dictionary<long, long>();
             
             var count = 1000000;
             var sw = new Stopwatch();

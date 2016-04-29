@@ -9,10 +9,8 @@ using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using Spreads.Collections;
 
-// ReSharper disable once CheckNamespace
-namespace Spreads.Experimental.Collections.Generic {
+namespace Spreads.Collections.Direct {
 
 
     // NB Recovery process: 95% of work, but even during testing and program shutdown there was a non-exited lock.
