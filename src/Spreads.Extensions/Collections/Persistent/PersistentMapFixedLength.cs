@@ -77,46 +77,17 @@ namespace Spreads.Collections.Persistent {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Entry GetEntry(int idx) {
-            return _entries._buffer.Read<Entry>(HeaderLength + idx * EntrySize);
-
-            //if (_directMode == 0) {
-            //    return _entries._buffer.Read<Entry>(HeaderLength + idx * EntrySize);
-            //}
-            //if (_directMode == 1) {
-            //    var entry = new Entry();
-            //    var offset = HeaderLength + idx * EntrySize;
-            //    entry.hashCode = _entries._buffer.ReadInt32(offset);
-            //    entry.next = _entries._buffer.ReadInt32(offset + 4);
-            //    entry.key = _entries._buffer.Read<TKey>(offset + 8);
-            //    entry.value = _entries._buffer.Read<TValue>(offset + 8 + TypeHelper<TKey>.Size);
-            //    return entry;
-            //}
-            //throw new NotSupportedException();
+            return _entries._buffer.Read<Entry>(HeaderLength + (long)idx * EntrySize);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetEntry(int idx, Entry entry) {
-            _entries._buffer.Write<Entry>(HeaderLength + idx * EntrySize, entry);
-            return;
-
-            //if (_directMode == 0) {
-            //    _entries._buffer.Write<Entry>(HeaderLength + idx * EntrySize, entry);
-            //    return;
-            //}
-            //if (_directMode == 1) {
-            //    var offset = HeaderLength + idx * EntrySize;
-            //    _entries._buffer.WriteInt32(offset, entry.hashCode);
-            //    _entries._buffer.WriteInt32(offset + 4, entry.next);
-            //    _entries._buffer.Write<TKey>(offset + 8, entry.key);
-            //    _entries._buffer.Write<TValue>(offset + 8 + TypeHelper<TKey>.Size, entry.value);
-            //    return;
-            //}
-            //throw new NotSupportedException();
+            _entries._buffer.Write<Entry>(HeaderLength + idx * (long)EntrySize, entry);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetBucket(int idx) {
-            return -1 + (int)_buckets._buffer.ReadUint32(HeaderLength + idx * 4);
+            return -1 + (int)_buckets._buffer.ReadUint32(HeaderLength + idx * 4L);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -124,8 +95,6 @@ namespace Spreads.Collections.Persistent {
             _buckets._buffer.WriteUint32(HeaderLength + idx * 4, (uint)(value + 1));
         }
 
-        //internal PersistentArray<uint> buckets;
-        //internal PersistentArray<Entry> entries;
 
         // buckets header has 8-bytes slots:
         // Slot0 - locker
@@ -263,7 +232,7 @@ namespace Spreads.Collections.Persistent {
                 int count1 = d.count;
                 DirectFile entries1 = d._entries;
                 for (int i = 0; i < count1; i++) {
-                    var e1 = _entries._buffer.Read<Entry>(HeaderLength + i * EntrySize);
+                    var e1 = _entries._buffer.Read<Entry>(HeaderLength + (long)i * EntrySize);
                     if (e1.hashCode >= 0) {
                         Add(e1.key, e1.value);
                     }
@@ -503,10 +472,13 @@ namespace Spreads.Collections.Persistent {
 
         private void Initialize(int capacity) {
             if (EntrySize <= 0) throw new NotSupportedException("TKey and TValues must be of fixed size");
-
+            // save place for a recovery snapshot for set
+            capacity = capacity + 1;
             var gen = HashHelpers.GetGeneratoin(capacity);
-            _buckets = new DirectFile(_fileName + "-buckets", HeaderLength + capacity * 4);
-            _entries = new DirectFile(_fileName + "-entries", HeaderLength + capacity * EntrySize);
+            long bytesCapacityKeys = (long)HeaderLength + (long)HashHelpers.primes[gen] * 4L;
+            long bytesCapacityValues = (long)HeaderLength + (long)HashHelpers.primes[gen] * EntrySize;
+            _buckets = new DirectFile(_fileName + "-buckets", bytesCapacityKeys);
+            _entries = new DirectFile(_fileName + "-entries", bytesCapacityValues);
 
             var keySize1 = TypeHelper<TKey>.Size;
             var valueSize1 = TypeHelper<TValue>.Size;
@@ -528,8 +500,8 @@ namespace Spreads.Collections.Persistent {
             if (generation < gen) {
                 generation = gen;
                 int newSize = HashHelpers.primes[gen];
-                _buckets.Grow(HeaderLength + newSize * 4);
-                _entries.Grow(HeaderLength + newSize * EntrySize);
+                _buckets.Grow(HeaderLength + (long)newSize * 4L);
+                _entries.Grow(HeaderLength + (long)newSize * (long)EntrySize);
             }
         }
 
@@ -547,7 +519,7 @@ namespace Spreads.Collections.Persistent {
                 Debug.WriteLine("Recovering from flag 7");
                 freeList = freeListCopy;
                 freeCount = freeCountCopy;
-                _entries._buffer.WriteInt64(HeaderLength + countCopy * EntrySize,
+                _entries._buffer.WriteInt64(HeaderLength + (long)countCopy * EntrySize,
                     _entries._buffer.ReadInt64(HeaderLength - 8));
 
                 recoveryFlags &= ~(1 << 7);
@@ -555,7 +527,7 @@ namespace Spreads.Collections.Persistent {
             }
             if ((recoveryFlags & (1 << 6)) > 0) {
                 Debug.WriteLine("Recovering from flag 6");
-                _entries._buffer.WriteInt32(HeaderLength + indexCopy * EntrySize + 4, bucketOrLastNextCopy);
+                _entries._buffer.WriteInt32(HeaderLength + (long)indexCopy * EntrySize + 4L, bucketOrLastNextCopy);
 
                 recoveryFlags &= ~(1 << 6);
                 Recover(true);
@@ -629,17 +601,18 @@ namespace Spreads.Collections.Persistent {
 
                         // make a snapshot copy of the old value
                         if (freeCount > 0) {
-                            var snapShotPosition = HeaderLength + freeList * EntrySize + 8; // Tkey-TValue part only
-                            var originPosition = HeaderLength + i * EntrySize + 8; // Tkey-TValue part only
-                            _entries._buffer.Copy(_entries._buffer._data + snapShotPosition, originPosition,
+                            var snapShotPosition = HeaderLength + (long)freeList * EntrySize + 8L; // Tkey-TValue part only
+                            var originPosition = HeaderLength + (long)i * EntrySize + 8L; // Tkey-TValue part only
+                            _entries._buffer.Copy(new IntPtr(_entries._buffer._data.ToInt64() + snapShotPosition), originPosition,
                                 EntrySize - 8);
                         } else {
-                            if (count == (_buckets._capacity - HeaderLength) / 4) {
-                                Resize();
-                            }
-                            var snapShotPosition = HeaderLength + count * EntrySize + 8; // Tkey-TValue part only
-                            var originPosition = HeaderLength + i * EntrySize + 8; // Tkey-TValue part only
-                            _entries._buffer.Copy(_entries._buffer._data + snapShotPosition, originPosition,
+                            // NB we always have +1 capacity
+                            //if (count == (_buckets._capacity - HeaderLength) / 4) {
+                            //    Resize();
+                            //}
+                            var snapShotPosition = HeaderLength + (long)count * EntrySize + 8L; // Tkey-TValue part only
+                            var originPosition = HeaderLength + (long)i * EntrySize + 8L; // Tkey-TValue part only
+                            _entries._buffer.Copy(new IntPtr(_entries._buffer._data.ToInt64() + snapShotPosition), originPosition,
                                 EntrySize - 8);
                         }
                         indexCopy = i;
@@ -683,7 +656,7 @@ namespace Spreads.Collections.Persistent {
                 freeCount = previousFreeCount - 1;
                 ChaosMonkey.Exception(scenario: 23);
             } else {
-                if (count == (_buckets._capacity - HeaderLength) / 4) {
+                if (count == -1 + (_buckets._capacity - HeaderLength) / 4) {
                     Resize();
                     //targetBucket = hashCode % buckets.Count;
                     targetBucket = hashCode % HashHelpers.primes[generation];
@@ -731,8 +704,8 @@ namespace Spreads.Collections.Persistent {
 
         private void Resize() {
             var newSize = HashHelpers.primes[generation + 1];
-            _buckets.Grow(HeaderLength + newSize * 4);
-            _entries.Grow(HeaderLength + newSize * EntrySize);
+            _buckets.Grow(HeaderLength + (long)newSize * 4L);
+            _entries.Grow(HeaderLength + (long)newSize * (long)EntrySize);
             generation++;
         }
 
@@ -766,11 +739,11 @@ namespace Spreads.Collections.Persistent {
                                 ChaosMonkey.Exception(scenario: 51);
                                 //NB entries[i].next; 
                                 var ithNext =
-                                    _entries._buffer.ReadInt32(HeaderLength + i * EntrySize + 4);
+                                    _entries._buffer.ReadInt32(HeaderLength + (long)i * EntrySize + 4);
                                 SetBucket(bucketIdx, ithNext);
                                 ChaosMonkey.Exception(scenario: 52);
                             } else {
-                                var lastEntryOffset = HeaderLength + last * EntrySize;
+                                long lastEntryOffset = HeaderLength + (long)last * EntrySize;
                                 indexCopy = last;
                                 // NB reuse bucketOrLastNextCopy slot to save next of the last value, instead of creating one more property
                                 bucketOrLastNextCopy = _entries._buffer.ReadInt32(lastEntryOffset + 4);
@@ -778,8 +751,8 @@ namespace Spreads.Collections.Persistent {
                                 ChaosMonkey.Exception(scenario: 6);
                                 //NB entries[i].next; 
                                 var ithNext =
-                                    _entries._buffer.ReadInt32(HeaderLength + i * EntrySize + 4);
-                                _entries._buffer.WriteInt32(lastEntryOffset + 4, ithNext);
+                                    _entries._buffer.ReadInt32(HeaderLength + (long)i * EntrySize + 4L);
+                                _entries._buffer.WriteInt32(lastEntryOffset + 4L, ithNext);
 
                                 // To recover
                                 //entries.Buffer.WriteInt32(PersistentArray<Entry>.DataOffset + indexCopy * PersistentArray<Entry>.ItemSize + 4, bucketOrLastNextCopy);
@@ -789,7 +762,7 @@ namespace Spreads.Collections.Persistent {
                                 //entries[last] = lastEntry;
                             }
 
-                            var entryOffset = HeaderLength + i * EntrySize;
+                            long entryOffset = HeaderLength + (long)i * EntrySize;
                             // TODO rename, this is not a count but the only unused copy slot
                             countCopy = i;
                             freeListCopy = freeList;
