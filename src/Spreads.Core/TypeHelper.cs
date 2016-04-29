@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 namespace Spreads {
 
 
-    internal class TypeHelper<T> where T : struct {
+    internal class TypeHelper<T> {
         [ThreadStatic]
         private static GCHandle _pinnedArray;
         [ThreadStatic]
@@ -131,13 +131,15 @@ namespace Spreads {
         }
 
         private static int SizeOf() {
+            if (!typeof(T).IsValueType) return -1;
+            if (typeof(T) == typeof(DateTime)) return 8;
             //#if TYPED_REF
             //            unsafe
             //            {
             //                GCHandle handle = default(GCHandle);
             //                try {
             //                    var array = new T[2];
-            //                    handle = GCHandle.Alloc(array, GCHandleType.Pinned);
+            //                    //handle = GCHandle.Alloc(array, GCHandleType.Pinned);
             //                    TypedReference
             //                        elem1 = __makeref(array[0]),
             //                        elem2 = __makeref(array[1]);
@@ -146,7 +148,7 @@ namespace Spreads {
             //                        return (int)((byte*)*(IntPtr*)(&elem2) - (byte*)*(IntPtr*)(&elem1));
             //                    }
             //                } finally {
-            //                    handle.Free();
+            //                    //handle.Free();
             //                }
             //            }
             //#else
@@ -171,10 +173,34 @@ namespace Spreads {
 
 
             }
-
-
         }
 
+        internal static int SizeUnsafe() {
+#if TYPED_REF
+            unsafe
+            {
+                GCHandle handle = default(GCHandle);
+                var array = new T[2];
+                var local = __makeref(array);
+                TypedReference
+                    elem1 = __makeref(array[0]),
+                    elem2 = __makeref(array[1]);
+                unsafe
+                {
+                    return (int)((byte*)*(IntPtr*)(&elem2) - (byte*)*(IntPtr*)(&elem1));
+                }
+            }
+#else
+            throw new NotSupportedException();
+#endif
+        }
+
+        /// <summary>
+        /// Returns a positive size of a blittable type T, or -1 if the type T is not blittable.
+        /// We assume the type T is blittable if `GCHandle.Alloc(T[2], GCHandleType.Pinned) = true`.
+        /// This is more relaxed than Marshal.SizeOf, but still doesn't cover cases such as 
+        /// and array of KVP[DateTime,double], which has a contiguous layout in memory.
+        /// </summary>
         public static int Size { get; }
         private static int SizeMinus8 { get; }
         private static int SizeMinus4 { get; }

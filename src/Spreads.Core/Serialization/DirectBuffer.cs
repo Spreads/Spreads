@@ -478,7 +478,7 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T Read<T>(long index) where T : struct {
+        public T Read<T>(long index) {
             var len = TypeHelper<T>.Size;
             Assert(index, len);
             var address = new IntPtr(_data.ToInt64() + index);
@@ -486,7 +486,7 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write<T>(long index, T value) where T : struct {
+        public void Write<T>(long index, T value) {
             var len = TypeHelper<T>.Size;
             Assert(index, len);
             var ptr = new IntPtr(_data.ToInt64() + index);
@@ -494,7 +494,7 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Copy<T>(long source, long target) where T : struct {
+        public void Copy<T>(long source, long target) {
             var len = TypeHelper<T>.Size;
             Assert(source, len);
             Assert(target, len);

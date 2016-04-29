@@ -17,7 +17,6 @@ namespace Spreads.Extensions.Tests {
             var dd = new PersistentMapFixedLength<long, long>("../CouldCRUDDirectDict", count);
             //var dd = new Dictionary<long, long>();
             
-            
             var sw = new Stopwatch();
             dd.Clear();
 
@@ -25,9 +24,10 @@ namespace Spreads.Extensions.Tests {
             for (int rounds = 0; rounds < 15; rounds++) {
                 //dd.Clear();
                 sw.Restart();
-                
+                var dtInit = DateTime.Today;
                 for (int i = 0; i < count; i++) {
                     var startTick = sw.ElapsedTicks;
+                    //dd[dtInit.AddTicks(i)] = i;
                     dd[i] = i;
                     var ticks = sw.ElapsedTicks - startTick;
                     var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);

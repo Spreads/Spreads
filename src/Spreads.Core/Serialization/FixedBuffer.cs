@@ -674,53 +674,23 @@ namespace Spreads.Serialization {
             }
         }
 
-        public T Read<T>(long index) where T : struct {
-#if !x_x_x // TODO what is the correct directive?
-            var ty = typeof(T);
-            var len = TypeHelper<T>.Size;
-            Assert(index, len);
-            var obj = default(T);
-            var tr = __makeref(obj);
-            fixed (byte* ptr = &_buffer[_offset])
-            {
-                var address = ptr + index;
-                *(IntPtr*)(&tr) = (IntPtr)address;
-                return __refvalue(tr, T);
-            }
-
-#else
-            var ty = typeof(T);
+        public T Read<T>(long index) {
             var len = TypeHelper<T>.Size;
             Assert(index, len);
             fixed (byte* ptr = &_buffer[_offset + index])
             {
-                return (T)Marshal.PtrToStructure((IntPtr)ptr, ty);
+                return TypeHelper<T>.PtrToStructure((IntPtr)ptr);
             }
-            
-#endif
         }
 
 
-        public void Write<T>(long index, T value) where T : struct {
-#if !x_x_x // TODO what is the correct directive?
-            // this is as fast as non-generic methods
-            var obj = default(T);
-            var len = TypeHelper<T>.Size;
-            Assert(index, len);
-            var tr = __makeref(obj);
-            fixed (byte* ptr = &_buffer[_offset + index])
-            {
-                *(IntPtr*)(&tr) = (IntPtr)ptr;
-                __refvalue(tr, T) = value;
-            }
-#else
+        public void Write<T>(long index, T value) {
             var len = TypeHelper<T>.Size;
             Assert(index, len);
             fixed (byte* ptr = &_buffer[_offset + index])
             {
-                Marshal.StructureToPtr(value, (IntPtr)ptr, false);
+                TypeHelper<T>.StructureToPtr(value, (IntPtr)ptr);
             }
-#endif
         }
 
         public int ReadAsciiDigit(long index) {

@@ -19,7 +19,7 @@ namespace Spreads.Collections.Persistent {
     // If we steal a lock, we must do recovery. Before any change to data, we store 
     // enough info to do a recovery.
     // 
-    
+
 
     [DebuggerTypeProxy(typeof(IDictionaryDebugView<,>))]
     [DebuggerDisplay("Count = {Count}")]
@@ -33,18 +33,57 @@ namespace Spreads.Collections.Persistent {
         }
 
         private const int HeaderLength = 256;
-        private static readonly int EntrySize = TypeHelper<Entry>.Size;
+        private static readonly int EntrySize = 0;
+        private static readonly int _directMode = -1;
+
+        static PersistentMapFixedLength() {
+            if (TypeHelper<Entry>.Size > 0) {
+                _directMode = 0;
+                EntrySize = TypeHelper<Entry>.Size;
+            } else if (TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0) {
+                _directMode = 1;
+                EntrySize = 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size;
+            } else {
+                EntrySize = -1;
+                _directMode = 3;
+            }
+        }
+
         internal DirectFile _buckets;
         internal DirectFile _entries;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Entry GetEntry(int idx) {
-            return _entries._buffer.Read<Entry>(HeaderLength + idx * EntrySize);
+            if (_directMode == 0) {
+                return _entries._buffer.Read<Entry>(HeaderLength + idx * EntrySize);
+            }
+            if (_directMode == 1) {
+                var entry = new Entry();
+                var offset = HeaderLength + idx * EntrySize;
+                entry.hashCode = _entries._buffer.ReadInt32(offset);
+                entry.next = _entries._buffer.ReadInt32(offset + 4);
+                entry.key = _entries._buffer.Read<TKey>(offset + 8);
+                entry.value = _entries._buffer.Read<TValue>(offset + 8 + TypeHelper<TKey>.Size);
+                return entry;
+            }
+            throw new NotSupportedException();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetEntry(int idx, Entry entry) {
-            _entries._buffer.Write<Entry>(HeaderLength + idx * EntrySize, entry);
+            if (_directMode == 0) {
+                _entries._buffer.Write<Entry>(HeaderLength + idx * EntrySize, entry);
+                return;
+            }
+            if (_directMode == 1) {
+                var offset = HeaderLength + idx * EntrySize;
+                _entries._buffer.WriteInt32(offset, entry.hashCode);
+                _entries._buffer.WriteInt32(offset + 4, entry.next);
+                _entries._buffer.Write<TKey>(offset + 8, entry.key);
+                _entries._buffer.Write<TValue>(offset + 8 + TypeHelper<TKey>.Size, entry.value);
+                return;
+            }
+            throw new NotSupportedException();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -415,6 +454,7 @@ namespace Spreads.Collections.Persistent {
         }
 
         private void Initialize(int capacity) {
+            if (EntrySize <= 0) throw new NotSupportedException("TKey and TValues must be of fixed size");
             var gen = HashHelpers.GetGeneratoin(capacity);
             _buckets = new DirectFile(_fileName + "-buckets", HeaderLength + capacity * 4);
             _entries = new DirectFile(_fileName + "-entries", HeaderLength + capacity * EntrySize);
@@ -1563,8 +1603,7 @@ namespace Spreads.Collections.Persistent {
             Dispose(false);
         }
 
-        public void Flush()
-        {
+        public void Flush() {
             // We trust OS mostly, and prefer performance to paranoid safety of OS crash
             // Power cutoff is not an issue for laptops and data centers
             // One scenario when this is useful is AWS spot instances, which get a 

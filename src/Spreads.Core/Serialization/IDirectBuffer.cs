@@ -194,8 +194,8 @@ namespace Spreads.Serialization
         UUID ReadUUID(long index);
         void WriteUUID(long index, UUID value);
 
-        T Read<T>(long index) where T : struct;
-        void Write<T>(long index, T value) where T : struct;
+        T Read<T>(long index);
+        void Write<T>(long index, T value);
 
         int ReadAsciiDigit(long index);
         void WriteAsciiDigit(long index, int value);
