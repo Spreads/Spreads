@@ -4,18 +4,20 @@ using System.Diagnostics;
 using HdrHistogram;
 using NUnit.Framework;
 using Spreads.Collections.Direct;
+using Spreads.Collections.Persistent;
 
 namespace Spreads.Extensions.Tests {
     [TestFixture]
-    public class DirectMapTests {
+    public class PersistentMapTests {
 
         [Test]
         public void CouldCRUDDirectDict() {
 
-            var dd = new DirectMap<long, long>("../CouldCRUDDirectDict");
+            var count = 1000000;
+            var dd = new PersistentMapFixedLength<long, long>("../CouldCRUDDirectDict", count);
             //var dd = new Dictionary<long, long>();
             
-            var count = 1000000;
+            
             var sw = new Stopwatch();
             dd.Clear();
 
@@ -58,7 +60,7 @@ namespace Spreads.Extensions.Tests {
         //public unsafe void CouldRecoverFromFailuresScenario1() {
         //    if (!ChaosMonkey.Enabled) Assert.Inconclusive("Chaos monkey must be enabled for recovery tests.");
 
-        //    var dm = new DirectMap<long, long>("../CouldRecoveFromFailures");
+        //    var dm = new PersistentMapFixedLength<long, long>("../CouldRecoveFromFailures");
         //    dm.Clear();
 
         //    // scenario 1: fail during rewriting existing key
@@ -98,7 +100,7 @@ namespace Spreads.Extensions.Tests {
         //public unsafe void CouldRecoverFromFailuresScenario2() {
         //    if (!ChaosMonkey.Enabled) Assert.Inconclusive("Chaos monkey must be enabled for recovery tests.");
 
-        //    var dm = new DirectMap<long, long>("../CouldRecoveFromFailures");
+        //    var dm = new PersistentMapFixedLength<long, long>("../CouldRecoveFromFailures");
         //    dm.Clear();
 
         //    // scenario 2: fail during adding new key when free list > 0
@@ -143,7 +145,7 @@ namespace Spreads.Extensions.Tests {
         //public unsafe void CouldRecoverFromFailuresScenario3() {
         //    if (!ChaosMonkey.Enabled) Assert.Inconclusive("Chaos monkey must be enabled for recovery tests.");
 
-        //    var dm = new DirectMap<long, long>("../CouldRecoverFromFailuresScenario3");
+        //    var dm = new PersistentMapFixedLength<long, long>("../CouldRecoverFromFailuresScenario3");
         //    dm.Clear();
         //    dm[dm.Count + 1] = dm.Count + 1;
         //    // scenario 3: fail during adding new key when free list = 0
@@ -186,7 +188,7 @@ namespace Spreads.Extensions.Tests {
         //public unsafe void CouldRecoverFromFailuresScenario4via2() {
         //    if (!ChaosMonkey.Enabled) Assert.Inconclusive("Chaos monkey must be enabled for recovery tests.");
 
-        //    var dm = new DirectMap<long, long>("../CouldRecoveFromFailures");
+        //    var dm = new PersistentMapFixedLength<long, long>("../CouldRecoveFromFailures");
         //    dm.Clear();
 
         //    // scenario 4 via 2: fail during adding new key when free list > 0
@@ -230,7 +232,7 @@ namespace Spreads.Extensions.Tests {
         //public unsafe void CouldRecoverFromFailuresScenario44() {
         //    if (!ChaosMonkey.Enabled) Assert.Inconclusive("Chaos monkey must be enabled for recovery tests.");
 
-        //    var dm = new DirectMap<long, long>("../CouldRecoveFromFailures");
+        //    var dm = new PersistentMapFixedLength<long, long>("../CouldRecoveFromFailures");
         //    dm.Clear();
 
         //    // scenario 44: write everything but fail to exit lock
@@ -267,7 +269,7 @@ namespace Spreads.Extensions.Tests {
         //public unsafe void CouldRecoverFromFailuresScenario4via3() {
         //    if (!ChaosMonkey.Enabled) Assert.Inconclusive("Chaos monkey must be enabled for recovery tests.");
 
-        //    var dm = new DirectMap<long, long>("../CouldRecoverFromFailuresScenario3");
+        //    var dm = new PersistentMapFixedLength<long, long>("../CouldRecoverFromFailuresScenario3");
         //    dm.Clear();
         //    dm[dm.Count + 1] = dm.Count + 1;
         //    // scenario 4: fail during adding new key when free list = 0
@@ -310,7 +312,7 @@ namespace Spreads.Extensions.Tests {
         //public unsafe void CouldRecoverFromFailuresScenario5() {
         //    if (!ChaosMonkey.Enabled) Assert.Inconclusive("Chaos monkey must be enabled for recovery tests.");
 
-        //    var dm = new DirectMap<long, long>("../CouldRecoverFromFailuresScenario5");
+        //    var dm = new PersistentMapFixedLength<long, long>("../CouldRecoverFromFailuresScenario5");
         //    dm.Clear();
         //    dm[1] = 1;
         //    // scenario 3: fail during adding new key when free list = 0
@@ -348,7 +350,7 @@ namespace Spreads.Extensions.Tests {
         //public unsafe void CouldRecoverFromFailuresScenario7via5() {
         //    if (!ChaosMonkey.Enabled) Assert.Inconclusive("Chaos monkey must be enabled for recovery tests.");
 
-        //    var dm = new DirectMap<long, long>("../CouldRecoverFromFailuresScenario5");
+        //    var dm = new PersistentMapFixedLength<long, long>("../CouldRecoverFromFailuresScenario5");
         //    dm.Clear();
         //    dm[1] = 1;
         //    // scenario 3: fail during adding new key when free list = 0

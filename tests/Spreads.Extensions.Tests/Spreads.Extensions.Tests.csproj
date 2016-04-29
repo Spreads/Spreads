@@ -108,8 +108,8 @@
     <Compile Include="CursorSeriesExtensions.cs" />
     <Compile Include="CompressionTests.cs" />
     <Compile Include="BuffersAndPoolTests.cs" />
-    <Compile Include="DirectArrayTests.cs" />
-    <Compile Include="DirectMapTests.cs" />
+    <Compile Include="PersistentArrayTests.cs" />
+    <Compile Include="PersistentMapTests.cs" />
     <Compile Include="GenerationTests.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="RPlugin.cs" />

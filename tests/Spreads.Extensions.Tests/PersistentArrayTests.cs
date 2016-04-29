@@ -3,15 +3,14 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Spreads.Collections;
-using Spreads.Collections.Direct;
+using Spreads.Collections.Persistent;
 
 namespace Spreads.Extensions.Tests {
     [TestFixture]
-    public class DirectArrayTests {
+    public class PersistentArrayTests {
         [Test]
         public void CouldCreateAndGrowDirectArray() {
-            var da = new DirectArray<long>("../DirectArrayTests.CouldCreateAndGrowDirectArray", 100);
+            var da = new PersistentArray<long>("../PersistentArrayTests.CouldCreateAndGrowDirectArray", 100);
             da[42] = 24;
             da.Grow(200);
             Assert.AreEqual(24, da[42]);
@@ -31,13 +30,13 @@ namespace Spreads.Extensions.Tests {
 
         [Test]
         public void CouldGrowParallel() {
-            var da2 = new DirectArray<long>("../DirectArrayTests.CouldGrowParallel", 10000);
+            var da2 = new PersistentArray<long>("../PersistentArrayTests.CouldGrowParallel", 10000);
             var t = Task.Run(() => {
                 da2.Grow(3000);
                 da2[43] = 43;
             });
             Thread.Sleep(1000);
-            var da = new DirectArray<long>("../DirectArrayTests.CouldGrowParallel", 10000);
+            var da = new PersistentArray<long>("../PersistentArrayTests.CouldGrowParallel", 10000);
             da[42] = 42;
             da.Grow(300000);
             Assert.AreEqual(43, da2[43]);

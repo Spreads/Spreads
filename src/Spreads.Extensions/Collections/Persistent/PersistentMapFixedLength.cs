@@ -9,21 +9,22 @@ using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Spreads.Collections.Direct;
 using Spreads.Serialization;
 
-namespace Spreads.Collections.Direct {
+namespace Spreads.Collections.Persistent {
 
 
     // NB Recovery process: 95% of work, but even during testing and program shutdown there was a non-exited lock.
     // If we steal a lock, we must do recovery. Before any change to data, we store 
     // enough info to do a recovery.
-
+    // 
+    
 
     [DebuggerTypeProxy(typeof(IDictionaryDebugView<,>))]
     [DebuggerDisplay("Count = {Count}")]
     [System.Runtime.InteropServices.ComVisible(false)]
-    public sealed class DirectMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary,
-        IReadOnlyDictionary<TKey, TValue>, IDisposable {
+    public sealed class PersistentMapFixedLength<TKey, TValue> : IPersistentMap<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> {
         internal struct Entry {
             public int hashCode; // Lower 31 bits of hash code, -1 if unused
             public int next; // Index of next entry, -1 if last
@@ -56,8 +57,8 @@ namespace Spreads.Collections.Direct {
             _buckets._buffer.WriteUint32(HeaderLength + idx * 4, (uint)(value + 1));
         }
 
-        //internal DirectArray<uint> buckets;
-        //internal DirectArray<Entry> entries;
+        //internal PersistentArray<uint> buckets;
+        //internal PersistentArray<Entry> entries;
 
         // buckets header has 8-bytes slots:
         // Slot0 - locker
@@ -141,16 +142,16 @@ namespace Spreads.Collections.Direct {
         private string _fileName;
 
 
-        public DirectMap(string fileName) : this(fileName, 5, null) {
+        public PersistentMapFixedLength(string fileName) : this(fileName, 5, null) {
         }
 
-        public DirectMap(string fileName, int capacity) : this(fileName, capacity, null) {
+        public PersistentMapFixedLength(string fileName, int capacity) : this(fileName, capacity, null) {
         }
 
-        public DirectMap(string fileName, IEqualityComparer<TKey> comparer) : this(fileName, 5, comparer) {
+        public PersistentMapFixedLength(string fileName, IEqualityComparer<TKey> comparer) : this(fileName, 5, comparer) {
         }
 
-        public DirectMap(string fileName, int capacity, IEqualityComparer<TKey> comparer) {
+        public PersistentMapFixedLength(string fileName, int capacity, IEqualityComparer<TKey> comparer) {
             if (fileName == null) throw new ArgumentNullException(nameof(fileName));
             _fileName = fileName;
             if (capacity < 0)
@@ -159,10 +160,10 @@ namespace Spreads.Collections.Direct {
             this.comparer = comparer ?? EqualityComparer<TKey>.Default;
         }
 
-        public DirectMap(string fileName, IDictionary<TKey, TValue> dictionary) : this(fileName, dictionary, null) {
+        public PersistentMapFixedLength(string fileName, IDictionary<TKey, TValue> dictionary) : this(fileName, dictionary, null) {
         }
 
-        public DirectMap(string fileName, IDictionary<TKey, TValue> dictionary, IEqualityComparer<TKey> comparer) :
+        public PersistentMapFixedLength(string fileName, IDictionary<TKey, TValue> dictionary, IEqualityComparer<TKey> comparer) :
             this(fileName, dictionary != null ? dictionary.Count : 5, comparer) {
             if (dictionary == null) {
                 throw new ArgumentNullException(nameof(dictionary));
@@ -172,8 +173,8 @@ namespace Spreads.Collections.Direct {
             // avoid the enumerator allocation and overhead by looping through the entries array directly.
             // We only do this when dictionary is Dictionary<TKey,TValue> and not a subclass, to maintain
             // back-compat with subclasses that may have overridden the enumerator behavior.
-            if (dictionary.GetType() == typeof(DirectMap<TKey, TValue>)) {
-                DirectMap<TKey, TValue> d = (DirectMap<TKey, TValue>)dictionary;
+            if (dictionary.GetType() == typeof(PersistentMapFixedLength<TKey, TValue>)) {
+                PersistentMapFixedLength<TKey, TValue> d = (PersistentMapFixedLength<TKey, TValue>)dictionary;
                 int count1 = d.count;
                 DirectFile entries1 = d._entries;
                 for (int i = 0; i < count1; i++) {
@@ -251,6 +252,11 @@ namespace Spreads.Collections.Direct {
                 if (values == null) values = new ValueCollection(this);
                 return values;
             }
+        }
+
+        TValue IReadOnlyDictionary<TKey, TValue>.this[TKey key]
+        {
+            get { return this[key]; }
         }
 
         public TValue this[TKey key]
@@ -673,7 +679,7 @@ namespace Spreads.Collections.Direct {
                                 _entries._buffer.WriteInt32(lastEntryOffset + 4, ithNext);
 
                                 // To recover
-                                //entries.Buffer.WriteInt32(DirectArray<Entry>.DataOffset + indexCopy * DirectArray<Entry>.ItemSize + 4, bucketOrLastNextCopy);
+                                //entries.Buffer.WriteInt32(PersistentArray<Entry>.DataOffset + indexCopy * PersistentArray<Entry>.ItemSize + 4, bucketOrLastNextCopy);
 
                                 //var lastEntry = entries[last];
                                 //lastEntry.next = entries[i].next;
@@ -691,8 +697,8 @@ namespace Spreads.Collections.Direct {
                             // To recover:
                             //freeList = freeListCopy;
                             //freeCount = freeCountCopy;
-                            //entries.Buffer.WriteInt64(DirectArray<Entry>.DataOffset + countCopy * DirectArray<Entry>.ItemSize,
-                            //    entries.Buffer.ReadInt64(DirectArray<Entry>.DataOffset - 1 * DirectArray<Entry>.ItemSize));
+                            //entries.Buffer.WriteInt64(PersistentArray<Entry>.DataOffset + countCopy * PersistentArray<Entry>.ItemSize,
+                            //    entries.Buffer.ReadInt64(PersistentArray<Entry>.DataOffset - 1 * PersistentArray<Entry>.ItemSize));
 
                             recoveryFlags |= 1 << 7;
                             ChaosMonkey.Exception(scenario: 71);
@@ -912,9 +918,17 @@ namespace Spreads.Collections.Direct {
             }
         }
 
+        void IDictionary.Clear() {
+            Clear();
+        }
+
+        void ICollection<KeyValuePair<TKey, TValue>>.Clear() {
+            Clear();
+        }
+
         public struct Enumerator : IEnumerator<KeyValuePair<TKey, TValue>>,
             IDictionaryEnumerator {
-            private DirectMap<TKey, TValue> _directMap;
+            private PersistentMapFixedLength<TKey, TValue> _persistentMap;
             private long version;
             private int index;
             private KeyValuePair<TKey, TValue> current;
@@ -923,23 +937,23 @@ namespace Spreads.Collections.Direct {
             internal const int DictEntry = 1;
             internal const int KeyValuePair = 2;
 
-            internal Enumerator(DirectMap<TKey, TValue> _directMap, int getEnumeratorRetType) {
-                this._directMap = _directMap;
-                version = _directMap.version;
+            internal Enumerator(PersistentMapFixedLength<TKey, TValue> _persistentMap, int getEnumeratorRetType) {
+                this._persistentMap = _persistentMap;
+                version = _persistentMap.version;
                 index = 0;
                 this.getEnumeratorRetType = getEnumeratorRetType;
                 current = new KeyValuePair<TKey, TValue>();
             }
 
             public bool MoveNext() {
-                if (version != _directMap.version) {
+                if (version != _persistentMap.version) {
                     throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
                 }
 
                 // Use unsigned comparison since we set index to dictionary.count+1 when the enumeration ends.
                 // dictionary.count+1 could be negative if dictionary.count is Int32.MaxValue
-                while ((uint)index < (uint)_directMap.count) {
-                    var e = _directMap.GetEntry(index);
+                while ((uint)index < (uint)_persistentMap.count) {
+                    var e = _persistentMap.GetEntry(index);
                     if (e.hashCode >= 0) {
                         current = new KeyValuePair<TKey, TValue>(e.key, e.value);
                         index++;
@@ -948,7 +962,7 @@ namespace Spreads.Collections.Direct {
                     index++;
                 }
 
-                index = _directMap.count + 1;
+                index = _persistentMap.count + 1;
                 current = new KeyValuePair<TKey, TValue>();
                 return false;
             }
@@ -965,7 +979,7 @@ namespace Spreads.Collections.Direct {
             {
                 get
                 {
-                    if (index == 0 || (index == _directMap.count + 1)) {
+                    if (index == 0 || (index == _persistentMap.count + 1)) {
                         throw new InvalidOperationException("InvalidOperation_EnumOpCantHappen");
                     }
 
@@ -978,7 +992,7 @@ namespace Spreads.Collections.Direct {
             }
 
             void IEnumerator.Reset() {
-                if (version != _directMap.version) {
+                if (version != _persistentMap.version) {
                     throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
                 }
 
@@ -990,7 +1004,7 @@ namespace Spreads.Collections.Direct {
             {
                 get
                 {
-                    if (index == 0 || (index == _directMap.count + 1)) {
+                    if (index == 0 || (index == _persistentMap.count + 1)) {
                         throw new InvalidOperationException("InvalidOperation_EnumOpCantHappen");
                     }
 
@@ -1002,7 +1016,7 @@ namespace Spreads.Collections.Direct {
             {
                 get
                 {
-                    if (index == 0 || (index == _directMap.count + 1)) {
+                    if (index == 0 || (index == _persistentMap.count + 1)) {
                         throw new InvalidOperationException("InvalidOperation_EnumOpCantHappen");
                     }
 
@@ -1014,7 +1028,7 @@ namespace Spreads.Collections.Direct {
             {
                 get
                 {
-                    if (index == 0 || (index == _directMap.count + 1)) {
+                    if (index == 0 || (index == _persistentMap.count + 1)) {
                         throw new InvalidOperationException("InvalidOperation_EnumOpCantHappen");
                     }
 
@@ -1026,17 +1040,17 @@ namespace Spreads.Collections.Direct {
         [DebuggerTypeProxy(typeof(DictionaryKeyCollectionDebugView<,>))]
         [DebuggerDisplay("Count = {Count}")]
         public sealed class KeyCollection : ICollection<TKey>, ICollection, IReadOnlyCollection<TKey> {
-            private DirectMap<TKey, TValue> _directMap;
+            private PersistentMapFixedLength<TKey, TValue> _persistentMap;
 
-            public KeyCollection(DirectMap<TKey, TValue> _directMap) {
-                if (_directMap == null) {
-                    throw new ArgumentNullException(nameof(_directMap));
+            public KeyCollection(PersistentMapFixedLength<TKey, TValue> _persistentMap) {
+                if (_persistentMap == null) {
+                    throw new ArgumentNullException(nameof(_persistentMap));
                 }
-                this._directMap = _directMap;
+                this._persistentMap = _persistentMap;
             }
 
             public Enumerator GetEnumerator() {
-                return new Enumerator(_directMap);
+                return new Enumerator(_persistentMap);
             }
 
             public void CopyTo(TKey[] array, int index) {
@@ -1048,21 +1062,21 @@ namespace Spreads.Collections.Direct {
                     throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
                 }
 
-                if (array.Length - index < _directMap.Count) {
+                if (array.Length - index < _persistentMap.Count) {
                     throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
                 }
 
-                int count = _directMap.count;
+                int count = _persistentMap.count;
 
                 for (int i = 0; i < count; i++) {
-                    var e = _directMap.GetEntry(i);
+                    var e = _persistentMap.GetEntry(i);
                     if (e.hashCode >= 0) array[index++] = e.key;
                 }
             }
 
             public int Count
             {
-                get { return _directMap.Count; }
+                get { return _persistentMap.Count; }
             }
 
             bool ICollection<TKey>.IsReadOnly
@@ -1079,7 +1093,7 @@ namespace Spreads.Collections.Direct {
             }
 
             bool ICollection<TKey>.Contains(TKey item) {
-                return _directMap.ContainsKey(item);
+                return _persistentMap.ContainsKey(item);
             }
 
             bool ICollection<TKey>.Remove(TKey item) {
@@ -1087,11 +1101,11 @@ namespace Spreads.Collections.Direct {
             }
 
             IEnumerator<TKey> IEnumerable<TKey>.GetEnumerator() {
-                return new Enumerator(_directMap);
+                return new Enumerator(_persistentMap);
             }
 
             IEnumerator IEnumerable.GetEnumerator() {
-                return new Enumerator(_directMap);
+                return new Enumerator(_persistentMap);
             }
 
             void ICollection.CopyTo(Array array, int index) {
@@ -1111,7 +1125,7 @@ namespace Spreads.Collections.Direct {
                     throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
                 }
 
-                if (array.Length - index < _directMap.Count) {
+                if (array.Length - index < _persistentMap.Count) {
                     throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
                 }
 
@@ -1124,11 +1138,11 @@ namespace Spreads.Collections.Direct {
                         throw new ArgumentException("Argument_InvalidArrayType, nameof(array)");
                     }
 
-                    int count = _directMap.count;
+                    int count = _persistentMap.count;
 
                     try {
                         for (int i = 0; i < count; i++) {
-                            var e = _directMap.GetEntry(i);
+                            var e = _persistentMap.GetEntry(i);
                             if (e.hashCode >= 0) objects[index++] = e.key;
                         }
                     } catch (ArrayTypeMismatchException) {
@@ -1144,19 +1158,19 @@ namespace Spreads.Collections.Direct {
 
             Object ICollection.SyncRoot
             {
-                get { return ((ICollection)_directMap).SyncRoot; }
+                get { return (_persistentMap)._syncRoot; }
             }
 
             // ReSharper disable once MemberHidesStaticFromOuterClass
             public struct Enumerator : IEnumerator<TKey> {
-                private DirectMap<TKey, TValue> _directMap;
+                private PersistentMapFixedLength<TKey, TValue> _persistentMap;
                 private int index;
                 private long version;
                 private TKey currentKey;
 
-                internal Enumerator(DirectMap<TKey, TValue> _directMap) {
-                    this._directMap = _directMap;
-                    version = _directMap.version;
+                internal Enumerator(PersistentMapFixedLength<TKey, TValue> _persistentMap) {
+                    this._persistentMap = _persistentMap;
+                    version = _persistentMap.version;
                     index = 0;
                     currentKey = default(TKey);
                 }
@@ -1165,12 +1179,12 @@ namespace Spreads.Collections.Direct {
                 }
 
                 public bool MoveNext() {
-                    if (version != _directMap.version) {
+                    if (version != _persistentMap.version) {
                         throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
                     }
 
-                    while ((uint)index < (uint)_directMap.count) {
-                        var e = _directMap.GetEntry(index);
+                    while ((uint)index < (uint)_persistentMap.count) {
+                        var e = _persistentMap.GetEntry(index);
                         if (e.hashCode >= 0) {
                             currentKey = e.key;
                             index++;
@@ -1179,7 +1193,7 @@ namespace Spreads.Collections.Direct {
                         index++;
                     }
 
-                    index = _directMap.count + 1;
+                    index = _persistentMap.count + 1;
                     currentKey = default(TKey);
                     return false;
                 }
@@ -1193,7 +1207,7 @@ namespace Spreads.Collections.Direct {
                 {
                     get
                     {
-                        if (index == 0 || (index == _directMap.count + 1)) {
+                        if (index == 0 || (index == _persistentMap.count + 1)) {
                             throw new InvalidOperationException("InvalidOperation_EnumOpCantHappen");
                         }
 
@@ -1202,7 +1216,7 @@ namespace Spreads.Collections.Direct {
                 }
 
                 void IEnumerator.Reset() {
-                    if (version != _directMap.version) {
+                    if (version != _persistentMap.version) {
                         throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
                     }
 
@@ -1215,17 +1229,17 @@ namespace Spreads.Collections.Direct {
         [DebuggerTypeProxy(typeof(DictionaryValueCollectionDebugView<,>))]
         [DebuggerDisplay("Count = {Count}")]
         public sealed class ValueCollection : ICollection<TValue>, ICollection, IReadOnlyCollection<TValue> {
-            private DirectMap<TKey, TValue> _directMap;
+            private PersistentMapFixedLength<TKey, TValue> _persistentMap;
 
-            public ValueCollection(DirectMap<TKey, TValue> _directMap) {
-                if (_directMap == null) {
-                    throw new ArgumentNullException(nameof(_directMap));
+            public ValueCollection(PersistentMapFixedLength<TKey, TValue> _persistentMap) {
+                if (_persistentMap == null) {
+                    throw new ArgumentNullException(nameof(_persistentMap));
                 }
-                this._directMap = _directMap;
+                this._persistentMap = _persistentMap;
             }
 
             public Enumerator GetEnumerator() {
-                return new Enumerator(_directMap);
+                return new Enumerator(_persistentMap);
             }
 
             public void CopyTo(TValue[] array, int index) {
@@ -1237,21 +1251,21 @@ namespace Spreads.Collections.Direct {
                     throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
                 }
 
-                if (array.Length - index < _directMap.Count) {
+                if (array.Length - index < _persistentMap.Count) {
                     throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
                 }
 
-                int count = _directMap.count;
+                int count = _persistentMap.count;
 
                 for (int i = 0; i < count; i++) {
-                    var e = _directMap.GetEntry(i);
+                    var e = _persistentMap.GetEntry(i);
                     if (e.hashCode >= 0) array[index++] = e.value;
                 }
             }
 
             public int Count
             {
-                get { return _directMap.Count; }
+                get { return _persistentMap.Count; }
             }
 
             bool ICollection<TValue>.IsReadOnly
@@ -1272,15 +1286,15 @@ namespace Spreads.Collections.Direct {
             }
 
             bool ICollection<TValue>.Contains(TValue item) {
-                return _directMap.ContainsValue(item);
+                return _persistentMap.ContainsValue(item);
             }
 
             IEnumerator<TValue> IEnumerable<TValue>.GetEnumerator() {
-                return new Enumerator(_directMap);
+                return new Enumerator(_persistentMap);
             }
 
             IEnumerator IEnumerable.GetEnumerator() {
-                return new Enumerator(_directMap);
+                return new Enumerator(_persistentMap);
             }
 
             void ICollection.CopyTo(Array array, int index) {
@@ -1300,7 +1314,7 @@ namespace Spreads.Collections.Direct {
                     throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
                 }
 
-                if (array.Length - index < _directMap.Count)
+                if (array.Length - index < _persistentMap.Count)
                     throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
 
                 TValue[] values = array as TValue[];
@@ -1312,11 +1326,11 @@ namespace Spreads.Collections.Direct {
                         throw new ArgumentException("Argument_InvalidArrayType, nameof(array)");
                     }
 
-                    int count = _directMap.count;
+                    int count = _persistentMap.count;
 
                     try {
                         for (int i = 0; i < count; i++) {
-                            var e = _directMap.GetEntry(i);
+                            var e = _persistentMap.GetEntry(i);
                             if (e.hashCode >= 0) objects[index++] = e.value;
                         }
                     } catch (ArrayTypeMismatchException) {
@@ -1332,19 +1346,19 @@ namespace Spreads.Collections.Direct {
 
             Object ICollection.SyncRoot
             {
-                get { return ((ICollection)_directMap).SyncRoot; }
+                get { return (_persistentMap)._syncRoot; }
             }
 
             // ReSharper disable once MemberHidesStaticFromOuterClass
             public struct Enumerator : IEnumerator<TValue> {
-                private DirectMap<TKey, TValue> _directMap;
+                private PersistentMapFixedLength<TKey, TValue> _persistentMap;
                 private int index;
                 private long version;
                 private TValue currentValue;
 
-                internal Enumerator(DirectMap<TKey, TValue> _directMap) {
-                    this._directMap = _directMap;
-                    version = _directMap.version;
+                internal Enumerator(PersistentMapFixedLength<TKey, TValue> _persistentMap) {
+                    this._persistentMap = _persistentMap;
+                    version = _persistentMap.version;
                     index = 0;
                     currentValue = default(TValue);
                 }
@@ -1353,12 +1367,12 @@ namespace Spreads.Collections.Direct {
                 }
 
                 public bool MoveNext() {
-                    if (version != _directMap.version) {
+                    if (version != _persistentMap.version) {
                         throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
                     }
 
-                    while ((uint)index < (uint)_directMap.count) {
-                        var e = _directMap.GetEntry(index);
+                    while ((uint)index < (uint)_persistentMap.count) {
+                        var e = _persistentMap.GetEntry(index);
                         if (e.hashCode >= 0) {
                             currentValue = e.value;
                             index++;
@@ -1366,7 +1380,7 @@ namespace Spreads.Collections.Direct {
                         }
                         index++;
                     }
-                    index = _directMap.count + 1;
+                    index = _persistentMap.count + 1;
                     currentValue = default(TValue);
                     return false;
                 }
@@ -1380,7 +1394,7 @@ namespace Spreads.Collections.Direct {
                 {
                     get
                     {
-                        if (index == 0 || (index == _directMap.count + 1)) {
+                        if (index == 0 || (index == _persistentMap.count + 1)) {
                             throw new InvalidOperationException("InvalidOperation_EnumOpCantHappen");
                         }
 
@@ -1389,7 +1403,7 @@ namespace Spreads.Collections.Direct {
                 }
 
                 void IEnumerator.Reset() {
-                    if (version != _directMap.version) {
+                    if (version != _persistentMap.version) {
                         throw new InvalidOperationException("InvalidOperation_EnumFailedVersion");
                     }
                     index = 0;
@@ -1545,8 +1559,20 @@ namespace Spreads.Collections.Direct {
             _entries.Dispose();
         }
 
-        ~DirectMap() {
+        ~PersistentMapFixedLength() {
             Dispose(false);
         }
+
+        public void Flush()
+        {
+            // We trust OS mostly, and prefer performance to paranoid safety of OS crash
+            // Power cutoff is not an issue for laptops and data centers
+            // One scenario when this is useful is AWS spot instances, which get a 
+            // termination notice before killing an instance - but then, only
+            // applicable to EBS, which are so slow that a direct map doesn't make sense.
+            // TODO flush to file system;
+        }
+
+        public string Id { get; }
     }
 }

@@ -5,7 +5,7 @@ namespace Spreads.Core.Tests {
     class Program {
         static void Main(string[] args)
         {
-            new DirectMapTests().CouldCRUDDirectDict();
+            new PersistentMapTests().CouldCRUDDirectDict();
             Console.ReadLine();
         }
     }

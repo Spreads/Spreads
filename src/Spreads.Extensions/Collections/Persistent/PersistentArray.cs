@@ -1,14 +1,11 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.IO.MemoryMappedFiles;
 using Spreads.Serialization;
 
-namespace Spreads.Collections.Direct {
+namespace Spreads.Collections.Persistent {
 
-    internal class DirectArray<T> : IEnumerable<T>, IDisposable where T : struct
+    internal class PersistentArray<T> : IEnumerable<T>, IDisposable where T : struct
     {
         private const int HeaderLength = 256;
         internal static readonly int DataOffset = HeaderLength + TypeHelper<T>.Size;
@@ -25,16 +22,16 @@ namespace Spreads.Collections.Direct {
         internal IntPtr Slot6 => _df.Buffer.Data + 48;
         internal IntPtr Slot7 => _df.Buffer.Data + 56;
 
-        static DirectArray() {
+        static PersistentArray() {
             ItemSize = TypeHelper<T>.Size;
         }
 
-        private DirectArray(string filename, long minCapacity, T fill)
+        private PersistentArray(string filename, long minCapacity, T fill)
         {
             _df = new DirectFile(filename, DataOffset + minCapacity*ItemSize);
         }
 
-        public DirectArray(string filename, long minCapacity = 5L) : this(filename, minCapacity, default(T)) {
+        public PersistentArray(string filename, long minCapacity = 5L) : this(filename, minCapacity, default(T)) {
 
         }
 
