@@ -39,13 +39,15 @@ namespace DirectFiles {
             int errorCode = Marshal.GetLastWin32Error();
             if (!handle.IsInvalid)
             {
-                if (errorCode == Interop.mincore.Errors.ERROR_ALREADY_EXISTS)
-                {
+                
+                // If the object exists before the function call, the function 
+                // returns a handle to the existing object (with its current size, 
+                // not the specified size), and GetLastError returns ERROR_ALREADY_EXISTS.
+                if (errorCode == Interop.mincore.Errors.ERROR_ALREADY_EXISTS) {
                     handle.Dispose();
                     throw Win32Marshal.GetExceptionForWin32Error(errorCode);
                 }
-            }
-            else // handle.IsInvalid
+            } else // handle.IsInvalid
             {
                 handle.Dispose();
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode);

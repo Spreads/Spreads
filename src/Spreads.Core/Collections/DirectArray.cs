@@ -1,14 +1,18 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-using DirectFiles;
+using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Spreads.Serialization;
 
 namespace Spreads.Collections {
 
-    internal class DirectArray<T> : IEnumerable<T>, IDisposable where T : struct {
+    internal class DirectArray<T> : IEnumerable<T>, IDisposable where T : struct
+    {
+        private static int counter = 0;
         private static object SyncRoot = new object();
         internal const int HeaderLength = 256;
         internal static int DataOffset = HeaderLength + TypeHelper<T>.Size;
@@ -31,7 +35,7 @@ namespace Spreads.Collections {
 
         static DirectArray() {
             // start with only blittables as POC
-            ItemSize = TypeHelper<T>.Size; // Marshal.SizeOf(typeof(T));
+            ItemSize = TypeHelper<T>.Size;
         }
 
         private DirectArray(string filename, long minCapacity, T fill) {
@@ -56,13 +60,13 @@ namespace Spreads.Collections {
 
                 long bytesCapacity = DataOffset + newCapacity * ItemSize;
                 _capacity = newCapacity;
-
+                var sec = new MemoryMappedFileSecurity();
                 _mmf?.Dispose();
+                var unique = ((long) Process.GetCurrentProcess().Id << 32) | (long)counter++;
                 var mmf = MemoryMappedFile.CreateFromFile(_fileStream,
-                    Path.GetFileName(_filename), bytesCapacity,
-                    MemoryMappedFileAccess.ReadWrite, HandleInheritability.Inheritable,
+                    $@"{Path.GetFileName(_filename)}.{unique}", bytesCapacity, 
+                    MemoryMappedFileAccess.ReadWrite, sec, HandleInheritability.Inheritable,
                     false);
-                // TODO sync
                 _mmf = mmf;
 
                 unsafe

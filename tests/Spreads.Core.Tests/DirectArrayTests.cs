@@ -35,17 +35,19 @@ namespace Spreads.Core.Tests {
 
         [Test]
         public void CouldGrowParallel() {
+            var da2 = new DirectArray<long>("../DirectArrayTests.CouldGrowParallel", 10000);
             var t = Task.Run(() => {
-                var da2 = new DirectArray<long>("../DirectArrayTests.CouldGrowParallel", 100);
-                //da.Grow(300);
+                da2.Grow(3000);
                 da2[43] = 43;
             });
             Thread.Sleep(1000);
-            var da = new DirectArray<long>("../DirectArrayTests.CouldGrowParallel", 100);
-            
+            var da = new DirectArray<long>("../DirectArrayTests.CouldGrowParallel", 10000);
             da[42] = 42;
-            //da.Grow(200);
+            da.Grow(300000);
+            Assert.AreEqual(43, da2[43]);
             t.Wait();
+            da2.Grow(3000000);
+            Assert.AreEqual(42, da[42]);
         }
 
     }

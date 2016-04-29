@@ -17,8 +17,8 @@ namespace Spreads.Core.Tests {
         [Test]
         public void CouldCRUDDirectDict() {
 
-            var dd = new DirectMap<long, long>("../CouldCRUDDirectDict");
-            //var dd = new Dictionary<long, long>();
+            //var dd = new DirectMap<long, long>("../CouldCRUDDirectDict");
+            var dd = new Dictionary<long, long>();
             
             var count = 1000000;
             var sw = new Stopwatch();
