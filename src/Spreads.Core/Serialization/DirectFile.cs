@@ -11,15 +11,16 @@ namespace Spreads.Serialization {
         private readonly string _filename;
         internal long _capacity;
 
-        private MemoryMappedFile _mmf;
         private FileStream _fileStream;
+        private MemoryMappedFile _mmf;
+        private MemoryMappedViewAccessor _va;        
         internal DirectBuffer _buffer;
-
-
+        
         public DirectFile(string filename, long minCapacity) {
             _filename = filename;
             _capacity = 0;
             _mmf = null;
+            _va = null;
             _fileStream = null;
             _buffer = default(DirectBuffer);
             Grow(minCapacity);
@@ -48,20 +49,25 @@ namespace Spreads.Serialization {
                 unsafe
                 {
                     byte* ptr = (byte*)0;
-                    var va = _mmf.CreateViewAccessor(0, bytesCapacity, MemoryMappedFileAccess.ReadWrite);
-                    var sh = va.SafeMemoryMappedViewHandle;
+                    _va = _mmf.CreateViewAccessor(0, bytesCapacity, MemoryMappedFileAccess.ReadWrite);
+                    var sh = _va.SafeMemoryMappedViewHandle;
                     sh.AcquirePointer(ref ptr);
                     var ptrV = new IntPtr(ptr);
                     _buffer = new DirectBuffer(bytesCapacity, ptrV);
-                    va.Dispose();
                 }
                 _capacity = bytesCapacity;
             }
         }
 
         public void Dispose() {
+            _va.Dispose();
             _mmf.Dispose();
             _fileStream.Close();
+        }
+
+        public void Flush(bool flushToDisk = false) {
+            _va.Flush();
+            if (flushToDisk) { _fileStream.Flush(true); }
         }
 
         public long Capacity => _capacity;

@@ -721,8 +721,7 @@ namespace Spreads.Collections.Persistent {
 
         public bool Remove(TKey key) {
             bool ret = false;
-            WriteLock(recovery =>
-            {
+            WriteLock(recovery => {
                 if (recovery) {
                     Recover();
                 }
@@ -1654,6 +1653,9 @@ namespace Spreads.Collections.Persistent {
         private void Dispose(bool disposing) {
             _buckets.Dispose();
             _entries.Dispose();
+            if (disposing) {
+                GC.SuppressFinalize(this);
+            }
         }
 
         ~PersistentMapFixedLength() {
@@ -1661,13 +1663,15 @@ namespace Spreads.Collections.Persistent {
         }
 
         public void Flush() {
-            // We trust OS mostly, and prefer performance to paranoid safety of OS crash
-            // Power cutoff is not an issue for laptops and data centers
-            // One scenario when this is useful is AWS spot instances, which get a 
-            // termination notice before killing an instance - but then, only
-            // applicable to EBS, which are so slow that a direct map doesn't make sense.
-            // TODO flush to file system;
+            _buckets.Flush();
+            _entries.Flush();
         }
+
+        public void Flush(bool flushToDisk) {
+            _buckets.Flush(flushToDisk);
+            _entries.Flush(flushToDisk);
+        }
+
 
         public string Id { get; }
     }
