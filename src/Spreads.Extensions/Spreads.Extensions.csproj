@@ -54,10 +54,6 @@
       <HintPath>..\..\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="MathNet.Numerics, Version=3.6.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\MathNet.Numerics.3.6.0\lib\net40\MathNet.Numerics.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="Newtonsoft.Json, Version=8.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\..\..\Prism\packages\Newtonsoft.Json.8.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
@@ -395,6 +391,7 @@
     <Compile Include="Series\ProjectValuesWrapper.cs" />
     <Compile Include="Series\CursorSeries.cs" />
     <Compile Include="Series\ZonedSeries.cs" />
+    <Compile Include="Storage\IpcLongIncrementListener.cs" />
     <Compile Include="Storage\ISeriesStorage.cs" />
     <Compile Include="Storage\RemoteChunksSeries.cs" />
     <Compile Include="Storage\SeriesStorage.cs" />
