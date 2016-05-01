@@ -13,7 +13,7 @@ namespace Spreads.Extensions.Tests {
         [Test]
         public void CouldCRUDDirectDict() {
 
-            var count = 1000000;
+            var count =  500 * 1000000;
             var dd = new PersistentMapFixedLength<long, long>("../CouldCRUDDirectDict", count);
             //var dd = new Dictionary<DateTime, long>();
 
@@ -21,7 +21,7 @@ namespace Spreads.Extensions.Tests {
             dd.Clear();
 
             var histogram = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 10000, 3);
-            for (int rounds = 0; rounds < 15; rounds++) {
+            for (int rounds = 0; rounds < 6; rounds++) {
                 //dd.Clear();
                 sw.Restart();
                 var dtInit = DateTime.Today;
@@ -31,7 +31,7 @@ namespace Spreads.Extensions.Tests {
                     dd[i] = i;
                     var ticks = sw.ElapsedTicks - startTick;
                     var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
-                    if (rounds >= 5) histogram.RecordValue(nanos);
+                    if (rounds >= 1) histogram.RecordValue(nanos);
                 }
                 Assert.AreEqual(count, dd.Count);
                 sw.Stop();
@@ -42,17 +42,25 @@ namespace Spreads.Extensions.Tests {
                     printStream: Console.Out,
                     percentileTicksPerHalfDistance: 3,
                     outputValueUnitScalingRatio: OutputScalingFactor.None);
-            for (int rounds = 0; rounds < 10; rounds++) {
+            var histogram2 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 10000, 3);
+            for (int rounds = 0; rounds < 6; rounds++) {
                 sw.Restart();
-                var cnt = 0;
-                foreach (var kvp in dd) {
-                    //Assert.AreEqual(kvp.Key, kvp.Value);
-                    cnt++;
+                var sum = 0L;
+                for (int i = 0; i < count; i++)
+                {
+                    var startTick = sw.ElapsedTicks;
+                    sum += dd[i];
+                    var ticks = sw.ElapsedTicks - startTick;
+                    var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
+                    if (rounds >= 1) histogram2.RecordValue(nanos);
                 }
-                Assert.AreEqual(count, cnt);
                 sw.Stop();
-                Console.WriteLine($"Read elapsed msec: {sw.ElapsedMilliseconds}");
+                Console.WriteLine($"Read elapsed msec: {sw.ElapsedMilliseconds} for sum {sum}");
             }
+            histogram2.OutputPercentileDistribution(
+                    printStream: Console.Out,
+                    percentileTicksPerHalfDistance: 3,
+                    outputValueUnitScalingRatio: OutputScalingFactor.None);
         }
 
 
