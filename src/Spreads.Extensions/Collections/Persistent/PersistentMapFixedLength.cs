@@ -250,7 +250,8 @@ namespace Spreads.Collections.Persistent {
             get { return comparer; }
         }
 
-        public int Count => ReadLockIf(() => count - freeCount);
+        public int Count => ReadLockIf(() => CountUnchecked);
+        private int CountUnchecked => count - freeCount;
 
         public KeyCollection Keys
         {
@@ -322,7 +323,7 @@ namespace Spreads.Collections.Persistent {
                         try {
                             var kvp2 = FindEntry(key);
                             if (kvp2.Key >= 0) return new KeyValuePair<TValue, Exception>(kvp2.Value, null);
-                            throw new KeyNotFoundException();
+                            return new KeyValuePair<TValue, Exception>(default(TValue), new KeyNotFoundException());
                         } catch (Exception e) {
                             return new KeyValuePair<TValue, Exception>(default(TValue), e);
                         }
@@ -425,7 +426,7 @@ namespace Spreads.Collections.Persistent {
                     throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
                 }
 
-                if (array.Length - index < Count) {
+                if (array.Length - index < CountUnchecked) {
                     throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
                 }
 
@@ -453,18 +454,18 @@ namespace Spreads.Collections.Persistent {
                 throw new ArgumentNullException(nameof(key));
             }
 
-            if (Count > 0) {
-                int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-                // try search all previous generations
-                var initGen = initialGeneration;
-                for (int gen = generation; gen >= initGen; gen--) {
-                    var bucket = GetBucket(hashCode % HashHelpers.primes[gen]);
-                    Entry e = GetEntry(bucket);
-                    for (int i = bucket; i >= 0; i = e.next) {
-                        e = GetEntry(i);
-                        if (e.hashCode == hashCode && comparer.Equals(e.key, key))
-                            return new KeyValuePair<int, TValue>(i, e.value);
-                    }
+            if (CountUnchecked == 0) return new KeyValuePair<int, TValue>(-1, default(TValue));
+
+            int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
+            // try search all previous generations
+            var initGen = initialGeneration;
+            for (int gen = generation; gen >= initGen; gen--) {
+                var bucket = GetBucket(hashCode % HashHelpers.primes[gen]);
+                Entry e = GetEntry(bucket);
+                for (int i = bucket; i >= 0; i = e.next) {
+                    e = GetEntry(i);
+                    if (e.hashCode == hashCode && comparer.Equals(e.key, key))
+                        return new KeyValuePair<int, TValue>(i, e.value);
                 }
             }
             return new KeyValuePair<int, TValue>(-1, default(TValue));
@@ -563,14 +564,23 @@ namespace Spreads.Collections.Persistent {
             }
             if ((recoveryFlags & (1 << 1)) > 0) {
                 Debug.WriteLine("Recovering from flag 1");
-                // we have saved entry and index,
-                // we just set the saved entry snapshot back to its place
-                throw new NotImplementedException();
-                // save a snapshot at freeList or next count
-                //var snapShorEntry = entries[-1];
-                //entries[indexCopy] = snapShorEntry;
-                //recoveryFlags &= ~(1 << 1);
-                //Recover(true);
+
+                if (freeCount > 0) {
+                    var snapShotPosition = HeaderLength + (long)freeList * EntrySize + 8L; // Tkey-TValue part only
+                    var originPosition = HeaderLength + (long)indexCopy * EntrySize + 8L; // Tkey-TValue part only
+                    _entries._buffer.Copy(new IntPtr(_entries._buffer._data.ToInt64() + originPosition), snapShotPosition,
+                        EntrySize - 8);
+                } else {
+                    // NB we always have +1 capacity
+                    //if (count == (_buckets._capacity - HeaderLength) / 4) {
+                    //    Resize();
+                    //}
+                    var snapShotPosition = HeaderLength + (long)count * EntrySize + 8L; // Tkey-TValue part only
+                    var originPosition = HeaderLength + (long)indexCopy * EntrySize + 8L; // Tkey-TValue part only
+                    _entries._buffer.Copy(new IntPtr(_entries._buffer._data.ToInt64() + originPosition), snapShotPosition,
+                        EntrySize - 8);
+                }
+                recoveryFlags &= ~(1 << 1);
             }
         }
 
@@ -711,7 +721,13 @@ namespace Spreads.Collections.Persistent {
 
         public bool Remove(TKey key) {
             bool ret = false;
-            WriteLock(recovery => ret = DoRemove(key));
+            WriteLock(recovery =>
+            {
+                if (recovery) {
+                    Recover();
+                }
+                ret = DoRemove(key);
+            });
             return ret;
         }
 
@@ -720,7 +736,7 @@ namespace Spreads.Collections.Persistent {
                 throw new ArgumentNullException(nameof(key));
             }
 
-            if (Count >= 0) {
+            if (CountUnchecked >= 0) {
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
                 // try search all previous generations
                 var initGen = initialGeneration;
@@ -852,7 +868,7 @@ namespace Spreads.Collections.Persistent {
                 throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
             }
 
-            if (array.Length - index < Count) {
+            if (array.Length - index < CountUnchecked) {
                 throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
             }
 
@@ -1138,7 +1154,7 @@ namespace Spreads.Collections.Persistent {
                     throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
                 }
 
-                if (array.Length - index < _persistentMap.Count) {
+                if (array.Length - index < _persistentMap.CountUnchecked) {
                     throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
                 }
 
@@ -1152,7 +1168,7 @@ namespace Spreads.Collections.Persistent {
 
             public int Count
             {
-                get { return _persistentMap.Count; }
+                get { return _persistentMap.CountUnchecked; }
             }
 
             bool ICollection<TKey>.IsReadOnly
@@ -1201,7 +1217,7 @@ namespace Spreads.Collections.Persistent {
                     throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
                 }
 
-                if (array.Length - index < _persistentMap.Count) {
+                if (array.Length - index < _persistentMap.CountUnchecked) {
                     throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
                 }
 
@@ -1327,7 +1343,7 @@ namespace Spreads.Collections.Persistent {
                     throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
                 }
 
-                if (array.Length - index < _persistentMap.Count) {
+                if (array.Length - index < _persistentMap.CountUnchecked) {
                     throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
                 }
 
@@ -1341,7 +1357,7 @@ namespace Spreads.Collections.Persistent {
 
             public int Count
             {
-                get { return _persistentMap.Count; }
+                get { return _persistentMap.CountUnchecked; }
             }
 
             bool ICollection<TValue>.IsReadOnly
@@ -1390,7 +1406,7 @@ namespace Spreads.Collections.Persistent {
                     throw new ArgumentOutOfRangeException(nameof(index), index, "ArgumentOutOfRange_Index");
                 }
 
-                if (array.Length - index < _persistentMap.Count)
+                if (array.Length - index < _persistentMap.CountUnchecked)
                     throw new ArgumentException("Arg_ArrayPlusOffTooSmall");
 
                 TValue[] values = array as TValue[];
@@ -1534,6 +1550,8 @@ namespace Spreads.Collections.Persistent {
                         if (pid == 0) {
                             var l1 = *(int*)(_buckets._buffer._data);
                             Debug.Assert(l1 == Pid);
+                            Debug.Assert(*(long*)(_buckets._buffer._data + 8) == *(long*)(_buckets._buffer._data + 16), "Versions must be equal here.");
+
                             if (!fixVersions) Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 16));
                             break;
                         }
@@ -1575,12 +1593,11 @@ namespace Spreads.Collections.Persistent {
                         sw.SpinOnce();
                     }
                 }
-                Debug.Assert(generation >= 0);
                 action.Invoke(cleanup);
-                Debug.Assert(generation >= 0);
 #if CHAOS_MONKEY
             } catch (ChaosMonkeyException) {
                 // Do nothing, do not release lock. We are testing different failures now.
+                Debug.Assert(*(long*)(_buckets._buffer._data + 8) != *(long*)(_buckets._buffer._data + 16), "Versions must be not equal here.");
                 throw;
             } catch { // same as finally below
                 var pid = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), 0, Pid);
@@ -1595,20 +1612,25 @@ namespace Spreads.Collections.Persistent {
                 }
                 throw;
             }
-            Debug.Assert(generation >= 0);
             // normal case without exceptions
-            var l = *(int*) (_buckets._buffer._data);
+            var l = *(int*)(_buckets._buffer._data);
             Debug.Assert(l == Pid);
             var pid2 = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), 0, Pid);
             if (fixVersions) {
                 Interlocked.Exchange(ref *(long*)(_buckets._buffer._data + 16), *(long*)(_buckets._buffer._data + 8));
             } else {
+                
                 Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 8));
+                var v = *(long*)(_buckets._buffer._data + 8);
+                var nv = *(long*)(_buckets._buffer._data + 16);
+                Debug.Assert(v == nv, $"Versions must be equal here. V = {v}, NV = {nv}");
             }
             if (pid2 != Pid) {
                 Trace.TraceWarning("Cannot release lock, it was stolen while this process is still alive");
                 //Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
             }
+            
+
 #else
             } finally {
                 var pid = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), 0, Pid);
@@ -1619,7 +1641,6 @@ namespace Spreads.Collections.Persistent {
                     Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 8));
                 }
                 if (pid != Pid) {
-
                     Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
                 }
             }
