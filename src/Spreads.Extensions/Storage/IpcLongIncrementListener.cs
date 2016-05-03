@@ -9,7 +9,6 @@ namespace Spreads.Storage {
     /// <summary>
     /// Read a value from mmaped file, then invoke an action every time a value increases
     /// </summary>
-
     public class IpcLongIncrementListener : IDisposable {
         private long _lastSeenValue;
         private DirectFile _df;
@@ -22,19 +21,21 @@ namespace Spreads.Storage {
         public IpcLongIncrementListener(string filename, Action<long, long> action, long init = -1L) {
             _action = action;
             _df = new DirectFile(filename + ".ipclistener", 8);
-            _lastSeenValue = init == -1L ? _df.Buffer.VolatileReadInt64(0) : init;
-            if (init != -1L)
-            {
-                _df.Buffer.VolatileWriteInt64(0, init);
-            }
+
             var handleName = Path.GetFileName(filename) + ".ipclistener";
-            _eh = new EventWaitHandle(false, EventResetMode.ManualReset, handleName);
+            bool created;
+            _eh = new EventWaitHandle(false, EventResetMode.ManualReset, handleName, out created);
+            if (created && init != -1L) {
+                _df.Buffer.VolatileWriteInt64(0, init);
+                _lastSeenValue = init;
+            } else {
+                _lastSeenValue = _df.Buffer.VolatileReadInt64(0);
+            }
         }
 
         public void Set(long newValue) {
             var current = _df.Buffer.VolatileReadInt64(0);
-            if (newValue > current)
-            {
+            if (newValue > current) {
                 _df.Buffer.VolatileWriteInt64(0, newValue);
             }
             //while (_lastSeenValue != _df.Buffer.InterlockedCompareExchangeInt64(0, newValue, _lastSeenValue)) {

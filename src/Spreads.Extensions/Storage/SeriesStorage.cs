@@ -338,13 +338,18 @@ namespace Spreads.Storage {
 
         public void Dispose()
         {
+            Dispose(true);
+        }
+
+        public void Dispose(bool disposing) {
             Cts.Cancel();
             FlushAll(0).Wait();
             _connection.Dispose();
+            if (disposing) GC.SuppressFinalize(this);
         }
 
         ~SeriesStorage() {
-            Dispose();
+            Dispose(false);
         }
     }
 }

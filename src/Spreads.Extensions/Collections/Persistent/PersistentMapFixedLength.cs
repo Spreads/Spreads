@@ -604,7 +604,7 @@ namespace Spreads.Collections.Persistent {
                     e = GetEntry(i);
                     if (e.hashCode == hashCode && comparer.Equals(e.key, key)) {
                         if (add) {
-                            throw new ArgumentException("Format(Argument_AddingDuplicate, key)");
+                            throw new ArgumentException($"Key already exists: {key}");
                         }
 
                         var entry = e;
@@ -1606,8 +1606,7 @@ namespace Spreads.Collections.Persistent {
                     Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 8));
                 }
                 if (pid != Pid) {
-                    Trace.TraceWarning("Cannot release lock, it was stolen while this process is still alive");
-                    //Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
+                    Trace.Fail("Cannot release lock, it was stolen while this process is still alive");
                 }
                 throw;
             }
