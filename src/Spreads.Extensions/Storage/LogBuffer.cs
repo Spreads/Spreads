@@ -7,7 +7,7 @@ using Spreads.Serialization;
 
 namespace Spreads.Storage {
 
-    internal delegate void OnAppend(IntPtr pointer, int length);
+    internal delegate void OnAppend(IntPtr pointer);
 
     internal interface ILogBuffer {
         void Append<T>(T message);
@@ -91,7 +91,7 @@ namespace Spreads.Storage {
                             // could read value
                             byte[] bytes = new byte[len];
                             Marshal.Copy((_readerTermPtr + tail + 4), bytes, 0, len);
-                            OnAppend?.Invoke((_readerTermPtr + tail + 4), len);
+                            OnAppend?.Invoke((_readerTermPtr + tail));
                             _readerTail = _readerTail + len + 4;
                         }
                     }

@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using HdrHistogram;
 using NUnit.Framework;
-using Spreads.Collections.Direct;
-using Spreads.Collections.Persistent;
+using Spreads.Storage;
 
 namespace Spreads.Extensions.Tests {
     [TestFixture]

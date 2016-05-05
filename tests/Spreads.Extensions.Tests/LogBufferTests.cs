@@ -4,14 +4,13 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Spreads.Collections.Persistent;
 using Spreads.Storage;
 
 namespace Spreads.Extensions.Tests {
     [TestFixture]
     public class LogBufferTests {
         [Test]
-        public void LogBufferTest() {
+        public unsafe void LogBufferTest() {
             var sw = new Stopwatch();
 
             LogBuffer l1 = new LogBuffer("../LogBufferTest", 100);
@@ -30,8 +29,9 @@ namespace Spreads.Extensions.Tests {
 
 
             var cnt = 0;
-            l1.OnAppend += (ptr, len)  =>
+            l1.OnAppend += (ptr)  =>
             {
+                var len = *(int*) ptr;
                 var message = new byte[len];
                 Marshal.Copy(ptr, message, 0, len);
                 //var lng = BitConverter.ToInt64(message, 0);
@@ -43,7 +43,8 @@ namespace Spreads.Extensions.Tests {
             };
 
             var cnt2 = 0;
-            l2.OnAppend += (ptr, len) => {
+            l2.OnAppend += (ptr) => {
+                var len = *(int*)ptr;
                 var message = new byte[len];
                 Marshal.Copy(ptr, message, 0, len);
                 //var lng = BitConverter.ToInt64(message, 0);

@@ -320,6 +320,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       )
 
   member private this.FlushUnchecked() =
+    prevBucket.SetTarget (null)
     if isOuterPersistent then outerAsPersistent.Flush()
 
   // Ensure than current inner map is saved (set) to the outer map

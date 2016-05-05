@@ -362,9 +362,9 @@
     <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Utilities\TypeExtensions.cs">
       <Link>Storage\SQLite\Utilities\TypeExtensions.cs</Link>
     </Compile>
-    <Compile Include="Collections\Persistent\PersistentArray.cs" />
-    <Compile Include="Collections\Persistent\PersistentMap.cs" />
-    <Compile Include="Collections\Persistent\HashHelpers.cs" />
+    <Compile Include="Storage\PersistentArray.cs" />
+    <Compile Include="Storage\PersistentMap.cs" />
+    <Compile Include="Storage\HashHelpers.cs" />
     <Compile Include="DataTypes\Candles.cs" />
     <Compile Include="DataTypes\OrderBook.cs" />
     <Compile Include="DataTypes\Price.cs" />
@@ -385,7 +385,7 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="Collections\Persistent\PersistentMapFixedLength.cs" />
+    <Compile Include="Storage\PersistentMapFixedLength.cs" />
     <Compile Include="Serialization\Serializer.cs" />
     <Compile Include="Series\ProjectValuesWrapper.cs" />
     <Compile Include="Series\CursorSeries.cs" />
@@ -395,6 +395,7 @@
     <Compile Include="Storage\ISeriesStorage.cs" />
     <Compile Include="Storage\LogBuffer.cs" />
     <Compile Include="Storage\Commands.cs" />
+    <Compile Include="Storage\PersistentSeries.cs" />
     <Compile Include="Storage\RemoteChunksSeries.cs" />
     <Compile Include="Storage\SeriesRepository.cs" />
     <Compile Include="Storage\SeriesStorage.cs" />

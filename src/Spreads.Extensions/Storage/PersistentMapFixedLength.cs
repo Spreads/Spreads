@@ -26,10 +26,9 @@ using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Spreads.Collections.Direct;
 using Spreads.Serialization;
 
-namespace Spreads.Collections.Persistent {
+namespace Spreads.Storage {
 
 
     // NB Recovery process: 95% of work, but even during testing and program shutdown there was a non-exited lock.
@@ -40,7 +39,7 @@ namespace Spreads.Collections.Persistent {
 
     [DebuggerTypeProxy(typeof(IDictionaryDebugView<,>))]
     [DebuggerDisplay("Count = {Count}")]
-    [System.Runtime.InteropServices.ComVisible(false)]
+    [ComVisible(false)]
     public sealed class PersistentMapFixedLength<TKey, TValue> : IPersistentMap<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> {
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         internal struct Entry : IBinaryConverter<Entry> {

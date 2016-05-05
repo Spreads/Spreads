@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Spreads.Serialization;
 
-namespace Spreads.Collections.Persistent {
+namespace Spreads.Storage {
 
     internal class PersistentArray<T> : IEnumerable<T>, IDisposable where T : struct
     {

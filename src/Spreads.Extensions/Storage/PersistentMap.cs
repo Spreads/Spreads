@@ -19,10 +19,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using Spreads.Serialization;
 
-namespace Spreads.Collections.Persistent {
+namespace Spreads.Storage {
 
     public interface IPersistentMap<TKey, TValue> : IDictionary<TKey, TValue>, IPersistentObject
     {

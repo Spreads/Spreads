@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Spreads.Collections.Persistent;
+using Spreads.Storage;
 
 namespace Spreads.Extensions.Tests {
     [TestFixture]
