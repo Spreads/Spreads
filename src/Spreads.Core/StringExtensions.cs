@@ -27,21 +27,23 @@ using System.Threading.Tasks;
 
 namespace Spreads {
 
-    public static class StringExtensions {
-
+    public static class StringExtensions
+    {
+        [ThreadStatic]
+        private static MD5 _hasher;
         /// <summary>
-        ///     Translate MD5 hash of a string to Guid with zero epoch
+        /// Translate MD5 hash of a string UTF8 bytes to Guid
         /// </summary>
-        public static Guid MD5Guid(this string uniqueString) {
-            var hasher = MD5.Create();
-            var hashValue = hasher.ComputeHash(Encoding.UTF8.GetBytes(uniqueString));
+        public static Guid MD5Guid(this string uniqueString)
+        {
+            if (_hasher == null) _hasher = MD5.Create();
+            var hashValue = _hasher.ComputeHash(Encoding.UTF8.GetBytes(uniqueString));
             return new Guid(hashValue);
         }
 
         public static byte[] MD5Bytes(this string uniqueString) {
-            var hasher = MD5.Create();
-            return hasher.ComputeHash(Encoding.UTF8.GetBytes(uniqueString));
+            if (_hasher == null) _hasher = MD5.Create();
+            return _hasher.ComputeHash(Encoding.UTF8.GetBytes(uniqueString));
         }
-
     }
 }

@@ -43,6 +43,7 @@ namespace Spreads {
         }
 
         public UUID(Guid guid) : this(guid.ToByteArray()) { }
+        public UUID(string value) : this(value.MD5Bytes()) { }
 
         public int CompareTo(UUID other) {
             var f = _first.CompareTo(other._first);
@@ -57,7 +58,7 @@ namespace Spreads {
         }
 
         public override int GetHashCode() {
-            ulong mask = (ulong)uint.MaxValue;
+            ulong mask = int.MaxValue;
             return (int)(_first & mask);
         }
 
@@ -65,5 +66,15 @@ namespace Spreads {
             return this.Equals((UUID)obj);
         }
 
+
+        public static bool operator ==(UUID first, UUID second)
+        {
+            return first.Equals(second);
+        }
+
+        public static bool operator !=(UUID first, UUID second)
+        {
+            return !(first == second);
+        }
     }
 }

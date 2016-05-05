@@ -7,14 +7,15 @@ using Spreads.Serialization;
 
 namespace Spreads.Storage {
 
-    public delegate void OnAppend(IntPtr pointer, int length);
+    internal delegate void OnAppend(IntPtr pointer, int length);
 
-    public interface ILogBuffer {
+    internal interface ILogBuffer {
         void Append<T>(T message);
+        IntPtr Claim(int length);
         event OnAppend OnAppend;
     }
 
-    public class LogBuffer : ILogBuffer, IDisposable {
+    internal class LogBuffer : ILogBuffer, IDisposable {
         private const int HeaderSize = 256;
         private const int NumberOfTerms = 3;
 
@@ -136,25 +137,27 @@ namespace Spreads.Storage {
                 len = TypeHelper<T>.Size;
             }
 
-            var nextTail = Interlocked.Add(ref *(int*)_writerTailPtr, len + 4);
+            var ptr = Claim(len);
+            if (bytes == null) {
+                TypeHelper<T>.StructureToPtr(message, ptr + 4);
+            } else {
+                Marshal.Copy(bytes, 0, ptr + 4, len);
+            }
+            Volatile.Write(ref *(int*)(ptr), len);
+        }
+
+        public unsafe IntPtr Claim(int length) {
+            var nextTail = Interlocked.Add(ref *(int*)_writerTailPtr, length + 4);
             // have enough space after this claim
             if (nextTail <= TermSize) {
-                // write message body
-                if (bytes == null) {
-                    TypeHelper<T>.StructureToPtr(message, _writerTermPtr + (nextTail - len));
-                } else {
-                    Marshal.Copy(bytes, 0, _writerTermPtr + (nextTail - len), len);
-                }
-                // write message length
-                Volatile.Write(ref *(int*)(_writerTermPtr + (nextTail - len - 4)), len);
-                return;
+                return (_writerTermPtr + (nextTail - length - 4));
             }
 
-            if (nextTail - (len + 4) <= TermSize) {
+            if (nextTail - (length + 4) <= TermSize) {
                 // we are the first to read the end of the term, it is our responsibility
                 // to clean after ourselves
 
-                var oldLenPtr = (_writerTermPtr + (nextTail - len - 4));
+                var oldLenPtr = (_writerTermPtr + (nextTail - length - 4));
 
 
                 var newTerm = (_writerTerm + 1) % NumberOfTerms;
@@ -171,11 +174,10 @@ namespace Spreads.Storage {
                 // signal to readers about term overflow
                 Volatile.Write(ref *(int*)oldLenPtr, -1);
 
-                Append(message);
-                return;
+                return Claim(length);
 
             } else {
-                Trace.Assert(nextTail - (len + 4) > TermSize);
+                Trace.Assert(nextTail - (length + 4) > TermSize);
                 // we claimed space after someone first reached the limit.
                 // must wait until ActiveTermId is incremented
                 var sw = new SpinWait();
@@ -187,8 +189,7 @@ namespace Spreads.Storage {
                 _writerTailPtr = Tail(_writerTerm);
                 _writerTermPtr = _df._buffer._data + HeaderSize + TermSize * _writerTerm;
 
-                Append(message);
-                return;
+                return Claim(length); ;
             }
             Console.WriteLine(nextTail);
             throw new ApplicationException("Should never be there");
@@ -196,15 +197,18 @@ namespace Spreads.Storage {
 
         public event OnAppend OnAppend;
 
-        public void Dispose() {
+        private void Dispose(bool disposing) {
             _cts.Cancel();
             _reader.Wait();
-            GC.SuppressFinalize(this);
+            if (disposing) GC.SuppressFinalize(this);
+        }
+
+        public void Dispose() {
+            Dispose(true);
         }
 
         ~LogBuffer() {
-            _cts.Cancel();
-            _reader.Wait();
+            Dispose(false);
         }
     }
 }

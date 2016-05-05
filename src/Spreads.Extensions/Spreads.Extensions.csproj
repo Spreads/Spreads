@@ -379,7 +379,6 @@
     <Compile Include="Bootstrapper\Process.cs" />
     <Compile Include="Bootstrapper\Version.cs" />
     <Compile Include="Extensions\DateTimeExtensions.cs" />
-    <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="Generation\SortedMapGenerator.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -392,9 +391,12 @@
     <Compile Include="Series\CursorSeries.cs" />
     <Compile Include="Series\ZonedSeries.cs" />
     <Compile Include="Storage\IpcLongIncrementListener.cs" />
+    <Compile Include="Storage\ISeriesRepository.cs" />
     <Compile Include="Storage\ISeriesStorage.cs" />
     <Compile Include="Storage\LogBuffer.cs" />
+    <Compile Include="Storage\Commands.cs" />
     <Compile Include="Storage\RemoteChunksSeries.cs" />
+    <Compile Include="Storage\SeriesRepository.cs" />
     <Compile Include="Storage\SeriesStorage.cs" />
     <Compile Include="Storage\SQLite\Interop\NativeMethodsEx.cs" />
     <Compile Include="Storage\SQLite\Interop\Sqlite3BlobHandle.cs" />

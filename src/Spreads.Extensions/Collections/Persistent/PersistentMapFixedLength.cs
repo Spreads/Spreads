@@ -1,6 +1,22 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
+﻿/*
+    Copyright(c) 2014-2016 Victor Baybekov.
+
+    This file is a part of Spreads library.
+
+    Spreads library is free software; you can redistribute it and/or modify it under
+    the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+
+    Spreads library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.If not, see<http://www.gnu.org/licenses/>.
+*/
+
 
 using System;
 using System.Collections;
@@ -27,7 +43,7 @@ namespace Spreads.Collections.Persistent {
     [System.Runtime.InteropServices.ComVisible(false)]
     public sealed class PersistentMapFixedLength<TKey, TValue> : IPersistentMap<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> {
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        internal struct Entry : IBlittableConverter<Entry> {
+        internal struct Entry : IBinaryConverter<Entry> {
             public int hashCode; // Lower 31 bits of hash code, -1 if unused
             public int next; // Index of next entry, -1 if last
             public TKey key; // Key of entry
@@ -35,8 +51,13 @@ namespace Spreads.Collections.Persistent {
 
             // NB this interface methods are only called when Entry[] is not directly pinnable
             // Otherwise more efficient direct conversion is used
-            public bool IsBlittable => TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
-            public int Size => 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size;
+            public bool IsFixedSize => TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
+            public int Size => IsFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
+            public int SizeOf(Entry value) {
+                if (IsFixedSize) return Size;
+                throw new NotSupportedException("This variant of persistent map does not support variable-size types.");
+            }
+
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public unsafe void ToPtr(Entry entry, IntPtr ptr) {
                 *(int*)ptr = entry.hashCode;
@@ -53,24 +74,12 @@ namespace Spreads.Collections.Persistent {
                 entry.value = TypeHelper<TValue>.PtrToStructure((ptr + 8 + TypeHelper<TKey>.Size));
                 return entry;
             }
+
+            public int Version => -1;
         }
 
         private const int HeaderLength = 256;
         private static readonly int EntrySize = TypeHelper<Entry>.Size;
-        //private static readonly int _directMode = -1;
-
-        //static PersistentMapFixedLength() {
-        //    if (TypeHelper<Entry>.Size > 0) {
-        //        _directMode = 0;
-        //        EntrySize = TypeHelper<Entry>.Size;
-        //    } else if (TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0) {
-        //        _directMode = 1;
-        //        EntrySize = 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size;
-        //    } else {
-        //        EntrySize = -1;
-        //        _directMode = 3;
-        //    }
-        //}
 
         internal DirectFile _buckets;
         internal DirectFile _entries;
@@ -1655,6 +1664,25 @@ namespace Spreads.Collections.Persistent {
             if (disposing) {
                 GC.SuppressFinalize(this);
             }
+        }
+
+        public TValue AddOrUpdate(TKey key, TValue addValue, Func<TKey, TValue, TValue> updateValueFactory) {
+            TValue ret = default(TValue);
+            WriteLock(recover => {
+                if (recover) {
+                    Recover();
+                }
+                var kvp = FindEntry(key);
+                if (kvp.Key >= 0) {
+                    ret = updateValueFactory.Invoke(key, kvp.Value);
+                    Insert(key, ret, false);
+                } else {
+                    Insert(key, addValue, true);
+                    ret = addValue;
+                }
+
+            });
+            return ret;
         }
 
         ~PersistentMapFixedLength() {

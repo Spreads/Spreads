@@ -77,7 +77,8 @@
     <Compile Include="Serialization\SafeBufferAccessor.cs" />
     <Compile Include="Serialization\SafeBufferStream.cs" />
     <Compile Include="Serialization\TypeHelper.cs" />
-    <Compile Include="Serialization\IBlittableConverter.cs" />
+    <Compile Include="Serialization\IBinaryConverter.cs" />
+    <Compile Include="StringExtensions.cs" />
     <Compile Include="System\SR.cs" />
     <Compile Include="System\Buffers\ArrayPool.cs" />
     <Compile Include="System\Buffers\ArrayPoolEventSource.cs" />

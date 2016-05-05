@@ -60,7 +60,8 @@ namespace Spreads.Storage {
         }
 
         public static string GetDefaultConnectionString(string filename = "default.db") {
-            return $"Filename={Path.Combine(_defaultPath, filename)}";
+            if(!Path.IsPathRooted(filename)) return $"Filename={Path.Combine(_defaultPath, filename)}";
+            return $"Filename={filename}";
         }
 
         public SqliteConnection Connection
