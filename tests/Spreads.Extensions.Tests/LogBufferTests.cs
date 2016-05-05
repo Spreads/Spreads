@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -18,20 +19,22 @@ namespace Spreads.Extensions.Tests {
 
             var tcs = new TaskCompletionSource<int>();
             var tcs2 = new TaskCompletionSource<int>();
-            var count = 100000;
+            var count = 100;
 
-            var bytes = new byte[500];
-            for (int i = 0; i < 500; i++) {
-                bytes[i] = (byte)(i % 255);
-            }
+            //var bytes = new byte[500];
+            //for (int i = 0; i < 500; i++) {
+            //    bytes[i] = (byte)(i % 255);
+            //}
 
             sw.Start();
 
 
             var cnt = 0;
-            l2.OnAppend += message =>
+            l1.OnAppend += (ptr, len)  =>
             {
-                //var lng = BitConverter.ToInt64(message.Array, 0);
+                var message = new byte[len];
+                Marshal.Copy(ptr, message, 0, len);
+                //var lng = BitConverter.ToInt64(message, 0);
                 //Assert.AreEqual(cnt, lng);
                 if (count - 1 == cnt) {
                     tcs.SetResult(cnt);
@@ -40,11 +43,13 @@ namespace Spreads.Extensions.Tests {
             };
 
             var cnt2 = 0;
-            l2.OnAppend += message => {
-                //var lng = BitConverter.ToInt64(message.Array, 0);
+            l2.OnAppend += (ptr, len) => {
+                var message = new byte[len];
+                Marshal.Copy(ptr, message, 0, len);
+                //var lng = BitConverter.ToInt64(message, 0);
                 //Assert.AreEqual(cnt, lng);
                 if (count - 1 == cnt2) {
-                    tcs2.SetResult(cnt);
+                    tcs2.SetResult(cnt2);
                 }
                 cnt2++;
             };
@@ -52,7 +57,7 @@ namespace Spreads.Extensions.Tests {
 
             for (int i = 0; i < count; i++)
             {
-                l1.Append(new ArraySegment<byte>(bytes));//BitConverter.GetBytes((long)i)));
+                l1.Append((long)i);//BitConverter.GetBytes((long)i))); //
             }
 
             tcs.Task.Wait();

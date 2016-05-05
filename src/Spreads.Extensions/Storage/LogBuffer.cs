@@ -7,10 +7,10 @@ using Spreads.Serialization;
 
 namespace Spreads.Storage {
 
-    public delegate void OnAppend(ArraySegment<byte> message);
+    public delegate void OnAppend(IntPtr pointer, int length);
 
     public interface ILogBuffer {
-        void Append(ArraySegment<byte> message);
+        void Append<T>(T message);
         event OnAppend OnAppend;
     }
 
@@ -74,28 +74,30 @@ namespace Spreads.Storage {
 
             _reader = Task.Factory.StartNew(() => {
                 var sw = new SpinWait();
-                while (!_cts.Token.IsCancellationRequested)
-                {
+                while (!_cts.Token.IsCancellationRequested) {
                     var tail = _readerTail; // Volatile.Read(ref *(int*)_readerTailPtr);
                     if (tail >= TermSize || *(int*)(_readerTermPtr + tail) == -1) {
+                        while (ActiveTermId == _readerTerm) {
+                            sw.SpinOnce();
+                        }
                         // switch term
                         _readerTerm = (_readerTerm + 1) % NumberOfTerms;
                         _readerTail = 0;
                         _readerTermPtr = _df._buffer._data + HeaderSize + TermSize * _readerTerm;
                     } else {
                         var len = *(int*)(_readerTermPtr + tail);
-                        if (len > 0)
-                        {
+                        if (len > 0) {
                             // could read value
                             byte[] bytes = new byte[len];
                             Marshal.Copy((_readerTermPtr + tail + 4), bytes, 0, len);
-                            OnAppend?.Invoke(new ArraySegment<byte>(bytes));
+                            OnAppend?.Invoke((_readerTermPtr + tail + 4), len);
                             _readerTail = _readerTail + len + 4;
                         }
                     }
+                    Thread.SpinWait(1);
                     // TODO? implement signaling via WaitHandle?
-                    if (sw.NextSpinWillYield) sw.Reset();
-                    sw.SpinOnce();
+                    //if (sw.NextSpinWillYield) sw.Reset();
+                    //sw.SpinOnce();
                 }
             }, _cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
@@ -118,23 +120,41 @@ namespace Spreads.Storage {
             }
         }
 
-        public unsafe void Append(ArraySegment<byte> message) {
-            var len = message.Count;
+        public unsafe void Append<T>(T message) {
+            // NB Writing a generic type and its bytes after serialization should be indistinguishable
+            byte[] bytes = null;
+            if (TypeHelper<T>.Size == -1) {
+                bytes = Serializer.Serialize(message);
+                Append(bytes);
+            }
+
+            int len;
+            if (typeof(T) == typeof(byte[])) {
+                bytes = (byte[])(object)(message);
+                len = bytes.Length;
+            } else {
+                len = TypeHelper<T>.Size;
+            }
+
             var nextTail = Interlocked.Add(ref *(int*)_writerTailPtr, len + 4);
             // have enough space after this claim
             if (nextTail <= TermSize) {
                 // write message body
-                Marshal.Copy(message.Array, message.Offset, _writerTermPtr + (nextTail - len), len);
+                if (bytes == null) {
+                    TypeHelper<T>.StructureToPtr(message, _writerTermPtr + (nextTail - len));
+                } else {
+                    Marshal.Copy(bytes, 0, _writerTermPtr + (nextTail - len), len);
+                }
                 // write message length
                 Volatile.Write(ref *(int*)(_writerTermPtr + (nextTail - len - 4)), len);
                 return;
             }
-            
-            if (nextTail - (len + 4) < TermSize) {
+
+            if (nextTail - (len + 4) <= TermSize) {
                 // we are the first to read the end of the term, it is our responsibility
                 // to clean after ourselves
 
-                //var oldLenPtr = (_writerTermPtr + (nextTail - len - 4));
+                var oldLenPtr = (_writerTermPtr + (nextTail - len - 4));
 
 
                 var newTerm = (_writerTerm + 1) % NumberOfTerms;
@@ -149,13 +169,13 @@ namespace Spreads.Storage {
                 ActiveTermId = newTerm;
 
                 // signal to readers about term overflow
-                Volatile.Write(ref *(int*)_writerTermPtr, -1);
+                Volatile.Write(ref *(int*)oldLenPtr, -1);
 
                 Append(message);
-                //return;
+                return;
 
             } else {
-                Trace.Assert(nextTail - (len + 4) >= TermSize);
+                Trace.Assert(nextTail - (len + 4) > TermSize);
                 // we claimed space after someone first reached the limit.
                 // must wait until ActiveTermId is incremented
                 var sw = new SpinWait();
@@ -168,7 +188,7 @@ namespace Spreads.Storage {
                 _writerTermPtr = _df._buffer._data + HeaderSize + TermSize * _writerTerm;
 
                 Append(message);
-                //return;
+                return;
             }
             Console.WriteLine(nextTail);
             throw new ApplicationException("Should never be there");
