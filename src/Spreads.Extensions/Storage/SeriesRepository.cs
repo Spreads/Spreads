@@ -20,28 +20,25 @@
 using System;
 using System.Collections.Concurrent;
 using System.Data;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Spreads.Serialization;
 
 namespace Spreads.Storage {
 
-    
 
     public class SeriesRepository : ISeriesRepository {
         // persistent dictionary to store all open series with write access and process id
         // we use single writer and steal locks if a writer process id is not among running processes.
-        private PersistentMapFixedLength<long, int> _writeSeriesLocks;
+        private PersistentMapFixedLength<UUID, int> _writeSeriesLocks;
         private const string WriteLocksFileName = "writelocks.pm";
-        // not sure if that is needed
-        //private PersistentMapFixedLength<long, int> _readerCount;
 
         private ILogBuffer _logBuffer;
         private const string LogBufferFileName = "logbuffer.lb";
         private const uint MinimumBufferSize = 10;
         private SeriesStorage _storage;
         private const string StorageFileName = "storage.db";
-
 
         // Opened series that could accept commands
         private readonly ConcurrentDictionary<UUID, IAcceptCommand> _openSeries = new ConcurrentDictionary<UUID, IAcceptCommand>();
@@ -59,7 +56,7 @@ namespace Spreads.Storage {
                 path = Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "Repos", path);
             }
             var writeLocksFileName = Path.Combine(path, WriteLocksFileName);
-            _writeSeriesLocks = new PersistentMapFixedLength<long, int>(writeLocksFileName, 1000);
+            _writeSeriesLocks = new PersistentMapFixedLength<UUID, int>(writeLocksFileName, 1000);
             var logBufferFileName = Path.Combine(path, LogBufferFileName);
             _logBuffer = new LogBuffer(logBufferFileName, bufferSizeMb < MinimumBufferSize ? (int)MinimumBufferSize : (int)bufferSizeMb);
             var storageFileName = Path.Combine(path, StorageFileName);
@@ -67,6 +64,10 @@ namespace Spreads.Storage {
 
             _logBuffer.OnAppend += _logBuffer_OnAppend;
         }
+
+
+        public SeriesStorage Storage => _storage;
+        private static readonly int Pid = Process.GetCurrentProcess().Id;
 
         private unsafe void _logBuffer_OnAppend(IntPtr pointer) {
             var uuid = (*(CommandHeader*)(pointer + 4)).SeriesId;
@@ -77,22 +78,106 @@ namespace Spreads.Storage {
         }
 
         public async Task<PersistentSeries<K, V>> WriteSeries<K, V>(string seriesId, bool allowBatches = false) {
-            // TODO extended id type check
-            var uuid = new UUID(seriesId);
-            throw new NotImplementedException();
+            return await GetSeries<K, V>(seriesId, false, false);
         }
 
         public async Task<Series<K, V>> ReadSeries<K, V>(string seriesId) {
-            // TODO extended id type check
-            var uuid = new UUID(seriesId);
-            IAcceptCommand series;
-            if (_openSeries.TryGetValue(uuid, out series)) {
-                return ((Series<K, V>)series).ReadOnly();
-            }
-            // TODO subscribe, wait for flush
-            throw new NotImplementedException();
+            return (await GetSeries<K, V>(seriesId, false, false)).ReadOnly();
         }
 
+
+        private void Downgrade(UUID seriesId) {
+            _writeSeriesLocks.Remove(seriesId);
+            LogReleaseLock(seriesId);
+        }
+
+        private async Task Upgrade<K, V>(UUID seriesId, PersistentSeries<K, V> series) {
+            while (true) {
+                var released = await series.LockReleaseEvent.WaitAsync(1000);
+                if (released) {
+                    _writeSeriesLocks.Add(seriesId, Pid);
+                    series.IsWriter = true;
+                    LogAcquireLock(seriesId, series.Version);
+                    break;
+                } else {
+                    throw new NotImplementedException("TODO check if Pid is alive and steal lock if it is not");
+                }
+            }
+        }
+
+        private async Task<PersistentSeries<K, V>> GetSeries<K, V>(string seriesId, bool isWriter, bool allowBatches = false) {
+
+            seriesId = seriesId.ToLowerInvariant().Trim();
+            var exSeriesId = _storage.GetExtendedSeriesId<K, V>(seriesId);
+            var uuid = new UUID(exSeriesId.UUID);
+            IAcceptCommand series;
+            if (_openSeries.TryGetValue(uuid, out series)) {
+                var ps = (PersistentSeries<K, V>)series;
+                ps.RefCounter++;
+                return ps;
+            }
+
+            var disposeCallback = isWriter ? new Action(() => Downgrade(uuid)) : null;
+
+            var waitFlush = new TaskCompletionSource<int>();
+            var pSeries = new PersistentSeries<K, V>(_logBuffer, uuid,
+                _storage.GetPersistentOrderedMap<K, V>(seriesId, false), allowBatches, isWriter,
+                disposeCallback, waitFlush);
+            pSeries.RefCounter++;
+            _openSeries[uuid] = pSeries;
+
+            LogSubscribe(uuid, pSeries.Version);
+
+            if (isWriter) {
+                try {
+                    _writeSeriesLocks.Add(uuid, Pid);
+                    LogAcquireLock(uuid, pSeries.Version);
+                } catch (ArgumentException) {
+                    await Upgrade(uuid, pSeries);
+                }
+            } else {
+                // wait for flush if there is a writer 
+                if (_writeSeriesLocks.ContainsKey(uuid)) {
+                    await waitFlush.Task;
+                }
+            }
+            return pSeries;
+        }
+
+        private unsafe void LogSubscribe(UUID uuid, long version) {
+            var header = new CommandHeader {
+                SeriesId = uuid,
+                CommandType = CommandType.Subscribe,
+                Version = version
+            };
+            var len = CommandHeader.Size;
+            var ptr = _logBuffer.Claim(len);
+            *(CommandHeader*)(ptr + 4) = header;
+            *(int*)ptr = len;
+        }
+
+        private unsafe void LogAcquireLock(UUID uuid, long version) {
+            var header = new CommandHeader {
+                SeriesId = uuid,
+                CommandType = CommandType.AcquireLock,
+                Version = version
+            };
+            var len = CommandHeader.Size;
+            var ptr = _logBuffer.Claim(len);
+            *(CommandHeader*)(ptr + 4) = header;
+            *(int*)ptr = len;
+        }
+
+        private unsafe void LogReleaseLock(UUID uuid) {
+            var header = new CommandHeader {
+                SeriesId = uuid,
+                CommandType = CommandType.ReleaseLock,
+            };
+            var len = CommandHeader.Size;
+            var ptr = _logBuffer.Claim(len);
+            *(CommandHeader*)(ptr + 4) = header;
+            *(int*)ptr = len;
+        }
 
         private sealed class SeriesStorageWrapper : SeriesStorage {
             private readonly ILogBuffer _logBuffer;
@@ -156,5 +241,5 @@ namespace Spreads.Storage {
 
 
 
-    
+
 }

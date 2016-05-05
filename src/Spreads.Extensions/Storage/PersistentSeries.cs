@@ -24,6 +24,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Spreads.Collections;
 using Spreads.Serialization;
 
@@ -37,20 +38,24 @@ namespace Spreads.Storage {
         private readonly IPersistentOrderedMap<K, V> _innerMap;
         private readonly bool _allowBatches;
         private readonly Action _disposeCallback;
+        private readonly TaskCompletionSource<int> _waitFlush;
+        internal AsyncAutoResetEvent LockReleaseEvent = new AsyncAutoResetEvent();
+        internal int RefCounter;
 
-        internal PersistentSeries(ILogBuffer logBuffer, UUID uuid, IPersistentOrderedMap<K, V> innerMap, bool allowBatches, bool writer, Action disposeCallback = null) {
+        internal PersistentSeries(ILogBuffer logBuffer, UUID uuid, IPersistentOrderedMap<K, V> innerMap, bool allowBatches, bool isWriter,
+            Action disposeCallback = null, TaskCompletionSource<int> waitFlush = null) {
             _logBuffer = logBuffer;
             _uuid = uuid;
             _innerMap = innerMap;
             _allowBatches = allowBatches;
-            Writer = writer;
+            IsWriter = isWriter;
             _disposeCallback = disposeCallback;
-
+            _waitFlush = waitFlush;
             if (TypeHelper<SetRemoveCommandBody<K, V>>.Size == -1) {
                 throw new NotImplementedException("TODO variable size support");
             }
         }
-        internal bool Writer { get; set; }
+        internal bool IsWriter { get; set; }
 
         // NB we apply commands only to instantiated series when runtime does all types magic
         public unsafe void ApplyCommand(IntPtr pointer) {
@@ -61,7 +66,7 @@ namespace Spreads.Storage {
             switch (type) {
                 case CommandType.Set:
                     // If this is a writer, it should ignore its own commands read from log-buffer
-                    if (!Writer) {
+                    if (!IsWriter) {
                         var setBody =
                             TypeHelper<SetRemoveCommandBody<K, V>>.PtrToStructure(pointer + 4 + CommandHeader.Size);
                         _innerMap[setBody.key] = setBody.value;
@@ -69,7 +74,7 @@ namespace Spreads.Storage {
                     break;
 
                 case CommandType.Remove:
-                    if (!Writer) {
+                    if (!IsWriter) {
                         var removeBody =
                             TypeHelper<SetRemoveCommandBody<K, int>>.PtrToStructure(pointer + 4 + CommandHeader.Size);
                         _innerMap.RemoveMany(removeBody.key, (Lookup)removeBody.value);
@@ -77,19 +82,19 @@ namespace Spreads.Storage {
                     break;
 
                 case CommandType.Append:
-                    if (!Writer) {
+                    if (!IsWriter) {
                         throw new NotImplementedException("TODO");
                     }
                     break;
 
                 case CommandType.Complete:
-                    if (!Writer) {
+                    if (!IsWriter) {
                         _innerMap.Complete();
                     }
                     break;
 
                 case CommandType.SetChunk:
-                    if (!Writer) {
+                    if (!IsWriter) {
                         var setChunkBody = *(ChunkCommandBody*)(pointer + 4 + CommandHeader.Size);
                         {
                             var scm = _innerMap as SortedChunkedMap<K, V>;
@@ -109,7 +114,7 @@ namespace Spreads.Storage {
                     break;
 
                 case CommandType.RemoveChunk:
-                    if (!Writer) {
+                    if (!IsWriter) {
                         var setChunkBody = *(ChunkCommandBody*)(pointer + 4 + CommandHeader.Size);
                         {
                             var scm = _innerMap as SortedChunkedMap<K, V>;
@@ -126,16 +131,19 @@ namespace Spreads.Storage {
 
                 case CommandType.Flush:
                     Trace.Assert(header.Version == _innerMap.Version);
+                    _waitFlush?.SetResult(1);
                     break;
 
                 case CommandType.Subscribe:
                     // if we are the single writer, we must flush so that new subscribers could see unsaved data
                     // if we are read-only
-                    if (Writer) this.Flush();
+                    if (IsWriter) this.Flush();
                     break;
 
                 case CommandType.AcquireLock:
+                    break;
                 case CommandType.ReleaseLock:
+                    LockReleaseEvent.Set();
                     // ignore
                     break;
 
@@ -266,21 +274,40 @@ namespace Spreads.Storage {
         }
 
         public void Complete() {
-            _innerMap.Complete();
-            _innerMap.Version = _innerMap.Version + 1;
-            LogHeaderOnly(CommandType.Complete);
+            if (IsWriter) {
+                _innerMap.Complete();
+                _innerMap.Version = _innerMap.Version + 1;
+                LogHeaderOnly(CommandType.Complete);
+            } else {
+                throw new InvalidOperationException("Cannot Complete read-only series");
+            }
         }
 
         public void Flush() {
-            _innerMap.Flush();
-            LogHeaderOnly(CommandType.Flush);
+            if (IsWriter) {
+                _innerMap.Flush();
+                LogHeaderOnly(CommandType.Flush);
+            } else {
+                throw new InvalidOperationException("Cannot Flush read-only series");
+            }
         }
 
         private void Dispose(bool disposing) {
-            if (Writer) Flush();
-            _innerMap.Dispose();
+            // disposing a single writer 
+            if (IsWriter) {
+                Flush();
+                IsWriter = false;
+                LockReleaseEvent.Set();
+            }
+
             _disposeCallback?.Invoke();
-            if (disposing) GC.SuppressFinalize(this);
+            RefCounter--;
+            if (RefCounter == 0) {
+                _innerMap.Dispose();
+            }
+            if (disposing) {
+                GC.SuppressFinalize(this);
+            }
         }
 
         public void Dispose() {
