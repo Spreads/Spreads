@@ -35,7 +35,7 @@ namespace Spreads.Serialization {
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct DirectBuffer : IDirectBuffer {
         private readonly long _length;
-        internal IntPtr _data;
+        internal readonly IntPtr _data;
 
         /// <summary>
         /// Attach a view to an unmanaged buffer owned by external code
