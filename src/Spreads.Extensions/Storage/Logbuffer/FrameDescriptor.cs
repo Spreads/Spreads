@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Spreads.Serialization;
 
 namespace Spreads.Storage.Logbuffer {
     /**
@@ -56,17 +57,17 @@ namespace Spreads.Storage.Logbuffer {
         /**
          * Offset within a frame at which the version field begins
          */
-        public const int VERSION_OFFSET = DataHeaderFlyweight.VERSION_FIELD_OFFSET;
+        public const int VERSION_OFFSET = HeaderFlyweight.VERSION_FIELD_OFFSET;
 
         /**
          * Offset within a frame at which the flags field begins
          */
-        public const int FLAGS_OFFSET = DataHeaderFlyweight.FLAGS_FIELD_OFFSET;
+        public const int FLAGS_OFFSET = HeaderFlyweight.FLAGS_FIELD_OFFSET;
 
         /**
          * Offset within a frame at which the type field begins
          */
-        public const int TYPE_OFFSET = DataHeaderFlyweight.TYPE_FIELD_OFFSET;
+        public const int TYPE_OFFSET = HeaderFlyweight.TYPE_FIELD_OFFSET;
 
         /**
          * Offset within a frame at which the term offset field begins
@@ -89,7 +90,7 @@ namespace Spreads.Storage.Logbuffer {
          * @param capacity of the log buffer.
          * @return the maximum supported length for a message.
          */
-        public static int computeMaxMessageLength(final int capacity) {
+        public static int ComputeMaxMessageLength(int capacity) {
             return capacity / 8;
         }
 
@@ -99,7 +100,7 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset at which the frame begins.
          * @return the offset at which the length field begins.
          */
-        public static int lengthOffset(final int termOffset) {
+        public static int LengthOffset(int termOffset) {
             return termOffset;
         }
 
@@ -109,7 +110,7 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset at which the frame begins.
          * @return the offset at which the version field begins.
          */
-        public static int versionOffset(final int termOffset) {
+        public static int VersionOffset(int termOffset) {
             return termOffset + VERSION_OFFSET;
         }
 
@@ -119,7 +120,7 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset at which the frame begins.
          * @return the offset at which the flags field begins.
          */
-        public static int flagsOffset(final int termOffset) {
+        public static int FlagsOffset(int termOffset) {
             return termOffset + FLAGS_OFFSET;
         }
 
@@ -129,7 +130,7 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset at which the frame begins.
          * @return the offset at which the type field begins.
          */
-        public static int typeOffset(final int termOffset) {
+        public static int TypeOffset(int termOffset) {
             return termOffset + TYPE_OFFSET;
         }
 
@@ -139,7 +140,7 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset at which the frame begins.
          * @return the offset at which the term offset field begins.
          */
-        public static int termOffsetOffset(final int termOffset) {
+        public static int TermOffsetOffset(int termOffset) {
             return termOffset + TERM_OFFSET;
         }
 
@@ -149,7 +150,7 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset at which the frame begins.
          * @return the offset at which the term id field begins.
          */
-        public static int termIdOffset(final int termOffset) {
+        public static int TermIdOffset(int termOffset) {
             return termOffset + TERM_ID_OFFSET;
         }
 
@@ -160,8 +161,8 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset at which a frame begins.
          * @return the value of the frame type header.
          */
-        public static int frameVersion(final UnsafeBuffer buffer, final int termOffset) {
-            return buffer.getByte(versionOffset(termOffset));
+        public static int FrameVersion(DirectBuffer buffer, int termOffset) {
+            return buffer.ReadByte(VersionOffset(termOffset));
         }
 
         /**
@@ -171,8 +172,19 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset at which a frame begins.
          * @return the value of the frame type header.
          */
-        public static int frameType(final UnsafeBuffer buffer, final int termOffset) {
-            return buffer.getShort(typeOffset(termOffset), LITTLE_ENDIAN) & 0xFFFF;
+        public static int FrameType(DirectBuffer buffer, int termOffset) {
+            return buffer.ReadInt16(TypeOffset(termOffset)) & 0xFFFF;
+        }
+
+        /**
+         * Write the type field for a frame.
+         *
+         * @param buffer     containing the frame.
+         * @param termOffset at which a frame begins.
+         * @param type       type value for the frame.
+         */
+        public static void FameType(DirectBuffer buffer, int termOffset, int type) {
+            buffer.WriteInt16(TypeOffset(termOffset), (short)type);
         }
 
         /**
@@ -182,8 +194,8 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset at which a frame begins.
          * @return true if the frame is a padding frame otherwise false.
          */
-        public static boolean isPaddingFrame(final UnsafeBuffer buffer, final int termOffset) {
-            return buffer.getShort(typeOffset(termOffset)) == PADDING_FRAME_TYPE;
+        public static bool IsPaddingFrame(DirectBuffer buffer, int termOffset) {
+            return buffer.ReadInt16(TypeOffset(termOffset)) == PADDING_FRAME_TYPE;
         }
 
         /**
@@ -193,8 +205,8 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset at which a frame begins.
          * @return the value for the frame length.
          */
-        public static int frameLength(final UnsafeBuffer buffer, final int termOffset) {
-            return buffer.getInt(termOffset, LITTLE_ENDIAN);
+        public static int FrameLength(DirectBuffer buffer, int termOffset) {
+            return buffer.ReadInt32(termOffset);
         }
 
         /**
@@ -204,13 +216,8 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset at which a frame begins.
          * @return the value for the frame length.
          */
-        public static int frameLengthVolatile(final UnsafeBuffer buffer, final int termOffset) {
-            int frameLength = buffer.getIntVolatile(termOffset);
-
-            if (ByteOrder.nativeOrder() != LITTLE_ENDIAN) {
-                frameLength = Integer.reverseBytes(frameLength);
-            }
-
+        public static int FrameLengthVolatile(DirectBuffer buffer, int termOffset) {
+            var frameLength = buffer.VolatileReadInt32(termOffset);
             return frameLength;
         }
 
@@ -221,24 +228,11 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset  at which a frame begins.
          * @param frameLength field to be set for the frame.
          */
-        public static void frameLengthOrdered(final UnsafeBuffer buffer, final int termOffset, int frameLength) {
-            if (ByteOrder.nativeOrder() != LITTLE_ENDIAN) {
-                frameLength = Integer.reverseBytes(frameLength);
-            }
-
-            buffer.putIntOrdered(termOffset, frameLength);
+        public static void FrameLengthOrdered(DirectBuffer buffer, int termOffset, int frameLength) {
+            buffer.VolatileWriteInt32(termOffset, frameLength);
         }
 
-        /**
-         * Write the type field for a frame.
-         *
-         * @param buffer     containing the frame.
-         * @param termOffset at which a frame begins.
-         * @param type       type value for the frame.
-         */
-        public static void frameType(final UnsafeBuffer buffer, final int termOffset, final int type) {
-            buffer.putShort(typeOffset(termOffset), (short)type, LITTLE_ENDIAN);
-        }
+        
 
         /**
          * Write the flags field for a frame.
@@ -247,8 +241,8 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset at which a frame begins.
          * @param flags      value for the frame.
          */
-        public static void frameFlags(final UnsafeBuffer buffer, final int termOffset, final byte flags) {
-            buffer.putByte(flagsOffset(termOffset), flags);
+        public static void FrameFlags(DirectBuffer buffer, int termOffset, byte flags) {
+            buffer.WriteByte(FlagsOffset(termOffset), flags);
         }
 
         /**
@@ -257,8 +251,8 @@ namespace Spreads.Storage.Logbuffer {
          * @param buffer     containing the frame.
          * @param termOffset at which a frame begins.
          */
-        public static void frameTermOffset(final UnsafeBuffer buffer, final int termOffset) {
-            buffer.putInt(termOffsetOffset(termOffset), termOffset, LITTLE_ENDIAN);
+        public static void FrameTermOffset(DirectBuffer buffer, int termOffset) {
+            buffer.WriteInt32(TermOffsetOffset(termOffset), termOffset);
         }
 
         /**
@@ -268,8 +262,8 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset at which a frame begins.
          * @param termId     value for the frame.
          */
-        public static void frameTermId(final UnsafeBuffer buffer, final int termOffset, final int termId) {
-            buffer.putInt(termIdOffset(termOffset), termId, LITTLE_ENDIAN);
+        public static void FrameTermId(DirectBuffer buffer, int termOffset, int termId) {
+            buffer.WriteInt32(TermIdOffset(termOffset), termId);
         }
     }
 }
