@@ -164,12 +164,14 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     let mutable entered = false
     try
       entered <- enterWriteLockIf &this.locker true
+      if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if not this.isReadOnly then 
           this.isReadOnly <- true
           // immutable doesn't need sync
           this.IsSynchronized <- false // TODO the same for SCM
           if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
     finally
+      Interlocked.Increment(&this.version) |> ignore
       exitWriteLockIf &this.locker entered
 
   override this.IsReadOnly with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.isReadOnly)
@@ -332,7 +334,11 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     finally
       exitWriteLockIf &this.locker entered
 
-  override this.Finalize() = this.Flush()
+  member this.Dispose(disposing) =
+    this.Flush()
+    if disposing then GC.SuppressFinalize(this)
+
+  override this.Finalize() = this.Dispose(false)
 
   member this.GetCursorOld() : ICursor<'K,'V> =
     let entered = enterLockIf this.SyncRoot this.IsSynchronized
@@ -1082,7 +1088,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
             let mutable c = 0
             for i in appendMap do
               c <- c + 1
-              this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+              this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
             c
           else 
             let exn = SpreadsException("values overlap with existing")
@@ -1092,7 +1098,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
             let mutable c = 0
             for i in appendMap do
               c <- c + 1
-              this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+              this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
             c
           else
             let removed = this.RemoveMany(appendMap.First.Key, Lookup.GE)
@@ -1100,24 +1106,24 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
             let mutable c = 0
             for i in appendMap do
               c <- c + 1
-              this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+              this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
             c
         | AppendOption.IgnoreEqualOverlap ->
           if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
             let mutable c = 0
             for i in appendMap do
               c <- c + 1
-              this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+              this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
             c
           else
             let isEqOverlap = hasEqOverlap this appendMap
             if isEqOverlap then
               let appC = appendMap.GetCursor();
               if appC.MoveAt(this.Last.Key, Lookup.GT) then
-                this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                 let mutable c = 1
                 while appC.MoveNext() do
-                  this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                  this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                   c <- c + 1
                 c
               else 0
@@ -1129,7 +1135,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
             let mutable c = 0
             for i in appendMap do
               c <- c + 1
-              this.AddLast(i.Key, i.Value) // TODO Add last when fixed flushing
+              this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
             c
           elif comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
             let exn = SpreadsException("values do not overlap with existing")
@@ -1139,10 +1145,10 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
             if isEqOverlap then
               let appC = appendMap.GetCursor();
               if appC.MoveAt(this.Last.Key, Lookup.GT) then
-                this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                 let mutable c = 1
                 while appC.MoveNext() do
-                  this.AddLast(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                  this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                   c <- c + 1
                 c
               else 0
@@ -1239,7 +1245,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
 
   interface IPersistentOrderedMap<'K,'V> with
     member this.Flush() = this.Flush()
-    member this.Dispose() = this.Flush()
+    member this.Dispose() = this.Dispose(true)
     member this.Id with get() = this.Id
   //#endregion
 
@@ -2212,8 +2218,8 @@ and
       finally
         exitWriteLockIf &this.state.source.locker entered
       
-
-    member this.Dispose() = 
+    member this.Dispose() = this.Dispose(true)
+    member this.Dispose(disposing:bool) = 
       this.state.Reset()
       if this.onUpdateHandler <> Unchecked.defaultof<_> then
         Interlocked.Decrement(&this.state.source.subscribersCounter) |> ignore
@@ -2222,7 +2228,7 @@ and
         this.semaphoreTask <- Unchecked.defaultof<_>
         this.token <- Unchecked.defaultof<_>
         this.tcs <- Unchecked.defaultof<_>
-      GC.SuppressFinalize(this)
+      if disposing then GC.SuppressFinalize(this)
 
     // C#-like methods to avoid casting to ICursor all the time
     member this.Reset() = this.state.Reset()
