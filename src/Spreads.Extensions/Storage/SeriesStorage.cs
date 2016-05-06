@@ -20,13 +20,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Data.Sqlite;
-using Microsoft.Data.Sqlite.Interop;
 using Microsoft.Data.Sqlite.Utilities;
 using Spreads.Collections;
 
@@ -36,9 +33,6 @@ namespace Spreads.Storage {
         private readonly SqliteConnection _connection;
         private readonly ConcurrentDictionary<long, object> _writableSeriesStore = new ConcurrentDictionary<long, object>();
         private readonly ConcurrentDictionary<long, object> _readOnlySeriesStore = new ConcurrentDictionary<long, object>();
-
-        private CancellationTokenSource Cts = new CancellationTokenSource();
-        private Task _flusher;
 
         public string IdTableName { get; }
         public string ChunkTableName { get; }
@@ -60,7 +54,6 @@ namespace Spreads.Storage {
         }
 
         public static string GetDefaultConnectionString(string filename = "default.db") {
-            if(!Path.IsPathRooted(filename)) return $"Filename={Path.Combine(_defaultPath, filename)}";
             return $"Filename={filename}";
         }
 
@@ -102,14 +95,6 @@ namespace Spreads.Storage {
             _connection.Execute(createSeriesIdTable);
             _connection.Execute(createSeriesChunksTable);
 
-            _flusher = Task.Run(async () =>
-            {
-                while (!Cts.IsCancellationRequested)
-                {
-                    await FlushAll(50);
-                    await Task.Delay(1000);
-                }
-            });
         }
 
         internal virtual Task<SeriesChunk> LoadChunk(long mapid, long chunkId) {
@@ -189,9 +174,9 @@ namespace Spreads.Storage {
             return Task.FromResult(sm);
         }
 
-        private async Task FlushAll(int delay) {
+        public async Task FlushAll(int delay) {
             foreach (var scm in _writableSeriesStore.Values.Select(obj => obj as IPersistentObject)) {
-                await Task.Delay(delay);
+                if(delay > 0) await Task.Delay(delay);
                 scm?.Flush();
             }
         }
@@ -333,7 +318,8 @@ namespace Spreads.Storage {
                 // better be safe
                 IsSynchronized = true
             };
-
+            // NB important to set the version here because SCM does not initialize its version from outer
+            series.Version = version;
             return series;
         }
 
@@ -343,8 +329,6 @@ namespace Spreads.Storage {
         }
 
         public void Dispose(bool disposing) {
-            Cts.Cancel();
-            FlushAll(0).Wait();
             _connection.Dispose();
             if (disposing) GC.SuppressFinalize(this);
         }
