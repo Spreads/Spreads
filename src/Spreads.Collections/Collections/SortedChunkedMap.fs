@@ -1021,7 +1021,6 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
                       outerMap.Remove(outerMap.First.Key) |> ignore
                   r1 || r2
                 else r1
-                // TODO Flush
               else 
                 let c = comparer.Compare(key, this.LastUnsafe.Key)
                 if c > 0 then // remove all keys
@@ -1080,8 +1079,8 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
   // TODO after checks, should form changed new chunks and use outer append method with rewrite
   // TODO atomic append with single version increase, now it is a sequence of remove/add mutations
   member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) : int =
-    let hasEqOverlap (old:IReadOnlyOrderedMap<'K,'V>) (append:IReadOnlyOrderedMap<'K,'V>) : bool =
-      if comparer.Compare(append.First.Key, old.Last.Key) > 0 then false
+    let hasEqOverlap (old:SortedChunkedMapGeneric<_,_,_>) (append:IReadOnlyOrderedMap<'K,'V>) : bool =
+      if comparer.Compare(append.First.Key, old.LastUnsafe.Key) > 0 then false
       else
         let oldC = old.GetCursor()
         let appC = append.GetCursor();

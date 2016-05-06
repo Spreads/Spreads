@@ -95,10 +95,11 @@ namespace Spreads.Extensions.Tests.Storage {
 
         [Test]
         public void CouldAddValuesByKey() {
-            var repo = new Spreads.Storage.SeriesStorage(Spreads.Storage.SeriesStorage.GetDefaultConnectionString("../StorageTests.db"));
+            var repo = new SeriesStorage(SeriesStorage.GetDefaultConnectionString("../StorageTests.db"));
             var series = repo.GetPersistentOrderedMap<DateTime, decimal>("test_series_CouldAddValuesByKey");
             var test2 = series.Map(x => (double)x);
-            series.RemoveMany(DateTime.Today.AddHours(-6), Lookup.GE);
+            series.RemoveAll();
+            //series.RemoveMany(DateTime.Today.AddHours(-6), Lookup.GE);
             for (int i = 0; i < 10; i++) {
                 series.Add(DateTime.Today.AddMinutes(i), i);
             }
@@ -108,8 +109,7 @@ namespace Spreads.Extensions.Tests.Storage {
             }
             series.Flush();
             series[DateTime.Today.AddMinutes(100)] = 100;
-            Console.WriteLine(test2.Last.Key.ToString() + " " + test2.Last.Key.ToString());
-            System.Threading.Thread.Sleep(5000);
+            Console.WriteLine(test2.Last.Key + " " + test2.Last.Key);
             series[DateTime.Today.AddMinutes(1000)] = 1000;
         }
     }
