@@ -34,8 +34,7 @@ open Spreads
 open Spreads.Collections
 
 
-// TODO IDictionary interface
-// TODO count property?
+// NB outer map version must be synced with SCM.version
 
 [<AllowNullLiteral>]
 [<SerializableAttribute>]
@@ -238,7 +237,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
           let hash = hasher.Hash(key)
           let c = comparer.Compare(hash, prevHash)
           let mutable prevBucket' = Unchecked.defaultof<_>
-          if c = 0 && prevBucketIsSet(&prevBucket') then // avoid generic equality and null compare
+          if c = 0 && prevBucketIsSet(&prevBucket') then
             prevBucket'.[key] <- value
             outerMap.Version <- outerMap.Version + 1L
             if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
@@ -304,22 +303,27 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
         if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
         #endif
 
+  
+  member private this.FirstUnsafe
+    with get() = 
+      if outerMap.IsEmpty then 
+        raise (InvalidOperationException("Could not get the first element of an empty map"))
+      let bucket = outerMap.First
+      bucket.Value.First
+      
   member this.First
     with get() = 
-      readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-        if this.IsEmpty then 
-          raise (InvalidOperationException("Could not get the first element of an empty map"))
-        let bucket = outerMap.First
-        bucket.Value.First
-      )
+      readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.FirstUnsafe)
 
+  member private this.LastUnsafe
+    with get() = 
+      if outerMap.IsEmpty then raise (InvalidOperationException("Could not get the first element of an empty map"))
+      let bucket = outerMap.Last
+      bucket.Value.Last
+      
   member this.Last
     with get() = 
-      readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-        if this.IsEmpty then raise (InvalidOperationException("Could not get the first element of an empty map"))
-        let bucket = outerMap.Last
-        bucket.Value.Last
-      )
+      readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.LastUnsafe )
 
   member private this.FlushUnchecked() =
     prevBucket.SetTarget (null)
@@ -340,12 +344,12 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
 
   override this.Finalize() = this.Dispose(false)
 
-  member this.GetCursorOld() : ICursor<'K,'V> =
-    let entered = enterLockIf this.SyncRoot this.IsSynchronized
-    try
-      this.GetCursorOld(outerMap.GetCursor(), true, Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>, false)
-    finally
-      exitLockIf this.SyncRoot entered
+//  member this.GetCursorOld() : ICursor<'K,'V> =
+//    let entered = enterLockIf this.SyncRoot this.IsSynchronized
+//    try
+//      this.GetCursorOld(outerMap.GetCursor(), true, Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>, false)
+//    finally
+//      exitLockIf this.SyncRoot entered
 
   override this.GetCursor() =
     if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then this.IsSynchronized <- true // NB: via property with locks
@@ -370,272 +374,272 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       new SortedChunkedMapGenericCursor<_,_,_>(this)
     )
 
-  member private this.GetCursorOld(outer:ICursor<'K,'TContainer>, isReset:bool,currentBatch:IReadOnlyOrderedMap<'K,'V>, isBatch:bool) : ICursor<'K,'V> =
-    // TODO
-    let nextBatch : Task<IReadOnlyOrderedMap<'K,'V>> ref = ref Unchecked.defaultof<Task<IReadOnlyOrderedMap<'K,'V>>>
-    
-    let outer = ref outer
-    // Need to move, otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SCM even when outer is started
-    let mutable inner = if outer.Value.MoveFirst() then try outer.Value.CurrentValue.GetCursor() with | _ -> Unchecked.defaultof<_> else Unchecked.defaultof<_>
-    let isReset = ref isReset
-    let mutable currentBatch : IReadOnlyOrderedMap<'K,'V> = currentBatch
-    let isBatch = ref isBatch
-
-    let observerStarted = ref false
-    let mutable semaphore : SemaphoreSlim = Unchecked.defaultof<_>
-    let mutable are : AutoResetEvent =  Unchecked.defaultof<_>
-    let onNextHandler : OnNextHandler<'K,'V> = 
-      OnNextHandler(fun (kvp:KVP<'K,'V>) ->
-          if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
-      )
-    let onCompletedHandler : OnCompletedHandler = 
-      OnCompletedHandler(fun _ ->
-          if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
-      )
-
-    { new ICursor<'K,'V> with
-        member c.Comparer: IComparer<'K> = comparer
-        member c.Source with get() = this :> ISeries<_,_>
-        member c.IsContinuous with get() = false
-        member c.Clone() =
-          let clone = this.GetCursorOld(outer.Value.Clone(), !isReset, currentBatch, !isBatch)
-          if not !isReset then
-            let moved = clone.MoveAt(c.CurrentKey, Lookup.EQ)
-            if not moved then invalidOp "cannot correctly clone SCM cursor"
-          clone
-        
-        member x.MoveNext(ct: CancellationToken): Task<bool> = 
-          let rec completeTcs(tcs:AsyncTaskMethodBuilder<bool>, token: CancellationToken) : unit = // Task<bool> = 
-            if x.MoveNext() then
-              tcs.SetResult(true)
-            else
-              let semaphoreTask = semaphore.WaitAsync(-1, token)
-              let awaiter = semaphoreTask.GetAwaiter()
-              awaiter.UnsafeOnCompleted(fun _ ->
-                match semaphoreTask.Status with
-                | TaskStatus.RanToCompletion -> 
-                  if x.MoveNext() then tcs.SetResult(true)
-                  elif this.IsReadOnly then tcs.SetResult(false)
-                  else completeTcs(tcs, token)
-                | _ -> failwith "TODO process all task results"
-                ()
-              )
-          match x.MoveNext() with
-          | true -> trueTask            
-          | false ->
-            match this.IsReadOnly with
-            | false ->
-              let upd = this :> IObservableEvents<'K,'V>
-              if not !observerStarted then
-                semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
-                this.onNextEvent.Publish.AddHandler onNextHandler
-                this.onCompletedEvent.Publish.AddHandler onCompletedHandler
-                observerStarted := true
-              let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
-              let returnTask = tcs.Task
-              completeTcs(tcs, ct)
-              returnTask
-            | _ -> falseTask
-
-        member p.MovePrevious() = 
-          let entered = enterLockIf this.SyncRoot this.IsSynchronized
-          try
-            if isReset.Value then p.MoveLast()
-            else
-              let res = inner.MovePrevious()
-              if res then
-                isBatch := false
-                true
-              else
-                if outer.Value.MovePrevious() then // go to the previous bucket
-                  inner <- outer.Value.CurrentValue.GetCursor()
-                  let res = inner.MoveLast()
-                  if res then
-                    isBatch := false
-                    true
-                  else
-                    raise (ApplicationException("Unexpected - empty bucket")) 
-                else
-                  false
-          finally
-            exitLockIf this.SyncRoot entered
-
-        // TODO (!) review the entire method for edge cases
-        member p.MoveAt(key:'K, direction:Lookup) = 
-          let entered = enterLockIf this.SyncRoot this.IsSynchronized
-          try
-            let res =
-              if chunkUpperLimit = 0 then
-                let hash = hasher.Hash(key)
-                let c = 
-                  if isReset.Value then 2 // <> 0 below
-                  else comparer.Compare(hash, outer.Value.CurrentKey)
-              
-                if c <> 0 then // not in the current bucket, switch bucket
-                  if outer.Value.MoveAt(hash, Lookup.EQ) then // Equal!
-                    inner <- outer.Value.CurrentValue.GetCursor()
-                    inner.MoveAt(key, direction)
-                  else
-                    false
-                else
-                  inner.MoveAt(key, direction)
-              else
-                if outer.Value.MoveAt(key, Lookup.LE) then // LE!
-                  inner <- outer.Value.CurrentValue.GetCursor()
-                  inner.MoveAt(key, direction)
-                else
-                  false
-
-            if res then
-              isReset := false
-              isBatch := false
-              true
-            else
-                match direction with
-                | Lookup.LT | Lookup.LE ->
-                  // look into previous bucket
-                  if outer.Value.MovePrevious() then
-                    inner <- outer.Value.CurrentValue.GetCursor()
-                    let res = inner.MoveAt(key, direction)
-                    if res then
-                      isBatch := false
-                      isReset := false
-                      true
-                    else
-                      p.Reset()
-                      false
-                  else
-                    p.Reset()
-                    false
-                | Lookup.GT | Lookup.GE ->
-                  // look into next bucket
-                  let moved = outer.Value.MoveNext() 
-                  if moved then
-                    inner <- outer.Value.CurrentValue.GetCursor()
-                    let res = inner.MoveAt(key, direction)
-                    if res then
-                      isBatch := false
-                      isReset := false
-                      true
-                    else
-                      p.Reset()
-                      false 
-                  else
-                    p.Reset()
-                    false 
-                | _ -> false // LookupDirection.EQ
-          finally
-            exitLockIf this.SyncRoot entered
-
-        member p.MoveFirst() = 
-          let entered = enterLockIf this.SyncRoot this.IsSynchronized
-          try
-            if this.IsEmpty then false
-            else try p.MoveAt(this.First.Key, Lookup.EQ) with | _ -> false
-          finally
-            exitLockIf this.SyncRoot entered
-
-        member p.MoveLast() = 
-          let entered = enterLockIf this.SyncRoot this.IsSynchronized
-          try
-            if this.IsEmpty then false
-            else p.MoveAt(this.Last.Key, Lookup.EQ)
-          finally
-            exitLockIf this.SyncRoot entered
-
-        // TODO (v.0.2+) We now require that a false move keeps cursors on the same key before unsuccessfull move
-        // Also, calling CurrentKey/Value must never throw, remove try/catch here to avoid muting error that should not happen
-        //
-        // (delete this) NB These are "undefined" when cursor is in invalid state, but they should not thow
-        // Try/catch adds almost no overhead, even compared to null check, in the normal case. Calling these properties before move is 
-        // an application error and should be logged or raise an assertion failure
-        member c.CurrentKey with get() = try inner.CurrentKey with | _ -> Unchecked.defaultof<_>
-        member c.CurrentValue with get() = try inner.CurrentValue with | _ -> Unchecked.defaultof<_>
-        //member c.Current with get() : obj = box c.Current
-        member c.TryGetValue(key: 'K, value: byref<'V>): bool = this.TryGetValue(key, &value)
-
-
-
-        member p.CurrentBatch = 
-          if !isBatch then currentBatch
-          else invalidOp "Current move is single, cannot return a batch"
-
-        member p.MoveNextBatch(ct) =
-          Async.StartAsTask(async {
-            let entered = enterLockIf this.SyncRoot this.IsSynchronized
-            try
-              if isReset.Value then 
-                if outer.Value.MoveFirst() then
-                  currentBatch <- outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
-                  isBatch := true
-                  isReset := false
-                  return true
-                else return false
-              else
-                if !isBatch then
-                  let couldMove = outer.Value.MoveNext() // ct |> Async.AwaitTask // NB not async move next!
-                  if couldMove then
-                    currentBatch <- outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
-                    isBatch := true
-                    return true
-                  else 
-                    // no batch, but place cursor at the end of the last batch so that move next won't get null reference exception
-                    inner <- outer.Value.CurrentValue.GetCursor()
-                    if not outer.Value.CurrentValue.IsEmpty then inner.MoveLast() |> ignore
-                    return false
-                else
-                  return false
-            finally
-              exitLockIf this.SyncRoot entered
-          }, TaskCreationOptions.None, ct)
-
-      interface IEnumerator<KVP<'K,'V>> with
-        member p.Reset() = 
-          if not !isReset then
-            outer.Value.Reset()
-            outer.Value.MoveFirst() |> ignore
-            //inner.Reset()
-            inner <- Unchecked.defaultof<_>
-            isReset := true
-
-        member p.Dispose() = 
-            p.Reset()
-            if !observerStarted then
-              this.onNextEvent.Publish.RemoveHandler(onNextHandler)
-              this.onCompletedEvent.Publish.RemoveHandler(onCompletedHandler)
-        
-        member p.MoveNext() = 
-          let entered = enterLockIf this.SyncRoot this.IsSynchronized
-          try
-            if isReset.Value then (p :?> ICursor<'K,'V>).MoveFirst()
-            else
-              let res = inner.MoveNext() // could pass curent key by ref and save some single-dig %
-              if res then
-                if !isBatch then isBatch := false
-                true
-              else
-                //let currentKey = inner.CurrentKey
-                if outer.Value.MoveNext() then // go to the next bucket
-                  inner <- outer.Value.CurrentValue.GetCursor()
-                  let res = inner.MoveFirst()
-                  if res then
-                    isBatch := false
-                    true
-                  else
-                    raise (ApplicationException("Unexpected - empty bucket")) 
-                else
-                  //p.MoveAt(currentKey, Lookup.GT)
-                  false
-          finally
-            exitLockIf this.SyncRoot entered
-
-        member c.Current 
-          with get() =
-            if !isBatch then invalidOp "Current move is MoveNextBatxhAsync, cannot return a single valule"
-            else inner.Current
-        member this.Current with get(): obj = this.Current :> obj
-    }
-
+//  member private this.GetCursorOld(outer:ICursor<'K,'TContainer>, isReset:bool,currentBatch:IReadOnlyOrderedMap<'K,'V>, isBatch:bool) : ICursor<'K,'V> =
+//    // TODO
+//    let nextBatch : Task<IReadOnlyOrderedMap<'K,'V>> ref = ref Unchecked.defaultof<Task<IReadOnlyOrderedMap<'K,'V>>>
+//    
+//    let outer = ref outer
+//    // Need to move, otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SCM even when outer is started
+//    let mutable inner = if outer.Value.MoveFirst() then try outer.Value.CurrentValue.GetCursor() with | _ -> Unchecked.defaultof<_> else Unchecked.defaultof<_>
+//    let isReset = ref isReset
+//    let mutable currentBatch : IReadOnlyOrderedMap<'K,'V> = currentBatch
+//    let isBatch = ref isBatch
+//
+//    let observerStarted = ref false
+//    let mutable semaphore : SemaphoreSlim = Unchecked.defaultof<_>
+//    let mutable are : AutoResetEvent =  Unchecked.defaultof<_>
+//    let onNextHandler : OnNextHandler<'K,'V> = 
+//      OnNextHandler(fun (kvp:KVP<'K,'V>) ->
+//          if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
+//      )
+//    let onCompletedHandler : OnCompletedHandler = 
+//      OnCompletedHandler(fun _ ->
+//          if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
+//      )
+//
+//    { new ICursor<'K,'V> with
+//        member c.Comparer: IComparer<'K> = comparer
+//        member c.Source with get() = this :> ISeries<_,_>
+//        member c.IsContinuous with get() = false
+//        member c.Clone() =
+//          let clone = this.GetCursorOld(outer.Value.Clone(), !isReset, currentBatch, !isBatch)
+//          if not !isReset then
+//            let moved = clone.MoveAt(c.CurrentKey, Lookup.EQ)
+//            if not moved then invalidOp "cannot correctly clone SCM cursor"
+//          clone
+//        
+//        member x.MoveNext(ct: CancellationToken): Task<bool> = 
+//          let rec completeTcs(tcs:AsyncTaskMethodBuilder<bool>, token: CancellationToken) : unit = // Task<bool> = 
+//            if x.MoveNext() then
+//              tcs.SetResult(true)
+//            else
+//              let semaphoreTask = semaphore.WaitAsync(-1, token)
+//              let awaiter = semaphoreTask.GetAwaiter()
+//              awaiter.UnsafeOnCompleted(fun _ ->
+//                match semaphoreTask.Status with
+//                | TaskStatus.RanToCompletion -> 
+//                  if x.MoveNext() then tcs.SetResult(true)
+//                  elif this.IsReadOnly then tcs.SetResult(false)
+//                  else completeTcs(tcs, token)
+//                | _ -> failwith "TODO process all task results"
+//                ()
+//              )
+//          match x.MoveNext() with
+//          | true -> trueTask            
+//          | false ->
+//            match this.IsReadOnly with
+//            | false ->
+//              let upd = this :> IObservableEvents<'K,'V>
+//              if not !observerStarted then
+//                semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
+//                this.onNextEvent.Publish.AddHandler onNextHandler
+//                this.onCompletedEvent.Publish.AddHandler onCompletedHandler
+//                observerStarted := true
+//              let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
+//              let returnTask = tcs.Task
+//              completeTcs(tcs, ct)
+//              returnTask
+//            | _ -> falseTask
+//
+//        member p.MovePrevious() = 
+//          let entered = enterLockIf this.SyncRoot this.IsSynchronized
+//          try
+//            if isReset.Value then p.MoveLast()
+//            else
+//              let res = inner.MovePrevious()
+//              if res then
+//                isBatch := false
+//                true
+//              else
+//                if outer.Value.MovePrevious() then // go to the previous bucket
+//                  inner <- outer.Value.CurrentValue.GetCursor()
+//                  let res = inner.MoveLast()
+//                  if res then
+//                    isBatch := false
+//                    true
+//                  else
+//                    raise (ApplicationException("Unexpected - empty bucket")) 
+//                else
+//                  false
+//          finally
+//            exitLockIf this.SyncRoot entered
+//
+//        // TODO (!) review the entire method for edge cases
+//        member p.MoveAt(key:'K, direction:Lookup) = 
+//          let entered = enterLockIf this.SyncRoot this.IsSynchronized
+//          try
+//            let res =
+//              if chunkUpperLimit = 0 then
+//                let hash = hasher.Hash(key)
+//                let c = 
+//                  if isReset.Value then 2 // <> 0 below
+//                  else comparer.Compare(hash, outer.Value.CurrentKey)
+//              
+//                if c <> 0 then // not in the current bucket, switch bucket
+//                  if outer.Value.MoveAt(hash, Lookup.EQ) then // Equal!
+//                    inner <- outer.Value.CurrentValue.GetCursor()
+//                    inner.MoveAt(key, direction)
+//                  else
+//                    false
+//                else
+//                  inner.MoveAt(key, direction)
+//              else
+//                if outer.Value.MoveAt(key, Lookup.LE) then // LE!
+//                  inner <- outer.Value.CurrentValue.GetCursor()
+//                  inner.MoveAt(key, direction)
+//                else
+//                  false
+//
+//            if res then
+//              isReset := false
+//              isBatch := false
+//              true
+//            else
+//                match direction with
+//                | Lookup.LT | Lookup.LE ->
+//                  // look into previous bucket
+//                  if outer.Value.MovePrevious() then
+//                    inner <- outer.Value.CurrentValue.GetCursor()
+//                    let res = inner.MoveAt(key, direction)
+//                    if res then
+//                      isBatch := false
+//                      isReset := false
+//                      true
+//                    else
+//                      p.Reset()
+//                      false
+//                  else
+//                    p.Reset()
+//                    false
+//                | Lookup.GT | Lookup.GE ->
+//                  // look into next bucket
+//                  let moved = outer.Value.MoveNext() 
+//                  if moved then
+//                    inner <- outer.Value.CurrentValue.GetCursor()
+//                    let res = inner.MoveAt(key, direction)
+//                    if res then
+//                      isBatch := false
+//                      isReset := false
+//                      true
+//                    else
+//                      p.Reset()
+//                      false 
+//                  else
+//                    p.Reset()
+//                    false 
+//                | _ -> false // LookupDirection.EQ
+//          finally
+//            exitLockIf this.SyncRoot entered
+//
+//        member p.MoveFirst() = 
+//          let entered = enterLockIf this.SyncRoot this.IsSynchronized
+//          try
+//            if this.IsEmpty then false
+//            else try p.MoveAt(this.First.Key, Lookup.EQ) with | _ -> false
+//          finally
+//            exitLockIf this.SyncRoot entered
+//
+//        member p.MoveLast() = 
+//          let entered = enterLockIf this.SyncRoot this.IsSynchronized
+//          try
+//            if this.IsEmpty then false
+//            else p.MoveAt(this.Last.Key, Lookup.EQ)
+//          finally
+//            exitLockIf this.SyncRoot entered
+//
+//        // TODO (v.0.2+) We now require that a false move keeps cursors on the same key before unsuccessfull move
+//        // Also, calling CurrentKey/Value must never throw, remove try/catch here to avoid muting error that should not happen
+//        //
+//        // (delete this) NB These are "undefined" when cursor is in invalid state, but they should not thow
+//        // Try/catch adds almost no overhead, even compared to null check, in the normal case. Calling these properties before move is 
+//        // an application error and should be logged or raise an assertion failure
+//        member c.CurrentKey with get() = try inner.CurrentKey with | _ -> Unchecked.defaultof<_>
+//        member c.CurrentValue with get() = try inner.CurrentValue with | _ -> Unchecked.defaultof<_>
+//        //member c.Current with get() : obj = box c.Current
+//        member c.TryGetValue(key: 'K, value: byref<'V>): bool = this.TryGetValue(key, &value)
+//
+//
+//
+//        member p.CurrentBatch = 
+//          if !isBatch then currentBatch
+//          else invalidOp "Current move is single, cannot return a batch"
+//
+//        member p.MoveNextBatch(ct) =
+//          Async.StartAsTask(async {
+//            let entered = enterLockIf this.SyncRoot this.IsSynchronized
+//            try
+//              if isReset.Value then 
+//                if outer.Value.MoveFirst() then
+//                  currentBatch <- outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
+//                  isBatch := true
+//                  isReset := false
+//                  return true
+//                else return false
+//              else
+//                if !isBatch then
+//                  let couldMove = outer.Value.MoveNext() // ct |> Async.AwaitTask // NB not async move next!
+//                  if couldMove then
+//                    currentBatch <- outer.Value.CurrentValue :> IReadOnlyOrderedMap<'K,'V>
+//                    isBatch := true
+//                    return true
+//                  else 
+//                    // no batch, but place cursor at the end of the last batch so that move next won't get null reference exception
+//                    inner <- outer.Value.CurrentValue.GetCursor()
+//                    if not outer.Value.CurrentValue.IsEmpty then inner.MoveLast() |> ignore
+//                    return false
+//                else
+//                  return false
+//            finally
+//              exitLockIf this.SyncRoot entered
+//          }, TaskCreationOptions.None, ct)
+//
+//      interface IEnumerator<KVP<'K,'V>> with
+//        member p.Reset() = 
+//          if not !isReset then
+//            outer.Value.Reset()
+//            outer.Value.MoveFirst() |> ignore
+//            //inner.Reset()
+//            inner <- Unchecked.defaultof<_>
+//            isReset := true
+//
+//        member p.Dispose() = 
+//            p.Reset()
+//            if !observerStarted then
+//              this.onNextEvent.Publish.RemoveHandler(onNextHandler)
+//              this.onCompletedEvent.Publish.RemoveHandler(onCompletedHandler)
+//        
+//        member p.MoveNext() = 
+//          let entered = enterLockIf this.SyncRoot this.IsSynchronized
+//          try
+//            if isReset.Value then (p :?> ICursor<'K,'V>).MoveFirst()
+//            else
+//              let res = inner.MoveNext() // could pass curent key by ref and save some single-dig %
+//              if res then
+//                if !isBatch then isBatch := false
+//                true
+//              else
+//                //let currentKey = inner.CurrentKey
+//                if outer.Value.MoveNext() then // go to the next bucket
+//                  inner <- outer.Value.CurrentValue.GetCursor()
+//                  let res = inner.MoveFirst()
+//                  if res then
+//                    isBatch := false
+//                    true
+//                  else
+//                    raise (ApplicationException("Unexpected - empty bucket")) 
+//                else
+//                  //p.MoveAt(currentKey, Lookup.GT)
+//                  false
+//          finally
+//            exitLockIf this.SyncRoot entered
+//
+//        member c.Current 
+//          with get() =
+//            if !isBatch then invalidOp "Current move is MoveNextBatxhAsync, cannot return a single valule"
+//            else inner.Current
+//        member this.Current with get(): obj = this.Current :> obj
+//    }
+//
 
   member private this.TryFindTuple(key:'K, direction:Lookup) = 
     let tupleResult =
@@ -805,6 +809,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       Interlocked.Increment(&this.version) |> ignore
       exitWriteLockIf &this.locker entered
       #if PRERELEASE
+      Trace.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -821,16 +826,17 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       
       let c =
         if outerMap.Count = 0L then 1
-        else comparer.Compare(key, this.Last.Key)
+        else comparer.Compare(key, this.LastUnsafe.Key)
       if c > 0 then
         this.AddUnchecked(key, value)
       else
-        let exn = OutOfOrderKeyException(this.Last.Key, key, "New key is smaller or equal to the largest existing key")
+        let exn = OutOfOrderKeyException(this.LastUnsafe.Key, key, "New key is smaller or equal to the largest existing key")
         raise (exn)
     finally
       Interlocked.Increment(&this.version) |> ignore
       exitWriteLockIf &this.locker entered
       #if PRERELEASE
+      Trace.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -847,16 +853,17 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       
       let c = 
         if outerMap.IsEmpty then -1
-        else comparer.Compare(key, this.First.Key)
+        else comparer.Compare(key, this.FirstUnsafe.Key)
       if c < 0 then 
         this.AddUnchecked(key, value)
       else 
-        let exn = OutOfOrderKeyException(this.Last.Key, key, "New key is larger or equal to the smallest existing key")
+        let exn = OutOfOrderKeyException(this.LastUnsafe.Key, key, "New key is larger or equal to the smallest existing key")
         raise (exn)
     finally
       Interlocked.Increment(&this.version) |> ignore
       exitWriteLockIf &this.locker entered
       #if PRERELEASE
+      Trace.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -916,9 +923,11 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       removed
     finally
       if removed && this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
-      if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
+      if removed then Interlocked.Increment(&this.version) |> ignore
+      else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.locker entered
       #if PRERELEASE
+      Trace.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -933,14 +942,16 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
         entered <- enterWriteLockIf &this.locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       
-      result <- this.First
+      result <- this.FirstUnsafe
       let ret' = this.Remove(result.Key)
       ret'
     finally
       if removed && this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
-      if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
+      if removed then Interlocked.Increment(&this.version) |> ignore
+      else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.locker entered
       #if PRERELEASE
+      Trace.Assert(outerMap.Version = this.version) 
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -956,14 +967,16 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
         entered <- enterWriteLockIf &this.locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       
-      result <- this.Last
+      result <- this.LastUnsafe
       let ret' = this.Remove(result.Key)
       ret'
     finally
       if removed && this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
-      if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
+      if removed then Interlocked.Increment(&this.version) |> ignore
+      else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.locker entered
       #if PRERELEASE
+      Trace.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -1005,7 +1018,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
                 r1 || r2
                 // TODO Flush
               else 
-                let c = comparer.Compare(key, this.Last.Key)
+                let c = comparer.Compare(key, this.LastUnsafe.Key)
                 if c > 0 then // remove all keys
                   outerMap.RemoveMany(outerMap.First.Key, Lookup.GE)
                 elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
@@ -1028,7 +1041,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
                     outerMap.[outerMap.Last.Key] <- lastChunk // Flush
                   r1 || r2
               else
-                let c = comparer.Compare(key, this.First.Key)
+                let c = comparer.Compare(key, this.FirstUnsafe.Key)
                 if c < 0 then // remove all keys
                   outerMap.RemoveMany(outerMap.First.Key, Lookup.GE)
                 elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
@@ -1046,9 +1059,11 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       result
     finally
       if removed && this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
-      if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
+      if removed then Interlocked.Increment(&this.version) |> ignore 
+      else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.locker entered
       #if PRERELEASE
+      Trace.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -1081,10 +1096,14 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     else
       let mutable entered = false
       try
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        try ()
+        finally
+          entered <- enterWriteLockIf &this.locker this.isSynchronized
+          if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+
         match option with
         | AppendOption.ThrowOnOverlap _ ->
-          if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+          if outerMap.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
             let mutable c = 0
             for i in appendMap do
               c <- c + 1
@@ -1094,7 +1113,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
             let exn = SpreadsException("values overlap with existing")
             raise exn
         | AppendOption.DropOldOverlap ->
-          if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+          if outerMap.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
             let mutable c = 0
             for i in appendMap do
               c <- c + 1
@@ -1109,7 +1128,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
               this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
             c
         | AppendOption.IgnoreEqualOverlap ->
-          if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+          if outerMap.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
             let mutable c = 0
             for i in appendMap do
               c <- c + 1
@@ -1119,7 +1138,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
             let isEqOverlap = hasEqOverlap this appendMap
             if isEqOverlap then
               let appC = appendMap.GetCursor();
-              if appC.MoveAt(this.Last.Key, Lookup.GT) then
+              if appC.MoveAt(this.LastUnsafe.Key, Lookup.GT) then
                 this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                 let mutable c = 1
                 while appC.MoveNext() do
@@ -1131,20 +1150,20 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
               let exn = SpreadsException("overlapping values are not equal")
               raise exn
         | AppendOption.RequireEqualOverlap ->
-          if this.IsEmpty then
+          if outerMap.IsEmpty then
             let mutable c = 0
             for i in appendMap do
               c <- c + 1
               this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
             c
-          elif comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+          elif comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
             let exn = SpreadsException("values do not overlap with existing")
             raise exn
           else
             let isEqOverlap = hasEqOverlap this appendMap
             if isEqOverlap then
               let appC = appendMap.GetCursor();
-              if appC.MoveAt(this.Last.Key, Lookup.GT) then
+              if appC.MoveAt(this.LastUnsafe.Key, Lookup.GT) then
                 this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                 let mutable c = 1
                 while appC.MoveNext() do
@@ -1157,8 +1176,15 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
               raise exn
         | _ -> failwith "Unknown AppendOption"
       finally
-        if isOuterPersistent then outerAsPersistent.Flush()
+        Interlocked.Increment(&this.version) |> ignore
+        this.FlushUnchecked()
         exitWriteLockIf &this.locker entered
+        #if PRERELEASE
+        Trace.Assert(outerMap.Version = this.version)
+        if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+        #else
+        if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+        #endif
     
   member this.Id with get() = id and set(newid) = id <- newid
 
