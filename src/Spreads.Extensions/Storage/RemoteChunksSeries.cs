@@ -51,7 +51,6 @@ namespace Spreads.Storage {
         private readonly Func<SeriesChunk, Task<long>> _remoteSaver;
 
         private readonly Func<long, long, long, Lookup, Task<long>> _remoteRemover;
-        private readonly long _version;
         private readonly bool _readOnly;
 
         internal IOrderedMap<long, LazyValue> _chunksCache;
@@ -152,7 +151,6 @@ namespace Spreads.Storage {
             _remoteLoader = remoteLoader;
             _remoteSaver = remoteSaver;
             _remoteRemover = remoteRemover;
-            _version = version;
             _readOnly = readOnly;
 
             var renewedKeys = _remoteKeysLoader(_mapId, 0).Result;
@@ -558,7 +556,22 @@ namespace Spreads.Storage {
 
         public void Flush() {
             // this is what SCM Flush did before
-            if(_lastAccessedElement.Value != null) this[_lastAccessedElement.Key] = _lastAccessedElement.Value;
+            if (_lastAccessedElement.Value != null)
+            {
+                var bytes = Serializer.Serialize(_lastAccessedElement.Value);
+                var k = ToInt64(_lastAccessedElement.Key);
+                var lv = new LazyValue(k, _lastAccessedElement.Value.Count, _chunksCache.Version, this);
+                // this line increments version, must go before _remoteSaver
+                if (!_readOnly) {
+                    _remoteSaver(new SeriesChunk {
+                        Id = _mapId,
+                        ChunkKey = k,
+                        Count = _lastAccessedElement.Value.Count,
+                        Version = _chunksCache.Version,
+                        ChunkValue = bytes
+                    }).Wait();
+                }
+            }
             _lastAccessedElement = default(KeyValuePair<K, SortedMap<K,V>>);
         }
 
