@@ -389,7 +389,7 @@ type SortedMap<'K,'V>
       if not this.isReadOnly then 
           this.isReadOnly <- true
           // immutable doesn't need sync
-          this.IsSynchronized <- false // TODO the same for SCM
+          Volatile.Write(&this.isSynchronized, false)
           if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
     finally
       Interlocked.Increment(&this.version) |> ignore
