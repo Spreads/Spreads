@@ -91,5 +91,26 @@ namespace Spreads.Extensions.Tests.Storage {
             var sqlSize = _connection.ExecuteScalar<long>($"SELECT sum(length(ChunkValue)) FROM {storage.ChunkTableName} where id = (SELECT id from {storage.IdTableName} where TextId = 'test_timeseries'); ");
             Console.WriteLine($"Memory size: {count * 16L}; SQLite net blob size: {sqlSize}; comp ratio: {Math.Round(count * 16.0 / sqlSize * 1.0, 2)}");
         }
+
+
+        [Test]
+        public void CouldAddValuesByKey() {
+            var repo = new Spreads.Storage.SeriesStorage(Spreads.Storage.SeriesStorage.GetDefaultConnectionString("../StorageTests.db"));
+            var series = repo.GetPersistentOrderedMap<DateTime, decimal>("test_series_CouldAddValuesByKey");
+            var test2 = series.Map(x => (double)x);
+            series.RemoveMany(DateTime.Today.AddHours(-6), Lookup.GE);
+            for (int i = 0; i < 10; i++) {
+                series.Add(DateTime.Today.AddMinutes(i), i);
+            }
+            series.Flush();
+            for (int i = 10; i < 100; i++) {
+                series[DateTime.Today.AddMinutes(i)] = i;
+            }
+            series.Flush();
+            series[DateTime.Today.AddMinutes(100)] = 100;
+            Console.WriteLine(test2.Last.Key.ToString() + " " + test2.Last.Key.ToString());
+            System.Threading.Thread.Sleep(5000);
+            series[DateTime.Today.AddMinutes(1000)] = 1000;
+        }
     }
 }

@@ -1010,14 +1010,17 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
               let hasPivot, pivot = this.TryFindUnchecked(key, direction)
               if hasPivot then
                 let r1 = outerMap.RemoveMany(hash, Lookup.LT)  // strictly LT
-                let r2 = outerMap.First.Value.RemoveMany(key, direction) // same direction
-                if r2 then
-                  if outerMap.First.Value.Count > 0L then
-                    outerMap.Version <- outerMap.Version - 1L
-                    outerMap.[outerMap.First.Key] <- outerMap.First.Value // Flush
-                  else 
-                    outerMap.Remove(outerMap.First.Key) |> ignore
-                r1 || r2
+                if not outerMap.IsEmpty then
+                  let r2 = outerMap.First.Value.RemoveMany(key, direction) // same direction
+                  if r2 then
+                    if outerMap.First.Value.Count > 0L then
+                      outerMap.Version <- outerMap.Version - 1L
+                      outerMap.[outerMap.First.Key] <- outerMap.First.Value // Flush
+                    else
+                      outerMap.Version <- outerMap.Version - 1L
+                      outerMap.Remove(outerMap.First.Key) |> ignore
+                  r1 || r2
+                else r1
                 // TODO Flush
               else 
                 let c = comparer.Compare(key, this.LastUnsafe.Key)
@@ -1034,14 +1037,17 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
                   outerMap.RemoveMany(hash, Lookup.GE) // remove in one go
                 else
                   let r1 = outerMap.RemoveMany(hash, Lookup.GT)  // strictly GT
-                  let lastChunk = outerMap.Last.Value
-                  let r2 = lastChunk.RemoveMany(subKey, direction) // same direction
-                  if lastChunk.IsEmpty then
-                    outerMap.Remove(outerMap.Last.Key) |> ignore
-                  else
-                    outerMap.Version <- outerMap.Version - 1L
-                    outerMap.[outerMap.Last.Key] <- lastChunk // Flush
-                  r1 || r2
+                  if not outerMap.IsEmpty then
+                    let lastChunk = outerMap.Last.Value
+                    let r2 = lastChunk.RemoveMany(subKey, direction) // same direction
+                    if lastChunk.IsEmpty then
+                      outerMap.Remove(outerMap.Last.Key) |> ignore
+                      outerMap.Version <- outerMap.Version - 1L
+                    else
+                      outerMap.Version <- outerMap.Version - 1L
+                      outerMap.[outerMap.Last.Key] <- lastChunk // Flush
+                    r1 || r2
+                  else r1
               else
                 let c = comparer.Compare(key, this.FirstUnsafe.Key)
                 if c < 0 then // remove all keys
