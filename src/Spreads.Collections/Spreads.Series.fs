@@ -80,7 +80,7 @@ and
   Series<'K,'V>() as this =
     inherit Series()
     
-    let c = new ThreadLocal<_>(Func<_>(this.GetCursor), true) 
+    let c = Lazy(this.GetCursor) //new ThreadLocal<_>(Func<_>(this.GetCursor), true) 
 
     [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
@@ -153,9 +153,10 @@ and
             )
           ) |> ignore
           { 
-            new Object() with
-              member x.Finalize() = (x :?> IDisposable).Dispose()
-            interface IDisposable with
+          // NB finalizers should be only in types that are actually keeping some resource
+          //  new Object() with
+          //    member x.Finalize() = (x :?> IDisposable).Dispose()
+            new IDisposable with
               member x.Dispose() = cts.Cancel();cts.Dispose();
           }
       finally
@@ -225,16 +226,16 @@ and
             yield c.CurrentValue
         }
 
-    override x.Finalize() =
-      try
-        for v in c.Values do
-          try
-            v.Dispose()
-          with
-          | :? ObjectDisposedException -> ()
-        c.Dispose()
-      with
-      | :? ObjectDisposedException -> ()
+//    override x.Finalize() =
+//      try
+//        for v in c.Values do
+//          try
+//            v.Dispose()
+//          with
+//          | :? ObjectDisposedException -> ()
+//        c.Dispose()
+//      with
+//      | :? ObjectDisposedException -> ()
       
 
     interface IEnumerable<KeyValuePair<'K, 'V>> with
