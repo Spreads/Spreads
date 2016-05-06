@@ -1082,7 +1082,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     let hasEqOverlap (old:SortedChunkedMapGeneric<_,_,_>) (append:IReadOnlyOrderedMap<'K,'V>) : bool =
       if comparer.Compare(append.First.Key, old.LastUnsafe.Key) > 0 then false
       else
-        let oldC = old.GetCursor()
+        let oldC = new SortedChunkedMapGenericCursor<_,_,_>(old, false) :> ICursor<'K,'V>
         let appC = append.GetCursor();
         let mutable cont = true
         let mutable overlapOk = 
@@ -1289,11 +1289,20 @@ and
       val mutable internal outerCursor : ICursor<'K,'TContainer>
       val mutable internal innerCursor : ICursor<'K,'V>
       val mutable internal isBatch : bool
+      val mutable internal synced : bool
+      new(source:SortedChunkedMapGeneric<'K,'V,'TContainer>, synced) = 
+        { source = source; 
+          outerCursor = source.OuterMap.GetCursor();
+          innerCursor = Unchecked.defaultof<_>;
+          isBatch = false;
+          synced = synced;
+        }
       new(source:SortedChunkedMapGeneric<'K,'V,'TContainer>) = 
         { source = source; 
           outerCursor = source.OuterMap.GetCursor();
           innerCursor = Unchecked.defaultof<_>;
           isBatch = false;
+          synced = true;
         }
     end
 
@@ -1337,7 +1346,7 @@ and
         /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion then doSpin <- false
+          if version = nextVersion || not this.synced then doSpin <- false
           else sw.SpinOnce()
       if result then
         //if this.HasValidInner then this.innerCursor.Dispose()
@@ -1392,7 +1401,7 @@ and
         /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion then doSpin <- false
+          if version = nextVersion || not this.synced then doSpin <- false
           else sw.SpinOnce()
       if result.Result then
         this.isBatch <- newIsBatch
@@ -1437,7 +1446,7 @@ and
         /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion then doSpin <- false
+          if version = nextVersion || not this.synced then doSpin <- false
           else sw.SpinOnce()
       if result then
         //if this.HasValidInner then this.innerCursor.Dispose()
@@ -1467,7 +1476,7 @@ and
         /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion then doSpin <- false
+          if version = nextVersion || not this.synced then doSpin <- false
           else sw.SpinOnce()
       if result then
         //if this.HasValidInner then this.innerCursor.Dispose()
@@ -1497,7 +1506,7 @@ and
         /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion then doSpin <- false
+          if version = nextVersion || not this.synced then doSpin <- false
           else sw.SpinOnce()
       if result then
         //if this.HasValidInner then this.innerCursor.Dispose()
@@ -1574,7 +1583,7 @@ and
       /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion then doSpin <- false
+          if version = nextVersion || not this.synced then doSpin <- false
           else sw.SpinOnce()
       if result then
         //if this.HasValidInner then this.innerCursor.Dispose()
