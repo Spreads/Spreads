@@ -151,7 +151,7 @@ namespace Spreads.Storage {
                     throw new ApplicationException("Explicitly ignore all irrelevant cases here");
             }
             if (_innerMap.Version != header.Version) {
-                Trace.TraceWarning("_innerMap.Version != Command header version");
+                Trace.TraceWarning($"_innerMap.Version {_innerMap.Version} != Command header version {header.Version}");
             }
         }
 
@@ -276,7 +276,6 @@ namespace Spreads.Storage {
         public void Complete() {
             if (IsWriter) {
                 _innerMap.Complete();
-                _innerMap.Version = _innerMap.Version + 1;
                 LogHeaderOnly(CommandType.Complete);
             } else {
                 throw new InvalidOperationException("Cannot Complete read-only series");
@@ -293,20 +292,20 @@ namespace Spreads.Storage {
         }
 
         private void Dispose(bool disposing) {
-            // disposing a single writer 
-            if (IsWriter) {
-                Flush();
-                IsWriter = false;
-                LockReleaseEvent.Set();
-            }
-
-            _disposeCallback?.Invoke();
-            RefCounter--;
-            if (RefCounter == 0) {
-                _innerMap.Dispose();
-            }
             if (disposing) {
-                GC.SuppressFinalize(this);
+                // disposing a single writer 
+                if (IsWriter) {
+                    Flush();
+                    IsWriter = false;
+                    LockReleaseEvent.Set();
+                }
+
+                _disposeCallback?.Invoke();
+                RefCounter--;
+                if (RefCounter == 0) {
+                    _innerMap.Dispose();
+                }
+                //GC.SuppressFinalize(this);
             }
         }
 
@@ -314,9 +313,11 @@ namespace Spreads.Storage {
             Dispose(true);
         }
 
-        ~PersistentSeries() {
-            Dispose(false);
-        }
+        // NB a series is kept in a dictionary after it was opened
+        // TODO add some clean-up logic
+        //~PersistentSeries() {
+        //    Dispose(false);
+        //}
 
         //////////////////////////////////// READ METHODS REDIRECT  ////////////////////////////////////////////
 

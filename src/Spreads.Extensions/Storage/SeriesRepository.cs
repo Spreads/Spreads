@@ -22,23 +22,24 @@ using System.Collections.Concurrent;
 using System.Data;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Serialization;
 
 namespace Spreads.Storage {
 
 
-    public class SeriesRepository : ISeriesRepository {
+    public class SeriesRepository : ISeriesRepository, IDisposable {
         // persistent dictionary to store all open series with write access and process id
         // we use single writer and steal locks if a writer process id is not among running processes.
         private PersistentMapFixedLength<UUID, int> _writeSeriesLocks;
-        private const string WriteLocksFileName = "writelocks.pm";
+        private const string WriteLocksFileName = "writelocks";
 
         private ILogBuffer _logBuffer;
-        private const string LogBufferFileName = "logbuffer.lb";
+        private const string LogBufferFileName = "logbuffer";
         private const uint MinimumBufferSize = 10;
         private SeriesStorage _storage;
-        private const string StorageFileName = "storage.db";
+        private const string StorageFileName = "storage";
 
         // Opened series that could accept commands
         private readonly ConcurrentDictionary<UUID, IAcceptCommand> _openSeries = new ConcurrentDictionary<UUID, IAcceptCommand>();
@@ -52,8 +53,12 @@ namespace Spreads.Storage {
         public SeriesRepository(string path = null, uint bufferSizeMb = 10) {
             if (string.IsNullOrWhiteSpace(path)) {
                 path = Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "Repos", "Default");
-            } else if (!Path.IsPathRooted(path)) {
-                path = Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "Repos", path);
+            }
+            //else if (!Path.IsPathRooted(path)) {
+            //    path = Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "Repos", path);
+            //}
+            if (!Directory.Exists(path)) {
+                Directory.CreateDirectory(path);
             }
             var writeLocksFileName = Path.Combine(path, WriteLocksFileName);
             _writeSeriesLocks = new PersistentMapFixedLength<UUID, int>(writeLocksFileName, 1000);
@@ -78,7 +83,7 @@ namespace Spreads.Storage {
         }
 
         public async Task<PersistentSeries<K, V>> WriteSeries<K, V>(string seriesId, bool allowBatches = false) {
-            return await GetSeries<K, V>(seriesId, false, false);
+            return await GetSeries<K, V>(seriesId, true, false);
         }
 
         public async Task<Series<K, V>> ReadSeries<K, V>(string seriesId) {
@@ -99,8 +104,22 @@ namespace Spreads.Storage {
                     series.IsWriter = true;
                     LogAcquireLock(seriesId, series.Version);
                     break;
-                } else {
-                    throw new NotImplementedException("TODO check if Pid is alive and steal lock if it is not");
+                } else
+                {
+                    int pid;
+                    if (_writeSeriesLocks.TryGetValue(seriesId, out pid))
+                    {
+                        try {
+                            Process.GetProcessById(pid);
+                        } catch (ArgumentException) {
+                            // pid is not running anymore, steal lock
+                            Trace.TraceWarning($"Current process {Pid} has stolen a lock left by a dead process {pid}. If you see this often then dispose SeriesRepository properly before an application exit.");
+                            _writeSeriesLocks[seriesId] = Pid;
+                            series.IsWriter = true;
+                            LogAcquireLock(seriesId, series.Version);
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -184,7 +203,6 @@ namespace Spreads.Storage {
 
             public SeriesStorageWrapper(ILogBuffer logBuffer, string sqLiteConnectionString) : base(sqLiteConnectionString) {
                 _logBuffer = logBuffer;
-                throw new NotImplementedException("TODO storage wrapper");
             }
 
             internal unsafe override Task<long> SaveChunk(SeriesChunk chunk) {
@@ -234,8 +252,25 @@ namespace Spreads.Storage {
             }
         }
 
-        internal interface IAcceptCommand {
+        internal interface IAcceptCommand : IDisposable {
             void ApplyCommand(IntPtr pointer);
+        }
+
+        private void Dispose(bool disposing) {
+            foreach (var series in _openSeries.Values) {
+                series.Dispose();
+            }
+            if (disposing) {
+                GC.SuppressFinalize(this);
+            }
+        }
+
+        public void Dispose() {
+            Dispose(true);
+        }
+
+        ~SeriesRepository() {
+            Dispose(false);
         }
     }
 

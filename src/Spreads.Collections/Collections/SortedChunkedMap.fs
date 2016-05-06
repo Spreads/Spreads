@@ -113,6 +113,8 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
 
   do
     this.isSynchronized <- false
+    this.version <- outerMap.Version
+    this.nextVersion <- outerMap.Version
 
 
   [<OnDeserialized>]

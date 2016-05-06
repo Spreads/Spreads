@@ -76,29 +76,32 @@ namespace Spreads.Storage {
             _reader = Task.Factory.StartNew(() => {
                 var sw = new SpinWait();
                 while (!_cts.Token.IsCancellationRequested) {
-                    var tail = _readerTail; // Volatile.Read(ref *(int*)_readerTailPtr);
-                    if (tail >= TermSize || *(int*)(_readerTermPtr + tail) == -1) {
-                        while (ActiveTermId == _readerTerm) {
-                            sw.SpinOnce();
+                    try {
+                    } finally {
+                        var tail = _readerTail; // Volatile.Read(ref *(int*)_readerTailPtr);
+                        if (tail >= TermSize || *(int*)(_readerTermPtr + tail) == -1) {
+                            while (ActiveTermId == _readerTerm) {
+                                sw.SpinOnce();
+                            }
+                            // switch term
+                            _readerTerm = (_readerTerm + 1) % NumberOfTerms;
+                            _readerTail = 0;
+                            _readerTermPtr = _df._buffer._data + HeaderSize + TermSize * _readerTerm;
+                        } else {
+                            var len = *(int*)(_readerTermPtr + tail);
+                            if (len > 0) {
+                                // could read value
+                                byte[] bytes = new byte[len];
+                                Marshal.Copy((_readerTermPtr + tail + 4), bytes, 0, len);
+                                OnAppend?.Invoke((_readerTermPtr + tail));
+                                _readerTail = _readerTail + len + 4;
+                            }
                         }
-                        // switch term
-                        _readerTerm = (_readerTerm + 1) % NumberOfTerms;
-                        _readerTail = 0;
-                        _readerTermPtr = _df._buffer._data + HeaderSize + TermSize * _readerTerm;
-                    } else {
-                        var len = *(int*)(_readerTermPtr + tail);
-                        if (len > 0) {
-                            // could read value
-                            byte[] bytes = new byte[len];
-                            Marshal.Copy((_readerTermPtr + tail + 4), bytes, 0, len);
-                            OnAppend?.Invoke((_readerTermPtr + tail));
-                            _readerTail = _readerTail + len + 4;
-                        }
+                        Thread.SpinWait(1);
+                        // TODO? implement signaling via WaitHandle?
+                        //if (sw.NextSpinWillYield) sw.Reset();
+                        //sw.SpinOnce();
                     }
-                    Thread.SpinWait(1);
-                    // TODO? implement signaling via WaitHandle?
-                    //if (sw.NextSpinWillYield) sw.Reset();
-                    //sw.SpinOnce();
                 }
             }, _cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
@@ -199,7 +202,6 @@ namespace Spreads.Storage {
 
         private void Dispose(bool disposing) {
             _cts.Cancel();
-            _reader.Wait();
             if (disposing) GC.SuppressFinalize(this);
         }
 
