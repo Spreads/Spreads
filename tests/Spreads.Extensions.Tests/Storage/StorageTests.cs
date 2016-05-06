@@ -6,6 +6,7 @@ using System.Linq;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using NUnit.Framework;
+using Spreads.Collections;
 using Spreads.Storage;
 
 namespace Spreads.Extensions.Tests.Storage {
@@ -111,6 +112,29 @@ namespace Spreads.Extensions.Tests.Storage {
             series[DateTime.Today.AddMinutes(100)] = 100;
             Console.WriteLine(test2.Last.Key + " " + test2.Last.Key);
             series[DateTime.Today.AddMinutes(1000)] = 1000;
+        }
+
+        [Test]
+        public void CouldWriteToStorage() {
+            var repo = new SeriesStorage(SeriesStorage.GetDefaultConnectionString("../StorageTests.db"));
+            var test = new SortedMap<DateTime, double>();
+            for (int i = 0; i < 10; i++)
+            {
+                test.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+            }
+            test.Complete();
+            foreach (var kvp in test.Map(x => (decimal)x)) {
+                Console.WriteLine($"{kvp.Key} - {kvp.Key.Kind} - {kvp.Value}");
+            }
+
+            var storageSeries = repo.GetPersistentOrderedMap<DateTime, decimal>("test_series_CouldWriteToStorage");
+            var test2 = storageSeries.ToSortedMap();
+            foreach (var kvp in test2)
+            {
+                Console.WriteLine($"{kvp.Key} - {kvp.Key.Kind} - {kvp.Value}");
+            }
+            storageSeries.Append(test.Map(x => (decimal)x), AppendOption.RequireEqualOverlap);
+            storageSeries.Flush();
         }
     }
 }
