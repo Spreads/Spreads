@@ -146,19 +146,19 @@ namespace Spreads.Storage.Aeron.Logbuffer {
             }
         }
 
-        /**
-         * Append a fragmented message to the the term buffer.
-         * The message will be split up into fragments of MTU length minus header.
-         *
-         * @param header           for writing the default header.
-         * @param srcBuffer        containing the message.
-         * @param srcOffset        at which the message begins.
-         * @param length           of the message in the source buffer.
-         * @param maxPayloadLength that the message will be fragmented into.
-         * @return the resulting offset of the term after the append on success otherwise {@link #TRIPPED} or {@link #FAILED}
-         * packed with the termId if a padding record was inserted at the end.
-         */
-        public long appendFragmentedMessage(
+        /// <summary>
+        /// Append a fragmented message to the the term buffer.
+        /// The message will be split up into fragments of MTU length minus header.
+        /// </summary>
+        /// <param name="header">           for writing the default header. </param>
+        /// <param name="srcBuffer">        containing the message. </param>
+        /// <param name="srcOffset">        at which the message begins. </param>
+        /// <param name="length">           of the message in the source buffer. </param>
+        /// <param name="maxPayloadLength"> that the message will be fragmented into. </param>
+        /// <returns> the resulting offset of the term after the append on success otherwise <seealso cref="#TRIPPED"/> or <seealso cref="#FAILED"/>
+        /// packed with the termId if a padding record was inserted at the end. </returns>
+
+        public long AppendFragmentedMessage(
             HeaderWriter header,
             DirectBuffer srcBuffer,
             int srcOffset,
@@ -168,6 +168,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
             int remainingPayload = length % maxPayloadLength;
             int lastFrameLength = remainingPayload > 0 ? BitUtil.Align(remainingPayload + DataHeaderFlyweight.HEADER_LENGTH, FrameDescriptor.FRAME_ALIGNMENT) : 0;
             int requiredLength = (numMaxPayloads * (maxPayloadLength + DataHeaderFlyweight.HEADER_LENGTH)) + lastFrameLength;
+            throw new NotImplementedException("GetAndAddRawTail returns value before addition");
             long rawTail = GetAndAddRawTail(requiredLength);
             int termId = TermId(rawTail);
             long termOffset = rawTail & 0xFFFFFFFFL;

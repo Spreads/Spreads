@@ -374,6 +374,11 @@
     <Compile Include="Storage\Aeron\Logbuffer\LogBufferPartition.cs" />
     <Compile Include="Storage\Aeron\Logbuffer\LogBufferUnblocker.cs" />
     <Compile Include="Storage\Aeron\Logbuffer\TermAppender.cs" />
+    <Compile Include="Storage\Aeron\Logbuffer\TermBlockScanner.cs" />
+    <Compile Include="Storage\Aeron\Logbuffer\TermGapScanner.cs" />
+    <Compile Include="Storage\Aeron\Logbuffer\TermReader.cs" />
+    <Compile Include="Storage\Aeron\Logbuffer\TermRebuilder.cs" />
+    <Compile Include="Storage\Aeron\Logbuffer\TermScanner.cs" />
     <Compile Include="Storage\Aeron\Logbuffer\TermUnblocker.cs" />
     <Compile Include="Storage\Aeron\Protocol\DataHeaderFlyweight.cs" />
     <Compile Include="Storage\Aeron\Logbuffer\FrameDescriptor.cs" />

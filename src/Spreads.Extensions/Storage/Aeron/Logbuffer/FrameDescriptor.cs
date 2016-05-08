@@ -1,4 +1,5 @@
-﻿using Spreads.Serialization;
+﻿using System;
+using Spreads.Serialization;
 using Spreads.Storage.Aeron.Protocol;
 
 namespace Spreads.Storage.Aeron.Logbuffer {
@@ -224,6 +225,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
          * @param termOffset  at which a frame begins.
          * @param frameLength field to be set for the frame.
          */
+        [Obsolete("Inline manually, this adds nothing")]
         public static void FrameLengthOrdered(DirectBuffer buffer, int termOffset, int frameLength) {
             buffer.VolatileWriteInt32(termOffset, frameLength);
         }
