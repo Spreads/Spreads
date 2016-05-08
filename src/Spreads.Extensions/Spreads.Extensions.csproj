@@ -362,9 +362,16 @@
     <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Utilities\TypeExtensions.cs">
       <Link>Storage\SQLite\Utilities\TypeExtensions.cs</Link>
     </Compile>
-    <Compile Include="Storage\Logbuffer\DataHeaderFlyweight.cs" />
-    <Compile Include="Storage\Logbuffer\FrameDescriptor.cs" />
-    <Compile Include="Storage\Logbuffer\HeaderFlightweight.cs" />
+    <Compile Include="Storage\Aeron\BitUtil.cs" />
+    <Compile Include="Storage\Aeron\Logbuffer\BlockHandler.cs" />
+    <Compile Include="Storage\Aeron\Logbuffer\BufferClaim.cs" />
+    <Compile Include="Storage\Aeron\Logbuffer\ControlledFragmentHandler.cs" />
+    <Compile Include="Storage\Aeron\Logbuffer\Header.cs" />
+    <Compile Include="Storage\Aeron\Logbuffer\LogBufferDescriptor.cs" />
+    <Compile Include="Storage\Aeron\Logbuffer\LogBufferPartition.cs" />
+    <Compile Include="Storage\Aeron\Protocol\DataHeaderFlyweight.cs" />
+    <Compile Include="Storage\Aeron\Logbuffer\FrameDescriptor.cs" />
+    <Compile Include="Storage\Aeron\Protocol\HeaderFlightweight.cs" />
     <Compile Include="Storage\PersistentArray.cs" />
     <Compile Include="Storage\PersistentMap.cs" />
     <Compile Include="Storage\HashHelpers.cs" />

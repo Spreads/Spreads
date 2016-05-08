@@ -1,12 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
 using Spreads.Serialization;
 
-namespace Spreads.Storage.Logbuffer {
+namespace Spreads.Storage.Aeron.Protocol {
 
     [StructLayout(LayoutKind.Sequential, Pack = 1, Size = DataHeaderFlyweight.HEADER_LENGTH)]
     public struct DataHeader {
