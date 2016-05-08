@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Spreads.Serialization;
+﻿using Spreads.Serialization;
 using Spreads.Storage.Aeron.Protocol;
 
-namespace Spreads.Storage.Logbuffer {
+namespace Spreads.Storage.Aeron.Logbuffer {
     /// <summary>
     /// Description of the structure for message framing in a log buffer.
     /// 

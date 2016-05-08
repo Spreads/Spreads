@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Spreads.Serialization;
 using Spreads.Storage.Aeron.Protocol;
-using Spreads.Storage.Logbuffer;
 using static Spreads.Storage.Aeron.BitUtil;
 
 namespace Spreads.Storage.Aeron.Logbuffer {

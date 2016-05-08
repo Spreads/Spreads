@@ -102,7 +102,7 @@ namespace Spreads.Serialization {
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void Assert(long index, int length) {
+        private void Assert(long index, long length) {
             if (length <= 0) {
                 throw new ArgumentOutOfRangeException(nameof(length));
             }
@@ -454,16 +454,50 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <param name="index">index  in the underlying buffer to start from.</param>
         /// <param name="src">source byte array to be copied to the underlying buffer.</param>
-        /// <param name="offset">offset in the supplied buffer to begin the copy.</param>
+        /// <param name="srcOffset">offset in the supplied buffer to begin the copy.</param>
         /// <param name="len">length of the supplied buffer to copy.</param>
         /// <returns>count of bytes copied.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int WriteBytes(long index, byte[] src, int offset, int len) {
+        public int WriteBytes(long index, byte[] src, int srcOffset, int len) {
             Assert(index, len);
-            int count = Math.Min(len, (int)(this._length - index));
-            Marshal.Copy(src, offset, new IntPtr(_data.ToInt64() + index), count);
+            if (src.Length < srcOffset + len) throw new ArgumentOutOfRangeException();
+            //int count = Math.Min(len, (int)(this._length - index));
+            Marshal.Copy(src, srcOffset, new IntPtr(_data.ToInt64() + index), len);
 
-            return count;
+            return len;
+        }
+
+        /// <summary>
+        /// Writes len bytes from source to this buffer at index. Wroks as memcpy, not memmove (TODO)
+        /// </summary>
+        /// <param name="index"></param>
+        /// <param name="src"></param>
+        /// <param name="srcOffset"></param>
+        /// <param name="len"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void WriteBytes(long index, DirectBuffer src, long srcOffset, long len) {
+            Assert(index, len);
+            if (src._length < srcOffset + len) throw new ArgumentOutOfRangeException();
+
+            // TODO optimize this for memmove
+            // TODO this doesn't properly supports copying from self
+            var pos = 0;
+            var len8 = len - 8;
+            var tgt = new IntPtr(_data.ToInt64() + index);
+            var ptr = new IntPtr(src._data.ToInt64() + srcOffset);
+            while (pos <= len8) {
+                *(long*)(tgt + pos) = *(long*)(ptr + pos);
+                pos += 8;
+            }
+            var len4 = len - 4;
+            while (pos <= len4) {
+                *(int*)(tgt + pos) = *(int*)(ptr + pos);
+                pos += 4;
+            }
+            while (pos < len) {
+                *(byte*)(tgt + pos) = *(byte*)(ptr + pos);
+                pos++;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

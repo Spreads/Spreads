@@ -1,6 +1,5 @@
 ﻿using Spreads.Serialization;
 using Spreads.Storage.Aeron.Protocol;
-using Spreads.Storage.Logbuffer;
 
 namespace Spreads.Storage.Aeron.Logbuffer {
     public enum TermUnblockerStatus {
