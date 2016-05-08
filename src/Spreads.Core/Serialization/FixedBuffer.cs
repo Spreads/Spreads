@@ -658,6 +658,12 @@ namespace Spreads.Serialization {
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Clear(long index, int len) {
+            Assert(index, len);
+            Array.Clear(_buffer, (int)index, len);
+        }
+
         public UUID ReadUUID(long index) {
             Assert(index, 16);
             fixed (byte* ptr = &_buffer[_offset])

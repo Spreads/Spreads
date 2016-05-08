@@ -457,13 +457,34 @@ namespace Spreads.Serialization {
         /// <param name="offset">offset in the supplied buffer to begin the copy.</param>
         /// <param name="len">length of the supplied buffer to copy.</param>
         /// <returns>count of bytes copied.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] // TODO test if that has an impact
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int WriteBytes(long index, byte[] src, int offset, int len) {
             Assert(index, len);
             int count = Math.Min(len, (int)(this._length - index));
             Marshal.Copy(src, offset, new IntPtr(_data.ToInt64() + index), count);
 
             return count;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Clear(long index, int len) {
+            Assert(index, len);
+            var pos = 0;
+            var len8 = len - 8;
+            var tgt = new IntPtr(_data.ToInt64() + index);
+            while (pos <= len8) {
+                *(long*)(tgt + pos) = 0L;
+                pos += 8;
+            }
+            var len4 = len - 4;
+            while (pos <= len4) {
+                *(int*)(tgt + pos) = 0;
+                pos += 4;
+            }
+            while (pos < len) {
+                *(byte*)(tgt + pos) = (byte)(0); ;
+                pos++;
+            }
         }
 
         public UUID ReadUUID(long index) {
