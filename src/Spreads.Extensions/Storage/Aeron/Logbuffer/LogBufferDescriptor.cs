@@ -32,7 +32,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
     /// </pre>
     /// </summary>
 
-    public class LogBufferDescriptor {
+    public static class LogBufferDescriptor {
         /**
          * The number of partitions the log is divided into with pairs of term and term meta data buffers.
          */

@@ -34,7 +34,7 @@ namespace Spreads.Storage.Logbuffer {
     /// The (B)egin and (E)nd flags are used for message fragmentation. R is for reserved bit.
     /// Both are set for a message that does not span frames.
     /// </summary>
-    public class FrameDescriptor {
+    public static class FrameDescriptor {
         /**
          * Alignment as a multiple of bytes for each frame. The length field will store the unaligned length in bytes.
          */
@@ -184,7 +184,7 @@ namespace Spreads.Storage.Logbuffer {
          * @param termOffset at which a frame begins.
          * @param type       type value for the frame.
          */
-        public static void FameType(DirectBuffer buffer, int termOffset, int type) {
+        public static void FrameType(DirectBuffer buffer, int termOffset, int type) {
             buffer.WriteInt16(TypeOffset(termOffset), (short)type);
         }
 

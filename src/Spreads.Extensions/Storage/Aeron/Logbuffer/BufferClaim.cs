@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Spreads.Serialization;
+﻿using Spreads.Serialization;
 using Spreads.Storage.Aeron.Protocol;
 
 namespace Spreads.Storage.Aeron.Logbuffer {
@@ -11,15 +6,15 @@ namespace Spreads.Storage.Aeron.Logbuffer {
     /// <summary>
     /// Represents a claimed range in a buffer to be used for recording a message without copy semantics for later commit.
     /// <para>
-    /// The claimed space is in <seealso cref="#buffer()"/> between <seealso cref="#offset()"/> and <seealso cref="#offset()"/> + <seealso cref="#length()"/>.
-    /// When the buffer is filled with message data, use <seealso cref="#commit()"/> to make it available to subscribers.
+    /// The claimed space is in <seealso cref="Buffer"/> between <seealso cref="Offset"/> and <seealso cref="Offset"/> + <seealso cref="Length"/>.
+    /// When the buffer is filled with message data, use <seealso cref="Commit()"/> to make it available to subscribers.
     /// </para>
     /// <para>
-    /// If the claimed space is no longer required it can be aborted by calling <seealso cref="#abort()"/>.
+    /// If the claimed space is no longer required it can be aborted by calling <seealso cref="Abort()"/>.
     /// </para>
     /// </summary>
     public struct BufferClaim {
-        private DirectBuffer _buffer;
+        private readonly DirectBuffer _buffer;
 
         /**
          * Wrap a region of an underlying log buffer so can can represent a claimed space for use by a publisher.
