@@ -192,12 +192,11 @@ namespace Spreads.Storage.Aeron.Logbuffer {
          */
         public static int LOG_META_DATA_LENGTH;
 
-        /**
-         * Check that term length is valid and alignment is valid.
-         *
-         * @param termLength to be checked.
-         * @throws IllegalStateException if the length is not as expected.
-         */
+        /// <summary>
+        /// Check that term length is valid and alignment is valid.
+        /// </summary>
+        /// <param name="termLength"> to be checked. </param>
+        /// <exception cref="InvalidOperationException"> if the length is not as expected. </exception>
         public static void CheckTermLength(int termLength) {
             if (termLength < TERM_MIN_LENGTH) {
                 string s = $"Term length less than min length of {TERM_MIN_LENGTH:%d}, length={termLength:%d}";
@@ -210,13 +209,11 @@ namespace Spreads.Storage.Aeron.Logbuffer {
             }
         }
 
-        /**
-         * Check that meta data buffer is of sufficient length.
-         *
-         * @param buffer to be checked.
-         * @throws IllegalStateException if the buffer is not as expected.
-         */
-
+        /// <summary>
+        /// Check that meta data buffer is of sufficient length.
+        /// </summary>
+        /// <param name="buffer"> to be checked. </param>
+        /// <exception cref="InvalidOperationException"> if the buffer is not as expected. </exception>
         public static void CheckMetaDataBuffer(DirectBuffer buffer) {
             checked {
                 int capacity = (int)buffer.Length;

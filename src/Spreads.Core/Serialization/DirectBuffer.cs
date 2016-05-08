@@ -568,6 +568,14 @@ namespace Spreads.Serialization {
             *(byte*)(new IntPtr(_data.ToInt64() + index)) = (byte)(value + '0');
         }
 
+        public void VerifyAlignment(int alignment) {
+            if (0 != (_data.ToInt64() & (alignment - 1))) {
+                throw new InvalidOperationException(
+                    $"AtomicBuffer is not correctly aligned: addressOffset={_data.ToInt64():D} in not divisible by {alignment:D}");
+            }
+        }
+
+
         // TODO add Ascii dates/ints/etc, could take fast implementation from Jil
         // See TAQParse example for ulong and times manual parsing
 
