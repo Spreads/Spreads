@@ -29,7 +29,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
         {
             get
             {
-                var resultingOffset = BitUtil.align(TermOffset + FrameLength, FrameDescriptor.FRAME_ALIGNMENT);
+                var resultingOffset = BitUtil.Align(TermOffset + FrameLength, FrameDescriptor.FRAME_ALIGNMENT);
                 return LogBufferDescriptor.ComputePosition(TermId, resultingOffset, _positionBitsToShift, _initialTermId);
             }
         }

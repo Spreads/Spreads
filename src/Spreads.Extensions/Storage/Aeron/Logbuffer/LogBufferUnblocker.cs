@@ -12,7 +12,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
         public static bool Unblock(LogBufferPartition[] logPartitions, DirectBuffer logMetaDataBuffer, long blockedPosition) {
             checked {
                 int termLength = (int)logPartitions[0].TermBuffer.Length;
-                int positionBitsToShift = BitUtil.numberOfTrailingZeros(termLength);
+                int positionBitsToShift = BitUtil.NumberOfTrailingZeros(termLength);
                 int activeIndex = LogBufferDescriptor.IndexByPosition(blockedPosition, positionBitsToShift);
                 LogBufferPartition activePartition = logPartitions[activeIndex];
                 DirectBuffer termBuffer = activePartition.TermBuffer;

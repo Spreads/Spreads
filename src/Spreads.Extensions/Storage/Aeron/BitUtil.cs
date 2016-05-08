@@ -106,10 +106,10 @@ namespace Spreads.Storage.Aeron {
             FROM_HEX_DIGIT_TABLE['F'] = 0x0f;
         }
 
-        private const int LAST_DIGIT_MASK = 1; //0b1;
+        private const int LastDigitMask = 1; //0b1;
 
 
-        public static int numberOfLeadingZeros(int i) {
+        public static int NumberOfLeadingZeros(int i) {
             // HD, Figure 5-6
             if (i == 0)
                 return 32;
@@ -123,7 +123,7 @@ namespace Spreads.Storage.Aeron {
         }
 
 
-        public static int numberOfTrailingZeros(int i) {
+        public static int NumberOfTrailingZeros(int i) {
             // HD, Figure 5-14
             int y;
             if (i == 0) return 32;
@@ -147,8 +147,8 @@ namespace Spreads.Storage.Aeron {
          * @param value from which to search for next power of 2
          * @return The next power of 2 or the value itself if it is a power of 2
          */
-        public static int findNextPositivePowerOfTwo(int value) {
-            return 1 << (32 - numberOfLeadingZeros(value - 1));
+        public static int FindNextPositivePowerOfTwo(int value) {
+            return 1 << (32 - NumberOfLeadingZeros(value - 1));
         }
 
         /**
@@ -162,7 +162,7 @@ namespace Spreads.Storage.Aeron {
          * @param alignment to be used.
          * @return the value aligned to the next boundary.
          */
-        public static int align(int value, int alignment) {
+        public static int Align(int value, int alignment) {
             return (value + (alignment - 1)) & ~(alignment - 1);
         }
 
@@ -172,7 +172,7 @@ namespace Spreads.Storage.Aeron {
          * @param buffer to convert from a hex representation (in Big Endian)
          * @return new byte array that is decimal representation of the passed array
          */
-        public static byte[] fromHexByteArray(byte[] buffer) {
+        public static byte[] FromHexByteArray(byte[] buffer) {
             byte[] outputBuffer = new byte[buffer.Length >> 1];
 
             for (int i = 0; i < buffer.Length; i += 2) {
@@ -220,8 +220,8 @@ namespace Spreads.Storage.Aeron {
          * @param string to convert from a hex representation (in Big Endian)
          * @return new byte array holding the decimal representation of the passed array
          */
-        public static byte[] fromHex(string value) {
-            return fromHexByteArray(UTF8_CHARSET.GetBytes(value));
+        public static byte[] FromHex(string value) {
+            return FromHexByteArray(UTF8_CHARSET.GetBytes(value));
         }
 
         /**
@@ -252,8 +252,8 @@ namespace Spreads.Storage.Aeron {
          * @param value to check.
          * @return true if the number is even otherwise false.
          */
-        public static bool isEven(int value) {
-            return (value & LAST_DIGIT_MASK) == 0;
+        public static bool IsEven(int value) {
+            return (value & LastDigitMask) == 0;
         }
 
         /**
@@ -262,7 +262,7 @@ namespace Spreads.Storage.Aeron {
          * @param value to be checked.
          * @return true if the number is a positive power of two otherwise false.
          */
-        public static bool isPowerOfTwo(int value) {
+        public static bool IsPowerOfTwo(int value) {
             return value > 0 && ((value & (~value + 1)) == value);
         }
 
@@ -273,7 +273,7 @@ namespace Spreads.Storage.Aeron {
          * @param max     value for the cycle.
          * @return the next value, or zero if max is reached.
          */
-        public static int next(int current, int max) {
+        public static int Next(int current, int max) {
             int next = current + 1;
             if (next == max) {
                 next = 0;
@@ -289,7 +289,7 @@ namespace Spreads.Storage.Aeron {
          * @param max     value of the cycle.
          * @return the next value, or max - 1 if current is zero
          */
-        public static int previous(int current, int max) {
+        public static int Previous(int current, int max) {
             if (0 == current) {
                 return max - 1;
             }
@@ -303,7 +303,7 @@ namespace Spreads.Storage.Aeron {
          * @param scale of the number reported by Unsafe.
          * @return how many times the number needs to be shifted to the left.
          */
-        public static int calculateShiftForScale(int scale) {
+        public static int CalculateShiftForScale(int scale) {
             if (4 == scale) {
                 return 2;
             } else if (8 == scale) {
@@ -319,7 +319,7 @@ namespace Spreads.Storage.Aeron {
          *
          * @return randomized integer suitable as an Id.
          */
-        public static int generateRandomisedId() {
+        public static int GenerateRandomisedId() {
             if (_rng == null) _rng = new Random();
             return _rng.Next(int.MinValue, int.MaxValue);
         }
