@@ -9,13 +9,13 @@ namespace Spreads.Storage {
 
     internal delegate void OnAppend(IntPtr pointer);
 
-    internal interface ILogBuffer {
+    internal interface ILogBuffer : IDisposable {
         void Append<T>(T message);
         IntPtr Claim(int length);
         event OnAppend OnAppend;
     }
 
-    internal class LogBuffer : ILogBuffer, IDisposable {
+    internal class LogBuffer : ILogBuffer {
         private const int HeaderSize = 256;
         private const int NumberOfTerms = 3;
 
@@ -103,7 +103,12 @@ namespace Spreads.Storage {
                         //sw.SpinOnce();
                     }
                 }
-            }, _cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                OptimizationSettings.TraceVerbose("LogBuffer invoke loop exited");
+            }, _cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default)
+            .ContinueWith(task => {
+                Console.WriteLine("LogBuffer OnAppend Invoke should never throw exceptions" + Environment.NewLine + task.Exception);
+                Environment.FailFast("LogBuffer OnAppend Invoke should never throw exceptions", task.Exception);
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
 
 

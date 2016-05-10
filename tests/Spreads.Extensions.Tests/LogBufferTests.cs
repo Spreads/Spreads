@@ -18,7 +18,7 @@ namespace Spreads.Extensions.Tests {
 
             var tcs = new TaskCompletionSource<int>();
             var tcs2 = new TaskCompletionSource<int>();
-            var count = 100;
+            var count = 1000000;
 
             //var bytes = new byte[500];
             //for (int i = 0; i < 500; i++) {

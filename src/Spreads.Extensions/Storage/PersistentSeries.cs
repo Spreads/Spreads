@@ -24,6 +24,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Collections;
 using Spreads.Serialization;
@@ -37,25 +38,30 @@ namespace Spreads.Storage {
         private readonly UUID _uuid;
         private readonly IPersistentOrderedMap<K, V> _innerMap;
         private readonly bool _allowBatches;
-        private readonly Action _disposeCallback;
-        private readonly TaskCompletionSource<int> _waitFlush;
-        internal AsyncAutoResetEvent LockReleaseEvent = new AsyncAutoResetEvent();
-        internal int RefCounter;
+        private readonly Action<bool> _disposeCallback;
+        internal readonly AsyncAutoResetEvent FlushEvent = new AsyncAutoResetEvent();
+        internal readonly AsyncAutoResetEvent LockReleaseEvent = new AsyncAutoResetEvent();
+        /// <summary>
+        /// Number of time a series was accessed via repository
+        /// </summary>
+        internal int RefCounter = 0;
+        private volatile bool _isWriter;
 
         internal PersistentSeries(ILogBuffer logBuffer, UUID uuid, IPersistentOrderedMap<K, V> innerMap, bool allowBatches, bool isWriter,
-            Action disposeCallback = null, TaskCompletionSource<int> waitFlush = null) {
+            Action<bool> disposeCallback = null) {
             _logBuffer = logBuffer;
             _uuid = uuid;
             _innerMap = innerMap;
             _allowBatches = allowBatches;
-            IsWriter = isWriter;
+            _isWriter = isWriter;
             _disposeCallback = disposeCallback;
-            _waitFlush = waitFlush;
+            Interlocked.Increment(ref RefCounter);
             if (TypeHelper<SetRemoveCommandBody<K, V>>.Size == -1) {
                 throw new NotImplementedException("TODO variable size support");
             }
         }
-        internal bool IsWriter { get; set; }
+
+
 
         // NB we apply commands only to instantiated series when runtime does all types magic
         public unsafe void ApplyCommand(IntPtr pointer) {
@@ -66,7 +72,9 @@ namespace Spreads.Storage {
             switch (type) {
                 case CommandType.Set:
                     // If this is a writer, it should ignore its own commands read from log-buffer
-                    if (!IsWriter) {
+                    //if (!_isWriter) throw new ApplicationException("TODO temp delete this");
+                    if (!_isWriter) {
+                        Trace.Assert(header.Version == _innerMap.Version + 1);
                         var setBody =
                             TypeHelper<SetRemoveCommandBody<K, V>>.PtrToStructure(pointer + 4 + CommandHeader.Size);
                         _innerMap[setBody.key] = setBody.value;
@@ -74,7 +82,8 @@ namespace Spreads.Storage {
                     break;
 
                 case CommandType.Remove:
-                    if (!IsWriter) {
+                    if (!_isWriter) {
+                        Trace.Assert(header.Version == _innerMap.Version + 1);
                         var removeBody =
                             TypeHelper<SetRemoveCommandBody<K, int>>.PtrToStructure(pointer + 4 + CommandHeader.Size);
                         _innerMap.RemoveMany(removeBody.key, (Lookup)removeBody.value);
@@ -82,62 +91,71 @@ namespace Spreads.Storage {
                     break;
 
                 case CommandType.Append:
-                    if (!IsWriter) {
+                    if (!_isWriter) {
                         throw new NotImplementedException("TODO");
+                        Trace.Assert(header.Version == _innerMap.Version + 1);
                     }
                     break;
 
                 case CommandType.Complete:
-                    if (!IsWriter) {
+                    if (!_isWriter) {
+                        Trace.Assert(header.Version == _innerMap.Version + 1);
                         _innerMap.Complete();
                     }
                     break;
 
                 case CommandType.SetChunk:
-                    if (!IsWriter) {
-                        var setChunkBody = *(ChunkCommandBody*)(pointer + 4 + CommandHeader.Size);
-                        {
-                            var scm = _innerMap as SortedChunkedMap<K, V>;
-                            var comparer = scm.Comparer as IKeyComparer<K>;
-                            if (scm != null && comparer != null) {
-                                var k = comparer.Add(default(K), setChunkBody.ChunkKey);
-                                // NB by protocol, this event must only happen after a chunk is on disk
-                                // we should touch it and ensure it is what we think it is
-                                var sm = scm.OuterMap[k];
-                                if (setChunkBody.Count != sm.Count || header.Version != sm.Version) {
-                                    throw new ApplicationException();
-                                }
-                            }
-                        }
-                    }
+                    //if (!_isWriter) {
+                    //    var setChunkBody = *(ChunkCommandBody*)(pointer + 4 + CommandHeader.Size);
+                    //    {
+                    //        var scm = _innerMap as SortedChunkedMap<K, V>;
+                    //        var comparer = scm.Comparer as IKeyComparer<K>;
+                    //        if (scm != null && comparer != null) {
+                    //            var k = comparer.Add(default(K), setChunkBody.ChunkKey);
+                    //            // NB by protocol, this event must only happen after a chunk is on disk
+                    //            // we should touch it and ensure it is what we think it is
+                    //            SortedMap<K, V> sm;
+                    //            if (scm.OuterMap.TryGetValue(k, out sm)) {
+                    //                if (setChunkBody.Count != sm.Count || header.Version != scm.Version)
+                    //                {
+                    //                    Trace.TraceWarning("TODO Chunks and mutations could go in different sequence now.");
+                    //                    //throw new ApplicationException(
+                    //                    //    $"setChunkBody.Count {setChunkBody.Count} != sm.Count {sm.Count} || header.Version {header.Version} != scm.Version {scm.Version}");
+                    //                }
+                    //            }
+                    //        }
+                    //    }
+                    //}
 
                     break;
 
                 case CommandType.RemoveChunk:
-                    if (!IsWriter) {
-                        var setChunkBody = *(ChunkCommandBody*)(pointer + 4 + CommandHeader.Size);
-                        {
-                            var scm = _innerMap as SortedChunkedMap<K, V>;
-                            var comparer = scm.Comparer as IKeyComparer<K>;
-                            if (scm != null && comparer != null) {
-                                var k = comparer.Add(default(K), setChunkBody.ChunkKey);
-                                // NB RemoveMany set prevBucket to null
-                                scm.OuterMap.RemoveMany(k, (Lookup)setChunkBody.Lookup);
-                                scm.Flush();
-                            }
-                        }
-                    }
+                    //if (!_isWriter) {
+                    //    var setChunkBody = *(ChunkCommandBody*)(pointer + 4 + CommandHeader.Size);
+                    //    {
+                    //        var scm = _innerMap as SortedChunkedMap<K, V>;
+                    //        var comparer = scm.Comparer as IKeyComparer<K>;
+                    //        if (scm != null && comparer != null) {
+                    //            var k = comparer.Add(default(K), setChunkBody.ChunkKey);
+                    //            // NB RemoveMany set prevBucket to null
+                    //            scm.OuterMap.RemoveMany(k, (Lookup)setChunkBody.Lookup);
+                    //            scm.Flush();
+                    //        }
+                    //    }
+                    //}
                     break;
 
                 case CommandType.Flush:
-                    Trace.Assert(header.Version == _innerMap.Version);
-                    _waitFlush?.SetResult(1);
+                    if (!_isWriter) {
+                        Trace.Assert(header.Version == _innerMap.Version);
+                        FlushEvent.Set();
+                    }
                     break;
 
                 case CommandType.Subscribe:
                     // if we are the single writer, we must flush so that new subscribers could see unsaved data
                     // if we are read-only
-                    if (IsWriter) this.Flush();
+                    if (_isWriter) this.Flush();
                     break;
 
                 case CommandType.AcquireLock:
@@ -150,9 +168,9 @@ namespace Spreads.Storage {
                 default:
                     throw new ApplicationException("Explicitly ignore all irrelevant cases here");
             }
-            if (_innerMap.Version != header.Version) {
-                Trace.TraceWarning($"_innerMap.Version {_innerMap.Version} != Command header version {header.Version}");
-            }
+            //if (_innerMap.Version != header.Version && !_isWriter) {
+            //    Trace.TraceWarning($"_innerMap.Version {_innerMap.Version} != Command header {header.CommandType} version {header.Version}");
+            //}
         }
 
 
@@ -274,7 +292,7 @@ namespace Spreads.Storage {
         }
 
         public void Complete() {
-            if (IsWriter) {
+            if (_isWriter) {
                 _innerMap.Complete();
                 LogHeaderOnly(CommandType.Complete);
             } else {
@@ -283,7 +301,7 @@ namespace Spreads.Storage {
         }
 
         public void Flush() {
-            if (IsWriter) {
+            if (_isWriter) {
                 _innerMap.Flush();
                 LogHeaderOnly(CommandType.Flush);
             } else {
@@ -293,20 +311,27 @@ namespace Spreads.Storage {
 
         private void Dispose(bool disposing) {
             if (disposing) {
-                // disposing a single writer 
-                if (IsWriter) {
-                    Flush();
-                    IsWriter = false;
-                    LockReleaseEvent.Set();
-                }
-
-                _disposeCallback?.Invoke();
-                RefCounter--;
-                if (RefCounter == 0) {
+                var cnt = Interlocked.Decrement(ref RefCounter);
+                if (cnt < 0) throw new InvalidOperationException("A PersistentSeries was disposed more times than accessed via a repository.");
+                if (cnt == 0) {
+                    // true means the series will be removed from _openSeries disctionary 
+                    _disposeCallback?.Invoke(true);
                     _innerMap.Dispose();
+                    GC.SuppressFinalize(this);
+                } else {
+                    // disposing a single writer 
+                    if (_isWriter) {
+                        Flush();
+                        _isWriter = false;
+                        LockReleaseEvent.Set();
+                    }
+                    _disposeCallback?.Invoke(false);
                 }
                 //GC.SuppressFinalize(this);
+            } else {
+                _innerMap.Dispose();
             }
+            // GCed series are just cleared away
         }
 
         public void Dispose() {
@@ -314,10 +339,9 @@ namespace Spreads.Storage {
         }
 
         // NB a series is kept in a dictionary after it was opened
-        // TODO add some clean-up logic
-        //~PersistentSeries() {
-        //    Dispose(false);
-        //}
+        ~PersistentSeries() {
+            Dispose(false);
+        }
 
         //////////////////////////////////// READ METHODS REDIRECT  ////////////////////////////////////////////
 
@@ -350,6 +374,12 @@ namespace Spreads.Storage {
         public new object SyncRoot => _innerMap.SyncRoot;
 
         public new IEnumerable<V> Values => _innerMap.Values;
+
+        internal bool IsWriter
+        {
+            get { return _isWriter; }
+            set { _isWriter = value; }
+        }
 
 
         public V GetAt(int idx) {

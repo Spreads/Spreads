@@ -29,6 +29,8 @@ using Spreads.Serialization;
 namespace Spreads.Storage {
 
 
+    // NB for each series id each repository instance keeps a single series instance
+
     public class SeriesRepository : ISeriesRepository, IDisposable {
         // persistent dictionary to store all open series with write access and process id
         // we use single writer and steal locks if a writer process id is not among running processes.
@@ -98,19 +100,24 @@ namespace Spreads.Storage {
 
         private async Task Upgrade<K, V>(UUID seriesId, PersistentSeries<K, V> series) {
             while (true) {
+                // wait if a writer from the same repo releases lock
                 var released = await series.LockReleaseEvent.WaitAsync(1000);
                 if (released) {
-                    _writeSeriesLocks.Add(seriesId, Pid);
-                    series.IsWriter = true;
-                    LogAcquireLock(seriesId, series.Version);
-                    break;
-                } else
-                {
+                    try {
+                        // TODO TryAdd atomic method
+                        _writeSeriesLocks.Add(seriesId, Pid);
+                        series.IsWriter = true;
+                        LogAcquireLock(seriesId, series.Version);
+                        break;
+                    } catch (ArgumentException) {
+                        Trace.WriteLine("Could not upgrade after lock release, some one jumped ahead of us");
+                    }
+                } else {
                     int pid;
-                    if (_writeSeriesLocks.TryGetValue(seriesId, out pid))
-                    {
+                    if (_writeSeriesLocks.TryGetValue(seriesId, out pid)) {
                         try {
                             Process.GetProcessById(pid);
+                            Trace.TraceWarning("Tried to steal a lock but the owner process was alive.");
                         } catch (ArgumentException) {
                             // pid is not running anymore, steal lock
                             Trace.TraceWarning($"Current process {Pid} has stolen a lock left by a dead process {pid}. If you see this often then dispose SeriesRepository properly before an application exit.");
@@ -132,20 +139,29 @@ namespace Spreads.Storage {
             IAcceptCommand series;
             if (_openSeries.TryGetValue(uuid, out series)) {
                 var ps = (PersistentSeries<K, V>)series;
-                ps.RefCounter++;
+                Interlocked.Increment(ref ps.RefCounter);
+                if (isWriter && !ps.IsWriter) {
+                    await Upgrade(uuid, ps);
+                }
                 return ps;
             }
 
-            var disposeCallback = isWriter ? new Action(() => Downgrade(uuid)) : null;
+            Action<bool> disposeCallback = (remove) => {
+                IAcceptCommand temp;
+                if (remove && _openSeries.TryRemove(uuid, out temp)) {
+                    // NB this callback is called from temp.Dispose();
+                }
+                if (isWriter) Downgrade(uuid);
+            };
 
-            var waitFlush = new TaskCompletionSource<int>();
             var pSeries = new PersistentSeries<K, V>(_logBuffer, uuid,
                 _storage.GetPersistentOrderedMap<K, V>(seriesId, false), allowBatches, isWriter,
-                disposeCallback, waitFlush);
-            pSeries.RefCounter++;
+                disposeCallback);
+            // NB this is done in consturctor: pSeries.RefCounter++;
             _openSeries[uuid] = pSeries;
 
             LogSubscribe(uuid, pSeries.Version);
+
 
             if (isWriter) {
                 try {
@@ -155,10 +171,20 @@ namespace Spreads.Storage {
                     await Upgrade(uuid, pSeries);
                 }
             } else {
-                // wait for flush if there is a writer 
-                if (_writeSeriesLocks.ContainsKey(uuid)) {
-                    await waitFlush.Task;
+                // wait for flush if there is a live writer 
+                int pid;
+                if (_writeSeriesLocks.TryGetValue(uuid, out pid)) {
+                    try {
+                        Process.GetProcessById(pid);
+                        await pSeries.FlushEvent.WaitAsync(-1);
+                    } catch (ArgumentException) {
+                        // pid is not running anymore, steal lock
+                        Trace.TraceWarning($"Current process {Pid} has removed a lock left by a dead process {pid}. If you see this often then dispose SeriesRepository properly before an application exit.");
+                        _writeSeriesLocks.Remove(uuid);
+                        LogReleaseLock(uuid);
+                    }
                 }
+
             }
             return pSeries;
         }
@@ -260,9 +286,14 @@ namespace Spreads.Storage {
             foreach (var series in _openSeries.Values) {
                 series.Dispose();
             }
-            if (disposing) {
+            _logBuffer.Dispose();
+            _writeSeriesLocks.Dispose();
+            _storage.Dispose();
+            if (disposing)
+            {
                 GC.SuppressFinalize(this);
             }
+            Trace.WriteLineIf(!disposing, "Disposing repo from finalizer");
         }
 
         public void Dispose() {
