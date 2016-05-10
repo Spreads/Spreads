@@ -29,7 +29,16 @@ namespace Spreads {
         }
 
         public static DateTime ToDateTime(this long dt) {
-            return new DateTime((long)(dt & ~(3L << 62)), (DateTimeKind)(((ulong)dt) >> 62));
+
+            const ulong mask = (3UL << 62);
+            ulong asUlong;
+            unchecked {
+                asUlong = (ulong)dt;
+            }
+            var cleared = (asUlong & mask);
+            var kind = cleared >> 62;
+            return new DateTime((long)(dt & ~(3L << 62)), (DateTimeKind)kind);
+
         }
 
         // TODO tests!!!
@@ -68,7 +77,7 @@ namespace Spreads {
             }
             var utcTimeZone = DateTimeZoneProviders.Tzdb["UTC"];
             var givenTz = DateTimeZoneProviders.Tzdb[tz];
-            var tickWithinSecond = (int) (dateTime.Ticks%TimeSpan.TicksPerSecond);
+            var tickWithinSecond = (int)(dateTime.Ticks % TimeSpan.TicksPerSecond);
             var millis = tickWithinSecond / 10000;
             var tickWithinMillis = tickWithinSecond % 10000;
 
@@ -76,7 +85,7 @@ namespace Spreads {
                     dateTime.Month,
                     dateTime.Day,
                     dateTime.Hour,
-                    dateTime.Minute, 
+                    dateTime.Minute,
                     dateTime.Second,
                     millis,
                     tickWithinMillis

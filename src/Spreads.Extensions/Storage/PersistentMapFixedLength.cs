@@ -131,7 +131,7 @@ namespace Spreads.Storage {
         // is new, and previous values when the file is reopened
         internal unsafe int freeList
         {
-            get { return (int)(*(uint*)(_buckets._buffer._data + 32) - 1u); }
+            get { return (int)(*(uint*)(_buckets._buffer._data + 32)) - 1; }
             private set { *(uint*)(_buckets._buffer._data + 32) = (uint)(value + 1); }
         }
 
