@@ -2,13 +2,13 @@
 using Spreads.Serialization;
 
 namespace Spreads.Storage.Aeron.Logbuffer {
+    
     /// <summary>
     /// Log buffer implementation containing common functionality for dealing with log partition terms.
     /// </summary>
-
-    public class LogBufferPartition {
-        private DirectBuffer _termBuffer;
-        private DirectBuffer _metaDataBuffer;
+    public struct LogBufferPartition {
+        private readonly DirectBuffer _termBuffer;
+        private readonly DirectBuffer _metaDataBuffer;
 
         public LogBufferPartition(DirectBuffer termBuffer, DirectBuffer metaDataBuffer) {
             this._termBuffer = termBuffer;
@@ -57,11 +57,10 @@ namespace Spreads.Storage.Aeron.Logbuffer {
             }
         }
 
-        /**
-         * Get the raw value for the tail containing both termId and offset.
-         *
-         * @return the raw value for the tail containing both termId and offset.
-         */
+        /// <summary>
+        /// Get the raw value for the tail containing both termId and offset.
+        /// </summary>
+        /// <returns> the raw value for the tail containing both termId and offset. </returns>
         public long RawTailVolatile => _metaDataBuffer.VolatileReadInt64(LogBufferDescriptor.TERM_TAIL_COUNTER_OFFSET);
 
 

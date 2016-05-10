@@ -13,13 +13,15 @@ namespace Spreads.Storage.Aeron {
         private DirectFile _df;
         private readonly DirectBuffer[] _buffers = new DirectBuffer[(LogBufferDescriptor.PARTITION_COUNT * 2) + 1];
 
-        public LogBuffers(string logFileName) {
+        public LogBuffers(string logFileName, int termLength = LogBufferDescriptor.TERM_MIN_LENGTH) {
             try {
-                _df = new DirectFile(logFileName, 0);
-                long logLength = _df.Capacity;
-                int termLength = LogBufferDescriptor.ComputeTermLength(logLength);
 
+                long logLength = LogBufferDescriptor.PARTITION_COUNT *
+                                 (LogBufferDescriptor.TERM_META_DATA_LENGTH + termLength) +
+                                 LogBufferDescriptor.LOG_META_DATA_LENGTH;
+                termLength = LogBufferDescriptor.ComputeTermLength(logLength);
                 LogBufferDescriptor.CheckTermLength(termLength);
+                _df = new DirectFile(logFileName, logLength);
                 _termLength = termLength;
 
                 // if log length exceeds MAX_INT we need multiple mapped buffers, (see FileChannel.map doc).

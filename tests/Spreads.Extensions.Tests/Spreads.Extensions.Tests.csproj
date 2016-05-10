@@ -109,6 +109,7 @@
     <Compile Include="CursorSeriesExtensions.cs" />
     <Compile Include="CompressionTests.cs" />
     <Compile Include="BuffersAndPoolTests.cs" />
+    <Compile Include="AeronLogBufferTests.cs" />
     <Compile Include="SeriesRepositoryTests.cs" />
     <Compile Include="LogBufferTests.cs" />
     <Compile Include="IpcListenerTests.cs" />

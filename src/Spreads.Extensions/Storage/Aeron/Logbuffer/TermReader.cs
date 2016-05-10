@@ -3,14 +3,6 @@ using Spreads.Serialization;
 using Spreads.Storage.Aeron.Protocol;
 
 namespace Spreads.Storage.Aeron.Logbuffer {
-
-
-    /// <summary>
-    /// Callback interface for handling an error/exception that has occurred when processing an operation or event.
-    /// </summary>
-    public delegate void ErrorHandler(Exception exception);
-
-
     /// <summary>
     /// A term buffer reader.
     /// <para>
@@ -37,6 +29,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
             int fragmentsLimit,
             Header header,
             ErrorHandler errorHandler) {
+
             int fragmentsRead = 0;
             int capacity = (int)termBuffer.Length;
 
@@ -60,13 +53,12 @@ namespace Spreads.Storage.Aeron.Logbuffer {
                     }
                 }
                 while (fragmentsRead < fragmentsLimit && offset < capacity);
-            } catch (Exception t)
-        {
+            } catch (Exception t) {
                 errorHandler?.Invoke(t);
             }
 
             return Pack(offset, fragmentsRead);
-            }
+        }
 
         /// <summary>
         /// Pack the values for fragmentsRead and offset into a long for returning on the stack.

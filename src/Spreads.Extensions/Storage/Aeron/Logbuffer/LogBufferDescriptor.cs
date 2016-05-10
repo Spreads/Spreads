@@ -199,12 +199,12 @@ namespace Spreads.Storage.Aeron.Logbuffer {
         /// <exception cref="InvalidOperationException"> if the length is not as expected. </exception>
         public static void CheckTermLength(int termLength) {
             if (termLength < TERM_MIN_LENGTH) {
-                string s = $"Term length less than min length of {TERM_MIN_LENGTH:%d}, length={termLength:%d}";
+                string s = $"Term length less than min length of {TERM_MIN_LENGTH}, length={termLength}";
                 throw new InvalidOperationException(s);
             }
 
             if ((termLength & (FrameDescriptor.FRAME_ALIGNMENT - 1)) != 0) {
-                string s = $"Term length not a multiple of {FrameDescriptor.FRAME_ALIGNMENT:%d}, length={termLength:%d}";
+                string s = $"Term length not a multiple of {FrameDescriptor.FRAME_ALIGNMENT}, length={termLength}";
                 throw new InvalidOperationException(s);
             }
         }
