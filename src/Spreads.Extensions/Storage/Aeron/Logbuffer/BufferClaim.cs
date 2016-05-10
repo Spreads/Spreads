@@ -39,12 +39,12 @@ namespace Spreads.Storage.Aeron.Logbuffer {
          *
          * @return offset in the buffer at which the range begins.
          */
-        public int Offset => HeaderFlyweight.HEADER_LENGTH;
+        public int Offset => DataHeaderFlyweight.HEADER_LENGTH;
 
 
         public int Length
         {
-            get { checked { return (int)_buffer.Length - HeaderFlyweight.HEADER_LENGTH; } }
+            get { checked { return (int)_buffer.Length - DataHeaderFlyweight.HEADER_LENGTH; } }
         }
 
         public long ReservedValue

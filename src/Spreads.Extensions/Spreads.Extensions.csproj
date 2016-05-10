@@ -365,10 +365,10 @@
       <Link>Storage\SQLite\Utilities\TypeExtensions.cs</Link>
     </Compile>
     <Compile Include="Storage\Aeron\BitUtil.cs" />
+    <Compile Include="Storage\Aeron\ErrorHandler.cs" />
     <Compile Include="Storage\Aeron\LogBuffers.cs" />
     <Compile Include="Storage\Aeron\Logbuffer\BlockHandler.cs" />
     <Compile Include="Storage\Aeron\Logbuffer\BufferClaim.cs" />
-    <Compile Include="Storage\Aeron\Logbuffer\ErrorHandler.cs" />
     <Compile Include="Storage\Aeron\Logbuffer\FragmentHandler.cs" />
     <Compile Include="Storage\Aeron\Logbuffer\FileBlockHandler.cs" />
     <Compile Include="Storage\Aeron\Logbuffer\ControlledFragmentHandler.cs" />
@@ -430,6 +430,7 @@
     <Compile Include="native\NativeMethods.cs" />
     <Compile Include="SortedList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Storage\WAL.cs" />
     <Compile Include="System\Threading\Tasks\ZipNTaskScheduler.cs" />
     <Compile Include="Extensions\BytesExtensions.cs" />
     <Compile Include="Yeppp\core\Add.cs" />

@@ -20,6 +20,12 @@ namespace Spreads.Storage.Aeron.Logbuffer {
             streamId = defaultHeader.ReadInt32(DataHeaderFlyweight.STREAM_ID_FIELD_OFFSET) & 0xFFFFFFFFL;
         }
 
+        public HeaderWriter(DataHeader defaultHeader) {
+            versionFlagsType = ((int)defaultHeader.Header.Version << 24 | (int)defaultHeader.Header.Flags << 16 | (int)defaultHeader.Header.Type) << 32;
+            sessionId = (long)defaultHeader.SessionID  << 32;
+            streamId = (long)defaultHeader.StreamID & 0xFFFFFFFFL;
+        }
+
         /**
          * Write a header to the term buffer in {@link ByteOrder#LITTLE_ENDIAN} format using the minimum instructions.
          *

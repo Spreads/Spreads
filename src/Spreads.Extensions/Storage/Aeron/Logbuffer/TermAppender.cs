@@ -14,14 +14,14 @@ namespace Spreads.Storage.Aeron.Logbuffer {
     /// 
     /// Messages are appended to a term using a framing protocol as described in <seealso cref="FrameDescriptor"/>.
     /// 
-    /// A default message header is applied to each message with the fields filled in for fragment flags, type, term number,
+    /// A default message headerWriter is applied to each message with the fields filled in for fragment flags, type, term number,
     /// as appropriate.
     /// 
     /// A message of type <seealso cref="FrameDescriptor#PADDING_FRAME_TYPE"/> is appended at the end of the buffer if claimed
     /// space is not sufficiently large to accommodate the message about to be written.
     /// </summary>
 
-    public class TermAppender {
+    public struct TermAppender {
         private readonly DirectBuffer _termBuffer;
         private readonly DirectBuffer _metaDataBuffer;
         /**
@@ -45,6 +45,11 @@ namespace Spreads.Storage.Aeron.Logbuffer {
             this._metaDataBuffer = metaDataBuffer;
         }
 
+        public TermAppender(LogBufferPartition partition) {
+            this._termBuffer = partition.TermBuffer;
+            this._metaDataBuffer = partition.MetaDataBuffer;
+        }
+
         public DirectBuffer TermBuffer => _termBuffer;
 
         public DirectBuffer MetaDataBuffer => _metaDataBuffer;
@@ -56,7 +61,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
          * @return the current tail value.
          */
 
-        public long rawTailVolatile() {
+        public long RawTailVolatile() {
             return _metaDataBuffer.VolatileReadInt64(LogBufferDescriptor.TERM_TAIL_COUNTER_OFFSET);
         }
 
@@ -81,13 +86,13 @@ namespace Spreads.Storage.Aeron.Logbuffer {
         /**
          * Claim length of a the term buffer for writing in the message with zero copy semantics.
          *
-         * @param header      for writing the default header.
+         * @param headerWriter      for writing the default headerWriter.
          * @param length      of the message to be written.
          * @param bufferClaim to be updated with the claimed region.
          * @return the resulting offset of the term after the append on success otherwise {@link #TRIPPED} or {@link #FAILED}
          * packed with the termId if a padding record was inserted at the end.
          */
-        public long claim(HeaderWriter header, int length, out BufferClaim bufferClaim) {
+        public long Claim(HeaderWriter headerWriter, int length, out BufferClaim bufferClaim) {
             int frameLength = length + DataHeaderFlyweight.HEADER_LENGTH;
             int alignedLength = BitUtil.Align(frameLength, FrameDescriptor.FRAME_ALIGNMENT);
             long rawTail = GetAndAddRawTail(alignedLength);
@@ -97,14 +102,17 @@ namespace Spreads.Storage.Aeron.Logbuffer {
             checked {
                 int termLength = (int)termBuffer.Length;
 
-                long resultingOffset = termOffset + alignedLength;
+                long currentOffset = termOffset - alignedLength;
+
+                long resultingOffset = termOffset; // + alignedLength; // NB Interlocked.Add returns value after addition
                 if (resultingOffset > termLength) {
-                    resultingOffset = HandleEndOfLogCondition(termBuffer, termOffset, header, termLength,
-                        TermId(rawTail));
+                    //resultingOffset = HandleEndOfLogCondition(termBuffer, termOffset, headerWriter, termLength, TermId(rawTail));
+                    resultingOffset = HandleEndOfLogCondition(termBuffer, currentOffset, headerWriter, termLength, TermId(rawTail));
                     bufferClaim = default(BufferClaim);
                 } else {
-                    int offset = (int)termOffset;
-                    header.Write(termBuffer, offset, frameLength, TermId(rawTail));
+                    //int offset = (int)termOffset;
+                    int offset = (int)currentOffset;
+                    headerWriter.Write(termBuffer, offset, frameLength, TermId(rawTail));
                     bufferClaim = new BufferClaim(termBuffer, offset, frameLength);
                 }
                 return resultingOffset;
@@ -114,7 +122,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
         /**
          * Append an unfragmented message to the the term buffer.
          *
-         * @param header    for writing the default header.
+         * @param headerWriter    for writing the default headerWriter.
          * @param srcBuffer containing the message.
          * @param srcOffset at which the message begins.
          * @param length    of the message in the source buffer.
@@ -148,9 +156,9 @@ namespace Spreads.Storage.Aeron.Logbuffer {
 
         /// <summary>
         /// Append a fragmented message to the the term buffer.
-        /// The message will be split up into fragments of MTU length minus header.
+        /// The message will be split up into fragments of MTU length minus headerWriter.
         /// </summary>
-        /// <param name="header">           for writing the default header. </param>
+        /// <param name="header">           for writing the default headerWriter. </param>
         /// <param name="srcBuffer">        containing the message. </param>
         /// <param name="srcOffset">        at which the message begins. </param>
         /// <param name="length">           of the message in the source buffer. </param>

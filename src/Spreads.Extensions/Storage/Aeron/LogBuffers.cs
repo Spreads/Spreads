@@ -12,6 +12,7 @@ namespace Spreads.Storage.Aeron {
         private readonly int _termLength;
         private DirectFile _df;
         private readonly DirectBuffer[] _buffers = new DirectBuffer[(LogBufferDescriptor.PARTITION_COUNT * 2) + 1];
+        private readonly LogBufferPartition[] _partitions = new LogBufferPartition[LogBufferDescriptor.PARTITION_COUNT];
 
         public LogBuffers(string logFileName, int termLength = LogBufferDescriptor.TERM_MIN_LENGTH) {
             try {
@@ -34,6 +35,7 @@ namespace Spreads.Storage.Aeron {
 
                         _buffers[i] = new DirectBuffer(termLength, _df.Buffer.Data + i * termLength);
                         _buffers[i + LogBufferDescriptor.PARTITION_COUNT] = new DirectBuffer(LogBufferDescriptor.TERM_META_DATA_LENGTH, _df.Buffer.Data + metaDataOffset);
+                        _partitions[i] = new LogBufferPartition(_buffers[i], _buffers[i + LogBufferDescriptor.PARTITION_COUNT]);
                     }
 
                     _buffers[_buffers.Length - 1] = new DirectBuffer(LogBufferDescriptor.LOG_META_DATA_LENGTH,
@@ -50,13 +52,12 @@ namespace Spreads.Storage.Aeron {
             }
         }
 
-        public DirectBuffer[] Buffers() {
-            return _buffers;
-        }
 
-        public DirectFile DirectFile() {
-            return _df;
-        }
+        public DirectBuffer[] Buffers => _buffers;
+
+        public DirectBuffer LogMetaData => _buffers[_buffers.Length - 1];
+
+        public DirectFile DirectFile => _df;
 
         public void Dispose() {
             _df.Dispose();
@@ -67,5 +68,7 @@ namespace Spreads.Storage.Aeron {
         }
 
         public int TermLength => _termLength;
+
+        public LogBufferPartition[] Partitions => _partitions;
     }
 }
