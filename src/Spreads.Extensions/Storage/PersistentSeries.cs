@@ -56,6 +56,8 @@ namespace Spreads.Storage {
             _innerMap = innerMap;
             _allowBatches = allowBatches;
             _isWriter = isWriter;
+            var outer = (_innerMap as SortedChunkedMap<K, V>)?.OuterMap as RemoteChunksSeries<K, V>;
+            if (outer != null) outer.ReadOnly  = !_isWriter;
             _disposeCallback = disposeCallback;
             Interlocked.Increment(ref RefCounter);
             if (TypeHelper<SetRemoveCommandBody<K, V>>.Size == -1) {
@@ -328,6 +330,8 @@ namespace Spreads.Storage {
                     if (_isWriter) {
                         Flush();
                         _isWriter = false;
+                        var outer = (_innerMap as SortedChunkedMap<K, V>)?.OuterMap as RemoteChunksSeries<K, V>;
+                        if (outer != null) outer.ReadOnly = !_isWriter;
                         LockReleaseEvent.Set();
                     }
                     _disposeCallback?.Invoke(false);
@@ -383,7 +387,12 @@ namespace Spreads.Storage {
         internal bool IsWriter
         {
             get { return _isWriter; }
-            set { _isWriter = value; }
+            set
+            {
+                _isWriter = value;
+                var outer = (_innerMap as SortedChunkedMap<K, V>)?.OuterMap as RemoteChunksSeries<K, V>;
+                if (outer != null) outer.ReadOnly = !_isWriter;
+            }
         }
 
 

@@ -51,7 +51,7 @@ namespace Spreads.Storage {
         private readonly Func<SeriesChunk, Task<long>> _remoteSaver;
 
         private readonly Func<long, long, long, Lookup, Task<long>> _remoteRemover;
-        private readonly bool _readOnly;
+        private bool _readOnly;
 
         internal IOrderedMap<long, LazyValue> _chunksCache;
 
@@ -576,6 +576,12 @@ namespace Spreads.Storage {
         }
 
         public string Id { get; }
+
+        internal bool ReadOnly
+        {
+            get { return _readOnly; }
+            set { _readOnly = value; }
+        }
     }
 
 
