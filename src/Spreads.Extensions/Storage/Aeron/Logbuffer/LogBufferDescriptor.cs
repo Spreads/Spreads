@@ -54,7 +54,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
         /**
          * A term is dirty and requires cleaning.
          */
-        public const int NeedsCleaning = 1;
+        public const int NEEDS_CLEANING = 1;
 
         /**
          * Offset within the term meta data where the tail value is stored.
@@ -519,7 +519,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
             int nextNextIndex = NextPartitionIndex(nextIndex);
 
             logPartitions[nextIndex].TermId = newTermId;
-            logPartitions[nextNextIndex].Status = NeedsCleaning;
+            logPartitions[nextNextIndex].Status = NEEDS_CLEANING;
             ActivePartitionIndex(logMetaDataBuffer, nextIndex);
         }
 

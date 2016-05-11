@@ -55,15 +55,11 @@ namespace Spreads.Storage.Aeron.Logbuffer {
         public DirectBuffer MetaDataBuffer => _metaDataBuffer;
 
 
-        /**
-         * Get the raw value current tail value in a volatile memory ordering fashion.
-         *
-         * @return the current tail value.
-         */
-
-        public long RawTailVolatile() {
-            return _metaDataBuffer.VolatileReadInt64(LogBufferDescriptor.TERM_TAIL_COUNTER_OFFSET);
-        }
+        /// <summary>
+        /// Get the raw value current tail value in a volatile memory ordering fashion.
+        /// </summary>
+        /// <returns> the current tail value. </returns>
+        public long RawTailVolatile => _metaDataBuffer.VolatileReadInt64(LogBufferDescriptor.TERM_TAIL_COUNTER_OFFSET);
 
         /**
          * Set the value for the tail counter.

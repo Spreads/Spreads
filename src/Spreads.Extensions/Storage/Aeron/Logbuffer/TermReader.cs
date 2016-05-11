@@ -60,6 +60,45 @@ namespace Spreads.Storage.Aeron.Logbuffer {
             return Pack(offset, fragmentsRead);
         }
 
+
+        public static long Read(
+            DirectBuffer termBuffer,
+            int offset,
+            OnAppendHandler handler,
+            int fragmentsLimit,
+            ErrorHandler errorHandler) {
+
+            int fragmentsRead = 0;
+            int capacity = (int)termBuffer.Length;
+
+            try {
+                do {
+                    int frameLength = FrameDescriptor.FrameLengthVolatile(termBuffer, offset);
+                    if (frameLength <= 0) {
+                        break;
+                    }
+
+                    int termOffset = offset;
+                    offset += BitUtil.Align(frameLength, FrameDescriptor.FRAME_ALIGNMENT);
+
+                    if (!FrameDescriptor.IsPaddingFrame(termBuffer, termOffset))
+                    {
+
+                        var messageBuffer = new DirectBuffer(frameLength - DataHeaderFlyweight.HEADER_LENGTH,
+                            termBuffer.Data + termOffset + DataHeaderFlyweight.HEADER_LENGTH);
+                        handler?.Invoke(messageBuffer);
+                        ++fragmentsRead;
+                    }
+                }
+                while (fragmentsRead < fragmentsLimit && offset < capacity);
+            } catch (Exception t) {
+                errorHandler?.Invoke(t);
+            }
+
+            return Pack(offset, fragmentsRead);
+        }
+
+
         /// <summary>
         /// Pack the values for fragmentsRead and offset into a long for returning on the stack.
         /// </summary>

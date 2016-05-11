@@ -6,13 +6,10 @@ using System.Threading.Tasks;
 using Spreads.Serialization;
 
 namespace Spreads.Storage {
-
-    internal delegate void OnAppend(IntPtr pointer);
-
     internal interface ILogBuffer : IDisposable {
         void Append<T>(T message);
         IntPtr Claim(int length);
-        event OnAppend OnAppend;
+        event OnAppendHandlerOld OnAppend;
     }
 
     internal class LogBuffer : ILogBuffer {
@@ -106,8 +103,8 @@ namespace Spreads.Storage {
                 OptimizationSettings.TraceVerbose("LogBuffer invoke loop exited");
             }, _cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default)
             .ContinueWith(task => {
-                Console.WriteLine("LogBuffer OnAppend Invoke should never throw exceptions" + Environment.NewLine + task.Exception);
-                Environment.FailFast("LogBuffer OnAppend Invoke should never throw exceptions", task.Exception);
+                Console.WriteLine("LogBuffer OnAppendHandlerOld Invoke should never throw exceptions" + Environment.NewLine + task.Exception);
+                Environment.FailFast("LogBuffer OnAppendHandlerOld Invoke should never throw exceptions", task.Exception);
             }, TaskContinuationOptions.OnlyOnFaulted);
         }
 
@@ -203,7 +200,7 @@ namespace Spreads.Storage {
             throw new ApplicationException("Should never be there");
         }
 
-        public event OnAppend OnAppend;
+        public event OnAppendHandlerOld OnAppend;
 
         private void Dispose(bool disposing) {
             _cts.Cancel();

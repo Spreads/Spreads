@@ -50,7 +50,8 @@ namespace Spreads.Storage.Aeron.Protocol {
         public const int VERSION_FIELD_OFFSET = 4;
         public const int FLAGS_FIELD_OFFSET = 5;
         public const int TYPE_FIELD_OFFSET = 6;
-        public const int HEADER_LENGTH = TYPE_FIELD_OFFSET + sizeof(short);
+        // NB comment out, easy to confuse with DataHeaderFlyweights member
+        //public const int HEADER_LENGTH = TYPE_FIELD_OFFSET + sizeof(short);
 
 
         public HeaderFlyweight(DirectBuffer buffer) {

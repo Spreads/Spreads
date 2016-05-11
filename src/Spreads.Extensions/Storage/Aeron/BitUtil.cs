@@ -110,7 +110,6 @@ namespace Spreads.Storage.Aeron {
 
 
         public static int NumberOfLeadingZeros(int i) {
-            // HD, Figure 5-6
             if (i == 0)
                 return 32;
             int n = 1;
@@ -124,7 +123,6 @@ namespace Spreads.Storage.Aeron {
 
 
         public static int NumberOfTrailingZeros(int i) {
-            // HD, Figure 5-14
             int y;
             if (i == 0) return 32;
             int n = 31;
@@ -137,31 +135,33 @@ namespace Spreads.Storage.Aeron {
 
         private static Encoding UTF8_CHARSET = System.Text.Encoding.UTF8;
 
-        /**
-         * Fast method of finding the next power of 2 greater than or equal to the supplied value.
-         *
-         * If the value is &lt;= 0 then 1 will be returned.
-         *
-         * This method is not suitable for {@link Integer#MIN_VALUE} or numbers greater than 2^30.
-         *
-         * @param value from which to search for next power of 2
-         * @return The next power of 2 or the value itself if it is a power of 2
-         */
+        /// <summary>
+        /// Fast method of finding the next power of 2 greater than or equal to the supplied value.
+        ///         
+        /// If the value is &lt;= 0 then 1 will be returned.
+        ///         
+        /// This method is not suitable for <seealso cref="Integer#MIN_VALUE"/> or numbers greater than 2^30.
+        /// </summary>
+        /// <param name="value"> from which to search for next power of 2 </param>
+        /// <returns> The next power of 2 or the value itself if it is a power of 2 </returns>
+
         public static int FindNextPositivePowerOfTwo(int value) {
             return 1 << (32 - NumberOfLeadingZeros(value - 1));
         }
 
-        /**
-         * Align a value to the next multiple up of alignment.
-         * If the value equals an alignment multiple then it is returned unchanged.
-         * <p>
-         * This method executes without branching. This code is designed to be use in the fast path and should not
-         * be used with negative numbers. Negative numbers will result in undefined behaviour.
-         *
-         * @param value     to be aligned up.
-         * @param alignment to be used.
-         * @return the value aligned to the next boundary.
-         */
+        /// <summary>
+        /// Align a value to the next multiple up of alignment.
+        /// If the value equals an alignment multiple then it is returned unchanged.
+        /// <para>
+        /// This method executes without branching. This code is designed to be use in the fast path and should not
+        /// be used with negative numbers. Negative numbers will result in undefined behaviour.
+        ///         
+        /// </para>
+        /// </summary>
+        /// <param name="value">     to be aligned up. </param>
+        /// <param name="alignment"> to be used. </param>
+        /// <returns> the value aligned to the next boundary. </returns>
+
         public static int Align(int value, int alignment) {
             return (value + (alignment - 1)) & ~(alignment - 1);
         }

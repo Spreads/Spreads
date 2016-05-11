@@ -28,13 +28,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Collections;
 using Spreads.Serialization;
+using Spreads.Storage.Aeron.Logbuffer;
+using Spreads.Storage.Aeron.Protocol;
 
 namespace Spreads.Storage {
     /// <summary>
     /// Persistent series.
     /// </summary>
     public sealed class PersistentSeries<K, V> : Series<K, V>, IPersistentOrderedMap<K, V>, SeriesRepository.IAcceptCommand {
-        private readonly ILogBuffer _logBuffer;
+        private readonly IAppendLog _appendLog;
         private readonly UUID _uuid;
         private readonly IPersistentOrderedMap<K, V> _innerMap;
         private readonly bool _allowBatches;
@@ -47,9 +49,9 @@ namespace Spreads.Storage {
         internal int RefCounter = 0;
         private volatile bool _isWriter;
 
-        internal PersistentSeries(ILogBuffer logBuffer, UUID uuid, IPersistentOrderedMap<K, V> innerMap, bool allowBatches, bool isWriter,
+        internal PersistentSeries(IAppendLog appendLog, UUID uuid, IPersistentOrderedMap<K, V> innerMap, bool allowBatches, bool isWriter,
             Action<bool> disposeCallback = null) {
-            _logBuffer = logBuffer;
+            _appendLog = appendLog;
             _uuid = uuid;
             _innerMap = innerMap;
             _allowBatches = allowBatches;
@@ -64,9 +66,9 @@ namespace Spreads.Storage {
 
 
         // NB we apply commands only to instantiated series when runtime does all types magic
-        public unsafe void ApplyCommand(IntPtr pointer) {
-            // TODO do not log this commands
-            var header = *(CommandHeader*)(pointer + 4);
+        public unsafe void ApplyCommand(DirectBuffer buffer) {
+            var dataStart = buffer.Data + DataHeaderFlyweight.HEADER_LENGTH;
+            var header = *(CommandHeader*)(dataStart);
             Trace.Assert(header.SeriesId == _uuid);
             var type = header.CommandType;
             switch (type) {
@@ -76,7 +78,7 @@ namespace Spreads.Storage {
                     if (!_isWriter) {
                         Trace.Assert(header.Version == _innerMap.Version + 1);
                         var setBody =
-                            TypeHelper<SetRemoveCommandBody<K, V>>.PtrToStructure(pointer + 4 + CommandHeader.Size);
+                            TypeHelper<SetRemoveCommandBody<K, V>>.PtrToStructure(dataStart + CommandHeader.Size);
                         _innerMap[setBody.key] = setBody.value;
                     }
                     break;
@@ -85,7 +87,7 @@ namespace Spreads.Storage {
                     if (!_isWriter) {
                         Trace.Assert(header.Version == _innerMap.Version + 1);
                         var removeBody =
-                            TypeHelper<SetRemoveCommandBody<K, int>>.PtrToStructure(pointer + 4 + CommandHeader.Size);
+                            TypeHelper<SetRemoveCommandBody<K, int>>.PtrToStructure(dataStart + CommandHeader.Size);
                         _innerMap.RemoveMany(removeBody.key, (Lookup)removeBody.value);
                     }
                     break;
@@ -187,10 +189,11 @@ namespace Spreads.Storage {
                 value = value
             };
             var len = CommandHeader.Size + TypeHelper<SetRemoveCommandBody<K, V>>.Size;
-            var ptr = _logBuffer.Claim(len);
-            *(CommandHeader*)(ptr + 4) = header;
-            TypeHelper<SetRemoveCommandBody<K, V>>.StructureToPtr(commandBody, ptr + 4 + CommandHeader.Size);
-            *(int*)ptr = len;
+            BufferClaim claim;
+            _appendLog.Claim(len, out claim);
+            *(CommandHeader*)(claim.Data) = header;
+            TypeHelper<SetRemoveCommandBody<K, V>>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
+            claim.Commit();
         }
 
         public new V this[K key]
@@ -235,10 +238,11 @@ namespace Spreads.Storage {
                 value = lookup
             };
             var len = CommandHeader.Size + TypeHelper<SetRemoveCommandBody<K, int>>.Size;
-            var ptr = _logBuffer.Claim(len);
-            *(CommandHeader*)(ptr + 4) = header;
-            TypeHelper<SetRemoveCommandBody<K, int>>.StructureToPtr(commandBody, ptr + 4 + CommandHeader.Size);
-            *(int*)ptr = len;
+            BufferClaim claim;
+            _appendLog.Claim(len, out claim);
+            *(CommandHeader*)(claim.Data) = header;
+            TypeHelper<SetRemoveCommandBody<K, int>>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
+            claim.Commit();
         }
 
         public bool Remove(K key) {
@@ -286,9 +290,10 @@ namespace Spreads.Storage {
                 Version = this.Version
             };
             var len = CommandHeader.Size;
-            var ptr = _logBuffer.Claim(len);
-            *(CommandHeader*)(ptr + 4) = header;
-            *(int*)ptr = len;
+            BufferClaim claim;
+            _appendLog.Claim(len, out claim);
+            *(CommandHeader*)(claim.Data) = header;
+            claim.Commit();
         }
 
         public void Complete() {

@@ -1,4 +1,5 @@
-﻿using Spreads.Serialization;
+﻿using System;
+using Spreads.Serialization;
 using Spreads.Storage.Aeron.Protocol;
 
 namespace Spreads.Storage.Aeron.Logbuffer {
@@ -16,31 +17,29 @@ namespace Spreads.Storage.Aeron.Logbuffer {
     public struct BufferClaim {
         private readonly DirectBuffer _buffer;
 
-        /**
-         * Wrap a region of an underlying log buffer so can can represent a claimed space for use by a publisher.
-         *
-         * @param buffer to be wrapped.
-         * @param offset at which the claimed region begins including space for the header.
-         * @param length length of the underlying claimed region including space for the header.
-         */
+        /// <summary>
+        /// Wrap a region of an underlying log buffer so can can represent a claimed space for use by a publisher.
+        /// </summary>
+        /// <param name="buffer"> to be wrapped. </param>
+        /// <param name="offset"> at which the claimed region begins including space for the header. </param>
+        /// <param name="length"> length of the underlying claimed region including space for the header. </param>
         public BufferClaim(DirectBuffer buffer, int offset, int length) {
             _buffer = new DirectBuffer(length, buffer.Data + offset);
         }
 
-        /**
-         * The referenced buffer to be used.
-         *
-         * @return the referenced buffer to be used..
-         */
+        /// <summary>
+        /// The referenced buffer to be used.
+        /// </summary>
+        /// <returns> the referenced buffer to be used.. </returns>
         public DirectBuffer Buffer => _buffer;
 
-        /**
-         * The offset in the buffer at which the claimed range begins.
-         *
-         * @return offset in the buffer at which the range begins.
-         */
+        /// <summary>
+        /// The offset in the buffer at which the claimed range begins.
+        /// </summary>
+        /// <returns> offset in the buffer at which the range begins. </returns>
         public int Offset => DataHeaderFlyweight.HEADER_LENGTH;
 
+        internal IntPtr Data => _buffer._data + DataHeaderFlyweight.HEADER_LENGTH;
 
         public int Length
         {

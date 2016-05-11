@@ -25,6 +25,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Serialization;
+using Spreads.Storage.Aeron.Logbuffer;
+using Spreads.Storage.Aeron.Protocol;
 
 namespace Spreads.Storage {
 
@@ -37,7 +39,7 @@ namespace Spreads.Storage {
         private PersistentMapFixedLength<UUID, int> _writeSeriesLocks;
         private const string WriteLocksFileName = "writelocks";
 
-        private ILogBuffer _logBuffer;
+        private IAppendLog _appendLog;
         private const string LogBufferFileName = "logbuffer";
         private const uint MinimumBufferSize = 10;
         private SeriesStorage _storage;
@@ -65,22 +67,22 @@ namespace Spreads.Storage {
             var writeLocksFileName = Path.Combine(path, WriteLocksFileName);
             _writeSeriesLocks = new PersistentMapFixedLength<UUID, int>(writeLocksFileName, 1000);
             var logBufferFileName = Path.Combine(path, LogBufferFileName);
-            _logBuffer = new LogBuffer(logBufferFileName, bufferSizeMb < MinimumBufferSize ? (int)MinimumBufferSize : (int)bufferSizeMb);
+            _appendLog = new AppendLog(logBufferFileName, bufferSizeMb < MinimumBufferSize ? (int)MinimumBufferSize : (int)bufferSizeMb);
             var storageFileName = Path.Combine(path, StorageFileName);
-            _storage = new SeriesStorageWrapper(_logBuffer, SeriesStorage.GetDefaultConnectionString(storageFileName));
+            _storage = new SeriesStorageWrapper(_appendLog, SeriesStorage.GetDefaultConnectionString(storageFileName));
 
-            _logBuffer.OnAppend += _logBuffer_OnAppend;
+            _appendLog.OnAppend += AppendLogOnAppend;
         }
 
 
         public SeriesStorage Storage => _storage;
         private static readonly int Pid = Process.GetCurrentProcess().Id;
 
-        private unsafe void _logBuffer_OnAppend(IntPtr pointer) {
-            var uuid = (*(CommandHeader*)(pointer + 4)).SeriesId;
+        private unsafe void AppendLogOnAppend(DirectBuffer buffer) {
+            var uuid = (*(CommandHeader*)(buffer.Data + DataHeaderFlyweight.HEADER_LENGTH)).SeriesId;
             IAcceptCommand series;
             if (_openSeries.TryGetValue(uuid, out series)) {
-                series.ApplyCommand(pointer);
+                series.ApplyCommand(buffer);
             }
         }
 
@@ -154,7 +156,7 @@ namespace Spreads.Storage {
                 if (isWriter) Downgrade(uuid);
             };
 
-            var pSeries = new PersistentSeries<K, V>(_logBuffer, uuid,
+            var pSeries = new PersistentSeries<K, V>(_appendLog, uuid,
                 _storage.GetPersistentOrderedMap<K, V>(seriesId, false), allowBatches, isWriter,
                 disposeCallback);
             // NB this is done in consturctor: pSeries.RefCounter++;
@@ -196,9 +198,10 @@ namespace Spreads.Storage {
                 Version = version
             };
             var len = CommandHeader.Size;
-            var ptr = _logBuffer.Claim(len);
-            *(CommandHeader*)(ptr + 4) = header;
-            *(int*)ptr = len;
+            BufferClaim claim;
+            _appendLog.Claim(len, out claim);
+            *(CommandHeader*)(claim.Data) = header;
+            claim.Commit();
         }
 
         private unsafe void LogAcquireLock(UUID uuid, long version) {
@@ -208,9 +211,10 @@ namespace Spreads.Storage {
                 Version = version
             };
             var len = CommandHeader.Size;
-            var ptr = _logBuffer.Claim(len);
-            *(CommandHeader*)(ptr + 4) = header;
-            *(int*)ptr = len;
+            BufferClaim claim;
+            _appendLog.Claim(len, out claim);
+            *(CommandHeader*)(claim.Data) = header;
+            claim.Commit();
         }
 
         private unsafe void LogReleaseLock(UUID uuid) {
@@ -219,16 +223,17 @@ namespace Spreads.Storage {
                 CommandType = CommandType.ReleaseLock,
             };
             var len = CommandHeader.Size;
-            var ptr = _logBuffer.Claim(len);
-            *(CommandHeader*)(ptr + 4) = header;
-            *(int*)ptr = len;
+            BufferClaim claim;
+            _appendLog.Claim(len, out claim);
+            *(CommandHeader*)(claim.Data) = header;
+            claim.Commit();
         }
 
         private sealed class SeriesStorageWrapper : SeriesStorage {
-            private readonly ILogBuffer _logBuffer;
+            private readonly IAppendLog _appendLog;
 
-            public SeriesStorageWrapper(ILogBuffer logBuffer, string sqLiteConnectionString) : base(sqLiteConnectionString) {
-                _logBuffer = logBuffer;
+            public SeriesStorageWrapper(IAppendLog appendLog, string sqLiteConnectionString) : base(sqLiteConnectionString) {
+                _appendLog = appendLog;
             }
 
             internal unsafe override Task<long> SaveChunk(SeriesChunk chunk) {
@@ -246,10 +251,13 @@ namespace Spreads.Storage {
                     Count = chunk.Count,
                 };
                 var len = CommandHeader.Size + ChunkCommandBody.Size;
-                var ptr = _logBuffer.Claim(len);
-                *(CommandHeader*)(ptr + 4) = header;
-                TypeHelper<ChunkCommandBody>.StructureToPtr(commandBody, ptr + 4 + CommandHeader.Size);
-                *(int*)ptr = len;
+
+                
+                BufferClaim claim;
+                _appendLog.Claim(len, out claim);
+                *(CommandHeader*)(claim.Data) = header;
+                TypeHelper<ChunkCommandBody>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
+                claim.Commit();
 
                 return ret;
             }
@@ -269,24 +277,25 @@ namespace Spreads.Storage {
                     Lookup = (int)direction
                 };
                 var len = CommandHeader.Size + ChunkCommandBody.Size;
-                var ptr = _logBuffer.Claim(len);
-                *(CommandHeader*)(ptr + 4) = header;
-                TypeHelper<ChunkCommandBody>.StructureToPtr(commandBody, ptr + 4 + CommandHeader.Size);
-                *(int*)ptr = len;
+                BufferClaim claim;
+                _appendLog.Claim(len, out claim);
+                *(CommandHeader*)(claim.Data) = header;
+                TypeHelper<ChunkCommandBody>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
+                claim.Commit();
 
                 return ret;
             }
         }
 
         internal interface IAcceptCommand : IDisposable {
-            void ApplyCommand(IntPtr pointer);
+            void ApplyCommand(DirectBuffer buffer);
         }
 
         private void Dispose(bool disposing) {
             foreach (var series in _openSeries.Values) {
                 series.Dispose();
             }
-            _logBuffer.Dispose();
+            _appendLog.Dispose();
             _writeSeriesLocks.Dispose();
             _storage.Dispose();
             if (disposing)
