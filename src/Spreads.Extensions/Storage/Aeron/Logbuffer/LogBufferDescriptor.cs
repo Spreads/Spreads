@@ -468,13 +468,13 @@ namespace Spreads.Storage.Aeron.Logbuffer {
          * @throws IllegalArgumentException if the default header is larger than {@link #LOG_DEFAULT_FRAME_HEADER_MAX_LENGTH}
          */
         public static void StoreDefaultFrameHeader(DirectBuffer logMetaDataBuffer, DirectBuffer defaultHeader) {
-            if (defaultHeader.Length != HeaderFlyweight.HEADER_LENGTH) {
+            if (defaultHeader.Length != DataHeaderFlyweight.HEADER_LENGTH) {
                 throw new InvalidOperationException(String.Format(
-                    "Default header of %d not equal to %d", defaultHeader.Length, HeaderFlyweight.HEADER_LENGTH));
+                    "Default header of %d not equal to %d", defaultHeader.Length, DataHeaderFlyweight.HEADER_LENGTH));
             }
 
-            logMetaDataBuffer.WriteInt32(LOG_DEFAULT_FRAME_HEADER_LENGTH_OFFSET, HeaderFlyweight.HEADER_LENGTH);
-            defaultHeader.Copy(logMetaDataBuffer.Data + LOG_DEFAULT_FRAME_HEADER_OFFSET, 0, HeaderFlyweight.HEADER_LENGTH);
+            logMetaDataBuffer.WriteInt32(LOG_DEFAULT_FRAME_HEADER_LENGTH_OFFSET, DataHeaderFlyweight.HEADER_LENGTH);
+            defaultHeader.Copy(logMetaDataBuffer.Data + LOG_DEFAULT_FRAME_HEADER_OFFSET, 0, DataHeaderFlyweight.HEADER_LENGTH);
             //logMetaDataBuffer.putBytes(LOG_DEFAULT_FRAME_HEADER_OFFSET, defaultHeader, 0, HeaderFlyweight.HEADER_LENGTH);
         }
 
@@ -485,7 +485,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
          * @return a buffer wrapping the raw bytes.
          */
         public static DirectBuffer DefaultFrameHeader(DirectBuffer logMetaDataBuffer) {
-            return new DirectBuffer(HeaderFlyweight.HEADER_LENGTH, logMetaDataBuffer.Data + LOG_DEFAULT_FRAME_HEADER_OFFSET);
+            return new DirectBuffer(DataHeaderFlyweight.HEADER_LENGTH, logMetaDataBuffer.Data + LOG_DEFAULT_FRAME_HEADER_OFFSET);
         }
 
         /**
@@ -498,8 +498,8 @@ namespace Spreads.Storage.Aeron.Logbuffer {
         public static void ApplyDefaultHeader(
             DirectBuffer logMetaDataBuffer, DirectBuffer termBuffer, int termOffset)
         {
-            logMetaDataBuffer.Copy(termBuffer.Data + termOffset, LOG_DEFAULT_FRAME_HEADER_OFFSET, HeaderFlyweight.HEADER_LENGTH);
-            //termBuffer.putBytes(termOffset, logMetaDataBuffer, LOG_DEFAULT_FRAME_HEADER_OFFSET, HeaderFlyweight.HEADER_LENGTH);
+            logMetaDataBuffer.Copy(termBuffer.Data + termOffset, LOG_DEFAULT_FRAME_HEADER_OFFSET, DataHeaderFlyweight.HEADER_LENGTH);
+            //termBuffer.putBytes(termOffset, logMetaDataBuffer, LOG_DEFAULT_FRAME_HEADER_OFFSET, DataHeaderFlyweight.HEADER_LENGTH);
         }
 
         /**
