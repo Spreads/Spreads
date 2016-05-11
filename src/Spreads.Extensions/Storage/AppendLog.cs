@@ -175,7 +175,6 @@ namespace Spreads.Storage {
             _cleaner.Wait();
             _poller.Wait();
             _logBuffers.Dispose();
-            throw new NotImplementedException();
         }
 
         public unsafe void Append<T>(T message) {

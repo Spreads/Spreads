@@ -81,14 +81,14 @@ namespace Spreads.Storage.Aeron.Logbuffer {
                     int termOffset = offset;
                     offset += BitUtil.Align(frameLength, FrameDescriptor.FRAME_ALIGNMENT);
 
-                    if (!FrameDescriptor.IsPaddingFrame(termBuffer, termOffset))
-                    {
+                    //if (!FrameDescriptor.IsPaddingFrame(termBuffer, termOffset))
+                    //{
 
                         var messageBuffer = new DirectBuffer(frameLength - DataHeaderFlyweight.HEADER_LENGTH,
                             termBuffer.Data + termOffset + DataHeaderFlyweight.HEADER_LENGTH);
                         handler?.Invoke(messageBuffer);
                         ++fragmentsRead;
-                    }
+                    //}
                 }
                 while (fragmentsRead < fragmentsLimit && offset < capacity);
             } catch (Exception t) {

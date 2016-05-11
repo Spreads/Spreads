@@ -79,7 +79,7 @@ namespace Spreads.Storage {
         private static readonly int Pid = Process.GetCurrentProcess().Id;
 
         private unsafe void AppendLogOnAppend(DirectBuffer buffer) {
-            var uuid = (*(CommandHeader*)(buffer.Data + DataHeaderFlyweight.HEADER_LENGTH)).SeriesId;
+            var uuid = (*(CommandHeader*)(buffer.Data)).SeriesId;
             IAcceptCommand series;
             if (_openSeries.TryGetValue(uuid, out series)) {
                 series.ApplyCommand(buffer);

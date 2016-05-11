@@ -69,7 +69,7 @@ namespace Spreads.Storage {
 
         // NB we apply commands only to instantiated series when runtime does all types magic
         public unsafe void ApplyCommand(DirectBuffer buffer) {
-            var dataStart = buffer.Data + DataHeaderFlyweight.HEADER_LENGTH;
+            var dataStart = buffer.Data;
             var header = *(CommandHeader*)(dataStart);
             Trace.Assert(header.SeriesId == _uuid);
             var type = header.CommandType;
