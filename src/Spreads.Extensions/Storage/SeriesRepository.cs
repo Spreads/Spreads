@@ -33,7 +33,7 @@ namespace Spreads.Storage {
 
     // NB for each series id each repository instance keeps a single series instance
 
-    public class SeriesRepository : ISeriesRepository, IDisposable {
+    public class SeriesRepository : SeriesStorage, ISeriesRepository, IDisposable {
         // persistent dictionary to store all open series with write access and process id
         // we use single writer and steal locks if a writer process id is not among running processes.
         private PersistentMapFixedLength<UUID, int> _writeSeriesLocks;
@@ -42,7 +42,6 @@ namespace Spreads.Storage {
         private IAppendLog _appendLog;
         private const string LogBufferFileName = "appendbuffer";
         private const uint MinimumBufferSize = 10;
-        private SeriesStorage _storage;
         private const string StorageFileName = "chunkstorage";
 
         // Opened series that could accept commands
@@ -54,7 +53,7 @@ namespace Spreads.Storage {
         /// <param name="path">A directory path where repository is stored. If null or empty, then
         /// a default folder is used.</param>
         /// <param name="bufferSizeMb">Buffer size in megabytes. Ignored if below default.</param>
-        public SeriesRepository(string path = null, uint bufferSizeMb = 10) {
+        public SeriesRepository(string path = null, uint bufferSizeMb = 10) : base(GetConnectionStringFromPath(path)) {
             if (string.IsNullOrWhiteSpace(path)) {
                 path = Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "Repos", "Default");
             }
@@ -68,14 +67,16 @@ namespace Spreads.Storage {
             _writeSeriesLocks = new PersistentMapFixedLength<UUID, int>(writeLocksFileName, 1000);
             var logBufferFileName = Path.Combine(path, LogBufferFileName);
             _appendLog = new AppendLog(logBufferFileName, bufferSizeMb < MinimumBufferSize ? (int)MinimumBufferSize : (int)bufferSizeMb);
-            var storageFileName = Path.Combine(path, StorageFileName);
-            _storage = new SeriesStorageWrapper(_appendLog, SeriesStorage.GetDefaultConnectionString(storageFileName));
-
             _appendLog.OnAppend += AppendLogOnAppend;
         }
 
+        private static string GetConnectionStringFromPath(string path)
+        {
+            var storageFileName = Path.Combine(path, StorageFileName);
+            return SeriesStorage.GetDefaultConnectionString(storageFileName);
+        }
 
-        public SeriesStorage Storage => _storage;
+
         private static readonly int Pid = Process.GetCurrentProcess().Id;
 
         private unsafe void AppendLogOnAppend(DirectBuffer buffer) {
@@ -136,7 +137,7 @@ namespace Spreads.Storage {
         private async Task<PersistentSeries<K, V>> GetSeries<K, V>(string seriesId, bool isWriter, bool allowBatches = false) {
 
             seriesId = seriesId.ToLowerInvariant().Trim();
-            var exSeriesId = _storage.GetExtendedSeriesId<K, V>(seriesId);
+            var exSeriesId = GetExtendedSeriesId<K, V>(seriesId);
             var uuid = new UUID(exSeriesId.UUID);
             IAcceptCommand series;
             if (_openSeries.TryGetValue(uuid, out series)) {
@@ -157,7 +158,7 @@ namespace Spreads.Storage {
             };
 
             var pSeries = new PersistentSeries<K, V>(_appendLog, uuid,
-                _storage.GetPersistentOrderedMap<K, V>(seriesId, false), allowBatches, isWriter,
+                GetPersistentOrderedMap<K, V>(seriesId, false), allowBatches, isWriter,
                 disposeCallback);
             // NB this is done in consturctor: pSeries.RefCounter++;
             _openSeries[uuid] = pSeries;
@@ -229,63 +230,58 @@ namespace Spreads.Storage {
             claim.Commit();
         }
 
-        private sealed class SeriesStorageWrapper : SeriesStorage {
-            private readonly IAppendLog _appendLog;
 
-            public SeriesStorageWrapper(IAppendLog appendLog, string sqLiteConnectionString) : base(sqLiteConnectionString) {
-                _appendLog = appendLog;
-            }
+        internal unsafe override Task<long> SaveChunk(SeriesChunk chunk) {
 
-            internal unsafe override Task<long> SaveChunk(SeriesChunk chunk) {
+            var ret = base.SaveChunk(chunk);
 
-                var ret = base.SaveChunk(chunk);
-
-                var extSid = this.GetExtendedSeriesId(chunk.Id);
-                var header = new CommandHeader {
-                    SeriesId = new UUID(extSid.UUID),
-                    CommandType = CommandType.SetChunk,
-                    Version = chunk.Version
-                };
-                var commandBody = new ChunkCommandBody {
-                    ChunkKey = chunk.ChunkKey,
-                    Count = chunk.Count,
-                };
-                var len = CommandHeader.Size + ChunkCommandBody.Size;
-
-                
-                BufferClaim claim;
-                _appendLog.Claim(len, out claim);
-                *(CommandHeader*)(claim.Data) = header;
-                TypeHelper<ChunkCommandBody>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
-                claim.Commit();
-
-                return ret;
-            }
+            var extSid = this.GetExtendedSeriesId(chunk.Id);
+            var header = new CommandHeader {
+                SeriesId = new UUID(extSid.UUID),
+                CommandType = CommandType.SetChunk,
+                Version = chunk.Version
+            };
+            var commandBody = new ChunkCommandBody {
+                ChunkKey = chunk.ChunkKey,
+                Count = chunk.Count,
+            };
+            var len = CommandHeader.Size + ChunkCommandBody.Size;
 
 
-            internal unsafe override Task<long> RemoveChunk(long mapId, long key, long version, Lookup direction) {
-                var ret = base.RemoveChunk(mapId, key, version, direction);
+            BufferClaim claim;
+            _appendLog.Claim(len, out claim);
+            *(CommandHeader*)(claim.Data) = header;
+            TypeHelper<ChunkCommandBody>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
+            claim.Commit();
 
-                var extSid = this.GetExtendedSeriesId(mapId);
-                var header = new CommandHeader {
-                    SeriesId = new UUID(extSid.UUID),
-                    CommandType = CommandType.RemoveChunk,
-                    Version = version
-                };
-                var commandBody = new ChunkCommandBody {
-                    ChunkKey = key,
-                    Lookup = (int)direction
-                };
-                var len = CommandHeader.Size + ChunkCommandBody.Size;
-                BufferClaim claim;
-                _appendLog.Claim(len, out claim);
-                *(CommandHeader*)(claim.Data) = header;
-                TypeHelper<ChunkCommandBody>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
-                claim.Commit();
-
-                return ret;
-            }
+            return ret;
         }
+
+
+        internal unsafe override Task<long> RemoveChunk(long mapId, long key, long version, Lookup direction) {
+            var ret = base.RemoveChunk(mapId, key, version, direction);
+
+            var extSid = this.GetExtendedSeriesId(mapId);
+            var header = new CommandHeader {
+                SeriesId = new UUID(extSid.UUID),
+                CommandType = CommandType.RemoveChunk,
+                Version = version
+            };
+            var commandBody = new ChunkCommandBody {
+                ChunkKey = key,
+                Lookup = (int)direction
+            };
+            var len = CommandHeader.Size + ChunkCommandBody.Size;
+            BufferClaim claim;
+            _appendLog.Claim(len, out claim);
+            *(CommandHeader*)(claim.Data) = header;
+            TypeHelper<ChunkCommandBody>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
+            claim.Commit();
+
+            return ret;
+        }
+
+
 
         internal interface IAcceptCommand : IDisposable {
             void ApplyCommand(DirectBuffer buffer);
@@ -297,7 +293,7 @@ namespace Spreads.Storage {
             }
             _appendLog.Dispose();
             _writeSeriesLocks.Dispose();
-            _storage.Dispose();
+            base.Dispose();
             if (disposing)
             {
                 GC.SuppressFinalize(this);
