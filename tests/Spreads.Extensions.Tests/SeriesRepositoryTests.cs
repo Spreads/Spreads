@@ -126,5 +126,13 @@ namespace Spreads.Extensions.Tests {
             }
         }
 
+        [Test]
+        public void CouldCreateTwoRepositoriesAndSynchronizeSeriesManyTimes() {
+            for (int i = 0; i < 100; i++) {
+                CouldCreateTwoRepositoriesAndSynchronizeSeries();
+                GC.Collect(3, GCCollectionMode.Forced, true);
+            }
+        }
+
     }
 }

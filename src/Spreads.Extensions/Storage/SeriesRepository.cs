@@ -40,10 +40,10 @@ namespace Spreads.Storage {
         private const string WriteLocksFileName = "writelocks";
 
         private IAppendLog _appendLog;
-        private const string LogBufferFileName = "logbuffer";
+        private const string LogBufferFileName = "appendbuffer";
         private const uint MinimumBufferSize = 10;
         private SeriesStorage _storage;
-        private const string StorageFileName = "storage";
+        private const string StorageFileName = "chunkstorage";
 
         // Opened series that could accept commands
         private readonly ConcurrentDictionary<UUID, IAcceptCommand> _openSeries = new ConcurrentDictionary<UUID, IAcceptCommand>();
@@ -122,7 +122,7 @@ namespace Spreads.Storage {
                             Trace.TraceWarning("Tried to steal a lock but the owner process was alive.");
                         } catch (ArgumentException) {
                             // pid is not running anymore, steal lock
-                            Trace.TraceWarning($"Current process {Pid} has stolen a lock left by a dead process {pid}. If you see this often then dispose SeriesRepository properly before an application exit.");
+                            Trace.TraceWarning($"Current process {Pid} has stolen a lock left by a dead process {pid}. If you see this often then dispose SeriesRepository properly before application exit.");
                             _writeSeriesLocks[seriesId] = Pid;
                             series.IsWriter = true;
                             LogAcquireLock(seriesId, series.Version);
@@ -181,7 +181,7 @@ namespace Spreads.Storage {
                         await pSeries.FlushEvent.WaitAsync(-1);
                     } catch (ArgumentException) {
                         // pid is not running anymore, steal lock
-                        Trace.TraceWarning($"Current process {Pid} has removed a lock left by a dead process {pid}. If you see this often then dispose SeriesRepository properly before an application exit.");
+                        Trace.TraceWarning($"Current process {Pid} has removed a lock left by a dead process {pid}. If you see this often then dispose SeriesRepository properly before application exit.");
                         _writeSeriesLocks.Remove(uuid);
                         LogReleaseLock(uuid);
                     }

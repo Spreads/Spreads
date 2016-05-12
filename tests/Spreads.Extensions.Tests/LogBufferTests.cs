@@ -71,6 +71,13 @@ namespace Spreads.Extensions.Tests {
             //Thread.Sleep(100000);
         }
 
+        [Test]
+        public void LogBufferTestManyTimes() {
+            for (int i = 0; i < 100; i++) {
+                LogBufferTest();
+            }
+        }
+
 
         [Test]
         public unsafe void AppendLogTest() {
