@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -52,11 +53,6 @@ namespace Spreads.Storage {
             var bufferSizeInBytes = BitUtil.FindNextPositivePowerOfTwo(bufferSizeMb * 1024 * 1024);
 
             _logBuffers = new LogBuffers(filepath, bufferSizeInBytes);
-            var activePartitionIndex = ActivePartitionIndex(_logBuffers.LogMetaData);
-            var activePartition = _logBuffers.Partitions[activePartitionIndex];
-            var rawTail = activePartition.RawTailVolatile;
-            var termOffset = rawTail & 0xFFFFFFFFL;
-            _subscriberPosition = ComputeTermBeginPosition(TermId(rawTail), _positionBitsToShift, _initialTermId) + termOffset;
 
             for (int i = 0; i < PARTITION_COUNT; i++) {
                 _termAppenders[i] = new TermAppender(_logBuffers.Buffers[i], _logBuffers.Buffers[i + PARTITION_COUNT]);
@@ -67,6 +63,8 @@ namespace Spreads.Storage {
             var defaultHeader = DefaultFrameHeader(_logBuffers.LogMetaData);
             _headerWriter = new HeaderWriter(defaultHeader);
 
+            _subscriberPosition = Position;
+            Trace.Assert(_subscriberPosition == Position);
 
             _cleaner = Task.Factory.StartNew(async () => {
                 while (!_cts.IsCancellationRequested) {
@@ -88,18 +86,23 @@ namespace Spreads.Storage {
         public event OnAppendHandler OnAppend;
         public event ErrorHandler OnError;
 
-        public long Claim(int length, out BufferClaim claim) {
-            var partitionIndex = ActivePartitionIndex(_logBuffers.LogMetaData);
-            var termAppender = _termAppenders[partitionIndex];
-            long rawTail = termAppender.RawTailVolatile;
-            long termOffset = rawTail & 0xFFFFFFFFL;
+        public long Claim(int length, out BufferClaim claim)
+        {
+            while (true)
+            {
+                var partitionIndex = ActivePartitionIndex(_logBuffers.LogMetaData);
+                var termAppender = _termAppenders[partitionIndex];
+                long rawTail = termAppender.RawTailVolatile;
+                long termOffset = rawTail & 0xFFFFFFFFL;
 
-            long position = ComputeTermBeginPosition(TermId(rawTail), _positionBitsToShift, _initialTermId) + termOffset;
+                long position = ComputeTermBeginPosition(TermId(rawTail), _positionBitsToShift, _initialTermId) + termOffset;
 
-            long result = termAppender.Claim(_headerWriter, length, out claim);
-            long newPosition = NewPosition(partitionIndex, (int)termOffset, position, result);
+                long result = termAppender.Claim(_headerWriter, length, out claim);
+                long newPosition = NewPosition(partitionIndex, (int) termOffset, position, result);
 
-            return newPosition < 0 ? Claim(length, out claim) : newPosition;
+                if (newPosition < 0) continue;
+                return newPosition;
+            }
         }
 
 

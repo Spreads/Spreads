@@ -132,5 +132,13 @@ namespace Spreads.Extensions.Tests {
             //Thread.Sleep(100000);
         }
 
+        [Test]
+        public void AppendLogTestManyTimes()
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                AppendLogTest();
+            }
+        }
     }
 }
