@@ -24,8 +24,6 @@ namespace Spreads.Storage {
 
     // TODO should track unflushed series (per partition probably) and flush when partition is cleared
 
-    public delegate void OnAppendHandler(DirectBuffer buffer);
-
     public interface IAppendLog : IDisposable {
         void Append<T>(T message);
         long Claim(int length, out BufferClaim claim);

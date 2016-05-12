@@ -137,7 +137,9 @@ namespace Spreads.Serialization {
             T value = __refvalue(tr, T);
             *(IntPtr*)(&tr) = target;
             __refvalue(tr, T) = value;
+
 #else
+            throw new NotImplementedException();
 #endif
         }
 
