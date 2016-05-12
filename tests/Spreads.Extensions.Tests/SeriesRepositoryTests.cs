@@ -93,46 +93,51 @@ namespace Spreads.Extensions.Tests {
 
             using (var repo = new SeriesRepository("../SeriesRepositoryTests", 100))
             using (var repo2 = new SeriesRepository("../SeriesRepositoryTests", 100)) {
-                var sw = new Stopwatch();
-                sw.Start();
+                for (int rounds = 0; rounds < 100; rounds++) {
 
-                // this read and write series have the same underlying instance inside the repo
-                // the reead series are just wrapped with .ReadOnly()
-                var psRead = repo2.ReadSeries<DateTime, double>("test_CouldCreateTwoRepositoriesAndSynchronizeSeries").Result;
-                var readCursor = psRead.GetCursor();
-                readCursor.MoveLast();
-                Console.WriteLine(readCursor.Current);
-                // this should upgrade to writer
-                var ps = repo.WriteSeries<DateTime, double>("test_CouldCreateTwoRepositoriesAndSynchronizeSeries").Result;
-                var start = ps.IsEmpty ? DateTime.UtcNow : ps.Last.Key;
-                var count = 1000000;
+                    var sw = new Stopwatch();
+                    sw.Start();
 
-                var readerTask = Task.Run(async () => {
-                    var cnt = 0;
-                    while (cnt < count && await readCursor.MoveNext(CancellationToken.None)) {
-                        if (readCursor.Current.Value != cnt) Assert.AreEqual(cnt, readCursor.Current.Value);
-                        cnt++;
+                    // this read and write series have the same underlying instance inside the repo
+                    // the reead series are just wrapped with .ReadOnly()
+                    var psRead =
+                        repo2.ReadSeries<DateTime, double>("test_CouldCreateTwoRepositoriesAndSynchronizeSeries").Result;
+                    var readCursor = psRead.GetCursor();
+                    readCursor.MoveLast();
+                    Console.WriteLine(readCursor.Current);
+                    // this should upgrade to writer
+                    var ps =
+                        repo.WriteSeries<DateTime, double>("test_CouldCreateTwoRepositoriesAndSynchronizeSeries").Result;
+                    var start = ps.IsEmpty ? DateTime.UtcNow : ps.Last.Key;
+                    var count = 1000000;
+
+                    var readerTask = Task.Run(async () => {
+                        var cnt = 0;
+                        while (cnt < count && await readCursor.MoveNext(CancellationToken.None)) {
+                            if (readCursor.Current.Value != cnt) Assert.AreEqual(cnt, readCursor.Current.Value);
+                            cnt++;
+                        }
+                    });
+
+                    for (int i = 0; i < count; i++) {
+                        ps.Add(start.AddTicks(i + 1), i);
                     }
-                });
 
-                for (int i = 0; i < count; i++) {
-                    ps.Add(start.AddTicks(i + 1), i);
+                    readerTask.Wait();
+
+                    sw.Stop();
+                    Console.WriteLine($"Elapsed msec: {sw.ElapsedMilliseconds}");
                 }
-
-                readerTask.Wait();
-
-                sw.Stop();
-                Console.WriteLine($"Elapsed msec: {sw.ElapsedMilliseconds}");
             }
         }
 
-        [Test]
-        public void CouldCreateTwoRepositoriesAndSynchronizeSeriesManyTimes() {
-            for (int i = 0; i < 100; i++) {
-                CouldCreateTwoRepositoriesAndSynchronizeSeries();
-                GC.Collect(3, GCCollectionMode.Forced, true);
-            }
-        }
+        //[Test]
+        //public void CouldCreateTwoRepositoriesAndSynchronizeSeriesManyTimes() {
+        //    for (int i = 0; i < 100; i++) {
+        //        CouldCreateTwoRepositoriesAndSynchronizeSeries();
+        //        GC.Collect(3, GCCollectionMode.Forced, true);
+        //    }
+        //}
 
     }
 }
