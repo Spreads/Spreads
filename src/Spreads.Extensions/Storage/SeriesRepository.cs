@@ -60,9 +60,7 @@ namespace Spreads.Storage {
             //else if (!Path.IsPathRooted(path)) {
             //    path = Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "Repos", path);
             //}
-            if (!Directory.Exists(path)) {
-                Directory.CreateDirectory(path);
-            }
+            
             var writeLocksFileName = Path.Combine(path, WriteLocksFileName);
             _writeSeriesLocks = new PersistentMapFixedLength<UUID, int>(writeLocksFileName, 1000);
             var logBufferFileName = Path.Combine(path, LogBufferFileName);
@@ -70,8 +68,10 @@ namespace Spreads.Storage {
             _appendLog.OnAppend += AppendLogOnAppend;
         }
 
-        private static string GetConnectionStringFromPath(string path)
-        {
+        private static string GetConnectionStringFromPath(string path) {
+            if (!Directory.Exists(path)) {
+                Directory.CreateDirectory(path);
+            }
             var storageFileName = Path.Combine(path, StorageFileName);
             return SeriesStorage.GetDefaultConnectionString(storageFileName);
         }
@@ -102,6 +102,14 @@ namespace Spreads.Storage {
         }
 
         private async Task Upgrade<K, V>(UUID seriesId, PersistentSeries<K, V> series) {
+            if (!series.IsWriter) {
+                try {
+                    _writeSeriesLocks.Add(seriesId, Pid);
+                    series.IsWriter = true;
+                    LogAcquireLock(seriesId, series.Version);
+                    return;
+                } catch (ArgumentException) { }
+            }
             while (true) {
                 // wait if a writer from the same repo releases lock
                 var released = await series.LockReleaseEvent.WaitAsync(1000);
@@ -149,12 +157,14 @@ namespace Spreads.Storage {
                 return ps;
             }
 
-            Action<bool> disposeCallback = (remove) => {
+            Action<bool, bool> disposeCallback = (remove, downgrade) => {
                 IAcceptCommand temp;
-                if (remove && _openSeries.TryRemove(uuid, out temp)) {
+                if (remove) {
                     // NB this callback is called from temp.Dispose();
+                    var removed = _openSeries.TryRemove(uuid, out temp);
+                    Trace.Assert(removed);
                 }
-                if (isWriter) Downgrade(uuid);
+                if (downgrade) Downgrade(uuid);
             };
 
             var pSeries = new PersistentSeries<K, V>(_appendLog, uuid,
@@ -294,8 +304,7 @@ namespace Spreads.Storage {
             _appendLog.Dispose();
             _writeSeriesLocks.Dispose();
             base.Dispose();
-            if (disposing)
-            {
+            if (disposing) {
                 GC.SuppressFinalize(this);
             }
             Trace.WriteLineIf(!disposing, "Disposing repo from finalizer");

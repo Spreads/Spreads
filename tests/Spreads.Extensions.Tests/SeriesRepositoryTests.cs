@@ -14,13 +14,7 @@ namespace Spreads.Extensions.Tests {
         [Test]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void CouldCreateRepositoryAndGetSeries() {
-
             using (var repo = new SeriesRepository("../SeriesRepositoryTests")) {
-                //var repo = new SeriesRepository("../CouldGetPersistentSeries");
-                // this read and write series have the same underlying instance inside the repo
-                // the reead series are just wrapped with .ReadOnly()
-                //var psRead = repo.ReadSeries<DateTime, double>("test_CouldGetPersistentSeries").Result;
-                // this should upgrade to writer
                 var ps = repo.WriteSeries<DateTime, double>("test_CouldGetPersistentSeries").Result;
                 Assert.AreEqual(ps.Count, ps.Version);
                 var initialVersion = ps.Version;
@@ -28,14 +22,7 @@ namespace Spreads.Extensions.Tests {
                 Console.WriteLine($"Count: {ps.Count}, version: {ps.Version}");
                 Assert.AreEqual(initialVersion + 1, ps.Version);
                 Assert.AreEqual(ps.Count, ps.Version);
-                //Assert.IsFalse(psRead.IsEmpty);
-                //}
-                //using (var repo2 = new SeriesRepository("../CouldGetPersistentSeries"))
-                //{
-                //    var psRead = repo2.ReadSeries<DateTime, double>("test_CouldGetPersistentSeries").Result;
-                //    Assert.IsFalse(psRead.IsEmpty);
             }
-            //repo.Dispose();
         }
 
         [Test]
@@ -62,7 +49,6 @@ namespace Spreads.Extensions.Tests {
                 var psRead = repo2.ReadSeries<DateTime, double>("test_CouldGetPersistentSeries").Result;
                 var readCursor = psRead.GetCursor();
                 readCursor.MoveLast();
-                // this should upgrade to writer
                 var ps = repo.WriteSeries<DateTime, double>("test_CouldGetPersistentSeries").Result;
                 Assert.AreEqual(ps.Count, ps.Version);
                 var initialVersion = ps.Version;
@@ -93,10 +79,10 @@ namespace Spreads.Extensions.Tests {
 
             using (var repo = new SeriesRepository("../SeriesRepositoryTests", 100))
             using (var repo2 = new SeriesRepository("../SeriesRepositoryTests", 100)) {
-                for (int rounds = 0; rounds < 100; rounds++) {
+                for (int rounds = 0; rounds < 10; rounds++) {
 
                     var sw = new Stopwatch();
-                    sw.Start();
+                    
 
                     // this read and write series have the same underlying instance inside the repo
                     // the reead series are just wrapped with .ReadOnly()
@@ -105,10 +91,65 @@ namespace Spreads.Extensions.Tests {
                     var readCursor = psRead.GetCursor();
                     readCursor.MoveLast();
                     Console.WriteLine(readCursor.Current);
+                    var ps =
+                        repo.WriteSeries<DateTime, double>("test_CouldCreateTwoRepositoriesAndSynchronizeSeries").Result;
+                    var start = ps.IsEmpty ? DateTime.UtcNow : ps.Last.Key;
+                    var count = 1000000;
+
+                    sw.Start();
+
+                    var readerTask = Task.Run(async () => {
+                        var cnt = 0;
+                        while (cnt < count && await readCursor.MoveNext(CancellationToken.None)) {
+                            if (readCursor.Current.Value != cnt) Assert.AreEqual(cnt, readCursor.Current.Value);
+                            cnt++;
+                        }
+                    });
+
+                    for (int i = 0; i < count; i++) {
+                        ps.Add(start.AddTicks(i + 1), i);
+                    }
+
+                    readerTask.Wait();
+
+                    sw.Stop();
+                    Console.WriteLine($"Elapsed msec: {sw.ElapsedMilliseconds}");
+                    Console.WriteLine($"Round: {rounds}");
+                }
+            }
+        }
+
+        //[Test]
+        //public void CouldCreateTwoRepositoriesAndSynchronizeSeriesManyTimes() {
+        //    for (int i = 0; i < 100; i++) {
+        //        CouldCreateTwoRepositoriesAndSynchronizeSeries();
+        //        GC.Collect(3, GCCollectionMode.Forced, true);
+        //    }
+        //}
+
+
+
+        [Test]
+        public void CouldSynchronizeSeriesFromSingleRepo() {
+
+            using (var repo = new SeriesRepository("../SeriesRepositoryTests", 100)) {
+                for (int rounds = 0; rounds < 1; rounds++) {
+
+                    var sw = new Stopwatch();
+                    sw.Start();
+
+                    // this read and write series have the same underlying instance inside the repo
+                    // the reead series are just wrapped with .ReadOnly()
+                    var psRead =
+                        repo.ReadSeries<DateTime, double>("test_CouldCreateTwoRepositoriesAndSynchronizeSeries").Result;
+                    var readCursor = psRead.GetCursor();
+                    readCursor.MoveLast();
+                    Console.WriteLine(readCursor.Current);
                     // this should upgrade to writer
                     var ps =
                         repo.WriteSeries<DateTime, double>("test_CouldCreateTwoRepositoriesAndSynchronizeSeries").Result;
                     var start = ps.IsEmpty ? DateTime.UtcNow : ps.Last.Key;
+
                     var count = 1000000;
 
                     var readerTask = Task.Run(async () => {
@@ -127,17 +168,9 @@ namespace Spreads.Extensions.Tests {
 
                     sw.Stop();
                     Console.WriteLine($"Elapsed msec: {sw.ElapsedMilliseconds}");
+                    Console.WriteLine($"Round: {rounds}");
                 }
             }
         }
-
-        //[Test]
-        //public void CouldCreateTwoRepositoriesAndSynchronizeSeriesManyTimes() {
-        //    for (int i = 0; i < 100; i++) {
-        //        CouldCreateTwoRepositoriesAndSynchronizeSeries();
-        //        GC.Collect(3, GCCollectionMode.Forced, true);
-        //    }
-        //}
-
     }
 }

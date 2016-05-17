@@ -40,7 +40,7 @@ namespace Spreads.Storage {
         private readonly UUID _uuid;
         private readonly IPersistentOrderedMap<K, V> _innerMap;
         private readonly bool _allowBatches;
-        private readonly Action<bool> _disposeCallback;
+        private readonly Action<bool, bool> _disposeCallback;
         internal readonly AsyncAutoResetEvent FlushEvent = new AsyncAutoResetEvent();
         internal readonly AsyncAutoResetEvent LockReleaseEvent = new AsyncAutoResetEvent();
         /// <summary>
@@ -50,14 +50,14 @@ namespace Spreads.Storage {
         private volatile bool _isWriter;
 
         internal PersistentSeries(IAppendLog appendLog, UUID uuid, IPersistentOrderedMap<K, V> innerMap, bool allowBatches, bool isWriter,
-            Action<bool> disposeCallback = null) {
+            Action<bool, bool> disposeCallback = null) {
             _appendLog = appendLog;
             _uuid = uuid;
             _innerMap = innerMap;
             _allowBatches = allowBatches;
             _isWriter = isWriter;
             var outer = (_innerMap as SortedChunkedMap<K, V>)?.OuterMap as RemoteChunksSeries<K, V>;
-            if (outer != null) outer.ReadOnly  = !_isWriter;
+            if (outer != null) outer.ReadOnly = !_isWriter;
             _disposeCallback = disposeCallback;
             Interlocked.Increment(ref RefCounter);
             if (TypeHelper<SetRemoveCommandBody<K, V>>.Size == -1) {
@@ -322,11 +322,12 @@ namespace Spreads.Storage {
                 if (cnt < 0) throw new InvalidOperationException("A PersistentSeries was disposed more times than accessed via a repository.");
                 if (cnt == 0) {
                     // true means the series will be removed from _openSeries disctionary 
-                    _disposeCallback?.Invoke(true);
+                    _disposeCallback?.Invoke(true, true);
                     _innerMap.Dispose();
                     GC.SuppressFinalize(this);
                 } else {
-                    // disposing a single writer 
+                    // disposing a single writer
+                    var shouldDowngrade = _isWriter;
                     if (_isWriter) {
                         Flush();
                         _isWriter = false;
@@ -334,7 +335,7 @@ namespace Spreads.Storage {
                         if (outer != null) outer.ReadOnly = !_isWriter;
                         LockReleaseEvent.Set();
                     }
-                    _disposeCallback?.Invoke(false);
+                    _disposeCallback?.Invoke(false, shouldDowngrade);
                 }
                 //GC.SuppressFinalize(this);
             } else {
