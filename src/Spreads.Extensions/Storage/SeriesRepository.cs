@@ -176,13 +176,13 @@ namespace Spreads.Storage {
 
             LogSubscribe(uuid, pSeries.Version, exSeriesId.ToString());
 
-
             if (isWriter) {
                 try {
                     _writeSeriesLocks.Add(uuid, Pid);
                     LogAcquireLock(uuid, pSeries.Version);
                 } catch (ArgumentException) {
-                    await Upgrade(uuid, pSeries);
+                    // NB do not wait // await Upgrade(uuid, pSeries);
+                    throw new InvalidOperationException("Series is already opened for write. Only single writer is allowed.");
                 }
             } else {
                 // wait for flush if there is a live writer 
@@ -198,7 +198,6 @@ namespace Spreads.Storage {
                         LogReleaseLock(uuid);
                     }
                 }
-
             }
             return pSeries;
         }
