@@ -75,6 +75,7 @@ namespace Spreads.Storage {
                 throw new NotImplementedException("TODO variable sized types");
             }
         }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SetRemoveCommandBody<TKey, TValue> FromPtr(IntPtr ptr) {
             if (!IsFixedSize) throw new NotImplementedException("TODO variable sized types");

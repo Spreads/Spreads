@@ -19,14 +19,13 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Data;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Serialization;
 using Spreads.Storage.Aeron.Logbuffer;
-using Spreads.Storage.Aeron.Protocol;
 
 namespace Spreads.Storage {
 
@@ -36,10 +35,10 @@ namespace Spreads.Storage {
     public class SeriesRepository : SeriesStorage, ISeriesRepository, IDisposable {
         // persistent dictionary to store all open series with write access and process id
         // we use single writer and steal locks if a writer process id is not among running processes.
-        private PersistentMapFixedLength<UUID, int> _writeSeriesLocks;
+        private readonly PersistentMapFixedLength<UUID, int> _writeSeriesLocks;
         private const string WriteLocksFileName = "writelocks";
 
-        private IAppendLog _appendLog;
+        private readonly IAppendLog _appendLog;
         private const string LogBufferFileName = "appendbuffer";
         private const uint MinimumBufferSize = 10;
         private const string StorageFileName = "chunkstorage";
@@ -60,13 +59,15 @@ namespace Spreads.Storage {
             //else if (!Path.IsPathRooted(path)) {
             //    path = Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "Repos", path);
             //}
-            
+
             var writeLocksFileName = Path.Combine(path, WriteLocksFileName);
             _writeSeriesLocks = new PersistentMapFixedLength<UUID, int>(writeLocksFileName, 1000);
             var logBufferFileName = Path.Combine(path, LogBufferFileName);
             _appendLog = new AppendLog(logBufferFileName, bufferSizeMb < MinimumBufferSize ? (int)MinimumBufferSize : (int)bufferSizeMb);
-            _appendLog.OnAppend += AppendLogOnAppend;
+            _appendLog.OnAppend += OnLogAppend;
         }
+
+        protected PersistentMapFixedLength<UUID, int> WriteSeriesLocks => _writeSeriesLocks;
 
         private static string GetConnectionStringFromPath(string path) {
             if (!Directory.Exists(path)) {
@@ -76,10 +77,9 @@ namespace Spreads.Storage {
             return SeriesStorage.GetDefaultConnectionString(storageFileName);
         }
 
+        protected static readonly int Pid = Process.GetCurrentProcess().Id;
 
-        private static readonly int Pid = Process.GetCurrentProcess().Id;
-
-        private unsafe void AppendLogOnAppend(DirectBuffer buffer) {
+        protected virtual unsafe void OnLogAppend(DirectBuffer buffer) {
             var uuid = (*(CommandHeader*)(buffer.Data)).SeriesId;
             IAcceptCommand series;
             if (_openSeries.TryGetValue(uuid, out series)) {
@@ -142,7 +142,7 @@ namespace Spreads.Storage {
             }
         }
 
-        private async Task<PersistentSeries<K, V>> GetSeries<K, V>(string seriesId, bool isWriter, bool allowBatches = false) {
+        protected virtual async Task<PersistentSeries<K, V>> GetSeries<K, V>(string seriesId, bool isWriter, bool allowBatches = false) {
 
             seriesId = seriesId.ToLowerInvariant().Trim();
             var exSeriesId = GetExtendedSeriesId<K, V>(seriesId);
@@ -167,13 +167,14 @@ namespace Spreads.Storage {
                 if (downgrade) Downgrade(uuid);
             };
 
+            var ipom = base.GetSeries<K, V>(exSeriesId.Id, exSeriesId.Version, false);
             var pSeries = new PersistentSeries<K, V>(_appendLog, uuid,
-                GetPersistentOrderedMap<K, V>(seriesId, false), allowBatches, isWriter,
+                ipom, allowBatches, isWriter,
                 disposeCallback);
             // NB this is done in consturctor: pSeries.RefCounter++;
             _openSeries[uuid] = pSeries;
 
-            LogSubscribe(uuid, pSeries.Version);
+            LogSubscribe(uuid, pSeries.Version, exSeriesId.ToString());
 
 
             if (isWriter) {
@@ -202,16 +203,20 @@ namespace Spreads.Storage {
             return pSeries;
         }
 
-        private unsafe void LogSubscribe(UUID uuid, long version) {
+        private unsafe void LogSubscribe(UUID uuid, long version, string extendedTextId) {
             var header = new CommandHeader {
                 SeriesId = uuid,
                 CommandType = CommandType.Subscribe,
                 Version = version
             };
-            var len = CommandHeader.Size;
+
+            var textIdBytes = Encoding.UTF8.GetBytes(extendedTextId);
+
+            var len = CommandHeader.Size + textIdBytes.Length;
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
             *(CommandHeader*)(claim.Data) = header;
+            claim.Buffer.WriteBytes(claim.Offset + CommandHeader.Size, textIdBytes, 0, textIdBytes.Length);
             claim.Commit();
         }
 
@@ -297,7 +302,7 @@ namespace Spreads.Storage {
             void ApplyCommand(DirectBuffer buffer);
         }
 
-        private void Dispose(bool disposing) {
+        protected virtual void Dispose(bool disposing) {
             foreach (var series in _openSeries.Values) {
                 series.Dispose();
             }

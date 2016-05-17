@@ -9,6 +9,7 @@ namespace Spreads.Storage {
         public SeriesId(string extendedSeriesId) {
             var parts = extendedSeriesId.Split('^');
             TextId = parts[0];
+            UUID = TextId.MD5Bytes();
             KeyType = parts.Length > 1 ? parts[1] : "";
             ValueType = parts.Length > 2 ? parts[2] : "";
         }
@@ -24,7 +25,7 @@ namespace Spreads.Storage {
             return TextId + "^" + KeyType + "^" + ValueType;
         }
 
-        public static implicit operator SeriesId(string extendedSeriesId) {
+        public static explicit operator SeriesId(string extendedSeriesId) {
             return new SeriesId(extendedSeriesId);
         }
     }

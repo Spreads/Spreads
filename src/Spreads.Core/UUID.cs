@@ -42,6 +42,15 @@ namespace Spreads {
             _second = fb.ReadUint64(8);
         }
 
+        public byte[] ToBytes()
+        {
+            var bytes = new byte[16];
+            var fb = new FixedBuffer(bytes);
+            fb.WriteUint64(0, _first);
+            fb.WriteUint64(8, _second);
+            return bytes;
+        }
+
         public UUID(Guid guid) : this(guid.ToByteArray()) { }
         public UUID(string value) : this(value.MD5Bytes()) { }
 

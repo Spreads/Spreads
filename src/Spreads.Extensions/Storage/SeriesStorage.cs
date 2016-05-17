@@ -299,7 +299,7 @@ namespace Spreads.Storage {
             return id > 0 ? GetExtendedSeriesId<K, V>(seriesId) : null;
         }
 
-        private SortedChunkedMap<K, V> GetSeries<K, V>(long seriesId, long version, bool readOnly, int chunkSize = 4096) {
+        protected SortedChunkedMap<K, V> GetSeries<K, V>(long seriesId, long version, bool readOnly, int chunkSize = 4096) {
             SortedChunkedMap<K, V> series;
             var comparer = KeyComparer.GetDefault<K>() as IKeyComparer<K>;
             if (comparer == null) throw new NotSupportedException("Only type that have IKeyComparer<K> are supported");
