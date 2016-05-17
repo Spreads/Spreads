@@ -16,9 +16,190 @@ namespace Spreads.Core.Tests {
     [TestFixture]
     public class NanoOptimizationTests {
 
+        public interface IIncrementable {
+            int Increment();
+        }
+
+
+        public struct ThisIsSrtuct : IIncrementable {
+            private int value;
+
+            public int Increment() {
+                return value++;
+            }
+
+            int IIncrementable.Increment()
+            {
+                return value++;
+            }
+        }
+
+
+        public class ThisIsClass : IIncrementable {
+            private int value;
+
+            public int Increment() {
+                return value++;
+            }
+
+        }
+
+        public class ThisIsBaseClass : IIncrementable {
+            private int value;
+
+            public virtual int Increment() {
+                return value++;
+            }
+
+
+        }
+
+        public class ThisIsDerivedClass : ThisIsBaseClass, IIncrementable {
+            private int value;
+
+            public override int Increment() {
+                return value++;
+            }
+        }
+
+        public class ThisIsDerivedClass2 : ThisIsBaseClass, IIncrementable {
+            private int value;
+
+            public override int Increment() {
+                return value++;
+            }
+        }
+
+        public sealed class ThisIsSealedDerivedClass : ThisIsDerivedClass, IIncrementable {
+            private int value;
+
+            public override int Increment() {
+                return value++;
+            }
+        }
+
+        public sealed class ThisIsSealedDerivedClass2 : ThisIsDerivedClass, IIncrementable {
+            private int value;
+
+            public override int Increment() {
+                return value++;
+            }
+        }
+
+        public sealed class ThisIsSealedClass : IIncrementable {
+            private int value;
+
+            public int Increment() {
+                return value++;
+            }
+
+        }
+
+
+        public void CallVsCallVirt(int r) {
+            var count = 1000000000;
+            var sw = new Stopwatch();
+
+            sw.Restart();
+            int value = 0;
+            for (int i = 0; i < count; i++) {
+                value++;
+            }
+            sw.Stop();
+            Console.WriteLine($"Value {sw.ElapsedMilliseconds} ({value})");
+
+
+            sw.Restart();
+            var str = new ThisIsSrtuct();
+            for (int i = 0; i < count; i++) {
+                str.Increment();
+            }
+            sw.Stop();
+            Console.WriteLine($"Struct {sw.ElapsedMilliseconds}");
+
+
+            sw.Restart();
+            IIncrementable strAsInterface = (IIncrementable)(new ThisIsSrtuct());
+            for (int i = 0; i < count; i++) {
+                strAsInterface.Increment();
+            }
+            sw.Stop();
+            Console.WriteLine($"Struct as Interface {sw.ElapsedMilliseconds}");
+
+
+            sw.Restart();
+            var cl = new ThisIsClass();
+            for (int i = 0; i < count; i++) {
+                cl.Increment();
+            }
+            sw.Stop();
+            Console.WriteLine($"Class {sw.ElapsedMilliseconds}");
+
+            sw.Restart();
+            var scl = new ThisIsSealedClass();
+            for (int i = 0; i < count; i++) {
+                scl.Increment();
+            }
+            sw.Stop();
+            Console.WriteLine($"Sealed Class {sw.ElapsedMilliseconds}");
+
+
+            sw.Restart();
+            IIncrementable cli = (IIncrementable)new ThisIsClass();
+            for (int i = 0; i < count; i++) {
+                cli.Increment();
+            }
+            sw.Stop();
+            Console.WriteLine($"Class as Interface {sw.ElapsedMilliseconds}");
+
+
+            sw.Restart();
+            var dcl = new ThisIsDerivedClass();
+            for (int i = 0; i < count; i++) {
+                dcl.Increment();
+            }
+            sw.Stop();
+            Console.WriteLine($"Derived Class {sw.ElapsedMilliseconds}");
+
+
+            sw.Restart();
+            IIncrementable dcli = (IIncrementable) new ThisIsDerivedClass();
+            for (int i = 0; i < count; i++) {
+                dcli.Increment();
+            }
+            sw.Stop();
+            Console.WriteLine($"Derived Class as Interface {sw.ElapsedMilliseconds}");
+
+
+            sw.Restart();
+            var sdcl = new ThisIsSealedDerivedClass();
+            for (int i = 0; i < count; i++) {
+                sdcl.Increment();
+            }
+            sw.Stop();
+            Console.WriteLine($"Sealed Derived Class {sw.ElapsedMilliseconds}");
+
+            sw.Restart();
+            IIncrementable sdcli = (IIncrementable)new ThisIsSealedDerivedClass();
+            for (int i = 0; i < count; i++) {
+                sdcli.Increment();
+            }
+            sw.Stop();
+            Console.WriteLine($"Sealed Derived Class as Interface {sw.ElapsedMilliseconds}");
+        }
+
+
+
         [Test]
-        public void SOVolatileQuestion()
-        {
+        public void CallVsCallVirt() {
+            for (int r = 0; r < 10; r++) {
+                CallVsCallVirt(r);
+                Console.WriteLine("-----------------");
+            }
+        }
+
+        [Test]
+        public void SOVolatileQuestion() {
             long counter = 0;
             var values = new double[1000000];
 
