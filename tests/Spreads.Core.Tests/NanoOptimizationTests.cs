@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -14,7 +15,7 @@ namespace Spreads.Core.Tests {
 
 
     [TestFixture]
-    public class NanoOptimizationTests {
+    public unsafe class NanoOptimizationTests {
 
         public interface IIncrementable {
             int Increment();
@@ -22,77 +23,130 @@ namespace Spreads.Core.Tests {
 
 
         public struct ThisIsSrtuct : IIncrementable {
-            private int value;
+            private byte[] value;
 
+            public ThisIsSrtuct(byte[] bytes) {
+                value = bytes;
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int Increment() {
-                return value++;
+                fixed (byte* ptr = &value[0])
+                {
+                    *((int*)ptr) = *((int*)ptr) + 1;
+                    return (*((int*)ptr));
+                }
             }
 
-            int IIncrementable.Increment()
-            {
-                return value++;
-            }
         }
 
+        public static class ThisIsStaticClass {
+            private static byte[] value = new byte[4];
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static int Increment() {
+                fixed (byte* ptr = &value[0])
+                {
+                    *((int*)ptr) = *((int*)ptr) + 1;
+                    return (*((int*)ptr));
+                }
+            }
+
+        }
 
         public class ThisIsClass : IIncrementable {
-            private int value;
+            private byte[] value = new byte[4];
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int Increment() {
-                return value++;
+                fixed (byte* ptr = &value[0])
+                {
+                    *((int*)ptr) = *((int*)ptr) + 1;
+                    return (*((int*)ptr));
+                }
             }
 
         }
 
-        public class ThisIsBaseClass : IIncrementable {
-            private int value;
 
+
+        public class ThisIsBaseClass : IIncrementable {
+            private byte[] value = new byte[4];
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public virtual int Increment() {
-                return value++;
+                fixed (byte* ptr = &value[0])
+                {
+                    *((int*)ptr) = *((int*)ptr) + 1;
+                    return (*((int*)ptr));
+                }
             }
 
 
         }
 
         public class ThisIsDerivedClass : ThisIsBaseClass, IIncrementable {
-            private int value;
+            private byte[] value = new byte[4];
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public override int Increment() {
-                return value++;
+                fixed (byte* ptr = &value[0])
+                {
+                    *((int*)ptr) = *((int*)ptr) + 1;
+                    return (*((int*)ptr));
+                }
             }
         }
 
         public class ThisIsDerivedClass2 : ThisIsBaseClass, IIncrementable {
-            private int value;
+            private byte[] value = new byte[4];
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public override int Increment() {
-                return value++;
+                fixed (byte* ptr = &value[0])
+                {
+                    *((int*)ptr) = *((int*)ptr) + 1;
+                    return (*((int*)ptr));
+                }
             }
         }
 
         public sealed class ThisIsSealedDerivedClass : ThisIsDerivedClass, IIncrementable {
-            private int value;
+            private byte[] value = new byte[4];
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public override int Increment() {
-                return value++;
+                fixed (byte* ptr = &value[0])
+                {
+                    *((int*)ptr) = *((int*)ptr) + 1;
+                    return (*((int*)ptr));
+                }
             }
         }
 
         public sealed class ThisIsSealedDerivedClass2 : ThisIsDerivedClass, IIncrementable {
-            private int value;
+            private byte[] value = new byte[4];
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public override int Increment() {
-                return value++;
+                fixed (byte* ptr = &value[0])
+                {
+                    *((int*)ptr) = *((int*)ptr) + 1;
+                    return (*((int*)ptr));
+                }
             }
         }
 
         public sealed class ThisIsSealedClass : IIncrementable {
-            private int value;
+            private byte[] value = new byte[4];
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int Increment() {
-                return value++;
+                fixed (byte* ptr = &value[0])
+                {
+                    *((int*)ptr) = *((int*)ptr) + 1;
+                    return (*((int*)ptr));
+                }
             }
-
         }
 
 
@@ -101,16 +155,21 @@ namespace Spreads.Core.Tests {
             var sw = new Stopwatch();
 
             sw.Restart();
-            int value = 0;
+            byte[] value = new byte[4];
+            int intValue = 0;
             for (int i = 0; i < count; i++) {
-                value++;
+                fixed (byte* ptr = &value[0])
+                {
+                    *((int*)ptr) = *((int*)ptr) + 1;
+                    intValue = *((int*) ptr);
+                }
             }
             sw.Stop();
-            Console.WriteLine($"Value {sw.ElapsedMilliseconds} ({value})");
+            Console.WriteLine($"Value {sw.ElapsedMilliseconds} ({intValue})");
 
 
             sw.Restart();
-            var str = new ThisIsSrtuct();
+            var str = new ThisIsSrtuct(new byte[4]);
             for (int i = 0; i < count; i++) {
                 str.Increment();
             }
@@ -119,12 +178,20 @@ namespace Spreads.Core.Tests {
 
 
             sw.Restart();
-            IIncrementable strAsInterface = (IIncrementable)(new ThisIsSrtuct());
+            IIncrementable strAsInterface = (IIncrementable)(new ThisIsSrtuct(new byte[4]));
             for (int i = 0; i < count; i++) {
                 strAsInterface.Increment();
             }
             sw.Stop();
             Console.WriteLine($"Struct as Interface {sw.ElapsedMilliseconds}");
+
+
+            sw.Restart();
+            for (int i = 0; i < count; i++) {
+                ThisIsStaticClass.Increment();
+            }
+            sw.Stop();
+            Console.WriteLine($"Static Class {sw.ElapsedMilliseconds}");
 
 
             sw.Restart();
@@ -163,7 +230,7 @@ namespace Spreads.Core.Tests {
 
 
             sw.Restart();
-            IIncrementable dcli = (IIncrementable) new ThisIsDerivedClass();
+            IIncrementable dcli = (IIncrementable)new ThisIsDerivedClass();
             for (int i = 0; i < count; i++) {
                 dcli.Increment();
             }
