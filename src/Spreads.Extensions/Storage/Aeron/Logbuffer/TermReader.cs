@@ -125,7 +125,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
         /// <returns> the offset up to which the term has progressed. </returns>
 
         public static int Offset(long readOutcome) {
-            return (int)(readOutcome >> 32);
+            return (int)((long)((ulong)readOutcome >> 32));
         }
     }
 

@@ -376,7 +376,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
          * @return the partition index for the position
          */
         public static int IndexByPosition(long position, int positionBitsToShift) {
-            return (int)((position >> positionBitsToShift) % PARTITION_COUNT);
+            return (int)(((long)((ulong)position >> positionBitsToShift)) % PARTITION_COUNT);
         }
 
         /**
@@ -419,7 +419,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
          * @return the term id according to the position
          */
         public static int ComputeTermIdFromPosition(long position, int positionBitsToShift, int initialTermId) {
-            return ((int)(position >> positionBitsToShift) + initialTermId);
+            return ((int)((long)((ulong)position >> positionBitsToShift)) + initialTermId);
         }
 
         /**
@@ -496,8 +496,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
          * @param termOffset        at which the default should be applied.
          */
         public static void ApplyDefaultHeader(
-            DirectBuffer logMetaDataBuffer, DirectBuffer termBuffer, int termOffset)
-        {
+            DirectBuffer logMetaDataBuffer, DirectBuffer termBuffer, int termOffset) {
             logMetaDataBuffer.Copy(termBuffer.Data + termOffset, LOG_DEFAULT_FRAME_HEADER_OFFSET, DataHeaderFlyweight.HEADER_LENGTH);
             //termBuffer.putBytes(termOffset, logMetaDataBuffer, LOG_DEFAULT_FRAME_HEADER_OFFSET, DataHeaderFlyweight.HEADER_LENGTH);
         }
@@ -540,7 +539,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
          * @return the termId from a packed raw tail value.
          */
         public static int TermId(long rawTail) {
-            return (int)(rawTail >> 32);
+            return (int)((long)((ulong)rawTail >> 32));
         }
 
         /**

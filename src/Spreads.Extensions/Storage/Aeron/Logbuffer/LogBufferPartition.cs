@@ -69,7 +69,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
             get
             {
                 var rawTail = _metaDataBuffer.ReadInt64(LogBufferDescriptor.TERM_TAIL_COUNTER_OFFSET);
-                return (int)(rawTail >> 32);
+                return (int)((long)((ulong)rawTail >> 32));
             }
             set
             {

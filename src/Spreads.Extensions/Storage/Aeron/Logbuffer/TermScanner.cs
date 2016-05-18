@@ -88,7 +88,7 @@ public class TermScanner
      */
     public static int Padding(long result)
     {
-        return (int)(result >> 32);
+        return (int)((long)((ulong)result >> 32));
     }
 }
 }
