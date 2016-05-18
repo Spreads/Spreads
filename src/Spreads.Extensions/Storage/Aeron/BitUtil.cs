@@ -110,27 +110,59 @@ namespace Spreads.Storage.Aeron {
 
 
         public static int NumberOfLeadingZeros(int i) {
-            if (i == 0)
+            if (i == 0) {
                 return 32;
+            }
             int n = 1;
-            if (i >> 16 == 0) { n += 16; i <<= 16; }
-            if (i >> 24 == 0) { n += 8; i <<= 8; }
-            if (i >> 28 == 0) { n += 4; i <<= 4; }
-            if (i >> 30 == 0) { n += 2; i <<= 2; }
-            n -= i >> 31;
+            if ((int)((uint)i >> 16) == 0) {
+                n += 16;
+                i <<= 16;
+            }
+            if ((int)((uint)i >> 24) == 0) {
+                n += 8;
+                i <<= 8;
+            }
+            if ((int)((uint)i >> 28) == 0) {
+                n += 4;
+                i <<= 4;
+            }
+            if ((int)((uint)i >> 30) == 0) {
+                n += 2;
+                i <<= 2;
+            }
+            n -= (int)((uint)i >> 31);
             return n;
         }
 
 
         public static int NumberOfTrailingZeros(int i) {
+            // HD, Figure 5-14
             int y;
-            if (i == 0) return 32;
+            if (i == 0) {
+                return 32;
+            }
             int n = 31;
-            y = i << 16; if (y != 0) { n = n - 16; i = y; }
-            y = i << 8; if (y != 0) { n = n - 8; i = y; }
-            y = i << 4; if (y != 0) { n = n - 4; i = y; }
-            y = i << 2; if (y != 0) { n = n - 2; i = y; }
-            return n - ((i << 1) >> 31);
+            y = i << 16;
+            if (y != 0) {
+                n = n - 16;
+                i = y;
+            }
+            y = i << 8;
+            if (y != 0) {
+                n = n - 8;
+                i = y;
+            }
+            y = i << 4;
+            if (y != 0) {
+                n = n - 4;
+                i = y;
+            }
+            y = i << 2;
+            if (y != 0) {
+                n = n - 2;
+                i = y;
+            }
+            return n - ((int)((uint)(i << 1) >> 31));
         }
 
         private static Encoding UTF8_CHARSET = System.Text.Encoding.UTF8;

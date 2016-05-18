@@ -77,8 +77,8 @@ namespace Spreads.Extensions.Tests {
         [Test]
         public void CouldCreateTwoRepositoriesAndSynchronizeSeries() {
 
-            using (var repo = new SeriesRepository("../SeriesRepositoryTests", 100))
-            using (var repo2 = new SeriesRepository("../SeriesRepositoryTests", 100)) {
+            using (var repo = new SeriesRepository("../SeriesRepositoryTests", 25))
+            using (var repo2 = new SeriesRepository("../SeriesRepositoryTests", 25)) {
                 for (int rounds = 0; rounds < 10; rounds++) {
 
                     var sw = new Stopwatch();
