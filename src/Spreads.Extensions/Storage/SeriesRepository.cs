@@ -188,7 +188,7 @@ namespace Spreads.Storage {
             };
 
             var ipom = base.GetSeries<K, V>(exSeriesId.Id, exSeriesId.Version, false);
-            var pSeries = new PersistentSeries<K, V>(_appendLog, uuid,
+            var pSeries = new PersistentSeries<K, V>(_appendLog, _pid, uuid,
                 ipom, allowBatches, isWriter,
                 disposeCallback);
             // NB this is done in consturctor: pSeries.RefCounter++;
