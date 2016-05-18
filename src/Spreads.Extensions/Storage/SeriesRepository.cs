@@ -26,6 +26,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Serialization;
 using Spreads.Storage.Aeron.Logbuffer;
+using Spreads.Storage.Aeron.Protocol;
 
 namespace Spreads.Storage {
 
@@ -45,6 +46,12 @@ namespace Spreads.Storage {
 
         // Opened series that could accept commands
         private readonly ConcurrentDictionary<UUID, IAcceptCommand> _openSeries = new ConcurrentDictionary<UUID, IAcceptCommand>();
+        private static short _counter = 0;
+        private int _pid;
+        static SeriesRepository()
+        {
+            
+        }
 
         /// <summary>
         /// Create a series repository at a specified location.
@@ -65,6 +72,8 @@ namespace Spreads.Storage {
             var logBufferFileName = Path.Combine(path, LogBufferFileName);
             _appendLog = new AppendLog(logBufferFileName, bufferSizeMb < MinimumBufferSize ? (int)MinimumBufferSize : (int)bufferSizeMb);
             _appendLog.OnAppend += OnLogAppend;
+            _pid = (_counter << 16) | Process.GetCurrentProcess().Id;
+            _counter++;
         }
 
         protected PersistentMapFixedLength<UUID, int> WriteSeriesLocks => _writeSeriesLocks;
@@ -77,13 +86,24 @@ namespace Spreads.Storage {
             return SeriesStorage.GetDefaultConnectionString(storageFileName);
         }
 
-        protected static readonly int Pid = Process.GetCurrentProcess().Id;
+        // fake a different Pid for each repo instance inside a single process
+        protected int Pid => _pid;
 
         protected virtual unsafe void OnLogAppend(DirectBuffer buffer) {
-            var uuid = (*(CommandHeader*)(buffer.Data)).SeriesId;
+            
+
+            var writerPid = buffer.ReadInt64(DataHeaderFlyweight.RESERVED_VALUE_OFFSET);
+            var messageBuffer = new DirectBuffer(buffer.Length - DataHeaderFlyweight.HEADER_LENGTH,
+                buffer.Data + DataHeaderFlyweight.HEADER_LENGTH);
+            var uuid = (*(CommandHeader*)(messageBuffer.Data)).SeriesId;
+
             IAcceptCommand series;
-            if (_openSeries.TryGetValue(uuid, out series)) {
-                series.ApplyCommand(buffer);
+            if (
+                writerPid != Pid // ignore our own messages
+                &&
+                _openSeries.TryGetValue(uuid, out series) // ignore messages for closed series
+                ) {
+                series.ApplyCommand(messageBuffer);
             }
         }
 
@@ -216,6 +236,7 @@ namespace Spreads.Storage {
             _appendLog.Claim(len, out claim);
             *(CommandHeader*)(claim.Data) = header;
             claim.Buffer.WriteBytes(claim.Offset + CommandHeader.Size, textIdBytes, 0, textIdBytes.Length);
+            claim.ReservedValue = Pid;
             claim.Commit();
         }
 
@@ -229,6 +250,7 @@ namespace Spreads.Storage {
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
             *(CommandHeader*)(claim.Data) = header;
+            claim.ReservedValue = Pid;
             claim.Commit();
         }
 
@@ -241,6 +263,7 @@ namespace Spreads.Storage {
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
             *(CommandHeader*)(claim.Data) = header;
+            claim.ReservedValue = Pid;
             claim.Commit();
         }
 
@@ -266,6 +289,7 @@ namespace Spreads.Storage {
             _appendLog.Claim(len, out claim);
             *(CommandHeader*)(claim.Data) = header;
             TypeHelper<ChunkCommandBody>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
+            claim.ReservedValue = Pid;
             claim.Commit();
 
             return ret;
@@ -290,6 +314,7 @@ namespace Spreads.Storage {
             _appendLog.Claim(len, out claim);
             *(CommandHeader*)(claim.Data) = header;
             TypeHelper<ChunkCommandBody>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
+            claim.ReservedValue = Pid;
             claim.Commit();
 
             return ret;
