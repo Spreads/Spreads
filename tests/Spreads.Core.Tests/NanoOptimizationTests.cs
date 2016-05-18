@@ -24,45 +24,58 @@ namespace Spreads.Core.Tests {
 
         public struct ThisIsSrtuct : IIncrementable {
             private byte[] value;
+            private int* ptr;
+            private GCHandle pinnedGcHandle;
 
             public ThisIsSrtuct(byte[] bytes) {
                 value = bytes;
+                pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
+                ptr = (int*)pinnedGcHandle.AddrOfPinnedObject().ToPointer();
             }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+
             public int Increment() {
-                fixed (byte* ptr = &value[0])
-                {
-                    *((int*)ptr) = *((int*)ptr) + 1;
-                    return (*((int*)ptr));
-                }
+                *((int*)ptr) = *((int*)ptr) + 1;
+                return (*((int*)ptr));
+                //return (*((int*)ptr))++;
             }
 
         }
 
         public static class ThisIsStaticClass {
             private static byte[] value = new byte[4];
+            private static IntPtr ptr;
+            private static GCHandle pinnedGcHandle;
+
+            static ThisIsStaticClass() {
+                pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
+                ptr = pinnedGcHandle.AddrOfPinnedObject();
+            }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static int Increment() {
-                fixed (byte* ptr = &value[0])
-                {
-                    *((int*)ptr) = *((int*)ptr) + 1;
-                    return (*((int*)ptr));
-                }
+                *((int*)ptr) = *((int*)ptr) + 1;
+                return (*((int*)ptr));
+
             }
 
         }
 
         public class ThisIsClass : IIncrementable {
             private byte[] value = new byte[4];
+            private IntPtr ptr;
+            private GCHandle pinnedGcHandle;
+
+            public ThisIsClass() {
+                pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
+                ptr = pinnedGcHandle.AddrOfPinnedObject();
+            }
+
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int Increment() {
-                fixed (byte* ptr = &value[0])
-                {
-                    *((int*)ptr) = *((int*)ptr) + 1;
-                    return (*((int*)ptr));
-                }
+                *((int*)ptr) = *((int*)ptr) + 1;
+                return (*((int*)ptr));
+
             }
 
         }
@@ -71,81 +84,115 @@ namespace Spreads.Core.Tests {
 
         public class ThisIsBaseClass : IIncrementable {
             private byte[] value = new byte[4];
+            private IntPtr ptr;
+            private GCHandle pinnedGcHandle;
 
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public virtual int Increment() {
-                fixed (byte* ptr = &value[0])
-                {
-                    *((int*)ptr) = *((int*)ptr) + 1;
-                    return (*((int*)ptr));
-                }
+            public ThisIsBaseClass() {
+                pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
+                ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public virtual int Increment() {
+                *((int*)ptr) = *((int*)ptr) + 1;
+                return (*((int*)ptr));
+
+            }
         }
 
         public class ThisIsDerivedClass : ThisIsBaseClass, IIncrementable {
             private byte[] value = new byte[4];
+            private IntPtr ptr;
+            private GCHandle pinnedGcHandle;
+
+            public ThisIsDerivedClass() {
+                pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
+                ptr = pinnedGcHandle.AddrOfPinnedObject();
+            }
+
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public override int Increment() {
-                fixed (byte* ptr = &value[0])
-                {
-                    *((int*)ptr) = *((int*)ptr) + 1;
-                    return (*((int*)ptr));
-                }
+                *((int*)ptr) = *((int*)ptr) + 1;
+                return (*((int*)ptr));
+
             }
         }
 
         public class ThisIsDerivedClass2 : ThisIsBaseClass, IIncrementable {
             private byte[] value = new byte[4];
+            private IntPtr ptr;
+            private GCHandle pinnedGcHandle;
+
+            public ThisIsDerivedClass2() {
+                pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
+                ptr = pinnedGcHandle.AddrOfPinnedObject();
+            }
+
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public override int Increment() {
-                fixed (byte* ptr = &value[0])
-                {
-                    *((int*)ptr) = *((int*)ptr) + 1;
-                    return (*((int*)ptr));
-                }
+                *((int*)ptr) = *((int*)ptr) + 1;
+                return (*((int*)ptr));
+
             }
         }
 
         public sealed class ThisIsSealedDerivedClass : ThisIsDerivedClass, IIncrementable {
             private byte[] value = new byte[4];
+            private IntPtr ptr;
+            private GCHandle pinnedGcHandle;
+
+            public ThisIsSealedDerivedClass() {
+                pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
+                ptr = pinnedGcHandle.AddrOfPinnedObject();
+            }
+
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public override int Increment() {
-                fixed (byte* ptr = &value[0])
-                {
-                    *((int*)ptr) = *((int*)ptr) + 1;
-                    return (*((int*)ptr));
-                }
+                *((int*)ptr) = *((int*)ptr) + 1;
+                return (*((int*)ptr));
+
             }
         }
 
         public sealed class ThisIsSealedDerivedClass2 : ThisIsDerivedClass, IIncrementable {
             private byte[] value = new byte[4];
+            private IntPtr ptr;
+            private GCHandle pinnedGcHandle;
+
+            public ThisIsSealedDerivedClass2() {
+                pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
+                ptr = pinnedGcHandle.AddrOfPinnedObject();
+            }
+
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public override int Increment() {
-                fixed (byte* ptr = &value[0])
-                {
-                    *((int*)ptr) = *((int*)ptr) + 1;
-                    return (*((int*)ptr));
-                }
+                *((int*)ptr) = *((int*)ptr) + 1;
+                return (*((int*)ptr));
+
             }
         }
 
         public sealed class ThisIsSealedClass : IIncrementable {
             private byte[] value = new byte[4];
+            private IntPtr ptr;
+            private GCHandle pinnedGcHandle;
+
+            public ThisIsSealedClass() {
+                pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
+                ptr = pinnedGcHandle.AddrOfPinnedObject();
+            }
+
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int Increment() {
-                fixed (byte* ptr = &value[0])
-                {
-                    *((int*)ptr) = *((int*)ptr) + 1;
-                    return (*((int*)ptr));
-                }
+                *((int*)ptr) = *((int*)ptr) + 1;
+                return (*((int*)ptr));
+
             }
         }
 
@@ -155,14 +202,13 @@ namespace Spreads.Core.Tests {
             var sw = new Stopwatch();
 
             sw.Restart();
-            byte[] value = new byte[4];
+            int* ptr = stackalloc int[1];
+
+
             int intValue = 0;
             for (int i = 0; i < count; i++) {
-                fixed (byte* ptr = &value[0])
-                {
-                    *((int*)ptr) = *((int*)ptr) + 1;
-                    intValue = *((int*) ptr);
-                }
+                *((int*)ptr) = *((int*)ptr) + 1;
+                intValue = (*((int*)ptr));
             }
             sw.Stop();
             Console.WriteLine($"Value {sw.ElapsedMilliseconds} ({intValue})");
