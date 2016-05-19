@@ -22,6 +22,7 @@ namespace Spreads.Serialization {
         [ThreadStatic]
         private static IntPtr _ptr;
         private static bool _isInterface;
+        private static bool _isDateTime; // NB: Stipid autom layout of .NET requires special handling!
         private static IBinaryConverter<T> _instance;
 
         static TypeHelper() {
@@ -35,7 +36,9 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe T PtrToStructure(IntPtr ptr) {
+        public static unsafe T PtrToStructure(IntPtr ptr)
+        {
+            if (Size <= 0) throw new InvalidOperationException("PtrToStructure must be called only on fixed-length types");
             if (_isInterface) {
                 return _instance.FromPtr(ptr);
             }
@@ -45,6 +48,10 @@ namespace Spreads.Serialization {
             *(IntPtr*)(&tr) = ptr;
             return __refvalue(tr, T);
 #else
+            if (_isDateTime)
+            {
+                return (T)(object)*(DateTime*) ptr;
+            }
             try {
                 if (!_usePinnedArray) return (T)Marshal.PtrToStructure(ptr, typeof(T));
             } catch {
@@ -80,6 +87,7 @@ namespace Spreads.Serialization {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void StructureToPtr(T value, IntPtr pointer) {
+            if (Size <= 0) throw new InvalidOperationException("StructureToPtr must be called only on fixed-length types");
             if (_isInterface) {
                 _instance.ToPtr(value, pointer);
                 return;
@@ -92,6 +100,13 @@ namespace Spreads.Serialization {
             *(IntPtr*)(&tr) = pointer;
             __refvalue(tr, T) = value;
 #else
+            if (_isDateTime)
+            {
+                // TODO http://stackoverflow.com/a/3344181/801189
+                // Code gen is probably needed to avoid boxing when TYPED_REF is not available
+                *(DateTime*) pointer = Convert.ToDateTime(value);
+                return;
+            }
             try {
                 if (!_usePinnedArray) {
                     Marshal.StructureToPtr(value, pointer, false);
@@ -146,7 +161,11 @@ namespace Spreads.Serialization {
 
         private static int SizeOf() {
 
-            if (typeof(T) == typeof(DateTime)) return 8;
+            if (typeof (T) == typeof (DateTime))
+            {
+                _isDateTime = true;
+                return 8;
+            }
             //#if TYPED_REF
             //            unsafe
             //            {
