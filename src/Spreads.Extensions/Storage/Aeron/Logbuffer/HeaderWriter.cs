@@ -25,14 +25,14 @@ namespace Spreads.Storage.Aeron.Logbuffer {
         /// <param name="offset">offset at which the header should be written.</param>
         /// <param name="length">length of the fragment including the header.</param>
         /// <param name="termId">termId of the current term buffer.</param>
-        public void Write(DirectBuffer termBuffer, int offset, int length, int termId)
+        public unsafe void Write(DirectBuffer termBuffer, int offset, int length, int termId)
         {
             var dataHeader = _defaultHeader; // copy struct by value
             dataHeader.Header.FrameLength = -length;
             dataHeader.TermOffset = offset;
             dataHeader.TermID = termId;
 
-            termBuffer.Write(offset + HeaderFlyweight.FRAME_LENGTH_FIELD_OFFSET, dataHeader);
+            *(DataHeader*) (termBuffer.Data + offset + HeaderFlyweight.FRAME_LENGTH_FIELD_OFFSET) = dataHeader;
 
             // NB we do not actually need any fence here, a frame is committed only after its length is set to a positive value,
             // therefore only volatile write of the length is needed

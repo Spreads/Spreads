@@ -41,7 +41,7 @@ namespace Spreads.Storage {
 
         private readonly IAppendLog _appendLog;
         private const string LogBufferFileName = "appendbuffer";
-        private const uint MinimumBufferSize = 100;
+        private const uint MinimumBufferSize = 10;
         private const string StorageFileName = "chunkstorage";
 
         // Opened series that could accept commands

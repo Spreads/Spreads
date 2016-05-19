@@ -36,8 +36,7 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe T PtrToStructure(IntPtr ptr)
-        {
+        public static unsafe T PtrToStructure(IntPtr ptr) {
             if (Size <= 0) throw new InvalidOperationException("PtrToStructure must be called only on fixed-length types");
             if (_isInterface) {
                 return _instance.FromPtr(ptr);
@@ -161,31 +160,11 @@ namespace Spreads.Serialization {
 
         private static int SizeOf() {
 
-            if (typeof (T) == typeof (DateTime))
-            {
+            if (typeof(T) == typeof(DateTime)) {
                 _isDateTime = true;
                 return 8;
             }
-            //#if TYPED_REF
-            //            unsafe
-            //            {
-            //                GCHandle handle = default(GCHandle);
-            //                try {
-            //                    var array = new T[2];
-            //                    //handle = GCHandle.Alloc(array, GCHandleType.Pinned);
-            //                    TypedReference
-            //                        elem1 = __makeref(array[0]),
-            //                        elem2 = __makeref(array[1]);
-            //                    unsafe
-            //                    {
-            //                        return (int)((byte*)*(IntPtr*)(&elem2) - (byte*)*(IntPtr*)(&elem1));
-            //                    }
-            //                } finally {
-            //                    //handle.Free();
-            //                }
-            //            }
-            //#else
-            //#endif
+
             try {
                 return Marshal.SizeOf(typeof(T));
             } catch {
@@ -226,33 +205,14 @@ namespace Spreads.Serialization {
             }
         }
 
-        //        internal static int SizeUnsafe() {
-        //#if TYPED_REF
-        //            unsafe
-        //            {
-        //                GCHandle handle = default(GCHandle);
-        //                var array = new T[2];
-        //                var local = __makeref(array);
-        //                TypedReference
-        //                    elem1 = __makeref(array[0]),
-        //                    elem2 = __makeref(array[1]);
-        //                unsafe
-        //                {
-        //                    return (int)((byte*)*(IntPtr*)(&elem2) - (byte*)*(IntPtr*)(&elem1));
-        //                }
-        //            }
-        //#else
-        //            throw new NotSupportedException();
-        //#endif
-        //        }
-
         /// <summary>
         /// Returns a positive size of a blittable type T, or -1 if the type T is not blittable.
         /// We assume the type T is blittable if `GCHandle.Alloc(T[2], GCHandleType.Pinned) = true`.
         /// This is more relaxed than Marshal.SizeOf, but still doesn't cover cases such as 
-        /// and array of KVP[DateTime,double], which has a contiguous layout in memory.
+        /// an array of KVP[DateTime,double], which has a contiguous layout in memory.
         /// </summary>
         public static int Size { get; }
+
         private static int SizeMinus8 { get; }
         private static int SizeMinus4 { get; }
     }
