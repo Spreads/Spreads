@@ -477,6 +477,7 @@
     <None Include="DataTypes\DataTypes.md" />
     <None Include="packages.config" />
     <None Include="Serialization\Serializer.md" />
+    <None Include="Storage\Protocol.md" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj">

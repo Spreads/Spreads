@@ -87,7 +87,9 @@ namespace Spreads.Storage {
                     while (!_cts.IsCancellationRequested) {
                         Poll();
                         // TODO try waithandle as in IpcLongIncrementListener
-                        Thread.SpinWait(1);
+                        //var sw = new SpinWait();
+                        //sw.SpinOnce();
+                        Thread.SpinWait(0);
                     }
                 }
             }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default)
