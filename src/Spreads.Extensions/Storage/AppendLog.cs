@@ -47,7 +47,7 @@ namespace Spreads.Storage {
         private int _termLengthMask;
 
 
-        public AppendLog(string filepath, int bufferSizeMb = 10) {
+        public AppendLog(string filepath, int bufferSizeMb = 100) {
             var bufferSizeInBytes = BitUtil.FindNextPositivePowerOfTwo(bufferSizeMb * 1024 * 1024);
 
             _logBuffers = new LogBuffers(filepath, bufferSizeInBytes);
@@ -58,36 +58,50 @@ namespace Spreads.Storage {
             _termLengthMask = _logBuffers.TermLength - 1;
             _positionBitsToShift = BitUtil.NumberOfTrailingZeros(_logBuffers.TermLength);
             _initialTermId = InitialTermId(_logBuffers.LogMetaData);
-            var defaultHeader = DefaultFrameHeader(_logBuffers.LogMetaData);
+            //var defaultHeader = DefaultFrameHeader(_logBuffers.LogMetaData);
+            var defaultHeader = DataHeaderFlyweight.CreateDefaultHeader(0, 0, _initialTermId);
             _headerWriter = new HeaderWriter(defaultHeader);
 
             _subscriberPosition = Position;
             Trace.Assert(_subscriberPosition == Position);
 
             _cleaner = Task.Factory.StartNew(async () => {
-                while (!_cts.IsCancellationRequested) {
-                    // try to clean every second
-                    await _cleanEvent.WaitAsync(1000);
-                    CleanLogBuffer();
+                try {
+                } finally {
+                    while (!_cts.IsCancellationRequested) {
+                        // try to clean every second
+                        await _cleanEvent.WaitAsync(1000);
+                        CleanLogBuffer();
+                    }
                 }
-            }, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default);
+            }, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default)
+            .ContinueWith(task => {
+                Console.WriteLine("AppendLog CleanLogBuffer should never throw exceptions" + Environment.NewLine + task.Exception);
+                Environment.FailFast("AppendLog CleanLogBuffer should never throw exceptions", task.Exception);
+
+            }, TaskContinuationOptions.OnlyOnFaulted);
 
             _poller = Task.Factory.StartNew(() => {
-                while (!_cts.IsCancellationRequested) {
-                    Poll();
-                    // TODO try waithandle as in IpcLongIncrementListener
-                    Thread.SpinWait(1);
+                try {
+                } finally {
+                    while (!_cts.IsCancellationRequested) {
+                        Poll();
+                        // TODO try waithandle as in IpcLongIncrementListener
+                        Thread.SpinWait(1);
+                    }
                 }
-            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default)
+            .ContinueWith(task => {
+                Console.WriteLine("AppendLog Poll should never throw exceptions" + Environment.NewLine + task.Exception);
+                Environment.FailFast("AppendLog Poll should never throw exceptions", task.Exception);
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
 
         public event OnAppendHandler OnAppend;
         public event ErrorHandler OnError;
 
-        public long Claim(int length, out BufferClaim claim)
-        {
-            while (true)
-            {
+        public long Claim(int length, out BufferClaim claim) {
+            while (true) {
                 var partitionIndex = ActivePartitionIndex(_logBuffers.LogMetaData);
                 var termAppender = _termAppenders[partitionIndex];
                 long rawTail = termAppender.RawTailVolatile;
@@ -96,7 +110,7 @@ namespace Spreads.Storage {
                 long position = ComputeTermBeginPosition(TermId(rawTail), _positionBitsToShift, _initialTermId) + termOffset;
 
                 long result = termAppender.Claim(_headerWriter, length, out claim);
-                long newPosition = NewPosition(partitionIndex, (int) termOffset, position, result);
+                long newPosition = NewPosition(partitionIndex, (int)termOffset, position, result);
 
                 if (newPosition < 0) continue;
                 return newPosition;
@@ -173,8 +187,8 @@ namespace Spreads.Storage {
 
         public void Dispose() {
             _cts.Cancel();
-            _cleaner.Wait();
-            _poller.Wait();
+            //_cleaner.Wait();
+            //_poller.Wait();
             _logBuffers.Dispose();
         }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using Spreads.Serialization;
 using Spreads.Storage.Aeron.Protocol;
 
@@ -192,7 +193,8 @@ namespace Spreads.Storage.Aeron.Logbuffer {
          * @return true if the frame is a padding frame otherwise false.
          */
         public static bool IsPaddingFrame(DirectBuffer buffer, int termOffset) {
-            return buffer.ReadInt16(TypeOffset(termOffset)) == PADDING_FRAME_TYPE;
+            var type = buffer.ReadInt16(TypeOffset(termOffset));
+            return type == PADDING_FRAME_TYPE;
         }
 
         /**

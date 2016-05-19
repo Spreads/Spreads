@@ -17,8 +17,9 @@ namespace Spreads.Serialization {
         private static bool _usePinnedArray;
         [ThreadStatic]
         private static T[] _array;
-
+        [ThreadStatic]
         private static IntPtr _tgt;
+        [ThreadStatic]
         private static IntPtr _ptr;
         private static bool _isInterface;
         private static IBinaryConverter<T> _instance;

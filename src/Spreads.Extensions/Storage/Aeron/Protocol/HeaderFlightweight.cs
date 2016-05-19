@@ -3,7 +3,7 @@ using Spreads.Serialization;
 
 namespace Spreads.Storage.Aeron.Protocol {
 
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 8)]
     public struct Header {
         public int FrameLength;
         public byte Version;

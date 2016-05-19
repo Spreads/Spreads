@@ -1,4 +1,6 @@
-﻿using Spreads.Serialization;
+﻿using System.Diagnostics;
+using System.Threading;
+using Spreads.Serialization;
 using Spreads.Storage.Aeron.Protocol;
 
 namespace Spreads.Storage.Aeron.Logbuffer {
@@ -8,45 +10,34 @@ namespace Spreads.Storage.Aeron.Logbuffer {
     /// This class is designed to be thread safe to be used across multiple producers and makes the header
     /// visible in the correct order for consumers.
     /// </summary>
+    public class HeaderWriter {
+        private readonly DataHeader _defaultHeader;
 
-    public struct HeaderWriter {
-        private readonly long versionFlagsType;
-        private readonly long sessionId;
-        private readonly long streamId;
-
-        public HeaderWriter(DirectBuffer defaultHeader) {
-            versionFlagsType = ((long)defaultHeader.ReadInt32(HeaderFlyweight.VERSION_FIELD_OFFSET)) << 32;
-            sessionId = ((long)defaultHeader.ReadInt32(DataHeaderFlyweight.SESSION_ID_FIELD_OFFSET)) << 32;
-            streamId = defaultHeader.ReadInt32(DataHeaderFlyweight.STREAM_ID_FIELD_OFFSET) & 0xFFFFFFFFL;
-        }
 
         public HeaderWriter(DataHeader defaultHeader) {
-            versionFlagsType = ((int)defaultHeader.Header.Version << 24 | (int)defaultHeader.Header.Flags << 16 | (int)defaultHeader.Header.Type) << 32;
-            sessionId = (long)defaultHeader.SessionID  << 32;
-            streamId = (long)defaultHeader.StreamID & 0xFFFFFFFFL;
+            _defaultHeader = defaultHeader;
         }
 
-        /**
-         * Write a header to the term buffer in {@link ByteOrder#LITTLE_ENDIAN} format using the minimum instructions.
-         *
-         * @param termBuffer to be written to.
-         * @param offset     at which the header should be written.
-         * @param length     of the fragment including the header.
-         * @param termId     of the current term buffer.
-         */
-        public void Write(DirectBuffer termBuffer, int offset, int length, int termId) {
-            var lengthVersionFlagsType = versionFlagsType | ((-length) & 0xFFFFFFFFL);
-            var termOffsetSessionId = sessionId | offset;
-            var streamAndTermIds = streamId | (((long)termId) << 32);
+        /// <summary>
+        /// Write a header to the term buffer in {@link ByteOrder#LITTLE_ENDIAN} format using the minimum instructions.
+        /// </summary>
+        /// <param name="termBuffer">termBuffer to be written to.</param>
+        /// <param name="offset">offset at which the header should be written.</param>
+        /// <param name="length">length of the fragment including the header.</param>
+        /// <param name="termId">termId of the current term buffer.</param>
+        public void Write(DirectBuffer termBuffer, int offset, int length, int termId)
+        {
+            var dataHeader = _defaultHeader; // copy struct by value
+            dataHeader.Header.FrameLength = -length;
+            dataHeader.TermOffset = offset;
+            dataHeader.TermID = termId;
 
-            termBuffer.VolatileWriteInt64(offset + HeaderFlyweight.FRAME_LENGTH_FIELD_OFFSET, lengthVersionFlagsType);
-            // NB compare .NET Volatile.Write and Java storeFence docs:
-            // .NET: if a read or write appears before this method in the code, the processor cannot move it after this method.
-            // Ensures that loads and stores before the fence will not be reordered with stores after the fence;
-            // UnsafeAccess.UNSAFE.storeFence();
+            termBuffer.Write(offset + HeaderFlyweight.FRAME_LENGTH_FIELD_OFFSET, dataHeader);
 
-            termBuffer.WriteInt64(offset + DataHeaderFlyweight.TERM_OFFSET_FIELD_OFFSET, termOffsetSessionId);
-            termBuffer.WriteInt64(offset + DataHeaderFlyweight.STREAM_ID_FIELD_OFFSET, streamAndTermIds);
+            // NB we do not actually need any fence here, a frame is committed only after its length is set to a positive value,
+            // therefore only volatile write of the length is needed
+            // In .NET, Volatile.Write generates a fence: http://stackoverflow.com/a/6932271/801189
+            // //Thread.MemoryBarrier();
         }
     }
 
