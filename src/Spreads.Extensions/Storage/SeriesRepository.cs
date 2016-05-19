@@ -41,7 +41,7 @@ namespace Spreads.Storage {
 
         private readonly IAppendLog _appendLog;
         private const string LogBufferFileName = "appendbuffer";
-        private const uint MinimumBufferSize = 10;
+        private const uint MinimumBufferSize = 100;
         private const string StorageFileName = "chunkstorage";
 
         // Opened series that could accept commands
@@ -59,7 +59,7 @@ namespace Spreads.Storage {
         /// <param name="path">A directory path where repository is stored. If null or empty, then
         /// a default folder is used.</param>
         /// <param name="bufferSizeMb">Buffer size in megabytes. Ignored if below default.</param>
-        public SeriesRepository(string path = null, uint bufferSizeMb = 10) : base(GetConnectionStringFromPath(path)) {
+        public SeriesRepository(string path = null, uint bufferSizeMb = 100) : base(GetConnectionStringFromPath(path)) {
             if (string.IsNullOrWhiteSpace(path)) {
                 path = Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "Repos", "Default");
             }
@@ -147,7 +147,7 @@ namespace Spreads.Storage {
                     int pid;
                     if (_writeSeriesLocks.TryGetValue(seriesId, out pid)) {
                         try {
-                            Process.GetProcessById(pid);
+                            Process.GetProcessById(pid & ((1 << 16) - 1));
                             Trace.TraceWarning("Tried to steal a lock but the owner process was alive.");
                         } catch (ArgumentException) {
                             // pid is not running anymore, steal lock
@@ -209,7 +209,7 @@ namespace Spreads.Storage {
                 int pid;
                 if (_writeSeriesLocks.TryGetValue(uuid, out pid)) {
                     try {
-                        Process.GetProcessById(pid);
+                        Process.GetProcessById(pid & ((1 << 16) - 1));
                         await pSeries.FlushEvent.WaitAsync(-1);
                     } catch (ArgumentException) {
                         // pid is not running anymore, steal lock

@@ -77,9 +77,9 @@ namespace Spreads.Extensions.Tests {
         [Test]
         public void CouldCreateTwoRepositoriesAndSynchronizeSeries() {
 
-            using (var repo = new SeriesRepository("../SeriesRepositoryTests", 25))
-            using (var repo2 = new SeriesRepository("../SeriesRepositoryTests", 25)) {
-                for (int rounds = 0; rounds < 10; rounds++) {
+            using (var repo = new SeriesRepository("../SeriesRepositoryTests", 100))
+            using (var repo2 = new SeriesRepository("../SeriesRepositoryTests", 100)) {
+                for (int rounds = 0; rounds < 1000; rounds++) {
 
                     var sw = new Stopwatch();
                     
@@ -90,7 +90,7 @@ namespace Spreads.Extensions.Tests {
                         repo2.ReadSeries<DateTime, double>("test_CouldCreateTwoRepositoriesAndSynchronizeSeries").Result;
                     var readCursor = psRead.GetCursor();
                     readCursor.MoveLast();
-                    Console.WriteLine(readCursor.Current);
+                    Trace.WriteLine(readCursor.Current);
                     var ps =
                         repo.WriteSeries<DateTime, double>("test_CouldCreateTwoRepositoriesAndSynchronizeSeries").Result;
                     var start = ps.IsEmpty ? DateTime.UtcNow : ps.Last.Key;
@@ -102,6 +102,7 @@ namespace Spreads.Extensions.Tests {
                         var cnt = 0;
                         while (cnt < count && await readCursor.MoveNext(CancellationToken.None)) {
                             if (readCursor.Current.Value != cnt) Assert.AreEqual(cnt, readCursor.Current.Value);
+                            if (readCursor.Current.Key != start.AddTicks(cnt + 1)) Assert.AreEqual(readCursor.Current.Key, start.AddTicks(cnt + 1));
                             cnt++;
                         }
                     });
@@ -110,11 +111,16 @@ namespace Spreads.Extensions.Tests {
                         ps.Add(start.AddTicks(i + 1), i);
                     }
 
-                    readerTask.Wait();
+                    while (!readerTask.Wait(2000))
+                    {
+                        Trace.WriteLine("Timeout");
+                        Trace.WriteLine($"Cursor: {readCursor.CurrentKey} - {readCursor.CurrentValue}");
+                    }
+                    
 
                     sw.Stop();
-                    Console.WriteLine($"Elapsed msec: {sw.ElapsedMilliseconds}");
-                    Console.WriteLine($"Round: {rounds}");
+                    Trace.WriteLine($"Elapsed msec: {sw.ElapsedMilliseconds}");
+                    Trace.WriteLine($"Round: {rounds}");
                 }
             }
         }
