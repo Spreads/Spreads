@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Serialization;
 using Spreads.Storage.Aeron.Protocol;
@@ -79,142 +80,65 @@ namespace Spreads.Storage.Aeron.Logbuffer {
             _metaDataBuffer.VolatileWriteInt32(LogBufferDescriptor.TERM_STATUS_OFFSET, status);
         }
 
-        /**
-         * Claim length of a the term buffer for writing in the message with zero copy semantics.
-         *
-         * @param headerWriter      for writing the default headerWriter.
-         * @param length      of the message to be written.
-         * @param bufferClaim to be updated with the claimed region.
-         * @return the resulting offset of the term after the append on success otherwise {@link #TRIPPED} or {@link #FAILED}
-         * packed with the termId if a padding record was inserted at the end.
-         */
-        public long Claim(HeaderWriter headerWriter, int length, out BufferClaim bufferClaim) {
-            int frameLength = length + DataHeaderFlyweight.HEADER_LENGTH;
-            int alignedLength = BitUtil.Align(frameLength, FrameDescriptor.FRAME_ALIGNMENT);
-            long rawTail = GetAndAddRawTail(alignedLength);
-            long termOffset = rawTail & 0xFFFFFFFFL;
-
-            DirectBuffer termBuffer = this.TermBuffer;
-            checked {
-                int termLength = (int)termBuffer.Length;
-
-                long currentOffset = termOffset - alignedLength;
-
-                long resultingOffset = termOffset; // + alignedLength; // NB Interlocked.Add returns value after addition
-                if (resultingOffset > termLength) {
-                    //resultingOffset = HandleEndOfLogCondition(termBuffer, termOffset, headerWriter, termLength, TermId(rawTail));
-                    resultingOffset = HandleEndOfLogCondition(termBuffer, currentOffset, headerWriter, termLength, TermId(rawTail));
-                    bufferClaim = default(BufferClaim);
-                } else {
-                    //int offset = (int)termOffset;
-                    int offset = (int)currentOffset;
-                    headerWriter.Write(termBuffer, offset, frameLength, TermId(rawTail));
-                    bufferClaim = new BufferClaim(termBuffer, offset, frameLength);
-                }
-                return resultingOffset;
-            }
-        }
-
-        /**
-         * Append an unfragmented message to the the term buffer.
-         *
-         * @param headerWriter    for writing the default headerWriter.
-         * @param srcBuffer containing the message.
-         * @param srcOffset at which the message begins.
-         * @param length    of the message in the source buffer.
-         * @return the resulting offset of the term after the append on success otherwise {@link #TRIPPED} or {@link #FAILED}
-         * packed with the termId if a padding record was inserted at the end.
-         */
-        public long AppendUnfragmentedMessage(
-            HeaderWriter header, DirectBuffer srcBuffer, int srcOffset, int length) {
-            int frameLength = length + DataHeaderFlyweight.HEADER_LENGTH;
-            int alignedLength = BitUtil.Align(frameLength, FrameDescriptor.FRAME_ALIGNMENT);
-            long rawTail = GetAndAddRawTail(alignedLength);
-            long termOffset = rawTail & 0xFFFFFFFFL;
-
-            DirectBuffer termBuffer = this.TermBuffer;
-            checked {
-                int termLength = (int)termBuffer.Length;
-
-                long resultingOffset = termOffset + alignedLength;
-                if (resultingOffset > termLength) {
-                    resultingOffset = HandleEndOfLogCondition(termBuffer, termOffset, header, termLength,
-                        TermId(rawTail));
-                } else {
-                    int offset = (int)termOffset;
-                    header.Write(termBuffer, offset, frameLength, TermId(rawTail));
-                    termBuffer.WriteBytes(offset + DataHeaderFlyweight.HEADER_LENGTH, srcBuffer, srcOffset, length);
-                    FrameDescriptor.FrameLengthOrdered(termBuffer, offset, frameLength);
-                }
-                return resultingOffset;
-            }
-        }
-
         /// <summary>
-        /// Append a fragmented message to the the term buffer.
-        /// The message will be split up into fragments of MTU length minus headerWriter.
+        /// Claim length of a the term buffer for writing in the message with zero copy semantics.
         /// </summary>
-        /// <param name="header">           for writing the default headerWriter. </param>
-        /// <param name="srcBuffer">        containing the message. </param>
-        /// <param name="srcOffset">        at which the message begins. </param>
-        /// <param name="length">           of the message in the source buffer. </param>
-        /// <param name="maxPayloadLength"> that the message will be fragmented into. </param>
+        /// <param name="header">      for writing the default header. </param>
+        /// <param name="length">      of the message to be written. </param>
+        /// <param name="bufferClaim"> to be updated with the claimed region. </param>
         /// <returns> the resulting offset of the term after the append on success otherwise <seealso cref="#TRIPPED"/> or <seealso cref="#FAILED"/>
         /// packed with the termId if a padding record was inserted at the end. </returns>
+        public unsafe long Claim(HeaderWriter header, int length, out BufferClaim bufferClaim) {
 
-        public long AppendFragmentedMessage(
-            HeaderWriter header,
-            DirectBuffer srcBuffer,
-            int srcOffset,
-            int length,
-            int maxPayloadLength) {
-            int numMaxPayloads = length / maxPayloadLength;
-            int remainingPayload = length % maxPayloadLength;
-            int lastFrameLength = remainingPayload > 0 ? BitUtil.Align(remainingPayload + DataHeaderFlyweight.HEADER_LENGTH, FrameDescriptor.FRAME_ALIGNMENT) : 0;
-            int requiredLength = (numMaxPayloads * (maxPayloadLength + DataHeaderFlyweight.HEADER_LENGTH)) + lastFrameLength;
-            throw new NotImplementedException("GetAndAddRawTail returns value before addition");
-            long rawTail = GetAndAddRawTail(requiredLength);
-            int termId = TermId(rawTail);
-            long termOffset = rawTail & 0xFFFFFFFFL;
+            int frameLength = length + DataHeaderFlyweight.HEADER_LENGTH;
+            int alignedLength = BitUtil.Align(frameLength, FrameDescriptor.FRAME_ALIGNMENT);
 
-            DirectBuffer termBuffer = this.TermBuffer;
-
+            DirectBuffer termBuffer = _termBuffer;
             int termLength = (int)termBuffer.Length;
+            long resultingOffset;
+            var spinCounter = 0;
+            var rawTail = RawTailVolatile;
 
-            long resultingOffset = termOffset + requiredLength;
-            if (resultingOffset > termLength) {
-                resultingOffset = HandleEndOfLogCondition(termBuffer, termOffset, header, termLength, termId);
-            } else {
-                int offset = (int)termOffset;
-                byte flags = FrameDescriptor.BEGIN_FRAG_FLAG;
-                int remaining = length;
-                do {
-                    int bytesToWrite = Math.Min(remaining, maxPayloadLength);
-                    int frameLength = bytesToWrite + DataHeaderFlyweight.HEADER_LENGTH;
-                    int alignedLength = BitUtil.Align(frameLength, FrameDescriptor.FRAME_ALIGNMENT);
+            while (true) {
+                var termOffset = rawTail & 0xFFFFFFFFL;
+                resultingOffset = termOffset + alignedLength;
 
-                    header.Write(termBuffer, offset, frameLength, termId);
-                    termBuffer.WriteBytes(
-                        offset + DataHeaderFlyweight.HEADER_LENGTH,
-                        srcBuffer,
-                        srcOffset + (length - remaining),
-                        bytesToWrite);
-
-                    if (remaining <= maxPayloadLength) {
-                        flags |= FrameDescriptor.END_FRAG_FLAG;
-                    }
-
-                    FrameDescriptor.FrameFlags(termBuffer, offset, flags);
-                    FrameDescriptor.FrameLengthOrdered(termBuffer, offset, frameLength);
-
-                    flags = 0;
-                    offset += alignedLength;
-                    remaining -= bytesToWrite;
+                if (resultingOffset > termLength) {
+                    _metaDataBuffer.VolatileWriteInt64(LogBufferDescriptor.TERM_TAIL_COUNTER_OFFSET, rawTail + alignedLength);
+                    resultingOffset = HandleEndOfLogCondition(termBuffer, termOffset, header, termLength, TermId(rawTail));
+                    bufferClaim = default(BufferClaim);
+                    break;
                 }
-                while (remaining > 0);
+
+                // true if we are the first to claim space at current offset
+                if (0 ==
+                    Interlocked.CompareExchange(
+                        ref *(int*)(new IntPtr(_termBuffer.Data.ToInt64() + termOffset)), -length, 0)) {
+                    // if a writer dies here, another writer will unblock below
+                    _metaDataBuffer.VolatileWriteInt64(LogBufferDescriptor.TERM_TAIL_COUNTER_OFFSET, rawTail + alignedLength);
+                    int offset = (int)termOffset;
+                    header.Write(termBuffer, offset, frameLength, TermId(rawTail));
+                    bufferClaim = new BufferClaim(termBuffer, offset, frameLength);
+                    break;
+                }
+
+                // spin, will re-read (volatile) current tail and try again
+                // single writer will always succeed on first try
+                var previousRawTail = rawTail;
+                rawTail = RawTailVolatile;
+                if (previousRawTail == rawTail) {
+                    // incrementing tail happens right next to interlocked -length write
+                    // we should spin in case another writer has written -length but not yet incremented tail
+                    spinCounter++;
+                    if (spinCounter > 100) {
+                        // no-one is progressing, need to unblock
+                        _termBuffer.VolatileWriteInt32(termOffset, 0);
+                    }
+                }
             }
 
             return resultingOffset;
+
         }
 
 

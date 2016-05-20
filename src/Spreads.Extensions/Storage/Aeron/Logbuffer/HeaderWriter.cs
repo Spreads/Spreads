@@ -33,11 +33,6 @@ namespace Spreads.Storage.Aeron.Logbuffer {
             dataHeader.TermID = termId;
 
             *(DataHeader*) (termBuffer.Data + offset + HeaderFlyweight.FRAME_LENGTH_FIELD_OFFSET) = dataHeader;
-
-            // NB we do not actually need any fence here, a frame is committed only after its length is set to a positive value,
-            // therefore only volatile write of the length is needed
-            // In .NET, Volatile.Write generates a fence: http://stackoverflow.com/a/6932271/801189
-            // //Thread.MemoryBarrier();
         }
     }
 
