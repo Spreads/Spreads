@@ -20,7 +20,7 @@ namespace Spreads.Storage.Aeron.Protocol {
  *
  * <a href="https://github.com/real-logic/Aeron/wiki/Protocol-Specification#data-frame">Data Frame</a>
  */
-    public class DataHeaderFlyweight {
+    public struct DataHeaderFlyweight {
         private readonly DirectBuffer _buffer;
         public HeaderFlyweight HeaderFlyweight;
         /**
@@ -52,8 +52,6 @@ namespace Spreads.Storage.Aeron.Protocol {
         public const int RESERVED_VALUE_OFFSET = 24;
         public const int DATA_OFFSET = HEADER_LENGTH;
 
-        public DataHeaderFlyweight() {
-        }
 
         public DataHeaderFlyweight(DirectBuffer buffer) {
             _buffer = buffer;

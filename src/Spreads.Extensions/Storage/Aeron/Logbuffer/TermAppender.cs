@@ -22,7 +22,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
     /// space is not sufficiently large to accommodate the message about to be written.
     /// </summary>
 
-    public struct TermAppender {
+    public sealed class TermAppender {
         private readonly DirectBuffer _termBuffer;
         private readonly DirectBuffer _metaDataBuffer;
         /**

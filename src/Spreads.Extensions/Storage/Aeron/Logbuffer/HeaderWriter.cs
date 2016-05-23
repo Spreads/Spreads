@@ -10,7 +10,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
     /// This class is designed to be thread safe to be used across multiple producers and makes the header
     /// visible in the correct order for consumers.
     /// </summary>
-    public class HeaderWriter {
+    public sealed class HeaderWriter {
         private readonly DataHeader _defaultHeader;
 
 

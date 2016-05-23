@@ -9,7 +9,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
     /// <b>Note:</b> Reading from the term is thread safe, but each thread needs its own instance of this class.
     /// </para>
     /// </summary>
-    public class TermReader {
+    public sealed class TermReader {
         /// <summary>
         /// Reads data from a term in a log buffer.
         ///         

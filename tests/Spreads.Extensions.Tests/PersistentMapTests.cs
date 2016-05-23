@@ -12,7 +12,7 @@ namespace Spreads.Extensions.Tests {
         [Test]
         public void CouldCRUDDirectDict() {
 
-            var count =  500 * 1000000;
+            var count =  1000000;
             var dd = new PersistentMapFixedLength<long, long>("../CouldCRUDDirectDict", count);
             //var dd = new Dictionary<DateTime, long>();
 
@@ -20,7 +20,7 @@ namespace Spreads.Extensions.Tests {
             dd.Clear();
 
             var histogram = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 10000, 3);
-            for (int rounds = 0; rounds < 6; rounds++) {
+            for (int rounds = 0; rounds < 20; rounds++) {
                 //dd.Clear();
                 sw.Restart();
                 var dtInit = DateTime.Today;
@@ -42,7 +42,7 @@ namespace Spreads.Extensions.Tests {
                     percentileTicksPerHalfDistance: 3,
                     outputValueUnitScalingRatio: OutputScalingFactor.None);
             var histogram2 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 10000, 3);
-            for (int rounds = 0; rounds < 6; rounds++) {
+            for (int rounds = 0; rounds < 20; rounds++) {
                 sw.Restart();
                 var sum = 0L;
                 for (int i = 0; i < count; i++)

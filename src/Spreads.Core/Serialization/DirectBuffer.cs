@@ -585,7 +585,8 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <returns></returns>
         public SafeBuffer CreateSafeBuffer() {
-            return new SafeDirectBuffer(ref this);
+            var buffer = this;
+            return new SafeDirectBuffer(ref buffer);
         }
 
 

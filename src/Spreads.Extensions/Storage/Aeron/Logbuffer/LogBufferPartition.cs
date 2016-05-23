@@ -6,7 +6,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
     /// <summary>
     /// Log buffer implementation containing common functionality for dealing with log partition terms.
     /// </summary>
-    public struct LogBufferPartition {
+    public sealed class LogBufferPartition {
         private readonly DirectBuffer _termBuffer;
         private readonly DirectBuffer _metaDataBuffer;
 
