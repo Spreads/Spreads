@@ -20,6 +20,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
@@ -255,9 +256,12 @@ namespace Spreads.Storage {
 
             var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType, Version from " + IdTableName + "" + " WHERE TextId = @TextId", new { TextId = seriesId }, buffered: false).SingleOrDefault();
             if (seriesIdRow != null) {
-                if (seriesIdRow.KeyType != keyType || seriesIdRow.ValueType != valueType) {
-                    throw new ArgumentException(
-                        $"Wrong types for {seriesId}: expexting <{seriesIdRow.KeyType},{seriesIdRow.ValueType}> but requested <{keyType},{valueType}>");
+                if (seriesIdRow.KeyType != keyType || seriesIdRow.ValueType != valueType)
+                {
+                    var message =
+                        $"Wrong types for {seriesId}: expexting <{seriesIdRow.KeyType},{seriesIdRow.ValueType}> but requested <{keyType},{valueType}>";
+                    Trace.TraceError(message);
+                    throw new ArgumentException(message);
                 }
                 return seriesIdRow.Version;
             }

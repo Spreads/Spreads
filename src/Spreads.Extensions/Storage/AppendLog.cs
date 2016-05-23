@@ -84,12 +84,19 @@ namespace Spreads.Storage {
             _poller = Task.Factory.StartNew(() => {
                 try {
                 } finally {
+                    var sw = new SpinWait();
                     while (!_cts.IsCancellationRequested) {
-                        Poll();
+                        var fragments = Poll();
+                        if (fragments > 0)
+                        {
+                            sw.Reset();
+                        }
+                        else
+                        {
+                            sw.SpinOnce();
+                        }
                         // TODO try waithandle as in IpcLongIncrementListener
-                        //var sw = new SpinWait();
-                        //sw.SpinOnce();
-                        Thread.SpinWait(0);
+                        //Thread.SpinWait(0);
                     }
                 }
             }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default)
@@ -171,10 +178,10 @@ namespace Spreads.Storage {
             int termOffset = (int)_subscriberPosition & _termLengthMask;
             var termBuffer = _logBuffers.Buffers[subscriberIndex];
 
-            long outcome = TermReader.Read(termBuffer, termOffset, OnAppend, 100, OnError);
+            long outcome = TermReader.Read(termBuffer, termOffset, OnAppend, 10, OnError);
 
             UpdatePosition(termOffset, TermReader.Offset(outcome));
-            return outcome;
+            return outcome & 0xFFFFFFFFL;
         }
 
 
