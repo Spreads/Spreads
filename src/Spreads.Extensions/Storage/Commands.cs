@@ -56,7 +56,7 @@ namespace Spreads.Storage {
 
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal struct SetRemoveCommandBody<TKey, TValue>  : IBinaryConverter<SetRemoveCommandBody<TKey, TValue>> {
+    internal unsafe struct SetRemoveCommandBody<TKey, TValue> : IBinaryConverter<SetRemoveCommandBody<TKey, TValue>> {
         public TKey key; // Key of entry
         public TValue value; // Value of entry
 
@@ -69,35 +69,58 @@ namespace Spreads.Storage {
                 memoryStream = null;
                 return Size;
             }
-            throw new NotImplementedException("TODO We now only support fixed key");
             if (TypeHelper<TKey>.Size <= 0) {
                 throw new NotImplementedException("TODO We now only support fixed key");
             }
-            //MemoryStream ms;
-            //var valueSize = TypeHelper<TValue>.Size > 0 ? TypeHelper<TValue>.Size : TypeHelper<TValue>.SizeOf(value.value, out ms);
-            //memoryStream = new MemoryStream(TypeHelper<TKey>.Size + 8 + valueSize);
-            //var bw = new BinaryWriter(memoryStream);
-            //bw.Write(value.key)
-            //throw new NotImplementedException("TODO variable sized types");
+            MemoryStream ms = null;
+            var valueSize = TypeHelper<TValue>.Size > 0 ? TypeHelper<TValue>.Size : TypeHelper<TValue>.SizeOf(value.value, out ms);
+            var bytes = new byte[TypeHelper<TKey>.Size + 8 + valueSize];
+            fixed (byte* ptr = &bytes[0])
+            {
+                var db = new DirectBuffer(bytes.LongLength, (IntPtr)ptr);
+                db.Write<TKey>(0, value.key);
+                var valueBytes = ms.ToArray();
+                db.WriteBytes(TypeHelper<TKey>.Size + 8, valueBytes, 0, valueBytes.Length);
+            }
+            memoryStream = new MemoryStream(bytes);
+            return bytes.Length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ToPtr(SetRemoveCommandBody<TKey, TValue> entry, IntPtr ptr) {
+        public unsafe void ToPtr(SetRemoveCommandBody<TKey, TValue> entry, IntPtr ptr) {
             if (IsFixedSize) {
                 TypeHelper<TKey>.StructureToPtr(entry.key, (ptr + 8));
                 TypeHelper<TValue>.StructureToPtr(entry.value, (ptr + 8 + TypeHelper<TKey>.Size));
             } else {
-                throw new NotImplementedException("TODO variable sized types");
+                MemoryStream ms = null;
+                var valueSize = TypeHelper<TValue>.Size > 0 ? TypeHelper<TValue>.Size : TypeHelper<TValue>.SizeOf(entry.value, out ms);
+                var bytes = new byte[TypeHelper<TKey>.Size + valueSize];
+
+                var db = new DirectBuffer(bytes.LongLength, (IntPtr)ptr);
+                db.Write<TKey>(0, entry.key);
+                var valueBytes = ms.ToArray();
+                db.WriteBytes(TypeHelper<TKey>.Size, valueBytes, 0, valueBytes.Length);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SetRemoveCommandBody<TKey, TValue> FromPtr(IntPtr ptr) {
-            if (!IsFixedSize) throw new NotImplementedException("TODO variable sized types");
-            var entry = new SetRemoveCommandBody<TKey, TValue>();
-            entry.key = TypeHelper<TKey>.PtrToStructure((ptr + 8));
-            entry.value = TypeHelper<TValue>.PtrToStructure((ptr + 8 + TypeHelper<TKey>.Size));
-            return entry;
+            if (IsFixedSize) {
+                var entry = new SetRemoveCommandBody<TKey, TValue>();
+                entry.key = TypeHelper<TKey>.PtrToStructure((ptr + 8));
+                entry.value = TypeHelper<TValue>.PtrToStructure((ptr + 8 + TypeHelper<TKey>.Size));
+                return entry;
+            }
+
+            var version = Marshal.ReadInt32(ptr);
+            var length = Marshal.ReadInt32(ptr + 4);
+            ptr = ptr + 8;
+            TKey key = TypeHelper<TKey>.PtrToStructure(ptr);
+            TValue value = TypeHelper<TValue>.PtrToStructure(ptr + TypeHelper<TKey>.Size);
+            return new SetRemoveCommandBody<TKey, TValue> {
+                key = key,
+                value = value
+            };
         }
 
         public int Version => 0;
