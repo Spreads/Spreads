@@ -53,180 +53,10 @@ namespace Spreads.Serialization {
 		//, snappy = 4  // lz4 is better and easier to build, our Blosc does not include Snappy since it is C++, not C.
 	}
 
-	internal class EmptyArray<TElement> {
-		public static readonly TElement[] Instance = new TElement[0];
-	}
 
-
-
-	// TODO! support series by converting them to SortedMap on serializatio and by deserializing as SM and casting to series
-	internal class SpreadsContractResolver : DefaultContractResolver {
-		protected override sealed JsonConverter ResolveContractConverter(Type ty) {
-
-			// Serialize maps directly
-			if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
-				return new SpreadsJsonConverter();
-			}
-
-			// Other than maps, we are cool at arrays. For other types JSON.NET is cool
-			if (!ty.IsArray) return base.ResolveContractConverter(ty);
-
-			var elTy = ty.GetElementType();
-			if (BlittableHelper.IsBlittable(elTy)
-				|| elTy == typeof(DateTimeOffset)
-				|| elTy == typeof(DateTime)) {
-				return new SpreadsJsonConverter();
-			}
-			return base.ResolveContractConverter(ty);
-		}
-	}
-
-	internal class SpreadsJsonConverter : JsonConverter {
-
-		public override bool CanConvert(Type ty) {
-			return true;
-		}
-
-		public override object ReadJson(JsonReader reader, Type ty,
-			object existingValue, JsonSerializer serializer) {
-
-			var bytes = reader.Value as byte[];
-
-			if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
-				// will dispatch to Spreads types
-				return Serializer.Deserialize(bytes, ty);
-			}
-
-			// Other than maps, we are cool at arrays. For other types JSON.NET is cool
-			if (!ty.IsArray) {
-				return serializer.Deserialize(reader, ty);
-			}
-
-			var elTy = ty.GetElementType();
-			if (BlittableHelper.IsBlittable(elTy)
-				//|| ty == typeof(DateTimeOffset)
-				|| ty == typeof(DateTime)) {
-				//if (bytes == null) {
-				//	return null;
-				//} else if (bytes.Length == 0) {
-				//	return Array.CreateInstance(ty.GetElementType(), 0);
-				//}
-				// will dispatch to Spreads types
-				return Serializer.Deserialize(bytes, ty);
-			}
-
-			//var bytes = reader.Value as byte[];
-			return serializer.Deserialize(reader, ty);
-
-
-		}
-
-		public override void WriteJson(JsonWriter writer, object value,
-			JsonSerializer serializer) {
-
-			var ty = value.GetType();
-
-			//if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
-			//	// will dispatch to Spreads types
-			//	var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
-			//	writer.WriteValue(bytes);
-			//}
-
-			//// Other than maps, we are cool at arrays. For other types JSON.NET is cool
-			//if (!ty.IsArray) {
-			//	serializer.Serialize(writer, value);
-			//}
-
-			if (ty.IsArray) {
-				var elTy = ty.GetElementType();
-				if (BlittableHelper.IsBlittable(elTy)
-					//|| ty == typeof(DateTimeOffset)
-					|| ty == typeof(DateTime)) {
-					//var arr = (Array)value;
-					//if (arr.Length == 0) {
-					//	writer.WriteValue(EmptyArray<byte>.Instance);
-					//} else {
-					// will dispatch to Spreads types
-					var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
-					writer.WriteValue(bytes);
-					//}
-				} else {
-					serializer.Serialize(writer, value);
-				}
-			} else {
-				// will dispatch to Spreads types
-				var bytes = Serializer.Serialize(value); // TODO resolvedCall = true
-				writer.WriteValue(bytes);
-			}
-		}
-	}
-
-
-	/// <summary>
-	/// JSON.NET serializer with custom converters for special types
-	/// </summary>
-	internal class SpreadsJsonSerializer : ISerializer {
-		JsonSerializer _serializer;
-		public SpreadsJsonSerializer() {
-			_serializer = new JsonSerializer();
-            _serializer.DateFormatHandling = DateFormatHandling.IsoDateFormat;
-		    _serializer.DateTimeZoneHandling = DateTimeZoneHandling.Utc;
-            _serializer.ContractResolver = new SpreadsContractResolver();
-		}
-
-		public object Deserialize(byte[] bytes, Type type) {
-			MemoryStream ms = new MemoryStream(bytes);
-			using (BsonReader reader = new BsonReader(ms)) {
-				return _serializer.Deserialize(reader, type);
-			}
-		}
-
-		public T Deserialize<T>(byte[] bytes) {
-			MemoryStream ms = new MemoryStream(bytes);
-			using (BsonReader reader = new BsonReader(ms, typeof(T).IsArray, DateTimeKind.Unspecified)) {
-				return _serializer.Deserialize<T>(reader);
-			}
-		}
-
-		[Obsolete]
-		public T DeserializeFromJson<T>(string json) {
-			using (var reader = new StringReader(json)) {
-				using (var jsonReader = new JsonTextReader(reader)) {
-					return _serializer.Deserialize<T>(jsonReader);
-				}
-			}
-		}
-
-		public byte[] Serialize<T>(T value) {
-			MemoryStream ms = new MemoryStream();
-			using (BsonWriter writer = new BsonWriter(ms)) {
-				_serializer.Serialize(writer, value);
-			}
-			return ms.ToArray();
-		}
-
-		public byte[] Serialize(object obj) {
-			MemoryStream ms = new MemoryStream();
-			using (BsonWriter writer = new BsonWriter(ms)) {
-				_serializer.Serialize(writer, obj);
-			}
-			return ms.ToArray();  //Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(obj));
-		}
-
-		[Obsolete]
-		public string SerializeToJson<T>(T value) {
-			using (var writer = new StringWriter()) {
-				using (var jsonWriter = new JsonTextWriter(writer)) {
-					_serializer.Serialize(jsonWriter, value);
-					return writer.ToString();
-				}
-			}
-		}
-	}
-
-
-	//http://stackoverflow.com/questions/10574645/the-fastest-way-to-check-if-a-type-is-blittable
-	internal static class BlittableHelper {
+    //http://stackoverflow.com/questions/10574645/the-fastest-way-to-check-if-a-type-is-blittable
+    [Obsolete]
+    internal static class BlittableHelper {
 		public static object GetDefault(Type type) {
            
 			return type.IsValueType ? Activator.CreateInstance(type) : null;
@@ -235,12 +65,13 @@ namespace Spreads.Serialization {
 		private static readonly Dictionary<Type, bool> Dic = new Dictionary<Type, bool>();
 		private static readonly ConcurrentDictionary<Type, int> _cache = new ConcurrentDictionary<Type, int>();
 
-		/// <summary>
-		/// Assume "blittable" not only normally blittable, but those types for which Marshal.SizeOf doesn't throw and we could use StructureToPtr
-		/// </summary>
-		/// <param name="ty"></param>
-		/// <returns></returns>
-		public static bool IsBlittable(this Type ty) {
+        /// <summary>
+        /// Assume "blittable" not only normally blittable, but those types for which Marshal.SizeOf doesn't throw and we could use StructureToPtr
+        /// </summary>
+        /// <param name="ty"></param>
+        /// <returns></returns>
+        [Obsolete]
+        public static bool IsBlittable(this Type ty) {
 			if (Dic.ContainsKey(ty)) {
 				return Dic[ty];
 			}
@@ -270,61 +101,10 @@ namespace Spreads.Serialization {
 
 		}
 
-		// http://stackoverflow.com/a/16522565/801189
-
-		// TODO replace Marshal.sizeof with this
-		//public static int SizeOf(this Type t) {
-		//    if (t == null) throw new ArgumentNullException("t");
-
-		//    return _cache.GetOrAdd(t, t2 => {
-		//        var dm = new DynamicMethod("BlittableHelperSizeOf", typeof(int), Type.EmptyTypes);
-		//        ILGenerator il = dm.GetILGenerator();
-		//        il.Emit(OpCodes.Sizeof, t2);
-		//        il.Emit(OpCodes.Ret);
-
-		//        var func = (Func<int>)dm.CreateDelegate(typeof(Func<int>));
-		//        return func();
-		//    });
-		//}
 	}
 
 
-
-
-
-	/// <summary>
-	/// Helper class for generic array pointers
-	/// </summary>
-	/// <typeparam name="T"></typeparam>
-	internal class GenericArrayPinner<T> : IDisposable {
-		GCHandle _pinnedArray;
-		private T[] _arr;
-		public GenericArrayPinner(T[] arr) {
-			_pinnedArray = GCHandle.Alloc(arr, GCHandleType.Pinned);
-			_arr = arr;
-		}
-		public static implicit operator IntPtr(GenericArrayPinner<T> ap) {
-
-			return ap._pinnedArray.AddrOfPinnedObject();
-		}
-
-		/// <summary>
-		/// Get unmanaged poinetr to the nth element of generic array
-		/// </summary>
-		/// <param name="n"></param>
-		/// <returns></returns>
-		public IntPtr GetNthPointer(int n) {
-			return Marshal.UnsafeAddrOfPinnedArrayElement(this._arr, n);
-		}
-
-		public void Dispose() {
-			_pinnedArray.Free();
-			_arr = null;
-		}
-	}
-
-
-	//TODO selfNoCopy is not needed? especially when buffers are not pooled
+    //TODO selfNoCopy is not needed? especially when buffers are not pooled
 	/// <summary>
 	/// Transform an intermediate byte array to T. During execution of this 
 	/// delegate the source buffer if fixed in memory and pointer points to its first element.
@@ -334,6 +114,7 @@ namespace Spreads.Serialization {
 	/// selfNoCopy means that the source could be used directly without copying, it is not a 
 	/// temporary buffer but a final value
 	/// </summary>
+	[Obsolete("Too complex")]
 	internal delegate T FixedBufferTransformer<T>(byte[] source, int length, bool selfNoCopy = false);
 
 	// Serializer is static because
@@ -413,19 +194,11 @@ namespace Spreads.Serialization {
 		private static bool Diff { get; set; }
 		private static CompressionMethod CompressionMethod { get; set; }
 		private static byte[] ZeroByteArray { get; set; }
-		// each thread has its own buffer for temp primitive representation in bytes
-		[ThreadStatic]
-		private static byte[] _primitiveBuffer;
-		private static byte[] GetPrivitiveBuffer() {
-			if (_primitiveBuffer == null) {
-				_primitiveBuffer = new byte[16];
-			}
-			return _primitiveBuffer;
-		}
 
 		/// <summary>
 		/// Transform serialization buffer
 		/// </summary>
+		[Obsolete]
 		internal static FixedBufferTransformer<byte[]> ArrayCopyToNew { get; private set; }
 
 #if PRERELEASE

@@ -64,6 +64,7 @@
     <Compile Include="ByteUtil.cs" />
     <Compile Include="ChaosMonkey.cs" />
     <Compile Include="Collections\IDictionaryDebugView.cs" />
+    <Compile Include="EmptyArray.cs" />
     <Compile Include="Exceptions.cs" />
     <Compile Include="MemoryCache.cs" />
     <Compile Include="Properties\Attributes.cs" />

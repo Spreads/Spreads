@@ -13,3 +13,6 @@
 	path = lib/dapper-dot-net
 	url = git@github.com:StackExchange/dapper-dot-net.git
 	branch = master
+[submodule "lib/Microsoft.IO.RecyclableMemoryStream"]
+	path = lib/Microsoft.IO.RecyclableMemoryStream
+	url = git@github.com:Spreads/Microsoft.IO.RecyclableMemoryStream.git

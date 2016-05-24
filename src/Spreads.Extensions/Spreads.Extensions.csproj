@@ -22,7 +22,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>..\..\bin\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;PRERELEASE;SPREADS;NO_VARIANCE;NET451;CHAOS_MONKEY</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;PRERELEASE;SPREADS;NO_VARIANCE;NET451;CHAOS_MONKEY;TYPED_REF</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -33,7 +33,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\..\bin\</OutputPath>
-    <DefineConstants>TRACE;PRERELEASE;SPREADS;NO_VARIANCE;NET451</DefineConstants>
+    <DefineConstants>TRACE;PRERELEASE;SPREADS;NO_VARIANCE;NET451;TYPED_REF</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -42,7 +42,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Prerelease|AnyCPU'">
     <OutputPath>bin\Prerelease\</OutputPath>
-    <DefineConstants>TRACE;PRERELEASE;SPREADS;NO_VARIANCE;NET451</DefineConstants>
+    <DefineConstants>TRACE;PRERELEASE;SPREADS;NO_VARIANCE;NET451;TYPED_REF</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Optimize>true</Optimize>
     <DebugType>pdbonly</DebugType>
@@ -57,7 +57,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=8.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\..\..\Prism\packages\Newtonsoft.Json.8.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <HintPath>..\..\packages\Newtonsoft.Json.8.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="NodaTime, Version=1.3.0.0, Culture=neutral, PublicKeyToken=4226afe0d9b296d1, processorArchitecture=MSIL">
@@ -364,13 +364,25 @@
     <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Utilities\TypeExtensions.cs">
       <Link>Storage\SQLite\Utilities\TypeExtensions.cs</Link>
     </Compile>
+    <Compile Include="..\..\lib\Microsoft.IO.RecyclableMemoryStream\src\Events.cs">
+      <Link>Serialization\Microsoft.IO.RecyclableMemoryStream\Events.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.IO.RecyclableMemoryStream\src\RecyclableMemoryStream.cs">
+      <Link>Serialization\Microsoft.IO.RecyclableMemoryStream\RecyclableMemoryStream.cs</Link>
+    </Compile>
+    <Compile Include="..\..\lib\Microsoft.IO.RecyclableMemoryStream\src\RecyclableMemoryStreamManager.cs">
+      <Link>Serialization\Microsoft.IO.RecyclableMemoryStream\RecyclableMemoryStreamManager.cs</Link>
+    </Compile>
     <Compile Include="Serialization\BinarySerializer.cs" />
+    <Compile Include="Serialization\ArrayConvertors.cs" />
     <Compile Include="Serialization\DirectBuffer.cs" />
     <Compile Include="Serialization\DirectFile.cs" />
     <Compile Include="Serialization\FixedBuffer.cs" />
+    <Compile Include="Serialization\GenericArrayPinner.cs" />
     <Compile Include="Serialization\IBinaryConverter.cs" />
     <Compile Include="Serialization\IDirectBuffer.cs" />
     <Compile Include="Serialization\IDirectBufferExtensions.cs" />
+    <Compile Include="Serialization\JSON.cs" />
     <Compile Include="Serialization\SafeBufferAccessor.cs" />
     <Compile Include="Serialization\SafeBufferStream.cs" />
     <Compile Include="Serialization\TypeHelper.cs" />

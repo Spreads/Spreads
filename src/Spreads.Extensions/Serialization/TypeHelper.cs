@@ -8,12 +8,8 @@ namespace Spreads.Serialization {
     // cache converters and size info in static class for each type, 
     // instead of dict lookup or dynamic resolution.
 
-    internal class TypeHelper
-    {
-        internal static Func<Type, object> ArrayConvertorFactory;
-    }
 
-    internal unsafe class TypeHelper<T> : TypeHelper {
+    internal unsafe class TypeHelper<T> {
 
         [ThreadStatic]
         // ReSharper disable once StaticMemberInGenericType
@@ -30,11 +26,11 @@ namespace Spreads.Serialization {
         private static bool _hasBinaryConverter;
         private static bool _isDateTime; // NB: Stipid autom layout of .NET requires special handling!
         private static IBinaryConverter<T> _convertorInstance;
-        
+
 
         static TypeHelper() {
             try {
-                Size = GetSize();
+                Size = Init();
                 SizeMinus8 = Size - 8;
                 SizeMinus4 = Size - 4;
             } catch {
@@ -54,9 +50,8 @@ namespace Spreads.Serialization {
             *(IntPtr*)(&tr) = ptr;
             return __refvalue(tr, T);
 #else
-            if (_isDateTime)
-            {
-                return (T)(object)*(DateTime*) ptr;
+            if (_isDateTime) {
+                return (T)(object)*(DateTime*)ptr;
             }
             try {
                 if (!_usePinnedArray) return (T)Marshal.PtrToStructure(ptr, typeof(T));
@@ -94,11 +89,10 @@ namespace Spreads.Serialization {
             *(IntPtr*)(&tr) = pointer;
             __refvalue(tr, T) = value;
 #else
-            if (_isDateTime)
-            {
+            if (_isDateTime) {
                 // TODO http://stackoverflow.com/a/3344181/801189
                 // Code gen is probably needed to avoid boxing when TYPED_REF is not available
-                *(DateTime*) pointer = Convert.ToDateTime(value);
+                *(DateTime*)pointer = Convert.ToDateTime(value);
                 return;
             }
             try {
@@ -119,7 +113,7 @@ namespace Spreads.Serialization {
 
             _array[1] = value;
             var tgt = pointer;
-            ByteUtil.MemoryCopy(tgt, _ptr, (uint) Size);
+            ByteUtil.MemoryCopy(tgt, _ptr, (uint)Size);
             _array[1] = default(T);
 #endif
         }
@@ -140,7 +134,7 @@ namespace Spreads.Serialization {
 #endif
         }
 
-        private static int GetSize() {
+        private static int Init() {
             var ty = typeof(T);
             if (ty == typeof(DateTime)) {
                 _isDateTime = true;
@@ -166,7 +160,6 @@ namespace Spreads.Serialization {
                     _array = null;
                     return size;
                 } catch {
-
                     // NB we try to check interface as a last step, because some generic types 
                     // could implement IBinaryConverter<T> but still be blittable for certain types,
                     // e.g. DateTime vs long in PersistentMap<K,V>.Entry
@@ -186,20 +179,16 @@ namespace Spreads.Serialization {
                     }
                     if (ty.IsArray) {
                         Console.WriteLine("IsArray");
-                        if (ArrayConvertorFactory != null) {
-                            var elementType = ty.GetElementType();
-                            var convertor = (IBinaryConverter<T>)ArrayConvertorFactory(elementType);
-                            if (convertor != null)
-                            {
-                                _convertorInstance = convertor;
-                                Trace.Assert(!_convertorInstance.IsFixedSize);
-                                Trace.Assert(_convertorInstance.Size == 0);
-                                return 0;
-                            }
+                        var elementType = ty.GetElementType();
+                        var convertor = (IBinaryConverter<T>)ArrayConvertorFactory.Create(elementType);
+                        if (convertor != null) {
+                            _convertorInstance = convertor;
+                            _hasBinaryConverter = true;
+                            Trace.Assert(!_convertorInstance.IsFixedSize);
+                            Trace.Assert(_convertorInstance.Size == 0);
+                            return 0;
                         }
-
                     }
-                    if (ty.IsGenericTypeDefinition) Console.WriteLine("IsGeneric");
                     return -1;
                 }
             }
@@ -220,9 +209,10 @@ namespace Spreads.Serialization {
         public static bool HasBinaryConverter => _hasBinaryConverter;
         public static int Version => _hasBinaryConverter ? _convertorInstance.Version : 0;
 
-        public static void RegisterConvertor(IBinaryConverter<T> convertor) {
+        public static void RegisterConvertor(IBinaryConverter<T> convertor, bool overrideExisting = false) {
+            if (convertor == null) throw new ArgumentNullException(nameof(convertor));
             if (Size > 0) throw new InvalidOperationException("Cannot register a custom convertor for fixed-size types");
-            if (_hasBinaryConverter)
+            if (_hasBinaryConverter && !overrideExisting)
                 throw new InvalidOperationException(
                     $"Type {typeof(T)} already implements IBinaryConverter<{typeof(T)}> interface. Use versioning to add a new convertor (not supported yet)");
             if (convertor.Version > 0) throw new NotImplementedException("Serialization versioning is not supported");
