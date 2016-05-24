@@ -40,10 +40,22 @@ namespace Spreads.Serialization {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T PtrToStructure(IntPtr ptr) {
-            if (Size <= 0) throw new InvalidOperationException("PtrToStructure must be called only on fixed-length types");
+
+#if PRERELEASE
+            if (_hasBinaryConverter || Size == 0) {
+                Trace.Assert(_hasBinaryConverter && Size == 0);
+#else
             if (_hasBinaryConverter) {
+#endif
                 return _convertorInstance.FromPtr(ptr);
             }
+            if (Size <= 0) {
+                var version = Marshal.ReadInt32(ptr);
+                var length = Marshal.ReadInt32(ptr + 4);
+                var value = Serializer.Deserialize<T>(ptr + 8, length);
+                return value;
+            }
+
 #if TYPED_REF
             var obj = default(T);
             var tr = __makeref(obj);
@@ -76,11 +88,22 @@ namespace Spreads.Serialization {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void StructureToPtr(T value, IntPtr pointer) {
-            if (Size <= 0) throw new InvalidOperationException("StructureToPtr must be called only on fixed-length types");
+#if PRERELEASE
+            if (_hasBinaryConverter || Size == 0) {
+                Trace.Assert(_hasBinaryConverter && Size == 0);
+#else
             if (_hasBinaryConverter) {
+#endif
                 _convertorInstance.ToPtr(value, pointer);
                 return;
             }
+
+            if (Size < 0) {
+                var bytes = Serializer.Serialize(value);
+                TypeHelper<byte[]>.StructureToPtr(bytes, pointer);
+                return;
+            }
+
 #if TYPED_REF
             // this is as fast as non-generic methods
             var obj = default(T);
@@ -177,21 +200,49 @@ namespace Spreads.Serialization {
                         _convertorInstance = convertor;
                         return _convertorInstance.IsFixedSize ? _convertorInstance.Size : 0;
                     }
-                    if (ty.IsArray) {
-                        Console.WriteLine("IsArray");
-                        var elementType = ty.GetElementType();
-                        var convertor = (IBinaryConverter<T>)ArrayConvertorFactory.Create(elementType);
-                        if (convertor != null) {
-                            _convertorInstance = convertor;
-                            _hasBinaryConverter = true;
-                            Trace.Assert(!_convertorInstance.IsFixedSize);
-                            Trace.Assert(_convertorInstance.Size == 0);
-                            return 0;
-                        }
+                    if (ty == typeof(byte[])) {
+                        _convertorInstance = (IBinaryConverter<T>)(new ByteArrayBinaryConverter());
+                        _hasBinaryConverter = true;
+                        return 0;
                     }
+                    //if (ty.IsArray) {
+                    //    Console.WriteLine("IsArray");
+                    //    var elementType = ty.GetElementType();
+                    //    var convertor = (IBinaryConverter<T>)ArrayConvertorFactory.Create(elementType);
+                    //    if (convertor != null) {
+                    //        _convertorInstance = convertor;
+                    //        _hasBinaryConverter = true;
+                    //        Trace.Assert(!_convertorInstance.IsFixedSize);
+                    //        Trace.Assert(_convertorInstance.Size == 0);
+                    //        return 0;
+                    //    }
+                    //}
                     return -1;
                 }
             }
+        }
+
+
+
+        // NB for DirectBuffer usage
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int SizeOf(T value, out byte[] bytes) {
+#if PRERELEASE
+            if (_hasBinaryConverter || Size == 0) {
+                Trace.Assert(_hasBinaryConverter && Size == 0);
+#else
+            if (_hasBinaryConverter) {
+#endif
+                bytes = null;
+                return _convertorInstance.SizeOf(value);
+            }
+
+            if (Size < 0) {
+                bytes = Serializer.Serialize(value);
+                return bytes.Length + 8;
+            }
+            bytes = null;
+            return Size;
         }
 
 

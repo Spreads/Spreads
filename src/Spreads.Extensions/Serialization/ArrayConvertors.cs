@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -43,5 +45,32 @@ namespace Spreads.Serialization {
         public TElement[] FromPtr(IntPtr ptr) {
             throw new NotImplementedException();
         }
+    }
+
+
+    internal class ByteArrayBinaryConverter : IBinaryConverter<byte[]> {
+        public bool IsFixedSize => false;
+        public int Size => 0;
+        public int SizeOf(byte[] value) => value.Length;
+
+        public void ToPtr(byte[] value, IntPtr ptr) {
+            // version
+            Marshal.WriteInt32(ptr, 0);
+            // size
+            Marshal.WriteInt32(ptr + 4, value.Length);
+            // payload
+            Marshal.Copy(value, 0, ptr + 8, value.Length);
+        }
+
+        public byte[] FromPtr(IntPtr ptr) {
+            var version = Marshal.ReadInt32(ptr);
+            if (version != 0) throw new NotSupportedException();
+            var length = Marshal.ReadInt32(ptr + 4);
+            var bytes = new byte[length];
+            Marshal.Copy(ptr + 8, bytes, 0, length);
+            return bytes;
+        }
+
+        public int Version => 0;
     }
 }

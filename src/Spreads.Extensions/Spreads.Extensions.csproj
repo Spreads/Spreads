@@ -373,7 +373,6 @@
     <Compile Include="..\..\lib\Microsoft.IO.RecyclableMemoryStream\src\RecyclableMemoryStreamManager.cs">
       <Link>Serialization\Microsoft.IO.RecyclableMemoryStream\RecyclableMemoryStreamManager.cs</Link>
     </Compile>
-    <Compile Include="Serialization\BinarySerializer.cs" />
     <Compile Include="Serialization\ArrayConvertors.cs" />
     <Compile Include="Serialization\DirectBuffer.cs" />
     <Compile Include="Serialization\DirectFile.cs" />
