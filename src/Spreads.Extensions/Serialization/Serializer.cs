@@ -228,6 +228,7 @@ namespace Spreads.Serialization {
 	//http://stackoverflow.com/questions/10574645/the-fastest-way-to-check-if-a-type-is-blittable
 	internal static class BlittableHelper {
 		public static object GetDefault(Type type) {
+           
 			return type.IsValueType ? Activator.CreateInstance(type) : null;
 		}
 

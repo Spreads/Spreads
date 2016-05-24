@@ -364,6 +364,16 @@
     <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Utilities\TypeExtensions.cs">
       <Link>Storage\SQLite\Utilities\TypeExtensions.cs</Link>
     </Compile>
+    <Compile Include="Serialization\BinarySerializer.cs" />
+    <Compile Include="Serialization\DirectBuffer.cs" />
+    <Compile Include="Serialization\DirectFile.cs" />
+    <Compile Include="Serialization\FixedBuffer.cs" />
+    <Compile Include="Serialization\IBinaryConverter.cs" />
+    <Compile Include="Serialization\IDirectBuffer.cs" />
+    <Compile Include="Serialization\IDirectBufferExtensions.cs" />
+    <Compile Include="Serialization\SafeBufferAccessor.cs" />
+    <Compile Include="Serialization\SafeBufferStream.cs" />
+    <Compile Include="Serialization\TypeHelper.cs" />
     <Compile Include="Storage\Aeron\BitUtil.cs" />
     <Compile Include="Storage\Aeron\ErrorHandler.cs" />
     <Compile Include="Storage\Aeron\LogBuffers.cs" />

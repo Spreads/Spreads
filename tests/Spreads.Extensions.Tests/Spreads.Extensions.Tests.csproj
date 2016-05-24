@@ -110,6 +110,8 @@
     <Compile Include="CompressionTests.cs" />
     <Compile Include="BuffersAndPoolTests.cs" />
     <Compile Include="AeronLogBufferTests.cs" />
+    <Compile Include="DirectFileTest.cs" />
+    <Compile Include="NanoOptimizationTests.cs" />
     <Compile Include="SeriesRepositoryTests.cs" />
     <Compile Include="LogBufferTests.cs" />
     <Compile Include="IpcListenerTests.cs" />
@@ -129,6 +131,8 @@
     <Compile Include="Storage\SQLite\TestUtilities\DbConnectionExtensions.cs" />
     <Compile Include="Storage\SQLite\TestUtilities\SqliteVersionConditionAttribute.cs" />
     <Compile Include="Storage\StorageTests.cs" />
+    <Compile Include="TypeHelperTests.cs" />
+    <Compile Include="UnsafeCastTests.cs" />
     <Compile Include="YepppTests.cs" />
     <Compile Include="CompressionTestsOld.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

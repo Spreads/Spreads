@@ -17,7 +17,6 @@
     along with this program.If not, see<http://www.gnu.org/licenses/>.
 */
 
-using Spreads.Serialization;
 using System;
 
 namespace Spreads {
@@ -25,7 +24,7 @@ namespace Spreads {
     /// <summary>
     /// A simpler, faster, comparable and blittable replacement for Guid.
     /// </summary>
-    public struct UUID : IEquatable<UUID>, IComparable<UUID> {
+    public unsafe struct UUID : IEquatable<UUID>, IComparable<UUID> {
         private ulong _first;
         private ulong _second;
 
@@ -37,17 +36,21 @@ namespace Spreads {
         // TODO! test if this is the same as reading directly from fb, endianness could affect this
         public UUID(byte[] bytes) {
             if (bytes == null || bytes.Length < 16) throw new ArgumentException("bytes == null || bytes.Length < 16", nameof(bytes));
-            var fb = new FixedBuffer(bytes);
-            _first = fb.ReadUint64(0);
-            _second = fb.ReadUint64(8);
+            fixed (byte* ptr = &bytes[0])
+            {
+                _first = *(ulong*)ptr;
+                _second  = * (ulong*)(ptr + 8);
+            }
         }
 
         public byte[] ToBytes()
         {
             var bytes = new byte[16];
-            var fb = new FixedBuffer(bytes);
-            fb.WriteUint64(0, _first);
-            fb.WriteUint64(8, _second);
+            fixed (byte* ptr = &bytes[0])
+            {
+                *(ulong*) ptr = _first;
+                *(ulong*) (ptr + 8) = _second;
+            }
             return bytes;
         }
 

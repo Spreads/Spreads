@@ -101,10 +101,7 @@
   <ItemGroup>
     <Compile Include="DynamicUtilTest.cs" />
     <Compile Include="FunctionCombinationTests.cs" />
-    <Compile Include="DirectFileTest.cs" />
     <Compile Include="Primes.cs" />
-    <Compile Include="UnsafeCastTests.cs" />
-    <Compile Include="NanoOptimizationTests.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="SingleEnumerableTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

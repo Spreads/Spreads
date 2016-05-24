@@ -70,15 +70,6 @@
     <Compile Include="Sequences.cs">
       <DependentUpon>Utils.cs</DependentUpon>
     </Compile>
-    <Compile Include="Serialization\DirectBuffer.cs" />
-    <Compile Include="Serialization\DirectFile.cs" />
-    <Compile Include="Serialization\FixedBuffer.cs" />
-    <Compile Include="Serialization\IDirectBuffer.cs" />
-    <Compile Include="Serialization\IDirectBufferExtensions.cs" />
-    <Compile Include="Serialization\SafeBufferAccessor.cs" />
-    <Compile Include="Serialization\SafeBufferStream.cs" />
-    <Compile Include="Serialization\TypeHelper.cs" />
-    <Compile Include="Serialization\IBinaryConverter.cs" />
     <Compile Include="StringExtensions.cs" />
     <Compile Include="System\SR.cs" />
     <Compile Include="System\Buffers\ArrayPool.cs" />

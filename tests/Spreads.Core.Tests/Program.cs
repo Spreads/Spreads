@@ -4,7 +4,6 @@ namespace Spreads.Core.Tests {
     class Program {
         static void Main(string[] args)
         {
-            new NanoOptimizationTests().CallVsCallVirt();
             Console.ReadLine();
         }
     }
