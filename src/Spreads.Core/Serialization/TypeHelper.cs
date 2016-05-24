@@ -8,7 +8,8 @@ namespace Spreads.Serialization {
     // cache converters and size info in static class for each type, 
     // instead of dict lookup or dynamic resolution.
 
-    internal class TypeHelper<T> {
+    internal unsafe class TypeHelper<T> {
+
         [ThreadStatic]
         // ReSharper disable once StaticMemberInGenericType
         private static GCHandle _pinnedArray;
@@ -64,19 +65,7 @@ namespace Spreads.Serialization {
                 }
             }
 
-            var pos = 0;
-            while (pos <= SizeMinus8) {
-                *(long*)(_tgt + pos) = *(long*)(ptr + pos);
-                pos += 8;
-            }
-            while (pos <= SizeMinus4) {
-                *(int*)(_tgt + pos) = *(int*)(ptr + pos);
-                pos += 4;
-            }
-            while (pos < Size) {
-                *(byte*)(_tgt + pos) = *(byte*)(ptr + pos);
-                pos++;
-            }
+            ByteUtil.MemoryCopy(_tgt, ptr, (uint)Size);
             var ret = _array[0];
             _array[0] = default(T);
             return ret;
@@ -124,20 +113,7 @@ namespace Spreads.Serialization {
 
             _array[1] = value;
             var tgt = pointer;
-
-            var pos = 0;
-            while (pos <= SizeMinus8) {
-                *(long*)(tgt + pos) = *(long*)(_ptr + pos);
-                pos += 8;
-            }
-            while (pos <= SizeMinus4) {
-                *(int*)(tgt + pos) = *(int*)(_ptr + pos);
-                pos += 4;
-            }
-            while (pos < Size) {
-                *(byte*)(tgt + pos) = *(byte*)(_ptr + pos);
-                pos++;
-            }
+            ByteUtil.MemoryCopy(tgt, _ptr, (uint) Size);
             _array[1] = default(T);
 #endif
         }

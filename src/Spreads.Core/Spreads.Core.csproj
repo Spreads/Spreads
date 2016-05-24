@@ -61,6 +61,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ByteUtil.cs" />
     <Compile Include="ChaosMonkey.cs" />
     <Compile Include="Collections\IDictionaryDebugView.cs" />
     <Compile Include="Exceptions.cs" />
