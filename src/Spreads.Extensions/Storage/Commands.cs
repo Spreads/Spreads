@@ -52,6 +52,8 @@ namespace Spreads.Storage {
         public static int Size => 28;
     }
 
+    
+
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal struct SetRemoveCommandBody<TKey, TValue> : IBinaryConverter<SetRemoveCommandBody<TKey, TValue>> {
         public TKey key; // Key of entry

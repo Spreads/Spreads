@@ -5,8 +5,8 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Serialization {
 
-
-    // TODO Add ability to register cursom IBinaryConverter<T> converters for types
+    // cache converters and size info in static class for each type, 
+    // instead of dict lookup or dynamic resolution.
 
     internal class TypeHelper<T> {
         [ThreadStatic]
@@ -21,9 +21,9 @@ namespace Spreads.Serialization {
         private static IntPtr _tgt;
         [ThreadStatic]
         private static IntPtr _ptr;
-        private static bool _isInterface;
+        private static bool _isBinaryConverter;
         private static bool _isDateTime; // NB: Stipid autom layout of .NET requires special handling!
-        private static IBinaryConverter<T> _instance;
+        private static IBinaryConverter<T> _convertorInstance;
 
         static TypeHelper() {
             try {
@@ -38,8 +38,8 @@ namespace Spreads.Serialization {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe T PtrToStructure(IntPtr ptr) {
             if (Size <= 0) throw new InvalidOperationException("PtrToStructure must be called only on fixed-length types");
-            if (_isInterface) {
-                return _instance.FromPtr(ptr);
+            if (_isBinaryConverter) {
+                return _convertorInstance.FromPtr(ptr);
             }
 #if TYPED_REF
             var obj = default(T);
@@ -87,8 +87,8 @@ namespace Spreads.Serialization {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void StructureToPtr(T value, IntPtr pointer) {
             if (Size <= 0) throw new InvalidOperationException("StructureToPtr must be called only on fixed-length types");
-            if (_isInterface) {
-                _instance.ToPtr(value, pointer);
+            if (_isBinaryConverter) {
+                _convertorInstance.ToPtr(value, pointer);
                 return;
             }
 #if TYPED_REF
@@ -190,16 +190,18 @@ namespace Spreads.Serialization {
                     // e.g. DateTime vs long in PersistentMap<K,V>.Entry
                     var tmp = default(T);
                     if (tmp is IBinaryConverter<T>) {
-                        _isInterface = true;
+                        _isBinaryConverter = true;
+                        IBinaryConverter<T> convertor;
                         try {
-                            _instance = (IBinaryConverter<T>)Activator.CreateInstance<T>();
+                            convertor = (IBinaryConverter<T>)Activator.CreateInstance<T>();
                         } catch {
                             //Trace.TraceWarning($"Type {typeof(T).FullName} is marked as IBinaryConverter and so it must have a parameterless constructor");
                             throw new ApplicationException($"Type T ({typeof(T).FullName}) is marked as IBlittable<T> and so it must have a parameterless constructor.");
                         }
-                        return _instance.IsFixedSize ? ((IBinaryConverter<T>)_instance).Size : -1;
+                        if (convertor.Version > 0) throw new InvalidOperationException("A type T implementing IBinaryConverter<T> should have default version. Register a custom convertor for versioning.");
+                        _convertorInstance = convertor;
+                        return _convertorInstance.IsFixedSize ? ((IBinaryConverter<T>)_convertorInstance).Size : -1;
                     }
-
                     return -1;
                 }
             }
@@ -215,5 +217,16 @@ namespace Spreads.Serialization {
 
         private static int SizeMinus8 { get; }
         private static int SizeMinus4 { get; }
+
+
+        public static void RegisterConvertor(IBinaryConverter<T> convertor) {
+            if (Size > 0) throw new InvalidOperationException("Cannot register a custom convertor for fixed-size types");
+            if (_isBinaryConverter)
+                throw new InvalidOperationException(
+                    $"Type {typeof (T)} already implements IBinaryConverter<{typeof (T)}> interface. Use versioning to add a new convertor (not supported yet)");
+            if (convertor.Version > 0) throw new NotImplementedException("Serialization versioning is not supported");
+            _isBinaryConverter = true;
+            _convertorInstance = convertor;
+        }
     }
 }

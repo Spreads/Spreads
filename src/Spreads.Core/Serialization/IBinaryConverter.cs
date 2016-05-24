@@ -15,6 +15,7 @@ namespace Spreads.Serialization {
         bool IsFixedSize { get; }
 
         int Size { get; }
+
         /// <summary>
         /// For types with non-fixed size this method performs serialization and
         /// keeps serialized bytes cached until `ToPtr` method is called. If `value`
@@ -34,8 +35,7 @@ namespace Spreads.Serialization {
         T FromPtr(IntPtr ptr);
 
         /// <summary>
-        /// A stub for future versioning support. A value -1 indicates that a type's binary format is set 
-        /// in stone and will never change - rather, the type itself and its name will change.
+        /// A stub for future versioning support. Values less or equal to zero  
         /// </summary>
         int Version { get; }
     }

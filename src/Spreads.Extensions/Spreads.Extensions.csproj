@@ -424,6 +424,7 @@
     <Compile Include="Storage\Commands.cs" />
     <Compile Include="Storage\PersistentSeries.cs" />
     <Compile Include="Storage\RemoteChunksSeries.cs" />
+    <Compile Include="Storage\SeriesMetadata.cs" />
     <Compile Include="Storage\SeriesRepository.cs" />
     <Compile Include="Storage\SeriesStorage.cs" />
     <Compile Include="Storage\SQLite\Interop\NativeMethodsEx.cs" />
