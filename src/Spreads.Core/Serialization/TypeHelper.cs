@@ -37,7 +37,7 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe T PtrToStructure(IntPtr ptr) {
+        public static T PtrToStructure(IntPtr ptr) {
             if (Size <= 0) throw new InvalidOperationException("PtrToStructure must be called only on fixed-length types");
             if (_isBinaryConverter) {
                 return _convertorInstance.FromPtr(ptr);
@@ -74,7 +74,7 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void StructureToPtr(T value, IntPtr pointer) {
+        public static void StructureToPtr(T value, IntPtr pointer) {
             if (Size <= 0) throw new InvalidOperationException("StructureToPtr must be called only on fixed-length types");
             if (_isBinaryConverter) {
                 _convertorInstance.ToPtr(value, pointer);
