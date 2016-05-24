@@ -23,6 +23,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,9 +63,6 @@ namespace Spreads.Storage {
             if (outer != null) outer.ReadOnly = !_isWriter;
             _disposeCallback = disposeCallback;
             Interlocked.Increment(ref RefCounter);
-            if (TypeHelper<SetRemoveCommandBody<K, V>>.Size == -1) {
-                throw new NotImplementedException("TODO variable size support");
-            }
         }
 
 
@@ -192,10 +190,14 @@ namespace Spreads.Storage {
                 key = key,
                 value = value
             };
-            var len = CommandHeader.Size + TypeHelper<SetRemoveCommandBody<K, V>>.Size;
+            MemoryStream ms;
+            var len = CommandHeader.Size + TypeHelper<SetRemoveCommandBody<K, V>>.SizeOf(commandBody, out ms);
+            // version + len header
+            if (TypeHelper<SetRemoveCommandBody<K, V>>.Size <= 0) len = len + 8;
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
             *(CommandHeader*)(claim.Data) = header;
+            // TODO reuse ms
             TypeHelper<SetRemoveCommandBody<K, V>>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
             claim.ReservedValue = _pid;
             claim.Commit();

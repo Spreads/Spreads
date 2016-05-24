@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,18 +18,14 @@ namespace Spreads.Serialization {
         int Size { get; }
 
         /// <summary>
-        /// For types with non-fixed size this method performs serialization and
-        /// keeps serialized bytes cached until `ToPtr` method is called. If `value`
-        /// in `ToPtr` call is equal to the value from `SizeOf` call then the cached bytes
-        /// are reused.
+        /// For types with non-fixed size this method serializes value into the memoryStream
         /// </summary>
-        int SizeOf(T value);
+        int SizeOf(T value, out MemoryStream memoryStream);
 
         /// <summary>
-        /// For types with non-fixed size this method performs serialization and
-        /// keeps serialized bytes cached until `SizeOf` method is called. If `value`
-        /// in `SizeOf` call is equal to the value from `ToPtr` call then the cached bytes
-        /// are reused.
+        /// For types with non-fixed size this method assumes that the pointer has enough capacity.
+        /// Use SizeOf method to determine the bytes size of the value before writing. If SizeOf
+        /// sets memoryStream then write its content directly, otherwise ToPtr will do the same serialization job twice.
         /// </summary>
         void ToPtr(T value, IntPtr ptr);
 

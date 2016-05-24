@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -41,12 +42,7 @@ namespace Spreads.Serialization {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T PtrToStructure(IntPtr ptr) {
 
-#if PRERELEASE
-            if (_hasBinaryConverter || Size == 0) {
-                Trace.Assert(_hasBinaryConverter && Size == 0);
-#else
             if (_hasBinaryConverter) {
-#endif
                 return _convertorInstance.FromPtr(ptr);
             }
             if (Size <= 0) {
@@ -88,12 +84,7 @@ namespace Spreads.Serialization {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void StructureToPtr(T value, IntPtr pointer) {
-#if PRERELEASE
-            if (_hasBinaryConverter || Size == 0) {
-                Trace.Assert(_hasBinaryConverter && Size == 0);
-#else
             if (_hasBinaryConverter) {
-#endif
                 _convertorInstance.ToPtr(value, pointer);
                 return;
             }
@@ -224,24 +215,25 @@ namespace Spreads.Serialization {
 
 
 
-        // NB for DirectBuffer usage
+        /// <summary>
+        /// Returns binary size of the value instance WITHOUT 8 bytes header
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="memoryStream"></param>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int SizeOf(T value, out byte[] bytes) {
-#if PRERELEASE
-            if (_hasBinaryConverter || Size == 0) {
-                Trace.Assert(_hasBinaryConverter && Size == 0);
-#else
+        internal static int SizeOf(T value, out MemoryStream memoryStream) {
             if (_hasBinaryConverter) {
-#endif
-                bytes = null;
-                return _convertorInstance.SizeOf(value);
+                return _convertorInstance.SizeOf(value, out memoryStream);
             }
 
             if (Size < 0) {
-                bytes = Serializer.Serialize(value);
-                return bytes.Length + 8;
+                // TODO support serialization into a memory stream
+                var bytes = Serializer.Serialize(value);
+                memoryStream = new MemoryStream(bytes);
+                return bytes.Length;
             }
-            bytes = null;
+            memoryStream = null;
             return Size;
         }
 

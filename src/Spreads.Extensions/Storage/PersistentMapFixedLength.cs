@@ -23,6 +23,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -52,8 +53,12 @@ namespace Spreads.Storage {
             // Otherwise more efficient direct conversion is used
             public bool IsFixedSize => TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
             public int Size => IsFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
-            public int SizeOf(Entry value) {
-                if (IsFixedSize) return Size;
+            public int SizeOf(Entry value, out MemoryStream memoryStream) {
+                if (IsFixedSize)
+                {
+                    memoryStream = null;
+                    return Size;
+                }
                 throw new NotSupportedException("This variant of persistent map does not support variable-size types.");
             }
 

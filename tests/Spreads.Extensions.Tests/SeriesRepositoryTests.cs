@@ -125,6 +125,59 @@ namespace Spreads.Extensions.Tests {
             }
         }
 
+
+        [Test]
+        public void CouldCreateTwoRepositoriesAndSynchronizeSeriesVarLength() {
+
+            using (var repo = new SeriesRepository("../SeriesRepositoryTests", 100))
+            using (var repo2 = new SeriesRepository("../SeriesRepositoryTests", 100)) {
+                for (int rounds = 0; rounds < 10; rounds++) {
+
+                    var sw = new Stopwatch();
+
+
+                    // this read and write series have the same underlying instance inside the repo
+                    // the reead series are just wrapped with .ReadOnly()
+                    var psRead =
+                        repo2.ReadSeries<DateTime, string>("test_CouldCreateTwoRepositoriesAndSynchronizeSeriesVarLength").Result;
+                    var readCursor = psRead.GetCursor();
+                    readCursor.MoveLast();
+                    Trace.WriteLine(readCursor.Current);
+                    var ps =
+                        repo.WriteSeries<DateTime, string>("test_CouldCreateTwoRepositoriesAndSynchronizeSeriesVarLength").Result;
+                    var start = ps.IsEmpty ? DateTime.UtcNow : ps.Last.Key;
+                    var count = 100;
+
+                    sw.Start();
+
+                    var readerTask = Task.Run(async () => {
+                        var cnt = 0;
+                        while (cnt < count && await readCursor.MoveNext(CancellationToken.None)) {
+                            //if (readCursor.Current.Value != readCursor.Current.Key.ToString()) Assert.AreEqual(readCursor.Current.Key.Year.ToString(), readCursor.Current.Value);
+                            //if (readCursor.Current.Key != start.AddTicks(cnt + 1)) Assert.AreEqual(readCursor.Current.Key, start.AddTicks(cnt + 1));
+                            cnt++;
+                        }
+                    });
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        var k = start.AddTicks(i + 1);
+                        ps.Add(k, k.Year.ToString());
+                    }
+
+                    while (!readerTask.Wait(2000)) {
+                        Trace.WriteLine("Timeout");
+                        Trace.WriteLine($"Cursor: {readCursor.CurrentKey} - {readCursor.CurrentValue}");
+                    }
+
+
+                    sw.Stop();
+                    Trace.WriteLine($"Elapsed msec: {sw.ElapsedMilliseconds}");
+                    Trace.WriteLine($"Round: {rounds}");
+                }
+            }
+        }
+
         //[Test]
         //public void CouldCreateTwoRepositoriesAndSynchronizeSeriesManyTimes() {
         //    for (int i = 0; i < 100; i++) {

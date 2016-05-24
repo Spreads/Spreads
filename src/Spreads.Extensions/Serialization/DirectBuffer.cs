@@ -18,6 +18,7 @@
 */
 
 using System;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -548,17 +549,17 @@ namespace Spreads.Serialization {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write<T>(long index, T value)
         {
-            byte[] bytes;
-            var len = TypeHelper<T>.SizeOf(value, out bytes);
+            MemoryStream stream;
+            var len = TypeHelper<T>.SizeOf(value, out stream);
             Assert(index, len);
             var ptr = new IntPtr(_data.ToInt64() + index);
-            if (bytes == null)
+            if (stream == null)
             {
                 TypeHelper<T>.StructureToPtr(value, ptr);
             }
             else
             {
-                TypeHelper<byte[]>.StructureToPtr(bytes, ptr);
+                TypeHelper<MemoryStream>.StructureToPtr(stream, ptr);
             }
         }
 

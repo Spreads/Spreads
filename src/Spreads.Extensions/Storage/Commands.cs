@@ -19,6 +19,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -52,10 +53,10 @@ namespace Spreads.Storage {
         public static int Size => 28;
     }
 
-    
+
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal struct SetRemoveCommandBody<TKey, TValue> : IBinaryConverter<SetRemoveCommandBody<TKey, TValue>> {
+    internal struct SetRemoveCommandBody<TKey, TValue>  : IBinaryConverter<SetRemoveCommandBody<TKey, TValue>> {
         public TKey key; // Key of entry
         public TValue value; // Value of entry
 
@@ -63,9 +64,21 @@ namespace Spreads.Storage {
         // Otherwise more efficient direct conversion is used
         public bool IsFixedSize => TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
         public int Size => IsFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
-        public int SizeOf(SetRemoveCommandBody<TKey, TValue> value) {
-            if (IsFixedSize) return Size;
-            throw new NotImplementedException("TODO variable sized types");
+        public int SizeOf(SetRemoveCommandBody<TKey, TValue> value, out MemoryStream memoryStream) {
+            if (IsFixedSize) {
+                memoryStream = null;
+                return Size;
+            }
+            throw new NotImplementedException("TODO We now only support fixed key");
+            if (TypeHelper<TKey>.Size <= 0) {
+                throw new NotImplementedException("TODO We now only support fixed key");
+            }
+            //MemoryStream ms;
+            //var valueSize = TypeHelper<TValue>.Size > 0 ? TypeHelper<TValue>.Size : TypeHelper<TValue>.SizeOf(value.value, out ms);
+            //memoryStream = new MemoryStream(TypeHelper<TKey>.Size + 8 + valueSize);
+            //var bw = new BinaryWriter(memoryStream);
+            //bw.Write(value.key)
+            //throw new NotImplementedException("TODO variable sized types");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -87,7 +100,7 @@ namespace Spreads.Storage {
             return entry;
         }
 
-        public int Version => -1;
+        public int Version => 0;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 20)]
