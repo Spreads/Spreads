@@ -19,6 +19,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -33,7 +34,7 @@ namespace Spreads.Storage {
 
     // NB for each series id each repository instance keeps a single series instance
 
-    public class SeriesRepository : SeriesStorage, ISeriesRepository, IDisposable {
+    public class DataRepository : SeriesStorage, IDataRepository, IDisposable {
         // persistent dictionary to store all open series with write access and process id
         // we use single writer and steal locks if a writer process id is not among running processes.
         private readonly PersistentMapFixedLength<UUID, int> _writeSeriesLocks;
@@ -48,9 +49,10 @@ namespace Spreads.Storage {
         private readonly ConcurrentDictionary<UUID, IAcceptCommand> _openSeries = new ConcurrentDictionary<UUID, IAcceptCommand>();
         private static short _counter = 0;
         private int _pid;
-        static SeriesRepository()
-        {
-            
+        private string _mapsPath;
+
+        static DataRepository() {
+
         }
 
         /// <summary>
@@ -59,17 +61,18 @@ namespace Spreads.Storage {
         /// <param name="path">A directory path where repository is stored. If null or empty, then
         /// a default folder is used.</param>
         /// <param name="bufferSizeMb">Buffer size in megabytes. Ignored if below default.</param>
-        public SeriesRepository(string path = null, uint bufferSizeMb = 100) : base(GetConnectionStringFromPath(path)) {
-            if (string.IsNullOrWhiteSpace(path)) {
-                path = Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "Repos", "Default");
-            }
-            //else if (!Path.IsPathRooted(path)) {
+        public DataRepository(string path = null, uint bufferSizeMb = 100) : base(GetConnectionStringFromPath(path)) {
+            //if (!Path.IsPathRooted(path)) {
             //    path = Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "Repos", path);
             //}
-
-            var writeLocksFileName = Path.Combine(path, WriteLocksFileName);
+            var seriesPath = Path.Combine(path, "series");
+            _mapsPath = Path.Combine(path, "maps");
+            if (!Directory.Exists(_mapsPath)) {
+                Directory.CreateDirectory(_mapsPath);
+            }
+            var writeLocksFileName = Path.Combine(seriesPath, WriteLocksFileName);
             _writeSeriesLocks = new PersistentMapFixedLength<UUID, int>(writeLocksFileName, 1000);
-            var logBufferFileName = Path.Combine(path, LogBufferFileName);
+            var logBufferFileName = Path.Combine(seriesPath, LogBufferFileName);
             _appendLog = new AppendLog(logBufferFileName, bufferSizeMb < MinimumBufferSize ? (int)MinimumBufferSize : (int)bufferSizeMb);
             _appendLog.OnAppend += OnLogAppend;
             _pid = (_counter << 16) | Process.GetCurrentProcess().Id;
@@ -79,10 +82,14 @@ namespace Spreads.Storage {
         protected PersistentMapFixedLength<UUID, int> WriteSeriesLocks => _writeSeriesLocks;
 
         private static string GetConnectionStringFromPath(string path) {
-            if (!Directory.Exists(path)) {
-                Directory.CreateDirectory(path);
+            if (string.IsNullOrWhiteSpace(path)) {
+                path = Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "Repos", "Default", "series");
             }
-            var storageFileName = Path.Combine(path, StorageFileName);
+            var seriesPath = Path.Combine(path, "series");
+            if (!Directory.Exists(seriesPath)) {
+                Directory.CreateDirectory(seriesPath);
+            }
+            var storageFileName = Path.Combine(seriesPath, StorageFileName);
             return SeriesStorage.GetDefaultConnectionString(storageFileName);
         }
 
@@ -90,7 +97,7 @@ namespace Spreads.Storage {
         protected int Pid => _pid;
 
         protected virtual unsafe void OnLogAppend(DirectBuffer buffer) {
-            
+
 
             var writerPid = buffer.ReadInt64(DataHeaderFlyweight.RESERVED_VALUE_OFFSET);
             var messageBuffer = new DirectBuffer(buffer.Length - DataHeaderFlyweight.HEADER_LENGTH,
@@ -113,6 +120,14 @@ namespace Spreads.Storage {
 
         public async Task<Series<K, V>> ReadSeries<K, V>(string seriesId) {
             return (await GetSeries<K, V>(seriesId, false, false)).ReadOnly();
+        }
+
+        public Task<IDictionary<K, V>> WriteMap<K, V>(string mapId, int initialCapacity) {
+            if (mapId == null) throw new ArgumentNullException(nameof(mapId));
+            if (initialCapacity <= 0) throw new ArgumentOutOfRangeException(nameof(initialCapacity));
+            var mapPath = Path.Combine(_mapsPath, mapId);
+            var map = PersistentMap<K, V>.Open(mapPath, initialCapacity);
+            return Task.FromResult((IDictionary<K, V>)map);
         }
 
 
@@ -343,7 +358,7 @@ namespace Spreads.Storage {
             Dispose(true);
         }
 
-        ~SeriesRepository() {
+        ~DataRepository() {
             Dispose(false);
         }
     }

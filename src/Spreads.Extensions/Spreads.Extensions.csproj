@@ -442,14 +442,14 @@
     <Compile Include="Series\CursorSeries.cs" />
     <Compile Include="Series\ZonedSeries.cs" />
     <Compile Include="Storage\IpcLongIncrementListener.cs" />
-    <Compile Include="Storage\ISeriesRepository.cs" />
+    <Compile Include="Storage\IDataRepository.cs" />
     <Compile Include="Storage\ISeriesStorage.cs" />
     <Compile Include="Storage\LogBuffer.cs" />
     <Compile Include="Storage\Commands.cs" />
     <Compile Include="Storage\PersistentSeries.cs" />
     <Compile Include="Storage\RemoteChunksSeries.cs" />
     <Compile Include="Storage\SeriesMetadata.cs" />
-    <Compile Include="Storage\SeriesRepository.cs" />
+    <Compile Include="Storage\DataRepository.cs" />
     <Compile Include="Storage\SeriesStorage.cs" />
     <Compile Include="Storage\SQLite\Interop\NativeMethodsEx.cs" />
     <Compile Include="Storage\SQLite\Interop\Sqlite3BlobHandle.cs" />

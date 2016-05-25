@@ -1,11 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Spreads.Storage {
 
-    public interface ISeriesRepository {
+    public interface IDataRepository {
         /// <summary>
         /// Acquire a write lock on the series and return series as a writable series
         /// </summary>
@@ -18,5 +19,12 @@ namespace Spreads.Storage {
         /// Get read-only series
         /// </summary>
         Task<Series<K, V>> ReadSeries<K, V>(string seriesId);
+
+        // TODO remove interfaces
+        /// <summary>
+        /// Get writeable persistent IDictionary
+        /// </summary>
+        Task<IDictionary<K,V>> WriteMap<K, V>(string mapId, int initialCapacity);
+
     }
 }

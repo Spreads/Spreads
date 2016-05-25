@@ -36,7 +36,7 @@ namespace Spreads.Storage {
     /// <summary>
     /// Persistent series.
     /// </summary>
-    public sealed class PersistentSeries<K, V> : Series<K, V>, IPersistentOrderedMap<K, V>, SeriesRepository.IAcceptCommand {
+    public sealed class PersistentSeries<K, V> : Series<K, V>, IPersistentOrderedMap<K, V>, DataRepository.IAcceptCommand {
         private readonly AppendLog _appendLog;
         private readonly int _pid;
         private readonly UUID _uuid;

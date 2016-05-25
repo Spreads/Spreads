@@ -9,12 +9,12 @@ using Spreads.Storage;
 
 namespace Spreads.Extensions.Tests {
     [TestFixture]
-    public class SeriesRepositoryTests {
+    public class DataRepositoryTests {
 
         [Test]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void CouldCreateRepositoryAndGetSeries() {
-            using (var repo = new SeriesRepository("../SeriesRepositoryTests")) {
+            using (var repo = new DataRepository("../SeriesRepositoryTests")) {
                 var ps = repo.WriteSeries<DateTime, double>("test_CouldGetPersistentSeries").Result;
                 Assert.AreEqual(ps.Count, ps.Version);
                 var initialVersion = ps.Version;
@@ -24,6 +24,22 @@ namespace Spreads.Extensions.Tests {
                 Assert.AreEqual(ps.Count, ps.Version);
             }
         }
+
+
+        [Test]
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public void CouldCreateRepositoryAndGetMap() {
+            using (var repo = new DataRepository("../SeriesRepositoryTests"))
+            using (var repo2 = new DataRepository("../SeriesRepositoryTests")) {
+                var map = repo.WriteMap<long, long>("test_map", 1000).Result;
+                var map2 = repo2.WriteMap<long, long>("test_map", 1000).Result;
+                map[42] = 43;
+                Assert.AreEqual(43, map[42]);
+                Assert.AreEqual(43, map2[42]);
+            }
+        }
+
+
 
         [Test]
         public void CouldCreateRepositoryAndGetSeriesManyTimes() {
@@ -42,8 +58,8 @@ namespace Spreads.Extensions.Tests {
 
         public void CouldCreateTwoRepositoriesAndGetSeries(int i) {
 
-            using (var repo = new SeriesRepository("../SeriesRepositoryTests"))
-            using (var repo2 = new SeriesRepository("../SeriesRepositoryTests")) {
+            using (var repo = new DataRepository("../SeriesRepositoryTests"))
+            using (var repo2 = new DataRepository("../SeriesRepositoryTests")) {
                 // this read and write series have the same underlying instance inside the repo
                 // the reead series are just wrapped with .ReadOnly()
                 var psRead = repo2.ReadSeries<DateTime, double>("test_CouldGetPersistentSeries").Result;
@@ -77,12 +93,12 @@ namespace Spreads.Extensions.Tests {
         [Test]
         public void CouldCreateTwoRepositoriesAndSynchronizeSeries() {
 
-            using (var repo = new SeriesRepository("../SeriesRepositoryTests", 100))
-            using (var repo2 = new SeriesRepository("../SeriesRepositoryTests", 100)) {
+            using (var repo = new DataRepository("../SeriesRepositoryTests", 100))
+            using (var repo2 = new DataRepository("../SeriesRepositoryTests", 100)) {
                 for (int rounds = 0; rounds < 1000; rounds++) {
 
                     var sw = new Stopwatch();
-                    
+
 
                     // this read and write series have the same underlying instance inside the repo
                     // the reead series are just wrapped with .ReadOnly()
@@ -111,12 +127,11 @@ namespace Spreads.Extensions.Tests {
                         ps.Add(start.AddTicks(i + 1), i);
                     }
 
-                    while (!readerTask.Wait(2000))
-                    {
+                    while (!readerTask.Wait(2000)) {
                         Trace.WriteLine("Timeout");
                         Trace.WriteLine($"Cursor: {readCursor.CurrentKey} - {readCursor.CurrentValue}");
                     }
-                    
+
 
                     sw.Stop();
                     Trace.WriteLine($"Elapsed msec: {sw.ElapsedMilliseconds}");
@@ -129,8 +144,8 @@ namespace Spreads.Extensions.Tests {
         [Test]
         public void CouldCreateTwoRepositoriesAndSynchronizeSeriesVarLength() {
 
-            using (var repo = new SeriesRepository("../SeriesRepositoryTests", 100))
-            using (var repo2 = new SeriesRepository("../SeriesRepositoryTests", 100)) {
+            using (var repo = new DataRepository("../SeriesRepositoryTests", 100))
+            using (var repo2 = new DataRepository("../SeriesRepositoryTests", 100)) {
                 for (int rounds = 0; rounds < 10; rounds++) {
 
                     var sw = new Stopwatch();
@@ -159,8 +174,7 @@ namespace Spreads.Extensions.Tests {
                         }
                     });
 
-                    for (int i = 0; i < count; i++)
-                    {
+                    for (int i = 0; i < count; i++) {
                         var k = start.AddTicks(i + 1);
                         ps.Add(k, k.Year.ToString());
                     }
@@ -191,7 +205,7 @@ namespace Spreads.Extensions.Tests {
         [Test]
         public void CouldSynchronizeSeriesFromSingleRepo() {
 
-            using (var repo = new SeriesRepository("../SeriesRepositoryTests", 100)) {
+            using (var repo = new DataRepository("../SeriesRepositoryTests", 100)) {
                 for (int rounds = 0; rounds < 1; rounds++) {
 
                     var sw = new Stopwatch();

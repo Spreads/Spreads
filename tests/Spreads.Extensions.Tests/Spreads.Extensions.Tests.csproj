@@ -112,7 +112,7 @@
     <Compile Include="AeronLogBufferTests.cs" />
     <Compile Include="DirectFileTest.cs" />
     <Compile Include="NanoOptimizationTests.cs" />
-    <Compile Include="SeriesRepositoryTests.cs" />
+    <Compile Include="DataRepositoryTests.cs" />
     <Compile Include="LogBufferTests.cs" />
     <Compile Include="IpcListenerTests.cs" />
     <Compile Include="PersistentArrayTests.cs" />
