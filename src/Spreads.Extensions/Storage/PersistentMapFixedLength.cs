@@ -53,22 +53,22 @@ namespace Spreads.Storage {
             // Otherwise more efficient direct conversion is used
             public bool IsFixedSize => TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
             public int Size => IsFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
-            public int SizeOf(Entry value, out MemoryStream memoryStream) {
+            public int SizeOf(Entry value, ref MemoryStream memoryStream) {
                 if (IsFixedSize)
                 {
-                    memoryStream = null;
                     return Size;
                 }
                 throw new NotSupportedException("This variant of persistent map does not support variable-size types.");
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public unsafe void ToPtr(Entry entry, IntPtr ptr) {
+            public unsafe void ToPtr(Entry entry, IntPtr ptr, MemoryStream memoryStream = null) {
                 *(int*)ptr = entry.hashCode;
                 *(int*)(ptr + 4) = entry.next;
                 TypeHelper<TKey>.StructureToPtr(entry.key, (ptr + 8));
                 TypeHelper<TValue>.StructureToPtr(entry.value, (ptr + 8 + TypeHelper<TKey>.Size));
             }
+
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public unsafe Entry FromPtr(IntPtr ptr) {
                 var entry = new Entry();

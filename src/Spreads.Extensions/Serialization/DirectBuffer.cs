@@ -549,8 +549,8 @@ namespace Spreads.Serialization {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write<T>(long index, T value)
         {
-            MemoryStream stream;
-            var len = TypeHelper<T>.SizeOf(value, out stream);
+            MemoryStream stream = null;
+            var len = TypeHelper<T>.SizeOf(value, ref stream);
             Assert(index, len);
             var ptr = new IntPtr(_data.ToInt64() + index);
             if (stream == null)

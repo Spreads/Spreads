@@ -59,12 +59,13 @@ namespace Spreads.Storage {
     internal unsafe struct SetRemoveCommandBody<TKey, TValue> : IBinaryConverter<SetRemoveCommandBody<TKey, TValue>> {
         public TKey key; // Key of entry
         public TValue value; // Value of entry
-
+        private static bool _isFixedSize = TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
+        private static int _size = _isFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
         // NB this interface methods are only called when SetRemoveCommandBody is not directly pinnable
         // Otherwise more efficient direct conversion is used
         public bool IsFixedSize => TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
         public int Size => IsFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
-        public int SizeOf(SetRemoveCommandBody<TKey, TValue> value, out MemoryStream memoryStream) {
+        public int SizeOf(SetRemoveCommandBody<TKey, TValue> value, ref MemoryStream memoryStream) {
             if (IsFixedSize) {
                 memoryStream = null;
                 return Size;
@@ -73,7 +74,7 @@ namespace Spreads.Storage {
                 throw new NotImplementedException("TODO We now only support fixed key");
             }
             MemoryStream ms = null;
-            var valueSize = TypeHelper<TValue>.Size > 0 ? TypeHelper<TValue>.Size : TypeHelper<TValue>.SizeOf(value.value, out ms);
+            var valueSize = TypeHelper<TValue>.Size > 0 ? TypeHelper<TValue>.Size : TypeHelper<TValue>.SizeOf(value.value, ref ms);
             var bytes = new byte[TypeHelper<TKey>.Size + 8 + valueSize];
             fixed (byte* ptr = &bytes[0])
             {
@@ -87,13 +88,13 @@ namespace Spreads.Storage {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void ToPtr(SetRemoveCommandBody<TKey, TValue> entry, IntPtr ptr) {
+        public unsafe void ToPtr(SetRemoveCommandBody<TKey, TValue> entry, IntPtr ptr, MemoryStream memoryStream = null) {
             if (IsFixedSize) {
                 TypeHelper<TKey>.StructureToPtr(entry.key, (ptr + 8));
                 TypeHelper<TValue>.StructureToPtr(entry.value, (ptr + 8 + TypeHelper<TKey>.Size));
             } else {
                 MemoryStream ms = null;
-                var valueSize = TypeHelper<TValue>.Size > 0 ? TypeHelper<TValue>.Size : TypeHelper<TValue>.SizeOf(entry.value, out ms);
+                var valueSize = TypeHelper<TValue>.Size > 0 ? TypeHelper<TValue>.Size : TypeHelper<TValue>.SizeOf(entry.value, ref ms);
                 var bytes = new byte[TypeHelper<TKey>.Size + valueSize];
 
                 var db = new DirectBuffer(bytes.LongLength, (IntPtr)ptr);

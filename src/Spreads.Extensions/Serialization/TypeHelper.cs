@@ -222,9 +222,9 @@ namespace Spreads.Serialization {
         /// <param name="memoryStream"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int SizeOf(T value, out MemoryStream memoryStream) {
+        internal static int SizeOf(T value, ref MemoryStream memoryStream) {
             if (_hasBinaryConverter) {
-                return _convertorInstance.SizeOf(value, out memoryStream);
+                return _convertorInstance.SizeOf(value, ref memoryStream);
             }
 
             if (Size < 0) {

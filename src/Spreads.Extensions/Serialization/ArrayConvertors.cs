@@ -22,7 +22,7 @@ namespace Spreads.Serialization {
 
         private static int _itemSize = TypeHelper<TElement>.Size;
 
-        public int SizeOf(TElement[] value, out MemoryStream memoryStream) {
+        public int SizeOf(TElement[] value, ref MemoryStream memoryStream) {
             if (_itemSize > 0) {
                 memoryStream = null;
                 return _itemSize * value.Length;
@@ -30,7 +30,7 @@ namespace Spreads.Serialization {
             throw new NotImplementedException();
         }
 
-        public void ToPtr(TElement[] value, IntPtr ptr) {
+        public void ToPtr(TElement[] value, IntPtr ptr, MemoryStream memoryStream = null) {
             throw new NotImplementedException();
         }
 
@@ -43,12 +43,11 @@ namespace Spreads.Serialization {
     internal class ByteArrayBinaryConverter : IBinaryConverter<byte[]> {
         public bool IsFixedSize => false;
         public int Size => 0;
-        public int SizeOf(byte[] value, out MemoryStream memoryStream) {
-            memoryStream = null;
+        public int SizeOf(byte[] value, ref MemoryStream memoryStream) {
             return value.Length;
         }
 
-        public void ToPtr(byte[] value, IntPtr ptr) {
+        public void ToPtr(byte[] value, IntPtr ptr, MemoryStream memoryStream = null) {
             // version
             Marshal.WriteInt32(ptr, 0);
             // size
@@ -74,14 +73,13 @@ namespace Spreads.Serialization {
     internal class MemoryStreamBinaryConverter : IBinaryConverter<MemoryStream> {
         public bool IsFixedSize => false;
         public int Size => 0;
-        public int SizeOf(MemoryStream value, out MemoryStream memoryStream) {
-            memoryStream = null;
+        public int SizeOf(MemoryStream value, ref MemoryStream memoryStream) {
             if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException("Memory stream is too large");
             return (int)value.Length;
         }
 
 
-        public unsafe void ToPtr(MemoryStream value, IntPtr ptr) {
+        public unsafe void ToPtr(MemoryStream value, IntPtr ptr, MemoryStream memoryStream = null) {
             if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException("Memory stream is too large");
             // version
             Marshal.WriteInt32(ptr, 0);

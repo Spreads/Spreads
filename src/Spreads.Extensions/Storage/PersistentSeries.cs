@@ -190,8 +190,8 @@ namespace Spreads.Storage {
                 key = key,
                 value = value
             };
-            MemoryStream ms;
-            var len = CommandHeader.Size + TypeHelper<SetRemoveCommandBody<K, V>>.SizeOf(commandBody, out ms);
+            MemoryStream ms = null;
+            var len = CommandHeader.Size + TypeHelper<SetRemoveCommandBody<K, V>>.SizeOf(commandBody, ref ms);
             // version + len header
             if (TypeHelper<SetRemoveCommandBody<K, V>>.Size <= 0) len = len + 8;
             BufferClaim claim;
