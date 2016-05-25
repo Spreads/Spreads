@@ -43,6 +43,11 @@ namespace Spreads.Storage {
         Flush = 70,
         AcquireLock = 80,
         ReleaseLock = 90,
+
+        /// <summary>
+        /// Generic command that depends on context
+        /// </summary>
+        Broadcast = int.MaxValue
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 28)]

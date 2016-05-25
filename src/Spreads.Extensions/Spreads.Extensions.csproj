@@ -33,7 +33,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\..\bin\</OutputPath>
-    <DefineConstants>PRERELEASE;SPREADS;NO_VARIANCE;NET451;TYPED_REF</DefineConstants>
+    <DefineConstants>TRACE;PRERELEASE;SPREADS;NO_VARIANCE;NET451;TYPED_REF</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
