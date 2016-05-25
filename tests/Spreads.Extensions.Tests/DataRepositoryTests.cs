@@ -12,7 +12,6 @@ namespace Spreads.Extensions.Tests {
     public class DataRepositoryTests {
 
         [Test]
-        [MethodImpl(MethodImplOptions.NoInlining)]
         public void CouldCreateRepositoryAndGetSeries() {
             using (var repo = new DataRepository("../SeriesRepositoryTests")) {
                 var ps = repo.WriteSeries<DateTime, double>("test_CouldGetPersistentSeries").Result;
@@ -27,7 +26,6 @@ namespace Spreads.Extensions.Tests {
 
 
         [Test]
-        [MethodImpl(MethodImplOptions.NoInlining)]
         public void CouldCreateRepositoryAndGetMap() {
             using (var repo = new DataRepository("../SeriesRepositoryTests"))
             using (var repo2 = new DataRepository("../SeriesRepositoryTests")) {
@@ -51,7 +49,7 @@ namespace Spreads.Extensions.Tests {
         }
 
 
-        [Test]
+        [Test, Ignore]
         public void CouldCreateTwoRepositoriesAndGetSeries() {
             CouldCreateTwoRepositoriesAndGetSeries(123);
         }
@@ -83,14 +81,14 @@ namespace Spreads.Extensions.Tests {
             }
         }
 
-        [Test]
+        [Test, Ignore]
         public void CouldCreateTwoRepositoriesAndGetSeriesManyTimes() {
             for (int i = 0; i < 10000; i++) {
                 CouldCreateTwoRepositoriesAndGetSeries(i);
             }
         }
 
-        [Test]
+        [Test, Ignore]
         public void CouldCreateTwoRepositoriesAndSynchronizeSeries() {
 
             using (var repo = new DataRepository("../SeriesRepositoryTests", 100))
@@ -141,7 +139,7 @@ namespace Spreads.Extensions.Tests {
         }
 
 
-        [Test]
+        [Test, Ignore]
         public void CouldCreateTwoRepositoriesAndSynchronizeSeriesVarLength() {
 
             using (var repo = new DataRepository("../SeriesRepositoryTests", 100))
@@ -202,7 +200,7 @@ namespace Spreads.Extensions.Tests {
 
 
 
-        [Test]
+        [Test, Ignore]
         public void CouldSynchronizeSeriesFromSingleRepo() {
 
             using (var repo = new DataRepository("../SeriesRepositoryTests", 100)) {

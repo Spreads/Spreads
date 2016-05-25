@@ -32,8 +32,7 @@ namespace Spreads.Storage {
 
     public class SeriesStorage : ISeriesStorage {
 
-        static SeriesStorage()
-        {
+        static SeriesStorage() {
             // init
             if (Bootstrap.Bootstrapper.Instance.BaseFolder == null) throw new ApplicationException();
         }

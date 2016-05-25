@@ -39,7 +39,7 @@ namespace Spreads.Core.Tests {
     [TestFixture]
     public class SingleEnumerableTests {
 
-        [Test]
+        [Test, Ignore]
         public void DirectSum() {
             var sw = new Stopwatch();
             sw.Start();
@@ -52,7 +52,7 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-        [Test]
+        [Test, Ignore]
         public void DirectStructSum() {
             var sw = new Stopwatch();
             sw.Start();
@@ -68,7 +68,7 @@ namespace Spreads.Core.Tests {
         }
 
 
-        [Test]
+        [Test, Ignore]
         public void DirectClassSum() {
             var sw = new Stopwatch();
             sw.Start();
@@ -82,7 +82,7 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-        [Test]
+        [Test, Ignore]
         public void SingleEnumerableWithYieldForEachManyTimes()
         {
             for (int i = 0; i < 5; i++)
@@ -91,7 +91,7 @@ namespace Spreads.Core.Tests {
             }
         }
 
-        [Test]
+        [Test, Ignore]
         public void SingleEnumerableWithYieldForEach() {
             var sw = new Stopwatch();
             sw.Start();
@@ -107,7 +107,7 @@ namespace Spreads.Core.Tests {
         }
 
 
-        [Test]
+        [Test, Ignore]
         public void SingleEnumerableWithYieldLinq() {
             var sw = new Stopwatch();
             sw.Start();
@@ -121,7 +121,7 @@ namespace Spreads.Core.Tests {
         }
 
 
-        [Test]
+        [Test, Ignore]
         public void SingleSequenceStructForEachManyTimes()
         {
             for (int i = 0; i < 20; i++)
@@ -132,7 +132,7 @@ namespace Spreads.Core.Tests {
 
         // Fastest among seqs, but still 30x times slower than direct sum
         // 49 mops vs 37 mops, or c.30% faster
-        [Test]
+        [Test, Ignore]
         public void SingleSequenceStructForEach() {
             var sw = new Stopwatch();
             sw.Start();
@@ -147,7 +147,7 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-        [Test]
+        [Test, Ignore]
         public void SingleSequenceStructReusedForEach() {
             var sw = new Stopwatch();
             sw.Start();
@@ -163,7 +163,7 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-        [Test]
+        [Test, Ignore]
         public void SingleSequenceStructLinq() {
             var sw = new Stopwatch();
             sw.Start();
@@ -177,7 +177,7 @@ namespace Spreads.Core.Tests {
         }
 
         //Enumerable.Repeat("abc",1);
-        [Test]
+        [Test, Ignore]
         public void SingleLinqRepeatForEach() {
             var sw = new Stopwatch();
             sw.Start();
@@ -192,7 +192,7 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-        [Test]
+        [Test, Ignore]
         public void SingleLinqRepeatLinq() {
             var sw = new Stopwatch();
             sw.Start();

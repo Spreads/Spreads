@@ -196,7 +196,7 @@ namespace Spreads.Core.Tests {
             }
         }
 
-
+        [Test, Ignore]
         public void CallVsCallVirt(int r) {
             var count = 1000000000;
             var sw = new Stopwatch();
@@ -303,7 +303,7 @@ namespace Spreads.Core.Tests {
 
 
 
-        [Test]
+        [Test, Ignore]
         public void CallVsCallVirt() {
             for (int r = 0; r < 10; r++) {
                 CallVsCallVirt(r);
@@ -311,7 +311,7 @@ namespace Spreads.Core.Tests {
             }
         }
 
-        [Test]
+        [Test, Ignore]
         public void SOVolatileQuestion() {
             long counter = 0;
             var values = new double[1000000];
@@ -334,7 +334,7 @@ namespace Spreads.Core.Tests {
             }
         }
 
-        [Test]
+        [Test, Ignore]
         public void ArrayVsListVsIList() {
 
             var len = 1000;

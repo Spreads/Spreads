@@ -239,6 +239,9 @@
     <Compile Include="..\..\lib\dapper-dot-net\Dapper\WrappedReader.cs">
       <Link>Storage\Dapper\WrappedReader.cs</Link>
     </Compile>
+    <Compile Include="..\..\lib\dapper-dot-net\Dapper\XmlHandlers.cs">
+      <Link>Storage\Dapper\XmlHandlers.cs</Link>
+    </Compile>
     <Compile Include="..\..\lib\Ix.NET\Ix.NET\Source\System.Interactive.Async\AsyncEnumerable.Aggregates.cs">
       <Link>System\Interactive.Async\AsyncEnumerable.Aggregates.cs</Link>
     </Compile>

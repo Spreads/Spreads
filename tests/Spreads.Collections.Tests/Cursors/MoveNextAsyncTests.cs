@@ -73,8 +73,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         [Ignore]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes()
-        {
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes() {
             ////use the second Core/Processor for the test
             //Process.GetCurrentProcess().ProcessorAffinity = new IntPtr(2);
             ////prevent "Normal" Processes from interrupting Threads
@@ -85,9 +84,8 @@ namespace Spreads.Collections.Tests.Cursors {
             System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.LowLatency;
             GCLatencyMode oldMode = GCSettings.LatencyMode;
             GCSettings.LatencyMode = GCLatencyMode.LowLatency;
-            for (int round = 0; round < 50; round++)
-            {
-                
+            for (int round = 0; round < 50; round++) {
+
                 if (GC.TryStartNoGCRegion(100 * 1024 * 1024)) {
                     CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
                     GC.EndNoGCRegion();
@@ -167,9 +165,9 @@ namespace Spreads.Collections.Tests.Cursors {
             var histogram3 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
             var sumTask3 = Task.Run(async () => {
                 var c = sm.GetCursor();
-                
+
                 var startTick = sw.ElapsedTicks;
-                
+
                 while (await c.MoveNext(CancellationToken.None)) {
                     sum3 += c.CurrentValue;
                     if ((int)c.CurrentValue != cnt3) {
@@ -186,7 +184,7 @@ namespace Spreads.Collections.Tests.Cursors {
                     startTick = sw.ElapsedTicks;
                 }
 
-                
+
             });
 
             Thread.Sleep(1);
@@ -456,6 +454,7 @@ namespace Spreads.Collections.Tests.Cursors {
             double sum = 0.0;
 
             cached.Do((k, v) => {
+                Console.WriteLine($"{k} - {v}");
                 sum += v;
             });
 
