@@ -131,6 +131,7 @@
     <Compile Include="Storage\SQLite\TestUtilities\DbConnectionExtensions.cs" />
     <Compile Include="Storage\SQLite\TestUtilities\SqliteVersionConditionAttribute.cs" />
     <Compile Include="Storage\StorageTests.cs" />
+    <Compile Include="DataTypesTest.cs" />
     <Compile Include="TypeHelperTests.cs" />
     <Compile Include="UnsafeCastTests.cs" />
     <Compile Include="YepppTests.cs" />

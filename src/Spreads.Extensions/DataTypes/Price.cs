@@ -43,7 +43,7 @@ namespace Spreads.DataTypes {
     /// When T = 1, S/B flags could have a special meaning depending on context.
     /// S and B are mutually exlusive.
     /// </remarks>
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
     public struct Price : IComparable<Price>, IEquatable<Price> {
 
 
@@ -181,20 +181,20 @@ namespace Spreads.DataTypes {
             }
         }
 
-        public Side? Side
+        public TradeSide? TradeSide
         {
             get
             {
                 if (!IsQualified) return null;
                 // ReSharper disable once PossibleInvalidOperationException
                 if (IsBuy.Value) {
-                    return DataTypes.Side.Buy;
+                    return DataTypes.TradeSide.Buy;
                 }
                 // ReSharper disable once PossibleInvalidOperationException
                 if (IsSell.Value) {
-                    return DataTypes.Side.Sell;
+                    return DataTypes.TradeSide.Sell;
                 }
-                return DataTypes.Side.None;
+                return DataTypes.TradeSide.None;
             }
         }
 
@@ -205,13 +205,13 @@ namespace Spreads.DataTypes {
             _value = ((ulong)exponent << 56) | ((ulong)mantissa);
         }
 
-        private Price(ulong value, Side? side = null, bool? isTrade = null)
+        private Price(ulong value, TradeSide? tradeSide = null, bool? isTrade = null)
         {
             _value = value & UnqualifiedMask;
-            if (side != null && side.Value != DataTypes.Side.None) {
-                if (side == DataTypes.Side.Buy) {
+            if (tradeSide != null && tradeSide.Value != DataTypes.TradeSide.None) {
+                if (tradeSide == DataTypes.TradeSide.Buy) {
                     _value = _value | (9UL << 60); // 9 ~ 1001
-                } else if (side == DataTypes.Side.Sell) { // 10 ~ 1010
+                } else if (tradeSide == DataTypes.TradeSide.Sell) { // 10 ~ 1010
                     _value = _value | (10UL << 60);
                 }
             }
@@ -222,15 +222,15 @@ namespace Spreads.DataTypes {
 
         public Price(decimal value, int precision = 5) : this(value, precision, null, null) {}
 
-        public Price(decimal value, int precision = 5, Side? side = null, bool? isTrade = null) {
+        public Price(decimal value, int precision = 5, TradeSide? tradeSide = null, bool? isTrade = null) {
             if ((ulong)precision > 15) throw new ArgumentOutOfRangeException(nameof(precision));
             if (value > MantissaMask * DecimalFractions10[precision]) throw new ArgumentOutOfRangeException(nameof(value));
             var mantissa = decimal.ToUInt64(value * Powers10[precision]);
             _value = ((ulong)precision << 56) | mantissa;
-            if (side != null && side.Value != DataTypes.Side.None) {
-                if (side == DataTypes.Side.Buy) {
+            if (tradeSide != null && tradeSide.Value != DataTypes.TradeSide.None) {
+                if (tradeSide == DataTypes.TradeSide.Buy) {
                     _value = _value | (9UL << 60); // 9 ~ 1001
-                } else if (side == DataTypes.Side.Sell) { // 10 ~ 1010
+                } else if (tradeSide == DataTypes.TradeSide.Sell) { // 10 ~ 1010
                     _value = _value | (10UL << 60);
                 }
             }
@@ -239,7 +239,7 @@ namespace Spreads.DataTypes {
             }
         }
 
-        public Price(Price price, Side? side = null, bool? isTrade = null) : this(price._value, side, isTrade)
+        public Price(Price price, TradeSide? tradeSide = null, bool? isTrade = null) : this(price._value, tradeSide, isTrade)
         {
         }
 

@@ -31,6 +31,13 @@ using Spreads.Collections;
 namespace Spreads.Storage {
 
     public class SeriesStorage : ISeriesStorage {
+
+        static SeriesStorage()
+        {
+            // init
+            if (Bootstrap.Bootstrapper.Instance.BaseFolder == null) throw new ApplicationException();
+        }
+
         private readonly SqliteConnection _connection;
         private readonly ConcurrentDictionary<long, object> _writableSeriesStore = new ConcurrentDictionary<long, object>();
         private readonly ConcurrentDictionary<long, object> _readOnlySeriesStore = new ConcurrentDictionary<long, object>();

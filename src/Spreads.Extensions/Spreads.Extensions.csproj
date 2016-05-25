@@ -33,7 +33,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\..\bin\</OutputPath>
-    <DefineConstants>TRACE;PRERELEASE;SPREADS;NO_VARIANCE;NET451;TYPED_REF</DefineConstants>
+    <DefineConstants>PRERELEASE;SPREADS;NO_VARIANCE;NET451;TYPED_REF</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -41,7 +41,7 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Prerelease|AnyCPU'">
-    <OutputPath>bin\Prerelease\</OutputPath>
+    <OutputPath>..\..\bin\</OutputPath>
     <DefineConstants>TRACE;PRERELEASE;SPREADS;NO_VARIANCE;NET451;TYPED_REF</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Optimize>true</Optimize>
@@ -373,7 +373,10 @@
     <Compile Include="..\..\lib\Microsoft.IO.RecyclableMemoryStream\src\RecyclableMemoryStreamManager.cs">
       <Link>Serialization\Microsoft.IO.RecyclableMemoryStream\RecyclableMemoryStreamManager.cs</Link>
     </Compile>
-    <Compile Include="Serialization\ArrayConvertors.cs" />
+    <Compile Include="DataTypes\OrderBook.cs" />
+    <Compile Include="DataTypes\Symbol.cs" />
+    <Compile Include="DataTypes\Tick.cs" />
+    <Compile Include="Serialization\Convertors.cs" />
     <Compile Include="Serialization\DirectBuffer.cs" />
     <Compile Include="Serialization\DirectFile.cs" />
     <Compile Include="Serialization\FixedBuffer.cs" />
@@ -414,10 +417,10 @@
     <Compile Include="Storage\PersistentMap.cs" />
     <Compile Include="Storage\HashHelpers.cs" />
     <Compile Include="DataTypes\Candles.cs" />
-    <Compile Include="DataTypes\OrderBook.cs" />
+    <Compile Include="DataTypes\Order.cs" />
     <Compile Include="DataTypes\Price.cs" />
     <Compile Include="DataTypes\Quote.cs" />
-    <Compile Include="DataTypes\Side.cs" />
+    <Compile Include="DataTypes\TradeSide.cs" />
     <Compile Include="Generation\SeriesGenerator.cs" />
     <Compile Include="Properties\Attributes.cs" />
     <Compile Include="Bootstrapper\ABI.cs" />
