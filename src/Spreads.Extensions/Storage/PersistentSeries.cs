@@ -37,7 +37,7 @@ namespace Spreads.Storage {
     /// Persistent series.
     /// </summary>
     public sealed class PersistentSeries<K, V> : Series<K, V>, IPersistentOrderedMap<K, V>, SeriesRepository.IAcceptCommand {
-        private readonly IAppendLog _appendLog;
+        private readonly AppendLog _appendLog;
         private readonly int _pid;
         private readonly UUID _uuid;
         private readonly IPersistentOrderedMap<K, V> _innerMap;
@@ -51,7 +51,7 @@ namespace Spreads.Storage {
         internal int RefCounter = 0;
         private volatile bool _isWriter;
 
-        internal PersistentSeries(IAppendLog appendLog, int pid, UUID uuid, IPersistentOrderedMap<K, V> innerMap, bool allowBatches, bool isWriter,
+        internal PersistentSeries(AppendLog appendLog, int pid, UUID uuid, IPersistentOrderedMap<K, V> innerMap, bool allowBatches, bool isWriter,
             Action<bool, bool> disposeCallback = null) {
             _appendLog = appendLog;
             _pid = pid;

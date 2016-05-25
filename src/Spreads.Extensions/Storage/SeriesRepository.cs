@@ -39,7 +39,7 @@ namespace Spreads.Storage {
         private readonly PersistentMapFixedLength<UUID, int> _writeSeriesLocks;
         private const string WriteLocksFileName = "writelocks";
 
-        private readonly IAppendLog _appendLog;
+        private readonly AppendLog _appendLog;
         private const string LogBufferFileName = "appendbuffer";
         private const uint MinimumBufferSize = 10;
         private const string StorageFileName = "chunkstorage";

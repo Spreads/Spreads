@@ -30,7 +30,7 @@ namespace Spreads.Storage {
         event OnAppendHandler OnAppend;
     }
 
-    internal class AppendLog : IAppendLog {
+    internal sealed class AppendLog : IAppendLog {
         private readonly LogBuffers _logBuffers;
 
         private long _subscriberPosition;
