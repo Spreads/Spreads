@@ -146,7 +146,7 @@ namespace Spreads.Extensions.Tests {
                     var ps =
                         repo.WriteSeries<DateTime, string>("test_CouldCreateTwoRepositoriesAndSynchronizeSeriesVarLength").Result;
                     var start = ps.IsEmpty ? DateTime.UtcNow : ps.Last.Key;
-                    var count = 100;
+                    var count = 1000000;
 
                     sw.Start();
 

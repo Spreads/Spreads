@@ -536,8 +536,7 @@ namespace Spreads.Serialization {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Read<T>(long index) {
             var len = TypeHelper<T>.Size;
-            if (len <= 0)
-            {
+            if (len <= 0) {
                 Assert(index, 8);
                 len = ReadInt32(index + 4);
             }
@@ -547,19 +546,15 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write<T>(long index, T value)
-        {
+        public void Write<T>(long index, T value) {
             MemoryStream stream = null;
             var len = TypeHelper<T>.SizeOf(value, ref stream);
             Assert(index, len);
             var ptr = new IntPtr(_data.ToInt64() + index);
-            if (stream == null)
-            {
+            if (stream == null) {
                 TypeHelper<T>.StructureToPtr(value, ptr);
-            }
-            else
-            {
-                TypeHelper<MemoryStream>.StructureToPtr(stream, ptr);
+            } else {
+                stream.WriteToPtr(new IntPtr(_data.ToInt64() + index));
             }
         }
 

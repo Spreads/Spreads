@@ -9,6 +9,7 @@ using NUnit.Framework;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Spreads.Serialization;
+using Spreads.Storage;
 
 
 namespace Spreads.Core.Tests {
@@ -97,6 +98,28 @@ namespace Spreads.Core.Tests {
             buffer.Write(0, myArray);
             var newArray = buffer.Read<int[]>(0);
             Assert.IsTrue(myArray.SequenceEqual(newArray));
+
+        }
+
+
+
+        [Test]
+        public void CouldWriteComplexTypeWithConverterToBuffer() {
+
+            var ptr = Marshal.AllocHGlobal(1024);
+            var buffer = new DirectBuffer(1024, ptr);
+
+
+            var myStruct = new SetRemoveCommandBody<long, string>()
+            {
+                key = 123,
+                value = "string value"
+            };
+
+            buffer.Write(0, myStruct);
+            var newStruct = buffer.Read<SetRemoveCommandBody<long, string>>(0);
+            Assert.AreEqual(myStruct.key, newStruct.key);
+            Assert.AreEqual(myStruct.value, newStruct.value);
 
         }
 

@@ -196,6 +196,11 @@ namespace Spreads.Serialization {
                         _hasBinaryConverter = true;
                         return 0;
                     }
+                    if (ty == typeof(string)) {
+                        _convertorInstance = (IBinaryConverter<T>)(new StringBinaryConverter());
+                        _hasBinaryConverter = true;
+                        return 0;
+                    }
                     //if (ty.IsArray) {
                     //    Console.WriteLine("IsArray");
                     //    var elementType = ty.GetElementType();
@@ -230,8 +235,11 @@ namespace Spreads.Serialization {
             if (Size < 0) {
                 // TODO support serialization into a memory stream
                 var bytes = Serializer.Serialize(value);
-                memoryStream = new MemoryStream(bytes);
-                return bytes.Length;
+                memoryStream = new MemoryStream(bytes.Length + 8);
+                memoryStream.WriteAsPtr<int>(0);
+                memoryStream.WriteAsPtr<int>(bytes.Length);
+                memoryStream.Write(bytes, 0, bytes.Length);
+                return bytes.Length + 8;
             }
             memoryStream = null;
             return Size;

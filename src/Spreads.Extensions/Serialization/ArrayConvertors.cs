@@ -2,8 +2,10 @@
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Spreads.Serialization {
+
     internal static class ArrayConvertorFactory {
         public static IBinaryConverter<TElement[]> GenericCreate<TElement>() {
             return new ArrayBinaryConverter<TElement>();
@@ -49,7 +51,7 @@ namespace Spreads.Serialization {
 
         public void ToPtr(byte[] value, IntPtr ptr, MemoryStream memoryStream = null) {
             // version
-            Marshal.WriteInt32(ptr, 0);
+            Marshal.WriteInt32(ptr, Version);
             // size
             Marshal.WriteInt32(ptr + 4, value.Length);
             // payload
@@ -68,6 +70,76 @@ namespace Spreads.Serialization {
         public int Version => 0;
     }
 
+
+    internal class StringBinaryConverter : IBinaryConverter<string> {
+        public bool IsFixedSize => false;
+        public int Size => 0;
+        public int SizeOf(string value, ref MemoryStream memoryStream) {
+            var maxLength = value.Length * 2;
+            bool needReturn = false;
+            byte[] buffer;
+            if (maxLength < 8 * 1024) {
+                buffer = BinaryConvertorExtensions.ThreadStaticBuffer;
+            } else {
+                needReturn = true;
+                buffer = OptimizationSettings.ArrayPool.Take<byte>(maxLength);
+            }
+            var len = Encoding.UTF8.GetBytes(value, 0, value.Length, buffer, 0);
+            if (memoryStream == null) {
+                memoryStream = new MemoryStream();
+            }
+            var initPosition = memoryStream.Position;
+            memoryStream.Position = initPosition + 8;
+            memoryStream.Write(buffer, 0, len);
+            var finalPosition = memoryStream.Position;
+            memoryStream.Position = initPosition;
+            memoryStream.WriteAsPtr<int>(Version);
+            memoryStream.WriteAsPtr<int>(len);
+            memoryStream.Position = finalPosition;
+
+            if (needReturn) OptimizationSettings.ArrayPool.Return(buffer);
+            return len + 8;
+        }
+
+        public unsafe void ToPtr(string value, IntPtr ptr, MemoryStream memoryStream = null) {
+            if (memoryStream == null) {
+                // version
+                Marshal.WriteInt32(ptr, Version);
+                // payload
+                var maxLength = value.Length * 2;
+                fixed (char* charPtr = value)
+                {
+                    var len = Encoding.UTF8.GetBytes(charPtr, value.Length, (byte*)ptr + 8, maxLength);
+                    // size
+                    Marshal.WriteInt32(ptr + 4, len);
+                }
+
+            } else {
+                memoryStream.WriteToPtr(ptr);
+            }
+
+        }
+
+        public string FromPtr(IntPtr ptr) {
+            var version = Marshal.ReadInt32(ptr);
+            if (version != 0) throw new NotSupportedException();
+            var length = Marshal.ReadInt32(ptr + 4);
+            bool needReturn = false;
+            byte[] buffer;
+            if (length < BinaryConvertorExtensions.MaxBufferSize) {
+                buffer = BinaryConvertorExtensions.ThreadStaticBuffer;
+            } else {
+                needReturn = true;
+                buffer = OptimizationSettings.ArrayPool.Take<byte>(length);
+            }
+            Marshal.Copy(ptr + 8, buffer, 0, length);
+            var value = Encoding.UTF8.GetString(buffer, 0, length);
+            if (needReturn) OptimizationSettings.ArrayPool.Return(buffer);
+            return value;
+        }
+
+        public int Version => 0;
+    }
 
 
     internal class MemoryStreamBinaryConverter : IBinaryConverter<MemoryStream> {

@@ -19,6 +19,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -67,40 +68,47 @@ namespace Spreads.Storage {
         public int Size => IsFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
         public int SizeOf(SetRemoveCommandBody<TKey, TValue> value, ref MemoryStream memoryStream) {
             if (IsFixedSize) {
-                memoryStream = null;
                 return Size;
             }
+
+            // variable size requires a memory stream
+            if (memoryStream == null) {
+                memoryStream = new MemoryStream();
+            }
+
+            var initialPosition = memoryStream.Position;
+
+            memoryStream.WriteAsPtr<int>(Version);
+            // placeholder for length
+            memoryStream.WriteAsPtr<int>(0);
+
             if (TypeHelper<TKey>.Size <= 0) {
                 throw new NotImplementedException("TODO We now only support fixed key");
             }
-            MemoryStream ms = null;
-            var valueSize = TypeHelper<TValue>.Size > 0 ? TypeHelper<TValue>.Size : TypeHelper<TValue>.SizeOf(value.value, ref ms);
-            var bytes = new byte[TypeHelper<TKey>.Size + 8 + valueSize];
-            fixed (byte* ptr = &bytes[0])
-            {
-                var db = new DirectBuffer(bytes.LongLength, (IntPtr)ptr);
-                db.Write<TKey>(0, value.key);
-                var valueBytes = ms.ToArray();
-                db.WriteBytes(TypeHelper<TKey>.Size + 8, valueBytes, 0, valueBytes.Length);
-            }
-            memoryStream = new MemoryStream(bytes);
-            return bytes.Length;
+
+            var size = 8 + TypeHelper<TKey>.Size;
+            memoryStream.WriteAsPtr<TKey>(value.key);
+
+            size += TypeHelper<TValue>.SizeOf(value.value, ref memoryStream);
+
+            memoryStream.Position = initialPosition + 4;
+            memoryStream.WriteAsPtr<int>((int)memoryStream.Length);
+            Trace.Assert(size == memoryStream.Length - initialPosition);
+            return size;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void ToPtr(SetRemoveCommandBody<TKey, TValue> entry, IntPtr ptr, MemoryStream memoryStream = null) {
+        public void ToPtr(SetRemoveCommandBody<TKey, TValue> entry, IntPtr ptr, MemoryStream memoryStream = null) {
             if (IsFixedSize) {
-                TypeHelper<TKey>.StructureToPtr(entry.key, (ptr + 8));
-                TypeHelper<TValue>.StructureToPtr(entry.value, (ptr + 8 + TypeHelper<TKey>.Size));
+                TypeHelper<TKey>.StructureToPtr(entry.key, (ptr));
+                TypeHelper<TValue>.StructureToPtr(entry.value, (ptr + TypeHelper<TKey>.Size));
             } else {
-                MemoryStream ms = null;
-                var valueSize = TypeHelper<TValue>.Size > 0 ? TypeHelper<TValue>.Size : TypeHelper<TValue>.SizeOf(entry.value, ref ms);
-                var bytes = new byte[TypeHelper<TKey>.Size + valueSize];
-
-                var db = new DirectBuffer(bytes.LongLength, (IntPtr)ptr);
-                db.Write<TKey>(0, entry.key);
-                var valueBytes = ms.ToArray();
-                db.WriteBytes(TypeHelper<TKey>.Size, valueBytes, 0, valueBytes.Length);
+                if (memoryStream == null)
+                {
+                    var size = SizeOf(entry, ref memoryStream);
+                    Trace.Assert(size == memoryStream.Length);
+                }
+                memoryStream.WriteToPtr(ptr);
             }
         }
 
@@ -108,8 +116,8 @@ namespace Spreads.Storage {
         public SetRemoveCommandBody<TKey, TValue> FromPtr(IntPtr ptr) {
             if (IsFixedSize) {
                 var entry = new SetRemoveCommandBody<TKey, TValue>();
-                entry.key = TypeHelper<TKey>.PtrToStructure((ptr + 8));
-                entry.value = TypeHelper<TValue>.PtrToStructure((ptr + 8 + TypeHelper<TKey>.Size));
+                entry.key = TypeHelper<TKey>.PtrToStructure((ptr));
+                entry.value = TypeHelper<TValue>.PtrToStructure((ptr + TypeHelper<TKey>.Size));
                 return entry;
             }
 
