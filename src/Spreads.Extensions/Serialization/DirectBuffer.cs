@@ -469,7 +469,7 @@ namespace Spreads.Serialization {
         }
 
         /// <summary>
-        /// Writes len bytes from source to this buffer at index. Wroks as memcpy, not memmove (TODO)
+        /// Writes len bytes from source to this buffer at index. Works as memcpy, not memmove (TODO)
         /// </summary>
         /// <param name="index"></param>
         /// <param name="src"></param>
