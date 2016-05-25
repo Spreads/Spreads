@@ -1,6 +1,7 @@
-#### 0.5.0 - May XX, 2016 - TODO
-* Added SeriesRepository with IPC syncronization via shared memory.
-
+#### 0.5.0 - May 26, 2016
+* Added persistent DataRepository with very fast PersistentSeries and PersistentMaps 
+that are syncronized via shared memory (Aeron LogBuffers);
+* Many small improvements.
 
 #### 0.4.2 - April 15, 2016
 * SortedMap got a lot of love: eliminated needless allocations, 
