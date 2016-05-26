@@ -26,6 +26,7 @@ namespace Spreads.DataTypes {
 
     [DebuggerDisplay("{AsString}")]
     public unsafe struct Symbol : IEquatable<Symbol> {
+        
         private fixed byte Bytes[16];
 
         public Symbol(string symbol) {
@@ -68,6 +69,35 @@ namespace Spreads.DataTypes {
             }
 
             return Encoding.UTF8.GetString(buffer, 0, len);
+        }
+
+        public override bool Equals(object obj) {
+            if (ReferenceEquals(null, obj)) return false;
+            return obj is Symbol && Equals((Symbol)obj);
+        }
+
+        public override int GetHashCode() {
+            fixed (byte* ptr = Bytes)
+            {
+                unchecked {
+                    const int p = 16777619;
+                    int hash = (int)2166136261;
+
+                    for (int i = 0; i < 16; i++) {
+                        var b = *(ptr + i);
+                        if (b == 0) break;
+                        hash = (hash ^ b) * p;
+                    }
+
+                    hash += hash << 13;
+                    hash ^= hash >> 7;
+                    hash += hash << 3;
+                    hash ^= hash >> 17;
+                    hash += hash << 5;
+                    return hash;
+                }
+            }
+
         }
 
         public static bool operator ==(Symbol x, Symbol y) {
