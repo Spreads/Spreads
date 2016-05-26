@@ -43,6 +43,23 @@ namespace Spreads.Core.Tests {
 
         }
 
+        [Test]
+        public void PriceWorks()
+        {
+            var price = new Price(42.31400M, 4);
+            var price2 = new Price(42.31400M, 5);
+            var price3 = new Price(-42.31400M, 5);
+            var asString = price.ToString();
+            Assert.AreEqual("42.3140", asString);
+
+            var sum = price + price;
+            Assert.AreEqual("84.6280", sum.ToString());
+            var sum2 = price + price2;
+            Assert.AreEqual("84.62800", sum2.ToString());
+            Assert.AreEqual(sum2.Exponent, 5);
+            var sum3 = price + price3;
+            Assert.AreEqual("0.0000", sum3.ToString());
+        }
 
 
     }
