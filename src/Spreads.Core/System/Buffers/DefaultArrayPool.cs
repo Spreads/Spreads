@@ -14,11 +14,14 @@ namespace System.Buffers {
         private const int MinimumArrayLength = 16;
 
         private readonly DefaultArrayPoolBucket<T>[] _buckets;
+        private WaitCallback _doCleanReturn;
 
         internal DefaultArrayPool() : this(DefaultMaxArrayLength, DefaultMaxNumberOfArraysPerBucket) {
         }
 
-        internal DefaultArrayPool(int maxLength, int arraysPerBucket) {
+        internal DefaultArrayPool(int maxLength, int arraysPerBucket)
+        {
+            _doCleanReturn = DoCleanReturn;
             if (maxLength <= 0)
                 throw new ArgumentOutOfRangeException(nameof(maxLength));
             if (arraysPerBucket <= 0)
@@ -83,7 +86,7 @@ namespace System.Buffers {
             if (buffer == null)
                 throw new ArgumentNullException(nameof(buffer));
             if (clearArray) {
-                ThreadPool.UnsafeQueueUserWorkItem(this.DoCleanReturn, buffer);
+                ThreadPool.UnsafeQueueUserWorkItem(_doCleanReturn, buffer);
                 return;
             }
             // If we can tell that the buffer was allocated, drop it. Otherwise, check if we have space in the pool
