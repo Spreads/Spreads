@@ -18,6 +18,7 @@
 */
 
 using System;
+using System.Globalization;
 using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes {
@@ -48,11 +49,13 @@ namespace Spreads.DataTypes {
 
 
         public override int GetHashCode() {
-            return _value.GetHashCode();
+            return (int)((_value & UnqualifiedMask) & (ulong)int.MaxValue);
         }
 
+        private const ulong SignMask = ((1L << 55));
         private const ulong MantissaMask = ((1L << 56) - 1L);
-        private const ulong UnqualifiedMask = ((1L << 56) - 1L);
+        private const ulong MantissaValueMask = ((1L << 55) - 1L);
+        private const ulong UnqualifiedMask = ((1L << 60) - 1L);
         private readonly ulong _value;
 
         private static decimal[] DecimalFractions10 = new decimal[] {
@@ -94,7 +97,7 @@ namespace Spreads.DataTypes {
             0.000000000000001,
         };
 
-        private static ulong[] Powers10 = new ulong[] {
+        private static long[] Powers10 = new long[] {
             1,
             10,
             100,
@@ -114,7 +117,18 @@ namespace Spreads.DataTypes {
         };
 
         public ulong Exponent => (_value >> 56) & 15UL;
-        public ulong Mantissa => _value & MantissaMask;
+        public long Mantissa
+        {
+            get
+            {
+                var mantissaValue = (long)(_value & MantissaValueMask);
+                if ((SignMask & _value) > 0UL) {
+                    return -mantissaValue;
+                }
+                return mantissaValue;
+            }
+        }
+
         public decimal AsDecimal => (this);
         public double AsDouble => (this);
         public Price AsUnqualified => IsQualified ? new Price(_value) : this;
@@ -198,15 +212,15 @@ namespace Spreads.DataTypes {
             }
         }
 
-        
-        public Price(int exponent, long mantissa) {
+
+        public Price(int exponent, long mantissaValue) {
             if ((ulong)exponent > 15) throw new ArgumentOutOfRangeException(nameof(exponent));
-            if ((ulong)mantissa > MantissaMask) throw new ArgumentOutOfRangeException(nameof(mantissa));
+            ulong mantissa = mantissaValue > 0 ? (ulong)mantissaValue : SignMask | (ulong)(-mantissaValue);
+            if (mantissa > MantissaMask) throw new ArgumentOutOfRangeException(nameof(mantissaValue));
             _value = ((ulong)exponent << 56) | ((ulong)mantissa);
         }
 
-        private Price(ulong value, TradeSide? tradeSide = null, bool? isTrade = null)
-        {
+        private Price(ulong value, TradeSide? tradeSide = null, bool? isTrade = null) {
             _value = value & UnqualifiedMask;
             if (tradeSide != null && tradeSide.Value != DataTypes.TradeSide.None) {
                 if (tradeSide == DataTypes.TradeSide.Buy) {
@@ -220,12 +234,14 @@ namespace Spreads.DataTypes {
             }
         }
 
-        public Price(decimal value, int precision = 5) : this(value, precision, null, null) {}
+        public Price(decimal value, int precision = 5) : this(value, precision, null, null) { }
 
         public Price(decimal value, int precision = 5, TradeSide? tradeSide = null, bool? isTrade = null) {
             if ((ulong)precision > 15) throw new ArgumentOutOfRangeException(nameof(precision));
             if (value > MantissaMask * DecimalFractions10[precision]) throw new ArgumentOutOfRangeException(nameof(value));
-            var mantissa = decimal.ToUInt64(value * Powers10[precision]);
+            var mantissaValue = decimal.ToInt64(value * Powers10[precision]);
+            ulong mantissa = mantissaValue > 0 ? (ulong)mantissaValue : SignMask | (ulong)(-mantissaValue);
+
             _value = ((ulong)precision << 56) | mantissa;
             if (tradeSide != null && tradeSide.Value != DataTypes.TradeSide.None) {
                 if (tradeSide == DataTypes.TradeSide.Buy) {
@@ -239,19 +255,21 @@ namespace Spreads.DataTypes {
             }
         }
 
-        public Price(Price price, TradeSide? tradeSide = null, bool? isTrade = null) : this(price._value, tradeSide, isTrade)
-        {
+        public Price(Price price, TradeSide? tradeSide = null, bool? isTrade = null) : this(price._value, tradeSide, isTrade) {
         }
 
         public Price(double value, int precision = 5) {
             if ((ulong)precision > 15) throw new ArgumentOutOfRangeException(nameof(precision));
             if (value > MantissaMask * DoubleFractions10[precision]) throw new ArgumentOutOfRangeException(nameof(value));
-            var mantissa = (ulong)(value * Powers10[precision]);
+            var mantissaValue = (long)(value * Powers10[precision]);
+            ulong mantissa = mantissaValue > 0 ? (ulong)mantissaValue : SignMask | (ulong)(-mantissaValue);
             _value = ((ulong)precision << 56) | mantissa;
         }
 
         public Price(int value) {
-            _value = (ulong)value;
+            long mantissaValue = value;
+            ulong mantissa = mantissaValue > 0 ? (ulong)mantissaValue : SignMask | (ulong)(-mantissaValue);
+            _value = mantissa;
         }
 
         public static implicit operator double(Price price) {
@@ -290,8 +308,48 @@ namespace Spreads.DataTypes {
         public static bool operator ==(Price x, Price y) {
             return x.Equals(y);
         }
+
         public static bool operator !=(Price x, Price y) {
             return !x.Equals(y);
+        }
+
+        public static bool operator >(Price x, Price y) {
+            return x.CompareTo(y) > 0;
+        }
+
+        public static bool operator <(Price x, Price y) {
+            return x.CompareTo(y) < 0;
+        }
+
+        public static bool operator >=(Price x, Price y) {
+            return x.CompareTo(y) >= 0;
+        }
+
+        public static bool operator <=(Price x, Price y) {
+            return x.CompareTo(y) <= 0;
+        }
+
+        public static Price operator +(Price x, Price y) {
+            if (x.Exponent == y.Exponent) {
+                return new Price((int)x.Exponent, (long)(x.Mantissa + y.Mantissa));
+            }
+            return new Price((decimal)x + (decimal)y, (int)Math.Max(x.Exponent, y.Exponent));
+        }
+
+        public static Price operator -(Price x, Price y) {
+            if (x.Exponent == y.Exponent) {
+                return new Price((int)x.Exponent, (long)(x.Mantissa - y.Mantissa));
+            }
+            return new Price((decimal)x - (decimal)y, (int)Math.Max(x.Exponent, y.Exponent));
+        }
+
+        public static Price operator *(Price x, int y) {
+            return new Price((int)x.Exponent, (long)(x.Mantissa * y));
+        }
+
+        public override string ToString() {
+            var asDecimal = (decimal)this;
+            return asDecimal.ToString(CultureInfo.InvariantCulture);
         }
     }
 }

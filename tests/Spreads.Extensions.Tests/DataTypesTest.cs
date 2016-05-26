@@ -48,7 +48,7 @@ namespace Spreads.Core.Tests {
         {
             var price = new Price(42.31400M, 4);
             var price2 = new Price(42.31400M, 5);
-            var price3 = new Price(-42.31400M, 5);
+            var price3 = new Price(-42.31400M, 4);
             var asString = price.ToString();
             Assert.AreEqual("42.3140", asString);
 
@@ -59,8 +59,10 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(sum2.Exponent, 5);
             var sum3 = price + price3;
             Assert.AreEqual("0.0000", sum3.ToString());
+            var sum4 = sum3 - price;
+            Assert.AreEqual(price3, sum4);
+            Assert.AreEqual("-42.3140", sum4.ToString());
         }
-
 
     }
 }
