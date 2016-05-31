@@ -714,7 +714,40 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
           Trace.Assert(found && hasValidState, "When MN returns false due to the end of series, valid value should remain ")
           #endif
           return true
-      else return this.MoveFirst()
+      else
+        let! moved' = inputCursor.MoveNext(cancellationToken)
+        if moved' then
+          #if PRERELEASE
+          let before = inputCursor.CurrentKey
+          #endif
+
+          hasValidState <- this.TryGetValue(inputCursor.CurrentKey, true, &moveState)
+      
+          #if PRERELEASE
+          if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+          #endif
+
+          if hasValidState then
+            return true
+          else
+            //let mutable found = false
+            let! moved' = inputCursor.MoveNext(cancellationToken)
+            while not hasValidState && moved' do
+              #if PRERELEASE
+              let before = inputCursor.CurrentKey
+              #endif
+          
+              // NB we could modify internalState directly here, but this is hard to assert
+              hasValidState <- this.TryUpdateNext(inputCursor.Current, &moveState)
+
+              #if PRERELEASE
+              if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
+              #endif
+            return hasValidState
+        else 
+          hasValidState <- false
+          return false
+      //return this.MoveFirst()
     }
 
   member this.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool = 

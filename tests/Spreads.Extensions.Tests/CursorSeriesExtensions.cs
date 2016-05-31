@@ -41,19 +41,22 @@ namespace Spreads.Extensions.Tests {
 
 
         [Test]
-        public void CouldCalculateSMAInRealTime() {
-            var sm = new SortedMap<int, double>();
-
+        public void CouldCalculateSMAInRealTime()
+        {
+            var totalCount = 10000;
+            var sm = new SortedChunkedMap<int, double>();
+            var tcs = new TaskCompletionSource<bool>();
             Task.Run(async () => {
 
                 for (int i = 0; i < 20; i++) {
                     sm.Add(i, i);
+                    if (i == 0) tcs.SetResult(true);
                 }
 
                 await Task.Delay(100);
 
-                for (int i = 20; i < 100; i++) {
-                    await Task.Delay(1); // 15 msec
+                for (int i = 20; i < totalCount; i++) {
+                    //await Task.Delay(1); // 15 msec
                     sm.Add(i, i);
                 }
                 sm.Complete();
@@ -63,11 +66,41 @@ namespace Spreads.Extensions.Tests {
             var sma = sm.SMA(10, true);
 
             var c = sma.GetCursor();
-
-            while (c.MoveNext(CancellationToken.None).Result) {
-                Console.WriteLine("Key: {0}, value: {1}", c.CurrentKey, c.CurrentValue);
+            //Thread.Sleep(200);
+            Assert.IsTrue(tcs.Task.Result);
+            Assert.IsTrue(c.MoveNext(CancellationToken.None).Result);
+            Assert.IsTrue(c.MoveNext());
+            var ii = 2;
+            while (c.MoveNext(CancellationToken.None).Result) { //   
+                //Console.WriteLine("Key: {0}, value: {1}", c.CurrentKey, c.CurrentValue);
+                ii++;
             }
+            Assert.AreEqual(totalCount, ii);
+            Console.WriteLine("finished");
+        }
 
+
+        [Test]
+        public void AsyncCoursorOnEmptyMapWaitsForValues() {
+
+            var scm = new SortedChunkedMap<int, double>();
+            var scmSma = scm.SMA(20, true);
+            var c = scmSma.GetCursor();
+            var task = c.MoveNext(CancellationToken.None);
+            var moved = task.Wait(100);
+            // timeout
+            Assert.IsFalse(moved);
+            scm.Add(1, 1.0);
+            Assert.IsTrue(task.Result);
+            Console.WriteLine("moved " + task.Result);
+
+            task = c.MoveNext(CancellationToken.None);
+            moved = task.Wait(100);
+            // timeout
+            Assert.IsFalse(moved);
+            scm.Complete();
+            Assert.IsFalse(task.Result);
+            Console.WriteLine("moved " + task.Result);
         }
 
         [Test]
