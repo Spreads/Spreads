@@ -1805,7 +1805,9 @@ and
                     this.isBatch <- false // if was batch, moved to the first element of the new batch
                     newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
                     doSwitchInner <- true
-                    if newInner.MoveNext() then true
+                    let moved = newInner.MoveNext()
+                    if newInner.source.Count > 0 && not moved then failwith "must move here"
+                    if moved then true
                     else outerMoved <- false; false // need to try to move outer again
                   else
                     outerMoved <- false
@@ -2084,11 +2086,14 @@ and
       let mutable entered = false
       try
         entered <- enterWriteLockIf &this.source.locker this.source.isSynchronized
-        let clone = new SortedChunkedMapGenericCursor<_,_,_>(this.source)
-        clone.MoveAt(this.CurrentKey, Lookup.EQ) |> ignore
+        let mutable clone = this
+        clone.source <- this.source
+        clone.outerCursor <- this.outerCursor.Clone()
+        clone.innerCursor <- this.innerCursor.Clone()
+        clone.isBatch <- this.innerCursor.isBatch
         clone
       finally
-        exitWriteLockIf &this.source.locker entered  
+        exitWriteLockIf &this.source.locker entered
       
     member this.Reset() = 
       if this.HasValidInner then this.innerCursor.Dispose()
@@ -2255,7 +2260,12 @@ and
       try
         entered <- enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
         let clone = new SortedChunkedMapCursorAsync<'K,'V>(this.state.source)
-        clone.state <- this.state
+        let mutable cloneState = this.state
+        cloneState.source <- this.state.source
+        cloneState.outerCursor <- this.state.outerCursor.Clone()
+        cloneState.innerCursor <- this.state.innerCursor.Clone()
+        cloneState.isBatch <- this.state.isBatch
+        clone.state <- cloneState
         clone
       finally
         exitWriteLockIf &this.state.source.locker entered

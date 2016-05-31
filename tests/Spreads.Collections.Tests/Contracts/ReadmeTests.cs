@@ -218,19 +218,40 @@ namespace Spreads.Collections.Tests.Contracts {
         [Test]
         public void SmaDeviationTest()
         {
-            var data = new SortedMap<DateTime, double>();
-            for (int i = 1; i < 101; i++)
+            var count = 8193;
+            var data = new SortedChunkedMap<int, double>();
+            for (int i = 0; i < count; i++)
             {
-                data.Add(DateTime.UtcNow.Date.AddMinutes(i), i);
+                data.Add(i, i);
             }
 
-            var sma = data.SMA(20, true);
-            var deviation = (data/sma - 1);
-            var deviationSm = deviation;
-            var smaDirection = deviation.Map(Math.Sign);
-            Assert.AreEqual(100, smaDirection.Count());
-            Assert.AreEqual(100, deviation.Count());
-            
+
+            var dc = data.GetCursor();
+            dc.MoveFirst();
+            var dc2 = dc.Clone();
+            Assert.IsFalse(dc.MovePrevious());
+            Assert.IsFalse(dc2.MovePrevious());
+            //Assert.AreEqual(8192, dc.CurrentKey);
+
+
+
+            var sma = data.SMA(2, true);
+            var sma2 = data.Window(2, 1, true).Map(w => w.Values.Average());
+            var ii = 0;
+            foreach (var kvp in sma2) {
+                //Assert.AreEqual(kvp.Value, ii);
+                ii++;
+            }
+            Assert.AreEqual(count, ii);
+            //var smaSm = sma.ToSortedMap();
+            //Assert.AreEqual(count, smaSm.Count());
+
+            //var deviation = (data/sma - 1);
+            //var deviationSm = deviation;
+            //var smaDirection = deviation.Map(Math.Sign);
+            //Assert.AreEqual(count, smaDirection.Count());
+            //Assert.AreEqual(count, deviation.Count());
+
         }
 
     }
