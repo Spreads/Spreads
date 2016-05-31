@@ -1,3 +1,11 @@
+#### 0.5.1 - May 31, 2016
+* Fix serious bug fix incorrect cloning of SCM cursors (it was there since 0.4.x, 
+however we did't use those in production and cautioned in the readme that something 
+could blow up - it did :/ );
+* MoveNextAsync on BindCursor of empty series behaves correctly, before it was returning
+false immediately via MoveFirst().
+
+
 #### 0.5.0 - May 26, 2016
 * Added persistent DataRepository with very fast PersistentSeries and PersistentMaps 
 that are syncronized via shared memory (Aeron LogBuffers);

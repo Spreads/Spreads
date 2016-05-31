@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.24720.0
+VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}"
 	ProjectSection(SolutionItems) = preProject
@@ -69,9 +69,6 @@ EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Spreads.RPlugin", "src\Spreads.RPlugin\Spreads.RPlugin.fsproj", "{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}"
 EndProject
 Global
-	GlobalSection(Performance) = preSolution
-		HasPerformanceSessions = true
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|x64 = Debug|x64
