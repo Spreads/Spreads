@@ -140,6 +140,46 @@ namespace Spreads.Extensions.Tests {
 
 
         [Test, Ignore]
+        public void CouldReadSeriesAndCalculateStats() {
+
+            using (var repo = new DataRepository("../SeriesRepositoryTests", 100))
+                for (int rounds = 0; rounds < 10; rounds++) {
+
+                    var sw = new Stopwatch();
+
+                    var psRead = repo.ReadSeries<DateTime, double>("test_CouldCreateTwoRepositoriesAndSynchronizeSeries").Result.SMA(5, true); //.SMA(5, true)
+
+                    var readCursor = psRead.GetCursor();
+                    var ps = repo.WriteSeries<DateTime, double>("test_CouldCreateTwoRepositoriesAndSynchronizeSeries").Result;
+                    var trueCount = ps.Count;
+                    Console.WriteLine("True count: " + trueCount);
+
+                    var count = 1000;
+
+                    sw.Start();
+                    var cnt = 0;
+                    var readerTask = Task.Run(() => {
+
+                        while (readCursor.MoveNext()) {
+                            cnt++;
+                        }
+                    });
+
+                    while (!readerTask.Wait(20000)) {
+                        Trace.WriteLine("Timeout");
+                        Trace.WriteLine($"Cursor: {readCursor.CurrentKey} - {readCursor.CurrentValue}");
+                    }
+                    Console.WriteLine("Total count:" + cnt);
+
+                    //Assert.AreEqual(trueCount - 1, cnt);
+                    sw.Stop();
+                    Trace.WriteLine($"Elapsed msec: {sw.ElapsedMilliseconds}");
+                    Trace.WriteLine($"Round: {rounds}");
+                }
+        }
+
+
+        [Test, Ignore]
         public void CouldCreateTwoRepositoriesAndSynchronizeSeriesVarLength() {
 
             using (var repo = new DataRepository("../SeriesRepositoryTests", 100))
