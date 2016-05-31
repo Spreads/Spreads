@@ -94,7 +94,8 @@ namespace Spreads.Storage {
             var size = 8 + TypeHelper<TKey>.Size;
             memoryStream.WriteAsPtr<TKey>(value.key);
 
-            size += TypeHelper<TValue>.SizeOf(value.value, ref memoryStream);
+            var valueSize = TypeHelper<TValue>.SizeOf(value.value, ref memoryStream);
+            size += valueSize;
 
             memoryStream.Position = initialPosition + 4;
             memoryStream.WriteAsPtr<int>((int)memoryStream.Length);

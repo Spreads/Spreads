@@ -235,7 +235,9 @@ namespace Spreads.Serialization {
             if (Size < 0) {
                 // TODO support serialization into a memory stream
                 var bytes = Serializer.Serialize(value);
-                memoryStream = new MemoryStream(bytes.Length + 8);
+                if (memoryStream == null) {
+                    memoryStream = new MemoryStream(bytes.Length + 8);
+                }
                 memoryStream.WriteAsPtr<int>(0);
                 memoryStream.WriteAsPtr<int>(bytes.Length);
                 memoryStream.Write(bytes, 0, bytes.Length);
