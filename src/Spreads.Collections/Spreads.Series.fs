@@ -580,6 +580,75 @@ and
     static member (<=) (series:Series<'K,float32>, other:Series<'K,float32>) : Series<'K,bool> = Series.BinaryOperatorMap(series, other, fun x y -> x <= y)
     static member (<>) (series:Series<'K,float32>, other:Series<'K,float32>) : Series<'K,bool> = Series.BinaryOperatorMap(series, other, fun x y -> x <> y)
 
+
+    // decimal
+    static member (+) (series:Series<'K,decimal>, addition:decimal) : Series<'K,decimal> = 
+      Series.ScalarOperatorMap(series, fun x -> x + addition)
+    static member (+) (addition:decimal, series:Series<'K,decimal>) : Series<'K,decimal> = 
+       Series.ScalarOperatorMap(series, fun x -> x + addition)
+    static member (~+) (series:Series<'K,decimal>) : Series<'K,decimal> = 
+       Series.ScalarOperatorMap(series, fun x -> x)
+    static member (-) (series:Series<'K,decimal>, subtraction:decimal) : Series<'K,decimal> = 
+       Series.ScalarOperatorMap(series, fun x -> x - subtraction)
+    static member (-) (subtraction:decimal, series:Series<'K,decimal>) : Series<'K,decimal> = 
+       Series.ScalarOperatorMap(series, fun x -> x - subtraction)
+    static member (~-) (series:Series<'K,decimal>) : Series<'K,decimal> = 
+       Series.ScalarOperatorMap(series, fun x -> -x)
+    static member (*) (series:Series<'K,decimal>, multiplicator:decimal) : Series<'K,decimal> = 
+       Series.ScalarOperatorMap(series, fun x -> x * multiplicator)
+    static member (*) (multiplicator:decimal,series:Series<'K,decimal>) : Series<'K,decimal> = 
+       Series.ScalarOperatorMap(series, fun x -> multiplicator * x)
+    static member (/) (series:Series<'K,decimal>, divisor:decimal) : Series<'K,decimal> = 
+       Series.ScalarOperatorMap(series, fun x -> x / divisor)
+    static member (/) (numerator:decimal,series:Series<'K,decimal>) : Series<'K,decimal> = 
+       Series.ScalarOperatorMap(series, fun x -> numerator / x)
+    static member (%) (series:Series<'K,decimal>, divisor:decimal) : Series<'K,decimal> = 
+       Series.ScalarOperatorMap(series, fun x -> x % divisor)
+    static member (%) (numerator:decimal, series:Series<'K,decimal>) : Series<'K,decimal> = 
+       Series.ScalarOperatorMap(series, fun x -> numerator % x )
+    static member ( ** ) (series:Series<'K,decimal>, power:decimal) : Series<'K,decimal> = 
+       Series.ScalarOperatorMap(series, fun x -> raise (NotImplementedException("TODO Implement with fold, checked?")))
+    static member ( ** ) (power:decimal, series:Series<'K,decimal>) : Series<'K,decimal> = 
+       Series.ScalarOperatorMap(series, fun x -> raise (NotImplementedException("TODO Implement with fold, checked?")))
+    static member (=) (series:Series<'K,decimal>, other:decimal) : Series<'K,bool> = 
+       Series.ScalarOperatorMap(series, fun x -> x = other)
+    static member (=) (other:decimal, series:Series<'K,decimal>) : Series<'K,bool> = 
+       Series.ScalarOperatorMap(series, fun x -> other = x )
+    static member (>) (series:Series<'K,decimal>, other:decimal) : Series<'K,bool> = 
+       Series.ScalarOperatorMap(series, fun x -> x > other)
+    static member (>) (other:decimal, series:Series<'K,decimal>) : Series<'K,bool> = 
+       Series.ScalarOperatorMap(series, fun x -> other > x )
+    static member (>=) (series:Series<'K,decimal>, other:decimal) : Series<'K,bool> = 
+       Series.ScalarOperatorMap(series, fun x -> x >= other)
+    static member (>=) (other:decimal, series:Series<'K,decimal>) : Series<'K,bool> = 
+       Series.ScalarOperatorMap(series, fun x -> other >= x )
+    static member (<) (series:Series<'K,decimal>, other:decimal) : Series<'K,bool> = 
+       Series.ScalarOperatorMap(series, fun x -> x < other)
+    static member (<) (other:decimal, series:Series<'K,decimal>) : Series<'K,bool> = 
+       Series.ScalarOperatorMap(series, fun x -> other < x)
+    static member (<=) (series:Series<'K,decimal>, other:decimal) : Series<'K,bool> = 
+       Series.ScalarOperatorMap(series, fun x -> x <= other)
+    static member (<=) (other:decimal, series:Series<'K,decimal>) : Series<'K,bool> = 
+       Series.ScalarOperatorMap(series, fun x -> other <= x)
+    static member (<>) (series:Series<'K,decimal>, other:decimal) : Series<'K,bool> = 
+       Series.ScalarOperatorMap(series, fun x -> x <> other)
+    static member (<>) (other:decimal, series:Series<'K,decimal>) : Series<'K,bool> = 
+       Series.ScalarOperatorMap(series, fun x -> other <> x)
+
+    static member (+) (series:Series<'K,decimal>, other:Series<'K,decimal>) : Series<'K,decimal> = Series.BinaryOperatorMap(series, other, fun x y -> x + y)
+    static member (-) (series:Series<'K,decimal>, other:Series<'K,decimal>) : Series<'K,decimal> = Series.BinaryOperatorMap(series, other, fun x y -> x - y)
+    static member (*) (series:Series<'K,decimal>, other:Series<'K,decimal>) : Series<'K,decimal> = Series.BinaryOperatorMap(series, other, fun x y -> x * y)
+    static member (/) (series:Series<'K,decimal>, other:Series<'K,decimal>) : Series<'K,decimal> = Series.BinaryOperatorMap(series, other, fun x y -> x / y)
+    static member (%) (series:Series<'K,decimal>, other:Series<'K,decimal>) : Series<'K,decimal> = Series.BinaryOperatorMap(series, other, fun x y -> x % y)
+    static member ( ** ) (series:Series<'K,decimal>, other:Series<'K,decimal>) : Series<'K,decimal> = Series.BinaryOperatorMap(series, other, fun x y -> raise (NotImplementedException("TODO Implement with fold, checked?")))
+    static member (=) (series:Series<'K,decimal>, other:Series<'K,decimal>) : Series<'K,bool> = Series.BinaryOperatorMap(series, other, fun x y -> x = y)
+    static member (>) (series:Series<'K,decimal>, other:Series<'K,decimal>) : Series<'K,bool> = Series.BinaryOperatorMap(series, other, fun x y -> x > y)
+    static member (>=) (series:Series<'K,decimal>, other:Series<'K,decimal>) : Series<'K,bool> = Series.BinaryOperatorMap(series, other, fun x y -> x >= y)
+    static member (<) (series:Series<'K,decimal>, other:Series<'K,decimal>) : Series<'K,bool> = Series.BinaryOperatorMap(series, other, fun x y -> x < y)
+    static member (<=) (series:Series<'K,decimal>, other:Series<'K,decimal>) : Series<'K,bool> = Series.BinaryOperatorMap(series, other, fun x y -> x <= y)
+    static member (<>) (series:Series<'K,decimal>, other:Series<'K,decimal>) : Series<'K,bool> = Series.BinaryOperatorMap(series, other, fun x y -> x <> y)
+
+
     // generic
     // TODO (low) dynamic operators via Linq.Expressions, then Panels will work via series
     static member (+) (source:Series<'K,'V1>, other:Series<'K,'V2>) : Series<'K,'V3> = Series.BinaryOperatorMap2(source, other, fun x y -> Op<'V1,'V2,'V3>.Add(x,y))

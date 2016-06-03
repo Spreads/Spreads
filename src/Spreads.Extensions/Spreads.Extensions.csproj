@@ -415,6 +415,7 @@
     <Compile Include="Storage\Aeron\Logbuffer\FrameDescriptor.cs" />
     <Compile Include="Storage\Aeron\Protocol\HeaderFlightweight.cs" />
     <Compile Include="Storage\Aeron\OnAppendHandler.cs" />
+    <Compile Include="Storage\BroadcastObservable.cs" />
     <Compile Include="Storage\OnAppendHandlerOld.cs" />
     <Compile Include="Storage\PersistentArray.cs" />
     <Compile Include="Storage\PersistentMap.cs" />
