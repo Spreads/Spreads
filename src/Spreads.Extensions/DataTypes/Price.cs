@@ -130,7 +130,7 @@ namespace Spreads.DataTypes {
         }
 
         public decimal AsDecimal => (this);
-        public double AsDouble => (this);
+        public double AsDouble => (double)(this);
         public Price AsUnqualified => IsQualified ? new Price(_value) : this;
 
         public bool IsQualified => _value >> 63 == 1UL;
@@ -272,11 +272,14 @@ namespace Spreads.DataTypes {
             _value = mantissa;
         }
 
-        public static implicit operator double(Price price) {
+        // NB only decimal is implicit because it doesn't lose precision
+        // there are no conversions to other direction, only ctor
+
+        public static explicit operator double(Price price) {
             return price.Mantissa * DoubleFractions10[price.Exponent];
         }
 
-        public static implicit operator float(Price price) {
+        public static explicit operator float(Price price) {
             return (float)(price.Mantissa * DoubleFractions10[price.Exponent]);
         }
 
