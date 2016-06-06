@@ -449,7 +449,7 @@
     <Compile Include="Storage\IDataRepository.cs" />
     <Compile Include="Storage\ISeriesStorage.cs" />
     <Compile Include="Storage\LogBuffer.cs" />
-    <Compile Include="Storage\Commands.cs" />
+    <Compile Include="Storage\Messages.cs" />
     <Compile Include="Storage\PersistentSeries.cs" />
     <Compile Include="Storage\RemoteChunksSeries.cs" />
     <Compile Include="Storage\SeriesMetadata.cs" />

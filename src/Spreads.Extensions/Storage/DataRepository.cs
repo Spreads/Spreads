@@ -79,8 +79,6 @@ namespace Spreads.Storage {
             _counter++;
         }
 
-        protected PersistentMapFixedLength<UUID, int> WriteSeriesLocks => _writeSeriesLocks;
-
         private static string GetConnectionStringFromPath(string path) {
             if (string.IsNullOrWhiteSpace(path)) {
                 path = Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "Repos", "Default", "series");

@@ -187,12 +187,12 @@ namespace Spreads.Extensions.Tests {
 
                     var observer = repo.Broadcast<int>("test_CouldCreateTwoRepositoriesAndBroadcastMessages").Result;
                     var count = 1000000;
-
+                     
                     sw.Start();
 
                     var sum = new SumObserver(count);
 
-                    observable.Subscribe(sum);
+                    var unsubscribe = observable.Subscribe(sum);
 
                     for (int i = 0; i < count; i++) {
                         observer.OnNext(i);
@@ -205,6 +205,7 @@ namespace Spreads.Extensions.Tests {
                     sw.Stop();
                     Trace.WriteLine($"Elapsed msec: {sw.ElapsedMilliseconds}");
                     Trace.WriteLine($"Round: {rounds}");
+                    unsubscribe.Dispose();
                 }
             }
         }

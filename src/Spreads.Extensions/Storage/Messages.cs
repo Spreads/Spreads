@@ -42,6 +42,7 @@ namespace Spreads.Storage {
         /// </summary>
         Flush = 70,
         AcquireLock = 80,
+        NewOwner = 81,
         ReleaseLock = 90,
 
         Error = -1,
