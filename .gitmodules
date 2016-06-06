@@ -3,16 +3,15 @@
 	url = https://github.com/Spreads/Ix.NET
 	branch = spreads
 [submodule "lib/Microsoft.Data.Sqlite"]
-	
 	path = lib/Microsoft.Data.Sqlite
-	
-	url = git@github.com:Spreads/Microsoft.Data.Sqlite.git
-	
+	url = https://github.com/Spreads/Microsoft.Data.Sqlite.git
 	branch = dev
 [submodule "lib/dapper-dot-net"]
 	path = lib/dapper-dot-net
-	url = git@github.com:StackExchange/dapper-dot-net.git
+	url = https://github.com/StackExchange/dapper-dot-net.git
 	branch = master
 [submodule "lib/Microsoft.IO.RecyclableMemoryStream"]
+	
 	path = lib/Microsoft.IO.RecyclableMemoryStream
-	url = git@github.com:Spreads/Microsoft.IO.RecyclableMemoryStream.git
+	
+	url = https://github.com/Spreads/Microsoft.IO.RecyclableMemoryStream.git
