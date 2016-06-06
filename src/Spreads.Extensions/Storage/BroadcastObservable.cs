@@ -83,8 +83,8 @@ namespace Spreads.Storage {
             var dataStart = buffer.Data;
             var header = *(MessageHeader*)(dataStart);
             if (header.MessageType != MessageType.Broadcast
-                || header.MessageType != MessageType.Complete
-                || header.MessageType != MessageType.Error) throw new InvalidOperationException("Wrong command type");
+                && header.MessageType != MessageType.Complete
+                && header.MessageType != MessageType.Error) throw new InvalidOperationException("Wrong command type");
 
 
             Trace.Assert(header.UUID == UUID);

@@ -54,7 +54,7 @@ namespace Spreads.Storage {
 
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 28)]
     internal struct MessageHeader {
-        public UUID SeriesId;
+        public UUID UUID;
         public MessageType MessageType;
         public long Version;
 

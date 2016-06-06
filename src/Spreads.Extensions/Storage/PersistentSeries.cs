@@ -71,7 +71,7 @@ namespace Spreads.Storage {
         public unsafe void ApplyCommand(DirectBuffer buffer) {
             var dataStart = buffer.Data;
             var header = *(MessageHeader*)(dataStart);
-            Trace.Assert(header.SeriesId == _uuid);
+            Trace.Assert(header.UUID == _uuid);
             var type = header.MessageType;
             switch (type) {
                 case MessageType.Set:
@@ -182,7 +182,7 @@ namespace Spreads.Storage {
         private unsafe void LogSetKeyValue(K key, V value) {
             if (_allowBatches) return;
             var header = new MessageHeader {
-                SeriesId = _uuid,
+                UUID = _uuid,
                 MessageType = MessageType.Set,
                 Version = this.Version
             };
@@ -236,7 +236,7 @@ namespace Spreads.Storage {
         private unsafe void LogRemoveKeyDirection(K key, int lookup) {
             if (_allowBatches) return;
             var header = new MessageHeader {
-                SeriesId = _uuid,
+                UUID = _uuid,
                 MessageType = MessageType.Remove,
                 Version = this.Version
             };
@@ -293,7 +293,7 @@ namespace Spreads.Storage {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private unsafe void LogHeaderOnly(MessageType type) {
             var header = new MessageHeader {
-                SeriesId = _uuid,
+                UUID = _uuid,
                 MessageType = type,
                 Version = this.Version
             };

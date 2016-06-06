@@ -139,6 +139,77 @@ namespace Spreads.Extensions.Tests {
         }
 
 
+
+        class SumObserver : IObserver<int> {
+            private readonly int _count;
+            public TaskCompletionSource<int> Tcs { get; }
+
+            public SumObserver(int count)
+            {
+                _count = count - 1;
+                Tcs = new TaskCompletionSource<int>();
+            }
+
+            public int Sum { get; private set; }
+
+            public void OnNext(int value) {
+                Sum += value;
+                //if(value % 1000 == 0) Console.WriteLine(value);
+                if (value == _count)
+                {
+                    Tcs.SetResult(Sum);
+                }
+            }
+
+            public void OnError(Exception error) {
+                throw new NotImplementedException();
+            }
+
+            public void OnCompleted() {
+                throw new NotImplementedException();
+            }
+        }
+
+
+        [Test, Ignore]
+        public void CouldCreateTwoRepositoriesAndBroadcastMessages() {
+
+            using (var repo = new DataRepository("../SeriesRepositoryTests", 100))
+            using (var repo2 = new DataRepository("../SeriesRepositoryTests", 100)) {
+                for (int rounds = 0; rounds < 1000; rounds++) {
+
+                    var sw = new Stopwatch();
+
+
+                    // this read and write series have the same underlying instance inside the repo
+                    // the reead series are just wrapped with .ReadOnly()
+                    var observable = repo2.Broadcast<int>("test_CouldCreateTwoRepositoriesAndBroadcastMessages").Result;
+
+                    var observer = repo.Broadcast<int>("test_CouldCreateTwoRepositoriesAndBroadcastMessages").Result;
+                    var count = 1000000;
+
+                    sw.Start();
+
+                    var sum = new SumObserver(count);
+
+                    observable.Subscribe(sum);
+
+                    for (int i = 0; i < count; i++) {
+                        observer.OnNext(i);
+                    }
+
+                    sum.Tcs.Task.Wait();
+
+                    Console.WriteLine("Sum: " + sum.Tcs.Task.Result);
+
+                    sw.Stop();
+                    Trace.WriteLine($"Elapsed msec: {sw.ElapsedMilliseconds}");
+                    Trace.WriteLine($"Round: {rounds}");
+                }
+            }
+        }
+
+
         [Test, Ignore]
         public void CouldReadSeriesAndCalculateStats() {
 
