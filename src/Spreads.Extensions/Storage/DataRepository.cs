@@ -98,28 +98,21 @@ namespace Spreads.Storage {
         // fake a different Pid for each repo instance inside a single process
         protected int Pid => _pid;
 
-        public event OnAppendHandler OnBroadcast;
-
         protected virtual unsafe void OnLogAppend(DirectBuffer buffer) {
-
 
             var writerPid = buffer.ReadInt64(DataHeaderFlyweight.RESERVED_VALUE_OFFSET);
             var messageBuffer = new DirectBuffer(buffer.Length - DataHeaderFlyweight.HEADER_LENGTH,
                 buffer.Data + DataHeaderFlyweight.HEADER_LENGTH);
-            var header = *(CommandHeader*)(messageBuffer.Data);
-            var uuid = header.SeriesId;
+            var header = *(MessageHeader*)(messageBuffer.Data);
+            var uuid = header.UUID;
 
-            IAcceptCommand series;
+            IAcceptCommand acceptCommand;
             if (
                 writerPid != Pid // ignore our own messages
                 &&
-                _openSeries.TryGetValue(uuid, out series) // ignore messages for closed series
+                _openSeries.TryGetValue(uuid, out acceptCommand) // ignore messages for closed series
                 ) {
-                if (header.CommandType == CommandType.Broadcast) {
-                    OnBroadcast?.Invoke(messageBuffer);
-                } else {
-                    series.ApplyCommand(messageBuffer);
-                }
+                acceptCommand.ApplyCommand(messageBuffer);
             }
         }
 
@@ -137,6 +130,17 @@ namespace Spreads.Storage {
             var mapPath = Path.Combine(_mapsPath, mapId);
             var map = PersistentMap<K, V>.Open(mapPath, initialCapacity);
             return Task.FromResult((IDictionary<K, V>)map);
+        }
+
+        /// <summary>
+        /// Get ISubject (IObservable + IObserver) that allows to broadcast messages and receive
+        /// messages from other broadcasters on the same channel.
+        /// </summary>
+        public Task<BroadcastObservable<T>> Broadcast<T>(string channelId)
+        {
+            var bo = new BroadcastObservable<T>(_appendLog, channelId, Pid);
+            _openSeries[bo.UUID] = bo;
+            return Task.FromResult(bo);
         }
 
 
@@ -246,64 +250,64 @@ namespace Spreads.Storage {
             return pSeries;
         }
 
-        public unsafe void Broadcast(DirectBuffer buffer, UUID correlationId = default(UUID),  long version = 0L) {
-            var header = new CommandHeader {
-                SeriesId = correlationId,
-                CommandType = CommandType.Broadcast,
+        public unsafe void Broadcast(DirectBuffer buffer, UUID correlationId = default(UUID), long version = 0L) {
+            var header = new MessageHeader {
+                UUID = correlationId,
+                MessageType = MessageType.Broadcast,
                 Version = version
             };
 
-            var len = CommandHeader.Size + (int)buffer.Length;
+            var len = MessageHeader.Size + (int)buffer.Length;
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
-            *(CommandHeader*)(claim.Data) = header;
-            claim.Buffer.WriteBytes(claim.Offset + CommandHeader.Size, buffer, 0, buffer.Length);
+            *(MessageHeader*)(claim.Data) = header;
+            claim.Buffer.WriteBytes(claim.Offset + MessageHeader.Size, buffer, 0, buffer.Length);
             claim.ReservedValue = Pid;
             claim.Commit();
         }
 
 
         private unsafe void LogSubscribe(UUID uuid, long version, string extendedTextId) {
-            var header = new CommandHeader {
-                SeriesId = uuid,
-                CommandType = CommandType.Subscribe,
+            var header = new MessageHeader {
+                UUID = uuid,
+                MessageType = MessageType.Subscribe,
                 Version = version
             };
 
             var textIdBytes = Encoding.UTF8.GetBytes(extendedTextId);
 
-            var len = CommandHeader.Size + textIdBytes.Length;
+            var len = MessageHeader.Size + textIdBytes.Length;
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
-            *(CommandHeader*)(claim.Data) = header;
-            claim.Buffer.WriteBytes(claim.Offset + CommandHeader.Size, textIdBytes, 0, textIdBytes.Length);
+            *(MessageHeader*)(claim.Data) = header;
+            claim.Buffer.WriteBytes(claim.Offset + MessageHeader.Size, textIdBytes, 0, textIdBytes.Length);
             claim.ReservedValue = Pid;
             claim.Commit();
         }
 
         private unsafe void LogAcquireLock(UUID uuid, long version) {
-            var header = new CommandHeader {
-                SeriesId = uuid,
-                CommandType = CommandType.AcquireLock,
+            var header = new MessageHeader {
+                UUID = uuid,
+                MessageType = MessageType.AcquireLock,
                 Version = version
             };
-            var len = CommandHeader.Size;
+            var len = MessageHeader.Size;
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
-            *(CommandHeader*)(claim.Data) = header;
+            *(MessageHeader*)(claim.Data) = header;
             claim.ReservedValue = Pid;
             claim.Commit();
         }
 
         private unsafe void LogReleaseLock(UUID uuid) {
-            var header = new CommandHeader {
-                SeriesId = uuid,
-                CommandType = CommandType.ReleaseLock,
+            var header = new MessageHeader {
+                UUID = uuid,
+                MessageType = MessageType.ReleaseLock,
             };
-            var len = CommandHeader.Size;
+            var len = MessageHeader.Size;
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
-            *(CommandHeader*)(claim.Data) = header;
+            *(MessageHeader*)(claim.Data) = header;
             claim.ReservedValue = Pid;
             claim.Commit();
         }
@@ -314,22 +318,22 @@ namespace Spreads.Storage {
             var ret = base.SaveChunk(chunk);
 
             var extSid = this.GetExtendedSeriesId(chunk.Id);
-            var header = new CommandHeader {
-                SeriesId = new UUID(extSid.UUID),
-                CommandType = CommandType.SetChunk,
+            var header = new MessageHeader {
+                UUID = new UUID(extSid.UUID),
+                MessageType = MessageType.SetChunk,
                 Version = chunk.Version
             };
             var commandBody = new ChunkCommandBody {
                 ChunkKey = chunk.ChunkKey,
                 Count = chunk.Count,
             };
-            var len = CommandHeader.Size + ChunkCommandBody.Size;
+            var len = MessageHeader.Size + ChunkCommandBody.Size;
 
 
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
-            *(CommandHeader*)(claim.Data) = header;
-            TypeHelper<ChunkCommandBody>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
+            *(MessageHeader*)(claim.Data) = header;
+            TypeHelper<ChunkCommandBody>.StructureToPtr(commandBody, claim.Data + MessageHeader.Size);
             claim.ReservedValue = Pid;
             claim.Commit();
 
@@ -341,20 +345,20 @@ namespace Spreads.Storage {
             var ret = base.RemoveChunk(mapId, key, version, direction);
 
             var extSid = this.GetExtendedSeriesId(mapId);
-            var header = new CommandHeader {
-                SeriesId = new UUID(extSid.UUID),
-                CommandType = CommandType.RemoveChunk,
+            var header = new MessageHeader {
+                UUID = new UUID(extSid.UUID),
+                MessageType = MessageType.RemoveChunk,
                 Version = version
             };
             var commandBody = new ChunkCommandBody {
                 ChunkKey = key,
                 Lookup = (int)direction
             };
-            var len = CommandHeader.Size + ChunkCommandBody.Size;
+            var len = MessageHeader.Size + ChunkCommandBody.Size;
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
-            *(CommandHeader*)(claim.Data) = header;
-            TypeHelper<ChunkCommandBody>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
+            *(MessageHeader*)(claim.Data) = header;
+            TypeHelper<ChunkCommandBody>.StructureToPtr(commandBody, claim.Data + MessageHeader.Size);
             claim.ReservedValue = Pid;
             claim.Commit();
 

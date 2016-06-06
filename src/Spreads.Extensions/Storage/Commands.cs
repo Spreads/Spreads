@@ -29,7 +29,7 @@ using System.Threading.Tasks;
 using Spreads.Serialization;
 
 namespace Spreads.Storage {
-    public enum CommandType : int {
+    public enum MessageType : int {
         Set = 0,
         Complete = 10,
         Remove = 20,
@@ -44,6 +44,8 @@ namespace Spreads.Storage {
         AcquireLock = 80,
         ReleaseLock = 90,
 
+        Error = -1,
+
         /// <summary>
         /// Generic command that depends on context
         /// </summary>
@@ -51,9 +53,9 @@ namespace Spreads.Storage {
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 28)]
-    internal struct CommandHeader {
+    internal struct MessageHeader {
         public UUID SeriesId;
-        public CommandType CommandType;
+        public MessageType MessageType;
         public long Version;
 
         public static int Size => 28;

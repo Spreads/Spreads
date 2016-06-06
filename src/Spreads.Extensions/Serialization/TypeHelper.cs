@@ -83,9 +83,9 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void StructureToPtr(T value, IntPtr pointer) {
+        public static void StructureToPtr(T value, IntPtr pointer, MemoryStream ms = null) {
             if (_hasBinaryConverter) {
-                _convertorInstance.ToPtr(value, pointer);
+                _convertorInstance.ToPtr(value, pointer, ms);
                 return;
             }
 

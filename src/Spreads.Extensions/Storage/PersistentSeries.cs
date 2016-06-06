@@ -70,47 +70,47 @@ namespace Spreads.Storage {
         // NB we apply commands only to instantiated series when runtime does all types magic
         public unsafe void ApplyCommand(DirectBuffer buffer) {
             var dataStart = buffer.Data;
-            var header = *(CommandHeader*)(dataStart);
+            var header = *(MessageHeader*)(dataStart);
             Trace.Assert(header.SeriesId == _uuid);
-            var type = header.CommandType;
+            var type = header.MessageType;
             switch (type) {
-                case CommandType.Set:
+                case MessageType.Set:
                     // If this is a writer, it should ignore its own commands read from log-buffer
                     //if (!_isWriter) throw new ApplicationException("TODO temp delete this");
                     if (!_isWriter) {
                         Trace.Assert(header.Version == _innerMap.Version + 1);
                         var setBody =
-                            TypeHelper<SetRemoveCommandBody<K, V>>.PtrToStructure(dataStart + CommandHeader.Size);
+                            TypeHelper<SetRemoveCommandBody<K, V>>.PtrToStructure(dataStart + MessageHeader.Size);
                         _innerMap[setBody.key] = setBody.value;
                     }
                     break;
 
-                case CommandType.Remove:
+                case MessageType.Remove:
                     if (!_isWriter) {
                         Trace.Assert(header.Version == _innerMap.Version + 1);
                         var removeBody =
-                            TypeHelper<SetRemoveCommandBody<K, int>>.PtrToStructure(dataStart + CommandHeader.Size);
+                            TypeHelper<SetRemoveCommandBody<K, int>>.PtrToStructure(dataStart + MessageHeader.Size);
                         _innerMap.RemoveMany(removeBody.key, (Lookup)removeBody.value);
                     }
                     break;
 
-                case CommandType.Append:
+                case MessageType.Append:
                     if (!_isWriter) {
                         throw new NotImplementedException("TODO");
                         Trace.Assert(header.Version == _innerMap.Version + 1);
                     }
                     break;
 
-                case CommandType.Complete:
+                case MessageType.Complete:
                     if (!_isWriter) {
                         Trace.Assert(header.Version == _innerMap.Version + 1);
                         _innerMap.Complete();
                     }
                     break;
 
-                case CommandType.SetChunk:
+                case MessageType.SetChunk:
                     //if (!_isWriter) {
-                    //    var setChunkBody = *(ChunkCommandBody*)(pointer + 4 + CommandHeader.Size);
+                    //    var setChunkBody = *(ChunkCommandBody*)(pointer + 4 + MessageHeader.Size);
                     //    {
                     //        var scm = _innerMap as SortedChunkedMap<K, V>;
                     //        var comparer = scm.Comparer as IKeyComparer<K>;
@@ -133,9 +133,9 @@ namespace Spreads.Storage {
 
                     break;
 
-                case CommandType.RemoveChunk:
+                case MessageType.RemoveChunk:
                     //if (!_isWriter) {
-                    //    var setChunkBody = *(ChunkCommandBody*)(pointer + 4 + CommandHeader.Size);
+                    //    var setChunkBody = *(ChunkCommandBody*)(pointer + 4 + MessageHeader.Size);
                     //    {
                     //        var scm = _innerMap as SortedChunkedMap<K, V>;
                     //        var comparer = scm.Comparer as IKeyComparer<K>;
@@ -149,22 +149,22 @@ namespace Spreads.Storage {
                     //}
                     break;
 
-                case CommandType.Flush:
+                case MessageType.Flush:
                     if (!_isWriter) {
                         Trace.Assert(header.Version == _innerMap.Version);
                         FlushEvent.Set();
                     }
                     break;
 
-                case CommandType.Subscribe:
+                case MessageType.Subscribe:
                     // if we are the single writer, we must flush so that new subscribers could see unsaved data
                     // if we are read-only
                     if (_isWriter) this.Flush();
                     break;
 
-                case CommandType.AcquireLock:
+                case MessageType.AcquireLock:
                     break;
-                case CommandType.ReleaseLock:
+                case MessageType.ReleaseLock:
                     LockReleaseEvent.Set();
                     // ignore
                     break;
@@ -173,7 +173,7 @@ namespace Spreads.Storage {
                     throw new ApplicationException("Explicitly ignore all irrelevant cases here");
             }
             //if (_innerMap.Version != header.Version && !_isWriter) {
-            //    Trace.TraceWarning($"_innerMap.Version {_innerMap.Version} != Command header {header.CommandType} version {header.Version}");
+            //    Trace.TraceWarning($"_innerMap.Version {_innerMap.Version} != Command header {header.MessageType} version {header.Version}");
             //}
         }
 
@@ -181,9 +181,9 @@ namespace Spreads.Storage {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private unsafe void LogSetKeyValue(K key, V value) {
             if (_allowBatches) return;
-            var header = new CommandHeader {
+            var header = new MessageHeader {
                 SeriesId = _uuid,
-                CommandType = CommandType.Set,
+                MessageType = MessageType.Set,
                 Version = this.Version
             };
             var commandBody = new SetRemoveCommandBody<K, V> {
@@ -191,14 +191,14 @@ namespace Spreads.Storage {
                 value = value
             };
             MemoryStream ms = null;
-            var len = CommandHeader.Size + TypeHelper<SetRemoveCommandBody<K, V>>.SizeOf(commandBody, ref ms);
+            var len = MessageHeader.Size + TypeHelper<SetRemoveCommandBody<K, V>>.SizeOf(commandBody, ref ms);
             // version + len header
             if (TypeHelper<SetRemoveCommandBody<K, V>>.Size <= 0) len = len + 8;
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
-            *(CommandHeader*)(claim.Data) = header;
+            *(MessageHeader*)(claim.Data) = header;
             // TODO reuse ms
-            TypeHelper<SetRemoveCommandBody<K, V>>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
+            TypeHelper<SetRemoveCommandBody<K, V>>.StructureToPtr(commandBody, claim.Data + MessageHeader.Size);
             claim.ReservedValue = _pid;
             claim.Commit();
         }
@@ -235,20 +235,20 @@ namespace Spreads.Storage {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private unsafe void LogRemoveKeyDirection(K key, int lookup) {
             if (_allowBatches) return;
-            var header = new CommandHeader {
+            var header = new MessageHeader {
                 SeriesId = _uuid,
-                CommandType = CommandType.Remove,
+                MessageType = MessageType.Remove,
                 Version = this.Version
             };
             var commandBody = new SetRemoveCommandBody<K, int> {
                 key = key,
                 value = lookup
             };
-            var len = CommandHeader.Size + TypeHelper<SetRemoveCommandBody<K, int>>.Size;
+            var len = MessageHeader.Size + TypeHelper<SetRemoveCommandBody<K, int>>.Size;
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
-            *(CommandHeader*)(claim.Data) = header;
-            TypeHelper<SetRemoveCommandBody<K, int>>.StructureToPtr(commandBody, claim.Data + CommandHeader.Size);
+            *(MessageHeader*)(claim.Data) = header;
+            TypeHelper<SetRemoveCommandBody<K, int>>.StructureToPtr(commandBody, claim.Data + MessageHeader.Size);
             claim.ReservedValue = _pid;
             claim.Commit();
         }
@@ -291,16 +291,16 @@ namespace Spreads.Storage {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe void LogHeaderOnly(CommandType type) {
-            var header = new CommandHeader {
+        private unsafe void LogHeaderOnly(MessageType type) {
+            var header = new MessageHeader {
                 SeriesId = _uuid,
-                CommandType = type,
+                MessageType = type,
                 Version = this.Version
             };
-            var len = CommandHeader.Size;
+            var len = MessageHeader.Size;
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
-            *(CommandHeader*)(claim.Data) = header;
+            *(MessageHeader*)(claim.Data) = header;
             claim.ReservedValue = _pid;
             claim.Commit();
         }
@@ -308,7 +308,7 @@ namespace Spreads.Storage {
         public void Complete() {
             if (_isWriter) {
                 _innerMap.Complete();
-                LogHeaderOnly(CommandType.Complete);
+                LogHeaderOnly(MessageType.Complete);
             } else {
                 throw new InvalidOperationException("Cannot Complete read-only series");
             }
@@ -317,7 +317,7 @@ namespace Spreads.Storage {
         public void Flush() {
             if (_isWriter) {
                 _innerMap.Flush();
-                LogHeaderOnly(CommandType.Flush);
+                LogHeaderOnly(MessageType.Flush);
             } else {
                 throw new InvalidOperationException("Cannot Flush read-only series");
             }
