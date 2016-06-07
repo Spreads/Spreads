@@ -45,15 +45,12 @@ namespace Spreads.Storage {
         private const uint MinimumBufferSize = 10;
         private const string StorageFileName = "chunkstorage";
 
-        // Opened series that could accept commands
-        private readonly ConcurrentDictionary<UUID, IAcceptCommand> _openSeries = new ConcurrentDictionary<UUID, IAcceptCommand>();
+        // Opened objects that could accept commands
+        private readonly ConcurrentDictionary<UUID, IAcceptCommand> _openStreams = new ConcurrentDictionary<UUID, IAcceptCommand>();
         private static short _counter = 0;
-        private int _pid;
-        private string _mapsPath;
+        private readonly int _pid;
+        private readonly string _mapsPath;
 
-        static DataRepository() {
-
-        }
 
         /// <summary>
         /// Create a series repository at a specified location.
@@ -62,9 +59,9 @@ namespace Spreads.Storage {
         /// a default folder is used.</param>
         /// <param name="bufferSizeMb">Buffer size in megabytes. Ignored if below default.</param>
         public DataRepository(string path = null, uint bufferSizeMb = 100) : base(GetConnectionStringFromPath(path)) {
-            //if (!Path.IsPathRooted(path)) {
-            //    path = Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "Repos", path);
-            //}
+            if (string.IsNullOrWhiteSpace(path)) {
+                path = Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "Repos", "Default");
+            }
             var seriesPath = Path.Combine(path, "series");
             _mapsPath = Path.Combine(path, "maps");
             if (!Directory.Exists(_mapsPath)) {
@@ -108,7 +105,7 @@ namespace Spreads.Storage {
             if (
                 writerPid != Pid // ignore our own messages
                 &&
-                _openSeries.TryGetValue(uuid, out acceptCommand) // ignore messages for closed series
+                _openStreams.TryGetValue(uuid, out acceptCommand) // ignore messages for closed series
                 ) {
                 acceptCommand.ApplyCommand(messageBuffer);
             }
@@ -137,7 +134,7 @@ namespace Spreads.Storage {
         public Task<BroadcastObservable<T>> Broadcast<T>(string channelId)
         {
             var bo = new BroadcastObservable<T>(_appendLog, channelId, Pid);
-            _openSeries[bo.UUID] = bo;
+            _openStreams[bo.UUID] = bo;
             return Task.FromResult(bo);
         }
 
@@ -194,7 +191,7 @@ namespace Spreads.Storage {
             var exSeriesId = GetExtendedSeriesId<K, V>(seriesId);
             var uuid = new UUID(exSeriesId.UUID);
             IAcceptCommand series;
-            if (_openSeries.TryGetValue(uuid, out series)) {
+            if (_openStreams.TryGetValue(uuid, out series)) {
                 var ps = (PersistentSeries<K, V>)series;
                 Interlocked.Increment(ref ps.RefCounter);
                 if (isWriter && !ps.IsWriter) {
@@ -207,7 +204,7 @@ namespace Spreads.Storage {
                 IAcceptCommand temp;
                 if (remove) {
                     // NB this callback is called from temp.Dispose();
-                    var removed = _openSeries.TryRemove(uuid, out temp);
+                    var removed = _openStreams.TryRemove(uuid, out temp);
                     Trace.Assert(removed);
                 }
                 if (downgrade) Downgrade(uuid);
@@ -218,7 +215,7 @@ namespace Spreads.Storage {
                 ipom, allowBatches, isWriter,
                 disposeCallback);
             // NB this is done in consturctor: pSeries.RefCounter++;
-            _openSeries[uuid] = pSeries;
+            _openStreams[uuid] = pSeries;
 
             LogSubscribe(uuid, pSeries.Version, exSeriesId.ToString());
 
@@ -370,7 +367,7 @@ namespace Spreads.Storage {
         }
 
         protected virtual void Dispose(bool disposing) {
-            foreach (var series in _openSeries.Values) {
+            foreach (var series in _openStreams.Values) {
                 series.Dispose();
             }
             _appendLog.Dispose();
