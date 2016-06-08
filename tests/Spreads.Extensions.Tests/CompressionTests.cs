@@ -62,7 +62,7 @@ namespace Spreads.Extensions.Tests {
             {
                 Console.WriteLine($"Size of Tick: {Marshal.SizeOf(typeof(Tick))}");
                 Console.WriteLine($"Size of Price: {Marshal.SizeOf(typeof(Price))}");
-                Console.WriteLine($"Size of OHLC: {Marshal.SizeOf(typeof(OHLC))}");
+                Console.WriteLine($"Size of OHLCV: {Marshal.SizeOf(typeof(OHLCV))}");
                 fixed (Tick* destPtr = &_tickSmall[0])
                 {
                     Console.WriteLine("Ticks pointer: " + ((IntPtr)destPtr));
