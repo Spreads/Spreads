@@ -105,6 +105,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Algorithm\RankerTests.cs" />
     <Compile Include="ComplexObject.cs" />
     <Compile Include="CursorSeriesExtensions.cs" />
     <Compile Include="CompressionTests.cs" />
