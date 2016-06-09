@@ -17,10 +17,8 @@ namespace Spreads.Collections.Tests.Cursors {
     public class MiscCursorsTests {
         [Test]
         [Ignore("This test fails when using RunAll")]
-        public void CouldLagSeriesManyTimes()
-        {
-            Parallel.For(0, 100, (x) =>
-            {
+        public void CouldLagSeriesManyTimes() {
+            Parallel.For(0, 100, (x) => {
                 CouldLagSeries();
             });
         }
@@ -32,12 +30,9 @@ namespace Spreads.Collections.Tests.Cursors {
             var count = 1000000;
 
             for (int i = 0; i < count; i++) {
-                try
-                {
+                try {
                     sm.Add(i, i);
-                }
-                catch (Exception e)
-                {
+                } catch (Exception e) {
                     Console.WriteLine($"i: {i}");
                     Console.WriteLine($"sm.count: {sm.Count}");
                     Console.WriteLine($"sm.IsRegular: {sm.IsRegular}");
@@ -435,6 +430,33 @@ namespace Spreads.Collections.Tests.Cursors {
             Console.WriteLine($"Count: {diff.Count()}");
 
             Assert.IsTrue(diff.Count() > 0);
+        }
+
+
+        [Test]
+        public void CouldScanSeries() {
+            OptimizationSettings.CombineFilterMapDelegates = true;
+
+            var data = new SortedMap<DateTime, double>();
+
+            var count = 5000;
+
+            for (int i = 0; i < count; i++) {
+                data.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+            }
+            var sign = 1;
+            var runnningSum = data.Zip(data, (d1, d2) => d1 + d2).Scan(0.0, (st, k, v) => {
+                if (st > 100) {
+                    sign = -1;
+                }
+                if (st < -100) {
+                    sign = 1;
+                }
+                return st += sign * v;
+            });
+            var runnningSumSm = runnningSum.ToSortedMap();
+
+            Assert.AreEqual(runnningSum.Count(), count);
         }
     }
 }

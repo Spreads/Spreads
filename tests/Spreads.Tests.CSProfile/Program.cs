@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using Spreads;
 using Spreads.Collections;
-using Spreads.Collections.Tests.Cursors;
 using Spreads.Extensions.Tests;
 using Spreads.Extensions.Tests.Storage;
 using Spreads.Extensions.Tests.Storage.SQLite;

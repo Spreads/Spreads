@@ -552,3 +552,34 @@ type SeriesTestsModule() =
         let windows2 = windows.Map(fun inner -> inner.Values.Sum()).ToSortedMap() :> _ seq
         
         Assert.IsTrue(expected.SequenceEqual(windows2))
+
+
+
+
+    [<Test>]
+    member this.``Mutable local capture``() =
+        let data = new SortedMap<DateTime, double>()
+        let count = 5000
+
+        for i in 0..count-1 do
+            data.Add(DateTime.UtcNow.Date.AddSeconds(float i), float i)
+        
+        let mutable sign = 1.0
+        let mutable rList = new List<double>()
+        let testList = ref rList
+        let getSign s () = s
+        // there was a strage behavior that looked like a local mutable was captured twice
+        // cannot reproduce it here
+        let mutable runnningSum = data.Zip(data, (fun d1 d2 -> d1 + d2)).Scan(0.0, fun st k v -> 
+            let getSign' = getSign sign
+            if st > 100.0 && getSign'() > 0.0 then
+                sign <- -1.0
+            elif st < -100.0 && getSign'() < 0.0 then
+                sign <- 1.0
+                rList.Add(sign)
+                rList.Sort()
+            if sign > 0.0 then st + v
+            else st - v
+        )
+
+        Assert.AreEqual(runnningSum.Count(), count)

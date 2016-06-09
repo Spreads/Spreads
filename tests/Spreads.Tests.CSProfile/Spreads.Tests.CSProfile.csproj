@@ -111,10 +111,6 @@
       <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
       <Name>Spreads.Extensions</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Spreads.Collections.Tests\Spreads.Collections.Tests.csproj">
-      <Project>{d4857397-4d03-4e25-9332-979bf22e9bb2}</Project>
-      <Name>Spreads.Collections.Tests</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Spreads.Extensions.Tests\Spreads.Extensions.Tests.csproj">
       <Project>{8da2ca79-d0fd-4bae-b000-c05d9b5f82d9}</Project>
       <Name>Spreads.Extensions.Tests</Name>

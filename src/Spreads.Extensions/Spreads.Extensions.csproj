@@ -456,6 +456,7 @@
     <Compile Include="Storage\SeriesMetadata.cs" />
     <Compile Include="Storage\DataRepository.cs" />
     <Compile Include="Storage\SeriesStorage.cs" />
+    <Compile Include="Storage\SingleWriterException.cs" />
     <Compile Include="Storage\SQLite\Interop\NativeMethodsEx.cs" />
     <Compile Include="Storage\SQLite\Interop\Sqlite3BlobHandle.cs" />
     <Compile Include="Storage\Tables.cs" />

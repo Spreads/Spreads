@@ -30,14 +30,12 @@ using Spreads.Storage.Aeron.Logbuffer;
 using Spreads.Storage.Aeron.Protocol;
 
 namespace Spreads.Storage {
-
-
     // NB for each series id each repository instance keeps a single series instance
 
     public class DataRepository : SeriesStorage, IDataRepository, IDisposable {
         // persistent dictionary to store all open series with write access and process id
         // we use single writer and steal locks if a writer process id is not among running processes.
-        private readonly PersistentMapFixedLength<UUID, int> _writeSeriesLocks;
+        private readonly PersistentMapFixedLength<UUID, long> _writeSeriesLocks;
         private const string WriteLocksFileName = "writelocks";
 
         private readonly AppendLog _appendLog;
@@ -47,10 +45,16 @@ namespace Spreads.Storage {
 
         // Opened objects that could accept commands
         private readonly ConcurrentDictionary<UUID, IAcceptCommand> _openStreams = new ConcurrentDictionary<UUID, IAcceptCommand>();
-        private static short _counter = 0;
-        private readonly int _pid;
+        private static int _counter = 0;
+        private readonly long _pid;
         private readonly string _mapsPath;
+        private readonly UUID _conductorLock = new UUID("conductor://conductor.lock");// just a magic number
+        private bool _isConductor;
 
+        private Dictionary<UUID, TaskCompletionSource<long>> _writerRequestsOustanding =
+            new Dictionary<UUID, TaskCompletionSource<long>>();
+        private Dictionary<UUID, TaskCompletionSource<byte>> _syncRequestsOustanding =
+            new Dictionary<UUID, TaskCompletionSource<byte>>();
 
         /// <summary>
         /// Create a series repository at a specified location.
@@ -68,12 +72,14 @@ namespace Spreads.Storage {
                 Directory.CreateDirectory(_mapsPath);
             }
             var writeLocksFileName = Path.Combine(seriesPath, WriteLocksFileName);
-            _writeSeriesLocks = new PersistentMapFixedLength<UUID, int>(writeLocksFileName, 1000);
+            _writeSeriesLocks = new PersistentMapFixedLength<UUID, long>(writeLocksFileName, 1000);
             var logBufferFileName = Path.Combine(seriesPath, LogBufferFileName);
             _appendLog = new AppendLog(logBufferFileName, bufferSizeMb < MinimumBufferSize ? (int)MinimumBufferSize : (int)bufferSizeMb);
             _appendLog.OnAppend += OnLogAppend;
-            _pid = (_counter << 16) | Process.GetCurrentProcess().Id;
+            _pid = (((long)_counter) << 32) | (long)Process.GetCurrentProcess().Id;
             _counter++;
+
+            _isConductor = TryBecomeConductor();
         }
 
         private static string GetConnectionStringFromPath(string path) {
@@ -89,26 +95,81 @@ namespace Spreads.Storage {
         }
 
 
-
         // fake a different Pid for each repo instance inside a single process
-        protected int Pid => _pid;
+        protected long Pid => _pid;
 
-        protected virtual unsafe void OnLogAppend(DirectBuffer buffer) {
+        public PersistentMapFixedLength<UUID, long> WriteSeriesLocks => _writeSeriesLocks;
+
+        /// <summary>
+        /// Must call LogSynced(seriesId) when storage has all relevant data (asyncronously)
+        /// </summary>
+        protected virtual void BeginSyncronizeSeries(UUID seriesId, long version) {
+            // if DataRepo is a conductor than there is no any external conductor and 
+            // we have only data in the storage
+            LogSynced(seriesId);
+        }
+
+        protected unsafe void OnLogAppend(DirectBuffer buffer) {
 
             var writerPid = buffer.ReadInt64(DataHeaderFlyweight.RESERVED_VALUE_OFFSET);
             var messageBuffer = new DirectBuffer(buffer.Length - DataHeaderFlyweight.HEADER_LENGTH,
                 buffer.Data + DataHeaderFlyweight.HEADER_LENGTH);
             var header = *(MessageHeader*)(messageBuffer.Data);
-            var uuid = header.UUID;
+            var seriesId = header.UUID;
+            var messageType = header.MessageType;
 
-            IAcceptCommand acceptCommand;
-            if (
-                writerPid != Pid // ignore our own messages
-                &&
-                _openStreams.TryGetValue(uuid, out acceptCommand) // ignore messages for closed series
-                ) {
-                acceptCommand.ApplyCommand(messageBuffer);
+            switch (messageType) {
+                case MessageType.ConductorMessage:
+                    // this message could be sent only by a process that
+                    // thinks it is a conductor
+                    var currentConductor = writerPid;
+                    if (currentConductor != Pid) _isConductor = false;
+                    break;
+
+                case MessageType.WriteRequest:
+                    if (_isConductor) {
+                        var currentWriter = TryAcquireWriteLockOrGetCurrent(seriesId);
+                        LogCurrentWriter(seriesId, currentWriter);
+                    }
+                    break;
+
+                case MessageType.CurrentWriter:
+                    // new writer is sent by a conductor in response 
+                    TaskCompletionSource<long> temp;
+                    if (_writerRequestsOustanding.TryGetValue(seriesId, out temp)) {
+                        temp.SetResult(messageBuffer.ReadInt64(0));
+                    }
+                    break;
+
+                case MessageType.Subscribe:
+                    if (_isConductor) {
+                        IAcceptCommand tempAcceptCommand;
+                        if (_openStreams.TryGetValue(seriesId, out tempAcceptCommand)) {
+                            tempAcceptCommand.Flush();
+                        }
+                        BeginSyncronizeSeries(seriesId, header.Version);
+                    }
+                    break;
+
+                case MessageType.Synced:
+                    TaskCompletionSource<byte> temp2;
+                    if (_syncRequestsOustanding.TryGetValue(seriesId, out temp2)) {
+                        temp2.SetResult(1);
+                    }
+                    break;
+
+
+                default:
+                    IAcceptCommand acceptCommand;
+                    if (writerPid != Pid // ignore our own messages
+                        && _openStreams.TryGetValue(seriesId, out acceptCommand) // ignore messages for closed series
+                        ) {
+                        acceptCommand.ApplyCommand(messageBuffer);
+                    }
+                    break;
             }
+
+
         }
 
         public async Task<PersistentSeries<K, V>> WriteSeries<K, V>(string seriesId, bool allowBatches = false) {
@@ -131,8 +192,7 @@ namespace Spreads.Storage {
         /// Get ISubject (IObservable + IObserver) that allows to broadcast messages and receive
         /// messages from other broadcasters on the same channel.
         /// </summary>
-        public Task<BroadcastObservable<T>> Broadcast<T>(string channelId)
-        {
+        public Task<BroadcastObservable<T>> Broadcast<T>(string channelId) {
             var bo = new BroadcastObservable<T>(_appendLog, channelId, Pid);
             _openStreams[bo.UUID] = bo;
             return Task.FromResult(bo);
@@ -140,53 +200,81 @@ namespace Spreads.Storage {
 
 
         private void Downgrade(UUID seriesId) {
-            _writeSeriesLocks.Remove(seriesId);
+            if (_isConductor) {
+                _writeSeriesLocks.Remove(seriesId);
+            }
             LogReleaseLock(seriesId);
         }
 
-        private async Task Upgrade<K, V>(UUID seriesId, PersistentSeries<K, V> series) {
-            if (!series.IsWriter) {
-                try {
-                    _writeSeriesLocks.Add(seriesId, Pid);
-                    series.IsWriter = true;
-                    LogAcquireLock(seriesId, series.Version);
-                    return;
-                } catch (ArgumentException) { }
+        /// <summary>
+        /// Try to acquire a lock for series. Used from WriteSeries()
+        /// </summary>
+        private async Task<bool> RequestWriteLock(UUID seriesId) {
+            if (_isConductor) {
+                return TryAcquireWriteLockOrGetCurrent(seriesId) == Pid;
             }
-            while (true) {
-                // wait if a writer from the same repo releases lock
-                var released = await series.LockReleaseEvent.WaitAsync(1000);
-                if (released) {
-                    try {
-                        // TODO TryAdd atomic method
-                        _writeSeriesLocks.Add(seriesId, Pid);
-                        series.IsWriter = true;
-                        LogAcquireLock(seriesId, series.Version);
-                        break;
-                    } catch (ArgumentException) {
-                        Trace.WriteLine("Could not upgrade after lock release, some one jumped ahead of us");
-                    }
-                } else {
-                    int pid;
-                    if (_writeSeriesLocks.TryGetValue(seriesId, out pid)) {
-                        try {
-                            Process.GetProcessById(pid & ((1 << 16) - 1));
-                            Trace.TraceWarning("Tried to steal a lock but the owner process was alive.");
-                        } catch (ArgumentException) {
-                            // pid is not running anymore, steal lock
-                            Trace.TraceWarning($"Current process {Pid} has stolen a lock left by a dead process {pid}. If you see this often then dispose SeriesRepository properly before application exit.");
-                            _writeSeriesLocks[seriesId] = Pid;
-                            series.IsWriter = true;
-                            LogAcquireLock(seriesId, series.Version);
-                            break;
-                        }
-                    }
-                }
+
+            var tcs = new TaskCompletionSource<long>();
+            _writerRequestsOustanding.Add(seriesId, tcs);
+            LogWriteRequest(seriesId);
+            var currentWriter = await tcs.Task;
+            return currentWriter == Pid;
+        }
+
+        private async Task RequestSubscribeSynced(UUID seriesId, long version, string extendedTextId) {
+            var tcs = new TaskCompletionSource<byte>();
+            _syncRequestsOustanding.Add(seriesId, tcs);
+            LogSubscribe(seriesId, version, extendedTextId);
+            await tcs.Task;
+        }
+
+        private bool IsProcessAlive(long pid) {
+            try {
+                Process.GetProcessById((int)(pid & ((1L << 32) - 1L)));
+                return true;
+            } catch (ArgumentException) {
+                return false;
             }
         }
 
-        protected virtual async Task<PersistentSeries<K, V>> GetSeries<K, V>(string seriesId, bool isWriter, bool allowBatches = false) {
+        private bool TryBecomeConductor() {
+            try {
+                _writeSeriesLocks.Add(_conductorLock, Pid);
+            } catch (ArgumentException) {
+            }
+            long conductorPid;
+            if (_writeSeriesLocks.TryGetValue(_conductorLock, out conductorPid)) {
+                if (conductorPid == Pid) {
+                    return true;
+                }
+                if (IsProcessAlive(conductorPid)) return false;
+                // TODO need atomic CAS operations on dictionary, however in this case it is not very important, we should not open/close repos many times
+                _writeSeriesLocks[_conductorLock] = Pid;
+                return true;
+            }
+            throw new ApplicationException("Value must exist");
+        }
 
+        private long TryAcquireWriteLockOrGetCurrent(UUID seriesId) {
+            try {
+                _writeSeriesLocks.Add(seriesId, Pid);
+            } catch (ArgumentException) {
+            }
+            long pid;
+            if (_writeSeriesLocks.TryGetValue(seriesId, out pid)) {
+                if (pid == Pid) {
+                    return pid;
+                }
+                if (IsProcessAlive(pid)) return pid;
+                // TODO need atomic CAS operations on dictionary, however in this case it is not very important, we should not open/close repos many times
+                _writeSeriesLocks[seriesId] = Pid;
+                return Pid;
+            }
+            throw new ApplicationException("Value must exist");
+        }
+
+
+        protected virtual async Task<PersistentSeries<K, V>> GetSeries<K, V>(string seriesId, bool isWriter, bool allowBatches = false) {
             seriesId = seriesId.ToLowerInvariant().Trim();
             var exSeriesId = GetExtendedSeriesId<K, V>(seriesId);
             var uuid = new UUID(exSeriesId.UUID);
@@ -195,10 +283,22 @@ namespace Spreads.Storage {
                 var ps = (PersistentSeries<K, V>)series;
                 Interlocked.Increment(ref ps.RefCounter);
                 if (isWriter && !ps.IsWriter) {
-                    await Upgrade(uuid, ps);
+                    var hasLockAcquired = await RequestWriteLock(uuid);
+                    if (!hasLockAcquired) throw new SingleWriterException();
+                    // Upgrade to writer
+                    ps.IsWriter = true;
                 }
                 return ps;
             }
+
+            // NB We restrict only opening more than once, once opened a series object could be modified by many threads
+
+            if (isWriter) {
+                var hasLockAcquired = await RequestWriteLock(uuid);
+                if (!hasLockAcquired) throw new SingleWriterException();
+            }
+
+            // NB: Writers now have lock acquired. Other logic is the same for both writers and readers.
 
             Action<bool, bool> disposeCallback = (remove, downgrade) => {
                 IAcceptCommand temp;
@@ -211,39 +311,15 @@ namespace Spreads.Storage {
             };
 
             var ipom = base.GetSeries<K, V>(exSeriesId.Id, exSeriesId.Version, false);
-            var pSeries = new PersistentSeries<K, V>(_appendLog, _pid, uuid,
-                ipom, allowBatches, isWriter,
-                disposeCallback);
+            var pSeries = new PersistentSeries<K, V>(_appendLog, _pid, uuid, ipom, allowBatches, isWriter, disposeCallback);
             // NB this is done in consturctor: pSeries.RefCounter++;
             _openStreams[uuid] = pSeries;
 
-            LogSubscribe(uuid, pSeries.Version, exSeriesId.ToString());
+            await RequestSubscribeSynced(uuid, pSeries.Version, exSeriesId.ToString());
 
-            if (isWriter) {
-                try {
-                    _writeSeriesLocks.Add(uuid, Pid);
-                    LogAcquireLock(uuid, pSeries.Version);
-                } catch (ArgumentException) {
-                    // NB do not wait // await Upgrade(uuid, pSeries);
-                    throw new InvalidOperationException("Series is already opened for write. Only single writer is allowed.");
-                }
-            } else {
-                // wait for flush if there is a live writer 
-                int pid;
-                if (_writeSeriesLocks.TryGetValue(uuid, out pid)) {
-                    try {
-                        Process.GetProcessById(pid & ((1 << 16) - 1));
-                        await pSeries.FlushEvent.WaitAsync(-1);
-                    } catch (ArgumentException) {
-                        // pid is not running anymore, steal lock
-                        Trace.TraceWarning($"Current process {Pid} has removed a lock left by a dead process {pid}. If you see this often then dispose SeriesRepository properly before application exit.");
-                        _writeSeriesLocks.Remove(uuid);
-                        LogReleaseLock(uuid);
-                    }
-                }
-            }
             return pSeries;
         }
+
 
         public unsafe void Broadcast(DirectBuffer buffer, UUID correlationId = default(UUID), long version = 0L) {
             var header = new MessageHeader {
@@ -262,7 +338,36 @@ namespace Spreads.Storage {
         }
 
 
-        private unsafe void LogSubscribe(UUID uuid, long version, string extendedTextId) {
+
+        protected unsafe void LogWriteRequest(UUID uuid) {
+            var header = new MessageHeader {
+                UUID = uuid,
+                MessageType = MessageType.WriteRequest,
+                Version = 0L
+            };
+            var len = MessageHeader.Size;
+            BufferClaim claim;
+            _appendLog.Claim(len, out claim);
+            *(MessageHeader*)(claim.Data) = header;
+            claim.ReservedValue = Pid;
+            claim.Commit();
+        }
+
+        protected unsafe void LogCurrentWriter(UUID uuid, long writerPid) {
+            var header = new MessageHeader {
+                UUID = uuid,
+                MessageType = MessageType.WriteRequest,
+                Version = 0L
+            };
+            var len = MessageHeader.Size;
+            BufferClaim claim;
+            _appendLog.Claim(len, out claim);
+            *(MessageHeader*)(claim.Data) = header;
+            claim.ReservedValue = writerPid;
+            claim.Commit();
+        }
+
+        protected unsafe void LogSubscribe(UUID uuid, long version, string extendedTextId) {
             var header = new MessageHeader {
                 UUID = uuid,
                 MessageType = MessageType.Subscribe,
@@ -280,11 +385,11 @@ namespace Spreads.Storage {
             claim.Commit();
         }
 
-        private unsafe void LogAcquireLock(UUID uuid, long version) {
+        protected unsafe void LogSynced(UUID uuid) {
             var header = new MessageHeader {
                 UUID = uuid,
-                MessageType = MessageType.AcquireLock,
-                Version = version
+                MessageType = MessageType.Synced,
+                Version = 0L
             };
             var len = MessageHeader.Size;
             BufferClaim claim;
@@ -294,10 +399,10 @@ namespace Spreads.Storage {
             claim.Commit();
         }
 
-        private unsafe void LogReleaseLock(UUID uuid) {
+        protected unsafe void LogReleaseLock(UUID uuid) {
             var header = new MessageHeader {
                 UUID = uuid,
-                MessageType = MessageType.ReleaseLock,
+                MessageType = MessageType.WriteRelease,
             };
             var len = MessageHeader.Size;
             BufferClaim claim;
@@ -308,8 +413,7 @@ namespace Spreads.Storage {
         }
 
 
-        internal unsafe override Task<long> SaveChunk(SeriesChunk chunk) {
-
+        internal override unsafe Task<long> SaveChunk(SeriesChunk chunk) {
             var ret = base.SaveChunk(chunk);
 
             var extSid = this.GetExtendedSeriesId(chunk.Id);
@@ -336,7 +440,7 @@ namespace Spreads.Storage {
         }
 
 
-        internal unsafe override Task<long> RemoveChunk(long mapId, long key, long version, Lookup direction) {
+        internal override unsafe Task<long> RemoveChunk(long mapId, long key, long version, Lookup direction) {
             var ret = base.RemoveChunk(mapId, key, version, direction);
 
             var extSid = this.GetExtendedSeriesId(mapId);
@@ -361,8 +465,7 @@ namespace Spreads.Storage {
         }
 
 
-
-        internal interface IAcceptCommand : IDisposable {
+        internal interface IAcceptCommand : IPersistentObject {
             void ApplyCommand(DirectBuffer buffer);
         }
 
@@ -387,8 +490,4 @@ namespace Spreads.Storage {
             Dispose(false);
         }
     }
-
-
-
-
 }

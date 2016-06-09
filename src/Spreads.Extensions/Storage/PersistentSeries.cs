@@ -38,7 +38,7 @@ namespace Spreads.Storage {
     /// </summary>
     public sealed class PersistentSeries<K, V> : Series<K, V>, IPersistentOrderedMap<K, V>, DataRepository.IAcceptCommand {
         private readonly AppendLog _appendLog;
-        private readonly int _pid;
+        private readonly long _pid;
         private readonly UUID _uuid;
         private readonly IPersistentOrderedMap<K, V> _innerMap;
         private readonly bool _allowBatches;
@@ -51,7 +51,7 @@ namespace Spreads.Storage {
         internal int RefCounter = 0;
         private volatile bool _isWriter;
 
-        internal PersistentSeries(AppendLog appendLog, int pid, UUID uuid, IPersistentOrderedMap<K, V> innerMap, bool allowBatches, bool isWriter,
+        internal PersistentSeries(AppendLog appendLog, long pid, UUID uuid, IPersistentOrderedMap<K, V> innerMap, bool allowBatches, bool isWriter,
             Action<bool, bool> disposeCallback = null) {
             _appendLog = appendLog;
             _pid = pid;
@@ -162,13 +162,19 @@ namespace Spreads.Storage {
                     if (_isWriter) this.Flush();
                     break;
 
-                case MessageType.AcquireLock:
-                    break;
-                case MessageType.ReleaseLock:
+                
+
+                case MessageType.WriteRelease:
                     LockReleaseEvent.Set();
                     // ignore
                     break;
 
+                case MessageType.Broadcast:
+                    throw new ApplicationException("This object was expected to be a BroadcastObservable, not PersistentSeries");
+                case MessageType.ConductorMessage:
+                case MessageType.WriteRequest:
+                case MessageType.CurrentWriter:
+                    throw new InvalidOperationException("This message type must be filtered out");
                 default:
                     throw new ApplicationException("Explicitly ignore all irrelevant cases here");
             }

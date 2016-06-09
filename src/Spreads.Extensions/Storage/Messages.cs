@@ -35,22 +35,41 @@ namespace Spreads.Storage {
         Remove = 20,
         Append = 30,
         SetChunk = 40,
+        /// <summary>
+        /// Message buffer has serialized chunk
+        /// </summary>
+        ChunkBody = 41,
         RemoveChunk = 50,
+
         Subscribe = 60,
+        Synced = 61,
+
         /// <summary>
         /// An active writer MUST flush series in response to subscribe command.
         /// </summary>
         Flush = 70,
-        AcquireLock = 80,
-        NewOwner = 81,
-        ReleaseLock = 90,
+
+        WriteRequest = 80,
+        /// <summary>
+        /// Has Pid of the current writer for series. Used as a response to WriteRequest.
+        /// </summary>
+        CurrentWriter = 81,
+
+        WriteRelease = 90,
+
 
         Error = -1,
 
         /// <summary>
         /// Generic command that depends on context
         /// </summary>
-        Broadcast = int.MaxValue
+        Broadcast = int.MaxValue,
+
+        /// <summary>
+        /// Opaque conductor message
+        /// </summary>
+        ConductorMessage = int.MinValue
+
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 28)]

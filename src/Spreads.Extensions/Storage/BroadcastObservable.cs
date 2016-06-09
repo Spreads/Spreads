@@ -11,12 +11,12 @@ namespace Spreads.Storage {
     public class BroadcastObservable<T> : IObservable<T>, IObserver<T>, DataRepository.IAcceptCommand {
         private readonly AppendLog _appendLog;
         private readonly string _channelId;
-        private readonly int _pid;
+        private readonly long _pid;
 
         List<IObserver<T>> _observers;
         private readonly UUID _uuid;
 
-        internal BroadcastObservable(AppendLog appendLog, string channelId, int pid) {
+        internal BroadcastObservable(AppendLog appendLog, string channelId, long pid) {
             _appendLog = appendLog;
             _channelId = channelId;
             _pid = pid;
@@ -121,12 +121,14 @@ namespace Spreads.Storage {
                 if (!(_observer == null)) _observers.Remove(_observer);
             }
         }
+
+        public void Flush() {
+            // no action
+        }
+
+        public string Id => _channelId;
     }
 
-
-    // one per machine, manages state
-    public class Conductor {
-    }
 
     public class VirtualActor {
         public string Name { get; set; }
