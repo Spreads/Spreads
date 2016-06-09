@@ -149,12 +149,6 @@ namespace Spreads.Storage {
                     //}
                     break;
 
-                case MessageType.Flush:
-                    if (!_isWriter) {
-                        Trace.Assert(header.Version == _innerMap.Version);
-                        FlushEvent.Set();
-                    }
-                    break;
 
                 case MessageType.Subscribe:
                     // if we are the single writer, we must flush so that new subscribers could see unsaved data
@@ -323,7 +317,6 @@ namespace Spreads.Storage {
         public void Flush() {
             if (_isWriter) {
                 _innerMap.Flush();
-                LogHeaderOnly(MessageType.Flush);
             } else {
                 throw new InvalidOperationException("Cannot Flush read-only series");
             }

@@ -40,15 +40,8 @@ namespace Spreads.Storage {
         /// </summary>
         ChunkBody = 41,
         RemoveChunk = 50,
-
         Subscribe = 60,
-        Synced = 61,
-
-        /// <summary>
-        /// An active writer MUST flush series in response to subscribe command.
-        /// </summary>
-        Flush = 70,
-
+        Synced = 70,
         WriteRequest = 80,
         /// <summary>
         /// Has Pid of the current writer for series. Used as a response to WriteRequest.
