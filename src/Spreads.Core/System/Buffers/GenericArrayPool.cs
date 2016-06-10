@@ -23,6 +23,8 @@ namespace System.Buffers {
         }
 
         public int Return<T>(T[] buffer) {
+            ArrayPool<T>.Shared.Return(buffer, true);
+            return 0;
             AtomicCounter cnt;
             int ret = 0;
             if (_cwt.TryGetValue(buffer, out cnt)) {
@@ -36,6 +38,7 @@ namespace System.Buffers {
 
         public T[] Take<T>(int minimumLength) {
             var buffer = ArrayPool<T>.Shared.Rent(minimumLength);
+            return buffer;
             AtomicCounter cnt;
             if (_cwt.TryGetValue(buffer, out cnt)) {
                 Interlocked.Increment(ref cnt.Count);

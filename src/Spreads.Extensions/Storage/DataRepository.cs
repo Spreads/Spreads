@@ -57,9 +57,9 @@ namespace Spreads.Storage {
         private readonly UUID _conductorLock = new UUID("conductor://conductor.lock");// just a magic number
         private bool _isConductor;
 
-        private Dictionary<UUID, TaskCompletionSource<long>> _writerRequestsOustanding =
+        private readonly Dictionary<UUID, TaskCompletionSource<long>> _writerRequestsOustanding =
             new Dictionary<UUID, TaskCompletionSource<long>>();
-        private Dictionary<UUID, TaskCompletionSource<byte>> _syncRequestsOustanding =
+        private readonly Dictionary<UUID, TaskCompletionSource<byte>> _syncRequestsOustanding =
             new Dictionary<UUID, TaskCompletionSource<byte>>();
 
         /// <summary>

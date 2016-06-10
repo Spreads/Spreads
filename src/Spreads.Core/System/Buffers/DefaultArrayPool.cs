@@ -14,14 +14,12 @@ namespace System.Buffers {
         private const int MinimumArrayLength = 16;
 
         private readonly DefaultArrayPoolBucket<T>[] _buckets;
-        private WaitCallback _doCleanReturn;
 
         internal DefaultArrayPool() : this(DefaultMaxArrayLength, DefaultMaxNumberOfArraysPerBucket) {
         }
 
         internal DefaultArrayPool(int maxLength, int arraysPerBucket)
         {
-            _doCleanReturn = DoCleanReturn;
             if (maxLength <= 0)
                 throw new ArgumentOutOfRangeException(nameof(maxLength));
             if (arraysPerBucket <= 0)
@@ -86,8 +84,7 @@ namespace System.Buffers {
             if (buffer == null)
                 throw new ArgumentNullException(nameof(buffer));
             if (clearArray) {
-                ThreadPool.UnsafeQueueUserWorkItem(_doCleanReturn, buffer);
-                return;
+                //Array.Clear(buffer, 0, buffer.Length);
             }
             // If we can tell that the buffer was allocated, drop it. Otherwise, check if we have space in the pool
             int bucket = Utilities.SelectBucketIndex(buffer.Length);
@@ -95,22 +92,6 @@ namespace System.Buffers {
                 _buckets[bucket].Return(buffer);
             }
 
-            var log = ArrayPoolEventSource.Log;
-            if (log.IsEnabled())
-                log.BufferReturned(Utilities.GetBufferId(buffer), Utilities.GetPoolId(this));
-        }
-
-        private void DoCleanReturn(object value) {
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
-            var buffer = (T[])value;
-            // If we can tell that the buffer was allocated, drop it. Otherwise, check if we have space in the pool
-            int bucket = Utilities.SelectBucketIndex(buffer.Length);
-            if (bucket < _buckets.Length) {
-                // Clear the array if the user requests
-                Array.Clear(buffer, 0, buffer.Length);
-                _buckets[bucket].Return(buffer);
-            }
             var log = ArrayPoolEventSource.Log;
             if (log.IsEnabled())
                 log.BufferReturned(Utilities.GetBufferId(buffer), Utilities.GetPoolId(this));
