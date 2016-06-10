@@ -476,49 +476,83 @@ namespace Spreads.Serialization {
         /// <param name="srcOffset"></param>
         /// <param name="len"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void WriteBytes(long index, DirectBuffer src, long srcOffset, long len) {
-            Assert(index, len);
-            if (src._length < srcOffset + len) throw new ArgumentOutOfRangeException();
+        public void WriteBytes(long index, DirectBuffer src, long srcOffset, long length) {
+            Assert(index, length);
+            if (src._length < srcOffset + length) throw new ArgumentOutOfRangeException();
 
-            // TODO optimize this for memmove
-            // TODO this doesn't properly supports copying from self
             var pos = 0;
-            var len8 = len - 8;
-            var tgt = new IntPtr(_data.ToInt64() + index);
-            var ptr = new IntPtr(src._data.ToInt64() + srcOffset);
-            while (pos <= len8) {
-                *(long*)(tgt + pos) = *(long*)(ptr + pos);
-                pos += 8;
-            }
-            var len4 = len - 4;
-            while (pos <= len4) {
-                *(int*)(tgt + pos) = *(int*)(ptr + pos);
-                pos += 4;
-            }
-            while (pos < len) {
-                *(byte*)(tgt + pos) = *(byte*)(ptr + pos);
-                pos++;
+            var source = new IntPtr(src.Data.ToInt64() + srcOffset);
+            var destination = _data.ToInt64() + index;
+            while (pos < length) {
+                int remaining = (int)length - pos;
+                if (remaining >= 64) {
+                    *(ByteUtil.CopyChunk64*)(destination + pos) = *(ByteUtil.CopyChunk64*)(source + pos);
+                    pos += 64;
+                    continue;
+                }
+                if (remaining >= 32) {
+                    *(ByteUtil.CopyChunk32*)(destination + pos) = *(ByteUtil.CopyChunk32*)(source + pos);
+                    pos += 32;
+                    continue;
+                }
+                if (remaining >= 16) {
+                    *(ByteUtil.CopyChunk16*)(destination + pos) = *(ByteUtil.CopyChunk16*)(source + pos);
+                    pos += 16;
+                    continue;
+                }
+                if (remaining >= 8) {
+                    *(long*)(destination + pos) = *(long*)(source + pos);
+                    pos += 8;
+                    continue;
+                }
+                if (remaining >= 4) {
+                    *(int*)(destination + pos) = *(int*)(source + pos);
+                    pos += 4;
+                    continue;
+                }
+                if (remaining >= 1) {
+                    *(byte*)(destination + pos) = *(byte*)(source + pos);
+                    pos++;
+                }
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Clear(long index, int len) {
-            Assert(index, len);
+        public void Clear(long index, int length) {
+            Assert(index, length);
             var pos = 0;
-            var len8 = len - 8;
-            var tgt = new IntPtr(_data.ToInt64() + index);
-            while (pos <= len8) {
-                *(long*)(tgt + pos) = 0L;
-                pos += 8;
-            }
-            var len4 = len - 4;
-            while (pos <= len4) {
-                *(int*)(tgt + pos) = 0;
-                pos += 4;
-            }
-            while (pos < len) {
-                *(byte*)(tgt + pos) = (byte)(0); ;
-                pos++;
+            var destination = new IntPtr(_data.ToInt64() + index);
+            while (pos < length) {
+                int remaining = (int)length - pos;
+                if (remaining >= 64) {
+                    *(ByteUtil.CopyChunk64*)(destination + pos) = (default(ByteUtil.CopyChunk64));
+                    pos += 64;
+                    continue;
+                }
+                if (remaining >= 32) {
+                    *(ByteUtil.CopyChunk32*)(destination + pos) = (default(ByteUtil.CopyChunk32));
+                    pos += 32;
+                    continue;
+                }
+                if (remaining >= 16) {
+                    *(ByteUtil.CopyChunk16*)(destination + pos) = (default(ByteUtil.CopyChunk16));
+                    pos += 16;
+                    continue;
+                }
+                if (remaining >= 8) {
+                    *(long*)(destination + pos) = 0L;
+                    pos += 8;
+                    continue;
+                }
+                if (remaining >= 4) {
+                    *(int*)(destination + pos) = 0;
+                    pos += 4;
+                    continue;
+                }
+                if (remaining >= 1) {
+                    *(byte*)(destination + pos) = (byte)(0);
+                    pos++;
+                }
             }
         }
 
