@@ -24,7 +24,7 @@ namespace Spreads.Extensions.Tests.Algorithm {
                 values[i] = rng.NextDouble();
             }
 
-            var result = default(ArraySegment<KV<double, int>>);
+            var result = default(ArraySegment<int>);
             var sw = new Stopwatch();
             var gc0 = GC.CollectionCount(0);
             var gc1 = GC.CollectionCount(0);
@@ -44,7 +44,7 @@ namespace Spreads.Extensions.Tests.Algorithm {
             Console.WriteLine($"{values.Length}-sized array per msec: {(double)loopCount / (sw.ElapsedMilliseconds) }");
 
             for (int i = 0; i < values.Length; i++) {
-                Console.WriteLine($"{result.Array[i].Key} - {result.Array[i].Value}");
+                Console.WriteLine($"{values[i]} - {result.Array[i]}");
             }
             // avoid GC-ing this objects
             Console.WriteLine(rng.NextDouble());
