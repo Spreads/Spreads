@@ -30,6 +30,11 @@ using Spreads.Storage.Aeron.Logbuffer;
 using Spreads.Storage.Aeron.Protocol;
 
 namespace Spreads.Storage {
+
+    // TODO we are reinvernting Raft here with this conductor election and switching stuff,
+    // so do not even try to make our version 100% correct - just make it work in the common case
+    // and later (someday) implement Raft.
+
     // NB for each series id each repository instance keeps a single series instance
 
     public class DataRepository : SeriesStorage, IDataRepository, IDisposable {
@@ -45,6 +50,7 @@ namespace Spreads.Storage {
 
         // Opened objects that could accept commands
         private readonly ConcurrentDictionary<UUID, IAcceptCommand> _openStreams = new ConcurrentDictionary<UUID, IAcceptCommand>();
+
         private static int _counter = 0;
         private readonly long _pid;
         private readonly string _mapsPath;
@@ -100,6 +106,8 @@ namespace Spreads.Storage {
 
         public PersistentMapFixedLength<UUID, long> WriteSeriesLocks => _writeSeriesLocks;
 
+        internal bool IsConductor => _isConductor;
+
         /// <summary>
         /// Must call LogSynced(seriesId) when storage has all relevant data (asyncronously)
         /// </summary>
@@ -123,12 +131,15 @@ namespace Spreads.Storage {
                     // this message could be sent only by a process that
                     // thinks it is a conductor
                     var currentConductor = writerPid;
-                    if (currentConductor != Pid) _isConductor = false;
+                    if (Math.Abs(currentConductor) != Pid) {
+                        // negative writerPid must be sent on conductor repo dispose
+                        _isConductor = writerPid <= 0 && TryBecomeConductor();
+                    }
                     break;
 
                 case MessageType.WriteRequest:
                     if (_isConductor) {
-                        var currentWriter = TryAcquireWriteLockOrGetCurrent(seriesId);
+                        var currentWriter = TryAcquireWriteLockOrGetCurrent(writerPid, seriesId);
                         LogCurrentWriter(seriesId, currentWriter);
                     }
                     break;
@@ -137,7 +148,7 @@ namespace Spreads.Storage {
                     // new writer is sent by a conductor in response 
                     TaskCompletionSource<long> temp;
                     if (_writerRequestsOustanding.TryGetValue(seriesId, out temp)) {
-                        temp.SetResult(messageBuffer.ReadInt64(0));
+                        temp.SetResult(writerPid);
                     }
                     break;
 
@@ -211,7 +222,7 @@ namespace Spreads.Storage {
         /// </summary>
         private async Task<bool> RequestWriteLock(UUID seriesId) {
             if (_isConductor) {
-                return TryAcquireWriteLockOrGetCurrent(seriesId) == Pid;
+                return TryAcquireWriteLockOrGetCurrent(Pid, seriesId) == Pid;
             }
 
             var tcs = new TaskCompletionSource<long>();
@@ -245,30 +256,32 @@ namespace Spreads.Storage {
             long conductorPid;
             if (_writeSeriesLocks.TryGetValue(_conductorLock, out conductorPid)) {
                 if (conductorPid == Pid) {
+                    LogConductorPid(Pid);
                     return true;
                 }
                 if (IsProcessAlive(conductorPid)) return false;
                 // TODO need atomic CAS operations on dictionary, however in this case it is not very important, we should not open/close repos many times
                 _writeSeriesLocks[_conductorLock] = Pid;
+                LogConductorPid(Pid);
                 return true;
             }
             throw new ApplicationException("Value must exist");
         }
 
-        private long TryAcquireWriteLockOrGetCurrent(UUID seriesId) {
+        private long TryAcquireWriteLockOrGetCurrent(long writerPid, UUID seriesId) {
             try {
-                _writeSeriesLocks.Add(seriesId, Pid);
+                _writeSeriesLocks.Add(seriesId, writerPid);
             } catch (ArgumentException) {
             }
             long pid;
             if (_writeSeriesLocks.TryGetValue(seriesId, out pid)) {
-                if (pid == Pid) {
+                if (pid == writerPid) {
                     return pid;
                 }
                 if (IsProcessAlive(pid)) return pid;
                 // TODO need atomic CAS operations on dictionary, however in this case it is not very important, we should not open/close repos many times
-                _writeSeriesLocks[seriesId] = Pid;
-                return Pid;
+                _writeSeriesLocks[seriesId] = writerPid;
+                return writerPid;
             }
             throw new ApplicationException("Value must exist");
         }
@@ -337,7 +350,19 @@ namespace Spreads.Storage {
             claim.Commit();
         }
 
-
+        protected unsafe void LogConductorPid(long conductorPid) {
+            var header = new MessageHeader {
+                UUID = _conductorLock,
+                MessageType = MessageType.ConductorMessage,
+                Version = 0L
+            };
+            var len = MessageHeader.Size;
+            BufferClaim claim;
+            _appendLog.Claim(len, out claim);
+            *(MessageHeader*)(claim.Data) = header;
+            claim.ReservedValue = conductorPid;
+            claim.Commit();
+        }
 
         protected unsafe void LogWriteRequest(UUID uuid) {
             var header = new MessageHeader {
@@ -356,7 +381,7 @@ namespace Spreads.Storage {
         protected unsafe void LogCurrentWriter(UUID uuid, long writerPid) {
             var header = new MessageHeader {
                 UUID = uuid,
-                MessageType = MessageType.WriteRequest,
+                MessageType = MessageType.CurrentWriter,
                 Version = 0L
             };
             var len = MessageHeader.Size;
@@ -470,6 +495,13 @@ namespace Spreads.Storage {
         }
 
         protected virtual void Dispose(bool disposing) {
+            // negative Pid to nitify other that this repo is disposing and was a conductor
+            if (_isConductor)
+            {
+                _isConductor = false;
+                _writeSeriesLocks.Remove(_conductorLock);
+                LogConductorPid(-Pid);
+            }
             foreach (var series in _openStreams.Values) {
                 series.Dispose();
             }

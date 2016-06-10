@@ -90,7 +90,7 @@ namespace Spreads.Extensions.Tests {
 
         [Test, Ignore]
         public void CouldCreateTwoRepositoriesAndSynchronizeSeries() {
-
+            
             using (var repo = new DataRepository("../SeriesRepositoryTests", 100))
             using (var repo2 = new DataRepository("../SeriesRepositoryTests", 100)) {
                 for (int rounds = 0; rounds < 1000; rounds++) {
@@ -353,6 +353,51 @@ namespace Spreads.Extensions.Tests {
                     Console.WriteLine($"Elapsed msec: {sw.ElapsedMilliseconds}");
                     Console.WriteLine($"Round: {rounds}");
                 }
+            }
+        }
+
+
+        [Test]
+        public void ConductorSwitchWorks() {
+            using (var repo = new DataRepository("../SeriesRepositoryTests"))
+            using (var repo2 = new DataRepository("../SeriesRepositoryTests"))
+            {
+                Assert.IsTrue(repo.IsConductor);
+                Assert.IsFalse(repo2.IsConductor);
+            }
+
+            // we have now disposed both repos
+
+            using (var repo2 = new DataRepository("../SeriesRepositoryTests"))
+            using (var repo = new DataRepository("../SeriesRepositoryTests"))
+             {
+                Assert.IsTrue(repo2.IsConductor);
+                Assert.IsFalse(repo.IsConductor);
+            }
+
+            var repo3 = new DataRepository("../SeriesRepositoryTests");
+            var repo4 = new DataRepository("../SeriesRepositoryTests");
+            Assert.IsTrue(repo3.IsConductor);
+            Assert.IsFalse(repo4.IsConductor);
+            repo3.Dispose();
+            //Thread.Sleep(1);
+            Assert.IsTrue(repo4.IsConductor);
+
+        }
+
+        [Test]
+        public void FrequestConductorSwitchWorks() {
+            for (int i = 0; i < 10; i++)
+            {
+                Console.WriteLine(i);
+                var repo3 = new DataRepository("../SeriesRepositoryTests");
+                var repo4 = new DataRepository("../SeriesRepositoryTests");
+                Assert.IsTrue(repo3.IsConductor);
+                Assert.IsFalse(repo4.IsConductor);
+                repo3.Dispose();
+                Thread.Sleep(15);
+                Assert.IsTrue(repo4.IsConductor);
+                repo4.Dispose();
             }
         }
     }

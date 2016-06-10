@@ -317,9 +317,8 @@ namespace Spreads.Storage {
         public void Flush() {
             if (_isWriter) {
                 _innerMap.Flush();
-            } else {
-                throw new InvalidOperationException("Cannot Flush read-only series");
             }
+            // NB flushing read-only object is non-action
         }
 
         private void Dispose(bool disposing) {
