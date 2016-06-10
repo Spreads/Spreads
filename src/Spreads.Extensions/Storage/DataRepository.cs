@@ -35,6 +35,9 @@ namespace Spreads.Storage {
     // so do not even try to make our version 100% correct - just make it work in the common case
     // and later (someday) implement Raft.
 
+
+    
+
     // NB for each series id each repository instance keeps a single series instance
 
     public class DataRepository : SeriesStorage, IDataRepository, IDisposable {
@@ -42,6 +45,11 @@ namespace Spreads.Storage {
         // we use single writer and steal locks if a writer process id is not among running processes.
         private readonly PersistentMapFixedLength<UUID, long> _writeSeriesLocks;
         private const string WriteLocksFileName = "writelocks";
+
+        // TODO conductor/leader should have it's own append log - for write logs, subscribes, etc.
+        // only conductor could move subsriber position, other could only send commands to the log
+        // then if a conductor dies, a new conductor could start at the last read position
+        // while non-conductors won't overwrite unread conductor messages
 
         private readonly AppendLog _appendLog;
         private const string LogBufferFileName = "appendbuffer";
@@ -123,7 +131,16 @@ namespace Spreads.Storage {
             LogSynced(seriesId);
         }
 
-        protected unsafe void OnLogAppend(DirectBuffer buffer) {
+        protected virtual void ProcessLogAppend(long writerPid, UUID seriesId, DirectBuffer messageBuffer) {
+            IAcceptCommand acceptCommand;
+            if (writerPid != Pid // ignore our own messages
+                && _openStreams.TryGetValue(seriesId, out acceptCommand) // ignore messages for closed series
+                ) {
+                acceptCommand.ApplyCommand(messageBuffer);
+            }
+        }
+
+        private unsafe void OnLogAppend(DirectBuffer buffer) {
 
             var writerPid = buffer.ReadInt64(DataHeaderFlyweight.RESERVED_VALUE_OFFSET);
             var messageBuffer = new DirectBuffer(buffer.Length - DataHeaderFlyweight.HEADER_LENGTH,
@@ -177,17 +194,14 @@ namespace Spreads.Storage {
 
 
                 default:
-                    IAcceptCommand acceptCommand;
-                    if (writerPid != Pid // ignore our own messages
-                        && _openStreams.TryGetValue(seriesId, out acceptCommand) // ignore messages for closed series
-                        ) {
-                        acceptCommand.ApplyCommand(messageBuffer);
-                    }
+                    ProcessLogAppend(writerPid, seriesId, messageBuffer);
                     break;
             }
 
 
         }
+
+        
 
         public async Task<PersistentSeries<K, V>> WriteSeries<K, V>(string seriesId, bool allowBatches = false) {
             return await GetSeries<K, V>(seriesId, true, false);
