@@ -108,6 +108,12 @@ namespace Spreads.Storage {
 
         internal bool IsConductor => _isConductor;
 
+
+        protected virtual void BeginAcquireWriteLock(UUID seriesId, long writerPid) {
+            var currentWriter = TryAcquireWriteLockOrGetCurrent(writerPid, seriesId);
+            LogCurrentWriter(seriesId, currentWriter);
+        }
+
         /// <summary>
         /// Must call LogSynced(seriesId) when storage has all relevant data (asyncronously)
         /// </summary>
@@ -138,9 +144,9 @@ namespace Spreads.Storage {
                     break;
 
                 case MessageType.WriteRequest:
-                    if (_isConductor) {
-                        var currentWriter = TryAcquireWriteLockOrGetCurrent(writerPid, seriesId);
-                        LogCurrentWriter(seriesId, currentWriter);
+                    if (_isConductor)
+                    {
+                        BeginAcquireWriteLock(seriesId, writerPid);
                     }
                     break;
 
@@ -221,10 +227,6 @@ namespace Spreads.Storage {
         /// Try to acquire a lock for series. Used from WriteSeries()
         /// </summary>
         private async Task<bool> RequestWriteLock(UUID seriesId) {
-            if (_isConductor) {
-                return TryAcquireWriteLockOrGetCurrent(Pid, seriesId) == Pid;
-            }
-
             var tcs = new TaskCompletionSource<long>();
             _writerRequestsOustanding.Add(seriesId, tcs);
             LogWriteRequest(seriesId);

@@ -97,7 +97,6 @@ namespace Spreads.Extensions.Tests {
 
                     var sw = new Stopwatch();
 
-
                     // this read and write series have the same underlying instance inside the repo
                     // the reead series are just wrapped with .ReadOnly()
                     var psRead =
