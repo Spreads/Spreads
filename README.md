@@ -269,10 +269,3 @@ Starting from 0.4 we implement lock-free synchronization - sorry if something bl
 + Twitter [@DataSpreads](https://twitter.com/DataSpreads)
 + [Introducing Spreads library](http://hotforknowledge.com/2015/12/20/introducing-spreads-library/) about why and how Spreads library was born.
 + [How to write the simplest trading strategy using Spreads](http://hotforknowledge.com/2015/12/29/how-to-write-the-simplest-trading-strategy-using-spreads/).
-
-
-
-## Thanks
-
-Many thanks to **Target Asset Management** for supporting and using the library, and
-especially thanks to **Andrey** for feedback and his patience in dealing with bugs.
