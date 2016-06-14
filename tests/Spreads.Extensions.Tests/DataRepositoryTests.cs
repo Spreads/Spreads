@@ -315,7 +315,7 @@ namespace Spreads.Extensions.Tests {
         public void CouldSynchronizeSeriesFromSingleRepo() {
 
             using (var repo = new DataRepository("../SeriesRepositoryTests", 100)) {
-                for (int rounds = 0; rounds < 1; rounds++) {
+                for (int rounds = 0; rounds < 10; rounds++) {
 
                     var sw = new Stopwatch();
                     sw.Start();
