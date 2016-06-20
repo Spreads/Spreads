@@ -196,6 +196,19 @@ namespace Spreads.Core.Tests {
             }
         }
 
+
+        private void ConstrainedStruct<T>(T incrementable) where T : IIncrementable
+        {
+            var count = 1000000000;
+            var sw = new Stopwatch();
+            sw.Restart();
+            for (int i = 0; i < count; i++) {
+                incrementable.Increment();
+            }
+            sw.Stop();
+            Console.WriteLine($"Constrained struct {sw.ElapsedMilliseconds}");
+        }
+
         [Test, Ignore]
         public void CallVsCallVirt(int r) {
             var count = 1000000000;
@@ -231,6 +244,8 @@ namespace Spreads.Core.Tests {
             sw.Stop();
             Console.WriteLine($"Struct as Interface {sw.ElapsedMilliseconds}");
 
+            var constrainedStr = (new ThisIsSrtuct(new byte[4]));
+            ConstrainedStruct(constrainedStr);
 
             sw.Restart();
             for (int i = 0; i < count; i++) {
