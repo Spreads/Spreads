@@ -9,7 +9,6 @@ namespace Spreads.Serialization {
     // cache converters and size info in static class for each type, 
     // instead of dict lookup or dynamic resolution.
 
-
     internal unsafe class TypeHelper<T> {
 
         [ThreadStatic]
@@ -25,15 +24,15 @@ namespace Spreads.Serialization {
         [ThreadStatic]
         private static IntPtr _ptr;
         private static bool _hasBinaryConverter;
-        private static bool _isDateTime; // NB: Stipid autom layout of .NET requires special handling!
+#if !TYPED_REF
+        private static bool _isDateTime; // NB: Automatic layout of .NET requires special handling!
+#endif
         private static IBinaryConverter<T> _convertorInstance;
 
 
         static TypeHelper() {
             try {
                 Size = Init();
-                SizeMinus8 = Size - 8;
-                SizeMinus4 = Size - 4;
             } catch {
                 Size = -1;
             }
@@ -151,7 +150,9 @@ namespace Spreads.Serialization {
         private static int Init() {
             var ty = typeof(T);
             if (ty == typeof(DateTime)) {
+#if !TYPED_REF
                 _isDateTime = true;
+#endif
                 return 8;
             }
 
@@ -255,9 +256,6 @@ namespace Spreads.Serialization {
         /// an array of KVP[DateTime,double], which has a contiguous layout in memory.
         /// </summary>
         public static int Size { get; private set; }
-
-        private static int SizeMinus8 { get; }
-        private static int SizeMinus4 { get; }
 
         public static bool HasBinaryConverter => _hasBinaryConverter;
         public static int Version => _hasBinaryConverter ? _convertorInstance.Version : 0;
