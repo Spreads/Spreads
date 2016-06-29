@@ -269,3 +269,4 @@ Starting from 0.4 we implement lock-free synchronization - sorry if something bl
 + Twitter [@DataSpreads](https://twitter.com/DataSpreads)
 + [Introducing Spreads library](http://hotforknowledge.com/2015/12/20/introducing-spreads-library/) about why and how Spreads library was born.
 + [How to write the simplest trading strategy using Spreads](http://hotforknowledge.com/2015/12/29/how-to-write-the-simplest-trading-strategy-using-spreads/).
++ [Technical introduction with pictures: updated slides from Feb'16 London F# Meetup.](https://github.com/Spreads/Spreads.Docs/blob/master/docs/20160603_Spreads_technical_introduction.pdf)
