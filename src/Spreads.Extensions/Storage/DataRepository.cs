@@ -203,12 +203,12 @@ namespace Spreads.Storage {
 
         
 
-        public async Task<PersistentSeries<K, V>> WriteSeries<K, V>(string seriesId, bool allowBatches = false) {
-            return await GetSeries<K, V>(seriesId, true, false);
+        public Task<PersistentSeries<K, V>> WriteSeries<K, V>(string seriesId, bool allowBatches = false) {
+            return GetSeries<K, V>(seriesId, true, false);
         }
 
-        public async Task<Series<K, V>> ReadSeries<K, V>(string seriesId) {
-            return (await GetSeries<K, V>(seriesId, false, false)).ReadOnly();
+        public Task<Series<K, V>> ReadSeries<K, V>(string seriesId) {
+            return (GetSeries<K, V>(seriesId, false, false).ContinueWith(t => t.Result.ReadOnly()));
         }
 
         public Task<IDictionary<K, V>> WriteMap<K, V>(string mapId, int initialCapacity) {
@@ -244,7 +244,7 @@ namespace Spreads.Storage {
             var tcs = new TaskCompletionSource<long>();
             _writerRequestsOustanding.Add(seriesId, tcs);
             LogWriteRequest(seriesId);
-            var currentWriter = await tcs.Task;
+            var currentWriter = await tcs.Task.ConfigureAwait(false);
             return currentWriter == Pid;
         }
 
@@ -252,7 +252,7 @@ namespace Spreads.Storage {
             var tcs = new TaskCompletionSource<byte>();
             _syncRequestsOustanding.Add(seriesId, tcs);
             LogSubscribe(seriesId, version, extendedTextId);
-            await tcs.Task;
+            await tcs.Task.ConfigureAwait(false);
         }
 
         private bool IsProcessAlive(long pid) {
@@ -312,7 +312,7 @@ namespace Spreads.Storage {
                 var ps = (PersistentSeries<K, V>)series;
                 Interlocked.Increment(ref ps.RefCounter);
                 if (isWriter && !ps.IsWriter) {
-                    var hasLockAcquired = await RequestWriteLock(uuid);
+                    var hasLockAcquired = await RequestWriteLock(uuid).ConfigureAwait(false);
                     if (!hasLockAcquired) throw new SingleWriterException();
                     // Upgrade to writer
                     ps.IsWriter = true;
@@ -323,7 +323,7 @@ namespace Spreads.Storage {
             // NB We restrict only opening more than once, once opened a series object could be modified by many threads
 
             if (isWriter) {
-                var hasLockAcquired = await RequestWriteLock(uuid);
+                var hasLockAcquired = await RequestWriteLock(uuid).ConfigureAwait(false);
                 if (!hasLockAcquired) throw new SingleWriterException();
             }
 
@@ -344,7 +344,7 @@ namespace Spreads.Storage {
             // NB this is done in consturctor: pSeries.RefCounter++;
             _openStreams[uuid] = pSeries;
 
-            await RequestSubscribeSynced(uuid, pSeries.Version, exSeriesId.ToString());
+            await RequestSubscribeSynced(uuid, pSeries.Version, exSeriesId.ToString()).ConfigureAwait(false);
 
             return pSeries;
         }

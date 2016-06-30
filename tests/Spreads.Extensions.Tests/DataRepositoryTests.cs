@@ -385,7 +385,7 @@ namespace Spreads.Extensions.Tests {
         }
 
         [Test]
-        public void FrequestConductorSwitchWorks() {
+        public void FrequentConductorSwitchWorks() {
             for (int i = 0; i < 10; i++)
             {
                 Console.WriteLine(i);
