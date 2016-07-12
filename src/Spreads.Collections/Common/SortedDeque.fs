@@ -84,7 +84,6 @@ and
         | _ -> invalidArg "other" "Cannot compare values of different types"
 
 
-[<SerializableAttribute>]
 type SortedDeque<'T> (capacity:int, comparer:IComparer<'T>) as this=
   [<DefaultValue>] val mutable internal comparer : IComparer<'T>
   [<DefaultValue>] val mutable internal firstOffset : int
@@ -439,7 +438,6 @@ and SortedDequeEnumerator<'T> =
 
 
 
-[<SerializableAttribute>]
 [<ObsoleteAttribute("SortedDeque is faster")>]
 type SortedList1<'T>
   internal(comparer:IComparer<'T>) as this=

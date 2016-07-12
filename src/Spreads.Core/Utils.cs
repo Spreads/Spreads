@@ -99,4 +99,31 @@ namespace Spreads {
         //}
 
     }
+
+
+
+
+    public static class TypeExtensions {
+        public static Assembly GetAssembly(this Type type) {
+            return type.GetTypeInfo().Assembly;
+        }
+
+        public static bool GetIsValueType(this Type type) {
+            return type.GetTypeInfo().IsValueType;
+        }
+
+        public static void InvokeMethod(this Assembly assembly, string typeName, string methodName) {
+            var mi = assembly.GetType(typeName).GetMethod(methodName, (System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic));
+            mi.Invoke(null, new object[] { });
+        }
+    }
+
+#if !NET451
+    public class ApplicationException : Exception {
+
+        public ApplicationException(string message) : base(message) { }
+    }
+
+#endif
+
 }

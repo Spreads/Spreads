@@ -588,47 +588,17 @@ namespace Spreads.Collections
 
     [<Sealed>]
     [<CompiledName("ImmutableSortedMap`2")>]
-    [<Serializable>]
     type ImmutableSortedMap<[<EqualityConditionalOn>]'K,[<EqualityConditionalOn;ComparisonConditionalOn>]'V when 'K : comparison >
       internal(comparer: IComparer<'K>, tree: MapTree<'K,'V>) =
       inherit Series<'K,'V>()
-#if FX_NO_BINARY_SERIALIZATION
-#else
-      [<System.NonSerialized>]
-      // This type is logically immutable. This field is only mutated during deserialization. 
-      let mutable comparer = comparer 
-        
-      [<System.NonSerialized>]
-      // This type is logically immutable. This field is only mutated during deserialization. 
-      let mutable tree = tree  
 
-      // This type is logically immutable. This field is only mutated during serialization and deserialization. 
-      //
-      // WARNING: The compiled name of this field may never be changed because it is part of the logical 
-      // WARNING: permanent serialization format for this type.
-      let mutable serializedData : KeyValuePair<'K,'V> array = null 
-#endif
+      let syncRoot = new Object()
 
       // We use .NET generics per-instantiation static fields to avoid allocating a new object for each empty
       // set (it is just a lookup into a .NET table of type-instantiation-indexed static fields).
       static let empty = 
         let comparer = Comparer<'K>.Default :> IComparer<'K>
         new ImmutableSortedMap<'K,'V>(comparer,MapTree<_,_>.MapEmpty)
-
-#if FX_NO_BINARY_SERIALIZATION
-#else
-      [<System.Runtime.Serialization.OnSerializingAttribute>]
-      member __.OnSerializing(context: System.Runtime.Serialization.StreamingContext) =
-        ignore(context)
-        serializedData <- MapTree.toArray tree |> Array.map (fun (k,v) -> KeyValuePair(k,v))
-
-      [<System.Runtime.Serialization.OnDeserializedAttribute>]
-      member __.OnDeserialized(context: System.Runtime.Serialization.StreamingContext) =
-        ignore(context)
-        comparer <- LanguagePrimitives.FastGenericComparer<'K>
-        tree <- serializedData |> Array.map (fun (KeyValue(k,v)) -> (k,v)) |> MapTree.ofArray comparer 
-        serializedData <- null
-#endif
 
       static member Empty : ImmutableSortedMap<'K,'V> = empty
 
@@ -743,7 +713,7 @@ namespace Spreads.Collections
             
       member this.Size with get() = int64(MapTree.size tree)
 
-      member this.SyncRoot with get() = serializedData :> obj // unused valriable during runtime
+      member this.SyncRoot with get() = syncRoot
 
       member this.Add(k, v):ImmutableSortedMap<'K,'V> = 
         ImmutableSortedMap(comparer, MapTree.add comparer k v tree)

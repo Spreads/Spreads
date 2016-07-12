@@ -29,20 +29,17 @@ open Spreads
 open Spreads.Collections
 
 
-[<SerializableAttribute>]
 type internal IIntConverter<'T> =
     abstract ToInt64: t:'T -> int64
     abstract FromInt64: i:int64 -> 'T
 
 
-[<SerializableAttribute>]
 type internal DateTimeIntConverter() =
     interface IIntConverter<DateTime> with
         member x.ToInt64(t) = t.Ticks
         member x.FromInt64(i) = DateTime(i)
 
 
-[<SerializableAttribute>]
 type internal DateTimeOffsetIntConverter() =
     let mutable offset = None
     interface IIntConverter<DateTimeOffset> with
@@ -56,7 +53,6 @@ type internal DateTimeOffsetIntConverter() =
 
 
 [<AllowNullLiteral>]
-[<SerializableAttribute>]
 type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
     internal(map:ImmutableIntMap64<'V>,conv:IIntConverter<'K>) =
 
@@ -172,7 +168,6 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
 
 
 [<AllowNullLiteral>]
-[<SerializableAttribute>]
 type ImmutableDateTimeMap<'V>
     private(map:ImmutableIntMap64<'V>) =
     inherit ImmutableIntConvertableMap<DateTime, 'V>(map, DateTimeIntConverter())
@@ -183,7 +178,6 @@ type ImmutableDateTimeMap<'V>
 
 
 [<AllowNullLiteral>]
-[<SerializableAttribute>]
 type ImmutableDateTimeOffsetMap<'V>
     private(map:ImmutableIntMap64<'V>) =
     inherit ImmutableIntConvertableMap<DateTimeOffset, 'V>(map, DateTimeOffsetIntConverter())

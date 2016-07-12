@@ -9,7 +9,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>Spreads.Collections</RootNamespace>
     <AssemblyName>Spreads.Collections</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <TargetFSharpCoreVersion>4.3.1.0</TargetFSharpCoreVersion>
     <Name>Spreads.Collections</Name>
     <TargetFrameworkProfile />
@@ -22,7 +22,7 @@
     <Optimize>false</Optimize>
     <Tailcalls>false</Tailcalls>
     <OutputPath>..\..\bin\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;PRERELEASE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;NET451</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>
     </DocumentationFile>
@@ -32,8 +32,7 @@
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
     <OutputPath>..\..\bin\</OutputPath>
-    <DefineConstants>
-    </DefineConstants>
+    <DefineConstants>NET451</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>
     </DocumentationFile>
@@ -47,7 +46,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
-    <DefineConstants>TRACE;PRERELEASE</DefineConstants>
+    <DefineConstants>TRACE;NET451</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile />
     <OtherFlags>--warnon:52</OtherFlags>
@@ -128,6 +127,7 @@
     <None Include="Duality.fsx" />
     <Compile Include="TimeSeries.fs" />
     <None Include="Series.fsx" />
+    <None Include="Spreads.Collections.project.json" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">

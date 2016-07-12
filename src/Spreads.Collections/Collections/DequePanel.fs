@@ -32,7 +32,6 @@ open Spreads
 open Spreads.Collections
 
 [<AllowNullLiteral>]
-[<SerializableAttribute>]
 type SortedDequePanel<'K,'V>
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
   inherit Series<'K,'V>()
@@ -43,7 +42,6 @@ type SortedDequePanel<'K,'V>
   val mutable internal sd : SortedDeque<KVP<'K,'V>>
 
 
-  [<NonSerializedAttribute>]
   let mutable comparer : IComparer<'K> = 
     if comparerOpt.IsNone || Comparer<'K>.Default.Equals(comparerOpt.Value) then
       let kc = KeyComparer.GetDefault<'K>()
@@ -53,16 +51,12 @@ type SortedDequePanel<'K,'V>
 
   
   [<DefaultValueAttribute>]
-  [<NonSerializedAttribute>]
   val mutable internal isSynchronized : bool
   [<DefaultValueAttribute>]
-  [<NonSerializedAttribute>]
   val mutable internal isReadOnly : bool
-  [<NonSerializedAttribute>]
   let syncRoot = new Object()
 
-  [<NonSerializedAttribute>]
-  let isKeyReferenceType = not typeof<'K>.IsValueType
+  let isKeyReferenceType = not <| typeof<'K>.GetIsValueType()
 
 
   do
@@ -77,19 +71,6 @@ type SortedDequePanel<'K,'V>
   //#endregion
 
 
-#if FX_NO_BINARY_SERIALIZATION
-#else
-  [<System.Runtime.Serialization.OnSerializingAttribute>]
-  member internal __.OnSerializing(context: System.Runtime.Serialization.StreamingContext) =
-    ignore(context)
-    ()
-
-  [<System.Runtime.Serialization.OnDeserializedAttribute>]
-  member internal __.OnDeserialized(context: System.Runtime.Serialization.StreamingContext) =
-    ignore(context)
-
-
-#endif
     //#region Private & Internal members
   
   member internal this.GetByIndex(index) = this.sd.[index]

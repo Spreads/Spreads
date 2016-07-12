@@ -46,7 +46,6 @@ type internal IKeyHasher<'K> =
   abstract Hash: k:'K -> 'K
 
 
-[<SerializableAttribute>]
 [<AbstractClass>]
 type BaseSpreadsComparer<'K>() =
   abstract Compare : a:'K * b:'K -> int

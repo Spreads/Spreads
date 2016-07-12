@@ -35,7 +35,6 @@ open Spreads.Collections
 
 [<AbstractClassAttribute>]
 [<AllowNullLiteral>]
-[<SerializableAttribute>]
 type Panel<'TRowKey,'TColumnKey, 'TValue>() =
   inherit Series<'TRowKey, Series<'TColumnKey, 'TValue>>()
 

@@ -1099,39 +1099,12 @@ namespace Spreads.Collections
 
     [<Sealed>]
     [<CompiledName("ImmutableIntMap64`1")>]
-    [<Serializable>]
     type ImmutableIntMap64<[<EqualityConditionalOn;ComparisonConditionalOn>]'T>
         internal(tree: IntMap64Tree<'T>)=
 
-#if FX_NO_BINARY_SERIALIZATION
-#else
-        [<System.NonSerialized>]
-        // This field is only mutated during deserialization. 
-        let mutable tree = tree  
-
-        // This type is logically immutable. This field is only mutated during serialization and deserialization. 
-        //
-        // WARNING: The compiled name of this field may never be changed because it is part of the logical 
-        // WARNING: permanent serialization format for this type.
-        let mutable serializedData : KeyValuePair<int64,'T> array = null
-#endif
+        let syncRoot = new Object()
 
         static let empty = ImmutableIntMap64<'T>(IntMap64Tree.empty)
-
-
-#if FX_NO_BINARY_SERIALIZATION
-#else
-        [<System.Runtime.Serialization.OnSerializingAttribute>]
-        member internal __.OnSerializing(context: System.Runtime.Serialization.StreamingContext) =
-            ignore(context)
-            serializedData <- tree.ToList().ToArray() |> Array.map (fun (k,v) -> KeyValuePair(k,v))
-
-        [<System.Runtime.Serialization.OnDeserializedAttribute>]
-        member internal __.OnDeserialized(context: System.Runtime.Serialization.StreamingContext) =
-            ignore(context)
-            tree <- serializedData |> Array.map (fun (KeyValue(k,v)) -> (k,v)) |> IntMap64Tree.ofArray 
-            serializedData <- null
-#endif
 
         static member Empty : ImmutableIntMap64<'T> = empty
 
@@ -1213,7 +1186,7 @@ namespace Spreads.Collections
             
         member this.Size with get() = IntMap64Tree.size tree
 
-        member this.SyncRoot with get() = serializedData :> obj // unused valriable during runtime
+        member this.SyncRoot with get() = syncRoot
 
 
         member this.Add(k, v):ImmutableIntMap64<'T> = ImmutableIntMap64(IntMap64Tree.insert k v tree)

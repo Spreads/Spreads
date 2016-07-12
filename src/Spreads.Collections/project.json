@@ -1,0 +1,103 @@
+{
+
+	"version": "0.6.0-alpha",
+	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
+
+
+	"buildOptions": {
+		"emitEntryPoint": false,
+		"compilerName": "fsc",
+		"define": [ "PRERELEASE" ],
+		"compile": {
+			"includeFiles": [
+				"AssemblyInfo.fs",
+				"Attributes.fs",
+				"KeyComparer.fs",
+				"Common/Types.fs",
+				"Common/Enums.fs",
+				"Common/FastEvents.fs",
+				"Common/Operators.fs",
+				"Common/ObjectPool.fs",
+				"Common/Utils.fs",
+				"Common/SortedDeque.fs",
+				"Common/FixedMinHeap.fs",
+				"Common/Exceptions.fs",
+				"Common/OptionalValue.fs",
+				"Common/GenericOperators.fs",
+				"Interfaces.fs",
+				"ISeriesExtensions.fs",
+				"MathProvider.fs",
+				"Spreads.Series.fs",
+				"BaseCursor.fs",
+				"Collections/Collections.fs",
+				"Collections/ImmutableIntMap64.fs",
+				"Collections/ImmutableIntMap64U.fs",
+				"Collections/ImmutableIntMap32.fs",
+				"Collections/ImmutableIntMap32U.fs",
+				"Collections/ImmutableIntConvertibleMap.fs",
+				"Collections/ImmutableSortedMap.fs",
+				"Collections/MutableWrapper.fs",
+				"Collections/DequeMap.fs",
+				"Collections/DequePanel.fs",
+				"Collections/SortedMap.Obsolete.fs",
+				"Collections/IndexedMap.fs",
+				"Collections/SortedMap.fs",
+				"Collections/SortedChunkedMap.fs",
+				"Collections/DataStream.fs",
+				"Cursors/BindCursor.fs",
+				"Cursors/FunctionalBindCursor.fs",
+				"Cursors/Append.fs",
+				"Cursors/MapCursors.fs",
+				"Cursors/MissingValuesCursors.fs",
+				"Cursors/RangeCursor.fs",
+				"Cursors/MiscCursors.fs",
+				"Cursors/FilterCursors.fs",
+				"Cursors/LaggedCursors.fs",
+				"SeriesExtensions.fs",
+				"Panel.fs",
+				"MathProviderImpl.fs",
+				"Spreads.Series.2.fs",
+				"TimeSeries.fs"
+			]
+		}
+	},
+	"dependencies": {
+		"Spreads.Core": "0.6.0-alpha"
+	},
+	"tools": {
+		"dotnet-compile-fsc": {
+			"version": "1.0.0-preview2-*",
+			"imports": [
+				"dnxcore50"
+			]
+		},
+		"dotnet-mergenupkg": { "version": "1.0.*" }
+	},
+	"frameworks": {
+		"net451": {
+			"dependencies": {
+				"FSharp.Core": "4.0.0.1"
+
+			},
+			"frameworkAssemblies": {
+				"System": "",
+				"System.Core": "",
+				"System.Data": "",
+				"System.Data.Linq": "",
+				"System.Numerics": ""
+			}
+		},
+		"netstandard1.6": {
+			"dependencies": {
+				"NETStandard.Library": "1.6.0",
+				"System.Reflection": "4.1.0",
+				"System.Reflection.TypeExtensions": "4.1.0",
+				"System.Diagnostics.Contracts": "4.0.1",
+				"System.Threading.Thread": "4.0.0",
+				"System.Diagnostics.TraceSource": "4.0.0",
+				"Microsoft.FSharp.Core.netcore": "1.0.0-alpha-160629"
+			},
+			"imports": "dnxcore50"
+		}
+	}
+}

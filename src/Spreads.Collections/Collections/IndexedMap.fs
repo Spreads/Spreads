@@ -38,7 +38,6 @@ open Spreads.Collections
 
 /// Mutable indexed IOrderedMap<'K,'V> implementation based on IndexedMap<'K,'V>
 [<AllowNullLiteral>]
-[<SerializableAttribute>]
 type IndexedMap<'K,'V> // when 'K:equality
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
   inherit Series<'K,'V>()
@@ -55,26 +54,18 @@ type IndexedMap<'K,'V> // when 'K:equality
   val mutable internal values : 'V array
 
 
-  [<NonSerializedAttribute>]
-  // This type is logically immutable. This field is only mutated during deserialization. 
-  let mutable comparer : IComparer<'K> = 
+  let comparer : IComparer<'K> = 
     if comparerOpt.IsNone || Comparer<'K>.Default.Equals(comparerOpt.Value) then
       let kc = KeyComparer.GetDefault<'K>()
       if kc = Unchecked.defaultof<_> then Comparer<'K>.Default :> IComparer<'K> 
       else kc
     else comparerOpt.Value
-  [<NonSerializedAttribute>]
-  let isKeyReferenceType : bool = not typeof<'K>.IsValueType
-  [<NonSerializedAttribute>]
+  let isKeyReferenceType : bool = not <| typeof<'K>.GetIsValueType()
   let mutable cursorCounter : int = 1
 
-  [<NonSerializedAttribute>]
   let mutable isSynchronized : bool = false
-  [<NonSerializedAttribute>]
   let mutable isMutable : bool = true
-  [<NonSerializedAttribute>]
   let syncRoot = new Object()
-  [<NonSerializedAttribute>]
   let mutable mapKey = ""
 
   do
@@ -107,17 +98,6 @@ type IndexedMap<'K,'V> // when 'K:equality
         
   //#endregion
 
-#if FX_NO_BINARY_SERIALIZATION
-#else
-  [<System.Runtime.Serialization.OnSerializingAttribute>]
-  member __.OnSerializing(context: System.Runtime.Serialization.StreamingContext) =
-    ignore(context)
-
-  [<System.Runtime.Serialization.OnDeserializedAttribute>]
-  member __.OnDeserialized(context: System.Runtime.Serialization.StreamingContext) =
-    ignore(context)
-
-#endif
 
 
   //#region Private & Internal members
@@ -951,7 +931,7 @@ type IndexedMap<'K,'V> // when 'K:equality
       this.RemoveMany(key, direction)
 
     // TODO move to type memeber, cheack if IROOM is SM and copy arrays in one go
-    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) =
+    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, appendOption:AppendOption) =
       let hasEqOverlap (old:IReadOnlyOrderedMap<'K,'V>) (append:IReadOnlyOrderedMap<'K,'V>) : bool =
         if comparer.Compare(append.First.Key, old.Last.Key) > 0 then false
         else
@@ -976,8 +956,8 @@ type IndexedMap<'K,'V> // when 'K:equality
       else
         let entered = enterLockIf this.SyncRoot this.IsSynchronized
         try
-          match option with
-          | AppendOption.ThrowOnOverlap _ ->
+          match appendOption with
+          | AppendOption.ThrowOnOverlap ->
             if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
               let mutable c = 0
               for i in appendMap do

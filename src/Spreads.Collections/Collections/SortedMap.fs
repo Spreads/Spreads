@@ -28,7 +28,6 @@ open System.Runtime.CompilerServices
 open System.Threading
 open System.Threading.Tasks
 open System.Runtime.CompilerServices
-open System.Runtime.ConstrainedExecution
 
 open Spreads
 open Spreads.Collections
@@ -47,7 +46,6 @@ open Spreads.Collections
 
 /// Mutable sorted thread-safe IOrderedMap<'K,'V> implementation similar to SCG.SortedList<'K,'V>
 [<AllowNullLiteral>]
-[<SerializableAttribute>]
 [<DebuggerTypeProxy(typeof<IDictionaryDebugView<_,_>>)>]
 [<DebuggerDisplay("Count = {Count}")>]
 type SortedMap<'K,'V>
@@ -66,46 +64,34 @@ type SortedMap<'K,'V>
 
   static let empty = lazy (let sm = new SortedMap<'K,'V>() in sm.Complete();sm)
 
-  [<NonSerializedAttribute>]
   [<DefaultValueAttribute>] 
   val mutable internal orderVersion : int64
-  [<NonSerializedAttribute>]
   [<DefaultValueAttribute>] 
   val mutable internal nextVersion : int64
 
   // util fields
-  [<NonSerializedAttribute>]
-  let mutable comparer : IComparer<'K> = 
+  let comparer : IComparer<'K> = 
     if comparerOpt.IsNone || Comparer<'K>.Default.Equals(comparerOpt.Value) then
       let kc = KeyComparer.GetDefault<'K>()
       if kc = Unchecked.defaultof<_> then Comparer<'K>.Default :> IComparer<'K> 
       else kc
     else comparerOpt.Value // do not try to replace with KeyComparer if a comparer was given
 
-  [<NonSerializedAttribute>]
   [<DefaultValueAttribute>] 
   val mutable isKeyReferenceType : bool
   
-  [<NonSerializedAttribute>]
   let mutable couldHaveRegularKeys : bool = comparer :? IKeyComparer<'K>
-  [<NonSerializedAttribute>]
   let mutable diffCalc : IKeyComparer<'K> =
     if couldHaveRegularKeys then comparer :?> IKeyComparer<'K> 
     else Unchecked.defaultof<IKeyComparer<'K>>
-  [<NonSerializedAttribute>]
   let mutable rkStep_ : int64 = 0L
-  [<NonSerializedAttribute>]
   let mutable rkLast = Unchecked.defaultof<'K>
 
-  [<NonSerializedAttribute>]
   [<DefaultValueAttribute>] 
   val mutable isSynchronized : bool
-  // NB it is serializable, but stored as sign bit of version in our default serialization
   [<DefaultValueAttribute>] 
   val mutable isReadOnly : bool
-  [<NonSerializedAttribute>]
   let ownerThreadId : int = Thread.CurrentThread.ManagedThreadId
-  [<NonSerializedAttribute>]
   let mutable mapKey = String.Empty
 
 
@@ -113,7 +99,7 @@ type SortedMap<'K,'V>
     // NB: There is no single imaginable reason not to have it true by default!
     // Uncontended performance is close to non-synced.
     this.isSynchronized <- true
-    this.isKeyReferenceType <- not typeof<'K>.IsValueType
+    this.isKeyReferenceType <- not <| typeof<'K>.GetIsValueType()
 
     let tempCap = if capacity.IsSome && capacity.Value > 0 then capacity.Value else 2
     this.keys <- 
@@ -174,27 +160,6 @@ type SortedMap<'K,'V>
           exitLockIf sr entered
         
 
-#if FX_NO_BINARY_SERIALIZATION
-#else
-  [<System.Runtime.Serialization.OnSerializingAttribute>]
-  member this.OnSerializing(context: System.Runtime.Serialization.StreamingContext) =
-    ignore(context)
-
-  [<System.Runtime.Serialization.OnDeserializedAttribute>]
-  member this.OnDeserialized(context: System.Runtime.Serialization.StreamingContext) =
-    ignore(context)
-    comparer <- 
-      let kc = KeyComparer.GetDefault<'K>()
-      if kc = Unchecked.defaultof<_> then Comparer<'K>.Default :> IComparer<'K> 
-      else kc
-    this.orderVersion <- this.version
-    this.nextVersion <- this.version
-    this.isSynchronized <- true
-    // TODO assign all fields that are marked with NonSerializable
-    if this.size > this.keys.Length then // regular keys
-      rkLast <- this.GetKeyByIndexUnchecked(this.size - 1)
-
-#endif
 
 
   //#region Private & Internal members
@@ -1407,7 +1372,7 @@ type SortedMap<'K,'V>
         try
           entered <- enterWriteLockIf &this.locker this.isSynchronized
           match option with
-          | AppendOption.ThrowOnOverlap _ ->
+          | AppendOption.ThrowOnOverlap ->
             if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
               let mutable c = 0
               for i in appendMap do

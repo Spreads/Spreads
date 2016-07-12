@@ -25,7 +25,6 @@ open System.Collections.Generic
 open System.Linq
 open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
-open System.Runtime.Serialization
 open System.Threading
 open System.Threading.Tasks
 open System.Diagnostics
@@ -37,7 +36,6 @@ open Spreads.Collections
 // NB outer map version must be synced with SCM.version
 
 [<AllowNullLiteral>]
-[<SerializableAttribute>]
 type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'K,'V>> 
   internal
   (
@@ -50,43 +48,34 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
 
   let outerMap = outerFactory(comparer)
 
-  [<NonSerializedAttribute>]
   let isOuterPersistent, outerAsPersistent = match outerMap with | :? IPersistentObject as pm -> true, pm | _ -> false, Unchecked.defaultof<_>
   
 
   // TODO serialize size, add a method to calculate size based on outerMap only
-//  [<NonSerializedAttribute>]
 //  let mutable size = 0L
   [<DefaultValueAttribute>]
   val mutable internal version : int64
 
 
-  [<NonSerializedAttribute>]
   let mutable prevHash = Unchecked.defaultof<'K>
-  [<NonSerializedAttribute>]
   let mutable prevBucket = WeakReference<IOrderedMap<'K,'V>>(null)
   let prevBucketIsSet (prevBucket':IOrderedMap<'K,'V> byref) : bool = 
     let hasValue = prevBucket.TryGetTarget(&prevBucket') 
     hasValue && prevBucket' <> null
 
 
-  [<NonSerializedAttribute>]
   [<DefaultValueAttribute>] 
   val mutable isSynchronized : bool
   [<DefaultValueAttribute>] 
   val mutable isReadOnly : bool
-  [<NonSerializedAttribute>]
   let ownerThreadId : int = Thread.CurrentThread.ManagedThreadId
 
-  [<NonSerializedAttribute>]
   [<DefaultValueAttribute>] 
   val mutable internal orderVersion : int64
-  [<NonSerializedAttribute>]
   [<DefaultValueAttribute>] 
   val mutable internal nextVersion : int64
 
   /// Non-zero only for the defaul slicing logic. When zero, we do not check for chunk size
-  [<NonSerializedAttribute>]
   let chunkUpperLimit : int = 
     if hasher.IsSome then 0
     else
@@ -96,7 +85,6 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
   let mutable id = String.Empty
 
   // used only when chunkUpperLimit = 0
-  [<NonSerializedAttribute>]
   let hasher : IKeyHasher<'K> =
     match hasher with
     | Some h -> h
@@ -117,9 +105,6 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     this.nextVersion <- outerMap.Version
 
 
-  [<OnDeserialized>]
-  member private this.Init(context:StreamingContext) =
-      prevHash <- Unchecked.defaultof<'K>
 
   member this.Clear() : unit =
     if not this.IsEmpty then 
@@ -1109,7 +1094,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
           if entered then Interlocked.Increment(&this.nextVersion) |> ignore
 
         match option with
-        | AppendOption.ThrowOnOverlap _ ->
+        | AppendOption.ThrowOnOverlap ->
           if outerMap.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
             let mutable c = 0
             for i in appendMap do
@@ -1641,7 +1626,6 @@ and
 
 
 [<AllowNullLiteral>]
-[<SerializableAttribute>]
 type SortedChunkedMap<'K,'V>
   internal 
   (

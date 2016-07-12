@@ -62,51 +62,47 @@ type internal ICanMapSeriesValues<'K,'V> =
 
 and
   [<AllowNullLiteral>]
-  [<Serializable>]
   Series internal() =
+#if NET451
     // NB this is ugly, but rewriting the whole project structure is uglier // TODO "proper" methods DI
     static do
       let moduleInfo = 
-        Reflection.Assembly.GetExecutingAssembly().GetType("Spreads.Initializer")
+        typeof<Series>.GetAssembly().GetType("Spreads.Initializer")
       //let ty = typeof<BaseSeries>
       let mi = moduleInfo.GetMethod("init", (Reflection.BindingFlags.Static ||| Reflection.BindingFlags.NonPublic) )
       mi.Invoke(null, [||]) |> ignore
+#else
+    static do
+      typeof<Series>.GetAssembly().InvokeMethod("Spreads.Initializer", "init") 
+#endif
 
 and
   [<AllowNullLiteral>]
-  [<Serializable>]
   [<AbstractClassAttribute>]
   //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   Series<'K,'V>() as this =
     inherit Series()
     
-    let c = Lazy(this.GetCursor) //new ThreadLocal<_>(Func<_>(this.GetCursor), true) 
+    let c = Lazy<_>(this.GetCursor) //new ThreadLocal<_>(Func<_>(this.GetCursor), true) 
 
-    [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
     val mutable syncRoot : obj
 
-    [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
     [<ObsoleteAttribute>]
     val mutable internal onNextEvent : EventV2<OnNextHandler<'K,'V>,KVP<'K,'V>>
-    [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
     [<ObsoleteAttribute>]
     val mutable internal onCompletedEvent : EventV2<OnCompletedHandler,bool>
-    [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
     [<ObsoleteAttribute>]
     val mutable internal onErrorEvent : EventV2<OnErrorHandler,Exception>
 
-    [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
     val mutable internal onUpdateEvent : EventV2<OnUpdateHandler,bool>
 
-    [<NonSerializedAttribute>]
     [<DefaultValueAttribute>] 
     val mutable locker : int
-    [<NonSerializedAttribute>]
     [<DefaultValueAttribute>]
     val mutable internal subscribersCounter : int
     do
@@ -662,7 +658,6 @@ and
   // TODO (perf) base Series() implements IROOM inefficiently, see comments in above type Series() implementation
   /// Wraps Series over ICursor
   [<AllowNullLiteral>]
-  [<Serializable>]
   [<SealedAttribute>]
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   CursorSeries<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =

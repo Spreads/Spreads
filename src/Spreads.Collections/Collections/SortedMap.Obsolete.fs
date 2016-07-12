@@ -78,7 +78,7 @@ open Spreads
 //  //#endregion
 //
 //
-//#if FX_NO_BINARY_SERIALIZATION
+//#if !NET451
 //#else
 //  [<System.Runtime.Serialization.OnSerializingAttribute>]
 //  member internal __.OnSerializing(context: System.Runtime.Serialization.StreamingContext) =

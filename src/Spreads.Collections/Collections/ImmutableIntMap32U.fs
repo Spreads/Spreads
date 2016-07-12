@@ -1098,39 +1098,10 @@ namespace Spreads.Collections
 
     [<Sealed>]
     [<CompiledName("ImmutableIntMap32U`1")>]
-    [<Serializable>]
     type ImmutableIntMap32U<[<EqualityConditionalOn;ComparisonConditionalOn>]'T>
         internal(tree: IntMap32UTree<'T>)=
-
-#if FX_NO_BINARY_SERIALIZATION
-#else
-        [<System.NonSerialized>]
-        // This field is only mutated during deserialization. 
-        let mutable tree = tree  
-
-        // This type is logically immutable. This field is only mutated during serialization and deserialization. 
-        //
-        // WARNING: The compiled name of this field may never be changed because it is part of the logical 
-        // WARNING: permanent serialization format for this type.
-        let mutable serializedData : KeyValuePair<uint32,'T> array = null
-#endif
-
+        let syncRoot = new Object()
         static let empty = ImmutableIntMap32U<'T>(IntMap32UTree.empty)
-
-
-#if FX_NO_BINARY_SERIALIZATION
-#else
-        [<System.Runtime.Serialization.OnSerializingAttribute>]
-        member internal __.OnSerializing(context: System.Runtime.Serialization.StreamingContext) =
-            ignore(context)
-            serializedData <- tree.ToList().ToArray() |> Array.map (fun (k,v) -> KeyValuePair(k,v))
-
-        [<System.Runtime.Serialization.OnDeserializedAttribute>]
-        member internal __.OnDeserialized(context: System.Runtime.Serialization.StreamingContext) =
-            ignore(context)
-            tree <- serializedData |> Array.map (fun (KeyValue(k,v)) -> (k,v)) |> IntMap32UTree.ofArray 
-            serializedData <- null
-#endif
 
         static member Empty : ImmutableIntMap32U<'T> = empty
 
@@ -1212,7 +1183,7 @@ namespace Spreads.Collections
             
         member this.Size with get() = IntMap32UTree.size tree
 
-        member this.SyncRoot with get() = serializedData :> obj // unused valriable during runtime
+        member this.SyncRoot with get() = syncRoot
 
 
         member this.Add(k, v):ImmutableIntMap32U<'T> = ImmutableIntMap32U(IntMap32UTree.insert k v tree)
