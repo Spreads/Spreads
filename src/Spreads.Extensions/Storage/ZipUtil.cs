@@ -22,7 +22,10 @@ namespace Spreads.Storage {
         /// <returns></returns>
         public static IEnumerable<Tuple<string, Lazy<Stream>>> ReadZipContents(string zipFilePath) {
             var archive = ZipFile.OpenRead(zipFilePath);
-            return archive.Entries.Select(entry => Tuple.Create(entry.FullName, new Lazy<Stream>(entry.Open)));
+            return archive.Entries
+                .Select(entry =>
+                    Tuple.Create(entry.FullName, new Lazy<Stream>(entry.Open))
+                );
         }
     }
 }

@@ -65,7 +65,7 @@ namespace Spreads {
         /// <summary>
         /// Returns an async enumerator.
         /// </summary>
-        IAsyncEnumerator<T> GetEnumerator();
+        new IAsyncEnumerator<T> GetEnumerator();
     }
 
 

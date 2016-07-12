@@ -72,7 +72,6 @@
       <DependentUpon>Utils.cs</DependentUpon>
     </Compile>
     <Compile Include="StringExtensions.cs" />
-    <Compile Include="System\SR.cs" />
     <Compile Include="System\Buffers\ArrayPool.cs" />
     <Compile Include="System\Buffers\ArrayPoolEventSource.cs" />
     <Compile Include="System\Buffers\DefaultArrayPool.cs" />

@@ -13,12 +13,12 @@ namespace Spreads {
     // we need it non-generic. 
 
     public unsafe struct Variant {
-        private byte TypeCode;
-        private fixed byte FixedData[16];
-        private object Object;
+        //private byte TypeCode;
+        //private fixed byte FixedData[16];
+        //private object Object;
 
 
-        private const sbyte DoubleCode = 14;
+        //private const sbyte DoubleCode = 14;
 
         //private void AssertType(sbyte code) {
         //    if (TypeCode != code && TypeCode != default(sbyte)) throw new InvalidCastException("Invalid cast");

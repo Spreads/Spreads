@@ -39,7 +39,7 @@ namespace System.Runtime {
 
 		public static InternalBufferManager<T> Create(long maxBufferPoolSize, int maxBufferSize) {
 			if (maxBufferPoolSize == 0) {
-				return GCBufferManager<T>.Value;
+				return GCBufferManager.Value;
 			} else {
 				Trace.Assert(maxBufferPoolSize > 0 && maxBufferSize >= 0, "bad params, caller should verify");
 				return new PooledBufferManager(maxBufferPoolSize, maxBufferSize);
@@ -434,13 +434,13 @@ namespace System.Runtime {
 			}
 		}
 
-		internal class GCBufferManager<T> : InternalBufferManager<T> {
-			private static GCBufferManager<T> s_value = new GCBufferManager<T>();
+		internal class GCBufferManager : InternalBufferManager<T> {
+			private static GCBufferManager s_value = new GCBufferManager();
 
 			private GCBufferManager() {
 			}
 
-			public static GCBufferManager<T> Value {
+			public static GCBufferManager Value {
 				get { return s_value; }
 			}
 

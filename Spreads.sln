@@ -66,8 +66,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Core.Tests", "tests
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TAQParse", "tests\Spreads.TAQParser\TAQParse.csproj", "{EF96ECF7-82EA-48B7-B33D-0BEA4DE58349}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Spreads.RPlugin", "src\Spreads.RPlugin\Spreads.RPlugin.fsproj", "{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}"
-EndProject
 Global
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true
@@ -295,24 +293,6 @@ Global
 		{EF96ECF7-82EA-48B7-B33D-0BEA4DE58349}.Release|x64.Build.0 = Release|Any CPU
 		{EF96ECF7-82EA-48B7-B33D-0BEA4DE58349}.Release|x86.ActiveCfg = Release|Any CPU
 		{EF96ECF7-82EA-48B7-B33D-0BEA4DE58349}.Release|x86.Build.0 = Release|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Debug|x64.Build.0 = Debug|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Debug|x86.Build.0 = Debug|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Prerelease|Any CPU.ActiveCfg = Release|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Prerelease|Any CPU.Build.0 = Release|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Prerelease|x64.ActiveCfg = Release|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Prerelease|x64.Build.0 = Release|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Prerelease|x86.ActiveCfg = Release|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Prerelease|x86.Build.0 = Release|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Release|Any CPU.Build.0 = Release|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Release|x64.ActiveCfg = Release|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Release|x64.Build.0 = Release|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Release|x86.ActiveCfg = Release|Any CPU
-		{52F9B09C-C123-4E2F-ABDE-FBAEE1F8A759}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

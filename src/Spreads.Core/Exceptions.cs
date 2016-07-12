@@ -28,7 +28,6 @@ namespace Spreads {
     /// <summary>
     /// Exceptions related to data integrity and other Spreads-specific logic
     /// </summary>
-    [Obsolete("TODO use a more specific exception")]
     public class SpreadsException : Exception {
         public SpreadsException() { }
         public SpreadsException(string message) : base(message) { }
@@ -54,7 +53,6 @@ namespace Spreads {
         /// <summary>
         /// Key/value of an out-of-order data point
         /// </summary>
-        [Obsolete("try to avoid using it and recover state only using CurrentKey")]
         public K NewKey { get; }
 
         public bool HasKnownNewKey { get; }

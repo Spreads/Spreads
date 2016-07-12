@@ -82,7 +82,11 @@ namespace Spreads {
             if (_rng == null) _rng = new Random();
             if (_rng.NextDouble() > probability) return;
             Force = false;
+#if NET451
             throw new StackOverflowException();
+#else
+            throw new ChaosMonkeyException();
+#endif
         }
 
 
@@ -105,7 +109,11 @@ namespace Spreads {
             if (_rng == null) _rng = new Random();
             if (_rng.NextDouble() > probability) return;
             Force = false;
+#if NET451
             Thread.CurrentThread.Abort();
+#else
+            throw new ChaosMonkeyException();
+#endif
         }
 
         [Conditional("CHAOS_MONKEY")]
@@ -130,9 +138,18 @@ namespace Spreads {
                 throw new OutOfMemoryException();
             }
             if (rn < probability * 2.0 / 3.0) {
-                throw new StackOverflowException();
+#if NET451
+            throw new StackOverflowException();
+#else
+                throw new ChaosMonkeyException();
+#endif
+
             }
+#if NET451
             Thread.CurrentThread.Abort();
+#else
+            throw new ChaosMonkeyException();
+#endif
         }
     }
 }

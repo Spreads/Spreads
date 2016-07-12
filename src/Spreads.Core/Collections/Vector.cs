@@ -24,7 +24,9 @@ namespace Spreads.Experimental {
     // internal array.
     // 
     [DebuggerDisplay("Count = {Count}")]
+#if NET451
     [Serializable]
+#endif
     public class Vector<T> : IList<T>, System.Collections.IList, IReadOnlyList<T>, IDisposable {
         private const int DefaultCapacity = 4;
 
@@ -32,11 +34,17 @@ namespace Spreads.Experimental {
         private int _size;
         private int _version;
         private T[] _items;
+#if NET451
         [NonSerialized]
+#endif
         private int _nextVersion;
+#if NET451
         [NonSerialized]
+#endif
         private int _waiting;
+#if NET451
         [NonSerialized]
+#endif
         private Object _syncRoot;
 
         private bool _isSynchronized = false;
