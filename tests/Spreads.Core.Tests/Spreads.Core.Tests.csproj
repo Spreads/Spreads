@@ -99,7 +99,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DynamicUtilTest.cs" />
     <Compile Include="FunctionCombinationTests.cs" />
     <Compile Include="Primes.cs" />
     <Compile Include="Program.cs" />

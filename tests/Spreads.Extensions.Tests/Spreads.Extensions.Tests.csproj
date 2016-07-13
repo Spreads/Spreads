@@ -130,16 +130,6 @@
     <Compile Include="GenerationTests.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="RPlugin.cs" />
-    <Compile Include="Storage\SQLite\SqliteCommandTest.cs" />
-    <Compile Include="Storage\SQLite\SqliteConnectionStringBuilderTest.cs" />
-    <Compile Include="Storage\SQLite\SqlitePerformanceTest.cs" />
-    <Compile Include="Storage\SQLite\SqliteBlobTest.cs" />
-    <Compile Include="Storage\SQLite\SqliteConnectionTest.cs" />
-    <Compile Include="Storage\SQLite\SqliteDataReaderTest.cs" />
-    <Compile Include="Storage\SQLite\SqliteTransactionTest.cs" />
-    <Compile Include="Storage\SQLite\TestUtilities\Constants.cs" />
-    <Compile Include="Storage\SQLite\TestUtilities\DbConnectionExtensions.cs" />
-    <Compile Include="Storage\SQLite\TestUtilities\SqliteVersionConditionAttribute.cs" />
     <Compile Include="Storage\StorageTests.cs" />
     <Compile Include="DataTypesTest.cs" />
     <Compile Include="TypeHelperTests.cs" />

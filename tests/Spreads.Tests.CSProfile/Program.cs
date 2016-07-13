@@ -7,7 +7,6 @@ using Spreads;
 using Spreads.Collections;
 using Spreads.Extensions.Tests;
 using Spreads.Extensions.Tests.Storage;
-using Spreads.Extensions.Tests.Storage.SQLite;
 
 
 

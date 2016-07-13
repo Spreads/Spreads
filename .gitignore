@@ -204,4 +204,4 @@ docs/content/release-notes.md
 !lib/libyeppp/win/x32/*.dll
 !lib/libyeppp/win/x64/*.dll
 
-!project.lock.json
+project.lock.json
