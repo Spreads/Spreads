@@ -310,28 +310,4 @@ namespace Spreads {
     }
 
 
-
-
-
-
-    ///////////////////// OBSOLETE, to be deleted soon //////////////////////////////////////////
-
-    [Obsolete]
-    internal delegate void OnNextHandler<K, V>(KeyValuePair<K, V> kvp);
-    [Obsolete]
-    internal delegate void OnCompletedHandler(bool isComplete);
-    [Obsolete]
-    internal delegate void OnErrorHandler(Exception exception);
-
-    [Obsolete]
-    internal interface IObservableEvents<K, V> {
-        [Obsolete]
-        event OnNextHandler<K, V> OnNext;
-        [Obsolete]
-        event OnCompletedHandler OnComplete;
-        [Obsolete]
-        event OnErrorHandler OnError;
-    }
-
-
 }

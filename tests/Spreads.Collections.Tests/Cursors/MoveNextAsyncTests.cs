@@ -39,16 +39,6 @@ namespace Spreads.Collections.Tests.Cursors {
             Thread.Sleep(2000);
         }
 
-        [Test]
-        public void UpdateEventIsTriggered() {
-            var sm = new SortedMap<DateTime, double>();
-            (sm as IObservableEvents<DateTime, double>).OnNext += (kvp) => {
-                Console.WriteLine("Added {0} : {1}", kvp.Key, kvp.Value);
-            };
-
-            sm.Add(DateTime.UtcNow.Date.AddSeconds(0), 0);
-
-        }
 
 
         [Test]
