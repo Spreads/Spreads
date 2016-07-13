@@ -343,7 +343,7 @@ type SortedMap<'K,'V>
       // bucket switch in SHM (TODO really? check) and before serialization
       // the 99% use case is when we load data from a sequential stream or deserialize a map with already regularized keys
     this.size <- this.size + 1
-    if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+    if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
 
 
   member this.Complete() =
@@ -615,6 +615,7 @@ type SortedMap<'K,'V>
       this.IndexOfKeyUnchecked(key)
     )
 
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.IndexOfValue(value:'V) : int =
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       let mutable res = 0
@@ -684,7 +685,7 @@ type SortedMap<'K,'V>
               let lc = this.CompareToLast k
               if lc = 0 then // key = last key
                 this.values.[this.size-1] <- v
-                if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+                if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
               elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
                 this.Insert(this.size, k, v)
                 keepOrderVersion <- true
@@ -692,7 +693,7 @@ type SortedMap<'K,'V>
                 let index = this.IndexOfKeyUnchecked(k)
                 if index >= 0 then // contains key 
                   this.values.[index] <- v
-                  if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+                  if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
                 else
                   this.Insert(~~~index, k, v)
           finally
@@ -706,6 +707,7 @@ type SortedMap<'K,'V>
             #endif
 
 
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.Add(key, value) : unit =
     if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
     
@@ -745,6 +747,7 @@ type SortedMap<'K,'V>
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
       #endif
 
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.AddLast(key, value):unit =
     let mutable entered = false
     try
@@ -772,6 +775,7 @@ type SortedMap<'K,'V>
 
   // TODO lockless AddLast for temporary Append implementation
   [<ObsoleteAttribute("Temp solution, implement Append properly")>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.AddLastUnchecked(key, value) : unit =
       if this.size = 0 then
         this.Insert(0, key, value)
@@ -782,6 +786,7 @@ type SortedMap<'K,'V>
         else
           Environment.FailFast("SortedMap.AddLastUnchecked: New key is smaller or equal to the largest existing key")
 
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.AddFirst(key, value):unit =
     let mutable keepOrderVersion = false
     let mutable entered = false
@@ -810,7 +815,7 @@ type SortedMap<'K,'V>
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
       #endif
     
-
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.RemoveAt(index):unit =
     if uint32 index >= uint32 this.size then raise (ArgumentOutOfRangeException("index"))
     let newSize = this.size - 1
@@ -846,9 +851,9 @@ type SortedMap<'K,'V>
 
     this.size <- newSize
 
-    if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+    if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
 
-
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.Remove(key): bool =
     if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
     let mutable removed = false
@@ -1003,7 +1008,7 @@ type SortedMap<'K,'V>
             raise (ApplicationException("wrong result of TryFindWithIndex with GT/GE direction"))
         | _ -> failwith "wrong direction"
     finally
-      if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+      if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
       if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.locker entered
       #if PRERELEASE
@@ -1139,7 +1144,7 @@ type SortedMap<'K,'V>
               index2
       | _ -> raise (ApplicationException("Wrong lookup direction"))
 
-
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) =
     if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
     let res() = 
@@ -1152,6 +1157,7 @@ type SortedMap<'K,'V>
     tupleResult.Value1
 
   /// Return true if found exact key
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
     if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
     let res() = 
@@ -1172,7 +1178,7 @@ type SortedMap<'K,'V>
     value <- tupleResult.Value2
     tupleResult.Value1
 
-
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     try
       res <- this.First
@@ -1181,7 +1187,8 @@ type SortedMap<'K,'V>
     | _ -> 
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
-            
+           
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>] 
   member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     try
       res <- this.Last
@@ -1225,7 +1232,7 @@ type SortedMap<'K,'V>
   override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
     base.Subscribe(observer : IObserver<KVP<'K,'V>>)
 
-
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.GetAt(idx:int) =
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       if idx >= 0 && idx < this.size then this.values.[idx] else raise (ArgumentOutOfRangeException("idx", "Idx is out of range in SortedMap GetAt method."))
@@ -1549,6 +1556,7 @@ and
     member this.Comparer: IComparer<'K> = this.source.Comparer
     member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
     
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveNext() =
       let initialIndex = this.index
       let mutable newIndex = this.index
@@ -1656,7 +1664,7 @@ and
         this.isBatch <- newIsBatch
       result
 
-
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MovePrevious() = 
       let mutable newIndex = this.index
       let mutable newKey = this.currentKey
@@ -1702,6 +1710,7 @@ and
         this.currentValue <- newValue
       result
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveAt(key:'K, lookup:Lookup) =
       let mutable newIndex = this.index
       let mutable newKey = this.currentKey
@@ -1736,6 +1745,7 @@ and
         this.currentValue <- newValue
       result
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveFirst() =
       let mutable newIndex = this.index
       let mutable newKey = this.currentKey
@@ -1768,6 +1778,7 @@ and
         this.currentValue <- newValue
       result
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveLast() =
       let mutable newIndex = this.index
       let mutable newKey = this.currentKey
@@ -1799,7 +1810,6 @@ and
         this.currentKey <- newKey
         this.currentValue <- newValue
       result
-
 
 
     member this.Clone() = 
@@ -1913,6 +1923,7 @@ and
           finally
             exitWriteLockIf &this.state.source.locker entered
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveNext(ct: CancellationToken): Task<bool> =      
       match this.state.MoveNext() with
       | true -> 

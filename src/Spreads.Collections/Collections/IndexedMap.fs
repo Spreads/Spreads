@@ -61,7 +61,6 @@ type IndexedMap<'K,'V> // when 'K:equality
       else kc
     else comparerOpt.Value
   let isKeyReferenceType : bool = not <| typeof<'K>.GetIsValueType()
-  let mutable cursorCounter : int = 1
 
   let mutable isSynchronized : bool = false
   let mutable isMutable : bool = true
@@ -129,13 +128,12 @@ type IndexedMap<'K,'V> // when 'K:equality
     this.values.[index] <- v     
     version <- version + 1
     this.size <- this.size + 1
-    if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
+    if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
     
   member this.Complete() = 
     if isMutable then 
         isMutable <- false
-        if cursorCounter > 0 then 
-          this.onCompletedEvent.Trigger(true)
+        if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
   member internal this.IsMutable with get() = isMutable
   override this.IsReadOnly with get() = not isMutable
   override this.IsIndexed with get() = false
@@ -370,14 +368,14 @@ type IndexedMap<'K,'V> // when 'K:equality
         if comparer.Compare(k, this.keys.[lastIdx]) = 0 then // key = last key
           this.values.[lastIdx] <- v
           version <- version + 1
-          if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
+          if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
           lastIdx
         else   
           let index = this.IndexOfKeyUnchecked(k)
           if index >= 0 then // contains key 
             this.values.[index] <- v
             version <- version + 1 
-            if cursorCounter > 0 then this.onNextEvent.Trigger(KVP(k,v))
+            if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
             index     
           else
             this.Insert(~~~index, k, v)
@@ -433,11 +431,7 @@ type IndexedMap<'K,'V> // when 'K:equality
       this.size <- newSize
       version <- version + 1
 
-      if cursorCounter > 0 then
-        this.onErrorEvent.Trigger(NotImplementedException("TODO remove should trigger a special exception"))
-//        // on removal, the next valid value is the previous one and all downstreams must reposition and replay from it
-//        if index > 0 then this.onNextEvent.Trigger(this.GetPairByIndexUnchecked(index - 1)) // after removal (index - 1) is unchanged
-//        else this.onNextEvent.Trigger(Unchecked.defaultof<_>)
+      if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
     finally
       exitLockIf syncRoot entered
 

@@ -155,7 +155,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
           this.isReadOnly <- true
           // immutable doesn't need sync
           this.isSynchronized <- false // TODO the same for SCM
-          if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+          if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
     finally
       Interlocked.Increment(&this.version) |> ignore
       exitWriteLockIf &this.locker entered
@@ -227,7 +227,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
           if c = 0 && prevBucketIsSet(&prevBucket') then
             prevBucket'.[key] <- value
             outerMap.Version <- outerMap.Version + 1L
-            if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+            if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
           else
             if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
             let isNew, bucket = 
@@ -245,7 +245,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
               outerMap.Version <- outerMap.Version + 1L
             //let s2 = bucket.size
             //size <- size + int64(s2 - s1)
-            if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+            if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
             prevHash <- hash
             prevBucket.SetTarget(bucket)
         else
@@ -280,7 +280,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
               #endif
               prevHash <- key
               prevBucket.SetTarget newSm
-              if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+              if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
       finally
         Interlocked.Increment(&this.version) |> ignore
         exitWriteLockIf &this.locker entered
@@ -627,7 +627,8 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
 //        member this.Current with get(): obj = this.Current :> obj
 //    }
 //
-
+  
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.TryFindTuple(key:'K, direction:Lookup) = 
     let tupleResult =
       let mutable kvp = Unchecked.defaultof<KeyValuePair<'K, 'V>>
@@ -679,17 +680,20 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
         | _ -> ValueTuple<_,_>(false, kvp) // LookupDirection.EQ
     tupleResult
 
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.TryFindUnchecked(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
     let tupleResult = this.TryFindTuple(key, direction)
     result <- tupleResult.Value2
     tupleResult.Value1
 
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
     let res() = this.TryFindTuple(key, direction)
     let tupleResult = readLockIf &this.nextVersion &this.version this.isSynchronized res
     result <- tupleResult.Value2
     tupleResult.Value1
 
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     try
       res <- this.First
@@ -698,7 +702,8 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     | _ -> 
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
-            
+          
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]  
   member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     try
       res <- this.Last
@@ -708,6 +713,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
         
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.TryGetValue(k, [<Out>] value:byref<'V>) =
     let res() = 
       let mutable kvp = Unchecked.defaultof<_>
@@ -719,7 +725,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     value <- tupleResult.Value2
     tupleResult.Value1
 
-
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.AddUnchecked(key, value):unit =
     if chunkUpperLimit = 0 then // deterministic hash
       let hash = hasher.Hash(key)
@@ -729,7 +735,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
         prevBucket'.Add(key, value)
         outerMap.Version <- outerMap.Version + 1L
         //size <- size + 1L
-        if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+        if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
       else
         if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
         let bucket = 
@@ -746,7 +752,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
             newSm
         outerMap.Version <- outerMap.Version + 1L
         //size <- size + 1L
-        if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+        if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
         prevHash <- hash
         prevBucket.SetTarget bucket
     else
@@ -755,7 +761,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       if prevBucketIsSet(&prevBucket') && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket'.Last.Key) <= 0 then
         prevBucket'.Add(key,value)
         outerMap.Version <- outerMap.Version + 1L
-        if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+        if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
       else
         let mutable kvp = Unchecked.defaultof<_>
         let ok = outerMap.TryFind(key, Lookup.LE, &kvp)
@@ -766,7 +772,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
           prevHash <- kvp.Key
           prevBucket.SetTarget kvp.Value
           outerMap.Version <- outerMap.Version + 1L
-          if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+          if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
         else
           let mutable prevBucket' = Unchecked.defaultof<_>
           if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
@@ -782,8 +788,9 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
           #endif
           prevHash <- key
           prevBucket.SetTarget newSm
-          if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+          if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
 
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.Add(key, value):unit =
     let mutable entered = false
     try
@@ -803,6 +810,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       #endif
 
   // TODO add last to empty fails
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.AddLast(key, value):unit =
     let mutable entered = false
     try
@@ -829,7 +837,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
       #endif
 
-
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.AddFirst(key, value):unit =
     let mutable entered = false
     try
@@ -860,7 +868,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
   // do not reset prevBucket in any remove method
 
   // NB first/last optimization is possible, but removes are rare in the primary use case
-
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.RemoveUnchecked(key):bool =
     let hash = existingHash key
     let c = comparer.Compare(hash, prevHash)
@@ -897,7 +905,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       else
         false
      
-
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.Remove(key):bool =
     let mutable removed = false
     let mutable entered = false
@@ -909,7 +917,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       removed <- this.RemoveUnchecked(key)
       removed
     finally
-      if removed && this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+      if removed && Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
       if removed then Interlocked.Increment(&this.version) |> ignore
       else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.locker entered
@@ -920,6 +928,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
       #endif
 
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.RemoveFirst([<Out>]result: byref<KeyValuePair<'K, 'V>>):bool =
     let mutable removed = false
     let mutable entered = false
@@ -933,7 +942,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       let ret' = this.Remove(result.Key)
       ret'
     finally
-      if removed && this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+      if removed && Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
       if removed then Interlocked.Increment(&this.version) |> ignore
       else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.locker entered
@@ -944,7 +953,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
       #endif
 
-
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.RemoveLast([<Out>]result: byref<KeyValuePair<'K, 'V>>):bool =
     let mutable removed = false
     let mutable entered = false
@@ -958,7 +967,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       let ret' = this.Remove(result.Key)
       ret'
     finally
-      if removed && this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+      if removed && Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
       if removed then Interlocked.Increment(&this.version) |> ignore
       else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.locker entered
@@ -1050,7 +1059,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       removed <- result
       result
     finally
-      if removed && this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+      if removed && Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
       if removed then Interlocked.Increment(&this.version) |> ignore 
       else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.locker entered
@@ -1063,6 +1072,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
 
   // TODO after checks, should form changed new chunks and use outer append method with rewrite
   // TODO atomic append with single version increase, now it is a sequence of remove/add mutations
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) : int =
     let hasEqOverlap (old:SortedChunkedMapGeneric<_,_,_>) (append:IReadOnlyOrderedMap<'K,'V>) : bool =
       if comparer.Compare(append.First.Key, old.LastUnsafe.Key) > 0 then false
@@ -1300,6 +1310,7 @@ and
     member this.Comparer: IComparer<'K> = this.source.Comparer
     member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveNext() =
       let mutable newInner = this.innerCursor
       let mutable result = Unchecked.defaultof<_>
@@ -1392,7 +1403,7 @@ and
         this.isBatch <- newIsBatch
       result
 
-
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MovePrevious() = 
       let mutable newInner = this.innerCursor
 
@@ -1438,6 +1449,7 @@ and
         this.innerCursor <- newInner
       result
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveFirst() =
       let mutable newInner = this.innerCursor
       let mutable result = Unchecked.defaultof<_>
@@ -1468,6 +1480,7 @@ and
         this.innerCursor <- newInner
       result
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveLast() =
       let mutable newInner = this.innerCursor
       let mutable result = Unchecked.defaultof<_>
@@ -1498,6 +1511,7 @@ and
         this.innerCursor <- newInner
       result
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveAt(key:'K, direction:Lookup) =
       let mutable newInner = this.innerCursor
       let mutable result = Unchecked.defaultof<_>
@@ -1755,6 +1769,7 @@ and
     member this.Comparer: IComparer<'K> = this.source.Comparer
     member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveNext() =
       let mutable newInner = Unchecked.defaultof<_> 
       let mutable doSwitchInner = false
@@ -1866,7 +1881,7 @@ and
         this.isBatch <- newIsBatch
       result
 
-
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MovePrevious() = 
       let mutable newInner = Unchecked.defaultof<_> 
       let mutable doSwitchInner = false
@@ -1922,6 +1937,7 @@ and
         if doSwitchInner then this.innerCursor <- newInner
       result
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveFirst() =
       let mutable newInner = this.innerCursor
       let mutable result = Unchecked.defaultof<_>
@@ -1952,6 +1968,7 @@ and
         this.innerCursor <- newInner
       result
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveLast() =
       let mutable newInner = this.innerCursor
       let mutable result = Unchecked.defaultof<_>
@@ -1982,6 +1999,7 @@ and
         this.innerCursor <- newInner
       result
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveAt(key:'K, direction:Lookup) =
       let mutable newInner = Unchecked.defaultof<_>
       let mutable result = Unchecked.defaultof<_>
@@ -2185,6 +2203,7 @@ and
           finally
             exitWriteLockIf &this.state.source.locker entered
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveNext(ct: CancellationToken): Task<bool> =      
       match this.state.MoveNext() with
       | true -> 
