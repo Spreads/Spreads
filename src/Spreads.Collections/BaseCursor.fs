@@ -235,45 +235,6 @@ type BaseCursor<'K,'V>(source:Series<'K,'V>) as this =
   
   let mutable cancellationToken : CancellationToken = Unchecked.defaultof<_>
   let mutable cancellationTokenRegistration : CancellationTokenRegistration = Unchecked.defaultof<_>
-
-  let onNextHandler : OnNextHandler<'K,'V> = 
-    OnNextHandler(fun (kvp:KVP<'K,'V>) ->
-      // we do not use kvp for now and ignore out of order data
-      // MoveNext + versions handling should handle this
-      lock source.SyncRoot (fun _ ->
-        if tcs <> Unchecked.defaultof<_> then
-          let localTcs = tcs
-          tcs <- Unchecked.defaultof<_>
-          try
-            if this.MoveNext() then localTcs.SetResult(true)
-          with
-          | _ as ex -> localTcs.SetException(ex)
-        //else do nothing
-      )
-    )
-
-  // temp solution, this implementation them checks IsMutable property
-  let onCompletedHandler : OnCompletedHandler = 
-    OnCompletedHandler(fun _ ->
-      lock source.SyncRoot (fun _ ->
-        if tcs <> Unchecked.defaultof<_> then
-          let localTcs = tcs
-          tcs <- Unchecked.defaultof<_>
-          localTcs.SetResult(false)
-        //else do nothing
-      )
-    )
-
-  let onErrorHandler : OnErrorHandler = 
-    OnErrorHandler(fun e ->
-      lock source.SyncRoot (fun _ ->
-        if tcs <> Unchecked.defaultof<_> then
-          let localTcs = tcs
-          tcs <- Unchecked.defaultof<_>
-          localTcs.SetException(e)
-        //else do nothing
-      )
-    )
       
   abstract Comparer: IComparer<'K> with get
   override this.Comparer with get() = source.Comparer
@@ -297,9 +258,8 @@ type BaseCursor<'K,'V>(source:Series<'K,'V>) as this =
 
   abstract Dispose: unit -> unit
   override this.Dispose() =
-    source.onNextEvent.Publish.RemoveHandler(onNextHandler)
-    source.onCompletedEvent.Publish.RemoveHandler(onCompletedHandler)
-    source.onErrorEvent.Publish.RemoveHandler(onErrorHandler)
+    //source.onUpdateEvent.Publish.RemoveHandler(onUpdateHandler)
+    ()
 
   abstract member Reset : unit -> unit
 
@@ -311,9 +271,9 @@ type BaseCursor<'K,'V>(source:Series<'K,'V>) as this =
       Trace.Assert((tcs = Unchecked.defaultof<_>), "TCS field must be cleared before setting TCS result")
       #endif
       if not isSubscribed then
-        source.onNextEvent.Publish.AddHandler(onNextHandler)
-        source.onCompletedEvent.Publish.AddHandler(onCompletedHandler)
-        source.onErrorEvent.Publish.AddHandler(onErrorHandler)
+//        source.onNextEvent.Publish.AddHandler(onNextHandler)
+//        source.onCompletedEvent.Publish.AddHandler(onCompletedHandler)
+//        source.onErrorEvent.Publish.AddHandler(onErrorHandler)
         isSubscribed <- true
 
       // in most cases we have the same CT
@@ -321,7 +281,7 @@ type BaseCursor<'K,'V>(source:Series<'K,'V>) as this =
         cancellationToken <- ct
         if cancellationTokenRegistration <> Unchecked.defaultof<_> then
           cancellationTokenRegistration.Dispose()
-        cancellationTokenRegistration <- ct.Register(fun _ -> onErrorHandler.Invoke(OperationCanceledException()))
+        //cancellationTokenRegistration <- ct.Register(fun _ -> onErrorHandler.Invoke(OperationCanceledException()))
         
       lock source.SyncRoot (fun _ ->
         // OnNext could have been called before tcs is assigned and then there are no more onnexts

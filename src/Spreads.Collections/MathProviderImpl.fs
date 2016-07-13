@@ -50,7 +50,7 @@ type MathProviderImpl() =
         else false
       | _ ->
         // TODO! MapBatchCursor (to be lazy) without bacthing function (to avoid circular links)
-        let map = SortedMap<'K,'V2>()
+        let map = new SortedMap<'K,'V2>()
         for kvp in batch do
             let newValue = mapF(kvp.Value)
             map.AddLast(kvp.Key, newValue)

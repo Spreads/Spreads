@@ -111,7 +111,7 @@ namespace TAQParse {
         private static void Main2(string[] args) {
             // from Ractor.Persistence
             using (var repo = new DataRepository("../TAQSampleRepo")) {
-                var aapl = repo.ReadSeries<DateTime, TaqTrade>("aapl").Result.Map(t => t.TradePrice / 10000.0);
+                IReadOnlyOrderedMap<DateTime, double> aapl = repo.ReadSeries<DateTime, TaqTrade>("aapl").Result.Map(t => t.TradePrice / 10000.0);
                 Console.WriteLine("Count: " + aapl.Count());
                 Console.WriteLine("Open: " + aapl.First.Value);
                 Console.WriteLine("High: " + aapl.Values.Max());
