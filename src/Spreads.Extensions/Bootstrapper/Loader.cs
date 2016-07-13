@@ -170,8 +170,9 @@ namespace Bootstrap {
 
 
         public static string ExtractNativeResource<T>(string resource) {
+            var split = resource.Split('.');
             // each process will have its own temp folder
-            string path = Path.Combine(Bootstrapper.Instance.TempFolder, resource);
+            string path = Path.Combine(Bootstrapper.Instance.TempFolder, split[2] + "." + split[3]);
 
             try {
             Assembly assembly = typeof(T).GetTypeInfo().Assembly;

@@ -86,7 +86,7 @@
   <ItemGroup>
     <EmbeddedResource Include="..\..\lib\libyeppp\win\x64\yeppp.dll">
       <Link>native\w64\yeppp.dll</Link>
-      <LogicalName>win/x64/yeppp.dll</LogicalName>
+      <LogicalName>win.x64.yeppp.dll</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
       <Link>native\w64\libblosc.dll</Link>
