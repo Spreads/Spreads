@@ -19,14 +19,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Spreads {
-
-    // TODO ISeriesSegment that implements IReadOnlyCollection 
 
 
     /// <summary>
@@ -55,6 +51,18 @@ namespace Spreads {
         /// <returns>true when there is a next element in the sequence, false if the sequence is complete and there will be no more elements ever</returns>
         Task<bool> MoveNext(CancellationToken cancellationToken);
 
+    }
+
+
+    // Convenience aliases, no need to pollute interfaces
+    public static class AsyncEnumeratorExtensions {
+        public static Task<bool> MoveNextAsync<T>(this IAsyncEnumerator<T> enumerator) {
+            return enumerator.MoveNext(CancellationToken.None);
+        }
+
+        public static Task<bool> MoveNextAsync<T>(this IAsyncEnumerator<T> enumerator, CancellationToken cancellationToken) {
+            return enumerator.MoveNext(cancellationToken);
+        }
     }
 
     /// <summary>
@@ -93,22 +101,6 @@ namespace Spreads {
         //void Dispose();
     }
 
-    // ISeriesSubscription Request method overloads are duals to cursor move methods
-    // MoveNext()       -> Request(1)
-    // MovePrevious()   -> Request(1, Lookup.LE/LT)
-    // MoveFirst()      -> Request(1, firstKey, Lookup.GE) // first/last keys could be known from cursor
-    // MoveLast()       -> Request(1, lastKey, Lookup.LE)
-    // MoveAt(key, direction) -> Request(1, key, direction)
-
-    // NB: this could be done via Range, Reverse, etc. We need async only for incoming data (forward move), for all other cases we could use cursors
-    //public interface ISeriesSubscription<TKey> : ISubscription {
-    //    void Request(long n, TKey from);
-    //    void Request(long n, TKey from, Lookup direction);
-    //    void Request(long n, Lookup direction);
-    //}
-    //public interface ISeriesSubscriber<TKey, TValue> : ISubscriber<KeyValuePair<TKey, TValue>> {
-    //    void OnSubscribe(ISeriesSubscription<TKey> s);
-    //}
 
     public interface ISubscriber<in T> : IObserver<T> {
         void OnSubscribe(ISubscription s);
@@ -117,10 +109,8 @@ namespace Spreads {
         //void OnNext(T value);
     }
 
-    
+
     public interface IPublisher<out T> : IObservable<T> {
-        // We do not need to expose ISubscription to publisher, only subscriber could request new data
-        // However, publisher could cancel a subscription via Dispose()
         //[Obsolete("Use typecheck in implementations")]
         //new ISubscription Subscribe(IObserver<T> subscriber);
     }
@@ -139,67 +129,207 @@ namespace Spreads {
 
     }
 
-    // TODO This is not final. I am not sure that ICursor should implement ISeriesSubscriber
-    // or ISeriesSubscription, we probably need some composition not inheritance
-    //public interface ICursor<TKey, TValue>
-    //    : IAsyncEnumerator<KeyValuePair<TKey, TValue>>, ISeriesSubscriber<TKey, TValue>, ISeriesSubscription<TKey> {
 
-    //    IComparer<TKey> Comparer { get; }
-    //    IReadOnlyOrderedMap<TKey, TValue> CurrentBatch { get; }
-    //    TKey CurrentKey { get; }
-    //    TValue CurrentValue { get; }
-    //    bool IsContinuous { get; }
-    //    ISeries<TKey, TValue> Source { get; }
+    /// <summary>
+    /// Main interface for data series.
+    /// </summary>
+    public interface ISeries<TKey, TValue>
+        : IPublisher<KeyValuePair<TKey, TValue>>, IAsyncEnumerable<KeyValuePair<TKey, TValue>> {
 
-    //    ICursor<TKey, TValue> Clone();
-    //    bool MoveAt(TKey key, Lookup direction);
-    //    bool MoveFirst();
-    //    bool MoveLast();
-    //    Task<bool> MoveNextBatch(CancellationToken cancellationToken);
-    //    bool MovePrevious();
-    //    bool TryGetValue(TKey key, out TValue value);
-    //}
+        /// <summary>
+        /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys.
+        /// </summary>
+        bool IsIndexed { get; }
+
+        /// <summary>
+        /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete 
+        /// for adding (e.g. after OnCompleted in Rx) or IsReadOnly in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
+        /// </summary>
+        bool IsReadOnly { get; }
+
+        /// <summary>
+        /// Key comparer.
+        /// </summary>
+        IComparer<TKey> Comparer { get; }
+
+        /// <summary>
+        /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact 
+        /// positions and relative LT/LE/GT/GE moves.
+        /// </summary>
+        ICursor<TKey, TValue> GetCursor();
+
+        [Obsolete]
+        object SyncRoot { get; }
+    }
 
 
-    //public interface ISeries<TKey, TValue> : IPublisher<KeyValuePair<TKey, TValue>> {
-    //    bool IsIndexed { get; }
-    //    bool IsMutable { get; }
-    //    object SyncRoot { get; }
 
-    //    ICursor<TKey, TValue> GetCursor();
+    /// <summary>
+    /// ICursor is an advanced enumerator that supports moves to first, last, previous, next, next batch, exact 
+    /// positions and relative LT/LE/GT/GE moves.
+    /// Cursor is resilient to changes in an underlying sequence during movements, e.g. the
+    /// sequence could grow during move next. (See documentation for out of order behavior.)
+    /// 
+    /// Supports batches with MoveNextBatchAsync() and CurrentBatch members. Accessing current key
+    /// after MoveNextBatchAsync or CurrentBatch after any single key movement results in InvalidOperationException.
+    /// IsBatch property indicates wether the cursor is positioned on a single value or a batch.
+    /// 
+    /// Contracts:
+    /// 1. At the beginning a cursor consumer could call any single move method or MoveNextBatch. MoveNextBatch could 
+    ///    be called only on the initial move or after a previous MoveNextBatch() call that returned true. It MUST NOT
+    ///    be called in any other situation, ICursor implementations MUST return false on any such wrong call.
+    /// 2. CurrentBatch contains a batch only after a call to MoveNextBatch() returns true. CurrentBatch is undefined 
+    ///    in all other cases.
+    /// 3. After a call to MoveNextBatch() returns false, the consumer MUST use only single calls. ICursor implementations MUST
+    ///    ensure that the relative moves MoveNext/Previous start from the last position of the previous batch.
+    /// 4. Synchronous moves return true if data is instantly awailable, e.g. in a map data structure in memory or on fast disk DB.
+    ///    ICursor implementations should not block threads, e.g. if a map is IUpdateable, synchronous MoveNext should not wait for 
+    ///    an update but return false if there is no data right now.
+    /// 5. When synchronous MoveNext or MoveLast return false, the consumer should call async overload of MoveNext. Inside the async
+    ///    implementation of MoveNext, a cursor must check if the source is IUpdateable and return Task.FromResult(false) immediately if it is not.
+    /// 6. When any move returns false, cursor stays at the position before that move (TODO now this is ensured only for SM MN/MP and for Bind(ex.MA) )
+    /// _. TODO If the source is updated during a lifetime of a cursor, cursor must recreate its state at its current position
+    ///    Rewind logic only for async? Throw in all cases other than MoveNext, MoveAt? Or at least on MovePrevious.
+    ///    Or special behaviour of MoveNext only on appends or changing the last value? On other changes must throw invalidOp (locks are there!)
+    ///    So if update is before the current position of a cursor, then throw. If after - then this doesn't affect the cursor in any way.
+    ///    TODO cursor could implement IUpdateable when source does, or pass through to CursorSeries
+    /// 
+    /// </summary>
+    public interface ICursor<TKey, TValue>
+        : IAsyncEnumerator<KeyValuePair<TKey, TValue>> {
 
-    //    // IDisposable Subscribe(IObserver<T> observer);
-    //}
+        IComparer<TKey> Comparer { get; }
+        
+        /// <summary>
+        /// Puts the cursor to the position according to LookupDirection
+        /// </summary>
+        bool MoveAt(TKey key, Lookup direction);
+        bool MoveFirst();
+        bool MoveLast();
+        bool MovePrevious();
+        TKey CurrentKey { get; }
+        TValue CurrentValue { get; }
 
-    //public interface IReadOnlyOrderedMap<K, V> : ISeries<K, V> {
-    //    V this[K value] { get; }
+        /// <summary>
+        /// Optional (used for batch/SIMD optimization where gains are visible), MUST NOT throw NotImplementedException()
+        /// Returns true when a batch is available immediately (async for IO, not for waiting for new values),
+        /// returns false when there is no more immediate values and a consumer should switch to MoveNextAsync().
+        /// </summary>
+        Task<bool> MoveNextBatch(CancellationToken cancellationToken);
 
-    //    IComparer<K> Comparer { get; }
-    //    KeyValuePair<K, V> First { get; }
-    //    bool IsEmpty { get; }
-    //    IEnumerable<K> Keys { get; }
-    //    KeyValuePair<K, V> Last { get; }
-    //    IEnumerable<V> Values { get; }
+        /// <summary>
+        /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
+        /// The actual implementation of the batch could be mutable and could reference a part of the original series, therefore consumer
+        /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap
+        /// </summary>
+        IReadOnlyOrderedMap<TKey, TValue> CurrentBatch { get; }
 
-    //    V GetAt(int idx);
-    //    bool TryFind(K key, Lookup direction, out KeyValuePair<K, V> value);
-    //    //bool TryGetFirst(out KeyValuePair<K, V> value);
-    //    //bool TryGetLast(out KeyValuePair<K, V> value);
-    //    bool TryGetValue(K key, out V value);
-    //}
+        /// <summary>
+        /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
+        /// </summary>
+        ISeries<TKey, TValue> Source { get; }
 
+        /// <summary>
+        /// If true then TryGetValue could return values for any keys, not only for existing keys.
+        /// E.g. previous value, interpolated value, etc.
+        /// </summary>
+        bool IsContinuous { get; }
+
+        /// <summary>
+        /// Create a copy of cursor that is positioned at the same place as this cursor.
+        /// </summary>
+        ICursor<TKey, TValue> Clone();
+
+        /// <summary>
+        /// Gets a calculated value for continuous series without moving the cursor position.
+        /// E.g. a continuous cursor for Repeat() will check if current state allows to get previous value,
+        /// and if not then .Source.GetCursor().MoveAt(key, LE). The TryGetValue method should be optimized
+        /// for sort join case using enumerator, e.g. for repeat it should keep previous value and check if 
+        /// the requested key is between the previous and the current keys, and then return the previous one.
+        /// NB This is not thread safe. ICursors must be used from a single thread.
+        /// </summary>
+        bool TryGetValue(TKey key, out TValue value);
+    }
+
+
+
+    /// <summary>
+    /// NB! 'Read-only' doesn't mean that the object is immutable or not changing. It only means
+    /// that there is no methods to change the map *from* this interface, without any assumptions about 
+    /// the implementation. Underlying sequence could be mutable and rapidly changing; to prevent any 
+    /// changes use lock (Monitor.Enter) on the SyncRoot property. Doing so will block any changes for 
+    /// mutable implementations and won't affect immutable implementations.
+    /// </summary>
+    public interface IReadOnlyOrderedMap<TKey, TValue> : ISeries<TKey, TValue> {
+        
+        bool IsEmpty { get; }
+
+        /// <summary>
+        /// First element, throws InvalidOperationException if empty
+        /// </summary>
+        KeyValuePair<TKey, TValue> First { get; }
+        /// <summary>
+        /// Last element, throws InvalidOperationException if empty
+        /// </summary>
+        KeyValuePair<TKey, TValue> Last { get; }
+
+        /// <summary>
+        /// Value at key, throws KeyNotFoundException if key is not present in the series (even for continuous series).
+        /// Use TryGetValue to get a value between existing keys for continuous series.
+        /// </summary>
+        TValue this[TKey value] { get; }
+
+        /// <summary>
+        /// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
+        /// is Linq's [series].Skip(idx-1).Take(1).Value
+        /// </summary>
+        TValue GetAt(int idx);
+
+        IEnumerable<TKey> Keys { get; }
+        IEnumerable<TValue> Values { get; }
+
+        /// <summary>
+        /// The method finds value according to direction, returns false if it could not find such a value
+        /// For indexed series LE/GE directions are invalid (throws InvalidOperationException), while
+        /// LT/GT search is done by index rather than by key and possible only when a key exists.
+        /// </summary>
+        bool TryFind(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> value);
+        bool TryGetFirst(out KeyValuePair<TKey, TValue> value);
+        bool TryGetLast(out KeyValuePair<TKey, TValue> value);
+        bool TryGetValue(TKey key, out TValue value);
+    }
+
+
+    /// <summary>
+    /// Signaling event handler.
+    /// </summary>
+    /// <param name="flag"></param>
     internal delegate void OnUpdateHandler(bool flag);
     internal interface IUpdateable {
         event OnUpdateHandler OnUpdate;
     }
 
+
+
+
+
+
+    ///////////////////// OBSOLETE, to be deleted soon //////////////////////////////////////////
+
+    [Obsolete]
     internal delegate void OnNextHandler<K, V>(KeyValuePair<K, V> kvp);
+    [Obsolete]
     internal delegate void OnCompletedHandler(bool isComplete);
+    [Obsolete]
     internal delegate void OnErrorHandler(Exception exception);
 
+    [Obsolete]
     internal interface IObservableEvents<K, V> {
+        [Obsolete]
         event OnNextHandler<K, V> OnNext;
+        [Obsolete]
         event OnCompletedHandler OnComplete;
+        [Obsolete]
         event OnErrorHandler OnError;
     }
 
