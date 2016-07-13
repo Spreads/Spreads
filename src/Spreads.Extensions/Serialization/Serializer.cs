@@ -59,7 +59,7 @@ namespace Spreads.Serialization {
     internal static class BlittableHelper {
         public static object GetDefault(Type type) {
 
-            return type.IsValueType ? Activator.CreateInstance(type) : null;
+            return type.GetTypeInfo().IsValueType ? Activator.CreateInstance(type) : null;
         }
 
         private static readonly Dictionary<Type, bool> Dic = new Dictionary<Type, bool>();
@@ -513,8 +513,8 @@ namespace Spreads.Serialization {
 
             //try {
             // we really care about these cases, for other cases JSON.NET is just good enough
-            if (ty.IsValueType && !ty.IsGenericType &&
-            (ty.IsLayoutSequential || ty.IsExplicitLayout
+            if (ty.GetTypeInfo().IsValueType && !ty.GetTypeInfo().IsGenericType &&
+            (ty.GetTypeInfo().IsLayoutSequential || ty.GetTypeInfo().IsExplicitLayout
              || ty == typeof(DateTimeOffset) || ty == typeof(DateTime))
             ) {
                 unsafe
@@ -753,8 +753,8 @@ namespace Spreads.Serialization {
             var typeSize1 = 0;
 
             //try {
-            if (ty.IsValueType && !ty.IsGenericType &&
-                (ty.IsLayoutSequential || ty.IsExplicitLayout
+            if (ty.GetTypeInfo().IsValueType && !ty.GetTypeInfo().IsGenericType &&
+                (ty.GetTypeInfo().IsLayoutSequential || ty.GetTypeInfo().IsExplicitLayout
                  || ty == typeof(DateTimeOffset) || ty == typeof(DateTime))
                 ) {
                 if (false) {
@@ -1284,7 +1284,7 @@ namespace Spreads.Serialization {
 
         internal static byte[] SerializeImpl<T>(T value) { //where T : struct
             var ty = value.GetType();
-            if (ty.IsValueType && !ty.IsGenericType && (ty.IsLayoutSequential || ty.IsExplicitLayout)) {
+            if (ty.GetTypeInfo().IsValueType && !ty.GetTypeInfo().IsGenericType && (ty.GetTypeInfo().IsLayoutSequential || ty.GetTypeInfo().IsExplicitLayout)) {
                 unsafe
                 {
                     var typeSize = Marshal.SizeOf(value);
@@ -1297,7 +1297,7 @@ namespace Spreads.Serialization {
                     }
                 }
                 //}
-            } else if (ty.IsGenericType &&
+            } else if (ty.GetTypeInfo().IsGenericType &&
                        ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
                 // TODO cache this method like in deser
 
@@ -1311,7 +1311,7 @@ namespace Spreads.Serialization {
                 //genericMethods[ty] = genericMi;
                 return (byte[])genericMi.Invoke(null, new object[] { (object)value });
                 //}
-            } else if (ty.IsGenericType &&
+            } else if (ty.GetTypeInfo().IsGenericType &&
                        ty.GetGenericTypeDefinition() == typeof(Series<,>)) {
 
                 // TODO cache this method like in deser
@@ -1334,7 +1334,7 @@ namespace Spreads.Serialization {
         internal static TResult SerializeTransformImpl<TResult, TStruct>(TStruct value,
             FixedBufferTransformer<TResult> transformer) where TStruct : struct {
             var ty = typeof(TStruct);
-            if (ty.IsLayoutSequential || ty.IsExplicitLayout) {
+            if (ty.GetTypeInfo().IsLayoutSequential || ty.GetTypeInfo().IsExplicitLayout) {
                 unsafe
                 {
                     var typeSize = Marshal.SizeOf(value);
@@ -1612,7 +1612,7 @@ namespace Spreads.Serialization {
         internal static TSrtuct DeserializeImpl<TSrtuct>(IntPtr srcPtr,
             int srcSize, TSrtuct result) where TSrtuct : struct {
             var ty = typeof(TSrtuct);
-            if (!ty.IsGenericType && (ty.IsLayoutSequential || ty.IsExplicitLayout)) {
+            if (!ty.GetTypeInfo().IsGenericType && (ty.GetTypeInfo().IsLayoutSequential || ty.GetTypeInfo().IsExplicitLayout)) {
                 if (srcSize > 0 && srcSize != Marshal.SizeOf(ty))
                     throw new ArgumentOutOfRangeException("Wrong src size");
                 var dest = Marshal.PtrToStructure(srcPtr, ty);
@@ -1636,7 +1636,7 @@ namespace Spreads.Serialization {
             } else {
                 MethodInfo genericMi;
 
-                if (ty.IsGenericType &&
+                if (ty.GetTypeInfo().IsGenericType &&
                     ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
 
                     var hasSaved = genericMethods.TryGetValue(ty, out genericMi);
@@ -1713,9 +1713,9 @@ namespace Spreads.Serialization {
                 if (ty.IsArray) {
                     var elTy = ty.GetElementType();
                     return Array.CreateInstance(ty.GetElementType(), 0);
-                } else if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
+                } else if (ty.GetTypeInfo().IsGenericType && ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
                     return Activator.CreateInstance(ty);
-                } else if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(Series<,>)) {
+                } else if (ty.GetTypeInfo().IsGenericType && ty.GetGenericTypeDefinition() == typeof(Series<,>)) {
                     throw new NotImplementedException("TODO Call SortedMapConstructor with the same generic types, TODO tests");
                 } else {
                     throw new ArgumentException("src is empty");

@@ -76,7 +76,7 @@ namespace Yeppp
 		{
 			Status status = yepLibrary_Init();
 			if (status != Status.Ok)
-				throw new System.SystemException("Failed to initialize Yeppp! library");
+				throw new System.Exception("Failed to initialize Yeppp! library");
 		}
 
 		/// <summary>Deinitializes Yeppp! library and releases all associated resources.</summary>
@@ -284,14 +284,14 @@ namespace Yeppp
 			System.UIntPtr length = System.UIntPtr.Zero;
 			Status status = Library.yepLibrary_GetString(enumeration, value, stringType, System.IntPtr.Zero, ref length);
 			if (status != Status.InsufficientBuffer)
-				throw new System.SystemException();
+				throw new System.Exception();
 
 			int smallLength = checked((int)length);
 			System.IntPtr unmanagedBuffer = Marshal.AllocHGlobal(smallLength);
 			try {
 				status = yepLibrary_GetString(enumeration, value, stringType, unmanagedBuffer, ref length);
 				if (status != Status.Ok)
-					throw new System.SystemException();
+					throw new System.Exception();
 
 				byte[] managedBuffer = new byte[smallLength];
 				Marshal.Copy(unmanagedBuffer, managedBuffer, 0, smallLength);
@@ -325,11 +325,11 @@ namespace Yeppp
 				case Status.UnsupportedSoftware:
 					return new System.PlatformNotSupportedException(GetString(Enumeration.Status, unchecked((uint)status), StringType.Description));
 				case Status.InsufficientBuffer:
-					return new System.IO.InternalBufferOverflowException(GetString(Enumeration.Status, unchecked((uint)status), StringType.Description));
+					return new System.IO.IOException(GetString(Enumeration.Status, unchecked((uint)status), StringType.Description));
 				case Status.OutOfMemory:
 					return new System.OutOfMemoryException(GetString(Enumeration.Status, unchecked((uint)status), StringType.Description));
 				case Status.SystemError:
-					return new System.SystemException(GetString(Enumeration.Status, unchecked((uint)status), StringType.Description));
+					return new System.Exception(GetString(Enumeration.Status, unchecked((uint)status), StringType.Description));
 				default:
 					return new System.Exception(GetString(Enumeration.Status, unchecked((uint)status), StringType.Description));
 			}

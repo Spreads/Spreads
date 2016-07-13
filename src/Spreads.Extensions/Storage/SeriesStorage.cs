@@ -34,7 +34,7 @@ namespace Spreads.Storage {
 
         static SeriesStorage() {
             // init
-            if (Bootstrap.Bootstrapper.Instance.BaseFolder == null) throw new ApplicationException();
+            if (Bootstrap.Bootstrapper.Instance.BaseFolder == null) throw new Exception("Bootstrap.Bootstrapper.Instance.BaseFolder == null");
         }
 
         private readonly SqliteConnection _connection;
@@ -48,10 +48,10 @@ namespace Spreads.Storage {
             var connection = new SqliteConnection(connectionString);
             connection.Open();
             //NativeMethods.sqlite3_exec(connection.DbHandle, "PRAGMA locking_mode=EXCLUSIVE; PRAGMA synchronous = 0; PRAGMA journal_mode = WAL;");
-            connection.ExecuteNonQuery("PRAGMA main.page_size = 4096; ");
-            connection.ExecuteNonQuery("PRAGMA main.cache_size = 25000;");
-            connection.ExecuteNonQuery(!async ? "PRAGMA synchronous = NORMAL;" : "PRAGMA synchronous = OFF;");
-            connection.ExecuteNonQuery("PRAGMA journal_mode = WAL;");
+            connection.Execute("PRAGMA main.page_size = 4096; ");
+            connection.Execute("PRAGMA main.cache_size = 25000;");
+            connection.Execute(!async ? "PRAGMA synchronous = NORMAL;" : "PRAGMA synchronous = OFF;");
+            connection.Execute("PRAGMA journal_mode = WAL;");
             return connection;
         }
 

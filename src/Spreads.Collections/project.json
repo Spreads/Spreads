@@ -1,10 +1,10 @@
 {
 
-	"version": "0.6.0-alpha",
+	"version": "0.6.0-alpha1",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 
-
 	"buildOptions": {
+
 		"emitEntryPoint": false,
 		"compilerName": "fsc",
 		"define": [ "PRERELEASE" ],
@@ -62,7 +62,7 @@
 		}
 	},
 	"dependencies": {
-		"Spreads.Core": "0.6.0-alpha"
+		"Spreads.Core": "0.6.0-alpha1"
 	},
 	"tools": {
 		"dotnet-compile-fsc": {
@@ -77,7 +77,6 @@
 		"net451": {
 			"dependencies": {
 				"FSharp.Core": "4.0.0.1"
-
 			},
 			"frameworkAssemblies": {
 				"System": "",
@@ -85,6 +84,7 @@
 				"System.Data": "",
 				"System.Data.Linq": "",
 				"System.Numerics": ""
+				
 			}
 		},
 		"netstandard1.6": {
@@ -99,5 +99,22 @@
 			},
 			"imports": "dnxcore50"
 		}
+	},
+	"authors": [ "Victor Baybekov" ],
+	"copyright": "Copyright 2016",
+	"packOptions": {
+		"owners": [ "Victor Baybekov" ],
+		"summary": "Series and Panels for Reactive and Exploratory Analysis of Data Streams",
+		"repository": { "url": "https://github.com/Spreads/Spreads" },
+		"licenseUrl": "http://github.com/Spreads/Spreads/blob/master/LICENSE.txt",
+		"iconUrl": "https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png",
+		"projectUrl": "https://github.com/Spreads/Spreads",
+		"tags": [
+			"Spreads",
+			"Data",
+			"Time Series",
+			"Data Frame"
+		]
+
 	}
 }

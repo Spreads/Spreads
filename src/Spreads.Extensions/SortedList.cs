@@ -49,7 +49,6 @@ namespace Spreads.Collections.Extra {
     // be specified.
     // 
     [DebuggerDisplay("Count = {Count}")]
-    [Serializable()]
     [System.Runtime.InteropServices.ComVisible(false)]
     public class SortedList<TKey, TValue> :
         IDictionary<TKey, TValue>, System.Collections.IDictionary {
@@ -60,7 +59,6 @@ namespace Spreads.Collections.Extra {
         private IComparer<TKey> comparer;
         private KeyList keyList;
         private ValueList valueList;
-        [NonSerialized]
         private Object _syncRoot;
 
         static TKey[] emptyKeys = new TKey[0];
@@ -640,7 +638,6 @@ namespace Spreads.Collections.Extra {
 
 
         /// <include file='doc\SortedList.uex' path='docs/doc[@for="SortedListEnumerator"]/*' />
-        [Serializable()]
         private struct Enumerator : IEnumerator<KeyValuePair<TKey, TValue>>, System.Collections.IDictionaryEnumerator {
             private SortedList<TKey, TValue> _sortedList;
             private TKey key;
@@ -746,7 +743,6 @@ namespace Spreads.Collections.Extra {
         }
 
 
-        [Serializable()]
         private sealed class SortedListKeyEnumerator : IEnumerator<TKey>, System.Collections.IEnumerator {
             private SortedList<TKey, TValue> _sortedList;
             private int index;
@@ -805,7 +801,6 @@ namespace Spreads.Collections.Extra {
         }
 
 
-        [Serializable()]
         private sealed class SortedListValueEnumerator : IEnumerator<TValue>, System.Collections.IEnumerator {
             private SortedList<TKey, TValue> _sortedList;
             private int index;
@@ -865,7 +860,6 @@ namespace Spreads.Collections.Extra {
 
 
         [DebuggerDisplay("Count = {Count}")]
-        [Serializable()]
         private sealed class KeyList : IList<TKey>, System.Collections.ICollection {
             private SortedList<TKey, TValue> _dict;
 
@@ -960,7 +954,6 @@ namespace Spreads.Collections.Extra {
         }
 
         [DebuggerDisplay("Count = {Count}")]
-        [Serializable()]
         private sealed class ValueList : IList<TValue>, System.Collections.ICollection {
             private SortedList<TKey, TValue> _dict;
 

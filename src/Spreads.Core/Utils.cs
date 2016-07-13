@@ -120,7 +120,7 @@ namespace Spreads {
 
 #if !NET451
     public class ApplicationException : Exception {
-
+        public ApplicationException() : base() { }
         public ApplicationException(string message) : base(message) { }
     }
 

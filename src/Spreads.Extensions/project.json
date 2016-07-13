@@ -1,0 +1,90 @@
+﻿{
+	"version": "0.6.0-alpha1",
+	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
+	"dependencies": {
+		"Spreads.Core": "0.6.0-alpha1",
+		"Spreads.Collections": "0.6.0-alpha1",
+		"Microsoft.Data.SQLite": "1.0.0",
+		"Dapper": "1.50.1",
+		"Newtonsoft.Json": "9.0.1",
+		"NodaTime": "2.0.0-alpha20160707",
+	},
+	"frameworks": {
+		"net451": {
+			"frameworkAssemblies": {
+				"System.IO.Compression": "",
+				"System.IO.Compression.FileSystem": ""
+			}
+		},
+		"netstandard1.6": {
+			"dependencies": {
+				"NETStandard.Library": "1.6.0",
+				"System.Diagnostics.Contracts": "4.0.1",
+				"System.Threading.Thread": "4.0.0",
+				"System.Diagnostics.TraceSource": "4.0.0",
+				"System.Reflection": "4.1.0",
+				"System.Reflection.TypeExtensions": "4.1.0",
+				"System.Reflection.Extensions": "4.0.1",
+				"System.IO.MemoryMappedFiles": "4.0.0",
+				"System.IO.Compression.ZipFile": "4.0.1",
+				"System.Diagnostics.Process": "4.1.0",
+				"System.Runtime.Extensions": "4.1.0"
+			},
+			"imports": "dnxcore50"
+		}
+	},
+	"buildOptions": {
+		"warningsAsErrors": false,
+		"xmlDoc": true,
+		"exclude": [],
+		"define": [
+			"TRACE",
+			"PRERELEASE"
+		],
+		"allowUnsafe": true,
+		"optimize": true,
+		"nowarn": [
+			"CS1591"
+		],
+		"compile": {
+			"includeFiles": [
+				"../../lib/Microsoft.IO.RecyclableMemoryStream/src/Events.cs",
+				"../../lib/Microsoft.IO.RecyclableMemoryStream/src/RecyclableMemoryStream.cs",
+				"../../lib/Microsoft.IO.RecyclableMemoryStream/src/RecyclableMemoryStreamManager.cs",
+			]
+		},
+
+		"embed": {
+			"mappings": {
+				"win.x64.yeppp.dll": "../../lib/libyeppp/win/x64/yeppp.dll",
+				"win.x64.libblosc.dll": "../../lib/libblosc/w64/libblosc.dll",
+				"win.x64.sqlite3.dll": "../../lib/sqlite3/w64/sqlite3.dll",
+				"win.x32.yeppp.dll": "../../lib/libyeppp/win/x32/yeppp.dll",
+				"win.x32.libblosc.dll": "../../lib/libblosc/w32/libblosc.dll",
+				"win.x32.sqlite3.dll": "../../lib/sqlite3/w32/sqlite3.dll"
+			}
+		}
+	},
+	"authors": [
+		"Victor Baybekov"
+	],
+	"copyright": "Copyright 2016",
+	"packOptions": {
+		"owners": [
+			"Victor Baybekov"
+		],
+		"summary": "Series and Panels for Reactive and Exploratory Analysis of Data Streams",
+		"repository": {
+			"url": "https://github.com/Spreads/Spreads"
+		},
+		"licenseUrl": "http://github.com/Spreads/Spreads/blob/master/LICENSE.txt",
+		"iconUrl": "https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png",
+		"projectUrl": "https://github.com/Spreads/Spreads",
+		"tags": [
+			"Spreads",
+			"Data",
+			"Time Series",
+			"Data Frame"
+		]
+	}
+}

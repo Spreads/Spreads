@@ -72,7 +72,7 @@ type internal AsyncManualResetEvent () =
 
 
 
-type internal AsyncAutoResetEvent () =
+type AsyncAutoResetEvent () =
   //http://blogs.msdn.com/b/pfxteam/archive/2012/02/11/10266923.aspx
   static let mutable s_completed = Task.FromResult(true)
   let m_waits = new Queue<TaskCompletionSource<bool>>()

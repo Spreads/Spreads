@@ -94,10 +94,10 @@ namespace Spreads.Storage {
                                 _readerTail = _readerTail + len + 4;
                             }
                         }
-                        Thread.SpinWait(1);
+                        //Thread.SpinWait(1);
                         // TODO? implement signaling via WaitHandle?
-                        //if (sw.NextSpinWillYield) sw.Reset();
-                        //sw.SpinOnce();
+                        if (sw.NextSpinWillYield) sw.Reset();
+                        sw.SpinOnce();
                     }
                 }
                 OptimizationSettings.TraceVerbose("LogBuffer invoke loop exited");

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using Spreads;
 
 namespace Bootstrap {
     internal class YepppTest {

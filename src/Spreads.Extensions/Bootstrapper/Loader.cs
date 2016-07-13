@@ -39,7 +39,7 @@ namespace Bootstrap {
         [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true)]
         private static extern IntPtr GetProcAddress(IntPtr library, string function);
 
-        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
         public static extern bool SetDllDirectory(string lpPathName);
 
     }
@@ -128,13 +128,13 @@ namespace Bootstrap {
             return new NativeLibrary(path, loader);
         }
 
-        internal static Assembly ResolveManagedAssembly(object sender,
-                                                      ResolveEventArgs args) {
-            var assemblyname = new AssemblyName(args.Name).Name;
-            var assemblyFileName = Path.Combine(Bootstrapper.Instance.AppFolder, assemblyname + ".dll");
-            var assembly = Assembly.LoadFrom(assemblyFileName);
-            return assembly;
-        }
+        //internal static Assembly ResolveManagedAssembly(object sender,
+        //                                              ResolveEventArgs args) {
+        //    var assemblyname = new AssemblyName(args.Name).Name;
+        //    var assemblyFileName = Path.Combine(Bootstrapper.Instance.AppFolder, assemblyname + ".dll");
+        //    var assembly = Assembly.LoadFrom(assemblyFileName);
+        //    return assembly;
+        //}
 
         public static INativeLibraryLoader GetNativeLibraryLoader(ABI abi) {
             if (abi.IsWindows())
@@ -149,33 +149,32 @@ namespace Bootstrap {
 
         private static string GetNativeLibraryResource(ABI abi, string libname) {
             if (abi.Equals(ABI.Windows_X86))
-                return "win/x32/" + libname + ".dll";
+                return "win.x32." + libname + ".dll";
             else if (abi.Equals(ABI.Windows_X86_64))
-                return "win/x64/" + libname + ".dll";
+                return "win.x64." + libname + ".dll";
             else if (abi.Equals(ABI.OSX_X86))
-                return "osx/x32/" + libname + ".dylib";
+                return "osx.x32." + libname + ".dylib";
             else if (abi.Equals(ABI.OSX_X86_64))
-                return "osx/x64/" + libname + ".dylib";
+                return "osx.x64." + libname + ".dylib";
             else if (abi.Equals(ABI.Linux_X86))
-                return "lin/x32/" + libname + ".so";
+                return "lin.x32." + libname + ".so";
             else if (abi.Equals(ABI.Linux_X86_64))
-                return "lin/x64/" + libname + ".so";
+                return "lin.x64." + libname + ".so";
             else if (abi.Equals(ABI.Linux_ARMEL))
-                return "lin/armel/" + libname + ".so";
+                return "lin.armel." + libname + ".so";
             else if (abi.Equals(ABI.Linux_ARMHF))
-                return "lin/armhf/" + libname + ".so";
+                return "lin.armhf." + libname + ".so";
             else
                 return null;
         }
 
 
         public static string ExtractNativeResource<T>(string resource) {
-            var split = resource.Split('/');
             // each process will have its own temp folder
-            string path = Path.Combine(Bootstrapper.Instance.TempFolder, split.Last());
+            string path = Path.Combine(Bootstrapper.Instance.TempFolder, resource);
 
             try {
-            Assembly assembly = typeof(T).Assembly;
+            Assembly assembly = typeof(T).GetTypeInfo().Assembly;
             using (Stream resourceStream = assembly.GetManifestResourceStream(resource)) {
                 using (DeflateStream deflateStream = new DeflateStream(resourceStream, CompressionMode.Decompress)) {
                     using (
@@ -202,18 +201,18 @@ namespace Bootstrap {
 
         public static string ExtractResource<T>(string resource) {
             // [os/][arch/]name.extension
-            var split = resource.Split('/');
+            var split = resource.Split('.');
             string path = null;
-            if (split.Length == 1) {
+            if (split.Length == 2) {
                 // name.extension
                 path = Path.Combine(Bootstrapper.Instance.AppFolder, split[0]);
-            } else if (split.Length == 2 && (split[0].StartsWith("x") || split[0].StartsWith("ar"))) {
+            } else if (split.Length == 3 && (split[0].StartsWith("x") || split[0].StartsWith("ar"))) {
                 // arch.name.extension
                 path = Path.Combine(Bootstrapper.Instance.AppFolder, split[0], split[1]);
-            } else if (split.Length == 2) {
+            } else if (split.Length == 3) {
                 // os.name.extension
                 path = Path.Combine(Bootstrapper.Instance.AppFolder, split[1]);
-            } else if (split.Length == 3) {
+            } else if (split.Length == 4) {
                 // os.arch.name.extension, ignore os
                 path = Path.Combine(Bootstrapper.Instance.AppFolder, split[1], split[2]);
             } else {
@@ -221,7 +220,7 @@ namespace Bootstrap {
             }
 
             try {
-                Assembly assembly = typeof (T).Assembly;
+                Assembly assembly = typeof (T).GetTypeInfo().Assembly;
                 using (Stream resourceStream = assembly.GetManifestResourceStream(resource)) {
                     using (DeflateStream deflateStream = new DeflateStream(resourceStream, CompressionMode.Decompress)) {
                         using (
@@ -246,44 +245,44 @@ namespace Bootstrap {
         }
 
 
-        public static Assembly LoadManagedDll<T>(string name)
-        {
-            // [os/][arch/]name.extension
-            var split = name.Split('/');
-            string path = null;
-            if (split.Length == 1)
-            {
-                // name.extension
-                path = Path.Combine(Bootstrapper.Instance.AppFolder, split[0]);
-            }
-            else
-            {
-                throw new ArgumentException("wrong resource name");
-            }
+        //public static Assembly LoadManagedDll<T>(string name)
+        //{
+        //    // [os/][arch/]name.extension
+        //    var split = name.Split('/');
+        //    string path = null;
+        //    if (split.Length == 1)
+        //    {
+        //        // name.extension
+        //        path = Path.Combine(Bootstrapper.Instance.AppFolder, split[0]);
+        //    }
+        //    else
+        //    {
+        //        throw new ArgumentException("wrong resource name");
+        //    }
 
-            Assembly assembly = typeof(T).Assembly;
-            using (Stream resourceStream = assembly.GetManifestResourceStream(name))
-            {
-                using (DeflateStream deflateStream = new DeflateStream(resourceStream, CompressionMode.Decompress))
-                {
-                    using (
-                        MemoryStream ms = new MemoryStream())
-                    {
-                        byte[] buffer = new byte[1048576];
-                        int bytesRead;
-                        do
-                        {
-                            bytesRead = deflateStream.Read(buffer, 0, buffer.Length);
-                            if (bytesRead != 0)
-                                ms.Write(buffer, 0, bytesRead);
-                        }
-                        while (bytesRead != 0);
-                        var bytes = ms.ToArray();
-                        return Assembly.Load(bytes);
-                    }
-                }
-            }
-        }
+        //    Assembly assembly = typeof(T).GetTypeInfo().Assembly;
+        //    using (Stream resourceStream = assembly.GetManifestResourceStream(name))
+        //    {
+        //        using (DeflateStream deflateStream = new DeflateStream(resourceStream, CompressionMode.Decompress))
+        //        {
+        //            using (
+        //                MemoryStream ms = new MemoryStream())
+        //            {
+        //                byte[] buffer = new byte[1048576];
+        //                int bytesRead;
+        //                do
+        //                {
+        //                    bytesRead = deflateStream.Read(buffer, 0, buffer.Length);
+        //                    if (bytesRead != 0)
+        //                        ms.Write(buffer, 0, bytesRead);
+        //                }
+        //                while (bytesRead != 0);
+        //                var bytes = ms.ToArray();
+        //                return Assembly.Load(bytes);
+        //            }
+        //        }
+        //    }
+        //}
 
 
         public static void CompressResource(string path) {

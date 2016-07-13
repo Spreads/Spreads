@@ -4,7 +4,9 @@ using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace Spreads.Native {
+#if NET451
     [System.Security.SuppressUnmanagedCodeSecurity]
+#endif
     internal class NativeMethods {
         static NativeMethods()
         {
@@ -15,7 +17,7 @@ namespace Spreads.Native {
 
         internal static ABI ABI { get; set; }
 
-        #region Blosc
+#region Blosc
 
         [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int blosc_compress_ctx(IntPtr clevel, IntPtr doshuffle,
@@ -31,7 +33,7 @@ namespace Spreads.Native {
         internal static extern int blosc_cbuffer_sizes(IntPtr cbuffer, ref UIntPtr nbytes,
             ref UIntPtr cbytes, ref UIntPtr blocksize);
 
-        #endregion
+#endregion
 
         
         

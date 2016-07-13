@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Spreads</RootNamespace>
     <AssemblyName>Spreads.Extensions</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
@@ -52,9 +52,16 @@
     <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Dapper, Version=1.40.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\packages\Dapper.1.50.1\lib\net451\Dapper.dll</HintPath>
+    </Reference>
     <Reference Include="FSharp.Core, Version=4.3.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\..\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
       <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.Data.Sqlite">
+      <HintPath>..\..\packages\Microsoft.Data.Sqlite.1.0.0\lib\net451\Microsoft.Data.Sqlite.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -83,165 +90,26 @@
     </EmbeddedResource>
     <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
       <Link>native\w64\libblosc.dll</Link>
-      <LogicalName>win/x64/libblosc.dll</LogicalName>
+      <LogicalName>win.x64.libblosc.dll</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="..\..\lib\sqlite3\w64\sqlite3.dll">
       <Link>native\w64\sqlite3.dll</Link>
-      <LogicalName>win/x64/sqlite3.dll</LogicalName>
+      <LogicalName>win.x64.sqlite3.dll</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="..\..\lib\libyeppp\win\x32\yeppp.dll">
       <Link>native\w32\yeppp.dll</Link>
-      <LogicalName>win/x32/yeppp.dll</LogicalName>
+      <LogicalName>win.x32.yeppp.dll</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="..\..\lib\libblosc\w32\libblosc.dll">
       <Link>native\w32\libblosc.dll</Link>
-      <LogicalName>win/x32/libblosc.dll</LogicalName>
+      <LogicalName>win.x32.libblosc.dll</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="..\..\lib\sqlite3\w32\sqlite3.dll">
       <Link>native\w32\sqlite3.dll</Link>
-      <LogicalName>win/x32/sqlite3.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <LogicalName>win.x32.sqlite3.dll</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\CommandDefinition.cs">
-      <Link>Storage\Dapper\CommandDefinition.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\CommandFlags.cs">
-      <Link>Storage\Dapper\CommandFlags.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\CustomPropertyTypeMap.cs">
-      <Link>Storage\Dapper\CustomPropertyTypeMap.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\DataTableHandler.cs">
-      <Link>Storage\Dapper\DataTableHandler.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\DbString.cs">
-      <Link>Storage\Dapper\DbString.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\DefaultTypeMap.cs">
-      <Link>Storage\Dapper\DefaultTypeMap.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\DynamicParameters.CachedOutputSetters.cs">
-      <Link>Storage\Dapper\DynamicParameters.CachedOutputSetters.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\DynamicParameters.cs">
-      <Link>Storage\Dapper\DynamicParameters.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\DynamicParameters.ParamInfo.cs">
-      <Link>Storage\Dapper\DynamicParameters.ParamInfo.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\ExplicitConstructorAttribute.cs">
-      <Link>Storage\Dapper\ExplicitConstructorAttribute.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\FeatureSupport.cs">
-      <Link>Storage\Dapper\FeatureSupport.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SimpleMemberMap.cs">
-      <Link>Storage\Dapper\SimpleMemberMap.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlDataRecordHandler.cs">
-      <Link>Storage\Dapper\SqlDataRecordHandler.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlDataRecordListTVPParameter.cs">
-      <Link>Storage\Dapper\SqlDataRecordListTVPParameter.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.Async.cs">
-      <Link>Storage\Dapper\SqlMapper.Async.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.CacheInfo.cs">
-      <Link>Storage\Dapper\SqlMapper.CacheInfo.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.cs">
-      <Link>Storage\Dapper\SqlMapper.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.DapperRow.cs">
-      <Link>Storage\Dapper\SqlMapper.DapperRow.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.DapperRowMetaObject.cs">
-      <Link>Storage\Dapper\SqlMapper.DapperRowMetaObject.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.DataTable.cs">
-      <Link>Storage\Dapper\SqlMapper.DataTable.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.DeserializerState.cs">
-      <Link>Storage\Dapper\SqlMapper.DeserializerState.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.DontMap.cs">
-      <Link>Storage\Dapper\SqlMapper.DontMap.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.GridReader.Async.cs">
-      <Link>Storage\Dapper\SqlMapper.GridReader.Async.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.GridReader.cs">
-      <Link>Storage\Dapper\SqlMapper.GridReader.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.ICustomQueryParameter.cs">
-      <Link>Storage\Dapper\SqlMapper.ICustomQueryParameter.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.IDataReader.cs">
-      <Link>Storage\Dapper\SqlMapper.IDataReader.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.Identity.cs">
-      <Link>Storage\Dapper\SqlMapper.Identity.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.IDynamicParameters.cs">
-      <Link>Storage\Dapper\SqlMapper.IDynamicParameters.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.IMemberMap.cs">
-      <Link>Storage\Dapper\SqlMapper.IMemberMap.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.IParameterCallbacks.cs">
-      <Link>Storage\Dapper\SqlMapper.IParameterCallbacks.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.IParameterLookup.cs">
-      <Link>Storage\Dapper\SqlMapper.IParameterLookup.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.ITypeHandler.cs">
-      <Link>Storage\Dapper\SqlMapper.ITypeHandler.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.ITypeMap.cs">
-      <Link>Storage\Dapper\SqlMapper.ITypeMap.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.Link.cs">
-      <Link>Storage\Dapper\SqlMapper.Link.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.LiteralToken.cs">
-      <Link>Storage\Dapper\SqlMapper.LiteralToken.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.Settings.cs">
-      <Link>Storage\Dapper\SqlMapper.Settings.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.TypeDeserializerCache.cs">
-      <Link>Storage\Dapper\SqlMapper.TypeDeserializerCache.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.TypeHandler.cs">
-      <Link>Storage\Dapper\SqlMapper.TypeHandler.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\SqlMapper.TypeHandlerCache.cs">
-      <Link>Storage\Dapper\SqlMapper.TypeHandlerCache.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\TableValuedParameter.cs">
-      <Link>Storage\Dapper\TableValuedParameter.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\TypeExtensions.cs">
-      <Link>Storage\Dapper\TypeExtensions.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\UdtTypeHandler.cs">
-      <Link>Storage\Dapper\UdtTypeHandler.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\WrappedDataReader.cs">
-      <Link>Storage\Dapper\WrappedDataReader.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\WrappedReader.cs">
-      <Link>Storage\Dapper\WrappedReader.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\dapper-dot-net\Dapper\XmlHandlers.cs">
-      <Link>Storage\Dapper\XmlHandlers.cs</Link>
-    </Compile>
     <Compile Include="..\..\lib\Ix.NET\Ix.NET\Source\System.Interactive.Async\AsyncEnumerable.Aggregates.cs">
       <Link>System\Interactive.Async\AsyncEnumerable.Aggregates.cs</Link>
     </Compile>
@@ -290,83 +158,6 @@
     <Compile Include="..\..\lib\Ix.NET\Ix.NET\Source\System.Interactive.Async\TaskExt.cs">
       <Link>System\Threading\Tasks\TaskExt.cs</Link>
     </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Interop\Constants.cs">
-      <Link>Storage\SQLite\Interop\Constants.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Interop\MarshalEx.cs">
-      <Link>Storage\SQLite\Interop\MarshalEx.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Interop\NativeMethods.cs">
-      <Link>Storage\SQLite\Interop\NativeMethods.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Interop\NativeMethodsImpl.cs">
-      <Link>Storage\SQLite\Interop\NativeMethodsImpl.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Interop\Sqlite3Handle.cs">
-      <Link>Storage\SQLite\Interop\Sqlite3Handle.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Interop\Sqlite3StmtHandle.cs">
-      <Link>Storage\SQLite\Interop\Sqlite3StmtHandle.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Interop\VersionedMethods.cs">
-      <Link>Storage\SQLite\Interop\VersionedMethods.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Properties\InternalsVisibleTo.cs">
-      <Link>Storage\SQLite\Properties\InternalsVisibleTo.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Properties\Strings.Designer.cs">
-      <Link>Storage\SQLite\Properties\Strings.Designer.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteCacheMode.cs">
-      <Link>Storage\SQLite\SqliteCacheMode.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteCommand.cs">
-      <Link>Storage\SQLite\SqliteCommand.cs</Link>
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteConnection.cs">
-      <Link>Storage\SQLite\SqliteConnection.cs</Link>
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteConnectionStringBuilder.cs">
-      <Link>Storage\SQLite\SqliteConnectionStringBuilder.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteDataReader.cs">
-      <Link>Storage\SQLite\SqliteDataReader.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteEngine.cs">
-      <Link>Storage\SQLite\SqliteEngine.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteException.cs">
-      <Link>Storage\SQLite\SqliteException.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteFactory.cs">
-      <Link>Storage\SQLite\SqliteFactory.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteOpenMode.cs">
-      <Link>Storage\SQLite\SqliteOpenMode.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteParameter.cs">
-      <Link>Storage\SQLite\SqliteParameter.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteParameterCollection.cs">
-      <Link>Storage\SQLite\SqliteParameterCollection.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteTransaction.cs">
-      <Link>Storage\SQLite\SqliteTransaction.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\SqliteType.cs">
-      <Link>Storage\SQLite\SqliteType.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Utilities\DbConnectionExtensions.cs">
-      <Link>Storage\SQLite\Utilities\DbConnectionExtensions.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Utilities\NativeLibraryLoader.cs">
-      <Link>Storage\SQLite\Utilities\NativeLibraryLoader.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.Data.Sqlite\src\Microsoft.Data.Sqlite\Utilities\TypeExtensions.cs">
-      <Link>Storage\SQLite\Utilities\TypeExtensions.cs</Link>
-    </Compile>
     <Compile Include="..\..\lib\Microsoft.IO.RecyclableMemoryStream\src\Events.cs">
       <Link>Serialization\Microsoft.IO.RecyclableMemoryStream\Events.cs</Link>
     </Compile>
@@ -391,7 +182,6 @@
     <Compile Include="Serialization\JSON.cs" />
     <Compile Include="Serialization\SafeBufferAccessor.cs" />
     <Compile Include="Serialization\SafeBufferStream.cs" />
-    <Compile Include="Serialization\SerializerOld.cs" />
     <Compile Include="Serialization\TypeHelper.cs" />
     <Compile Include="Storage\Aeron\BitUtil.cs" />
     <Compile Include="Storage\Aeron\ErrorHandler.cs" />
@@ -437,11 +227,6 @@
     <Compile Include="Bootstrapper\Version.cs" />
     <Compile Include="Extensions\DateTimeExtensions.cs" />
     <Compile Include="Generation\SortedMapGenerator.cs" />
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
     <Compile Include="Storage\PersistentMapFixedLength.cs" />
     <Compile Include="Serialization\Serializer.cs" />
     <Compile Include="Series\ProjectValuesWrapper.cs" />
@@ -458,8 +243,6 @@
     <Compile Include="Storage\DataRepository.cs" />
     <Compile Include="Storage\SeriesStorage.cs" />
     <Compile Include="Storage\SingleWriterException.cs" />
-    <Compile Include="Storage\SQLite\Interop\NativeMethodsEx.cs" />
-    <Compile Include="Storage\SQLite\Interop\Sqlite3BlobHandle.cs" />
     <Compile Include="Storage\Tables.cs" />
     <Compile Include="native\NativeMethods.cs" />
     <Compile Include="SortedList.cs" />
@@ -510,6 +293,7 @@
     <None Include="DataTypes\DataTypes.md" />
     <None Include="packages.config" />
     <None Include="Serialization\Serializer.md" />
+    <None Include="Spreads.Extensions.project.json" />
     <None Include="Storage\Protocol.md" />
   </ItemGroup>
   <ItemGroup>

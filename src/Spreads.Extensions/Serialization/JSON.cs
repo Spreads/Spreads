@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Bson;
 using Newtonsoft.Json.Serialization;
 using Spreads.Collections;
+using System.Reflection;
 
 namespace Spreads.Serialization {
 
@@ -18,12 +19,12 @@ namespace Spreads.Serialization {
         protected override sealed JsonConverter ResolveContractConverter(Type ty) {
 
             // Serialize maps directly
-            if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
+            if (ty.GetTypeInfo().IsGenericType && ty.GetTypeInfo().GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
                 return new SpreadsJsonConverter();
             }
 
             // Other than maps, we are cool at arrays. For other types JSON.NET is cool
-            if (!ty.IsArray) return base.ResolveContractConverter(ty);
+            if (!ty.GetTypeInfo().IsArray) return base.ResolveContractConverter(ty);
 
             var elTy = ty.GetElementType();
             if (BlittableHelper.IsBlittable(elTy)
@@ -49,7 +50,7 @@ namespace Spreads.Serialization {
 
             var bytes = reader.Value as byte[];
 
-            if (ty.IsGenericType && ty.GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
+            if (ty.GetTypeInfo().IsGenericType && ty.GetTypeInfo().GetGenericTypeDefinition() == typeof(SortedMap<,>)) {
                 // will dispatch to Spreads types
                 return Serializer.Deserialize(bytes, ty);
             }
@@ -59,7 +60,7 @@ namespace Spreads.Serialization {
                 return serializer.Deserialize(reader, ty);
             }
 
-            var elTy = ty.GetElementType();
+            var elTy = ty.GetTypeInfo().GetElementType();
             if (BlittableHelper.IsBlittable(elTy)
                 //|| ty == typeof(DateTimeOffset)
                 || ty == typeof(DateTime)) {
@@ -94,8 +95,8 @@ namespace Spreads.Serialization {
             //	serializer.Serialize(writer, value);
             //}
 
-            if (ty.IsArray) {
-                var elTy = ty.GetElementType();
+            if (ty.GetTypeInfo().IsArray) {
+                var elTy = ty.GetTypeInfo().GetElementType();
                 if (BlittableHelper.IsBlittable(elTy)
                     //|| ty == typeof(DateTimeOffset)
                     || ty == typeof(DateTime)) {

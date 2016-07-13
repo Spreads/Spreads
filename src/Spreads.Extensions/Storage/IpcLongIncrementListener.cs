@@ -49,7 +49,12 @@ namespace Spreads.Storage {
         }
 
         public void Start() {
+#if NET451
             _rwh = ThreadPool.UnsafeRegisterWaitForSingleObject(_eh, OnWait, null, 100, false);
+#else
+            _rwh = ThreadPool.RegisterWaitForSingleObject(_eh, OnWait, null, 100, false);
+#endif
+
             _isRunning = true;
             _task = Task.Run(async () => {
                 var sw = new SpinWait();

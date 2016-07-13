@@ -28,8 +28,12 @@ namespace Bootstrap {
 		{
 			IntPtr function = loader.FindFunction(this.handle, name);
 			if (function == IntPtr.Zero)
-				throw new EntryPointNotFoundException(name);
-			return System.Runtime.InteropServices.Marshal.GetDelegateForFunctionPointer(function, type);
+#if NET451
+                throw new EntryPointNotFoundException(name);
+#else
+                throw new Exception(name); 
+#endif
+            return System.Runtime.InteropServices.Marshal.GetDelegateForFunctionPointer(function, type);
 		}
 
 		public void Dispose()

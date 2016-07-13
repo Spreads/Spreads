@@ -13,9 +13,9 @@ namespace Spreads.Serialization {
 
         private FileStream _fileStream;
         private MemoryMappedFile _mmf;
-        private MemoryMappedViewAccessor _va;        
+        private MemoryMappedViewAccessor _va;
         internal DirectBuffer _buffer;
-        
+
         public DirectFile(string filename, long minCapacity) {
             _filename = filename;
             _capacity = 0;
@@ -36,14 +36,22 @@ namespace Spreads.Serialization {
                 // NB another thread could have increase the map size and _capacity could be stale
                 var bytesCapacity = Math.Max(_fileStream.Length, minCapacity);
 
-                var sec = new MemoryMappedFileSecurity();
+
                 _mmf?.Dispose();
                 var unique = ((long)Process.GetCurrentProcess().Id << 32) | _counter++;
                 // NB: map name must be unique
+#if NET451
+                var sec = new MemoryMappedFileSecurity();
                 var mmf = MemoryMappedFile.CreateFromFile(_fileStream,
                     $@"{Path.GetFileName(_filename)}.{unique}", bytesCapacity,
                     MemoryMappedFileAccess.ReadWrite, sec, HandleInheritability.Inheritable,
                     false);
+#else
+                var mmf = MemoryMappedFile.CreateFromFile(_fileStream,
+                    $@"{Path.GetFileName(_filename)}.{unique}", bytesCapacity,
+                    MemoryMappedFileAccess.ReadWrite, HandleInheritability.Inheritable,
+                    false);
+#endif
                 _mmf = mmf;
 
                 unsafe
@@ -62,7 +70,7 @@ namespace Spreads.Serialization {
         public void Dispose() {
             _va.Dispose();
             _mmf.Dispose();
-            _fileStream.Close();
+            _fileStream.Dispose();
         }
 
         public void Flush(bool flushToDisk = false) {

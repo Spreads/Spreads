@@ -20,10 +20,7 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Reflection;
 
 namespace Bootstrap {
@@ -94,11 +91,6 @@ namespace Bootstrap {
                     Yeppp.Library.Release();
                 });
 
-            AppDomain.CurrentDomain.AssemblyResolve +=
-                new ResolveEventHandler((object sender, ResolveEventArgs args) => {
-                    var an = new AssemblyName(args.Name);
-                    return instance.managedLibraries[an.Name + ".dll"];
-                });
             //new ResolveEventHandler(Loader.ResolveManagedAssembly);
         }
 
@@ -109,11 +101,14 @@ namespace Bootstrap {
         // Botstrap self
         public Bootstrapper() {
             _assemblyDirectory = GetAssemblyDirectory();
+#if NET451
             _baseFolder = //Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 Environment.UserInteractive
                     ? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
                     : Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-
+#else
+            _baseFolder = "~";
+#endif
             _dataFolder = Path.Combine(_baseFolder, rootFolder, dataSubFolder);
 
             if (!Directory.Exists(AppFolder)) {
@@ -162,7 +157,7 @@ namespace Bootstrap {
         }
 
         public static string GetAssemblyDirectory() {
-            string codeBase = Assembly.GetExecutingAssembly().CodeBase;
+            string codeBase = typeof(Bootstrapper).GetTypeInfo().Assembly.CodeBase;
             UriBuilder uri = new UriBuilder(codeBase);
             string path = Uri.UnescapeDataString(uri.Path);
             return Path.GetDirectoryName(path);
@@ -237,13 +232,14 @@ namespace Bootstrap {
             }
 
             if (managedLibNames != null) {
-                foreach (var managedName in managedLibNames) {
-                    if (managedLibraries.ContainsKey(managedName)) continue;
-                    //if (!Environment.UserInteractive){
-                    //    Debugger.Launch();
-                    //}
-                    managedLibraries.Add(managedName, Loader.LoadManagedDll<T>(managedName));
-                }
+                throw new NotSupportedException("Managed librraies are no longer supported in bootstrapper");
+                //foreach (var managedName in managedLibNames) {
+                //    if (managedLibraries.ContainsKey(managedName)) continue;
+                //    //if (!Environment.UserInteractive){
+                //    //    Debugger.Launch();
+                //    //}
+                //    managedLibraries.Add(managedName, Loader.LoadManagedDll<T>(managedName));
+                //}
             }
 
 
