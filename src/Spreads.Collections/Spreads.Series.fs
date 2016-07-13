@@ -39,12 +39,6 @@ open Spreads.Collections
 // reads of this wrapper either here by type-checking the source of the cursor and using direct methods on the source
 // or make cursor thread-static and initialize it only once (now it is called on each method)
 
-// TODO duplicate IReadOnlyOrderedMap methods as an instance virtual methods to avoid casting in F#.
-// That will require ovverrides in all children or conflict
-// check how it is used from C# (do tests in C# in general)
-
-// TODO check thread safety of the default series implementation. Should we use ThreadLocal for caching cursors that are called via the interfaces?
-
 
 // TODO this fails badly, need a nice view. Should hide almost everything from lazy series
 //[<AllowNullLiteral>]
@@ -86,19 +80,6 @@ and
     let c = Lazy<_>(this.GetCursor) //new ThreadLocal<_>(Func<_>(this.GetCursor), true) 
 
     [<DefaultValueAttribute>]
-    val mutable syncRoot : obj
-
-    [<DefaultValueAttribute>]
-    [<ObsoleteAttribute>]
-    val mutable internal onNextEvent : EventV2<OnNextHandler<'K,'V>,KVP<'K,'V>>
-    [<DefaultValueAttribute>]
-    [<ObsoleteAttribute>]
-    val mutable internal onCompletedEvent : EventV2<OnCompletedHandler,bool>
-    [<DefaultValueAttribute>]
-    [<ObsoleteAttribute>]
-    val mutable internal onErrorEvent : EventV2<OnErrorHandler,Exception>
-
-    [<DefaultValueAttribute>]
     val mutable internal onUpdateEvent : EventV2<OnUpdateHandler,bool>
 
     [<DefaultValueAttribute>] 
@@ -106,9 +87,6 @@ and
     [<DefaultValueAttribute>]
     val mutable internal subscribersCounter : int
     do
-      this.onNextEvent <- new EventV2<OnNextHandler<'K,'V>,KVP<'K,'V>>()
-      this.onCompletedEvent <- new EventV2<OnCompletedHandler,bool>()
-      this.onErrorEvent <- new EventV2<OnErrorHandler,Exception>()
       this.onUpdateEvent <- new EventV2<OnUpdateHandler,bool>()
 
     /// Main method to override
@@ -116,8 +94,8 @@ and
 
     abstract IsIndexed : bool with get
     abstract IsReadOnly: bool with get
-    override this.IsIndexed with get() = c.Value.Source.IsIndexed
-    override this.IsReadOnly = c.Value.Source.IsReadOnly
+    override this.IsIndexed with get() = lock(c) (fun _ -> c.Value.Source.IsIndexed)
+    override this.IsReadOnly = lock(c) (fun _ -> c.Value.Source.IsReadOnly)
 
     // TODO (!) IObservable needs much more love and adherence to Rx contracts, see #40
     abstract Subscribe: observer:IObserver<KVP<'K,'V>> -> IDisposable
@@ -159,80 +137,97 @@ and
         exitWriteLockIf &this.locker true
 
 
-    member this.SyncRoot 
+    member internal this.SyncRoot with get() = c :> obj
+
+    member internal this.Comparer with get() = lock(c) (fun _ -> c.Value.Comparer)
+    member internal this.IsEmpty = lock(c) (fun _ -> not (c.Value.MoveFirst()))
+
+    member internal this.First 
       with get() = 
-        if this.syncRoot = null then Interlocked.CompareExchange<obj>(&this.syncRoot, new Object(), null) |> ignore
-        this.syncRoot
+        let entered = enterLockIf c true
+        try
+          if c.Value.MoveFirst() then c.Value.Current else invalidOp "Series is empty"
+        finally
+          exitLockIf c entered
 
-    member this.Comparer with get() = c.Value.Comparer
-    member this.IsEmpty = not (c.Value.MoveFirst())
-
-    member this.First 
-      with get() = 
-        if c.Value.MoveFirst() then c.Value.Current else invalidOp "Series is empty"
-
-    member this.Last 
+    member internal this.Last 
       with get() =
-        if c.Value.MoveLast() then c.Value.Current else invalidOp "Series is empty"
+        let entered = enterLockIf c true
+        try
+          if c.Value.MoveLast() then c.Value.Current else invalidOp "Series is empty"
+        finally
+          exitLockIf c entered
 
-    member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      if c.Value.MoveAt(k, direction) then
-        result <- c.Value.Current 
-        true
-      else false
+    member internal this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
+      let entered = enterLockIf c true
+      try
+        if c.Value.MoveAt(k, direction) then
+          result <- c.Value.Current 
+          true
+        else false
+      finally
+        exitLockIf c entered
 
-    member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      if c.Value.MoveFirst() then
-        res <- c.Value.Current
-        true
-      else false
+    member internal this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+      let entered = enterLockIf c true
+      try
+        if c.Value.MoveFirst() then
+          res <- c.Value.Current
+          true
+        else false
+      finally
+        exitLockIf c entered
 
-    member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      if c.Value.MoveLast() then
-        res <- c.Value.Current
-        true
-      else false
+    member internal this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) =
+      let entered = enterLockIf c true
+      try
+        if c.Value.MoveLast() then
+          res <- c.Value.Current
+          true
+        else false
+      finally
+        exitLockIf c entered
 
-    member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
-      if c.Value.IsContinuous then
-        c.Value.TryGetValue(k, &value)
-      else
-        let ok = c.Value.MoveAt(k, Lookup.EQ)
-        if ok then value <- c.Value.CurrentValue else value <- Unchecked.defaultof<'V>
-        ok
+    member internal this.TryGetValue(k, [<Out>] value:byref<'V>) =
+      let entered = enterLockIf c true
+      try
+        if c.Value.IsContinuous then
+          c.Value.TryGetValue(k, &value)
+        else
+          let ok = c.Value.MoveAt(k, Lookup.EQ)
+          if ok then value <- c.Value.CurrentValue else value <- Unchecked.defaultof<'V>
+          ok
+      finally
+        exitLockIf c entered
 
-    member this.Item 
-      with get k = 
-        if c.Value.MoveAt(k, Lookup.EQ) then c.Value.CurrentValue
-        else raise (KeyNotFoundException())
+    member internal this.Item 
+      with get k =
+        let entered = enterLockIf c true
+        try
+          if c.Value.MoveAt(k, Lookup.EQ) then c.Value.CurrentValue
+          else raise (KeyNotFoundException())
+        finally
+        exitLockIf c entered
 
-    member this.Keys 
+    member internal this.Keys 
       with get() =
-        let c = this.GetCursor()
+        // TODO manual impl, seq is slow
+        use c = this.GetCursor()
         seq {
           while c.MoveNext() do
             yield c.CurrentKey
         }
 
-    member this.Values
+    member internal this.Values
       with get() =
-        let c = this.GetCursor()
+        // TODO manual impl, seq is slow
+        use c = this.GetCursor()
         seq {
           while c.MoveNext() do
             yield c.CurrentValue
         }
 
-//    override x.Finalize() =
-//      try
-//        for v in c.Values do
-//          try
-//            v.Dispose()
-//          with
-//          | :? ObjectDisposedException -> ()
-//        c.Dispose()
-//      with
-//      | :? ObjectDisposedException -> ()
-      
+    override x.Finalize() = if c.IsValueCreated then c.Value.Dispose()
 
     interface IEnumerable<KeyValuePair<'K, 'V>> with
       member this.GetEnumerator() = this.GetCursor() :> IEnumerator<KeyValuePair<'K, 'V>>
@@ -249,7 +244,6 @@ and
       member this.SyncRoot with get() = this.SyncRoot
 
       member this.IsEmpty = this.IsEmpty
-      //member this.Count with get() = map.Count
       member this.First with get() = this.First 
       member this.Last with get() = this.Last
       member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryFind(k, direction, &result)
@@ -261,15 +255,6 @@ and
       member this.Keys with get() = this.Keys 
       member this.Values with get() = this.Values
           
-
-    interface IObservableEvents<'K,'V> with
-      [<CLIEvent>]
-      member x.OnNext = this.onNextEvent.Publish
-      [<CLIEvent>]
-      member x.OnComplete = this.onCompletedEvent.Publish
-      [<CLIEvent>]
-      member x.OnError = this.onErrorEvent.Publish
-
 
     // TODO! (perf) add batching where it makes sense
     // TODO! (perf) how to use batching with selector combinations?
@@ -667,44 +652,6 @@ and
     let mutable observableTask = Unchecked.defaultof<_>
 
     override this.GetCursor() = cursorFactory.Invoke()
-    
-    override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
-      let cts = new CancellationTokenSource()
-      let cursor = cursorFactory.Invoke()
-      cursor.MoveLast() |> ignore
-      if observableTask = Unchecked.defaultof<_> then
-        observableTask <- Task.Run<int>(Func<Task<int>>(fun _ ->
-          task {
-            let mutable moved = true
-            while moved && not cts.IsCancellationRequested do
-              let! moved' = cursor.MoveNext(cts.Token)
-              moved <- moved'
-              // could implement subscribe without events
-              if(moved) then this.onNextEvent.Trigger(cursor.Current) // observer.OnNext(cursor.Current)
-              else this.onCompletedEvent.Trigger(true) // observer.OnCompleted
-            return 0
-          }
-        )) |> ignore
-      // there is a bug in F#, have to copy-paste for now https://github.com/Microsoft/visualfsharp/issues/671
-      //base.Subscribe(observer)
-      match box observer with
-      | :? ISubscriber<KVP<'K,'V>> as subscriber -> 
-        let subscription : ISubscription = Unchecked.defaultof<_>
-        subscription :> IDisposable
-      | _ ->
-        this.onNextEvent.Publish.AddHandler(OnNextHandler(observer.OnNext))
-        let completedHandler = OnCompletedHandler(fun isCompleted -> if isCompleted then observer.OnCompleted())
-        this.onCompletedEvent.Publish.AddHandler(completedHandler)
-        this.onErrorEvent.Publish.AddHandler(OnErrorHandler(observer.OnError))
-        { new IDisposable with
-            member x.Dispose() = 
-              cts.Cancel()
-              cursor.Dispose()
-              this.onNextEvent.Publish.RemoveHandler(OnNextHandler(observer.OnNext))
-              this.onCompletedEvent.Publish.RemoveHandler(completedHandler)
-              this.onErrorEvent.Publish.RemoveHandler(OnErrorHandler(observer.OnError))
-        }
-
 
     interface ICanMapSeriesValues<'K,'V> with
       member this.Map<'V2>(f2:Func<'V,'V2>): Series<'K,'V2> = 
@@ -719,7 +666,6 @@ and
                 cursor.Dispose()
                 new BatchMapValuesCursor<_,_,_>(cursorFactory, f2) :> ICursor<_,_>
               ) :> Series<_,_>
-
 
 
 and
