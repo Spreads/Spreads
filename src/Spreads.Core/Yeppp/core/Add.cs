@@ -1884,112 +1884,112 @@ namespace Yeppp
 
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V8sV8s_V8s")]
-		private static unsafe extern Status yepCore_Add_V8sV8s_V8s(sbyte* x, sbyte* y, sbyte* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V8sV8s_V8s(sbyte* x, sbyte* y, sbyte* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V8sV8s_V16s")]
-		private static unsafe extern Status yepCore_Add_V8sV8s_V16s(sbyte* x, sbyte* y, short* sum, System.UIntPtr length);
+        internal static unsafe extern Status yepCore_Add_V8sV8s_V16s(sbyte* x, sbyte* y, short* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V8uV8u_V16u")]
-		private static unsafe extern Status yepCore_Add_V8uV8u_V16u(byte* x, byte* y, ushort* sum, System.UIntPtr length);
+        internal static unsafe extern Status yepCore_Add_V8uV8u_V16u(byte* x, byte* y, ushort* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V16sV16s_V16s")]
-		private static unsafe extern Status yepCore_Add_V16sV16s_V16s(short* x, short* y, short* sum, System.UIntPtr length);
+        internal static unsafe extern Status yepCore_Add_V16sV16s_V16s(short* x, short* y, short* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V16sV16s_V32s")]
-		private static unsafe extern Status yepCore_Add_V16sV16s_V32s(short* x, short* y, int* sum, System.UIntPtr length);
+        internal static unsafe extern Status yepCore_Add_V16sV16s_V32s(short* x, short* y, int* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V16uV16u_V32u")]
-		private static unsafe extern Status yepCore_Add_V16uV16u_V32u(ushort* x, ushort* y, uint* sum, System.UIntPtr length);
+        internal static unsafe extern Status yepCore_Add_V16uV16u_V32u(ushort* x, ushort* y, uint* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V32sV32s_V32s")]
-		private static unsafe extern Status yepCore_Add_V32sV32s_V32s(int* x, int* y, int* sum, System.UIntPtr length);
+        internal static unsafe extern Status yepCore_Add_V32sV32s_V32s(int* x, int* y, int* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V32sV32s_V64s")]
-		private static unsafe extern Status yepCore_Add_V32sV32s_V64s(int* x, int* y, long* sum, System.UIntPtr length);
+        internal static unsafe extern Status yepCore_Add_V32sV32s_V64s(int* x, int* y, long* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V32uV32u_V64u")]
-		private static unsafe extern Status yepCore_Add_V32uV32u_V64u(uint* x, uint* y, ulong* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V32uV32u_V64u(uint* x, uint* y, ulong* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V64sV64s_V64s")]
-		private static unsafe extern Status yepCore_Add_V64sV64s_V64s(long* x, long* y, long* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V64sV64s_V64s(long* x, long* y, long* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V32fV32f_V32f")]
-		private static unsafe extern Status yepCore_Add_V32fV32f_V32f(float* x, float* y, float* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V32fV32f_V32f(float* x, float* y, float* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V64fV64f_V64f")]
-		private static unsafe extern Status yepCore_Add_V64fV64f_V64f(double* x, double* y, double* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V64fV64f_V64f(double* x, double* y, double* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V8sS8s_V8s")]
-		private static unsafe extern Status yepCore_Add_V8sS8s_V8s(sbyte* x, sbyte y, sbyte* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V8sS8s_V8s(sbyte* x, sbyte y, sbyte* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V8sS8s_V16s")]
-		private static unsafe extern Status yepCore_Add_V8sS8s_V16s(sbyte* x, sbyte y, short* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V8sS8s_V16s(sbyte* x, sbyte y, short* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V8uS8u_V16u")]
-		private static unsafe extern Status yepCore_Add_V8uS8u_V16u(byte* x, byte y, ushort* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V8uS8u_V16u(byte* x, byte y, ushort* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V16sS16s_V16s")]
-		private static unsafe extern Status yepCore_Add_V16sS16s_V16s(short* x, short y, short* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V16sS16s_V16s(short* x, short y, short* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V16sS16s_V32s")]
-		private static unsafe extern Status yepCore_Add_V16sS16s_V32s(short* x, short y, int* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V16sS16s_V32s(short* x, short y, int* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V16uS16u_V32u")]
-		private static unsafe extern Status yepCore_Add_V16uS16u_V32u(ushort* x, ushort y, uint* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V16uS16u_V32u(ushort* x, ushort y, uint* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V32sS32s_V32s")]
-		private static unsafe extern Status yepCore_Add_V32sS32s_V32s(int* x, int y, int* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V32sS32s_V32s(int* x, int y, int* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V32uS32u_V64u")]
-		private static unsafe extern Status yepCore_Add_V32uS32u_V64u(uint* x, uint y, ulong* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V32uS32u_V64u(uint* x, uint y, ulong* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V32sS32s_V64s")]
-		private static unsafe extern Status yepCore_Add_V32sS32s_V64s(int* x, int y, long* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V32sS32s_V64s(int* x, int y, long* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V64sS64s_V64s")]
-		private static unsafe extern Status yepCore_Add_V64sS64s_V64s(long* x, long y, long* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V64sS64s_V64s(long* x, long y, long* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V32fS32f_V32f")]
-		private static unsafe extern Status yepCore_Add_V32fS32f_V32f(float* x, float y, float* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V32fS32f_V32f(float* x, float y, float* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V64fS64f_V64f")]
-		private static unsafe extern Status yepCore_Add_V64fS64f_V64f(double* x, double y, double* sum, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_V64fS64f_V64f(double* x, double y, double* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_IV8sV8s_IV8s")]
-		private static unsafe extern Status yepCore_Add_IV8sV8s_IV8s(sbyte* x, sbyte* y, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_IV8sV8s_IV8s(sbyte* x, sbyte* y, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_IV16sV16s_IV16s")]
-		private static unsafe extern Status yepCore_Add_IV16sV16s_IV16s(short* x, short* y, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_IV16sV16s_IV16s(short* x, short* y, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_IV32sV32s_IV32s")]
-		private static unsafe extern Status yepCore_Add_IV32sV32s_IV32s(int* x, int* y, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_IV32sV32s_IV32s(int* x, int* y, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_IV64sV64s_IV64s")]
-		private static unsafe extern Status yepCore_Add_IV64sV64s_IV64s(long* x, long* y, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_IV64sV64s_IV64s(long* x, long* y, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_IV32fV32f_IV32f")]
-		private static unsafe extern Status yepCore_Add_IV32fV32f_IV32f(float* x, float* y, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_IV32fV32f_IV32f(float* x, float* y, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_IV64fV64f_IV64f")]
-		private static unsafe extern Status yepCore_Add_IV64fV64f_IV64f(double* x, double* y, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_IV64fV64f_IV64f(double* x, double* y, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_IV8sS8s_IV8s")]
-		private static unsafe extern Status yepCore_Add_IV8sS8s_IV8s(sbyte* x, sbyte y, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_IV8sS8s_IV8s(sbyte* x, sbyte y, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_IV16sS16s_IV16s")]
-		private static unsafe extern Status yepCore_Add_IV16sS16s_IV16s(short* x, short y, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_IV16sS16s_IV16s(short* x, short y, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_IV32sS32s_IV32s")]
-		private static unsafe extern Status yepCore_Add_IV32sS32s_IV32s(int* x, int y, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_IV32sS32s_IV32s(int* x, int y, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_IV64sS64s_IV64s")]
-		private static unsafe extern Status yepCore_Add_IV64sS64s_IV64s(long* x, long y, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_IV64sS64s_IV64s(long* x, long y, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_IV32fS32f_IV32f")]
-		private static unsafe extern Status yepCore_Add_IV32fS32f_IV32f(float* x, float y, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_IV32fS32f_IV32f(float* x, float y, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_IV64fS64f_IV64f")]
-		private static unsafe extern Status yepCore_Add_IV64fS64f_IV64f(double* x, double y, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_Add_IV64fS64f_IV64f(double* x, double y, System.UIntPtr length);
 
 	}
 

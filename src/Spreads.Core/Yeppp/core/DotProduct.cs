@@ -113,10 +113,10 @@ namespace Yeppp
 
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_DotProduct_V32fV32f_S32f")]
-		private static unsafe extern Status yepCore_DotProduct_V32fV32f_S32f(float* x, float* y, out float dotProduct, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_DotProduct_V32fV32f_S32f(float* x, float* y, out float dotProduct, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_DotProduct_V64fV64f_S64f")]
-		private static unsafe extern Status yepCore_DotProduct_V64fV64f_S64f(double* x, double* y, out double dotProduct, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_DotProduct_V64fV64f_S64f(double* x, double* y, out double dotProduct, System.UIntPtr length);
 
 	}
 

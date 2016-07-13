@@ -21,7 +21,17 @@
 		"nowarn": [
 			"CS1591"
 		],
-		"compile": { "includeFiles": [] }
+		"compile": {
+			"includeFiles": [
+
+			]
+		},
+		"embed": {
+			"mappings": {
+				"win.x64.yeppp.dll": "../../lib/libyeppp/win/x64/yeppp.dll",
+				"win.x32.yeppp.dll": "../../lib/libyeppp/win/x32/yeppp.dll",
+			}
+		}
 	},
 	"authors": [ "Victor Baybekov" ],
 	"copyright": "Copyright 2016",

@@ -64,7 +64,7 @@ namespace Yeppp
 
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepMath_Cos_V64f_V64f")]
-		private static unsafe extern Status yepMath_Cos_V64f_V64f(double* x, double* y, System.UIntPtr length);
+		internal static unsafe extern Status yepMath_Cos_V64f_V64f(double* x, double* y, System.UIntPtr length);
 
 	}
 

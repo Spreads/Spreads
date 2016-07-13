@@ -159,10 +159,10 @@ namespace Yeppp
 
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepMath_EvaluatePolynomial_V32fV32f_V32f")]
-		private static unsafe extern Status yepMath_EvaluatePolynomial_V32fV32f_V32f(float* coef, float* x, float* y, System.UIntPtr coefCount, System.UIntPtr length);
+		internal static unsafe extern Status yepMath_EvaluatePolynomial_V32fV32f_V32f(float* coef, float* x, float* y, System.UIntPtr coefCount, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepMath_EvaluatePolynomial_V64fV64f_V64f")]
-		private static unsafe extern Status yepMath_EvaluatePolynomial_V64fV64f_V64f(double* coef, double* x, double* y, System.UIntPtr coefCount, System.UIntPtr length);
+		internal static unsafe extern Status yepMath_EvaluatePolynomial_V64fV64f_V64f(double* coef, double* x, double* y, System.UIntPtr coefCount, System.UIntPtr length);
 
 	}
 

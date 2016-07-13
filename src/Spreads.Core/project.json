@@ -6,16 +6,21 @@
 	},
 
 	"frameworks": {
-		"net451": {},
-		"netstandard1.3": {
+		"net451": {
+			"frameworkAssemblies": {
+				"System.IO.Compression": "",
+				"System.IO.Compression.FileSystem": ""
+			}
+		},
+		"netstandard1.6": {
 			"dependencies": {
 				"NETStandard.Library": "1.6.0",
 				"System.Diagnostics.Contracts": "4.0.1",
 				"System.Threading.Thread": "4.0.0",
 				"System.Diagnostics.TraceSource": "4.0.0",
 				"System.Reflection": "4.1.0",
-				"System.Reflection.TypeExtensions": "4.1.0"
-
+				"System.Reflection.TypeExtensions": "4.1.0",
+				"System.IO.Compression.ZipFile": "4.0.1"
 			},
 			"imports": "dnxcore50"
 		}

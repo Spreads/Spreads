@@ -93,10 +93,10 @@ namespace Yeppp
 
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_SumAbs_V32f_S32f")]
-		private static unsafe extern Status yepCore_SumAbs_V32f_S32f(float* v, out float sumAbs, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_SumAbs_V32f_S32f(float* v, out float sumAbs, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_SumAbs_V64f_S64f")]
-		private static unsafe extern Status yepCore_SumAbs_V64f_S64f(double* v, out double sumAbs, System.UIntPtr length);
+		internal static unsafe extern Status yepCore_SumAbs_V64f_S64f(double* v, out double sumAbs, System.UIntPtr length);
 
 	}
 

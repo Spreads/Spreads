@@ -25,6 +25,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Native;
 using Spreads.Serialization;
 using Spreads.Storage.Aeron.Logbuffer;
 using Spreads.Storage.Aeron.Protocol;
@@ -41,6 +42,7 @@ namespace Spreads.Storage {
     // NB for each series id each repository instance keeps a single series instance
 
     public class DataRepository : SeriesStorage, IDataRepository, IDisposable {
+
         // persistent dictionary to store all open series with write access and process id
         // we use single writer and steal locks if a writer process id is not among running processes.
         private readonly PersistentMapFixedLength<UUID, long> _writeSeriesLocks;

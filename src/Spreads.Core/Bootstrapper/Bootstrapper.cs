@@ -72,7 +72,7 @@ namespace Bootstrap {
             ABI = Process.DetectABI();
 
             instance.Bootstrap<Loader>(
-                new[] { "libblosc", "yeppp", "sqlite3" },
+                new[] { "yeppp" },
                 null, //new[] { "Newtonsoft.Json.dll" },
                 null,
                 null,

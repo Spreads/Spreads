@@ -158,7 +158,7 @@ namespace Spreads.Serialization {
         static Serializer() {
 
             // This will ensure their static constructors are called before the serializer is used.
-            ABI = Bootstrapper.ABI;
+            ABI = NativeMethods.ABI;
             // blosc threads
             NumThreads = Environment.ProcessorCount; // NB there are use cases when built-in chunking is needed
             CompressionMethod = CompressionMethod.lz4;

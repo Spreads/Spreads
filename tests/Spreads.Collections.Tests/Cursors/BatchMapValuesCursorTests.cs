@@ -258,12 +258,12 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
 
-        public IReadOnlyOrderedMap<DateTime, double> YeppMathProviderSample(IReadOnlyOrderedMap<DateTime, double> batch) {
-            var mathProviderImpl = new Spreads.NativeMath.YepppMathProvider();
-            IReadOnlyOrderedMap<DateTime, double> sm2;
-            var ok = mathProviderImpl.AddBatch(3.1415926, batch, out sm2);
-            return sm2;
-        }
+        //public IReadOnlyOrderedMap<DateTime, double> YeppMathProviderSample(IReadOnlyOrderedMap<DateTime, double> batch) {
+        //    var mathProviderImpl = new Spreads.NativeMath.YepppMathProvider();
+        //    IReadOnlyOrderedMap<DateTime, double> sm2;
+        //    var ok = mathProviderImpl.AddBatch(3.1415926, batch, out sm2);
+        //    return sm2;
+        //}
 
 
         public IReadOnlyOrderedMap<DateTime, double> SimdMathProviderSample(IReadOnlyOrderedMap<DateTime, double> batch) {
@@ -273,40 +273,40 @@ namespace Spreads.Collections.Tests.Cursors {
             return sm2;
         }
 
-        [Test]
-        [Ignore("Yeppp need rework and just throw it away. No test showed visivle gains yet.")]
-        public void CouldAddWithYeppMathProvider() {
+        //[Test]
+        //[Ignore("Yeppp need rework and just throw it away. No test showed visivle gains yet.")]
+        //public void CouldAddWithYeppMathProvider() {
 
-            var sm = new SortedChunkedMap<DateTime, double>();
-            var count = 1000;
+        //    var sm = new SortedChunkedMap<DateTime, double>();
+        //    var count = 1000;
 
-            for (int i = 0; i < count; i++) {
-                sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
-            }
+        //    for (int i = 0; i < count; i++) {
+        //        sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+        //    }
 
-            var sw = new Stopwatch();
-            sw.Start();
-            var sum = 0.0;
-            for (int rounds = 0; rounds < 10000; rounds++) {
-                var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor,
-                    (v) => v + 3.1415926, YeppMathProviderSample); //
-                while (bmvc.MoveNext()) {
-                    sum += bmvc.CurrentValue;
-                }
-            }
-            sw.Stop();
+        //    var sw = new Stopwatch();
+        //    sw.Start();
+        //    var sum = 0.0;
+        //    for (int rounds = 0; rounds < 10000; rounds++) {
+        //        var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor,
+        //            (v) => v + 3.1415926, YeppMathProviderSample); //
+        //        while (bmvc.MoveNext()) {
+        //            sum += bmvc.CurrentValue;
+        //        }
+        //    }
+        //    sw.Stop();
 
-            Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
-            Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 10000 * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
-            Console.WriteLine(sum);
-            var c = 0;
-            //foreach (var kvp in sm2)
-            //{
-            //    Assert.AreEqual(c + 1, kvp.Value);
-            //    c++;
-            //}
+        //    Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
+        //    Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 10000 * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
+        //    Console.WriteLine(sum);
+        //    var c = 0;
+        //    //foreach (var kvp in sm2)
+        //    //{
+        //    //    Assert.AreEqual(c + 1, kvp.Value);
+        //    //    c++;
+        //    //}
 
-        }
+        //}
 
         //[Test]
         //public void CouldAddWithSimdMathProvider() {

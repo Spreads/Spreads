@@ -20,6 +20,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Spreads.Collections;
@@ -40,9 +41,7 @@ namespace Spreads.Algorithms {
         /// <summary>
         /// Simple ascending zero-based rank
         /// </summary>
-        /// <param name="values"></param>
-        /// <param name="comparer"></param>
-        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ArraySegment<int> SortRank(ArraySegment<T> values, IComparer<T> comparer = null) {
             KVKeyComparer<T, int> kvComparer;
             if (_comparer == null) {

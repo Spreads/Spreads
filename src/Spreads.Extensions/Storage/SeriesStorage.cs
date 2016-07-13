@@ -23,10 +23,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Bootstrap;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using Microsoft.Data.Sqlite.Utilities;
 using Spreads.Collections;
+using Spreads.Native;
 
 namespace Spreads.Storage {
 
@@ -34,7 +36,7 @@ namespace Spreads.Storage {
 
         static SeriesStorage() {
             // init
-            if (Bootstrap.Bootstrapper.Instance.BaseFolder == null) throw new Exception("Bootstrap.Bootstrapper.Instance.BaseFolder == null");
+            if (NativeMethods.ABI.Equals(ABI.Unknown)) throw new Exception("Could not init");
         }
 
         private readonly SqliteConnection _connection;

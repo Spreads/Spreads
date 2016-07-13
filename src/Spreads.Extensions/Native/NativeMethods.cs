@@ -8,16 +8,32 @@ namespace Spreads.Native {
     [System.Security.SuppressUnmanagedCodeSecurity]
 #endif
     internal class NativeMethods {
-        static NativeMethods()
-        {
+        static NativeMethods() {
             // Ensure Bootstrapper is initialized and native libraries are loaded
+            Bootstrapper.Instance.Bootstrap<NativeMethods>(
+                new[] { "libblosc", "sqlite3" },
+                null,
+                null,
+                null,
+                () => {
+#if DEBUG
+                    Console.WriteLine("Pre-copy action");
+#endif
+                },
+                () => {
+#if DEBUG
+                Console.WriteLine("Post-copy action");
+#endif
+                },
+                () => {
+                });
             ABI = Bootstrapper.ABI;
         }
         public const string BloscLibraryName = "libblosc";
 
         internal static ABI ABI { get; set; }
 
-#region Blosc
+        #region Blosc
 
         [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int blosc_compress_ctx(IntPtr clevel, IntPtr doshuffle,
@@ -33,10 +49,10 @@ namespace Spreads.Native {
         internal static extern int blosc_cbuffer_sizes(IntPtr cbuffer, ref UIntPtr nbytes,
             ref UIntPtr cbytes, ref UIntPtr blocksize);
 
-#endregion
+        #endregion
 
-        
-        
+
+
 
     }
 }
