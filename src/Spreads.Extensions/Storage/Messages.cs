@@ -75,8 +75,9 @@ namespace Spreads.Storage {
     }
 
 
-
+    // TODO why header for fixed case?
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    [Serialization(PreferBlittable = true, SerializationFormat = SerializationFormat.Default, Version = 0)]
     internal unsafe struct SetRemoveCommandBody<TKey, TValue> : IBinaryConverter<SetRemoveCommandBody<TKey, TValue>> {
         public TKey key; // Key of entry
         public TValue value; // Value of entry
@@ -113,7 +114,7 @@ namespace Spreads.Storage {
             size += valueSize;
 
             memoryStream.Position = initialPosition + 4;
-            memoryStream.WriteAsPtr<int>((int)memoryStream.Length);
+            memoryStream.WriteAsPtr<int>((int)memoryStream.Length - 8);
             Trace.Assert(size == memoryStream.Length - initialPosition);
             return size;
         }
@@ -121,8 +122,8 @@ namespace Spreads.Storage {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ToPtr(SetRemoveCommandBody<TKey, TValue> entry, IntPtr ptr, MemoryStream memoryStream = null) {
             if (IsFixedSize) {
-                TypeHelper<TKey>.StructureToPtr(entry.key, (ptr));
-                TypeHelper<TValue>.StructureToPtr(entry.value, (ptr + TypeHelper<TKey>.Size));
+                TypeHelper<TKey>.ToPtr(entry.key, (ptr));
+                TypeHelper<TValue>.ToPtr(entry.value, (ptr + TypeHelper<TKey>.Size));
             } else {
                 if (memoryStream == null)
                 {
@@ -134,23 +135,27 @@ namespace Spreads.Storage {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public SetRemoveCommandBody<TKey, TValue> FromPtr(IntPtr ptr) {
+        public int FromPtr(IntPtr ptr, ref SetRemoveCommandBody<TKey, TValue> body) {
             if (IsFixedSize) {
                 var entry = new SetRemoveCommandBody<TKey, TValue>();
-                entry.key = TypeHelper<TKey>.PtrToStructure((ptr));
-                entry.value = TypeHelper<TValue>.PtrToStructure((ptr + TypeHelper<TKey>.Size));
-                return entry;
+                var kl = TypeHelper<TKey>.FromPtr((ptr), ref entry.key);
+                var vl = TypeHelper<TValue>.FromPtr((ptr + TypeHelper<TKey>.Size), ref entry.value);
+                Debug.Assert(_size == 8 + kl + vl);
+                body = entry;
+                return _size;
             }
-
-            var version = Marshal.ReadInt32(ptr);
-            var length = Marshal.ReadInt32(ptr + 4);
-            ptr = ptr + 8;
-            TKey key = TypeHelper<TKey>.PtrToStructure(ptr);
-            TValue value = TypeHelper<TValue>.PtrToStructure(ptr + TypeHelper<TKey>.Size);
-            return new SetRemoveCommandBody<TKey, TValue> {
-                key = key,
-                value = value
-            };
+            {
+                var version = Marshal.ReadInt32(ptr);
+                Debug.Assert(version == 0);
+                var length = Marshal.ReadInt32(ptr + 4);
+                ptr = ptr + 8;
+                var entry = new SetRemoveCommandBody<TKey, TValue>();
+                var kl = TypeHelper<TKey>.FromPtr(ptr, ref entry.key);
+                var vl = TypeHelper<TValue>.FromPtr((ptr + kl), ref entry.value);
+                Debug.Assert(length == kl + vl);
+                body = entry;
+                return length + 8;
+            }
         }
 
         public int Version => 0;

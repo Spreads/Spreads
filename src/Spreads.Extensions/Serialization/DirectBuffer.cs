@@ -568,15 +568,32 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Obsolete("TODO Use overload with ref")]
         public T Read<T>(long index) {
             var len = TypeHelper<T>.Size;
             if (len <= 0) {
                 Assert(index, 8);
+                // variable length
                 len = ReadInt32(index + 4);
             }
             Assert(index, len);
             var address = new IntPtr(_data.ToInt64() + index);
-            return TypeHelper<T>.PtrToStructure(address);
+            var temp = default(T);
+            TypeHelper<T>.FromPtr(address, ref temp);
+            return temp;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int Read<T>(long index, ref T value) {
+            var len = TypeHelper<T>.Size;
+            if (len <= 0) {
+                Assert(index, 8);
+                // variable length
+                len = ReadInt32(index + 4);
+            }
+            Assert(index, len);
+            var address = new IntPtr(_data.ToInt64() + index);
+            return TypeHelper<T>.FromPtr(address, ref value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -586,7 +603,7 @@ namespace Spreads.Serialization {
             Assert(index, len);
             var ptr = new IntPtr(_data.ToInt64() + index);
             if (stream == null) {
-                TypeHelper<T>.StructureToPtr(value, ptr);
+                TypeHelper<T>.ToPtr(value, ptr);
             } else {
                 stream.WriteToPtr(new IntPtr(_data.ToInt64() + index));
             }

@@ -220,7 +220,7 @@ namespace Spreads.Storage {
             BufferClaim claim;
             Claim(len, out claim);
             if (bytes == null) {
-                TypeHelper<T>.StructureToPtr(message, claim.Buffer.Data + claim.Offset);
+                TypeHelper<T>.ToPtr(message, claim.Buffer.Data + claim.Offset);
             } else {
                 Marshal.Copy(bytes, 0, claim.Buffer.Data + claim.Offset, len);
             }

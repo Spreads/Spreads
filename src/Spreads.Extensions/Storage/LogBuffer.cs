@@ -144,7 +144,7 @@ namespace Spreads.Storage {
 
             var ptr = Claim(len);
             if (bytes == null) {
-                TypeHelper<T>.StructureToPtr(message, ptr + 4);
+                TypeHelper<T>.ToPtr(message, ptr + 4);
             } else {
                 Marshal.Copy(bytes, 0, ptr + 4, len);
             }

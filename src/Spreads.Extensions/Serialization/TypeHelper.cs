@@ -9,19 +9,20 @@ namespace Spreads.Serialization {
     // cache converters and size info in static class for each type, 
     // instead of dict lookup or dynamic resolution.
 
-    internal unsafe class TypeHelper<T> {
 
-        [ThreadStatic]
+    internal class TypeHelper
+    {
+        
+    }
+
+    internal unsafe sealed class TypeHelper<T> : TypeHelper {
+
         // ReSharper disable once StaticMemberInGenericType
         private static GCHandle _pinnedArray;
-        [ThreadStatic]
         // ReSharper disable once StaticMemberInGenericType
         private static bool _usePinnedArray;
-        [ThreadStatic]
         private static T[] _array;
-        [ThreadStatic]
         private static IntPtr _tgt;
-        [ThreadStatic]
         private static IntPtr _ptr;
         private static bool _hasBinaryConverter;
 #if !TYPED_REF
@@ -39,23 +40,25 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T PtrToStructure(IntPtr ptr) {
+        public static int FromPtr(IntPtr ptr, ref T value) {
 
             if (_hasBinaryConverter) {
-                return _convertorInstance.FromPtr(ptr);
+                return _convertorInstance.FromPtr(ptr, ref value);
             }
             if (Size <= 0) {
                 var version = Marshal.ReadInt32(ptr);
                 var length = Marshal.ReadInt32(ptr + 4);
-                var value = Serializer.Deserialize<T>(ptr + 8, length);
-                return value;
+                // TODO by ref
+                value = Serializer.Deserialize<T>(ptr + 8, length);
+                return length + 8;
             }
 
 #if TYPED_REF
             var obj = default(T);
             var tr = __makeref(obj);
             *(IntPtr*)(&tr) = ptr;
-            return __refvalue(tr, T);
+            value = __refvalue(tr, T);
+            return Size;
 #else
             if (_isDateTime) {
                 return (T)(object)*(DateTime*)ptr;
@@ -82,7 +85,7 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void StructureToPtr(T value, IntPtr pointer, MemoryStream ms = null) {
+        public static void ToPtr(T value, IntPtr pointer, MemoryStream ms = null) {
             if (_hasBinaryConverter) {
                 _convertorInstance.ToPtr(value, pointer, ms);
                 return;
@@ -90,7 +93,7 @@ namespace Spreads.Serialization {
 
             if (Size < 0) {
                 var bytes = Serializer.Serialize(value);
-                TypeHelper<byte[]>.StructureToPtr(bytes, pointer);
+                TypeHelper<byte[]>.ToPtr(bytes, pointer);
                 return;
             }
 
@@ -147,6 +150,10 @@ namespace Spreads.Serialization {
 #endif
         }
 
+        /// <summary>
+        /// Method is only called from the static constructor of TypeHelper.
+        /// </summary>
+        /// <returns></returns>
         private static int Init() {
             var ty = typeof(T);
             if (ty == typeof(DateTime)) {

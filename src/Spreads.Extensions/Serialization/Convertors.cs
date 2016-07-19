@@ -36,7 +36,7 @@ namespace Spreads.Serialization {
             throw new NotImplementedException();
         }
 
-        public TElement[] FromPtr(IntPtr ptr) {
+        public int FromPtr(IntPtr ptr, ref TElement[] value) {
             throw new NotImplementedException();
         }
     }
@@ -58,13 +58,14 @@ namespace Spreads.Serialization {
             Marshal.Copy(value, 0, ptr + 8, value.Length);
         }
 
-        public byte[] FromPtr(IntPtr ptr) {
+        public int FromPtr(IntPtr ptr, ref byte[] value) {
             var version = Marshal.ReadInt32(ptr);
             if (version != 0) throw new NotSupportedException();
             var length = Marshal.ReadInt32(ptr + 4);
             var bytes = new byte[length];
             Marshal.Copy(ptr + 8, bytes, 0, length);
-            return bytes;
+            value = bytes;
+            return length + 8;
         }
 
         public int Version => 0;
@@ -120,7 +121,7 @@ namespace Spreads.Serialization {
 
         }
 
-        public string FromPtr(IntPtr ptr) {
+        public int FromPtr(IntPtr ptr, ref string value) {
             var version = Marshal.ReadInt32(ptr);
             if (version != 0) throw new NotSupportedException();
             var length = Marshal.ReadInt32(ptr + 4);
@@ -133,9 +134,9 @@ namespace Spreads.Serialization {
                 buffer = OptimizationSettings.ArrayPool.Take<byte>(length);
             }
             Marshal.Copy(ptr + 8, buffer, 0, length);
-            var value = Encoding.UTF8.GetString(buffer, 0, length);
+            value = Encoding.UTF8.GetString(buffer, 0, length);
             if (needReturn) OptimizationSettings.ArrayPool.Return(buffer);
-            return value;
+            return length + 8;
         }
 
         public int Version => 0;
@@ -169,13 +170,14 @@ namespace Spreads.Serialization {
             }
         }
 
-        public MemoryStream FromPtr(IntPtr ptr) {
+        public int FromPtr(IntPtr ptr, ref MemoryStream value) {
             var version = Marshal.ReadInt32(ptr);
             if (version != 0) throw new NotSupportedException();
             var length = Marshal.ReadInt32(ptr + 4);
             var bytes = new byte[length];
             Marshal.Copy(ptr + 8, bytes, 0, length);
-            return new MemoryStream(bytes);
+            value = new MemoryStream(bytes);
+            return length + 8;
         }
 
         public int Version => 0;

@@ -182,6 +182,7 @@
     <Compile Include="Serialization\JSON.cs" />
     <Compile Include="Serialization\SafeBufferAccessor.cs" />
     <Compile Include="Serialization\SafeBufferStream.cs" />
+    <Compile Include="Serialization\SerializationAttribute.cs" />
     <Compile Include="Serialization\TypeHelper.cs" />
     <Compile Include="Storage\Aeron\BitUtil.cs" />
     <Compile Include="Storage\Aeron\ErrorHandler.cs" />

@@ -46,7 +46,7 @@ namespace Spreads.Storage {
             var len = TypeHelper<T>.SizeOf(value, ref ms) + MessageHeader.Size;
             _appendLog.Claim(len, out claim);
             *(MessageHeader*)(claim.Data) = header;
-            TypeHelper<T>.StructureToPtr(value, claim.Data + MessageHeader.Size, ms);
+            TypeHelper<T>.ToPtr(value, claim.Data + MessageHeader.Size, ms);
             claim.ReservedValue = _pid;
             claim.Commit();
         }
@@ -99,8 +99,11 @@ namespace Spreads.Storage {
                         observer.OnError(new NotImplementedException("TODO error broadcast is not implemented"));
                     break;
                 case MessageType.Broadcast:
-                    foreach (var observer in _observers)
-                        observer.OnNext(TypeHelper<T>.PtrToStructure(dataStart + MessageHeader.Size));
+                    var temp = default(T);
+                    foreach (var observer in _observers) {
+                        TypeHelper<T>.FromPtr(dataStart + MessageHeader.Size, ref temp);
+                        observer.OnNext(temp);
+                    }
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();

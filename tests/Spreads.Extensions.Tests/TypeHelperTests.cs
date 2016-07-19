@@ -47,8 +47,9 @@ namespace Spreads.Core.Tests {
                 String = "MyString",
                 Long = 123
             };
-            TypeHelper<MyPoco>.StructureToPtr(myPoco, ptr);
-            var newPoco = TypeHelper<MyPoco>.PtrToStructure(ptr);
+            TypeHelper<MyPoco>.ToPtr(myPoco, ptr);
+            var newPoco = default(MyPoco);
+            TypeHelper<MyPoco>.FromPtr(ptr, ref newPoco);
             Assert.AreEqual(myPoco.String, newPoco.String);
             Assert.AreEqual(myPoco.Long, newPoco.Long);
 
@@ -79,9 +80,10 @@ namespace Spreads.Core.Tests {
             myArray[0] = 123;
             myArray[1] = 456;
 
-            TypeHelper<int[]>.StructureToPtr(myArray, ptr);
+            TypeHelper<int[]>.ToPtr(myArray, ptr);
 
-            var newArray = TypeHelper<int[]>.PtrToStructure(ptr);
+            var newArray = default(int[]);
+            TypeHelper<int[]>.FromPtr(ptr, ref newArray);
             Assert.IsTrue(myArray.SequenceEqual(newArray));
 
         }

@@ -14,9 +14,9 @@ namespace Spreads.Serialization {
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     /// |            Version + Flags (currently only version)           |
     /// +---------------------------------------------------------------+
-    /// |                        Length                                 |
+    /// |             Payload Length (without 8 bytes header)           |
     /// +---------------------------------------------------------------+
-    /// |                       Serialized Payload                      |
+    /// |                      Serialized Payload                       |
     /// |                                                               |
     /// </summary>
     public interface IBinaryConverter<T> {
@@ -51,11 +51,11 @@ namespace Spreads.Serialization {
         void ToPtr(T value, IntPtr ptr, MemoryStream memoryStream = null);
 
         /// <summary>
-        /// Deserialize an object from a pointer.
-        /// if not IsFixedSize, checks that version from the pointer equals the Version property.
+        /// Reads new value or fill existing value with data from the pointer, 
+        /// returns number of bytes read including any header.
+        /// If not IsFixedSize, checks that version from the pointer equals the Version property.
         /// </summary>
-        T FromPtr(IntPtr ptr);
-
+        int FromPtr(IntPtr ptr, ref T value);
     }
 
 
@@ -94,7 +94,7 @@ namespace Spreads.Serialization {
             }
             fixed (byte* ptr = &_threadStaticBuffer[0])
             {
-                TypeHelper<T>.StructureToPtr(value, (IntPtr)ptr);
+                TypeHelper<T>.ToPtr(value, (IntPtr)ptr);
             }
             stream.Write(_threadStaticBuffer, 0, size);
 
@@ -113,13 +113,13 @@ namespace Spreads.Serialization {
                     Trace.TraceWarning("Thread-static buffer in BinaryConvertorExtensions is above 8kb");
                 }
             }
-            T value;
+            var value = default(T);
             var read = 0;
             while ((read += stream.Read(_threadStaticBuffer, read, size - read)) < size) { }
 
             fixed (byte* ptr = &_threadStaticBuffer[0])
             {
-                value = TypeHelper<T>.PtrToStructure((IntPtr)ptr);
+                 TypeHelper<T>.FromPtr((IntPtr)ptr, ref value);
             }
             return value;
         }

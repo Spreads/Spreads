@@ -43,6 +43,7 @@ namespace Spreads.Storage {
     [ComVisible(false)]
     public sealed class PersistentMapFixedLength<TKey, TValue> : IPersistentMap<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> {
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        [Serialization(PreferBlittable = true, SerializationFormat = SerializationFormat.Default, Version = 0)]
         internal struct Entry : IBinaryConverter<Entry> {
             public int hashCode; // Lower 31 bits of hash code, -1 if unused
             public int next; // Index of next entry, -1 if last
@@ -65,18 +66,20 @@ namespace Spreads.Storage {
             public unsafe void ToPtr(Entry entry, IntPtr ptr, MemoryStream memoryStream = null) {
                 *(int*)ptr = entry.hashCode;
                 *(int*)(ptr + 4) = entry.next;
-                TypeHelper<TKey>.StructureToPtr(entry.key, (ptr + 8));
-                TypeHelper<TValue>.StructureToPtr(entry.value, (ptr + 8 + TypeHelper<TKey>.Size));
+                TypeHelper<TKey>.ToPtr(entry.key, (ptr + 8));
+                TypeHelper<TValue>.ToPtr(entry.value, (ptr + 8 + TypeHelper<TKey>.Size));
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public unsafe Entry FromPtr(IntPtr ptr) {
+            public unsafe int FromPtr(IntPtr ptr, ref Entry value) {
                 var entry = new Entry();
                 entry.hashCode = *(int*)ptr;
                 entry.next = *(int*)(ptr + 4);
-                entry.key = TypeHelper<TKey>.PtrToStructure((ptr + 8));
-                entry.value = TypeHelper<TValue>.PtrToStructure((ptr + 8 + TypeHelper<TKey>.Size));
-                return entry;
+                var kl = TypeHelper<TKey>.FromPtr((ptr + 8), ref entry.key);
+                var vl = TypeHelper<TValue>.FromPtr((ptr + 8 + TypeHelper<TKey>.Size), ref entry.value);
+                value =  entry;
+                Debug.Assert(kl + vl == Size);
+                return Size;
             }
 
             public int Version => -1;

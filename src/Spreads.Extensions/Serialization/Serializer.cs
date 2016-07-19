@@ -66,7 +66,7 @@ namespace Spreads.Serialization {
         private static readonly ConcurrentDictionary<Type, int> _cache = new ConcurrentDictionary<Type, int>();
 
         /// <summary>
-        /// Assume "blittable" not only normally blittable, but those types for which Marshal.SizeOf doesn't throw and we could use StructureToPtr
+        /// Assume "blittable" not only normally blittable, but those types for which Marshal.SizeOf doesn't throw and we could use ToPtr
         /// </summary>
         /// <param name="ty"></param>
         /// <returns></returns>

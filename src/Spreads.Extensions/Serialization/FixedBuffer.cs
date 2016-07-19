@@ -680,22 +680,43 @@ namespace Spreads.Serialization {
             }
         }
 
+        [Obsolete("TODO Use overload with ref")]
         public T Read<T>(long index) {
             var len = TypeHelper<T>.Size;
+            if (len <= 0) {
+                Assert(index, 8);
+                // variable length
+                len = ReadInt32(index + 4);
+            }
             Assert(index, len);
             fixed (byte* ptr = &_buffer[_offset + index])
             {
-                return TypeHelper<T>.PtrToStructure((IntPtr)ptr);
+                var temp = default(T);
+                TypeHelper<T>.FromPtr((IntPtr)ptr, ref temp);
+                return temp;
             }
         }
 
+
+        public int Read<T>(long index, ref T value) {
+            var len = TypeHelper<T>.Size;
+            if (len <= 0) {
+                Assert(index, 8);
+                // variable length
+                len = ReadInt32(index + 4);
+            }
+            Assert(index, len);
+            fixed (byte* ptr = &_buffer[_offset + index]) {
+                return TypeHelper<T>.FromPtr((IntPtr)ptr, ref value);
+            }
+        }
 
         public void Write<T>(long index, T value) {
             var len = TypeHelper<T>.Size;
             Assert(index, len);
             fixed (byte* ptr = &_buffer[_offset + index])
             {
-                TypeHelper<T>.StructureToPtr(value, (IntPtr)ptr);
+                TypeHelper<T>.ToPtr(value, (IntPtr)ptr);
             }
         }
 
