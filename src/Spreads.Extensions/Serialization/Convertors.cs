@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -24,7 +25,7 @@ namespace Spreads.Serialization {
 
         private static int _itemSize = TypeHelper<TElement>.Size;
 
-        public int SizeOf(TElement[] value, ref MemoryStream memoryStream) {
+        public int SizeOf(TElement[] value, out MemoryStream memoryStream) {
             if (_itemSize > 0) {
                 memoryStream = null;
                 return _itemSize * value.Length;
@@ -45,7 +46,8 @@ namespace Spreads.Serialization {
     internal class ByteArrayBinaryConverter : IBinaryConverter<byte[]> {
         public bool IsFixedSize => false;
         public int Size => 0;
-        public int SizeOf(byte[] value, ref MemoryStream memoryStream) {
+        public int SizeOf(byte[] value, out MemoryStream memoryStream) {
+            memoryStream = null;
             return value.Length;
         }
 
@@ -75,30 +77,32 @@ namespace Spreads.Serialization {
     internal class StringBinaryConverter : IBinaryConverter<string> {
         public bool IsFixedSize => false;
         public int Size => 0;
-        public int SizeOf(string value, ref MemoryStream memoryStream) {
+        public int SizeOf(string value, out MemoryStream memoryStream) {
             var maxLength = value.Length * 2;
-            bool needReturn = false;
+            var needReturnToBufferPool = false;
             byte[] buffer;
-            if (maxLength < 8 * 1024) {
+            if (maxLength < BinaryConvertorExtensions.MaxBufferSize) {
                 buffer = BinaryConvertorExtensions.ThreadStaticBuffer;
             } else {
-                needReturn = true;
+                needReturnToBufferPool = true;
                 buffer = OptimizationSettings.ArrayPool.Take<byte>(maxLength);
             }
             var len = Encoding.UTF8.GetBytes(value, 0, value.Length, buffer, 0);
-            if (memoryStream == null) {
-                memoryStream = new MemoryStream();
-            }
-            var initPosition = memoryStream.Position;
-            memoryStream.Position = initPosition + 8;
-            memoryStream.Write(buffer, 0, len);
-            var finalPosition = memoryStream.Position;
-            memoryStream.Position = initPosition;
-            memoryStream.WriteAsPtr<int>(Version);
-            memoryStream.WriteAsPtr<int>(len);
-            memoryStream.Position = finalPosition;
 
-            if (needReturn) OptimizationSettings.ArrayPool.Return(buffer);
+            memoryStream = TypeHelper.MsManager.GetStream("StringBinaryConverter.SizeOf");
+            Debug.Assert(memoryStream.Position == 0);
+
+            memoryStream.WriteAsPtr<int>(Version);
+            // placeholder for length
+            memoryStream.WriteAsPtr<int>(0);
+            Debug.Assert(memoryStream.Position == 8);
+
+            memoryStream.Write(buffer, 0, len);
+            memoryStream.Position = 4;
+            memoryStream.WriteAsPtr<int>(len);
+            memoryStream.Position = 0;
+
+            if (needReturnToBufferPool) OptimizationSettings.ArrayPool.Return(buffer);
             return len + 8;
         }
 
@@ -146,8 +150,9 @@ namespace Spreads.Serialization {
     internal class MemoryStreamBinaryConverter : IBinaryConverter<MemoryStream> {
         public bool IsFixedSize => false;
         public int Size => 0;
-        public int SizeOf(MemoryStream value, ref MemoryStream memoryStream) {
+        public int SizeOf(MemoryStream value, out MemoryStream memoryStream) {
             if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException("Memory stream is too large");
+            memoryStream = null;
             return (int)value.Length;
         }
 

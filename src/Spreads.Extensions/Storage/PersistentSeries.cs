@@ -156,7 +156,7 @@ namespace Spreads.Storage {
                     if (_isWriter) this.Flush();
                     break;
 
-                
+
 
                 case MessageType.WriteRelease:
                     LockReleaseEvent.Set();
@@ -190,15 +190,16 @@ namespace Spreads.Storage {
                 key = key,
                 value = value
             };
-            MemoryStream ms = null;
-            var len = MessageHeader.Size + TypeHelper<SetRemoveCommandBody<K, V>>.SizeOf(commandBody, ref ms);
+            MemoryStream ms;
+            var len = MessageHeader.Size + TypeHelper<SetRemoveCommandBody<K, V>>.SizeOf(commandBody, out ms);
             // version + len header
             if (TypeHelper<SetRemoveCommandBody<K, V>>.Size <= 0) len = len + 8;
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
             *(MessageHeader*)(claim.Data) = header;
             // TODO reuse ms
-            TypeHelper<SetRemoveCommandBody<K, V>>.ToPtr(commandBody, claim.Data + MessageHeader.Size);
+            BinarySerializer.Serialize(commandBody, claim.Data + MessageHeader.Size, ms);
+            ms?.Dispose();
             claim.ReservedValue = _pid;
             claim.Commit();
         }

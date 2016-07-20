@@ -3,16 +3,15 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Serialization.Microsoft.IO;
 
 namespace Spreads.Serialization {
 
     // cache converters and size info in static class for each type, 
-    // instead of dict lookup or dynamic resolution.
 
 
-    internal class TypeHelper
-    {
-        
+    internal class TypeHelper {
+        public static RecyclableMemoryStreamManager MsManager = new RecyclableMemoryStreamManager();
     }
 
     internal unsafe sealed class TypeHelper<T> : TypeHelper {
@@ -29,13 +28,14 @@ namespace Spreads.Serialization {
         private static bool _isDateTime; // NB: Automatic layout of .NET requires special handling!
 #endif
         private static IBinaryConverter<T> _convertorInstance;
-
+        private static int _size;
+        
 
         static TypeHelper() {
             try {
-                Size = Init();
+                _size = Init();
             } catch {
-                Size = -1;
+                _size = -1;
             }
         }
 
@@ -229,40 +229,50 @@ namespace Spreads.Serialization {
 
 
         /// <summary>
-        /// Returns binary size of the value instance WITHOUT 8 bytes header
+        /// Returns binary size of the value
         /// </summary>
         /// <param name="value"></param>
         /// <param name="memoryStream"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int SizeOf(T value, ref MemoryStream memoryStream) {
+        internal static int SizeOf(T value, out MemoryStream memoryStream) {
             if (_hasBinaryConverter) {
-                return _convertorInstance.SizeOf(value, ref memoryStream);
+                Debug.Assert(_size == 0);
+                return _convertorInstance.SizeOf(value, out memoryStream);
             }
 
             if (Size < 0) {
+                throw new InvalidOperationException();
                 // TODO support serialization into a memory stream
-                var bytes = Serializer.Serialize(value);
-                if (memoryStream == null) {
-                    memoryStream = new MemoryStream(bytes.Length + 8);
-                }
-                memoryStream.WriteAsPtr<int>(0);
-                memoryStream.WriteAsPtr<int>(bytes.Length);
-                memoryStream.Write(bytes, 0, bytes.Length);
-                return bytes.Length + 8;
+                //var bytes = Serializer.Serialize(value);
+                //if (memoryStream == null) {
+                //    memoryStream = new MemoryStream(bytes.Length + 8);
+                //}
+                //memoryStream.WriteAsPtr<int>(0);
+                //memoryStream.WriteAsPtr<int>(bytes.Length);
+                //memoryStream.Write(bytes, 0, bytes.Length);
+                //return bytes.Length + 8;
             }
+            Debug.Assert(_size > 0);
             memoryStream = null;
             return Size;
         }
 
 
         /// <summary>
-        /// Returns a positive size of a blittable type T, -1 if the type T is not blittable and has no registered converter, 0 is there is a registered converter for variable-length type.
+        /// Returns a positive size of a blittable type T, -1 if the type T is not blittable and has 
+        /// no registered converter, 0 is there is a registered converter for variable-length type.
         /// We assume the type T is blittable if `GCHandle.Alloc(T[2], GCHandleType.Pinned) = true`.
         /// This is more relaxed than Marshal.SizeOf, but still doesn't cover cases such as 
         /// an array of KVP[DateTime,double], which has a contiguous layout in memory.
         /// </summary>
-        public static int Size { get; private set; }
+        public static int Size => _size;
+
+        /// <summary>
+        /// If type is supported by TypeHelper, is it either a blittable fixed-size type (Size > 0) or 
+        /// a type with a binary convertor (Size = 0).
+        /// </summary>
+        public static bool IsSupportedType => _size >= 0;
 
         public static bool HasBinaryConverter => _hasBinaryConverter;
         public static int Version => _hasBinaryConverter ? _convertorInstance.Version : 0;
@@ -276,7 +286,7 @@ namespace Spreads.Serialization {
             if (convertor.Version > 0) throw new NotImplementedException("Serialization versioning is not supported");
             _hasBinaryConverter = true;
             _convertorInstance = convertor;
-            Size = convertor.Size;
+            _size = convertor.Size;
         }
     }
 }

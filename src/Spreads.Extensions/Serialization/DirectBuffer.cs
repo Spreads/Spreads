@@ -483,38 +483,7 @@ namespace Spreads.Serialization {
             var pos = 0;
             var source = new IntPtr(src.Data.ToInt64() + srcOffset);
             var destination = _data.ToInt64() + index;
-            while (pos < length) {
-                int remaining = (int)length - pos;
-                if (remaining >= 64) {
-                    *(ByteUtil.CopyChunk64*)(destination + pos) = *(ByteUtil.CopyChunk64*)(source + pos);
-                    pos += 64;
-                    continue;
-                }
-                if (remaining >= 32) {
-                    *(ByteUtil.CopyChunk32*)(destination + pos) = *(ByteUtil.CopyChunk32*)(source + pos);
-                    pos += 32;
-                    continue;
-                }
-                if (remaining >= 16) {
-                    *(ByteUtil.CopyChunk16*)(destination + pos) = *(ByteUtil.CopyChunk16*)(source + pos);
-                    pos += 16;
-                    continue;
-                }
-                if (remaining >= 8) {
-                    *(long*)(destination + pos) = *(long*)(source + pos);
-                    pos += 8;
-                    continue;
-                }
-                if (remaining >= 4) {
-                    *(int*)(destination + pos) = *(int*)(source + pos);
-                    pos += 4;
-                    continue;
-                }
-                if (remaining >= 1) {
-                    *(byte*)(destination + pos) = *(byte*)(source + pos);
-                    pos++;
-                }
-            }
+            ByteUtil.MemoryCopy((byte*)destination, (byte*)source, checked((uint)length));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -524,21 +493,13 @@ namespace Spreads.Serialization {
             var destination = new IntPtr(_data.ToInt64() + index);
             while (pos < length) {
                 int remaining = (int)length - pos;
-                if (remaining >= 64) {
-                    *(ByteUtil.CopyChunk64*)(destination + pos) = (default(ByteUtil.CopyChunk64));
-                    pos += 64;
-                    continue;
-                }
+
                 if (remaining >= 32) {
                     *(ByteUtil.CopyChunk32*)(destination + pos) = (default(ByteUtil.CopyChunk32));
                     pos += 32;
                     continue;
                 }
-                if (remaining >= 16) {
-                    *(ByteUtil.CopyChunk16*)(destination + pos) = (default(ByteUtil.CopyChunk16));
-                    pos += 16;
-                    continue;
-                }
+
                 if (remaining >= 8) {
                     *(long*)(destination + pos) = 0L;
                     pos += 8;
@@ -598,14 +559,15 @@ namespace Spreads.Serialization {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write<T>(long index, T value) {
-            MemoryStream stream = null;
-            var len = TypeHelper<T>.SizeOf(value, ref stream);
+            MemoryStream stream;
+            var len = BinarySerializer.SizeOf(value, out stream);
             Assert(index, len);
             var ptr = new IntPtr(_data.ToInt64() + index);
             if (stream == null) {
-                TypeHelper<T>.ToPtr(value, ptr);
+                BinarySerializer.Serialize(value, ptr, null);
             } else {
                 stream.WriteToPtr(new IntPtr(_data.ToInt64() + index));
+                stream.Dispose();
             }
         }
 

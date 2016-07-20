@@ -54,9 +54,9 @@ namespace Spreads.Storage {
             // Otherwise more efficient direct conversion is used
             public bool IsFixedSize => TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
             public int Size => IsFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
-            public int SizeOf(Entry value, ref MemoryStream memoryStream) {
-                if (IsFixedSize)
-                {
+            public int SizeOf(Entry value, out MemoryStream memoryStream) {
+                if (IsFixedSize) {
+                    memoryStream = null;
                     return Size;
                 }
                 throw new NotSupportedException("This variant of persistent map does not support variable-size types.");
@@ -77,7 +77,7 @@ namespace Spreads.Storage {
                 entry.next = *(int*)(ptr + 4);
                 var kl = TypeHelper<TKey>.FromPtr((ptr + 8), ref entry.key);
                 var vl = TypeHelper<TValue>.FromPtr((ptr + 8 + TypeHelper<TKey>.Size), ref entry.value);
-                value =  entry;
+                value = entry;
                 Debug.Assert(kl + vl == Size);
                 return Size;
             }
@@ -1633,7 +1633,7 @@ namespace Spreads.Storage {
             if (fixVersions) {
                 Interlocked.Exchange(ref *(long*)(_buckets._buffer._data + 16), *(long*)(_buckets._buffer._data + 8));
             } else {
-                
+
                 Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 8));
                 var v = *(long*)(_buckets._buffer._data + 8);
                 var nv = *(long*)(_buckets._buffer._data + 16);
@@ -1643,7 +1643,7 @@ namespace Spreads.Storage {
                 Trace.TraceWarning("Cannot release lock, it was stolen while this process is still alive");
                 //Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");
             }
-            
+
 
 #else
             } finally {

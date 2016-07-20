@@ -36,17 +36,18 @@ namespace Spreads.Storage {
         // all other subscribers excluding this insatnce
         public unsafe void OnNext(T value) {
             BufferClaim claim;
-            MemoryStream ms = null;
+            MemoryStream ms;
 
             var header = new MessageHeader {
                 UUID = UUID,
                 MessageType = MessageType.Broadcast,
             };
 
-            var len = TypeHelper<T>.SizeOf(value, ref ms) + MessageHeader.Size;
+            var len = TypeHelper<T>.SizeOf(value, out ms) + MessageHeader.Size;
             _appendLog.Claim(len, out claim);
             *(MessageHeader*)(claim.Data) = header;
-            TypeHelper<T>.ToPtr(value, claim.Data + MessageHeader.Size, ms);
+            BinarySerializer.Serialize<T>(value, claim.Data + MessageHeader.Size, ms);
+            ms?.Dispose();
             claim.ReservedValue = _pid;
             claim.Commit();
         }

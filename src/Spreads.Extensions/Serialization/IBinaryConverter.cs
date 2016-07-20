@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spreads.Serialization.Microsoft.IO;
 
@@ -39,9 +40,8 @@ namespace Spreads.Serialization {
         /// Returns the size of serialized bytes including the version+lenght header.
         /// For types with non-fixed size this method could serialize value into the memoryStream if it is not 
         /// possible to calculate serialized bytes length without actually performing serialization.
-        /// If provided memory stream is not null, it is appended.
         /// </summary>
-        int SizeOf(T value, ref MemoryStream memoryStream);
+        int SizeOf(T value, out MemoryStream memoryStream);
 
         /// <summary>
         /// For types with non-fixed size this method assumes that the pointer has enough capacity.
@@ -78,10 +78,10 @@ namespace Spreads.Serialization {
         /// <summary>
         /// Writes to a stream as if it was a pointer using IBinaryConverter<T>.ToPtr method
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int WriteAsPtr<T>(this MemoryStream stream, T value) {
             var size = TypeHelper<T>.Size;
             if (size <= 0) throw new InvalidOperationException("This method should only be used for writing fixed-size types to a stream");
-            if (stream is RecyclableMemoryStream) throw new NotImplementedException("TODO");
             // NB do not use a buffer pool here but instead use a thread-static buffer
             // that will grow to maximum size of a type. Fixed-size types are usually small.
             // Take/return is more expensive than the work we do with the pool here.

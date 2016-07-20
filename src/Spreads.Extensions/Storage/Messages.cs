@@ -18,18 +18,15 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using Spreads.Serialization;
 
 namespace Spreads.Storage {
-    public enum MessageType : int {
+    // ReSharper disable once EnumUnderlyingTypeIsInt
+    public enum MessageType : int { // TODO why int and not byte? 
         Set = 0,
         Complete = 10,
         Remove = 20,
@@ -78,44 +75,49 @@ namespace Spreads.Storage {
     // TODO why header for fixed case?
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     [Serialization(PreferBlittable = true, SerializationFormat = SerializationFormat.Default, Version = 0)]
-    internal unsafe struct SetRemoveCommandBody<TKey, TValue> : IBinaryConverter<SetRemoveCommandBody<TKey, TValue>> {
+    internal struct SetRemoveCommandBody<TKey, TValue> : IBinaryConverter<SetRemoveCommandBody<TKey, TValue>> {
         public TKey key; // Key of entry
         public TValue value; // Value of entry
-        private static bool _isFixedSize = TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
-        private static int _size = _isFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
+        private static readonly bool _isFixedSize = TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
+        private static readonly int _size = _isFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
         // NB this interface methods are only called when SetRemoveCommandBody is not directly pinnable
         // Otherwise more efficient direct conversion is used
         public bool IsFixedSize => TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
         public int Size => IsFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
-        public int SizeOf(SetRemoveCommandBody<TKey, TValue> value, ref MemoryStream memoryStream) {
+        public int SizeOf(SetRemoveCommandBody<TKey, TValue> bodyValue, out MemoryStream memoryStream) {
             if (IsFixedSize) {
+                memoryStream = null;
                 return Size;
             }
 
-            // variable size requires a memory stream
-            if (memoryStream == null) {
-                memoryStream = new MemoryStream();
-            }
-
-            var initialPosition = memoryStream.Position;
+            memoryStream = TypeHelper.MsManager.GetStream("SetRemoveCommandBody.SizeOf");
+            Debug.Assert(memoryStream.Position == 0);
 
             memoryStream.WriteAsPtr<int>(Version);
+
             // placeholder for length
             memoryStream.WriteAsPtr<int>(0);
+            Debug.Assert(memoryStream.Position == 8);
 
             if (TypeHelper<TKey>.Size <= 0) {
                 throw new NotImplementedException("TODO We now only support fixed key");
             }
 
             var size = 8 + TypeHelper<TKey>.Size;
-            memoryStream.WriteAsPtr<TKey>(value.key);
+            memoryStream.WriteAsPtr<TKey>(bodyValue.key);
+            MemoryStream valueMs;
+            var valueSize = TypeHelper<TValue>.SizeOf(bodyValue.value, out valueMs);
+            if (valueMs != null) {
+                valueMs.WriteTo(memoryStream);
+                valueMs.Dispose();
+            }
 
-            var valueSize = TypeHelper<TValue>.SizeOf(value.value, ref memoryStream);
             size += valueSize;
 
-            memoryStream.Position = initialPosition + 4;
+            memoryStream.Position = 4;
             memoryStream.WriteAsPtr<int>((int)memoryStream.Length - 8);
-            Trace.Assert(size == memoryStream.Length - initialPosition);
+            Trace.Assert(size == memoryStream.Length);
+            memoryStream.Position = 0;
             return size;
         }
 
@@ -125,16 +127,22 @@ namespace Spreads.Storage {
                 TypeHelper<TKey>.ToPtr(entry.key, (ptr));
                 TypeHelper<TValue>.ToPtr(entry.value, (ptr + TypeHelper<TKey>.Size));
             } else {
-                if (memoryStream == null)
-                {
-                    var size = SizeOf(entry, ref memoryStream);
-                    Trace.Assert(size == memoryStream.Length);
+                if (memoryStream == null) {
+                    MemoryStream tempStream;
+                    // here we know that is not IsFixedSize, SizeOf will return MS
+                    var size = SizeOf(entry, out tempStream);
+                    Debug.Assert(tempStream != null && size == tempStream.Length);
+                    tempStream.WriteToPtr(ptr);
+                    tempStream.Dispose();
+                } else {
+                    memoryStream.WriteToPtr(ptr);
+                    // do not dispose, MS is owned outside of this method
                 }
-                memoryStream.WriteToPtr(ptr);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        // ReSharper disable once RedundantAssignment
         public int FromPtr(IntPtr ptr, ref SetRemoveCommandBody<TKey, TValue> body) {
             if (IsFixedSize) {
                 var entry = new SetRemoveCommandBody<TKey, TValue>();
