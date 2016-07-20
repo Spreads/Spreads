@@ -309,5 +309,9 @@ namespace Spreads {
         event OnUpdateHandler OnUpdate;
     }
 
-
+    internal interface IArrayBasedMap<TKey, TValue> {
+        int length { get; }
+        TKey[] Keys { get; }
+        TValue[] Values { get; }
+    }
 }
