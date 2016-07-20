@@ -60,18 +60,13 @@ namespace Spreads.Serialization {
             return (IntPtr)bPtr;
         }
 
-        /// <summary>
-        /// TODO Move to Bootstrapper
-        /// also see this about cpblk http://frankniemeyer.blogspot.de/2014/07/methods-for-reading-structured-binary.html
-        /// </summary>
-        [DllImport("msvcrt.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr memcpy(IntPtr dest, IntPtr src, UIntPtr count);
 
         /// <summary>
         /// Copy this buffer to a pointer
         /// </summary>
-        public void Copy(IntPtr destination, long srcOffset, long length) {
-            memcpy(destination, (IntPtr)(_data.ToInt64() + srcOffset), (UIntPtr)length);
+        public void Copy(IntPtr destination, long srcOffset, long length)
+        {
+            ByteUtil.MemoryCopy((byte*) destination, (byte*) (_data.ToInt64() + srcOffset), (uint) length);
         }
 
         /// <summary>
@@ -85,7 +80,7 @@ namespace Spreads.Serialization {
         /// Copy data and move the fixed buffer to the new location
         /// </summary>
         public IDirectBuffer Move(IntPtr destination, long srcOffset, long length) {
-            memcpy(destination, (IntPtr)(_data.ToInt64() + srcOffset), (UIntPtr)length);
+            ByteUtil.MemoryCopy((byte*)destination, (byte*)(_data.ToInt64() + srcOffset), (uint)length);
             return new DirectBuffer(length, destination);
         }
 
