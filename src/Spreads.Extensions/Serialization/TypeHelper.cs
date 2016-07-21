@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spreads.Serialization.Microsoft.IO;
@@ -10,8 +11,53 @@ namespace Spreads.Serialization {
     // cache converters and size info in static class for each type, 
 
 
+    internal delegate int FromPtrDelegate(IntPtr ptr, ref object value);
+    internal delegate int ToPtrDelegate(object value, IntPtr pointer, MemoryStream ms = null);
+    internal delegate int SizeOfDelegate(object value, out MemoryStream memoryStream);
+
+    internal class TypeParams {
+        public int Size { get; set; }
+    }
+
+
     internal class TypeHelper {
         public static RecyclableMemoryStreamManager MsManager = new RecyclableMemoryStreamManager();
+
+
+        internal static int FromPtr<T>(IntPtr ptr, ref object value) {
+            var temp = value == null ? default(T) : (T)value;
+            var len = TypeHelper<T>.FromPtr(ptr, ref temp);
+            value = temp;
+            return len;
+        }
+
+        internal static int ToPtr<T>(object value, IntPtr pointer, MemoryStream ms = null) {
+            var temp = value == null ? default(T) : (T)value;
+            return TypeHelper<T>.ToPtr(temp, pointer, ms);
+        }
+
+        internal static int SizeOf<T>(object value, out MemoryStream memoryStream) {
+            var temp = value == null ? default(T) : (T)value;
+            return TypeHelper<T>.SizeOf(temp, out memoryStream);
+        }
+
+        internal static FromPtrDelegate GetFromPtrDelegate(Type ty) {
+            var mi = typeof(TypeHelper).GetMethod("FromPtr", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            var genericMi = mi.MakeGenericMethod(ty);
+            return (FromPtrDelegate)Delegate.CreateDelegate(typeof(FromPtrDelegate), genericMi);
+        }
+
+        internal static ToPtrDelegate GetToPtrDelegate(Type ty) {
+            var mi = typeof(TypeHelper).GetMethod("ToPtr", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            var genericMi = mi.MakeGenericMethod(ty);
+            return (ToPtrDelegate)Delegate.CreateDelegate(typeof(ToPtrDelegate), genericMi);
+        }
+
+        internal static SizeOfDelegate GetSizeOfDelegate(Type ty) {
+            var mi = typeof(TypeHelper).GetMethod("SizeOf", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            var genericMi = mi.MakeGenericMethod(ty);
+            return (SizeOfDelegate)Delegate.CreateDelegate(typeof(SizeOfDelegate), genericMi);
+        }
     }
 
     internal unsafe sealed class TypeHelper<T> : TypeHelper {
@@ -29,7 +75,7 @@ namespace Spreads.Serialization {
 #endif
         private static IBinaryConverter<T> _convertorInstance;
         private static int _size;
-        
+
 
         static TypeHelper() {
             try {
@@ -46,11 +92,12 @@ namespace Spreads.Serialization {
                 return _convertorInstance.FromPtr(ptr, ref value);
             }
             if (Size <= 0) {
-                var version = Marshal.ReadInt32(ptr);
-                var length = Marshal.ReadInt32(ptr + 4);
-                // TODO by ref
-                value = Serializer.Deserialize<T>(ptr + 8, length);
-                return length + 8;
+                throw new InvalidOperationException();
+                //var version = Marshal.ReadInt32(ptr);
+                //var length = Marshal.ReadInt32(ptr + 4);
+                //// TODO by ref
+                //value = Serializer.Deserialize<T>(ptr + 8, length);
+                //return length + 8;
             }
 
 #if TYPED_REF
@@ -85,16 +132,17 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void ToPtr(T value, IntPtr pointer, MemoryStream ms = null) {
+        public static int ToPtr(T value, IntPtr pointer, MemoryStream ms = null) {
             if (_hasBinaryConverter) {
-                _convertorInstance.ToPtr(value, pointer, ms);
-                return;
+                return _convertorInstance.ToPtr(value, pointer, ms);
+
             }
 
             if (Size < 0) {
-                var bytes = Serializer.Serialize(value);
-                TypeHelper<byte[]>.ToPtr(bytes, pointer);
-                return;
+                throw new InvalidOperationException();
+                //var bytes = Serializer.Serialize(value);
+                //TypeHelper<byte[]>.ToPtr(bytes, pointer);
+                //return;
             }
 
 #if TYPED_REF
@@ -132,6 +180,7 @@ namespace Spreads.Serialization {
             ByteUtil.MemoryCopy(tgt, _ptr, (uint)Size);
             _array[1] = default(T);
 #endif
+            return _size;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

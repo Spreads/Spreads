@@ -63,11 +63,12 @@ namespace Spreads.Storage {
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public unsafe void ToPtr(Entry entry, IntPtr ptr, MemoryStream memoryStream = null) {
+            public unsafe int ToPtr(Entry entry, IntPtr ptr, MemoryStream memoryStream = null) {
                 *(int*)ptr = entry.hashCode;
                 *(int*)(ptr + 4) = entry.next;
                 TypeHelper<TKey>.ToPtr(entry.key, (ptr + 8));
                 TypeHelper<TValue>.ToPtr(entry.value, (ptr + 8 + TypeHelper<TKey>.Size));
+                return Size;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

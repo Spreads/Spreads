@@ -33,7 +33,7 @@ namespace Spreads.Serialization {
             throw new NotImplementedException();
         }
 
-        public void ToPtr(TElement[] value, IntPtr ptr, MemoryStream memoryStream = null) {
+        public int ToPtr(TElement[] value, IntPtr ptr, MemoryStream memoryStream = null) {
             throw new NotImplementedException();
         }
 
@@ -48,16 +48,17 @@ namespace Spreads.Serialization {
         public int Size => 0;
         public int SizeOf(byte[] value, out MemoryStream memoryStream) {
             memoryStream = null;
-            return value.Length;
+            return value.Length + 8;
         }
 
-        public void ToPtr(byte[] value, IntPtr ptr, MemoryStream memoryStream = null) {
+        public int ToPtr(byte[] value, IntPtr ptr, MemoryStream memoryStream = null) {
             // version
             Marshal.WriteInt32(ptr, Version);
             // size
             Marshal.WriteInt32(ptr + 4, value.Length);
             // payload
             Marshal.Copy(value, 0, ptr + 8, value.Length);
+            return value.Length + 8;
         }
 
         public int FromPtr(IntPtr ptr, ref byte[] value) {
@@ -106,21 +107,22 @@ namespace Spreads.Serialization {
             return len + 8;
         }
 
-        public unsafe void ToPtr(string value, IntPtr ptr, MemoryStream memoryStream = null) {
+        public unsafe int ToPtr(string value, IntPtr ptr, MemoryStream memoryStream = null) {
             if (memoryStream == null) {
                 // version
                 Marshal.WriteInt32(ptr, Version);
                 // payload
                 var maxLength = value.Length * 2;
-                fixed (char* charPtr = value)
-                {
+                fixed (char* charPtr = value) {
                     var len = Encoding.UTF8.GetBytes(charPtr, value.Length, (byte*)ptr + 8, maxLength);
                     // size
                     Marshal.WriteInt32(ptr + 4, len);
+                    return len + 8;
                 }
 
             } else {
                 memoryStream.WriteToPtr(ptr);
+                return checked((int)memoryStream.Length);
             }
 
         }
@@ -153,11 +155,11 @@ namespace Spreads.Serialization {
         public int SizeOf(MemoryStream value, out MemoryStream memoryStream) {
             if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException("Memory stream is too large");
             memoryStream = null;
-            return (int)value.Length;
+            return checked((int)value.Length + 8);
         }
 
 
-        public unsafe void ToPtr(MemoryStream value, IntPtr ptr, MemoryStream memoryStream = null) {
+        public unsafe int ToPtr(MemoryStream value, IntPtr ptr, MemoryStream memoryStream = null) {
             if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException("Memory stream is too large");
             // version
             Marshal.WriteInt32(ptr, 0);
@@ -173,6 +175,7 @@ namespace Spreads.Serialization {
             while ((b = value.ReadByte()) >= 0) {
                 *(byte*)ptr = (byte)b;
             }
+            return checked((int)value.Length + 8);
         }
 
         public int FromPtr(IntPtr ptr, ref MemoryStream value) {

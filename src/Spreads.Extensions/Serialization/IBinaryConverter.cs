@@ -48,7 +48,7 @@ namespace Spreads.Serialization {
         /// Use SizeOf method to determine the bytes size of the value before writing. If SizeOf
         /// sets memoryStream then write its content directly, otherwise ToPtr will do the same serialization job twice.
         /// </summary>
-        void ToPtr(T value, IntPtr ptr, MemoryStream memoryStream = null);
+        int ToPtr(T value, IntPtr ptr, MemoryStream memoryStream = null);
 
         /// <summary>
         /// Reads new value or fill existing value with data from the pointer, 

@@ -112,8 +112,7 @@ namespace Spreads.Core.Tests {
             var buffer = new DirectBuffer(1024, ptr);
 
 
-            var myStruct = new SetRemoveCommandBody<long, string>()
-            {
+            var myStruct = new SetRemoveCommandBody<long, string>() {
                 key = 123,
                 value = "string value"
             };
@@ -123,6 +122,35 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(myStruct.key, newStruct.key);
             Assert.AreEqual(myStruct.value, newStruct.value);
 
+        }
+
+
+        [Test]
+        public void CouldCreateNongenericDelegates() {
+            var ptr = Marshal.AllocHGlobal(1024);
+            var buffer = new DirectBuffer(1024, ptr);
+
+
+            var fromPtrInt = TypeHelper.GetFromPtrDelegate(typeof(int));
+
+            TypeHelper<int>.ToPtr(12345, ptr);
+
+            object res = null;
+            fromPtrInt(ptr, ref res);
+            Assert.AreEqual((int)res, 12345);
+
+
+            var toPtrInt = TypeHelper.GetToPtrDelegate(typeof(int));
+            toPtrInt(42, ptr);
+
+            int temp = 0;
+            TypeHelper<int>.FromPtr(ptr, ref temp);
+            Assert.AreEqual(42, temp);
+
+            var sizeOfInt = TypeHelper.GetSizeOfDelegate(typeof(int));
+            MemoryStream tmp;
+            Assert.AreEqual(sizeOfInt(42, out tmp), 4);
+            Assert.IsNull(tmp);
         }
 
 

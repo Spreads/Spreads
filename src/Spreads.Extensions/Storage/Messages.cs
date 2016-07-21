@@ -122,10 +122,11 @@ namespace Spreads.Storage {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ToPtr(SetRemoveCommandBody<TKey, TValue> entry, IntPtr ptr, MemoryStream memoryStream = null) {
+        public int ToPtr(SetRemoveCommandBody<TKey, TValue> entry, IntPtr ptr, MemoryStream memoryStream = null) {
             if (IsFixedSize) {
                 TypeHelper<TKey>.ToPtr(entry.key, (ptr));
                 TypeHelper<TValue>.ToPtr(entry.value, (ptr + TypeHelper<TKey>.Size));
+                return Size;
             } else {
                 if (memoryStream == null) {
                     MemoryStream tempStream;
@@ -134,9 +135,11 @@ namespace Spreads.Storage {
                     Debug.Assert(tempStream != null && size == tempStream.Length);
                     tempStream.WriteToPtr(ptr);
                     tempStream.Dispose();
+                    return size;
                 } else {
                     memoryStream.WriteToPtr(ptr);
                     // do not dispose, MS is owned outside of this method
+                    return checked((int)memoryStream.Length);
                 }
             }
         }

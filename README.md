@@ -221,7 +221,7 @@ The project and NuGet package `Spreads.Extensions` contain:
 + Useful utils for historical time zones conversions using [NodaTime](http://nodatime.org/).
 
 
-Warning: on-disk binary data format could change between version before 1.0 (at least until this notice disappears and format versioning is tested). 
+Warning: on-disk binary data format could change between versions before 1.0 (at least until this notice disappears and format versioning is tested). 
 Use current version for evaluation or caching of data stored somewhere, e.g. in RDMS.
 
 ##Install
