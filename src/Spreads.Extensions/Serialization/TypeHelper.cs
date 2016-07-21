@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -14,6 +15,7 @@ namespace Spreads.Serialization {
     internal delegate int FromPtrDelegate(IntPtr ptr, ref object value);
     internal delegate int ToPtrDelegate(object value, IntPtr pointer, MemoryStream ms = null);
     internal delegate int SizeOfDelegate(object value, out MemoryStream memoryStream);
+    internal delegate int SizeDelegate();
 
     internal class TypeParams {
         public int Size { get; set; }
@@ -41,22 +43,52 @@ namespace Spreads.Serialization {
             return TypeHelper<T>.SizeOf(temp, out memoryStream);
         }
 
+        internal static int Size<T>() {
+            return TypeHelper<T>.Size;
+        }
+
+        private static readonly Dictionary<Type, FromPtrDelegate> FromPtrDelegateCache = new Dictionary<Type, FromPtrDelegate>();
         internal static FromPtrDelegate GetFromPtrDelegate(Type ty) {
+            FromPtrDelegate temp;
+            if (FromPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("FromPtr", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             var genericMi = mi.MakeGenericMethod(ty);
-            return (FromPtrDelegate)Delegate.CreateDelegate(typeof(FromPtrDelegate), genericMi);
+            temp = (FromPtrDelegate)Delegate.CreateDelegate(typeof(FromPtrDelegate), genericMi);
+            FromPtrDelegateCache[ty] = temp;
+            return temp;
         }
 
+        private static readonly Dictionary<Type, ToPtrDelegate> ToPtrDelegateCache = new Dictionary<Type, ToPtrDelegate>();
         internal static ToPtrDelegate GetToPtrDelegate(Type ty) {
+            ToPtrDelegate temp;
+            if (ToPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("ToPtr", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             var genericMi = mi.MakeGenericMethod(ty);
-            return (ToPtrDelegate)Delegate.CreateDelegate(typeof(ToPtrDelegate), genericMi);
+            temp = (ToPtrDelegate)Delegate.CreateDelegate(typeof(ToPtrDelegate), genericMi);
+            ToPtrDelegateCache[ty] = temp;
+            return temp;
         }
 
+        private static readonly Dictionary<Type, SizeOfDelegate> SizeOfDelegateCache = new Dictionary<Type, SizeOfDelegate>();
         internal static SizeOfDelegate GetSizeOfDelegate(Type ty) {
+            SizeOfDelegate temp;
+            if (SizeOfDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("SizeOf", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             var genericMi = mi.MakeGenericMethod(ty);
-            return (SizeOfDelegate)Delegate.CreateDelegate(typeof(SizeOfDelegate), genericMi);
+            temp = (SizeOfDelegate)Delegate.CreateDelegate(typeof(SizeOfDelegate), genericMi);
+            SizeOfDelegateCache[ty] = temp;
+            return temp;
+        }
+
+        private static readonly Dictionary<Type, SizeDelegate> SizeDelegateCache = new Dictionary<Type, SizeDelegate>();
+        internal static SizeDelegate GetSizeDelegate(Type ty) {
+            SizeDelegate temp;
+            if (SizeDelegateCache.TryGetValue(ty, out temp)) return temp;
+            var mi = typeof(TypeHelper).GetMethod("Size", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            var genericMi = mi.MakeGenericMethod(ty);
+            temp = (SizeDelegate)Delegate.CreateDelegate(typeof(SizeDelegate), genericMi);
+            SizeDelegateCache[ty] = temp;
+            return temp;
         }
     }
 
@@ -321,9 +353,8 @@ namespace Spreads.Serialization {
         /// If type is supported by TypeHelper, is it either a blittable fixed-size type (Size > 0) or 
         /// a type with a binary convertor (Size = 0).
         /// </summary>
-        public static bool IsSupportedType => _size >= 0;
+        //public static bool IsSupportedType => _size >= 0;
 
-        public static bool HasBinaryConverter => _hasBinaryConverter;
         public static int Version => _hasBinaryConverter ? _convertorInstance.Version : 0;
 
         public static void RegisterConvertor(IBinaryConverter<T> convertor, bool overrideExisting = false) {
