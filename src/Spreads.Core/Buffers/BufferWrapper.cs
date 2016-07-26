@@ -21,7 +21,12 @@ namespace Spreads.Buffers {
         private readonly T[] _buffer;
         private Counter _counter;
 
-        public T[] Buffer => _buffer;
+
+        public T[] Buffer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _buffer; }
+        }
         private bool IsPooled => _isPooled;
         private Counter Counter
         {
