@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using Spreads.Buffers;
 
 namespace Spreads.Serialization {
 
@@ -81,16 +82,17 @@ namespace Spreads.Serialization {
         public int SizeOf(string value, out MemoryStream memoryStream) {
             var maxLength = value.Length * 2;
             var needReturnToBufferPool = false;
+            // TODO (low) use BufferWrapper here and below - it just does exactly the same logic
             byte[] buffer;
-            if (maxLength < BinaryConvertorExtensions.MaxBufferSize) {
-                buffer = BinaryConvertorExtensions.ThreadStaticBuffer;
+            if (maxLength <= RecyclableMemoryManager.StaticBufferSize) {
+                buffer = RecyclableMemoryManager.ThreadStaticBuffer;
             } else {
                 needReturnToBufferPool = true;
-                buffer = OptimizationSettings.ArrayPool.Take<byte>(maxLength);
+                buffer = ArrayPool<byte>.Shared.Rent(maxLength);
             }
             var len = Encoding.UTF8.GetBytes(value, 0, value.Length, buffer, 0);
 
-            memoryStream = TypeHelper.MsManager.GetStream("StringBinaryConverter.SizeOf");
+            memoryStream = RecyclableMemoryManager.MemoryStreams.GetStream("StringBinaryConverter.SizeOf");
             Debug.Assert(memoryStream.Position == 0);
 
             memoryStream.WriteAsPtr<int>(Version);
@@ -103,7 +105,7 @@ namespace Spreads.Serialization {
             memoryStream.WriteAsPtr<int>(len);
             memoryStream.Position = 0;
 
-            if (needReturnToBufferPool) OptimizationSettings.ArrayPool.Return(buffer);
+            if (needReturnToBufferPool) ArrayPool<byte>.Shared.Return(buffer, true);
             return len + 8;
         }
 
@@ -133,15 +135,15 @@ namespace Spreads.Serialization {
             var length = Marshal.ReadInt32(ptr + 4);
             bool needReturn = false;
             byte[] buffer;
-            if (length < BinaryConvertorExtensions.MaxBufferSize) {
-                buffer = BinaryConvertorExtensions.ThreadStaticBuffer;
+            if (length < RecyclableMemoryManager.StaticBufferSize) {
+                buffer = RecyclableMemoryManager.ThreadStaticBuffer;
             } else {
                 needReturn = true;
-                buffer = OptimizationSettings.ArrayPool.Take<byte>(length);
+                buffer = ArrayPool<byte>.Shared.Rent(length);
             }
             Marshal.Copy(ptr + 8, buffer, 0, length);
             value = Encoding.UTF8.GetString(buffer, 0, length);
-            if (needReturn) OptimizationSettings.ArrayPool.Return(buffer);
+            if (needReturn) ArrayPool<byte>.Shared.Return(buffer, true);
             return length + 8;
         }
 
@@ -153,23 +155,19 @@ namespace Spreads.Serialization {
         public bool IsFixedSize => false;
         public int Size => 0;
         public int SizeOf(MemoryStream value, out MemoryStream memoryStream) {
-            if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException("Memory stream is too large");
+            if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(memoryStream), "Memory stream is too large");
             memoryStream = null;
             return checked((int)value.Length + 8);
         }
 
 
         public unsafe int ToPtr(MemoryStream value, IntPtr ptr, MemoryStream memoryStream = null) {
-            if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException("Memory stream is too large");
+            if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(memoryStream), "Memory stream is too large");
             // version
             Marshal.WriteInt32(ptr, 0);
             // size
             Marshal.WriteInt32(ptr + 4, (int)value.Length);
             // payload
-            var rms = value as Spreads.Serialization.Microsoft.IO.RecyclableMemoryStream;
-            if (rms != null) {
-                throw new NotImplementedException("TODO use RecyclableMemoryStream internally");
-            }
             ptr = ptr + 8;
             int b;
             while ((b = value.ReadByte()) >= 0) {

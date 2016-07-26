@@ -69,6 +69,11 @@
     <Compile Include="Bootstrapper\NativeLibrary.cs" />
     <Compile Include="Bootstrapper\Process.cs" />
     <Compile Include="Bootstrapper\Version.cs" />
+    <Compile Include="Buffers\AtomicCounter.cs" />
+    <Compile Include="Buffers\BufferWrapper.cs" />
+    <Compile Include="Buffers\Events.cs" />
+    <Compile Include="Buffers\RecyclableMemoryStream.cs" />
+    <Compile Include="Buffers\RecyclableMemoryStreamManager.cs" />
     <Compile Include="ByteUtil.cs" />
     <Compile Include="ChaosMonkey.cs" />
     <Compile Include="Collections\IDictionaryDebugView.cs" />
@@ -80,16 +85,12 @@
       <DependentUpon>Utils.cs</DependentUpon>
     </Compile>
     <Compile Include="StringExtensions.cs" />
-    <Compile Include="System\Buffers\ArrayPool.cs" />
-    <Compile Include="System\Buffers\ArrayPoolEventSource.cs" />
-    <Compile Include="System\Buffers\DefaultArrayPool.cs" />
-    <Compile Include="System\Buffers\DefaultArrayPoolBucket.cs" />
-    <Compile Include="System\Buffers\GenericArrayPool.cs" />
-    <Compile Include="System\Buffers\IGenericArrayPool.cs" />
-    <Compile Include="System\Buffers\Utilities.cs" />
-    <Compile Include="System\Runtime\ArrayPool.cs" />
-    <Compile Include="System\Runtime\BufferPool.cs" />
-    <Compile Include="System\Runtime\SynchronizedPool.cs" />
+    <Compile Include="Buffers\ArrayPool.cs" />
+    <Compile Include="Buffers\ArrayPoolEventSource.cs" />
+    <Compile Include="Buffers\DefaultArrayPool.cs" />
+    <Compile Include="Buffers\DefaultArrayPoolBucket.cs" />
+    <Compile Include="Buffers\RecyclableMemoryManager.cs" />
+    <Compile Include="Buffers\Utilities.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="Lookup.cs" />
     <Compile Include="Interfaces.cs" />

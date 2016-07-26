@@ -50,6 +50,7 @@ namespace Spreads.Serialization {
     // TODO (low) test multiple attributes, e.g. start with default, then bson, json, PB, custom
 
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true)]
+    [Obsolete("Do not boil the ocean, simplify")]
     public class SerializationAttribute : Attribute {
 
         internal static SerializationAttribute GetSerializationAttribute(Type type)

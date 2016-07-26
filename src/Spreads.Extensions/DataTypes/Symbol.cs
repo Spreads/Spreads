@@ -20,6 +20,7 @@
 using System;
 using System.Diagnostics;
 using System.Text;
+using Spreads.Buffers;
 using Spreads.Serialization;
 
 namespace Spreads.DataTypes {
@@ -54,7 +55,7 @@ namespace Spreads.DataTypes {
         }
 
         public override string ToString() {
-            var buffer = BinaryConvertorExtensions.ThreadStaticBuffer;
+            var buffer = RecyclableMemoryManager.ThreadStaticBuffer;
             var len = 0;
             fixed (byte* thisPtr = Bytes)
             {

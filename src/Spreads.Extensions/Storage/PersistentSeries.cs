@@ -198,7 +198,7 @@ namespace Spreads.Storage {
             _appendLog.Claim(len, out claim);
             *(MessageHeader*)(claim.Data) = header;
             // TODO reuse ms
-            BinarySerializer.Serialize(commandBody, claim.Data + MessageHeader.Size, ms);
+            BinarySerializer.Serialize(commandBody, claim.Buffer, (uint)MessageHeader.Size, ms);
             ms?.Dispose();
             claim.ReservedValue = _pid;
             claim.Commit();

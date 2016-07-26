@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime;
 using System.Runtime.Versioning;
@@ -12,6 +11,8 @@ using System.Diagnostics.Contracts;
 using System.Collections.ObjectModel;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads;
+using Spreads.Buffers;
 
 namespace Spreads.Experimental {
 

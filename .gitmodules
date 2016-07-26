@@ -2,6 +2,3 @@
 	path = lib/Ix.NET
 	url = https://github.com/Spreads/Ix.NET
 	branch = spreads
-[submodule "lib/Microsoft.IO.RecyclableMemoryStream"]
-	path = lib/Microsoft.IO.RecyclableMemoryStream
-	url = https://github.com/Spreads/Microsoft.IO.RecyclableMemoryStream.git

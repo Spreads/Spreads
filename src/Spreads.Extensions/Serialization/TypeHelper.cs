@@ -5,17 +5,14 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Serialization.Microsoft.IO;
 
 namespace Spreads.Serialization {
 
-    // cache converters and size info in static class for each type, 
-
+    // TODO(!!!) find all occurences of TH and replace with BinarySerializer
 
     internal delegate int FromPtrDelegate(IntPtr ptr, ref object value);
     internal delegate int ToPtrDelegate(object value, IntPtr pointer, MemoryStream ms = null);
     internal delegate int SizeOfDelegate(object value, out MemoryStream memoryStream);
-    internal delegate int SizeDelegate();
 
     internal class TypeParams {
         public int Size { get; set; }
@@ -23,8 +20,6 @@ namespace Spreads.Serialization {
 
 
     internal class TypeHelper {
-        public static RecyclableMemoryStreamManager MsManager = new RecyclableMemoryStreamManager();
-
 
         internal static int FromPtr<T>(IntPtr ptr, ref object value) {
             var temp = value == null ? default(T) : (T)value;
@@ -48,6 +43,7 @@ namespace Spreads.Serialization {
         }
 
         private static readonly Dictionary<Type, FromPtrDelegate> FromPtrDelegateCache = new Dictionary<Type, FromPtrDelegate>();
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static FromPtrDelegate GetFromPtrDelegate(Type ty) {
             FromPtrDelegate temp;
             if (FromPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
@@ -59,6 +55,7 @@ namespace Spreads.Serialization {
         }
 
         private static readonly Dictionary<Type, ToPtrDelegate> ToPtrDelegateCache = new Dictionary<Type, ToPtrDelegate>();
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static ToPtrDelegate GetToPtrDelegate(Type ty) {
             ToPtrDelegate temp;
             if (ToPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
@@ -70,6 +67,7 @@ namespace Spreads.Serialization {
         }
 
         private static readonly Dictionary<Type, SizeOfDelegate> SizeOfDelegateCache = new Dictionary<Type, SizeOfDelegate>();
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static SizeOfDelegate GetSizeOfDelegate(Type ty) {
             SizeOfDelegate temp;
             if (SizeOfDelegateCache.TryGetValue(ty, out temp)) return temp;
@@ -80,13 +78,14 @@ namespace Spreads.Serialization {
             return temp;
         }
 
-        private static readonly Dictionary<Type, SizeDelegate> SizeDelegateCache = new Dictionary<Type, SizeDelegate>();
-        internal static SizeDelegate GetSizeDelegate(Type ty) {
-            SizeDelegate temp;
+        private static readonly Dictionary<Type, int> SizeDelegateCache = new Dictionary<Type, int>();
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int GetSize(Type ty) {
+            int temp;
             if (SizeDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("Size", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             var genericMi = mi.MakeGenericMethod(ty);
-            temp = (SizeDelegate)Delegate.CreateDelegate(typeof(SizeDelegate), genericMi);
+            temp = (int)genericMi.Invoke(null, new object[] { });
             SizeDelegateCache[ty] = temp;
             return temp;
         }
@@ -244,67 +243,67 @@ namespace Spreads.Serialization {
                 return 8;
             }
 
+            //try {
+            //    return Marshal.SizeOf(ty);
+            //} catch {
             try {
-                return Marshal.SizeOf(ty);
-            } catch {
-                try {
-                    // throw only once, exceptions are expensive
-                    //usePinnedArray = true;
-                    if (_array == null) {
-                        _array = new T[2];
-                    }
-                    _pinnedArray = GCHandle.Alloc(_array, GCHandleType.Pinned);
-                    _tgt = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 0);
-                    _ptr = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 1);
-                    var size = (int)
-                        (Marshal.UnsafeAddrOfPinnedArrayElement(_array, 1).ToInt64() -
-                         Marshal.UnsafeAddrOfPinnedArrayElement(_array, 0).ToInt64());
-                    _pinnedArray.Free();
-                    _array = null;
-                    return size;
-                } catch {
-                    // NB we try to check interface as a last step, because some generic types 
-                    // could implement IBinaryConverter<T> but still be blittable for certain types,
-                    // e.g. DateTime vs long in PersistentMap<K,V>.Entry
-                    var tmp = default(T);
-                    if (tmp is IBinaryConverter<T>) {
-                        _hasBinaryConverter = true;
-                        IBinaryConverter<T> convertor;
-                        try {
-                            convertor = (IBinaryConverter<T>)Activator.CreateInstance<T>();
-                        } catch {
-                            //Trace.TraceWarning($"Type {typeof(T).FullName} is marked as IBinaryConverter and so it must have a parameterless constructor");
-                            throw new ApplicationException($"Type T ({typeof(T).FullName}) is marked as IBlittable<T> and so it must have a parameterless constructor.");
-                        }
-                        if (convertor.Version > 0) throw new InvalidOperationException("A type T implementing IBinaryConverter<T> should have default version. Register a custom convertor for versioning.");
-                        _convertorInstance = convertor;
-                        return _convertorInstance.IsFixedSize ? _convertorInstance.Size : 0;
-                    }
-                    if (ty == typeof(byte[])) {
-                        _convertorInstance = (IBinaryConverter<T>)(new ByteArrayBinaryConverter());
-                        _hasBinaryConverter = true;
-                        return 0;
-                    }
-                    if (ty == typeof(string)) {
-                        _convertorInstance = (IBinaryConverter<T>)(new StringBinaryConverter());
-                        _hasBinaryConverter = true;
-                        return 0;
-                    }
-                    //if (ty.IsArray) {
-                    //    Console.WriteLine("IsArray");
-                    //    var elementType = ty.GetElementType();
-                    //    var convertor = (IBinaryConverter<T>)ArrayConvertorFactory.Create(elementType);
-                    //    if (convertor != null) {
-                    //        _convertorInstance = convertor;
-                    //        _hasBinaryConverter = true;
-                    //        Trace.Assert(!_convertorInstance.IsFixedSize);
-                    //        Trace.Assert(_convertorInstance.Size == 0);
-                    //        return 0;
-                    //    }
-                    //}
-                    return -1;
+                // throw only once, exceptions are expensive
+                //usePinnedArray = true;
+                if (_array == null) {
+                    _array = new T[2];
                 }
+                _pinnedArray = GCHandle.Alloc(_array, GCHandleType.Pinned);
+                _tgt = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 0);
+                _ptr = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 1);
+                var size = (int)
+                    (Marshal.UnsafeAddrOfPinnedArrayElement(_array, 1).ToInt64() -
+                     Marshal.UnsafeAddrOfPinnedArrayElement(_array, 0).ToInt64());
+                _pinnedArray.Free();
+                _array = null;
+                return size;
+            } catch {
+                // NB we try to check interface as a last step, because some generic types 
+                // could implement IBinaryConverter<T> but still be blittable for certain types,
+                // e.g. DateTime vs long in PersistentMap<K,V>.Entry
+                var tmp = default(T);
+                if (tmp is IBinaryConverter<T>) {
+                    _hasBinaryConverter = true;
+                    IBinaryConverter<T> convertor;
+                    try {
+                        convertor = (IBinaryConverter<T>)Activator.CreateInstance<T>();
+                    } catch {
+                        //Trace.TraceWarning($"Type {typeof(T).FullName} is marked as IBinaryConverter and so it must have a parameterless constructor");
+                        throw new ApplicationException($"Type T ({typeof(T).FullName}) is marked as IBinaryConverter<T> and so it must have a parameterless constructor.");
+                    }
+                    if (convertor.Version > 0) throw new InvalidOperationException("A type T implementing IBinaryConverter<T> should have default version. Register a custom convertor for versioning.");
+                    _convertorInstance = convertor;
+                    return _convertorInstance.IsFixedSize ? _convertorInstance.Size : 0;
+                }
+                if (ty == typeof(byte[])) {
+                    _convertorInstance = (IBinaryConverter<T>)(new ByteArrayBinaryConverter());
+                    _hasBinaryConverter = true;
+                    return 0;
+                }
+                if (ty == typeof(string)) {
+                    _convertorInstance = (IBinaryConverter<T>)(new StringBinaryConverter());
+                    _hasBinaryConverter = true;
+                    return 0;
+                }
+                //if (ty.IsArray) {
+                //    Console.WriteLine("IsArray");
+                //    var elementType = ty.GetElementType();
+                //    var convertor = (IBinaryConverter<T>)ArrayConvertorFactory.Create(elementType);
+                //    if (convertor != null) {
+                //        _convertorInstance = convertor;
+                //        _hasBinaryConverter = true;
+                //        Trace.Assert(!_convertorInstance.IsFixedSize);
+                //        Trace.Assert(_convertorInstance.Size == 0);
+                //        return 0;
+                //    }
+                //}
+                return -1;
             }
+            //}
         }
 
 
@@ -321,22 +320,13 @@ namespace Spreads.Serialization {
                 Debug.Assert(_size == 0);
                 return _convertorInstance.SizeOf(value, out memoryStream);
             }
-
-            if (Size < 0) {
-                throw new InvalidOperationException();
-                // TODO support serialization into a memory stream
-                //var bytes = Serializer.Serialize(value);
-                //if (memoryStream == null) {
-                //    memoryStream = new MemoryStream(bytes.Length + 8);
-                //}
-                //memoryStream.WriteAsPtr<int>(0);
-                //memoryStream.WriteAsPtr<int>(bytes.Length);
-                //memoryStream.Write(bytes, 0, bytes.Length);
-                //return bytes.Length + 8;
+            if (_size < 0) {
+                memoryStream = null;
+                return -1;
             }
             Debug.Assert(_size > 0);
             memoryStream = null;
-            return Size;
+            return _size;
         }
 
 

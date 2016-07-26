@@ -20,7 +20,6 @@
 namespace Spreads
 
 open System
-open System.Buffers
 open System.Collections
 open System.Collections.Generic
 open System.Threading
@@ -52,10 +51,6 @@ type internal OptimizationSettings() =
   /// Conditional tracing when OptimizationSettings.Verbose is set to true
   [<ConditionalAttribute("PRERELEASE")>]
   static member TraceVerbose(message) = System.Diagnostics.Trace.WriteLineIf(OptimizationSettings.Verbose, message)
-
-  /// Generic array pool implementation. Default is GC.
-  /// The extension project has an implementation for doubles, and the performance gain is quite visible in benchmarks.
-  static member val ArrayPool : IGenericArrayPool = new GenericArrayPool() :> IGenericArrayPool
 
 
 // It is tempting to use ILinearAlgebraProvider from MathNet.Numerics, but there are not so many members to wrap around it;

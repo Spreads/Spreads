@@ -35,6 +35,7 @@ namespace Spreads.Serialization {
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct DirectBuffer : IDirectBuffer {
+
         private readonly long _length;
         internal readonly IntPtr _data;
 
@@ -557,9 +558,10 @@ namespace Spreads.Serialization {
             MemoryStream stream;
             var len = BinarySerializer.SizeOf(value, out stream);
             Assert(index, len);
-            var ptr = new IntPtr(_data.ToInt64() + index);
+            //var ptr = new IntPtr(_data.ToInt64() + index);
             if (stream == null) {
-                BinarySerializer.Serialize(value, ptr, null);
+                // TODO long vs uint
+                BinarySerializer.Serialize(value, this, checked((uint)index), null);
             } else {
                 stream.WriteToPtr(new IntPtr(_data.ToInt64() + index));
                 stream.Dispose();

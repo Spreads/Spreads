@@ -22,6 +22,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Buffers;
 using Spreads.Serialization;
 
 namespace Spreads.Storage {
@@ -90,7 +91,7 @@ namespace Spreads.Storage {
                 return Size;
             }
 
-            memoryStream = TypeHelper.MsManager.GetStream("SetRemoveCommandBody.SizeOf");
+            memoryStream = RecyclableMemoryManager.MemoryStreams.GetStream("SetRemoveCommandBody.SizeOf");
             Debug.Assert(memoryStream.Position == 0);
 
             memoryStream.WriteAsPtr<int>(Version);

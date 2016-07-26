@@ -30,6 +30,7 @@ open System.Threading.Tasks
 
 
 open Spreads
+open Spreads.Buffers
 open Spreads.Collections
 
 // This could be done as a base class OrderedMap and derived classes IndexedMap and IndexedMap
@@ -70,8 +71,8 @@ type IndexedMap<'K,'V> // when 'K:equality
   do
     let tempCap = if capacity.IsSome then capacity.Value else 1
     if dictionary.IsNone then // otherwise we will set them in dict processing part
-      this.keys <- OptimizationSettings.ArrayPool.Take tempCap
-    this.values <- OptimizationSettings.ArrayPool.Take tempCap
+      this.keys <- ArrayPool<_>.Shared.Rent(tempCap)
+    this.values <- ArrayPool<_>.Shared.Rent(tempCap)
 
     if dictionary.IsSome && dictionary.Value.Count > 0 then
       match dictionary.Value with
@@ -164,17 +165,17 @@ type IndexedMap<'K,'V> // when 'K:equality
         | c when c = this.values.Length -> ()
         | c when c < this.size -> raise (ArgumentOutOfRangeException("Small capacity"))
         | c when c > 0 -> 
-          let kArr : 'K array = OptimizationSettings.ArrayPool.Take(c)
+          let kArr : 'K array = ArrayPool<_>.Shared.Rent(c)
           Array.Copy(this.keys, 0, kArr, 0, this.size)
           let toReturn = this.keys
           this.keys <- kArr
-          OptimizationSettings.ArrayPool.Return(toReturn) |> ignore
+          ArrayPool<_>.Shared.Return(toReturn, true) |> ignore
 
-          let vArr : 'V array = OptimizationSettings.ArrayPool.Take(c)
+          let vArr : 'V array = ArrayPool<_>.Shared.Rent(c)
           Array.Copy(this.values, 0, vArr, 0, this.size)
           let toReturn = this.values
           this.values <- vArr
-          OptimizationSettings.ArrayPool.Return(toReturn) |> ignore
+          ArrayPool<_>.Shared.Return(toReturn, true) |> ignore
         | _ -> ()
       finally
         exitLockIf syncRoot entered

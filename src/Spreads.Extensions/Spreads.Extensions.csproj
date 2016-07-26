@@ -158,19 +158,12 @@
     <Compile Include="..\..\lib\Ix.NET\Ix.NET\Source\System.Interactive.Async\TaskExt.cs">
       <Link>System\Threading\Tasks\TaskExt.cs</Link>
     </Compile>
-    <Compile Include="..\..\lib\Microsoft.IO.RecyclableMemoryStream\src\Events.cs">
-      <Link>Serialization\Microsoft.IO.RecyclableMemoryStream\Events.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.IO.RecyclableMemoryStream\src\RecyclableMemoryStream.cs">
-      <Link>Serialization\Microsoft.IO.RecyclableMemoryStream\RecyclableMemoryStream.cs</Link>
-    </Compile>
-    <Compile Include="..\..\lib\Microsoft.IO.RecyclableMemoryStream\src\RecyclableMemoryStreamManager.cs">
-      <Link>Serialization\Microsoft.IO.RecyclableMemoryStream\RecyclableMemoryStreamManager.cs</Link>
-    </Compile>
     <Compile Include="Algorithms\Ranker.cs" />
     <Compile Include="DataTypes\OrderBook.cs" />
     <Compile Include="DataTypes\Symbol.cs" />
     <Compile Include="DataTypes\Tick.cs" />
+    <Compile Include="Serialization\BinaryConvertor.cs" />
+    <Compile Include="Serialization\BinaryConvertorExtensions.cs" />
     <Compile Include="Serialization\Convertors.cs" />
     <Compile Include="Serialization\DirectBuffer.cs" />
     <Compile Include="Serialization\DirectFile.cs" />

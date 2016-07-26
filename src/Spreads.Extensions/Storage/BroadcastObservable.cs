@@ -7,7 +7,7 @@ using Spreads.Storage.Aeron.Logbuffer;
 
 namespace Spreads.Storage {
 
-
+    // TODO(!!!) BinarySerializer instead of TypeHelper
     public class BroadcastObservable<T> : IObservable<T>, IObserver<T>, DataRepository.IAcceptCommand {
         private readonly AppendLog _appendLog;
         private readonly string _channelId;
@@ -46,7 +46,7 @@ namespace Spreads.Storage {
             var len = TypeHelper<T>.SizeOf(value, out ms) + MessageHeader.Size;
             _appendLog.Claim(len, out claim);
             *(MessageHeader*)(claim.Data) = header;
-            BinarySerializer.Serialize<T>(value, claim.Data + MessageHeader.Size, ms);
+            BinarySerializer.Serialize<T>(value, claim.Buffer, (uint)MessageHeader.Size, ms);
             ms?.Dispose();
             claim.ReservedValue = _pid;
             claim.Commit();

@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using Spreads.Serialization.Microsoft.IO;
 
 namespace Spreads.Serialization {
 
@@ -56,92 +52,5 @@ namespace Spreads.Serialization {
         /// If not IsFixedSize, checks that version from the pointer equals the Version property.
         /// </summary>
         int FromPtr(IntPtr ptr, ref T value);
-    }
-
-
-    public static class BinaryConvertorExtensions {
-        public const int MaxBufferSize = 8 * 1024;
-        [ThreadStatic]
-        private static byte[] _threadStaticBuffer;
-
-        internal static byte[] ThreadStaticBuffer
-        {
-            get
-            {
-                if (_threadStaticBuffer == null || _threadStaticBuffer.Length < MaxBufferSize) {
-                    _threadStaticBuffer = new byte[MaxBufferSize];
-                }
-                return _threadStaticBuffer;
-            }
-        }
-
-        /// <summary>
-        /// Writes to a stream as if it was a pointer using IBinaryConverter<T>.ToPtr method
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int WriteAsPtr<T>(this MemoryStream stream, T value) {
-            var size = TypeHelper<T>.Size;
-            if (size <= 0) throw new InvalidOperationException("This method should only be used for writing fixed-size types to a stream");
-            // NB do not use a buffer pool here but instead use a thread-static buffer
-            // that will grow to maximum size of a type. Fixed-size types are usually small.
-            // Take/return is more expensive than the work we do with the pool here.
-            if (_threadStaticBuffer == null || _threadStaticBuffer.Length < size) {
-                _threadStaticBuffer = new byte[size];
-                if (size > MaxBufferSize) {
-                    // NB 8 kb is arbitrary
-                    Trace.TraceWarning("Thread-static buffer in BinaryConvertorExtensions is above 8kb");
-                }
-            }
-            fixed (byte* ptr = &_threadStaticBuffer[0])
-            {
-                TypeHelper<T>.ToPtr(value, (IntPtr)ptr);
-            }
-            stream.Write(_threadStaticBuffer, 0, size);
-
-            // NB this is not needed as long as convertor.ToPtr guarantees overwriting all Size bytes.
-            // //Array.Clear(_buffer, 0, size);
-            return size;
-        }
-
-        public static unsafe T ReadAsPtr<T>(this MemoryStream stream) {
-            var size = TypeHelper<T>.Size;
-            if (size <= 0) throw new InvalidOperationException("This method should only be used for writing fixed-size types to a stream");
-            if (stream is RecyclableMemoryStream) throw new NotImplementedException("TODO");
-            if (_threadStaticBuffer == null || _threadStaticBuffer.Length < size) {
-                _threadStaticBuffer = new byte[size];
-                if (size > MaxBufferSize) {
-                    Trace.TraceWarning("Thread-static buffer in BinaryConvertorExtensions is above 8kb");
-                }
-            }
-            var value = default(T);
-            var read = 0;
-            while ((read += stream.Read(_threadStaticBuffer, read, size - read)) < size) { }
-
-            fixed (byte* ptr = &_threadStaticBuffer[0])
-            {
-                 TypeHelper<T>.FromPtr((IntPtr)ptr, ref value);
-            }
-            return value;
-        }
-
-        /// <summary>
-        /// Write entire stream to a pointer
-        /// </summary>
-        public static void WriteToPtr(this MemoryStream stream, IntPtr ptr) {
-            stream.Position = 0;
-            if (_threadStaticBuffer == null || _threadStaticBuffer.Length < MaxBufferSize) {
-                _threadStaticBuffer = new byte[MaxBufferSize];
-            }
-            var rms = stream as RecyclableMemoryStream;
-            if (rms != null) {
-                throw new NotImplementedException("TODO use RecyclableMemoryStream internally");
-            }
-            int length = 0;
-            int position = 0;
-            while ((length = stream.Read(_threadStaticBuffer, 0, _threadStaticBuffer.Length)) > 0) {
-                Marshal.Copy(_threadStaticBuffer, 0, ptr + position, length);
-                position += length;
-            }
-        }
     }
 }

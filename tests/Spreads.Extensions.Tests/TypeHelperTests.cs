@@ -151,6 +151,10 @@ namespace Spreads.Core.Tests {
             MemoryStream tmp;
             Assert.AreEqual(sizeOfInt(42, out tmp), 4);
             Assert.IsNull(tmp);
+
+            Assert.AreEqual(4, TypeHelper.GetSize(typeof (int)));
+            Assert.AreEqual(0, TypeHelper.GetSize(typeof (string)));
+            Assert.AreEqual(-1, TypeHelper.GetSize(typeof (LinkedList<int>)));
         }
 
 
