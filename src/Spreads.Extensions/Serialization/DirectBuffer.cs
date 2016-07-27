@@ -21,6 +21,7 @@ using System;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 
 namespace Spreads.Serialization {
@@ -65,9 +66,8 @@ namespace Spreads.Serialization {
         /// <summary>
         /// Copy this buffer to a pointer
         /// </summary>
-        public void Copy(IntPtr destination, long srcOffset, long length)
-        {
-            ByteUtil.MemoryCopy((byte*) destination, (byte*) (_data.ToInt64() + srcOffset), (uint) length);
+        public void Copy(IntPtr destination, long srcOffset, long length) {
+            ByteUtil.MemoryCopy((byte*)destination, (byte*)(_data.ToInt64() + srcOffset), (uint)length);
         }
 
         /// <summary>
@@ -591,7 +591,7 @@ namespace Spreads.Serialization {
         public void VerifyAlignment(int alignment) {
             if (0 != (_data.ToInt64() & (alignment - 1))) {
                 throw new InvalidOperationException(
-                    $"AtomicBuffer is not correctly aligned: addressOffset={_data.ToInt64():D} in not divisible by {alignment:D}");
+                    $"DirectBuffer is not correctly aligned: addressOffset={_data.ToInt64():D} in not divisible by {alignment:D}");
             }
         }
 
@@ -625,5 +625,17 @@ namespace Spreads.Serialization {
         }
 
 
+    }
+
+    // TODO implement binary reader over a direct buffer
+    internal class DirectBinaryReader : BinaryReader {
+        public DirectBinaryReader(Stream input) : base(input) {
+        }
+
+        public DirectBinaryReader(Stream input, Encoding encoding) : base(input, encoding) {
+        }
+
+        public DirectBinaryReader(Stream input, Encoding encoding, bool leaveOpen) : base(input, encoding, leaveOpen) {
+        }
     }
 }

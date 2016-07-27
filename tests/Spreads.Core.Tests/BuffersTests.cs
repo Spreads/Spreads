@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Threading;
 using NUnit.Framework;
 using Spreads.Buffers;
 
@@ -69,13 +71,69 @@ namespace Spreads.Core.Tests {
                 sw.Stop();
                 Console.WriteLine($"Direct ArrayPool with StaticBufferSize + 1 {sw.ElapsedMilliseconds}");
 
+
+                sw.Restart();
+                sum = 0L;
+                for (var i = 0; i < count; i++) {
+                    var buffer = new byte[RecyclableMemoryManager.StaticBufferSize];
+                    buffer[0] = 123;
+                    sum += buffer[0] + buffer[1];
+                }
+                Assert.IsTrue(sum > 0);
+                sw.Stop();
+                Console.WriteLine($"GC StaticBufferSize {sw.ElapsedMilliseconds}");
+
+
+                sw.Restart();
+                sum = 0L;
+                for (var i = 0; i < count; i++) {
+                    var buffer = new byte[RecyclableMemoryManager.StaticBufferSize + 1];
+                    buffer[0] = 123;
+                    sum += buffer[0] + buffer[1];
+                }
+                Assert.IsTrue(sum > 0);
+                sw.Stop();
+                Console.WriteLine($"GC StaticBufferSize + 1 {sw.ElapsedMilliseconds}");
+
+
                 Console.WriteLine("---------------------");
             }
         }
 
+        [Test]
+        public void HeaderLittleEndianTest() {
+            var ptr = Marshal.AllocHGlobal(8);
+
+            Marshal.WriteInt32(ptr, 255);
+
+            var firstByte = Marshal.ReadByte(ptr);
+
+            Assert.AreEqual(255, firstByte);
+
+        }
+
+        [Test]
+        public unsafe void InterlockedIncrVsAdd() {
+            var ptr = (void*)Marshal.AllocHGlobal(8);
 
 
+            const int count = 1000000000;
+            var sw = new Stopwatch();
 
+            sw.Restart();
+            for (int i = 0; i < count; i++) {
+                *(int*)ptr = *(int*)ptr + 1;
+            }
+            sw.Stop();
+            Console.WriteLine($"Pointer {sw.ElapsedMilliseconds}");
+            *(int*)ptr = 0;
+            sw.Restart();
+            for (int i = 0; i < count; i++) {
+                Interlocked.Increment(ref (*(int*)ptr));
+            }
+            sw.Stop();
+            Console.WriteLine($"Interlocked {sw.ElapsedMilliseconds}");
+        }
 
     }
 }

@@ -5,6 +5,7 @@
 //using System.Linq;
 //using System.Text;
 //using System.Threading.Tasks;
+//using Spreads.Buffers;
 
 //namespace Spreads.Serialization {
 
@@ -27,6 +28,7 @@
 //            }
 //            if (Size > 0) {
 //                memoryStream = null;
+//                // NB individual items are not length-prefixed for fixed-size case
 //                return 8 + valueArray.Length * Size;
 //            }
 //            MemoryStream tempMs;
@@ -49,7 +51,7 @@
 //            }
 
 //            // have to accumulate actual serialized data into a memory stream
-//            memoryStream = TypeHelper.MsManager.GetStream();
+//            memoryStream = RecyclableMemoryManager.MemoryStreams.GetStream();
 //            Debug.Assert(memoryStream.Position == 0);
 //            // version + flags
 //            memoryStream.WriteAsPtr<int>(0);
@@ -69,8 +71,7 @@
 //                tempMs2?.Dispose();
 //            }
 
-//            foreach (var item in valueArray)
-//            {
+//            foreach (var item in valueArray) {
 //                var buffer = RecyclableMemoryManager.GetBuffer(size);
 //                // NB do not use a buffer pool here but instead use a thread-static buffer
 //                // that will grow to maximum size of a type. Fixed-size types are usually small.

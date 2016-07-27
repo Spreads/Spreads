@@ -85,51 +85,51 @@ namespace Spreads.Storage {
         // Otherwise more efficient direct conversion is used
         public bool IsFixedSize => TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
         public int Size => IsFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
-        public int SizeOf(SetRemoveCommandBody<TKey, TValue> bodyValue, out MemoryStream memoryStream) {
+        public int SizeOf(SetRemoveCommandBody<TKey, TValue> bodyValue, out MemoryStream payloadStream) {
             if (IsFixedSize) {
-                memoryStream = null;
+                payloadStream = null;
                 return Size;
             }
 
-            memoryStream = RecyclableMemoryManager.MemoryStreams.GetStream("SetRemoveCommandBody.SizeOf");
-            Debug.Assert(memoryStream.Position == 0);
+            payloadStream = RecyclableMemoryManager.MemoryStreams.GetStream("SetRemoveCommandBody.SizeOf");
+            Debug.Assert(payloadStream.Position == 0);
 
-            memoryStream.WriteAsPtr<int>(Version);
+            payloadStream.WriteAsPtr<int>(Version);
 
             // placeholder for length
-            memoryStream.WriteAsPtr<int>(0);
-            Debug.Assert(memoryStream.Position == 8);
+            payloadStream.WriteAsPtr<int>(0);
+            Debug.Assert(payloadStream.Position == 8);
 
             if (TypeHelper<TKey>.Size <= 0) {
                 throw new NotImplementedException("TODO We now only support fixed key");
             }
 
             var size = 8 + TypeHelper<TKey>.Size;
-            memoryStream.WriteAsPtr<TKey>(bodyValue.key);
+            payloadStream.WriteAsPtr<TKey>(bodyValue.key);
             MemoryStream valueMs;
             var valueSize = TypeHelper<TValue>.SizeOf(bodyValue.value, out valueMs);
             if (valueMs != null) {
-                valueMs.WriteTo(memoryStream);
+                valueMs.WriteTo(payloadStream);
                 valueMs.Dispose();
             }
 
             size += valueSize;
 
-            memoryStream.Position = 4;
-            memoryStream.WriteAsPtr<int>((int)memoryStream.Length - 8);
-            Trace.Assert(size == memoryStream.Length);
-            memoryStream.Position = 0;
+            payloadStream.Position = 4;
+            payloadStream.WriteAsPtr<int>((int)payloadStream.Length - 8);
+            Trace.Assert(size == payloadStream.Length);
+            payloadStream.Position = 0;
             return size;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int ToPtr(SetRemoveCommandBody<TKey, TValue> entry, IntPtr ptr, MemoryStream memoryStream = null) {
+        public int ToPtr(SetRemoveCommandBody<TKey, TValue> entry, IntPtr ptr, MemoryStream payloadStream = null) {
             if (IsFixedSize) {
                 TypeHelper<TKey>.ToPtr(entry.key, (ptr));
                 TypeHelper<TValue>.ToPtr(entry.value, (ptr + TypeHelper<TKey>.Size));
                 return Size;
             } else {
-                if (memoryStream == null) {
+                if (payloadStream == null) {
                     MemoryStream tempStream;
                     // here we know that is not IsFixedSize, SizeOf will return MS
                     var size = SizeOf(entry, out tempStream);
@@ -138,9 +138,9 @@ namespace Spreads.Storage {
                     tempStream.Dispose();
                     return size;
                 } else {
-                    memoryStream.WriteToPtr(ptr);
+                    payloadStream.WriteToPtr(ptr);
                     // do not dispose, MS is owned outside of this method
-                    return checked((int)memoryStream.Length);
+                    return checked((int)payloadStream.Length);
                 }
             }
         }

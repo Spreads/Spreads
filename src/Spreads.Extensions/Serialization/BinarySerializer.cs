@@ -128,7 +128,6 @@ namespace Spreads.Serialization {
                     return _serializer.Deserialize<T>(reader);
                 }
             }
-
         }
     }
 }

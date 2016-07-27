@@ -9,12 +9,11 @@ namespace Spreads.Serialization {
     /// 0                   1                   2                   3
     /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    /// |            Version + Flags (currently only version)           |
+    /// |R|                Length (including header)                    |
     /// +---------------------------------------------------------------+
-    /// |             Payload Length (without 8 bytes header)           |
+    /// |  Fmt Version  |     Flags   |C|           Reserved            |
     /// +---------------------------------------------------------------+
-    /// |                      Serialized Payload                       |
-    /// |                                                               |
+    /// |                     Serialized Payload                      ...
     /// </summary>
     public interface IBinaryConverter<T> {
         /// <summary>
@@ -34,17 +33,17 @@ namespace Spreads.Serialization {
 
         /// <summary>
         /// Returns the size of serialized bytes including the version+lenght header.
-        /// For types with non-fixed size this method could serialize value into the memoryStream if it is not 
+        /// For types with non-fixed size this method could serialize value into the payloadStream if it is not 
         /// possible to calculate serialized bytes length without actually performing serialization.
         /// </summary>
-        int SizeOf(T value, out MemoryStream memoryStream);
+        int SizeOf(T value, out MemoryStream payloadStream);
 
         /// <summary>
         /// For types with non-fixed size this method assumes that the pointer has enough capacity.
         /// Use SizeOf method to determine the bytes size of the value before writing. If SizeOf
-        /// sets memoryStream then write its content directly, otherwise ToPtr will do the same serialization job twice.
+        /// sets payloadStream then write its content directly, otherwise ToPtr will do the same serialization job twice.
         /// </summary>
-        int ToPtr(T value, IntPtr ptr, MemoryStream memoryStream = null);
+        int ToPtr(T value, IntPtr ptr, MemoryStream payloadStream = null);
 
         /// <summary>
         /// Reads new value or fill existing value with data from the pointer, 
