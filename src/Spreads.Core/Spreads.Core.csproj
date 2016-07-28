@@ -63,6 +63,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Algorithms\Algo.cs" />
+    <Compile Include="Algorithms\Hash\XxHash.cs" />
     <Compile Include="Bootstrapper\ABI.cs" />
     <Compile Include="Bootstrapper\Bootstrapper.cs" />
     <Compile Include="Bootstrapper\Loader.cs" />

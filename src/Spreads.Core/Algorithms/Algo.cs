@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using Spreads.Algorithms.Hash;
 
 namespace Spreads.Algorithms {
     public static class Algo {
@@ -11,6 +12,13 @@ namespace Spreads.Algorithms {
         public class MathProvider {
             internal static MathProvider Instance = new MathProvider();
             private MathProvider() { }
+        }
+
+
+        public static HashProvider Hash = HashProvider.Instance;
+        public class HashProvider {
+            internal static HashProvider Instance = new HashProvider();
+            private HashProvider() { }
         }
     }
 
@@ -27,6 +35,7 @@ namespace Spreads.Algorithms {
         public static void TestMe() {
             System.Math.Abs(-1);
             Algo.Math.AddTwoInts(42, 3);
+
         }
     }
 }
