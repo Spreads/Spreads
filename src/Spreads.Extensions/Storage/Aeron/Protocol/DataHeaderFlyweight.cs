@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using System.Text;
+using Spreads.Buffers;
 using Spreads.Serialization;
 
 namespace Spreads.Storage.Aeron.Protocol {
@@ -92,16 +93,16 @@ namespace Spreads.Storage.Aeron.Protocol {
 
         public int DataOffset => DATA_OFFSET;
 
-        public DataHeader DataHeader
+        public unsafe DataHeader DataHeader
         {
-            get { return _buffer.Read<DataHeader>(0); }
-            set { _buffer.Write(0, value); }
+            get { return *(DataHeader*)_buffer.Data; }
+            set { *(DataHeader*)_buffer.Data = value; }
         }
 
-        public Header Header
+        public unsafe Header Header
         {
-            get { return _buffer.Read<Header>(0); }
-            set { _buffer.Write(0, value); }
+            get { return *(Header*)_buffer.Data; }
+            set { *(Header*)_buffer.Data = value; }
         }
 
         /**

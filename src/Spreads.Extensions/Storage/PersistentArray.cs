@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Spreads.Buffers;
 using Spreads.Serialization;
 
 namespace Spreads.Storage {
 
-    internal class PersistentArray<T> : IEnumerable<T>, IDisposable where T : struct
-    {
+    internal class PersistentArray<T> : IEnumerable<T>, IDisposable where T : struct {
         private const int HeaderLength = 256;
         internal static readonly int DataOffset = HeaderLength + TypeHelper<T>.Size;
         public static readonly int ItemSize;
@@ -24,24 +24,22 @@ namespace Spreads.Storage {
 
         static PersistentArray() {
             ItemSize = TypeHelper<T>.Size;
+            if (ItemSize <= 0) throw new InvalidOperationException("PersistentArray<T> supports only fixed-size types");
         }
 
-        private PersistentArray(string filename, long minCapacity, T fill)
-        {
-            _df = new DirectFile(filename, DataOffset + minCapacity*ItemSize);
+        private PersistentArray(string filename, long minCapacity, T fill) {
+            _df = new DirectFile(filename, DataOffset + minCapacity * ItemSize);
         }
 
         public PersistentArray(string filename, long minCapacity = 5L) : this(filename, minCapacity, default(T)) {
 
         }
 
-        internal void Grow(long minCapacity)
-        {
-            _df.Grow(DataOffset + minCapacity*ItemSize);
+        internal void Grow(long minCapacity) {
+            _df.Grow(DataOffset + minCapacity * ItemSize);
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             _df.Dispose();
         }
 
@@ -76,17 +74,20 @@ namespace Spreads.Storage {
             get
             {
                 if (index < -1 || index >= LongCount) throw new ArgumentOutOfRangeException();
-                return _df.Buffer.Read<T>(DataOffset + index * ItemSize);
+                T temp = default(T);
+                TypeHelper<T>.FromPtr(new IntPtr(_df.Buffer.Data.ToInt64() + (DataOffset + index * ItemSize)), ref temp); //.Read<T>(DataOffset + index * ItemSize);
+                return temp;
             }
             set
             {
                 if (index < -1 || index >= LongCount) throw new ArgumentOutOfRangeException();
-                _df.Buffer.Write(DataOffset + index * ItemSize, value);
+                //_df.Buffer.Write(DataOffset + index * ItemSize, value);
+                TypeHelper<T>.ToPtr(value, new IntPtr(_df.Buffer.Data.ToInt64() + (DataOffset + index * ItemSize)));
             }
         }
 
-        private void Copy(long source, long target) {
-            _df.Buffer.Copy<T>(DataOffset + source * ItemSize, DataOffset + target * ItemSize);
-        }
+        //private void Copy(long source, long target) {
+        //    _df.Buffer.Copy<T>(DataOffset + source * ItemSize, DataOffset + target * ItemSize);
+        //}
     }
 }

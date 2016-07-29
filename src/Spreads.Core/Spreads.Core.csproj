@@ -78,8 +78,11 @@
     <Compile Include="ByteUtil.cs" />
     <Compile Include="ChaosMonkey.cs" />
     <Compile Include="Collections\IDictionaryDebugView.cs" />
+    <Compile Include="Buffers\DirectBuffer.cs" />
     <Compile Include="EmptyArray.cs" />
     <Compile Include="Exceptions.cs" />
+    <Compile Include="Buffers\FixedBuffer.cs" />
+    <Compile Include="Buffers\IDirectBuffer.cs" />
     <Compile Include="MemoryCache.cs" />
     <Compile Include="Properties\Attributes.cs" />
     <Compile Include="Sequences.cs">

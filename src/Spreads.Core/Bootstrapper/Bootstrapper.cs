@@ -100,7 +100,7 @@ namespace Bootstrap {
 
         // Botstrap self
         public Bootstrapper() {
-            _assemblyDirectory = GetAssemblyDirectory();
+            //_assemblyDirectory = GetAssemblyDirectory();
 #if NET451
             _baseFolder = //Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 Environment.UserInteractive
@@ -152,16 +152,9 @@ namespace Bootstrap {
         private const string gplFolder = "Libraries";
 
 
-        public string AssemblyDirectory {
-            get { return _assemblyDirectory; }
-        }
-
-        public static string GetAssemblyDirectory() {
-            string codeBase = typeof(Bootstrapper).GetTypeInfo().Assembly.CodeBase;
-            UriBuilder uri = new UriBuilder(codeBase);
-            string path = Uri.UnescapeDataString(uri.Path);
-            return Path.GetDirectoryName(path);
-        }
+        //public string AssemblyDirectory {
+        //    get { return _assemblyDirectory; }
+        //}
 
         public string BaseFolder {
             get {
@@ -209,7 +202,7 @@ namespace Bootstrap {
         // TODO do not store managed, return to resolve method
         internal Dictionary<string, Assembly> managedLibraries = new Dictionary<string, Assembly>();
         private List<Action> DisposeActions = new List<Action>();
-        private readonly string _assemblyDirectory;
+        //private readonly string _assemblyDirectory;
 
         /// <summary>
         /// From assembly with type T load libraries

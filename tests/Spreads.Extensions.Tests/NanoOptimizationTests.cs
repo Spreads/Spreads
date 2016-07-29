@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Spreads.Buffers;
 using Spreads.Serialization;
 
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Spreads.Buffers;
 using Spreads.Serialization;
 using Spreads.Storage.Aeron.Protocol;
 using static Spreads.Storage.Aeron.BitUtil;

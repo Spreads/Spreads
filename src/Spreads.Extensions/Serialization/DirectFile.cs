@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.IO.MemoryMappedFiles;
+using Spreads.Buffers;
 
 namespace Spreads.Serialization {
 

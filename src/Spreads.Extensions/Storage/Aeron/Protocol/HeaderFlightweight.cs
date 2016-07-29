@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using Spreads.Buffers;
 using Spreads.Serialization;
 
 namespace Spreads.Storage.Aeron.Protocol {
@@ -86,10 +87,10 @@ namespace Spreads.Storage.Aeron.Protocol {
             set { _buffer.WriteInt32(FRAME_LENGTH_FIELD_OFFSET, (short)value); }
         }
 
-        public Header Header
+        public unsafe Header Header
         {
-            get { return _buffer.Read<Header>(0); }
-            set { _buffer.Write<Header>(0, value); }
+            get { return *(Header*)_buffer.Data; }
+            set { *(Header*)_buffer.Data = value; }
         }
 
     }

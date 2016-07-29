@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Spreads.Buffers;
 using Spreads.Serialization;
 
 namespace Spreads.Core.Tests {

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using Spreads.Buffers;
 using Spreads.Serialization;
 using Spreads.Storage.Aeron.Protocol;
 

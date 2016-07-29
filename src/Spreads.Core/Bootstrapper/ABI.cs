@@ -1,8 +1,10 @@
+using Yeppp;
+
 namespace Bootstrap
 {
-	/// <summary>Application binary interface.</summary>
-	/// <seealso cref="Library.GetProcessABI" />
-	public struct ABI
+    /// <summary>Application binary interface.</summary>
+    /// <seealso />
+    public struct ABI
 	{
 
 		/// <summary>Application binary interface not known to the library.</summary>

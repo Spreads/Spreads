@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using Spreads.Buffers;
 using Spreads.Serialization;
 
 namespace TAQParse {

@@ -93,13 +93,17 @@ namespace Spreads.Storage {
         internal DirectFile _entries;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Entry GetEntry(int idx) {
-            return _entries._buffer.Read<Entry>(HeaderLength + (long)idx * EntrySize);
+        private Entry GetEntry(int idx)
+        {
+            Entry temp = default(Entry);
+            TypeHelper<Entry>.FromPtr(new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + (long)idx * EntrySize)), ref temp);
+            return temp; //_entries._buffer.Read<Entry>(HeaderLength + (long)idx * EntrySize);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetEntry(int idx, Entry entry) {
-            _entries._buffer.Write<Entry>(HeaderLength + idx * (long)EntrySize, entry);
+            //_entries._buffer.Write<Entry>(HeaderLength + idx * (long)EntrySize, entry);
+            TypeHelper<Entry>.ToPtr(entry, new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + idx * (long)EntrySize)));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -249,7 +253,9 @@ namespace Spreads.Storage {
                 int count1 = d.count;
                 DirectFile entries1 = d._entries;
                 for (int i = 0; i < count1; i++) {
-                    var e1 = _entries._buffer.Read<Entry>(HeaderLength + (long)i * EntrySize);
+                    Entry temp = default(Entry);
+                    TypeHelper<Entry>.FromPtr(new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + (long)i * EntrySize)), ref temp);
+                    var e1 = temp; //_entries._buffer.Read<Entry>(HeaderLength + (long)i * EntrySize);
                     if (e1.hashCode >= 0) {
                         Add(e1.key, e1.value);
                     }

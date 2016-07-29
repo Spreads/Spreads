@@ -165,12 +165,9 @@
     <Compile Include="Serialization\BinaryConvertor.cs" />
     <Compile Include="Serialization\BinaryConvertorExtensions.cs" />
     <Compile Include="Serialization\Convertors.cs" />
-    <Compile Include="Serialization\DirectBuffer.cs" />
     <Compile Include="Serialization\DirectFile.cs" />
-    <Compile Include="Serialization\FixedBuffer.cs" />
     <Compile Include="Serialization\GenericArrayPinner.cs" />
     <Compile Include="Serialization\IBinaryConverter.cs" />
-    <Compile Include="Serialization\IDirectBuffer.cs" />
     <Compile Include="Serialization\IDirectBufferExtensions.cs" />
     <Compile Include="Serialization\JSON.cs" />
     <Compile Include="Serialization\BinarySerializer.cs" />

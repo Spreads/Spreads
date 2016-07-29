@@ -27,6 +27,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Buffers;
 using Spreads.Collections;
 using Spreads.Serialization;
 using Spreads.Storage.Aeron.Logbuffer;

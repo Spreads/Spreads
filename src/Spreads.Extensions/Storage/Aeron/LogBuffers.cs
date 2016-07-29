@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using Spreads.Buffers;
 using Spreads.Serialization;
 using Spreads.Storage.Aeron.Logbuffer;
 

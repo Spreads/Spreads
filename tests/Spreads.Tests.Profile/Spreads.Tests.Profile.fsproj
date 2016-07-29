@@ -149,6 +149,8 @@
     <None Include="App.config" />
     <Content Include="packages.config" />
     <None Include="Example.fsx" />
+    <None Include="any\netstandard1.6\FSharp.Core.sigdata" />
+    <None Include="any\netstandard1.6\FSharp.Core.optdata" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Dapper">
@@ -157,9 +159,7 @@
     </Reference>
     <Reference Include="FSharp.Core">
       <HintPath>..\..\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
-      <Private>True</Private>
     </Reference>
-    <Reference Include="FSharp.Data.TypeProviders" />
     <Reference Include="FsPickler">
       <HintPath>..\..\packages\FsPickler.1.0.6\lib\net45\FsPickler.dll</HintPath>
       <Private>True</Private>
@@ -199,6 +199,9 @@
       <Project>{e789c72a-5cfd-436b-8ef1-61aa2852a89f}</Project>
       <Private>True</Private>
     </ProjectReference>
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Xml.Serialization" />
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

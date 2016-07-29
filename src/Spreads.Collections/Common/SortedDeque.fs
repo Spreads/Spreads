@@ -215,7 +215,7 @@ type SortedDeque<'T> (capacity:int, comparer:IComparer<'T>) as this=
       if this.firstOffset + this.count > this.buffer.Length then // is already a split
         if offset < this.firstOffset then // we are at the left part of the split [__._<    ___]
           Array.Copy(this.buffer, offset + 1, this.buffer, offset, this.firstOffset + this.count - this.buffer.Length - offset - 1)
-        else // we are at the left part of the split [___    >__._]
+        else // we are at the right part of the split [___    >__._]
           Array.Copy(this.buffer, this.firstOffset, this.buffer, this.firstOffset + 1, (offset - this.firstOffset))
           this.firstOffset <- this.firstOffset + 1
       else

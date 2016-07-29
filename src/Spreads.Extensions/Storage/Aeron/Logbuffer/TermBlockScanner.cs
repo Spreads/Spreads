@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Spreads.Buffers;
 using Spreads.Serialization;
 
 namespace Spreads.Storage.Aeron.Logbuffer {

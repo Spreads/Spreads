@@ -7,6 +7,21 @@ open Spreads.Collections.Experimental
 open Spreads.Collections.Obsolete
 open Spreads.Tests.Collections.Benchmarks
 
+open System
+open System.Reflection
+open System.Xml.Serialization
+
+module Prelude =
+    open System.Linq
+    [<AutoOpenAttribute>]
+    module Seq =
+        let ofType<'T> (sequence : _ seq) = sequence.OfType<'T>()
+
+
+open Prelude
+let getXmlIncludes (xtype : Type) =
+    xtype.GetCustomAttributes() |> Seq.ofType<XmlIncludeAttribute>
+
   /// run f and measure ops per second
 let perf (count:int64) (message:string) (f:unit -> unit) : unit = // int * int =
   GC.Collect(3, GCCollectionMode.Forced, true)
