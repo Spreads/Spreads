@@ -1,6 +1,6 @@
 ﻿{
 	
-	"version": "0.6.0-alpha1",
+	"version": "0.6.0-alpha3",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 	"dependencies": {
 

@@ -22,6 +22,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
+using System.Linq;
 
 namespace Bootstrap {
 
@@ -30,16 +31,163 @@ namespace Bootstrap {
 
         // when running as console app, init Bootstrapper
         static Program() {
-            Console.WriteLine(Bootstrapper.Instance.AppFolder);
+            if (Bootstrapper.Instance.AppFolder == null) {
+                throw new Exception("Bootstrapper.Instance.AppFolder == null");
+            };
         }
 
-        public static void Main() {
+        /// <summary>
+        /// 
+        /// </summary>
+        public static void Main(string[] args) {
+            Run(args);
+        }
 
-            //var json = Newtonsoft.Json.JsonConvert.SerializeObject(new[] { 1, 2, 3, 4, 5 });
-            //Console.WriteLine("Running Bootstrapper: " + json);
-            ////YepppTest.Run();
+        private static void Run(string[] args, bool interactive = false) {
+            if (args == null || args.Length == 0) {
+                string line = null;
+                do {
+                    Console.WriteLine("Compress individual files: filePath1 ... filePathN");
+                    //Console.WriteLine("Compress directories: -d dirPath1 ... dirPathN");
+                    Console.WriteLine("Compress files by pattern: -p pattern dirPath1 ... dirPathN");
+                    line = Console.ReadLine();
+                }
+                while (string.IsNullOrWhiteSpace(line));
+                try {
+                    Run(line.Split(' '), true);
+                    Console.WriteLine("Completed successfully");
+                } catch (Exception e) {
+                    Console.WriteLine("Error: " + e.ToString());
+                }
+                Run(null, true);
+            } else {
+                // directory
+                //if (args[0].ToLower().Trim() == "-d") {
+                //    if (args.Length < 2) {
+                //        var msg = "You must provide at least one directory";
+                //        if (interactive) {
+                //            Console.ForegroundColor = ConsoleColor.Red;
+                //            Console.WriteLine(msg);
+                //            Console.ResetColor();
+                //            Run(null, true);
+                //        } else {
+                //            throw new ArgumentException(msg);
+                //        }
+                //    }
+                //    for (int i = 1; i < args.Length; i++) {
+                //        Loader.CompressFolder(args[i]);
+                //        Console.ForegroundColor = ConsoleColor.Yellow;
+                //        Console.WriteLine($"Compressed directory: {args[i]}");
+                //        Console.ResetColor();
+                //    }
+                //    if (interactive) {
+                //        Run(null, true);
+                //    } else {
+                //        return;
+                //    }
 
-            Console.ReadLine();
+                //}
+
+                // pattern
+                if (args[0].ToLower().Trim() == "-p") {
+                    if (args.Length < 2) {
+                        var msg = "You must provide a search pattern";
+                        if (interactive) {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine(msg);
+                            Console.ResetColor();
+                            Console.WriteLine();
+                            Run(null, true);
+                        } else {
+                            throw new ArgumentException(msg);
+                        }
+                    }
+                    var pattern = args[1];
+                    if (args.Length < 3) {
+                        var list = args.ToList();
+                        var assemblyFolder = ".";
+                        list.Add(assemblyFolder);
+                        args = list.ToArray();
+                    }
+                    var count = 0;
+
+                    for (int i = 2; i < args.Length; i++) {
+                        var path = args[i];
+                        if (!Directory.Exists(path)) {
+                            var msg = $"Directory '{path}' does not exists";
+                            if (interactive) {
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.WriteLine(msg);
+                                Console.ResetColor();
+                                Console.WriteLine();
+                                Run(null, true);
+                            } else {
+                                throw new ArgumentException(msg);
+                            }
+                        }
+
+                        var files = Directory.GetFiles(path, pattern, SearchOption.AllDirectories);
+                        foreach (var file in files) {
+                            Loader.CompressResource(file);
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine($"Compressed file: '{file}'");
+                            Console.ResetColor();
+                            count++;
+                        }
+                    }
+
+                    if (count == 0) {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("No matching files");
+                        Console.ResetColor();
+                        Console.WriteLine();
+                    }
+
+                    if (interactive) {
+                        Run(null, true);
+                    } else {
+                        return;
+                    }
+                }
+
+                // single files
+                if (args.Length < 1) {
+                    var msg = "You must provide at least one file";
+                    if (interactive) {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine(msg);
+                        Console.ResetColor();
+                        Run(null, true);
+                    } else {
+                        throw new ArgumentException(msg);
+                    }
+                }
+
+
+                foreach (var file in args) {
+                    if (!File.Exists(file)) {
+                        var msg = $"File '{file}' does not exists";
+                        if (interactive) {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine(msg);
+                            Console.ResetColor();
+                            Console.WriteLine();
+                            Run(null, true);
+                        } else {
+                            throw new ArgumentException(msg);
+                        }
+                    }
+
+                    Loader.CompressResource(file);
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"Compressed file: '{file}'");
+                    Console.ResetColor();
+                }
+
+                if (interactive) {
+                    Run(null, true);
+                }
+            }
         }
     }
 
@@ -49,8 +197,10 @@ namespace Bootstrap {
         internal static ABI ABI { get; set; }
 
         private static readonly Bootstrapper instance = new Bootstrapper();
-        public static Bootstrapper Instance {
-            get {
+        public static Bootstrapper Instance
+        {
+            get
+            {
                 return instance;
             }
         }
@@ -156,39 +306,51 @@ namespace Bootstrap {
         //    get { return _assemblyDirectory; }
         //}
 
-        public string BaseFolder {
-            get {
+        public string BaseFolder
+        {
+            get
+            {
                 return _baseFolder;
             }
-            set {
+            set
+            {
                 _baseFolder = value;
             }
         }
 
-        internal string ConfigFolder {
-            get {
+        internal string ConfigFolder
+        {
+            get
+            {
                 return Path.Combine(_baseFolder, rootFolder, configSubFolder);
             }
         }
 
-        public string AppFolder {
-            get {
+        public string AppFolder
+        {
+            get
+            {
                 return Path.Combine(_baseFolder, rootFolder, appSubFolder);
             }
         }
 
-        public string DataFolder {
-            get {
+        public string DataFolder
+        {
+            get
+            {
                 return _dataFolder;
             }
-            set {
+            set
+            {
                 _dataFolder = value;
             }
         }
 
         private string _tmpFolder = null;
-        public string TempFolder {
-            get {
+        public string TempFolder
+        {
+            get
+            {
                 if (_tmpFolder == null) {
                     _tmpFolder = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
                 }

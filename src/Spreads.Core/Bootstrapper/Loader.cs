@@ -168,31 +168,45 @@ namespace Bootstrap {
                 return null;
         }
 
-
+        private static Stream GetResourceStream<T>(string resource) {
+            var assembly = typeof(T).GetTypeInfo().Assembly;
+            Stream resourceStream;
+            try {
+                resourceStream = assembly.GetManifestResourceStream(resource);
+                if (resourceStream == null) throw new Exception();
+            } catch {
+                try {
+                    resourceStream = assembly.GetManifestResourceStream(resource + ".compressed");
+                    if (resourceStream == null) throw new Exception();
+                } catch {
+                    throw new ArgumentException($"Cannot get resource stream for '{resource}'");
+                }
+            }
+            return resourceStream;
+        }
         public static string ExtractNativeResource<T>(string resource) {
             var split = resource.Split('.');
             // each process will have its own temp folder
             string path = Path.Combine(Bootstrapper.Instance.TempFolder, split[2] + "." + split[3]);
 
             try {
-            Assembly assembly = typeof(T).GetTypeInfo().Assembly;
-            using (Stream resourceStream = assembly.GetManifestResourceStream(resource)) {
-                using (DeflateStream deflateStream = new DeflateStream(resourceStream, CompressionMode.Decompress)) {
-                    using (
-                        FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write,
-                            FileShare.ReadWrite)) {
-                        byte[] buffer = new byte[1048576];
-                        int bytesRead;
-                        do {
-                            bytesRead = deflateStream.Read(buffer, 0, buffer.Length);
-                            if (bytesRead != 0)
-                                fileStream.Write(buffer, 0, bytesRead);
+                using (Stream resourceStream = GetResourceStream<T>(resource)) {
+                    using (DeflateStream deflateStream = new DeflateStream(resourceStream, CompressionMode.Decompress)) {
+                        using (
+                            FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write,
+                                FileShare.ReadWrite)) {
+                            byte[] buffer = new byte[1048576];
+                            int bytesRead;
+                            do {
+                                bytesRead = deflateStream.Read(buffer, 0, buffer.Length);
+                                if (bytesRead != 0)
+                                    fileStream.Write(buffer, 0, bytesRead);
+                            }
+                            while (bytesRead != 0);
                         }
-                        while (bytesRead != 0);
                     }
                 }
-            }
-            return path;
+                return path;
             } catch {
                 File.Delete(path);
                 return null;
@@ -221,7 +235,7 @@ namespace Bootstrap {
             }
 
             try {
-                Assembly assembly = typeof (T).GetTypeInfo().Assembly;
+                Assembly assembly = typeof(T).GetTypeInfo().Assembly;
                 using (Stream resourceStream = assembly.GetManifestResourceStream(resource)) {
                     using (DeflateStream deflateStream = new DeflateStream(resourceStream, CompressionMode.Decompress)) {
                         using (
@@ -238,9 +252,8 @@ namespace Bootstrap {
                         }
                     }
                 }
-            }
-            catch {
-                
+            } catch {
+
             }
             return path;
         }
@@ -325,8 +338,7 @@ namespace Bootstrap {
             //}
             try {
                 ZipFile.ExtractToDirectory(path, targetPath);
-            }
-            catch(IOException e) {
+            } catch (IOException e) {
                 Console.WriteLine(e.ToString());
             }
         }
