@@ -113,6 +113,7 @@ namespace Spreads.Serialization {
         private static GCHandle _pinnedArray;
         // ReSharper disable once StaticMemberInGenericType
         private static bool _isDateTime; // NB: Automatic layout of .NET requires special handling!
+        private static bool _isDecimal;
         private static T[] _array;
         private static IntPtr _tgt;
         private static IntPtr _ptr;
@@ -159,6 +160,16 @@ namespace Spreads.Serialization {
                 _typeParams.IsDateTime = true;
                 _typeParams.Size = 8;
                 return 8;
+            }
+            if (ty == typeof(decimal)) {
+#if !TYPED_REF
+                _isDecimal = true;
+#endif
+                _typeParams.IsBlittable = true;
+                _typeParams.IsFixedSize = true;
+                _typeParams.IsDateTime = true;
+                _typeParams.Size = 16;
+                return 16;
             }
 
             _typeParams.IsValueType = ty.IsValueType;
@@ -261,7 +272,6 @@ namespace Spreads.Serialization {
         }
 
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int FromPtr(IntPtr ptr, ref T value) {
             if (_hasBinaryConverter) {
@@ -280,25 +290,26 @@ namespace Spreads.Serialization {
             return _size;
 #else
             if (_isDateTime) {
-                return (T)(object)*(DateTime*)ptr;
+                value = (T)(object)*(DateTime*)ptr;
+                return 8;
             }
-            try {
-                if (!_usePinnedArray) return (T)Marshal.PtrToStructure(ptr, typeof(T));
-            } catch {
-                // throw only once, exceptions are expensive
-                _usePinnedArray = true;
-                if (_array == null) {
-                    _array = new T[2];
-                    _pinnedArray = GCHandle.Alloc(_array, GCHandleType.Pinned);
-                    _tgt = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 0);
-                    _ptr = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 1);
-                }
+            if (_isDecimal) {
+                value = (T)(object)*(decimal*)ptr;
+                return 16;
             }
 
-            ByteUtil.MemoryCopy(_tgt, ptr, (uint)Size);
+            if (_array == null) {
+                _array = new T[2];
+                _pinnedArray = GCHandle.Alloc(_array, GCHandleType.Pinned);
+                _tgt = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 0);
+                _ptr = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 1);
+            }
+
+            ByteUtil.MemoryCopy((byte*)_tgt, (byte*)ptr, (uint)_size);
             var ret = _array[0];
             _array[0] = default(T);
-            return ret;
+            value = ret;
+            return _size;
 #endif
         }
 
@@ -322,28 +333,24 @@ namespace Spreads.Serialization {
             if (_isDateTime) {
                 // TODO http://stackoverflow.com/a/3344181/801189
                 // Code gen is probably needed to avoid boxing when TYPED_REF is not available
-                *(DateTime*)pointer = Convert.ToDateTime(value);
-                return;
+                *(DateTime*)pointer = (DateTime)(object)value;
+                return 8;
             }
-            try {
-                if (!_usePinnedArray) {
-                    Marshal.StructureToPtr(value, pointer, false);
-                    return;
-                }
-            } catch {
-                // throw only once, exceptions are expensive
-                _usePinnedArray = true;
-                if (_array == null) {
-                    _array = new T[2];
-                    _pinnedArray = GCHandle.Alloc(_array, GCHandleType.Pinned);
-                    _tgt = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 0);
-                    _ptr = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 1);
-                }
+            if (_isDecimal) {
+                *(decimal*)pointer = (decimal)(object)value;
+                return 16;
+            }
+
+            if (_array == null) {
+                _array = new T[2];
+                _pinnedArray = GCHandle.Alloc(_array, GCHandleType.Pinned);
+                _tgt = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 0);
+                _ptr = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 1);
             }
 
             _array[1] = value;
             var tgt = pointer;
-            ByteUtil.MemoryCopy(tgt, _ptr, (uint)Size);
+            ByteUtil.MemoryCopy((byte*)tgt, (byte*)_ptr, (uint)Size);
             _array[1] = default(T);
 #endif
             return _size;

@@ -203,7 +203,7 @@ namespace Spreads.Core.Tests {
 
             Assert.AreEqual(4, TypeHelper<int>.Size);
             Assert.AreEqual(8, TypeHelper<DateTime>.Size);
-            Assert.AreEqual(-1, TypeHelper<decimal>.Size);
+            Assert.AreEqual(16, TypeHelper<decimal>.Size);
             Assert.AreEqual(-1, TypeHelper<char>.Size);
             Assert.AreEqual(0, TypeHelper<MyPocoWithConvertor>.Size);
             TypeHelper<MyPocoWithConvertor>.RegisterConvertor(new MyPocoWithConvertor(), true);
@@ -217,7 +217,9 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(-1, TypeHelper<NonBlittableStruct>.Size);
             Assert.AreEqual(4, TypeHelper<BlittableStruct1>.Size);
             Assert.AreEqual(4, TypeHelper<BlittableStruct2>.Size);
-            Assert.AreEqual(4, TypeHelper<BlittableStructWrong>.Size);
+            
+            // this will cause Environment.FailFast
+            //Assert.AreEqual(4, TypeHelper<BlittableStructWrong>.Size);
         }
     }
 }
