@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Bson;
 using Spreads.Buffers;
@@ -39,11 +40,18 @@ namespace Spreads.Serialization {
         //    return size;
         //}
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Size<T>() {
+            return TypeHelper<T>.Size;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOf<T>(T value, out MemoryStream payloadStream) {
             var size = TypeHelper<T>.SizeOf(value, out payloadStream);
             return size >= 0 ? size : BSON.SizeOf<T>(value, out payloadStream);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write<T>(T value, ref DirectBuffer destination, uint offset = 0u, MemoryStream payloadStream = null) {
             int size;
             if (payloadStream != null) {

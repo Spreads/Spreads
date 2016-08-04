@@ -50,6 +50,10 @@
     </AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.IO.Compression.FileSystem" />
@@ -91,6 +95,7 @@
     </Compile>
     <Compile Include="Serialization\BinaryConvertor.cs" />
     <Compile Include="Serialization\BinaryConvertorExtensions.cs" />
+    <Compile Include="Serialization\BinarySerializer.cs" />
     <Compile Include="Serialization\BlittableArrayBinaryConverter.cs" />
     <Compile Include="Serialization\ByteArrayBinaryConverter.cs" />
     <Compile Include="Serialization\Convertors.cs" />
@@ -157,16 +162,17 @@
       <Link>native\w32\yeppp.dll</Link>
       <LogicalName>win.x32.yeppp.dll</LogicalName>
     </EmbeddedResource>
-	<EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
-		<Link>native\w64\libblosc.dll</Link>
-		<LogicalName>win.x64.libblosc.dll</LogicalName>
-	</EmbeddedResource>
-	<EmbeddedResource Include="..\..\lib\libblosc\w32\libblosc.dll">
-		<Link>native\w32\libblosc.dll</Link>
-		<LogicalName>win.x32.libblosc.dll</LogicalName>
-	</EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
+      <Link>native\w64\libblosc.dll</Link>
+      <LogicalName>win.x64.libblosc.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\libblosc\w32\libblosc.dll">
+      <Link>native\w32\libblosc.dll</Link>
+      <LogicalName>win.x32.libblosc.dll</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
     <None Include="Spreads.Core.project.json" />
   </ItemGroup>
   <ItemGroup>

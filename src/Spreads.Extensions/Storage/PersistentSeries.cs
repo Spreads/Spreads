@@ -250,7 +250,8 @@ namespace Spreads.Storage {
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
             *(MessageHeader*)(claim.Data) = header;
-            TypeHelper.Write(commandBody, claim.Data + MessageHeader.Size);
+            var buffer = claim.Buffer;
+            TypeHelper<SetRemoveCommandBody<K, int>>.Write(commandBody, ref buffer, (uint)MessageHeader.Size);
             claim.ReservedValue = _pid;
             claim.Commit();
         }

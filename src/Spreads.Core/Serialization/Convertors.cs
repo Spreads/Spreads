@@ -13,48 +13,20 @@ namespace Spreads.Serialization {
     internal class StringBinaryConverter : IBinaryConverter<string> {
         public bool IsFixedSize => false;
         public int Size => 0;
-        public unsafe int SizeOf(string value, out MemoryStream payloadStream) {
+        public unsafe int SizeOf(string value, out MemoryStream temporaryStream) {
             fixed (char* charPtr = value) {
                 var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
-                payloadStream = null;
+                temporaryStream = null;
                 return totalLength;
             }
-            //var maxLength = value.Length * 2;
-            //var needReturnToBufferPool = false;
-            //// TODO (low) use BufferWrapper here and below - it just does exactly the same logic
-            //byte[] buffer;
-            //if (maxLength <= RecyclableMemoryManager.StaticBufferSize) {
-            //    buffer = RecyclableMemoryManager.ThreadStaticBuffer;
-            //} else {
-            //    needReturnToBufferPool = true;
-            //    buffer = ArrayPool<byte>.Shared.Rent(maxLength);
-            //}
-            //var len = Encoding.UTF8.GetBytes(value, 0, value.Length, buffer, 0);
-
-            //payloadStream = RecyclableMemoryManager.MemoryStreams.GetStream("StringBinaryConverter.SizeOf");
-            //Debug.Assert(payloadStream.Position == 0);
-
-            //payloadStream.WriteAsPtr<int>(Version);
-            //// placeholder for length
-            //payloadStream.WriteAsPtr<int>(0);
-            //Debug.Assert(payloadStream.Position == 8);
-
-            //payloadStream.Write(buffer, 0, len);
-            //payloadStream.Position = 4;
-            //payloadStream.WriteAsPtr<int>(len);
-            //payloadStream.Position = 0;
-
-            //if (needReturnToBufferPool) ArrayPool<byte>.Shared.Return(buffer, true);
-            //return len + 8;
         }
 
-        public unsafe int Write(string value, ref DirectBuffer destination, uint offset = 0u, MemoryStream payloadStream = null) {
-            if (payloadStream == null) {
+        public unsafe int Write(string value, ref DirectBuffer destination, uint offset = 0u, MemoryStream temporaryStream = null) {
+            if (temporaryStream == null) {
                 fixed (char* charPtr = value) {
                     var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
                     if (!destination.HasCapacity(offset, totalLength)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
                     var ptr = destination.Data + (int)offset;
-
                     // size
                     Marshal.WriteInt32(ptr, totalLength);
                     // version
@@ -66,9 +38,10 @@ namespace Spreads.Serialization {
                 }
 
             } else {
-                throw new NotImplementedException();
-                //payloadStream.WriteToPtr(ptr);
-                //return checked((int)payloadStream.Length);
+                throw new NotSupportedException("StringBinaryConverter does not work with temp streams.");
+                //throw new NotImplementedException();
+                //temporaryStream.WriteToPtr(ptr);
+                //return checked((int)temporaryStream.Length);
             }
 
         }
@@ -98,15 +71,16 @@ namespace Spreads.Serialization {
     internal class MemoryStreamBinaryConverter : IBinaryConverter<MemoryStream> {
         public bool IsFixedSize => false;
         public int Size => 0;
-        public int SizeOf(MemoryStream value, out MemoryStream payloadStream) {
-            if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(payloadStream), "Memory stream is too large");
-            payloadStream = null;
+        public int SizeOf(MemoryStream value, out MemoryStream temporaryStream) {
+            if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(temporaryStream), "Memory stream is too large");
+            temporaryStream = null;
             return checked((int)value.Length + 8);
         }
 
+        public unsafe int Write(MemoryStream value, ref DirectBuffer destination, uint offset, MemoryStream temporaryStream = null) {
+            if (temporaryStream != null) throw new NotSupportedException("MemoryStreamBinaryConverter does not work with temp streams.");
 
-        public unsafe int Write(MemoryStream value, ref DirectBuffer destination, uint offset, MemoryStream payloadStream = null) {
-            if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(payloadStream), "Memory stream is too large");
+            if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(temporaryStream), "Memory stream is too large");
 
             var totalLength = checked((int)value.Length + 8);
             if (!destination.HasCapacity(offset, totalLength)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;

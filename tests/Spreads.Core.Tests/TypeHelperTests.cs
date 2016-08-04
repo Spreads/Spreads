@@ -51,11 +51,11 @@ namespace Spreads.Core.Tests {
             public bool IsFixedSize => false;
             public int Size => 0;
             public byte Version => 1;
-            public int SizeOf(MyPocoWithConvertor value, out MemoryStream payloadStream) {
+            public int SizeOf(MyPocoWithConvertor value, out MemoryStream temporaryStream) {
                 throw new NotImplementedException();
             }
 
-            public int Write(MyPocoWithConvertor value, ref DirectBuffer destination, uint offset = 0, MemoryStream payloadStream = null)
+            public int Write(MyPocoWithConvertor value, ref DirectBuffer destination, uint offset = 0, MemoryStream temporaryStream = null)
             {
                 throw new NotImplementedException();
             }

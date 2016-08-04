@@ -7,12 +7,13 @@ namespace Spreads.Serialization {
     internal class ByteArrayBinaryConverter : IBinaryConverter<byte[]> {
         public bool IsFixedSize => false;
         public int Size => 0;
-        public int SizeOf(byte[] value, out MemoryStream payloadStream) {
-            payloadStream = null;
+        public int SizeOf(byte[] value, out MemoryStream temporaryStream) {
+            temporaryStream = null;
             return value.Length + 8;
         }
 
-        public int Write(byte[] value, ref DirectBuffer destination, uint offset = 0, MemoryStream payloadStream = null) {
+        public int Write(byte[] value, ref DirectBuffer destination, uint offset = 0, MemoryStream temporaryStream = null) {
+            if (temporaryStream != null) throw new NotSupportedException("ByteArrayBinaryConverter does not work with temp streams.");
             var totalSize = value.Length + 8;
             if (!destination.HasCapacity(offset, totalSize)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
             var ptr = destination.Data + (int)offset;

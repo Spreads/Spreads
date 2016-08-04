@@ -1,22 +1,16 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using NUnit.Framework;
 using System.Runtime.InteropServices;
-using System.Threading;
+using NUnit.Framework;
+using Spreads.Buffers;
 using Spreads.Serialization;
 
-
-namespace Spreads.Core.Tests {
+namespace Spreads.Extensions.Tests {
 
 
     [TestFixture]
     public class UnsafeCastTests {
         [StructLayout(LayoutKind.Sequential)]
-        public struct KVPair<K,V> {
+        public struct KVPair<K, V> {
             public K Key;
             public V Value;
         }
@@ -25,19 +19,18 @@ namespace Spreads.Core.Tests {
             public DateTime Value;
         }
 
-        public struct StructWithDateTime
-        {
+        public struct StructWithDateTime {
             public DateTime Dt;
             public double Dbl;
             public StructWithDefaultLayout Default;
         }
 
         [Test]
-        public void DateTimeIsBlittable()
-        {
+        public void DateTimeIsBlittable() {
             var ptr = Marshal.AllocHGlobal(10000);
+            var buffer = new DirectBuffer(10000, ptr);
             Assert.IsTrue(TypeHelper<StructWithDateTime>.Size > 0);
-            Assert.IsTrue(TypeHelper<KVPair<long,double>>.Size > 0);
+            Assert.IsTrue(TypeHelper<KVPair<long, double>>.Size > 0);
 
             var str = new StructWithDateTime();
             str.Dt = DateTime.Today.AddTicks(1);
@@ -45,7 +38,7 @@ namespace Spreads.Core.Tests {
             str.Default.Value = DateTime.Today.AddTicks(1);
 
 
-            TypeHelper.Write(str, ptr);
+            TypeHelper<StructWithDateTime>.Write(str, ref buffer, 0);
 
             var str2 = default(StructWithDateTime);
             TypeHelper<StructWithDateTime>.Read(ptr, ref str2);

@@ -27,6 +27,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Spreads.Buffers;
 using Spreads.Serialization;
 
 namespace Spreads.Storage {
@@ -53,21 +54,31 @@ namespace Spreads.Storage {
             // NB this interface methods are only called when Entry[] is not directly pinnable
             // Otherwise more efficient direct conversion is used
             public bool IsFixedSize => TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
-            public int Size => IsFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
-            public int SizeOf(Entry value, out MemoryStream payloadStream) {
+            public int Size => IsFixedSize
+                ?
+                    (TypeHelper<Entry>.Size > 0
+                    ? TypeHelper<TKey>.Size + TypeHelper<TValue>.Size
+                    : 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size)
+                : 0;
+            public int SizeOf(Entry value, out MemoryStream temporaryStream) {
                 if (IsFixedSize) {
-                    payloadStream = null;
+                    temporaryStream = null;
                     return Size;
                 }
                 throw new NotSupportedException("This variant of persistent map does not support variable-size types.");
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public unsafe int ToPtr(Entry entry, IntPtr ptr, MemoryStream payloadStream = null) {
+            public unsafe int Write(Entry entry, ref DirectBuffer destination, uint offset = 0u, MemoryStream temporaryStream = null) {
+
+                var totalSize = 8 + Size;
+                if (!destination.HasCapacity(offset, totalSize)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
+                var ptr = destination.Data + (int)offset;
+
                 *(int*)ptr = entry.hashCode;
                 *(int*)(ptr + 4) = entry.next;
-                TypeHelper.Write(entry.key, (ptr + 8));
-                TypeHelper.Write(entry.value, (ptr + 8 + TypeHelper<TKey>.Size));
+                BinarySerializer.Write(entry.key, ref destination, 8u);
+                BinarySerializer.Write(entry.value, ref destination, 8u + (uint)BinarySerializer.Size<TKey>());
                 return Size;
             }
 
@@ -76,8 +87,8 @@ namespace Spreads.Storage {
                 var entry = new Entry();
                 entry.hashCode = *(int*)ptr;
                 entry.next = *(int*)(ptr + 4);
-                var kl = TypeHelper<TKey>.Read((ptr + 8), ref entry.key);
-                var vl = TypeHelper<TValue>.Read((ptr + 8 + TypeHelper<TKey>.Size), ref entry.value);
+                var kl = BinarySerializer.Read<TKey>((ptr + 8), ref entry.key);
+                var vl = BinarySerializer.Read<TValue>((ptr + 8 + BinarySerializer.Size<TKey>()), ref entry.value);
                 value = entry;
                 Debug.Assert(kl + vl == Size);
                 return Size;
@@ -93,8 +104,7 @@ namespace Spreads.Storage {
         internal DirectFile _entries;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Entry GetEntry(int idx)
-        {
+        private Entry GetEntry(int idx) {
             Entry temp = default(Entry);
             TypeHelper<Entry>.Read(new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + (long)idx * EntrySize)), ref temp);
             return temp; //_entries._buffer.Read<Entry>(HeaderLength + (long)idx * EntrySize);
@@ -102,8 +112,7 @@ namespace Spreads.Storage {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetEntry(int idx, Entry entry) {
-            //_entries._buffer.Write<Entry>(HeaderLength + idx * (long)EntrySize, entry);
-            TypeHelper.Write(entry, new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + idx * (long)EntrySize)));
+            entry.Write(entry, ref _entries._buffer, (uint)(HeaderLength + idx * (long)EntrySize));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -128,86 +137,86 @@ namespace Spreads.Storage {
 
         internal unsafe int count
         {
-            get { return *(int*)(_buckets._buffer._data + 24); }
-            private set { *(int*)(_buckets._buffer._data + 24) = value; }
+            get { return *(int*)(_buckets._buffer.Data + 24); }
+            private set { *(int*)(_buckets._buffer.Data + 24) = value; }
         }
 
         internal unsafe int countCopy
         {
-            get { return *(int*)(_entries._buffer._data + 24); }
-            private set { *(int*)(_entries._buffer._data + 24) = value; }
+            get { return *(int*)(_entries._buffer.Data + 24); }
+            private set { *(int*)(_entries._buffer.Data + 24) = value; }
         }
 
-        internal unsafe long version => Volatile.Read(ref *(long*)(_buckets._buffer._data + 8));
+        internal unsafe long version => Volatile.Read(ref *(long*)(_buckets._buffer.Data + 8));
 
         // do not set it in Initialize(), it is 0 on disk when the bucket file 
         // is new, and previous values when the file is reopened
         internal unsafe int freeList
         {
-            get { return (int)(*(uint*)(_buckets._buffer._data + 32)) - 1; }
-            private set { *(uint*)(_buckets._buffer._data + 32) = (uint)(value + 1); }
+            get { return (int)(*(uint*)(_buckets._buffer.Data + 32)) - 1; }
+            private set { *(uint*)(_buckets._buffer.Data + 32) = (uint)(value + 1); }
         }
 
         internal unsafe int freeCount
         {
-            get { return *(int*)(_buckets._buffer._data + 40); }
-            private set { *(int*)(_buckets._buffer._data + 40) = value; }
+            get { return *(int*)(_buckets._buffer.Data + 40); }
+            private set { *(int*)(_buckets._buffer.Data + 40) = value; }
         }
 
         internal unsafe int generation
         {
-            get { return Volatile.Read(ref *(int*)(_buckets._buffer._data + 48)); }
-            private set { Volatile.Write(ref *(int*)(_buckets._buffer._data + 48), value); }
+            get { return Volatile.Read(ref *(int*)(_buckets._buffer.Data + 48)); }
+            private set { Volatile.Write(ref *(int*)(_buckets._buffer.Data + 48), value); }
         }
 
         internal unsafe int initialGeneration
         {
-            get { return Volatile.Read(ref *(int*)(_buckets._buffer._data + 56)); }
-            private set { Volatile.Write(ref *(int*)(_buckets._buffer._data + 56), value); }
+            get { return Volatile.Read(ref *(int*)(_buckets._buffer.Data + 56)); }
+            private set { Volatile.Write(ref *(int*)(_buckets._buffer.Data + 56), value); }
         }
 
         internal unsafe int keySize
         {
-            get { return *(int*)(_buckets._buffer._data + 64); }
-            private set { *(int*)(_buckets._buffer._data + 64) = value; }
+            get { return *(int*)(_buckets._buffer.Data + 64); }
+            private set { *(int*)(_buckets._buffer.Data + 64) = value; }
         }
 
         internal unsafe int valueSize
         {
-            get { return *(int*)(_buckets._buffer._data + 72); }
-            private set { *(int*)(_buckets._buffer._data + 72) = value; }
+            get { return *(int*)(_buckets._buffer.Data + 72); }
+            private set { *(int*)(_buckets._buffer.Data + 72) = value; }
         }
 
         internal unsafe int freeListCopy
         {
-            get { return *(int*)(_entries._buffer._data + 32); }
-            private set { *(int*)(_entries._buffer._data + 32) = value; }
+            get { return *(int*)(_entries._buffer.Data + 32); }
+            private set { *(int*)(_entries._buffer.Data + 32) = value; }
         }
 
         internal unsafe int freeCountCopy
         {
-            get { return *(int*)(_entries._buffer._data + 40); }
-            private set { *(int*)(_entries._buffer._data + 40) = value; }
+            get { return *(int*)(_entries._buffer.Data + 40); }
+            private set { *(int*)(_entries._buffer.Data + 40) = value; }
         }
 
         internal unsafe int indexCopy
         {
-            get { return *(int*)(_entries._buffer._data + 48); }
-            private set { *(int*)(_entries._buffer._data + 48) = value; }
+            get { return *(int*)(_entries._buffer.Data + 48); }
+            private set { *(int*)(_entries._buffer.Data + 48) = value; }
         }
 
         internal unsafe int bucketOrLastNextCopy
         {
-            get { return *(int*)(_entries._buffer._data + 56); }
-            private set { *(int*)(_entries._buffer._data + 56) = value; }
+            get { return *(int*)(_entries._buffer.Data + 56); }
+            private set { *(int*)(_entries._buffer.Data + 56) = value; }
         }
 
         internal unsafe int recoveryFlags
         {
-            get { return *(int*)(_entries._buffer._data); }
+            get { return *(int*)(_entries._buffer.Data); }
             // NB Volatile.Write is crucial to correctly save all copies 
             // before setting recoveryStep value because it generates a fence
-            private set { Volatile.Write(ref *(int*)(_entries._buffer._data), value); }
+            private set { Volatile.Write(ref *(int*)(_entries._buffer.Data), value); }
         }
 
         private IEqualityComparer<TKey> comparer;
@@ -591,7 +600,7 @@ namespace Spreads.Storage {
                 if (freeCount > 0) {
                     var snapShotPosition = HeaderLength + (long)freeList * EntrySize + 8L; // Tkey-TValue part only
                     var originPosition = HeaderLength + (long)indexCopy * EntrySize + 8L; // Tkey-TValue part only
-                    _entries._buffer.Copy(new IntPtr(_entries._buffer._data.ToInt64() + originPosition), snapShotPosition,
+                    _entries._buffer.Copy(new IntPtr(_entries._buffer.Data.ToInt64() + originPosition), snapShotPosition,
                         EntrySize - 8);
                 } else {
                     // NB we always have +1 capacity
@@ -600,7 +609,7 @@ namespace Spreads.Storage {
                     //}
                     var snapShotPosition = HeaderLength + (long)count * EntrySize + 8L; // Tkey-TValue part only
                     var originPosition = HeaderLength + (long)indexCopy * EntrySize + 8L; // Tkey-TValue part only
-                    _entries._buffer.Copy(new IntPtr(_entries._buffer._data.ToInt64() + originPosition), snapShotPosition,
+                    _entries._buffer.Copy(new IntPtr(_entries._buffer.Data.ToInt64() + originPosition), snapShotPosition,
                         EntrySize - 8);
                 }
                 recoveryFlags &= ~(1 << 1);
@@ -636,7 +645,7 @@ namespace Spreads.Storage {
                         if (freeCount > 0) {
                             var snapShotPosition = HeaderLength + (long)freeList * EntrySize + 8L; // Tkey-TValue part only
                             var originPosition = HeaderLength + (long)i * EntrySize + 8L; // Tkey-TValue part only
-                            _entries._buffer.Copy(new IntPtr(_entries._buffer._data.ToInt64() + snapShotPosition), originPosition,
+                            _entries._buffer.Copy(new IntPtr(_entries._buffer.Data.ToInt64() + snapShotPosition), originPosition,
                                 EntrySize - 8);
                         } else {
                             // NB we always have +1 capacity
@@ -645,7 +654,7 @@ namespace Spreads.Storage {
                             //}
                             var snapShotPosition = HeaderLength + (long)count * EntrySize + 8L; // Tkey-TValue part only
                             var originPosition = HeaderLength + (long)i * EntrySize + 8L; // Tkey-TValue part only
-                            _entries._buffer.Copy(new IntPtr(_entries._buffer._data.ToInt64() + snapShotPosition), originPosition,
+                            _entries._buffer.Copy(new IntPtr(_entries._buffer.Data.ToInt64() + snapShotPosition), originPosition,
                                 EntrySize - 8);
                         }
                         indexCopy = i;
@@ -1532,9 +1541,9 @@ namespace Spreads.Storage {
             T value;
             var sw = new SpinWait();
             while (true) {
-                var ver = Volatile.Read(ref *(long*)(_buckets._buffer._data + 8));
+                var ver = Volatile.Read(ref *(long*)(_buckets._buffer.Data + 8));
                 value = f.Invoke();
-                var nextVer = Volatile.Read(ref *(long*)(_buckets._buffer._data + 16));
+                var nextVer = Volatile.Read(ref *(long*)(_buckets._buffer.Data + 16));
                 if (ver == nextVer) {
                     break;
                 }
@@ -1568,13 +1577,13 @@ namespace Spreads.Storage {
                 try {
                 } finally {
                     while (true) {
-                        var pid = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), Pid, 0);
+                        var pid = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer.Data), Pid, 0);
                         if (pid == 0) {
-                            var l1 = *(int*)(_buckets._buffer._data);
+                            var l1 = *(int*)(_buckets._buffer.Data);
                             Debug.Assert(l1 == Pid);
-                            Debug.Assert(*(long*)(_buckets._buffer._data + 8) == *(long*)(_buckets._buffer._data + 16), "Versions must be equal here.");
+                            Debug.Assert(*(long*)(_buckets._buffer.Data + 8) == *(long*)(_buckets._buffer.Data + 16), "Versions must be equal here.");
 
-                            if (!fixVersions) Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 16));
+                            if (!fixVersions) Interlocked.Increment(ref *(long*)(_buckets._buffer.Data + 16));
                             break;
                         }
                         if (sw.Count > 100) {
@@ -1587,10 +1596,10 @@ namespace Spreads.Storage {
                                 // Process.GetProcessById(pid) returning without exception.
 
                                 // steal lock of this process when ChaosMonkey.Enabled
-                                if (pid == Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), Pid, pid)) {
+                                if (pid == Interlocked.CompareExchange(ref *(int*)(_buckets._buffer.Data), Pid, pid)) {
                                     cleanup = true;
                                     if (!fixVersions) {
-                                        Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 16));
+                                        Interlocked.Increment(ref *(long*)(_buckets._buffer.Data + 16));
                                     }
                                     break;
                                 }
@@ -1602,10 +1611,10 @@ namespace Spreads.Storage {
                                 } catch (ArgumentException) {
                                     // pid is not running anymore, try to take it
                                     if (pid ==
-                                        Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), Pid, pid)) {
+                                        Interlocked.CompareExchange(ref *(int*)(_buckets._buffer.Data), Pid, pid)) {
                                         cleanup = true;
                                         if (!fixVersions) {
-                                            Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 16));
+                                            Interlocked.Increment(ref *(long*)(_buckets._buffer.Data + 16));
                                         }
                                         break;
                                     }
@@ -1619,14 +1628,14 @@ namespace Spreads.Storage {
 #if CHAOS_MONKEY
             } catch (ChaosMonkeyException) {
                 // Do nothing, do not release lock. We are testing different failures now.
-                Debug.Assert(*(long*)(_buckets._buffer._data + 8) != *(long*)(_buckets._buffer._data + 16), "Versions must be not equal here.");
+                Debug.Assert(*(long*)(_buckets._buffer.Data + 8) != *(long*)(_buckets._buffer.Data + 16), "Versions must be not equal here.");
                 throw;
             } catch { // same as finally below
-                var pid = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), 0, Pid);
+                var pid = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer.Data), 0, Pid);
                 if (fixVersions) {
-                    Interlocked.Exchange(ref *(long*)(_buckets._buffer._data + 16), *(long*)(_buckets._buffer._data + 8));
+                    Interlocked.Exchange(ref *(long*)(_buckets._buffer.Data + 16), *(long*)(_buckets._buffer.Data + 8));
                 } else {
-                    Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 8));
+                    Interlocked.Increment(ref *(long*)(_buckets._buffer.Data + 8));
                 }
                 if (pid != Pid) {
                     Trace.Fail("Cannot release lock, it was stolen while this process is still alive");
@@ -1634,16 +1643,16 @@ namespace Spreads.Storage {
                 throw;
             }
             // normal case without exceptions
-            var l = *(int*)(_buckets._buffer._data);
+            var l = *(int*)(_buckets._buffer.Data);
             Debug.Assert(l == Pid);
-            var pid2 = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), 0, Pid);
+            var pid2 = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer.Data), 0, Pid);
             if (fixVersions) {
-                Interlocked.Exchange(ref *(long*)(_buckets._buffer._data + 16), *(long*)(_buckets._buffer._data + 8));
+                Interlocked.Exchange(ref *(long*)(_buckets._buffer.Data + 16), *(long*)(_buckets._buffer.Data + 8));
             } else {
 
-                Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 8));
-                var v = *(long*)(_buckets._buffer._data + 8);
-                var nv = *(long*)(_buckets._buffer._data + 16);
+                Interlocked.Increment(ref *(long*)(_buckets._buffer.Data + 8));
+                var v = *(long*)(_buckets._buffer.Data + 8);
+                var nv = *(long*)(_buckets._buffer.Data + 16);
                 Debug.Assert(v == nv, $"Versions must be equal here. V = {v}, NV = {nv}");
             }
             if (pid2 != Pid) {
@@ -1654,12 +1663,12 @@ namespace Spreads.Storage {
 
 #else
             } finally {
-                var pid = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer._data), 0, Pid);
+                var pid = Interlocked.CompareExchange(ref *(int*)(_buckets._buffer.Data), 0, Pid);
                 if (fixVersions) {
-                    Interlocked.Exchange(ref *(long*)(_buckets._buffer._data + 16),
-                        *(long*)(_buckets._buffer._data + 8));
+                    Interlocked.Exchange(ref *(long*)(_buckets._buffer.Data + 16),
+                        *(long*)(_buckets._buffer.Data + 8));
                 } else {
-                    Interlocked.Increment(ref *(long*)(_buckets._buffer._data + 8));
+                    Interlocked.Increment(ref *(long*)(_buckets._buffer.Data + 8));
                 }
                 if (pid != Pid) {
                     Environment.FailFast("Cannot release lock, it was stolen while this process is still alive");

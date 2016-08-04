@@ -34,24 +34,24 @@ namespace Spreads.Serialization {
 
     internal class TypeHelper {
 
-        internal static int Read<T>(IntPtr ptr, ref object value) {
+        private static int Read<T>(IntPtr ptr, ref object value) {
             var temp = value == null ? default(T) : (T)value;
             var len = TypeHelper<T>.Read(ptr, ref temp);
             value = temp;
             return len;
         }
 
-        internal static int Write<T>(object value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null) {
+        private static int Write<T>(object value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null) {
             var temp = value == null ? default(T) : (T)value;
             return TypeHelper<T>.Write(temp, ref destination, offset, ms);
         }
 
-        internal static int SizeOf<T>(object value, out MemoryStream memoryStream) {
+        private static int SizeOf<T>(object value, out MemoryStream memoryStream) {
             var temp = value == null ? default(T) : (T)value;
             return TypeHelper<T>.SizeOf(temp, out memoryStream);
         }
 
-        internal static int Size<T>() {
+        private static int Size<T>() {
             return TypeHelper<T>.Size;
         }
 

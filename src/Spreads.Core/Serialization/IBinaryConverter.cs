@@ -15,9 +15,9 @@ namespace Spreads.Serialization {
     /// 0                   1                   2                   3
     /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    /// |  Fmt Version  |     Flags   |C|           Reserved            |
-    /// +---------------------------------------------------------------+
     /// |R|                Length (including header)                    |
+    /// +---------------------------------------------------------------+
+    /// |  Fmt Version  |     Flags   |C|           Reserved            |
     /// +---------------------------------------------------------------+
     /// |                     Serialized Payload                      ...
     /// </summary>
@@ -39,15 +39,16 @@ namespace Spreads.Serialization {
 
         /// <summary>
         /// Returns the size of serialized bytes including the version+lenght header.
-        /// For types with non-fixed size this method could serialize value into the payloadStream if it is not 
+        /// For types with non-fixed size this method could serialize value into the temporaryStream if it is not 
         /// possible to calculate serialized bytes length without actually performing serialization.
+        /// The stream temporaryStream contains a header and its length is equal to the returned value.
         /// </summary>
-        int SizeOf(T value, out MemoryStream payloadStream);
+        int SizeOf(T value, out MemoryStream temporaryStream);
 
         /// <summary>
         /// Write serialized value to the buffer at offset if there is enough capacity
         /// </summary>
-        int Write(T value, ref DirectBuffer destination, uint offset = 0u, MemoryStream payloadStream = null);
+        int Write(T value, ref DirectBuffer destination, uint offset = 0u, MemoryStream temporaryStream = null);
 
         /// <summary>
         /// Reads new value or fill existing value with data from the pointer, 

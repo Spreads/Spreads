@@ -42,8 +42,8 @@ namespace Spreads.Storage {
 
         private unsafe int ActiveTermId
         {
-            get { return Volatile.Read(ref *(int*)(_df._buffer._data)); }
-            set { Volatile.Write(ref *(int*)(_df._buffer._data), value); }
+            get { return Volatile.Read(ref *(int*)(_df._buffer.Data)); }
+            set { Volatile.Write(ref *(int*)(_df._buffer.Data), value); }
         }
 
         public string Filename { get; }
@@ -51,7 +51,7 @@ namespace Spreads.Storage {
         public int TermSize { get; }
 
         private IntPtr Tail(int termId) {
-            return _df._buffer._data + 4 + termId * 4;
+            return _df._buffer.Data + 4 + termId * 4;
         }
 
         public unsafe LogBuffer(string filename, int termSizeMb = 5) {
@@ -61,7 +61,7 @@ namespace Spreads.Storage {
             _df = new DirectFile(filename, LogSize);
             _writerTerm = ActiveTermId;
             _writerTailPtr = Tail(_writerTerm);
-            _writerTermPtr = _df._buffer._data + HeaderSize + TermSize * _writerTerm;
+            _writerTermPtr = _df._buffer.Data + HeaderSize + TermSize * _writerTerm;
 
             // init at the last known place
             _readerTerm = _writerTerm;
@@ -83,7 +83,7 @@ namespace Spreads.Storage {
                             // switch term
                             _readerTerm = (_readerTerm + 1) % NumberOfTerms;
                             _readerTail = 0;
-                            _readerTermPtr = _df._buffer._data + HeaderSize + TermSize * _readerTerm;
+                            _readerTermPtr = _df._buffer.Data + HeaderSize + TermSize * _readerTerm;
                         } else {
                             var len = *(int*)(_readerTermPtr + tail);
                             if (len > 0) {
@@ -116,13 +116,12 @@ namespace Spreads.Storage {
             checked {
                 unsafe
                 {
-                    var start = _df._buffer._data + HeaderSize + termId * TermSize;
+                    var start = _df._buffer.Data + HeaderSize + termId * TermSize;
                     for (int i = 0; i < TermSize / 8; i++) {
                         *(long*)(start + i) = 0L;
                     }
                     *(int*)Tail(termId) = 0;
                 }
-
             }
         }
 
@@ -172,7 +171,7 @@ namespace Spreads.Storage {
 
                 _writerTerm = newTerm;
                 _writerTailPtr = Tail(_writerTerm);
-                _writerTermPtr = _df._buffer._data + HeaderSize + TermSize * _writerTerm;
+                _writerTermPtr = _df._buffer.Data + HeaderSize + TermSize * _writerTerm;
 
                 ActiveTermId = newTerm;
 
@@ -192,7 +191,7 @@ namespace Spreads.Storage {
                 }
                 _writerTerm = ActiveTermId;
                 _writerTailPtr = Tail(_writerTerm);
-                _writerTermPtr = _df._buffer._data + HeaderSize + TermSize * _writerTerm;
+                _writerTermPtr = _df._buffer.Data + HeaderSize + TermSize * _writerTerm;
 
                 return Claim(length); ;
             }

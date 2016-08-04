@@ -84,51 +84,55 @@ namespace Spreads.Storage {
         // Otherwise more efficient direct conversion is used
         public bool IsFixedSize => TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
         public int Size => IsFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
-        public int SizeOf(SetRemoveCommandBody<TKey, TValue> bodyValue, out MemoryStream payloadStream) {
+        public int SizeOf(SetRemoveCommandBody<TKey, TValue> bodyValue, out MemoryStream tempStream) {
             if (IsFixedSize) {
-                payloadStream = null;
+                tempStream = null;
                 return Size;
             }
 
-            payloadStream = RecyclableMemoryManager.MemoryStreams.GetStream("SetRemoveCommandBody.SizeOf");
-            Debug.Assert(payloadStream.Position == 0);
+            tempStream = RecyclableMemoryManager.MemoryStreams.GetStream("SetRemoveCommandBody.SizeOf");
+            Debug.Assert(tempStream.Position == 0);
 
-            payloadStream.WriteAsPtr<int>(Version);
+            tempStream.WriteAsPtr<int>(Version);
 
             // placeholder for length
-            payloadStream.WriteAsPtr<int>(0);
-            Debug.Assert(payloadStream.Position == 8);
+            tempStream.WriteAsPtr<int>(0);
+            Debug.Assert(tempStream.Position == 8);
 
             if (TypeHelper<TKey>.Size <= 0) {
                 throw new NotImplementedException("TODO We now only support fixed key");
             }
 
             var size = 8 + TypeHelper<TKey>.Size;
-            payloadStream.WriteAsPtr<TKey>(bodyValue.key);
+            tempStream.WriteAsPtr<TKey>(bodyValue.key);
             MemoryStream valueMs;
             var valueSize = TypeHelper<TValue>.SizeOf(bodyValue.value, out valueMs);
             if (valueMs != null) {
-                valueMs.WriteTo(payloadStream);
+                valueMs.WriteTo(tempStream);
                 valueMs.Dispose();
             }
 
             size += valueSize;
 
-            payloadStream.Position = 4;
-            payloadStream.WriteAsPtr<int>((int)payloadStream.Length - 8);
-            Trace.Assert(size == payloadStream.Length);
-            payloadStream.Position = 0;
+            tempStream.Position = 4;
+            tempStream.WriteAsPtr<int>((int)tempStream.Length - 8);
+            Trace.Assert(size == tempStream.Length);
+            tempStream.Position = 0;
             return size;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int ToPtr(SetRemoveCommandBody<TKey, TValue> entry, IntPtr ptr, MemoryStream payloadStream = null) {
+        public int Write(SetRemoveCommandBody<TKey, TValue> entry, ref DirectBuffer destination, uint offset = 0u, MemoryStream temporaryStream = null) {
+            var totalSize = 8 + Size;
+            if (!destination.HasCapacity(offset, totalSize)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
+            var ptr = destination.Data + (int)offset;
+
             if (IsFixedSize) {
-                TypeHelper.Write(entry.key, (ptr));
-                TypeHelper.Write(entry.value, (ptr + TypeHelper<TKey>.Size));
+                TypeHelper<TKey>.Write(entry.key, ref destination);
+                TypeHelper<TValue>.Write(entry.value, ref destination, (uint)TypeHelper<TKey>.Size);
                 return Size;
             } else {
-                if (payloadStream == null) {
+                if (temporaryStream == null) {
                     MemoryStream tempStream;
                     // here we know that is not IsFixedSize, SizeOf will return MS
                     var size = SizeOf(entry, out tempStream);
@@ -137,9 +141,9 @@ namespace Spreads.Storage {
                     tempStream.Dispose();
                     return size;
                 } else {
-                    payloadStream.WriteToPtr(ptr);
+                    temporaryStream.WriteToPtr(ptr);
                     // do not dispose, MS is owned outside of this method
-                    return checked((int)payloadStream.Length);
+                    return checked((int)temporaryStream.Length);
                 }
             }
         }

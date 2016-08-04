@@ -150,7 +150,6 @@
     <Compile Include="Serialization\GenericArrayPinner.cs" />
     <Compile Include="Serialization\IDirectBufferExtensions.cs" />
     <Compile Include="Serialization\JSON.cs" />
-    <Compile Include="Serialization\BinarySerializer.cs" />
     <Compile Include="Serialization\SafeBufferAccessor.cs" />
     <Compile Include="Serialization\SafeBufferStream.cs" />
     <Compile Include="Storage\Aeron\BitUtil.cs" />

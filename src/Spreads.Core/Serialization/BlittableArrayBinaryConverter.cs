@@ -24,18 +24,18 @@ namespace Spreads.Serialization {
 
         private static readonly int ItemSize = TypeHelper<TElement>.Size;
 
-        public int SizeOf(TElement[] value, out MemoryStream payloadStream) {
+        public int SizeOf(TElement[] value, out MemoryStream temporaryStream) {
             if (ItemSize > 0) {
-                payloadStream = null;
+                temporaryStream = null;
                 return 8 + ItemSize * value.Length;
             }
             throw new InvalidOperationException("BlittableArrayBinaryConverter must be called only on blittable types");
         }
 
 
-        public unsafe int Write(TElement[] value, ref DirectBuffer destination, uint offset = 0u, MemoryStream payloadStream = null) {
+        public unsafe int Write(TElement[] value, ref DirectBuffer destination, uint offset = 0u, MemoryStream temporaryStream = null) {
             if (value == null) throw new ArgumentNullException(nameof(value));
-            Debug.Assert(payloadStream == null);
+            if (temporaryStream != null) throw new NotSupportedException("BlittableArrayBinaryConverter does not work with temp streams.");
             if (ItemSize > 0) {
                 var totalSize = 8 + ItemSize * value.Length;
                 if (!destination.HasCapacity(offset, totalSize)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
