@@ -88,6 +88,12 @@
     <Compile Include="Sequences.cs">
       <DependentUpon>Utils.cs</DependentUpon>
     </Compile>
+    <Compile Include="Serialization\BinaryConvertor.cs" />
+    <Compile Include="Serialization\BinaryConvertorExtensions.cs" />
+    <Compile Include="Serialization\Convertors.cs" />
+    <Compile Include="Serialization\IBinaryConverter.cs" />
+    <Compile Include="Serialization\SerializationAttribute.cs" />
+    <Compile Include="Serialization\TypeHelper.cs" />
     <Compile Include="StringExtensions.cs" />
     <Compile Include="Buffers\ArrayPool.cs" />
     <Compile Include="Buffers\ArrayPoolEventSource.cs" />

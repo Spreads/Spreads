@@ -43,7 +43,7 @@ namespace Spreads.Storage {
     [ComVisible(false)]
     public sealed class PersistentMapFixedLength<TKey, TValue> : IPersistentMap<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> {
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        [Serialization(PreferBlittable = true, SerializationFormat = SerializationFormat.Default, Version = 0)]
+        [Serialization(PreferBlittable = true)]
         internal struct Entry : IBinaryConverter<Entry> {
             public int hashCode; // Lower 31 bits of hash code, -1 if unused
             public int next; // Index of next entry, -1 if last
@@ -83,7 +83,7 @@ namespace Spreads.Storage {
                 return Size;
             }
 
-            public int Version => -1;
+            public byte Version => -1;
         }
 
         private const int HeaderLength = 256;

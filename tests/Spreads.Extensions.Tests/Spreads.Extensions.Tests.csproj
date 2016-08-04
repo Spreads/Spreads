@@ -136,7 +136,6 @@
     <Compile Include="RPlugin.cs" />
     <Compile Include="Storage\StorageTests.cs" />
     <Compile Include="DataTypesTest.cs" />
-    <Compile Include="TypeHelperTests.cs" />
     <Compile Include="UnsafeCastTests.cs" />
     <Compile Include="YepppTests.cs" />
     <Compile Include="CompressionTestsOld.cs" />

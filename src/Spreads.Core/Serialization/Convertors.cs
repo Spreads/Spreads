@@ -21,8 +21,8 @@ namespace Spreads.Serialization {
 
     internal class ArrayBinaryConverter<TElement> : IBinaryConverter<TElement[]> {
         public bool IsFixedSize => false;
-        public int Size => 0;
-        public int Version => TypeHelper<TElement>.Version;
+        public int Size => 1;
+        public byte Version => TypeHelper<TElement>.Version;
 
         private static int _itemSize = TypeHelper<TElement>.Size;
 
@@ -44,36 +44,36 @@ namespace Spreads.Serialization {
     }
 
 
-    internal class ByteArrayBinaryConverter : IBinaryConverter<byte[]> {
-        public bool IsFixedSize => false;
-        public int Size => 0;
-        public int SizeOf(byte[] value, out MemoryStream payloadStream) {
-            payloadStream = null;
-            return value.Length + 8;
-        }
+    //internal class ByteArrayBinaryConverter : IBinaryConverter<byte[]> {
+    //    public bool IsFixedSize => false;
+    //    public int Size => 0;
+    //    public int SizeOf(byte[] value, out MemoryStream payloadStream) {
+    //        payloadStream = null;
+    //        return value.Length + 8;
+    //    }
 
-        public int ToPtr(byte[] value, IntPtr ptr, MemoryStream payloadStream = null) {
-            // version
-            Marshal.WriteInt32(ptr, Version);
-            // size
-            Marshal.WriteInt32(ptr + 4, value.Length);
-            // payload
-            Marshal.Copy(value, 0, ptr + 8, value.Length);
-            return value.Length + 8;
-        }
+    //    public int ToPtr(byte[] value, IntPtr ptr, MemoryStream payloadStream = null) {
+    //        // version
+    //        Marshal.WriteInt32(ptr, Version);
+    //        // size
+    //        Marshal.WriteInt32(ptr + 4, value.Length);
+    //        // payload
+    //        Marshal.Copy(value, 0, ptr + 8, value.Length);
+    //        return value.Length + 8;
+    //    }
 
-        public int FromPtr(IntPtr ptr, ref byte[] value) {
-            var version = Marshal.ReadInt32(ptr);
-            if (version != 0) throw new NotSupportedException();
-            var length = Marshal.ReadInt32(ptr + 4);
-            var bytes = new byte[length];
-            Marshal.Copy(ptr + 8, bytes, 0, length);
-            value = bytes;
-            return length + 8;
-        }
+    //    public int FromPtr(IntPtr ptr, ref byte[] value) {
+    //        var version = Marshal.ReadInt32(ptr);
+    //        if (version != 0) throw new NotSupportedException();
+    //        var length = Marshal.ReadInt32(ptr + 4);
+    //        var bytes = new byte[length];
+    //        Marshal.Copy(ptr + 8, bytes, 0, length);
+    //        value = bytes;
+    //        return length + 8;
+    //    }
 
-        public int Version => 0;
-    }
+    //    public byte Version => 1;
+    //}
 
 
     internal class StringBinaryConverter : IBinaryConverter<string> {
@@ -147,7 +147,7 @@ namespace Spreads.Serialization {
             return length + 8;
         }
 
-        public int Version => 0;
+        public byte Version => 1;
     }
 
 
@@ -186,6 +186,6 @@ namespace Spreads.Serialization {
             return length + 8;
         }
 
-        public int Version => 0;
+        public byte Version => 1;
     }
 }

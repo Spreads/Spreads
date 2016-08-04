@@ -9,9 +9,9 @@ namespace Spreads.Serialization {
     /// 0                   1                   2                   3
     /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    /// |R|                Length (including header)                    |
-    /// +---------------------------------------------------------------+
     /// |  Fmt Version  |     Flags   |C|           Reserved            |
+    /// +---------------------------------------------------------------+
+    /// |R|                Length (including header)                    |
     /// +---------------------------------------------------------------+
     /// |                     Serialized Payload                      ...
     /// </summary>
@@ -29,7 +29,7 @@ namespace Spreads.Serialization {
         /// <summary>
         /// Version of the converter.
         /// </summary>
-        int Version { get; }
+        byte Version { get; }
 
         /// <summary>
         /// Returns the size of serialized bytes including the version+lenght header.

@@ -31,14 +31,13 @@ namespace Spreads.Serialization {
             }
         }
 
-
-        public static int SizeOf<T>(T value) {
-            MemoryStream temp;
-            var size = SizeOf<T>(value, out temp);
-            // TODO (low) we could use CWT is T is reference type
-            temp?.Dispose();
-            return size;
-        }
+        //public static int SizeOf<T>(T value) {
+        //    MemoryStream temp;
+        //    var size = SizeOf<T>(value, out temp);
+        //    // TODO (low) we could use CWT if T is reference type
+        //    temp?.Dispose();
+        //    return size;
+        //}
 
         public static int SizeOf<T>(T value, out MemoryStream memoryStream) {
             var size = TypeHelper<T>.SizeOf(value, out memoryStream);

@@ -50,12 +50,11 @@ namespace Spreads.Serialization {
     // TODO (low) test multiple attributes, e.g. start with default, then bson, json, PB, custom
 
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true)]
-    [Obsolete("Do not boil the ocean, simplify")]
     public class SerializationAttribute : Attribute {
 
         internal static SerializationAttribute GetSerializationAttribute(Type type)
         {
-            var attr =  type.GetCustomAttributes<SerializationAttribute>(true).FirstOrDefault() ?? new SerializationAttribute();
+            var attr =  type.GetCustomAttributes<SerializationAttribute>(true).FirstOrDefault();
             return attr;
         }
 
@@ -64,7 +63,7 @@ namespace Spreads.Serialization {
         }
 
         /// <summary>
-        /// Sometimes a generic type could implement (or have registered) IBinaryConverter interface
+        /// Prefer blittable layout if possible. Sometimes a generic type could implement (or have registered) IBinaryConverter interface
         /// but for certain concrete types still be blittable. When this property is true, we
         /// ignore the IBinaryConverter interface when a generic type is blittable but implements/has that interface.
         /// </summary>
@@ -75,13 +74,7 @@ namespace Spreads.Serialization {
         /// otherwise Environment.FailFast method is called and application is terminated.
         /// StructLayout.Size has the same behavior.
         /// </summary>
-        public int? BlittableSize { get; set; }
+        public int BlittableSize { get; set; }
 
-        /// <summary>
-        /// Format for binary serialization.
-        /// </summary>
-        public SerializationFormat SerializationFormat { get; set; }
-
-        public int Version { get; set; }
     }
 }

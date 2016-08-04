@@ -84,10 +84,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="..\..\lib\libyeppp\win\x64\yeppp.dll">
-      <Link>native\w64\yeppp.dll</Link>
-      <LogicalName>win.x64.yeppp.dll</LogicalName>
-    </EmbeddedResource>
     <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
       <Link>native\w64\libblosc.dll</Link>
       <LogicalName>win.x64.libblosc.dll</LogicalName>
@@ -95,10 +91,6 @@
     <EmbeddedResource Include="..\..\lib\sqlite3\w64\sqlite3.dll">
       <Link>native\w64\sqlite3.dll</Link>
       <LogicalName>win.x64.sqlite3.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\libyeppp\win\x32\yeppp.dll">
-      <Link>native\w32\yeppp.dll</Link>
-      <LogicalName>win.x32.yeppp.dll</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="..\..\lib\libblosc\w32\libblosc.dll">
       <Link>native\w32\libblosc.dll</Link>
@@ -162,19 +154,13 @@
     <Compile Include="DataTypes\OrderBook.cs" />
     <Compile Include="DataTypes\Symbol.cs" />
     <Compile Include="DataTypes\Tick.cs" />
-    <Compile Include="Serialization\BinaryConvertor.cs" />
-    <Compile Include="Serialization\BinaryConvertorExtensions.cs" />
-    <Compile Include="Serialization\Convertors.cs" />
     <Compile Include="Serialization\DirectFile.cs" />
     <Compile Include="Serialization\GenericArrayPinner.cs" />
-    <Compile Include="Serialization\IBinaryConverter.cs" />
     <Compile Include="Serialization\IDirectBufferExtensions.cs" />
     <Compile Include="Serialization\JSON.cs" />
     <Compile Include="Serialization\BinarySerializer.cs" />
     <Compile Include="Serialization\SafeBufferAccessor.cs" />
     <Compile Include="Serialization\SafeBufferStream.cs" />
-    <Compile Include="Serialization\SerializationAttribute.cs" />
-    <Compile Include="Serialization\TypeHelper.cs" />
     <Compile Include="Storage\Aeron\BitUtil.cs" />
     <Compile Include="Storage\Aeron\ErrorHandler.cs" />
     <Compile Include="Storage\Aeron\LogBuffers.cs" />

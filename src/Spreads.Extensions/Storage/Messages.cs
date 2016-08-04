@@ -73,9 +73,8 @@ namespace Spreads.Storage {
     }
 
 
-    // TODO why header for fixed case?
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    [Serialization(PreferBlittable = true, SerializationFormat = SerializationFormat.Default, Version = 0)]
+    [Serialization(PreferBlittable = true)]
     internal struct SetRemoveCommandBody<TKey, TValue> : IBinaryConverter<SetRemoveCommandBody<TKey, TValue>> {
         public TKey key; // Key of entry
         public TValue value; // Value of entry
@@ -170,7 +169,7 @@ namespace Spreads.Storage {
             }
         }
 
-        public int Version => 0;
+        public byte Version => 0;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 20)]
