@@ -16,9 +16,9 @@
 
 //        public abstract int SizeOf(T value, out MemoryStream memoryStream);
 
-//        public abstract int ToPtr(T value, IntPtr ptr, MemoryStream memoryStream = null);
+//        public abstract int Write(T value, IntPtr ptr, MemoryStream memoryStream = null);
 
-//        public abstract int FromPtr(IntPtr ptr, ref T value);
+//        public abstract int Read(IntPtr ptr, ref T value);
 
 
 //        public virtual int SizeOf(T[] valueArray, out MemoryStream memoryStream) {
@@ -84,11 +84,11 @@
 //                    }
 //                }
 //                fixed (byte* ptr = &_threadStaticBuffer[0]) {
-//                    TypeHelper<T>.ToPtr(value, (IntPtr)ptr);
+//                    TypeHelper<T>.Write(value, (IntPtr)ptr);
 //                }
 //                stream.Write(_threadStaticBuffer, 0, size);
 
-//                // NB this is not needed as long as convertor.ToPtr guarantees overwriting all Size bytes.
+//                // NB this is not needed as long as convertor.Write guarantees overwriting all Size bytes.
 //                // //Array.Clear(_buffer, 0, size);
 //                return size;
 //            }

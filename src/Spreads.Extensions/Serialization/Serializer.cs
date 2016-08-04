@@ -158,7 +158,7 @@ namespace Spreads.Serialization {
         static Serializer() {
 
             // This will ensure their static constructors are called before the serializer is used.
-            ABI = NativeMethods.ABI;
+            BloscLibraryName = BloscMethods.BloscLibraryName;
             // blosc threads
             NumThreads = Environment.ProcessorCount; // NB there are use cases when built-in chunking is needed
             CompressionMethod = CompressionMethod.lz4;
@@ -189,7 +189,7 @@ namespace Spreads.Serialization {
         /// </summary>
         private static ISerializer ObjectSerializer { get; set; }
 
-        private static ABI ABI { get; set; }
+        private static string BloscLibraryName { get; set; }
         private static int NumThreads { get; set; }
         private static bool Diff { get; set; }
         private static CompressionMethod CompressionMethod { get; set; }
@@ -670,7 +670,7 @@ namespace Spreads.Serialization {
 
                                     fixed (byte* bufferPtr = &buffer[0])
                                     {
-                                        var compSize = NativeMethods.blosc_compress_ctx(
+                                        var compSize = BloscMethods.blosc_compress_ctx(
                                             new IntPtr(level1), new IntPtr(shuffle1 ? 1 : 0),
                                             new UIntPtr((uint) typeSize1),
                                             new UIntPtr((uint) (length*typeSize1)),
@@ -699,7 +699,7 @@ namespace Spreads.Serialization {
 
                                     fixed (byte* bufferPtr = &buffer[0])
                                     {
-                                        var compSize = NativeMethods.blosc_compress_ctx(
+                                        var compSize = BloscMethods.blosc_compress_ctx(
                                             new IntPtr(level1), new IntPtr(shuffle1 ? 1 : 0),
                                             new UIntPtr((uint) typeSize1),
                                             new UIntPtr((uint) (length*typeSize1)),
@@ -834,14 +834,14 @@ namespace Spreads.Serialization {
                         var nbytes = new UIntPtr();
                         var cbytes = new UIntPtr();
                         var blocksize = new UIntPtr();
-                        NativeMethods.blosc_cbuffer_sizes(
+                        BloscMethods.blosc_cbuffer_sizes(
                             (IntPtr)srcPtr2, ref nbytes, ref cbytes, ref blocksize);
                         var dest = new T[(int)(nbytes.ToUInt32()) / typeSize1];
                         try {
                             using (var gp = new GenericArrayPinner<T>(dest)) {
                                 IntPtr destPtr = gp.GetNthPointer(0);
 
-                                var decompSize = NativeMethods.blosc_decompress_ctx(
+                                var decompSize = BloscMethods.blosc_decompress_ctx(
                                     (IntPtr)srcPtr2, destPtr, nbytes, NumThreads);
 
                                 // Do we need a use case when we need a transformed value 
@@ -856,7 +856,7 @@ namespace Spreads.Serialization {
                             var destBuffer = new byte[(int)nbytes];
                             fixed (byte* destPtr = &destBuffer[0])
                             {
-                                var decompSize = NativeMethods.blosc_decompress_ctx(
+                                var decompSize = BloscMethods.blosc_decompress_ctx(
                                     (IntPtr)srcPtr2, (IntPtr)destPtr, nbytes, NumThreads);
                                 if (decompSize <= 0) throw new ApplicationException("Invalid compression input");
 
@@ -879,7 +879,7 @@ namespace Spreads.Serialization {
 
                             //    fixed (byte* bufferPtr = &buffer[0])
                             //    {
-                            //        var compSize = NativeMethods.Library.blosc_compress_ctx(
+                            //        var compSize = BloscMethods.Library.blosc_compress_ctx(
                             //            new IntPtr(level1), new IntPtr(shuffle1 ? 1 : 0),
                             //            new UIntPtr((uint)typeSize1),
                             //            new UIntPtr((uint)(length * typeSize1)),
@@ -947,7 +947,7 @@ namespace Spreads.Serialization {
                 fixed (byte* srcPtr = &src[0])
                 fixed (byte* detPtr = &dest[0])
                 {
-                    var compSize = NativeMethods.blosc_compress_ctx(
+                    var compSize = BloscMethods.blosc_compress_ctx(
                         new IntPtr(compressionLevel), new IntPtr(shuffle ? 1 : 0),
                         new UIntPtr((uint)typeSize),
                         new UIntPtr((uint)src.Length),
@@ -1000,7 +1000,7 @@ namespace Spreads.Serialization {
                 var cbytes = new UIntPtr();
                 var blocksize = new UIntPtr();
 
-                NativeMethods.blosc_cbuffer_sizes(
+                BloscMethods.blosc_cbuffer_sizes(
                     (IntPtr)srcPtr, ref nbytes, ref cbytes, ref blocksize);
 
                 if (((int)nbytes == 0 || (int)cbytes == 0) && srcSize > 0) {
@@ -1013,7 +1013,7 @@ namespace Spreads.Serialization {
                 dest = new byte[(int)(nbytes.ToUInt32())];
                 fixed (byte* detPtr = &dest[0])
                 {
-                    var decompSize = NativeMethods.blosc_decompress_ctx(
+                    var decompSize = BloscMethods.blosc_decompress_ctx(
                         (IntPtr)srcPtr, (IntPtr)detPtr, nbytes, NumThreads);
                     if (decompSize <= 0) throw new ApplicationException("Invalid compression input");
                     return dest;

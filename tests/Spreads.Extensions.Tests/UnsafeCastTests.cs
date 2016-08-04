@@ -45,10 +45,10 @@ namespace Spreads.Core.Tests {
             str.Default.Value = DateTime.Today.AddTicks(1);
 
 
-            TypeHelper<StructWithDateTime>.ToPtr(str, ptr);
+            TypeHelper.Write(str, ptr);
 
             var str2 = default(StructWithDateTime);
-            TypeHelper<StructWithDateTime>.FromPtr(ptr, ref str2);
+            TypeHelper<StructWithDateTime>.Read(ptr, ref str2);
 
             Assert.AreEqual(str.Dt, str2.Dt);
             Assert.AreEqual(str.Dbl, str2.Dbl);

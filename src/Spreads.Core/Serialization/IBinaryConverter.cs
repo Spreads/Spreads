@@ -1,7 +1,13 @@
 ﻿using System;
 using System.IO;
+using Spreads.Buffers;
 
 namespace Spreads.Serialization {
+
+
+    public enum BinaryConverterErrorCode : int {
+        NotEnoughCapacity = -1
+    }
 
     /// <summary>
     /// Convert a generic object T to a pointer prefixed with version and length.
@@ -39,17 +45,15 @@ namespace Spreads.Serialization {
         int SizeOf(T value, out MemoryStream payloadStream);
 
         /// <summary>
-        /// For types with non-fixed size this method assumes that the pointer has enough capacity.
-        /// Use SizeOf method to determine the bytes size of the value before writing. If SizeOf
-        /// sets payloadStream then write its content directly, otherwise ToPtr will do the same serialization job twice.
+        /// Write serialized value to the buffer at offset if there is enough capacity
         /// </summary>
-        int ToPtr(T value, IntPtr ptr, MemoryStream payloadStream = null);
+        int Write(T value, ref DirectBuffer destination, uint offset = 0u, MemoryStream payloadStream = null);
 
         /// <summary>
         /// Reads new value or fill existing value with data from the pointer, 
         /// returns number of bytes read including any header.
         /// If not IsFixedSize, checks that version from the pointer equals the Version property.
         /// </summary>
-        int FromPtr(IntPtr ptr, ref T value);
+        int Read(IntPtr ptr, ref T value);
     }
 }

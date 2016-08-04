@@ -75,14 +75,14 @@ namespace Spreads.Storage {
             {
                 if (index < -1 || index >= LongCount) throw new ArgumentOutOfRangeException();
                 T temp = default(T);
-                TypeHelper<T>.FromPtr(new IntPtr(_df.Buffer.Data.ToInt64() + (DataOffset + index * ItemSize)), ref temp); //.Read<T>(DataOffset + index * ItemSize);
+                TypeHelper<T>.Read(new IntPtr(_df.Buffer.Data.ToInt64() + (DataOffset + index * ItemSize)), ref temp); //.Read<T>(DataOffset + index * ItemSize);
                 return temp;
             }
             set
             {
                 if (index < -1 || index >= LongCount) throw new ArgumentOutOfRangeException();
                 //_df.Buffer.Write(DataOffset + index * ItemSize, value);
-                TypeHelper<T>.ToPtr(value, new IntPtr(_df.Buffer.Data.ToInt64() + (DataOffset + index * ItemSize)));
+                TypeHelper.Write(value, new IntPtr(_df.Buffer.Data.ToInt64() + (DataOffset + index * ItemSize)));
             }
         }
 

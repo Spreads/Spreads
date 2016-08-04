@@ -60,9 +60,6 @@
       <HintPath>..\..\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Microsoft.Data.Sqlite">
-      <HintPath>..\..\packages\Microsoft.Data.Sqlite.1.0.0\lib\net451\Microsoft.Data.Sqlite.dll</HintPath>
-    </Reference>
     <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
@@ -70,6 +67,9 @@
     <Reference Include="NodaTime, Version=1.3.0.0, Culture=neutral, PublicKeyToken=4226afe0d9b296d1, processorArchitecture=MSIL">
       <HintPath>..\..\packages\NodaTime.1.3.1\lib\net35-Client\NodaTime.dll</HintPath>
       <Private>True</Private>
+    </Reference>
+    <Reference Include="Spreads.SQLite">
+      <HintPath>..\..\..\Spreads.SQLite\src\Spreads.SQLite\bin\Release\net451\Spreads.SQLite.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -84,17 +84,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
-      <Link>native\w64\libblosc.dll</Link>
-      <LogicalName>win.x64.libblosc.dll</LogicalName>
-    </EmbeddedResource>
     <EmbeddedResource Include="..\..\lib\sqlite3\w64\sqlite3.dll">
       <Link>native\w64\sqlite3.dll</Link>
       <LogicalName>win.x64.sqlite3.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\libblosc\w32\libblosc.dll">
-      <Link>native\w32\libblosc.dll</Link>
-      <LogicalName>win.x32.libblosc.dll</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="..\..\lib\sqlite3\w32\sqlite3.dll">
       <Link>native\w32\sqlite3.dll</Link>
@@ -216,7 +208,6 @@
     <Compile Include="Storage\SeriesStorage.cs" />
     <Compile Include="Storage\SingleWriterException.cs" />
     <Compile Include="Storage\Tables.cs" />
-    <Compile Include="native\NativeMethods.cs" />
     <Compile Include="SortedList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Storage\AppendLog.cs" />

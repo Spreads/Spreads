@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -10,7 +9,7 @@ namespace Spreads.Serialization {
 
 
         /// <summary>
-        /// Writes to a stream as if it was a pointer using IBinaryConverter<T>.ToPtr method
+        /// 
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int WriteAsPtr<T>(this MemoryStream stream, T value) {
@@ -22,11 +21,12 @@ namespace Spreads.Serialization {
             using (var wrapper = RecyclableMemoryManager.GetBuffer(size)) {
                 var threadStaticBuffer = wrapper.Buffer;
                 fixed (byte* ptr = &threadStaticBuffer[0]) {
-                    TypeHelper<T>.ToPtr(value, (IntPtr)ptr);
+                    var buffer = new DirectBuffer(threadStaticBuffer.Length, (IntPtr)ptr);
+                    TypeHelper<T>.Write(value, ref buffer);
                 }
                 stream.Write(threadStaticBuffer, 0, size);
             }
-            // NB this is not needed as long as convertor.ToPtr guarantees overwriting all Size bytes.
+            // NB this is not needed as long as convertor.Write guarantees overwriting all Size bytes.
             // //Array.Clear(_buffer, 0, size);
             return size;
         }
@@ -46,7 +46,7 @@ namespace Spreads.Serialization {
                 }
 
                 fixed (byte* ptr = &threadStaticBuffer[0]) {
-                    TypeHelper<T>.FromPtr((IntPtr)ptr, ref value);
+                    TypeHelper<T>.Read((IntPtr)ptr, ref value);
                 }
                 return value;
             }
@@ -59,7 +59,7 @@ namespace Spreads.Serialization {
             stream.Position = 0;
             var threadStaticBuffer = RecyclableMemoryManager.ThreadStaticBuffer;
 
-            var length = 0;
+            int length;
             var position = 0;
             while ((length = stream.Read(threadStaticBuffer, 0, threadStaticBuffer.Length)) > 0) {
                 Marshal.Copy(threadStaticBuffer, 0, ptr + position, length);

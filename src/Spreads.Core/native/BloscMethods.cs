@@ -1,37 +1,25 @@
 using Bootstrap;
 using System;
-using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace Spreads.Native {
 #if NET451
     [System.Security.SuppressUnmanagedCodeSecurity]
 #endif
-    internal class NativeMethods {
-        static NativeMethods() {
+    internal class BloscMethods {
+        public const string BloscLibraryName = "libblosc";
+        static BloscMethods() {
             // Ensure Bootstrapper is initialized and native libraries are loaded
-            Bootstrapper.Instance.Bootstrap<NativeMethods>(
-                new[] { "libblosc", "sqlite3" },
+            Bootstrapper.Instance.Bootstrap<BloscMethods>(
+                new[] { BloscLibraryName },
                 null,
                 null,
                 null,
-                () => {
-#if DEBUG
-                    Console.WriteLine("Pre-copy action");
-#endif
-                },
-                () => {
-#if DEBUG
-                Console.WriteLine("Post-copy action");
-#endif
-                },
+                () => { },
+                () => { },
                 () => {
                 });
-            ABI = Bootstrapper.ABI;
         }
-        public const string BloscLibraryName = "libblosc";
-
-        internal static ABI ABI { get; set; }
 
         #region Blosc
 
@@ -50,9 +38,6 @@ namespace Spreads.Native {
             ref UIntPtr cbytes, ref UIntPtr blocksize);
 
         #endregion
-
-
-
 
     }
 }

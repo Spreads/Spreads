@@ -1,135 +1,79 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using Spreads.Buffers;
 
 namespace Spreads.Serialization {
 
-    internal static class ArrayConvertorFactory {
-        public static IBinaryConverter<TElement[]> GenericCreate<TElement>() {
-            return new ArrayBinaryConverter<TElement>();
-        }
-        public static object Create(Type type) {
-            MethodInfo method = typeof(ArrayConvertorFactory).GetMethod("GenericCreate");
-            MethodInfo generic = method.MakeGenericMethod(type);
-            return generic.Invoke(null, null);
-        }
-    }
 
-    internal class ArrayBinaryConverter<TElement> : IBinaryConverter<TElement[]> {
-        public bool IsFixedSize => false;
-        public int Size => 1;
-        public byte Version => TypeHelper<TElement>.Version;
-
-        private static int _itemSize = TypeHelper<TElement>.Size;
-
-        public int SizeOf(TElement[] value, out MemoryStream payloadStream) {
-            if (_itemSize > 0) {
-                payloadStream = null;
-                return _itemSize * value.Length;
-            }
-            throw new NotImplementedException();
-        }
-
-        public int ToPtr(TElement[] value, IntPtr ptr, MemoryStream payloadStream = null) {
-            throw new NotImplementedException();
-        }
-
-        public int FromPtr(IntPtr ptr, ref TElement[] value) {
-            throw new NotImplementedException();
-        }
-    }
-
-
-    //internal class ByteArrayBinaryConverter : IBinaryConverter<byte[]> {
-    //    public bool IsFixedSize => false;
-    //    public int Size => 0;
-    //    public int SizeOf(byte[] value, out MemoryStream payloadStream) {
-    //        payloadStream = null;
-    //        return value.Length + 8;
-    //    }
-
-    //    public int ToPtr(byte[] value, IntPtr ptr, MemoryStream payloadStream = null) {
-    //        // version
-    //        Marshal.WriteInt32(ptr, Version);
-    //        // size
-    //        Marshal.WriteInt32(ptr + 4, value.Length);
-    //        // payload
-    //        Marshal.Copy(value, 0, ptr + 8, value.Length);
-    //        return value.Length + 8;
-    //    }
-
-    //    public int FromPtr(IntPtr ptr, ref byte[] value) {
-    //        var version = Marshal.ReadInt32(ptr);
-    //        if (version != 0) throw new NotSupportedException();
-    //        var length = Marshal.ReadInt32(ptr + 4);
-    //        var bytes = new byte[length];
-    //        Marshal.Copy(ptr + 8, bytes, 0, length);
-    //        value = bytes;
-    //        return length + 8;
-    //    }
-
-    //    public byte Version => 1;
-    //}
 
 
     internal class StringBinaryConverter : IBinaryConverter<string> {
         public bool IsFixedSize => false;
         public int Size => 0;
-        public int SizeOf(string value, out MemoryStream payloadStream) {
-            var maxLength = value.Length * 2;
-            var needReturnToBufferPool = false;
-            // TODO (low) use BufferWrapper here and below - it just does exactly the same logic
-            byte[] buffer;
-            if (maxLength <= RecyclableMemoryManager.StaticBufferSize) {
-                buffer = RecyclableMemoryManager.ThreadStaticBuffer;
-            } else {
-                needReturnToBufferPool = true;
-                buffer = ArrayPool<byte>.Shared.Rent(maxLength);
+        public unsafe int SizeOf(string value, out MemoryStream payloadStream) {
+            fixed (char* charPtr = value) {
+                var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
+                payloadStream = null;
+                return totalLength;
             }
-            var len = Encoding.UTF8.GetBytes(value, 0, value.Length, buffer, 0);
+            //var maxLength = value.Length * 2;
+            //var needReturnToBufferPool = false;
+            //// TODO (low) use BufferWrapper here and below - it just does exactly the same logic
+            //byte[] buffer;
+            //if (maxLength <= RecyclableMemoryManager.StaticBufferSize) {
+            //    buffer = RecyclableMemoryManager.ThreadStaticBuffer;
+            //} else {
+            //    needReturnToBufferPool = true;
+            //    buffer = ArrayPool<byte>.Shared.Rent(maxLength);
+            //}
+            //var len = Encoding.UTF8.GetBytes(value, 0, value.Length, buffer, 0);
 
-            payloadStream = RecyclableMemoryManager.MemoryStreams.GetStream("StringBinaryConverter.SizeOf");
-            Debug.Assert(payloadStream.Position == 0);
+            //payloadStream = RecyclableMemoryManager.MemoryStreams.GetStream("StringBinaryConverter.SizeOf");
+            //Debug.Assert(payloadStream.Position == 0);
 
-            payloadStream.WriteAsPtr<int>(Version);
-            // placeholder for length
-            payloadStream.WriteAsPtr<int>(0);
-            Debug.Assert(payloadStream.Position == 8);
+            //payloadStream.WriteAsPtr<int>(Version);
+            //// placeholder for length
+            //payloadStream.WriteAsPtr<int>(0);
+            //Debug.Assert(payloadStream.Position == 8);
 
-            payloadStream.Write(buffer, 0, len);
-            payloadStream.Position = 4;
-            payloadStream.WriteAsPtr<int>(len);
-            payloadStream.Position = 0;
+            //payloadStream.Write(buffer, 0, len);
+            //payloadStream.Position = 4;
+            //payloadStream.WriteAsPtr<int>(len);
+            //payloadStream.Position = 0;
 
-            if (needReturnToBufferPool) ArrayPool<byte>.Shared.Return(buffer, true);
-            return len + 8;
+            //if (needReturnToBufferPool) ArrayPool<byte>.Shared.Return(buffer, true);
+            //return len + 8;
         }
 
-        public unsafe int ToPtr(string value, IntPtr ptr, MemoryStream payloadStream = null) {
+        public unsafe int Write(string value, ref DirectBuffer destination, uint offset = 0u, MemoryStream payloadStream = null) {
             if (payloadStream == null) {
-                // version
-                Marshal.WriteInt32(ptr, Version);
-                // payload
-                var maxLength = value.Length * 2;
                 fixed (char* charPtr = value) {
-                    var len = Encoding.UTF8.GetBytes(charPtr, value.Length, (byte*)ptr + 8, maxLength);
+                    var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
+                    if (!destination.HasCapacity(offset, totalLength)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
+                    var ptr = destination.Data + (int)offset;
+
                     // size
-                    Marshal.WriteInt32(ptr + 4, len);
+                    Marshal.WriteInt32(ptr, totalLength);
+                    // version
+                    Marshal.WriteByte(ptr, Version);
+                    // payload
+                    var len = Encoding.UTF8.GetBytes(charPtr, value.Length, (byte*)ptr + 8, totalLength);
+                    Debug.Assert(totalLength == len + 8);
                     return len + 8;
                 }
 
             } else {
-                payloadStream.WriteToPtr(ptr);
-                return checked((int)payloadStream.Length);
+                throw new NotImplementedException();
+                //payloadStream.WriteToPtr(ptr);
+                //return checked((int)payloadStream.Length);
             }
 
         }
 
-        public int FromPtr(IntPtr ptr, ref string value) {
+        public int Read(IntPtr ptr, ref string value) {
             var version = Marshal.ReadInt32(ptr);
             if (version != 0) throw new NotSupportedException();
             var length = Marshal.ReadInt32(ptr + 4);
@@ -161,22 +105,29 @@ namespace Spreads.Serialization {
         }
 
 
-        public unsafe int ToPtr(MemoryStream value, IntPtr ptr, MemoryStream payloadStream = null) {
+        public unsafe int Write(MemoryStream value, ref DirectBuffer destination, uint offset, MemoryStream payloadStream = null) {
             if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(payloadStream), "Memory stream is too large");
-            // version
-            Marshal.WriteInt32(ptr, 0);
+
+            var totalLength = checked((int)value.Length + 8);
+            if (!destination.HasCapacity(offset, totalLength)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
+            var ptr = destination.Data + (int)offset;
             // size
-            Marshal.WriteInt32(ptr + 4, (int)value.Length);
+            Marshal.WriteInt32(ptr, totalLength);
+            // version
+            Marshal.WriteInt32(ptr + 4, 0);
+
             // payload
             ptr = ptr + 8;
             int b;
+            // TODO (perf) this looks silly
             while ((b = value.ReadByte()) >= 0) {
                 *(byte*)ptr = (byte)b;
+                ptr = ptr + 1;
             }
-            return checked((int)value.Length + 8);
+            return totalLength;
         }
 
-        public int FromPtr(IntPtr ptr, ref MemoryStream value) {
+        public int Read(IntPtr ptr, ref MemoryStream value) {
             var version = Marshal.ReadInt32(ptr);
             if (version != 0) throw new NotSupportedException();
             var length = Marshal.ReadInt32(ptr + 4);

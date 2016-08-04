@@ -48,7 +48,8 @@ namespace Spreads.Serialization {
             int size;
             if (memoryStream != null) {
 #if DEBUG
-                var checkSize = SizeOf(value);
+                MemoryStream tmp;
+                var checkSize = SizeOf(value, out tmp);
                 Debug.Assert(checkSize == memoryStream.Length, "Memory stream length must ve equal to the SizeOf");
 #endif
                 size = checked((int)memoryStream.Length);
@@ -62,13 +63,13 @@ namespace Spreads.Serialization {
             if (size > 0) {
                 Debug.Assert(tempStream == null, "Fixed-size values should not produce temp MemoryStream");
                 if (destination.Length < offset + size) throw new ArgumentException("Value size is too big for destination");
-                var size2 = TypeHelper<T>.ToPtr(value, destination.Data + (int)offset);
+                var size2 = TypeHelper.Write(value, destination.Data + (int)offset);
                 Debug.Assert(size == size2, "Size and SizeOf must be equal for fixed-sized types.");
                 return size;
             }
             if (size == 0) {
                 // SizeOf returned a temp memory stream, just call this method recursively
-                if (tempStream == null) return TypeHelper<T>.ToPtr(value, destination.Data + (int)offset);
+                if (tempStream == null) return TypeHelper.Write(value, destination.Data + (int)offset);
                 size = checked((int)tempStream.Length);
                 if (destination.Length < offset + size) throw new ArgumentException("Value size is too big for destination");
                 tempStream.WriteToPtr(destination.Data + (int)offset);

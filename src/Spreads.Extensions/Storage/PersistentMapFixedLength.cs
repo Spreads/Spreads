@@ -66,24 +66,24 @@ namespace Spreads.Storage {
             public unsafe int ToPtr(Entry entry, IntPtr ptr, MemoryStream payloadStream = null) {
                 *(int*)ptr = entry.hashCode;
                 *(int*)(ptr + 4) = entry.next;
-                TypeHelper<TKey>.ToPtr(entry.key, (ptr + 8));
-                TypeHelper<TValue>.ToPtr(entry.value, (ptr + 8 + TypeHelper<TKey>.Size));
+                TypeHelper.Write(entry.key, (ptr + 8));
+                TypeHelper.Write(entry.value, (ptr + 8 + TypeHelper<TKey>.Size));
                 return Size;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public unsafe int FromPtr(IntPtr ptr, ref Entry value) {
+            public unsafe int Read(IntPtr ptr, ref Entry value) {
                 var entry = new Entry();
                 entry.hashCode = *(int*)ptr;
                 entry.next = *(int*)(ptr + 4);
-                var kl = TypeHelper<TKey>.FromPtr((ptr + 8), ref entry.key);
-                var vl = TypeHelper<TValue>.FromPtr((ptr + 8 + TypeHelper<TKey>.Size), ref entry.value);
+                var kl = TypeHelper<TKey>.Read((ptr + 8), ref entry.key);
+                var vl = TypeHelper<TValue>.Read((ptr + 8 + TypeHelper<TKey>.Size), ref entry.value);
                 value = entry;
                 Debug.Assert(kl + vl == Size);
                 return Size;
             }
 
-            public byte Version => -1;
+            public byte Version => 0;
         }
 
         private const int HeaderLength = 256;
@@ -96,14 +96,14 @@ namespace Spreads.Storage {
         private Entry GetEntry(int idx)
         {
             Entry temp = default(Entry);
-            TypeHelper<Entry>.FromPtr(new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + (long)idx * EntrySize)), ref temp);
+            TypeHelper<Entry>.Read(new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + (long)idx * EntrySize)), ref temp);
             return temp; //_entries._buffer.Read<Entry>(HeaderLength + (long)idx * EntrySize);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetEntry(int idx, Entry entry) {
             //_entries._buffer.Write<Entry>(HeaderLength + idx * (long)EntrySize, entry);
-            TypeHelper<Entry>.ToPtr(entry, new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + idx * (long)EntrySize)));
+            TypeHelper.Write(entry, new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + idx * (long)EntrySize)));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -254,7 +254,7 @@ namespace Spreads.Storage {
                 DirectFile entries1 = d._entries;
                 for (int i = 0; i < count1; i++) {
                     Entry temp = default(Entry);
-                    TypeHelper<Entry>.FromPtr(new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + (long)i * EntrySize)), ref temp);
+                    TypeHelper<Entry>.Read(new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + (long)i * EntrySize)), ref temp);
                     var e1 = temp; //_entries._buffer.Read<Entry>(HeaderLength + (long)i * EntrySize);
                     if (e1.hashCode >= 0) {
                         Add(e1.key, e1.value);

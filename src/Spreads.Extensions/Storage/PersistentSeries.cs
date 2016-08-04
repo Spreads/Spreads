@@ -81,7 +81,7 @@ namespace Spreads.Storage {
                     if (!_isWriter) {
                         Trace.Assert(header.Version == _innerMap.Version + 1);
                         var setBody = default(SetRemoveCommandBody<K, V>);
-                        TypeHelper<SetRemoveCommandBody<K, V>>.FromPtr(dataStart + MessageHeader.Size, ref setBody);
+                        TypeHelper<SetRemoveCommandBody<K, V>>.Read(dataStart + MessageHeader.Size, ref setBody);
                         _innerMap[setBody.key] = setBody.value;
                     }
                     break;
@@ -90,7 +90,7 @@ namespace Spreads.Storage {
                     if (!_isWriter) {
                         Trace.Assert(header.Version == _innerMap.Version + 1);
                         var removeBody = default(SetRemoveCommandBody<K, int>);
-                        TypeHelper<SetRemoveCommandBody<K, int>>.FromPtr(dataStart + MessageHeader.Size, ref removeBody);
+                        TypeHelper<SetRemoveCommandBody<K, int>>.Read(dataStart + MessageHeader.Size, ref removeBody);
                         _innerMap.RemoveMany(removeBody.key, (Lookup)removeBody.value);
                     }
                     break;
@@ -250,7 +250,7 @@ namespace Spreads.Storage {
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
             *(MessageHeader*)(claim.Data) = header;
-            TypeHelper<SetRemoveCommandBody<K, int>>.ToPtr(commandBody, claim.Data + MessageHeader.Size);
+            TypeHelper.Write(commandBody, claim.Data + MessageHeader.Size);
             claim.ReservedValue = _pid;
             claim.Commit();
         }

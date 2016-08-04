@@ -5,6 +5,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Buffers;
 
 namespace Spreads.Serialization {
 
@@ -13,7 +14,7 @@ namespace Spreads.Serialization {
     // TODO(!!!) find all occurences of TH and replace with BinarySerializer
 
     internal delegate int FromPtrDelegate(IntPtr ptr, ref object value);
-    internal delegate int ToPtrDelegate(object value, IntPtr pointer, MemoryStream ms = null);
+    internal delegate int ToPtrDelegate(object value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null);
     internal delegate int SizeOfDelegate(object value, out MemoryStream memoryStream);
 
     internal class TypeParams {
@@ -33,16 +34,16 @@ namespace Spreads.Serialization {
 
     internal class TypeHelper {
 
-        internal static int FromPtr<T>(IntPtr ptr, ref object value) {
+        internal static int Read<T>(IntPtr ptr, ref object value) {
             var temp = value == null ? default(T) : (T)value;
-            var len = TypeHelper<T>.FromPtr(ptr, ref temp);
+            var len = TypeHelper<T>.Read(ptr, ref temp);
             value = temp;
             return len;
         }
 
-        internal static int ToPtr<T>(object value, IntPtr pointer, MemoryStream ms = null) {
+        internal static int Write<T>(object value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null) {
             var temp = value == null ? default(T) : (T)value;
-            return TypeHelper<T>.ToPtr(temp, pointer, ms);
+            return TypeHelper<T>.Write(temp, ref destination, offset, ms);
         }
 
         internal static int SizeOf<T>(object value, out MemoryStream memoryStream) {
@@ -59,7 +60,7 @@ namespace Spreads.Serialization {
         internal static FromPtrDelegate GetFromPtrDelegate(Type ty) {
             FromPtrDelegate temp;
             if (FromPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
-            var mi = typeof(TypeHelper).GetMethod("FromPtr", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            var mi = typeof(TypeHelper).GetMethod("Read", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             var genericMi = mi.MakeGenericMethod(ty);
             temp = (FromPtrDelegate)Delegate.CreateDelegate(typeof(FromPtrDelegate), genericMi);
             FromPtrDelegateCache[ty] = temp;
@@ -71,7 +72,7 @@ namespace Spreads.Serialization {
         internal static ToPtrDelegate GetToPtrDelegate(Type ty) {
             ToPtrDelegate temp;
             if (ToPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
-            var mi = typeof(TypeHelper).GetMethod("ToPtr", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            var mi = typeof(TypeHelper).GetMethod("Write", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             var genericMi = mi.MakeGenericMethod(ty);
             temp = (ToPtrDelegate)Delegate.CreateDelegate(typeof(ToPtrDelegate), genericMi);
             ToPtrDelegateCache[ty] = temp;
@@ -244,12 +245,12 @@ namespace Spreads.Serialization {
                 _hasBinaryConverter = true;
                 return _convertorInstance.IsFixedSize ? _convertorInstance.Size : 0;
             }
-            // byte[] should work as any other primitive array
-            //if (ty == typeof(byte[])) {
-            //    _convertorInstance = (IBinaryConverter<T>)(new ByteArrayBinaryConverter());
-            //    _hasBinaryConverter = true;
-            //    return 0;
-            //}
+            //byte[] should work as any other primitive array
+            if (ty == typeof(byte[])) {
+                _convertorInstance = (IBinaryConverter<T>)(new ByteArrayBinaryConverter());
+                _hasBinaryConverter = true;
+                return 0;
+            }
             if (ty == typeof(string)) {
                 _convertorInstance = (IBinaryConverter<T>)(new StringBinaryConverter());
                 _hasBinaryConverter = true;
@@ -258,8 +259,8 @@ namespace Spreads.Serialization {
             if (ty.IsArray) {
                 var elementType = ty.GetElementType();
                 var elementSize = GetSize(elementType);
-                if (elementSize > 0) { // only for primitives
-                    var convertor = (IBinaryConverter<T>)ArrayConvertorFactory.Create(elementType);
+                if (elementSize > 0) { // only for blittable types
+                    var convertor = (IBinaryConverter<T>)BlittableArrayConvertorFactory.Create(elementType);
                     if (convertor == null) return -1;
                     _convertorInstance = convertor;
                     _hasBinaryConverter = true;
@@ -273,10 +274,10 @@ namespace Spreads.Serialization {
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int FromPtr(IntPtr ptr, ref T value) {
+        public static int Read(IntPtr ptr, ref T value) {
             if (_hasBinaryConverter) {
                 Debug.Assert(_size == 0);
-                return _convertorInstance.FromPtr(ptr, ref value);
+                return _convertorInstance.Read(ptr, ref value);
             }
             if (_size < 0) {
                 throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
@@ -314,15 +315,17 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int ToPtr(T value, IntPtr pointer, MemoryStream ms = null) {
+        public static int Write(T value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null) {
             if (_hasBinaryConverter) {
                 Debug.Assert(_size == 0);
-                return _convertorInstance.ToPtr(value, pointer, ms);
+                return _convertorInstance.Write(value, ref destination, offset, ms);
             }
             if (Size < 0) {
                 throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
             }
             Debug.Assert(_size > 0);
+            if (!destination.HasCapacity(offset, _size)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
+            var pointer = destination.Data + (int) offset;
 #if TYPED_REF
             // this is as fast as non-generic methods
             var obj = default(T);

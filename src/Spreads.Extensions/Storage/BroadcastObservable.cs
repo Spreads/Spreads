@@ -103,7 +103,7 @@ namespace Spreads.Storage {
                 case MessageType.Broadcast:
                     var temp = default(T);
                     foreach (var observer in _observers) {
-                        TypeHelper<T>.FromPtr(dataStart + MessageHeader.Size, ref temp);
+                        TypeHelper<T>.Read(dataStart + MessageHeader.Size, ref temp);
                         observer.OnNext(temp);
                     }
                     break;

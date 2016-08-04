@@ -124,8 +124,8 @@ namespace Spreads.Storage {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int ToPtr(SetRemoveCommandBody<TKey, TValue> entry, IntPtr ptr, MemoryStream payloadStream = null) {
             if (IsFixedSize) {
-                TypeHelper<TKey>.ToPtr(entry.key, (ptr));
-                TypeHelper<TValue>.ToPtr(entry.value, (ptr + TypeHelper<TKey>.Size));
+                TypeHelper.Write(entry.key, (ptr));
+                TypeHelper.Write(entry.value, (ptr + TypeHelper<TKey>.Size));
                 return Size;
             } else {
                 if (payloadStream == null) {
@@ -146,11 +146,11 @@ namespace Spreads.Storage {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         // ReSharper disable once RedundantAssignment
-        public int FromPtr(IntPtr ptr, ref SetRemoveCommandBody<TKey, TValue> body) {
+        public int Read(IntPtr ptr, ref SetRemoveCommandBody<TKey, TValue> body) {
             if (IsFixedSize) {
                 var entry = new SetRemoveCommandBody<TKey, TValue>();
-                var kl = TypeHelper<TKey>.FromPtr((ptr), ref entry.key);
-                var vl = TypeHelper<TValue>.FromPtr((ptr + TypeHelper<TKey>.Size), ref entry.value);
+                var kl = TypeHelper<TKey>.Read((ptr), ref entry.key);
+                var vl = TypeHelper<TValue>.Read((ptr + TypeHelper<TKey>.Size), ref entry.value);
                 Debug.Assert(_size == 8 + kl + vl);
                 body = entry;
                 return _size;
@@ -161,8 +161,8 @@ namespace Spreads.Storage {
                 var length = Marshal.ReadInt32(ptr + 4);
                 ptr = ptr + 8;
                 var entry = new SetRemoveCommandBody<TKey, TValue>();
-                var kl = TypeHelper<TKey>.FromPtr(ptr, ref entry.key);
-                var vl = TypeHelper<TValue>.FromPtr((ptr + kl), ref entry.value);
+                var kl = TypeHelper<TKey>.Read(ptr, ref entry.key);
+                var vl = TypeHelper<TValue>.Read((ptr + kl), ref entry.value);
                 Debug.Assert(length == kl + vl);
                 body = entry;
                 return length + 8;

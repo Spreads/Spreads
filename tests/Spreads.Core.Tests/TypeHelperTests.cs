@@ -55,11 +55,13 @@ namespace Spreads.Core.Tests {
                 throw new NotImplementedException();
             }
 
-            public int ToPtr(MyPocoWithConvertor value, IntPtr ptr, MemoryStream payloadStream = null) {
+            public int Write(MyPocoWithConvertor value, ref DirectBuffer destination, uint offset = 0, MemoryStream payloadStream = null)
+            {
                 throw new NotImplementedException();
             }
 
-            public int FromPtr(IntPtr ptr, ref MyPocoWithConvertor value) {
+
+            public int Read(IntPtr ptr, ref MyPocoWithConvertor value) {
                 throw new NotImplementedException();
             }
         }
@@ -79,18 +81,17 @@ namespace Spreads.Core.Tests {
 
 
         [Test]
-        public void CouldWritePOCO() {
+        public void CouldWriteBlittableStruct1() {
 
             var ptr = Marshal.AllocHGlobal(1024);
-            var myPoco = new MyPoco {
-                String = "MyString",
-                Long = 123
+            var dest = new DirectBuffer(1024, ptr);
+            var myBlittableStruct1 = new BlittableStruct1 {
+                Value1 = 12345
             };
-            TypeHelper<MyPoco>.ToPtr(myPoco, ptr);
-            var newPoco = default(MyPoco);
-            TypeHelper<MyPoco>.FromPtr(ptr, ref newPoco);
-            Assert.AreEqual(myPoco.String, newPoco.String);
-            Assert.AreEqual(myPoco.Long, newPoco.Long);
+            TypeHelper<BlittableStruct1>.Write(myBlittableStruct1, ref dest);
+            var newBlittableStruct1 = default(BlittableStruct1);
+            TypeHelper<BlittableStruct1>.Read(ptr, ref newBlittableStruct1);
+            Assert.AreEqual(myBlittableStruct1.Value1, newBlittableStruct1.Value1);
 
         }
 
@@ -115,14 +116,15 @@ namespace Spreads.Core.Tests {
         public void CouldWriteArray() {
 
             var ptr = Marshal.AllocHGlobal(1024);
+            var dest = new DirectBuffer(1024, ptr);
             var myArray = new int[2];
             myArray[0] = 123;
             myArray[1] = 456;
 
-            TypeHelper<int[]>.ToPtr(myArray, ptr);
+            TypeHelper<int[]>.Write(myArray, ref dest);
 
             var newArray = default(int[]);
-            TypeHelper<int[]>.FromPtr(ptr, ref newArray);
+            TypeHelper<int[]>.Read(ptr, ref newArray);
             Assert.IsTrue(myArray.SequenceEqual(newArray));
 
         }
@@ -173,7 +175,7 @@ namespace Spreads.Core.Tests {
 
             var fromPtrInt = TypeHelper.GetFromPtrDelegate(typeof(int));
 
-            TypeHelper<int>.ToPtr(12345, ptr);
+            TypeHelper<int>.Write(12345, ref buffer);
 
             object res = null;
             fromPtrInt(ptr, ref res);
@@ -181,10 +183,10 @@ namespace Spreads.Core.Tests {
 
 
             var toPtrInt = TypeHelper.GetToPtrDelegate(typeof(int));
-            toPtrInt(42, ptr);
+            toPtrInt(42, ref buffer);
 
             int temp = 0;
-            TypeHelper<int>.FromPtr(ptr, ref temp);
+            TypeHelper<int>.Read(ptr, ref temp);
             Assert.AreEqual(42, temp);
 
             var sizeOfInt = TypeHelper.GetSizeOfDelegate(typeof(int));

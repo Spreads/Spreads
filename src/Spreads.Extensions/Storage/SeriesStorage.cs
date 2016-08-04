@@ -34,11 +34,6 @@ namespace Spreads.Storage {
 
     public class SeriesStorage : ISeriesStorage {
 
-        static SeriesStorage() {
-            // init
-            if (NativeMethods.ABI.Equals(ABI.Unknown)) throw new Exception("Could not init");
-        }
-
         private readonly SqliteConnection _connection;
         private readonly ConcurrentDictionary<long, object> _writableSeriesStore = new ConcurrentDictionary<long, object>();
         private readonly ConcurrentDictionary<long, object> _readOnlySeriesStore = new ConcurrentDictionary<long, object>();

@@ -476,7 +476,7 @@ namespace Spreads.Storage {
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
             *(MessageHeader*)(claim.Data) = header;
-            TypeHelper<ChunkCommandBody>.ToPtr(commandBody, claim.Data + MessageHeader.Size);
+            TypeHelper.Write(commandBody, claim.Data + MessageHeader.Size);
             claim.ReservedValue = Pid;
             claim.Commit();
 
@@ -501,7 +501,7 @@ namespace Spreads.Storage {
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
             *(MessageHeader*)(claim.Data) = header;
-            TypeHelper<ChunkCommandBody>.ToPtr(commandBody, claim.Data + MessageHeader.Size);
+            TypeHelper.Write(commandBody, claim.Data + MessageHeader.Size);
             claim.ReservedValue = Pid;
             claim.Commit();
 

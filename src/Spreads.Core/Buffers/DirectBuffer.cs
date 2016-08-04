@@ -97,6 +97,16 @@ namespace Spreads.Buffers {
         public long Length => _length;
         public IntPtr Data => _data;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool HasCapacity(long offset, long length) {
+            if (length <= 0) {
+                throw new ArgumentOutOfRangeException(nameof(length));
+            }
+            if (offset < 0) {
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            }
+            return offset + length <= _length;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Assert(long index, long length) {
