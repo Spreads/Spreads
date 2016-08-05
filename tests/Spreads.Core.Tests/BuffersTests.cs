@@ -11,7 +11,46 @@ namespace Spreads.Core.Tests {
     [TestFixture]
     public class BuffersTests {
 
+        public static class LocalBuffers<T> {
+            [ThreadStatic]
+            private static T[] _threadStatic;
+            private static ThreadLocal<T[]> _threadLocal = new ThreadLocal<T[]>(() => new T[10]);
+            public static T[] ThreadStatic => _threadStatic ?? (_threadStatic = new T[10]);
+            public static T[] ThreadLocal => _threadLocal.Value;
+        }
 
+        [Test, Ignore]
+        public void ThreadStaticVsThreadLocal() {
+            for (int r = 0; r < 10; r++) {
+
+                const int count = 100000000;
+                var sw = new Stopwatch();
+
+                sw.Restart();
+                var sum = 0L;
+                for (var i = 0; i < count; i++) {
+                    var buffer = LocalBuffers<int>.ThreadStatic;
+                    buffer[0] = 123;
+                    sum += buffer[0] + buffer[1];
+                }
+                Assert.IsTrue(sum > 0);
+                sw.Stop();
+                Console.WriteLine($"ThreadStatic {sw.ElapsedMilliseconds}");
+
+                sw.Restart();
+                sum = 0L;
+                for (var i = 0; i < count; i++) {
+                    var buffer = LocalBuffers<int>.ThreadLocal;
+                    buffer[0] = 123;
+                    sum += buffer[0] + buffer[1];
+                }
+                Assert.IsTrue(sum > 0);
+                sw.Stop();
+                Console.WriteLine($"ThreadLocal {sw.ElapsedMilliseconds}");
+
+                Console.WriteLine("---------------------");
+            }
+        }
 
         [Test, Ignore]
         public void ThreadStaticBufferVsSharedPool() {
