@@ -9,7 +9,7 @@
 
 //namespace Spreads.Serialization {
 
-//    public abstract class BinaryConvertor<T> : IBinaryConverter<T> {
+//    public abstract class BinaryConverter<T> : IBinaryConverter<T> {
 //        public bool IsFixedSize => Size > 0;
 //        public abstract int Size { get; }
 //        public abstract int Version { get; }
@@ -76,11 +76,11 @@
 //                // NB do not use a buffer pool here but instead use a thread-static buffer
 //                // that will grow to maximum size of a type. Fixed-size types are usually small.
 //                // Take/return is more expensive than the work we do with the pool here.
-//                if (RecyclableMemoryManager.ThreadStaticBuffer == null || BinaryConvertorExtensions.ThreadStaticBuffer.Length < size) {
-//                    BinaryConvertorExtensions.ThreadStaticBuffer = new byte[size];
+//                if (RecyclableMemoryManager.ThreadStaticBuffer == null || BinaryConverterExtensions.ThreadStaticBuffer.Length < size) {
+//                    BinaryConverterExtensions.ThreadStaticBuffer = new byte[size];
 //                    if (size > MaxBufferSize) {
 //                        // NB 8 kb is arbitrary
-//                        Trace.TraceWarning("Thread-static buffer in BinaryConvertorExtensions is above 8kb");
+//                        Trace.TraceWarning("Thread-static buffer in BinaryConverterExtensions is above 8kb");
 //                    }
 //                }
 //                fixed (byte* ptr = &_threadStaticBuffer[0]) {
@@ -88,7 +88,7 @@
 //                }
 //                stream.Write(_threadStaticBuffer, 0, size);
 
-//                // NB this is not needed as long as convertor.Write guarantees overwriting all Size bytes.
+//                // NB this is not needed as long as converter.Write guarantees overwriting all Size bytes.
 //                // //Array.Clear(_buffer, 0, size);
 //                return size;
 //            }

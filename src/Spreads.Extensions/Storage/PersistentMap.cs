@@ -38,8 +38,8 @@ namespace Spreads.Storage {
     //[System.Runtime.InteropServices.ComVisible(false)]
     public sealed class PersistentMap<TKey, TValue> {
         public static IPersistentMap<TKey, TValue> Open(string fileName, int capacity = 5) {
-            if (TypeHelper<PersistentMapFixedLength<TKey, TValue>.Entry>.Size > 0 
-                || (TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0)) {
+            if (BinarySerializer.Size<PersistentMapFixedLength<TKey, TValue>.Entry>() > 0 
+                || (BinarySerializer.Size<TKey>() > 0 && BinarySerializer.Size<TValue>() > 0)) {
                 return new PersistentMapFixedLength<TKey, TValue>(fileName, capacity);
             }
             throw new NotImplementedException();

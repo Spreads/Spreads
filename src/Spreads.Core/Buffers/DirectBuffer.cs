@@ -474,6 +474,16 @@ namespace Spreads.Buffers {
             return len;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int Write<T>(long index, T value, MemoryStream ms = null) {
+            return Serialization.BinarySerializer.Write<T>(value, ref this, checked((uint)index), ms);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int Read<T>(long index, ref T value) {
+            return Serialization.BinarySerializer.Read<T>(new IntPtr(_data.ToInt64() + index), ref value);
+        }
+
         /// <summary>
         /// Writes len bytes from source to this buffer at index. Works as memcpy, not memmove (TODO)
         /// </summary>

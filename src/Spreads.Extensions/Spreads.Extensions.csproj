@@ -149,7 +149,6 @@
     <Compile Include="Serialization\DirectFile.cs" />
     <Compile Include="Serialization\GenericArrayPinner.cs" />
     <Compile Include="Serialization\IDirectBufferExtensions.cs" />
-    <Compile Include="Serialization\JSON.cs" />
     <Compile Include="Serialization\SafeBufferAccessor.cs" />
     <Compile Include="Serialization\SafeBufferStream.cs" />
     <Compile Include="Storage\Aeron\BitUtil.cs" />
@@ -191,7 +190,6 @@
     <Compile Include="Extensions\DateTimeExtensions.cs" />
     <Compile Include="Generation\SortedMapGenerator.cs" />
     <Compile Include="Storage\PersistentMapFixedLength.cs" />
-    <Compile Include="Serialization\Serializer.cs" />
     <Compile Include="Series\ProjectValuesWrapper.cs" />
     <Compile Include="Series\CursorSeries.cs" />
     <Compile Include="Series\ZonedSeries.cs" />

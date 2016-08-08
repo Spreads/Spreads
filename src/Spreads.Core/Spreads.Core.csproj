@@ -93,7 +93,7 @@
     <Compile Include="Sequences.cs">
       <DependentUpon>Utils.cs</DependentUpon>
     </Compile>
-    <Compile Include="Serialization\BinaryConvertor.cs" />
+    <Compile Include="Serialization\BinaryConverter.cs" />
     <Compile Include="Serialization\BinaryConvertorExtensions.cs" />
     <Compile Include="Serialization\BinarySerializer.cs" />
     <Compile Include="Serialization\BlittableArrayBinaryConverter.cs" />

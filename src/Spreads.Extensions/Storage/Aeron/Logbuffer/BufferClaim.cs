@@ -40,7 +40,7 @@ namespace Spreads.Storage.Aeron.Logbuffer {
         /// <returns> offset in the buffer at which the range begins. </returns>
         public int Offset => DataHeaderFlyweight.HEADER_LENGTH;
 
-        internal IntPtr Data => _buffer._data + DataHeaderFlyweight.HEADER_LENGTH;
+        internal IntPtr Data => _buffer.Data + DataHeaderFlyweight.HEADER_LENGTH;
 
         public int Length
         {

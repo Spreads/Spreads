@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using Spreads.Buffers;
 
 namespace Spreads.Serialization {
-    public static class BinaryConvertorExtensions {
+    public static class BinaryConverterExtensions {
 
 
         /// <summary>
@@ -26,7 +26,7 @@ namespace Spreads.Serialization {
                 }
                 stream.Write(threadStaticBuffer, 0, size);
             }
-            // NB this is not needed as long as convertor.Write guarantees overwriting all Size bytes.
+            // NB this is not needed as long as converter.Write guarantees overwriting all Size bytes.
             // //Array.Clear(_buffer, 0, size);
             return size;
         }

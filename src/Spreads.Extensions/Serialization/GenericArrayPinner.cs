@@ -7,6 +7,7 @@ namespace Spreads.Serialization
     /// Helper class for generic array pointers
     /// </summary>
     /// <typeparam name="T"></typeparam>
+    [Obsolete]
     internal struct GenericArrayPinner<T> : IDisposable {
         GCHandle _pinnedArray;
         private T[] _arr;

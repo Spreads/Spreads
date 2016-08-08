@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -87,12 +88,9 @@ namespace Spreads.Storage {
                     var sw = new SpinWait();
                     while (!_cts.IsCancellationRequested) {
                         var fragments = Poll();
-                        if (fragments > 0)
-                        {
+                        if (fragments > 0) {
                             sw.Reset();
-                        }
-                        else
-                        {
+                        } else {
                             sw.SpinOnce();
                         }
                         // TODO try waithandle as in IpcLongIncrementListener
@@ -201,29 +199,13 @@ namespace Spreads.Storage {
             _logBuffers.Dispose();
         }
 
-        public unsafe void Append<T>(T message) {
-            // NB Writing a generic type and its bytes after serialization should be indistinguishable
-            byte[] bytes = null;
-            if (TypeHelper<T>.Size == -1) {
-                bytes = Serializer.Serialize(message);
-                Append(bytes);
-            }
-
-            int len;
-            if (typeof(T) == typeof(byte[])) {
-                bytes = (byte[])(object)(message);
-                len = bytes.Length;
-            } else {
-                len = TypeHelper<T>.Size;
-            }
-
+        public void Append<T>(T message) {
+            MemoryStream stream;
+            var sizeOf = BinarySerializer.SizeOf<T>(message, out stream);
             BufferClaim claim;
-            Claim(len, out claim);
-            if (bytes == null) {
-                TypeHelper.Write(message, claim.Buffer.Data + claim.Offset);
-            } else {
-                Marshal.Copy(bytes, 0, claim.Buffer.Data + claim.Offset, len);
-            }
+            Claim(sizeOf, out claim);
+            var buffer = claim.Buffer;
+            BinarySerializer.Write<T>(message, ref buffer, (uint)claim.Offset, stream);
             claim.Commit();
         }
     }

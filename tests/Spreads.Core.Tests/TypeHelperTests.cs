@@ -208,7 +208,7 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(16, TypeHelper<decimal>.Size);
             Assert.AreEqual(-1, TypeHelper<char>.Size);
             Assert.AreEqual(0, TypeHelper<MyPocoWithConvertor>.Size);
-            TypeHelper<MyPocoWithConvertor>.RegisterConvertor(new MyPocoWithConvertor(), true);
+            TypeHelper<MyPocoWithConvertor>.RegisterConverter(new MyPocoWithConvertor(), true);
             Assert.AreEqual(0, TypeHelper<MyPocoWithConvertor>.Size);
         }
 

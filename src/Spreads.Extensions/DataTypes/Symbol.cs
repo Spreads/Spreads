@@ -33,7 +33,7 @@ namespace Spreads.DataTypes {
         public Symbol(string symbol) {
             var byteCount = Encoding.UTF8.GetByteCount(symbol);
             if (byteCount > 16) {
-                throw new ArgumentOutOfRangeException("Symbol length is too large");
+                throw new ArgumentOutOfRangeException(nameof(symbol), "Symbol length is too large");
             }
             fixed (char* charPtr = symbol)
             fixed (byte* ptr = Bytes)

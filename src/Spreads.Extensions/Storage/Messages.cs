@@ -78,12 +78,12 @@ namespace Spreads.Storage {
     internal struct SetRemoveCommandBody<TKey, TValue> : IBinaryConverter<SetRemoveCommandBody<TKey, TValue>> {
         public TKey key; // Key of entry
         public TValue value; // Value of entry
-        private static readonly bool _isFixedSize = TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
-        private static readonly int _size = _isFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
+        private static readonly bool _isFixedSize = BinarySerializer.Size<TKey>() > 0 && BinarySerializer.Size<TValue>() > 0;
+        private static readonly int _size = _isFixedSize ? 8 + BinarySerializer.Size<TKey>() + BinarySerializer.Size<TValue>() : -1;
         // NB this interface methods are only called when SetRemoveCommandBody is not directly pinnable
         // Otherwise more efficient direct conversion is used
-        public bool IsFixedSize => TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
-        public int Size => IsFixedSize ? 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size : -1;
+        public bool IsFixedSize => BinarySerializer.Size<TKey>() > 0 && BinarySerializer.Size<TValue>() > 0;
+        public int Size => IsFixedSize ? 8 + BinarySerializer.Size<TKey>() + BinarySerializer.Size<TValue>() : -1;
         public int SizeOf(SetRemoveCommandBody<TKey, TValue> bodyValue, out MemoryStream tempStream) {
             if (IsFixedSize) {
                 tempStream = null;
@@ -99,14 +99,14 @@ namespace Spreads.Storage {
             tempStream.WriteAsPtr<int>(0);
             Debug.Assert(tempStream.Position == 8);
 
-            if (TypeHelper<TKey>.Size <= 0) {
+            if (BinarySerializer.Size<TKey>() <= 0) {
                 throw new NotImplementedException("TODO We now only support fixed key");
             }
 
-            var size = 8 + TypeHelper<TKey>.Size;
+            var size = 8 + BinarySerializer.Size<TKey>();
             tempStream.WriteAsPtr<TKey>(bodyValue.key);
             MemoryStream valueMs;
-            var valueSize = TypeHelper<TValue>.SizeOf(bodyValue.value, out valueMs);
+            var valueSize = BinarySerializer.SizeOf<TValue>(bodyValue.value, out valueMs);
             if (valueMs != null) {
                 valueMs.WriteTo(tempStream);
                 valueMs.Dispose();
@@ -128,8 +128,8 @@ namespace Spreads.Storage {
             var ptr = destination.Data + (int)offset;
 
             if (IsFixedSize) {
-                TypeHelper<TKey>.Write(entry.key, ref destination);
-                TypeHelper<TValue>.Write(entry.value, ref destination, (uint)TypeHelper<TKey>.Size);
+                BinarySerializer.Write<TKey>(entry.key, ref destination);
+                BinarySerializer.Write<TValue>(entry.value, ref destination, (uint)BinarySerializer.Size<TKey>());
                 return Size;
             } else {
                 if (temporaryStream == null) {
@@ -153,8 +153,8 @@ namespace Spreads.Storage {
         public int Read(IntPtr ptr, ref SetRemoveCommandBody<TKey, TValue> body) {
             if (IsFixedSize) {
                 var entry = new SetRemoveCommandBody<TKey, TValue>();
-                var kl = TypeHelper<TKey>.Read((ptr), ref entry.key);
-                var vl = TypeHelper<TValue>.Read((ptr + TypeHelper<TKey>.Size), ref entry.value);
+                var kl = BinarySerializer.Read((ptr), ref entry.key);
+                var vl = BinarySerializer.Read((ptr + BinarySerializer.Size<TKey>()), ref entry.value);
                 Debug.Assert(_size == 8 + kl + vl);
                 body = entry;
                 return _size;
@@ -165,8 +165,8 @@ namespace Spreads.Storage {
                 var length = Marshal.ReadInt32(ptr + 4);
                 ptr = ptr + 8;
                 var entry = new SetRemoveCommandBody<TKey, TValue>();
-                var kl = TypeHelper<TKey>.Read(ptr, ref entry.key);
-                var vl = TypeHelper<TValue>.Read((ptr + kl), ref entry.value);
+                var kl = BinarySerializer.Read(ptr, ref entry.key);
+                var vl = BinarySerializer.Read((ptr + kl), ref entry.value);
                 Debug.Assert(length == kl + vl);
                 body = entry;
                 return length + 8;

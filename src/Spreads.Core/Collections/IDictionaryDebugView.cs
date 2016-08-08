@@ -3,9 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
-
+// TODO back to internal
 namespace System.Collections.Generic {
-    internal sealed class IDictionaryDebugView<K, V> {
+    public sealed class IDictionaryDebugView<K, V> {
         private readonly IDictionary<K, V> _dict;
 
         public IDictionaryDebugView(IDictionary<K, V> dictionary) {
@@ -27,7 +27,7 @@ namespace System.Collections.Generic {
         }
     }
 
-    internal sealed class DictionaryKeyCollectionDebugView<TKey, TValue> {
+    public sealed class DictionaryKeyCollectionDebugView<TKey, TValue> {
         private readonly ICollection<TKey> _collection;
 
         public DictionaryKeyCollectionDebugView(ICollection<TKey> collection) {
@@ -49,7 +49,7 @@ namespace System.Collections.Generic {
         }
     }
 
-    internal sealed class DictionaryValueCollectionDebugView<TKey, TValue> {
+    public sealed class DictionaryValueCollectionDebugView<TKey, TValue> {
         private readonly ICollection<TValue> _collection;
 
         public DictionaryValueCollectionDebugView(ICollection<TValue> collection) {

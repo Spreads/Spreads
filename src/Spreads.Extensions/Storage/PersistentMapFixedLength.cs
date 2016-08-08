@@ -53,12 +53,12 @@ namespace Spreads.Storage {
 
             // NB this interface methods are only called when Entry[] is not directly pinnable
             // Otherwise more efficient direct conversion is used
-            public bool IsFixedSize => TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
+            public bool IsFixedSize => BinarySerializer.Size<TKey>() > 0 && BinarySerializer.Size<TValue>() > 0;
             public int Size => IsFixedSize
                 ?
-                    (TypeHelper<Entry>.Size > 0
-                    ? TypeHelper<TKey>.Size + TypeHelper<TValue>.Size
-                    : 8 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size)
+                    (BinarySerializer.Size<Entry>() > 0
+                    ? BinarySerializer.Size<TKey>() + BinarySerializer.Size<TValue>()
+                    : 8 + BinarySerializer.Size<TKey>() + BinarySerializer.Size<TValue>())
                 : 0;
             public int SizeOf(Entry value, out MemoryStream temporaryStream) {
                 if (IsFixedSize) {
@@ -98,7 +98,7 @@ namespace Spreads.Storage {
         }
 
         private const int HeaderLength = 256;
-        private static readonly int EntrySize = TypeHelper<Entry>.Size;
+        private static readonly int EntrySize = BinarySerializer.Size<Entry>();
 
         internal DirectFile _buckets;
         internal DirectFile _entries;
@@ -106,7 +106,7 @@ namespace Spreads.Storage {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Entry GetEntry(int idx) {
             Entry temp = default(Entry);
-            TypeHelper<Entry>.Read(new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + (long)idx * EntrySize)), ref temp);
+            BinarySerializer.Read<Entry>(new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + (long)idx * EntrySize)), ref temp);
             return temp; //_entries._buffer.Read<Entry>(HeaderLength + (long)idx * EntrySize);
         }
 
@@ -263,7 +263,7 @@ namespace Spreads.Storage {
                 DirectFile entries1 = d._entries;
                 for (int i = 0; i < count1; i++) {
                     Entry temp = default(Entry);
-                    TypeHelper<Entry>.Read(new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + (long)i * EntrySize)), ref temp);
+                    BinarySerializer.Read<Entry>(new IntPtr(_entries._buffer.Data.ToInt64() + (HeaderLength + (long)i * EntrySize)), ref temp);
                     var e1 = temp; //_entries._buffer.Read<Entry>(HeaderLength + (long)i * EntrySize);
                     if (e1.hashCode >= 0) {
                         Add(e1.key, e1.value);
@@ -513,8 +513,8 @@ namespace Spreads.Storage {
             _buckets = new DirectFile(_fileName + "-buckets", bytesCapacityKeys);
             _entries = new DirectFile(_fileName + "-entries", bytesCapacityValues);
 
-            var keySize1 = TypeHelper<TKey>.Size;
-            var valueSize1 = TypeHelper<TValue>.Size;
+            var keySize1 = BinarySerializer.Size<TKey>();
+            var valueSize1 = BinarySerializer.Size<TValue>();
             if (keySize == 0) {
                 keySize = keySize1;
             } else if (keySize != keySize1) {

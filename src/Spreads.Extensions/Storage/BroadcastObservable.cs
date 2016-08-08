@@ -44,10 +44,11 @@ namespace Spreads.Storage {
                 MessageType = MessageType.Broadcast,
             };
 
-            var len = TypeHelper<T>.SizeOf(value, out ms) + MessageHeader.Size;
+            var len = BinarySerializer.SizeOf<T>(value, out ms) + MessageHeader.Size;
             _appendLog.Claim(len, out claim);
             *(MessageHeader*)(claim.Data) = header;
-            BinarySerializer.Serialize<T>(value, claim.Buffer, (uint)MessageHeader.Size, ms);
+            var buffer = claim.Buffer;
+            BinarySerializer.Write<T>(value, ref buffer, (uint)MessageHeader.Size, ms);
             ms?.Dispose();
             claim.ReservedValue = _pid;
             claim.Commit();
@@ -103,7 +104,7 @@ namespace Spreads.Storage {
                 case MessageType.Broadcast:
                     var temp = default(T);
                     foreach (var observer in _observers) {
-                        TypeHelper<T>.Read(dataStart + MessageHeader.Size, ref temp);
+                        BinarySerializer.Read(dataStart + MessageHeader.Size, ref temp);
                         observer.OnNext(temp);
                     }
                     break;

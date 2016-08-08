@@ -22,9 +22,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Buffers;
 using Spreads.Collections;
 using Spreads.Serialization;
 
@@ -184,8 +186,13 @@ namespace Spreads.Storage {
 
             set
             {
-                lock (_syncRoot) {
-                    var bytes = Serializer.Serialize(value);
+                lock (_syncRoot)
+                {
+                    MemoryStream stream;
+                    var size = BinarySerializer.SizeOf(value, out stream);
+                    // TODO pooled buffer
+                    var buffer = new byte[size]; // ArrayPool<byte>.Shared.Rent(size);
+                    BinarySerializer.Write(value, buffer, 0, stream);
                     var k = ToInt64(key);
                     var lv = new LazyValue(k, value.Count, _chunksCache.Version, this);
                     lv.Value = value;
@@ -197,7 +204,7 @@ namespace Spreads.Storage {
                             ChunkKey = k,
                             Count = value.Count,
                             Version = _chunksCache.Version,
-                            ChunkValue = bytes
+                            ChunkValue = buffer
                         }).Wait();
                     }
                     _lastAccessedElement = new KeyValuePair<K, SortedMap<K, V>>(key, value);
@@ -533,7 +540,7 @@ namespace Spreads.Storage {
                         }
                         _chunkSize = chunkRow.Count;
                         _chunkVersion = chunkRow.Version;
-                        target = Serializer.Deserialize<SortedMap<K, V>>(chunkRow.ChunkValue);
+                        BinarySerializer.Read<SortedMap<K, V>>(chunkRow.ChunkValue, ref target);
                         _wr.SetTarget(target);
                         return target;
                     }
@@ -556,7 +563,11 @@ namespace Spreads.Storage {
         public void Flush() {
             // this is what SCM Flush did before
             if (_lastAccessedElement.Value != null) {
-                var bytes = Serializer.Serialize(_lastAccessedElement.Value);
+                MemoryStream stream;
+                var size = BinarySerializer.SizeOf(_lastAccessedElement.Value, out stream);
+                // TODO pooled buffer
+                var buffer = new byte[size]; // ArrayPool<byte>.Shared.Rent(size);
+                BinarySerializer.Write(_lastAccessedElement.Value, buffer, 0, stream);
                 var k = ToInt64(_lastAccessedElement.Key);
                 var lv = new LazyValue(k, _lastAccessedElement.Value.Count, _chunksCache.Version, this);
                 // this line increments version, must go before _remoteSaver
@@ -566,7 +577,7 @@ namespace Spreads.Storage {
                         ChunkKey = k,
                         Count = _lastAccessedElement.Value.Count,
                         Version = _chunksCache.Version,
-                        ChunkValue = bytes
+                        ChunkValue = buffer
                     }).Wait();
                 }
             }

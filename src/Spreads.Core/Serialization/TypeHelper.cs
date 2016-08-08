@@ -32,21 +32,22 @@ namespace Spreads.Serialization {
 
     }
 
+    [Obsolete("TypeHelper should only be used inside BinarySerializer or for known types. Use #pragma warning disable 0618/#pragma warning restore 0618 where its usage is justified.")]
     internal class TypeHelper {
 
-        private static int Read<T>(IntPtr ptr, ref object value) {
+        private static int ReadObject<T>(IntPtr ptr, ref object value) {
             var temp = value == null ? default(T) : (T)value;
             var len = TypeHelper<T>.Read(ptr, ref temp);
             value = temp;
             return len;
         }
 
-        private static int Write<T>(object value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null) {
+        private static int WriteObject<T>(object value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null) {
             var temp = value == null ? default(T) : (T)value;
             return TypeHelper<T>.Write(temp, ref destination, offset, ms);
         }
 
-        private static int SizeOf<T>(object value, out MemoryStream memoryStream) {
+        private static int SizeOfObject<T>(object value, out MemoryStream memoryStream) {
             var temp = value == null ? default(T) : (T)value;
             return TypeHelper<T>.SizeOf(temp, out memoryStream);
         }
@@ -60,7 +61,7 @@ namespace Spreads.Serialization {
         internal static FromPtrDelegate GetFromPtrDelegate(Type ty) {
             FromPtrDelegate temp;
             if (FromPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
-            var mi = typeof(TypeHelper).GetMethod("Read", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            var mi = typeof(TypeHelper).GetMethod("ReadObject", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             var genericMi = mi.MakeGenericMethod(ty);
             temp = (FromPtrDelegate)Delegate.CreateDelegate(typeof(FromPtrDelegate), genericMi);
             FromPtrDelegateCache[ty] = temp;
@@ -72,7 +73,7 @@ namespace Spreads.Serialization {
         internal static ToPtrDelegate GetToPtrDelegate(Type ty) {
             ToPtrDelegate temp;
             if (ToPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
-            var mi = typeof(TypeHelper).GetMethod("Write", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            var mi = typeof(TypeHelper).GetMethod("WriteObject", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             var genericMi = mi.MakeGenericMethod(ty);
             temp = (ToPtrDelegate)Delegate.CreateDelegate(typeof(ToPtrDelegate), genericMi);
             ToPtrDelegateCache[ty] = temp;
@@ -84,7 +85,7 @@ namespace Spreads.Serialization {
         internal static SizeOfDelegate GetSizeOfDelegate(Type ty) {
             SizeOfDelegate temp;
             if (SizeOfDelegateCache.TryGetValue(ty, out temp)) return temp;
-            var mi = typeof(TypeHelper).GetMethod("SizeOf", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            var mi = typeof(TypeHelper).GetMethod("SizeOfObject", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             var genericMi = mi.MakeGenericMethod(ty);
             temp = (SizeOfDelegate)Delegate.CreateDelegate(typeof(SizeOfDelegate), genericMi);
             SizeOfDelegateCache[ty] = temp;
@@ -104,6 +105,7 @@ namespace Spreads.Serialization {
         }
     }
 
+    [Obsolete("TypeHelper should only be used inside BinarySerializer or for known types. Use #pragma warning disable 0618/#pragma warning restore 0618 where its usage is justified.")]
     internal unsafe sealed class TypeHelper<T> : TypeHelper {
 
         // ReSharper disable once StaticMemberInGenericType
@@ -119,7 +121,7 @@ namespace Spreads.Serialization {
         private static IntPtr _tgt;
         private static IntPtr _ptr;
 #endif
-        private static IBinaryConverter<T> _convertorInstance;
+        private static IBinaryConverter<T> _converterInstance;
         private static int _size;
         private static TypeParams _typeParams = new TypeParams();
 
@@ -231,28 +233,28 @@ namespace Spreads.Serialization {
             // e.g. DateTime vs long in PersistentMap<K,V>.Entry
             //if (tmp is IBinaryConverter<T>) {
             if (typeof(IBinaryConverter<T>).IsAssignableFrom(ty)) {
-                IBinaryConverter<T> convertor;
+                IBinaryConverter<T> converter;
                 try {
-                    convertor = (IBinaryConverter<T>)Activator.CreateInstance<T>();
+                    converter = (IBinaryConverter<T>)Activator.CreateInstance<T>();
                 } catch {
                     //Trace.TraceWarning($"Type {typeof(T).FullName} is marked as IBinaryConverter and so it must have a parameterless constructor");
                     throw new ApplicationException($"Type T ({typeof(T).FullName}) is marked as IBinaryConverter<T> and so it must have a parameterless constructor.");
                 }
-                if (convertor.Version <= 0) {
+                if (converter.Version <= 0) {
                     throw new InvalidOperationException("IBinaryConverter<T> implementation for a type T should have a positive version.");
                 }
-                _convertorInstance = convertor;
+                _converterInstance = converter;
                 _hasBinaryConverter = true;
-                return _convertorInstance.IsFixedSize ? _convertorInstance.Size : 0;
+                return _converterInstance.IsFixedSize ? _converterInstance.Size : 0;
             }
             //byte[] should work as any other primitive array
             if (ty == typeof(byte[])) {
-                _convertorInstance = (IBinaryConverter<T>)(new ByteArrayBinaryConverter());
+                _converterInstance = (IBinaryConverter<T>)(new ByteArrayBinaryConverter());
                 _hasBinaryConverter = true;
                 return 0;
             }
             if (ty == typeof(string)) {
-                _convertorInstance = (IBinaryConverter<T>)(new StringBinaryConverter());
+                _converterInstance = (IBinaryConverter<T>)(new StringBinaryConverter());
                 _hasBinaryConverter = true;
                 return 0;
             }
@@ -260,12 +262,12 @@ namespace Spreads.Serialization {
                 var elementType = ty.GetElementType();
                 var elementSize = GetSize(elementType);
                 if (elementSize > 0) { // only for blittable types
-                    var convertor = (IBinaryConverter<T>)BlittableArrayConvertorFactory.Create(elementType);
-                    if (convertor == null) return -1;
-                    _convertorInstance = convertor;
+                    var converter = (IBinaryConverter<T>)BlittableArrayConverterFactory.Create(elementType);
+                    if (converter == null) return -1;
+                    _converterInstance = converter;
                     _hasBinaryConverter = true;
-                    Trace.Assert(!_convertorInstance.IsFixedSize);
-                    Trace.Assert(_convertorInstance.Size == 0);
+                    Trace.Assert(!_converterInstance.IsFixedSize);
+                    Trace.Assert(_converterInstance.Size == 0);
                     return 0;
                 }
             }
@@ -277,7 +279,7 @@ namespace Spreads.Serialization {
         public static int Read(IntPtr ptr, ref T value) {
             if (_hasBinaryConverter) {
                 Debug.Assert(_size == 0);
-                return _convertorInstance.Read(ptr, ref value);
+                return _converterInstance.Read(ptr, ref value);
             }
             if (_size < 0) {
                 throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
@@ -318,7 +320,7 @@ namespace Spreads.Serialization {
         public static int Write(T value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null) {
             if (_hasBinaryConverter) {
                 Debug.Assert(_size == 0);
-                return _convertorInstance.Write(value, ref destination, offset, ms);
+                return _converterInstance.Write(value, ref destination, offset, ms);
             }
             if (Size < 0) {
                 throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
@@ -372,7 +374,7 @@ namespace Spreads.Serialization {
         internal static int SizeOf(T value, out MemoryStream memoryStream) {
             if (_hasBinaryConverter) {
                 Debug.Assert(_size == 0);
-                return _convertorInstance.SizeOf(value, out memoryStream);
+                return _converterInstance.SizeOf(value, out memoryStream);
             }
             if (_size < 0) {
                 throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
@@ -394,28 +396,28 @@ namespace Spreads.Serialization {
 
         public static bool IsBlittable => _size > 0;
 
-        public static byte Version => _hasBinaryConverter ? _convertorInstance.Version : (byte)0;
+        public static byte Version => _hasBinaryConverter ? _converterInstance.Version : (byte)0;
 
 
-        internal static void RegisterConvertor(IBinaryConverter<T> convertor, bool overrideExisting = false) {
-            if (convertor == null) throw new ArgumentNullException(nameof(convertor));
-            if (Size > 0) throw new InvalidOperationException("Cannot register a custom convertor for fixed-size types");
+        internal static void RegisterConverter(IBinaryConverter<T> converter, bool overrideExisting = false) {
+            if (converter == null) throw new ArgumentNullException(nameof(converter));
+            if (Size > 0) throw new InvalidOperationException("Cannot register a custom converter for fixed-size types");
 
             // NB TypeHelper is internal, we could provide some hooks later e.g. for char or bool
-            if (convertor.Version == 0) {
-                Trace.TraceWarning("Adding a convertor with version zero");
+            if (converter.Version == 0) {
+                Trace.TraceWarning("Adding a converter with version zero");
             }
 
             if (_hasBinaryConverter && !overrideExisting)
                 throw new InvalidOperationException(
-                    $"Type {typeof(T)} already implements IBinaryConverter<{typeof(T)}> interface. Use versioning to add a new convertor (not supported yet)");
+                    $"Type {typeof(T)} already implements IBinaryConverter<{typeof(T)}> interface. Use versioning to add a new converter (not supported yet)");
 
             if (_typeParams.IsBlittable) {
                 Environment.FailFast($"Blittable types must not have IBinaryConverter<T>.");
             }
             _hasBinaryConverter = true;
-            _convertorInstance = convertor;
-            _size = convertor.Size;
+            _converterInstance = converter;
+            _size = converter.Size;
         }
     }
 }

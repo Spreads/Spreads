@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Buffers;
 using Spreads.Serialization;
+using Spreads.Storage.Aeron.Logbuffer;
 
 namespace Spreads.Storage {
     internal interface ILogBuffer : IDisposable {
@@ -126,28 +129,12 @@ namespace Spreads.Storage {
         }
 
         public unsafe void Append<T>(T message) {
-            // NB Writing a generic type and its bytes after serialization should be indistinguishable
-            byte[] bytes = null;
-            if (TypeHelper<T>.Size == -1) {
-                bytes = Serializer.Serialize(message);
-                Append(bytes);
-            }
-
-            int len;
-            if (typeof(T) == typeof(byte[])) {
-                bytes = (byte[])(object)(message);
-                len = bytes.Length;
-            } else {
-                len = TypeHelper<T>.Size;
-            }
-
-            var ptr = Claim(len);
-            if (bytes == null) {
-                TypeHelper.Write(message, ptr + 4);
-            } else {
-                Marshal.Copy(bytes, 0, ptr + 4, len);
-            }
-            Volatile.Write(ref *(int*)(ptr), len);
+            MemoryStream stream;
+            var sizeOf = BinarySerializer.SizeOf<T>(message, out stream);
+            var ptr = Claim(sizeOf);
+            var buffer = new DirectBuffer(sizeOf, ptr);
+            BinarySerializer.Write<T>(message, ref buffer, 0, stream);
+            Volatile.Write(ref *(int*)(ptr), sizeOf);
         }
 
         public unsafe IntPtr Claim(int length) {

@@ -6,12 +6,12 @@ using Spreads.Buffers;
 
 namespace Spreads.Serialization {
 
-    internal static class BlittableArrayConvertorFactory {
+    internal static class BlittableArrayConverterFactory {
         public static IBinaryConverter<TElement[]> GenericCreate<TElement>() {
             return new BlittableArrayBinaryConverter<TElement>();
         }
         public static object Create(Type type) {
-            var method = typeof(BlittableArrayConvertorFactory).GetMethod("GenericCreate");
+            var method = typeof(BlittableArrayConverterFactory).GetMethod("GenericCreate");
             var generic = method.MakeGenericMethod(type);
             return generic.Invoke(null, null);
         }

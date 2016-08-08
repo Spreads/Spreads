@@ -6,7 +6,7 @@ namespace Spreads.Native {
 #if NET451
     [System.Security.SuppressUnmanagedCodeSecurity]
 #endif
-    internal class BloscMethods {
+    public class BloscMethods {
         public const string BloscLibraryName = "libblosc";
         static BloscMethods() {
             // Ensure Bootstrapper is initialized and native libraries are loaded
@@ -24,17 +24,17 @@ namespace Spreads.Native {
         #region Blosc
 
         [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int blosc_compress_ctx(IntPtr clevel, IntPtr doshuffle,
+        public static extern int blosc_compress_ctx(IntPtr clevel, IntPtr doshuffle,
             UIntPtr typesize, UIntPtr nbytes, IntPtr src, IntPtr dest,
             UIntPtr destsize, [MarshalAs(UnmanagedType.LPStr)]string compressor,
             UIntPtr blocksize, int numinternalthreads);
 
         [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int blosc_decompress_ctx(IntPtr src, IntPtr dest,
+        public static extern int blosc_decompress_ctx(IntPtr src, IntPtr dest,
             UIntPtr destsize, int numinternalthreads);
 
         [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int blosc_cbuffer_sizes(IntPtr cbuffer, ref UIntPtr nbytes,
+        public static extern int blosc_cbuffer_sizes(IntPtr cbuffer, ref UIntPtr nbytes,
             ref UIntPtr cbytes, ref UIntPtr blocksize);
 
         #endregion

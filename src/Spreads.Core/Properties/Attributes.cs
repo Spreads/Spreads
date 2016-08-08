@@ -2,7 +2,7 @@
 
 [assembly: InternalsVisibleTo("Spreads")]
 [assembly: InternalsVisibleTo("Spreads.Collections")]
-//[assembly: InternalsVisibleTo("Spreads.Extensions")]
+[assembly: InternalsVisibleTo("Spreads.Extensions")]
 [assembly: InternalsVisibleTo("Spreads.Tests")]
 [assembly: InternalsVisibleTo("Spreads.Tests.Profile")]
 [assembly: InternalsVisibleTo("Spreads.Tests.CSProfile")]

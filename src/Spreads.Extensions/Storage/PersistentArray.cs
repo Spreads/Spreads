@@ -8,7 +8,7 @@ namespace Spreads.Storage {
 
     internal class PersistentArray<T> : IEnumerable<T>, IDisposable where T : struct {
         private const int HeaderLength = 256;
-        internal static readonly int DataOffset = HeaderLength + TypeHelper<T>.Size;
+        internal static readonly int DataOffset = HeaderLength + BinarySerializer.Size<T>();
         public static readonly int ItemSize;
         private readonly DirectFile _df;
 
@@ -23,7 +23,7 @@ namespace Spreads.Storage {
         internal IntPtr Slot7 => _df.Buffer.Data + 56;
 
         static PersistentArray() {
-            ItemSize = TypeHelper<T>.Size;
+            ItemSize = BinarySerializer.Size<T>();
             if (ItemSize <= 0) throw new InvalidOperationException("PersistentArray<T> supports only fixed-size types");
         }
 
@@ -74,20 +74,17 @@ namespace Spreads.Storage {
             get
             {
                 if (index < -1 || index >= LongCount) throw new ArgumentOutOfRangeException();
-                T temp = default(T);
-                TypeHelper<T>.Read(new IntPtr(_df.Buffer.Data.ToInt64() + (DataOffset + index * ItemSize)), ref temp); //.Read<T>(DataOffset + index * ItemSize);
+                var temp = default(T);
+                _df.Buffer.Read(DataOffset + index * ItemSize, ref temp);
                 return temp;
             }
             set
             {
                 if (index < -1 || index >= LongCount) throw new ArgumentOutOfRangeException();
-                //_df.Buffer.Write(DataOffset + index * ItemSize, value);
-                TypeHelper.Write(value, new IntPtr(_df.Buffer.Data.ToInt64() + (DataOffset + index * ItemSize)));
+                _df.Buffer.Write((DataOffset + index * ItemSize), value);
             }
         }
 
-        //private void Copy(long source, long target) {
-        //    _df.Buffer.Copy<T>(DataOffset + source * ItemSize, DataOffset + target * ItemSize);
-        //}
+
     }
 }

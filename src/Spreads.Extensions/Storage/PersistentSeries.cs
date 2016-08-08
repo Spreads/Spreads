@@ -26,12 +26,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Threading.Tasks;
 using Spreads.Buffers;
 using Spreads.Collections;
 using Spreads.Serialization;
 using Spreads.Storage.Aeron.Logbuffer;
-using Spreads.Storage.Aeron.Protocol;
 
 namespace Spreads.Storage {
     /// <summary>
@@ -81,7 +79,7 @@ namespace Spreads.Storage {
                     if (!_isWriter) {
                         Trace.Assert(header.Version == _innerMap.Version + 1);
                         var setBody = default(SetRemoveCommandBody<K, V>);
-                        TypeHelper<SetRemoveCommandBody<K, V>>.Read(dataStart + MessageHeader.Size, ref setBody);
+                        BinarySerializer.Read<SetRemoveCommandBody<K, V>>(dataStart + MessageHeader.Size, ref setBody);
                         _innerMap[setBody.key] = setBody.value;
                     }
                     break;
@@ -90,7 +88,7 @@ namespace Spreads.Storage {
                     if (!_isWriter) {
                         Trace.Assert(header.Version == _innerMap.Version + 1);
                         var removeBody = default(SetRemoveCommandBody<K, int>);
-                        TypeHelper<SetRemoveCommandBody<K, int>>.Read(dataStart + MessageHeader.Size, ref removeBody);
+                        BinarySerializer.Read<SetRemoveCommandBody<K, int>>(dataStart + MessageHeader.Size, ref removeBody);
                         _innerMap.RemoveMany(removeBody.key, (Lookup)removeBody.value);
                     }
                     break;
@@ -192,14 +190,13 @@ namespace Spreads.Storage {
                 value = value
             };
             MemoryStream ms;
-            var len = MessageHeader.Size + TypeHelper<SetRemoveCommandBody<K, V>>.SizeOf(commandBody, out ms);
+            var len = MessageHeader.Size + BinarySerializer.SizeOf<SetRemoveCommandBody<K, V>>(commandBody, out ms);
             // version + len header
-            if (TypeHelper<SetRemoveCommandBody<K, V>>.Size <= 0) len = len + 8;
+            if (BinarySerializer.Size<SetRemoveCommandBody<K, V>>() <= 0) len = len + 8;
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
             *(MessageHeader*)(claim.Data) = header;
-            // TODO reuse ms
-            BinarySerializer.Serialize(commandBody, claim.Buffer, (uint)MessageHeader.Size, ms);
+            claim.Buffer.Write(claim.Offset + MessageHeader.Size, commandBody, ms);
             ms?.Dispose();
             claim.ReservedValue = _pid;
             claim.Commit();
@@ -246,12 +243,12 @@ namespace Spreads.Storage {
                 key = key,
                 value = lookup
             };
-            var len = MessageHeader.Size + TypeHelper<SetRemoveCommandBody<K, int>>.Size;
+            var len = MessageHeader.Size + BinarySerializer.Size<SetRemoveCommandBody<K, int>>();
             BufferClaim claim;
             _appendLog.Claim(len, out claim);
             *(MessageHeader*)(claim.Data) = header;
             var buffer = claim.Buffer;
-            TypeHelper<SetRemoveCommandBody<K, int>>.Write(commandBody, ref buffer, (uint)MessageHeader.Size);
+            claim.Buffer.Write(claim.Offset + MessageHeader.Size, commandBody);
             claim.ReservedValue = _pid;
             claim.Commit();
         }

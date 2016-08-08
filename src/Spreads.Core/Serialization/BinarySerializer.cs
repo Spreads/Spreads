@@ -5,40 +5,31 @@ using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Bson;
 using Spreads.Buffers;
-
+#pragma warning disable 0618
 namespace Spreads.Serialization {
-
-    // new version of serializer
-    // uses TypeHelper to get statically cached reflection metadata
-    // for default format, uses BSON + TypeHelper methods
-    // for other formats just applies JSON.NET/Protobuf
-    // Reused array pools from Spreads or uses thread static buffers where appropriate
-
-    // TODO there is a mess if we return SizeOf with or without 8 bytes header
-    // should be simple - SiezOf - binary size including the 8 bytes,
-    // length value in the header - only payload without the header
 
     public static class BinarySerializer {
 
-        private class JsonNetArrayPoolImpl : Newtonsoft.Json.IArrayPool<char> {
-            public static readonly JsonNetArrayPoolImpl Instance = new JsonNetArrayPoolImpl();
+        //private class JsonNetArrayPoolImpl : Newtonsoft.Json.IArrayPool<char> {
+        //    public static readonly JsonNetArrayPoolImpl Instance = new JsonNetArrayPoolImpl();
 
-            public char[] Rent(int minimumLength) {
-                return ArrayPool<char>.Shared.Rent(minimumLength);
-            }
+        //    public char[] Rent(int minimumLength) {
+        //        return ArrayPool<char>.Shared.Rent(minimumLength);
+        //    }
 
-            public void Return(char[] array) {
-                ArrayPool<char>.Shared.Return(array, true);
-            }
-        }
-
-        //public static int SizeOf<T>(T value) {
-        //    MemoryStream temp;
-        //    var size = SizeOf<T>(value, out temp);
-        //    // TODO (low) we could use CWT if T is reference type
-        //    temp?.Dispose();
-        //    return size;
+        //    public void Return(char[] array) {
+        //        ArrayPool<char>.Shared.Return(array, true);
+        //    }
         //}
+
+        [Obsolete("Consider using an overload with memory stream")]
+        public static int SizeOf<T>(T value) {
+            MemoryStream temp;
+            var size = SizeOf<T>(value, out temp);
+            // NB we could use CWT if T is reference type, but that defeats the purpose of the overload with ms
+            temp?.Dispose();
+            return size;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Size<T>() {
@@ -48,7 +39,7 @@ namespace Spreads.Serialization {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOf<T>(T value, out MemoryStream payloadStream) {
             var size = TypeHelper<T>.SizeOf(value, out payloadStream);
-            return size >= 0 ? size : BSON.SizeOf<T>(value, out payloadStream);
+            return size >= 0 ? size : Bson.SizeOfBson<T>(value, out payloadStream);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -90,25 +81,43 @@ namespace Spreads.Serialization {
                 return size;
             }
 
-            var bsonStream = BSON.Serialize<T>(value);
+            var bsonStream = Bson.Serialize<T>(value);
             size = checked((int)bsonStream.Length);
             if (destination.Length < offset + size) throw new ArgumentException("Value size is too big for destination");
             bsonStream.WriteToPtr(destination.Data + (int)offset);
             return size;
         }
 
-        public static int Serialize<T>(T value, byte[] destination, uint offset, MemoryStream memoryStream = null) {
-            // TODO length check
-            throw new NotImplementedException();
+        public static unsafe int Write<T>(T value, byte[] destination, uint offset, MemoryStream memoryStream = null) {
+            fixed (byte* ptr = &destination[0]) {
+                var buffer = new DirectBuffer(destination.Length, (IntPtr)ptr);
+                return Write(value, ref buffer, offset, memoryStream);
+            }
         }
 
-        public static int Serialize<T>(T value, Stream destination, MemoryStream memoryStream = null) {
-            // TODO length check
-            throw new NotImplementedException();
+        //public static int Serialize<T>(T value, Stream destination, MemoryStream memoryStream = null) {
+        //    // TODO length check
+        //    throw new NotImplementedException();
+        //}
+
+        public static unsafe int Read<T>(IntPtr ptr, ref T value) {
+            var size = TypeHelper<T>.Size;
+            if (size >= 0) {
+                return TypeHelper<T>.Read(ptr, ref value);
+            }
+            size = *(int*)ptr;
+            var stream = new UnmanagedMemoryStream((byte*)ptr + 8, size - 8);
+            value = Bson.Deserialize<T>(stream);
+            return size;
         }
 
+        public static unsafe int Read<T>(byte[] buffer, ref T value) {
+            fixed (byte* ptr = &buffer[0]) {
+                return Read((IntPtr)ptr, ref value);
+            }
+        }
 
-        internal static BsonSerializer BSON => BsonSerializer.Instance;
+        internal static BsonSerializer Bson => BsonSerializer.Instance;
 
         internal sealed class BsonSerializer {
             readonly JsonSerializer _serializer;
@@ -117,7 +126,7 @@ namespace Spreads.Serialization {
                 _serializer = new JsonSerializer();
             }
 
-            public int SizeOf<T>(T value, out MemoryStream memoryStream) {
+            public int SizeOfBson<T>(T value, out MemoryStream memoryStream) {
                 memoryStream = RecyclableMemoryManager.MemoryStreams.GetStream();
                 using (var writer = new BsonWriter(memoryStream)) {
                     _serializer.Serialize(writer, value);
@@ -142,4 +151,5 @@ namespace Spreads.Serialization {
             }
         }
     }
+#pragma warning restore 0618
 }
