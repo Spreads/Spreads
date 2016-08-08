@@ -84,12 +84,12 @@ namespace Spreads.Buffers
             /// in the bucket and true will be returned; otherwise, the buffer won't be stored, and false
             /// will be returned.
             /// </summary>
-            internal void Return(T[] array)
+            internal bool Return(T[] array)
             {
                 // Check to see if the buffer is the correct size for this bucket
                 if (array.Length != _bufferLength)
                 {
-                    throw new ArgumentException("BufferNotFromPool", nameof(array));
+                    return false;
                 }
 
                 // While holding the spin lock, if there's room available in the bucket,
@@ -104,12 +104,14 @@ namespace Spreads.Buffers
                     if (_index != 0)
                     {
                         _buffers[--_index] = array;
+                        return true;
                     }
                 }
                 finally
                 {
                     if (lockTaken) _lock.Exit(false);
                 }
+                return false;
             }
         }
     }

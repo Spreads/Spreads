@@ -1,3 +1,22 @@
+/*
+    Copyright(c) 2014-2016 Victor Baybekov.
+
+    This file is a part of Spreads library.
+
+    Spreads library is free software; you can redistribute it and/or modify it under
+    the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+
+    Spreads library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.If not, see<http://www.gnu.org/licenses/>.
+*/
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,9 +28,7 @@ using Spreads.Buffers;
 
 namespace Spreads.Serialization {
 
-    // TODO decima special case, it is not primitive
-
-    // TODO(!!!) find all occurences of TH and replace with BinarySerializer
+    // TODO remove special treatment of decimal, it is blittable/pinnable
 
     internal delegate int FromPtrDelegate(IntPtr ptr, ref object value);
     internal delegate int ToPtrDelegate(object value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null);
@@ -253,6 +270,11 @@ namespace Spreads.Serialization {
                 _hasBinaryConverter = true;
                 return 0;
             }
+            if (ty == typeof(DateTime[])) {
+                _converterInstance = (IBinaryConverter<T>)(new DateTimeArrayBinaryConverter());
+                _hasBinaryConverter = true;
+                return 0;
+            }
             if (ty == typeof(string)) {
                 _converterInstance = (IBinaryConverter<T>)(new StringBinaryConverter());
                 _hasBinaryConverter = true;
@@ -287,6 +309,7 @@ namespace Spreads.Serialization {
             Debug.Assert(_size > 0);
 #if TYPED_REF
             var obj = default(T);
+#pragma di
             var tr = __makeref(obj);
             *(IntPtr*)(&tr) = ptr;
             value = __refvalue(tr, T);
@@ -419,5 +442,8 @@ namespace Spreads.Serialization {
             _converterInstance = converter;
             _size = converter.Size;
         }
+
+
+     
     }
 }

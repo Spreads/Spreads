@@ -174,5 +174,35 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Interlocked {sw.ElapsedMilliseconds}");
         }
 
+
+
+        [Test]
+        public void CouldReturnAlienBuffer() {
+            var alienBuffer = new byte[123];
+            Assert.IsFalse(ArrayPool<byte>.Shared.Return(alienBuffer));
+        }
+
+        [Test]
+        public void CouldReturnBuffer() {
+            var buffer = ArrayPool<byte>.Shared.Rent(1);
+            Assert.IsTrue(ArrayPool<byte>.Shared.Return(buffer));
+            buffer = ArrayPool<byte>.Shared.Rent(12);
+            Assert.IsTrue(ArrayPool<byte>.Shared.Return(buffer));
+            buffer = ArrayPool<byte>.Shared.Rent(123);
+            Assert.IsTrue(ArrayPool<byte>.Shared.Return(buffer));
+            buffer = ArrayPool<byte>.Shared.Rent(1234);
+            Assert.IsTrue(ArrayPool<byte>.Shared.Return(buffer));
+            buffer = ArrayPool<byte>.Shared.Rent(12345);
+            Assert.IsTrue(ArrayPool<byte>.Shared.Return(buffer));
+            buffer = ArrayPool<byte>.Shared.Rent(123456);
+            Assert.IsTrue(ArrayPool<byte>.Shared.Return(buffer));
+            //buffer = ArrayPool<byte>.Shared.Rent(1234567);
+            //Assert.IsTrue(ArrayPool<byte>.Shared.Return(buffer));
+            //buffer = ArrayPool<byte>.Shared.Rent(123445678);
+            //Assert.IsTrue(ArrayPool<byte>.Shared.Return(buffer));
+            //buffer = ArrayPool<byte>.Shared.Rent(1234456789);
+            //Assert.IsTrue(ArrayPool<byte>.Shared.Return(buffer));
+        }
+
     }
 }

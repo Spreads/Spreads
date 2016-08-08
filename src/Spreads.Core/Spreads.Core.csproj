@@ -77,8 +77,11 @@
     <Compile Include="Buffers\AtomicCounter.cs" />
     <Compile Include="Buffers\BufferWrapper.cs" />
     <Compile Include="Buffers\Events.cs" />
+    <Compile Include="Buffers\IDirectBufferExtensions.cs" />
     <Compile Include="Buffers\RecyclableMemoryStream.cs" />
     <Compile Include="Buffers\RecyclableMemoryStreamManager.cs" />
+    <Compile Include="Buffers\SafeBufferAccessor.cs" />
+    <Compile Include="Buffers\SafeBufferStream.cs" />
     <Compile Include="ByteUtil.cs" />
     <Compile Include="ChaosMonkey.cs" />
     <Compile Include="Collections\IDictionaryDebugView.cs" />
@@ -87,6 +90,7 @@
     <Compile Include="Exceptions.cs" />
     <Compile Include="Buffers\FixedBuffer.cs" />
     <Compile Include="Buffers\IDirectBuffer.cs" />
+    <Compile Include="IArrayBasedMap.cs" />
     <Compile Include="MemoryCache.cs" />
     <Compile Include="native\BloscMethods.cs" />
     <Compile Include="Properties\Attributes.cs" />
@@ -97,10 +101,14 @@
     <Compile Include="Serialization\BinaryConvertorExtensions.cs" />
     <Compile Include="Serialization\BinarySerializer.cs" />
     <Compile Include="Serialization\BlittableArrayBinaryConverter.cs" />
+    <Compile Include="Serialization\CompressedArrayBinaryConverter.cs" />
     <Compile Include="Serialization\ByteArrayBinaryConverter.cs" />
-    <Compile Include="Serialization\Convertors.cs" />
+    <Compile Include="Serialization\DateTimeArrayBinaryConverter.cs" />
+    <Compile Include="Serialization\MemoryStreamBinaryConverter.cs" />
     <Compile Include="Serialization\IBinaryConverter.cs" />
+    <Compile Include="Serialization\RentedMemoryStream.cs" />
     <Compile Include="Serialization\SerializationAttribute.cs" />
+    <Compile Include="Serialization\StringBinaryConverter.cs" />
     <Compile Include="Serialization\TypeHelper.cs" />
     <Compile Include="StringExtensions.cs" />
     <Compile Include="Buffers\ArrayPool.cs" />

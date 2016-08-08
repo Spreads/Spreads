@@ -16,7 +16,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *)
-
+//#nowarn "44"
 namespace Spreads.Collections
 
 open System
@@ -31,6 +31,7 @@ open System.Runtime.CompilerServices
 
 open Spreads
 open Spreads.Buffers
+open Spreads.Serialization
 open Spreads.Collections
 
 // NB: IsSyncronized = false means completely thread unsafe. When it is false, the only cost should be checking it and incrementing next order version.
@@ -51,7 +52,42 @@ open Spreads.Collections
 type SortedMap<'K,'V>
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
   inherit Series<'K,'V>()
-  
+  static do
+    let converter = {
+      new ArrayBasedMapConverter<'K,'V, SortedMap<'K,'V>>() with
+        member __.Read(ptr : IntPtr, [<Out>]value: byref<SortedMap<'K,'V>> ) = 
+          let totalSize = Marshal.ReadInt32(ptr)
+          let version = Marshal.ReadByte(new IntPtr(ptr.ToInt64() + 4L))
+          let mapSize = Marshal.ReadInt32(new IntPtr(ptr.ToInt64() + 8L))
+          let mapVersion = Marshal.ReadInt64(new IntPtr(ptr.ToInt64() + 12L))
+          let isRegular = Marshal.ReadByte(new IntPtr(ptr.ToInt64() + 12L + 8L)) > 0uy
+          let isReadOnly = Marshal.ReadByte(new IntPtr(ptr.ToInt64() + 12L + 8L + 1L)) > 0uy
+          value <- 
+            if mapSize > 0 then
+              let ptr = new IntPtr(ptr.ToInt64() + 8L + 14L)
+              let mutable keysSegment = Unchecked.defaultof<ArraySegment<'K>>
+              let keysLen = CompressedArrayBinaryConverter<'K>.Instance.Read(ptr, &keysSegment)
+              let ptr = new IntPtr(ptr.ToInt64() + (int64 keysLen))
+              let mutable valuesSegment = Unchecked.defaultof<ArraySegment<'V>>
+              let valuesLen = CompressedArrayBinaryConverter<'V>.Instance.Read(ptr, &valuesSegment)
+              Debug.Assert((totalSize = 8 + 14 + keysLen + valuesLen))
+              let sm : SortedMap<'K,'V> = SortedMap.OfSortedKeysAndValues(keysSegment.Array, valuesSegment.Array, mapSize, KeyComparer.GetDefault<'K>(), false, isRegular)
+              sm.version <- mapVersion
+              sm.nextVersion <- mapVersion
+              sm.orderVersion <- mapVersion
+              sm.isReadOnly <- isReadOnly
+              sm
+            else 
+              let sm = new SortedMap<'K,'V> ()
+              sm.version <- mapVersion
+              sm.nextVersion <- mapVersion
+              sm.orderVersion <- mapVersion
+              sm.isReadOnly <- isReadOnly
+              sm
+          totalSize
+    }
+    Serialization.TypeHelper<SortedMap<'K,'V>>.RegisterConverter(converter, true);
+
   // data fields
   [<DefaultValueAttribute>]
   val mutable internal version : int64
@@ -1254,6 +1290,15 @@ type SortedMap<'K,'V>
 
 
   //#region Interfaces
+
+  interface IArrayBasedMap<'K,'V> with
+    member this.Length with get() = this.size
+    member this.Version with get() = this.version
+    member this.IsRegular with get() = this.IsRegular
+    member this.IsReadOnly with get() = this.IsReadOnly
+    member this.Keys with get() = this.keys
+    member this.Values with get() = this.values
+
   interface IDisposable with
     member this.Dispose() = this.Dispose(true)
 

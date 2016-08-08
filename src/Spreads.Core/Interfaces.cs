@@ -308,10 +308,4 @@ namespace Spreads {
     internal interface IUpdateable {
         event OnUpdateHandler OnUpdate;
     }
-
-    internal interface IArrayBasedMap<TKey, TValue> {
-        int length { get; }
-        TKey[] Keys { get; }
-        TValue[] Values { get; }
-    }
 }

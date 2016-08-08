@@ -50,9 +50,8 @@ namespace Spreads.Extensions.Tests {
         }
 
         //[Test]
-        //public void CouldCastDoubleArrayToBytesArray()
-        //{
-        //    var dbls = new[] {123.4, 567.89};
+        //public void CouldCastDoubleArrayToBytesArray() {
+        //    var dbls = new[] { 123.4, 567.89 };
         //    var bytes = CoreUtils.UnsafeCast<byte[]>(dbls);
         //    Assert.AreEqual(dbls.Length * 8, bytes.Length);
         //    Console.WriteLine($"Count: {bytes.Length}");

@@ -1,15 +1,31 @@
-﻿using System;
+/*
+    Copyright(c) 2014-2016 Victor Baybekov.
+
+    This file is a part of Spreads library.
+
+    Spreads library is free software; you can redistribute it and/or modify it under
+    the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+
+    Spreads library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.If not, see<http://www.gnu.org/licenses/>.
+*/
+
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using Spreads.Buffers;
 
-namespace Spreads.Serialization {
-
-
-
-
+namespace Spreads.Serialization
+{
     internal class StringBinaryConverter : IBinaryConverter<string> {
         public bool IsFixedSize => false;
         public int Size => 0;
@@ -30,7 +46,7 @@ namespace Spreads.Serialization {
                     // size
                     Marshal.WriteInt32(ptr, totalLength);
                     // version
-                    Marshal.WriteByte(ptr, Version);
+                    Marshal.WriteByte(ptr + 4, Version);
                     // payload
                     var len = Encoding.UTF8.GetBytes(charPtr, value.Length, (byte*)ptr + 8, totalLength);
                     Debug.Assert(totalLength == len + 8);
@@ -47,9 +63,9 @@ namespace Spreads.Serialization {
         }
 
         public int Read(IntPtr ptr, ref string value) {
-            var version = Marshal.ReadInt32(ptr);
+            var version = Marshal.ReadInt32(ptr + 4);
             if (version != 0) throw new NotSupportedException();
-            var length = Marshal.ReadInt32(ptr + 4);
+            var length = Marshal.ReadInt32(ptr);
             bool needReturn = false;
             byte[] buffer;
             if (length < RecyclableMemoryManager.StaticBufferSize) {
@@ -59,58 +75,11 @@ namespace Spreads.Serialization {
                 buffer = ArrayPool<byte>.Shared.Rent(length);
             }
             Marshal.Copy(ptr + 8, buffer, 0, length);
-            value = Encoding.UTF8.GetString(buffer, 0, length);
+            value = Encoding.UTF8.GetString(buffer, 0, length - 8);
             if (needReturn) ArrayPool<byte>.Shared.Return(buffer, true);
-            return length + 8;
+            return length;
         }
 
-        public byte Version => 1;
-    }
-
-
-    internal class MemoryStreamBinaryConverter : IBinaryConverter<MemoryStream> {
-        public bool IsFixedSize => false;
-        public int Size => 0;
-        public int SizeOf(MemoryStream value, out MemoryStream temporaryStream) {
-            if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(temporaryStream), "Memory stream is too large");
-            temporaryStream = null;
-            return checked((int)value.Length + 8);
-        }
-
-        public unsafe int Write(MemoryStream value, ref DirectBuffer destination, uint offset, MemoryStream temporaryStream = null) {
-            if (temporaryStream != null) throw new NotSupportedException("MemoryStreamBinaryConverter does not work with temp streams.");
-
-            if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(temporaryStream), "Memory stream is too large");
-
-            var totalLength = checked((int)value.Length + 8);
-            if (!destination.HasCapacity(offset, totalLength)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-            var ptr = destination.Data + (int)offset;
-            // size
-            Marshal.WriteInt32(ptr, totalLength);
-            // version
-            Marshal.WriteInt32(ptr + 4, 0);
-
-            // payload
-            ptr = ptr + 8;
-            int b;
-            // TODO (perf) this looks silly
-            while ((b = value.ReadByte()) >= 0) {
-                *(byte*)ptr = (byte)b;
-                ptr = ptr + 1;
-            }
-            return totalLength;
-        }
-
-        public int Read(IntPtr ptr, ref MemoryStream value) {
-            var version = Marshal.ReadInt32(ptr);
-            if (version != 0) throw new NotSupportedException();
-            var length = Marshal.ReadInt32(ptr + 4);
-            var bytes = new byte[length];
-            Marshal.Copy(ptr + 8, bytes, 0, length);
-            value = new MemoryStream(bytes);
-            return length + 8;
-        }
-
-        public byte Version => 1;
+        public byte Version => 0;
     }
 }

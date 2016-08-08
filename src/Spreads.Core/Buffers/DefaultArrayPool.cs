@@ -121,7 +121,7 @@ namespace Spreads.Buffers
             return buffer;
         }
 
-        public override void Return(T[] array, bool clearArray = true)
+        public override bool Return(T[] array, bool clearArray = true)
         {
             if (array == null)
             {
@@ -131,11 +131,12 @@ namespace Spreads.Buffers
             {
                 // Ignore empty arrays.  When a zero-length array is rented, we return a singleton
                 // rather than actually taking a buffer out of the lowest bucket.
-                return;
+                return true;
             }
 
             // Determine with what bucket this array length is associated
             int bucket = Utilities.SelectBucketIndex(array.Length);
+            bool returned = false;
 
             // If we can tell that the buffer was allocated, drop it. Otherwise, check if we have space in the pool
             if (bucket < _buckets.Length)
@@ -149,7 +150,7 @@ namespace Spreads.Buffers
                 // Return the buffer to its bucket.  In the future, we might consider having Return return false
                 // instead of dropping a bucket, in which case we could try to return to a lower-sized bucket,
                 // just as how in Rent we allow renting from a higher-sized bucket.
-                _buckets[bucket].Return(array);
+                returned = _buckets[bucket].Return(array);
             }
 
             // Log that the buffer was returned
@@ -158,6 +159,7 @@ namespace Spreads.Buffers
             {
                 log.BufferReturned(array.GetHashCode(), array.Length, Id);
             }
+            return returned;
         }
     }
 }

@@ -18,6 +18,7 @@
 */
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -51,6 +52,9 @@ namespace Spreads.Buffers {
             this._data = data;
             this._length = length;
         }
+
+        public DirectBuffer(long length, byte* data) : this(length, (IntPtr)(data)) {}
+        public DirectBuffer(long length, void* data) : this(length, (IntPtr)(data)) {}
 
         //SafeBuffer
         public DirectBuffer(long length, SafeBuffer buffer) : this(length, PtrFromSafeBuffer(buffer)) {
@@ -99,26 +103,22 @@ namespace Spreads.Buffers {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool HasCapacity(long offset, long length) {
-            if (length <= 0) {
-                throw new ArgumentOutOfRangeException(nameof(length));
-            }
-            if (offset < 0) {
-                throw new ArgumentOutOfRangeException(nameof(offset));
-            }
-            return offset + length <= _length;
+            return (ulong)offset + (ulong)length <= (ulong)_length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //[Conditional("DEBUG")]
         private void Assert(long index, long length) {
-            if (length <= 0) {
-                throw new ArgumentOutOfRangeException(nameof(length));
+            if ((ulong)index + (ulong)length > (ulong)_length) {
+                throw new ArgumentException("Not enough space");
             }
-            if (index + length > _length) {
-                throw new ArgumentOutOfRangeException(nameof(index));
-            }
-            if (index < 0) {
-                throw new ArgumentOutOfRangeException(nameof(index));
-            }
+            // NB any negative value casted to ulong will be larger than _length, no need for separate checks
+            //if (length <= 0) {
+            //    throw new ArgumentOutOfRangeException(nameof(length));
+            //}
+            //if (index < 0) {
+            //    throw new ArgumentOutOfRangeException(nameof(index));
+            //}
         }
 
         /// <summary>

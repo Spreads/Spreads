@@ -146,11 +146,8 @@
     <Compile Include="DataTypes\OrderBook.cs" />
     <Compile Include="DataTypes\Symbol.cs" />
     <Compile Include="DataTypes\Tick.cs" />
-    <Compile Include="Serialization\DirectFile.cs" />
+    <Compile Include="Storage\DirectFile.cs" />
     <Compile Include="Serialization\GenericArrayPinner.cs" />
-    <Compile Include="Serialization\IDirectBufferExtensions.cs" />
-    <Compile Include="Serialization\SafeBufferAccessor.cs" />
-    <Compile Include="Serialization\SafeBufferStream.cs" />
     <Compile Include="Storage\Aeron\BitUtil.cs" />
     <Compile Include="Storage\Aeron\ErrorHandler.cs" />
     <Compile Include="Storage\Aeron\LogBuffers.cs" />

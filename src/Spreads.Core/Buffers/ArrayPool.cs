@@ -113,6 +113,6 @@ namespace Spreads.Buffers
         /// may hold onto the returned buffer in order to rent it again, or it may release the returned buffer
         /// if it's determined that the pool already has enough buffers stored.
         /// </remarks>
-        public abstract void Return(T[] array, bool clearArray = true);
+        public abstract bool Return(T[] array, bool clearArray = true);
     }
 }

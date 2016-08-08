@@ -1,53 +1,28 @@
-﻿using System;
-using System.Collections.Generic;
+﻿/*
+    Copyright(c) 2014-2016 Victor Baybekov.
+
+    This file is a part of Spreads library.
+
+    Spreads library is free software; you can redistribute it and/or modify it under
+    the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+
+    Spreads library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.If not, see<http://www.gnu.org/licenses/>.
+*/
+
+using System;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace Spreads.Serialization {
-
-
-    // NB very likely this is bullshit and we only need IBinaryConverter interface
-    // and thouroughly tested default implementation. All schemas could be hidden 
-    // inside the interface. There will alway be indirection, but with an interface 
-    // we only have a single indirect call via an interface.
-    // Also, e.g. SBE reuses type instances and wraps around buffers, but out interface
-    // doesn't account for that. In cursors that instances could be reused inside CurrentValue getter.
-
-    /// <summary>
-    /// Format for binary serialization.
-    /// </summary>
-    public enum SerializationFormat : byte
-    {
-        /// <summary>
-        /// Try direct conversion using:
-        /// * Blittable when possible (check Marshal.SizeOf then pinned array)
-        /// * Arrays of blittable types
-        /// * IBinaryConverter interface
-        /// Fallback to BSON with recursive use of the three methods above for nested members when possible.
-        /// </summary>
-        Default = 0,
-        /// <summary>
-        /// BSON as converted by JSON.NET
-        /// </summary>
-        BSON = 1,
-        /// <summary>
-        /// JSON as converted by JSON.NET |> UTF8.GetBytes
-        /// </summary>
-        JSON = 2,
-        /// <summary>
-        /// Protocol Buffers based on protobuf-net
-        /// </summary>
-        ProtocolBuffers = 3,
-        /// <summary>
-        /// Using IBinaryConverter (a type must implement that interface)
-        /// </summary>
-        Custom = 255
-    }
-
-    // TODO (low) test multiple attributes, e.g. start with default, then bson, json, PB, custom
 
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true)]
     public class SerializationAttribute : Attribute {

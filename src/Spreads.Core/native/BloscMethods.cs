@@ -6,7 +6,7 @@ namespace Spreads.Native {
 #if NET451
     [System.Security.SuppressUnmanagedCodeSecurity]
 #endif
-    public class BloscMethods {
+    internal class BloscMethods {
         public const string BloscLibraryName = "libblosc";
         static BloscMethods() {
             // Ensure Bootstrapper is initialized and native libraries are loaded
@@ -20,6 +20,8 @@ namespace Spreads.Native {
                 () => {
                 });
         }
+
+        public static readonly int ProcessorCount = Environment.ProcessorCount;
 
         #region Blosc
 
