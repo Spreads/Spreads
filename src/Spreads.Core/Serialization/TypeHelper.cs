@@ -80,7 +80,11 @@ namespace Spreads.Serialization {
             if (FromPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("ReadObject", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             var genericMi = mi.MakeGenericMethod(ty);
+#if NET451
             temp = (FromPtrDelegate)Delegate.CreateDelegate(typeof(FromPtrDelegate), genericMi);
+#else
+            temp = (FromPtrDelegate)genericMi.CreateDelegate(typeof(FromPtrDelegate));
+#endif
             FromPtrDelegateCache[ty] = temp;
             return temp;
         }
@@ -92,7 +96,11 @@ namespace Spreads.Serialization {
             if (ToPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("WriteObject", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             var genericMi = mi.MakeGenericMethod(ty);
+#if NET451
             temp = (ToPtrDelegate)Delegate.CreateDelegate(typeof(ToPtrDelegate), genericMi);
+#else
+            temp = (ToPtrDelegate)genericMi.CreateDelegate(typeof(ToPtrDelegate));
+#endif
             ToPtrDelegateCache[ty] = temp;
             return temp;
         }
@@ -104,7 +112,11 @@ namespace Spreads.Serialization {
             if (SizeOfDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("SizeOfObject", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
             var genericMi = mi.MakeGenericMethod(ty);
+#if NET451
             temp = (SizeOfDelegate)Delegate.CreateDelegate(typeof(SizeOfDelegate), genericMi);
+#else
+            temp = (SizeOfDelegate)genericMi.CreateDelegate(typeof(SizeOfDelegate));
+#endif
             SizeOfDelegateCache[ty] = temp;
             return temp;
         }
@@ -192,11 +204,11 @@ namespace Spreads.Serialization {
                 return 16;
             }
 
-            _typeParams.IsValueType = ty.IsValueType;
+            _typeParams.IsValueType = ty.GetTypeInfo().IsValueType;
             var pinnedSize = PinnedSize();
 
             if (pinnedSize > 0) {
-                if (ty.IsPrimitive && (ty != typeof(bool) && ty != typeof(char))) {
+                if (ty.GetTypeInfo().IsPrimitive && (ty != typeof(bool) && ty != typeof(char))) {
                     _typeParams.IsBlittable = true;
                     _typeParams.IsFixedSize = true;
                     _typeParams.Size = pinnedSize;
@@ -205,17 +217,10 @@ namespace Spreads.Serialization {
 
                 // for a non-primitive type to be blittable, it must have an attribute
                 var sa = SerializationAttribute.GetSerializationAttribute(ty);
-                var sla = ty.StructLayoutAttribute;
                 var hasSizeAttribute = false;
                 if (sa != null && sa.BlittableSize > 0) {
                     if (pinnedSize != sa.BlittableSize) {
                         Environment.FailFast($"Size of type {ty.Name} defined in SerializationAttribute {sa.BlittableSize} differs from calculated size {pinnedSize}.");
-                    }
-                    hasSizeAttribute = true;
-                }
-                if (sla != null && sla.Size > 0) {
-                    if (pinnedSize != sla.Size) {
-                        Environment.FailFast($"Size of type {ty.Name} defined in StructLayoutAttribute {sla.Size} differs from calculated size {pinnedSize}.");
                     }
                     hasSizeAttribute = true;
                 }

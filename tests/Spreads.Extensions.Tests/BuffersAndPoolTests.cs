@@ -2,7 +2,6 @@
 using NUnit.Framework;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
-using System.Threading;
 
 namespace Spreads.Extensions.Tests {
 

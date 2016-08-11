@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Bootstrap;
 
 namespace Yeppp
 {
@@ -6,19 +7,22 @@ namespace Yeppp
 	/// <summary>Vector mathematical functions</summary>
 	public partial class Math
 	{
+        internal static ABI ABI { get; set; }
+        static Math() {
+            ABI = Yeppp.Library.ABI;
+        }
 
-
-		/// <summary>Computes cosine on double precision (64-bit) floating-point elements.</summary>
-		/// <param name="xArray">Input array.</param>
-		/// <param name="xOffset">Offset of the first element in xArray.</param>
-		/// <param name="yArray">Output array.</param>
-		/// <param name="yOffset">Offset of the first element in yArray.</param>
-		/// <param name="length">The length of the subarrays to be used in computation.</param>
-		/// <exception cref="System.NullReferenceException">If xArray or yArray is null.</exception>
-		/// <exception cref="System.DataMisalignedException">If xArray or yArray is not naturally aligned.</exception>
-		/// <exception cref="System.ArgumentException">If length is negative.</exception>
-		/// <exception cref="System.IndexOutOfRangeException">If xOffset is negative, xOffset + length exceeds the length of xArray, yOffset is negative, yOffset + length exceeds the length of yArray, or length is negative.</exception>
-		public static unsafe void Cos_V64f_V64f(double[] xArray, int xOffset, double[] yArray, int yOffset, int length)
+        /// <summary>Computes cosine on double precision (64-bit) floating-point elements.</summary>
+        /// <param name="xArray">Input array.</param>
+        /// <param name="xOffset">Offset of the first element in xArray.</param>
+        /// <param name="yArray">Output array.</param>
+        /// <param name="yOffset">Offset of the first element in yArray.</param>
+        /// <param name="length">The length of the subarrays to be used in computation.</param>
+        /// <exception cref="System.NullReferenceException">If xArray or yArray is null.</exception>
+        /// <exception cref="System.DataMisalignedException">If xArray or yArray is not naturally aligned.</exception>
+        /// <exception cref="System.ArgumentException">If length is negative.</exception>
+        /// <exception cref="System.IndexOutOfRangeException">If xOffset is negative, xOffset + length exceeds the length of xArray, yOffset is negative, yOffset + length exceeds the length of yArray, or length is negative.</exception>
+        public static unsafe void Cos_V64f_V64f(double[] xArray, int xOffset, double[] yArray, int yOffset, int length)
 		{
 			if (xOffset < 0)
 				throw new System.IndexOutOfRangeException();

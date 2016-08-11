@@ -14,7 +14,8 @@ namespace Spreads.Tests.CSProfile {
     class Program {
         static void Main(string[] args)
         {
-            new DataRepositoryTests().CouldCreateTwoRepositoriesAndSynchronizeSeries();
+            Console.WriteLine("Starting...");
+            //new DataRepositoryTests().CouldCreateTwoRepositoriesAndSynchronizeSeries();
             //new MoveNextAsyncTests().CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes();
             //var bs = Bootstrap.Bootstrapper.Instance;
             //new StorageTests().CouldCRUDSeriesStorage();

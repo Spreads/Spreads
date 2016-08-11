@@ -157,7 +157,7 @@ namespace Spreads.Serialization {
         public unsafe int Read(IntPtr ptr, ref ArraySegment<TElement> value) {
             var totalSize = Marshal.ReadInt32(ptr);
             var version = Marshal.ReadByte(ptr + 4);
-            if (version != Version) throw new NotSupportedException($"BlittableArrayCompressedBinaryConverter work only with version {Version}");
+            if (version != Version) throw new NotSupportedException($"CompressedBinaryConverter work only with version {Version}");
             if (ItemSize <= 0) {
                 // first decompress bytes
                 var decompressedBytes = default(ArraySegment<byte>);

@@ -313,7 +313,10 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.LastUnsafe )
 
   member private this.FlushUnchecked() =
-    prevBucket.SetTarget (null)
+    let mutable temp = Unchecked.defaultof<_>
+    if prevBucket.TryGetTarget(&temp) then
+      prevBucket.SetTarget (null)
+      temp <- null
     if isOuterPersistent then outerAsPersistent.Flush()
 
   // Ensure than current inner map is saved (set) to the outer map

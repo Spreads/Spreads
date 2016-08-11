@@ -18,12 +18,14 @@
 */
 
 using System;
+using System.Runtime.InteropServices;
 
 namespace Spreads {
 
     /// <summary>
     /// A simpler, faster, comparable and blittable replacement for Guid.
     /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
     public unsafe struct UUID : IEquatable<UUID>, IComparable<UUID> {
         private ulong _first;
         private ulong _second;
@@ -36,20 +38,17 @@ namespace Spreads {
         // TODO! test if this is the same as reading directly from fb, endianness could affect this
         public UUID(byte[] bytes) {
             if (bytes == null || bytes.Length < 16) throw new ArgumentException("bytes == null || bytes.Length < 16", nameof(bytes));
-            fixed (byte* ptr = &bytes[0])
-            {
+            fixed (byte* ptr = &bytes[0]) {
                 _first = *(ulong*)ptr;
-                _second  = * (ulong*)(ptr + 8);
+                _second = *(ulong*)(ptr + 8);
             }
         }
 
-        public byte[] ToBytes()
-        {
+        public byte[] ToBytes() {
             var bytes = new byte[16];
-            fixed (byte* ptr = &bytes[0])
-            {
-                *(ulong*) ptr = _first;
-                *(ulong*) (ptr + 8) = _second;
+            fixed (byte* ptr = &bytes[0]) {
+                *(ulong*)ptr = _first;
+                *(ulong*)(ptr + 8) = _second;
             }
             return bytes;
         }
@@ -79,13 +78,11 @@ namespace Spreads {
         }
 
 
-        public static bool operator ==(UUID first, UUID second)
-        {
+        public static bool operator ==(UUID first, UUID second) {
             return first.Equals(second);
         }
 
-        public static bool operator !=(UUID first, UUID second)
-        {
+        public static bool operator !=(UUID first, UUID second) {
             return !(first == second);
         }
     }

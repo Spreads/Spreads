@@ -40,6 +40,11 @@ namespace Spreads.Storage {
     /// </summary>
     public class RemoteChunksSeries<K, V> : IPersistentOrderedMap<K, SortedMap<K, V>> { // Series<K, SortedMap<K, V>>,
 
+        static RemoteChunksSeries()
+        {
+            // when used as a generic type argument, static ctor is not called
+            SortedMap<K, V>.Init();
+        }
         public delegate void ChunkSaveHandler(SeriesChunk chunk);
 
         private readonly long _mapId;

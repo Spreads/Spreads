@@ -23,12 +23,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using Bootstrap;
 using Dapper;
 using Microsoft.Data.Sqlite;
-using Microsoft.Data.Sqlite.Utilities;
 using Spreads.Collections;
-using Spreads.Native;
 
 namespace Spreads.Storage {
 

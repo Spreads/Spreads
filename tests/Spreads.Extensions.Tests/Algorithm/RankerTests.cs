@@ -1,15 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using Spreads.Algorithms;
-using Spreads.Collections;
-using Spreads.Storage;
-using Spreads.Storage.Aeron;
-using Spreads.Storage.Aeron.Logbuffer;
-using Spreads.Storage.Aeron.Protocol;
 
 
 namespace Spreads.Extensions.Tests.Algorithm {

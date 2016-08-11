@@ -71,14 +71,11 @@ namespace Spreads.Serialization {
                 MemoryStream tmp;
                 var checkSize = SizeOf(value, out tmp);
                 Debug.Assert(checkSize == temporaryStream.Length, "Memory stream length must ve equal to the SizeOf");
+                tmp?.Dispose();
 #endif
-                Trace.TraceWarning("TODO BinarySerializer test Write with ms");
                 size = checked((int)temporaryStream.Length);
-
                 if (destination.Length < offset + size) throw new ArgumentException("Value size is too big for destination");
-
-                temporaryStream.WriteToPtr(destination.Data + (int)offset + 8);
-
+                temporaryStream.WriteToPtr(destination.Data + (int)offset);
                 // NB temporaryStream is owned outside, do not dispose here
                 return size;
             }

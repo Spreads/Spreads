@@ -122,14 +122,8 @@
     <Compile Include="CursorSeriesExtensions.cs" />
     <Compile Include="CompressionTests.cs" />
     <Compile Include="BuffersAndPoolTests.cs" />
-    <Compile Include="AeronLogBufferTests.cs" />
     <Compile Include="DirectFileTest.cs" />
     <Compile Include="NanoOptimizationTests.cs" />
-    <Compile Include="DataRepositoryTests.cs" />
-    <Compile Include="LogBufferTests.cs" />
-    <Compile Include="IpcListenerTests.cs" />
-    <Compile Include="PersistentArrayTests.cs" />
-    <Compile Include="PersistentMapTests.cs" />
     <Compile Include="GenerationTests.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="RPlugin.cs" />

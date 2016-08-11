@@ -1,4 +1,4 @@
-﻿Spreads protocol
+﻿Spreads protocol (WIP draft)
 ================
 
 Conductor is a service that replies to DataRepo requests. It is optional - when absent,

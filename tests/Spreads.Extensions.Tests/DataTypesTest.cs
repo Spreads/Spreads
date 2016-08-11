@@ -1,27 +1,11 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Reflection;
 using NUnit.Framework;
-using System.Runtime.InteropServices;
-using System.Threading;
 using Spreads.DataTypes;
-using Spreads.Serialization;
-using Spreads.Storage;
 
-
-namespace Spreads.Core.Tests {
-
-
+namespace Spreads.Extensions.Tests {
 
     [TestFixture]
     public class DataTypesTest {
-
-
-      
 
         [Test]
         public void SymbolWorks()

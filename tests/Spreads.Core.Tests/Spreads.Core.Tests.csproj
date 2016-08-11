@@ -95,6 +95,10 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Numerics.Vectors, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\packages\System.Numerics.Vectors.4.1.1-beta-23516\lib\portable-net45+win8\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -103,11 +107,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AlgoTests.cs" />
     <Compile Include="SerializationTests.cs" />
     <Compile Include="FunctionCombinationTests.cs" />
     <Compile Include="BuffersTests.cs" />
     <Compile Include="Primes.cs" />
     <Compile Include="Program.cs" />
+    <Compile Include="SIMD.cs" />
     <Compile Include="SingleEnumerableTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TypeHelperTests.cs" />

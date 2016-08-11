@@ -4,7 +4,7 @@ using System.IO;
 using System.IO.MemoryMappedFiles;
 using Spreads.Buffers;
 
-namespace Spreads.Serialization {
+namespace Spreads.Storage {
 
     public struct DirectFile : IDisposable {
         private static long _counter;

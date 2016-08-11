@@ -1,6 +1,6 @@
 ﻿{
 
-	"version": "0.6.0-alpha3",
+	"version": "0.6.0-beta1",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 	"dependencies": {
 		"Newtonsoft.Json": "9.0.1"
@@ -21,7 +21,9 @@
 				"System.Diagnostics.TraceSource": "4.0.0",
 				"System.Reflection": "4.1.0",
 				"System.Reflection.TypeExtensions": "4.1.0",
-				"System.IO.Compression.ZipFile": "4.0.1"
+				"System.IO.Compression.ZipFile": "4.0.1",
+				"System.IO.UnmanagedMemoryStream": "4.0.1",
+				"System.Reflection.Extensions": "4.0.1"
 			},
 			"imports": "dnxcore50"
 		}

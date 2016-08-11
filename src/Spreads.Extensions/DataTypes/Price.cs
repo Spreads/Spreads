@@ -20,6 +20,7 @@
 using System;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using Spreads.Serialization;
 
 namespace Spreads.DataTypes {
 
@@ -45,6 +46,7 @@ namespace Spreads.DataTypes {
     /// S and B are mutually exlusive.
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
+    [Serialization(BlittableSize = 8)]
     public struct Price : IComparable<Price>, IEquatable<Price> {
 
 

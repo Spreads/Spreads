@@ -6,7 +6,7 @@ namespace Spreads.Core.Tests {
         static void Main(string[] args)
         {
             //new PersistentMapTests().CouldCRUDDirectDict();
-            new DataRepositoryTests().CouldCreateTwoRepositoriesAndSynchronizeSeries();
+            // new DataRepositoryTests().CouldCreateTwoRepositoriesAndSynchronizeSeries();
             Console.ReadLine();
         }
     }

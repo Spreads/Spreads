@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using NUnit.Framework;
@@ -14,6 +15,7 @@ namespace Spreads.Core.Tests {
     [TestFixture]
     public class SerializationTests {
 
+        
         [Serialization(BlittableSize = 12)]
         [StructLayout(LayoutKind.Sequential, Pack = 4)]
         public struct BlittableStruct {
@@ -43,7 +45,6 @@ namespace Spreads.Core.Tests {
             var handle = GCHandle.Alloc(dta, GCHandleType.Pinned);
             handle.Free();
         }
-
 
         [Test]
         public void CouldSerializeDateTimeArray() {
@@ -194,6 +195,35 @@ namespace Spreads.Core.Tests {
             var len2 = BinarySerializer.Read(db, 0, ref sm2);
             
             Assert.AreEqual(len, len2);
+
+            Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
+            Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
+        }
+
+
+        [Test]
+        public void CouldSerializeSortedMap2() {
+            var rng = new Random();
+            var ptr = Marshal.AllocHGlobal(100000);
+            var db = new DirectBuffer(100000, ptr);
+            var sm = new SortedMap<int, int>();
+            for (var i = 0; i < 10000; i++) {
+                sm.Add(i, i);
+            }
+            MemoryStream temp;
+            var len = BinarySerializer.SizeOf(sm, out temp);
+            var len2 = BinarySerializer.Write(sm, ref db, 0, temp);
+            Assert.AreEqual(len, len2);
+            Console.WriteLine($"Useful: {sm.Count * 8}");
+            Console.WriteLine($"Total: {len}");
+            // NB interesting that with converting double to decimal savings go from 65% to 85%,
+            // even calculated from (8+8) base size not decimal's 16 size
+            Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 8.0))}");
+            SortedMap<int, int> sm2 = null;
+            var len3 = BinarySerializer.Read(db, 0, ref sm2);
+
+            
+            Assert.AreEqual(len, len3);
 
             Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
             Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));

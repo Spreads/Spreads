@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Serialization;
+using Spreads.Storage;
 
 namespace Spreads.Core.Tests {
     [TestFixture]
