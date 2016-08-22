@@ -150,17 +150,12 @@ namespace Spreads.Serialization {
         private static IntPtr _tgt;
         private static IntPtr _ptr;
 #endif
+        private static int _size = InitChecked();
         private static IBinaryConverter<T> _converterInstance;
-        private static int _size;
-        private static TypeParams _typeParams = new TypeParams();
+        private static TypeParams _typeParams;
 
-        static TypeHelper() {
-            try {
-                _size = Init();
-            } catch {
-                _size = -1;
-            }
-        }
+        // Just in case, do not use static ctor in any critical paths: https://github.com/Spreads/Spreads/issues/66
+        // static TypeHelper() { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int PinnedSize() {
@@ -171,7 +166,20 @@ namespace Spreads.Serialization {
                     (Marshal.UnsafeAddrOfPinnedArrayElement(array, 1).ToInt64() -
                      Marshal.UnsafeAddrOfPinnedArrayElement(array, 0).ToInt64());
                 pinnedArrayHandle.Free();
+                // Type helper workd only with types that could be pinned in arrays
+                // Heret we just cross-check, happens only in static constructor
+                var unsafeSize = Unsafe.SizeOf<T>();
+                if (unsafeSize != size) Environment.FailFast("Pinned and unsafe sizes differ!");
                 return size;
+            } catch {
+                return -1;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int InitChecked() {
+            try {
+                return Init();
             } catch {
                 return -1;
             }
@@ -181,7 +189,10 @@ namespace Spreads.Serialization {
         /// Method is only called from the static constructor of TypeHelper.
         /// </summary>
         /// <returns></returns>
-        private static int Init() {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int Init()
+        {
+            _typeParams = new TypeParams();
             var ty = typeof(T);
             if (ty == typeof(DateTime)) {
 #if !TYPED_REF
@@ -313,11 +324,7 @@ namespace Spreads.Serialization {
             }
             Debug.Assert(_size > 0);
 #if TYPED_REF
-            var obj = default(T);
-#pragma di
-            var tr = __makeref(obj);
-            *(IntPtr*)(&tr) = ptr;
-            value = __refvalue(tr, T);
+            value = Unsafe.Read<T>((void*)ptr);
             return _size;
 #else
             if (_isDateTime) {
@@ -355,13 +362,9 @@ namespace Spreads.Serialization {
             }
             Debug.Assert(_size > 0);
             if (!destination.HasCapacity(offset, _size)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-            var pointer = destination.Data + (int) offset;
+            var pointer = destination.Data + (int)offset;
 #if TYPED_REF
-            // this is as fast as non-generic methods
-            var obj = default(T);
-            var tr = __makeref(obj);
-            *(IntPtr*)(&tr) = pointer;
-            __refvalue(tr, T) = value;
+            Unsafe.Write<T>((void*)pointer, value);
 #else
             if (_isDateTime) {
                 // TODO http://stackoverflow.com/a/3344181/801189
@@ -420,7 +423,11 @@ namespace Spreads.Serialization {
         /// This is more relaxed than Marshal.SizeOf, but still doesn't cover cases such as 
         /// an array of KVP[DateTime,double], which has a contiguous layout in memory.
         /// </summary>
-        public static int Size => _size;
+        public static int Size
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _size; }
+        }
 
         public static bool IsBlittable => _size > 0;
 
@@ -449,6 +456,6 @@ namespace Spreads.Serialization {
         }
 
 
-     
+
     }
 }

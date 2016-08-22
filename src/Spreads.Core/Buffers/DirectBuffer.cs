@@ -32,8 +32,7 @@ namespace Spreads.Buffers {
     // we should not protect ourselves from shooting in the leg just by hiding the guns
 
     /// <summary>
-    /// Provides unsafe read/write opertaions on a memory pointer. Read/Write arguments are 
-    /// not checked for bounds/ranges/overflows.
+    /// Provides unsafe read/write opertaions on a memory pointer.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct DirectBuffer : IDirectBuffer {

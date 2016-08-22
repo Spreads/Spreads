@@ -35,7 +35,7 @@
 		"warningsAsErrors": false,
 		"xmlDoc": true,
 		"exclude": [ "tools/**/*.cs" ],
-		"define": [ "TRACE", "PRERELEASE" ],
+		"define": [ "TRACE", "PRERELEASE", "TYPED_REF" ],
 		"allowUnsafe": true,
 		"optimize": true,
 		"nowarn": [

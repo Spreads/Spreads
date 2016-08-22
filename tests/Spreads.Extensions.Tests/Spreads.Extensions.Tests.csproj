@@ -104,6 +104,10 @@
       <HintPath>..\..\packages\protobuf-net.2.1.0\lib\net451\protobuf-net.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Spreads.Core, Version=0.5.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\src\Spreads.Core\bin\RELEASE\net451\Spreads.Core.dll</HintPath>
+    </Reference>
     <Reference Include="Spreads.SQLite">
       <HintPath>..\..\..\Spreads.SQLite\src\Spreads.SQLite\bin\Release\net451\Spreads.SQLite.dll</HintPath>
     </Reference>
