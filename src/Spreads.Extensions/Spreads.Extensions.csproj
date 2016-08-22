@@ -161,7 +161,6 @@
     <Compile Include="Series\ZonedSeries.cs" />
     <Compile Include="Storage\ISeriesStorage.cs" />
     <Compile Include="Storage\RemoteChunksSeries.cs" />
-    <Compile Include="Storage\DataRepository.cs" />
     <Compile Include="Storage\SeriesStorage.cs" />
     <Compile Include="Storage\SingleWriterException.cs" />
     <Compile Include="Storage\Tables.cs" />

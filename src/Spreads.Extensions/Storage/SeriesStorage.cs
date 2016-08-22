@@ -183,17 +183,17 @@ namespace Spreads.Storage {
         }
 
 
-        public IPersistentOrderedMap<K, V> GetPersistentOrderedMap<K, V>(string seriesId, bool readOnly = false) {
+        public Task<IPersistentOrderedMap<K, V>> GetPersistentOrderedMap<K, V>(string seriesId, bool readOnly = false) {
             seriesId = seriesId.ToLowerInvariant().Trim();
             var idRow = GetExtendedSeriesId<K, V>(seriesId);
             if (readOnly) {
-                return _readOnlySeriesStore.GetOrAdd(idRow.Id, id2 => {
+                return Task.FromResult(_readOnlySeriesStore.GetOrAdd(idRow.Id, id2 => {
                     return GetSeries<K, V>(id2, idRow.Version, true);
-                }) as IPersistentOrderedMap<K, V>;
+                }) as IPersistentOrderedMap<K, V>);
             }
-            return _writableSeriesStore.GetOrAdd(idRow.Id, id2 => {
+            return Task.FromResult(_writableSeriesStore.GetOrAdd(idRow.Id, id2 => {
                 return GetSeries<K, V>(id2, idRow.Version, false);
-            }) as IPersistentOrderedMap<K, V>;
+            }) as IPersistentOrderedMap<K, V>);
         }
 
 

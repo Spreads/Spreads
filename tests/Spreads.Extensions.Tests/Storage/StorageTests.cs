@@ -37,7 +37,7 @@ namespace Spreads.Extensions.Tests.Storage {
         [Test, Ignore]
         public void CouldCRUDSeriesStorage() {
             var storage = new SeriesStorage("Filename=../benchmark.db"); // SeriesStorage.Default;
-            var timeseries = storage.GetPersistentOrderedMap<DateTime, Price>("test_timeseries");
+            var timeseries = storage.GetPersistentOrderedMap<DateTime, Price>("test_timeseries").Result;
 
             Console.WriteLine(storage.Connection.DataSource);
             var start = DateTime.UtcNow;
@@ -77,7 +77,7 @@ namespace Spreads.Extensions.Tests.Storage {
             sw.Restart();
             var sum = 0.0M;
             var storage2 = new SeriesStorage("Filename=../benchmark.db"); // $"Filename={Path.Combine(Bootstrap.Bootstrapper.Instance.DataFolder, "default.db")}");
-            var timeseries2 = storage2.GetPersistentOrderedMap<DateTime, Price>("test_timeseries");
+            var timeseries2 = storage2.GetPersistentOrderedMap<DateTime, Price>("test_timeseries").Result;
             foreach (var kvp in timeseries2) {
                 sum += kvp.Value;
             }
@@ -102,7 +102,7 @@ namespace Spreads.Extensions.Tests.Storage {
         [Test]
         public void CouldAddValuesByKey() {
             var repo = new SeriesStorage(SeriesStorage.GetDefaultConnectionString("../StorageTests.db"));
-            var series = repo.GetPersistentOrderedMap<DateTime, decimal>("test_series_CouldAddValuesByKey");
+            var series = repo.GetPersistentOrderedMap<DateTime, decimal>("test_series_CouldAddValuesByKey").Result;
             var test2 = series.Map(x => (double)x);
             series.RemoveAll();
             //series.RemoveMany(DateTime.Today.AddHours(-6), Lookup.GE);
@@ -131,7 +131,7 @@ namespace Spreads.Extensions.Tests.Storage {
                 Console.WriteLine($"{kvp.Key} - {kvp.Key.Kind} - {kvp.Value}");
             }
 
-            var storageSeries = repo.GetPersistentOrderedMap<DateTime, decimal>("test_series_CouldWriteToStorage");
+            var storageSeries = repo.GetPersistentOrderedMap<DateTime, decimal>("test_series_CouldWriteToStorage").Result;
             var test2 = storageSeries.ToSortedMap();
             foreach (var kvp in test2) {
                 Console.WriteLine($"{kvp.Key} - {kvp.Key.Kind} - {kvp.Value}");

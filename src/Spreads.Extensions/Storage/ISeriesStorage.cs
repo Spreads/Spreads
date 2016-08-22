@@ -19,12 +19,13 @@
 
 
 using System;
+using System.Threading.Tasks;
 
 namespace Spreads.Storage {
     public interface ISeriesStorage : IDisposable {
         /// <summary>
         /// Get writable series that persist changes. Always returns a reference to the same object for each seriesId.
         /// </summary>
-        IPersistentOrderedMap<TKey, TValue> GetPersistentOrderedMap<TKey, TValue>(string seriesId, bool readOnly = false);
+        Task<IPersistentOrderedMap<TKey, TValue>> GetPersistentOrderedMap<TKey, TValue>(string seriesId, bool readOnly = false);
     }
 }
