@@ -149,10 +149,6 @@
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
       <Name>Spreads.Collections</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj">
-      <Project>{b2798c33-7901-4142-af96-66fd98ea3ac2}</Project>
-      <Name>Spreads.Core</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\src\Spreads.Extensions\Spreads.Extensions.csproj">
       <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
       <Name>Spreads.Extensions</Name>

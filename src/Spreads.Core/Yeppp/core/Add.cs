@@ -6,7 +6,6 @@ namespace Yeppp
 {
 
     /// <summary>Basic arithmetic operations</summary>
-    [SuppressUnmanagedCodeSecurity]
     public partial class Core
 	{
         internal static ABI ABI { get; set; }
@@ -1952,7 +1951,6 @@ namespace Yeppp
 		internal static unsafe extern Status yepCore_Add_V64sS64s_V64s(long* x, long y, long* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V32fS32f_V32f")]
-        [SuppressUnmanagedCodeSecurity]
         internal static unsafe extern Status yepCore_Add_V32fS32f_V32f(float* x, float y, float* sum, System.UIntPtr length);
 
 		[DllImport("yeppp", ExactSpelling=true, CallingConvention=CallingConvention.Cdecl, EntryPoint="yepCore_Add_V64fS64f_V64f")]

@@ -135,18 +135,14 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="FSharp.Data.TypeProviders" />
+    <Reference Include="Spreads.Core">
+      <HintPath>..\Spreads.Core\bin\Debug\net451\Spreads.Core.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
     <Reference Include="System.Data.Linq" />
     <Reference Include="System.Numerics" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj">
-      <Name>Spreads.Core</Name>
-      <Project>{b2798c33-7901-4142-af96-66fd98ea3ac2}</Project>
-      <Private>True</Private>
-    </ProjectReference>
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

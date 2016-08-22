@@ -73,6 +73,7 @@ namespace Spreads.Core.Tests {
             dt[1] = new KeyValuePair<DateTime, decimal>(DateTime.UtcNow.Date.AddDays(1), 789.101M);
             var obj = (object)dt;
             byte[] asBytes = Unsafe.As<byte[]>(obj);
+            
             //Console.WriteLine(asBytes.Length); // prints 2
             fixed (byte* ptr = &asBytes[0]) {
                 // reading this: https://github.com/dotnet/coreclr/issues/5870

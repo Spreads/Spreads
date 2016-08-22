@@ -40,6 +40,9 @@
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <Private>True</Private>
     </Reference>
+    <Reference Include="Spreads.Core">
+      <HintPath>..\Spreads.Core\bin\Debug\net451\Spreads.Core.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
@@ -54,11 +57,6 @@
     <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj">
       <Name>Spreads.Collections</Name>
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj">
-      <Name>Spreads.Core</Name>
-      <Project>{b2798c33-7901-4142-af96-66fd98ea3ac2}</Project>
       <Private>True</Private>
     </ProjectReference>
     <ProjectReference Include="..\Spreads.Extensions\Spreads.Extensions.csproj">

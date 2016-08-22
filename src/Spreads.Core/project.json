@@ -1,9 +1,10 @@
 ﻿{
 
-	"version": "0.6.0-beta1",
+	"version": "0.6.0-beta2",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 	"dependencies": {
-		"Newtonsoft.Json": "9.0.1"
+		"Newtonsoft.Json": "9.0.1",
+
 	},
 
 	"frameworks": {
@@ -22,8 +23,10 @@
 				"System.Reflection": "4.1.0",
 				"System.Reflection.TypeExtensions": "4.1.0",
 				"System.IO.Compression.ZipFile": "4.0.1",
+				"System.IO.FileSystem": "4.0.1",
 				"System.IO.UnmanagedMemoryStream": "4.0.1",
-				"System.Reflection.Extensions": "4.0.1"
+				"System.Reflection.Extensions": "4.0.1",
+				"System.Security.Cryptography.Algorithms": "4.2.0"
 			},
 			"imports": "dnxcore50"
 		}
@@ -31,9 +34,7 @@
 	"buildOptions": {
 		"warningsAsErrors": false,
 		"xmlDoc": true,
-		"exclude": [
-
-		],
+		"exclude": [ "tools/**/*.cs" ],
 		"define": [ "TRACE", "PRERELEASE" ],
 		"allowUnsafe": true,
 		"optimize": true,
@@ -63,6 +64,13 @@
 			"Data",
 			"Time Series",
 			"Data Frame"
+		]
+	},
+	"scripts": {
+		"postcompile": [
+			"../../tools/re_write_il.cmd %compile:OutputDir% %compile:OutputFile%"
+		],
+		"prepack": [
 		]
 	}
 }
