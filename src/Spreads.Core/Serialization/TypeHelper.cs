@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -190,8 +191,7 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int Init()
-        {
+        private static int Init() {
             _typeParams = new TypeParams();
             var ty = typeof(T);
             if (ty == typeof(DateTime)) {
@@ -455,7 +455,18 @@ namespace Spreads.Serialization {
             _size = converter.Size;
         }
 
+        public static T ConvertFrom<TSource>(TSource s) {
+            return ConverterCache<TSource>.Converter(s);
+        }
 
+        static class ConverterCache<TSource> {
+            internal static readonly Func<TSource, T> Converter = Get();
+            static Func<TSource, T> Get() {
+                var p = Expression.Parameter(typeof(TSource));
+                var c = Expression.ConvertChecked(p, typeof(T));
+                return Expression.Lambda<Func<TSource, T>>(c, p).Compile();
+            }
+        }
 
     }
 }

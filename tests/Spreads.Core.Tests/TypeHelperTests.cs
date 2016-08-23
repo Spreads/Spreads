@@ -73,7 +73,7 @@ namespace Spreads.Core.Tests {
             dt[1] = new KeyValuePair<DateTime, decimal>(DateTime.UtcNow.Date.AddDays(1), 789.101M);
             var obj = (object)dt;
             byte[] asBytes = Unsafe.As<byte[]>(obj);
-            
+
             //Console.WriteLine(asBytes.Length); // prints 2
             fixed (byte* ptr = &asBytes[0]) {
                 // reading this: https://github.com/dotnet/coreclr/issues/5870
@@ -263,6 +263,20 @@ namespace Spreads.Core.Tests {
 
             // this will cause Environment.FailFast
             //Assert.AreEqual(4, TypeHelper<BlittableStructWrong>.Size);
+        }
+
+
+        [Test]
+        public void ConversionTests() {
+            // This are not unsafe but smart casting using cached Expressions
+            var dbl = Convert.ToDouble((object)"123.0");
+            Assert.AreEqual(123.0, dbl);
+            dbl = TypeHelper<double>.ConvertFrom(new int?(123));
+            Assert.AreEqual(123.0, dbl);
+            dbl = TypeHelper<double>.ConvertFrom((object)(123));
+            //Assert.AreEqual(123.0, dbl);
+            // Note that the line below fails
+            // dbl = (double) (object) (123);
         }
     }
 }
