@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using System.Numerics;
 
 namespace Spreads {
     /// <summary>
@@ -16,11 +17,38 @@ namespace Spreads {
         [ILSub(@"
             .maxstack 1
             ldarg.0
+            unaligned. 1 
             ldobj !!T
             ret")]
         public unsafe static T Read<T>(void* source) {
             throw new NotImplementedException();
         }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [ILSub(@"
+            .maxstack 1
+            ldarg.0
+            ldobj !!T
+            ret")]
+        public unsafe static T ReadAligned<T>(void* source) {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Reads a value of type T from the given location.
+        /// </summary>
+        /// <typeparam name="T">The type to read.</typeparam>
+        /// <param name="source">The location to read from.</param>
+        /// <returns>An object of type T read from the given location.</returns>
+//        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+//        private unsafe static T ReadAligned<T>(void* source) {
+//#if DEBUG
+//            var size = Math.Min(SizeOf<T>(), 64);
+//            if (((IntPtr)source).ToInt64() % size != 0) throw new ArgumentException("Unaligned pointer");
+//#endif
+//            return ReadAlignedUnchecked<T>(source);
+//        }
 
         /// <summary>
         /// Writes a value of type T to the given location.
@@ -33,11 +61,39 @@ namespace Spreads {
             .maxstack 2
             ldarg.0
             ldarg.1
+            unaligned. 1 
             stobj !!T
             ret")]
         public unsafe static void Write<T>(void* destination, T value) {
             throw new NotImplementedException();
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [ILSub(@"
+            .maxstack 2
+            ldarg.0
+            ldarg.1
+            stobj !!T
+            ret")]
+        public unsafe static void WriteAligned<T>(void* destination, T value) {
+            throw new NotImplementedException();
+        }
+
+
+        /// <summary>
+        /// Writes a value of type T to the given location.
+        /// </summary>
+        /// <typeparam name="T">The type of value to write.</typeparam>
+        /// <param name="destination">The location to write to.</param>
+        /// <param name="value">The value to write.</param>
+//        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+//        private unsafe static void WriteAligned<T>(void* destination, T value) {
+//#if DEBUG
+//            var size = Math.Min(SizeOf<T>(), 64);
+//            if (((IntPtr)destination).ToInt64() % size != 0) throw new ArgumentException("Unaligned pointer");
+//#endif
+//            WriteAlignedUnchecked<T>(destination, value);
+//        }
 
         /// <summary>
         /// Copies a value of type T to the given location.
@@ -51,6 +107,7 @@ namespace Spreads {
             ldarg.0
             ldarg.1
             ldobj !!T
+            unaligned. 1 
             stobj !!T
             ret")]
         public unsafe static void Copy<T>(void* destination, ref T source) {
@@ -68,6 +125,7 @@ namespace Spreads {
             .maxstack 2
             ldarg.0
             ldarg.1
+            unaligned. 1 
             ldobj !!T
             stobj !!T
             ret")]
@@ -118,6 +176,7 @@ namespace Spreads {
             ldarg.0
             ldarg.1
             ldarg.2
+            unaligned. 1 
             cpblk
             ret")]
         public unsafe static void CopyBlock(void* destination, void* source, uint byteCount) {
@@ -136,6 +195,7 @@ namespace Spreads {
             ldarg.0
             ldarg.1
             ldarg.2
+            unaligned. 1 
             initblk
             ret")]
         public unsafe static void InitBlock(void* startAddress, byte value, uint byteCount) {
@@ -172,6 +232,17 @@ namespace Spreads {
             throw new NotImplementedException();
         }
 
+        // NB no way to call private ctor
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //[ILSub(@"
+        //    .maxstack 1
+        //    ldarg.0
+        //    newobj instance void valuetype [System.Numerics.Vectors]System.Numerics.Vector`1<!!T>::.ctor(void*)
+        //    ret")]
+        //public unsafe static Vector<T> AsVector<T>(void* source) where T : struct
+        //{
+        //    throw new NotImplementedException();
+        //}
 
     }
 }

@@ -17,6 +17,54 @@ namespace Spreads.Core.Tests {
     [TestFixture]
     public class AlgoTests {
 
+        [Test, Ignore]
+        public unsafe void PrintVectorSizes() {
+            //Console.WriteLine(Vector<float>.Count);
+            //Console.WriteLine(Vector<float>.Count * 4 * 8);
+            //Console.WriteLine(Vector<double>.Count);
+            //Console.WriteLine(Vector<double>.Count * 8 * 8);
+            //Console.WriteLine(Unsafe.SizeOf<Complex>());
+            //var v = new Vector<float>();
+            //var vs = Vector.AsVectorSingle(new Vector<byte>(1));
+            //Console.WriteLine(vs[1]);
+            var count = 1000000000;
+            var ptr = Marshal.AllocHGlobal(count + 100);
+            //var floatVector = Unsafe.AsVector<float>(ptr);
+            //Console.WriteLine(floatVector[0]);
+            //var x = new Vector<float>()
+
+            Console.WriteLine(ptr.ToInt64() % 32);
+            var sw = new Stopwatch();
+            double readValue = 0.0;
+            for (int r = 0; r < 10; r++)
+            {
+                
+                sw.Restart();
+                for (int i = 0; i < count; i++)
+                {
+                    var target = (void*) (ptr + (i) );
+                    Unsafe.Write(target, 123.04);
+                    readValue = Unsafe.Read<double>(target);
+                    //Assert.AreEqual(123.04, readValue);
+                }
+                sw.Stop();
+                Console.WriteLine($"Unaligned: {sw.ElapsedMilliseconds}, {readValue}");
+
+
+                sw.Restart();
+                for (int i = 0; i < count; i++) {
+                    var target = (void*)(ptr + (i));
+                    Unsafe.WriteAligned(target, 123.04);
+                    readValue = Unsafe.ReadAligned<double>(target);
+                    //Assert.AreEqual(123.04, readValue);
+                }
+                sw.Stop();
+                Console.WriteLine($"Aligned: {sw.ElapsedMilliseconds}, {readValue}");
+
+            }
+            Console.WriteLine(readValue);
+        }
+
         [Test]
         public void SimdVsLoopAddition() {
             var sw = new Stopwatch();
@@ -143,7 +191,7 @@ namespace Spreads.Core.Tests {
                     var arr = new int[Vector<int>.Count];
                     sw.Restart();
                     sum = 0L;
-                    
+
                     for (int r = 0; r < 1000; r++) {
                         var e = longEnumerable.Select(x => x + 123).GetEnumerator();
                         var c = 0;
@@ -169,7 +217,7 @@ namespace Spreads.Core.Tests {
 
                     Console.WriteLine("----------");
                 }
-                
+
             }
         }
     }
