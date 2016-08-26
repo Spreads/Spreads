@@ -429,7 +429,11 @@ namespace Spreads.Serialization {
             get { return _size; }
         }
 
-        public static bool IsBlittable => _size > 0;
+        public static bool IsBlittable
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _size > 0; }
+        }
 
         public static byte Version => _hasBinaryConverter ? _converterInstance.Version : (byte)0;
 

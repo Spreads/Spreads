@@ -61,13 +61,13 @@ namespace Spreads.DataTypes {
         private readonly long _tradeId; // 8
         private readonly Symbol _symbol; // 16
 
-        private readonly Tick _tick; // 20
+        private readonly Tick _tick; // 24
         private readonly TradeSide _tradeSide; // 1
         private readonly OrderType _orderType; // 1
         private byte _reserved1; // 1
         private byte _reserved2; // 1
 
-        private long _reservedLong; // 8
+        private int _reservedInt; // 4
 
 
         public Order(long orderId,
@@ -86,7 +86,7 @@ namespace Spreads.DataTypes {
             _orderType = orderType;
             _reserved1 = 0;
             _reserved2 = 0;
-            _reservedLong = 0L;
+            _reservedInt = 0;
         }
 
         public long OrderId => _orderId;
@@ -98,10 +98,10 @@ namespace Spreads.DataTypes {
 
         public TradeSide TradeSide => _tradeSide;
         public long TradeId => _tradeId;
-        public long Reserved
+        public int Reserved
         {
-            get { return _reservedLong; }
-            set { _reservedLong = value; }
+            get { return _reservedInt; }
+            set { _reservedInt = value; }
         }
     }
 

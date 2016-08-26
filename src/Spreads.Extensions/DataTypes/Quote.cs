@@ -35,10 +35,11 @@ namespace Spreads.DataTypes {
     /// <summary>
     /// A blittable structure to store quotes.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 12)]
+    [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 16)]
     public struct Quote : IEquatable<Quote>, IQuote {
         private readonly Price _price;
         private readonly int _volume;
+        private readonly int _reserved; // padding
         
         public Price Price => _price;
         public int Volume => _volume;
@@ -46,6 +47,7 @@ namespace Spreads.DataTypes {
         public Quote(Price price, int volume) {
             _price = price;
             _volume = volume;
+            _reserved = 0;
         }
 
         public bool Equals(Quote other) {

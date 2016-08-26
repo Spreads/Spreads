@@ -148,14 +148,11 @@
     </Compile>
     <Compile Include="Algorithms\Ranker.cs" />
     <Compile Include="DataTypes\OrderBook.cs" />
-    <Compile Include="DataTypes\Symbol.cs" />
     <Compile Include="DataTypes\Tick.cs" />
     <Compile Include="Storage\DirectFile.cs" />
     <Compile Include="DataTypes\Candles.cs" />
     <Compile Include="DataTypes\Order.cs" />
-    <Compile Include="DataTypes\Price.cs" />
     <Compile Include="DataTypes\Quote.cs" />
-    <Compile Include="DataTypes\TradeSide.cs" />
     <Compile Include="Generation\SeriesGenerator.cs" />
     <Compile Include="Properties\Attributes.cs" />
     <Compile Include="Extensions\DateTimeExtensions.cs" />

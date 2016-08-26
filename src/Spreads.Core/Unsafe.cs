@@ -3,6 +3,25 @@ using System.Runtime.CompilerServices;
 using System.Numerics;
 
 namespace Spreads {
+
+
+    public class ClassWithAPrivateField {
+        private int _size;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int MethodThatAccessesSize() {
+            // whatever code that uses size
+            return _size;
+        }
+    }
+
+    public class AnotherClass {
+        private ClassWithAPrivateField _instance;
+        public void Test() {
+            // _size is not visible here, could MethodThatAccessesSize be ever JIT-inlined?
+            Console.WriteLine(_instance.MethodThatAccessesSize());
+        }
+    }
+
     /// <summary>
     /// Contains generic, low-level functionality for manipulating pointers.
     /// </summary>
@@ -35,20 +54,6 @@ namespace Spreads {
             throw new NotImplementedException();
         }
 
-        /// <summary>
-        /// Reads a value of type T from the given location.
-        /// </summary>
-        /// <typeparam name="T">The type to read.</typeparam>
-        /// <param name="source">The location to read from.</param>
-        /// <returns>An object of type T read from the given location.</returns>
-//        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//        private unsafe static T ReadAligned<T>(void* source) {
-//#if DEBUG
-//            var size = Math.Min(SizeOf<T>(), 64);
-//            if (((IntPtr)source).ToInt64() % size != 0) throw new ArgumentException("Unaligned pointer");
-//#endif
-//            return ReadAlignedUnchecked<T>(source);
-//        }
 
         /// <summary>
         /// Writes a value of type T to the given location.
@@ -79,21 +84,6 @@ namespace Spreads {
             throw new NotImplementedException();
         }
 
-
-        /// <summary>
-        /// Writes a value of type T to the given location.
-        /// </summary>
-        /// <typeparam name="T">The type of value to write.</typeparam>
-        /// <param name="destination">The location to write to.</param>
-        /// <param name="value">The value to write.</param>
-//        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//        private unsafe static void WriteAligned<T>(void* destination, T value) {
-//#if DEBUG
-//            var size = Math.Min(SizeOf<T>(), 64);
-//            if (((IntPtr)destination).ToInt64() % size != 0) throw new ArgumentException("Unaligned pointer");
-//#endif
-//            WriteAlignedUnchecked<T>(destination, value);
-//        }
 
         /// <summary>
         /// Copies a value of type T to the given location.

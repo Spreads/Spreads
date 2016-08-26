@@ -28,12 +28,6 @@ namespace Spreads.Slices
         // depends on it working... (okay, I still feel a little dirty.)
 
         /// <summary>
-        /// Takes a (possibly null) object reference, plus an offset in bytes,
-        /// adds them, and safetly dereferences the target (untyped!) address in
-        /// a way that the GC will be okay with.  It yields a value of type T.
-        /// </summary>
-
-        /// <summary>
         /// Takes a (possibly null) object reference, plus an offset in bytes, plus an index,
         /// adds them, and safely dereferences the target (untyped!) address in
         /// a way that the GC will be okay with.  It yields a value of type T.
@@ -51,6 +45,7 @@ namespace Spreads.Slices
             sizeof !!T  // load size of T
             mul         // multiply the index and size of T
             add         // add the result
+            unaligned. 1 // access could be unaligned
             ldobj !!T   // load a T value from the computed address
             ret")]
         public static T Get<T>(object obj, UIntPtr offset, UIntPtr index) { return default(T); }
@@ -60,6 +55,7 @@ namespace Spreads.Slices
         /// adds them, and safely stores the value of type T in a way that the
         /// GC will be okay with.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [ILSub(@"            
             .maxstack 3
             .locals([0] uint8 & addr)
@@ -73,6 +69,7 @@ namespace Spreads.Slices
             mul         // multiply the index and size of T
             add         // add the result
             ldarg.3     // load the value to store
+            unaligned. 1 // access could be unaligned
             stobj !!T   // store a T value to the computed address
             ret")]
         public static void Set<T>(object obj, UIntPtr offset, UIntPtr index, T val) { }
@@ -102,7 +99,7 @@ namespace Spreads.Slices
         public static int SizeOf<T>() { return default(int); }
 
         /// <summary>
-        /// computes the address of object reference plus an offset in bytes
+        /// Computes the address of object reference plus an offset in bytes
         /// </summary>
         /// <param name="obj">*must* be pinned (for managed arrays and strings) or can be null (unmanaged arrays)</param>
         /// <param name="offset">offset to add (can be offset to managed array element or pointer to unmanaged array)</param>
@@ -116,7 +113,8 @@ namespace Spreads.Slices
             add         // add the offset
             ret")]
         public static UIntPtr ComputeAddress(object obj, UIntPtr offset) { return UIntPtr.Zero; }
-               
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [ILSub(@"
             .maxstack 2
             ldarg.0
@@ -126,9 +124,9 @@ namespace Spreads.Slices
             sizeof !!U
             div
             ret")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IntPtr CountOfU<T, U>(uint countOfT) { return default(IntPtr); }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [ILSub(@"
             .maxstack 3
             .locals([0] uint8 & destAddr, 
