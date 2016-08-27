@@ -7,8 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Slices
-{
+namespace Spreads.Slices {
     /// <summary>
     /// Span is a uniform API for dealing with arrays and subarrays, strings
     /// and substrings, and unmanaged memory buffers.  It adds minimal overhead
@@ -17,8 +16,7 @@ namespace Spreads.Slices
     /// </summary>
     [DebuggerTypeProxy(typeof(SpanDebuggerView<>))]
     [DebuggerDisplay("Length = {Length}")]
-    public partial struct Span<T> : IEnumerable<T>, IEquatable<Span<T>>
-    {
+    public partial struct Span<T> : IEnumerable<T>, IEquatable<Span<T>> {
         /// <summary>A managed array/string; or null for native ptrs.</summary>
         internal readonly object Object;
         /// <summary>An byte-offset into the array/string; or a native ptr.</summary>
@@ -34,8 +32,7 @@ namespace Spreads.Slices
         /// Thrown if the 'array' parameter is null.
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span(T[] array)
-        {
+        public Span(T[] array) {
             Contract.Requires(array != null);
             Contract.Requires(default(T) != null || array.GetType() == typeof(T[]));
             Object = array;
@@ -58,20 +55,16 @@ namespace Spreads.Slices
         // TODO: Should we have this overload? It is really confusing when you also have Span(T* array, int length)
         //       While with Slice it makes sense it might not in here.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Span(T[] array, int start)
-        {
+        internal Span(T[] array, int start) {
             Contract.Requires(array != null);
             Contract.Requires(default(T) != null || array.GetType() == typeof(T[]));
             Contract.RequiresInInclusiveRange(start, (uint)array.Length);
-            if (start < array.Length)
-            {
+            if (start < array.Length) {
                 Object = array;
                 Offset = new UIntPtr(
                     (uint)(SpanHelpers<T>.OffsetToArrayData + (start * PtrUtils.SizeOf<T>())));
                 Length = array.Length - start;
-            }
-            else
-            {
+            } else {
                 Object = null;
                 Offset = UIntPtr.Zero;
                 Length = 0;
@@ -92,20 +85,16 @@ namespace Spreads.Slices
         /// Thrown when the specified start or end index is not in range (&lt;0 or &gt;&eq;length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span(T[] array, int start, int length)
-        {
+        public Span(T[] array, int start, int length) {
             Contract.Requires(array != null);
             Contract.Requires(default(T) != null || array.GetType() == typeof(T[]));
             Contract.RequiresInInclusiveRange(start, length, (uint)array.Length);
-            if (start < array.Length)
-            {
+            if (start < array.Length) {
                 Object = array;
                 Offset = new UIntPtr(
                     (uint)(SpanHelpers<T>.OffsetToArrayData + (start * PtrUtils.SizeOf<T>())));
                 Length = length;
-            }
-            else
-            {
+            } else {
                 Object = null;
                 Offset = UIntPtr.Zero;
                 Length = 0;
@@ -121,8 +110,7 @@ namespace Spreads.Slices
         /// <param name="ptr">An unmanaged pointer to memory.</param>
         /// <param name="length">The number of T elements the memory contains.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe Span(void* ptr, int length)
-        {
+        public unsafe Span(void* ptr, int length) {
             Contract.Requires(length >= 0);
             Contract.Requires(length == 0 || ptr != null);
             Object = null;
@@ -133,8 +121,7 @@ namespace Spreads.Slices
         /// <summary>
         /// An internal helper for creating spans. Not for public use.
         /// </summary>
-        internal Span(object obj, UIntPtr offset, int length)
-        {
+        internal Span(object obj, UIntPtr offset, int length) {
             Object = obj;
             Offset = offset;
             Length = length;
@@ -159,11 +146,9 @@ namespace Spreads.Slices
         /// <param name="dummy">dummy is just to make the call unsafe; feel free to pass void</param>
         /// <param name="array"></param>
         /// <returns>true if it's a span over an array; otherwise false (if over a pointer)</returns>
-        public unsafe bool TryGetArray(void* dummy, out ArraySegment<T> array)
-        {
+        public unsafe bool TryGetArray(void* dummy, out ArraySegment<T> array) {
             var a = Object as T[];
-            if (a == null)
-            {
+            if (a == null) {
                 array = new ArraySegment<T>();
                 return false;
             }
@@ -198,12 +183,29 @@ namespace Spreads.Slices
         }
 
         /// <summary>
+        /// Item getter without bound checks
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal T GetUnsafe(int index) {
+            return PtrUtils.Get<T>(Object, Offset, (UIntPtr)index);
+        }
+
+        /// <summary>
+        /// Item setter without bound checks
+        /// </summary>
+        /// <param name="index"></param>
+        /// <param name="value"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void SetUnsafe(int index, T value) {
+            PtrUtils.Set(Object, Offset, (UIntPtr)index, value);
+        }
+
+        /// <summary>
         /// Copies the contents of this span into a new array.  This heap
         /// allocates, so should generally be avoided, however is sometimes
         /// necessary to bridge the gap with APIs written in terms of arrays.
         /// </summary>
-        public T[] CreateArray()
-        {
+        public T[] CreateArray() {
             var dest = new T[Length];
             TryCopyTo(dest.Slice());
             return dest;
@@ -214,24 +216,19 @@ namespace Spreads.Slices
         /// must be at least as big as the source, and may be bigger.
         /// </summary>
         /// <param name="destination">The span to copy items into.</param>
-        public bool TryCopyTo(Span<T> destination)
-        {
+        public bool TryCopyTo(Span<T> destination) {
             // There are some benefits of making local copies. See https://github.com/dotnet/coreclr/issues/5556
             var dest = destination;
             var src = this;
-            
+
             if (src.Length > dest.Length)
                 return false;
 
-            if (default(T) != null && MemoryUtils.IsPrimitiveValueType<T>())
-            {
+            if (default(T) != null && MemoryUtils.IsPrimitiveValueType<T>()) {
                 PtrUtils.CopyBlock(src.Object, src.Offset, dest.Object, dest.Offset,
                                    src.Length * PtrUtils.SizeOf<T>());
-            }
-            else
-            {
-                for (int i = 0; i < src.Length; i++)
-                {
+            } else {
+                for (int i = 0; i < src.Length; i++) {
                     // We don't check bounds here as we are surely within them
                     T value = PtrUtils.Get<T>(src.Object, src.Offset, (UIntPtr)i);
                     PtrUtils.Set(dest.Object, dest.Offset, (UIntPtr)i, value);
@@ -246,23 +243,18 @@ namespace Spreads.Slices
         /// must be at least as big as the source, and may be bigger.
         /// </summary>
         /// <param name="dest">The span to copy items into.</param>
-        public bool TryCopyTo(T[] destination)
-        {
+        public bool TryCopyTo(T[] destination) {
             return TryCopyTo(destination.Slice());
         }
 
-        public void Set(ReadOnlySpan<T> values)
-        {
-            if (!values.TryCopyTo(this))
-            {
+        public void Set(ReadOnlySpan<T> values) {
+            if (!values.TryCopyTo(this)) {
                 throw new ArgumentOutOfRangeException("values");
             }
         }
 
-        public void Set(T[] values)
-        {
-            if (!values.Slice().TryCopyTo(this))
-            {
+        public void Set(T[] values) {
+            if (!values.Slice().TryCopyTo(this)) {
                 throw new ArgumentOutOfRangeException("values");
             }
         }
@@ -275,12 +267,11 @@ namespace Spreads.Slices
         /// Thrown when the specified start index is not in range (&lt;0 or &gt;&eq;length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span<T> Slice(int start)
-        {
+        public Span<T> Slice(int start) {
             Contract.RequiresInInclusiveRange(start, (uint)Length);
             return new Span<T>(Object, Offset + (start * PtrUtils.SizeOf<T>()), Length - start);
         }
-        
+
         /// <summary>
         /// Forms a slice out of the given span, beginning at 'start'.
         /// </summary>
@@ -289,8 +280,7 @@ namespace Spreads.Slices
         /// Thrown when the specified start index is not in range (&lt;0 or &gt;&eq;length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span<T> Slice(uint start)
-        {
+        public Span<T> Slice(uint start) {
             Contract.RequiresInInclusiveRange(start, (uint)Length);
             return new Span<T>(Object, Offset + (((int)start) * PtrUtils.SizeOf<T>()), Length - (int)start);
         }
@@ -305,13 +295,12 @@ namespace Spreads.Slices
         /// Thrown when the specified start or end index is not in range (&lt;0 or &gt;&eq;length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span<T> Slice(int start, int length)
-        {
+        public Span<T> Slice(int start, int length) {
             Contract.RequiresInInclusiveRange(start, length, (uint)Length);
             return new Span<T>(
                 Object, Offset + (start * PtrUtils.SizeOf<T>()), length);
         }
-        
+
         /// <summary>
         /// Forms a slice out of the given span, beginning at 'start', and
         /// ending at 'end' (exclusive).
@@ -322,8 +311,7 @@ namespace Spreads.Slices
         /// Thrown when the specified start or end index is not in range (&lt;0 or &gt;&eq;length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span<T> Slice(uint start, uint length)
-        {
+        public Span<T> Slice(uint start, uint length) {
             Contract.RequiresInInclusiveRange(start, length, (uint)Length);
             return new Span<T>(
                 Object, Offset + (((int)start) * PtrUtils.SizeOf<T>()), (int)length);
@@ -334,20 +322,16 @@ namespace Spreads.Slices
         /// this does *not* check to see if the *contents* are equal.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool ReferenceEquals(Span<T> other)
-        {
+        public bool ReferenceEquals(Span<T> other) {
             return Object == other.Object &&
                 Offset == other.Offset && Length == other.Length;
         }
 
-        public override int GetHashCode()
-        {
-            unchecked
-            {
+        public override int GetHashCode() {
+            unchecked {
                 var hashCode = Offset.GetHashCode();
                 hashCode = hashCode * 31 + Length;
-                if (Object != null)
-                {
+                if (Object != null) {
                     hashCode = hashCode * 31 + Object.GetHashCode();
                 }
                 return hashCode;
@@ -358,32 +342,26 @@ namespace Spreads.Slices
         /// Checks to see if two spans point at the same memory.  Note that
         /// this does *not* check to see if the *contents* are equal.
         /// </summary>
-        public bool Equals(Span<T> other)
-        {
+        public bool Equals(Span<T> other) {
             return ReferenceEquals(other);
         }
 
-        public override bool Equals(object obj)
-        {
-            if (obj is Span<T>)
-            {
+        public override bool Equals(object obj) {
+            if (obj is Span<T>) {
                 return Equals((Span<T>)obj);
             }
             return false;
         }
 
-        public ReadOnlySpan<T>.Enumerator GetEnumerator()
-        {
+        public ReadOnlySpan<T>.Enumerator GetEnumerator() {
             return new ReadOnlySpan<T>.Enumerator(Object, Offset, Length);
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
+        IEnumerator IEnumerable.GetEnumerator() {
             return new ReadOnlySpan<T>.EnumeratorObject(this);
         }
 
-        IEnumerator<T> IEnumerable<T>.GetEnumerator()
-        {
+        IEnumerator<T> IEnumerable<T>.GetEnumerator() {
             return new ReadOnlySpan<T>.EnumeratorObject(this);
         }
     }

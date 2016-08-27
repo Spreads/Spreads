@@ -112,6 +112,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="SpanTests.cs" />
     <Compile Include="AlgoTests.cs" />
     <Compile Include="SerializationTests.cs" />
     <Compile Include="FunctionCombinationTests.cs" />
