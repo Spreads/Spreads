@@ -458,5 +458,16 @@ namespace Spreads.Collections.Tests.Cursors {
 
             Assert.AreEqual(runnningSum.Count(), count);
         }
+
+
+        [Test]
+        public void RangeMustBeEmptyWhenOutOfRange() {
+            var sm = new SortedMap<DateTime, double>
+            {
+                {new DateTime(2006, 1, 1), 1.0}
+            };
+            var test = sm.Range(new DateTime(2005, 1, 1), new DateTime(2005, 1, 2)).ToSortedMap();
+            Assert.IsTrue(test.IsEmpty);
+        }
     }
 }

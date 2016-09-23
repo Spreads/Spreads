@@ -100,14 +100,14 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
       else false
       
     member this.MoveFirst(): bool = 
-      if (startKey.IsSome && this.InputCursor.MoveAt(startKey.Value, firstLookup))
+      if (startKey.IsSome && this.InputCursor.MoveAt(startKey.Value, firstLookup) && inRange this.InputCursor.CurrentKey)
         || (startKey.IsNone && this.InputCursor.MoveFirst()) then
         started <- true
         true
       else false
     
     member this.MoveLast(): bool = 
-      if (endKey.IsSome && this.InputCursor.MoveAt(endKey.Value, lastLookup))
+      if (endKey.IsSome && this.InputCursor.MoveAt(endKey.Value, lastLookup) && inRange this.InputCursor.CurrentKey)
         || (endKey.IsNone && this.InputCursor.MoveLast()) then
         started <- true
         true
