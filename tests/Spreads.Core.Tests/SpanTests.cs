@@ -10,6 +10,7 @@ using System.Linq;
 using Spreads.Collections;
 using Spreads.Algorithms;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using Spreads.Slices;
 
 namespace Spreads.Core.Tests {
@@ -96,8 +97,61 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Find {caseName}: \t\t {500 * indices.Length * 0.001 / sw.ElapsedMilliseconds} Mops");
         }
 
-        
 
+        [Test]
+        public void OffsetTests() {
+            var array = Enumerable.Range(0, 32 * 1024).ToArray();
+            var sw = new Stopwatch();
+            long sum = 0;
+            var rpmax = 10000;
+            for (int rounds = 0; rounds < 10; rounds++) {
+
+                sw.Restart();
+                sum = 0;
+                for (int rp = 0; rp < rpmax; rp++) {
+                    for (long i = 0; i < array.Length; i++) {
+                        sum += GetAtOffset(array, (Offset)i);
+                    }
+                }
+                if (sum < 0) throw new Exception(); // use sum after loop
+                sw.Stop();
+                Console.WriteLine($"Offset: {sw.ElapsedMilliseconds}");
+
+                sw.Restart();
+
+                for (int rp = 0; rp < rpmax; rp++) {
+                    for (long i = 0; i < array.Length; i++) {
+                        sum += GetAtIndex(array, i);
+                    }
+                }
+                sw.Stop();
+                if (sum < 0) throw new Exception(); // use sum after loop
+                Console.WriteLine($"Index: {sw.ElapsedMilliseconds}");
+
+
+
+                sw.Restart();
+                sum = 0;
+                for (int rp = 0; rp < rpmax; rp++) {
+                    for (long i = 0; i < array.Length; i++) {
+                        sum += array[i];
+                    }
+                }
+                if (sum < 0) throw new Exception(); // use sum after loop
+                sw.Stop();
+                Console.WriteLine($"Direct: {sw.ElapsedMilliseconds}");
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetAtIndex(int[] array, long index) {
+            return array[index];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetAtOffset(int[] array, Offset offset) {
+            return array[(long)offset];
+        }
 
     }
 }

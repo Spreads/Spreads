@@ -1,6 +1,6 @@
 {
 
-	"version": "0.6.0-alpha1",
+	"version": "0.6.0-beta2",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 
 	"buildOptions": {
@@ -62,7 +62,7 @@
 		}
 	},
 	"dependencies": {
-		"Spreads.Core": "0.6.0-alpha1"
+		"Spreads.Core": "0.6.0-beta2"
 	},
 	"tools": {
 		"dotnet-compile-fsc": {
@@ -84,7 +84,7 @@
 				"System.Data": "",
 				"System.Data.Linq": "",
 				"System.Numerics": ""
-				
+
 			}
 		},
 		"netstandard1.6": {

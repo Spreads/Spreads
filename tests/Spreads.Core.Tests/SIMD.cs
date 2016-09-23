@@ -67,5 +67,8 @@ namespace Spreads.Algorithms {
                 result[i] = Math.Exp(array[i]);
             }
         }
+
+
+
     }
 }

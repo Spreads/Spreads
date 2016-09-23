@@ -44,6 +44,41 @@ namespace Spreads {
             return TypeEnum.Object;
         }
 
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static TypeEnum GetTypeCode(Type ty) {
+            // typeof(T) == typeof() is compile-time const
+
+            if (ty == typeof(bool)) return TypeEnum.Bool;
+            if (ty == typeof(byte)) return TypeEnum.UInt8;
+            if (ty == typeof(char)) return TypeEnum.UInt16; // as UInt16
+            if (ty == typeof(sbyte)) return TypeEnum.Int8;
+            if (ty == typeof(short)) return TypeEnum.Int16;
+            if (ty == typeof(ushort)) return TypeEnum.UInt16;
+            if (ty == typeof(int)) return TypeEnum.Int32;
+            if (ty == typeof(uint)) return TypeEnum.UInt32;
+            if (ty == typeof(long)) return TypeEnum.Int64;
+            if (ty == typeof(ulong)) return TypeEnum.UInt64;
+            if (ty == typeof(IntPtr)) return TypeEnum.Int64;
+            if (ty == typeof(UIntPtr)) return TypeEnum.UInt64;
+            if (ty == typeof(float)) return TypeEnum.Float32;
+            if (ty == typeof(double)) return TypeEnum.Float64;
+            if (ty == typeof(decimal)) return TypeEnum.Decimal;
+            if (ty == typeof(Price)) return TypeEnum.Price;
+
+
+            if (ty == typeof(Variant)) return TypeEnum.Variant;
+            if (ty.IsArray) return TypeEnum.Array; // TODO check if ty.IsArray is any different
+
+            // TODO known types, otherwise will fallback to fixed binary
+
+#pragma warning disable 618
+            if (TypeHelper.GetSize(ty) > 0) return TypeEnum.FixedBinary;
+#pragma warning restore 618
+
+            return TypeEnum.Object;
+        }
+
         #region Known Type Sizes
 
         private static readonly byte[] KnownTypeSizes = new byte[198]

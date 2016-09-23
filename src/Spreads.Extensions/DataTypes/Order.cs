@@ -44,7 +44,7 @@ namespace Spreads.DataTypes {
     public interface IOrder : ITick, IQuote {
         long OrderId { get; }
         OrderType OrderType { get; }
-        Symbol Symbol { get; }
+        Symbol16 Symbol { get; }
         // ITick interface
         //DateTime DateTimeUtc { get; }
         // incl. IQuote interface
@@ -59,7 +59,7 @@ namespace Spreads.DataTypes {
     public struct Order : IOrder {
         private readonly long _orderId; // 8
         private readonly long _tradeId; // 8
-        private readonly Symbol _symbol; // 16
+        private readonly Symbol16 _symbol; // 16
 
         private readonly Tick _tick; // 24
         private readonly TradeSide _tradeSide; // 1
@@ -72,7 +72,7 @@ namespace Spreads.DataTypes {
 
         public Order(long orderId,
             OrderType orderType,
-            Symbol symbol,
+            Symbol16 symbol,
             DateTime dateTimeUtc,
             Price price,
             int volume,
@@ -91,7 +91,7 @@ namespace Spreads.DataTypes {
 
         public long OrderId => _orderId;
         public OrderType OrderType => _orderType;
-        public Symbol Symbol => _symbol;
+        public Symbol16 Symbol => _symbol;
         public DateTime DateTimeUtc => _tick.DateTimeUtc;
         public Price Price => _tick.Price;
         public int Volume => _tick.Volume;

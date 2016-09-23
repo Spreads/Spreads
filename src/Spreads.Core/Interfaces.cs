@@ -163,6 +163,10 @@ namespace Spreads {
     }
 
 
+    public interface ISeries : ISeries<Variant, Variant> {
+
+    }
+
 
     /// <summary>
     /// ICursor is an advanced enumerator that supports moves to first, last, previous, next, next batch, exact 
@@ -199,7 +203,7 @@ namespace Spreads {
         : IAsyncEnumerator<KeyValuePair<TKey, TValue>> {
 
         IComparer<TKey> Comparer { get; }
-        
+
         /// <summary>
         /// Puts the cursor to the position according to LookupDirection
         /// </summary>
@@ -261,7 +265,7 @@ namespace Spreads {
     /// mutable implementations and won't affect immutable implementations.
     /// </summary>
     public interface IReadOnlyOrderedMap<TKey, TValue> : ISeries<TKey, TValue> {
-        
+
         bool IsEmpty { get; }
 
         /// <summary>

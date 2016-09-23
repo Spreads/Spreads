@@ -21,3 +21,14 @@ let fst = arr . [0]
 // All fixed types < 100 or something like that
 // Fixed + length only makes sense for arrays, single value must provide its length in bytes
 // if TypeEnum doesn't define it
+
+type Offset = int64<offset>
+and [<Measure>] offset
+
+//let o = Offset(123L)
+
+
+let off : Offset = 123L<offset>
+
+let newOff = off + 1L<offset>
+

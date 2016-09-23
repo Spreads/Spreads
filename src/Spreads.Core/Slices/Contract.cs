@@ -26,16 +26,16 @@ namespace Spreads.Slices
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void RequiresInRange(int start, uint length)
+        public static void RequiresInRange(long start, uint length)
         {
-            if ((uint)start >= length)
+            if ((ulong)start >= length)
             {
                 throw NewArgumentOutOfRangeException();
             }
         }
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void RequiresInRange(uint start, uint length)
+        public static void RequiresInRange(ulong start, ulong length)
         {
             if (start >= length)
             {

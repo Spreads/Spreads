@@ -13,107 +13,30 @@ namespace Spreads {
 
     // TODO ensure alignment of uncompressed arrays for at least TypeEnum <= 10
 
-    public enum TypeEnum : byte {
-
-        None = 0,
-
-        // Fixed-length known types - their length is defined by code
-
-        Bool = 197,
-
-        Int8 = 1,
-        Int16 = 2,
-        Int32 = 3,
-        Int64 = 4,
-
-        UInt8 = 5,
-        UInt16 = 6,
-        UInt32 = 7,
-        UInt64 = 8,
-
-
-        Float32 = 9,
-        Float64 = 10,
-
-        Decimal = 11,
-        Price = 12,
-        Money = 13,
-
-        // TODO handling of DT.Kind should be in serializer settings later, by default we fail on any non UTC in serializer
-        // if we need a time zone, we could add symbol
-        // There could be a special case of array with TZ, but this could be easily achieved without built-in functionality
-
-        /// <summary>
-        /// DatetTime UTC ticks (100ns intervals since zero) as UInt64
-        /// </summary>
-        DateTime = 14,
-        /// <summary>
-        /// Nanoseconds since Unix epoch as UInt64
-        /// </summary>
-        Timestamp = 15,
-        // TODO Need strong definition of what it is, 
-        // otherwise for app-specific definition one could use just Int family
-        Date = 16,
-        Time = 17,
-
-        // TODO chck if there is IEEE standard for comlex
-        // TODO rename to Tuple
-        /// <summary>
-        /// Real + imaginary Float32 values (total size 8 bytes)
-        /// </summary>
-        Complex32 = 18,
-        /// <summary>
-        /// Real + imaginary Float64 values (total size 16 bytes)
-        /// </summary>
-        Complex64 = 19,
-
-        // We could define up to 200 known fixed-size types, 
-        // e.g. Price, Tick, Point2Df (float), Point3Dd(double)
-        //Symbol8 = 20,
-        //Symbol16 = 21,
-        //Symbol32 = 22,
-        //Symbol64 = 23,
-        //Symbol128 = 24,
-
-        // Comparison [(byte)(TypeEnum) < 198 = true] means known fixed type
-
-
-        /// <summary>
-        /// Used for blittable types (fixed-length type with fixed layout)
-        /// </summary>
-        FixedBinary = 198,
-
-        /// <summary>
-        /// Array with fixed number of elements (space is reserved even if it is not filled)
-        /// </summary>
-        FixedArray = 199, // this could be either fixed if sub-type is fixed or variable
-
-        // Variable size types
-
-        String = 200,
-        Binary = 201,
-
-
-        Variant = 242, // for sub-type in containers, must throw for scalars
-        Object = 243, // run-time object, should serialize to Binary
-
-        // Containers
-
-        Array = 250,
-        Map = 251, // could implement as two arrays
-        Tuple
-
-        //Category = 252, // just two arrays: Levels (their index is a value) and values
-
-
-    }
 
     // TODO try to make the flags
     /// <summary>
     /// On-disk flags
     /// </summary>
-    internal enum VersionAndFlags : byte {
+    [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 1)]
+    internal struct VersionAndFlags {
+        internal const int VersionBitsOffset = 4;
+        internal const int CompressedBitOffset = 0;
+        // three more flags left
 
+        private byte _value;
+
+        public byte Version
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return (byte)(_value >> VersionBitsOffset); }
+        }
+
+        public bool IsCompressed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return (_value & (1 << CompressedBitOffset)) > 0; }
+        }
     }
 
     /// <summary>
@@ -121,67 +44,104 @@ namespace Spreads {
     /// </summary>
     [StructLayout(LayoutKind.Explicit, Pack = 1, Size = 4)]
     internal struct VariantHeader {
-        
+
         // First 4 bytes are always the same
         internal const int VersionAndFlagsOffset = 0;
         [FieldOffset(VersionAndFlagsOffset)]
-        private readonly VersionAndFlags _versionAndFlags;
+        internal VersionAndFlags _versionAndFlags;
 
         internal const int TypeEnumOffset = 1;
         [FieldOffset(TypeEnumOffset)]
-        private readonly TypeEnum _typeEnum;
+        internal TypeEnum _typeEnum;
 
         internal const int TypeSizeOffset = 2;
         // If size if fixed then this should be positive
         [FieldOffset(TypeSizeOffset)]
-        private readonly byte _typeSize;
+        internal byte _typeSize;
 
         internal const int ElementTypeEnumOffset = 3;
         [FieldOffset(ElementTypeEnumOffset)]
-        private readonly byte _elementTypeEnum;
-
+        internal TypeEnum _elementTypeEnum;
     }
+
+
 
 
     // Runtime representation of Variant type
 
     [StructLayout(LayoutKind.Explicit, Pack = 4)]
     public unsafe partial struct Variant {
-        // all data stored in place
-        // it must have object be a BoxedTypeEnum
+        public enum VariantLayout {
+            /// <summary>
+            /// Single data point is stored inline in the internal data field.
+            /// Object field is set to special statically cached objects containing metadata.
+            /// </summary>
+            Inline = 0,
+            /// <summary>
+            /// Object is not null and is not boxed TypeEnum.
+            /// </summary>
+            Object = 1,
+            /// <summary>
+            /// Object is null.
+            /// </summary>
+            Pointer = 2
+        }
+
+        // Inline layout, object is a BoxedTypeEnum
         [FieldOffset(0)]
         private fixed byte _data[16];
 
-        // 
+        // Object and pointer layout
         [FieldOffset(0)]
-        private readonly TypeEnum _typeEnum;        // byte
-        [FieldOffset(1)]
-        private readonly RuntimeTypeInfoFlags _flags;       // byte
-        [FieldOffset(2)]
-        private readonly byte _typeSize;            // byte
-        [FieldOffset(3)]
-        private readonly TypeEnum _subTypeEnum;            // byte
-
+        private VariantHeader _header;        // byte
+        // Number of elements in array
         [FieldOffset(4)]
-        public readonly int _length;                 // int
+        public readonly int _count;                 // int
+        // TODO for pointers, this should be length or the memory
+        // or, any var len variant should have length as the first 4 bytes
 
+        // Object-only layout, optional offset used only for arrays
         [FieldOffset(8)]
-        internal readonly uint _offset;               // int
+        internal readonly ulong _offset;               // long
 
-        // Object is null, we have 
+
+        // Pointer layout, object is null
         [FieldOffset(8)]
         internal readonly UIntPtr _pointer;           // long
 
 
         // When this is BoxedTypeEnum, _data field contains value
-        // otherwise, _data contains TypeEnum at offset 0
+        // otherwise, _data contains VariantHeader at offset 0
         [FieldOffset(16)]
         private readonly object _object;
 
 
-        public Variant(int value) {
+
+        internal Variant(object obj) {
             this = default(Variant);
-            _length = value;
+            var ty = obj.GetType();
+            _header._typeEnum = GetTypeCode(ty);
+
+            if (obj.GetType().IsArray) {
+                _header._elementTypeEnum = GetTypeCode(ty.GetElementType());
+            }
+            _object = obj;
+        }
+
+        public VariantLayout Layout
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (_object == null) {
+                    return VariantLayout.Pointer;
+                }
+                var boxed = _object as BoxedTypeEnum;
+                if (boxed != null) {
+                    return VariantLayout.Inline;
+                }
+                return VariantLayout.Object;
+            }
         }
 
 
@@ -194,7 +154,7 @@ namespace Spreads {
                 if (boxed != null) {
                     return boxed.TypeEnum;
                 }
-                return _typeEnum;
+                return _header._typeEnum;
             }
         }
 
@@ -210,7 +170,7 @@ namespace Spreads {
                 if (boxed != null) {
                     return 1;
                 }
-                return _typeEnum == TypeEnum.Array ? _length : 1;
+                return _header._typeEnum == TypeEnum.Array ? _count : 1;
             }
         }
 
@@ -315,15 +275,6 @@ namespace Spreads {
                 Cache[(int)typeEnum] = newBoxed;
                 return newBoxed;
             }
-        }
-
-
-        [Flags]
-        internal enum RuntimeTypeInfoFlags : byte {
-            None = 0,
-            IsFixedMemory = 1,
-            IsFixedTypeSize = 2,
-            IsCompressed = 4,
         }
     }
 }

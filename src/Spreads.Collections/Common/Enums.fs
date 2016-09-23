@@ -39,15 +39,15 @@ type AppendOption =
 
 /// Base unit of a period
 type UnitPeriod =
-  | Tick = 0          //               100 nanosec
-  | Millisecond = 1   //              10 000 ticks
-  | Second = 2        //          10 000 000 ticks
-  | Minute = 3        //         600 000 000 ticks
-  | Hour = 4          //      36 000 000 000 ticks
-  | Day = 5           //     864 000 000 000 ticks
-  | Month = 6         //                  Variable
+  | Tick = 0uy          //               100 nanosec
+  | Millisecond = 1uy   //              10 000 ticks
+  | Second = 2uy        //          10 000 000 ticks
+  | Minute = 3uy        //         600 000 000 ticks
+  | Hour = 4uy          //      36 000 000 000 ticks
+  | Day = 5uy           //     864 000 000 000 ticks
+  | Month = 6uy         //                  Variable
   /// Static or constant
-  | Eternity = 7      //                  Infinity
+  | Eternity = 7uy      //                  Infinity
 
   // NB
   // (do not add this, keep this enum representable as 3 bits. 4-8 are probably also OK, but we already have data that use the 2,3,4,5 numbers)
