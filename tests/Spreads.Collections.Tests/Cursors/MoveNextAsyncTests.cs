@@ -87,7 +87,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor() {
-            var count = 1000000;
+            var count = 10000000;
             var sw = new Stopwatch();
             sw.Start();
 
@@ -171,6 +171,166 @@ namespace Spreads.Collections.Tests.Cursors {
                     var ticks = sw.ElapsedTicks - startTick;
                     var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
                     histogram3.RecordValue(nanos);
+                    startTick = sw.ElapsedTicks;
+                }
+
+
+            });
+
+            Thread.Sleep(1);
+
+            var addTask = Task.Run(() => {
+                //Console.WriteLine($"Adding from thread {Thread.CurrentThread.ManagedThreadId}");
+
+                for (int i = 5; i < count; i++) {
+                    sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                }
+                sm.Complete();
+
+            });
+
+
+            while (!sumTask.Wait(2000)) {
+                OptimizationSettings.Verbose = true;
+                Trace.WriteLine($"cnt: {cnt}");
+            }
+            while (!sumTask2.Wait(2000)) {
+                //OptimizationSettings.Verbose = true;
+                Trace.WriteLine($"cnt2: {cnt2}");
+            }
+            while (!sumTask3.Wait(2000)) {
+                //OptimizationSettings.Verbose = true;
+                Trace.WriteLine($"cnt3: {cnt3}");
+            }
+            addTask.Wait();
+            histogram.Add(histogram1);
+            histogram.Add(histogram2);
+            histogram.Add(histogram3);
+            histogram.OutputPercentileDistribution(
+                    printStream: Console.Out,
+                    percentileTicksPerHalfDistance: 3,
+                    outputValueUnitScalingRatio: OutputScalingFactor.None);
+
+            sw.Stop();
+            Trace.Write($"Elapsed msec: {sw.ElapsedMilliseconds}; ");
+            Trace.WriteLine($"Ops: {Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2)}");
+
+            double expectedSum = 0.0;
+            for (int i = 0; i < count; i++) {
+                expectedSum += i;
+            }
+            if (expectedSum != sum) Trace.WriteLine("Sum 1 is wrong");
+            if (expectedSum != sum2) Trace.WriteLine("Sum 2 is wrong");
+            if (expectedSum != sum3) Trace.WriteLine("Sum 3 is wrong");
+            Assert.AreEqual(expectedSum, sum, "Sum 1");
+            Assert.AreEqual(expectedSum, sum2, "Sum 2");
+            Assert.AreEqual(expectedSum, sum3, "Sum 3");
+
+            //sm.Dispose();
+
+        }
+
+
+
+        [Test]
+        [Ignore]
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_NoSemaphore() {
+            var count = 10000000;
+            var sw = new Stopwatch();
+            sw.Start();
+
+            var sm = new Experimental.NoSemaphore.SortedMap<DateTime, double>();
+            sm.IsSynchronized = true;
+            //var sm = new SortedChunkedMap<DateTime, double>();
+            //sm.Add(DateTime.UtcNow.Date.AddSeconds(-2), 0);
+
+            for (int i = 0; i < 5; i++) {
+                sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+            }
+            var histogram = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
+            double sum = 0;
+            var cnt = 0;
+            var histogram1 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
+            var sumTask = Task.Run(async () => {
+                var c = sm.GetCursor();
+
+                var startTick = sw.ElapsedTicks;
+
+                while (await c.MoveNext(CancellationToken.None)) {
+                    sum += c.CurrentValue;
+                    if ((int)c.CurrentValue != cnt) {
+                        //Console.WriteLine("Wrong sequence");
+                        //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
+                        Trace.WriteLine($"Wrong sequence1: {c.CurrentValue} != {cnt}; thread {Thread.CurrentThread.ManagedThreadId}");
+                    } else {
+                        //Console.WriteLine("Async move");
+                    }
+                    cnt++;
+                    var ticks = sw.ElapsedTicks - startTick;
+                    var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
+                    try {
+                        histogram1.RecordValue(nanos);
+                    } catch (Exception e) {
+                        Console.WriteLine($"Nanos: {nanos}; " + e.Message);
+                    }
+                    startTick = sw.ElapsedTicks;
+                }
+            });
+
+            double sum2 = 0;
+            var cnt2 = 0;
+            var histogram2 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
+            var sumTask2 = Task.Run(async () => {
+                var c = sm.GetCursor();
+
+                var startTick = sw.ElapsedTicks;
+
+                while (await c.MoveNext(CancellationToken.None)) {
+                    sum2 += c.CurrentValue;
+                    if ((int)c.CurrentValue != cnt2) {
+                        //Console.WriteLine("Wrong sequence");
+                        //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
+                        Trace.WriteLine($"Wrong sequence2: {c.CurrentValue} != {cnt2}; thread {Thread.CurrentThread.ManagedThreadId}");
+                    } else {
+                        //Console.WriteLine("Async move");
+                    }
+                    cnt2++;
+                    var ticks = sw.ElapsedTicks - startTick;
+                    var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
+                    try {
+                        histogram2.RecordValue(nanos);
+                    } catch (Exception e) {
+                        Console.WriteLine($"Nanos: {nanos}; " + e.Message);
+                    }
+                    startTick = sw.ElapsedTicks;
+                }
+            });
+
+            double sum3 = 0;
+            var cnt3 = 0;
+            var histogram3 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
+            var sumTask3 = Task.Run(async () => {
+                var c = sm.GetCursor();
+
+                var startTick = sw.ElapsedTicks;
+
+                while (await c.MoveNext(CancellationToken.None)) {
+                    sum3 += c.CurrentValue;
+                    if ((int)c.CurrentValue != cnt3) {
+                        //Console.WriteLine("Wrong sequence");
+                        //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
+                        Trace.WriteLine($"Wrong sequence3: {c.CurrentValue} != {cnt3}; thread {Thread.CurrentThread.ManagedThreadId}");
+                    } else {
+                        //Console.WriteLine("Async move");
+                    }
+                    cnt3++;
+                    var ticks = sw.ElapsedTicks - startTick;
+                    var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
+                    try {
+                        histogram3.RecordValue(nanos);
+                    } catch (Exception e) {
+                        Console.WriteLine($"Nanos: {nanos}; " + e.Message);
+                    }
                     startTick = sw.ElapsedTicks;
                 }
 

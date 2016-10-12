@@ -105,6 +105,7 @@
     <Compile Include="Collections\SortedMap.Obsolete.fs" />
     <Compile Include="Collections\IndexedMap.fs" />
     <Compile Include="Collections\SortedMap.fs" />
+    <Compile Include="Collections\SortedMapNoSemaphore.fs" />
     <Compile Include="Collections\SortedChunkedMap.fs" />
     <Compile Include="Collections\DataStream.fs" />
     <None Include="Cursors\Cursors.md" />
