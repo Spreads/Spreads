@@ -234,7 +234,12 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         [Ignore]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_NoSemaphore() {
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_NoSemaphore()
+        {
+
+            var cts = new CancellationTokenSource();
+            var ct = CancellationToken.None; // cts.Token; //
+
             var count = 10000000;
             var sw = new Stopwatch();
             sw.Start();
@@ -256,7 +261,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
                 var startTick = sw.ElapsedTicks;
 
-                while (await c.MoveNext(CancellationToken.None)) {
+                while (await c.MoveNext(ct)) {
                     sum += c.CurrentValue;
                     if ((int)c.CurrentValue != cnt) {
                         //Console.WriteLine("Wrong sequence");
@@ -285,7 +290,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
                 var startTick = sw.ElapsedTicks;
 
-                while (await c.MoveNext(CancellationToken.None)) {
+                while (await c.MoveNext(ct)) {
                     sum2 += c.CurrentValue;
                     if ((int)c.CurrentValue != cnt2) {
                         //Console.WriteLine("Wrong sequence");
@@ -314,7 +319,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
                 var startTick = sw.ElapsedTicks;
 
-                while (await c.MoveNext(CancellationToken.None)) {
+                while (await c.MoveNext(ct)) {
                     sum3 += c.CurrentValue;
                     if ((int)c.CurrentValue != cnt3) {
                         //Console.WriteLine("Wrong sequence");

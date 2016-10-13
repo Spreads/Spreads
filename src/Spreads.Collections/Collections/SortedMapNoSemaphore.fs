@@ -390,11 +390,6 @@ type SortedMap<'K,'V>
     this.size <- this.size + 1
     let tcs = Volatile.Read(&this.updateTcs)
     if tcs <> null then tcs.TrySetResult(this.orderVersion) |> ignore
-//      try
-//        tcs.TrySetResult(this.orderVersion) |> ignore
-//      with
-//      | _ as e -> Console.WriteLine(e.Message)
-    //if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
 
 
   member this.Complete() =
@@ -1919,65 +1914,12 @@ and
   internal SortedMapCursorAsync<'K,'V>(source:SortedMap<'K,'V>) as this =
     [<DefaultValueAttribute(false)>]
     val mutable private state : SortedMapCursor<'K,'V>
-
-    // NB Async cursors are supposed to be long-lived, therefore we opt for fatter 
-    // cursor object with these fields but avoid closure allocation in the callback.
-    [<DefaultValueAttribute(false)>]
-    val mutable private semaphoreTask : Task<bool>
     [<DefaultValueAttribute(false)>]
     val mutable private unusedTcs : TaskCompletionSource<int64>
     [<DefaultValueAttribute(false)>]
-    val mutable private token: CancellationToken
-    [<DefaultValueAttribute(false)>]
-    val mutable private callbackAction: Action
-
+    val mutable private cancelledTcs : TaskCompletionSource<Task<bool>>
     do
       this.state <- new SortedMapCursor<'K,'V>(source)
-
-    override this.Finalize() = this.Dispose()
-     
-//    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-//    member private this.CompleteTcsCallback() =
-//      OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed")
-//      match this.semaphoreTask.Status with
-//      | TaskStatus.RanToCompletion -> 
-//        if not this.semaphoreTask.Result then 
-//          OptimizationSettings.TraceVerbose("semaphore timeout " + this.state.source.subscribersCounter.ToString() + " " + this.state.source.isReadOnly.ToString())
-//        if this.state.MoveNext() then
-//          OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed MN true")
-//          this.tcs.SetResult(true)
-//        elif this.state.source.isReadOnly then 
-//          OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed immutable")
-//          this.tcs.SetResult(false)
-//        else
-//          OptimizationSettings.TraceVerbose("SM_MNA: recursive calling completeTcs")
-//          this.CompleteTcs()
-//      | _ -> failwith "TODO process all task results, e.g. cancelled"
-//      ()
-
-//    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-//    member private this.CompleteTcs() : unit =
-//      if this.state.MoveNext() then
-//          OptimizationSettings.TraceVerbose("SM_MNA: MN inside completeTcs")
-//          this.tcs.SetResult(true)
-//        else
-//          OptimizationSettings.TraceVerbose("SM_MNA: waiting on semaphore")
-//          // NB this.source.isReadOnly could be set to true right before semaphore.WaitAsync call
-//          // and we will never get signal after that
-//          let mutable entered = false
-//          try
-//            entered <- enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
-//            if this.state.source.isReadOnly then
-//              if this.state.MoveNext() then this.tcs.SetResult(true) else this.tcs.SetResult(false)
-//            else
-//              this.semaphoreTask <- this.semaphore.WaitAsync(500, this.token)
-//              let awaiter = this.semaphoreTask.GetAwaiter()
-//              // TODO profiler says this allocates. This is because we close over the three variables.
-//              // We could turn them into mutable fields and then closure could be allocated just once.
-//              // But then the cursor will become heavier.
-//              awaiter.UnsafeOnCompleted(this.callbackAction)
-//          finally
-//            exitWriteLockIf &this.state.source.locker entered
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveNext(ct: CancellationToken): Task<bool> =      
@@ -1991,19 +1933,24 @@ and
         | true -> if this.state.MoveNext() then trueTask else falseTask
         | false ->
           // Task could have multiple awaiters
-          let tcs = this.state.source.updateTcs
+          let tcs = Volatile.Read(&this.state.source.updateTcs)
           // if some cursor already created a tcs and it is not null, we just await for it
           let activeTcs =
             if tcs <> null then tcs
             else
-              let newTcs = 
+              let newTcs =
                 if this.unusedTcs <> null then this.unusedTcs
-                else TaskCompletionSource<int64>()
+                else new TaskCompletionSource<int64>()
               let original = Interlocked.CompareExchange(&this.state.source.updateTcs, newTcs, null)
               if original = null then
+                // newTcs was put to the SM
+                // if unusedTcs was not null, newTcs = unusedTcs
+                // and unusedTcs went to SM
                 this.unusedTcs <- null
                 newTcs
               else
+                // SM Tcs was already set, we set unusedTcs to itself if 
+                // it was not null or to a new Tcs that we have allocated
                 this.unusedTcs <- newTcs
                 original
           // NB activeTcs is already allocated and we cannot avoid this allocation,
@@ -2011,70 +1958,37 @@ and
           // we create a continuation Task that does synchronous and very fast
           // work inside its body, so it is a very small and short-lived object
           // and .NET's GC is best for this.
-          let returnTask  = activeTcs.Task.ContinueWith(this.MoveNextContinuation)
-          returnTask.Unwrap()
+          let returnTask = activeTcs.Task.ContinueWith(this.MoveNextContinuation)
+          if((ct = CancellationToken.None || ct = Unchecked.defaultof<CancellationToken>)) then
+            // hot path
+            returnTask.Unwrap()
+          else
+            // TODO even though this is quite fast and we have a hot path above,
+            // we could cache token, check for equality and do registration work once
+            this.cancelledTcs <- new TaskCompletionSource<_>()
+            let registration = ct.Register(fun _ -> 
+                this.cancelledTcs.SetResult(cancelledBoolTask)
+              )
+            let anyReturn = Task.WhenAny(returnTask, this.cancelledTcs.Task)
+            let final = anyReturn.Unwrap().Unwrap()
+            registration.Dispose()
+            final
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveNextContinuation(t:Task<int64>): Task<bool> =
-      // do not capture anything
-      // but while this is not null, noone would be able to set a new one
+      // while this is not null, noone would be able to set a new one
       let original = Volatile.Read(&this.state.source.updateTcs)
       if original <> null then
         // one of many cursors will succeed
         Interlocked.CompareExchange(&this.state.source.updateTcs, null, original) |> ignore
       match this.state.MoveNext() with
       | true -> 
-        OptimizationSettings.TraceVerbose("SM_MNA: sync MN true")
         trueTask
       | _ -> 
         match this.state.source.isReadOnly with
         | false -> failwith ""
         | _ -> if this.state.MoveNext() then trueTask else falseTask
-
-//          let sw = SpinWait()
-//          let mutable doSpin = true
-//          let mutable spinCount = 0
-//          // spin 10 times longer than default SpinWait implementation
-//          while doSpin && not this.state.source.isReadOnly && not ct.IsCancellationRequested && spinCount < 100 do
-//            OptimizationSettings.TraceVerbose("SM_MNA: spinning")
-//            doSpin <- (not <| this.state.MoveNext()) 
-//            if doSpin then
-//              if sw.NextSpinWillYield then 
-//                increment &spinCount
-//                sw.Reset()
-//              sw.SpinOnce()
-//          if not doSpin then // exited loop due to successful MN, not due to sw.NextSpinWillYield
-//            OptimizationSettings.TraceVerbose("SM_MNA: spin wait success")
-//            trueTask
-//          elif this.state.source.isReadOnly then
-//            if this.state.MoveNext() then trueTask else falseTask
-//          elif ct.IsCancellationRequested then
-//            raise (OperationCanceledException(ct))
-//          else
-//            // NB expect huge amount of idle tasks. Spinning on all of them is questionable.
-//            //failwith "TODO exit spinning on some condition"
-//            if this.onUpdateHandler = Unchecked.defaultof<_> then
-//              let mutable entered = false
-//              try
-//                entered <- enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
-//                this.semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
-//                this.onUpdateHandler <- OnUpdateHandler(fun _ ->
-//                    if this.semaphore.CurrentCount <> Int32.MaxValue then this.semaphore.Release() |> ignore
-//                )
-//                this.state.source.onUpdateEvent.Publish.AddHandler this.onUpdateHandler
-//                Interlocked.Increment(&this.state.source.subscribersCounter) |> ignore
-//              finally
-//                exitWriteLockIf &this.state.source.locker entered
-//            if this.state.MoveNext() then trueTask
-//            else
-//              this.tcs <- Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
-//              let returnTask = this.tcs.Task
-//              OptimizationSettings.TraceVerbose("SM_MNA: calling completeTcs")
-//              this.token <- ct
-//              if this.callbackAction = Unchecked.defaultof<_> then this.callbackAction <- Action(this.CompleteTcsCallback)
-//              this.CompleteTcs()
-//              returnTask
-        | _ -> if this.state.MoveNext() then trueTask else falseTask
+        
       
     member this.Clone() = 
       let mutable entered = false
@@ -2087,16 +2001,7 @@ and
         exitWriteLockIf &this.state.source.locker entered
       
 
-    member this.Dispose() = 
-      this.state.Reset()
-//      if this.onUpdateHandler <> Unchecked.defaultof<_> then
-//        Interlocked.Decrement(&this.state.source.subscribersCounter) |> ignore
-//        this.state.source.onUpdateEvent.Publish.RemoveHandler(this.onUpdateHandler)
-//        this.semaphore.Dispose()
-//        this.semaphoreTask <- Unchecked.defaultof<_>
-//        this.token <- Unchecked.defaultof<_>
-//        this.tcs <- Unchecked.defaultof<_>
-      GC.SuppressFinalize(this)
+    member this.Dispose() = this.state.Reset()
 
     // C#-like methods to avoid casting to ICursor all the time
     member this.Reset() = this.state.Reset()
