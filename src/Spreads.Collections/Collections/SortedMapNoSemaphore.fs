@@ -1988,6 +1988,7 @@ and
       | false ->
         OptimizationSettings.TraceVerbose("SM_MNA: sync MN false")
         match this.state.source.isReadOnly with
+        | true -> if this.state.MoveNext() then trueTask else falseTask
         | false ->
           // Task could have multiple awaiters
           let tcs = this.state.source.updateTcs
@@ -2005,24 +2006,30 @@ and
               else
                 this.unusedTcs <- newTcs
                 original
-          let returnTask  = activeTcs.Task.ContinueWith(fun (t:Task<int64>) ->
-            // do not capture anything
-            // but while this is not null, noone would be able to set a new one
-            let original = Volatile.Read(&this.state.source.updateTcs)
-            if original <> null then
-              // one of many cursors will succeed
-              Interlocked.CompareExchange(&this.state.source.updateTcs, null, original) |> ignore
-            match this.state.MoveNext() with
-            | true -> 
-              OptimizationSettings.TraceVerbose("SM_MNA: sync MN true")
-              trueTask
-            | _ -> 
-              match this.state.source.isReadOnly with
-              | false -> failwith ""
-              | _ -> if this.state.MoveNext() then trueTask else falseTask
-          )
+          // NB activeTcs is already allocated and we cannot avoid this allocation,
+          // however it could be shared among many cursors. When its Task completes,
+          // we create a continuation Task that does synchronous and very fast
+          // work inside its body, so it is a very small and short-lived object
+          // and .NET's GC is best for this.
+          let returnTask  = activeTcs.Task.ContinueWith(this.MoveNextContinuation)
           returnTask.Unwrap()
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member this.MoveNextContinuation(t:Task<int64>): Task<bool> =
+      // do not capture anything
+      // but while this is not null, noone would be able to set a new one
+      let original = Volatile.Read(&this.state.source.updateTcs)
+      if original <> null then
+        // one of many cursors will succeed
+        Interlocked.CompareExchange(&this.state.source.updateTcs, null, original) |> ignore
+      match this.state.MoveNext() with
+      | true -> 
+        OptimizationSettings.TraceVerbose("SM_MNA: sync MN true")
+        trueTask
+      | _ -> 
+        match this.state.source.isReadOnly with
+        | false -> failwith ""
+        | _ -> if this.state.MoveNext() then trueTask else falseTask
 
 //          let sw = SpinWait()
 //          let mutable doSpin = true
