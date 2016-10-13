@@ -401,7 +401,9 @@ type SortedMap<'K,'V>
           this.isReadOnly <- true
           // immutable doesn't need sync
           Volatile.Write(&this.isSynchronized, false)
-          if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+          let updateTcs = Volatile.Read(&this.updateTcs)
+          if updateTcs <> null then updateTcs.TrySetResult(this.orderVersion) |> ignore
+          //if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
     finally
       Interlocked.Increment(&this.version) |> ignore
       exitWriteLockIf &this.locker entered
@@ -1918,6 +1920,8 @@ and
     val mutable private unusedTcs : TaskCompletionSource<int64>
     [<DefaultValueAttribute(false)>]
     val mutable private cancelledTcs : TaskCompletionSource<Task<bool>>
+    [<DefaultValueAttribute(false)>]
+    val mutable private token : CancellationToken
     do
       this.state <- new SortedMapCursor<'K,'V>(source)
 
@@ -1965,6 +1969,7 @@ and
           else
             // TODO even though this is quite fast and we have a hot path above,
             // we could cache token, check for equality and do registration work once
+            this.token <- ct
             this.cancelledTcs <- new TaskCompletionSource<_>()
             let registration = ct.Register(fun _ -> 
                 this.cancelledTcs.SetResult(cancelledBoolTask)
@@ -1972,6 +1977,7 @@ and
             let anyReturn = Task.WhenAny(returnTask, this.cancelledTcs.Task)
             let final = anyReturn.Unwrap().Unwrap()
             registration.Dispose()
+            this.token <- Unchecked.defaultof<_>
             final
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
@@ -1982,12 +1988,13 @@ and
         // one of many cursors will succeed
         Interlocked.CompareExchange(&this.state.source.updateTcs, null, original) |> ignore
       match this.state.MoveNext() with
-      | true -> 
-        trueTask
-      | _ -> 
+      | true -> trueTask
+      | false ->
         match this.state.source.isReadOnly with
-        | false -> failwith ""
-        | _ -> if this.state.MoveNext() then trueTask else falseTask
+        // TODO review this line
+        // currently it should always be an OOO exception
+        | false -> this.MoveNext(this.token)
+        | true -> if this.state.MoveNext() then trueTask else falseTask
         
       
     member this.Clone() = 

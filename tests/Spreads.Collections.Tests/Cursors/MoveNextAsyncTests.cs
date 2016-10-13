@@ -234,8 +234,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         [Ignore]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_NoSemaphore()
-        {
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_NoSemaphore() {
 
             var cts = new CancellationTokenSource();
             var ct = CancellationToken.None; // cts.Token; //
@@ -393,6 +392,39 @@ namespace Spreads.Collections.Tests.Cursors {
 
             //sm.Dispose();
 
+        }
+
+
+        [Test]
+        [Ignore]
+        public void CouldMoveNextAsyncWhenChangingOrder_NoSemaphore() {
+
+            var ct = CancellationToken.None;
+
+            var sm = new Experimental.NoSemaphore.SortedMap<int, int>();
+
+            sm.IsSynchronized = true;
+            var tcs = new TaskCompletionSource<bool>();
+            var sumTask = Task.Run(async () => {
+                var c = sm.GetCursor();
+                tcs.SetResult(true);
+                Assert.IsTrue(await c.MoveNext(ct));
+                // here we change order
+                Assert.IsTrue(await c.MoveNext(ct));
+                Assert.IsFalse(await c.MoveNext(ct));
+
+            });
+
+            tcs.Task.Wait(ct);
+            
+            sm.Add(1, 1);
+            Thread.Sleep(100);
+            //sm.Add(0, 0); // will through OOO
+            sm.Add(2, 2);
+            //sm.Add(3, 3); 
+            sm.Complete();
+
+            sumTask.Wait(ct);
         }
 
         //[Test]
