@@ -151,6 +151,9 @@
       <HintPath>..\..\packages\NUnit.2.6.3\lib\nunit.framework.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Spreads.Core">
+      <HintPath>..\..\src\Spreads.Core\bin\RELEASE\net451\Spreads.Core.dll</HintPath>
+    </Reference>
     <Reference Include="Streams">
       <HintPath>..\..\packages\Streams.0.4.1\lib\net45\Streams.dll</HintPath>
       <Private>True</Private>

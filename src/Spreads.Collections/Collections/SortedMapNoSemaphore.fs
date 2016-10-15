@@ -338,7 +338,6 @@ type SortedMap<'K,'V>
     // already inside a lock statement in a caller method if synchronized
    
     if this.size = this.values.Length then this.EnsureCapacity(this.size + 1)
-    
     #if PRERELEASE
     Trace.Assert(index <= this.size, "index must be <= this.size")
     Trace.Assert(couldHaveRegularKeys || (this.values.Length = this.keys.Length), "keys and values must have equal length for non-regular case")
@@ -1600,7 +1599,7 @@ and
           index = -1;
           currentKey = Unchecked.defaultof<_>;
           currentValue = Unchecked.defaultof<_>;
-          cursorVersion = -1L;
+          cursorVersion = source.orderVersion;
           isBatch = false;
         }
     end
@@ -1615,7 +1614,6 @@ and
     
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveNext() =
-      let initialIndex = this.index
       let mutable newIndex = this.index
       let mutable newKey = this.currentKey
       let mutable newValue = this.currentValue
@@ -1625,37 +1623,27 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
-          if this.index = -1 then
-            if this.source.size > 0 then
-              // NB multiple setting of this.cursorVersion on unsuccessful lock is OK while index = -1
-              this.cursorVersion <- this.source.orderVersion
-              newIndex <- this.index + 1
-              newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
-              newValue <- this.source.values.[newIndex]
-              true
-            else false
-          elif this.cursorVersion = this.source.orderVersion then
-            if this.index < (this.source.size - 1) then
-              newIndex <- this.index + 1
+          if this.cursorVersion = this.source.orderVersion then
+            newIndex <- this.index + 1
+            if newIndex < this.source.size then
               newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
               newValue <- this.source.values.[newIndex]
               true
             else
               false
           else // source order change
-            //NB: we no longer recover on order change, some cursor require special logic to recover
+            // NB: we no longer recover on order change, some cursor require special logic to recover
             raise (new OutOfOrderKeyException<'K>(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
-            
 
         /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source.nextVersion)
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
-      if result then
+      if result then       
         this.index <- newIndex
         this.currentKey <- newKey
         this.currentValue <- newValue

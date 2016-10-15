@@ -17,7 +17,6 @@ open NUnit.Framework
 /// Insert last (most common usage), first (worst case usage) and read (forward and backward)
 /// for each collection
 module CollectionsBenchmarks =
-  
 
 
   let IntMap64(count:int64) =
@@ -762,9 +761,9 @@ module CollectionsBenchmarks =
   let SeriesNestedMap(count:int64) =
     let dc : IKeyComparer<int64> = SpreadsComparerInt64() :> IKeyComparer<int64> 
 
-    let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
+    let smap = ref (Spreads.Collections.Experimental.NoSemaphore.SortedMap(comparer = (dc :> IComparer<int64>)))
     
-    smap := Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>))
+    smap := Spreads.Collections.Experimental.NoSemaphore.SortedMap(comparer = (dc :> IComparer<int64>))
 
     smap.Value.IsSynchronized <- false
 
@@ -794,7 +793,7 @@ module CollectionsBenchmarks =
       ()
 
 
-    for i in 0..2 do
+    for i in 0..9 do
       perf count "Series Add/Delete Inline" (fun _ ->
         let ro = smap.Value.Map(fun x -> ((x + 123456.0)/789.0)*10.0)
         for i in ro do
@@ -803,7 +802,7 @@ module CollectionsBenchmarks =
       )
 
     OptimizationSettings.CombineFilterMapDelegates <- false
-    for i in 0..2 do
+    for i in 0..9 do
       perf count "Series NonOpt Add/divide Chained" (fun _ ->
         let ro = ((smap.Value + 123456.0)/789.0)*10.0
         for i in ro do
@@ -821,7 +820,7 @@ module CollectionsBenchmarks =
       )
 
 
-    for i in 0..2 do
+    for i in 0..9 do
       perf count "LINQ Add/divide Chained" (fun _ ->
         let ro = smap.Value.Select(fun x -> x.Value + 123456.0).Select(fun x -> x/789.0).Select(fun x -> x*10.0)
         for i in ro do
@@ -829,7 +828,7 @@ module CollectionsBenchmarks =
           ()
       )
 
-    for i in 0..2 do
+    for i in 0..9 do
       perf count "LINQ Add/Delete Inline" (fun _ ->
         let ro = smap.Value.Select(fun x -> ((x.Value + 123456.0)/789.0)*10.0)
         for i in ro do
@@ -837,7 +836,7 @@ module CollectionsBenchmarks =
           ()
       )
 
-    for i in 0..2 do
+    for i in 0..9 do
       perf count "Streams Add/divide Chained" (fun _ ->
         let ro =
           smap.Value
@@ -852,7 +851,7 @@ module CollectionsBenchmarks =
           ()
       )
 
-    for i in 0..2 do
+    for i in 0..9 do
       perf count "Streams Add/divide Inline" (fun _ ->
         let ro =
           smap.Value
@@ -924,6 +923,10 @@ module CollectionsBenchmarks =
   [<Test>]
   let SeriesNestedMap_run() = SeriesNestedMap(1000000L)
 
+  [<Test>]
+  let SeriesNestedMap_run_mult() =
+    for r in 0..9 do
+      SeriesNestedMap_run()
 
   let CompareFunctionalBindCursorWithCursorBind(count:int64) =
     // FunctionalBind is c.5x slower, probably due to inability to inline delegates
