@@ -29,6 +29,7 @@ open System.Runtime.CompilerServices
 open System.Threading
 open System.Threading.Tasks
 open System.Runtime.CompilerServices
+open System.Buffers
 
 open Spreads
 open Spreads.Buffers
@@ -1636,8 +1637,8 @@ and
               false
           else // source order change
             // NB: we no longer recover on order change, some cursor require special logic to recover
-            raise (new OutOfOrderKeyException<'K>(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
-
+            //raise (new OutOfOrderKeyException<'K>(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
+            false
         /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source.nextVersion)
@@ -1950,8 +1951,10 @@ and
           // we create a continuation Task that does synchronous and very fast
           // work inside its body, so it is a very small and short-lived object
           // and .NET's GC is best for this.
-          let returnTask = activeTcs.Task.ContinueWith(this.MoveNextContinuation)
-          if((ct = CancellationToken.None || ct = Unchecked.defaultof<CancellationToken>)) then
+          // TODO Check if we need to use RunContinuationsAsynchronously from 4.6
+          // https://blogs.msdn.microsoft.com/pfxteam/2015/02/02/new-task-apis-in-net-4-6/
+          let returnTask = activeTcs.Task.ContinueWith(this.MoveNextContinuation, TaskContinuationOptions.DenyChildAttach)
+          if(not ct.CanBeCanceled) then // (ct = CancellationToken.None || ct = Unchecked.defaultof<CancellationToken>)) then
             // hot path
             returnTask.Unwrap()
           else
