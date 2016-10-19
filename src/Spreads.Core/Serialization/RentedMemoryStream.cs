@@ -19,6 +19,7 @@
 
 using System.IO;
 using Spreads.Buffers;
+using System.Buffers;
 
 namespace Spreads.Serialization
 {

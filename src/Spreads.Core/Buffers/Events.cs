@@ -20,11 +20,11 @@
 // THE SOFTWARE.
 // ---------------------------------------------------------------------
 
+using System;
+using System.Diagnostics.Tracing;
+
 namespace Spreads.Buffers
 {
-    using System;
-    using System.Diagnostics.Tracing;
-
     public sealed partial class RecyclableMemoryStreamManager
     {
         [EventSource(Name = "Microsoft-IO-RecyclableMemoryStream", Guid = "{B80CD4E4-890E-468D-9CBA-90EB7C82DFC7}")]

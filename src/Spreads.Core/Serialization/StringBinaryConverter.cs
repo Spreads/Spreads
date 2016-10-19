@@ -23,6 +23,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using Spreads.Buffers;
+using System.Buffers;
 
 namespace Spreads.Serialization
 {

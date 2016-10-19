@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Spreads;
 using Spreads.Buffers;
+using System.Buffers;
 
 namespace Spreads.Experimental {
 

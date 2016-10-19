@@ -1,10 +1,10 @@
 ﻿{
-	"version": "0.6.0-alpha1",
+	"version": "0.6.0-alpha3",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 	"dependencies": {
-		"Spreads.Extensions": "0.6.0-alpha1",
-		"Spreads.Collections": "0.6.0-alpha1",
-		"Spreads.Core": "0.6.0-alpha1"
+		"Spreads.Extensions": "0.6.0-alpha3",
+		"Spreads.Collections": "0.6.0-alpha3",
+		"Spreads.Core": "0.6.0-alpha3"
 	},
 
 	"frameworks": {

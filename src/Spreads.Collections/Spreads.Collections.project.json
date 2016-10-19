@@ -1,5 +1,11 @@
 ﻿{
-	"runtimes": { "win": {} },
-	"frameworks": { "net451": {} }
+  "runtimes": {
+    "win": {}
+  },
+  "frameworks": {
+    "net451": {}
+  },
+  "dependencies": {
+    "System.Buffers": "4.0.0"
+  }
 }
-

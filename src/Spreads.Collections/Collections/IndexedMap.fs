@@ -27,7 +27,7 @@ open System.Collections.Generic
 open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
-
+open System.Buffers
 
 open Spreads
 open Spreads.Buffers

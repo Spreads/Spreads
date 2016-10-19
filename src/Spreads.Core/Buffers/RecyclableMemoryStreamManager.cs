@@ -20,16 +20,16 @@
 // THE SOFTWARE.
 // ---------------------------------------------------------------------
 
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Threading;
+using System.Linq;
+
 namespace Spreads.Buffers
 {
-    using System;
-    using System.Collections.Concurrent;
-    using System.Collections.Generic;
-    using System.Diagnostics.CodeAnalysis;
-    using System.IO;
-    using System.Linq;
-    using System.Threading;
-
     /// <summary>
     /// Manages pools of RecyclableMemoryStream objects.
     /// </summary>

@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Buffers;
 using Spreads.Slices;
+using System.Buffers;
 
 namespace Spreads.Collections {
     public interface IIndex<T> {

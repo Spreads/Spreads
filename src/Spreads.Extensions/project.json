@@ -1,9 +1,9 @@
 ﻿{
-	"version": "0.6.0-alpha1",
+	"version": "0.6.0-alpha3",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 	"dependencies": {
-		"Spreads.Core": "0.6.0-alpha1",
-		"Spreads.Collections": "0.6.0-alpha1",
+		"Spreads.Core": "0.6.0-alpha3",
+		"Spreads.Collections": "0.6.0-alpha3",
 		"Spreads.SQLite": "1.1.0",
 		"Dapper": "1.50.1",
 		"Newtonsoft.Json": "9.0.1",
@@ -48,9 +48,7 @@
 		],
 		"compile": {
 			"includeFiles": [
-				"../../lib/Microsoft.IO.RecyclableMemoryStream/src/Events.cs",
-				"../../lib/Microsoft.IO.RecyclableMemoryStream/src/RecyclableMemoryStream.cs",
-				"../../lib/Microsoft.IO.RecyclableMemoryStream/src/RecyclableMemoryStreamManager.cs",
+				
 			]
 		},
 

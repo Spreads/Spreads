@@ -52,6 +52,7 @@
     <Compile Include="Spreads.fs" />
     <None Include="Script.fsx" />
     <None Include="Spreads.project.json" />
+    <None Include="project.json" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj">

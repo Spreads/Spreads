@@ -29,6 +29,7 @@ open System.Runtime.CompilerServices
 open System.Threading
 open System.Threading.Tasks
 open System.Runtime.CompilerServices
+open System.Buffers
 
 open Spreads
 open Spreads.Buffers

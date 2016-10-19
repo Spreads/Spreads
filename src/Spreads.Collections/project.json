@@ -1,6 +1,6 @@
 {
 
-	"version": "0.6.0-beta2",
+	"version": "0.6.0-alpha3",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 
 	"buildOptions": {
@@ -42,6 +42,7 @@
 				"Collections/SortedMap.Obsolete.fs",
 				"Collections/IndexedMap.fs",
 				"Collections/SortedMap.fs",
+				"Collections/SortedMapNoSemaphore.fs",
 				"Collections/SortedChunkedMap.fs",
 				"Collections/DataStream.fs",
 				"Cursors/BindCursor.fs",
@@ -62,7 +63,8 @@
 		}
 	},
 	"dependencies": {
-		"Spreads.Core": "0.6.0-beta2"
+		"Spreads.Core": "0.6.0-alpha3",
+		"System.Buffers": "4.0.0"
 	},
 	"tools": {
 		"dotnet-compile-fsc": {
@@ -74,7 +76,7 @@
 		"dotnet-mergenupkg": { "version": "1.0.*" }
 	},
 	"frameworks": {
-		"net451": {
+		"net460": {
 			"dependencies": {
 				"FSharp.Core": "4.0.0.1"
 			},

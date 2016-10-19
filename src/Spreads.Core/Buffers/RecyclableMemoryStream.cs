@@ -20,10 +20,12 @@
 // THE SOFTWARE.
 // ---------------------------------------------------------------------
 
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Diagnostics;
+
 namespace Spreads.Buffers {
-    using System;
-    using System.IO;
-    using System.Collections.Generic;
 
     using Events = RecyclableMemoryStreamManager.Events;
 
