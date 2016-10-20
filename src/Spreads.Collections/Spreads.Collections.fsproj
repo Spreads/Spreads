@@ -87,9 +87,11 @@
     <Compile Include="Common\Exceptions.fs" />
     <Compile Include="Common\OptionalValue.fs" />
     <Compile Include="Common\GenericOperators.fs" />
+    <Compile Include="Common\SIMDArrayUtils.fs" />
+    <Compile Include="Common\SIMDArray.fs" />
     <Compile Include="Interfaces.fs" />
     <Compile Include="ISeriesExtensions.fs" />
-    <Compile Include="MathProvider.fs" />
+    <Compile Include="OptimizationSettings.fs" />
     <Compile Include="Spreads.Series.fs" />
     <Compile Include="BaseCursor.fs" />
     <Compile Include="Collections\Collections.fs" />
@@ -120,7 +122,6 @@
     <Compile Include="Cursors\LaggedCursors.fs" />
     <Compile Include="SeriesExtensions.fs" />
     <Compile Include="Panel.fs" />
-    <Compile Include="MathProviderImpl.fs" />
     <Compile Include="Spreads.Series.2.fs" />
     <None Include="Script1.fsx" />
     <Content Include="app.config" />
@@ -144,6 +145,9 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Data.Linq" />
     <Reference Include="System.Numerics" />
+    <Reference Include="System.Numerics.Vectors">
+      <HintPath>..\Spreads.Core\bin\RELEASE\net451\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

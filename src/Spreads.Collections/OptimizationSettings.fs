@@ -53,29 +53,6 @@ type internal OptimizationSettings() =
   static member TraceVerbose(message) = System.Diagnostics.Trace.WriteLineIf(OptimizationSettings.Verbose, message)
 
 
-// It is tempting to use ILinearAlgebraProvider from MathNet.Numerics, but there are not so many members to wrap around it;
-// avoid external binary dependencies in this project
-
-
-
-// TODO remove from the collections project
-
-/// Fast operations on numeric arrays
-type IVectorMathProvider =
-  /// TODO use start and length since we will work with buffer of greater length than payload
-  /// 
-  abstract AddVectors: x:'T[] * y:'T[] * result:'T[] -> unit
-  abstract MapBatch<'K,'V,'V2> : mapF:('V->'V2) * batch: IReadOnlyOrderedMap<'K,'V> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>> -> bool
-  abstract AddBatch<'K> : scalar:double * batch: IReadOnlyOrderedMap<'K,double> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,double>> -> bool
-  abstract AddBatch<'K> : left: IReadOnlyOrderedMap<'K,double> * right: IReadOnlyOrderedMap<'K,double> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,double>> -> bool
-
-
-[<SealedAttribute;AbstractClassAttribute>]
-type VectorMathProvider() =
-  /// An implementation of IVectorMathProvider that is used internally for vectorized calculations
-  static member val Default = Unchecked.defaultof<IVectorMathProvider> with get, set
-
-
 
 
 
