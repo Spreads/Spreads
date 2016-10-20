@@ -194,7 +194,7 @@ and RowPanel<'TRowKey,'TColumnKey, 'TValue> (rows:Series<'TRowKey, 'TValue[]>, c
           let res = SortedMap.OfSortedKeysAndValues(columnKeys, vArr) :> Series<'TColumnKey, 'TValue>
           // TODO IsMutable <- false
           res
-      ))
+      ), Missing)
     :> ICursor<'TRowKey, Series<'TColumnKey, 'TValue>>
 
   // By being Series<>, Panel already implements IROOM for Rows

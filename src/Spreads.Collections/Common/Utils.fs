@@ -58,6 +58,7 @@ module TestUtils =
 // TODO clean up this from unused snippets
 
 [<AutoOpen>]
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module internal Utils =
   // locking using use keyword
   //[<ObsoleteAttribute("When performance is *critical*, consider using enter/exit with try/catch because this shortcut allocates new IDisposable")>]

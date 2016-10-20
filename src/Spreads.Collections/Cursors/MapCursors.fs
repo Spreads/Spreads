@@ -41,10 +41,10 @@ type internal MapValuesWithKeysCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'
   let f : Func<'K,'V,'V2> = f
 
   member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
-  member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> =
+  member this.CurrentBatch: ISeries<'K,'V2> =
     let factory = Func<_>(cursor.CurrentBatch.GetCursor)
     let c() = new MapValuesWithKeysCursor<'K,'V,'V2>(factory, f) :> ICursor<'K,'V2>
-    CursorSeries(Func<_>(c)) :> IReadOnlyOrderedMap<'K,'V2>
+    CursorSeries(Func<_>(c)) :> ISeries<'K,'V2>
 
   member this.CurrentKey: 'K = cursor.CurrentKey
   member this.CurrentValue: 'V2 = f.Invoke(cursor.CurrentKey, cursor.CurrentValue)
@@ -70,7 +70,7 @@ type internal MapValuesWithKeysCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'
 
   interface ICursor<'K,'V2> with
     member this.Comparer with get() = cursor.Comparer
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = this.CurrentBatch
+    member this.CurrentBatch = this.CurrentBatch
     member this.CurrentKey: 'K = this.CurrentKey
     member this.CurrentValue: 'V2 = this.CurrentValue
     member this.IsContinuous: bool = cursor.IsContinuous

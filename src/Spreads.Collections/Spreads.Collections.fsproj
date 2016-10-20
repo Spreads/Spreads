@@ -89,6 +89,7 @@
     <Compile Include="Common\GenericOperators.fs" />
     <Compile Include="Common\SIMDArrayUtils.fs" />
     <Compile Include="Common\SIMDArray.fs" />
+    <Compile Include="Common\Mappers.fs" />
     <Compile Include="Interfaces.fs" />
     <Compile Include="ISeriesExtensions.fs" />
     <Compile Include="OptimizationSettings.fs" />

@@ -26,6 +26,7 @@ using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using Spreads.Collections;
+using Spreads.Utils;
 
 namespace Spreads.Storage {
 

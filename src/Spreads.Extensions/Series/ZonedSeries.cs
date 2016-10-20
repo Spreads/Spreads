@@ -57,7 +57,7 @@ namespace Spreads {
             }
         }
 
-        public IReadOnlyOrderedMap<DateTime, V> CurrentBatch {
+        public ISeries<DateTime, V> CurrentBatch {
             get
             {
                 //return new CursorSeries<DateTime, V>(() => new ZonedCursor(_cursor.Clone, _timeZone));

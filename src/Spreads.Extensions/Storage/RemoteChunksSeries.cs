@@ -358,7 +358,7 @@ namespace Spreads.Storage {
                 }
             }
 
-            public IReadOnlyOrderedMap<K, SortedMap<K, V>> CurrentBatch
+            public ISeries<K, SortedMap<K, V>> CurrentBatch
             {
                 get
                 {

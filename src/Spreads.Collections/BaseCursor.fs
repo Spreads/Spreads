@@ -163,7 +163,7 @@ type BaseCursorOld<'K,'V>
         | _ -> falseTask // has no values and will never have because is not IUpdateable or IsMutable=false
 
   abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>
-  abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get
+  abstract CurrentBatch: ISeries<'K,'V> with get
   abstract Source : ISeries<'K,'V> with get
   override this.Source with get() = source :> ISeries<'K,'V>
   abstract Clone: unit -> ICursor<'K,'V>
@@ -210,7 +210,7 @@ type BaseCursorOld<'K,'V>
 
   interface ICursor<'K,'V> with
     member this.Comparer with get() = this.Comparer
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
+    member this.CurrentBatch: ISeries<'K,'V> = this.CurrentBatch
     member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatchAsync(cancellationToken)
     //member this.IsBatch with get() = this.IsBatch
     member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
@@ -294,7 +294,7 @@ type BaseCursor<'K,'V>(source:Series<'K,'V>) as this =
     else falseTask
 
   abstract MoveNextBatchAsync: cancellationToken:CancellationToken  -> Task<bool>
-  abstract CurrentBatch: IReadOnlyOrderedMap<'K,'V> with get
+  abstract CurrentBatch: ISeries<'K,'V> with get
   abstract Source : ISeries<'K,'V> with get
   override this.Source with get() = source :> ISeries<'K,'V>
   abstract Clone: unit -> ICursor<'K,'V>
@@ -349,7 +349,7 @@ type BaseCursor<'K,'V>(source:Series<'K,'V>) as this =
 
   interface ICursor<'K,'V> with
     member this.Comparer with get() = this.Comparer
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
+    member this.CurrentBatch = this.CurrentBatch
     member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatchAsync(cancellationToken)
     //member this.IsBatch with get() = this.IsBatch
     member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
@@ -415,7 +415,7 @@ type MapCursor<'K,'V>(map:IReadOnlyOrderedMap<'K,'V>) as this =
 
   override this.Reset() = isReset <- true
 
-  override this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = raise (NotSupportedException("IReadOnlyOrderedMap do not support batches, override the method in a map implementation"))
+  override this.CurrentBatch = raise (NotSupportedException("IReadOnlyOrderedMap do not support batches, override the method in a map implementation"))
   override this.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> = raise (NotSupportedException("IReadOnlyOrderedMap do not support batches, override the method in a map implementation"))
 
   override this.Source with get() = map :> ISeries<'K,'V>

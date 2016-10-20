@@ -124,8 +124,10 @@ type OptionalValueExtensions =
 /// Provides various helper functions for using the `OptionalValue<T>` type from F#
 /// (The functions are similar to those in the standard `Option` module).
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+[<AutoOpenAttribute>]
 module OptionalValue = 
-
+  let Missing<'T> = OptionalValue<'T>.Missing
+  let inline Present(value) = OptionalValue(value)
   /// If the `OptionalValue<T>` does not contain a value, then returns a new 
   /// `OptionalValue<R>.Empty`. Otherwise, returns the result of applying the 
   /// function `f` to the value contained in the provided optional value.

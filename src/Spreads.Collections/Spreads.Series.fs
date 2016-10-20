@@ -29,6 +29,7 @@ open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
 open System.Threading
 open System.Threading.Tasks
+open System.Numerics
 
 open Spreads
 open Spreads.Collections
@@ -52,23 +53,24 @@ open Spreads.Collections
 [<Interface>]
 [<AllowNullLiteral>]
 type internal ICanMapSeriesValues<'K,'V> =
-  abstract member Map: mapFunc:Func<'V,'V2> -> Series<'K,'V2>
+  abstract member Map: mapFunc:('V->'V2) * fBatch:(ArraySegment<'V>->ArraySegment<'V2>) opt -> Series<'K,'V2>
 
 and
   [<AllowNullLiteral>]
   Series internal() =
 #if NET451
     // NB this is ugly, but rewriting the whole project structure is uglier // TODO "proper" methods DI
-    static do
-      let moduleInfo = 
-        typeof<Series>.GetAssembly().GetType("Spreads.Initializer")
-      //let ty = typeof<BaseSeries>
-      let mi = moduleInfo.GetMethod("init", (Reflection.BindingFlags.Static ||| Reflection.BindingFlags.NonPublic) )
-      mi.Invoke(null, [||]) |> ignore
+//    static do
+//      let moduleInfo = 
+//        typeof<Series>.GetAssembly().GetType("Spreads.Initializer")
+//      //let ty = typeof<BaseSeries>
+//      let mi = moduleInfo.GetMethod("init", (Reflection.BindingFlags.Static ||| Reflection.BindingFlags.NonPublic) )
+//      mi.Invoke(null, [||]) |> ignore
 #else
-    static do
-      typeof<Series>.GetAssembly().InvokeMethod("Spreads.Initializer", "init") 
+//    static do
+//      typeof<Series>.GetAssembly().InvokeMethod("Spreads.Initializer", "init") 
 #endif
+  do ()
 
 and
   [<AllowNullLiteral>]
@@ -256,30 +258,43 @@ and
       member this.Values with get() = this.Values
           
 
+//    static member inline private batchFunction (f:Func<'V,'V2>) (vF:Vector<'T> -> Vector<'T2>) : Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> =
+//      let f (source:IReadOnlyOrderedMap<'K,'V>) : IReadOnlyOrderedMap<'K,'V2> =
+//        match source with
+//        | :? IArrayBasedMap<'K,'V> as arrayMap -> failwith ""
+//        | _ -> 
+//          let map = new SortedMap<'K,'V2>()
+//          for kvp in batch do
+//              let newValue = mapF(kvp.Value)
+//              map.AddLast(kvp.Key, newValue)
+//          if map.size > 0 then
+//            value <- map :> IReadOnlyOrderedMap<'K,'V2>
+//            true
+//          else false
+//          null
+//      if f <> null then Func<_,_>(f) else null
+
     // TODO! (perf) add batching where it makes sense
     // TODO! (perf) how to use batching with selector combinations?
     /// Used to implement scalar operators which are essentially a map application
-    static member inline private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:Func<'V,'V2>, ?fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = 
+    
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    static member inline private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:'V->'V2, fBatch:(ArraySegment<'V>->ArraySegment<'V2>) opt) = 
       let defaultMap() =
-        let mapF = mapFunc
-//        let fBatch =
-//          if fBatch.IsSome then OptionalValue(fBatch.Value) 
-//          else 
-//            if OptimizationSettings.AlwaysBatch then
-//              let fBatch' b =
-//                let mutable v = Unchecked.defaultof<_>
-//                let ok = VectorMathProvider.Default.MapBatch(mapFunc.Invoke, b, &v)
-//                v
-//              OptionalValue(Func<_,_>(fBatch'))
-//            else None
-        CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(source.GetCursor), mapF, fBatch) :> ICursor<_,_>) :> Series<'K,'V2>
+        CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(source.GetCursor), mapFunc, Unchecked.defaultof<_>) :> ICursor<_,_>) :> Series<'K,'V2>
       if OptimizationSettings.CombineFilterMapDelegates then
         match box source with
-        | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc)
+        | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc, fBatch)
         | _ ->  defaultMap()
       else defaultMap()
+    
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    static member inline private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:'V->'V2) = 
+      Series.ScalarOperatorMap<'K,'V,'V2>(source, mapFunc, Missing)
 
-
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    static member inline private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:'V->'V2, fBatch:(ArraySegment<'V>->ArraySegment<'V2>)) = 
+      Series.ScalarOperatorMap<'K,'V,'V2>(source, mapFunc, Present(fBatch))
 
     // TODO! (perf) optimize ZipN for 2, or reimplement Zip for 'V/'V2->'R, see commented out cursor below
     static member inline private BinaryOperatorMap<'K,'V,'R>(source:Series<'K,'V>,other:Series<'K,'V>, mapFunc:Func<'V,'V,'R>) = 
@@ -293,9 +308,9 @@ and
 
     // int64
     static member (+) (series:Series<'K,int64>, addition:int64) : Series<'K,int64> = 
-      Series.ScalarOperatorMap(series, fun x -> x + addition)
+      Series.ScalarOperatorMap(series, ScalarMap.addValue(addition), ScalarMap.addSegment(addition))
     static member (+) (addition:int64, series:Series<'K,int64>) : Series<'K,int64> = 
-       Series.ScalarOperatorMap(series, fun x -> x + addition)
+      Series.ScalarOperatorMap(series, ScalarMap.addValue(addition), ScalarMap.addSegment(addition))
     static member (~+) (series:Series<'K,int64>) : Series<'K,int64> = 
        Series.ScalarOperatorMap(series, fun x -> x)
     static member (-) (series:Series<'K,int64>, subtraction:int64) : Series<'K,int64> = 
@@ -361,9 +376,9 @@ and
 
     // int32
     static member (+) (series:Series<'K,int32>, addition:int32) : Series<'K,int32> = 
-      Series.ScalarOperatorMap(series, fun x -> x + addition)
+      Series.ScalarOperatorMap(series, ScalarMap.addValue(addition), ScalarMap.addSegment(addition))
     static member (+) (addition:int32, series:Series<'K,int32>) : Series<'K,int32> = 
-       Series.ScalarOperatorMap(series, fun x -> x + addition)
+      Series.ScalarOperatorMap(series, ScalarMap.addValue(addition), ScalarMap.addSegment(addition))
     static member (~+) (series:Series<'K,int32>) : Series<'K,int32> = 
        Series.ScalarOperatorMap(series, fun x -> x)
     static member (-) (series:Series<'K,int32>, subtraction:int32) : Series<'K,int32> = 
@@ -428,9 +443,9 @@ and
 
     // float
     static member (+) (series:Series<'K,float>, addition:float) : Series<'K,float> = 
-      Series.ScalarOperatorMap(series, fun x -> x + addition)
+      Series.ScalarOperatorMap(series, ScalarMap.addValue(addition), ScalarMap.addSegment(addition))
     static member (+) (addition:float, series:Series<'K,float>) : Series<'K,float> = 
-       Series.ScalarOperatorMap(series, fun x -> x + addition)
+       Series.ScalarOperatorMap(series, ScalarMap.addValue(addition), ScalarMap.addSegment(addition))
     static member (~+) (series:Series<'K,float>) : Series<'K,float> = 
        Series.ScalarOperatorMap(series, fun x -> x)
     static member (-) (series:Series<'K,float>, subtraction:float) : Series<'K,float> = 
@@ -495,14 +510,14 @@ and
 
 
     // float32
-    static member (+) (series:Series<'K,float32>, addition:float32) : Series<'K,float32> = 
-      Series.ScalarOperatorMap(series, fun x -> x + addition)
-    static member (+) (addition:float32, series:Series<'K,float32>) : Series<'K,float32> = 
-       Series.ScalarOperatorMap(series, fun x -> x + addition)
-    static member (~+) (series:Series<'K,float32>) : Series<'K,float32> = 
-       Series.ScalarOperatorMap(series, fun x -> x)
+    static member (+) (series:Series<'K,float32>, addition:float32) : Series<'K,float32> =
+      Series.ScalarOperatorMap(series, ScalarMap.addValue(addition), ScalarMap.addSegment(addition))
+    static member (+) (addition:float32, series:Series<'K,float32>) : Series<'K,float32> =
+      Series.ScalarOperatorMap(series, ScalarMap.addValue(addition), ScalarMap.addSegment(addition))
+    static member (~+) (series:Series<'K,float32>) : Series<'K,float32> = series
+      //Series.ScalarOperatorMap(series, fun x -> x)
     static member (-) (series:Series<'K,float32>, subtraction:float32) : Series<'K,float32> = 
-       Series.ScalarOperatorMap(series, fun x -> x - subtraction)
+      Series.ScalarOperatorMap(series, fun x -> x - subtraction)
     static member (-) (subtraction:float32, series:Series<'K,float32>) : Series<'K,float32> = 
        Series.ScalarOperatorMap(series, fun x -> x - subtraction)
     static member (~-) (series:Series<'K,float32>) : Series<'K,float32> = 
@@ -654,17 +669,17 @@ and
     override this.GetCursor() = cursorFactory.Invoke()
 
     interface ICanMapSeriesValues<'K,'V> with
-      member this.Map<'V2>(f2:Func<'V,'V2>): Series<'K,'V2> = 
+      member this.Map<'V2>(f2, fBatch): Series<'K,'V2> = 
         let cursor = cursorFactory.Invoke()
         match cursor with
-        | :? ICanMapSeriesValues<'K,'V> as mappable -> mappable.Map(f2)
+        | :? ICanMapSeriesValues<'K,'V> as mappable -> mappable.Map(f2, fBatch)
         | _ -> 
           CursorSeries(fun _ ->
                 // NB #11 we had (fun _ -> cursor) as factory, but that was a closure over cursor instance
                 // with the current design, we cannot reuse the cursor allocated to check its interface implementation
                 // we must dispose it and provide factory here
                 cursor.Dispose()
-                new BatchMapValuesCursor<_,_,_>(cursorFactory, f2) :> ICursor<_,_>
+                new BatchMapValuesCursor<_,_,_>(cursorFactory, f2, Missing) :> ICursor<_,_>
               ) :> Series<_,_>
 
 
@@ -672,39 +687,47 @@ and
   // NB! Remember that cursors are single-threaded
   /// Map values to new values, batch mapping if that makes sense (for simple operations additional logic overhead is usually bigger than)
   [<SealedAttribute>]
-  internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>, fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> option)=
+  internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:('V->'V2), fBatch:(ISeries<'K,'V>->Series<'K,'V2>) opt)=
     let mutable cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
     
-    let f : Func<'V,'V2> = f
-    let fBatch = fBatch
     // for forward-only enumeration this could be faster with native math
     // any non-forward move makes this false and we fall back to single items
-    let mutable preferBatches = fBatch.IsSome
+    let mutable preferBatches = fBatch.IsPresent <> Unchecked.defaultof<_>
     let mutable batchStarted = false
-    let mutable batch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
+    let mutable batch = Unchecked.defaultof<ISeries<'K,'V2>>
     let mutable batchCursor = Unchecked.defaultof<ICursor<'K,'V2>>
-    let queue = if preferBatches then Queue<Task<_>>() else Unchecked.defaultof<_>
+    let queue = if preferBatches then Queue<Task<_>>(Environment.ProcessorCount + 1) else Unchecked.defaultof<_>
 
-    new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, None)
-    new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>,fBatch:Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>>) = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, Some(fBatch))
+    new(cursorFactory:Func<ICursor<'K,'V>>, f:('V->'V2)) = 
+      new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, Missing)
 
+    new(cursorFactory:Func<ICursor<'K,'V>>, f:Func<'V,'V2>) =  new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f.Invoke, Missing)
 
     member this.CurrentKey: 'K = 
       if batchStarted then batchCursor.CurrentKey
       else cursor.CurrentKey
     member this.CurrentValue: 'V2 = 
       if batchStarted then batchCursor.CurrentValue
-      else f.Invoke(cursor.CurrentValue)
+      else f(cursor.CurrentValue)
     member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
 
-    member private this.MapBatch(batch:IReadOnlyOrderedMap<'K,'V>) =
-      if preferBatches then
-        fBatch.Value.Invoke(batch)
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member private this.MapBatch(batch:ISeries<'K,'V>) =
+      // See ICanMapSeriesValues implementatio below - func could be present, but return null
+      let batchedResult = 
+        if preferBatches then 
+          let batchedResult' = fBatch.Present(batch)
+          if batchedResult' = null then preferBatches <- false
+          batchedResult'
+        else null
+      
+      if batchedResult <> null then batchedResult
       else
         let factory = Func<_>(batch.GetCursor)
         let c() = new BatchMapValuesCursor<'K,'V,'V2>(factory, f, fBatch) :> ICursor<'K,'V2>
-        CursorSeries(Func<_>(c)) :> IReadOnlyOrderedMap<'K,'V2>
+        CursorSeries(Func<_>(c)) :> Series<'K,'V2>
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member private this.StartNextBatch() = 
         Task.Run(fun _ ->
             cursor.MoveNextBatch(CancellationToken.None)
@@ -730,9 +753,7 @@ and
                 CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default).Result
         )
 
-    member this.CurrentBatch
-      with get() : IReadOnlyOrderedMap<'K,'V2> =
-        batch
+    member this.CurrentBatch with get() : ISeries<'K,'V2> = batch
 
     member this.MoveNext(): bool = 
       if not preferBatches then cursor.MoveNext()
@@ -782,7 +803,7 @@ and
     member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> =
       if queue.Count = 0 then // there is no outstanding move
         this.StartNextBatch().ContinueWith(
-            (fun (antecedant : Task<IReadOnlyOrderedMap<'K,'V2> option>) ->
+            (fun (antecedant : Task<Series<'K,'V2> option>) ->
                 if antecedant.Result.IsSome then 
                   batch <- antecedant.Result.Value
                   true
@@ -797,7 +818,7 @@ and
 
         Trace.Assert(taskHolder <> Unchecked.defaultof<_>)
         taskHolder.ContinueWith(
-          (fun (antecedant : Task<IReadOnlyOrderedMap<'K,'V2> option>) ->
+          (fun (antecedant : Task<Series<'K,'V2> option>) ->
               if antecedant.Result.IsSome then 
                 batch <- antecedant.Result.Value
                 true
@@ -814,11 +835,11 @@ and
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =
       let mutable v = Unchecked.defaultof<_>
       let ok = cursor.TryGetValue(key, &v)
-      if ok then value <- f.Invoke(v)
+      if ok then value <- f(v)
       ok
     
     member this.Reset() = 
-      preferBatches <- fBatch.IsSome
+      preferBatches <- fBatch.IsPresent
       batchStarted <- false
       batch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
       if batchCursor <> Unchecked.defaultof<ICursor<'K,'V2>> then 
@@ -841,7 +862,7 @@ and
 
     interface ICursor<'K,'V2> with
       member this.Comparer with get() = cursor.Comparer
-      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = this.CurrentBatch
+      member this.CurrentBatch: ISeries<'K,'V2> = this.CurrentBatch
       member this.CurrentKey: 'K = this.CurrentKey
       member this.CurrentValue: 'V2 = this.CurrentValue
       member this.IsContinuous: bool = cursor.IsContinuous
@@ -859,17 +880,19 @@ and
       member this.Clone() = this.Clone() :> ICursor<'K,'V2>
     
     interface ICanMapSeriesValues<'K,'V2> with
-      member this.Map<'V3>(f2:Func<'V2,'V3>): Series<'K,'V3> = 
-        // NB CoreUtils.CombineSelectors is visibly faster for operators
-        let func = CoreUtils.CombineMaps(f, f2) //  Func<'V,'V3>(fun x -> f2.Invoke(f.Invoke(x))) // NB (WTF?) this is much slower in the benchmark, but slightly faster with microbench with doubles : Func<'V,'V3>(f.Invoke >> f2.Invoke)  //
-        //NB! Expression is slower by 30%
-        //let invoker =
-        //  let arg = Expression.Parameter(typeof<'V>, "arg")
-        //  let invokeExp = Expression.Invoke(Expression.Constant(func), arg)
-        //  let lambda = Expression.Lambda<Func<'V,'V3>>(invokeExp, arg)
-        //  lambda.Compile()
-        let combinedF : Func<'V,'V3> = func
-        CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V3>(cursorFactory, combinedF) :> ICursor<_,_>) :> Series<'K,'V3>
+      member this.Map<'V3>(f2, fBatch2): Series<'K,'V3> = 
+        let func = f >> f2
+        let batchFunc =
+          if fBatch.IsPresent && fBatch2.IsPresent then
+            let f source = 
+              let mapped1 = fBatch.Present(source)
+              match box mapped1 with
+              | :? ICanMapSeriesValues<'K,'V2> as mappable ->
+                mappable.Map(f2, fBatch2)
+              | _ -> null
+            Present(f)
+          else Missing
+        CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V3>(cursorFactory, func, batchFunc) :> ICursor<_,_>) :> Series<'K,'V3>
 
 
 // TODO! (perf) see text in the Obsolete attribute below. We must rewrite this and test with random inputs as in ZipN. This is a hot path and optimizing this is one of the priorities. However, ZipN is not that slow and we should implement other TODO!s first.
@@ -1583,7 +1606,7 @@ and
 
     interface ICursor<'K,'V> with
       member this.Comparer with get() = cmp
-      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>>
+      member this.CurrentBatch: ISeries<'K,'V> = Unchecked.defaultof<ISeries<'K,'V>>
       member this.CurrentKey: 'K = this.CurrentKey
       member this.CurrentValue: 'V = this.CurrentValue
       member this.IsContinuous: bool = this.IsContinuous
@@ -1608,8 +1631,8 @@ and
   Zip2Cursor<'K,'V,'V2,'R>(cursorFactoryL:Func<ICursor<'K,'V>>,cursorFactoryR:Func<ICursor<'K,'V2>>, mapF:Func<'K,'V,'V2,'R>) =
     inherit ZipNCursor<'K,ValueTuple<'V,'V2>,'R>(
       Func<'K, ValueTuple<'V,'V2>[],'R>(fun (k:'K) (tArr:ValueTuple<'V,'V2>[]) -> mapF.Invoke(k, tArr.[0].Value1, tArr.[1].Value2)), 
-      (fun () -> new BatchMapValuesCursor<_,_,_>(cursorFactoryL, Func<_,_>(fun (x:'V) -> ValueTuple<'V,'V2>(x, Unchecked.defaultof<'V2>)), None) :> ICursor<'K,ValueTuple<'V,'V2>>), 
-      (fun () -> new BatchMapValuesCursor<_,_,_>(cursorFactoryR, Func<_,_>(fun (x:'V2) -> ValueTuple<'V,'V2>(Unchecked.defaultof<'V>, x)), None) :> ICursor<'K,ValueTuple<'V,'V2>>)
+      (fun () -> new BatchMapValuesCursor<_,_,_>(cursorFactoryL, (fun (x:'V) -> ValueTuple<'V,'V2>(x, Unchecked.defaultof<'V2>)), Missing) :> ICursor<'K,ValueTuple<'V,'V2>>), 
+      (fun () -> new BatchMapValuesCursor<_,_,_>(cursorFactoryR, (fun (x:'V2) -> ValueTuple<'V,'V2>(Unchecked.defaultof<'V>, x)), Missing) :> ICursor<'K,ValueTuple<'V,'V2>>)
     )
 
 
@@ -1874,7 +1897,7 @@ and
     member this.Current with get () = KVP(this.CurrentKey, this.CurrentValue)
 
     /// Stores current batch for a succesful batch move. Value is defined only after successful MoveNextBatch
-    member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'R>> with get, set
+    member val CurrentBatch = Unchecked.defaultof<ISeries<'K,'R>> with get, set
 
     member this.Reset() = 
       hasValidState <- false
@@ -2145,7 +2168,7 @@ and
 
     interface ICursor<'K,'R> with
       member this.Comparer with get() = cmp
-      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'R> = this.CurrentBatch
+      member this.CurrentBatch: ISeries<'K,'R> = this.CurrentBatch
       member this.CurrentKey: 'K = this.CurrentKey
       member this.CurrentValue: 'R = this.CurrentValue
       member this.IsContinuous: bool = this.IsContinuous

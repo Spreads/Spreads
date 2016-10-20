@@ -722,14 +722,14 @@ and
 
     member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
     member this.IsContinuous with get() = false
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
+    member this.CurrentBatch: ISeries<'K,'V> = 
       let entered = enterLockIf this.source.SyncRoot  this.source.IsSynchronized
       try
         // TODO! how to do this correct for mutable case. Looks like impossible without copying
         if this.isBatch then
           Trace.Assert(this.index = this.source.Count - 1)
           Trace.Assert(this.source.IsReadOnly)
-          this.source :> IReadOnlyOrderedMap<'K,'V>
+          this.source :> ISeries<'K,'V>
         else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
       finally
         exitLockIf this.source.SyncRoot entered
@@ -844,7 +844,7 @@ and
 
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.source.Comparer
-      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
+      member this.CurrentBatch = this.CurrentBatch
       member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatch(cancellationToken)
       member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
       member this.MoveFirst():bool = this.MoveFirst()

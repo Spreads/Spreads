@@ -693,8 +693,8 @@ type IndexedMap<'K,'V> // when 'K:equality
     { 
     new BaseCursor<'K,'V>(this) with
       override this.IsContinuous with get() = false
-      override p.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
-        if !index = -1 then this :> IReadOnlyOrderedMap<'K,'V>
+      override p.CurrentBatch: ISeries<'K,'V> = 
+        if !index = -1 then this :> ISeries<'K,'V>
         else raise (InvalidOperationException(""))
       override p.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> =
         if !index = -1 then 

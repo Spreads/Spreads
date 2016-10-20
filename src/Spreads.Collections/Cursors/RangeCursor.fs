@@ -66,7 +66,7 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
   member this.CurrentValue with get() = cursor.CurrentValue
   member this.Current with get() = cursor.Current
 
-  member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>> with get, set
+  member val CurrentBatch = Unchecked.defaultof<ISeries<'K,'V>> with get, set
 
   member this.Reset() =
     started <- false
@@ -89,7 +89,7 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
 
   interface ICursor<'K,'V> with
     member this.Comparer with get() = cursor.Comparer
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
+    member this.CurrentBatch = this.CurrentBatch
     member this.CurrentKey: 'K = this.CurrentKey
     member this.CurrentValue: 'V = this.CurrentValue
     member this.IsContinuous: bool = this.IsContinuous

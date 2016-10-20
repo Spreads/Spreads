@@ -97,7 +97,7 @@ type FilterMapCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Fu
     clone
 
   interface ICanMapSeriesValues<'K,'R> with
-    member this.Map<'R2>(f2:Func<'R,'R2>): Series<'K,'R2> = 
-      let mapper2 : Func<'V,'R2> = Func<'V,'R2>(fun r -> f2.Invoke(mapperFunc.Invoke(r)))
+    member this.Map<'R2>(f2, _): Series<'K,'R2> = 
+      let mapper2 : Func<'V,'R2> = Func<'V,'R2>(mapperFunc.Invoke >> f2)
       CursorSeries(fun _ -> new FilterMapCursor<'K,'V,'R2>(cursorFactory, filterFunc, mapper2) :> ICursor<'K,'R2>) :> Series<'K,'R2>
 

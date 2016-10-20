@@ -1,6 +1,7 @@
 ﻿namespace Spreads
 
 open Spreads
+open System
 open System.Numerics
 open FSharp.Core
 open Microsoft.FSharp.Core
@@ -581,6 +582,27 @@ module internal SIMD =
           i <- i + 1
 
       result
+
+  let inline mapSegment
+    (vf : 'T Vector -> 'U Vector) (sf : ^T -> ^U) (segment : ArraySegment<'T>) : ArraySegment<'U> =
+
+    let count = Vector<'T>.Count
+    if count <> Vector<'U>.Count then invalidArg "array" "Output type must have the same width as input type."    
+    
+    let result = Impl.ArrayPool<'U>.Rent(segment.Count)
+    
+    let mutable i = segment.Offset
+    let length = i + segment.Count
+    while i <= length-count do        
+        (vf (Vector<'T>(segment.Array,i ))).CopyTo(result,i)   
+        i <- i + count
+    
+    i <- length - length % count
+    while i < result.Length do
+        result.[i] <- sf segment.Array.[i]
+        i <- i + 1
+
+    ArraySegment(result, 0, segment.Count)
 
   /// <summary>
   /// Identical to the standard map2 function, but you must provide

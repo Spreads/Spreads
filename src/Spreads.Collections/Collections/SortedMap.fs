@@ -1657,7 +1657,7 @@ and
       result
 
 
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = 
+    member this.CurrentBatch: ISeries<'K,'V> = 
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -1670,7 +1670,7 @@ and
           if this.isBatch then
             Trace.Assert(this.index = this.source.size - 1)
             Trace.Assert(this.source.isReadOnly)
-            this.source :> IReadOnlyOrderedMap<'K,'V>
+            this.source :> ISeries<'K,'V>
           else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
 
         /////////// End read-locked code /////////////
@@ -1893,7 +1893,7 @@ and
 
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.source.Comparer
-      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
+      member this.CurrentBatch = this.CurrentBatch
       member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatch(cancellationToken)
       member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
       member this.MoveFirst():bool = this.MoveFirst()
@@ -2057,7 +2057,7 @@ and
     member this.MoveNext():bool = this.state.MoveNext()
     member this.Current with get(): KVP<'K, 'V> = this.state.Current
     member this.Comparer with get() = this.state.source.Comparer
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.state.CurrentBatch
+    member this.CurrentBatch = this.state.CurrentBatch
     member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.state.MoveNextBatch(cancellationToken)
     member this.MoveAt(index:'K, lookup:Lookup) = this.state.MoveAt(index, lookup)
     member this.MoveFirst():bool = this.state.MoveFirst()
@@ -2083,7 +2083,7 @@ and
 
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.state.source.Comparer
-      member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.state.CurrentBatch
+      member this.CurrentBatch = this.state.CurrentBatch
       member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.state.MoveNextBatch(cancellationToken)
       member this.MoveAt(index:'K, lookup:Lookup) = this.state.MoveAt(index, lookup)
       member this.MoveFirst():bool = this.state.MoveFirst()

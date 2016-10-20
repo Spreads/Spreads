@@ -104,7 +104,7 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
 
   member this.Current with get () = KVP(inputCursor.CurrentKey, this.CurrentValue)
 
-  member this.CurrentBatch with get() = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'R>>
+  member this.CurrentBatch with get() = Unchecked.defaultof<ISeries<'K,'R>>
 
   member this.State with get() = moveState
 
@@ -393,7 +393,7 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
 
   interface ICursor<'K,'R> with
     member this.Comparer with get() = inputCursor.Comparer
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'R> = this.CurrentBatch
+    member this.CurrentBatch = this.CurrentBatch
     member this.CurrentKey: 'K = inputCursor.CurrentKey
     member this.CurrentValue: 'R = this.CurrentValue
     member this.IsContinuous: bool = this.IsContinuous
@@ -457,7 +457,7 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
 
   member this.Current with get () = KVP(inputCursor.CurrentKey, moveState)
 
-  member this.CurrentBatch with get() = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'R>>
+  member this.CurrentBatch with get() = Unchecked.defaultof<ISeries<'K,'R>>
 
   member this.State with get() = moveState
 
@@ -776,7 +776,7 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
 
   interface ICursor<'K,'R> with
     member this.Comparer with get() = inputCursor.Comparer
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'R> = this.CurrentBatch
+    member this.CurrentBatch = this.CurrentBatch
     member this.CurrentKey: 'K = inputCursor.CurrentKey
     member this.CurrentValue: 'R = this.CurrentValue
     member this.IsContinuous: bool = this.IsContinuous

@@ -46,7 +46,7 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
     member this.Comparer: IComparer<'K> = cursor.Comparer
     member this.Current: KVP<'K,'V> = cursor.Current
     member this.Current: obj = cursor.Current :> obj
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = cursor.CurrentBatch
+    member this.CurrentBatch = cursor.CurrentBatch
     member this.CurrentKey: 'K = cursor.CurrentKey
     member this.CurrentValue: 'V = cursor.CurrentValue
     member this.Dispose(): unit = cursor.Dispose()
@@ -84,8 +84,8 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
 
   // Repeat().Map() is equivalent to Map().Repeat()
   interface ICanMapSeriesValues<'K,'V> with
-    member this.Map<'V2>(f:Func<'V,'V2>): Series<'K,'V2> =
-      CursorSeries(fun _ -> new RepeatCursor<'K,'V2>(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f) :> ICursor<'K,'V2>) :> ICursor<_,_>) :> Series<'K,'V2>
+    member this.Map<'V2>(f, _): Series<'K,'V2> =
+      CursorSeries(fun _ -> new RepeatCursor<'K,'V2>(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, Missing) :> ICursor<'K,'V2>) :> ICursor<_,_>) :> Series<'K,'V2>
 
 
 
@@ -101,7 +101,7 @@ type internal FillCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, fillValue:'V
     member this.Comparer: IComparer<'K> = cursor.Comparer
     member this.Current: KVP<'K,'V> = cursor.Current
     member this.Current: obj = cursor.Current :> obj
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = cursor.CurrentBatch
+    member this.CurrentBatch = cursor.CurrentBatch
     member this.CurrentKey: 'K = cursor.CurrentKey
     member this.CurrentValue: 'V = cursor.CurrentValue
     member this.Dispose(): unit = cursor.Dispose()
@@ -139,7 +139,7 @@ type internal ConstantCursor<'K,'V>(fillValue:KVP<'K,'V>) =
     member this.Comparer: IComparer<'K> = KeyComparer.GetDefault<'K>()
     member this.Current: KVP<'K,'V> = fillValue
     member this.Current: obj = fillValue :> obj
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = Unchecked.defaultof<_>
+    member this.CurrentBatch = Unchecked.defaultof<_>
     member this.CurrentKey: 'K = fillValue.Key
     member this.CurrentValue: 'V = fillValue.Value
     member this.Dispose(): unit = ()

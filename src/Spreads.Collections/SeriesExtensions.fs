@@ -55,10 +55,22 @@ type SeriesExtensions () =
     static member Map(source: ISeries<'K,'V>, mapFunc:Func<'V,'V2>) : Series<'K,'V2> =
       if OptimizationSettings.CombineFilterMapDelegates then
         match source with
-        | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc)
+        // TODO! test if null or fake batch function is better here
+        | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc.Invoke, Missing)
         | _ ->
-          CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<_,_> ) :> Series<'K,'V2>
-      else CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<_,_> ) :> Series<'K,'V2>
+          CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc.Invoke, Missing) :> ICursor<_,_> ) :> Series<'K,'V2>
+      else CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc.Invoke, Missing) :> ICursor<_,_> ) :> Series<'K,'V2>
+
+    [<Extension>]
+    static member Map(source: ISeries<'K,'V>, mapFunc:Func<'V,'V2>, mapBatchFunc:Func<ArraySegment<'V>, ArraySegment<'V2>>) : Series<'K,'V2> =
+      if OptimizationSettings.CombineFilterMapDelegates then
+        match source with
+        // TODO! test if null or fake batch function is better here
+        | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc.Invoke, Present(mapBatchFunc.Invoke))
+        | _ ->
+          CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc.Invoke, Missing) :> ICursor<_,_> ) :> Series<'K,'V2>
+      else CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc.Invoke, Missing) :> ICursor<_,_> ) :> Series<'K,'V2>
+
 
 //    [<Extension>]
 //    static member inline Map(source: Series<'K,'V>, mapFunc:Func<'K,'K>) : Series<'K,'V> =

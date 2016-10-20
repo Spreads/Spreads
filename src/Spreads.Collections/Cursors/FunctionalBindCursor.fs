@@ -80,8 +80,7 @@ type internal FunctionalBindCursor<'K,'V,'State,'V2>
 
   member this.Current with get () = KVP(cursor.CurrentKey, this.CurrentValue)
 
-  member this.CurrentBatch with get() = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
-
+  member this.CurrentBatch with get() = Unchecked.defaultof<ISeries<'K,'V2>>
 
   member this.Reset() = 
     clearState()
@@ -269,7 +268,7 @@ type internal FunctionalBindCursor<'K,'V,'State,'V2>
 
   interface ICursor<'K,'V2> with
     member this.Comparer with get() = cursor.Comparer
-    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V2> = this.CurrentBatch
+    member this.CurrentBatch = this.CurrentBatch
     member this.CurrentKey: 'K = cursor.CurrentKey
     member this.CurrentValue: 'V2 = this.CurrentValue
     member this.IsContinuous: bool = isContinuous
@@ -289,6 +288,6 @@ type internal FunctionalBindCursor<'K,'V,'State,'V2>
     member this.Clone() = this.Clone() :> ICursor<'K,'V2>
 
   interface ICanMapSeriesValues<'K,'V2> with
-    member this.Map<'V3>(f2:Func<'V2,'V3>): Series<'K,'V3> = 
-      let combinedFunc = CoreUtils.CombineMaps(stateMapper, f2)
+    member this.Map<'V3>(f2, _): Series<'K,'V3> = 
+      let combinedFunc = CoreUtils.CombineMaps(stateMapper, Func<_,_>(f2))
       new FunctionalBindCursor<'K,'V,'State,'V3>((fun _ -> cursor.Clone()), stateCreator, stateFoldNext, stateFoldPrevious, combinedFunc, isContinuous) :> Series<'K,'V3>
