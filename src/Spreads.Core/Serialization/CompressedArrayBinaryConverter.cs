@@ -23,8 +23,8 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spreads.Buffers;
-using Spreads.Native;
 using System.Buffers;
+using Spreads.Blosc;
 
 namespace Spreads.Serialization {
 

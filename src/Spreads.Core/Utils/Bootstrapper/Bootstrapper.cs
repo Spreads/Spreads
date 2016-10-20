@@ -232,13 +232,13 @@ namespace Bootstrap {
 #endif
                 },
                 () => {
-                    Yeppp.Library.Init();
+                    Spreads.Yeppp.Library.Init();
 #if DEBUG
                 Console.WriteLine("Post-copy action");
 #endif
                 },
                 () => {
-                    Yeppp.Library.Release();
+                    Spreads.Yeppp.Library.Release();
                 });
 
             //new ResolveEventHandler(Loader.ResolveManagedAssembly);

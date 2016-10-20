@@ -1,4 +1,4 @@
-namespace Yeppp
+namespace Spreads.Yeppp
 {
 
 	/// <summary>Contains information about @Yeppp library version.</summary>

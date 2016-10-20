@@ -1,4 +1,4 @@
-namespace Yeppp
+namespace Spreads.Yeppp
 {
 
 	/// <summary>x86-specific non-ISA processor or system features.</summary>

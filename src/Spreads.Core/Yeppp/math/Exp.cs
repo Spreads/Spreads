@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Yeppp
+namespace Spreads.Yeppp
 {
 
 	/// <summary>Vector mathematical functions</summary>

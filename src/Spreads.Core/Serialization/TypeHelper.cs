@@ -26,6 +26,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spreads.Buffers;
+using Spreads.Utils;
 
 namespace Spreads.Serialization {
 

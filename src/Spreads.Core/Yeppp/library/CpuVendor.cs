@@ -1,4 +1,4 @@
-namespace Yeppp
+namespace Spreads.Yeppp
 {
 
 	/// <summary>The company which designed the processor microarchitecture.</summary>

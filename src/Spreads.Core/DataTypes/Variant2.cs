@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
-using Spreads.DataTypes;
 using Spreads.Serialization;
 
-namespace Spreads {
+namespace Spreads.DataTypes {
 
 
     public partial struct Variant {

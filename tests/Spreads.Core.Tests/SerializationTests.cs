@@ -166,8 +166,8 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(2, newInts[0]);
             Assert.AreEqual(3, newInts[1]);
 
-            var bsonBytes = BinarySerializer.Bson.Serialize(segment);
-            var newInts2 = BinarySerializer.Bson.Deserialize<int[]>(bsonBytes);
+            var bsonBytes = BinarySerializer.Json.Serialize(segment);
+            var newInts2 = BinarySerializer.Json.Deserialize<int[]>(bsonBytes);
 
             Assert.AreEqual(2, newInts2[0]);
             Assert.AreEqual(3, newInts2[1]);

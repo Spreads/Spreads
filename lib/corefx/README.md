@@ -1,0 +1,1 @@
+corefx is too big to include it completely. Also there are many SR._ resource strings that are always painful to import. In this folder we store extracts from corefx that could be included as linked files into Spreads projects. There could be edits compared to the original, therefore one must commit unedited files first as soon as they are added here.

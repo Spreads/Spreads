@@ -1,4 +1,4 @@
-namespace Yeppp
+namespace Spreads.Yeppp
 {
 
 	/// <summary>ARM-specific ISA extensions.</summary>

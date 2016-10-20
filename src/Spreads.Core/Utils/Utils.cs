@@ -129,6 +129,7 @@ namespace Spreads {
     }
 
 #if !NET451
+    // TODO Replace usages with SpreadsException
     public class ApplicationException : Exception {
         public ApplicationException() : base() { }
         public ApplicationException(string message) : base(message) { }

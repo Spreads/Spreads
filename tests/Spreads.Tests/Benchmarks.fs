@@ -795,7 +795,7 @@ module CollectionsBenchmarks =
 
     for i in 0..9 do
       perf count "Series Add/Delete Inline" (fun _ ->
-        let ro = smap.Value.Map(fun x -> ((x + 123456.0)/789.0)*10.0)
+        let ro = smap.Value.Map(fun k x -> ((x + 123456.0)/789.0)*10.0)
         for i in ro do
           let res = i.Value
           ()
@@ -830,7 +830,7 @@ module CollectionsBenchmarks =
 
     for i in 0..9 do
       perf count "LINQ Add/Delete Inline" (fun _ ->
-        let ro = smap.Value.Select(fun x -> ((x.Value + 123456.0)/789.0)*10.0)
+        let ro = smap.Value.Select(fun x -> KVP(x.Key, ((x.Value + 123456.0)/789.0)*10.0))
         for i in ro do
           let res = i
           ()

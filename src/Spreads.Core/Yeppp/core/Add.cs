@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 using System.Security;
 using Bootstrap;
 
-namespace Yeppp
+namespace Spreads.Yeppp
 {
 
     /// <summary>Basic arithmetic operations</summary>

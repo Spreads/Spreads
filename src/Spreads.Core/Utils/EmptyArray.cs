@@ -17,6 +17,7 @@
     along with this program.If not, see<http://www.gnu.org/licenses/>.
 */
 
+// ReSharper disable once CheckNamespace
 namespace Spreads {
     public class EmptyArray<TElement> {
         public static readonly TElement[] Instance = new TElement[0];

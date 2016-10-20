@@ -140,6 +140,10 @@ module internal Utils =
 module TaskModule =
   let trueTask = Task.FromResult(true)
   let falseTask = Task.FromResult(false)
+  let cancelledBoolTask = 
+    let tcs = new TaskCompletionSource<bool>()
+    tcs.SetCanceled()
+    tcs.Task
 //  let inline konst a _ = a
 
   /// Task result

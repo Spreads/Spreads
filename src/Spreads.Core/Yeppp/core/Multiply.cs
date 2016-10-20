@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Yeppp
+namespace Spreads.Yeppp
 {
 
 	/// <summary>Basic arithmetic operations</summary>

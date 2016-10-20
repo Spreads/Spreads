@@ -21,8 +21,8 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Bson;
 using Spreads.Buffers;
 #pragma warning disable 0618
 namespace Spreads.Serialization {
@@ -58,7 +58,7 @@ namespace Spreads.Serialization {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOf<T>(T value, out MemoryStream temporaryStream) {
             var size = TypeHelper<T>.SizeOf(value, out temporaryStream);
-            return size >= 0 ? size : Bson.SizeOfBson<T>(value, out temporaryStream);
+            return size >= 0 ? size : Json.SizeOfJson<T>(value, out temporaryStream);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -100,11 +100,11 @@ namespace Spreads.Serialization {
                 return size;
             }
 
-            var bsonStream = Bson.Serialize<T>(value);
-            size = checked((int)bsonStream.Length);
+            var jsonStream = Json.Serialize<T>(value);
+            size = checked((int)jsonStream.Length);
             if (destination.Length < offset + size) throw new ArgumentException("Value size is too big for destination");
-            bsonStream.WriteToPtr(destination.Data + (int)offset);
-            bsonStream.Dispose();
+            jsonStream.WriteToPtr(destination.Data + (int)offset);
+            jsonStream.Dispose();
             return size;
         }
 
@@ -123,7 +123,7 @@ namespace Spreads.Serialization {
             }
             size = *(int*)ptr;
             var stream = new UnmanagedMemoryStream((byte*)ptr, size);
-            value = Bson.Deserialize<T>(stream);
+            value = Json.Deserialize<T>(stream);
             return size;
         }
 
@@ -149,16 +149,16 @@ namespace Spreads.Serialization {
             return Read<T>(buffer, 0, ref value);
         }
 
-        internal static BsonSerializer Bson => BsonSerializer.Instance;
+        internal static JsonSerializer Json => JsonSerializer.Instance;
 
-        internal sealed class BsonSerializer {
-            readonly JsonSerializer _serializer;
-            internal static BsonSerializer Instance = new BsonSerializer();
-            private BsonSerializer() {
-                _serializer = new JsonSerializer();
+        internal sealed class JsonSerializer {
+            readonly Newtonsoft.Json.JsonSerializer _serializer;
+            internal static JsonSerializer Instance = new JsonSerializer();
+            private JsonSerializer() {
+                _serializer = new Newtonsoft.Json.JsonSerializer();
             }
 
-            public int SizeOfBson<T>(T value, out MemoryStream memoryStream) {
+            public int SizeOfJson<T>(T value, out MemoryStream memoryStream) {
                 memoryStream = Serialize<T>(value);
                 memoryStream.Position = 0;
                 return checked((int)memoryStream.Length);
@@ -167,9 +167,9 @@ namespace Spreads.Serialization {
             public MemoryStream Serialize<T>(T value) {
                 var ms = RecyclableMemoryManager.MemoryStreams.GetStream();
                 ms.WriteAsPtr<long>(0L);
-                using (var writer = new BsonWriter(ms)) {
+                using (var writer = new StreamWriter(ms, Encoding.UTF8, 4096, true)) {
                     _serializer.Serialize(writer, value);
-                    writer.CloseOutput = false;
+                    //writer.CloseOutput = false;
                 }
                 ms.Position = 0;
                 ms.WriteAsPtr<int>(checked((int)ms.Length));
@@ -180,7 +180,7 @@ namespace Spreads.Serialization {
             public T Deserialize<T>(Stream stream) {
                 // skip header
                 stream.Position = 8;
-                using (var reader = new BsonReader(stream, typeof(T).IsArray, DateTimeKind.Unspecified)) {
+                using (var reader = new JsonTextReader(new StreamReader(stream, Encoding.UTF8, true, 4096, true))) {
                     return _serializer.Deserialize<T>(reader);
                 }
             }

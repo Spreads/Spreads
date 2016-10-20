@@ -127,6 +127,7 @@
     <Compile Include="SingleEnumerableTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TypeHelperTests.cs" />
+    <Compile Include="YeppTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

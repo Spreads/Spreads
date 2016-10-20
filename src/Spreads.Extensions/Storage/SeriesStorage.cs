@@ -91,6 +91,14 @@ namespace Spreads.Storage {
                 "  `Version` INTEGER NOT NULL,\n" +
                 "  `ChunkValue` BLOB NOT NULL,\n" +
                 "  PRIMARY KEY (`Id`,`ChunkKey`)\n)";
+            var createUnitemporalSeriesTable =
+                $"CREATE TABLE IF NOT EXISTS `{ChunkTableName}` (\n" +
+                "  `Id` INTEGER NOT NULL,\n" +
+                "  `ChunkKey` INTEGER NOT NULL,\n" +
+                "  `Count` INTEGER NOT NULL,\n" +
+                "  `Version` INTEGER NOT NULL,\n" +
+                "  `ChunkValue` BLOB NOT NULL,\n" +
+                "  PRIMARY KEY (`Id`,`ChunkKey`)\n)";
             //NativeMethods.sqlite3_exec(connection.DbHandle, createSeriesIdTable);
             //NativeMethods.sqlite3_exec(connection.DbHandle, createSeriesChunksTable);
             _connection.Execute(createSeriesIdTable);

@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Utils;
 
-namespace Spreads {
+namespace Spreads.DataTypes {
 
 
     // misery and pain ahead!

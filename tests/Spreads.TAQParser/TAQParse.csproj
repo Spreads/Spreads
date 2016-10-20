@@ -153,10 +153,6 @@
       <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
       <Name>Spreads.Extensions</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\src\Spreads\Spreads.fsproj">
-      <Project>{6fe2ccf3-03c9-428f-b73b-aa9446747a2e}</Project>
-      <Name>Spreads</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="TAQDemo.fsx" />

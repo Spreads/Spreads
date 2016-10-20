@@ -9,5 +9,8 @@ namespace Spreads.DataTypes
         private fixed byte _isoCode[3];
         [FieldOffset(1)]
         private readonly byte _scale;        // byte
+        // 2 bytes reserved
+        [FieldOffset(2)]
+        private readonly short _reserved;
     }
 }

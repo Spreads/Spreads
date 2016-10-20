@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
-using System.Numerics;
 
-namespace Spreads {
-
+namespace Spreads.Utils {
 
     public class ClassWithAPrivateField {
         private int _size;

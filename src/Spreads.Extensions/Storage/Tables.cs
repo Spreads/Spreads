@@ -42,5 +42,22 @@ namespace Spreads.Storage {
         public byte[] ChunkValue { get; set; }
     }
 
+    public class UnitemporalSeriesValue
+    {
+        public long Id { get; set; }
+        public long Key { get; set; }
+        //public long Version { get; set; }
+        public byte[] Value { get; set; }
+    }
+
+    public class BitemporalSeriesValue {
+        public long Id { get; set; }
+        public byte UnitPeriod { get; set; }
+        public short PeriodLength { get; set; }
+        public long EndOfPeriod { get; set; }
+        public long SeenAt { get; set; }
+        //public long Version { get; set; }
+        public byte[] Value { get; set; }
+    }
 
 }

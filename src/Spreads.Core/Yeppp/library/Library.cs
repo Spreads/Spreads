@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 
 /*! <summary>Yeppp! library functions.</summary> */
-namespace Yeppp
+namespace Spreads.Yeppp
 {
 
 	/// <summary>Yeppp! library functions.</summary>

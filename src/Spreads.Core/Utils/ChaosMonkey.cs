@@ -22,7 +22,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 
-namespace Spreads {
+namespace Spreads.Utils {
 
     public class ChaosMonkeyException : Exception {
 

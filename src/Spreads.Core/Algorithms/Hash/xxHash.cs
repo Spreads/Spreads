@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using System;
 using System.Runtime.CompilerServices;
+using Spreads.Utils;
 
 namespace Spreads.Algorithms.Hash {
     public static unsafe class XxHash {

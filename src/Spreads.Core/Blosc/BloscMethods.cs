@@ -1,8 +1,8 @@
-using Bootstrap;
 using System;
 using System.Runtime.InteropServices;
+using Bootstrap;
 
-namespace Spreads.Native {
+namespace Spreads.Blosc {
 #if NET451
     [System.Security.SuppressUnmanagedCodeSecurity]
 #endif
