@@ -29,6 +29,168 @@ open System.Diagnostics
 open Spreads
 open Microsoft.FSharp.Control
 
+
+
+
+
+type CursorAsync<'K,'V,'TCursor when 'TCursor :> ICursor<'K,'V>>(source:Series<'K,'V>, cursorFactory:unit->'TCursor) as this =
+    [<DefaultValueAttribute(false)>]
+    val mutable private state : 'TCursor
+    [<DefaultValueAttribute(false)>]
+    val mutable private unusedTcs : TaskCompletionSource<int64>
+    [<DefaultValueAttribute(false)>]
+    val mutable private cancelledTcs : TaskCompletionSource<Task<bool>>
+    [<DefaultValueAttribute(false)>]
+    val mutable private token : CancellationToken
+    do
+      this.state <- cursorFactory()
+
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member this.MoveNext(ct: CancellationToken): Task<bool> =      
+      match this.state.MoveNext() with
+      | true -> 
+        OptimizationSettings.TraceVerbose("SM_MNA: sync MN true")
+        trueTask            
+      | false ->
+        OptimizationSettings.TraceVerbose("SM_MNA: sync MN false")
+        match this.state.Source.IsReadOnly with
+        | true -> if this.state.MoveNext() then trueTask else falseTask
+        | false ->
+          // Task could have multiple awaiters
+          let tcs = Volatile.Read(&source.updateTcs)
+          // if some cursor already created a tcs and it is not null, we just await for it
+          let activeTcs =
+            if tcs <> null then tcs
+            else
+              let newTcs =
+                if this.unusedTcs <> null then this.unusedTcs
+                else new TaskCompletionSource<int64>()
+              let original = Interlocked.CompareExchange(&source.updateTcs, newTcs, null)
+              if original = null then
+                // newTcs was put to the SM
+                // if unusedTcs was not null, newTcs = unusedTcs
+                // and unusedTcs went to SM
+                this.unusedTcs <- null
+                newTcs
+              else
+                // SM Tcs was already set, we set unusedTcs to itself if 
+                // it was not null or to a new Tcs that we have allocated
+                this.unusedTcs <- newTcs
+                original
+          // NB activeTcs is already allocated and we cannot avoid this allocation,
+          // however it could be shared among many cursors. When its Task completes,
+          // we create a continuation Task that does synchronous and very fast
+          // work inside its body, so it is a very small and short-lived object
+          // and .NET's GC is best for this.
+          // TODO Check if we need to use RunContinuationsAsynchronously from 4.6
+          // https://blogs.msdn.microsoft.com/pfxteam/2015/02/02/new-task-apis-in-net-4-6/
+          let returnTask = activeTcs.Task.ContinueWith(this.MoveNextContinuation, TaskContinuationOptions.DenyChildAttach)
+          if(not ct.CanBeCanceled) then // (ct = CancellationToken.None || ct = Unchecked.defaultof<CancellationToken>)) then
+            // hot path
+            returnTask.Unwrap()
+          else
+            // TODO even though this is quite fast and we have a hot path above,
+            // we could cache token, check for equality and do registration work once
+            this.token <- ct
+            this.cancelledTcs <- new TaskCompletionSource<_>()
+            let registration = ct.Register(fun _ -> 
+                this.cancelledTcs.SetResult(cancelledBoolTask)
+              )
+            let anyReturn = Task.WhenAny(returnTask, this.cancelledTcs.Task)
+            let final = anyReturn.Unwrap().Unwrap()
+            registration.Dispose()
+            this.token <- Unchecked.defaultof<_>
+            final
+
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member this.MoveNextContinuation(t:Task<int64>): Task<bool> =
+      // while this is not null, noone would be able to set a new one
+      let original = Volatile.Read(&source.updateTcs)
+      if original <> null then
+        // one of many cursors will succeed
+        Interlocked.CompareExchange(&source.updateTcs, null, original) |> ignore
+      match this.state.MoveNext() with
+      | true -> trueTask
+      | false ->
+        match this.state.Source.IsReadOnly with
+        // TODO review this line
+        // currently it should always be an OOO exception
+        | false -> this.MoveNext(this.token)
+        | true -> if this.state.MoveNext() then trueTask else falseTask
+        
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member this.Clone() = 
+      let mutable entered = false
+      try
+        entered <- enterWriteLockIf &source.locker true
+        let clone = new CursorAsync<'K,'V,'TCursor>(source, cursorFactory)
+        clone.state <- this.state
+        clone
+      finally
+        exitWriteLockIf &source.locker entered
+      
+
+    member this.Dispose() = this.state.Reset()
+
+    // C#-like methods to avoid casting to ICursor all the time
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member this.Reset() = this.state.Reset()
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member this.MoveNext():bool = this.state.MoveNext()
+    member this.Current with get(): KVP<'K, 'V> = this.state.Current
+    member this.Comparer with get() = source.Comparer
+    member this.CurrentBatch = this.state.CurrentBatch
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.state.MoveNextBatch(cancellationToken)
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member this.MoveAt(index:'K, lookup:Lookup) = this.state.MoveAt(index, lookup)
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member this.MoveFirst():bool = this.state.MoveFirst()
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member this.MoveLast():bool =  this.state.MoveLast()
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member this.MovePrevious():bool = this.state.MovePrevious()
+    member this.CurrentKey with get():'K = this.state.CurrentKey
+    member this.CurrentValue with get():'V = this.state.CurrentValue
+    member this.Source with get() = source :> ISeries<'K,'V>
+    member this.IsContinuous with get() = false
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = source.TryGetValue(key, &value)
+
+    interface IDisposable with
+      member this.Dispose() = this.Dispose()
+
+    interface IEnumerator<KVP<'K,'V>> with    
+      member this.Reset() = this.state.Reset()
+      member this.MoveNext():bool = this.state.MoveNext()
+      member this.Current with get(): KVP<'K, 'V> = this.state.Current
+      member this.Current with get(): obj = this.state.Current :> obj
+
+    interface IAsyncEnumerator<KVP<'K,'V>> with
+      member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = this.MoveNext(cancellationToken) 
+
+    interface ICursor<'K,'V> with
+      member this.Comparer with get() = source.Comparer
+      member this.CurrentBatch = this.state.CurrentBatch
+      member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.state.MoveNextBatch(cancellationToken)
+      member this.MoveAt(index:'K, lookup:Lookup) = this.state.MoveAt(index, lookup)
+      member this.MoveFirst():bool = this.state.MoveFirst()
+      member this.MoveLast():bool =  this.state.MoveLast()
+      member this.MovePrevious():bool = this.state.MovePrevious()
+      member this.CurrentKey with get():'K = this.state.CurrentKey
+      member this.CurrentValue with get():'V = this.state.CurrentValue
+      member this.Source with get() = source :> ISeries<'K,'V>
+      member this.Clone() = this.Clone() :> ICursor<'K,'V>
+      member this.IsContinuous with get() = false
+      member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = source.TryGetValue(key, &value)
+
+
+
+
+
+
+
+
 // TODO rename back to MapCursor - this is an original cursor backed by some map, it does not represent series itself
 [<AbstractClassAttribute>]
 type BaseCursorOld<'K,'V>

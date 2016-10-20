@@ -72,7 +72,7 @@ type SortedMap<'K,'V>
   val mutable internal orderVersion : int64
   [<DefaultValueAttribute>] 
   val mutable internal nextVersion : int64
-
+  
   // util fields
   let comparer : IComparer<'K> = 
     if comparerOpt.IsNone || Comparer<'K>.Default.Equals(comparerOpt.Value) then
@@ -336,7 +336,6 @@ type SortedMap<'K,'V>
     // already inside a lock statement in a caller method if synchronized
    
     if this.size = this.values.Length then this.EnsureCapacity(this.size + 1)
-    
     #if PRERELEASE
     Trace.Assert(index <= this.size, "index must be <= this.size")
     Trace.Assert(couldHaveRegularKeys || (this.values.Length = this.keys.Length), "keys and values must have equal length for non-regular case")
@@ -386,7 +385,7 @@ type SortedMap<'K,'V>
       // bucket switch in SHM (TODO really? check) and before serialization
       // the 99% use case is when we load data from a sequential stream or deserialize a map with already regularized keys
     this.size <- this.size + 1
-    if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
+    this.NotifyUpdateTcs()
 
 
   member this.Complete() =
@@ -398,7 +397,9 @@ type SortedMap<'K,'V>
           this.isReadOnly <- true
           // immutable doesn't need sync
           Volatile.Write(&this.isSynchronized, false)
-          if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
+          let updateTcs = Volatile.Read(&this.updateTcs)
+          if updateTcs <> null then updateTcs.TrySetResult(0L) |> ignore
+          //if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
     finally
       Interlocked.Increment(&this.version) |> ignore
       exitWriteLockIf &this.locker entered
@@ -728,7 +729,7 @@ type SortedMap<'K,'V>
               let lc = this.CompareToLast k
               if lc = 0 then // key = last key
                 this.values.[this.size-1] <- v
-                if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
+                this.NotifyUpdateTcs()
               elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
                 this.Insert(this.size, k, v)
                 keepOrderVersion <- true
@@ -736,7 +737,7 @@ type SortedMap<'K,'V>
                 let index = this.IndexOfKeyUnchecked(k)
                 if index >= 0 then // contains key 
                   this.values.[index] <- v
-                  if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
+                  this.NotifyUpdateTcs()
                 else
                   this.Insert(~~~index, k, v)
           finally
@@ -894,7 +895,7 @@ type SortedMap<'K,'V>
 
     this.size <- newSize
 
-    if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
+    this.NotifyUpdateTcs()
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.Remove(key): bool =
@@ -1051,7 +1052,7 @@ type SortedMap<'K,'V>
             raise (ApplicationException("wrong result of TryFindWithIndex with GT/GE direction"))
         | _ -> failwith "wrong direction"
     finally
-      if Volatile.Read(&this.subscribersCounter) > 0 then this.onUpdateEvent.Trigger(false)
+      this.NotifyUpdateTcs()
       if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.locker entered
       #if PRERELEASE
@@ -1249,7 +1250,7 @@ type SortedMap<'K,'V>
       // if source is already read-only, MNA will always return false
       if this.isReadOnly then new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
       else 
-        let c = new SortedMapCursorAsync<'K,'V>(this)
+        let c = new CursorAsync<'K,'V,_>(this,this.GetEnumerator)
         c :> ICursor<'K,'V>
     finally
       exitWriteLockIf &this.locker entered
@@ -1595,7 +1596,7 @@ and
           index = -1;
           currentKey = Unchecked.defaultof<_>;
           currentValue = Unchecked.defaultof<_>;
-          cursorVersion = -1L;
+          cursorVersion = source.orderVersion;
           isBatch = false;
         }
     end
@@ -1610,7 +1611,6 @@ and
     
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveNext() =
-      let initialIndex = this.index
       let mutable newIndex = this.index
       let mutable newKey = this.currentKey
       let mutable newValue = this.currentValue
@@ -1620,37 +1620,27 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
-          if this.index = -1 then
-            if this.source.size > 0 then
-              // NB multiple setting of this.cursorVersion on unsuccessful lock is OK while index = -1
-              this.cursorVersion <- this.source.orderVersion
-              newIndex <- this.index + 1
-              newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
-              newValue <- this.source.values.[newIndex]
-              true
-            else false
-          elif this.cursorVersion = this.source.orderVersion then
-            if this.index < (this.source.size - 1) then
-              newIndex <- this.index + 1
+          if this.cursorVersion = this.source.orderVersion then
+            newIndex <- this.index + 1
+            if newIndex < this.source.size then
               newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
               newValue <- this.source.values.[newIndex]
               true
             else
               false
           else // source order change
-            //NB: we no longer recover on order change, some cursor require special logic to recover
-            raise (new OutOfOrderKeyException<'K>(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
-            
-
+            // NB: we no longer recover on order change, some cursor require special logic to recover
+            //raise (new OutOfOrderKeyException<'K>(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
+            false
         /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source.nextVersion)
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
-      if result then
+      if result then       
         this.index <- newIndex
         this.currentKey <- newKey
         this.currentValue <- newValue
@@ -1906,192 +1896,3 @@ and
       member this.IsContinuous with get() = false
       member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)
 
-
-and
-  internal SortedMapCursorAsync<'K,'V>(source:SortedMap<'K,'V>) as this =
-    [<DefaultValueAttribute(false)>]
-    val mutable private state : SortedMapCursor<'K,'V>
-    [<DefaultValueAttribute(false)>]
-    val mutable private semaphore : SemaphoreSlim
-    [<DefaultValueAttribute(false)>]
-    val mutable private onUpdateHandler : OnUpdateHandler
-
-    // NB Async cursors are supposed to be long-lived, therefore we opt for fatter 
-    // cursor object with these fields but avoid closure allocation in the callback.
-    [<DefaultValueAttribute(false)>]
-    val mutable private semaphoreTask : Task<bool>
-    [<DefaultValueAttribute(false)>]
-    val mutable private tcs : AsyncTaskMethodBuilder<bool>
-    [<DefaultValueAttribute(false)>]
-    val mutable private token: CancellationToken
-    [<DefaultValueAttribute(false)>]
-    val mutable private callbackAction: Action
-
-    do
-      this.state <- new SortedMapCursor<'K,'V>(source)
-
-    override this.Finalize() = this.Dispose()
-     
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-    member private this.CompleteTcsCallback() =
-      OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed")
-      match this.semaphoreTask.Status with
-      | TaskStatus.RanToCompletion -> 
-        if not this.semaphoreTask.Result then 
-          OptimizationSettings.TraceVerbose("semaphore timeout " + this.state.source.subscribersCounter.ToString() + " " + this.state.source.isReadOnly.ToString())
-        if this.state.MoveNext() then
-          OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed MN true")
-          this.tcs.SetResult(true)
-        elif this.state.source.isReadOnly then 
-          OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed immutable")
-          this.tcs.SetResult(false)
-        else
-          OptimizationSettings.TraceVerbose("SM_MNA: recursive calling completeTcs")
-          this.CompleteTcs()
-      | _ -> failwith "TODO process all task results, e.g. cancelled"
-      ()
-
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-    member private this.CompleteTcs() : unit =
-      if this.state.MoveNext() then
-          OptimizationSettings.TraceVerbose("SM_MNA: MN inside completeTcs")
-          this.tcs.SetResult(true)
-        else
-          OptimizationSettings.TraceVerbose("SM_MNA: waiting on semaphore")
-          // NB this.source.isReadOnly could be set to true right before semaphore.WaitAsync call
-          // and we will never get signal after that
-          let mutable entered = false
-          try
-            entered <- enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
-            if this.state.source.isReadOnly then
-              if this.state.MoveNext() then this.tcs.SetResult(true) else this.tcs.SetResult(false)
-            else
-              this.semaphoreTask <- this.semaphore.WaitAsync(500, this.token)
-              let awaiter = this.semaphoreTask.GetAwaiter()
-              // TODO profiler says this allocates. This is because we close over the three variables.
-              // We could turn them into mutable fields and then closure could be allocated just once.
-              // But then the cursor will become heavier.
-              awaiter.UnsafeOnCompleted(this.callbackAction)
-          finally
-            exitWriteLockIf &this.state.source.locker entered
-
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-    member this.MoveNext(ct: CancellationToken): Task<bool> =      
-      match this.state.MoveNext() with
-      | true -> 
-        OptimizationSettings.TraceVerbose("SM_MNA: sync MN true")
-        trueTask            
-      | false ->
-        OptimizationSettings.TraceVerbose("SM_MNA: sync MN false")
-        match this.state.source.isReadOnly with
-        | false ->
-          let sw = SpinWait()
-          let mutable doSpin = true
-          let mutable spinCount = 0
-          // spin 10 times longer than default SpinWait implementation
-          while doSpin && not this.state.source.isReadOnly && not ct.IsCancellationRequested && spinCount < 100 do
-            OptimizationSettings.TraceVerbose("SM_MNA: spinning")
-            doSpin <- (not <| this.state.MoveNext()) 
-            if doSpin then
-              if sw.NextSpinWillYield then 
-                increment &spinCount
-                sw.Reset()
-              sw.SpinOnce()
-          if not doSpin then // exited loop due to successful MN, not due to sw.NextSpinWillYield
-            OptimizationSettings.TraceVerbose("SM_MNA: spin wait success")
-            trueTask
-          elif this.state.source.isReadOnly then
-            if this.state.MoveNext() then trueTask else falseTask
-          elif ct.IsCancellationRequested then
-            raise (OperationCanceledException(ct))
-          else
-            // NB expect huge amount of idle tasks. Spinning on all of them is questionable.
-            //failwith "TODO exit spinning on some condition"
-            if this.onUpdateHandler = Unchecked.defaultof<_> then
-              let mutable entered = false
-              try
-                entered <- enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
-                this.semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
-                this.onUpdateHandler <- OnUpdateHandler(fun _ ->
-                    if this.semaphore.CurrentCount <> Int32.MaxValue then this.semaphore.Release() |> ignore
-                )
-                this.state.source.onUpdateEvent.Publish.AddHandler this.onUpdateHandler
-                Interlocked.Increment(&this.state.source.subscribersCounter) |> ignore
-              finally
-                exitWriteLockIf &this.state.source.locker entered
-            if this.state.MoveNext() then trueTask
-            else
-              this.tcs <- Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
-              let returnTask = this.tcs.Task
-              OptimizationSettings.TraceVerbose("SM_MNA: calling completeTcs")
-              this.token <- ct
-              if this.callbackAction = Unchecked.defaultof<_> then this.callbackAction <- Action(this.CompleteTcsCallback)
-              this.CompleteTcs()
-              returnTask
-        | _ -> if this.state.MoveNext() then trueTask else falseTask
-      
-    member this.Clone() = 
-      let mutable entered = false
-      try
-        entered <- enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
-        let clone = new SortedMapCursorAsync<'K,'V>(this.state.source)
-        clone.state <- this.state
-        clone
-      finally
-        exitWriteLockIf &this.state.source.locker entered
-      
-
-    member this.Dispose() = 
-      this.state.Reset()
-      if this.onUpdateHandler <> Unchecked.defaultof<_> then
-        Interlocked.Decrement(&this.state.source.subscribersCounter) |> ignore
-        this.state.source.onUpdateEvent.Publish.RemoveHandler(this.onUpdateHandler)
-        this.semaphore.Dispose()
-        this.semaphoreTask <- Unchecked.defaultof<_>
-        this.token <- Unchecked.defaultof<_>
-        this.tcs <- Unchecked.defaultof<_>
-      GC.SuppressFinalize(this)
-
-    // C#-like methods to avoid casting to ICursor all the time
-    member this.Reset() = this.state.Reset()
-    member this.MoveNext():bool = this.state.MoveNext()
-    member this.Current with get(): KVP<'K, 'V> = this.state.Current
-    member this.Comparer with get() = this.state.source.Comparer
-    member this.CurrentBatch = this.state.CurrentBatch
-    member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.state.MoveNextBatch(cancellationToken)
-    member this.MoveAt(index:'K, lookup:Lookup) = this.state.MoveAt(index, lookup)
-    member this.MoveFirst():bool = this.state.MoveFirst()
-    member this.MoveLast():bool =  this.state.MoveLast()
-    member this.MovePrevious():bool = this.state.MovePrevious()
-    member this.CurrentKey with get():'K = this.state.CurrentKey
-    member this.CurrentValue with get():'V = this.state.CurrentValue
-    member this.Source with get() = this.state.source :> ISeries<'K,'V>
-    member this.IsContinuous with get() = false
-    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.state.source.TryGetValue(key, &value)
-
-    interface IDisposable with
-      member this.Dispose() = this.Dispose()
-
-    interface IEnumerator<KVP<'K,'V>> with    
-      member this.Reset() = this.state.Reset()
-      member this.MoveNext():bool = this.state.MoveNext()
-      member this.Current with get(): KVP<'K, 'V> = this.state.Current
-      member this.Current with get(): obj = this.state.Current :> obj
-
-    interface IAsyncEnumerator<KVP<'K,'V>> with
-      member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = this.MoveNext(cancellationToken) 
-
-    interface ICursor<'K,'V> with
-      member this.Comparer with get() = this.state.source.Comparer
-      member this.CurrentBatch = this.state.CurrentBatch
-      member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.state.MoveNextBatch(cancellationToken)
-      member this.MoveAt(index:'K, lookup:Lookup) = this.state.MoveAt(index, lookup)
-      member this.MoveFirst():bool = this.state.MoveFirst()
-      member this.MoveLast():bool =  this.state.MoveLast()
-      member this.MovePrevious():bool = this.state.MovePrevious()
-      member this.CurrentKey with get():'K = this.state.CurrentKey
-      member this.CurrentValue with get():'V = this.state.CurrentValue
-      member this.Source with get() = this.state.source :> ISeries<'K,'V>
-      member this.Clone() = this.Clone() :> ICursor<'K,'V>
-      member this.IsContinuous with get() = false
-      member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.state.source.TryGetValue(key, &value)

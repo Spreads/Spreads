@@ -34,7 +34,7 @@ namespace Spreads.Collections.Experimental.Tests.Concurrency
         [Ignore]
         public void ContinuationOnMNAIsSynchronous()
         {
-            var sm = new NoSemaphore.SortedMap<int, int>();
+            var sm = new SortedMap<int, int>();
             var cursor = sm.GetCursor();
             var task = cursor.MoveNextAsync();
             // Both continuations must run on the thread pool

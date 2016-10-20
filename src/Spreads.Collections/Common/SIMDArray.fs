@@ -3,6 +3,7 @@
 open Spreads
 open System
 open System.Numerics
+open System.Reflection
 open FSharp.Core
 open Microsoft.FSharp.Core
 open Microsoft.FSharp.Core.LanguagePrimitives.IntrinsicOperators
@@ -1362,8 +1363,8 @@ module internal SIMD =
       let len = array.Length
       if len = 0 then invalidArg "array" "The input array was empty."    
       let count = Vector< ^T>.Count
-    
-      let minValue = typeof< ^U>.GetField("MinValue").GetValue() |> unbox< ^U>
+      
+      let minValue = typeof< ^U>.GetTypeInfo().GetField("MinValue").GetValue() |> unbox< ^U>
       let mutable max = minValue 
       let mutable maxV =  Vector< ^U>(minValue)
       let mutable i = 0
@@ -1402,7 +1403,7 @@ module internal SIMD =
       let len = array.Length
       if len = 0 then invalidArg "array" "The input array was empty."    
       let count = Vector< ^T>.Count    
-      let maxValue = typeof< ^U>.GetField("MaxValue").GetValue() |> unbox< ^U>
+      let maxValue = typeof< ^U>.GetTypeInfo().GetField("MaxValue").GetValue() |> unbox< ^U>
       let mutable min = maxValue 
       let mutable minV =  Vector< ^U>(maxValue)
       let mutable i = 0

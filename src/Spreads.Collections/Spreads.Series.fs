@@ -76,23 +76,30 @@ and
   [<AllowNullLiteral>]
   [<AbstractClassAttribute>]
   //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-  Series<'K,'V>() as this =
+  Series<'K,'V> internal(cursorFactory:(unit -> ICursor<'K,'V>) opt) as this =
     inherit Series()
     
     let c = Lazy<_>(this.GetCursor) //new ThreadLocal<_>(Func<_>(this.GetCursor), true) 
 
-    [<DefaultValueAttribute>]
-    val mutable internal onUpdateEvent : EventV2<OnUpdateHandler,bool>
-
     [<DefaultValueAttribute>] 
     val mutable locker : int
-    [<DefaultValueAttribute>]
-    val mutable internal subscribersCounter : int
-    do
-      this.onUpdateEvent <- new EventV2<OnUpdateHandler,bool>()
+    [<DefaultValueAttribute>] 
+    val mutable internal updateTcs : TaskCompletionSource<int64>
+
+    new(iseries:ISeries<'K,'V>) = Series<_,_>(Present(iseries.GetCursor))
+    internal new() = Series<_,_>(Missing)
+
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member internal this.NotifyUpdateTcs() =
+      let updateTcs = Volatile.Read(&this.updateTcs)
+      if updateTcs <> null then
+        if not <| updateTcs.TrySetResult(0L) then this.NotifyUpdateTcs()
 
     /// Main method to override
     abstract GetCursor : unit -> ICursor<'K,'V>
+    override this.GetCursor() = 
+      if cursorFactory.IsPresent then cursorFactory.Present()
+      else raise (new NotImplementedException("Series.GetCursor is not implemented"))
 
     abstract IsIndexed : bool with get
     abstract IsReadOnly: bool with get
@@ -104,7 +111,6 @@ and
     override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
       let entered = enterWriteLockIf &this.locker true
       try
-        Interlocked.Increment(&this.subscribersCounter) |> ignore
         //raise (NotImplementedException("TODO Rx. Subscribe must be implemented via a cursor."))
         match box observer with
         | :? ISubscriber<KVP<'K,'V>> as subscriber ->
@@ -445,7 +451,7 @@ and
     static member (+) (series:Series<'K,float>, addition:float) : Series<'K,float> = 
       Series.ScalarOperatorMap(series, ScalarMap.addValue(addition), ScalarMap.addSegment(addition))
     static member (+) (addition:float, series:Series<'K,float>) : Series<'K,float> = 
-       Series.ScalarOperatorMap(series, ScalarMap.addValue(addition), ScalarMap.addSegment(addition))
+      Series.ScalarOperatorMap(series, ScalarMap.addValue(addition), ScalarMap.addSegment(addition))
     static member (~+) (series:Series<'K,float>) : Series<'K,float> = 
        Series.ScalarOperatorMap(series, fun x -> x)
     static member (-) (series:Series<'K,float>, subtraction:float) : Series<'K,float> = 
@@ -688,7 +694,7 @@ and
   // TODO make it a struct
   /// Map values to new values, batch mapping if that makes sense (for simple operations additional logic overhead is usually bigger than)
   [<SealedAttribute>]
-  internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:('V->'V2), fBatch:(ArraySegment<'V>->ArraySegment<'V2>) opt)=
+  internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:('V->'V2), fBatch:(ArraySegment<'V>->ArraySegment<'V2>) opt) =
     let mutable cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
     
     // for forward-only enumeration this could be faster with native math

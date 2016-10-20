@@ -761,9 +761,9 @@ module CollectionsBenchmarks =
   let SeriesNestedMap(count:int64) =
     let dc : IKeyComparer<int64> = SpreadsComparerInt64() :> IKeyComparer<int64> 
 
-    let smap = ref (Spreads.Collections.Experimental.NoSemaphore.SortedMap(comparer = (dc :> IComparer<int64>)))
+    let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
     
-    smap := Spreads.Collections.Experimental.NoSemaphore.SortedMap(comparer = (dc :> IComparer<int64>))
+    smap := Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>))
 
     smap.Value.IsSynchronized <- false
 

@@ -8,5 +8,6 @@ namespace Spreads {
     // settings, etc
 
     public static class Spreads {
+        
     }
 }

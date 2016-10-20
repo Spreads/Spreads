@@ -243,7 +243,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sw = new Stopwatch();
             sw.Start();
 
-            var sm = new Experimental.NoSemaphore.SortedMap<DateTime, double>();
+            var sm = new SortedMap<DateTime, double>();
             sm.IsSynchronized = true;
             //var sm = new SortedChunkedMap<DateTime, double>();
             //sm.Add(DateTime.UtcNow.Date.AddSeconds(-2), 0);
@@ -401,7 +401,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var ct = CancellationToken.None;
 
-            var sm = new Experimental.NoSemaphore.SortedMap<int, int>();
+            var sm = new SortedMap<int, int>();
 
             sm.IsSynchronized = true;
             var tcs = new TaskCompletionSource<bool>();
