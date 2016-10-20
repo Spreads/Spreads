@@ -461,11 +461,11 @@ and
     static member (~-) (series:Series<'K,float>) : Series<'K,float> = 
        Series.ScalarOperatorMap(series, fun x -> -x)
     static member (*) (series:Series<'K,float>, multiplicator:float) : Series<'K,float> = 
-       Series.ScalarOperatorMap(series, fun x -> x * multiplicator)
+      Series.ScalarOperatorMap(series, ScalarMap.multiplyValue(multiplicator), ScalarMap.multiplySegment(multiplicator))
     static member (*) (multiplicator:float,series:Series<'K,float>) : Series<'K,float> = 
-       Series.ScalarOperatorMap(series, fun x -> multiplicator * x)
+      Series.ScalarOperatorMap(series, ScalarMap.multiplyValue(multiplicator), ScalarMap.multiplySegment(multiplicator))
     static member (/) (series:Series<'K,float>, divisor:float) : Series<'K,float> = 
-       Series.ScalarOperatorMap(series, fun x -> x / divisor)
+      Series.ScalarOperatorMap(series, ScalarMap.divideValue(divisor), ScalarMap.divideSegment(divisor))
     static member (/) (numerator:float,series:Series<'K,float>) : Series<'K,float> = 
        Series.ScalarOperatorMap(series, fun x -> numerator / x)
     static member (%) (series:Series<'K,float>, divisor:float) : Series<'K,float> = 

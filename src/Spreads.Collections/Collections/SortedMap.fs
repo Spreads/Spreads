@@ -1501,8 +1501,23 @@ type SortedMap<'K,'V>
         finally
           exitWriteLockIf &this.locker entered
     
-
-    
+  interface ICanMapSeriesValues<'K,'V> with
+    member x.Map(f:('V->'V2), fBatch:(ArraySegment<'V>->ArraySegment<'V2>) opt) : Series<'K,'V2> =
+      let keys = Impl.ArrayPool<'K>.Rent(this.size)
+      Array.Copy(this.keys, keys, this.size)
+      let values : 'V2[] = 
+        if fBatch.IsPresent then
+          let segment = fBatch.Present(ArraySegment(this.values, 0, this.size))
+          segment.Array
+        else 
+          let arr = Impl.ArrayPool<'V2>.Rent(this.size)
+          for i in 0..(this.size - 1) do
+            arr.[i] <- f(this.values.[i])
+          arr
+      let comparer = this.Comparer
+      let sm = SortedMap<'K,'V2>.OfSortedKeysAndValues(keys, values, this.size, comparer, false, this.IsRegular)
+      sm :> Series<'K,'V2>
+     
   //#endregion
 
   //#region Constructors

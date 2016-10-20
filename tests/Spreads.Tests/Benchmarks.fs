@@ -792,6 +792,16 @@ module CollectionsBenchmarks =
       if res < 0.0 then failwith "avoid gc" 
       ()
 
+    for i in 0..9 do
+      let mutable res = Unchecked.defaultof<_>
+      perf count "Series Chained operators" (fun _ ->
+        let ro = ((smap.Value + 123456.0) / 789.0) * 10.0
+        for i in ro do
+          res <- i.Value
+          ()
+      )
+      if res < 0.0 then failwith "avoid gc" 
+      ()
 
     for i in 0..9 do
       perf count "Series Add/Delete Inline" (fun _ ->
