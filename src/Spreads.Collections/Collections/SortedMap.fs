@@ -29,7 +29,6 @@ open System.Runtime.CompilerServices
 open System.Threading
 open System.Threading.Tasks
 open System.Runtime.CompilerServices
-open System.Buffers
 
 open Spreads
 open Spreads.Buffers
@@ -115,8 +114,8 @@ type SortedMap<'K,'V>
         // TODO wrap the corefx buffer and for len = 2 use a special self-adjusting ObjectPool, because these 
         // arrays are not short-lived and could accumulate in gen 1+ easily.
         Array.zeroCreate 2
-      else ArrayPool<'K>.Shared.Rent(tempCap) 
-    this.values <- ArrayPool<'V>.Shared.Rent(tempCap)
+      else Impl.ArrayPool<'K>.Rent(tempCap) 
+    this.values <- Impl.ArrayPool<'V>.Rent(tempCap)
 
     if dictionary.IsSome && dictionary.Value.Count > 0 then
       match dictionary.Value with
@@ -143,7 +142,7 @@ type SortedMap<'K,'V>
           else
             this.SetCapacity(dictionary.Value.Count)
         
-          let tempKeys = ArrayPool<_>.Shared.Rent(dictionary.Value.Keys.Count)
+          let tempKeys = Impl.ArrayPool<_>.Rent(dictionary.Value.Keys.Count)
           dictionary.Value.Keys.CopyTo(tempKeys, 0)
           dictionary.Value.Values.CopyTo(this.values, 0)
           // NB IDictionary guarantees there is no duplicates
@@ -155,7 +154,7 @@ type SortedMap<'K,'V>
             couldHaveRegularKeys <- isReg
             if couldHaveRegularKeys then 
               this.keys <- regularKeys
-              ArrayPool<_>.Shared.Return(tempKeys, true) |> ignore
+              Impl.ArrayPool<_>.Return(tempKeys, true) |> ignore
               rkLast <- this.rkKeyAtIndex (this.size - 1)
             else
               this.keys <- tempKeys
@@ -183,7 +182,7 @@ type SortedMap<'K,'V>
               let keys = 
                 if isRegular then
                   let arr = Array.sub keysSegment.Array 0 2
-                  ArrayPool<_>.Shared.Return keysSegment.Array |> ignore
+                  Impl.ArrayPool<_>.Return keysSegment.Array |> ignore
                   arr
                 else keysSegment.Array
               let ptr = new IntPtr(ptr.ToInt64() + (int64 keysLen))
@@ -458,8 +457,8 @@ type SortedMap<'K,'V>
           Trace.Assert(this.keys.Length = 2)
           Unchecked.defaultof<_>
         else
-          ArrayPool<_>.Shared.Rent(c)
-      let vArr : 'V array = ArrayPool<_>.Shared.Rent(c)
+          Impl.ArrayPool<_>.Rent(c)
+      let vArr : 'V array = Impl.ArrayPool<_>.Rent(c)
 
       try
         // TODO this needs review. Looks like very overcompicated for almost imaginary edge case.
@@ -472,11 +471,11 @@ type SortedMap<'K,'V>
           Array.Copy(this.keys, 0, kArr, 0, this.size)
           let toReturn = this.keys
           this.keys <- kArr
-          ArrayPool<_>.Shared.Return(toReturn, true) |> ignore
+          Impl.ArrayPool<_>.Return(toReturn, true) |> ignore
         Array.Copy(this.values, 0, vArr, 0, this.size)
         let toReturn = this.values
         this.values <- vArr
-        ArrayPool<_>.Shared.Return(toReturn, true) |> ignore
+        Impl.ArrayPool<_>.Return(toReturn, true) |> ignore
       with
       // NB see enterWriteLockIf comment and https://github.com/dotnet/corefx/issues/1345#issuecomment-147569967
       // If we were able to get new arrays without OOM but got some out-of-band exception during
@@ -1287,8 +1286,8 @@ type SortedMap<'K,'V>
   member this.TrimExcess() = this.Capacity <- this.size
 
   member private this.Dispose(disposing:bool) =
-    if not couldHaveRegularKeys then ArrayPool<_>.Shared.Return(this.keys, true) |> ignore
-    ArrayPool<_>.Shared.Return(this.values, true) |> ignore
+    if not couldHaveRegularKeys then Impl.ArrayPool<_>.Return(this.keys, true) |> ignore
+    Impl.ArrayPool<_>.Return(this.values, true) |> ignore
     if disposing then GC.SuppressFinalize(this)
   
   member this.Dispose() = this.Dispose(true)

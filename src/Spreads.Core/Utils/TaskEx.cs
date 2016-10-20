@@ -15,6 +15,7 @@ namespace Spreads {
             private static Task<T> _defaultCompleted;
             public static Task<T> Cancelled;
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static Task<T> GetCompleted(T result = default(T)) {
                 if (EqualityComparer<T>.Default.Equals(result, default(T))) {
                     return _defaultCompleted ?? (_defaultCompleted = Task.FromResult(default(T)));
@@ -22,6 +23,7 @@ namespace Spreads {
                 return Task.FromResult(result);
             }
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static Task<T> GetCancelled() {
                 if (Cancelled != null) return Cancelled;
                 var tcs = new TaskCompletionSource<T>();
@@ -30,6 +32,7 @@ namespace Spreads {
                 return Cancelled;
             }
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static Task<T> GetFromException(Exception ex) {
                 var tcs = new TaskCompletionSource<T>();
                 tcs.SetException(ex);

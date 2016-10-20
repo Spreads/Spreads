@@ -27,7 +27,6 @@ open System.Collections.Generic
 open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
-open System.Buffers
 
 open Spreads
 open Spreads.Buffers
@@ -71,8 +70,8 @@ type IndexedMap<'K,'V> // when 'K:equality
   do
     let tempCap = if capacity.IsSome then capacity.Value else 1
     if dictionary.IsNone then // otherwise we will set them in dict processing part
-      this.keys <- ArrayPool<_>.Shared.Rent(tempCap)
-    this.values <- ArrayPool<_>.Shared.Rent(tempCap)
+      this.keys <- Impl.ArrayPool<_>.Rent(tempCap)
+    this.values <- Impl.ArrayPool<_>.Rent(tempCap)
 
     if dictionary.IsSome && dictionary.Value.Count > 0 then
       match dictionary.Value with
@@ -165,17 +164,17 @@ type IndexedMap<'K,'V> // when 'K:equality
         | c when c = this.values.Length -> ()
         | c when c < this.size -> raise (ArgumentOutOfRangeException("Small capacity"))
         | c when c > 0 -> 
-          let kArr : 'K array = ArrayPool<_>.Shared.Rent(c)
+          let kArr : 'K array = Impl.ArrayPool<_>.Rent(c)
           Array.Copy(this.keys, 0, kArr, 0, this.size)
           let toReturn = this.keys
           this.keys <- kArr
-          ArrayPool<_>.Shared.Return(toReturn, true) |> ignore
+          Impl.ArrayPool<_>.Return(toReturn, true) |> ignore
 
-          let vArr : 'V array = ArrayPool<_>.Shared.Rent(c)
+          let vArr : 'V array = Impl.ArrayPool<_>.Rent(c)
           Array.Copy(this.values, 0, vArr, 0, this.size)
           let toReturn = this.values
           this.values <- vArr
-          ArrayPool<_>.Shared.Return(toReturn, true) |> ignore
+          Impl.ArrayPool<_>.Return(toReturn, true) |> ignore
         | _ -> ()
       finally
         exitLockIf syncRoot entered

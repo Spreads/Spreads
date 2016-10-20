@@ -2,42 +2,10 @@
   "locked": false,
   "version": 1,
   "targets": {
-    ".NETFramework,Version=v4.5.1": {
-      "System.Buffers/4.0.0": {
-        "compile": {
-          "lib/netstandard1.1/System.Buffers.dll": {}
-        },
-        "runtime": {
-          "lib/netstandard1.1/System.Buffers.dll": {}
-        }
-      }
-    },
-    ".NETFramework,Version=v4.5.1/win": {
-      "System.Buffers/4.0.0": {
-        "compile": {
-          "lib/netstandard1.1/System.Buffers.dll": {}
-        },
-        "runtime": {
-          "lib/netstandard1.1/System.Buffers.dll": {}
-        }
-      }
-    }
+    ".NETFramework,Version=v4.5.1": {},
+    ".NETFramework,Version=v4.5.1/win": {}
   },
-  "libraries": {
-    "System.Buffers/4.0.0": {
-      "sha512": "msXumHfjjURSkvxUjYuq4N2ghHoRi2VpXcKMA7gK6ujQfU3vGpl+B6ld0ATRg+FZFpRyA6PgEPA+VlIkTeNf2w==",
-      "type": "package",
-      "path": "System.Buffers/4.0.0",
-      "files": [
-        "System.Buffers.4.0.0.nupkg.sha512",
-        "System.Buffers.nuspec",
-        "ThirdPartyNotices.txt",
-        "dotnet_library_license.txt",
-        "lib/netstandard1.1/.xml",
-        "lib/netstandard1.1/System.Buffers.dll"
-      ]
-    }
-  },
+  "libraries": {},
   "projectFileDependencyGroups": {
     "": [],
     ".NETFramework,Version=v4.5.1": []

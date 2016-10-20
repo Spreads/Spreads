@@ -64,7 +64,6 @@
 	},
 	"dependencies": {
 		"Spreads.Core": "0.6.0-alpha*",
-		"System.Buffers": "4.0.0"
 	},
 	"tools": {
 		"dotnet-compile-fsc": {
