@@ -1,6 +1,6 @@
 {
 
-	"version": "0.6.0-alpha3",
+	"version": "0.6.0-alpha4",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 	"dependencies": {
 		"Newtonsoft.Json": "9.0.1",
@@ -46,14 +46,14 @@
 		"nowarn": [
 			"CS1591"
 		],
-					"embed": {
-						"mappings": {
-							"win.x64.yeppp.dll": "../../lib/libyeppp/win/x64/yeppp.dll",
-							"win.x32.yeppp.dll": "../../lib/libyeppp/win/x32/yeppp.dll",
-							"win.x64.libblosc.dll": "../../lib/libblosc/w64/libblosc.dll",
-							"win.x32.libblosc.dll": "../../lib/libblosc/w32/libblosc.dll"
-						}
-					},
+		"embed": {
+			"mappings": {
+				"win.x64.yeppp.dll": "../../lib/libyeppp/win/x64/yeppp.dll",
+				"win.x32.yeppp.dll": "../../lib/libyeppp/win/x32/yeppp.dll",
+				"win.x64.libblosc.dll": "../../lib/libblosc/w64/libblosc.dll",
+				"win.x32.libblosc.dll": "../../lib/libblosc/w32/libblosc.dll"
+			}
+		},
 					
 	},
 	"authors": [ "Victor Baybekov" ],

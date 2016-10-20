@@ -1,10 +1,9 @@
 ﻿{
-	"version": "0.6.0-alpha3",
+	"version": "0.6.0-alpha4",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 	"dependencies": {
-		"Spreads.Extensions": "0.6.0-alpha3",
-		"Spreads.Collections": "0.6.0-alpha3",
-		"Spreads.Core": "0.6.0-alpha3"
+		"Spreads.Collections": "0.6.0-alpha*",
+		"Spreads.Core": "0.6.0-alpha*"
 	},
 
 	"frameworks": {
@@ -18,9 +17,7 @@
 
 		],
 		"define": [ "TRACE", "PRERELEASE" ],
-		"nowarn": [
-			"CS1591"
-		],
+		"nowarn": [ ],
 		"compile": {
 			"includeFiles": [
 
@@ -28,8 +25,6 @@
 		},
 		"embed": {
 			"mappings": {
-				"win.x64.yeppp.dll": "../../lib/libyeppp/win/x64/yeppp.dll",
-				"win.x32.yeppp.dll": "../../lib/libyeppp/win/x32/yeppp.dll",
 			}
 		}
 	},

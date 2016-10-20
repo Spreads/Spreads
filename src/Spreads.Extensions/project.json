@@ -1,9 +1,8 @@
 ﻿{
-	"version": "0.6.0-alpha3",
+	"version": "0.6.0-alpha4",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 	"dependencies": {
-		"Spreads.Core": "0.6.0-alpha3",
-		"Spreads.Collections": "0.6.0-alpha3",
+		"Spreads": "0.6.0-alpha*",
 		"Spreads.SQLite": "1.1.0",
 		"Dapper": "1.50.1",
 		"Newtonsoft.Json": "9.0.1",

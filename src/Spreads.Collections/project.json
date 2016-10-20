@@ -1,6 +1,6 @@
 {
 
-	"version": "0.6.0-alpha3",
+	"version": "0.6.0-alpha4",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 
 	"buildOptions": {
@@ -63,7 +63,7 @@
 		}
 	},
 	"dependencies": {
-		"Spreads.Core": "0.6.0-alpha3",
+		"Spreads.Core": "0.6.0-alpha*",
 		"System.Buffers": "4.0.0"
 	},
 	"tools": {
@@ -76,9 +76,9 @@
 		"dotnet-mergenupkg": { "version": "1.0.*" }
 	},
 	"frameworks": {
-		"net460": {
+		"net451": {
 			"dependencies": {
-				"FSharp.Core": "4.0.0.1"
+				"FSharp.Core": "3.1.2.5"
 			},
 			"frameworkAssemblies": {
 				"System": "",
