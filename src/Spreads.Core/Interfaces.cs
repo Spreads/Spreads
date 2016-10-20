@@ -227,7 +227,7 @@ namespace Spreads {
         /// The actual implementation of the batch could be mutable and could reference a part of the original series, therefore consumer
         /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap
         /// </summary>
-        IReadOnlyOrderedMap<TKey, TValue> CurrentBatch { get; }
+        ISeries<TKey, TValue> CurrentBatch { get; }
 
         /// <summary>
         /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
