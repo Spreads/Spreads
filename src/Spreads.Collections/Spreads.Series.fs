@@ -685,9 +685,10 @@ and
 
 and
   // NB! Remember that cursors are single-threaded
+  // TODO make it a struct
   /// Map values to new values, batch mapping if that makes sense (for simple operations additional logic overhead is usually bigger than)
   [<SealedAttribute>]
-  internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:('V->'V2), fBatch:(ISeries<'K,'V>->Series<'K,'V2>) opt)=
+  internal BatchMapValuesCursor<'K,'V,'V2> internal(cursorFactory:Func<ICursor<'K,'V>>, f:('V->'V2), fBatch:(ArraySegment<'V>->ArraySegment<'V2>) opt)=
     let mutable cursor : ICursor<'K,'V> =  cursorFactory.Invoke()
     
     // for forward-only enumeration this could be faster with native math
@@ -712,17 +713,10 @@ and
     member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-    member private this.MapBatch(batch:ISeries<'K,'V>) =
-      // See ICanMapSeriesValues implementatio below - func could be present, but return null
-      let batchedResult = 
-        if preferBatches then 
-          let batchedResult' = fBatch.Present(batch)
-          if batchedResult' = null then preferBatches <- false
-          batchedResult'
-        else null
-      
-      if batchedResult <> null then batchedResult
-      else
+    member private this.MapBatch(batch:ISeries<'K,'V>) : Series<'K,'V2> =
+      match batch with
+      | :? ICanMapSeriesValues<'K,'V> as mappable -> mappable.Map(f, fBatch)
+      | _ ->
         let factory = Func<_>(batch.GetCursor)
         let c() = new BatchMapValuesCursor<'K,'V,'V2>(factory, f, fBatch) :> ICursor<'K,'V2>
         CursorSeries(Func<_>(c)) :> Series<'K,'V2>
@@ -884,13 +878,7 @@ and
         let func = f >> f2
         let batchFunc =
           if fBatch.IsPresent && fBatch2.IsPresent then
-            let f source = 
-              let mapped1 = fBatch.Present(source)
-              match box mapped1 with
-              | :? ICanMapSeriesValues<'K,'V2> as mappable ->
-                mappable.Map(f2, fBatch2)
-              | _ -> null
-            Present(f)
+            Present(fBatch.Present >> fBatch2.Present)
           else Missing
         CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V3>(cursorFactory, func, batchFunc) :> ICursor<_,_>) :> Series<'K,'V3>
 
