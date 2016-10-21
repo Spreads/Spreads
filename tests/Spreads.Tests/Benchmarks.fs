@@ -768,9 +768,9 @@ module CollectionsBenchmarks =
     smap.Value.IsSynchronized <- false
 
     perf count "Series Add" (fun _ ->
-      smap.Value.Add(0L, 0.0)
+      smap.Value.Add(0L, 0.0f)
       for i in 2L..count do
-        smap.Value.Add(i, double <| i)
+        smap.Value.Add(i, float32 <| i)
     )
 
     for i in 0..0 do
@@ -784,18 +784,18 @@ module CollectionsBenchmarks =
     for i in 0..9 do
       let mutable res = Unchecked.defaultof<_>
       perf count "Series Add/divide Chained" (fun _ ->
-        let ro = smap.Value.Map(fun x -> x + 123456.0).Map(fun x -> x/789.0).Map(fun x -> x*10.0)
+        let ro = smap.Value.Map(fun x -> x + 123456.0f).Map(fun x -> x/789.0f).Map(fun x -> x*10.0f)
         for i in ro do
           res <- i.Value
           ()
       )
-      if res < 0.0 then failwith "avoid gc" 
+      if res < 0.0f then failwith "avoid gc" 
       ()
 
 
     for i in 0..9 do
       perf count "Series Add/Delete Inline" (fun _ ->
-        let ro = smap.Value.Map(fun k x -> ((x + 123456.0)/789.0)*10.0)
+        let ro = smap.Value.Map(fun k x -> ((x + 123456.0f)/789.0f)*10.0f)
         for i in ro do
           let res = i.Value
           ()
@@ -813,9 +813,9 @@ module CollectionsBenchmarks =
 
     for i in 0..9 do
       perf count "Series chanined SIMD" (fun _ ->
-        let addition = 123456.0
-        let division = 789.0
-        let multiplication = 10.0
+        let addition = 123456.0f
+        let division = 789.0f
+        let multiplication = 10.0f
         let sf x = ((x + addition)/division)*multiplication
         let vAddition = new Vector<_>(addition)
         let vDivision = new Vector<_>(division)
@@ -830,7 +830,7 @@ module CollectionsBenchmarks =
 
     for i in 0..9 do
       perf count "Series Opt Add/divide Chained" (fun _ ->
-        let ro = ((smap.Value + 123456.0)/789.0) * 10.0 // ((smap.Value + 123456.0)/789.0)*10.0
+        let ro = ((smap.Value + 123456.0f)/789.0f) * 10.0f // ((smap.Value + 123456.0)/789.0)*10.0
         for i in ro do
           let res = i.Value
           ()
@@ -839,7 +839,7 @@ module CollectionsBenchmarks =
 
     for i in 0..9 do
       perf count "LINQ Add/divide Chained" (fun _ ->
-        let ro = smap.Value.Select(fun x -> x.Value + 123456.0).Select(fun x -> x/789.0).Select(fun x -> x*10.0)
+        let ro = smap.Value.Select(fun x -> x.Value + 123456.0f).Select(fun x -> x/789.0f).Select(fun x -> x*10.0f)
         for i in ro do
           let res = i
           ()
@@ -847,7 +847,7 @@ module CollectionsBenchmarks =
 
     for i in 0..9 do
       perf count "LINQ Add/Delete Inline" (fun _ ->
-        let ro = smap.Value.Select(fun x -> KVP(x.Key, ((x.Value + 123456.0)/789.0)*10.0))
+        let ro = smap.Value.Select(fun x -> KVP(x.Key, ((x.Value + 123456.0f)/789.0f)*10.0f))
         for i in ro do
           let res = i
           ()
@@ -858,9 +858,9 @@ module CollectionsBenchmarks =
         let ro =
           smap.Value
           |> Nessos.Streams.Stream.ofSeq
-          |> Nessos.Streams.Stream.map (fun x -> x.Value + 123456.0)
-          |> Nessos.Streams.Stream.map (fun x -> x/789.0)
-          |> Nessos.Streams.Stream.map (fun x -> x*10.0)
+          |> Nessos.Streams.Stream.map (fun x -> x.Value + 123456.0f)
+          |> Nessos.Streams.Stream.map (fun x -> x/789.0f)
+          |> Nessos.Streams.Stream.map (fun x -> x*10.0f)
           |> Nessos.Streams.Stream.toSeq
         
         for i in ro do
@@ -873,7 +873,7 @@ module CollectionsBenchmarks =
         let ro =
           smap.Value
           |> Nessos.Streams.Stream.ofSeq
-          |> Nessos.Streams.Stream.map (fun x -> ((x.Value + 123456.0)/789.0)*10.0)
+          |> Nessos.Streams.Stream.map (fun x -> ((x.Value + 123456.0f)/789.0f)*10.0f)
           |> Nessos.Streams.Stream.toSeq
         for i in ro do
           let res = i
