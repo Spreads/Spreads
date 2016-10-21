@@ -12,7 +12,7 @@ open Microsoft.FSharp.Core.Operators
 open Spreads.SIMDArrayUtils
 
 [<RequireQualifiedAccess>]
-module internal SIMD =
+module SIMD =
 
   /// <summary>
   /// First does skipWhile one vector at a time using vf. If vf returns false
@@ -590,7 +590,7 @@ module internal SIMD =
     let count = Vector<'T>.Count
     if count <> Vector<'U>.Count then invalidArg "array" "Output type must have the same width as input type."    
     
-    let result = Array.zeroCreate segment.Array.Length //Impl.ArrayPool<'U>.Rent(segment.Count)
+    let result = Impl.ArrayPool<'U>.Rent(segment.Count) //Array.zeroCreate segment.Array.Length //
     
     let mutable i = segment.Offset
     let length = i + segment.Count

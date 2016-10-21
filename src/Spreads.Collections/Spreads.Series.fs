@@ -660,6 +660,9 @@ and
     // TODO other primitive numeric types
     
 
+    static member public Map (series:Series<'K,'V>, sf:Func<'V,'V2>, af:Func<ArraySegment<'V>,ArraySegment<'V2>>) : Series<'K,'V2> = 
+      Series.ScalarOperatorMap(series, sf.Invoke, if af <> null then Present(af.Invoke) else Missing)
+
 and
   // TODO (perf) base Series() implements IROOM inefficiently, see comments in above type Series() implementation
   /// Wraps Series over ICursor

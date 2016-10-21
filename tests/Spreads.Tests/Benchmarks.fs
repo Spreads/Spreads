@@ -8,7 +8,7 @@ open Spreads
 open Spreads.Collections
 open System.Threading
 open System.Threading.Tasks
-
+open System.Numerics
 open Deedle
 
 open FsUnit
@@ -801,16 +801,33 @@ module CollectionsBenchmarks =
           ()
       )
 
-    OptimizationSettings.CombineFilterMapDelegates <- false
+//    OptimizationSettings.CombineFilterMapDelegates <- false
+//    for i in 0..9 do
+//      perf count "Series NonOpt Add/divide Chained" (fun _ ->
+//        let ro = ((smap.Value + 123456.0)/789.0)*10.0
+//        for i in ro do
+//          let res = i.Value
+//          ()
+//      )
+//    OptimizationSettings.CombineFilterMapDelegates <- true
+
     for i in 0..9 do
-      perf count "Series NonOpt Add/divide Chained" (fun _ ->
-        let ro = ((smap.Value + 123456.0)/789.0)*10.0
+      perf count "Series chanined SIMD" (fun _ ->
+        let addition = 123456.0
+        let division = 789.0
+        let multiplication = 10.0
+        let sf x = ((x + addition)/division)*multiplication
+        let vAddition = new Vector<_>(addition)
+        let vDivision = new Vector<_>(division)
+        let vMultiplication = new Vector<_>(multiplication)
+        let vf v = Vector.Multiply(Vector.Divide(Vector.Add(v, vAddition), vDivision), vMultiplication)
+        let af = SIMD.mapSegment (vf) (sf)
+        let ro = Series.Map(smap.Value, Func<_,_>(sf), Func<_,_>af)
         for i in ro do
           let res = i.Value
           ()
       )
 
-    OptimizationSettings.CombineFilterMapDelegates <- true
     for i in 0..9 do
       perf count "Series Opt Add/divide Chained" (fun _ ->
         let ro = ((smap.Value + 123456.0)/789.0) * 10.0 // ((smap.Value + 123456.0)/789.0)*10.0
