@@ -1,4 +1,4 @@
-﻿using System;
+﻿//using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -20,7 +20,7 @@ namespace Spreads.Collections {
     }
 
 
-    public class SpanIndex<T> : IIndex<T>, IDisposable {
+    public class SpanIndex<T> : IIndex<T>, System.IDisposable {
         internal Span<T> _items;
         internal int _count;
         internal IComparer<T> _comparer;
@@ -42,7 +42,7 @@ namespace Spreads.Collections {
         }
 
         internal SpanIndex<T> Rent(int offset, int count) {
-            if ((uint)offset + (uint)count > _count) throw new ArgumentException("Wrong offset + count");
+            if ((uint)offset + (uint)count > _count) throw new System.ArgumentException("Wrong offset + count");
             var idx = new SpanIndex<T>();
             var items = _items.Slice(offset);
             idx._items = items;

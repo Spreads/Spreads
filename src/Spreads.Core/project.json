@@ -1,6 +1,6 @@
 {
 
-	"version": "0.6.0-alpha4",
+	"version": "0.6.0-alpha5",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 	"dependencies": {
 		"Newtonsoft.Json": "9.0.1",
@@ -8,7 +8,9 @@
 		"System.Runtime": "4.1.0",
 		"System.Buffers": "4.0.0",
 		"System.Threading.Tasks.Extensions": "4.0.0",
-		"runtime.any.System.IO": "4.1.0"
+		"System.Slices": "0.1.0-*",
+		"System.Runtime.CompilerServices.Unsafe": "4.4.0-*",
+		"System.IO": "4.1.0"
 	},
 
 	"frameworks": {
@@ -21,7 +23,7 @@
 		"netstandard1.3": {
 			"dependencies": {
 				"NETStandard.Library": "1.6.0",
-				
+
 				"System.Diagnostics.Contracts": "4.0.1",
 				"System.Threading.Thread": "4.0.0",
 				"System.Diagnostics.TraceSource": "4.0.0",
@@ -53,8 +55,7 @@
 				"win.x64.libblosc.dll": "../../lib/libblosc/w64/libblosc.dll",
 				"win.x32.libblosc.dll": "../../lib/libblosc/w32/libblosc.dll"
 			}
-		},
-					
+		}		
 	},
 	"authors": [ "Victor Baybekov" ],
 	"copyright": "Copyright 2016",

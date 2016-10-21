@@ -9,6 +9,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{BF60
 		global.json = global.json
 		LICENSE.Dependencies.txt = LICENSE.Dependencies.txt
 		LICENSE.txt = LICENSE.txt
+		NuGet.config = NuGet.config
 		README.md = README.md
 		RELEASE_NOTES.md = RELEASE_NOTES.md
 		TODO.md = TODO.md

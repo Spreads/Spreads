@@ -203,7 +203,7 @@ namespace Spreads.DataTypes {
 
         private T DataAs<T>() {
             fixed (void* ptr = _data) {
-                return Unsafe.Read<T>(ptr);
+                return Utils.Unsafe.Read<T>(ptr);
             }
         }
 

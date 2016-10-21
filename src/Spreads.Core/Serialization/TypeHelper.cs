@@ -27,6 +27,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spreads.Buffers;
 using Spreads.Utils;
+using Unsafe = Spreads.Utils.Unsafe;
 
 namespace Spreads.Serialization {
 
@@ -170,7 +171,7 @@ namespace Spreads.Serialization {
                 pinnedArrayHandle.Free();
                 // Type helper workd only with types that could be pinned in arrays
                 // Heret we just cross-check, happens only in static constructor
-                var unsafeSize = Unsafe.SizeOf<T>();
+                var unsafeSize = Utils.Unsafe.SizeOf<T>();
                 if (unsafeSize != size) Environment.FailFast("Pinned and unsafe sizes differ!");
                 return size;
             } catch {
@@ -325,7 +326,7 @@ namespace Spreads.Serialization {
             }
             Debug.Assert(_size > 0);
 #if TYPED_REF
-            value = Unsafe.Read<T>((void*)ptr);
+            value = Utils.Unsafe.Read<T>((void*)ptr);
             return _size;
 #else
             if (_isDateTime) {
