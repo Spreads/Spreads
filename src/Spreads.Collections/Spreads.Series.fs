@@ -147,7 +147,7 @@ and
 
     member internal this.SyncRoot with get() = c :> obj
 
-    member internal this.Comparer with get() = lock(c) (fun _ -> c.Value.Comparer)
+    member internal this.Comparer with get() = lock(c) (fun _ -> c.Value.Source.Comparer)
     member internal this.IsEmpty = lock(c) (fun _ -> not (c.Value.MoveFirst()))
 
     member internal this.First 
