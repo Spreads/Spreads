@@ -131,6 +131,7 @@
     <None Include="Series.fsx" />
     <None Include="Spreads.Collections.project.json" />
     <None Include="project.json" />
+    <None Include="Spreads.Collections.licenseheader" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">

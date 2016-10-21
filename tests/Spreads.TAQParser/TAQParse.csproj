@@ -160,6 +160,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="packages.config" />
+    <None Include="Spreads.TAQParser.licenseheader" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj">

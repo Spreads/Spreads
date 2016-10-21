@@ -112,6 +112,7 @@
     <Content Include="packages.config" />
     <None Include="Script1.fsx" />
     <None Include="TAQDemo.fsx" />
+    <None Include="Spreads.Tests.licenseheader" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Dapper">

@@ -151,6 +151,7 @@
     <None Include="Example.fsx" />
     <None Include="any\netstandard1.6\FSharp.Core.sigdata" />
     <None Include="any\netstandard1.6\FSharp.Core.optdata" />
+    <None Include="Spreads.Tests.Profile.licenseheader" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Dapper">

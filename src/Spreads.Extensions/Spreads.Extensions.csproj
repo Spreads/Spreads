@@ -176,6 +176,7 @@
     <None Include="app.config" />
     <None Include="DataTypes\DataTypes.md" />
     <None Include="packages.config" />
+    <None Include="Spreads.Extensions.licenseheader" />
     <None Include="Spreads.Extensions.project.json" />
     <None Include="Storage\Protocol.md" />
   </ItemGroup>

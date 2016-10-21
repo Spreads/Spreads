@@ -234,28 +234,11 @@ adds `Spreads.Extensions` as dependency.
 
 
 ## Contributing
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-Pull requests and bug reports are very welcome! Currently Spreads library implements only the
-core functionality via higher-order series projections 
-like `Map`, `Filter`, `Scan`, `ZipN`, `ZipLag`, `Window`, etc.
-One could do a lot of things just by using
-them with sophisticated lambdas or by using cursors directly. In addition, due to the fact that the Series type implements
-generic `I(Async)Enumerable` interface, one could use LINQ and Interactive 
-Extensions for additional functionality. However, there are many features still missing compared 
-to Deedle or Streams, e.g. aggregation, grouping, resampling. They could be easily 
-implemented via `BindCursor`.
-
-Correctness is paramount
-for this kind of code and its intended usage - some subtle bugs could cause big damage.
-Therefore, one of the main goals is exhaustive random testing of calculations. ZipN tests contain
-an example where reference series are generated manually from random data and then compared to ZipN output.
-The project Spreads.Collection.Tests has an unfinished test suite to extend this idea and
-to ensure that all series adhere to contract behavior and produce correct values.
-
-Spreads library is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published
-by the Free Software Foundation; either version 3 of the License, 
-or (at your option) any later version.
+(c) Victor Baybekov, 2014-2016
 
 
 ## Status and version
