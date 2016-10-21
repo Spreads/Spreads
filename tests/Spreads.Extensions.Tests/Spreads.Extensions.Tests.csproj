@@ -139,7 +139,6 @@
     <Compile Include="DataTypesTest.cs" />
     <Compile Include="SerializationTests.cs" />
     <Compile Include="UnsafeCastTests.cs" />
-    <Compile Include="YepppTests.cs" />
     <Compile Include="CompressionTestsOld.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

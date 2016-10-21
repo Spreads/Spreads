@@ -153,6 +153,7 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
+        [Ignore]
         public unsafe void InterlockedIncrVsAdd() {
             var ptr = (void*)Marshal.AllocHGlobal(8);
 

@@ -10,6 +10,7 @@ using System.Linq;
 using Spreads.Collections;
 using Spreads.Algorithms;
 using System.Numerics;
+using Spreads.Utils;
 
 namespace Spreads.Core.Tests {
 
@@ -64,6 +65,7 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
+        [Ignore]
         public void SimdVsLoopAddition() {
             var sw = new Stopwatch();
             for (int round = 0; round < 5; round++) {
@@ -126,6 +128,7 @@ namespace Spreads.Core.Tests {
 
 
         [Test]
+        [Ignore]
         public void SimdVsLoopExp() {
             var sw = new Stopwatch();
             for (int round = 0; round < 5; round++) {
@@ -163,6 +166,7 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
+        [Ignore]
         public unsafe void SimdAddOfEnumerable() {
 
             var sw = new Stopwatch();

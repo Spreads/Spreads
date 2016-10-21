@@ -3,24 +3,14 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}"
-	ProjectSection(SolutionItems) = preProject
-		Introduction.md = Introduction.md
-		Links.md = Links.md
-	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{BF60BC93-E09B-4E5F-9D85-95A519479D54}"
 	ProjectSection(SolutionItems) = preProject
-		build.fsx = build.fsx
 		global.json = global.json
 		LICENSE.Dependencies.txt = LICENSE.Dependencies.txt
 		LICENSE.txt = LICENSE.txt
-		nuget\Period.nuspec = nuget\Period.nuspec
 		README.md = README.md
 		RELEASE_NOTES.md = RELEASE_NOTES.md
-		nuget\Spreads.Core.nuspec = nuget\Spreads.Core.nuspec
-		nuget\Spreads.Extensions.nuspec = nuget\Spreads.Extensions.nuspec
-		nuget\Spreads.nuspec = nuget\Spreads.nuspec
-		nuget\Spreads.RPlugin.nuspec = nuget\Spreads.RPlugin.nuspec
 		TODO.md = TODO.md
 	EndProjectSection
 EndProject

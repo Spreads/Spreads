@@ -27,6 +27,7 @@ namespace Spreads.Core.Tests {
 
 
         [Test]
+        [Ignore]
         public void IdentityFunctionTests() {
             var sw = new Stopwatch();
             sw.Start();

@@ -11,6 +11,7 @@ using System.Threading;
 using Spreads.Buffers;
 using Spreads.Serialization;
 using System.Runtime.CompilerServices;
+using Spreads.Utils;
 
 namespace Spreads.Core.Tests {
 
