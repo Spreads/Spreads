@@ -792,16 +792,6 @@ module CollectionsBenchmarks =
       if res < 0.0 then failwith "avoid gc" 
       ()
 
-    for i in 0..9 do
-      let mutable res = Unchecked.defaultof<_>
-      perf count "Series Chained operators" (fun _ ->
-        let ro = ((smap.Value + 123456.0) / 789.0) * 10.0
-        for i in ro do
-          res <- i.Value
-          ()
-      )
-      if res < 0.0 then failwith "avoid gc" 
-      ()
 
     for i in 0..9 do
       perf count "Series Add/Delete Inline" (fun _ ->
@@ -823,7 +813,7 @@ module CollectionsBenchmarks =
     OptimizationSettings.CombineFilterMapDelegates <- true
     for i in 0..9 do
       perf count "Series Opt Add/divide Chained" (fun _ ->
-        let ro = ((smap.Value + 123456.0)/789.0)*10.0
+        let ro = ((smap.Value + 123456.0)/789.0) * 10.0 // ((smap.Value + 123456.0)/789.0)*10.0
         for i in ro do
           let res = i.Value
           ()
@@ -872,7 +862,7 @@ module CollectionsBenchmarks =
           let res = i
           ()
       )
-
+    smap.Value.Dispose();
     GC.Collect();
 
 //    let deedleSeries = ref (Series.ofObservations([]))
@@ -931,7 +921,7 @@ module CollectionsBenchmarks =
 
     Console.WriteLine("----------------")
   [<Test>]
-  let SeriesNestedMap_run() = SeriesNestedMap(1000000L)
+  let SeriesNestedMap_run() = SeriesNestedMap(10L * 1024L * 1024L)
 
   [<Test>]
   let SeriesNestedMap_run_mult() =

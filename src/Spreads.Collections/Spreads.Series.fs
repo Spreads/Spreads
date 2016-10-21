@@ -53,7 +53,7 @@ open Spreads.Collections
 [<Interface>]
 [<AllowNullLiteral>]
 type internal ICanMapSeriesValues<'K,'V> =
-  abstract member Map: mapFunc:('V->'V2) * fBatch:(ArraySegment<'V>->ArraySegment<'V2>) opt -> Series<'K,'V2>
+  abstract member Map: mapFunc:('V->'V1) * fBatch:(ArraySegment<'V>->ArraySegment<'V1>) opt -> Series<'K,'V1>
 
 and
   [<AllowNullLiteral>]
@@ -287,7 +287,7 @@ and
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     static member inline private ScalarOperatorMap<'K,'V,'V2>(source:Series<'K,'V>, mapFunc:'V->'V2, fBatch:(ArraySegment<'V>->ArraySegment<'V2>) opt) = 
       let defaultMap() =
-        CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(source.GetCursor), mapFunc, Unchecked.defaultof<_>) :> ICursor<_,_>) :> Series<'K,'V2>
+        CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(source.GetCursor), mapFunc, fBatch) :> ICursor<_,_>) :> Series<'K,'V2>
       if OptimizationSettings.CombineFilterMapDelegates then
         match box source with
         | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc, fBatch)

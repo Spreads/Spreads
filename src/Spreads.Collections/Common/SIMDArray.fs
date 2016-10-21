@@ -586,11 +586,11 @@ module internal SIMD =
 
   let inline mapSegment
     (vf : 'T Vector -> 'U Vector) (sf : ^T -> ^U) (segment : ArraySegment<'T>) : ArraySegment<'U> =
-
+    //Console.WriteLine("SIMD mapSegment")
     let count = Vector<'T>.Count
     if count <> Vector<'U>.Count then invalidArg "array" "Output type must have the same width as input type."    
     
-    let result = Impl.ArrayPool<'U>.Rent(segment.Count)
+    let result = Array.zeroCreate segment.Array.Length //Impl.ArrayPool<'U>.Rent(segment.Count)
     
     let mutable i = segment.Offset
     let length = i + segment.Count

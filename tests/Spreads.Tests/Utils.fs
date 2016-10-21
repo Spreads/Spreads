@@ -4,6 +4,22 @@ open System.Linq
 open System.Collections.Generic
 open System.Diagnostics
 
+type MyFunc() =
+  inherit FSharpFunc<int,int>()
+
+  override this.Invoke(x) = x + 1
+
+module test = 
+  let f = MyFunc()
+  let apply (func:int->int) value =
+    let conv = FSharpFunc.ToConverter(func)
+    
+    match box func with
+    | :? MyFunc as myF -> myF.Invoke(value) 
+    | _ -> func(value) - 10
+
+  let x = apply f.Invoke 1
+
 //[<AutoOpenAttribute>]
 //module TestUtils =
 //  /// run f and measure ops per second
