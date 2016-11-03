@@ -56,8 +56,8 @@ type IndexedMap<'K,'V> // when 'K:equality
   do
     let tempCap = if capacity.IsSome then capacity.Value else 1
     if dictionary.IsNone then // otherwise we will set them in dict processing part
-      this.keys <- Impl.ArrayPool<_>.Rent(tempCap)
-    this.values <- Impl.ArrayPool<_>.Rent(tempCap)
+      this.keys <- BufferPool<_>.Rent(tempCap)
+    this.values <- BufferPool<_>.Rent(tempCap)
 
     if dictionary.IsSome && dictionary.Value.Count > 0 then
       match dictionary.Value with
@@ -152,17 +152,17 @@ type IndexedMap<'K,'V> // when 'K:equality
         | c when c = this.values.Length -> ()
         | c when c < this.size -> raise (ArgumentOutOfRangeException("Small capacity"))
         | c when c > 0 -> 
-          let kArr : 'K array = Impl.ArrayPool<_>.Rent(c)
+          let kArr : 'K array = BufferPool<_>.Rent(c)
           Array.Copy(this.keys, 0, kArr, 0, this.size)
           let toReturn = this.keys
           this.keys <- kArr
-          Impl.ArrayPool<_>.Return(toReturn, true) |> ignore
+          BufferPool<_>.Return(toReturn, true) |> ignore
 
-          let vArr : 'V array = Impl.ArrayPool<_>.Rent(c)
+          let vArr : 'V array = BufferPool<_>.Rent(c)
           Array.Copy(this.values, 0, vArr, 0, this.size)
           let toReturn = this.values
           this.values <- vArr
-          Impl.ArrayPool<_>.Return(toReturn, true) |> ignore
+          BufferPool<_>.Return(toReturn, true) |> ignore
         | _ -> ()
       finally
         exitLockIf syncRoot entered

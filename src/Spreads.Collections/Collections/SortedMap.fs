@@ -100,8 +100,8 @@ type SortedMap<'K,'V>
         // TODO wrap the corefx buffer and for len = 2 use a special self-adjusting ObjectPool, because these 
         // arrays are not short-lived and could accumulate in gen 1+ easily.
         Array.zeroCreate 2
-      else Impl.ArrayPool<'K>.Rent(tempCap) 
-    this.values <- Impl.ArrayPool<'V>.Rent(tempCap)
+      else BufferPool<'K>.Rent(tempCap) 
+    this.values <- BufferPool<'V>.Rent(tempCap)
 
     if dictionary.IsSome && dictionary.Value.Count > 0 then
       match dictionary.Value with
@@ -128,7 +128,7 @@ type SortedMap<'K,'V>
           else
             this.SetCapacity(dictionary.Value.Count)
         
-          let tempKeys = Impl.ArrayPool<_>.Rent(dictionary.Value.Keys.Count)
+          let tempKeys = BufferPool<_>.Rent(dictionary.Value.Keys.Count)
           dictionary.Value.Keys.CopyTo(tempKeys, 0)
           dictionary.Value.Values.CopyTo(this.values, 0)
           // NB IDictionary guarantees there is no duplicates
@@ -140,7 +140,7 @@ type SortedMap<'K,'V>
             couldHaveRegularKeys <- isReg
             if couldHaveRegularKeys then 
               this.keys <- regularKeys
-              Impl.ArrayPool<_>.Return(tempKeys, true) |> ignore
+              BufferPool<_>.Return(tempKeys, true) |> ignore
               rkLast <- this.rkKeyAtIndex (this.size - 1)
             else
               this.keys <- tempKeys
@@ -168,7 +168,7 @@ type SortedMap<'K,'V>
               let keys = 
                 if isRegular then
                   let arr = Array.sub keysSegment.Array 0 2
-                  Impl.ArrayPool<_>.Return keysSegment.Array |> ignore
+                  BufferPool<_>.Return keysSegment.Array |> ignore
                   arr
                 else keysSegment.Array
               let ptr = new IntPtr(ptr.ToInt64() + (int64 keysLen))
@@ -444,8 +444,8 @@ type SortedMap<'K,'V>
           Trace.Assert(this.keys.Length = 2)
           Unchecked.defaultof<_>
         else
-          Impl.ArrayPool<_>.Rent(c)
-      let vArr : 'V array = Impl.ArrayPool<_>.Rent(c)
+          BufferPool<_>.Rent(c)
+      let vArr : 'V array = BufferPool<_>.Rent(c)
 
       try
         // TODO this needs review. Looks like very overcompicated for almost imaginary edge case.
@@ -458,11 +458,11 @@ type SortedMap<'K,'V>
           Array.Copy(this.keys, 0, kArr, 0, this.size)
           let toReturn = this.keys
           this.keys <- kArr
-          Impl.ArrayPool<_>.Return(toReturn, true) |> ignore
+          BufferPool<_>.Return(toReturn, true) |> ignore
         Array.Copy(this.values, 0, vArr, 0, this.size)
         let toReturn = this.values
         this.values <- vArr
-        Impl.ArrayPool<_>.Return(toReturn, true) |> ignore
+        BufferPool<_>.Return(toReturn, true) |> ignore
       with
       // NB see enterWriteLockIf comment and https://github.com/dotnet/corefx/issues/1345#issuecomment-147569967
       // If we were able to get new arrays without OOM but got some out-of-band exception during
@@ -1273,8 +1273,8 @@ type SortedMap<'K,'V>
   member this.TrimExcess() = this.Capacity <- this.size
 
   member private this.Dispose(disposing:bool) =
-    if not couldHaveRegularKeys then Impl.ArrayPool<_>.Return(this.keys, true) |> ignore
-    Impl.ArrayPool<_>.Return(this.values, true) |> ignore
+    if not couldHaveRegularKeys then BufferPool<_>.Return(this.keys, true) |> ignore
+    BufferPool<_>.Return(this.values, true) |> ignore
     if disposing then GC.SuppressFinalize(this)
   
   member this.Dispose() = this.Dispose(true)
@@ -1492,14 +1492,14 @@ type SortedMap<'K,'V>
       let series =
         { new Series<'K,'V2>() with
             member __.GetCursor() = 
-              let keys = Array.zeroCreate this.keys.Length // Impl.ArrayPool<'K>.Rent(this.size)
+              let keys = Array.zeroCreate this.keys.Length // BufferPool<'K>.Rent(this.size)
               Array.Copy(this.keys, keys, this.size)
               let values : 'V2[] = 
                 if fBatch.IsPresent then
                   let segment = fBatch.Present(ArraySegment(this.values, 0, this.size))
                   segment.Array
                 else 
-                  let arr = Array.zeroCreate this.values.Length //Impl.ArrayPool<'V2>.Rent(this.size)
+                  let arr = Array.zeroCreate this.values.Length //BufferPool<'V2>.Rent(this.size)
                   for i in 0..(this.size - 1) do
                     arr.[i] <- f(this.values.[i])
                   arr

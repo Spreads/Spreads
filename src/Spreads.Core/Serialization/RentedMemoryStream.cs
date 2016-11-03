@@ -18,7 +18,7 @@ namespace Spreads.Serialization
         /// <summary>
         /// Wraps a rented buffer and returns it to the shared pool on Dispose
         /// </summary>
-        /// <param name="rentedBuffer">A buffer that was previously rented from the shared ArrayPool</param>
+        /// <param name="rentedBuffer">A buffer that was previously rented from the shared BufferPool</param>
         /// <param name="offset"></param>
         /// <param name="count"></param>
         public RentedMemoryStream(byte[] rentedBuffer, int offset, int count) : base(rentedBuffer, offset, count) {

@@ -19,11 +19,11 @@ namespace Spreads.Serialization {
         //    public static readonly JsonNetArrayPoolImpl Instance = new JsonNetArrayPoolImpl();
 
         //    public char[] Rent(int minimumLength) {
-        //        return ArrayPool<char>.Shared.Rent(minimumLength);
+        //        return BufferPool<char>.Shared.Rent(minimumLength);
         //    }
 
         //    public void Return(char[] array) {
-        //        ArrayPool<char>.Shared.Return(array, true);
+        //        BufferPool<char>.Shared.Return(array, true);
         //    }
         //}
 

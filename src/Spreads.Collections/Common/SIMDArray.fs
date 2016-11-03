@@ -6,6 +6,7 @@
 namespace Spreads
 
 open Spreads
+open Spreads.Buffers
 open System
 open System.Numerics
 open System.Reflection
@@ -595,7 +596,7 @@ module SIMD =
     let count = Vector<'T>.Count
     if count <> Vector<'U>.Count then invalidArg "array" "Output type must have the same width as input type."    
     
-    let result = Impl.ArrayPool<'U>.Rent(segment.Count) //Array.zeroCreate segment.Array.Length //
+    let result = BufferPool<'U>.Rent(segment.Count) //Array.zeroCreate segment.Array.Length //
     
     let mutable i = segment.Offset
     let length = i + segment.Count

@@ -181,7 +181,7 @@ namespace Spreads.Storage {
                     MemoryStream stream;
                     var size = BinarySerializer.SizeOf(value, out stream);
                     // TODO pooled buffer
-                    var buffer = new byte[size]; // ArrayPool<byte>.Shared.Rent(size);
+                    var buffer = new byte[size]; // BufferPool<byte>.Shared.Rent(size);
                     BinarySerializer.Write(value, buffer, 0, stream);
                     var k = ToInt64(key);
                     var lv = new LazyValue(k, value.Count, _chunksCache.Version, this);
@@ -556,7 +556,7 @@ namespace Spreads.Storage {
                 MemoryStream stream;
                 var size = BinarySerializer.SizeOf(_lastAccessedElement.Value, out stream);
                 // TODO pooled buffer
-                var buffer = new byte[size]; // ArrayPool<byte>.Shared.Rent(size);
+                var buffer = new byte[size]; // BufferPool<byte>.Shared.Rent(size);
                 BinarySerializer.Write(_lastAccessedElement.Value, buffer, 0, stream);
                 var k = ToInt64(_lastAccessedElement.Key);
                 var lv = new LazyValue(k, _lastAccessedElement.Value.Count, _chunksCache.Version, this);

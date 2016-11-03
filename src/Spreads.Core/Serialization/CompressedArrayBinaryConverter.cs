@@ -210,7 +210,7 @@ namespace Spreads.Serialization {
                         pinnedArray.Free();
                     }
                 } else {
-                    // ArrayPool returns an empty array
+                    // BufferPool returns an empty array
                 }
                 return totalSize;
             }

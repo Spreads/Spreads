@@ -29,7 +29,7 @@
 //        public bool AddBatch<K>(double scalar, IReadOnlyOrderedMap<K, double> batch, out IReadOnlyOrderedMap<K, double> value) {
 //            var sm = batch as SortedMap<K, double>;
 //            if (!ReferenceEquals(sm, null)) {
-//                double[] newValues = ArrayPool<double>.Shared.Rent(sm.size);
+//                double[] newValues = BufferPool<double>.Shared.Rent(sm.size);
 //                double[] buffer = new double[Vector<double>.Count];
 //                for (int c = 0; c < Vector<double>.Count; c++) {
 //                    buffer[c] = scalar;
