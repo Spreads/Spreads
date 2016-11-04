@@ -291,11 +291,82 @@ namespace Spreads {
     }
 
 
+    
+    /// <summary>
+    /// Mutable ordered map
+    /// </summary>
+    public interface IOrderedMap<TKey, TValue> : IReadOnlyOrderedMap<TKey, TValue> //, IDictionary<TKey, TValue>
+    {
+        long Count { get; }
+        /// <summary>
+        /// Incremented after any change to data, including setting of the same value to the same key
+        /// </summary>
+        long Version { get; set; }
+
+        new TValue this[TKey key] { get; set; }
+
+        /// <summary>
+        /// Adds new key and value to map, throws if the key already exists
+        /// </summary>
+        void Add(TKey key, TValue value);
+
+        /// <summary>
+        /// Checked addition, checks that new element's key is larger/later than the Last element's key
+        /// and adds element to this map
+        /// throws ArgumentOutOfRangeException if new key is smaller than the last
+        /// </summary>
+        void AddLast(TKey key, TValue value);
+
+        /// <summary>
+        /// Checked addition, checks that new element's key is smaller/earlier than the First element's key
+        /// and adds element to this map
+        /// throws ArgumentOutOfRangeException if new key is larger than the first
+        /// </summary>
+        void AddFirst(TKey key, TValue value);
+
+        bool Remove(TKey key);
+        bool RemoveLast(out KeyValuePair<TKey, TValue> kvp);
+        bool RemoveFirst(out KeyValuePair<TKey, TValue> kvp);
+        bool RemoveMany(TKey key, Lookup direction);
+
+        /// <summary>
+        /// And values from appendMap to the end of this map
+        /// </summary>
+        int Append(IReadOnlyOrderedMap<TKey, TValue> appendMap, AppendOption option); // TODO int, bool option for ignoreEqualOverlap, or Enum with 1: thow, 2: ignoreEqual, 3: rewriteOld, 4: ignoreNew (nonsense option, should not do, the first 3 are good)
+
+        /// <summary>
+        /// Make the map read-only and disable all Add/Remove/Set methods (they will throw)
+        /// </summary>
+        void Complete();
+    }
+
+    /// <summary>
+    /// `Flush` has a standard meaning, e.g. as in Stream, and saves all changes. `Dispose` calls `Flush`. `Id` is globally unique.
+    /// </summary>
+    public interface IPersistentObject : IDisposable {
+        void Flush();
+        string Id { get; }
+    }
+
+
+    public interface IPersistentOrderedMap<TKey, TValue> : IOrderedMap<TKey, TValue>, IPersistentObject
+    {
+        
+    }
+
+
+
+
+
+
+
     /// <summary>
     /// Signaling event handler.
     /// </summary>
     /// <param name="flag"></param>
+    [Obsolete("This should no longer be used")]
     internal delegate void OnUpdateHandler(bool flag);
+    [Obsolete("This should no longer be used")]
     internal interface IUpdateable {
         event OnUpdateHandler OnUpdate;
     }

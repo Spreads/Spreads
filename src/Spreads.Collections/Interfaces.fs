@@ -15,52 +15,6 @@ open System.Runtime.InteropServices
 
 
 
-/// Mutable ordered map
-[<Interface>]
-[<AllowNullLiteral>]
-type IOrderedMap<'K,'V> =
-  inherit IReadOnlyOrderedMap<'K,'V>
-  //inherit IDictionary<'K,'V>
-  abstract Count: int64 with get
-  /// Incremented after any change to data, including setting of the same value to the same key
-  abstract Version: int64 with get,set
-  abstract Item : 'K -> 'V with get,set
-  /// Adds new key and value to map, throws if the key already exists
-  abstract Add : k:'K*v:'V -> unit
-  /// Checked addition, checks that new element's key is larger/later than the Last element's key
-  /// and adds element to this map
-  /// throws ArgumentOutOfRangeException if new key is smaller than the last
-  abstract AddLast : k:'K*v:'V -> unit
-  /// Checked addition, checks that new element's key is smaller/earlier than the First element's key
-  /// and adds element to this map
-  /// throws ArgumentOutOfRangeException if new key is larger than the first
-  abstract AddFirst : k:'K*v:'V -> unit
-  /// Add a new map to the end of the current map. Async for IO bound implementations.
-  //abstract AppendAsync: map:IReadOnlyOrderedMap<'K,'V> -> Task<bool>
-  /// Remove a key and its value in-place.
-  abstract Remove : k:'K -> bool
-  abstract RemoveLast: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> bool // TODO bool
-  abstract RemoveFirst: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> bool // TODO bool
-  abstract RemoveMany: k:'K * direction:Lookup -> bool // TODO int
-  /// And values from appendMap to the end of this map
-  abstract Append: appendMap:IReadOnlyOrderedMap<'K,'V> * option:AppendOption -> int // TODO int, bool option for ignoreEqualOverlap, or Enum with 1: thow, 2: ignoreEqual, 3: rewriteOld, 4: ignoreNew (nonsense option, should not do, the first 3 are good)
-  /// Make the map immutable and disable all Add/Remove/Set methods (they will throw)
-  abstract Complete: unit -> unit
-
-/// `Flush` has a standard meaning, e.g. as in Stream, and saves all changes. `Dispose` calls `Flush`. `Id` is globally unique.
-[<Interface>]
-[<AllowNullLiteral>]
-type IPersistentObject =
-  inherit IDisposable
-  abstract Flush : unit -> unit
-  abstract Id : string with get
-
-[<Interface>]
-[<AllowNullLiteral>]
-type IPersistentOrderedMap<'K,'V> =
-  inherit IOrderedMap<'K,'V>
-  inherit IPersistentObject
-
 [<Interface>]
 [<AllowNullLiteral>]
 type IImmutableOrderedMap<'K,'V> =
