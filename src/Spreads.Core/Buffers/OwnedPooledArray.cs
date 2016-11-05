@@ -50,8 +50,7 @@ namespace Spreads.Buffers {
             object pooled;
             if (Pool.TryDequeue(out pooled))
             {
-                var asOwnedPooledArray = pooled as OwnedPooledArray<T>;
-                Debug.Assert(asOwnedPooledArray != null);
+                var asOwnedPooledArray = (OwnedPooledArray<T>)pooled;
                 // ReSharper disable once PossibleNullReferenceException
                 asOwnedPooledArray.Initialize(array, 0, array.Length);
                 return asOwnedPooledArray;
