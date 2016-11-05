@@ -35,10 +35,13 @@ namespace Spreads.Buffers {
 
         // ReSharper disable once RedundantOverridenMember
         protected override void OnReferenceCountChanged(int newReferenceCount) {
-            // NB Alway use Dispose in code, it checks for existing references
-            //if (newReferenceCount == 0) {
-            //    Dispose();
-            //}
+            // NB When we dispose ReservedMemory, we could already lose an explicit
+            // reference to its OwnedMemory, so the last release of ReservedMemory
+            // should return the backing array to the pool.
+
+            if (newReferenceCount == 0) {
+                Dispose();
+            }
             base.OnReferenceCountChanged(newReferenceCount);
         }
 
