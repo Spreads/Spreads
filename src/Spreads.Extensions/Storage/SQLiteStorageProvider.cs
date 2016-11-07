@@ -2,10 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+
 using Microsoft.Data.Sqlite;
 using Spreads.Buffers;
 using System;
 using System.Data.Common;
+using System.Diagnostics;
 
 namespace Spreads.Storage {
 
@@ -30,14 +32,14 @@ namespace Spreads.Storage {
         public virtual void CreateTables() {
             var createSeriesChunksTable =
                 $"CREATE TABLE IF NOT EXISTS `{_tablePrefix + PanelChunksTable}` (\n" +
-                "  `PanelId` INTEGER NOT NULL,\n" +
+                "  `PanelId`  INTEGER NOT NULL,\n" +
                 "  `ColumnId` INTEGER NOT NULL,\n" +
                 "  `ChunkKey` INTEGER NOT NULL,\n" +
-                "  `LastKey` INTEGER,\n" +
-                "  `Version` INTEGER NOT NULL,\n" +
-                "  `Count` INTEGER NOT NULL,\n" +
-                "  `Keys` BLOB,\n" +
-                "  `Values` BLOB,\n" +
+                "  `LastKey`  INTEGER NOT NULL,\n" +
+                "  `Version`  INTEGER NOT NULL,\n" +
+                "  `Count`    INTEGER NOT NULL,\n" +
+                "  `Keys`     BLOB,\n" +
+                "  `Values`   BLOB,\n" +
                 "  PRIMARY KEY (`PanelId`,`ChunkKey`,`ColumnId`)\n)"; // NB ChunkKey before ColumnId
 
             var command = _connection.CreateCommand();
@@ -50,17 +52,50 @@ namespace Spreads.Storage {
         #region Add
 
         public virtual DbCommand SetCommand() {
-            //var sql = $@"INSERT OR REPLACE INTO {_tablePrefix + PanelChunksTable} (Id,ChunkKey,Count,Version,ChunkValue)" + " VALUES ( @id, @chKey, @count, @version, @chVal); UPDATE " + IdTableName + " SET Version = @version WHERE Id = @id;";
-            throw new NotImplementedException();
+            // TODO version update
+            var sql = $"INSERT OR REPLACE INTO {_tablePrefix + PanelChunksTable} " +
+                      $"(PanelId, ColumnId, ChunkKey, LastKey, Version, Count, Keys, Values) " +
+                      $"VALUES (@PanelId, @ColumnId, @ChunkKey, @LastKey, @Version, @Count, @Keys, @Values); ";
+            // + "UPDATE " + IdTableName + " SET Version = @version WHERE Id = @id;";
+            var cmd = _connection.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.Parameters.Add("@PanelId", SqliteType.Integer);
+            cmd.Parameters.Add("@ColumnId", SqliteType.Integer);
+            cmd.Parameters.Add("@ChunkKey", SqliteType.Integer);
+            cmd.Parameters.Add("@LastKey", SqliteType.Integer);
+            cmd.Parameters.Add("@Version", SqliteType.Integer);
+            cmd.Parameters.Add("@Count", SqliteType.Integer);
+            cmd.Parameters.Add("@Keys", SqliteType.Blob);
+            cmd.Parameters.Add("@Values", SqliteType.Blob);
+            return cmd;
         }
 
         public virtual DbCommand AddCommand() {
-            //var sql = $@"INSERT INTO {_tablePrefix + PanelChunksTable} (Id,ChunkKey,Count,Version,ChunkValue)" + " VALUES ( @id, @chKey, @count, @version, @chVal); UPDATE " + IdTableName + " SET Version = @version WHERE Id = @id;";
-            throw new NotImplementedException();
+            // TODO version update
+            var sql = $"INSERT INTO {_tablePrefix + PanelChunksTable} " +
+                      $"(PanelId, ColumnId, ChunkKey, LastKey, Version, Count, Keys, Values) " +
+                      $"VALUES (@PanelId, @ColumnId, @ChunkKey, @LastKey, @Version, @Count, @Keys, @Values); ";
+            // + "UPDATE " + IdTableName + " SET Version = @version WHERE Id = @id;";
+            var cmd = _connection.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.Parameters.Add("@PanelId", SqliteType.Integer);
+            cmd.Parameters.Add("@ColumnId", SqliteType.Integer);
+            cmd.Parameters.Add("@ChunkKey", SqliteType.Integer);
+            cmd.Parameters.Add("@LastKey", SqliteType.Integer);
+            cmd.Parameters.Add("@Version", SqliteType.Integer);
+            cmd.Parameters.Add("@Count", SqliteType.Integer);
+            cmd.Parameters.Add("@Keys", SqliteType.Blob);
+            cmd.Parameters.Add("@Values", SqliteType.Blob);
+            return cmd;
         }
 
+        private DbCommand _cachedSetCommand;
+        private DbCommand _cachedAddCommand;
         public sealed override bool Add(RawPanelChunk rawPanelChunk, bool replace = false) {
-            var cmd = replace ? SetCommand() : AddCommand();
+
+            var cmd = replace
+                ? (_cachedSetCommand ?? (_cachedSetCommand = SetCommand()))
+                : (_cachedAddCommand ?? (_cachedAddCommand = AddCommand()));
             using (var transaction = _connection.BeginTransaction()) {
                 cmd.Transaction = transaction;
                 try {
@@ -82,24 +117,22 @@ namespace Spreads.Storage {
                 } catch (Exception) {
                     transaction.Rollback();
                     return false;
+                } finally {
+                    // clean up
+                    for (int i = 0; i < cmd.Parameters.Count; i++) {
+                        var par = cmd.Parameters[i];
+                        par.Value = null;
+                    }
                 }
             }
         }
 
 
         private static void SetDbCommandParametersForAddSet(DbCommand cmd, RawColumnChunk column) {
-            //public struct RawColumnChunk {
-            //    public readonly int PanelId;
-            //    public readonly int ColumnId;
-            //    public readonly long ChunkKey;
-            //    public readonly long Version;
-            //    public readonly int Count;
-            //    public readonly PreservedMemory<byte> Keys;
-            //    public readonly PreservedMemory<byte> Values;
-            //}
             cmd.Parameters["@PanelId"].Value = column.PanelId;
             cmd.Parameters["@ColumnId"].Value = column.ColumnId;
             cmd.Parameters["@ChunkKey"].Value = column.ChunkKey;
+            cmd.Parameters["@LastKey"].Value = column.LastKey;
             cmd.Parameters["@Version"].Value = column.Version;
             cmd.Parameters["@Count"].Value = column.Count;
             SetReservedMemoryToDbParameter(cmd.Parameters["@Keys"], column.Keys);
@@ -136,12 +169,16 @@ namespace Spreads.Storage {
 
 
         #region Get
-        ... // TODO continue here
         public virtual DbCommand GetEqCommand() {
             var sql = $"SELECT * FROM {_tablePrefix + PanelChunksTable} " +
                       "WHERE `PanelId` = @PanelId AND `ChunkKey` = @ChunkKey " +
-                      "ORDER BY `ColumnId` ASC; ";
-            throw new NotImplementedException();
+                      "ORDER BY `ColumnId` ASC LIMIT @Limit; ";
+            var cmd = _connection.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.Parameters.Add("@PanelId", SqliteType.Integer);
+            cmd.Parameters.Add("@ChunkKey", SqliteType.Integer);
+            cmd.Parameters.Add("@Limit", SqliteType.Integer); // TODO remove for EQ
+            return cmd;
         }
 
         public virtual DbCommand GetLtCommand() {
@@ -153,7 +190,57 @@ namespace Spreads.Storage {
                       $"(SELECT DISTINCT `ChunkKey` FROM {_tablePrefix + PanelChunksTable} WHERE " +
                       $"`ChunkKey` < @ChunkKey ORDER BY `ChunkKey` DESC LIMIT @Limit ) " +
                       "ORDER BY `ChunkKey`, `ColumnId` ASC; ";
-            throw new NotImplementedException();
+            var cmd = _connection.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.Parameters.Add("@PanelId", SqliteType.Integer);
+            cmd.Parameters.Add("@ChunkKey", SqliteType.Integer);
+            cmd.Parameters.Add("@Limit", SqliteType.Integer);
+            return cmd;
+        }
+
+        public virtual DbCommand GetLeCommand() {
+            // copied from lt, do not change here anything other than comparison and order mentioned there
+            var sql = $"SELECT * FROM {_tablePrefix + PanelChunksTable} " +
+                      " WHERE `PanelId` = @PanelId AND `ChunkKey` IN " +
+                      $"(SELECT DISTINCT `ChunkKey` FROM {_tablePrefix + PanelChunksTable} WHERE " +
+                      $"`ChunkKey` <= @ChunkKey ORDER BY `ChunkKey` DESC LIMIT @Limit ) " +
+                      "ORDER BY `ChunkKey`, `ColumnId` ASC; ";
+            var cmd = _connection.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.Parameters.Add("@PanelId", SqliteType.Integer);
+            cmd.Parameters.Add("@ChunkKey", SqliteType.Integer);
+            cmd.Parameters.Add("@Limit", SqliteType.Integer);
+            return cmd;
+        }
+
+        public virtual DbCommand GetGtCommand() {
+            // copied from lt, do not change here anything other than comparison and order mentioned there
+            var sql = $"SELECT * FROM {_tablePrefix + PanelChunksTable} " +
+                      " WHERE `PanelId` = @PanelId AND `ChunkKey` IN " +
+                      $"(SELECT DISTINCT `ChunkKey` FROM {_tablePrefix + PanelChunksTable} WHERE " +
+                      $"`ChunkKey` > @ChunkKey ORDER BY `ChunkKey` ASC LIMIT @Limit ) " +
+                      "ORDER BY `ChunkKey`, `ColumnId` ASC; ";
+            var cmd = _connection.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.Parameters.Add("@PanelId", SqliteType.Integer);
+            cmd.Parameters.Add("@ChunkKey", SqliteType.Integer);
+            cmd.Parameters.Add("@Limit", SqliteType.Integer);
+            return cmd;
+        }
+
+        public virtual DbCommand GetGeCommand() {
+            // copied from lt, do not change here anything other than comparison and order mentioned there
+            var sql = $"SELECT * FROM {_tablePrefix + PanelChunksTable} " +
+                      " WHERE `PanelId` = @PanelId AND `ChunkKey` IN " +
+                      $"(SELECT DISTINCT `ChunkKey` FROM {_tablePrefix + PanelChunksTable} WHERE " +
+                      $"`ChunkKey` >= @ChunkKey ORDER BY `ChunkKey` ASC LIMIT @Limit ) " +
+                      "ORDER BY `ChunkKey`, `ColumnId` ASC; ";
+            var cmd = _connection.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.Parameters.Add("@PanelId", SqliteType.Integer);
+            cmd.Parameters.Add("@ChunkKey", SqliteType.Integer);
+            cmd.Parameters.Add("@Limit", SqliteType.Integer);
+            return cmd;
         }
 
         public sealed override int TryGetChunksAt(int panelId, long key, Lookup direction,
@@ -164,42 +251,91 @@ namespace Spreads.Storage {
             if (rawPanelChunks == null) throw new ArgumentNullException(nameof(rawPanelChunks));
             if (columnIds != null) throw new NotImplementedException("TODO subset of columns");
             var limit = rawPanelChunks.Length;
-            // if limit > 1, need a subquery that will get all the keys and 
-            DbCommand command = null;
-            var reader = command.ExecuteReader();
-            ProcessDbReader(reader, ref rawPanelChunks);
-            throw new NotImplementedException();
+            DbCommand cmd;
+            switch (direction) {
+                case Lookup.LT:
+                    cmd = GetLtCommand();
+                    break;
+                case Lookup.LE:
+                    cmd = GetLeCommand();
+                    break;
+                case Lookup.EQ:
+                    cmd = GetEqCommand();
+                    break;
+                case Lookup.GE:
+                    cmd = GetGeCommand();
+                    break;
+                case Lookup.GT:
+                    cmd = GetGtCommand();
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(direction), direction, null);
+            }
+            cmd.Parameters["@PanelId"].Value = panelId;
+            cmd.Parameters["@ChunkKey"].Value = key;
+            cmd.Parameters["@Limit"].Value = limit;
+            var reader = cmd.ExecuteReader();
+            return ProcessDbReader(reader, ref rawPanelChunks);
         }
+
 
         /// <summary>
         /// Fill the rawPanelChunks array with values from Db
         /// </summary>
         /// <param name="reader"></param>
         /// <param name="rawPanelChunks"></param>
-        private static void ProcessDbReader(DbDataReader reader, ref RawPanelChunk[] rawPanelChunks) {
-
+        private static int ProcessDbReader(DbDataReader reader, ref RawPanelChunk[] rawPanelChunks) {
             var rowCount = 0;
-            int panelId;
-            long chunkKey;
+            var chunkCount = 0;
+            bool primeDone = false;
+            int panelId = 0;
+            long chunkKey = 0;
             while (reader.Read()) {
                 var columnChunk = FillRawColumnChunk(reader);
-                if (rowCount == 0) {
+                RawPanelChunk currentChunk = null;
+                if (rowCount == 0) { // the very first row
                     panelId = columnChunk.PanelId;
                     chunkKey = columnChunk.ChunkKey;
+                    currentChunk = RawPanelChunk.Create();
+                    if (rawPanelChunks.Length == chunkCount) {
+                        rawPanelChunks = new RawPanelChunk[chunkCount + 1];
+                    }
+                    rawPanelChunks[chunkCount] = currentChunk;
+                    chunkCount++;
+                } else {
+                    if (columnChunk.PanelId != panelId) {
+                        throw new ApplicationException("Different panel id in a panel chunk");
+                    }
+                    // new chunk
+                    if (columnChunk.ChunkKey != chunkKey) {
+                        if (rawPanelChunks.Length == chunkCount)
+                        {
+                            // TODO this will grow first time and then stay fixed, but somewhat ugly
+                            var newArr = new RawPanelChunk[chunkCount + 1];
+                            Array.Copy(rawPanelChunks, newArr, rawPanelChunks.Length);
+                            rawPanelChunks = newArr;
+                        }
+                        currentChunk = RawPanelChunk.Create();
+                        rawPanelChunks[chunkCount] = currentChunk;
+                        chunkCount++;
+                        
+                        chunkKey = columnChunk.ChunkKey;
+                        primeDone = false;
+                    }
                 }
-                bool primeDone = false;
+                Debug.Assert(currentChunk != null);
                 if (!primeDone) {
                     var prime = columnChunk;
                     if (prime.ColumnId != 0) throw new ApplicationException("Wrong implementation of TryGetChunksAt SQL");
-                    panelId = prime.PanelId;
-                    chunkKey = prime.ChunkKey;
-                    var columnId = reader.GetInt32(1);
-                    ...
-                    // TODO continue here
+                    currentChunk.Add(prime);
+                    primeDone = true;
                 } else {
+                    currentChunk.Add(columnChunk);
                 }
                 rowCount++;
             }
+
+            return chunkCount;
         }
 
         /// <summary>
