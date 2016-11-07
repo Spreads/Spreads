@@ -160,9 +160,14 @@
     <Compile Include="Series\CursorSeries.cs" />
     <Compile Include="Series\ZonedSeries.cs" />
     <Compile Include="Storage\ISeriesStorage.cs" />
+    <Compile Include="Storage\PersistentSeries.cs" />
+    <Compile Include="Storage\RawPanelChunk.cs" />
+    <Compile Include="Storage\RawPersistentMap.cs" />
     <Compile Include="Storage\RemoteChunksSeries.cs" />
     <Compile Include="Storage\SeriesStorage.cs" />
     <Compile Include="Storage\SingleWriterException.cs" />
+    <Compile Include="Storage\SQLiteStorageProvider.cs" />
+    <Compile Include="Storage\StorageProvider.cs" />
     <Compile Include="Storage\Tables.cs" />
     <Compile Include="SortedList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

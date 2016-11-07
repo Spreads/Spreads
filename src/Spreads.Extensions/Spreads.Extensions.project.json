@@ -5,5 +5,7 @@
   "frameworks": {
     "net451": {}
   },
-  "dependencies": {}
+  "dependencies": {
+    "System.Slices": "0.1.0-e161103-1"
+  }
 }

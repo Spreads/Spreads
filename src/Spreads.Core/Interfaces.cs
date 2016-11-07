@@ -351,7 +351,7 @@ namespace Spreads {
 
     public interface IPersistentOrderedMap<TKey, TValue> : IOrderedMap<TKey, TValue>, IPersistentObject
     {
-        
+
     }
 
 

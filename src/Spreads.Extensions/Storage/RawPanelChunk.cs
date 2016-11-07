@@ -16,10 +16,23 @@ namespace Spreads.Storage {
         public readonly int PanelId;
         public readonly int ColumnId;
         public readonly long ChunkKey;
+        public readonly long LastKey;
         public readonly long Version;
         public readonly int Count;
         public readonly PreservedMemory<byte> Keys;
         public readonly PreservedMemory<byte> Values;
+
+        public RawColumnChunk(int panelId, int columnId, long chunkKey, long lastKey, long version, int count,
+            PreservedMemory<byte> keys, PreservedMemory<byte> values) {
+            PanelId = panelId;
+            ColumnId = columnId;
+            ChunkKey = chunkKey;
+            LastKey = lastKey;
+            Version = version;
+            Count = count;
+            Keys = keys;
+            Values = values;
+        }
     }
 
     public class RawPanelChunk : IDisposable {
@@ -38,7 +51,7 @@ namespace Spreads.Storage {
         public int PanelId => _prime.PanelId;
         public long ChunkKey => _prime.ChunkKey;
         public int Count => _prime.Count;
-        public int ColumnCount => _columns.Count;
+        public int ColumnCount => _columns?.Count ?? 0;
 
         /// <summary>
         /// Has at least one non-prime column

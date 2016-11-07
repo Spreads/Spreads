@@ -26,12 +26,15 @@ namespace Spreads {
         }
 
 
-        public Vdest this[K key] {
-            get {
+        public Vdest this[K key]
+        {
+            get
+            {
                 return _srcToDest(_innerMap[key]);
             }
 
-            set {
+            set
+            {
                 _innerMap[key] = _destToSrc(value);
             }
         }
@@ -103,22 +106,28 @@ namespace Spreads {
 
         public long Count => _innerMap.Count;
 
-        public KeyValuePair<K, Vdest> First {
-            get {
+        public KeyValuePair<K, Vdest> First
+        {
+            get
+            {
                 var srcFirst = _innerMap.First;
                 return new KeyValuePair<K, Vdest>(srcFirst.Key, _srcToDest(srcFirst.Value));
             }
         }
 
-        public KeyValuePair<K, Vdest> Last {
-            get {
+        public KeyValuePair<K, Vdest> Last
+        {
+            get
+            {
                 var srcFirst = _innerMap.Last;
                 return new KeyValuePair<K, Vdest>(srcFirst.Key, _srcToDest(srcFirst.Value));
             }
         }
 
-        public string Id {
-            get {
+        public string Id
+        {
+            get
+            {
                 var pom = _innerMap as IPersistentOrderedMap<K, Vsrc>;
                 return pom != null ? pom.Id : "";
             }
@@ -139,16 +148,12 @@ namespace Spreads {
 
         public void Dispose() {
             var pom = _innerMap as IPersistentOrderedMap<K, Vsrc>;
-            if (pom != null) {
-                pom.Dispose();
-            }
+            pom?.Dispose();
         }
 
         public void Flush() {
             var pom = _innerMap as IPersistentOrderedMap<K, Vsrc>;
-            if (pom != null) {
-                pom.Flush();
-            }
+            pom?.Flush();
         }
 
         public Vdest GetAt(int idx) {

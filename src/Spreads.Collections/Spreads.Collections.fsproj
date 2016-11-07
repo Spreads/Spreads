@@ -141,12 +141,18 @@
       <HintPath>..\Spreads.Core\bin\RELEASE\net451\Spreads.Core.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Buffers">
+      <HintPath>..\Spreads.Core\bin\RELEASE\net451\System.Buffers.dll</HintPath>
+    </Reference>
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
     <Reference Include="System.Data.Linq" />
     <Reference Include="System.Numerics" />
     <Reference Include="System.Numerics.Vectors">
       <HintPath>..\Spreads.Core\bin\RELEASE\net451\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Slices">
+      <HintPath>..\Spreads.Core\bin\RELEASE\net451\System.Slices.dll</HintPath>
     </Reference>
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

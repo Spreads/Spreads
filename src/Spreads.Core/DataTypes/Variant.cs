@@ -99,7 +99,7 @@ namespace Spreads.DataTypes {
 
         // Object and pointer layout
         [FieldOffset(0)]
-        private VariantHeader _header;        // byte
+        private VariantHeader _header;        // int
         // Number of elements in array
         [FieldOffset(4)]
         public readonly int _count;                 // int
