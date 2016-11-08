@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Serialization {
 
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false)]
     public class SerializationAttribute : Attribute {
 
         internal static SerializationAttribute GetSerializationAttribute(Type type) {
@@ -27,7 +27,7 @@ namespace Spreads.Serialization {
         /// but for certain concrete types still be blittable. When this property is true, we
         /// ignore the IBinaryConverter interface when a generic type is blittable but implements that interface (or has it registered).
         /// </summary>
-        public bool PreferBlittable { get; set; }
+        internal bool PreferBlittable { get; set; }
 
         /// <summary>
         /// When this property is positive, the type must be blittable with the specified size,

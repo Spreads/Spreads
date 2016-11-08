@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+using Spreads.Buffers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -11,31 +11,31 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Buffers;
-using Spreads.Utils;
-using Unsafe = Spreads.Utils.Unsafe;
 
 namespace Spreads.Serialization {
-
     // TODO remove special treatment of decimal, it is blittable/pinnable
 
     internal delegate int FromPtrDelegate(IntPtr ptr, ref object value);
+
     internal delegate int ToPtrDelegate(object value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null);
+
     internal delegate int SizeOfDelegate(object value, out MemoryStream memoryStream);
 
     internal class TypeParams {
         public int Size;
+
         /// <summary>
         /// CLR definition, we cache it here since ty.IsValueType is a virtual call
         /// </summary>
         public bool IsValueType;
+
         /// <summary>
         /// Either CLR-primitive or a pinnale struct marked with SerializationAttribute(BlittableSize > 0)
         /// </summary>
         public bool IsBlittable;
+
         public bool IsFixedSize;
         public bool IsDateTime;
-
     }
 
     [Obsolete("TypeHelper should only be used inside BinarySerializer or for known types. Use #pragma warning disable 0618/#pragma warning restore 0618 where its usage is justified.")]
@@ -63,6 +63,7 @@ namespace Spreads.Serialization {
         }
 
         private static readonly Dictionary<Type, FromPtrDelegate> FromPtrDelegateCache = new Dictionary<Type, FromPtrDelegate>();
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static FromPtrDelegate GetFromPtrDelegate(Type ty) {
             FromPtrDelegate temp;
@@ -79,6 +80,7 @@ namespace Spreads.Serialization {
         }
 
         private static readonly Dictionary<Type, ToPtrDelegate> ToPtrDelegateCache = new Dictionary<Type, ToPtrDelegate>();
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static ToPtrDelegate GetToPtrDelegate(Type ty) {
             ToPtrDelegate temp;
@@ -95,6 +97,7 @@ namespace Spreads.Serialization {
         }
 
         private static readonly Dictionary<Type, SizeOfDelegate> SizeOfDelegateCache = new Dictionary<Type, SizeOfDelegate>();
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static SizeOfDelegate GetSizeOfDelegate(Type ty) {
             SizeOfDelegate temp;
@@ -111,6 +114,7 @@ namespace Spreads.Serialization {
         }
 
         private static readonly Dictionary<Type, int> SizeDelegateCache = new Dictionary<Type, int>();
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int GetSize(Type ty) {
             int temp;
@@ -126,22 +130,13 @@ namespace Spreads.Serialization {
     [Obsolete("TypeHelper should only be used inside BinarySerializer or for known types. Use #pragma warning disable 0618/#pragma warning restore 0618 where its usage is justified.")]
     internal unsafe sealed class TypeHelper<T> : TypeHelper {
 
-        // ReSharper disable once StaticMemberInGenericType
+        // ReSharper disable StaticMemberInGenericType
         private static bool _hasBinaryConverter;
-#if !TYPED_REF
-        //private static bool _usePinnedArray;
-        // ReSharper disable once StaticMemberInGenericType
-        private static GCHandle _pinnedArray;
-        // ReSharper disable once StaticMemberInGenericType
-        private static bool _isDateTime; // NB: Automatic layout of .NET requires special handling!
-        private static bool _isDecimal;
-        private static T[] _array;
-        private static IntPtr _tgt;
-        private static IntPtr _ptr;
-#endif
+
         private static int _size = InitChecked();
         private static IBinaryConverter<T> _converterInstance;
         private static TypeParams _typeParams;
+        // ReSharper restore StaticMemberInGenericType
 
         // Just in case, do not use static ctor in any critical paths: https://github.com/Spreads/Spreads/issues/66
         // static TypeHelper() { }
@@ -155,9 +150,9 @@ namespace Spreads.Serialization {
                     (Marshal.UnsafeAddrOfPinnedArrayElement(array, 1).ToInt64() -
                      Marshal.UnsafeAddrOfPinnedArrayElement(array, 0).ToInt64());
                 pinnedArrayHandle.Free();
-                // Type helper workd only with types that could be pinned in arrays
+                // Type helper works only with types that could be pinned in arrays
                 // Heret we just cross-check, happens only in static constructor
-                var unsafeSize = Utils.Unsafe.SizeOf<T>();
+                var unsafeSize = Unsafe.SizeOf<T>();
                 if (unsafeSize != size) Environment.FailFast("Pinned and unsafe sizes differ!");
                 return size;
             } catch {
@@ -183,9 +178,6 @@ namespace Spreads.Serialization {
             _typeParams = new TypeParams();
             var ty = typeof(T);
             if (ty == typeof(DateTime)) {
-#if !TYPED_REF
-                _isDateTime = true;
-#endif
                 _typeParams.IsBlittable = true;
                 _typeParams.IsFixedSize = true;
                 _typeParams.IsDateTime = true;
@@ -193,9 +185,6 @@ namespace Spreads.Serialization {
                 return 8;
             }
             if (ty == typeof(decimal)) {
-#if !TYPED_REF
-                _isDecimal = true;
-#endif
                 _typeParams.IsBlittable = true;
                 _typeParams.IsFixedSize = true;
                 _typeParams.IsDateTime = true;
@@ -225,7 +214,7 @@ namespace Spreads.Serialization {
                 }
                 if (hasSizeAttribute) {
                     if (typeof(IBinaryConverter<T>).IsAssignableFrom(ty)) {
-                        // NB: this makes no sense, because blittable is version 0, if we have any change 
+                        // NB: this makes no sense, because blittable is version 0, if we have any change
                         // to struct layout later, we won't be able to work with version 0 anymore
                         // and will lose ability to work with old values.
                         Environment.FailFast($"Blittable types must not implement IBinaryConverter<T> interface.");
@@ -249,7 +238,7 @@ namespace Spreads.Serialization {
             // by this line the type is not blittable
             _typeParams.IsBlittable = false;
 
-            // NB we try to check interface as a last step, because some generic types 
+            // NB we try to check interface as a last step, because some generic types
             // could implement IBinaryConverter<T> but still be blittable for certain types,
             // e.g. DateTime vs long in PersistentMap<K,V>.Entry
             //if (tmp is IBinaryConverter<T>) {
@@ -300,7 +289,6 @@ namespace Spreads.Serialization {
             return -1;
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Read(IntPtr ptr, ref T value) {
             if (_hasBinaryConverter) {
@@ -311,32 +299,9 @@ namespace Spreads.Serialization {
                 throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
             }
             Debug.Assert(_size > 0);
-#if TYPED_REF
-            value = Utils.Unsafe.Read<T>((void*)ptr);
+            Debug.Assert(ptr.ToInt64() % _size == 0, "Unaligned unsafe read");
+            value = Unsafe.Read<T>((void*)ptr);
             return _size;
-#else
-            if (_isDateTime) {
-                value = (T)(object)*(DateTime*)ptr;
-                return 8;
-            }
-            if (_isDecimal) {
-                value = (T)(object)*(decimal*)ptr;
-                return 16;
-            }
-
-            if (_array == null) {
-                _array = new T[2];
-                _pinnedArray = GCHandle.Alloc(_array, GCHandleType.Pinned);
-                _tgt = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 0);
-                _ptr = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 1);
-            }
-
-            ByteUtil.MemoryCopy((byte*)_tgt, (byte*)ptr, (uint)_size);
-            var ret = _array[0];
-            _array[0] = default(T);
-            value = ret;
-            return _size;
-#endif
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -351,37 +316,10 @@ namespace Spreads.Serialization {
             Debug.Assert(_size > 0);
             if (!destination.HasCapacity(offset, _size)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
             var pointer = destination.Data + (int)offset;
-#if TYPED_REF
+            Debug.Assert(pointer.ToInt64() % _size == 0, "Unaligned unsafe write");
             Unsafe.Write<T>((void*)pointer, value);
-#else
-            if (_isDateTime) {
-                // TODO http://stackoverflow.com/a/3344181/801189
-                // Code gen is probably needed to avoid boxing when TYPED_REF is not available
-                *(DateTime*)pointer = (DateTime)(object)value;
-                return 8;
-            }
-            if (_isDecimal) {
-                *(decimal*)pointer = (decimal)(object)value;
-                return 16;
-            }
-
-            if (_array == null) {
-                _array = new T[2];
-                _pinnedArray = GCHandle.Alloc(_array, GCHandleType.Pinned);
-                _tgt = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 0);
-                _ptr = Marshal.UnsafeAddrOfPinnedArrayElement(_array, 1);
-            }
-
-            _array[1] = value;
-            var tgt = pointer;
-            ByteUtil.MemoryCopy((byte*)tgt, (byte*)_ptr, (uint)Size);
-            _array[1] = default(T);
-#endif
             return _size;
         }
-
-
-
 
         /// <summary>
         /// Returns binary size of the value
@@ -403,12 +341,11 @@ namespace Spreads.Serialization {
             return _size;
         }
 
-
         /// <summary>
-        /// Returns a positive size of a blittable type T, -1 if the type T is not blittable and has 
+        /// Returns a positive size of a blittable type T, -1 if the type T is not blittable and has
         /// no registered converter, 0 is there is a registered converter for variable-length type.
         /// We assume the type T is blittable if `GCHandle.Alloc(T[2], GCHandleType.Pinned) = true`.
-        /// This is more relaxed than Marshal.SizeOf, but still doesn't cover cases such as 
+        /// This is more relaxed than Marshal.SizeOf, but still doesn't cover cases such as
         /// an array of KVP[DateTime,double], which has a contiguous layout in memory.
         /// </summary>
         public static int Size
@@ -424,7 +361,6 @@ namespace Spreads.Serialization {
         }
 
         public static byte Version => _hasBinaryConverter ? _converterInstance.Version : (byte)0;
-
 
         internal static void RegisterConverter(IBinaryConverter<T> converter, bool overrideExisting = false) {
             if (converter == null) throw new ArgumentNullException(nameof(converter));
@@ -451,14 +387,14 @@ namespace Spreads.Serialization {
             return ConverterCache<TSource>.Converter(s);
         }
 
-        static class ConverterCache<TSource> {
+        private static class ConverterCache<TSource> {
             internal static readonly Func<TSource, T> Converter = Get();
-            static Func<TSource, T> Get() {
+
+            private static Func<TSource, T> Get() {
                 var p = Expression.Parameter(typeof(TSource));
                 var c = Expression.ConvertChecked(p, typeof(T));
                 return Expression.Lambda<Func<TSource, T>>(c, p).Compile();
             }
         }
-
     }
 }

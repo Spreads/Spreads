@@ -2,30 +2,26 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Utils;
 
 namespace Spreads.DataTypes {
-
-
-    // misery and pain ahead!
-
     // we need a convenient structure to work from code, not only store as bytes
-    // we need it non-generic. 
-
+    // we need it non-generic.
 
     // TODO ensure alignment of uncompressed arrays for at least TypeEnum <= 10
 
-
-    // TODO try to make the flags
     /// <summary>
-    /// On-disk flags
+    /// Version and flags
+    /// 0
+    /// 0 1 2 3 4 5 6 7 8
+    /// +-+-+-+-+-+-+-+-+
+    /// |  Ver  | Flg |C|
+    /// +---------------+
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 1)]
-    internal struct VersionAndFlags {
+    public struct VersionAndFlags {
         internal const int VersionBitsOffset = 4;
         internal const int CompressedBitOffset = 0;
         // three more flags left
@@ -36,57 +32,76 @@ namespace Spreads.DataTypes {
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return (byte)(_value >> VersionBitsOffset); }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set { _value = (byte)(_value | (value << VersionBitsOffset)); }
         }
 
         public bool IsCompressed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return (_value & (1 << CompressedBitOffset)) > 0; }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set { _value = (byte)(_value & ((value ? 1 : 0) << CompressedBitOffset)); }
         }
     }
 
     /// <summary>
-    /// On-disk header
+    /// Variant header
+    /// 0                   1                   2                   3
+    /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    /// |  Ver  | Flg |C|    TypeEnum   |  TypeSize     | SubTypeEnum   |
+    /// +---------------------------------------------------------------+
     /// </summary>
     [StructLayout(LayoutKind.Explicit, Pack = 1, Size = 4)]
-    internal struct VariantHeader {
+    public struct VariantHeader {
 
         // First 4 bytes are always the same
         internal const int VersionAndFlagsOffset = 0;
+
         [FieldOffset(VersionAndFlagsOffset)]
-        internal VersionAndFlags _versionAndFlags;
+        public VersionAndFlags VersionAndFlags;
 
         internal const int TypeEnumOffset = 1;
+
         [FieldOffset(TypeEnumOffset)]
-        internal TypeEnum _typeEnum;
+        public TypeEnum TypeEnum;
 
         internal const int TypeSizeOffset = 2;
+
         // If size if fixed then this should be positive
         [FieldOffset(TypeSizeOffset)]
-        internal byte _typeSize;
+        public byte TypeSize;
 
         internal const int ElementTypeEnumOffset = 3;
+
         [FieldOffset(ElementTypeEnumOffset)]
-        internal TypeEnum _elementTypeEnum;
+        public TypeEnum ElementTypeEnum;
     }
-
-
-
 
     // Runtime representation of Variant type
 
     [StructLayout(LayoutKind.Explicit, Pack = 4)]
     public unsafe partial struct Variant {
+
+        /// <summary>
+        /// Maximum number of types with size LE than 16 bytes that are explicitly defined in TypeEnum
+        /// </summary>
+        internal const int KnownSmallTypesLimit = 64;
+
         public enum VariantLayout {
+
             /// <summary>
             /// Single data point is stored inline in the internal data field.
             /// Object field is set to special statically cached objects containing metadata.
             /// </summary>
             Inline = 0,
+
             /// <summary>
             /// Object is not null and is not boxed TypeEnum.
             /// </summary>
             Object = 1,
+
             /// <summary>
             /// Object is null.
             /// </summary>
@@ -100,41 +115,53 @@ namespace Spreads.DataTypes {
         // Object and pointer layout
         [FieldOffset(0)]
         private VariantHeader _header;        // int
+
         // Number of elements in array
         [FieldOffset(4)]
         public readonly int _count;                 // int
+
         // TODO for pointers, this should be length or the memory
         // or, any var len variant should have length as the first 4 bytes
 
         // Object-only layout, optional offset used only for arrays
         [FieldOffset(8)]
-        internal readonly ulong _offset;               // long
-
+        internal ulong _offset;               // long
 
         // Pointer layout, object is null
         [FieldOffset(8)]
-        internal readonly UIntPtr _pointer;           // long
-
+        internal UIntPtr _pointer;           // long
 
         // When this is BoxedTypeEnum, _data field contains value
         // otherwise, _data contains VariantHeader at offset 0
         [FieldOffset(16)]
-        private readonly object _object;
+        internal object _object;
 
+        //internal Variant(object obj) {
+        //    this = default(Variant);
+        //    var ty = obj.GetType();
+        //    _header.TypeEnum = VariantHelper.GetTypeEnum(ty);
 
+        //    if (_header.TypeEnum == TypeEnum.Array) {
+        //        _header.ElementTypeEnum = VariantHelper.GetTypeEnum(ty.GetElementType());
+        //    }
+        //    // TODO OwnedMemory is alway of type `byte`
+        //    _object = obj;
+        //}
 
-        internal Variant(object obj) {
-            this = default(Variant);
-            var ty = obj.GetType();
-            _header._typeEnum = GetTypeCode(ty);
-
-            if (obj.GetType().IsArray) {
-                _header._elementTypeEnum = GetTypeCode(ty.GetElementType());
+        public static Variant Create<T>(T value) {
+            var typeEnum = VariantHelper<T>.GetTypeEnum();
+            if ((int)typeEnum < KnownSmallTypesLimit) {
+                // inline layout
+                var boxedTypeEnum = BoxedTypeEnum.Get(typeEnum);
+                var variant = new Variant();
+                variant._object = boxedTypeEnum;
+                Unsafe.Write(variant._data, value);
+                return variant;
             }
-            _object = obj;
+            throw new NotImplementedException();
         }
 
-        public VariantLayout Layout
+        internal VariantLayout Layout
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -150,7 +177,6 @@ namespace Spreads.DataTypes {
             }
         }
 
-
         public TypeEnum TypeEnum
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -160,7 +186,7 @@ namespace Spreads.DataTypes {
                 if (boxed != null) {
                     return boxed.TypeEnum;
                 }
-                return _header._typeEnum;
+                return _header.TypeEnum;
             }
         }
 
@@ -176,19 +202,47 @@ namespace Spreads.DataTypes {
                 if (boxed != null) {
                     return 1;
                 }
-                return _header._typeEnum == TypeEnum.Array ? _count : 1;
+                return _header.TypeEnum == TypeEnum.Array ? _count : 1;
             }
         }
 
-
         /// <summary>
         /// Get value at index as variant.
-        /// (could be copied if size LE 16 or returned as offset and length 1, this is implementation detail) 
+        /// (could be copied if size LE 16 or returned as offset and length 1, this is implementation detail)
         /// </summary>
         /// <param name="index"></param>
         /// <returns></returns>
         public Variant Get(int index) // Same as Get<Variant>
         {
+            throw new NotImplementedException();
+        }
+
+        public T Get<T>() {
+            var te = this.TypeEnum;
+            var teOfT = VariantHelper<T>.GetTypeEnum();
+            if (te != teOfT) {
+                ThrowHelper.ThrowInvalidOperationException_ForVariantTypeMissmatch();
+            }
+            if ((int)te < KnownSmallTypesLimit) {
+                fixed (void* ptr = _data) {
+                    return Unsafe.Read<T>(ptr);
+                }
+            }
+            throw new NotImplementedException();
+        }
+
+        public void Set<T>(T value) {
+            var te = this.TypeEnum;
+            var teOfT = VariantHelper<T>.GetTypeEnum();
+            if (te != teOfT) {
+                ThrowHelper.ThrowInvalidOperationException_ForVariantTypeMissmatch();
+            }
+            if ((int)te < KnownSmallTypesLimit) {
+                fixed (void* ptr = _data) {
+                    Unsafe.Write(ptr, value);
+                    return;
+                }
+            }
             throw new NotImplementedException();
         }
 
@@ -208,7 +262,7 @@ namespace Spreads.DataTypes {
 
         private T DataAs<T>() {
             fixed (void* ptr = _data) {
-                return Utils.Unsafe.Read<T>(ptr);
+                return Unsafe.Read<T>(ptr);
             }
         }
 
@@ -217,7 +271,6 @@ namespace Spreads.DataTypes {
         //private void AssertType(sbyte code) {
         //    if (TypeCode != code && TypeCode != default(sbyte)) throw new InvalidCastException("Invalid cast");
         //}
-
 
         //public void Test() {
         //    var v = (Variant)123.0;
@@ -237,11 +290,9 @@ namespace Spreads.DataTypes {
         //    };
         //}
         //public static explicit operator double (Variant d) {
-        //    d.AssertType((0.0).GetTypeCode());
+        //    d.AssertType((0.0).GetTypeEnum());
         //    return d.Double;
         //}
-
-
 
         private static readonly int[] ClrToSpreadsTypeCode = new int[18]
         {
@@ -265,15 +316,18 @@ namespace Spreads.DataTypes {
             0,
         };
 
-
         internal class BoxedTypeEnum {
+
             // TODO limit small (<16 bytes) known types to a small number 20-30
-            private static readonly BoxedTypeEnum[] Cache = new BoxedTypeEnum[30];
+            private static readonly BoxedTypeEnum[] Cache = new BoxedTypeEnum[KnownSmallTypesLimit];
+
             private BoxedTypeEnum(TypeEnum typeEnum) {
                 TypeEnum = typeEnum;
             }
+
             public TypeEnum TypeEnum { get; }
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             internal static BoxedTypeEnum Get(TypeEnum typeEnum) {
                 var existing = Cache[(int)typeEnum];
                 if (existing != null) return existing;
