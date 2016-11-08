@@ -36,7 +36,9 @@
 	"buildOptions": {
 		"warningsAsErrors": false,
 		"xmlDoc": true,
-		"exclude": [],
+		"exclude": [
+
+		],
 		"define": [
 			"TRACE",
 			"PRERELEASE"
@@ -44,17 +46,19 @@
 		"allowUnsafe": true,
 		"optimize": true,
 		"nowarn": [
-			"CS1591"
+			"CS1591",
+			"CS1587",
+			"CS1574"
 		],
 		"compile": {
 			"includeFiles": [
-				
+
 			]
 		},
 
 		"embed": {
 			"mappings": {
-				
+
 			}
 		}
 	},

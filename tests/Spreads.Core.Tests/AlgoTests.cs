@@ -15,6 +15,7 @@ using System.Linq;
 using Spreads.Collections;
 using Spreads.Algorithms;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using Spreads.Utils;
 
 namespace Spreads.Core.Tests {
@@ -58,8 +59,8 @@ namespace Spreads.Core.Tests {
                 sw.Restart();
                 for (int i = 0; i < count; i++) {
                     var target = (void*)(ptr + (i));
-                    Unsafe.WriteAligned(target, 123.04);
-                    readValue = Unsafe.ReadAligned<double>(target);
+                    Unsafe.Write(target, 123.04);
+                    readValue = Unsafe.Read<double>(target);
                     //Assert.AreEqual(123.04, readValue);
                 }
                 sw.Stop();

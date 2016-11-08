@@ -46,7 +46,9 @@
 		"allowUnsafe": true,
 		"optimize": true,
 		"nowarn": [
-			"CS1591"
+			"CS1591",
+			"CS1587",
+			"CS1574"
 		],
 		"embed": {
 			"mappings": {
@@ -74,9 +76,9 @@
 		]
 	},
 	"scripts": {
-		"postcompile": [
-			"../../tools/re_write_il.cmd %compile:OutputDir% %compile:OutputFile%"
-		],
+		//"postcompile": [
+		//	"../../tools/re_write_il.cmd %compile:OutputDir% %compile:OutputFile%"
+		//],
 		"prepack": [
 		]
 	}

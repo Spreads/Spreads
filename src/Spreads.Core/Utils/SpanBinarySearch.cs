@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -12,12 +11,6 @@ namespace Spreads.Slices {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BinarySearch<T>(this Span<T> span, int index, int length, T value, IComparer<T> comparer) {
-
-            if (span.Object != null) {
-                var offset = index > 0 ? ((int)span.Offset.ToUInt32() - SpanHelpers<T>.OffsetToArrayData) / PtrUtils.SizeOf<T>() : 0;
-                // by construction if Object is not null it is T[], fail if it is not when casting
-                return Array.BinarySearch<T>((T[])span.Object, offset + index, length, value, comparer);
-            }
 
             if ((uint)(index) + (uint)length > (uint)span.Length) {
                 throw new ArgumentException("Index + Length fall outside the span boundary.");
@@ -31,7 +24,7 @@ namespace Spreads.Slices {
             int hi = index + length - 1;
             while (lo <= hi) {
                 int i = lo + ((hi - lo) >> 1);
-                int order = comparer.Compare(span.GetUnsafe(i), value);
+                int order = comparer.Compare(span[i], value);
 
                 if (order == 0) return i;
                 if (order < 0) {

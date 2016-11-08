@@ -2,28 +2,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+using NUnit.Framework;
+using Spreads.Collections;
+using Spreads.Slices;
 using System;
 using System.Diagnostics;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Threading;
-using NUnit.Framework;
-using Spreads.Buffers;
-using Spreads.Serialization;
 using System.Linq;
-using Spreads.Collections;
-using Spreads.Algorithms;
-using System.Numerics;
 using System.Runtime.CompilerServices;
-using Spreads.Slices;
+using System.Runtime.InteropServices;
 
 namespace Spreads.Core.Tests {
 
-
     [TestFixture]
     public class SpanTests {
-
 
         [Test]
         public unsafe void CouldUseBinarySearchOverSpan() {
@@ -33,7 +24,7 @@ namespace Spreads.Core.Tests {
             var intBuffer = new long[upper];
 
             var ptrSpan = new Span<long>((void*)ptr, upper);
-            var byteArraySpan = new Span<long>((object)byteBuffer, UIntPtr.Zero, upper);
+            //var byteArraySpan = new Span<long>(byteBuffer, UIntPtr.Zero, upper);
             var intArraySpan = new Span<long>(intBuffer);
 
             var rng = new System.Random();
@@ -51,9 +42,7 @@ namespace Spreads.Core.Tests {
                 //TestSpanForFillAndBinarySearch(byteArraySpan, indices, "ByteArraySpan");
                 TestSpanForFillAndBinarySearch(intArraySpan, indices, "ArrSpan");
                 TestArrayForFillAndBinarySearch(intBuffer, indices, "Array");
-
             }
-
         }
 
         private void TestSpanForFillAndBinarySearch(Span<long> span, long[] indices, string caseName) {
@@ -61,7 +50,7 @@ namespace Spreads.Core.Tests {
             sw.Start();
             for (int r = 0; r < 10000; r++) {
                 for (int i = 0; i < span.Length; i++) {
-                    span.SetUnsafe(i, i);
+                    span[i] = i;
                 }
             }
             sw.Stop();
@@ -102,7 +91,6 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Find {caseName}: \t\t {500 * indices.Length * 0.001 / sw.ElapsedMilliseconds} Mops");
         }
 
-
         [Test]
         public void OffsetTests() {
             var array = Enumerable.Range(0, 32 * 1024).ToArray();
@@ -110,7 +98,6 @@ namespace Spreads.Core.Tests {
             long sum = 0;
             var rpmax = 10000;
             for (int rounds = 0; rounds < 10; rounds++) {
-
                 sw.Restart();
                 sum = 0;
                 for (int rp = 0; rp < rpmax; rp++) {
@@ -132,8 +119,6 @@ namespace Spreads.Core.Tests {
                 sw.Stop();
                 if (sum < 0) throw new Exception(); // use sum after loop
                 Console.WriteLine($"Index: {sw.ElapsedMilliseconds}");
-
-
 
                 sw.Restart();
                 sum = 0;
@@ -157,6 +142,5 @@ namespace Spreads.Core.Tests {
         private static int GetAtOffset(int[] array, Offset offset) {
             return array[(long)offset];
         }
-
     }
 }
