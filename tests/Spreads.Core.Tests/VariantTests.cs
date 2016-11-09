@@ -118,6 +118,17 @@ namespace Spreads.Core.Tests {
 
 
                 sw.Restart();
+                for (int i = 0; i < count; i++) {
+                    v.UnsafeSetInlined<double>(i);
+                    var d = v.UnsafeGetInilned<double>();
+                    sum += d;
+                }
+                sw.Stop();
+                if (sum < double.MaxValue)
+                    Console.WriteLine($"Unsafe Variant Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
+
+
+                sw.Restart();
                 sum = 0.0;
                 var container = new Container<double>();
                 for (int i = 0; i < count; i++) {
@@ -126,7 +137,7 @@ namespace Spreads.Core.Tests {
                     sum += d;
                 }
                 sw.Stop();
-                if (sum < double.MaxValue)
+                if (sum < double.MaxValue && container.Value > 0)
                     Console.WriteLine($"Inlined Property Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
 
 
@@ -139,7 +150,7 @@ namespace Spreads.Core.Tests {
                     sum += d;
                 }
                 sw.Stop();
-                if (sum < double.MaxValue)
+                if (sum < double.MaxValue && dummyContainer.Value > 0)
                     Console.WriteLine($"Noninlined Property Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
 
                 sw.Restart();

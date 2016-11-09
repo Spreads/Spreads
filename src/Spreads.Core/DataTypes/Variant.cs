@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -152,7 +153,7 @@ namespace Spreads.DataTypes {
         //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Variant Create<T>(T value) {
+        public static Variant Create<T>(T value = default(T)) {
             var boxedTypeEnum = BoxedTypeEnum<T>.CachedBoxedTypeEnum;
             var typeEnum = boxedTypeEnum.TypeEnum;
             if ((int)typeEnum < KnownSmallTypesLimit) {
@@ -251,21 +252,7 @@ namespace Spreads.DataTypes {
             throw new NotImplementedException();
         }
 
-        internal VariantLayout Layout
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (_object == null) {
-                    return VariantLayout.Pointer;
-                }
-                var boxed = _object as BoxedTypeEnum;
-                if (boxed != null) {
-                    return VariantLayout.Inline;
-                }
-                return VariantLayout.Object;
-            }
-        }
+
 
         public TypeEnum TypeEnum
         {
@@ -293,6 +280,23 @@ namespace Spreads.DataTypes {
                     return 1;
                 }
                 return _header.TypeEnum == TypeEnum.Array ? _count : 1;
+            }
+        }
+
+
+        internal VariantLayout Layout
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (_object == null) {
+                    return VariantLayout.Pointer;
+                }
+                var boxed = _object as BoxedTypeEnum;
+                if (boxed != null) {
+                    return VariantLayout.Inline;
+                }
+                return VariantLayout.Object;
             }
         }
 
@@ -336,6 +340,30 @@ namespace Spreads.DataTypes {
                 }
             }
             throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Read a value T directly from the internal fixed 16-bytes buffer
+        /// without any checks.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T UnsafeGetInilned<T>() {
+            Debug.Assert(Layout == VariantLayout.Inline);
+            fixed (void* ptr = _data) {
+                return Unsafe.Read<T>(ptr);
+            }
+        }
+
+        /// <summary>
+        /// Write a value T directly to the internal fixed 16-bytes buffer
+        /// without any checks.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void UnsafeSetInlined<T>(T value) {
+            Debug.Assert(Layout == VariantLayout.Inline);
+            fixed (void* ptr = _data) {
+                Unsafe.Write(ptr, value);
+            }
         }
 
         /// <summary>
