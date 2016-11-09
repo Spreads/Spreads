@@ -2,17 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Serialization;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Serialization;
 
 namespace Spreads.DataTypes {
-    // we need a convenient structure to work from code, not only store as bytes
-    // we need it non-generic.
-
-    // TODO ensure alignment of uncompressed arrays for at least TypeEnum <= 10
 
     /// <summary>
     /// Version and flags
@@ -144,17 +140,9 @@ namespace Spreads.DataTypes {
         [FieldOffset(16)]
         internal BoxedTypeEnum _boxedTypeEnum;
 
-        //internal Variant(object obj) {
-        //    this = default(Variant);
-        //    var ty = obj.GetType();
-        //    _header.TypeEnum = VariantHelper.GetTypeEnum(ty);
-
-        //    if (_header.TypeEnum == TypeEnum.Array) {
-        //        _header.ElementTypeEnum = VariantHelper.GetTypeEnum(ty.GetElementType());
-        //    }
-        //    // TODO OwnedMemory is alway of type `byte`
-        //    _object = obj;
-        //}
+        internal Variant(object value) {
+            this = Create(value);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Variant Create<T>(T value = default(T)) {
@@ -179,12 +167,12 @@ namespace Spreads.DataTypes {
         private static Variant CreateSlow<T>(T value, TypeEnum typeEnum) {
             if (typeEnum == TypeEnum.Variant) return (Variant)(object)(value);
             if (typeEnum == TypeEnum.Object) {
-                return CreateFromObject((object)value);
+                return FromObject((object)value);
             }
             throw new NotImplementedException();
         }
 
-        private static Variant CreateFromObject(object value) {
+        public static Variant FromObject(object value) {
             if (value == null) {
                 return new Variant { _header = { TypeEnum = TypeEnum.None } };
             }
@@ -259,6 +247,81 @@ namespace Spreads.DataTypes {
             throw new NotImplementedException();
         }
 
+
+        public static object ToObject(Variant value) {
+            if (value.TypeEnum == TypeEnum.None) {
+                return null;
+            }
+            // unwrap potentially boxed known types
+            var typeEnum = value.TypeEnum;
+            if ((int)typeEnum < KnownSmallTypesLimit) {
+                switch (typeEnum) {
+                    case TypeEnum.None:
+                        throw new InvalidOperationException("TypeEnum.None is possible only for nulls");
+                    case TypeEnum.Int8:
+                        return value.Get<sbyte>();
+
+                    case TypeEnum.Int16:
+                        return value.Get<short>();
+
+                    case TypeEnum.Int32:
+                        return value.Get<int>();
+
+                    case TypeEnum.Int64:
+                        return value.Get<long>();
+
+                    case TypeEnum.UInt8:
+                        return value.Get<byte>();
+
+                    case TypeEnum.UInt16:
+                        return value.Get<ushort>();
+
+                    case TypeEnum.UInt32:
+                        return value.Get<uint>();
+
+                    case TypeEnum.UInt64:
+                        return value.Get<ulong>();
+
+                    case TypeEnum.Float32:
+                        return value.Get<float>();
+
+                    case TypeEnum.Float64:
+                        return value.Get<double>();
+
+                    case TypeEnum.Decimal:
+                        return value.Get<decimal>();
+
+                    case TypeEnum.Price:
+                        return value.Get<Price>();
+
+                    case TypeEnum.Money:
+                        return value.Get<Money>();
+
+                    case TypeEnum.DateTime:
+                        return value.Get<DateTime>();
+
+                    case TypeEnum.Timestamp:
+                        return value.Get<Timestamp>();
+
+                    case TypeEnum.Date:
+                        throw new NotImplementedException();
+                    case TypeEnum.Time:
+                        throw new NotImplementedException();
+                    case TypeEnum.Complex32:
+                        throw new NotImplementedException();
+                    case TypeEnum.Complex64:
+                        throw new NotImplementedException();
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+            }
+
+            // all other types are stored directly as objects
+            if (value._object != null) return value._object;
+
+            throw new NotImplementedException();
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Variant Create<T>(T[] array) {
             return Create<T>(array, 0, array.Length);
@@ -282,7 +345,6 @@ namespace Spreads.DataTypes {
             return v;
         }
 
-
         public TypeEnum TypeEnum
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -296,16 +358,45 @@ namespace Spreads.DataTypes {
             }
         }
 
-        public int ElementSize
+        public bool IsFixedSize
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var te = TypeEnum;
+                return (int)te < KnownSmallTypesLimit | te == TypeEnum.FixedBinary;
+            }
+        }
+
+        public int ByteSize
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 var boxed = _object as BoxedTypeEnum;
                 if (boxed != null) {
-                    return -1;
+                    return KnownTypeSizes[(int)boxed.TypeEnum];
                 }
-                return _header.TypeSize;
+                if (_header.TypeEnum == TypeEnum.FixedBinary) {
+                    return _header.TypeSize;
+                }
+                return -1;
+            }
+        }
+
+        public int ElementByteSize
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var boxed = _object as BoxedTypeEnum;
+                if (boxed != null) {
+                    return -1; // inlined scalap has no elements
+                }
+                if (_header.TypeEnum == TypeEnum.Array) {
+                    return _header.TypeSize;
+                }
+                return -1;
             }
         }
 
@@ -337,7 +428,6 @@ namespace Spreads.DataTypes {
                 return _header.TypeEnum == TypeEnum.Array ? _count : 1;
             }
         }
-
 
         internal VariantLayout Layout
         {
@@ -372,7 +462,7 @@ namespace Spreads.DataTypes {
             if ((int)teOfT < KnownSmallTypesLimit) {
                 var te = this._boxedTypeEnum.TypeEnum;
                 if (te != teOfT) {
-                    throw new InvalidOperationException("Variant type doesn't match typeof(T)");
+                    throw new InvalidCastException("Variant type doesn't match typeof(T)");
                 }
                 fixed (void* ptr = _data) {
                     return Unsafe.Read<T>(ptr);
@@ -387,7 +477,7 @@ namespace Spreads.DataTypes {
             if ((int)teOfT < KnownSmallTypesLimit) {
                 var te = this._boxedTypeEnum.TypeEnum;
                 if (te != teOfT) {
-                    throw new InvalidOperationException("Variant type doesn't match typeof(T)");
+                    throw new InvalidCastException("Variant type doesn't match typeof(T)");
                 }
                 fixed (void* ptr = _data) {
                     Unsafe.Write(ptr, value);
@@ -421,54 +511,122 @@ namespace Spreads.DataTypes {
             }
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> Span<T>() {
             if (_object == null) {
                 // Pointer;
+                throw new NotImplementedException();
             }
             var boxed = _object as BoxedTypeEnum;
             if (boxed != null) {
                 // Inline;
                 var teOfT = VariantHelper<T>.TypeEnum;
-                if ((int)teOfT < KnownSmallTypesLimit) {
-                    var te = this._boxedTypeEnum.TypeEnum;
-                    if (te != teOfT) {
-                        throw new InvalidOperationException("Variant type doesn't match typeof(T)");
-                    }
-                    fixed (void* ptr = _data) {
-                        return new Span<T>(ptr, 1);
-                    }
+                var te = this._boxedTypeEnum.TypeEnum;
+                if (te != teOfT) {
+                    throw new InvalidCastException("Variant type doesn't match typeof(T)");
                 }
-            } else {
-                // Object
-                var typeEnum = _header.TypeEnum;
-                if (typeEnum == TypeEnum.Array)
-                {
-                    T[] array = (T[]) _object;
-                    return new Span<T>(array, (int)_offset, _count);
+                fixed (void* ptr = _data) {
+                    return new Span<T>(ptr, 1);
                 }
             }
-
-            throw new NotImplementedException();
+            // Object
+            var typeEnum = _header.TypeEnum;
+            if (typeEnum == TypeEnum.Array) {
+                var elementEnum = _header.ElementTypeEnum;
+                var castElementEnum = VariantHelper<T>.TypeEnum;
+                if (elementEnum != castElementEnum) {
+                    throw new InvalidCastException();
+                }
+                T[] array = (T[])_object;
+                return new Span<T>(array, (int)_offset, _count);
+            }
+            throw new InvalidCastException();
         }
 
         /// <summary>
-        /// Get value at index with type size, buffer size and other checks
+        ///
+        /// </summary>
+        public Variant this[int index]
+        {
+            get
+            {
+                if ((uint)index >= (uint)Count) {
+                    throw new ArgumentOutOfRangeException();
+                }
+                if (_object == null) {
+                    // Pointer;
+                    throw new NotImplementedException();
+                }
+                var boxed = _object as BoxedTypeEnum;
+                if (boxed != null) {
+                    // count was 1 and if we here, index = 0
+                    return this;
+                }
+                // Object
+                var typeEnum = _header.TypeEnum;
+                if (typeEnum == TypeEnum.Array) {
+                    var elementEnum = _header.ElementTypeEnum;
+                    Array array = (Array)_object;
+                    var value = array.GetValue(index);
+                    var v = Variant.Create(value);
+                    Debug.Assert(elementEnum == v.ElementTypeEnum);
+                    return v;
+                }
+                throw new InvalidCastException();
+            }
+            set
+            {
+                if ((uint)index >= (uint)Count) {
+                    throw new ArgumentOutOfRangeException();
+                }
+                if (_object == null) {
+                    // Pointer;
+                    throw new NotImplementedException();
+                }
+                var boxed = _object as BoxedTypeEnum;
+                if (boxed != null) {
+                    if (boxed.TypeEnum != value.TypeEnum) {
+                        throw new InvalidCastException();
+                    }
+                    // count was 1 and if we are here, index = 0
+                    fixed (void* ptr = _data) {
+                        *(decimal*)ptr = *(decimal*)value._data;
+                    }
+                    return;
+                }
+                // Object
+                var typeEnum = _header.TypeEnum;
+                if (typeEnum == TypeEnum.Array) {
+                    if (_header.ElementTypeEnum != value.TypeEnum) {
+                        throw new InvalidCastException($"{_header.ElementTypeEnum} - {value._header.TypeEnum}");
+                    }
+                    Array array = (Array)_object;
+                    var val = ToObject(value);
+                    array.SetValue(val, index);
+                    return;
+                }
+                throw new InvalidCastException();
+            }
+        }
+
+        /// <summary>
+        /// Get value at index
         /// </summary>
         public T Get<T>(int index) {
-            throw new NotImplementedException();
+            // TODO manual impl without span
+            var span = Span<T>();
+            return span[index];
         }
 
-        // get without any checks, must be called only when we know that all checks are OK
-        internal T GetUnsafe<T>(int index) {
-            throw new NotImplementedException();
+        /// <summary>
+        /// Set value at index
+        /// </summary>
+        public void Set<T>(int index, T value) {
+            var span = Span<T>();
+            span[index] = value;
         }
-
 
         internal class BoxedTypeEnum {
-
-            // TODO limit small (<16 bytes) known types to a small number 20-30
             private static readonly BoxedTypeEnum[] Cache = new BoxedTypeEnum[KnownSmallTypesLimit];
 
             internal BoxedTypeEnum(TypeEnum typeEnum) {

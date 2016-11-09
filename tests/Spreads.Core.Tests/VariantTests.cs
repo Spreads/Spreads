@@ -17,7 +17,7 @@ namespace Spreads.Core.Tests {
         public void CouldCreateAndReadWriteInlinedVariant() {
             var v = Variant.Create(123.0);
             Assert.AreEqual(123.0, v.Get<double>());
-            Assert.Throws<InvalidOperationException>(() => {
+            Assert.Throws<InvalidCastException>(() => {
                 v.Set(456); // no implicit conversion
             });
             v.Set(456.0);
@@ -36,6 +36,15 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(1, span.Length);
             span[0] = 43;
             Assert.AreEqual(43.0, v2.Get<double>());
+
+            var x = 44.0.AsVariant();
+            Assert.AreEqual(44.0, x.Get<double>());
+            Assert.Throws<InvalidCastException>(() => {
+                v2[0] = 44.AsVariant(); // no implicit conversion
+            });
+            v2[0] = 44.0.AsVariant();
+            var v3 = v2[0];
+            Assert.AreEqual(44.0, v3.Get<double>());
         }
 
         [Test]
@@ -48,14 +57,14 @@ namespace Spreads.Core.Tests {
             var v = Variant.Create(array);
             Assert.AreEqual(TypeEnum.Array, v.TypeEnum);
             Assert.AreEqual(TypeEnum.Float64, v.ElementTypeEnum);
-            Assert.AreEqual(8, v.ElementSize);
+            Assert.AreEqual(8, v.ElementByteSize);
             Assert.AreEqual(2, v.Count);
 
             var boxedArray = (object)array;
             var v2 = Variant.Create(boxedArray);
             Assert.AreEqual(TypeEnum.Array, v2.TypeEnum);
             Assert.AreEqual(TypeEnum.Float64, v2.ElementTypeEnum);
-            Assert.AreEqual(8, v2.ElementSize);
+            Assert.AreEqual(8, v2.ElementByteSize);
             Assert.AreEqual(2, v2.Count);
 
             var span = v2.Span<double>();
@@ -68,6 +77,13 @@ namespace Spreads.Core.Tests {
             // array values are assigned via span
             Assert.AreEqual(42, array[0]);
             Assert.AreEqual(43, array[1]);
+
+            var x = 44.0.AsVariant();
+            Assert.AreEqual(TypeEnum.Float64, x.TypeEnum);
+            v2[0] = x;
+            v2[1] = 45.0.AsVariant();
+            Assert.AreEqual(44, array[0]);
+            Assert.AreEqual(45, array[1]);
         }
 
         #region Benchmarks

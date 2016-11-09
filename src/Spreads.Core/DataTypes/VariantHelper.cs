@@ -125,15 +125,7 @@ namespace Spreads.DataTypes {
 #pragma warning disable 618
             if (TypeHelper.GetSize(ty) > 0) return TypeEnum.FixedBinary;
 #pragma warning restore 618
-
             return TypeEnum.Object;
-        }
-    }
-
-
-    public static class VariantExtensions {
-        public static Variant AsVariant<T>(this T value) {
-            return Variant.Create<T>(value);
         }
     }
 }
