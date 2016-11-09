@@ -20,7 +20,7 @@ namespace Spreads.DataTypes {
         *    as typeof(T) is a(JIT) compile-time constant for each instantiation.This design was chosen to eliminate any overhead from
         *    delegates and other patterns.
         */
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static TypeEnum GetTypeEnum() {
             // TODO check if return is the same as if else and the pattern above holds
@@ -76,6 +76,18 @@ namespace Spreads.DataTypes {
             var elTypeEnum = VariantHelper.GetTypeEnum(elTy);
             _elementType = (int)elTypeEnum;
             return elTypeEnum;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int GetElementTypeSize() {
+            var ty = typeof(T);
+            if (!ty.IsArray) {
+                ThrowHelper.ThrowInvalidOperationException_ForVariantTypeMissmatch();
+            }
+            var elTy = ty.GetElementType();
+#pragma warning disable 618
+            return TypeHelper.GetSize(elTy);
+#pragma warning restore 618
         }
     }
 

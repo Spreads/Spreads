@@ -6,6 +6,7 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Serialization;
 
 namespace Spreads.DataTypes {
     // we need a convenient structure to work from code, not only store as bytes
@@ -70,7 +71,9 @@ namespace Spreads.DataTypes {
 
         internal const int TypeSizeOffset = 2;
 
-        // If size if fixed then this should be positive
+        /// <summary>
+        /// Size of fixed binary or array element type. If size if fixed then this should be positive.
+        /// </summary>
         [FieldOffset(TypeSizeOffset)]
         public byte TypeSize;
 
@@ -93,13 +96,14 @@ namespace Spreads.DataTypes {
         public enum VariantLayout {
 
             /// <summary>
-            /// Single data point is stored inline in the internal data field.
-            /// Object field is set to special statically cached objects containing metadata.
+            /// Single data point is stored inline in the internal fixed buffer.
+            /// Object field is set to a special statically cached object containing metadata (BoxedTypeEnum).
+            /// This layout is used for TypeEnum codes that are less than KnownSmallTypesLimit
             /// </summary>
             Inline = 0,
 
             /// <summary>
-            /// Object is not null and is not boxed TypeEnum.
+            /// Object is not null and is not BoxedTypeEnum.
             /// </summary>
             Object = 1,
 
@@ -119,7 +123,7 @@ namespace Spreads.DataTypes {
 
         // Number of elements in array
         [FieldOffset(4)]
-        public readonly int _count;                 // int
+        public int _count;                 // int
 
         // TODO for pointers, this should be length or the memory
         // or, any var len variant should have length as the first 4 bytes
@@ -165,15 +169,16 @@ namespace Spreads.DataTypes {
             return CreateSlow(value, typeEnum);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Variant Create(object value) {
+            dynamic d = value;
+            return Create(d);
+        }
+
         //[MethodImpl(MethodImplOptions.NoInlining)]
         private static Variant CreateSlow<T>(T value, TypeEnum typeEnum) {
-            if (typeEnum == TypeEnum.Array) {
-                var elTypeEnum = VariantHelper<T>.GetElementTypeEnum();
-            }
             if (typeEnum == TypeEnum.Variant) return (Variant)(object)(value);
             if (typeEnum == TypeEnum.Object) {
-                // this should not be inlined here, so call via a wrapper method with NoInlining attr
-                // or even keep only the first case inlined
                 return CreateFromObject((object)value);
             }
             throw new NotImplementedException();
@@ -183,6 +188,7 @@ namespace Spreads.DataTypes {
             if (value == null) {
                 return new Variant { _header = { TypeEnum = TypeEnum.None } };
             }
+            // unwrap potentially boxed known types
             var objTypeEnum = VariantHelper.GetTypeEnum(value.GetType());
             if ((int)objTypeEnum < KnownSmallTypesLimit) {
                 switch (objTypeEnum) {
@@ -245,13 +251,36 @@ namespace Spreads.DataTypes {
                         throw new ArgumentOutOfRangeException();
                 }
             }
+
+            if (objTypeEnum == TypeEnum.Array) {
+                Environment.FailFast("Array shoud have been dispatched via dynamic in the untyped Create method");
+            }
+
             throw new NotImplementedException();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Variant Create<T>(T[] array) {
-            throw new NotImplementedException();
+            return Create<T>(array, 0, array.Length);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Variant Create<T>(T[] array, int offset, int length) {
+            if (array == null) throw new ArgumentNullException(nameof(array));
+            var v = new Variant {
+                _object = array,
+                _count = length,
+                _offset = (ulong)offset,
+                _header = new VariantHeader {
+                    TypeEnum = TypeEnum.Array,
+                    ElementTypeEnum = VariantHelper<T>.TypeEnum,
+#pragma warning disable 618
+                    TypeSize = checked((byte)TypeHelper<T>.Size) // TODO review
+#pragma warning restore 618
+                }
+            };
+            return v;
+        }
 
 
         public TypeEnum TypeEnum
@@ -264,6 +293,32 @@ namespace Spreads.DataTypes {
                     return boxed.TypeEnum;
                 }
                 return _header.TypeEnum;
+            }
+        }
+
+        public int ElementSize
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var boxed = _object as BoxedTypeEnum;
+                if (boxed != null) {
+                    return -1;
+                }
+                return _header.TypeSize;
+            }
+        }
+
+        public TypeEnum ElementTypeEnum
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var boxed = _object as BoxedTypeEnum;
+                if (boxed != null) {
+                    return TypeEnum.None;
+                }
+                return _header.ElementTypeEnum;
             }
         }
 
@@ -317,7 +372,7 @@ namespace Spreads.DataTypes {
             if ((int)teOfT < KnownSmallTypesLimit) {
                 var te = this._boxedTypeEnum.TypeEnum;
                 if (te != teOfT) {
-                    ThrowHelper.ThrowInvalidOperationException_ForVariantTypeMissmatch();
+                    throw new InvalidOperationException("Variant type doesn't match typeof(T)");
                 }
                 fixed (void* ptr = _data) {
                     return Unsafe.Read<T>(ptr);
@@ -332,7 +387,7 @@ namespace Spreads.DataTypes {
             if ((int)teOfT < KnownSmallTypesLimit) {
                 var te = this._boxedTypeEnum.TypeEnum;
                 if (te != teOfT) {
-                    ThrowHelper.ThrowInvalidOperationException_ForVariantTypeMissmatch();
+                    throw new InvalidOperationException("Variant type doesn't match typeof(T)");
                 }
                 fixed (void* ptr = _data) {
                     Unsafe.Write(ptr, value);
@@ -366,6 +421,38 @@ namespace Spreads.DataTypes {
             }
         }
 
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Span<T> Span<T>() {
+            if (_object == null) {
+                // Pointer;
+            }
+            var boxed = _object as BoxedTypeEnum;
+            if (boxed != null) {
+                // Inline;
+                var teOfT = VariantHelper<T>.TypeEnum;
+                if ((int)teOfT < KnownSmallTypesLimit) {
+                    var te = this._boxedTypeEnum.TypeEnum;
+                    if (te != teOfT) {
+                        throw new InvalidOperationException("Variant type doesn't match typeof(T)");
+                    }
+                    fixed (void* ptr = _data) {
+                        return new Span<T>(ptr, 1);
+                    }
+                }
+            } else {
+                // Object
+                var typeEnum = _header.TypeEnum;
+                if (typeEnum == TypeEnum.Array)
+                {
+                    T[] array = (T[]) _object;
+                    return new Span<T>(array, (int)_offset, _count);
+                }
+            }
+
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Get value at index with type size, buffer size and other checks
         /// </summary>
@@ -378,47 +465,6 @@ namespace Spreads.DataTypes {
             throw new NotImplementedException();
         }
 
-        //public static Variant Create<T>(T value)
-
-        private T DataAs<T>() {
-            fixed (void* ptr = _data) {
-                return Unsafe.Read<T>(ptr);
-            }
-        }
-
-        //private const sbyte DoubleCode = 14;
-
-        //private void AssertType(sbyte code) {
-        //    if (TypeCode != code && TypeCode != default(sbyte)) throw new InvalidCastException("Invalid cast");
-        //}
-
-        //public void Test() {
-        //    var v = (Variant)123.0;
-        //}
-        //public static implicit operator Variant(double d) {
-        //    return new Variant {
-        //        Double = d
-        //    };
-        //}
-        //public static implicit operator double(Variant d) {
-        //    //d.AssertType(DoubleCode);
-        //    return d.Double;
-        //}
-        //public static explicit operator Variant(double d) {
-        //    return new Variant {
-        //        Double = d
-        //    };
-        //}
-        //public static explicit operator double (Variant d) {
-        //    d.AssertType((0.0).GetTypeEnum());
-        //    return d.Double;
-        //}
-
-        private static readonly int[] ClrToSpreadsTypeCode = new int[18]
-        {
-            0, // 0
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        };
 
         internal class BoxedTypeEnum {
 

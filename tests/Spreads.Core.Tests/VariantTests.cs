@@ -15,20 +15,62 @@ namespace Spreads.Core.Tests {
 
         [Test]
         public void CouldCreateAndReadWriteInlinedVariant() {
-            var v = Variant.Create<double>(123);
+            var v = Variant.Create(123.0);
             Assert.AreEqual(123.0, v.Get<double>());
             Assert.Throws<InvalidOperationException>(() => {
                 v.Set(456); // no implicit conversion
             });
             v.Set(456.0);
             Assert.AreEqual(456.0, v.Get<double>());
+            Assert.AreEqual(1, v.Count);
 
             // correctly parse boxed primitives
             var obj = (object)42.0;
             var v2 = Variant.Create(obj);
             Assert.AreEqual(v2.TypeEnum, TypeEnum.Float64);
             Assert.AreEqual(42.0, v2.Get<double>());
+            Assert.AreEqual(1, v2.Count);
+
+            var span = v2.Span<double>();
+            Assert.AreEqual(42, span[0]);
+            Assert.AreEqual(1, span.Length);
+            span[0] = 43;
+            Assert.AreEqual(43.0, v2.Get<double>());
         }
+
+        [Test]
+        public void CouldCreateAndReadWriteArrayVariant()
+        {
+            var array = new double[2];
+            array[0] = 123;
+            array[1] = 456;
+
+            var v = Variant.Create(array);
+            Assert.AreEqual(TypeEnum.Array, v.TypeEnum);
+            Assert.AreEqual(TypeEnum.Float64, v.ElementTypeEnum);
+            Assert.AreEqual(8, v.ElementSize);
+            Assert.AreEqual(2, v.Count);
+
+            var boxedArray = (object)array;
+            var v2 = Variant.Create(boxedArray);
+            Assert.AreEqual(TypeEnum.Array, v2.TypeEnum);
+            Assert.AreEqual(TypeEnum.Float64, v2.ElementTypeEnum);
+            Assert.AreEqual(8, v2.ElementSize);
+            Assert.AreEqual(2, v2.Count);
+
+            var span = v2.Span<double>();
+            Assert.AreEqual(123.0, span[0]);
+            Assert.AreEqual(456.0, span[1]);
+            Assert.AreEqual(2, span.Length);
+
+            span[0] = 42;
+            span[1] = 43;
+            // array values are assigned via span
+            Assert.AreEqual(42, array[0]);
+            Assert.AreEqual(43, array[1]);
+        }
+
+        #region Benchmarks
 
         [Test, Ignore]
         public void CouldCreateAndReadInlinedVariantInALoop() {
@@ -61,8 +103,7 @@ namespace Spreads.Core.Tests {
         }
 
         // not inlined access to the field
-        private struct DummyContainer<T>
-        {
+        private struct DummyContainer<T> {
             private T _value;
 
             public T Value
@@ -106,8 +147,7 @@ namespace Spreads.Core.Tests {
                 sw.Restart();
                 var sum = 0.0;
                 var v = Variant.Create<double>(0.0);
-                for (int i = 0; i < count; i++)
-                {
+                for (int i = 0; i < count; i++) {
                     v.Set<double>(i);
                     var d = v.Get<double>();
                     sum += d;
@@ -115,7 +155,6 @@ namespace Spreads.Core.Tests {
                 sw.Stop();
                 if (sum < double.MaxValue)
                     Console.WriteLine($"Variant Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
-
 
                 sw.Restart();
                 for (int i = 0; i < count; i++) {
@@ -126,6 +165,18 @@ namespace Spreads.Core.Tests {
                 sw.Stop();
                 if (sum < double.MaxValue)
                     Console.WriteLine($"Unsafe Variant Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
+
+                sw.Restart();
+                for (int i = 0; i < count; i++)
+                {
+                    var span = v.Span<double>();
+                    span[0] = i;
+                    var d = span[0];
+                    sum += d;
+                }
+                sw.Stop();
+                if (sum < double.MaxValue)
+                    Console.WriteLine($"Span Variant Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
 
 
                 sw.Restart();
@@ -139,7 +190,6 @@ namespace Spreads.Core.Tests {
                 sw.Stop();
                 if (sum < double.MaxValue && container.Value > 0)
                     Console.WriteLine($"Inlined Property Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
-
 
                 sw.Restart();
                 sum = 0.0;
@@ -165,7 +215,6 @@ namespace Spreads.Core.Tests {
                 if (sum < double.MaxValue)
                     Console.WriteLine($"Inlined Boxed Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
 
-
                 sw.Restart();
                 sum = 0.0;
                 var boxedDummy = new BoxedDummyContainer();
@@ -182,6 +231,6 @@ namespace Spreads.Core.Tests {
             }
         }
 
-
+        #endregion Benchmarks
     }
 }
