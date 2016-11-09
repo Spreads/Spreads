@@ -3,33 +3,43 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes {
 
-    public interface IVariant {
-        Variant AsVariant { get; }
-    }
-
-    public interface IVariant<T> : IVariant {
-        Variant<T> AsTypedVariant { get; }
-    }
-
+    [Obsolete("This defeats the purspose of Variant targeted as untyped")]
     [StructLayout(LayoutKind.Sequential)]
     public struct Variant<T> {
 
-        // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
-        // ReSharper disable once FieldCanBeMadeReadOnly.Local
-        private Variant _value;
-
-        internal Variant(Variant value) {
-            var type = VariantHelper<T>.GetTypeEnum();
-            if (type != value.TypeEnum) throw new ArgumentException("Type mismatch in typed Variant<T>");
-            _value = value;
+        public Variant(T value) {
+            _value = Variant.Create(value);
         }
 
+        private Variant _value;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Variant(Variant<T> value) {
             return value._value;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator T(Variant<T> value) {
+            return value._value.Get<T>();
+        }
+
+        public T Value
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return (T)this; }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set { _value.Set(value); }
+        }
+
+        public Variant AsUntyped
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _value; }
         }
     }
 }

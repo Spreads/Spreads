@@ -95,7 +95,6 @@ namespace Spreads.DataTypes {
         // Containers
 
         Array = 250,
-        OwnedMemory = 251,
         //Table = 252,
         //Tuple = 252
 

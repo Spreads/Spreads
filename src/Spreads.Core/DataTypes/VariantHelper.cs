@@ -4,12 +4,13 @@
 
 using Spreads.Serialization;
 using System;
-using System.Buffers;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.DataTypes {
 
-    public class VariantHelper<T> {
+    internal class VariantHelper<T> {
+        public static TypeEnum TypeEnum = GetTypeEnum();
+
         /* https://github.com/dotnet/corefx/blob/master/src/System.Numerics.Vectors/src/System/Numerics/Vector.cs
         * PATTERN:
         *    if (typeof(T) == typeof(Int32)) { ... }
@@ -19,12 +20,12 @@ namespace Spreads.DataTypes {
         *    as typeof(T) is a(JIT) compile-time constant for each instantiation.This design was chosen to eliminate any overhead from
         *    delegates and other patterns.
         */
-
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static TypeEnum GetTypeEnum() {
-            // TODO check if return is the same as if else the the pattern above holds
+        private static TypeEnum GetTypeEnum() {
+            // TODO check if return is the same as if else and the pattern above holds
 
-            if (typeof(T) == typeof(bool)) { return TypeEnum.Bool;}
+            if (typeof(T) == typeof(bool)) { return TypeEnum.Bool; }
             if (typeof(T) == typeof(byte)) return TypeEnum.UInt8;
             if (typeof(T) == typeof(char)) return TypeEnum.UInt16; // as UInt16
             if (typeof(T) == typeof(sbyte)) return TypeEnum.Int8;
@@ -40,10 +41,12 @@ namespace Spreads.DataTypes {
             if (typeof(T) == typeof(double)) return TypeEnum.Float64;
             if (typeof(T) == typeof(decimal)) return TypeEnum.Decimal;
             if (typeof(T) == typeof(Price)) return TypeEnum.Price;
+            if (typeof(T) == typeof(Money)) return TypeEnum.Money;
+            if (typeof(T) == typeof(DateTime)) return TypeEnum.DateTime;
+            if (typeof(T) == typeof(Timestamp)) return TypeEnum.Timestamp;
 
             if (typeof(T) == typeof(Variant)) return TypeEnum.Variant;
             if (typeof(T) == typeof(Array)) return TypeEnum.Array; // TODO check if typeof(T).IsArray is any different
-            // TODO if (typeof(OwnedMemory<byte>).GetTypeInfo().IsAssignableFrom(typeof(T))) return TypeEnum.Array;
 
             // TODO known types, otherwise will fallback to fixed binary
 
@@ -51,9 +54,29 @@ namespace Spreads.DataTypes {
             if (TypeHelper<T>.Size > 0) return TypeEnum.FixedBinary;
 #pragma warning restore 618
 
+            //if (typeof(T) == typeof(object) && !value.Equals(default(T))) {
+            //    return VariantHelper.GetTypeEnum(value.GetType());
+            //}
+
             return TypeEnum.Object;
         }
 
+        private static int _elementType = -1;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static TypeEnum GetElementTypeEnum() {
+            if (_elementType != -1) {
+                return (TypeEnum)(byte)_elementType;
+            }
+            var ty = typeof(T);
+            if (!ty.IsArray) {
+                ThrowHelper.ThrowInvalidOperationException_ForVariantTypeMissmatch();
+            }
+            var elTy = ty.GetElementType();
+            var elTypeEnum = VariantHelper.GetTypeEnum(elTy);
+            _elementType = (int)elTypeEnum;
+            return elTypeEnum;
+        }
     }
 
     public class VariantHelper {
@@ -78,10 +101,12 @@ namespace Spreads.DataTypes {
             if (ty == typeof(double)) return TypeEnum.Float64;
             if (ty == typeof(decimal)) return TypeEnum.Decimal;
             if (ty == typeof(Price)) return TypeEnum.Price;
+            if (ty == typeof(Money)) return TypeEnum.Money;
+            if (ty == typeof(DateTime)) return TypeEnum.DateTime;
+            if (ty == typeof(Timestamp)) return TypeEnum.Timestamp;
 
             if (ty == typeof(Variant)) return TypeEnum.Variant;
             if (ty.IsArray) return TypeEnum.Array; // TODO check if ty.IsArray is any different
-            // TODO if (typeof(OwnedMemory<byte>).IsAssignableFrom(ty)) return TypeEnum.OwnedMemory;
 
             // TODO known types, otherwise will fallback to fixed binary
 
@@ -90,6 +115,13 @@ namespace Spreads.DataTypes {
 #pragma warning restore 618
 
             return TypeEnum.Object;
+        }
+    }
+
+
+    public static class VariantExtensions {
+        public static Variant AsVariant<T>(this T value) {
+            return Variant.Create<T>(value);
         }
     }
 }

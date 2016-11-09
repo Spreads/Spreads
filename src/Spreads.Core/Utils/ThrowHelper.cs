@@ -33,6 +33,12 @@ namespace Spreads {
             throw GetInvalidOperationException_ForVariantTypeMissmatch();
         }
 
+        public static void ThrowNotImplementedException() {
+            throw GetNotImplementedException();
+        }
+
+        /////////////////////////////////////////////////////////////////////////////
+        
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static ArgumentNullException GetArgumentNullException(ExceptionArgument argument) {
             return new ArgumentNullException(GetArgumentName(argument));
@@ -66,6 +72,11 @@ namespace Spreads {
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static InvalidOperationException GetInvalidOperationException_ForVariantTypeMissmatch() {
             return new InvalidOperationException("Variant type doesn't match typeof(T)");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static NotImplementedException GetNotImplementedException() {
+            return new NotImplementedException();
         }
 
         private static string GetArgumentName(ExceptionArgument argument) {
