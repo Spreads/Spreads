@@ -167,6 +167,7 @@ namespace Spreads.Storage {
             throw new NotImplementedException();
         }
 
+        
 
         #region Get
         public virtual DbCommand GetEqCommand() {
@@ -308,8 +309,7 @@ namespace Spreads.Storage {
                     }
                     // new chunk
                     if (columnChunk.ChunkKey != chunkKey) {
-                        if (rawPanelChunks.Length == chunkCount)
-                        {
+                        if (rawPanelChunks.Length == chunkCount) {
                             // TODO this will grow first time and then stay fixed, but somewhat ugly
                             var newArr = new RawPanelChunk[chunkCount + 1];
                             Array.Copy(rawPanelChunks, newArr, rawPanelChunks.Length);
@@ -318,12 +318,12 @@ namespace Spreads.Storage {
                         currentChunk = RawPanelChunk.Create();
                         rawPanelChunks[chunkCount] = currentChunk;
                         chunkCount++;
-                        
+
                         chunkKey = columnChunk.ChunkKey;
                         primeDone = false;
                     }
                 }
-                Debug.Assert(currentChunk != null);
+                Trace.Assert(currentChunk != null, "currentChunk != null");
                 if (!primeDone) {
                     var prime = columnChunk;
                     if (prime.ColumnId != 0) throw new ApplicationException("Wrong implementation of TryGetChunksAt SQL");
@@ -375,7 +375,24 @@ namespace Spreads.Storage {
         #endregion
 
         public override ValueTuple<long, long> GetRange(int panelId) {
-            throw new NotImplementedException();
+            // TODO this could be easily made with a single SQL query, but is used rarely
+            RawPanelChunk[] tmp = { RawPanelChunk.Create() };
+            var hasAny = TryGetChunksAt(panelId, long.MinValue, Lookup.GE, ref tmp) > 0;
+            if (hasAny) {
+                var first = tmp[0].ChunkKey;
+                if (TryGetChunksAt(panelId, long.MaxValue, Lookup.LE, ref tmp) > 0) {
+                    var last = tmp[0].LastKey;
+                    tmp[0].Dispose();
+                    return new ValueTuple<long, long>(first, last);
+                }
+                throw new ApplicationException("Last must return if first exists");
+            }
+            tmp[0].Dispose();
+            return new ValueTuple<long, long>(0, 0);
+        }
+
+        public override void Flush(int panelId) {
+            // noop currently, all commands are atomic and update required state (TODO)
         }
     }
 }

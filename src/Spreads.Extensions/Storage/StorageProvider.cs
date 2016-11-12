@@ -34,6 +34,8 @@ namespace Spreads.Storage {
 
         public abstract bool Remove(int panelId, long key, Lookup direction);
 
+        public abstract void Flush(int panelId);
+
         // TODO key range
         // Columns by panel id
         // Create series

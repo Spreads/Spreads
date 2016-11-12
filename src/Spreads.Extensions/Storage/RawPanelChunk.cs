@@ -50,6 +50,7 @@ namespace Spreads.Storage {
         public RawColumnChunk Prime => _prime;
         public int PanelId => _prime.PanelId;
         public long ChunkKey => _prime.ChunkKey;
+        public long LastKey => _prime.LastKey;
         public int Count => _prime.Count;
         public int ColumnCount => _columns?.Count ?? 0;
 

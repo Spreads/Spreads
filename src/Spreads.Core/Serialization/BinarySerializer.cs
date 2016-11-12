@@ -2,19 +2,20 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+using Newtonsoft.Json;
+using Spreads.Buffers;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
-using Newtonsoft.Json;
-using Spreads.Buffers;
+
 #pragma warning disable 0618
+
 namespace Spreads.Serialization {
 
     public static class BinarySerializer {
-
         //private class JsonNetArrayPoolImpl : Newtonsoft.Json.IArrayPool<char> {
         //    public static readonly JsonNetArrayPoolImpl Instance = new JsonNetArrayPoolImpl();
 
@@ -101,6 +102,26 @@ namespace Spreads.Serialization {
             }
         }
 
+        public unsafe static int Write<T>(T value, ref PreservedMemory<byte> destination, uint offset = 0u,
+            MemoryStream temporaryStream = null) {
+            var tmpArraySegment = default(ArraySegment<byte>);
+            var fixedMemory = default(FixedMemory<byte>);
+            try {
+                void* pointer;
+                if (!destination.Memory.TryGetPointer(out pointer)) {
+                    fixedMemory = destination.Fix();
+                    if (fixedMemory.Memory.TryGetArray(out tmpArraySegment)) {
+                        pointer = (void*)Marshal.UnsafeAddrOfPinnedArrayElement(tmpArraySegment.Array, tmpArraySegment.Offset);
+                    }
+                }
+                var db = new DirectBuffer(tmpArraySegment.Count, pointer);
+                return Write(value, ref db, offset, temporaryStream);
+            } finally {
+                if (!fixedMemory.Equals(default(FixedMemory<byte>))) {
+                    fixedMemory.Dispose();
+                }
+            }
+        }
 
         public static unsafe int Read<T>(IntPtr ptr, ref T value) {
             var size = TypeHelper<T>.Size;
@@ -121,6 +142,25 @@ namespace Spreads.Serialization {
             }
         }
 
+        public static unsafe int Read<T>(PreservedMemory<byte> source, uint offset, ref T value) {
+            var tmpArraySegment = default(ArraySegment<byte>);
+            var fixedMemory = default(FixedMemory<byte>);
+            try {
+                void* pointer;
+                if (!source.Memory.TryGetPointer(out pointer)) {
+                    fixedMemory = source.Fix();
+                    if (fixedMemory.Memory.TryGetArray(out tmpArraySegment)) {
+                        pointer = (void*)Marshal.UnsafeAddrOfPinnedArrayElement(tmpArraySegment.Array, tmpArraySegment.Offset + (int)offset);
+                    }
+                }
+                return Read((IntPtr)pointer, ref value);
+            } finally {
+                if (!fixedMemory.Equals(default(FixedMemory<byte>))) {
+                    fixedMemory.Dispose();
+                }
+            }
+        }
+
         public static unsafe int Read<T>(byte[] buffer, ref T value) {
             return Read<T>(buffer, 0, ref value);
         }
@@ -138,8 +178,9 @@ namespace Spreads.Serialization {
         internal static JsonSerializer Json => JsonSerializer.Instance;
 
         internal sealed class JsonSerializer {
-            readonly Newtonsoft.Json.JsonSerializer _serializer;
+            private readonly Newtonsoft.Json.JsonSerializer _serializer;
             internal static JsonSerializer Instance = new JsonSerializer();
+
             private JsonSerializer() {
                 _serializer = new Newtonsoft.Json.JsonSerializer();
             }
@@ -172,5 +213,6 @@ namespace Spreads.Serialization {
             }
         }
     }
+
 #pragma warning restore 0618
 }

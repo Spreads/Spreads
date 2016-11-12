@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 namespace Spreads.DataTypes {
 
     internal class VariantHelper<T> {
+        // ReSharper disable once StaticMemberInGenericType
         public static TypeEnum TypeEnum = GetTypeEnum();
 
         /* https://github.com/dotnet/corefx/blob/master/src/System.Numerics.Vectors/src/System/Numerics/Vector.cs
@@ -27,7 +28,7 @@ namespace Spreads.DataTypes {
 
             if (typeof(T) == typeof(bool)) { return TypeEnum.Bool; }
             if (typeof(T) == typeof(byte)) return TypeEnum.UInt8;
-            if (typeof(T) == typeof(char)) return TypeEnum.UInt16; // as UInt16
+            if (typeof(T) == typeof(char)) return TypeEnum.UInt16;
             if (typeof(T) == typeof(sbyte)) return TypeEnum.Int8;
             if (typeof(T) == typeof(short)) return TypeEnum.Int16;
             if (typeof(T) == typeof(ushort)) return TypeEnum.UInt16;
@@ -46,7 +47,8 @@ namespace Spreads.DataTypes {
             if (typeof(T) == typeof(Timestamp)) return TypeEnum.Timestamp;
 
             if (typeof(T) == typeof(Variant)) return TypeEnum.Variant;
-            if (typeof(T) == typeof(Array)) return TypeEnum.Array; // TODO check if typeof(T).IsArray is any different
+            if (typeof(T) == typeof(string)) return TypeEnum.String;
+            if (typeof(T).IsArray) return TypeEnum.Array;
 
             // TODO known types, otherwise will fallback to fixed binary
 
@@ -54,13 +56,10 @@ namespace Spreads.DataTypes {
             if (TypeHelper<T>.Size > 0) return TypeEnum.FixedBinary;
 #pragma warning restore 618
 
-            //if (typeof(T) == typeof(object) && !value.Equals(default(T))) {
-            //    return VariantHelper.GetTypeEnum(value.GetType());
-            //}
-
             return TypeEnum.Object;
         }
 
+        // ReSharper disable once StaticMemberInGenericType
         private static int _elementType = -1;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -95,7 +94,6 @@ namespace Spreads.DataTypes {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static TypeEnum GetTypeEnum(Type ty) {
-            // typeof(T) == typeof() is compile-time const
 
             if (ty == typeof(bool)) return TypeEnum.Bool;
             if (ty == typeof(byte)) return TypeEnum.UInt8;
@@ -118,7 +116,8 @@ namespace Spreads.DataTypes {
             if (ty == typeof(Timestamp)) return TypeEnum.Timestamp;
 
             if (ty == typeof(Variant)) return TypeEnum.Variant;
-            if (ty.IsArray) return TypeEnum.Array; // TODO check if ty.IsArray is any different
+            if (ty == typeof(string)) return TypeEnum.String;
+            if (ty.IsArray) return TypeEnum.Array;
 
             // TODO known types, otherwise will fallback to fixed binary
 
