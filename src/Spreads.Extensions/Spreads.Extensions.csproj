@@ -160,6 +160,7 @@
     <Compile Include="Series\CursorSeries.cs" />
     <Compile Include="Series\ZonedSeries.cs" />
     <Compile Include="Storage\ISeriesStorage.cs" />
+    <Compile Include="Storage\PersistentMap.cs" />
     <Compile Include="Storage\PersistentSeries.cs" />
     <Compile Include="Storage\RawPanelChunk.cs" />
     <Compile Include="Storage\RawPersistentMap.cs" />

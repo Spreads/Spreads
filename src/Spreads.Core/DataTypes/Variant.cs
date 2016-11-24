@@ -146,6 +146,7 @@ namespace Spreads.DataTypes {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Variant Create<T>(T value = default(T)) {
+            Console.WriteLine("Dispatched as array");
             var boxedTypeEnum = BoxedTypeEnum<T>.CachedBoxedTypeEnum;
             var typeEnum = boxedTypeEnum.TypeEnum;
             if ((int)typeEnum < KnownSmallTypesLimit) {
@@ -240,13 +241,14 @@ namespace Spreads.DataTypes {
                 }
             }
 
-            if (objTypeEnum == TypeEnum.Array) {
-                Environment.FailFast("Array shoud have been dispatched via dynamic in the untyped Create method");
+            if (objTypeEnum == TypeEnum.Array)
+            {
+                return Create(value);
+                //Environment.FailFast("Array shoud have been dispatched via dynamic in the untyped Create method");
             }
 
             throw new NotImplementedException();
         }
-
 
         public static object ToObject(Variant value) {
             if (value.TypeEnum == TypeEnum.None) {
@@ -511,6 +513,77 @@ namespace Spreads.DataTypes {
             }
         }
 
+        /// <summary>
+        /// Get value at index
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Get<T>(int index) {
+            // TODO manual impl without span
+            //var span = this.Span<T>();
+            //return span[index];
+
+            // Object
+            var arrayOfT = _object as T[];
+            if (arrayOfT != null) {
+                return arrayOfT[index + (int)_offset];
+            } else {
+                return GetSlow<T>(index);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private T GetSlow<T>(int index) {
+            var boxed = _object as BoxedTypeEnum;
+            if (boxed != null) {
+                // Inline;
+                if (index == 0) {
+                    return this.UnsafeGetInilned<T>();
+                }
+                throw new IndexOutOfRangeException();
+            }
+            // Pointer;
+            if (_object == null) {
+                throw new NotImplementedException("Pointer is not supported");
+            }
+            throw new InvalidCastException();
+        }
+
+        /// <summary>
+        /// Set value at index
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Set<T>(int index, T value) {
+            //var span = Span<T>();
+            //span[index] = value;
+
+            // Object
+            var arrayOfT = _object as T[];
+            if (arrayOfT != null) {
+                arrayOfT[index + (int)_offset] = value;
+            } else {
+                SetSlow(index, value);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void SetSlow<T>(int index, T value) {
+            var boxed = _object as BoxedTypeEnum;
+            if (boxed != null) {
+                // Inline;
+                if (index == 0) {
+                    this.UnsafeSetInlined<T>(value);
+                    return;
+                }
+                throw new IndexOutOfRangeException();
+            }
+            // Pointer;
+            if (_object == null) {
+                throw new NotImplementedException("Pointer is not supported");
+            }
+            throw new InvalidCastException();
+        }
+
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> Span<T>() {
             if (_object == null) {
@@ -607,23 +680,6 @@ namespace Spreads.DataTypes {
                 }
                 throw new InvalidCastException();
             }
-        }
-
-        /// <summary>
-        /// Get value at index
-        /// </summary>
-        public T Get<T>(int index) {
-            // TODO manual impl without span
-            var span = Span<T>();
-            return span[index];
-        }
-
-        /// <summary>
-        /// Set value at index
-        /// </summary>
-        public void Set<T>(int index, T value) {
-            var span = Span<T>();
-            span[index] = value;
         }
 
         internal class BoxedTypeEnum {

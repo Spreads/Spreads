@@ -2,27 +2,24 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+using Spreads.Buffers;
+using Spreads.Serialization;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Buffers;
-using Spreads.Serialization;
 
 namespace Spreads.Storage {
+
     public class PersistentMap<TKey, TValue> : Series<TKey, TValue>, IPersistentOrderedMap<TKey, TValue> {
         private readonly StorageProvider _provider;
         private readonly int _panelId;
         private readonly IKeyComparer<TKey> _comparer;
         private readonly RawPersistentMap _rawMap;
 
-        public PersistentMap(StorageProvider provider, int panleId)
-        {
+        public PersistentMap(StorageProvider provider, int panleId) {
             _provider = provider;
             _panelId = panleId;
             _rawMap = new RawPersistentMap(_provider, _panelId);
@@ -38,11 +35,9 @@ namespace Spreads.Storage {
             return _comparer.Add(default(TKey), key);
         }
 
-
         // TODO use variant layout. here we temporarily use existing BinarySerializer
-        // to debug the implementation of storage, etc. 
-        internal PreservedMemory<byte> ToReservedMemory(TValue value)
-        {
+        // to debug the implementation of storage, etc.
+        internal PreservedMemory<byte> ToReservedMemory(TValue value) {
             MemoryStream tmp;
             var offset = 0;
             var size = BinarySerializer.SizeOf(value, out tmp);
@@ -58,60 +53,50 @@ namespace Spreads.Storage {
             return value;
         }
 
-
-        public void Add(TKey key, TValue value)
-        {
+        public void Add(TKey key, TValue value) {
             var longKey = ToInt64(key);
             var rawValue = ToReservedMemory(value);
             var rawPanelChunk = RawPanelChunk.Create();
-            var rawColumnChunk = new RawColumnChunk(_panelId, 0, (long) longKey, (long) longKey, 0L, 1,
+            var rawColumnChunk = new RawColumnChunk(_panelId, 0, (long)longKey, (long)longKey, 0L, 1,
                 default(PreservedMemory<byte>), rawValue);
             rawPanelChunk.Add(rawColumnChunk);
             _rawMap.Add(longKey, rawPanelChunk);
             rawPanelChunk.Dispose();
         }
 
-        public void AddLast(TKey key, TValue value)
-        {
+        public void AddLast(TKey key, TValue value) {
             var longKey = ToInt64(key);
             throw new NotImplementedException();
         }
 
-        public void AddFirst(TKey key, TValue value)
-        {
+        public void AddFirst(TKey key, TValue value) {
             var longKey = ToInt64(key);
             throw new NotImplementedException();
         }
 
-        public bool Remove(TKey key)
-        {
+        public bool Remove(TKey key) {
             var longKey = ToInt64(key);
             throw new NotImplementedException();
         }
 
-        public bool RemoveLast(out KeyValuePair<TKey, TValue> kvp)
-        {
+        public bool RemoveLast(out KeyValuePair<TKey, TValue> kvp) {
             throw new NotImplementedException();
         }
 
-        public bool RemoveFirst(out KeyValuePair<TKey, TValue> kvp)
-        {
+        public bool RemoveFirst(out KeyValuePair<TKey, TValue> kvp) {
             throw new NotImplementedException();
         }
 
-        public bool RemoveMany(TKey key, Lookup direction)
-        {
+        public bool RemoveMany(TKey key, Lookup direction) {
             var longKey = ToInt64(key);
             throw new NotImplementedException();
         }
 
-        public int Append(IReadOnlyOrderedMap<TKey, TValue> appendMap, AppendOption option)
-        {
+        public int Append(IReadOnlyOrderedMap<TKey, TValue> appendMap, AppendOption option) {
             throw new NotImplementedException();
         }
 
-        public void Complete()
-        {
+        public void Complete() {
             throw new NotImplementedException();
         }
 
@@ -132,39 +117,31 @@ namespace Spreads.Storage {
             }
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             throw new NotImplementedException();
         }
 
-        public void Flush()
-        {
+        public void Flush() {
             throw new NotImplementedException();
         }
 
         public string Id { get; }
 
+        public class PersistentMapCursor : ICursor<TKey, TValue> {
 
-
-        public class PersistentMapCursor : ICursor<TKey, TValue>
-        {
-            public Task<bool> MoveNext(CancellationToken cancellationToken)
-            {
+            public Task<bool> MoveNext(CancellationToken cancellationToken) {
                 throw new NotImplementedException();
             }
 
-            public void Dispose()
-            {
+            public void Dispose() {
                 throw new NotImplementedException();
             }
 
-            public bool MoveNext()
-            {
+            public bool MoveNext() {
                 throw new NotImplementedException();
             }
 
-            public void Reset()
-            {
+            public void Reset() {
                 throw new NotImplementedException();
             }
 
@@ -175,38 +152,31 @@ namespace Spreads.Storage {
                 get { return Current; }
             }
 
-            public bool MoveAt(TKey key, Lookup direction)
-            {
+            public bool MoveAt(TKey key, Lookup direction) {
                 throw new NotImplementedException();
             }
 
-            public bool MoveFirst()
-            {
+            public bool MoveFirst() {
                 throw new NotImplementedException();
             }
 
-            public bool MoveLast()
-            {
+            public bool MoveLast() {
                 throw new NotImplementedException();
             }
 
-            public bool MovePrevious()
-            {
+            public bool MovePrevious() {
                 throw new NotImplementedException();
             }
 
-            public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
-            {
+            public Task<bool> MoveNextBatch(CancellationToken cancellationToken) {
                 throw new NotImplementedException();
             }
 
-            public ICursor<TKey, TValue> Clone()
-            {
+            public ICursor<TKey, TValue> Clone() {
                 throw new NotImplementedException();
             }
 
-            public bool TryGetValue(TKey key, out TValue value)
-            {
+            public bool TryGetValue(TKey key, out TValue value) {
                 throw new NotImplementedException();
             }
 

@@ -147,6 +147,9 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
     <Reference Include="System.Data.Linq" />
+    <Reference Include="System.Memory">
+      <HintPath>..\Spreads.Core\bin\RELEASE\net451\System.Memory.dll</HintPath>
+    </Reference>
     <Reference Include="System.Numerics" />
     <Reference Include="System.Numerics.Vectors">
       <HintPath>..\Spreads.Core\bin\RELEASE\net451\System.Numerics.Vectors.dll</HintPath>

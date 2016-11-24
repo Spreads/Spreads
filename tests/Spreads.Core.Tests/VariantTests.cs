@@ -48,8 +48,7 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
-        public void CouldCreateAndReadWriteArrayVariant()
-        {
+        public void CouldCreateAndReadWriteArrayVariant() {
             var array = new double[2];
             array[0] = 123;
             array[1] = 456;
@@ -156,7 +155,8 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void CouldCreateWriteReadInlinedVariantInALoop() {
+        public void CouldCreateWriteReadInlinedVariantInALoop()
+        {
             var count = 100000000;
             var sw = new Stopwatch();
             for (int round = 0; round < 10; round++) {
@@ -183,8 +183,7 @@ namespace Spreads.Core.Tests {
                     Console.WriteLine($"Unsafe Variant Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
 
                 sw.Restart();
-                for (int i = 0; i < count; i++)
-                {
+                for (int i = 0; i < count; i++) {
                     var span = v.Span<double>();
                     span[0] = i;
                     var d = span[0];
@@ -192,8 +191,42 @@ namespace Spreads.Core.Tests {
                 }
                 sw.Stop();
                 if (sum < double.MaxValue)
-                    Console.WriteLine($"Span Variant Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
+                    Console.WriteLine($"Span (Inline) Variant Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
 
+                var v2 = Variant.Create<double>(new[] { 0.0 });
+                sw.Restart();
+                for (int i = 0; i < count; i++) {
+                    var span = v2.Span<double>();
+                    span[0] = i;
+                    var d = span[0];
+                    sum += d;
+                }
+                sw.Stop();
+                if (sum < double.MaxValue)
+                    Console.WriteLine($"Span (Array) Variant Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
+
+                sw.Restart();
+                for (int i = 0; i < count; i++) {
+                    v2.Set<double>(0, 0.0);
+                    var d = v2.Get<double>(0);
+                    sum += d;
+                }
+                sw.Stop();
+                if (sum < double.MaxValue)
+                    Console.WriteLine($"Get/Set(idx) Variant Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
+
+
+                sw.Restart();
+                sum = 0.0;
+                var array = new[] { 0.0 };
+                for (int i = 0; i < count; i++) {
+                    array[0] = i;
+                    var d = array[0];
+                    sum += d;
+                }
+                sw.Stop();
+                if (sum < double.MaxValue && array[0] > 0)
+                    Console.WriteLine($"Array Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
 
                 sw.Restart();
                 sum = 0.0;

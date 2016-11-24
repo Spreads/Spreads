@@ -45,8 +45,7 @@ namespace Spreads.Extensions.Tests.Storage {
             var timeseries = storage.GetPersistentOrderedMap<DateTime, Price>("test_timeseries").Result;
 
             Console.WriteLine(storage.Connection.DataSource);
-            var start = DateTime.UtcNow;
-            Console.WriteLine($"Started at: {start}");
+            
 
             if (!timeseries.IsEmpty) {
                 // Remove all values
@@ -56,7 +55,8 @@ namespace Spreads.Extensions.Tests.Storage {
             var sw = new Stopwatch();
             var count = 10000000L;
             Console.WriteLine($"Count: {count}");
-
+            var start = DateTime.UtcNow;
+            Console.WriteLine($"Started at: {start}");
             var date = DateTime.UtcNow.Date;
             var rng = new Random();
             sw.Start();
