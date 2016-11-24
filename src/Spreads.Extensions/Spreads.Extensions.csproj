@@ -33,7 +33,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\..\bin\</OutputPath>
-    <DefineConstants>TRACE;PRERELEASE;SPREADS;NO_VARIANCE;NET451;TYPED_REF</DefineConstants>
+    <DefineConstants>TRACE;PRERELEASE;SPREADS;NO_VARIANCE;NET451;</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -68,18 +68,23 @@
       <HintPath>..\..\packages\NodaTime.1.3.1\lib\net35-Client\NodaTime.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Spreads.Core">
-      <HintPath>..\Spreads.Core\bin\RELEASE\net451\Spreads.Core.dll</HintPath>
-    </Reference>
     <Reference Include="Spreads.SQLite">
       <HintPath>..\..\..\Spreads.SQLite\src\Spreads.SQLite\bin\Release\net451\Spreads.SQLite.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Buffers, Version=4.0.1.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\packages\System.Buffers.4.3.0\lib\netstandard1.1\System.Buffers.dll</HintPath>
+    </Reference>
     <Reference Include="System.Core" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.Numerics" />
     <Reference Include="System.Runtime.Caching" />
+    <Reference Include="System.Slices, Version=0.1.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\packages\System.Slices.0.1.0-e161123-9\lib\netstandard1.1\System.Slices.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -181,15 +186,24 @@
   <ItemGroup>
     <None Include="app.config" />
     <None Include="DataTypes\DataTypes.md" />
-    <None Include="packages.config" />
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="Spreads.Extensions.licenseheader" />
-    <None Include="Spreads.Extensions.project.json" />
     <None Include="Storage\Protocol.md" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj">
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
       <Name>Spreads.Collections</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj">
+      <Project>{06e712a1-3141-45b5-8167-e3626f5659a5}</Project>
+      <Name>Spreads.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Spreads\Spreads.csproj">
+      <Project>{95e88ebb-e98f-4619-96e4-829476086f75}</Project>
+      <Name>Spreads</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

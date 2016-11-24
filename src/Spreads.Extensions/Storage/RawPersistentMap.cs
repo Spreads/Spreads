@@ -34,7 +34,7 @@ namespace Spreads.Storage {
 
         public void AddLast(long key, RawPanelChunk value) {
             if (key <= _lastKey) {
-                throw new Spreads.OutOfOrderKeyException<long>(_lastKey, key,
+                throw new OutOfOrderKeyException<long>(_lastKey, key,
                     "RawPersistentMap.AddLast: New key is smaller or equal to the largest existing key");
             }
             Add(key, value);
@@ -42,7 +42,7 @@ namespace Spreads.Storage {
 
         public void AddFirst(long key, RawPanelChunk value) {
             if (key >= _firstKey) {
-                throw new Spreads.OutOfOrderKeyException<long>(_lastKey, key,
+                throw new OutOfOrderKeyException<long>(_lastKey, key,
                     "RawPersistentMap.AddLast: New key is larger or equal to the smallest existing key");
             }
             Add(key, value);

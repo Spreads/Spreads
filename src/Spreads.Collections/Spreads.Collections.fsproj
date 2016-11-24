@@ -128,8 +128,6 @@
     <None Include="Duality.fsx" />
     <Compile Include="TimeSeries.fs" />
     <None Include="Series.fsx" />
-    <None Include="Spreads.Collections.project.json" />
-    <None Include="project.json" />
     <None Include="Spreads.Collections.licenseheader" />
   </ItemGroup>
   <ItemGroup>
@@ -137,26 +135,30 @@
       <HintPath>..\..\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Spreads.Core">
-      <HintPath>..\Spreads.Core\bin\RELEASE\net451\Spreads.Core.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers">
-      <HintPath>..\Spreads.Core\bin\RELEASE\net451\System.Buffers.dll</HintPath>
+      <HintPath>..\..\packages\System.Buffers.4.3.0\lib\netstandard1.1\System.Buffers.dll</HintPath>
     </Reference>
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
     <Reference Include="System.Data.Linq" />
     <Reference Include="System.Memory">
-      <HintPath>..\Spreads.Core\bin\RELEASE\net451\System.Memory.dll</HintPath>
+      <HintPath>..\..\packages\System.Memory.4.4.0-beta-24721-02\lib\netstandard1.0\System.Memory.dll</HintPath>
     </Reference>
     <Reference Include="System.Numerics" />
     <Reference Include="System.Numerics.Vectors">
-      <HintPath>..\Spreads.Core\bin\RELEASE\net451\System.Numerics.Vectors.dll</HintPath>
+      <HintPath>..\..\packages\System.Numerics.Vectors.4.1.1\lib\netstandard1.0\System.Numerics.Vectors.dll</HintPath>
     </Reference>
     <Reference Include="System.Slices">
-      <HintPath>..\Spreads.Core\bin\RELEASE\net451\System.Slices.dll</HintPath>
+      <HintPath>..\..\packages\System.Slices.0.1.0-e161123-9\lib\netstandard1.1\System.Slices.dll</HintPath>
     </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj">
+      <Name>Spreads.Core</Name>
+      <Project>{06e712a1-3141-45b5-8167-e3626f5659a5}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

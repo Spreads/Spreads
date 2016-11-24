@@ -16,11 +16,11 @@ using System.Runtime.CompilerServices;
 [assembly: AssemblyTitleAttribute("Spreads.Core")]
 [assembly: AssemblyProductAttribute("Spreads")]
 [assembly: AssemblyDescriptionAttribute("Spreads")]
-[assembly: AssemblyVersionAttribute("0.5.1")]
-[assembly: AssemblyFileVersionAttribute("0.5.1")]
-[assembly: AssemblyCopyrightAttribute("(c) Victor Baybekov 2015")]
+[assembly: AssemblyVersion("0.6.1")]
+[assembly: AssemblyFileVersion("0.6.1")]
+[assembly: AssemblyCopyright("(c) Victor Baybekov 2016")]
 namespace System {
     internal static class AssemblyVersionInformation {
-        internal const string Version = "0.5.1";
+        internal const string Version = "0.6.1";
     }
 }

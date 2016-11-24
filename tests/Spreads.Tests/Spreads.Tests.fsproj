@@ -152,9 +152,6 @@
       <HintPath>..\..\packages\NUnit.2.6.3\lib\nunit.framework.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Spreads.Core">
-      <HintPath>..\..\src\Spreads.Core\bin\RELEASE\net451\Spreads.Core.dll</HintPath>
-    </Reference>
     <Reference Include="Streams">
       <HintPath>..\..\packages\Streams.0.4.1\lib\net45\Streams.dll</HintPath>
       <Private>True</Private>
@@ -165,7 +162,7 @@
     </Reference>
     <Reference Include="System.Data" />
     <Reference Include="System.Numerics.Vectors">
-      <HintPath>..\..\src\Spreads.Core\bin\RELEASE\net451\System.Numerics.Vectors.dll</HintPath>
+      <HintPath>..\..\packages\System.Numerics.Vectors.4.1.1\lib\netstandard1.0\System.Numerics.Vectors.dll</HintPath>
     </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System" />
@@ -174,6 +171,11 @@
     <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj">
       <Name>Spreads.Collections</Name>
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj">
+      <Name>Spreads.Core</Name>
+      <Project>{06e712a1-3141-45b5-8167-e3626f5659a5}</Project>
       <Private>True</Private>
     </ProjectReference>
     <ProjectReference Include="..\..\src\Spreads.Extensions\Spreads.Extensions.csproj">

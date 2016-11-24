@@ -1,13 +1,13 @@
-dotnet restore ..\src\Spreads.Core
-dotnet pack ..\src\Spreads.Core -c RELEASE -o ..\artifacts
+dotnet restore ..\dotnetcore\Spreads.Core
+dotnet pack ..\dotnetcore\Spreads.Core -c RELEASE -o ..\artifacts
 
-dotnet restore ..\src\Spreads.Collections
-dotnet pack ..\src\Spreads.Collections -c RELEASE -o ..\artifacts
+dotnet restore ..\dotnetcore\Spreads.Collections
+dotnet pack ..\dotnetcore\Spreads.Collections -c RELEASE -o ..\artifacts
 
-dotnet restore ..\src\Spreads
-dotnet pack ..\src\Spreads -c RELEASE -o ..\artifacts
+dotnet restore ..\dotnetcore\Spreads
+dotnet pack ..\dotnetcore\Spreads -c RELEASE -o ..\artifacts
 
 dotnet restore ..\src\Spreads.Extensions
-dotnet pack ..\src\Spreads.Extensions -c RELEASE -o ..\artifacts
+dotnet pack ..\dotnetcore\Spreads.Extensions -c RELEASE -o ..\artifacts
 
 pause
