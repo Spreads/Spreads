@@ -8,7 +8,7 @@
     <ProjectGuid>{06E712A1-3141-45B5-8167-E3626F5659A5}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Spreads.Core</RootNamespace>
+    <RootNamespace>Spreads</RootNamespace>
     <AssemblyName>Spreads.Core</AssemblyName>
     <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -201,6 +201,7 @@
     <Compile Include="Threading\Tasks\Channels\IChannel.cs" />
     <Compile Include="Threading\Tasks\Channels\IDebugEnumerator.cs" />
     <Compile Include="Threading\Tasks\VoidResult.cs" />
+    <Compile Include="Utils\BitUtil.cs" />
     <Compile Include="Utils\Bootstrapper\ABI.cs" />
     <Compile Include="Utils\Bootstrapper\Bootstrapper.cs" />
     <Compile Include="Utils\Bootstrapper\Loader.cs" />
@@ -211,6 +212,7 @@
     <Compile Include="Utils\ChaosMonkey.cs" />
     <Compile Include="Utils\EmptyArray.cs" />
     <Compile Include="Utils\ILSub.cs" />
+    <Compile Include="Utils\IntUtil.cs" />
     <Compile Include="Utils\SpanBinarySearch.cs" />
     <Compile Include="Utils\StringExtensions.cs" />
     <Compile Include="Utils\TaskEx.cs" />
@@ -252,24 +254,24 @@
     <Compile Include="Yeppp\math\Sin.cs" />
     <Compile Include="Yeppp\math\Tan.cs" />
   </ItemGroup>
-	<ItemGroup>
-		<EmbeddedResource Include="..\..\lib\libyeppp\win\x64\yeppp.dll">
-			<Link>native\w64\yeppp.dll</Link>
-			<LogicalName>win.x64.yeppp.dll</LogicalName>
-		</EmbeddedResource>
-		<EmbeddedResource Include="..\..\lib\libyeppp\win\x32\yeppp.dll">
-			<Link>native\w32\yeppp.dll</Link>
-			<LogicalName>win.x32.yeppp.dll</LogicalName>
-		</EmbeddedResource>
-		<EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
-			<Link>native\w64\libblosc.dll</Link>
-			<LogicalName>win.x64.libblosc.dll</LogicalName>
-		</EmbeddedResource>
-		<EmbeddedResource Include="..\..\lib\libblosc\w32\libblosc.dll">
-			<Link>native\w32\libblosc.dll</Link>
-			<LogicalName>win.x32.libblosc.dll</LogicalName>
-		</EmbeddedResource>
-	</ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\lib\libyeppp\win\x64\yeppp.dll">
+      <Link>native\w64\yeppp.dll</Link>
+      <LogicalName>win.x64.yeppp.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\libyeppp\win\x32\yeppp.dll">
+      <Link>native\w32\yeppp.dll</Link>
+      <LogicalName>win.x32.yeppp.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
+      <Link>native\w64\libblosc.dll</Link>
+      <LogicalName>win.x64.libblosc.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\libblosc\w32\libblosc.dll">
+      <Link>native\w32\libblosc.dll</Link>
+      <LogicalName>win.x32.libblosc.dll</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>

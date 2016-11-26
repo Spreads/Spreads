@@ -76,24 +76,6 @@ namespace Spreads {
             };
         }
 
-        // Doesn't work http://stackoverflow.com/questions/32864239/get-unsafe-pointer-to-array-of-keyvaluepairdatetime-decimal-in-c-sharp
-        //public static T UnsafeCast<T>(Object o) where T : class {
-        //    //var type = typeof(System.Runtime.CompilerServices.CallSite).Assembly.GetType("System.Runtime.CompilerServices.JitHelpers");
-        //    //var types =
-        //    //    typeof (System.Runtime.CompilerServices.CallSite).Assembly.GetTypes().Where(t => t.Name.Contains("JitHelpers"));
-        //    //var method = type.GetMethod("UnsafeCast", BindingFlags.NonPublic | BindingFlags.Static);
-        //    //var generic = method.MakeGenericMethod(typeof(T));
-        //    //var ret = (T)generic.Invoke(o, null);
-        //    //return ret;
-        //    var method = new DynamicMethod("UnsafeCast", typeof (T), new Type[] {typeof (object)}, typeof(void));
-        //    var il = method.GetILGenerator();
-        //    il.Emit(OpCodes.Ldarg_0);
-        //    il.Emit(OpCodes.Ret);
-            
-        //    return (T)method.Invoke(null, new[] {o});
-        //    //throw new NotImplementedException();
-        //}
-
     }
 
 

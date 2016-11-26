@@ -1,8 +1,7 @@
 Spreads library contains source and binary dependencies on some independent open-source projects. 
-Here they are listed alphabetically together with their respective licences. The decision to
+Here they are listed together with their respective licences. The decision to
 embed or port them was based on https://en.wikipedia.org/wiki/License_compatibility
 and was done for convenience and better integration with Spreads API.
-
 
 
 ### Blosc - A blocking, shuffling and lossless compression library
@@ -65,7 +64,6 @@ SOFTWARE.
 
 https://github.com/StackExchange/dapper-dot-net/blob/master/License.txt
 http://www.apache.org/licenses/LICENSE-2.0
-
 
 
 ### Deedle
@@ -195,3 +193,9 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+### Aeron.NET (Argona Utils)
+
+https://github.com/AdaptiveConsulting/Aeron.NET/blob/master/LICENSE
+http://www.apache.org/licenses/LICENSE-2.0

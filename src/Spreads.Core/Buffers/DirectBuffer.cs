@@ -491,32 +491,8 @@ namespace Spreads.Buffers {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear(long index, int length) {
             Assert(index, length);
-            var pos = 0;
             var destination = new IntPtr(_data.ToInt64() + index);
-            while (pos < length) {
-                int remaining = (int)length - pos;
-
-                if (remaining >= 32) {
-                    *(ByteUtil.CopyChunk32*)(destination + pos) = (default(ByteUtil.CopyChunk32));
-                    pos += 32;
-                    continue;
-                }
-
-                if (remaining >= 8) {
-                    *(long*)(destination + pos) = 0L;
-                    pos += 8;
-                    continue;
-                }
-                if (remaining >= 4) {
-                    *(int*)(destination + pos) = 0;
-                    pos += 4;
-                    continue;
-                }
-                if (remaining >= 1) {
-                    *(byte*)(destination + pos) = (byte)(0);
-                    pos++;
-                }
-            }
+            Unsafe.InitBlockUnaligned((void*)destination, 0, (uint)length);
         }
 
         public UUID ReadUUID(long index) {
