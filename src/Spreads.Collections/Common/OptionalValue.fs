@@ -54,6 +54,12 @@ type OptionalValue<'T> private (isPresent:bool, value:'T) =
   /// the default value of the type `T` when a value is not present.
   member x.PresentOrDefault = value
 
+  /// Both values are either present or missing
+  member x.BothPresentOrMissing(other:OptionalValue<'U>) : bool =
+    if isPresent && other.IsPresent then true
+    elif not isPresent && other.IsMissing then true
+    else false
+
   /// Creates a new instance of `OptionalValue<T>` that contains  
   /// the specified `T` value .
   new (value:'T) = OptionalValue(true, value)

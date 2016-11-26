@@ -22,7 +22,7 @@
     <Optimize>false</Optimize>
     <Tailcalls>false</Tailcalls>
     <OutputPath>..\..\bin\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;NET451</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;NET451;PRERELEASE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>
     </DocumentationFile>
@@ -32,7 +32,7 @@
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
     <OutputPath>..\..\bin\</OutputPath>
-    <DefineConstants>NET451</DefineConstants>
+    <DefineConstants>NET451;PRERELEASE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>
     </DocumentationFile>
@@ -46,7 +46,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
-    <DefineConstants>TRACE;NET451</DefineConstants>
+    <DefineConstants>TRACE;NET451;PRERELEASE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile />
     <OtherFlags>--warnon:52</OtherFlags>
@@ -89,6 +89,7 @@
     <Compile Include="Common\SIMDArrayUtils.fs" />
     <Compile Include="Common\SIMDArray.fs" />
     <Compile Include="Common\Mappers.fs" />
+    <Compile Include="Index.fs" />
     <Compile Include="Interfaces.fs" />
     <Compile Include="ISeriesExtensions.fs" />
     <Compile Include="OptimizationSettings.fs" />
