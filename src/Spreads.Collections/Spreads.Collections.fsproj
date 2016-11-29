@@ -82,7 +82,6 @@
     <Compile Include="Common\ObjectPool.fs" />
     <Compile Include="Common\Utils.fs" />
     <Compile Include="Common\SortedDeque.fs" />
-    <Compile Include="Common\FixedMinHeap.fs" />
     <Compile Include="Common\Exceptions.fs" />
     <Compile Include="Common\OptionalValue.fs" />
     <Compile Include="Common\GenericOperators.fs" />

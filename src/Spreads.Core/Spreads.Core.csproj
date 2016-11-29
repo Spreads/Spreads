@@ -144,10 +144,12 @@
     <Compile Include="Collections\BaseDataTable.cs" />
     <Compile Include="Collections\Concurrent\MultipleProducerConsumerQueue.cs" />
     <Compile Include="Collections\Concurrent\SingleProducerConsumerQueue.cs" />
+    <Compile Include="Collections\FixedMaxHeap.cs" />
     <Compile Include="Collections\IDictionaryDebugView.cs" />
     <Compile Include="Collections\Index.cs" />
     <Compile Include="Collections\Map.cs" />
     <Compile Include="Collections\Offset.cs" />
+    <Compile Include="Collections\ReverseComparer.cs" />
     <Compile Include="Collections\SingleEmptySequences.cs" />
     <Compile Include="Collections\Vector.cs" />
     <Compile Include="DataTypes\Date.cs" />
