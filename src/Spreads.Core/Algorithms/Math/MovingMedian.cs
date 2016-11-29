@@ -2,206 +2,174 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Spreads.Algorithms.Math {
     // implementation of LIGO's Efficient Algorithm for computing a Running Median
     // https://dcc.ligo.org/public/0027/T030168/000/T030168-00.pdf
 
     public class MovingMedian {
-        private readonly Comparer<double> _comparer;
-        private readonly Comparer<node> _node_comparer;
-        private readonly Comparer<rngmed_val_index> _val_index_comparer;
+        private readonly Comparer<RngmedValIndex> _valIndexComparer;
 
-        public MovingMedian(Comparer<double> comparer) {
-            _comparer = comparer;
-            _node_comparer = new NodeComparer(Comparer<double>.Default);
-            _val_index_comparer = new rngmed_val_index_Comparer(Comparer<double>.Default);
+        public MovingMedian() {
+            _valIndexComparer = new RngmedValIndexComparer(Comparer<double>.Default);
         }
 
-        struct node {
-            public double data;
-            public int next_sorted;
-            public int next_sequence;
-            public int prev_sorted;
+        private struct Node {
+            public double Data;
+            public int NextSorted;
+            public int NextSequence;
+            public int PrevSorted;
         }
 
-        struct rngmed_val_index {
-            public double data;
-            public int index;
+        private struct RngmedValIndex {
+            public double Data;
+            public int Index;
         }
 
-        class NodeComparer : Comparer<node> {
+        private class RngmedValIndexComparer : Comparer<RngmedValIndex> {
             private readonly Comparer<double> _comparer;
 
-            public NodeComparer(Comparer<double> comparer) {
+            public RngmedValIndexComparer(Comparer<double> comparer) {
                 _comparer = comparer;
             }
 
-            public override int Compare(node x, node y) {
-                return _comparer.Compare(x.data, y.data);
-            }
-        }
-
-        class rngmed_val_index_Comparer : Comparer<rngmed_val_index> {
-            private readonly Comparer<double> _comparer;
-
-            public rngmed_val_index_Comparer(Comparer<double> comparer) {
-                _comparer = comparer;
-            }
-
-            public override int Compare(rngmed_val_index x, rngmed_val_index y) {
-                return _comparer.Compare(x.data, y.data);
+            public override int Compare(RngmedValIndex x, RngmedValIndex y) {
+                return _comparer.Compare(x.Data, y.Data);
             }
         }
 
         /*-------------------------------
             checks: pointers to subset of nodes to use
-            as checkpoints 
+            as checkpoints
             ---------------------------------*/
 
-        int[] sorted_indices;
-        rngmed_val_index[] index_block;
-        node[] node_addresses;
-        int[] checks;
-        int first_sequence_idx, last_sequence_idx;
-        int currentnode_idx = -1, previousnode_idx = -1;
-        int leftnode_idx = -1, rightnode_idx = -1;
-        int reuse_next_sorted_idx = -1, reuse_prev_sorted_idx = -1;
-        int dummy_node_idx, dummy_node1_idx, dummy_node2_idx;
-        int ncheckpts, stepchkpts;
-        int nextchkptindx;
-        int[] checks4shift;
-        int nearestchk, midpoint, offset, numberoffsets;
-        int samplecount, k, counter_chkpt, chkcount = 0, shiftcounter = 0;
-        double nextsample, deletesample, dummy;
-        int shift, dummy_int;
+        private int[] _sortedIndices;
+        private RngmedValIndex[] _indexBlock;
+        private Node[] _nodes;
+        private int[] _checks;
+        private int _firstSequenceIdx, _lastSequenceIdx;
+        private int _currentnodeIdx = -1, _previousnodeIdx = -1;
+        private int _leftnodeIdx = -1, _rightnodeIdx = -1;
+        private int _reuseNextSortedIdx = -1, _reusePrevSortedIdx = -1;
+        private int _dummyNodeIdx, _dummyNode1Idx, _dummyNode2Idx;
+        private int _ncheckpts, _stepchkpts;
+        private int _nextchkptindx;
+        private int[] _checks4Shift;
+        private int _nearestchk, _midpoint, _offset, _numberoffsets;
+        private int _samplecount, _k, _counterChkpt, _chkcount, _shiftcounter;
+        private double _nextsample, _deletesample, _dummy;
+        private int _shift, _dummyInt;
 
-
-        public int rngmed(double[] data, int nblocks, double[] medians) {
-
-
+        public int Rngmed(double[] data, int nblocks, double[] medians) {
             /*-----------------------------------
               Sort the first block of nblocks samples
               using the qsort function
             ------------------------------------*/
-            index_block = new rngmed_val_index[nblocks];
-            for (k = 0; k < (int)nblocks; k++) {
-                index_block[k].data = data[k];
-                index_block[k].index = k;
+            _indexBlock = new RngmedValIndex[nblocks];
+            for (_k = 0; _k < (int)nblocks; _k++) {
+                _indexBlock[_k].Data = data[_k];
+                _indexBlock[_k].Index = _k;
             }
 
-            Array.Sort<rngmed_val_index>(index_block, 0, nblocks, _val_index_comparer);
+            Array.Sort<RngmedValIndex>(_indexBlock, 0, nblocks, _valIndexComparer);
 
-            sorted_indices = new int[nblocks];
-            for (k = 0; k < (int)nblocks; k++) {
-                sorted_indices[k] = index_block[k].index;
+            _sortedIndices = new int[nblocks];
+            for (_k = 0; _k < (int)nblocks; _k++) {
+                _sortedIndices[_k] = _indexBlock[_k].Index;
             }
 
-            index_block = null;
+            _indexBlock = null;
 
+            /*----------------------------------
+            Indices of checkpoint nodes.
+            Number of nodes per checkpoint=floor(sqrt(nblocks))
+            ------------------------------------*/
+            _stepchkpts = (int)System.Math.Sqrt(nblocks);
+            _ncheckpts = nblocks / _stepchkpts;
+            _checks = new int[_ncheckpts]; // (struct node **)LALCalloc(ncheckpts,sizeof(struct node*));
+            _checks4Shift = new int[_ncheckpts];
 
-
-            ///*----------------------------------
-            //Indices of checkpoint nodes.
-            //Number of nodes per checkpoint=floor(sqrt(nblocks))
-            //------------------------------------*/
-            stepchkpts = (int)System.Math.Sqrt(nblocks);
-            ncheckpts = nblocks / stepchkpts;
-            checks = new int[ncheckpts]; // (struct node **)LALCalloc(ncheckpts,sizeof(struct node*));
-            checks4shift = new int[ncheckpts];
-
-
-
-            ///*---------------------------------
-            //  Offsets for getting median from nearest
-            //  checkpoint: For nblocks even, 
-            //  (node(offset(1))+node(offset(2)))/2;
-            //  for nblocks odd,
-            //  (node(offset(1))+node(offset(1)))/2;
-            //  THIS CAN BE OPTIMISED.
-            // ----------------------------------*/
+            /*---------------------------------
+              Offsets for getting median from nearest
+              checkpoint: For nblocks even,
+              (node(offset(1))+node(offset(2)))/2;
+              for nblocks odd,
+              (node(offset(1))+node(offset(1)))/2;
+              THIS CAN BE OPTIMISED.
+             ----------------------------------*/
             if (nblocks % 2 == 1) { // (int)System.Math.IEEERemainder(()nblocks, 2.0)) {
                 /*Odd*/
-                midpoint = (nblocks + 1) / 2 - 1;
-                numberoffsets = 1;
+                _midpoint = (nblocks + 1) / 2 - 1;
+                _numberoffsets = 1;
             } else {
                 /*Even*/
-                midpoint = nblocks / 2 - 1;
-                numberoffsets = 2;
+                _midpoint = nblocks / 2 - 1;
+                _numberoffsets = 2;
             }
-            nearestchk = midpoint / stepchkpts; // floor(midpoint / stepchkpts);
-            offset = midpoint - nearestchk * stepchkpts;
-
-
-
+            _nearestchk = _midpoint / _stepchkpts; // floor(midpoint / stepchkpts);
+            _offset = _midpoint - _nearestchk * _stepchkpts;
 
             /*----------------------------------
             Build up linked list using first nblock points
             in sequential order
             ------------------------------------*/
-            node_addresses = new node[nblocks]; // (struct node **)LALCalloc(nblocks,sizeof(struct node *));
+            _nodes = new Node[nblocks]; // (struct node **)LALCalloc(nblocks,sizeof(struct node *));
 
             //var first_sequence = new node(); // (struct node *)LALCalloc(1,sizeof(struct node));
-            node_addresses[0] = new node();
+            _nodes[0] = new Node();
 
-            first_sequence_idx = 0;
-            node_addresses[0].next_sequence = -1;
-            node_addresses[0].next_sorted = -1;
-            node_addresses[0].prev_sorted = -1;
-            node_addresses[0].data = data[0];
+            _firstSequenceIdx = 0;
+            _nodes[0].NextSequence = -1;
+            _nodes[0].NextSorted = -1;
+            _nodes[0].PrevSorted = -1;
+            _nodes[0].Data = data[0];
 
-            previousnode_idx = first_sequence_idx;
+            _previousnodeIdx = _firstSequenceIdx;
 
             //var previousnode = first_sequence;
 
-            for (samplecount = 1; samplecount < (int)nblocks; samplecount++) {
-                var currentnode = new node();//  (struct node *)LALCalloc(1,sizeof(struct node));
-                currentnode.next_sequence = -1;
-                currentnode.prev_sorted = -1;
-                currentnode.next_sorted = -1;
-                currentnode.data = data[samplecount];
+            for (_samplecount = 1; _samplecount < (int)nblocks; _samplecount++) {
+                var currentnode = new Node();//  (struct node *)LALCalloc(1,sizeof(struct node));
+                currentnode.NextSequence = -1;
+                currentnode.PrevSorted = -1;
+                currentnode.NextSorted = -1;
+                currentnode.Data = data[_samplecount];
 
-                node_addresses[samplecount] = currentnode;
+                _nodes[_samplecount] = currentnode;
 
-                node_addresses[previousnode_idx].next_sequence = samplecount;
+                _nodes[_previousnodeIdx].NextSequence = _samplecount;
                 // update previous node in array
                 //node_addresses[samplecount - 1].next_sequence = previousnode;
-                previousnode_idx = samplecount;
+                _previousnodeIdx = _samplecount;
             }
-            last_sequence_idx = samplecount - 1;
-
+            _lastSequenceIdx = _samplecount - 1;
 
             /*------------------------------------
             Set the sorted sequence pointers and
             the pointers to checkpoint nodes
             -------------------------------------*/
-            currentnode_idx = sorted_indices[0];
-            previousnode_idx = -1;
-            checks[0] = currentnode_idx;
-            nextchkptindx = stepchkpts;
-            counter_chkpt = 1;
-            for (samplecount = 1; samplecount < (int)nblocks; samplecount++) {
-                dummy_node_idx = sorted_indices[samplecount];
-                node_addresses[currentnode_idx].next_sorted = dummy_node_idx;
-                node_addresses[currentnode_idx].prev_sorted = previousnode_idx;
-                previousnode_idx = currentnode_idx;
-                currentnode_idx = dummy_node_idx;
-                if (samplecount == nextchkptindx && counter_chkpt < ncheckpts) {
-                    checks[counter_chkpt] = currentnode_idx;
-                    nextchkptindx += stepchkpts;
-                    counter_chkpt++;
+            _currentnodeIdx = _sortedIndices[0];
+            _previousnodeIdx = -1;
+            _checks[0] = _currentnodeIdx;
+            _nextchkptindx = _stepchkpts;
+            _counterChkpt = 1;
+            for (_samplecount = 1; _samplecount < (int)nblocks; _samplecount++) {
+                _dummyNodeIdx = _sortedIndices[_samplecount];
+                _nodes[_currentnodeIdx].NextSorted = _dummyNodeIdx;
+                _nodes[_currentnodeIdx].PrevSorted = _previousnodeIdx;
+                _previousnodeIdx = _currentnodeIdx;
+                _currentnodeIdx = _dummyNodeIdx;
+                if (_samplecount == _nextchkptindx && _counterChkpt < _ncheckpts) {
+                    _checks[_counterChkpt] = _currentnodeIdx;
+                    _nextchkptindx += _stepchkpts;
+                    _counterChkpt++;
                 }
             }
-            node_addresses[currentnode_idx].prev_sorted = previousnode_idx;
-            node_addresses[currentnode_idx].next_sorted = -1;
-            sorted_indices = null;
-
+            _nodes[_currentnodeIdx].PrevSorted = _previousnodeIdx;
+            _nodes[_currentnodeIdx].NextSorted = -1;
+            _sortedIndices = null;
 
             /*------------------------------
               Get the first output element
@@ -209,17 +177,16 @@ namespace Spreads.Algorithms.Math {
             if (medians == null) {
                 throw new ArgumentNullException(nameof(medians));
             }
-            currentnode_idx = checks[nearestchk];
-            for (k = 1; k <= offset; k++) {
-                currentnode_idx = node_addresses[currentnode_idx].next_sorted;
+            _currentnodeIdx = _checks[_nearestchk];
+            for (_k = 1; _k <= _offset; _k++) {
+                _currentnodeIdx = _nodes[_currentnodeIdx].NextSorted;
             }
-            dummy = 0;
-            for (k = 1; k <= numberoffsets; k++) {
-                dummy += node_addresses[currentnode_idx].data;
-                currentnode_idx = node_addresses[currentnode_idx].next_sorted;
+            _dummy = 0;
+            for (_k = 1; _k <= _numberoffsets; _k++) {
+                _dummy += _nodes[_currentnodeIdx].Data;
+                _currentnodeIdx = _nodes[_currentnodeIdx].NextSorted;
             }
-            medians[0] = dummy / numberoffsets;
-
+            medians[0] = _dummy / _numberoffsets;
 
             /*---------------------------------
             This is the main part.
@@ -229,185 +196,177 @@ namespace Spreads.Algorithms.Math {
             The right limit is always >
             the new value.
             ----------------------------------*/
-            for (samplecount = nblocks; samplecount < (int)data.Length; samplecount++) {
-                nextsample = data[samplecount];
-                if (nextsample >= node_addresses[checks[0]].data) {
-                    for (chkcount = 1; chkcount < ncheckpts; chkcount++) {
-                        if (nextsample >= node_addresses[checks[chkcount]].data) {
+            for (_samplecount = nblocks; _samplecount < (int)data.Length; _samplecount++) {
+                _nextsample = data[_samplecount];
+                if (_nextsample >= _nodes[_checks[0]].Data) {
+                    for (_chkcount = 1; _chkcount < _ncheckpts; _chkcount++) {
+                        if (_nextsample >= _nodes[_checks[_chkcount]].Data) {
                         } else {
                             break;
                         }
                     }
-                    chkcount -= 1;
-                    rightnode_idx = checks[chkcount];
-                    leftnode_idx = -1; /*NEW*/
+                    _chkcount -= 1;
+                    _rightnodeIdx = _checks[_chkcount];
+                    _leftnodeIdx = -1; /*NEW*/
                     // NB originally it was a pointer, so we need to check for >=0 for index in array
                     // because pointer to the zero addressed node would evaluate to true in C
-                    while (rightnode_idx >= 0) {
-                        if (nextsample < node_addresses[rightnode_idx].data) {
+                    while (_rightnodeIdx >= 0) {
+                        if (_nextsample < _nodes[_rightnodeIdx].Data) {
                             break;
                         }
-                        leftnode_idx = rightnode_idx;
-                        rightnode_idx = node_addresses[rightnode_idx].next_sorted;
+                        _leftnodeIdx = _rightnodeIdx;
+                        _rightnodeIdx = _nodes[_rightnodeIdx].NextSorted;
                     }
-
                 } else {
-                    if (nextsample < node_addresses[checks[0]].data) {
-                        chkcount = 0;
+                    if (_nextsample < _nodes[_checks[0]].Data) {
+                        _chkcount = 0;
                         /* dummy_node=checks[0]; */
-                        rightnode_idx = checks[0];
-                        leftnode_idx = -1;
+                        _rightnodeIdx = _checks[0];
+                        _leftnodeIdx = -1;
                     }
                 }
-
 
                 /*-------------------------
-                     Determine if checkpoints need to be 
+                     Determine if checkpoints need to be
                      shifted or not.
                    ---------------------------*/
-                dummy_node_idx = -1;
-                if (rightnode_idx == first_sequence_idx) {
-                    dummy_node_idx = rightnode_idx;
-                } else if (leftnode_idx == first_sequence_idx) {
-                    dummy_node_idx = leftnode_idx;
+                _dummyNodeIdx = -1;
+                if (_rightnodeIdx == _firstSequenceIdx) {
+                    _dummyNodeIdx = _rightnodeIdx;
+                } else if (_leftnodeIdx == _firstSequenceIdx) {
+                    _dummyNodeIdx = _leftnodeIdx;
                 }
-                if (dummy_node_idx >= 0) {
-                    node_addresses[dummy_node_idx].data = nextsample;
-                    first_sequence_idx = node_addresses[first_sequence_idx].next_sequence;
-                    node_addresses[dummy_node_idx].next_sequence = -1;
-                    node_addresses[last_sequence_idx].next_sequence = dummy_node_idx;
-                    last_sequence_idx = dummy_node_idx;
-                    shift = 0;
+                if (_dummyNodeIdx >= 0) {
+                    _nodes[_dummyNodeIdx].Data = _nextsample;
+                    _firstSequenceIdx = _nodes[_firstSequenceIdx].NextSequence;
+                    _nodes[_dummyNodeIdx].NextSequence = -1;
+                    _nodes[_lastSequenceIdx].NextSequence = _dummyNodeIdx;
+                    _lastSequenceIdx = _dummyNodeIdx;
+                    _shift = 0;
                 } else {
-                    reuse_next_sorted_idx = rightnode_idx;
-                    reuse_prev_sorted_idx = leftnode_idx;
-                    shift = 1; /*shift maybe required*/
+                    _reuseNextSortedIdx = _rightnodeIdx;
+                    _reusePrevSortedIdx = _leftnodeIdx;
+                    _shift = 1; /*shift maybe required*/
                 }
-
 
                 /*-----------------------------------
                    Getting check points to be shifted
                  -----------------------------------*/
                 // NB shift was originally int, not note*, so GT, not GE
-                if (shift > 0) {
-                    deletesample = node_addresses[first_sequence_idx].data;
-                    if (deletesample > nextsample) {
-                        shiftcounter = 0;
-                        for (k = chkcount; k < ncheckpts; k++) {
-                            dummy = node_addresses[checks[k]].data;
-                            if (dummy > nextsample) {
-                                if (dummy <= deletesample) {
-                                    checks4shift[shiftcounter] = k;
-                                    shiftcounter++;
+                if (_shift > 0) {
+                    _deletesample = _nodes[_firstSequenceIdx].Data;
+                    if (_deletesample > _nextsample) {
+                        _shiftcounter = 0;
+                        for (_k = _chkcount; _k < _ncheckpts; _k++) {
+                            _dummy = _nodes[_checks[_k]].Data;
+                            if (_dummy > _nextsample) {
+                                if (_dummy <= _deletesample) {
+                                    _checks4Shift[_shiftcounter] = _k;
+                                    _shiftcounter++;
                                 } else {
                                     break;
                                 }
                             }
                         }
-                        shift = -1; /*Left shift*/
+                        _shift = -1; /*Left shift*/
                     } else
-                          if (deletesample <= nextsample) {
-                        shiftcounter = 0;
-                        for (k = chkcount; k >= 0; k--) {
-                            dummy = node_addresses[checks[k]].data;
-                            if (dummy >= deletesample) {
-                                checks4shift[shiftcounter] = k;
-                                shiftcounter++;
+                          if (_deletesample <= _nextsample) {
+                        _shiftcounter = 0;
+                        for (_k = _chkcount; _k >= 0; _k--) {
+                            _dummy = _nodes[_checks[_k]].Data;
+                            if (_dummy >= _deletesample) {
+                                _checks4Shift[_shiftcounter] = _k;
+                                _shiftcounter++;
                             } else {
                                 break;
                             }
                         }
-                        shift = 1; /*Shift Right*/
+                        _shift = 1; /*Shift Right*/
                     }
                 }
 
-
                 /*------------------------------
-                 Recycle the node with the 
-                 oldest value. 
+                 Recycle the node with the
+                 oldest value.
                 --------------------------------*/
-                if (shift > 0) {
+                if (_shift > 0) {
                     /*---------------------
                      Reset sequential links
                      ---------------------*/
-                    dummy_node_idx = first_sequence_idx;
-                    first_sequence_idx = node_addresses[dummy_node_idx].next_sequence;
-                    node_addresses[dummy_node_idx].next_sequence = -1;
-                    node_addresses[last_sequence_idx].next_sequence = dummy_node_idx;
-                    last_sequence_idx = dummy_node_idx;
-                    node_addresses[dummy_node_idx].data = nextsample;
-                    dummy_node1_idx = node_addresses[dummy_node_idx].prev_sorted;
-                    dummy_node2_idx = node_addresses[dummy_node_idx].next_sorted;
+                    _dummyNodeIdx = _firstSequenceIdx;
+                    _firstSequenceIdx = _nodes[_dummyNodeIdx].NextSequence;
+                    _nodes[_dummyNodeIdx].NextSequence = -1;
+                    _nodes[_lastSequenceIdx].NextSequence = _dummyNodeIdx;
+                    _lastSequenceIdx = _dummyNodeIdx;
+                    _nodes[_dummyNodeIdx].Data = _nextsample;
+                    _dummyNode1Idx = _nodes[_dummyNodeIdx].PrevSorted;
+                    _dummyNode2Idx = _nodes[_dummyNodeIdx].NextSorted;
                     /*-----------------------
                       Repair deletion point
                     ------------------------*/
-                    if (dummy_node1_idx == -1) {
-                        node_addresses[dummy_node2_idx].prev_sorted = dummy_node1_idx;
+                    if (_dummyNode1Idx == -1) {
+                        _nodes[_dummyNode2Idx].PrevSorted = _dummyNode1Idx;
                     } else {
-                        if (dummy_node2_idx == -1) {
-                            node_addresses[dummy_node1_idx].next_sorted = dummy_node2_idx;
+                        if (_dummyNode2Idx == -1) {
+                            _nodes[_dummyNode1Idx].NextSorted = _dummyNode2Idx;
                         } else {
-                            node_addresses[dummy_node1_idx].next_sorted = dummy_node2_idx;
-                            node_addresses[dummy_node2_idx].prev_sorted = dummy_node1_idx;
+                            _nodes[_dummyNode1Idx].NextSorted = _dummyNode2Idx;
+                            _nodes[_dummyNode2Idx].PrevSorted = _dummyNode1Idx;
                         }
                     }
                     /*------------------------
                       Set pointers from neighbours to new node at insertion point
                     -------------------------*/
-                    if (rightnode_idx == -1) {
-                        node_addresses[leftnode_idx].next_sorted = dummy_node_idx;
+                    if (_rightnodeIdx == -1) {
+                        _nodes[_leftnodeIdx].NextSorted = _dummyNodeIdx;
                     } else {
-                        if (leftnode_idx == -1) {
-                            node_addresses[rightnode_idx].prev_sorted = dummy_node_idx;
+                        if (_leftnodeIdx == -1) {
+                            _nodes[_rightnodeIdx].PrevSorted = _dummyNodeIdx;
                         } else {
-                            node_addresses[leftnode_idx].next_sorted = dummy_node_idx;
-                            node_addresses[rightnode_idx].prev_sorted = dummy_node_idx;
+                            _nodes[_leftnodeIdx].NextSorted = _dummyNodeIdx;
+                            _nodes[_rightnodeIdx].PrevSorted = _dummyNodeIdx;
                         }
                     }
 
                     /*-------------------------------
                       Shift check points before resetting sorted list
                     --------------------------------*/
-                    if (shift == -1) {
-                        for (k = 0; k < shiftcounter; k++) {
-                            dummy_int = checks4shift[k];
-                            checks[dummy_int] = node_addresses[checks[dummy_int]].prev_sorted;
+                    if (_shift == -1) {
+                        for (_k = 0; _k < _shiftcounter; _k++) {
+                            _dummyInt = _checks4Shift[_k];
+                            _checks[_dummyInt] = _nodes[_checks[_dummyInt]].PrevSorted;
                         }
                     } else
-                           if (shift == 1) {
-                        for (k = 0; k < shiftcounter; k++) {
-                            dummy_int = checks4shift[k];
-                            checks[dummy_int] = node_addresses[checks[dummy_int]].next_sorted;
+                           if (_shift == 1) {
+                        for (_k = 0; _k < _shiftcounter; _k++) {
+                            _dummyInt = _checks4Shift[_k];
+                            _checks[_dummyInt] = _nodes[_checks[_dummyInt]].NextSorted;
                         }
                     }
 
                     /*--------------------------------
                       insert node
                      --------------------------------*/
-                    node_addresses[dummy_node_idx].next_sorted = reuse_next_sorted_idx;
-                    node_addresses[dummy_node_idx].prev_sorted = reuse_prev_sorted_idx;
+                    _nodes[_dummyNodeIdx].NextSorted = _reuseNextSortedIdx;
+                    _nodes[_dummyNodeIdx].PrevSorted = _reusePrevSortedIdx;
                 }
-
-
 
                 /*--------------------------------
                   Get the median
                 ---------------------------------*/
-                currentnode_idx = checks[nearestchk];
-                for (k = 1; k <= offset; k++) {
-                    currentnode_idx = node_addresses[currentnode_idx].next_sorted;
+                _currentnodeIdx = _checks[_nearestchk];
+                for (_k = 1; _k <= _offset; _k++) {
+                    _currentnodeIdx = _nodes[_currentnodeIdx].NextSorted;
                 }
-                dummy = 0;
-                for (k = 1; k <= numberoffsets; k++) {
-                    dummy += node_addresses[currentnode_idx].data;
-                    currentnode_idx = node_addresses[currentnode_idx].next_sorted;
+                _dummy = 0;
+                for (_k = 1; _k <= _numberoffsets; _k++) {
+                    _dummy += _nodes[_currentnodeIdx].Data;
+                    _currentnodeIdx = _nodes[_currentnodeIdx].NextSorted;
                 }
-                medians[samplecount - nblocks + 1] = dummy / numberoffsets;
+                medians[_samplecount - nblocks + 1] = _dummy / _numberoffsets;
+            }
 
-            }/*Outer For Loop*/
             return 0;
         }
-
-
     }
 }
