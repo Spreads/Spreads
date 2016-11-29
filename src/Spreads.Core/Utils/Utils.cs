@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -96,6 +97,15 @@ namespace Spreads {
         }
     }
 
+
+    public static class StopwatchExtensions
+    {
+        public static double MOPS(this Stopwatch stopwatch, int count, int decimals = 2)
+        {
+            return Math.Round((count*0.001)/((double) stopwatch.ElapsedMilliseconds), decimals);
+        }
+    }
+
 #if !NET451
     // TODO Replace usages with SpreadsException
     public class ApplicationException : Exception {
@@ -105,4 +115,4 @@ namespace Spreads {
 
 #endif
 
-}
+    }

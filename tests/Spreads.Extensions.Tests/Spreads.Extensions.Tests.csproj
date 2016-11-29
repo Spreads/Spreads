@@ -131,7 +131,6 @@
     <Compile Include="CompressionTests.cs" />
     <Compile Include="BuffersAndPoolTests.cs" />
     <Compile Include="DirectFileTest.cs" />
-    <Compile Include="NanoOptimizationTests.cs" />
     <Compile Include="GenerationTests.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="RPlugin.cs" />

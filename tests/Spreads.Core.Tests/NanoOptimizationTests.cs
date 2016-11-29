@@ -2,31 +2,24 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+using NUnit.Framework;
+using Spreads.Buffers;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using NUnit.Framework;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Spreads.Buffers;
-using Spreads.Serialization;
-
 
 namespace Spreads.Core.Tests {
-
 
     [TestFixture]
     public unsafe class NanoOptimizationTests {
 
         public interface IIncrementable {
+
             int Increment();
         }
-
 
         public struct ThisIsSrtuct : IIncrementable {
             private byte[] value;
@@ -44,7 +37,6 @@ namespace Spreads.Core.Tests {
                 return (*((int*)ptr));
                 //return (*((int*)ptr))++;
             }
-
         }
 
         public static class ThisIsStaticClass {
@@ -61,9 +53,7 @@ namespace Spreads.Core.Tests {
             public static int Increment() {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
-
             }
-
         }
 
         public class ThisIsClass : IIncrementable {
@@ -76,17 +66,12 @@ namespace Spreads.Core.Tests {
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
-
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int Increment() {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
-
             }
-
         }
-
-
 
         public class ThisIsBaseClass : IIncrementable {
             private byte[] value = new byte[4];
@@ -98,12 +83,10 @@ namespace Spreads.Core.Tests {
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
-
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public virtual int Increment() {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
-
             }
         }
 
@@ -117,12 +100,10 @@ namespace Spreads.Core.Tests {
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
-
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public override int Increment() {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
-
             }
         }
 
@@ -136,12 +117,10 @@ namespace Spreads.Core.Tests {
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
-
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public override int Increment() {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
-
             }
         }
 
@@ -155,12 +134,10 @@ namespace Spreads.Core.Tests {
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
-
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public override int Increment() {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
-
             }
         }
 
@@ -174,12 +151,10 @@ namespace Spreads.Core.Tests {
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
-
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public override int Increment() {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
-
             }
         }
 
@@ -193,19 +168,28 @@ namespace Spreads.Core.Tests {
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
-
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int Increment() {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
-
             }
         }
 
+        public class ThisIsComposedClass : IIncrementable {
+            private ThisIsClass value;
 
-        private void ConstrainedStruct<T>(T incrementable) where T : IIncrementable
-        {
-            var count = 1000000000;
+            public ThisIsComposedClass() {
+                value = new ThisIsClass();
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public int Increment() {
+                return value.Increment();
+            }
+        }
+
+        private void ConstrainedStruct<T>(T incrementable) where T : IIncrementable {
+            var count = 100000000;
             var sw = new Stopwatch();
             sw.Restart();
             for (int i = 0; i < count; i++) {
@@ -217,12 +201,11 @@ namespace Spreads.Core.Tests {
 
         [Test, Ignore]
         public void CallVsCallVirt(int r) {
-            var count = 1000000000;
+            var count = 100000000;
             var sw = new Stopwatch();
 
             sw.Restart();
             int* ptr = stackalloc int[1];
-
 
             int intValue = 0;
             for (int i = 0; i < count; i++) {
@@ -232,7 +215,6 @@ namespace Spreads.Core.Tests {
             sw.Stop();
             Console.WriteLine($"Value {sw.ElapsedMilliseconds} ({intValue})");
 
-
             sw.Restart();
             var str = new ThisIsSrtuct(new byte[4]);
             for (int i = 0; i < count; i++) {
@@ -240,7 +222,6 @@ namespace Spreads.Core.Tests {
             }
             sw.Stop();
             Console.WriteLine($"Struct {sw.ElapsedMilliseconds}");
-
 
             sw.Restart();
             IIncrementable strAsInterface = (IIncrementable)(new ThisIsSrtuct(new byte[4]));
@@ -260,7 +241,6 @@ namespace Spreads.Core.Tests {
             sw.Stop();
             Console.WriteLine($"Static Class {sw.ElapsedMilliseconds}");
 
-
             sw.Restart();
             var cl = new ThisIsClass();
             for (int i = 0; i < count; i++) {
@@ -277,7 +257,6 @@ namespace Spreads.Core.Tests {
             sw.Stop();
             Console.WriteLine($"Sealed Class {sw.ElapsedMilliseconds}");
 
-
             sw.Restart();
             IIncrementable cli = (IIncrementable)new ThisIsClass();
             for (int i = 0; i < count; i++) {
@@ -285,7 +264,6 @@ namespace Spreads.Core.Tests {
             }
             sw.Stop();
             Console.WriteLine($"Class as Interface {sw.ElapsedMilliseconds}");
-
 
             sw.Restart();
             var dcl = new ThisIsDerivedClass();
@@ -295,7 +273,6 @@ namespace Spreads.Core.Tests {
             sw.Stop();
             Console.WriteLine($"Derived Class {sw.ElapsedMilliseconds}");
 
-
             sw.Restart();
             IIncrementable dcli = (IIncrementable)new ThisIsDerivedClass();
             for (int i = 0; i < count; i++) {
@@ -303,7 +280,6 @@ namespace Spreads.Core.Tests {
             }
             sw.Stop();
             Console.WriteLine($"Derived Class as Interface {sw.ElapsedMilliseconds}");
-
 
             sw.Restart();
             var sdcl = new ThisIsSealedDerivedClass();
@@ -320,9 +296,15 @@ namespace Spreads.Core.Tests {
             }
             sw.Stop();
             Console.WriteLine($"Sealed Derived Class as Interface {sw.ElapsedMilliseconds}");
+
+            sw.Restart();
+            var comp = new ThisIsComposedClass();
+            for (int i = 0; i < count; i++) {
+                comp.Increment();
+            }
+            sw.Stop();
+            Console.WriteLine($"Composed class {sw.ElapsedMilliseconds}");
         }
-
-
 
         [Test, Ignore]
         public void CallVsCallVirt() {
@@ -339,14 +321,11 @@ namespace Spreads.Core.Tests {
 
             values[42] = 3.1415;
             // Is this line needed instead of simple assignment above,
-            // or the implicit full-fence of Interlocked will guarantee that 
+            // or the implicit full-fence of Interlocked will guarantee that
             // all threads will see the values[42] after interlocked increment?
             //Volatile.Write(ref values[42], 3.1415);
             Interlocked.Increment(ref counter);
-
         }
-
-
 
         [Test, Ignore]
         public void ArrayVsListVsIListManyTimes() {
@@ -357,7 +336,6 @@ namespace Spreads.Core.Tests {
 
         [Test, Ignore]
         public void ArrayVsListVsIList() {
-
             var len = 1000;
 
             var arr = new double[len];
@@ -368,7 +346,6 @@ namespace Spreads.Core.Tests {
             var unmanagedMemory = Marshal.AllocHGlobal(len * 8);
             var directBuffer = new DirectBuffer(len * 8, unmanagedMemory);
 
-
             for (int i = 0; i < len; i++) {
                 arr[i] = i;
                 fixedBuffer.WriteDouble(i * 8, i);
@@ -377,7 +354,6 @@ namespace Spreads.Core.Tests {
             var list = new List<double>(arr);
 
             var ilist = list as IList<double>;
-
 
             var vector = new Spreads.Experimental.Vector<double>(arr);
             vector.IsSynchronized = true;
@@ -394,7 +370,6 @@ namespace Spreads.Core.Tests {
             sw.Start();
             sw.Stop();
 
-
             var maxRounds = 100000;
 
             sw.Restart();
@@ -410,8 +385,6 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
             Console.WriteLine("---");
 
-
-
             sw.Restart();
             sum = 0.0;
             for (int rounds = 0; rounds < maxRounds; rounds++) {
@@ -425,7 +398,6 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
             Console.WriteLine("---");
 
-
             sw.Restart();
             sum = 0.0;
             for (int rounds = 0; rounds < maxRounds; rounds++) {
@@ -438,7 +410,6 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
             Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
             Console.WriteLine("---");
-
 
             sw.Restart();
             sum = 0.0;
@@ -454,7 +425,6 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
             Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
             Console.WriteLine("---");
-
 
             sw.Restart();
             sum = 0.0;
@@ -478,8 +448,6 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
             Console.WriteLine("---");
 
-
-
             sw.Restart();
             sum = 0.0;
             var counter = 0L;
@@ -495,7 +463,6 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
             Console.WriteLine("---");
 
-
             sw.Restart();
             sum = 0.0;
             for (int rounds = 0; rounds < maxRounds; rounds++) {
@@ -509,7 +476,6 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
             Console.WriteLine("---");
 
-
             sw.Restart();
             sum = 0.0;
             for (int rounds = 0; rounds < maxRounds; rounds++) {
@@ -522,7 +488,6 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
             Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
             Console.WriteLine("---");
-
 
             sw.Restart();
             sum = 0.0;
@@ -538,8 +503,6 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
             Console.WriteLine("---");
 
-
-
             sw.Restart();
             sum = 0.0;
             for (int rounds = 0; rounds < maxRounds; rounds++) {
@@ -552,7 +515,6 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
             Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
             Console.WriteLine("---");
-
 
             sw.Restart();
             sum = 0.0;
@@ -567,11 +529,7 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
             Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
             Console.WriteLine("---");
-
-
-
         }
-
 
     }
 }

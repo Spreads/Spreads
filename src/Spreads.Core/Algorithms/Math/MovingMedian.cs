@@ -23,6 +23,7 @@ namespace Spreads.Algorithms.Math {
             public int PrevSorted;
         }
 
+        // TODO use two arrays, take them from pool, use Array.Sort overload for parallel sorting of two arrays
         private struct RngmedValIndex {
             public double Data;
             public int Index;
@@ -45,6 +46,10 @@ namespace Spreads.Algorithms.Math {
             as checkpoints
             ---------------------------------*/
 
+        // TODO? Pooling if used often. Or this could be made a struct with only arrays pooling
+        // Move to init() method
+        // All primitive arrays should be pooled
+        // All fields should be set to their initial values
         private int[] _sortedIndices;
         private RngmedValIndex[] _indexBlock;
         private Node[] _nodes;
@@ -75,6 +80,7 @@ namespace Spreads.Algorithms.Math {
 
             Array.Sort<RngmedValIndex>(_indexBlock, 0, nblocks, _valIndexComparer);
 
+            // TODO Pool
             _sortedIndices = new int[nblocks];
             for (_k = 0; _k < (int)nblocks; _k++) {
                 _sortedIndices[_k] = _indexBlock[_k].Index;
@@ -253,7 +259,7 @@ namespace Spreads.Algorithms.Math {
                    Getting check points to be shifted
                  -----------------------------------*/
                 // NB shift was originally int, not note*, so GT, not GE
-                if (_shift > 0) {
+                if (_shift != 0) {
                     _deletesample = _nodes[_firstSequenceIdx].Data;
                     if (_deletesample > _nextsample) {
                         _shiftcounter = 0;
@@ -289,7 +295,7 @@ namespace Spreads.Algorithms.Math {
                  Recycle the node with the
                  oldest value.
                 --------------------------------*/
-                if (_shift > 0) {
+                if (_shift != 0) {
                     /*---------------------
                      Reset sequential links
                      ---------------------*/
