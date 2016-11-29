@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Spreads.Algorithms.Math;
 
 namespace Spreads {
 
@@ -356,6 +357,27 @@ namespace Spreads {
                    return st;
                }, allowIncomplete);
             return (new CursorSeries<K, SmaState>(factory).Map(st => st.Sum / st.Count));
+        }
+
+        /// <summary>
+        /// Moving Median
+        /// </summary>
+        /// <typeparam name="K"></typeparam>
+        /// <param name="source"></param>
+        /// <param name="period"></param>
+        /// <param name="allowIncomplete"></param>
+        /// <returns></returns>
+        public static Series<K, double> MovingMedian<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false)
+        {
+            // TODO incomplete windows
+            Func<ICursor<K, MovingMedian>> factory = () => new ScanLagAllowIncompleteCursor<K, double, MovingMedian>(source.GetCursor, (uint)period, 1,
+               () => new MovingMedian(period),
+               (st, add, sub, cnt) =>
+               {
+                   st.Update(add.Value);
+                   return st;
+               }, allowIncomplete);
+            return (new CursorSeries<K, MovingMedian>(factory).Map(st => st.LastValue));
         }
 
 

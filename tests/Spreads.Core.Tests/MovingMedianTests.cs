@@ -2,12 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
-using System;
-using System.Diagnostics;
-using System.Linq;
 using NUnit.Framework;
 using Spreads.Algorithms.Math;
+using Spreads.Collections;
+using System;
+using System.Diagnostics;
 
 namespace Spreads.Core.Tests {
 
@@ -24,32 +23,30 @@ namespace Spreads.Core.Tests {
             for (int i = 0; i < count; i++) {
                 data[i] = rng.NextDouble();
             }
-            var mm = new MovingMedian();
+            var mm = new MovingMedian(m);
             var medians = new double[count - m + 1];
             var naiveMedians = new double[count - m + 1];
 
             var sw = new Stopwatch();
             sw.Restart();
-            var result = mm.Rngmed(data, m, medians);
+            var result = mm.Rngmed(data, medians);
             sw.Stop();
             Assert.AreEqual(0, result);
             //Console.Write($"Elapsed LIGO {sw.ElapsedMilliseconds} msec, {sw.MOPS(count)} Mops");
             var ligoMops = sw.MOPS(count);
             Console.Write($"{ligoMops:f2}|");
 
-
             sw.Restart();
             var startIdx = m - 1;
             for (int i = startIdx; i < count; i++) {
                 var arraySegment = new ArraySegment<double>(data, i - startIdx, m);
-                naiveMedians[i - startIdx] = GetMedian(arraySegment);
+                naiveMedians[i - startIdx] = MovingMedian.NaiveMedian(arraySegment);
             }
             sw.Stop();
             //Console.WriteLine($"Elapsed NAIVE {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
             var naiveMops = sw.MOPS(count);
             Console.Write($"{naiveMops:f2}|");
-            Console.WriteLine($"{ligoMops/naiveMops:f2}");
-
+            Console.WriteLine($"{ligoMops / naiveMops:f2}");
         }
 
         [Test, Ignore]
@@ -66,33 +63,30 @@ namespace Spreads.Core.Tests {
             var m = rng.Next(10, 50);
             Console.WriteLine($"Window size: {m}");
             var data = new double[count];
-            for (int i = 0; i < count; i++)
-            {
+            for (int i = 0; i < count; i++) {
                 data[i] = rng.NextDouble();
             }
-            var mm = new MovingMedian();
+            var mm = new MovingMedian(m);
             var medians = new double[count - m + 1];
             var naiveMedians = new double[count - m + 1];
 
             var sw = new Stopwatch();
             sw.Restart();
-            var result = mm.Rngmed(data, m, medians);
+            var result = mm.Rngmed(data, medians);
             sw.Stop();
             Assert.AreEqual(0, result);
             Console.WriteLine($"Elapsed LIGO {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
 
             sw.Restart();
             var startIdx = m - 1;
-            for (int i = startIdx; i < count; i++)
-            {
+            for (int i = startIdx; i < count; i++) {
                 var arraySegment = new ArraySegment<double>(data, i - startIdx, m);
-                naiveMedians[i - startIdx] = GetMedian(arraySegment);
+                naiveMedians[i - startIdx] = MovingMedian.NaiveMedian(arraySegment);
             }
             sw.Stop();
             Console.WriteLine($"Elapsed NAIVE {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
 
-            for (int i = 0; i < medians.Length; i++)
-            {
+            for (int i = 0; i < medians.Length; i++) {
                 if (medians[i] != naiveMedians[i]) //&& i == 0
                 {
                     Console.WriteLine($"{i + startIdx} - LIGO {medians[i]} - Naive {naiveMedians[i]}");
@@ -102,27 +96,81 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void MovingMedianIsCorrectManyTimes()
-        {
+        public void MovingMedianIsCorrectManyTimes() {
             for (int r = 0; r < 50; r++) {
                 MovingMedianIsCorrect();
             }
         }
 
-        public static double GetMedian(ArraySegment<double> sourceNumbers) {
-            //Framework 2.0 version of this method. there is an easier way in F4        
-            if (sourceNumbers == null || sourceNumbers.Count == 0)
-                throw new System.Exception("Median of empty array not defined.");
+        [Test, Ignore]
+        public void IncompleteMovingMedianIsCorrect() {
+            var rng = new System.Random();
+            var count = 100000;
+            var m = rng.Next(10, 199);
+            Console.WriteLine($"Window size: {m}");
+            var keys = new int[count];
+            var data = new double[count];
+            for (int i = 0; i < count; i++) {
+                keys[i] = i;
+                data[i] = rng.NextDouble();
+            }
+            var sm = SortedMap<int, double>.OfSortedKeysAndValues(keys, data, count);
+            sm.Complete();
+            var medianSeries = sm.MovingMedian(m, true);
+            var mm = new MovingMedian(m);
+            var medians = new double[count];
+            var naiveMedians = new double[count];
+            var cursorMedians = new double[count];
 
-            //make sure the list is sorted, but use a new array
-            double[] sortedPNumbers = sourceNumbers.ToArray();
-            Array.Sort(sortedPNumbers);
+            var sw = new Stopwatch();
+            sw.Restart();
+            for (int i = 0; i < count; i++) {
+                medians[i] = mm.Update(data[i]);
+            }
+            //var result = mm.Rngmed(data, medians);
+            sw.Stop();
+            Console.WriteLine($"Elapsed LIGO {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
 
-            //get the median
-            int size = sortedPNumbers.Length;
-            int mid = size / 2;
-            double median = (size % 2 != 0) ? (double)sortedPNumbers[mid] : ((double)sortedPNumbers[mid] + (double)sortedPNumbers[mid - 1]) / 2;
-            return median;
+            sw.Restart();
+
+            for (int i = 0; i < count; i++) {
+                var arraySegment = new ArraySegment<double>(data, Math.Max(i - m + 1, 0), Math.Min(m, i + 1));
+                //if (i + 1 >= m && arraySegment.Count != m) {
+                //    Assert.Fail("Wrong array segment");
+                //} else {
+                //    Console.WriteLine($"{i} - {arraySegment.Offset} - {arraySegment.Count}");
+                //}
+                naiveMedians[i] = MovingMedian.NaiveMedian(arraySegment);
+            }
+            sw.Stop();
+            Console.WriteLine($"Elapsed NAIVE {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
+
+            sw.Restart();
+            var cursor = medianSeries.GetCursor();
+            while (cursor.MoveNext()) {
+                cursorMedians[cursor.CurrentKey] = cursor.CurrentValue;
+            }
+            sw.Stop();
+            Console.WriteLine($"Elapsed CURSOR {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
+
+            for (int i = 0; i < medians.Length; i++) {
+                if (medians[i] != naiveMedians[i]) {
+                    Console.WriteLine($"{i} - LIGO {medians[i]} - Naive {naiveMedians[i]}");
+                }
+                Assert.AreEqual(medians[i], naiveMedians[i]);
+
+                if (naiveMedians[i] != cursorMedians[i]) {
+                    Console.WriteLine($"{i} - CURSOR {cursorMedians[i]} - Naive {naiveMedians[i]}");
+                }
+                Assert.AreEqual(cursorMedians[i], naiveMedians[i]);
+            }
+        }
+
+        [Test, Ignore]
+        public void IncompleteMovingMedianIsCorrectManyTimes() {
+            for (int r = 0; r < 50; r++) {
+                IncompleteMovingMedianIsCorrect();
+            }
         }
     }
 }
