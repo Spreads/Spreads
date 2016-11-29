@@ -125,6 +125,7 @@
   <ItemGroup>
     <Compile Include="Algorithms\Algo.cs" />
     <Compile Include="Algorithms\Hash\xxHash.cs" />
+    <Compile Include="Algorithms\Math\MovingMedian.cs" />
     <Compile Include="Blosc\BloscMethods.cs" />
     <Compile Include="Buffers\AtomicCounter.cs" />
     <Compile Include="Buffers\BufferPool.cs" />
@@ -290,7 +291,6 @@
     <Content Include="System\README.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Algorithms\Math\" />
     <Folder Include="System\Unsafe\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
