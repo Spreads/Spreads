@@ -5,6 +5,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using Spreads.Serialization;
 
 namespace Spreads.DataTypes
 {
@@ -12,6 +13,7 @@ namespace Spreads.DataTypes
     /// A blittable structure to store ticks.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 24)]
+    [Serialization(BlittableSize = 24)]
     public struct Tick : IEquatable<Tick>, ITick {
         private readonly long _dateTimeUtcTicks;
         private readonly Quote _quote;

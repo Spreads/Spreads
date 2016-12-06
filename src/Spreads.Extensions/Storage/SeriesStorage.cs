@@ -268,6 +268,10 @@ namespace Spreads.Storage {
             return seriesIdRow;
         }
 
+        public IEnumerable<SeriesId> ListAllSeries() {
+            return _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType, Version from " + IdTableName + ";");
+        }
+
         //internal SeriesId GetExtendedSeriesId(string textId) {
         //    var seriesIdRow = _connection.Query<SeriesId>("SELECT Id, TextId, UUID, KeyType, ValueType, Version from " + IdTableName + "" + " WHERE TextId = @TextId", new { TextId = textId }, buffered: false).Single();
         //    return seriesIdRow;
