@@ -244,8 +244,7 @@ namespace Spreads.Buffers {
 
                 Events.Write.MemoryStreamFinalized(this.id, this.tag, this.allocationStack);
 #if NET451
-                if (AppDomain.CurrentDomain.IsFinalizingForUnload())
-                {
+                if (AppDomain.CurrentDomain.IsFinalizingForUnload()) {
                     // If we're being finalized because of a shutdown, don't go any further.
                     // We have no idea what's already been cleaned up. Triggering events may cause
                     // a crash.
@@ -276,8 +275,7 @@ namespace Spreads.Buffers {
         /// <summary>
         /// Equivalent to Dispose
         /// </summary>
-        public override void Close()
-        {
+        public override void Close() {
             this.Dispose(true);
         }
 #endif
@@ -699,9 +697,33 @@ namespace Spreads.Buffers {
                 stream.Write(this.largeBuffer, 0, this.length);
             }
         }
-#endregion
+        #endregion
 
-#region Helper Methods
+
+        /// <summary>
+        /// Iterate over all internal chunks as ArraySegments without copying data
+        /// </summary>
+        public IEnumerable<ArraySegment<byte>> Chunks
+        {
+            get
+            {
+                this.CheckDisposed();
+                if (this.largeBuffer != null) {
+                    yield return new ArraySegment<byte>(this.largeBuffer, 0, this.length);
+                } else {
+                    for (int i = 0; i < this.blocks.Count; i++) {
+                        var len = (i == this.blocks.Count - 1)
+                            // last chunk
+                            ? this.length - (this.blocks.Count - 1) * this.memoryManager.BlockSize
+                            // full chunk
+                            : this.memoryManager.BlockSize;
+                        yield return new ArraySegment<byte>(this.blocks[i], 0, len);
+                    }
+                }
+            }
+        }
+
+        #region Helper Methods
         private void CheckDisposed() {
             if (this.disposed) {
                 throw new ObjectDisposedException(string.Format("The stream with Id {0} and Tag {1} is disposed.", this.id, this.tag));
@@ -786,6 +808,6 @@ namespace Spreads.Buffers {
 
             this.largeBuffer = null;
         }
-#endregion
+        #endregion
     }
 }
