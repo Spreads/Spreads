@@ -1,6 +1,6 @@
 {
 
-	"version": "0.6.0-alpha6",
+	"version": "0.6.1-*",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 
 	"buildOptions": {
@@ -19,7 +19,6 @@
 				"../../src/Spreads.Collections/Common/ObjectPool.fs",
 				"../../src/Spreads.Collections/Common/Utils.fs",
 				"../../src/Spreads.Collections/Common/SortedDeque.fs",
-				"../../src/Spreads.Collections/Common/FixedMinHeap.fs",
 				"../../src/Spreads.Collections/Common/Exceptions.fs",
 				"../../src/Spreads.Collections/Common/OptionalValue.fs",
 				"../../src/Spreads.Collections/Common/GenericOperators.fs",
@@ -63,7 +62,7 @@
 		}
 	},
 	"dependencies": {
-		"Spreads.Core": "0.6.0-alpha*",
+		"Spreads.Core": "0.6.1-*",
 	},
 	"tools": {
 		"dotnet-compile-fsc": {

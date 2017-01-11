@@ -1,5 +1,5 @@
 {
-	"version": "0.6.0-alpha6",
+	"version": "0.6.1-*",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 	"dependencies": {
 		"Newtonsoft.Json": "9.0.1",
