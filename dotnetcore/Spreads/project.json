@@ -3,12 +3,35 @@
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 	"dependencies": {
 		"Spreads.Collections": "0.6.1-*",
-		"Spreads.Core": "0.6.1-*"
+		"Spreads.SQLite": "1.6.0-*",
+		"Dapper": "1.50.1",
+		"Newtonsoft.Json": "9.0.1",
+		"NodaTime": "2.0.0-alpha20160707",
+		"System.Slices": "0.1.0-*"
 	},
-
 	"frameworks": {
-		"net451": {},
-		"netstandard1.6": {}
+		"net451": {
+			"frameworkAssemblies": {
+				"System.IO.Compression": "",
+				"System.IO.Compression.FileSystem": ""
+			}
+		},
+		"netstandard1.6": {
+			"dependencies": {
+				"NETStandard.Library": "1.6.0",
+				"System.Diagnostics.Contracts": "4.0.1",
+				"System.Threading.Thread": "4.0.0",
+				"System.Diagnostics.TraceSource": "4.0.0",
+				"System.Reflection": "4.1.0",
+				"System.Reflection.TypeExtensions": "4.1.0",
+				"System.Reflection.Extensions": "4.0.1",
+				"System.IO.MemoryMappedFiles": "4.0.0",
+				"System.IO.Compression.ZipFile": "4.0.1",
+				"System.Diagnostics.Process": "4.1.0",
+				"System.Runtime.Extensions": "4.1.0"
+			},
+			"imports": "dnxcore50"
+		}
 	},
 	"buildOptions": {
 		"warningsAsErrors": false,
@@ -16,24 +39,37 @@
 		"exclude": [
 
 		],
-		"define": [ "TRACE", "PRERELEASE" ],
-		"nowarn": [ ],
-		"compile": {
-			"includeFiles": [
+		"define": [
+			"TRACE",
+			"PRERELEASE"
+		],
+		"allowUnsafe": true,
+		"optimize": true,
+		"nowarn": [
+			"CS1591",
+			"CS1587",
+			"CS1574"
+		],
+		"compile": [ "../../src/Spreads/**/*.cs" ],
 
-			]
-		},
 		"embed": {
 			"mappings": {
+
 			}
 		}
 	},
-	"authors": [ "Victor Baybekov" ],
+	"authors": [
+		"Victor Baybekov"
+	],
 	"copyright": "Copyright 2016",
 	"packOptions": {
-		"owners": [ "Victor Baybekov" ],
+		"owners": [
+			"Victor Baybekov"
+		],
 		"summary": "Series and Panels for Reactive and Exploratory Analysis of Data Streams",
-		"repository": { "url": "https://github.com/Spreads/Spreads" },
+		"repository": {
+			"url": "https://github.com/Spreads/Spreads"
+		},
 		"licenseUrl": "http://github.com/Spreads/Spreads/blob/master/LICENSE.txt",
 		"iconUrl": "https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png",
 		"projectUrl": "https://github.com/Spreads/Spreads",

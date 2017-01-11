@@ -115,6 +115,11 @@
     <None Include="Spreads.Tests.licenseheader" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Spreads\Spreads.csproj">
+      <Name>Spreads</Name>
+      <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <Reference Include="Dapper">
       <HintPath>..\..\packages\Dapper.1.42\lib\net45\Dapper.dll</HintPath>
       <Private>True</Private>
@@ -176,11 +181,6 @@
     <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj">
       <Name>Spreads.Core</Name>
       <Project>{06e712a1-3141-45b5-8167-e3626f5659a5}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\..\src\Spreads.Extensions\Spreads.Extensions.csproj">
-      <Name>Spreads.Extensions</Name>
-      <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>

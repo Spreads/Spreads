@@ -146,9 +146,9 @@
       <Project>{06e712a1-3141-45b5-8167-e3626f5659a5}</Project>
       <Name>Spreads.Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\src\Spreads.Extensions\Spreads.Extensions.csproj">
+    <ProjectReference Include="..\..\src\Spreads\Spreads.csproj">
       <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
-      <Name>Spreads.Extensions</Name>
+      <Name>Spreads</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

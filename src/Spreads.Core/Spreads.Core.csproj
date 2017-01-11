@@ -284,14 +284,9 @@
       <SubType>Designer</SubType>
     </None>
     <None Include="Spreads.Core.licenseheader" />
-    <None Include="System\project.json_" />
-    <None Include="System\System.Slices.xproj" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="System\README.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="System\Unsafe\" />
+    <Folder Include="System\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

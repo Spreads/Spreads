@@ -18,6 +18,4 @@ dotnet pack ..\dotnetcore\Spreads.Collections -c DEBUG -o C:\tools\LocalNuget --
 
 dotnet pack ..\dotnetcore\Spreads -c DEBUG -o C:\tools\LocalNuget --version-suffix "%build%"
 
-dotnet pack ..\dotnetcore\Spreads.Extensions -c DEBUG -o C:\tools\LocalNuget --version-suffix "%build%"
-
 pause
