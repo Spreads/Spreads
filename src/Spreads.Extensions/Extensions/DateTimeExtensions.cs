@@ -2,20 +2,20 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using NodaTime;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace Spreads {
+
     public static class DateTimeExtensions {
+
         public static long ToInt64(this DateTime dt) {
             return dt.ToBinary(); // ((Int64)dt.Ticks | ((Int64)dt.Kind << 62)); for local, ToBinary() transforms local to UTC, for other types, it is slightly faster and does the same
         }
 
         public static DateTime ToDateTime(this long dt) {
-
             const ulong mask = (3UL << 62);
             ulong asUlong;
             unchecked {
@@ -24,7 +24,6 @@ namespace Spreads {
             var cleared = (asUlong & mask);
             var kind = cleared >> 62;
             return new DateTime((long)(dt & ~(3L << 62)), (DateTimeKind)kind);
-
         }
 
         // TODO tests!!!
@@ -100,6 +99,48 @@ namespace Spreads {
             DateTime zonedTime = timeToConvert.WithZone(givenTz).ToDateTimeUnspecified();
             Debug.Assert(zonedTime.Kind == DateTimeKind.Unspecified);
             return zonedTime; //DateTime.SpecifyKind(utcTime, DateTimeKind.Unspecified);
+        }
+
+        public static DateTime ToTimeFrameStart(this DateTime moment, UnitPeriod unitPeriod, uint length = 1) {
+            // TODO (low): support offset, e.g. 1 hours that starts at 15th minute
+
+            if (length == 0) throw new InvalidOperationException("Length is zero");
+            long divisor;
+            switch (unitPeriod) {
+                case UnitPeriod.Tick:
+                    if (length != 1) throw new InvalidOperationException("Tick length != 1 is meaningless");
+                    return moment;
+
+                case UnitPeriod.Millisecond:
+                    divisor = TimeSpan.TicksPerMillisecond * length;
+                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+
+                case UnitPeriod.Second:
+                    divisor = TimeSpan.TicksPerSecond * length;
+                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+
+                case UnitPeriod.Minute:
+                    divisor = TimeSpan.TicksPerMinute * length;
+                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+
+                case UnitPeriod.Hour:
+                    divisor = TimeSpan.TicksPerHour * length;
+                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+
+                case UnitPeriod.Day:
+                    divisor = TimeSpan.TicksPerDay * length;
+                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+
+                case UnitPeriod.Month:
+                    if (length != 1) throw new NotSupportedException();
+                    return new DateTime(moment.Year, moment.Month, 1, 0, 0, 0, moment.Kind);
+
+                case UnitPeriod.Eternity:
+                    return DateTime.MinValue;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(unitPeriod), unitPeriod, null);
+            }
         }
     }
 }

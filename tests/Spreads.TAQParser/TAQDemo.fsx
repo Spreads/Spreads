@@ -32,8 +32,8 @@ open System.IO
 let store = new SeriesStorage(SeriesStorage.GetDefaultConnectionString("TAQSample.db"));
 
 // Lazy series, DB is not touched until data is requested
-let aapl = store.GetPersistentOrderedMap<DateTime, TaqTrade>("aapl").Map(fun t -> float(t.TradePrice)/10000.0);
-let msft = store.GetPersistentOrderedMap<DateTime, TaqTrade>("msft").Map(fun t -> float(t.TradePrice)/10000.0);
+let aapl = store.GetPersistentOrderedMap<DateTime, TaqTrade>("aapl").Result.Map(fun t -> float(t.TradePrice)/10000.0);
+let msft = store.GetPersistentOrderedMap<DateTime, TaqTrade>("msft").Result.Map(fun t -> float(t.TradePrice)/10000.0);
 
 
 // Speed and memory

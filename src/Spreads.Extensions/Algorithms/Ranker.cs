@@ -2,14 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+using Spreads.Collections;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using Spreads.Collections;
 
 namespace Spreads.Algorithms {
 
@@ -17,10 +13,13 @@ namespace Spreads.Algorithms {
     /// Calculate ranks of values without allocations.
     /// </summary>
     public static class Ranker<T> {
+
         [ThreadStatic]
         private static KV<T, int>[] _sorted;
+
         [ThreadStatic]
         private static int[] _ranked;
+
         private static KVKeyComparer<T, int> _kvComparer;
         private static IComparer<T> _comparer;
 
@@ -46,6 +45,7 @@ namespace Spreads.Algorithms {
             for (int i = 0; i < values.Count; i++) {
                 _sorted[i] = new KV<T, int>(values.Array[values.Offset + i], i);
             }
+            // TODO use two arrays instead of the _sorted one and use the pool
             Array.Sort(_sorted, kvComparer);
             for (int i = 0; i < _sorted.Length; i++) {
                 _ranked[_sorted[i].Value] = i;

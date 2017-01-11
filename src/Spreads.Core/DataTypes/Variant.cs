@@ -146,7 +146,7 @@ namespace Spreads.DataTypes {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Variant Create<T>(T value = default(T)) {
-            Console.WriteLine("Dispatched as array");
+            //Console.WriteLine("Dispatched as scalar");
             var boxedTypeEnum = BoxedTypeEnum<T>.CachedBoxedTypeEnum;
             var typeEnum = boxedTypeEnum.TypeEnum;
             if ((int)typeEnum < KnownSmallTypesLimit) {
@@ -173,6 +173,7 @@ namespace Spreads.DataTypes {
             throw new NotImplementedException();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Variant FromObject(object value) {
             if (value == null) {
                 return new Variant { _header = { TypeEnum = TypeEnum.None } };
@@ -250,6 +251,7 @@ namespace Spreads.DataTypes {
             throw new NotImplementedException();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static object ToObject(Variant value) {
             if (value.TypeEnum == TypeEnum.None) {
                 return null;

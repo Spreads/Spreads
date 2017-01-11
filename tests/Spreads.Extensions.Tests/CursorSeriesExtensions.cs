@@ -16,6 +16,7 @@ using Newtonsoft.Json.Bson;
 using Newtonsoft.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads;
 
 namespace Spreads.Extensions.Tests {
     [TestFixture]

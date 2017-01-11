@@ -69,7 +69,7 @@ namespace Spreads.Algorithms {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void LoopSafeExp(this Algo.MathProvider provider, double[] array, double[] result, int count) {
             for (var i = 0; i < count; i++) {
-                result[i] = Math.Exp(array[i]);
+                result[i] = System.Math.Exp(array[i]);
             }
         }
 

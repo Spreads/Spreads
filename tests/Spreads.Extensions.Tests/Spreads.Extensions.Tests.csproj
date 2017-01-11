@@ -104,10 +104,6 @@
       <HintPath>..\..\packages\protobuf-net.2.1.0\lib\net451\protobuf-net.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Spreads.Core, Version=0.5.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\src\Spreads.Core\bin\RELEASE\net451\Spreads.Core.dll</HintPath>
-    </Reference>
     <Reference Include="Spreads.SQLite">
       <HintPath>..\..\..\Spreads.SQLite\src\Spreads.SQLite\bin\Release\net451\Spreads.SQLite.dll</HintPath>
     </Reference>
@@ -145,6 +141,10 @@
     <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj">
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
       <Name>Spreads.Collections</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj">
+      <Project>{06e712a1-3141-45b5-8167-e3626f5659a5}</Project>
+      <Name>Spreads.Core</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\src\Spreads.Extensions\Spreads.Extensions.csproj">
       <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>

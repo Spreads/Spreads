@@ -110,9 +110,11 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Window size: {m}");
             var keys = new int[count];
             var data = new double[count];
+            //var sm = new SortedMap<int, double>(count);
             for (int i = 0; i < count; i++) {
                 keys[i] = i;
                 data[i] = rng.NextDouble();
+                //sm.Add(i, data[i]);
             }
             var sm = SortedMap<int, double>.OfSortedKeysAndValues(keys, data, count);
             sm.Complete();

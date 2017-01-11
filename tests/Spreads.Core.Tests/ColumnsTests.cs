@@ -26,7 +26,7 @@ namespace Spreads.Core.Tests {
 
         [Test, Ignore]
         public void ColumnTest() {
-            var count = 10000;
+            var count = 100000;
             var accessor = TypeAccessor.Create(typeof(TestRow));
             var rows = new TestRow[count];
             for (int i = 0; i < count; i++) {
@@ -61,7 +61,7 @@ namespace Spreads.Core.Tests {
                     for (var c = 0; c < memberCount; c++) {
                         var value = accessor[rows[r], names[c]];
                         //arrays[c].SetValue(value, r);
-                        variants[c][r] = Variant.Create(value);
+                        variants[c][r] = Variant.Create(value); // almost 4x slower
                     }
                 }
 
