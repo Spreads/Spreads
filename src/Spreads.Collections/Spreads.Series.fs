@@ -1873,9 +1873,10 @@ and
     member val CurrentKey = Unchecked.defaultof<'K> with get, set
 
     // NB lazy application of resultSelector, only when current value is requested
-    member this.CurrentValue with get() = 
+    member this.CurrentValue 
+      with get() = 
       // TODO lazy 
-      resultSelector.Invoke(this.CurrentKey, currentValues)
+        resultSelector.Invoke(this.CurrentKey, currentValues)
 
     member this.Current with get () = KVP(this.CurrentKey, this.CurrentValue)
 

@@ -16,7 +16,7 @@ open Spreads.Collections
 
 
 /// Make immutable map behave like a mutable one
-[<ObsoleteAttribute("Probably this is useless.")>]
+//[<ObsoleteAttribute("Probably this is useless.")>]
 type internal MutableWrapper<'K,'V  when 'K : comparison>
   (immutableMap:IImmutableOrderedMap<'K,'V>)=
     

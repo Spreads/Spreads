@@ -804,7 +804,6 @@ type SortedMap<'K,'V>
       #endif
 
   // TODO lockless AddLast for temporary Append implementation
-  [<ObsoleteAttribute("Temp solution, implement Append properly")>]
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.AddLastUnchecked(key, value) : unit =
       if this.size = 0 then
