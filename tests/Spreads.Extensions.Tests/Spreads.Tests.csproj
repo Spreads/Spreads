@@ -8,8 +8,8 @@
     <ProjectGuid>{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Spreads.Extensions.Tests</RootNamespace>
-    <AssemblyName>Spreads.Extensions.Tests</AssemblyName>
+    <RootNamespace>Spreads.Tests</RootNamespace>
+    <AssemblyName>Spreads.Tests</AssemblyName>
     <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <NuGetPackageImportStamp>

@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26020.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}"
 EndProject
@@ -29,7 +29,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "content", "content", "{8E6D
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{ED8079DD-2B06-4030-9F0F-DC548F98E1C4}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Spreads.Tests", "tests\Spreads.Tests\Spreads.Tests.fsproj", "{E789C72A-5CFD-436B-8EF1-61AA2852A89F}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Spreads.Tests.Fs", "tests\Spreads.Tests\Spreads.Tests.Fs.fsproj", "{E789C72A-5CFD-436B-8EF1-61AA2852A89F}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{FA999DEE-2DE1-496B-B3BA-B28619583492}"
 	ProjectSection(SolutionItems) = preProject
@@ -42,7 +42,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Spreads.Collections", "src\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Tests.CSProfile", "tests\Spreads.Tests.CSProfile\Spreads.Tests.CSProfile.csproj", "{D2A8AD2E-0450-4E23-8488-06F19DF7882D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Extensions.Tests", "tests\Spreads.Extensions.Tests\Spreads.Extensions.Tests.csproj", "{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Tests", "tests\Spreads.Extensions.Tests\Spreads.Tests.csproj", "{8DA2CA79-D0FD-4BAE-B000-C05D9B5F82D9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Collections.Tests", "tests\Spreads.Collections.Tests\Spreads.Collections.Tests.csproj", "{D4857397-4D03-4E25-9332-979BF22E9BB2}"
 EndProject

@@ -1,2 +1,2 @@
-@for %%f in (..\artifacts\*.nupkg) do @..\.nuget\NuGet.exe push %%f
+@for %%f in (..\artifacts\*.nupkg) do @C:\tools\nuget\NuGet.exe push %%f
 pause

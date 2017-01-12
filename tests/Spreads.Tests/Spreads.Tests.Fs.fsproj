@@ -11,7 +11,7 @@
     <AssemblyName>Spreads.Tests</AssemblyName>
     <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <TargetFSharpCoreVersion>4.3.1.0</TargetFSharpCoreVersion>
-    <Name>Spreads.Tests</Name>
+    <Name>Spreads.Tests.Fs</Name>
     <TargetFrameworkProfile />
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <RestorePackages>true</RestorePackages>
@@ -101,6 +101,7 @@
   <Import Project="$(FSharpTargetsPath)" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
   <ItemGroup>
+    <Compile Include="Attributes.fs" />
     <Content Include="app.config" />
     <Compile Include="Utils.fs" />
     <Compile Include="Collections\IntMap64Tests.fs" />

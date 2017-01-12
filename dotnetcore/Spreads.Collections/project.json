@@ -1,6 +1,6 @@
 {
 
-	"version": "0.6.1-*",
+	"version": "0.7.0-*",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 
 	"buildOptions": {
@@ -59,10 +59,11 @@
 				"../../src/Spreads.Collections/Spreads.Series.2.fs",
 				"../../src/Spreads.Collections/TimeSeries.fs"
 			]
-		}
+		},
+		"keyFile": "../../tools/SpreadsKey.snk"
 	},
 	"dependencies": {
-		"Spreads.Core": "0.6.1-*",
+		"Spreads.Core": "0.7.*",
 	},
 	"tools": {
 		"dotnet-compile-fsc": {
@@ -90,14 +91,14 @@
 		"netstandard1.6": {
 			"dependencies": {
 				"NETStandard.Library": "1.6.0",
-				"System.Reflection": "4.1.0",
+				"System.Reflection": "4.3.0",
 				"System.Reflection.TypeExtensions": "4.1.0",
 				"System.Diagnostics.Contracts": "4.0.1",
 				"System.Threading.Thread": "4.0.0",
 				"System.Diagnostics.TraceSource": "4.0.0",
 				"Microsoft.FSharp.Core.netcore": "1.0.0-alpha-160629"
 			},
-			"imports": "dnxcore50"
+
 		}
 	},
 	"authors": [ "Victor Baybekov" ],

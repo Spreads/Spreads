@@ -73,6 +73,13 @@
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>
+    </AssemblyOriginatorKeyFile>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core, Version=4.3.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\..\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
@@ -145,7 +152,7 @@
     </ProjectReference>
     <ProjectReference Include="..\..\src\Spreads\Spreads.csproj">
       <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
-      <Name>Spreads.Extensions</Name>
+      <Name>Spreads</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

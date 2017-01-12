@@ -1,8 +1,8 @@
 ﻿{
-	"version": "0.6.1-*",
+	"version": "0.7.0-*",
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 	"dependencies": {
-		"Spreads.Collections": "0.6.1-*",
+		"Spreads.Collections": "0.7.*",
 		"Spreads.SQLite": "1.6.0-*",
 		"Dapper": "1.50.1",
 		"Newtonsoft.Json": "9.0.1",
@@ -22,7 +22,7 @@
 				"System.Diagnostics.Contracts": "4.0.1",
 				"System.Threading.Thread": "4.0.0",
 				"System.Diagnostics.TraceSource": "4.0.0",
-				"System.Reflection": "4.1.0",
+				"System.Reflection": "4.3.0",
 				"System.Reflection.TypeExtensions": "4.1.0",
 				"System.Reflection.Extensions": "4.0.1",
 				"System.IO.MemoryMappedFiles": "4.0.0",
@@ -56,7 +56,8 @@
 			"mappings": {
 
 			}
-		}
+		},
+		"keyFile": "../../tools/SpreadsKey.snk"
 	},
 	"authors": [
 		"Victor Baybekov"

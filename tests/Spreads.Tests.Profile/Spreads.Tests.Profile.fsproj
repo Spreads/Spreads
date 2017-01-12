@@ -155,6 +155,11 @@
     <None Include="Fable.fsx" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Spreads.Tests\Spreads.Tests.Fs.fsproj">
+      <Name>Spreads.Tests.Fs</Name>
+      <Project>{e789c72a-5cfd-436b-8ef1-61aa2852a89f}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <Reference Include="Dapper">
       <HintPath>..\..\packages\Dapper.1.42\lib\net45\Dapper.dll</HintPath>
       <Private>True</Private>
@@ -196,11 +201,6 @@
     <ProjectReference Include="..\..\src\Spreads\Spreads.csproj">
       <Name>Spreads</Name>
       <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\Spreads.Tests\Spreads.Tests.fsproj">
-      <Name>Spreads.Tests</Name>
-      <Project>{e789c72a-5cfd-436b-8ef1-61aa2852a89f}</Project>
       <Private>True</Private>
     </ProjectReference>
     <Reference Include="System.Xml" />
