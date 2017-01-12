@@ -43,7 +43,7 @@ type CursorAsync<'K,'V,'TCursor when 'TCursor :> ICursor<'K,'V>>(source:Series<'
         | true -> if this.state.MoveNext() then trueTask else falseTask
         | false ->
           // Task could have multiple awaiters
-          let tcs = Volatile.Read(&source.updateTcs)
+          let tcs = Volatile.Read(&source.UpdateTcs)
           // if some cursor already created a tcs and it is not null, we just await for it
           let activeTcs =
             if tcs <> null then tcs
@@ -51,7 +51,7 @@ type CursorAsync<'K,'V,'TCursor when 'TCursor :> ICursor<'K,'V>>(source:Series<'
               let newTcs =
                 if this.unusedTcs <> null then this.unusedTcs
                 else new TaskCompletionSource<int64>()
-              let original = Interlocked.CompareExchange(&source.updateTcs, newTcs, null)
+              let original = Interlocked.CompareExchange(&source.UpdateTcs, newTcs, null)
               if original = null then
                 // newTcs was put to the SM
                 // if unusedTcs was not null, newTcs = unusedTcs
@@ -91,10 +91,10 @@ type CursorAsync<'K,'V,'TCursor when 'TCursor :> ICursor<'K,'V>>(source:Series<'
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     member this.MoveNextContinuation(t:Task<int64>): Task<bool> =
       // while this is not null, noone would be able to set a new one
-      let original = Volatile.Read(&source.updateTcs)
+      let original = Volatile.Read(&source.UpdateTcs)
       if original <> null then
         // one of many cursors will succeed
-        Interlocked.CompareExchange(&source.updateTcs, null, original) |> ignore
+        Interlocked.CompareExchange(&source.UpdateTcs, null, original) |> ignore
       match this.state.MoveNext() with
       | true -> trueTask
       | false ->
@@ -108,12 +108,12 @@ type CursorAsync<'K,'V,'TCursor when 'TCursor :> ICursor<'K,'V>>(source:Series<'
     member this.Clone() = 
       let mutable entered = false
       try
-        entered <- enterWriteLockIf &source.locker true
+        entered <- enterWriteLockIf &source.Locker true
         let clone = new CursorAsync<'K,'V,'TCursor>(source, cursorFactory)
         clone.state <- this.state
         clone
       finally
-        exitWriteLockIf &source.locker entered
+        exitWriteLockIf &source.Locker entered
       
 
     member this.Dispose() = this.state.Reset()

@@ -110,14 +110,14 @@ type SortedMap<'K,'V>
         if map.IsReadOnly then Trace.TraceWarning("TODO: reuse arrays of immutable map")
         let mutable entered = false
         try
-          entered <- enterWriteLockIf &map.locker true
+          entered <- enterWriteLockIf &map.Locker true
           couldHaveRegularKeys <- map.IsRegular
           this.SetCapacity(map.size)
           this.size <- map.size
           Array.Copy(map.keys, 0, this.keys, 0, map.size)
           Array.Copy(map.values, 0, this.values, 0, map.size)
         finally
-          exitWriteLockIf &map.locker entered
+          exitWriteLockIf &map.Locker entered
       | _ ->
         // TODO ICollection interface to IOrderedMap
         let locked, sr = match dictionary.Value with | :? ICollection as col -> col.IsSynchronized, col.SyncRoot | _ -> false, null
@@ -377,18 +377,18 @@ type SortedMap<'K,'V>
   member this.Complete() =
     let mutable entered = false
     try
-      entered <- enterWriteLockIf &this.locker true
+      entered <- enterWriteLockIf &this.Locker true
       if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if not this.isReadOnly then 
           this.isReadOnly <- true
           // immutable doesn't need sync
           Volatile.Write(&this.isSynchronized, false)
-          let updateTcs = Volatile.Read(&this.updateTcs)
+          let updateTcs = Volatile.Read(&this.UpdateTcs)
           if updateTcs <> null then updateTcs.TrySetResult(0L) |> ignore
           //if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
     finally
       Interlocked.Increment(&this.version) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
 
   override this.IsReadOnly with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.isReadOnly)
   override this.IsIndexed with get() = false
@@ -420,11 +420,11 @@ type SortedMap<'K,'V>
     and internal set v = 
       let mutable entered = false
       try
-        entered <- enterWriteLockIf &this.locker true
+        entered <- enterWriteLockIf &this.Locker true
         this.version <- v // NB setter only for deserializer
         this.nextVersion <- v
       finally
-        exitWriteLockIf &this.locker entered
+        exitWriteLockIf &this.Locker entered
 
   //#endregion
 
@@ -478,10 +478,10 @@ type SortedMap<'K,'V>
     and set(value) =
       let mutable entered = false
       try
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         this.SetCapacity(value)
       finally
-        exitWriteLockIf &this.locker entered
+        exitWriteLockIf &this.Locker entered
 
   member this.Comparer with get() = comparer
 
@@ -490,7 +490,7 @@ type SortedMap<'K,'V>
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if couldHaveRegularKeys then
         Trace.Assert(this.keys.Length = 2)
@@ -502,7 +502,7 @@ type SortedMap<'K,'V>
       increment &this.orderVersion
     finally
       Interlocked.Increment(&this.version) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
 
   member this.Count with get() = this.size
 
@@ -522,13 +522,13 @@ type SortedMap<'K,'V>
         member x.CopyTo(array, arrayIndex) =
           let mutable entered = false
           try
-            entered <- enterWriteLockIf &this.locker this.IsSynchronized
+            entered <- enterWriteLockIf &this.Locker this.IsSynchronized
             if couldHaveRegularKeys && this.size > 2 then
               Array.Copy(this.rkMaterialize(), 0, array, arrayIndex, this.size)
             else
               Array.Copy(this.keys, 0, array, arrayIndex, this.size)
           finally
-            exitWriteLockIf &this.locker entered
+            exitWriteLockIf &this.Locker entered
 
         member x.IndexOf(key:'K) = this.IndexOfKey(key)
         member x.Insert(index, value) = raise (NotSupportedException("Keys collection is read-only"))
@@ -585,10 +585,10 @@ type SortedMap<'K,'V>
         member x.CopyTo(array, arrayIndex) =
           let mutable entered = false
           try
-            entered <- enterWriteLockIf &this.locker this.IsSynchronized
+            entered <- enterWriteLockIf &this.Locker this.IsSynchronized
             Array.Copy(this.values, 0, array, arrayIndex, this.size)
           finally
-            exitWriteLockIf &this.locker entered
+            exitWriteLockIf &this.Locker entered
           
         member x.IndexOf(value:'V) = this.IndexOfValue(value)
         member x.Insert(index, value) = raise (NotSupportedException("Values collection is read-only"))
@@ -705,7 +705,7 @@ type SortedMap<'K,'V>
           try
             try ()
             finally
-              entered <- enterWriteLockIf &this.locker this.isSynchronized
+              entered <- enterWriteLockIf &this.Locker this.isSynchronized
               if entered then Interlocked.Increment(&this.nextVersion) |> ignore
             // first/last optimization (only last here)
             if this.size = 0 then
@@ -729,7 +729,7 @@ type SortedMap<'K,'V>
           finally
             if not keepOrderVersion then increment(&this.orderVersion)
             Interlocked.Increment(&this.version) |> ignore
-            exitWriteLockIf &this.locker entered
+            exitWriteLockIf &this.Locker entered
             #if PRERELEASE
             if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
             #else
@@ -746,7 +746,7 @@ type SortedMap<'K,'V>
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size = 0 then
         this.Insert(0, key, value)
@@ -770,7 +770,7 @@ type SortedMap<'K,'V>
     finally
       if not keepOrderVersion then increment(&this.orderVersion)
       Interlocked.Increment(&this.version) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
       #if PRERELEASE
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -783,7 +783,7 @@ type SortedMap<'K,'V>
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size = 0 then
         this.Insert(0, key, value)
@@ -796,7 +796,7 @@ type SortedMap<'K,'V>
           raise (exn)
     finally
       Interlocked.Increment(&this.version) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
       #if PRERELEASE
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -822,7 +822,7 @@ type SortedMap<'K,'V>
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size = 0 then
         this.Insert(0, key, value)
@@ -837,7 +837,7 @@ type SortedMap<'K,'V>
     finally
       if not keepOrderVersion then increment(&this.orderVersion)
       Interlocked.Increment(&this.version) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
       #if PRERELEASE
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -890,7 +890,7 @@ type SortedMap<'K,'V>
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.isReadOnly then invalidOp "SortedMap is read-only"
       let index = this.IndexOfKeyUnchecked(key)
@@ -901,7 +901,7 @@ type SortedMap<'K,'V>
       index >= 0
     finally
       if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
       #if PRERELEASE
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -915,7 +915,7 @@ type SortedMap<'K,'V>
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size > 0 then
         result <- KeyValuePair(this.keys.[0], this.values.[0])
@@ -926,7 +926,7 @@ type SortedMap<'K,'V>
       else false
     finally
       if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
       #if PRERELEASE
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -940,7 +940,7 @@ type SortedMap<'K,'V>
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size > 0 then
         result <-
@@ -955,7 +955,7 @@ type SortedMap<'K,'V>
       else false
     finally
       if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
       #if PRERELEASE
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -970,7 +970,7 @@ type SortedMap<'K,'V>
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.isReadOnly then invalidOp "SortedMap is read-only"
       if this.size = 0 then false
@@ -1039,7 +1039,7 @@ type SortedMap<'K,'V>
     finally
       this.NotifyUpdateTcs()
       if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
       #if PRERELEASE
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -1231,14 +1231,14 @@ type SortedMap<'K,'V>
     if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then this.IsSynchronized <- true // NB: via property with locks
     let mutable entered = false
     try
-      entered <- enterWriteLockIf &this.locker this.isSynchronized
+      entered <- enterWriteLockIf &this.Locker this.isSynchronized
       // if source is already read-only, MNA will always return false
       if this.isReadOnly then new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
       else 
         let c = new CursorAsync<'K,'V,_>(this,this.GetEnumerator)
         c :> ICursor<'K,'V>
     finally
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
 
   // .NETs foreach optimization
   member this.GetEnumerator() =
@@ -1309,7 +1309,7 @@ type SortedMap<'K,'V>
       try
         try ()
         finally
-          entered <- enterWriteLockIf &this.locker this.isSynchronized
+          entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if array = null then raise (ArgumentNullException("array"))
         if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
         if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
@@ -1317,7 +1317,7 @@ type SortedMap<'K,'V>
           let kvp = KeyValuePair(this.GetKeyByIndexUnchecked(index), this.values.[index])
           array.SetValue(kvp, arrayIndex + index)
       finally
-        exitWriteLockIf &this.locker entered
+        exitWriteLockIf &this.Locker entered
     member this.Count = this.Count
     member this.IsSynchronized with get() =  this.isSynchronized
 
@@ -1337,7 +1337,7 @@ type SortedMap<'K,'V>
       try
         try ()
         finally
-          entered <- enterWriteLockIf &this.locker this.isSynchronized
+          entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if array = null then raise (ArgumentNullException("array"))
         if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
         if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
@@ -1345,7 +1345,7 @@ type SortedMap<'K,'V>
           let kvp = KeyValuePair(this.Keys.[index], this.Values.[index])
           array.[arrayIndex + index] <- kvp
       finally
-        exitWriteLockIf &this.locker entered
+        exitWriteLockIf &this.Locker entered
     member this.Add(key, value) = this.Add(key, value)
     member this.Add(kvp:KeyValuePair<'K,'V>) = this.Add(kvp.Key, kvp.Value)
     member this.Remove(key) = this.Remove(key)
@@ -1415,7 +1415,7 @@ type SortedMap<'K,'V>
       else
         let mutable entered = false
         try
-          entered <- enterWriteLockIf &this.locker this.isSynchronized
+          entered <- enterWriteLockIf &this.Locker this.isSynchronized
           match option with
           | AppendOption.ThrowOnOverlap ->
             if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
@@ -1484,7 +1484,7 @@ type SortedMap<'K,'V>
               else invalidOp "overlapping values are not equal" // TODO unit test
           | _ -> failwith "Unknown AppendOption"
         finally
-          exitWriteLockIf &this.locker entered
+          exitWriteLockIf &this.Locker entered
     
 //  interface ICanMapSeriesValues<'K,'V> with
 //    member x.Map(f:('V->'V2), fBatch:(ArraySegment<'V>->ArraySegment<'V2>) opt) : Series<'K,'V2> =

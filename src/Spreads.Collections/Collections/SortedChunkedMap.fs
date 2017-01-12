@@ -103,14 +103,14 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       with get() = 
         let mutable entered = false
         try
-          entered <- enterWriteLockIf &this.locker this.isSynchronized
+          entered <- enterWriteLockIf &this.Locker this.isSynchronized
           let mutable size' = 0L
           for okvp in outerMap do
             size' <- size' + okvp.Value.Count
           //size <- size'
           size'
         finally
-          exitWriteLockIf &this.locker entered
+          exitWriteLockIf &this.Locker entered
 
   member internal this.OuterMap with get() = outerMap
   member internal this.ChunkUpperLimit with get() = chunkUpperLimit
@@ -121,11 +121,11 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     and internal set v = 
       let mutable entered = false
       try
-        entered <- enterWriteLockIf &this.locker true
+        entered <- enterWriteLockIf &this.Locker true
         this.version <- v // NB setter only for deserializer
         this.nextVersion <- v
       finally
-        exitWriteLockIf &this.locker entered
+        exitWriteLockIf &this.Locker entered
 
   member this.IsEmpty
       with get() =
@@ -135,7 +135,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
   member this.Complete() =
     let mutable entered = false
     try
-      entered <- enterWriteLockIf &this.locker true
+      entered <- enterWriteLockIf &this.Locker true
       if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if not this.isReadOnly then 
           this.isReadOnly <- true
@@ -144,7 +144,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
           this.NotifyUpdateTcs()
     finally
       Interlocked.Increment(&this.version) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
 
   override this.IsReadOnly with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.isReadOnly)
   override this.IsIndexed with get() = false
@@ -203,7 +203,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       try
         try ()
         finally
-          entered <- enterWriteLockIf &this.locker this.isSynchronized
+          entered <- enterWriteLockIf &this.Locker this.isSynchronized
           if entered then Interlocked.Increment(&this.nextVersion) |> ignore
             
         if chunkUpperLimit = 0 then // deterministic hash
@@ -269,7 +269,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
               this.NotifyUpdateTcs()
       finally
         Interlocked.Increment(&this.version) |> ignore
-        exitWriteLockIf &this.locker entered
+        exitWriteLockIf &this.Locker entered
         #if PRERELEASE
         if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
         #else
@@ -309,10 +309,10 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
   member this.Flush() =
     let mutable entered = false
     try
-      entered <- enterWriteLockIf &this.locker true
+      entered <- enterWriteLockIf &this.Locker true
       this.FlushUnchecked()
     finally
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
 
   member this.Dispose(disposing) =
     this.Flush()
@@ -324,7 +324,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then this.IsSynchronized <- true // NB: via property with locks
     let mutable entered = false
     try
-      entered <- enterWriteLockIf &this.locker this.isSynchronized
+      entered <- enterWriteLockIf &this.Locker this.isSynchronized
       // if source is already read-only, MNA will always return false
       if this.isReadOnly then new SortedChunkedMapGenericCursor<_,_,_>(this) :> ICursor<'K,'V>
       else
@@ -332,7 +332,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
 //        let c = new SortedChunkedMapGenericCursorAsync<_,_,_>(this)
 //        c :> ICursor<'K,'V>
     finally
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
 
   // .NETs foreach optimization
   member this.GetEnumerator() =
@@ -778,12 +778,12 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       this.AddUnchecked(key, value)
     finally
       Interlocked.Increment(&this.version) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
       #if PRERELEASE
       Trace.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
@@ -798,7 +798,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       
       let c =
@@ -811,7 +811,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
         raise (exn)
     finally
       Interlocked.Increment(&this.version) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
       #if PRERELEASE
       Trace.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
@@ -825,7 +825,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       
       let c = 
@@ -838,7 +838,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
         raise (exn)
     finally
       Interlocked.Increment(&this.version) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
       #if PRERELEASE
       Trace.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
@@ -894,7 +894,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       removed <- this.RemoveUnchecked(key)
       removed
@@ -902,7 +902,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       this.NotifyUpdateTcs()
       if removed then Interlocked.Increment(&this.version) |> ignore
       else Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
       #if PRERELEASE
       Trace.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
@@ -917,7 +917,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       
       result <- this.FirstUnsafe
@@ -927,7 +927,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       this.NotifyUpdateTcs()
       if removed then Interlocked.Increment(&this.version) |> ignore
       else Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
       #if PRERELEASE
       Trace.Assert(outerMap.Version = this.version) 
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
@@ -942,7 +942,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       
       result <- this.LastUnsafe
@@ -952,7 +952,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       this.NotifyUpdateTcs()
       if removed then Interlocked.Increment(&this.version) |> ignore
       else Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
       #if PRERELEASE
       Trace.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
@@ -967,7 +967,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
     try
       try ()
       finally
-        entered <- enterWriteLockIf &this.locker this.isSynchronized
+        entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       
       let version = outerMap.Version
@@ -1044,7 +1044,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       this.NotifyUpdateTcs()
       if removed then Interlocked.Increment(&this.version) |> ignore 
       else Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
       #if PRERELEASE
       Trace.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
@@ -1082,7 +1082,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       try
         try ()
         finally
-          entered <- enterWriteLockIf &this.locker this.isSynchronized
+          entered <- enterWriteLockIf &this.Locker this.isSynchronized
           if entered then Interlocked.Increment(&this.nextVersion) |> ignore
 
         match option with
@@ -1162,7 +1162,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IOrderedMap<'
       finally
         Interlocked.Increment(&this.version) |> ignore
         this.FlushUnchecked()
-        exitWriteLockIf &this.locker entered
+        exitWriteLockIf &this.Locker entered
         #if PRERELEASE
         Trace.Assert(outerMap.Version = this.version)
         if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
@@ -1575,12 +1575,12 @@ and
     member this.Clone() =
       let mutable entered = false
       try
-        entered <- enterWriteLockIf &this.source.locker this.source.isSynchronized
+        entered <- enterWriteLockIf &this.source.Locker this.source.isSynchronized
         let clone = new SortedChunkedMapGenericCursor<_,_,_>(this.source)
         clone.MoveAt(this.CurrentKey, Lookup.EQ) |> ignore
         clone
       finally
-        exitWriteLockIf &this.source.locker entered  
+        exitWriteLockIf &this.source.Locker entered  
       
     member this.Reset() = 
       if this.HasValidInner then this.innerCursor.Dispose()
@@ -1637,14 +1637,14 @@ type SortedChunkedMap<'K,'V>
     //if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then this.IsSynchronized <- true // NB: via property with locks
     let mutable entered = false
     try
-      entered <- enterWriteLockIf &this.locker this.isSynchronized
+      entered <- enterWriteLockIf &this.Locker this.isSynchronized
       // if source is already read-only, MNA will always return false
       if this.isReadOnly then new SortedChunkedMapCursor<_,_>(this) :> ICursor<'K,'V>
       else
         let c = new CursorAsync<_,_,_>(this,this.GetEnumerator)
         c :> ICursor<'K,'V>
     finally
-      exitWriteLockIf &this.locker entered
+      exitWriteLockIf &this.Locker entered
 
   // .NETs foreach optimization
   member this.GetEnumerator() =
@@ -1776,7 +1776,7 @@ and
             else
               let mutable entered = false
               try
-                entered <- enterWriteLockIf &this.source.locker this.source.isSynchronized
+                entered <- enterWriteLockIf &this.source.Locker this.source.isSynchronized
                 if this.HasValidInner && newInner.MoveNext() then 
                   doSwitchInner <- true
                   true
@@ -1794,7 +1794,7 @@ and
                     outerMoved <- false
                     false
               finally
-                exitWriteLockIf &this.source.locker entered
+                exitWriteLockIf &this.source.Locker entered
           with
           | :? OutOfOrderKeyException<'K> as ooex ->
              raise (new OutOfOrderKeyException<'K>((if this.isBatch then this.outerCursor.CurrentValue.Last.Key else this.innerCursor.CurrentKey), "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
@@ -1888,7 +1888,7 @@ and
             else
               let mutable entered = false
               try
-                entered <- enterWriteLockIf &this.source.locker this.source.isSynchronized
+                entered <- enterWriteLockIf &this.source.Locker this.source.isSynchronized
                 if this.HasValidInner && newInner.MovePrevious() then 
                   doSwitchInner <- true
                   true
@@ -1904,7 +1904,7 @@ and
                     outerMoved <- false
                     false
               finally
-                exitWriteLockIf &this.source.locker entered
+                exitWriteLockIf &this.source.Locker entered
           with
           | :? OutOfOrderKeyException<'K> as ooex ->
              raise (new OutOfOrderKeyException<'K>((if this.isBatch then this.outerCursor.CurrentValue.Last.Key else this.innerCursor.CurrentKey), "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
@@ -1994,7 +1994,7 @@ and
         /////////// Start read-locked code /////////////
           let mutable entered = false
           try
-            entered <- enterWriteLockIf &this.source.locker this.source.isSynchronized
+            entered <- enterWriteLockIf &this.source.Locker this.source.isSynchronized
             newInner <- this.innerCursor
             let res =
               if this.source.ChunkUpperLimit = 0 then
@@ -2054,7 +2054,7 @@ and
                     false
                 | _ -> false // LookupDirection.EQ
           finally
-            exitWriteLockIf &this.source.locker entered
+            exitWriteLockIf &this.source.Locker entered
       /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source.nextVersion)
@@ -2069,7 +2069,7 @@ and
     member this.Clone() =
       let mutable entered = false
       try
-        entered <- enterWriteLockIf &this.source.locker this.source.isSynchronized
+        entered <- enterWriteLockIf &this.source.Locker this.source.isSynchronized
         let mutable clone = this
         clone.source <- this.source
         clone.outerCursor <- this.outerCursor.Clone()
@@ -2077,7 +2077,7 @@ and
         clone.isBatch <- this.innerCursor.isBatch
         clone
       finally
-        exitWriteLockIf &this.source.locker entered
+        exitWriteLockIf &this.source.Locker entered
       
     member this.Reset() = 
       if this.HasValidInner then this.innerCursor.Dispose()

@@ -43,59 +43,17 @@ type internal ICanMapSeriesValues<'K,'V> =
 
 and
   [<AllowNullLiteral>]
-  Series internal() =
-#if NET451
-    // NB this is ugly, but rewriting the whole project structure is uglier // TODO "proper" methods DI
-//    static do
-//      let moduleInfo = 
-//        typeof<Series>.GetAssembly().GetType("Spreads.Initializer")
-//      //let ty = typeof<BaseSeries>
-//      let mi = moduleInfo.GetMethod("init", (Reflection.BindingFlags.Static ||| Reflection.BindingFlags.NonPublic) )
-//      mi.Invoke(null, [||]) |> ignore
-#else
-//    static do
-//      typeof<Series>.GetAssembly().InvokeMethod("Spreads.Initializer", "init") 
-#endif
-  do ()
-
-and
-  [<AllowNullLiteral>]
   [<AbstractClassAttribute>]
   //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-  Series<'K,'V> internal(cursorFactory:(unit -> ICursor<'K,'V>) opt) as this =
-    inherit Series()
+  Series<'K,'V> internal(cursorFactory:(Func<ICursor<'K,'V>>)) as this =
+    inherit BaseSeries<'K,'V>(cursorFactory)
     
-    let c = Lazy<_>(this.GetCursor) //new ThreadLocal<_>(Func<_>(this.GetCursor), true) 
-
-    [<DefaultValueAttribute>] 
-    val mutable locker : int
-    [<DefaultValueAttribute>] 
-    val mutable internal updateTcs : TaskCompletionSource<int64>
-
-    new(iseries:ISeries<'K,'V>) = Series<_,_>(Present(iseries.GetCursor))
-    internal new() = Series<_,_>(Missing)
-
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-    member internal this.NotifyUpdateTcs() =
-      let updateTcs = Volatile.Read(&this.updateTcs)
-      if updateTcs <> null then
-        if not <| updateTcs.TrySetResult(0L) then this.NotifyUpdateTcs()
-
-    /// Main method to override
-    abstract GetCursor : unit -> ICursor<'K,'V>
-    override this.GetCursor() = 
-      if cursorFactory.IsPresent then cursorFactory.Present()
-      else raise (new NotImplementedException("Series.GetCursor is not implemented"))
-
-    abstract IsIndexed : bool with get
-    abstract IsReadOnly: bool with get
-    override this.IsIndexed with get() = lock(c) (fun _ -> c.Value.Source.IsIndexed)
-    override this.IsReadOnly = lock(c) (fun _ -> c.Value.Source.IsReadOnly)
+    new(iseries:ISeries<'K,'V>) = Series<_,_>(iseries.GetCursor)
+    internal new() = Series<_,_>()
 
     // TODO (!) IObservable needs much more love and adherence to Rx contracts, see #40
-    abstract Subscribe: observer:IObserver<KVP<'K,'V>> -> IDisposable
     override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
-      let entered = enterWriteLockIf &this.locker true
+      let entered = enterWriteLockIf &this.Locker true
       try
         //raise (NotImplementedException("TODO Rx. Subscribe must be implemented via a cursor."))
         match box observer with
@@ -128,80 +86,77 @@ and
               member x.Dispose() = cts.Cancel();cts.Dispose();
           }
       finally
-        exitWriteLockIf &this.locker true
+        exitWriteLockIf &this.Locker true
 
 
-    member internal this.SyncRoot with get() = c :> obj
+    member internal this.IsEmpty = lock(this.SyncRoot) (fun _ -> not (this.C.MoveFirst()))
 
-    member internal this.Comparer with get() = lock(c) (fun _ -> c.Value.Source.Comparer)
-    member internal this.IsEmpty = lock(c) (fun _ -> not (c.Value.MoveFirst()))
-
-    member internal this.First 
+    member internal this.First
       with get() = 
-        let entered = enterLockIf c true
+        let entered = enterLockIf this.SyncRoot true
         try
-          if c.Value.MoveFirst() then c.Value.Current else invalidOp "Series is empty"
+          if this.C.MoveFirst() then this.C.Current else invalidOp "Series is empty"
         finally
-          exitLockIf c entered
+          exitLockIf this.SyncRoot entered
 
     member internal this.Last 
       with get() =
-        let entered = enterLockIf c true
+        let entered = enterLockIf this.SyncRoot true
         try
-          if c.Value.MoveLast() then c.Value.Current else invalidOp "Series is empty"
+          if this.C.MoveLast() then this.C.Current else invalidOp "Series is empty"
         finally
-          exitLockIf c entered
+          exitLockIf this.SyncRoot entered
 
     member internal this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      let entered = enterLockIf c true
+      let entered = enterLockIf this.SyncRoot true
       try
-        if c.Value.MoveAt(k, direction) then
-          result <- c.Value.Current 
+        if this.C.MoveAt(k, direction) then
+          result <- this.C.Current 
           true
         else false
       finally
-        exitLockIf c entered
+        exitLockIf this.SyncRoot entered
 
     member internal this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      let entered = enterLockIf c true
+      let entered = enterLockIf this.SyncRoot true
       try
-        if c.Value.MoveFirst() then
-          res <- c.Value.Current
+        if this.C.MoveFirst() then
+          res <- this.C.Current
           true
         else false
       finally
-        exitLockIf c entered
+        exitLockIf this.SyncRoot entered
 
     member internal this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) =
-      let entered = enterLockIf c true
+      let entered = enterLockIf this.SyncRoot true
       try
-        if c.Value.MoveLast() then
-          res <- c.Value.Current
+        if this.C.MoveLast() then
+          res <- this.C.Current
           true
         else false
       finally
-        exitLockIf c entered
+        exitLockIf this.SyncRoot entered
 
     member internal this.TryGetValue(k, [<Out>] value:byref<'V>) =
-      let entered = enterLockIf c true
+      let entered = enterLockIf this.SyncRoot true
       try
-        if c.Value.IsContinuous then
-          c.Value.TryGetValue(k, &value)
+        if this.C.IsContinuous then
+          this.C.TryGetValue(k, &value)
         else
-          let ok = c.Value.MoveAt(k, Lookup.EQ)
-          if ok then value <- c.Value.CurrentValue else value <- Unchecked.defaultof<'V>
+          let ok = this.C.MoveAt(k, Lookup.EQ)
+          if ok then value <- this.C.CurrentValue else value <- Unchecked.defaultof<'V>
           ok
       finally
-        exitLockIf c entered
+        exitLockIf this.SyncRoot entered
 
     member internal this.Item 
       with get k =
-        let entered = enterLockIf c true
+        let entered = enterLockIf this.SyncRoot true
         try
-          if c.Value.MoveAt(k, Lookup.EQ) then c.Value.CurrentValue
+          if this.C.MoveAt(k, Lookup.EQ) then this.C.CurrentValue
           else raise (KeyNotFoundException())
         finally
-        exitLockIf c entered
+        exitLockIf this.SyncRoot entered
 
     member internal this.Keys 
       with get() =
@@ -220,8 +175,6 @@ and
           while c.MoveNext() do
             yield c.CurrentValue
         }
-
-    override x.Finalize() = if c.IsValueCreated then c.Value.Dispose()
 
     interface IEnumerable<KeyValuePair<'K, 'V>> with
       member this.GetEnumerator() = this.GetCursor() :> IEnumerator<KeyValuePair<'K, 'V>>

@@ -195,6 +195,7 @@
     <Compile Include="Serialization\StringBinaryConverter.cs" />
     <Compile Include="Serialization\TypeHelper.cs" />
     <Compile Include="Serialization\VariantSerializer.cs" />
+    <Compile Include="BaseSeries.cs" />
     <Compile Include="Threading\Tasks\Channels\Channel.AsyncEnumerator.cs" />
     <Compile Include="Threading\Tasks\Channels\Channel.BoundedChannel.cs" />
     <Compile Include="Threading\Tasks\Channels\Channel.CaseBuilder.cs" />
@@ -223,6 +224,7 @@
     <Compile Include="Utils\EmptyArray.cs" />
     <Compile Include="Utils\ILSub.cs" />
     <Compile Include="Utils\IntUtil.cs" />
+    <Compile Include="Utils\LockUtils.cs" />
     <Compile Include="Utils\SpanBinarySearch.cs" />
     <Compile Include="Utils\StringExtensions.cs" />
     <Compile Include="Utils\TaskEx.cs" />
