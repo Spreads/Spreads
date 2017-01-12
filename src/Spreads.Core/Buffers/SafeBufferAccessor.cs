@@ -2,15 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace Spreads.Serialization
-{
+namespace Spreads.Buffers {
+
     internal sealed class SafeBufferAccessor : UnmanagedMemoryAccessor {
+
         [SecurityCritical]
         internal SafeBufferAccessor(SafeBuffer buffer, long offset, long length, bool readOnly) {
             Debug.Assert(buffer != null, "buffer is null");

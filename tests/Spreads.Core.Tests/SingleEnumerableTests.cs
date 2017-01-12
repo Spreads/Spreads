@@ -2,35 +2,29 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+using NUnit.Framework;
+using Spreads.Collections;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using NUnit.Framework;
-using System.Runtime.InteropServices;
-
 
 namespace Spreads.Core.Tests {
 
     public static class SingleEumerable<T> {
+
         public static IEnumerable<T> Get(T item) {
             yield return item;
         }
     }
 
-    public struct SingleValue<T>
-    {
+    public struct SingleValue<T> {
         public T Value { get; }
 
-        public SingleValue(T value)
-        {
+        public SingleValue(T value) {
             Value = value;
         }
     }
-
 
     public class SingleValueClass<T> {
         public T Value { get; }
@@ -39,7 +33,6 @@ namespace Spreads.Core.Tests {
             Value = value;
         }
     }
-
 
     [TestFixture]
     public class SingleEnumerableTests {
@@ -62,8 +55,7 @@ namespace Spreads.Core.Tests {
             var sw = new Stopwatch();
             sw.Start();
             long sum = 0;
-            for (var i = 0; i < 100000000; i++)
-            {
+            for (var i = 0; i < 100000000; i++) {
                 var str = new SingleValue<int>(i);
                 sum += str.Value;
             }
@@ -71,7 +63,6 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
-
 
         [Test, Ignore]
         public void DirectClassSum() {
@@ -88,10 +79,8 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void SingleEnumerableWithYieldForEachManyTimes()
-        {
-            for (int i = 0; i < 5; i++)
-            {
+        public void SingleEnumerableWithYieldForEachManyTimes() {
+            for (int i = 0; i < 5; i++) {
                 SingleEnumerableWithYieldForEach();
             }
         }
@@ -111,7 +100,6 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-
         [Test, Ignore]
         public void SingleEnumerableWithYieldLinq() {
             var sw = new Stopwatch();
@@ -125,12 +113,9 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-
         [Test, Ignore]
-        public void SingleSequenceStructForEachManyTimes()
-        {
-            for (int i = 0; i < 20; i++)
-            {
+        public void SingleSequenceStructForEachManyTimes() {
+            for (int i = 0; i < 20; i++) {
                 SingleSequenceStructForEach();
             }
         }
@@ -209,6 +194,5 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
-
     }
 }

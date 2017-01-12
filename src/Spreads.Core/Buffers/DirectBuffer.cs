@@ -2,18 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+using Spreads.Utils;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using Spreads.Utils;
 
 namespace Spreads.Buffers {
-
     // TODO for convenience, all methods should be public
     // but we must draw the line where we do bound checks on unsafe code and where we don't
     // we should not protect ourselves from shooting in the leg just by hiding the guns
@@ -23,7 +20,6 @@ namespace Spreads.Buffers {
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct DirectBuffer : IDirectBuffer {
-
         private readonly long _length;
         internal readonly IntPtr _data;
 
@@ -39,8 +35,11 @@ namespace Spreads.Buffers {
             this._length = length;
         }
 
-        public DirectBuffer(long length, byte* data) : this(length, (IntPtr)(data)) {}
-        public DirectBuffer(long length, void* data) : this(length, (IntPtr)(data)) {}
+        public DirectBuffer(long length, byte* data) : this(length, (IntPtr)(data)) {
+        }
+
+        public DirectBuffer(long length, void* data) : this(length, (IntPtr)(data)) {
+        }
 
         //SafeBuffer
         public DirectBuffer(long length, SafeBuffer buffer) : this(length, PtrFromSafeBuffer(buffer)) {
@@ -51,7 +50,6 @@ namespace Spreads.Buffers {
             buffer.AcquirePointer(ref bPtr);
             return (IntPtr)bPtr;
         }
-
 
         /// <summary>
         /// Copy this buffer to a pointer
@@ -80,11 +78,11 @@ namespace Spreads.Buffers {
             return new FixedBuffer(destination);
         }
 
-
         /// <summary>
         /// Capacity of the underlying buffer
         /// </summary>
         public long Length => _length;
+
         public IntPtr Data => _data;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -156,7 +154,6 @@ namespace Spreads.Buffers {
             return *((byte*)new IntPtr(_data.ToInt64() + index));
         }
 
-
         /// <summary>
         /// Writes a <see cref="byte"/> value to a given index.
         /// </summary>
@@ -180,7 +177,6 @@ namespace Spreads.Buffers {
                 *((byte*)new IntPtr(_data.ToInt64() + index)) = value;
             }
         }
-
 
         /// <summary>
         /// Gets the <see cref="short"/> value at a given index.
@@ -413,7 +409,6 @@ namespace Spreads.Buffers {
             *(double*)(new IntPtr(_data.ToInt64() + index)) = value;
         }
 
-
         /// <summary>
         /// Copies a range of bytes from the underlying into a supplied byte array.
         /// </summary>
@@ -429,10 +424,9 @@ namespace Spreads.Buffers {
             return len;
         }
 
-
         public int ReadAllBytes(byte[] destination) {
             if (_length > int.MaxValue) {
-                // TODO (low) .NET already supports arrays larger than 2 Gb, 
+                // TODO (low) .NET already supports arrays larger than 2 Gb,
                 // but Marshal.Copy doesn't accept long as a parameter
                 // Use memcpy and fixed() over an empty large array
                 throw new NotImplementedException("Buffer length is larger than the maximum size of a byte array.");
@@ -476,13 +470,12 @@ namespace Spreads.Buffers {
         /// <param name="index"></param>
         /// <param name="src"></param>
         /// <param name="srcOffset"></param>
-        /// <param name="len"></param>
+        /// <param name="length"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteBytes(long index, DirectBuffer src, long srcOffset, long length) {
             Assert(index, length);
             if (src._length < srcOffset + length) throw new ArgumentOutOfRangeException();
 
-            var pos = 0;
             var source = new IntPtr(src.Data.ToInt64() + srcOffset);
             var destination = _data.ToInt64() + index;
             ByteUtil.MemoryCopy((byte*)destination, (byte*)source, checked((uint)length));
@@ -506,7 +499,6 @@ namespace Spreads.Buffers {
             *(UUID*)(new IntPtr(_data.ToInt64() + index)) = value;
         }
 
-
         public int ReadAsciiDigit(long index) {
             Assert(index, 1);
             return (*((byte*)new IntPtr(_data.ToInt64() + index))) - '0';
@@ -524,13 +516,11 @@ namespace Spreads.Buffers {
             }
         }
 
-
         // TODO add Ascii dates/ints/etc, could take fast implementation from Jil
         // See TAQParse example for ulong and times manual parsing
 
-
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <returns></returns>
         public SafeBuffer CreateSafeBuffer() {
@@ -538,26 +528,22 @@ namespace Spreads.Buffers {
             return new SafeDirectBuffer(ref buffer);
         }
 
-
         internal sealed class SafeDirectBuffer : SafeBuffer {
-            private readonly DirectBuffer _directBuffer;
-
             public SafeDirectBuffer(ref DirectBuffer directBuffer) : base(false) {
-                _directBuffer = directBuffer;
-                base.SetHandle(_directBuffer._data);
-                base.Initialize((uint)_directBuffer._length);
+                var directBuffer1 = directBuffer;
+                base.SetHandle(directBuffer1._data);
+                base.Initialize((uint)directBuffer1._length);
             }
 
             protected override bool ReleaseHandle() {
                 return true;
             }
         }
-
-
     }
 
     // TODO implement binary reader over a direct buffer
     internal class DirectBinaryReader : BinaryReader {
+
         public DirectBinaryReader(Stream input) : base(input) {
         }
 

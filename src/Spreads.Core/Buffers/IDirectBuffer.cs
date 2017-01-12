@@ -2,15 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Runtime.InteropServices;
 
-namespace Spreads.Buffers
-{
+namespace Spreads.Buffers {
 
-    public interface IDirectBuffer
-    {
+    public interface IDirectBuffer {
+
         /// <summary>
         /// Capacity of the underlying buffer
         /// </summary>
@@ -197,13 +195,15 @@ namespace Spreads.Buffers
         int WriteBytes(long index, byte[] src, int offset, int len);
 
         UUID ReadUUID(long index);
+
         void WriteUUID(long index, UUID value);
 
         int ReadAsciiDigit(long index);
+
         void WriteAsciiDigit(long index, int value);
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <returns></returns>
         SafeBuffer CreateSafeBuffer();
@@ -229,18 +229,31 @@ namespace Spreads.Buffers
         IDirectBuffer Move(byte[] destination, int srcOffset, int destOffset, int length);
 
         int InterlockedIncrementInt32(long index);
+
         int InterlockedDecrementInt32(long index);
+
         int InterlockedAddInt32(long index, int value);
+
         int InterlockedReadInt32(long index);
+
         int InterlockedCompareExchangeInt32(long index, int value, int comparand);
+
         long InterlockedIncrementInt64(long index);
+
         long InterlockedDecrementInt64(long index);
+
         long InterlockedAddInt64(long index, long value);
+
         long InterlockedReadInt64(long index);
+
         long InterlockedCompareExchangeInt64(long index, long value, long comparand);
+
         int VolatileReadInt32(long index);
+
         void VolatileWriteInt32(long index, int value);
+
         long VolatileReadInt64(long index);
+
         void VolatileWriteInt64(long index, long value);
     }
 }

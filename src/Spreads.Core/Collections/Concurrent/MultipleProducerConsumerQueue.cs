@@ -29,22 +29,22 @@ using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace Spreads.Collections.Concurrent
-{
-    
-
+namespace Spreads.Collections.Concurrent {
 
     [StructLayout(LayoutKind.Explicit, Size = 192, CharSet = CharSet.Ansi)]
     public class MultipleProducerConsumerQueue {
+
         [FieldOffset(0)]
         private readonly Cell[] _buffer;
+
         [FieldOffset(8)]
         private readonly int _bufferMask;
+
         [FieldOffset(64)]
         private int _enqueuePos;
+
         [FieldOffset(128)]
         private int _dequeuePos;
-
 
         public MultipleProducerConsumerQueue(int bufferSize) {
             if (bufferSize < 2) throw new ArgumentException($"{nameof(bufferSize)} should be greater than 2");
@@ -101,8 +101,10 @@ namespace Spreads.Collections.Concurrent
 
         [StructLayout(LayoutKind.Explicit, Size = 16, CharSet = CharSet.Ansi)]
         private struct Cell {
+
             [FieldOffset(0)]
             public int Sequence;
+
             [FieldOffset(8)]
             public object Element;
 

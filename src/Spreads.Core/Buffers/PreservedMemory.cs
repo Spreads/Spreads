@@ -2,15 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Spreads.Buffers {
-
-    // NB this pattern will soon be added to CoreFxLab upstream, but for now 
+    // NB this pattern will soon be added to CoreFxLab upstream, but for now
     // imitate the API with *Pr*eserved instead of *R*eserved names.
     // We achieve safe disposal by always passing ownership of a memory segment
     // and never having two places working with the same segment.
@@ -31,6 +29,7 @@ namespace Spreads.Buffers {
     }
 
     public static class PreservedMemoryExtension {
+
         public static PreservedMemory<T> Preserve<T>(this Memory<T> memory) {
             return new PreservedMemory<T>(memory);
         }
@@ -76,6 +75,4 @@ namespace Spreads.Buffers {
             }
         }
     }
-
-
 }

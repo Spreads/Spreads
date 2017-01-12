@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 /*
 xxHashSharp - A pure C# implementation of xxhash
 Copyright (C) 2016 Victor Baybekov
@@ -34,11 +33,12 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+using Spreads.Utils;
 using System;
 using System.Runtime.CompilerServices;
-using Spreads.Utils;
 
 namespace Spreads.Algorithms.Hash {
+
     public static unsafe class XxHash {
 
         public struct XxHashState32 {
@@ -64,6 +64,7 @@ namespace Spreads.Algorithms.Hash {
 
         // ReSharper disable InconsistentNaming
         private const uint PRIME32_1 = 2654435761U;
+
         private const uint PRIME32_2 = 2246822519U;
         private const uint PRIME32_3 = 3266489917U;
         private const uint PRIME32_4 = 668265263U;
@@ -121,18 +122,15 @@ namespace Spreads.Algorithms.Hash {
             return h32;
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool Update(ref XxHashState32 state, IntPtr input, int len) {
             int index = 0;
 
             state.TotalLen += (uint)len;
 
-            if (state.Memsize + len < 16)
-            {
-                fixed (byte* ptr = state.Memory)
-                {
-                    ByteUtil.MemoryCopy(ptr + state.Memsize, (byte*) input, (uint) len);
+            if (state.Memsize + len < 16) {
+                fixed (byte* ptr = state.Memory) {
+                    ByteUtil.MemoryCopy(ptr + state.Memsize, (byte*)input, (uint)len);
                 }
                 //Array.Copy(input, 0, state.Memory, state.Memsize, len);
                 state.Memsize += (uint)len;
@@ -140,14 +138,12 @@ namespace Spreads.Algorithms.Hash {
                 return true;
             }
 
-            if (state.Memsize > 0)
-            {
+            if (state.Memsize > 0) {
                 fixed (byte* ptr = state.Memory) {
                     ByteUtil.MemoryCopy(ptr + state.Memsize, (byte*)input, (uint)(16 - state.Memsize));
                 }
                 //Array.Copy(input, 0, state.Memory, state.Memsize, 16 - state.Memsize);
-                fixed (byte* ptr = state.Memory)
-                {
+                fixed (byte* ptr = state.Memory) {
                     state.V1 = CalcSubHash(state.V1, (IntPtr)ptr, index);
                     index += 4;
                     state.V2 = CalcSubHash(state.V2, (IntPtr)ptr, index);
@@ -157,7 +153,7 @@ namespace Spreads.Algorithms.Hash {
                     state.V4 = CalcSubHash(state.V4, (IntPtr)ptr, index);
                     //index += 4;
                 }
-                
+
                 index = 0;
                 state.Memsize = 0;
             }
@@ -243,10 +239,9 @@ namespace Spreads.Algorithms.Hash {
             return (value << count) | (value >> (32 - count));
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint Xxh32(this Algo.HashProvider provider, IntPtr data, int len, uint seed = 0) {
-            return XxHash.CalculateHash(data, len, seed);
+            return CalculateHash(data, len, seed);
         }
     }
 }

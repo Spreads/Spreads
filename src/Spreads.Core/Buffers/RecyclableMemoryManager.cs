@@ -2,21 +2,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Buffers;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Buffers {
 
-
     /// <summary>
-    /// A helper class that holds a RecyclableMemoryStreamManager singletone 
+    /// A helper class that holds a RecyclableMemoryStreamManager singletone
     /// and methods to get temporary buffers.
     /// </summary>
     public class RecyclableMemoryManager {
         public const int StaticBufferSize = 16 * 1024;
+
         [ThreadStatic]
         private static byte[] _threadStaticBuffer;
 
@@ -36,6 +34,8 @@ namespace Spreads.Buffers {
         }
 
         public static RecyclableMemoryStreamManager MemoryStreams = new RecyclableMemoryStreamManager();
-        private RecyclableMemoryManager() { }
+
+        private RecyclableMemoryManager() {
+        }
     }
 }

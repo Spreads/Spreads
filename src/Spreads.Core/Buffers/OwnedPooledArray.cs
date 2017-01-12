@@ -2,10 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
-using System.Buffers;
-using System.Diagnostics;
 using Spreads.Collections.Concurrent;
+using System.Buffers;
 
 namespace Spreads.Buffers {
 
@@ -22,12 +20,12 @@ namespace Spreads.Buffers {
             return owner.Array;
         }
 
-        private OwnedPooledArray(T[] array) : base(array, 0, array.Length) { }
-
+        private OwnedPooledArray(T[] array) : base(array, 0, array.Length) {
+        }
 
         protected override void Dispose(bool disposing) {
-            // NB this method is called after ensuring that refcount is zero but before 
-            // cleaning the fields 
+            // NB this method is called after ensuring that refcount is zero but before
+            // cleaning the fields
             BufferPool<T>.Return(Array);
             base.Dispose(disposing);
             Pool.TryEnqueue(this);
@@ -45,11 +43,9 @@ namespace Spreads.Buffers {
             base.OnReferenceCountChanged(newReferenceCount);
         }
 
-        public static OwnedMemory<T> Create(T[] array)
-        {
+        public static OwnedMemory<T> Create(T[] array) {
             object pooled;
-            if (Pool.TryDequeue(out pooled))
-            {
+            if (Pool.TryDequeue(out pooled)) {
                 var asOwnedPooledArray = (OwnedPooledArray<T>)pooled;
                 // ReSharper disable once PossibleNullReferenceException
                 asOwnedPooledArray.Initialize(array, 0, array.Length);

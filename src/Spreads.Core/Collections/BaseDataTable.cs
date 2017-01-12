@@ -11,6 +11,7 @@ using Spreads.DataTypes;
 
 namespace Spreads.Collections
 {
+    // TODO this is draft of draft...
 
     // base class to represent tabular data, inclusing series (single column)
     // BaseDataTable is Variant array of 

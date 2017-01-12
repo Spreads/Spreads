@@ -2,36 +2,37 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using Spreads.Algorithms.Hash;
 
 namespace Spreads.Algorithms {
+
+    // TODO this structure is probably bad idea, namespace+types are simpler
+
     public static class Algo {
         public static MathProvider Math = MathProvider.Instance;
+
         public class MathProvider {
             internal static MathProvider Instance = new MathProvider();
-            private MathProvider() { }
+
+            private MathProvider() {
+            }
         }
 
-
         public static HashProvider Hash = HashProvider.Instance;
+
         public class HashProvider {
             internal static HashProvider Instance = new HashProvider();
-            private HashProvider() { }
+
+            private HashProvider() {
+            }
         }
     }
 
-
     // we could use extension methods to extend Algo.Math, it is quite convenient at first glance
     // extension methods are normal static methods and could be inlined by JIT
-    // 
+    //
     internal static class SimpleMath {
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int AddTwoInts(this Algo.MathProvider provider, int first, int second) {
             return first + second;
@@ -40,7 +41,6 @@ namespace Spreads.Algorithms {
         public static void TestMe() {
             System.Math.Abs(-1);
             Algo.Math.AddTwoInts(42, 3);
-
         }
     }
 }

@@ -2,13 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Spreads {
+
     /// <summary>
     /// Base unit of a period
     /// </summary>
@@ -20,15 +17,15 @@ namespace Spreads {
         Hour = 4,          //      36 000 000 000 ticks
         Day = 5,           //     864 000 000 000 ticks
         Month = 6,         //                  Variable
+
                            /// <summary>
                            /// Static or constant
                            /// </summary>
         Eternity = 7,      //                  Infinity
-
     }
 
-
     public enum AppendOption {
+
         /// <summary>
         /// Throw if new values overlap with existing values.
         /// </summary>
@@ -51,19 +48,17 @@ namespace Spreads {
         DropOldOverlap = 3,
 
         /// <summary>
-        /// Checks if all keys are equal in the overlap region and updates existing values with new ones. 
+        /// Checks if all keys are equal in the overlap region and updates existing values with new ones.
         /// Throw if there are new keys in the overlap region or holes in new series.
         /// </summary>
         [Obsolete("TODO Not implemented in SM/SCM")]
         UpdateValuesIfAllOverlapKeysMatch = 4,
 
         /// <summary>
-        /// Ignores equal overlap and updates the last value only. 
+        /// Ignores equal overlap and updates the last value only.
         /// Throws if other values are different or keys do not match in the overlap region.
         /// </summary>
         [Obsolete("TODO Not implemented in SM/SCM")]
         UpdateLastValueOnly = 5
     }
-
-
 }

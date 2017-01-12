@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System.Buffers;
 using System.Runtime.CompilerServices;
 
@@ -36,9 +35,7 @@ namespace Spreads.Buffers {
             var array = Rent(minLength, requireExact);
             return OwnedPooledArray<T>.Create(array);
         }
-
     }
-
 
     internal static class BufferPool {
         private static readonly object SyncRoot = new object();
@@ -46,7 +43,7 @@ namespace Spreads.Buffers {
         private static OwnedMemory<byte> _sharedBuffer;
         private static int _sharedBufferOffset;
 
-        // NB 
+        // NB
 
         /// <summary>
         /// Return a contiguous segment of memory backed by a pooled array
@@ -54,7 +51,6 @@ namespace Spreads.Buffers {
         /// <param name="length"></param>
         /// <returns></returns>
         public static PreservedMemory<byte> PreserveMemory(int length) {
-
             const int smallTreshhold = 16;
             // max pooled array size
             const int sharedBufferSize = 8 * 32; // NB must ensure that the upcoming safe disposal machinery won't allocate and we never exceed the initial bitmask capacity if every segment is used once
@@ -83,6 +79,4 @@ namespace Spreads.Buffers {
             return memory2.Preserve();
         }
     }
-
-
 }

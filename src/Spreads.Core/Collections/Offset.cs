@@ -2,15 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections {
+
     /// <summary>
     /// Alias for int64 with explicit conversions to it.
     /// </summary>
     public struct Offset {
         private readonly long _value;
+
         private Offset(long value) {
             _value = value;
         }

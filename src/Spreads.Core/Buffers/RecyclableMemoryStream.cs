@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 // ---------------------------------------------------------------------
 // Copyright (c) 2015 Microsoft
 //
@@ -28,7 +27,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Diagnostics;
 
 namespace Spreads.Buffers {
 
@@ -48,20 +46,20 @@ namespace Spreads.Buffers {
     /// This implementation only copies the bytes when GetBuffer is called.
     /// 4. Memory fragmentation - By using homogeneous buffer sizes, it ensures that blocks of memory
     /// can be easily reused.
-    /// 
+    ///
     /// The stream is implemented on top of a series of uniformly-sized blocks. As the stream's length grows,
     /// additional blocks are retrieved from the memory manager. It is these blocks that are pooled, not the stream
     /// object itself.
-    /// 
-    /// The biggest wrinkle in this implementation is when GetBuffer() is called. This requires a single 
-    /// contiguous buffer. If only a single block is in use, then that block is returned. If multiple blocks 
-    /// are in use, we retrieve a larger buffer from the memory manager. These large buffers are also pooled, 
+    ///
+    /// The biggest wrinkle in this implementation is when GetBuffer() is called. This requires a single
+    /// contiguous buffer. If only a single block is in use, then that block is returned. If multiple blocks
+    /// are in use, we retrieve a larger buffer from the memory manager. These large buffers are also pooled,
     /// split by size--they are multiples of a chunk size (1 MB by default).
-    /// 
-    /// Once a large buffer is assigned to the stream the blocks are NEVER again used for this stream. All operations take place on the 
-    /// large buffer. The large buffer can be replaced by a larger buffer from the pool as needed. All blocks and large buffers 
+    ///
+    /// Once a large buffer is assigned to the stream the blocks are NEVER again used for this stream. All operations take place on the
+    /// large buffer. The large buffer can be replaced by a larger buffer from the pool as needed. All blocks and large buffers
     /// are maintained in the stream until the stream is disposed (unless AggressiveBufferReturn is enabled in the stream manager).
-    /// 
+    ///
     /// </remarks>
     public sealed class RecyclableMemoryStream : MemoryStream {
         private const long MaxStreamLength = Int32.MaxValue;
@@ -90,6 +88,7 @@ namespace Spreads.Buffers {
         private List<byte[]> dirtyBuffers;
 
         private readonly Guid id;
+
         /// <summary>
         /// Unique identifier for this stream across it's entire lifetime
         /// </summary>
@@ -97,6 +96,7 @@ namespace Spreads.Buffers {
         internal Guid Id { get { this.CheckDisposed(); return this.id; } }
 
         private readonly string tag;
+
         /// <summary>
         /// A temporary identifier for the current usage of this stream.
         /// </summary>
@@ -142,6 +142,7 @@ namespace Spreads.Buffers {
         private readonly byte[] byteBuffer = new byte[1];
 
         #region Constructors
+
         /// <summary>
         /// Allocate a new RecyclableMemoryStream object.
         /// </summary>
@@ -202,9 +203,11 @@ namespace Spreads.Buffers {
             Events.Write.MemoryStreamCreated(this.id, this.tag, requestedSize);
             this.memoryManager.ReportStreamCreated();
         }
-        #endregion
+
+        #endregion Constructors
 
         #region Dispose and Finalize
+
         ~RecyclableMemoryStream() {
             this.Dispose(false);
         }
@@ -248,7 +251,7 @@ namespace Spreads.Buffers {
                     // If we're being finalized because of a shutdown, don't go any further.
                     // We have no idea what's already been cleaned up. Triggering events may cause
                     // a crash.
-                    base.Dispose(disposing);
+                    base.Dispose(false);
                     return;
                 }
 #endif
@@ -271,24 +274,29 @@ namespace Spreads.Buffers {
 
             base.Dispose(disposing);
         }
+
 #if NET451
+
         /// <summary>
         /// Equivalent to Dispose
         /// </summary>
         public override void Close() {
             this.Dispose(true);
         }
+
 #endif
-        #endregion
+
+        #endregion Dispose and Finalize
 
         #region MemoryStream overrides
+
         /// <summary>
         /// Gets or sets the capacity
         /// </summary>
         /// <remarks>Capacity is always in multiples of the memory manager's block size, unless
-        /// the large buffer is in use.  Capacity never decreases during a stream's lifetime. 
-        /// Explicitly setting the capacity to a lower value than the current value will have no effect. 
-        /// This is because the buffers are all pooled by chunks and there's little reason to 
+        /// the large buffer is in use.  Capacity never decreases during a stream's lifetime.
+        /// Explicitly setting the capacity to a lower value than the current value will have no effect.
+        /// This is because the buffers are all pooled by chunks and there's little reason to
         /// allow stream truncation.
         /// </remarks>
         /// <exception cref="ObjectDisposedException">Object has been disposed</exception>
@@ -389,6 +397,7 @@ namespace Spreads.Buffers {
         }
 
 #if NET451 // TODO netcore has TryGetBuffer
+
         /// <summary>
         /// Returns a single buffer containing the contents of the stream.
         /// The buffer may be longer than the stream length.
@@ -428,8 +437,9 @@ namespace Spreads.Buffers {
         }
 
 #endif
+
         /// <summary>
-        /// Returns a new array with a copy of the buffer's contents. You should almost certainly be using GetBuffer combined with the Length to 
+        /// Returns a new array with a copy of the buffer's contents. You should almost certainly be using GetBuffer combined with the Length to
         /// access the bytes in this stream. Calling ToArray will destroy the benefits of pooled buffers, but it is included
         /// for the sake of completeness.
         /// </summary>
@@ -603,7 +613,7 @@ namespace Spreads.Buffers {
             if (streamPosition == this.length) {
                 return -1;
             }
-            byte value = 0;
+            byte value;
             if (this.largeBuffer == null) {
                 var blockAndOffset = this.GetBlockAndRelativeOffset(streamPosition);
                 value = this.blocks[blockAndOffset.Block][blockAndOffset.Offset];
@@ -654,12 +664,15 @@ namespace Spreads.Buffers {
                 case SeekOrigin.Begin:
                     newPosition = (int)offset;
                     break;
+
                 case SeekOrigin.Current:
                     newPosition = (int)offset + this.position;
                     break;
+
                 case SeekOrigin.End:
                     newPosition = (int)offset + this.length;
                     break;
+
                 default:
                     throw new ArgumentException("Invalid seek origin", "loc");
             }
@@ -697,8 +710,8 @@ namespace Spreads.Buffers {
                 stream.Write(this.largeBuffer, 0, this.length);
             }
         }
-        #endregion
 
+        #endregion MemoryStream overrides
 
         /// <summary>
         /// Iterate over all internal chunks as ArraySegments without copying data
@@ -724,6 +737,7 @@ namespace Spreads.Buffers {
         }
 
         #region Helper Methods
+
         private void CheckDisposed() {
             if (this.disposed) {
                 throw new ObjectDisposedException(string.Format("The stream with Id {0} and Tag {1} is disposed.", this.id, this.tag));
@@ -808,6 +822,7 @@ namespace Spreads.Buffers {
 
             this.largeBuffer = null;
         }
-        #endregion
+
+        #endregion Helper Methods
     }
 }

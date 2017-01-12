@@ -2,16 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+using Spreads.Buffers;
+using Spreads.Serialization;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using Spreads.Buffers;
-using Spreads.Serialization;
 
 namespace Spreads {
+
     internal interface IArrayBasedMap<TKey, TValue> {
         int Length { get; }
         long Version { get; }
@@ -21,12 +20,13 @@ namespace Spreads {
         TValue[] Values { get; }
     }
 
-
     internal abstract class ArrayBasedMapConverter<TKey, TValue, T> : IBinaryConverter<T> where T : IArrayBasedMap<TKey, TValue> {
 #pragma warning disable 0618
+
         //private static readonly int KeySize = TypeHelper<TKey>.Size;
         //private static readonly int ValueSize = TypeHelper<TValue>.Size;
         public bool IsFixedSize => false;
+
         public int Size => 0;
         public byte Version => 1;
 
@@ -71,14 +71,14 @@ namespace Spreads {
         public int Write(T value, ref DirectBuffer destination, uint offset = 0, MemoryStream temporaryStream = null) {
             if (temporaryStream != null) {
                 var len = temporaryStream.Length;
-                if (destination.Length < offset + len) return (int)BinaryConverterErrorCode.NotEnoughCapacity; ;
+                if (destination.Length < offset + len) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
                 temporaryStream.WriteToPtr(destination.Data + (int)offset);
                 temporaryStream.Dispose();
                 return checked((int)len);
             }
 
             // all headers: serializer + map properties + 2 * Blosc
-            if (destination.Length < offset + 8 + 14) return (int)BinaryConverterErrorCode.NotEnoughCapacity; ;
+            if (destination.Length < offset + 8 + 14) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
 
             var position = (int)offset + 8;
             // 14 - map header
@@ -95,7 +95,7 @@ namespace Spreads {
             // TODO instead of special treatment of regular keys, think about skipping compression for small arrays
             //if (value.IsRegular) {
             //    keysSize = BinarySerializer.Write<TKey[]>(value.Keys, ref destination, (uint)position);
-            //} 
+            //}
             var keysSize = CompressedArrayBinaryConverter<TKey>.Instance.Write(
                         value.Keys, 0, value.Length, ref destination, (uint)position);
             if (keysSize > 0) {
@@ -117,13 +117,10 @@ namespace Spreads {
             // version
             destination.WriteByte(4, Version);
             return position;
-
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public abstract int Read(IntPtr ptr, ref T value);
-
-
 
 #pragma warning restore 0618
     }
