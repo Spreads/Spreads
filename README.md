@@ -208,47 +208,24 @@ every point. But this works without allocating memory and also works in real-tim
 data.
 
 
-## Extensions project
-
-The project and NuGet package `Spreads.Extensions` contain:
-
-+ Fast on-disk series storage based on SqLite;
-+ Very efficient binary serializer of arrays and series based on [Blosc](https://github.com/Blosc/c-blosc);
-+ [Interactive Extensions](https://github.com/Spreads/Spreads.Ix) adapted for Spreads;
-+ [Yeppp](http://www.yeppp.info/) math library for SIMD calculations;
-+ Generic array pool that gives very visible performance gain on some benchmarks;
-+ Concrete implementations of series calculations, such as SMA and StDev;
-+ Useful utils for historical time zones conversions using [NodaTime](http://nodatime.org/).
-
-
-Warning: on-disk binary data format could change between versions before 1.0 (at least until this notice disappears and format versioning is tested). 
-Use current version for evaluation or caching of data stored somewhere, e.g. in RDMS.
-
 ##Install
 
-`Spreads.Core` package contains the core calculations functionality. `Spreads` package
-adds `Spreads.Extensions` as dependency.
-
-    PM> Install-Package Spreads.Core
     PM> Install-Package Spreads
 
 
 ## Contributing
+
+PRs & issues are welcome!
+
 This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-(c) Victor Baybekov, 2014-2016
+(c) Victor Baybekov, 2014-2017
 
 
 ## Status and version
-Current status is alpha and it will remain alpha until 1.0-... releases. 
-We will use [semantic versioning](http://semver.org/).
-
-Releases that are not marked with alpha/beta 
-could be considered stable for core functionality starting from 0.3.
-
-Starting from 0.4 we implement lock-free synchronization - sorry if something blows up before beta :)
+Current status is pre-release until the version 1.0. We will use [semantic versioning](http://semver.org/).
 
 ## Links
 
