@@ -59,10 +59,6 @@
     </AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Dapper, Version=1.40.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\packages\Dapper.1.50.1\lib\net451\Dapper.dll</HintPath>
-    </Reference>
     <Reference Include="FSharp.Core, Version=4.3.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\..\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
       <Private>True</Private>
@@ -74,9 +70,6 @@
     <Reference Include="NodaTime, Version=1.3.0.0, Culture=neutral, PublicKeyToken=4226afe0d9b296d1, processorArchitecture=MSIL">
       <HintPath>..\..\packages\NodaTime.1.3.1\lib\net35-Client\NodaTime.dll</HintPath>
       <Private>True</Private>
-    </Reference>
-    <Reference Include="Spreads.SQLite">
-      <HintPath>..\..\..\Spreads.SQLite\src\Spreads.SQLite\bin\Release\net451\Spreads.SQLite.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers, Version=4.0.1.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
@@ -97,16 +90,6 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="..\..\lib\sqlite3\w64\sqlite3.dll">
-      <Link>native\w64\sqlite3.dll</Link>
-      <LogicalName>win.x64.sqlite3.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\sqlite3\w32\sqlite3.dll">
-      <Link>native\w32\sqlite3.dll</Link>
-      <LogicalName>win.x32.sqlite3.dll</LogicalName>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\..\lib\Ix.NET\Ix.NET\Source\System.Interactive.Async\AsyncEnumerable.Aggregates.cs">
@@ -160,7 +143,6 @@
     <Compile Include="Algorithms\Ranker.cs" />
     <Compile Include="DataTypes\OrderBook.cs" />
     <Compile Include="DataTypes\Tick.cs" />
-    <Compile Include="Storage\DirectFile.cs" />
     <Compile Include="DataTypes\Candles.cs" />
     <Compile Include="DataTypes\Order.cs" />
     <Compile Include="DataTypes\Quote.cs" />
@@ -171,22 +153,8 @@
     <Compile Include="Series\ProjectValuesWrapper.cs" />
     <Compile Include="Series\CursorSeries.cs" />
     <Compile Include="Series\ZonedSeries.cs" />
-    <Compile Include="Storage\ISeriesStorage.cs" />
-    <Compile Include="Storage\PersistentMap.cs" />
-    <Compile Include="Storage\PersistentSeries.cs" />
-    <Compile Include="Storage\RawPanelChunk.cs" />
-    <Compile Include="Storage\RawPersistentMap.cs" />
-    <Compile Include="Storage\RemoteChunksSeries.cs" />
-    <Compile Include="Storage\SeriesStorage.cs" />
-    <Compile Include="Storage\SingleWriterException.cs" />
-    <Compile Include="Storage\SQLiteStorageProvider.cs" />
-    <Compile Include="Storage\StorageProvider.cs" />
-    <Compile Include="Storage\Tables.cs" />
     <Compile Include="SortedList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Storage\UnitemporalSeries.cs" />
-    <Compile Include="Storage\VirtualActor.cs" />
-    <Compile Include="Storage\ZipUtil.cs" />
     <Compile Include="System\Threading\Tasks\ZipNTaskScheduler.cs" />
     <Compile Include="Extensions\BytesExtensions.cs" />
   </ItemGroup>
@@ -197,7 +165,6 @@
       <SubType>Designer</SubType>
     </None>
     <None Include="Spreads.Extensions.licenseheader" />
-    <None Include="Storage\Protocol.md" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj">

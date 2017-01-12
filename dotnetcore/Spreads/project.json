@@ -3,8 +3,6 @@
 	"description": "Series and Panels for Real-time and Exploratory Analysis of Data Streams",
 	"dependencies": {
 		"Spreads.Collections": "0.7.*",
-		"Spreads.SQLite": "1.6.0-*",
-		"Dapper": "1.50.1",
 		"Newtonsoft.Json": "9.0.1",
 		"NodaTime": "2.0.0-alpha20160707",
 		"System.Slices": "0.1.0-*"
