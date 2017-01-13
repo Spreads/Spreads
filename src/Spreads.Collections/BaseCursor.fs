@@ -21,7 +21,7 @@ open Microsoft.FSharp.Control
 // TODO rename back to MapCursor - this is an original cursor backed by some map, it does not represent series itself
 [<AbstractClassAttribute>]
 type BaseCursorOld<'K,'V>
-  (source:IReadOnlyOrderedMap<'K,'V>) as this =
+  (source:IReadOnlySeries<'K,'V>) as this =
 
   // implement default MoveNextAsync logic using only MoveNext
   let isUpdateable = match source with | :? IUpdateable -> true | _ -> false
@@ -356,9 +356,9 @@ type BaseCursor<'K,'V>(source:Series<'K,'V>) as this =
 
 
 
-/// Uses IReadOnlyOrderedMap's TryFind method, doesn't know anything about underlying sequence
+/// Uses IReadOnlySeries's TryFind method, doesn't know anything about underlying sequence
 [<ObsoleteAttribute("TODO replace it with direct BaseCursor implementation")>]
-type MapCursor<'K,'V>(map:IReadOnlyOrderedMap<'K,'V>) as this =
+type MapCursor<'K,'V>(map:IReadOnlySeries<'K,'V>) as this =
   inherit BaseCursorOld<'K,'V>(map)
   [<DefaultValue>] 
   val mutable private currentPosition : bool * KeyValuePair<'K,'V>
@@ -404,8 +404,8 @@ type MapCursor<'K,'V>(map:IReadOnlyOrderedMap<'K,'V>) as this =
 
   override this.Reset() = isReset <- true
 
-  override this.CurrentBatch = raise (NotSupportedException("IReadOnlyOrderedMap do not support batches, override the method in a map implementation"))
-  override this.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> = raise (NotSupportedException("IReadOnlyOrderedMap do not support batches, override the method in a map implementation"))
+  override this.CurrentBatch = raise (NotSupportedException("IReadOnlySeries do not support batches, override the method in a map implementation"))
+  override this.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> = raise (NotSupportedException("IReadOnlySeries do not support batches, override the method in a map implementation"))
 
   override this.Source with get() = map :> ISeries<'K,'V>
 

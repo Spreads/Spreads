@@ -60,7 +60,7 @@ namespace Spreads.Collections.Tests {
             //CouldCompleteObserver(new IndexedMap<int, int>());
         }
 
-        public void CouldCompleteObserver(IOrderedMap<int, int> map) {
+        public void CouldCompleteObserver(IMutableSeries<int, int> map) {
             var subscriber = new SumValuesObserver();
             var series = map as Series<int, int>;
             var cursor = (series + series).GetCursor();
@@ -110,7 +110,7 @@ namespace Spreads.Collections.Tests {
         //    //CouldPassErrorToObserver(new SortedChunkedMap<int, int>());
         //}
 
-        //public void CouldPassErrorToObserver(IOrderedMap<int, int> map) {
+        //public void CouldPassErrorToObserver(IMutableSeries<int, int> map) {
         //    var subscriber = new SumValuesObserver();
         //    var cursor = map.ReadOnly().GetCursor();
         //    cursor.Source.Subscribe(subscriber);

@@ -202,7 +202,7 @@ and
     inherit IDisposable
     //inherit ISeries<'K,'V>                // Clone() + Reset()  could be used to implement GetCursor()
     abstract Clone: unit -> ICursor<'K,'V>  // could be implemented as .Source.GetCursor() -> MoveAt(.CurrentKey, Lookup.EQ)
-    abstract Source : IReadOnlyOrderedMapX<'K,'V> with get
+    abstract Source : IReadOnlySeriesX<'K,'V> with get
 
     abstract Comparer: IComparer<'K> with get
 
@@ -234,7 +234,7 @@ and
   // or there is a CursorSeries type that makes a Series from an ICursor
   [<Interface>]
   [<AllowNullLiteral>]
-  IReadOnlyOrderedMapX<'K,'V> =
+  IReadOnlySeriesX<'K,'V> =
     inherit ISeries<'K,'V>
     abstract IsEmpty: bool with get
     abstract First : KVP<'K, 'V> with get             // dual to cursor.MoveFirst()

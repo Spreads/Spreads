@@ -18,7 +18,7 @@ open Spreads.Collections
 /// Make immutable map behave like a mutable one
 //[<ObsoleteAttribute("Probably this is useless.")>]
 type internal MutableWrapper<'K,'V  when 'K : comparison>
-  (immutableMap:IImmutableOrderedMap<'K,'V>)=
+  (immutableMap:IImmutableSeries<'K,'V>)=
     
   let mutable map = immutableMap
 
@@ -33,7 +33,7 @@ type internal MutableWrapper<'K,'V  when 'K : comparison>
     member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
       (map:> IEnumerable<_>).GetEnumerator() :> IEnumerator<KeyValuePair<'K,'V>>
    
-  interface IReadOnlyOrderedMap<'K,'V> with
+  interface IReadOnlySeries<'K,'V> with
     member this.Subscribe(observer) = raise (NotImplementedException())
     member this.Comparer with get() = map.Comparer
     member this.GetEnumerator() = map.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
@@ -75,7 +75,7 @@ type internal MutableWrapper<'K,'V  when 'K : comparison>
     
 
 
-  interface IOrderedMap<'K,'V> with
+  interface IMutableSeries<'K,'V> with
     member this.Version with get() = raise (NotImplementedException("TODO (low) if this type is ever used")) and set(v) = raise (NotImplementedException("TODO (low) if this type is ever used"))
     member this.Count with get() = map.Size
     member this.Item
@@ -134,10 +134,10 @@ type internal MutableWrapper<'K,'V  when 'K : comparison>
         )
       with | _ -> false
 
-    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) =
+    member this.Append(appendMap:IReadOnlySeries<'K,'V>, option:AppendOption) =
       // do not need transaction because if the first addition succeeds then all others will be added as well
 //      for i in appendMap do
-//        (this :> IOrderedMap<'K,'V>).AddLast(i.Key, i.Value)
+//        (this :> IMutableSeries<'K,'V>).AddLast(i.Key, i.Value)
       raise (NotImplementedException("TODO append impl"))
 
 [<Sealed>]

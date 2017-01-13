@@ -582,7 +582,7 @@ type SortedDequeMap<'K,'V>
         value <- Unchecked.defaultof<'V>
         false
 
-  interface IReadOnlyOrderedMap<'K,'V> with
+  interface IReadOnlySeries<'K,'V> with
     member this.Comparer with get() = comparer
     member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
     member this.GetCursor() = this.GetCursor()
@@ -618,7 +618,7 @@ type SortedDequeMap<'K,'V>
     member this.SyncRoot with get() = syncRoot
     
 
-  interface IOrderedMap<'K,'V> with
+  interface IMutableSeries<'K,'V> with
     member this.Version with get() = int64(this.Version) and set v = this.version <- int v
     member this.Complete() = this.Complete()
     member this.Count with get() = int64(this.Count)
@@ -633,7 +633,7 @@ type SortedDequeMap<'K,'V>
       this.RemoveLast(&result)
     member this.RemoveMany(key:'K,direction:Lookup) = 
       this.RemoveMany(key, direction)
-    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) =
+    member this.Append(appendMap:IReadOnlySeries<'K,'V>, option:AppendOption) =
 //      for i in appendMap do
 //        this.AddLast(i.Key, i.Value)
       raise (NotImplementedException("TODO append implementation"))

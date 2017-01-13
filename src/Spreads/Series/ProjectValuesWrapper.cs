@@ -12,13 +12,13 @@ namespace Spreads {
     /// <summary>
     /// Projects values from source to destination and back
     /// </summary>
-    public class ProjectValuesWrapper<K, Vsrc, Vdest> : Series<K, Vdest>, IPersistentOrderedMap<K, Vdest> {
-        private readonly IOrderedMap<K, Vsrc> _innerMap;
+    public class ProjectValuesWrapper<K, Vsrc, Vdest> : Series<K, Vdest>, IPersistentSeries<K, Vdest> {
+        private readonly IMutableSeries<K, Vsrc> _innerMap;
         private readonly Func<Vsrc, Vdest> _srcToDest;
         private readonly Func<Vdest, Vsrc> _destToSrc;
 
 
-        public ProjectValuesWrapper(IOrderedMap<K, Vsrc> innerMap,
+        public ProjectValuesWrapper(IMutableSeries<K, Vsrc> innerMap,
             Func<Vsrc, Vdest> srcToDest, Func<Vdest, Vsrc> destToSrc) {
             _innerMap = innerMap;
             _srcToDest = srcToDest;
@@ -53,7 +53,7 @@ namespace Spreads {
             _innerMap.AddLast(k, _destToSrc(v));
         }
 
-        public int Append(IReadOnlyOrderedMap<K, Vdest> appendMap, AppendOption option) {
+        public int Append(IReadOnlySeries<K, Vdest> appendMap, AppendOption option) {
             var count = _innerMap.Append(appendMap.Map(_destToSrc), option);
             return count;
         }
@@ -94,7 +94,7 @@ namespace Spreads {
         //////////////////////////////////// READ METHODS BELOW  ////////////////////////////////////////////
 
 
-        Vdest IReadOnlyOrderedMap<K, Vdest>.this[K key] => _srcToDest(_innerMap[key]);
+        Vdest IReadOnlySeries<K, Vdest>.this[K key] => _srcToDest(_innerMap[key]);
 
         public IComparer<K> Comparer => _innerMap.Comparer;
 
@@ -128,7 +128,7 @@ namespace Spreads {
         {
             get
             {
-                var pom = _innerMap as IPersistentOrderedMap<K, Vsrc>;
+                var pom = _innerMap as IPersistentSeries<K, Vsrc>;
                 return pom != null ? pom.Id : "";
             }
         }
@@ -147,12 +147,12 @@ namespace Spreads {
         public IEnumerable<Vdest> Values => _innerMap.Values.Select(_srcToDest);
 
         public void Dispose() {
-            var pom = _innerMap as IPersistentOrderedMap<K, Vsrc>;
+            var pom = _innerMap as IPersistentSeries<K, Vsrc>;
             pom?.Dispose();
         }
 
         public void Flush() {
-            var pom = _innerMap as IPersistentOrderedMap<K, Vsrc>;
+            var pom = _innerMap as IPersistentSeries<K, Vsrc>;
             pom?.Flush();
         }
 

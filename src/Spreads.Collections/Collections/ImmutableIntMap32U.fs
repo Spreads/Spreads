@@ -1223,7 +1223,7 @@ namespace Spreads.Collections
 
    
 
-        interface IImmutableOrderedMap<uint32, 'T> with
+        interface IImmutableSeries<uint32, 'T> with
             member this.Subscribe(observer) = raise (NotImplementedException())
             member this.Comparer with get() = KeyComparer.GetDefault<uint32>()
             member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<uint32, 'T>>
@@ -1277,28 +1277,28 @@ namespace Spreads.Collections
 
             member this.SyncRoot with get() = this.SyncRoot
 
-            member this.Add(key, value):IImmutableOrderedMap<uint32,'T> =
-                this.Add(key, value) :> IImmutableOrderedMap<uint32,'T>
+            member this.Add(key, value):IImmutableSeries<uint32,'T> =
+                this.Add(key, value) :> IImmutableSeries<uint32,'T>
 
-            member this.AddFirst(key, value):IImmutableOrderedMap<uint32,'T> =
-                this.AddFirst(key, value) :> IImmutableOrderedMap<uint32,'T>
+            member this.AddFirst(key, value):IImmutableSeries<uint32,'T> =
+                this.AddFirst(key, value) :> IImmutableSeries<uint32,'T>
 
-            member this.AddLast(key, value):IImmutableOrderedMap<uint32,'T> =
-                this.AddLast(key, value) :> IImmutableOrderedMap<uint32,'T>
+            member this.AddLast(key, value):IImmutableSeries<uint32,'T> =
+                this.AddLast(key, value) :> IImmutableSeries<uint32,'T>
 
-            member this.Remove(key):IImmutableOrderedMap<uint32,'T> =
-                this.Remove(key) :> IImmutableOrderedMap<uint32,'T>
+            member this.Remove(key):IImmutableSeries<uint32,'T> =
+                this.Remove(key) :> IImmutableSeries<uint32,'T>
 
-            member this.RemoveLast([<Out>] value: byref<KeyValuePair<uint32, 'T>>):IImmutableOrderedMap<uint32,'T> =
+            member this.RemoveLast([<Out>] value: byref<KeyValuePair<uint32, 'T>>):IImmutableSeries<uint32,'T> =
                 let m,v = this.RemoveLast()
                 value <- v
-                m :> IImmutableOrderedMap<uint32,'T>
+                m :> IImmutableSeries<uint32,'T>
 
-            member this.RemoveFirst([<Out>] value: byref<KeyValuePair<uint32, 'T>>):IImmutableOrderedMap<uint32,'T> =
+            member this.RemoveFirst([<Out>] value: byref<KeyValuePair<uint32, 'T>>):IImmutableSeries<uint32,'T> =
                 let m,v = this.RemoveFirst()
                 value <- v
-                m :> IImmutableOrderedMap<uint32,'T>
+                m :> IImmutableSeries<uint32,'T>
 
-            member this.RemoveMany(key,direction:Lookup):IImmutableOrderedMap<uint32,'T>=
-                this.RemoveMany(key, direction) :> IImmutableOrderedMap<uint32,'T>
+            member this.RemoveMany(key,direction:Lookup):IImmutableSeries<uint32,'T>=
+                this.RemoveMany(key, direction) :> IImmutableSeries<uint32,'T>
                 

@@ -180,22 +180,22 @@ type SeriesTestsModule() =
 
         let ok, value = rc.TryGetValue(2)
         ok |> should equal true
-        (repeated :> IReadOnlyOrderedMap<_,_>).TryGetValue(2) |> snd |> should equal 1
+        (repeated :> IReadOnlySeries<_,_>).TryGetValue(2) |> snd |> should equal 1
         value |> should equal 1
 
         let ok, value = rc.TryGetValue(4)
         ok |> should equal true
-        (repeated :> IReadOnlyOrderedMap<_,_>).TryGetValue(4) |> snd |> should equal 3
+        (repeated :> IReadOnlySeries<_,_>).TryGetValue(4) |> snd |> should equal 3
         value |> should equal 3
 
         let ok, value = rc.TryGetValue(6)
         ok |> should equal true
-        (repeated :> IReadOnlyOrderedMap<_,_>).TryGetValue(6) |> snd |> should equal 5
+        (repeated :> IReadOnlySeries<_,_>).TryGetValue(6) |> snd |> should equal 5
         value |> should equal 5
 
         let ok, value = rc.TryGetValue(123)
         ok |> should equal true
-        (repeated :> IReadOnlyOrderedMap<_,_>).TryGetValue(123) |> snd |> should equal 7
+        (repeated :> IReadOnlySeries<_,_>).TryGetValue(123) |> snd |> should equal 7
         value |> should equal 7
 
         let ok, value = rc.TryGetValue(0)

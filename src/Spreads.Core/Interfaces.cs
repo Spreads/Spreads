@@ -244,7 +244,7 @@ namespace Spreads {
     /// changes use lock (Monitor.Enter) on the SyncRoot property. Doing so will block any changes for
     /// mutable implementations and won't affect immutable implementations.
     /// </summary>
-    public interface IReadOnlyOrderedMap<TKey, TValue> : ISeries<TKey, TValue> {
+    public interface IReadOnlySeries<TKey, TValue> : ISeries<TKey, TValue> {
         bool IsEmpty { get; }
 
         /// <summary>
@@ -287,9 +287,9 @@ namespace Spreads {
     }
 
     /// <summary>
-    /// Mutable ordered map
+    /// Mutable series
     /// </summary>
-    public interface IOrderedMap<TKey, TValue> : IReadOnlyOrderedMap<TKey, TValue> //, IDictionary<TKey, TValue>
+    public interface IMutableSeries<TKey, TValue> : IReadOnlySeries<TKey, TValue> //, IDictionary<TKey, TValue>
     {
         long Count { get; }
 
@@ -330,7 +330,7 @@ namespace Spreads {
         /// <summary>
         /// And values from appendMap to the end of this map
         /// </summary>
-        int Append(IReadOnlyOrderedMap<TKey, TValue> appendMap, AppendOption option); // TODO int, bool option for ignoreEqualOverlap, or Enum with 1: thow, 2: ignoreEqual, 3: rewriteOld, 4: ignoreNew (nonsense option, should not do, the first 3 are good)
+        int Append(IReadOnlySeries<TKey, TValue> appendMap, AppendOption option); // TODO int, bool option for ignoreEqualOverlap, or Enum with 1: thow, 2: ignoreEqual, 3: rewriteOld, 4: ignoreNew (nonsense option, should not do, the first 3 are good)
 
         /// <summary>
         /// Make the map read-only and disable all Add/Remove/Set methods (they will throw)
@@ -348,7 +348,7 @@ namespace Spreads {
         string Id { get; }
     }
 
-    public interface IPersistentOrderedMap<TKey, TValue> : IOrderedMap<TKey, TValue>, IPersistentObject {
+    public interface IPersistentSeries<TKey, TValue> : IMutableSeries<TKey, TValue>, IPersistentObject {
     }
 
     /// <summary>

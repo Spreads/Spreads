@@ -37,7 +37,7 @@ open Spreads.Collections
 //  member this.CurrentValue with get() = activeCursor.CurrentValue
 //  member this.Current with get() = activeCursor.Current
 //
-//  member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>> with get, set
+//  member val CurrentBatch = Unchecked.defaultof<IReadOnlySeries<'K,'V2>> with get, set
 //
 //  member this.Reset() =
 //    switched <- false
@@ -69,7 +69,7 @@ open Spreads.Collections
 //  interface ICursor<'K,'V> with
 //    member this.Comparer with get() = cursorL.Comparer
 //    member this.Current: KVP<'K,'V> = this.Current
-//    member this.CurrentBatch: IReadOnlyOrderedMap<'K,'V> = this.CurrentBatch
+//    member this.CurrentBatch: IReadOnlySeries<'K,'V> = this.CurrentBatch
 //    member this.CurrentKey: 'K = this.CurrentKey
 //    member this.CurrentValue: 'V = this.CurrentValue
 //    member this.IsContinuous: bool = this.IsContinuous

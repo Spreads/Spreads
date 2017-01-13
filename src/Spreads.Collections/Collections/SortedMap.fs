@@ -32,7 +32,7 @@ open Spreads.Collections
 // Ticks (and seconds for illiquid instruments) are not regular, but they are never equal among different instruments.
 
 
-/// Mutable sorted thread-safe IOrderedMap<'K,'V> implementation similar to SCG.SortedList<'K,'V>
+/// Mutable sorted thread-safe IMutableSeries<'K,'V> implementation similar to SCG.SortedList<'K,'V>
 [<AllowNullLiteral>]
 [<DebuggerTypeProxy(typeof<IDictionaryDebugView<_,_>>)>]
 [<DebuggerDisplay("Count = {Count}")>]
@@ -119,7 +119,7 @@ type SortedMap<'K,'V>
         finally
           exitWriteLockIf &map.Locker entered
       | _ ->
-        // TODO ICollection interface to IOrderedMap
+        // TODO ICollection interface to IMutableSeries
         let locked, sr = match dictionary.Value with | :? ICollection as col -> col.IsSynchronized, col.SyncRoot | _ -> false, null
         let entered = enterLockIf sr locked
         try
@@ -1353,7 +1353,7 @@ type SortedMap<'K,'V>
     member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.TryGetValue(key, &value)
 
 
-  interface IReadOnlyOrderedMap<'K,'V> with
+  interface IReadOnlySeries<'K,'V> with
     member this.Comparer with get() = this.Comparer
     member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
     member this.GetCursor() = this.GetCursor()
@@ -1375,7 +1375,7 @@ type SortedMap<'K,'V>
     member this.SyncRoot with get() = this.SyncRoot
     
 
-  interface IOrderedMap<'K,'V> with
+  interface IMutableSeries<'K,'V> with
     member this.Complete() = this.Complete()
     member this.Version with get() = this.Version and set v = this.Version <- v
     member this.Count with get() = int64(this.size)
@@ -1388,10 +1388,10 @@ type SortedMap<'K,'V>
     member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.RemoveLast(&result)
     member this.RemoveMany(key:'K,direction:Lookup) = this.RemoveMany(key, direction)
 
-    // TODO move to type memeber, cheack if IROOM is SM and copy arrays in one go
+    // TODO move to type memeber, cheack if IReadOnlySeries is SM and copy arrays in one go
     // TODO atomic append with single version increase, now it is a sequence of remove/add mutations
-    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) =
-      let hasEqOverlap (old:IReadOnlyOrderedMap<'K,'V>) (append:IReadOnlyOrderedMap<'K,'V>) : bool =
+    member this.Append(appendMap:IReadOnlySeries<'K,'V>, option:AppendOption) =
+      let hasEqOverlap (old:IReadOnlySeries<'K,'V>) (append:IReadOnlySeries<'K,'V>) : bool =
         if comparer.Compare(append.First.Key, old.Last.Key) > 0 then false
         else
           let oldC = old.GetCursor()

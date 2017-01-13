@@ -198,7 +198,7 @@ type internal ConstantCursor<'K,'V>(fillValue:KVP<'K,'V>) =
 //  override this.Map<'V3>(f2:Func<'V2,'V3>): Series<'K,'V3> =
 //    CursorSeries(fun _ -> new RepeatCursorOld<'K,'V,'V3>(cursorFactory, CoreUtils.CombineMaps(mapper, f2)) :> ICursor<'K,'V3>) :> Series<'K,'V3>
 //
-//  override this.TryUpdateNextBatch(nextBatch: IReadOnlyOrderedMap<'K,'V>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'V2>>) : bool =
+//  override this.TryUpdateNextBatch(nextBatch: IReadOnlySeries<'K,'V>, [<Out>] value: byref<IReadOnlySeries<'K,'V2>>) : bool =
 //    let repeatedBatch = CursorSeries(fun _ -> new RepeatCursorOld<'K,'V,'V2>(Func<ICursor<'K,'V>>(nextBatch.GetCursor), mapper) :> ICursor<'K,'V2>) :> Series<'K,'V2>
 //    value <- repeatedBatch
 //    true

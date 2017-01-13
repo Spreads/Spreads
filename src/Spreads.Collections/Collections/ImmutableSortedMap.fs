@@ -755,7 +755,7 @@ namespace Spreads.Collections
       interface System.Collections.IEnumerable with
         member m.GetEnumerator() = (MapTree.mkIEnumerator tree :> System.Collections.IEnumerator)
 
-      interface IReadOnlyOrderedMap<'K,'V> with
+      interface IReadOnlySeries<'K,'V> with
         member this.Comparer with get() = comparer
         member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
         member this.GetCursor() = this.GetCursor()
@@ -796,29 +796,29 @@ namespace Spreads.Collections
         member this.SyncRoot with get() = this.SyncRoot
         
 
-      interface IImmutableOrderedMap<'K, 'V> with
+      interface IImmutableSeries<'K, 'V> with
         member this.Size with get() = this.Size
-        member this.Add(key, value):IImmutableOrderedMap<'K, 'V> =
-          this.Add(key, value) :> IImmutableOrderedMap<'K, 'V>
+        member this.Add(key, value):IImmutableSeries<'K, 'V> =
+          this.Add(key, value) :> IImmutableSeries<'K, 'V>
 
-        member this.AddFirst(key, value):IImmutableOrderedMap<'K, 'V> =
-          this.AddFirst(key, value) :> IImmutableOrderedMap<'K, 'V>
+        member this.AddFirst(key, value):IImmutableSeries<'K, 'V> =
+          this.AddFirst(key, value) :> IImmutableSeries<'K, 'V>
 
-        member this.AddLast(key, value):IImmutableOrderedMap<'K, 'V> =
-          this.AddLast(key, value) :> IImmutableOrderedMap<'K, 'V>
+        member this.AddLast(key, value):IImmutableSeries<'K, 'V> =
+          this.AddLast(key, value) :> IImmutableSeries<'K, 'V>
 
-        member this.Remove(key):IImmutableOrderedMap<'K, 'V> =
-          this.Remove(key) :> IImmutableOrderedMap<'K, 'V>
+        member this.Remove(key):IImmutableSeries<'K, 'V> =
+          this.Remove(key) :> IImmutableSeries<'K, 'V>
 
-        member this.RemoveLast([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableOrderedMap<'K, 'V> =
+        member this.RemoveLast([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableSeries<'K, 'V> =
           let m,v = this.RemoveLast()
           value <- v
-          m :> IImmutableOrderedMap<'K, 'V>
+          m :> IImmutableSeries<'K, 'V>
 
-        member this.RemoveFirst([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableOrderedMap<'K, 'V> =
+        member this.RemoveFirst([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableSeries<'K, 'V> =
           let m,v = this.RemoveFirst()
           value <- v
-          m :> IImmutableOrderedMap<'K, 'V>
+          m :> IImmutableSeries<'K, 'V>
 
-        member this.RemoveMany(key,direction:Lookup):IImmutableOrderedMap<'K, 'V> =
-          this.RemoveMany(key, direction) :> IImmutableOrderedMap<'K, 'V>
+        member this.RemoveMany(key,direction:Lookup):IImmutableSeries<'K, 'V> =
+          this.RemoveMany(key, direction) :> IImmutableSeries<'K, 'V>

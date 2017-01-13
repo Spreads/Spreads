@@ -53,7 +53,7 @@ namespace TAQParse {
             //    var zip = ZipFile.OpenRead(path);
             //    var stream = zip.Entries.Single().Open();
 
-            //    var seriesDictionary = new Dictionary<string, IPersistentOrderedMap<DateTime, TaqTrade>>();
+            //    var seriesDictionary = new Dictionary<string, IPersistentSeries<DateTime, TaqTrade>>();
 
             //    using (BufferedStream bs = new BufferedStream(stream, 2 * 1024 * 1024))
             //    using (var reader = new StreamReader(bs, Encoding.ASCII)) {
@@ -75,7 +75,7 @@ namespace TAQParse {
 
             //            var symbol = trade.Symbol.ToLowerInvariant().Trim();
 
-            //            IPersistentOrderedMap<DateTime, TaqTrade> series;
+            //            IPersistentSeries<DateTime, TaqTrade> series;
             //            if (!seriesDictionary.TryGetValue(symbol, out series)) {
             //                series = repo.WriteSeries<DateTime, TaqTrade>(symbol).Result;
             //                seriesDictionary[symbol] = series;
@@ -108,7 +108,7 @@ namespace TAQParse {
         //private static void Main2(string[] args) {
         //    // from Ractor.Persistence
         //    using (var repo = new DataRepository("../TAQSampleRepo")) {
-        //        IReadOnlyOrderedMap<DateTime, double> aapl = repo.ReadSeries<DateTime, TaqTrade>("aapl").Result.Map(t => t.TradePrice / 10000.0);
+        //        IReadOnlySeries<DateTime, double> aapl = repo.ReadSeries<DateTime, TaqTrade>("aapl").Result.Map(t => t.TradePrice / 10000.0);
         //        Console.WriteLine("Count: " + aapl.Count());
         //        Console.WriteLine("Open: " + aapl.First.Value);
         //        Console.WriteLine("High: " + aapl.Values.Max());

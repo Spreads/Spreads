@@ -17,22 +17,22 @@ open System.Runtime.InteropServices
 
 [<Interface>]
 [<AllowNullLiteral>]
-type IImmutableOrderedMap<'K,'V> =
-  inherit IReadOnlyOrderedMap<'K,'V>
+type IImmutableSeries<'K,'V> =
+  inherit IReadOnlySeries<'K,'V>
   abstract Size: int64 with get
   /// Unchecked addition, returns a new version of map with new element added
-  abstract Add : k:'K*v:'V -> IImmutableOrderedMap<'K,'V>
+  abstract Add : k:'K*v:'V -> IImmutableSeries<'K,'V>
   /// Checked addition, checks that new element's key is larger/later than the Last element's key
   /// and returns a new version of map with new element added
-  abstract AddLast : k:'K*v:'V -> IImmutableOrderedMap<'K,'V>
+  abstract AddLast : k:'K*v:'V -> IImmutableSeries<'K,'V>
   /// Checked addition, checks that new element's key is smaller/earlier than the First element's key
   /// and returns a new version of map with new element added
-  abstract AddFirst : k:'K*v:'V -> IImmutableOrderedMap<'K,'V>
+  abstract AddFirst : k:'K*v:'V -> IImmutableSeries<'K,'V>
   /// Remove a key and its value from the map. When the key is not a member of the map, the original map is returned.
-  abstract Remove : k:'K -> IImmutableOrderedMap<'K,'V>
-  abstract RemoveLast: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> IImmutableOrderedMap<'K,'V>
-  abstract RemoveFirst: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> IImmutableOrderedMap<'K,'V>
-  abstract RemoveMany: k:'K * direction:Lookup -> IImmutableOrderedMap<'K,'V>
+  abstract Remove : k:'K -> IImmutableSeries<'K,'V>
+  abstract RemoveLast: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> IImmutableSeries<'K,'V>
+  abstract RemoveFirst: [<Out>]value: byref<KeyValuePair<'K, 'V>> -> IImmutableSeries<'K,'V>
+  abstract RemoveMany: k:'K * direction:Lookup -> IImmutableSeries<'K,'V>
   // not much sense to have a separate append method for immutable maps
 
 
@@ -68,7 +68,7 @@ type IImmutableOrderedMap<'K,'V> =
 // TODO?? maybe this is enough? All other methods could be done as extensions??
 type IPanel<'TRowKey,'TColumnKey, 'TValue> =
   //ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>> // this is how it could be implemented
-  inherit ISeries<'TRowKey,IReadOnlyOrderedMap<'TColumnKey,'TValue>> // this is how it is used most of the time
+  inherit ISeries<'TRowKey,IReadOnlySeries<'TColumnKey,'TValue>> // this is how it is used most of the time
 
 
 //and    //TODO?? Panel could be replaced by extension methods on ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>>

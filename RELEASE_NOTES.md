@@ -58,7 +58,7 @@ now supports 2 Mops for writes and 6 Mops for reads, almost 50% up since 0.3.6.
 #### 0.2.7 - January 12, 2016
 * Stabilize ZipN and continuous series behavior #1 & #10;
 * Fix Range MoveNextAsync;
-* Series default IROOM implementation via ThreadLocal cursors.
+* Series default IReadOnlySeries implementation via ThreadLocal cursors.
 
 #### 0.2.6 - January 7, 2016
 * Rework FixedBuffer/DirectBuffer implementation;
@@ -177,7 +177,7 @@ almost no room for further improvement, we are close to `SCG.SortedList<>` and `
 useful for SortedMap/OrderedMap as rows in panels. We could compare keys by reference and apply batch operations,
 such as add, to values in case keys are equal.
 * In Serializer, store version as negative value for immutable SortedMap. TODO support IndexedMap as a special case in serializer.
-* Add `GetAt : idx:int -> 'V` method to IReadOnlyOrderedMap, which gets a value by index. It is implemented efficiently 
+* Add `GetAt : idx:int -> 'V` method to IReadOnlySeries, which gets a value by index. It is implemented efficiently 
 for indexed series and SortedMap, but default implementation is Linq's [series].Skip(idx-1).Take(1).Value
 * Add Panel base class amd two implementations for column-based and row-based materialized panels. TODO lazy panel with rows as projected series.
 * Add proof-of-concept circular calculation test
@@ -255,7 +255,7 @@ return a new cursor in reset state)
 
 #### 0.0.24 - July 18, 2015
 * Fix SCM cursor MoveAt GE/GT bug, that was caused by SM cursor index set to size rather than -1 on false move.
-* Add IPersistentOrderedMap with Flush method to interfaces
+* Add IPersistentSeries with Flush method to interfaces
 
 #### 0.0.23 - July 17, 2015
 * Extension methods for ISeries interface and not for Series class.
@@ -283,10 +283,10 @@ return a new cursor in reset state)
 reads per second on MacBook Air 2012 with MySQL 5.6 Community (default dev settings)
 
 #### 0.0.14 - July 10, 2015
-* Change IOrderedMap interface for RemoveXXX (returns bool) and Append (accepts 
+* Change IMutableSeries interface for RemoveXXX (returns bool) and Append (accepts 
 AppendOption parameter)
 * Add generic array pool (adapted from MSFT's BufferPoolManager)
-* Add comparer to IROOM & ICursor interfaces;
+* Add comparer to IReadOnlySeries & ICursor interfaces;
 * Do not trim excess on bucket switch in SCM (TODO this should be done by serializer,
  or check %% of unused capacity)
 * Implement Append for SCM (TODO test it)

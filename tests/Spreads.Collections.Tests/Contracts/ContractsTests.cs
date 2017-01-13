@@ -36,13 +36,13 @@ namespace Spreads.Collections.Tests.Contracts {
     /// </summary>
 
     public class ContractsTests<K, V> {
-        private readonly IReadOnlyOrderedMap<K, V> _testSeries;
+        private readonly IReadOnlySeries<K, V> _testSeries;
         private readonly SortedMap<K, V> _materializedSeries;
         private readonly SortedMap<K, V> _ephemeralSeries;
         private readonly Random _rng = new Random();
 
 
-        public ContractsTests(IReadOnlyOrderedMap<K, V> testSeries,
+        public ContractsTests(IReadOnlySeries<K, V> testSeries,
             SortedMap<K, V> materializedSeries,
             SortedMap<K, V> ephemeralSeries = null) {
             if (testSeries == null) throw new ArgumentNullException(nameof(testSeries));

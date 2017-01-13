@@ -108,7 +108,7 @@ namespace Spreads.Collections.Tests {
             Assert.AreEqual(cnt, total + 1);
             Console.WriteLine("Writer IsReadOnly: {0}", scm.IsReadOnly);
             Console.WriteLine("Reader IsReadOnly: {0}", reader.IsReadOnly);
-            //(scm as IPersistentOrderedMap<int, int>).Dispose();
+            //(scm as IPersistentSeries<int, int>).Dispose();
         }
 
 
@@ -128,8 +128,8 @@ namespace Spreads.Collections.Tests {
         public void Init() {
         }
 
-        public Dictionary<string, IReadOnlyOrderedMap<DateTime, double>> GetImplementation() {
-            var implemetations = new Dictionary<string, IReadOnlyOrderedMap<DateTime, double>>();
+        public Dictionary<string, IReadOnlySeries<DateTime, double>> GetImplementation() {
+            var implemetations = new Dictionary<string, IReadOnlySeries<DateTime, double>>();
 
             var scm_irregular_small = new SortedChunkedMap<DateTime, double>();
             var scm_irregular_big = new SortedChunkedMap<DateTime, double>();

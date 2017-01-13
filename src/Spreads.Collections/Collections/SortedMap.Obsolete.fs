@@ -855,7 +855,7 @@ open Spreads
 //        value <- Unchecked.defaultof<'V>
 //        false
 //
-//  interface IReadOnlyOrderedMap<'K,'V> with
+//  interface IReadOnlySeries<'K,'V> with
 //    member this.Comparer with get() = comparer
 //    member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
 //    member this.GetCursor() = this.GetCursor()
@@ -891,7 +891,7 @@ open Spreads
 //    member this.SyncRoot with get() = syncRoot
 //    
 //
-//  interface IOrderedMap<'K,'V> with
+//  interface IMutableSeries<'K,'V> with
 //    member this.Version with get() = int64(this.Version)
 //    member this.Count with get() = int64(this.size)
 //    member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
@@ -907,42 +907,42 @@ open Spreads
 //      this.RemoveMany(key, direction)
 ////    member x.TryFindWithIndex(key: 'K, direction: Lookup, result: byref<KeyValuePair<'K,'V>>): int = 
 ////      this.TryFindWithIndex(key, direction, &result)
-//    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, option:AppendOption) =
+//    member this.Append(appendMap:IReadOnlySeries<'K,'V>, option:AppendOption) =
 ////      for i in appendMap do
 ////        this.AddLast(i.Key, i.Value)
 //      raise (NotImplementedException("TODO append impl"))
 //    
-//  interface IImmutableOrderedMap<'K,'V> with
+//  interface IImmutableSeries<'K,'V> with
 //    member this.Size with get() = int64(this.size)
 //    // Immutable addition, returns a new map with added value
-//    member this.Add(key, value):IImmutableOrderedMap<'K,'V> =
+//    member this.Add(key, value):IImmutableSeries<'K,'V> =
 //      let newMap = this.Clone()
 //      newMap.Add(key, value)
-//      newMap :> IImmutableOrderedMap<'K,'V>
-//    member this.AddFirst(key, value):IImmutableOrderedMap<'K,'V> =
+//      newMap :> IImmutableSeries<'K,'V>
+//    member this.AddFirst(key, value):IImmutableSeries<'K,'V> =
 //      let newMap = this.Clone()
 //      newMap.AddFirst(key, value)
-//      newMap :> IImmutableOrderedMap<'K,'V>
-//    member this.AddLast(key, value):IImmutableOrderedMap<'K,'V> =
+//      newMap :> IImmutableSeries<'K,'V>
+//    member this.AddLast(key, value):IImmutableSeries<'K,'V> =
 //      let newMap = this.Clone()
 //      newMap.AddLast(key, value)
-//      newMap :> IImmutableOrderedMap<'K,'V>
-//    member this.Remove(key):IImmutableOrderedMap<'K,'V> =
+//      newMap :> IImmutableSeries<'K,'V>
+//    member this.Remove(key):IImmutableSeries<'K,'V> =
 //      let newMap = this.Clone()
 //      newMap.Remove(key) |> ignore
-//      newMap :> IImmutableOrderedMap<'K,'V>
-//    member this.RemoveLast([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableOrderedMap<'K,'V> =
+//      newMap :> IImmutableSeries<'K,'V>
+//    member this.RemoveLast([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableSeries<'K,'V> =
 //      let newMap = this.Clone()
 //      newMap.RemoveLast(&value) |> ignore
-//      newMap :> IImmutableOrderedMap<'K,'V>
-//    member this.RemoveFirst([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableOrderedMap<'K,'V> =
+//      newMap :> IImmutableSeries<'K,'V>
+//    member this.RemoveFirst([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableSeries<'K,'V> =
 //      let newMap = this.Clone()
 //      newMap.RemoveFirst(&value) |> ignore
-//      newMap :> IImmutableOrderedMap<'K,'V>
-//    member this.RemoveMany(key:'K,direction:Lookup):IImmutableOrderedMap<'K,'V>=
+//      newMap :> IImmutableSeries<'K,'V>
+//    member this.RemoveMany(key:'K,direction:Lookup):IImmutableSeries<'K,'V>=
 //      let newMap = this.Clone()
 //      newMap.RemoveMany(key, direction) |> ignore
-//      newMap :> IImmutableOrderedMap<'K,'V>
+//      newMap :> IImmutableSeries<'K,'V>
 //
 //  //#endregion   
 //

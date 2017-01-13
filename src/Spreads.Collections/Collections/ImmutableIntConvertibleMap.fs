@@ -59,15 +59,15 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
       member m.GetEnumerator() = m.GetEnumerator() :> System.Collections.IEnumerator
 
 
-    interface IImmutableOrderedMap<'K, 'V> with
+    interface IImmutableSeries<'K, 'V> with
         member this.Subscribe(observer) = raise (NotImplementedException())
-        member this.Comparer with get() = (this :> IImmutableOrderedMap<'K, 'V>).GetCursor().Comparer
+        member this.Comparer with get() = (this :> IImmutableSeries<'K, 'V>).GetCursor().Comparer
         member this.GetEnumerator() = new MapCursor<'K, 'V>(this) :> IAsyncEnumerator<KVP<'K, 'V>>
         member this.GetCursor() = new MapCursor<'K, 'V>(this) :> ICursor<'K, 'V>
         member this.IsEmpty = map.IsEmpty
         //member this.Count = int map.Size
-        member this.IsIndexed with get() = (map :> IImmutableOrderedMap<int64,'V>).IsIndexed
-        member this.IsReadOnly = (map :> IImmutableOrderedMap<int64,'V>).IsReadOnly
+        member this.IsIndexed with get() = (map :> IImmutableSeries<int64,'V>).IsIndexed
+        member this.IsReadOnly = (map :> IImmutableSeries<int64,'V>).IsReadOnly
         member this.First
             with get() = 
                 let f = map.First
@@ -99,7 +99,7 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
 
         member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
             try
-                res <- (this :> IImmutableOrderedMap<'K, 'V>).First
+                res <- (this :> IImmutableSeries<'K, 'V>).First
                 true
             with
             | _ -> 
@@ -108,7 +108,7 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
             
         member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
             try
-                res <- (this :> IImmutableOrderedMap<'K, 'V>).Last
+                res <- (this :> IImmutableSeries<'K, 'V>).Last
                 true
             with
             | _ -> 
@@ -116,7 +116,7 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
                 false
         
         member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
-            let success, pair = (this :> IImmutableOrderedMap<'K, 'V>).TryFind(k, Lookup.EQ)
+            let success, pair = (this :> IImmutableSeries<'K, 'V>).TryFind(k, Lookup.EQ)
             if success then 
                 value <- pair.Value
                 true
@@ -127,30 +127,30 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
 
         member this.SyncRoot with get() = map.SyncRoot
 
-        member this.Add(key, value):IImmutableOrderedMap<'K, 'V> =
-            ImmutableIntConvertableMap(map.Add(conv.ToInt64(key), value), conv) :> IImmutableOrderedMap<'K, 'V>
+        member this.Add(key, value):IImmutableSeries<'K, 'V> =
+            ImmutableIntConvertableMap(map.Add(conv.ToInt64(key), value), conv) :> IImmutableSeries<'K, 'V>
 
-        member this.AddFirst(key, value):IImmutableOrderedMap<'K, 'V> =
-            ImmutableIntConvertableMap(map.AddFirst(conv.ToInt64(key), value), conv) :> IImmutableOrderedMap<'K, 'V>
+        member this.AddFirst(key, value):IImmutableSeries<'K, 'V> =
+            ImmutableIntConvertableMap(map.AddFirst(conv.ToInt64(key), value), conv) :> IImmutableSeries<'K, 'V>
 
-        member this.AddLast(key, value):IImmutableOrderedMap<'K, 'V> =
-            ImmutableIntConvertableMap(map.AddLast(conv.ToInt64(key), value), conv) :> IImmutableOrderedMap<'K, 'V>
+        member this.AddLast(key, value):IImmutableSeries<'K, 'V> =
+            ImmutableIntConvertableMap(map.AddLast(conv.ToInt64(key), value), conv) :> IImmutableSeries<'K, 'V>
 
-        member this.Remove(key):IImmutableOrderedMap<'K, 'V> =
-            ImmutableIntConvertableMap(map.Remove(conv.ToInt64(key)), conv) :> IImmutableOrderedMap<'K, 'V>
+        member this.Remove(key):IImmutableSeries<'K, 'V> =
+            ImmutableIntConvertableMap(map.Remove(conv.ToInt64(key)), conv) :> IImmutableSeries<'K, 'V>
 
-        member this.RemoveLast([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableOrderedMap<'K, 'V> =
+        member this.RemoveLast([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableSeries<'K, 'V> =
             let m,kvp = map.RemoveLast()
             value <- KeyValuePair(conv.FromInt64(kvp.Key), kvp.Value)
-            ImmutableIntConvertableMap(m, conv) :> IImmutableOrderedMap<'K, 'V>
+            ImmutableIntConvertableMap(m, conv) :> IImmutableSeries<'K, 'V>
 
-        member this.RemoveFirst([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableOrderedMap<'K, 'V> =
+        member this.RemoveFirst([<Out>] value: byref<KeyValuePair<'K, 'V>>):IImmutableSeries<'K, 'V> =
             let m,kvp = map.RemoveFirst()
             value <- KeyValuePair(conv.FromInt64(kvp.Key), kvp.Value)
-            ImmutableIntConvertableMap(m, conv) :> IImmutableOrderedMap<'K, 'V>
+            ImmutableIntConvertableMap(m, conv) :> IImmutableSeries<'K, 'V>
 
-        member this.RemoveMany(key,direction:Lookup):IImmutableOrderedMap<'K, 'V> =
-            ImmutableIntConvertableMap(map.RemoveMany(conv.ToInt64(key), direction), conv) :> IImmutableOrderedMap<'K, 'V>
+        member this.RemoveMany(key,direction:Lookup):IImmutableSeries<'K, 'V> =
+            ImmutableIntConvertableMap(map.RemoveMany(conv.ToInt64(key), direction), conv) :> IImmutableSeries<'K, 'V>
 
 
 [<AllowNullLiteral>]

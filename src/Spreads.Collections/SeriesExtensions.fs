@@ -22,8 +22,8 @@ open System.Threading
 
 [<Extension>]
 type SeriesExtensions () =
-    /// Wraps any series into CursorSeries that implements only the IReadOnlyOrderedMap interface. Use it to prevent 
-    /// any accidental mutations on the source series (e.g. as compared to using IROOM interface of SortedMap)
+    /// Wraps any series into CursorSeries that implements only the IReadOnlySeries interface. Use it to prevent 
+    /// any accidental mutations on the source series (e.g. as compared to using IReadOnlySeries interface of SortedMap)
     [<Extension>]
     static member inline ReadOnly(source: ISeries<'K,'V>) : Series<'K,'V> = 
       CursorSeries(fun _ -> source.GetCursor()) :> Series<'K,'V>
@@ -236,9 +236,9 @@ type SeriesExtensions () =
       CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(resultSelector, series |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
 
 
-    /// A shortcut for atomic (locked on SyncRoot) `if not orderedMap.IsEmpty then IOrderedMap.RemoveMany(orderedMap.First.Key, Lookup.GE) else false`
+    /// A shortcut for atomic (locked on SyncRoot) `if not orderedMap.IsEmpty then IMutableSeries.RemoveMany(orderedMap.First.Key, Lookup.GE) else false`
     [<Extension>]
-    static member inline RemoveAll<'K,'V when 'K : comparison>(orderedMap: IOrderedMap<'K,'V>) =
+    static member inline RemoveAll<'K,'V when 'K : comparison>(orderedMap: IMutableSeries<'K,'V>) =
       lock ((orderedMap :> ISeries<'K,'V>).SyncRoot) (fun _ ->
         if not orderedMap.IsEmpty then orderedMap.RemoveMany(orderedMap.First.Key, Lookup.GE)
         else false

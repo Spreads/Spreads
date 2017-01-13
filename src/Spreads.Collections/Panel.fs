@@ -47,10 +47,10 @@ type Panel<'TRowKey,'TColumnKey, 'TValue>() =
 
 
 // ColumnsPanel uses ZipN cursor over source columns
-// It is an IOrderedMap of IReadOnlyOrderedMap as columns, therefore we could add/remove columns
+// It is an IMutableSeries of IReadOnlySeries as columns, therefore we could add/remove columns
 
 // RowsPanel has metarialized rows
-// It is an IOrderedMap of arrays as rows + column key arrays
+// It is an IMutableSeries of arrays as rows + column key arrays
 
 // RowsSeriesPanel or Surphace has rows as series, e.g. any of the two above mapped to some continuous series
 // YieldCurve => Splines is on-demand 
@@ -85,11 +85,11 @@ and ColumnPanel<'TRowKey,'TColumnKey, 'TValue> (columns:Series<'TColumnKey, Seri
       columns.Values |> Seq.map (fun s -> s.GetCursor) |> Seq.toArray)
     :> ICursor<'TRowKey, Series<'TColumnKey, 'TValue>>
 
-  // By being Series<>, Panel already implements IROOM for Rows
+  // By being Series<>, Panel already implements IReadOnlySeries for Rows
 
   override this.Columns 
     with get() : Series<'TColumnKey, Series<'TRowKey,'TValue>> = 
-      // NB TODO bad thing, we are assuming that IOrderedMap is alway Series
+      // NB TODO bad thing, we are assuming that IMutableSeries is alway Series
       // Need an extension method? Or documen this. Or create a type that inherit from series and then is used as parent for Sorted/Indexed maps
       columns :?> Series<'TColumnKey, Series<'TRowKey,'TValue>>
   override this.Rows with get() = this :> Series<'TRowKey, Series<'TColumnKey,'TValue>>
@@ -183,10 +183,10 @@ and RowPanel<'TRowKey,'TColumnKey, 'TValue> (rows:Series<'TRowKey, 'TValue[]>, c
       ), Missing)
     :> ICursor<'TRowKey, Series<'TColumnKey, 'TValue>>
 
-  // By being Series<>, Panel already implements IROOM for Rows
+  // By being Series<>, Panel already implements IReadOnlySeries for Rows
 
   override this.Columns with get() : Series<'TColumnKey, Series<'TRowKey,'TValue>> = raise (NotImplementedException("TODO"))
-    //ColumnPanel(this :> IOrderedMap<'TColumnKey, Series<'TRowKey,'TValue>>)
+    //ColumnPanel(this :> IMutableSeries<'TColumnKey, Series<'TRowKey,'TValue>>)
   override this.Rows with get() = this :> Series<'TRowKey, Series<'TColumnKey,'TValue>>
   
   override this.ColumnKeys = columnKeys :> seq<_>

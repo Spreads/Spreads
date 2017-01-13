@@ -22,7 +22,7 @@ open Spreads.Collections
 // with the only difference in an abstract method GetIndexOfElement, but IndexedMap is too
 // complicated with regular keys stuff and it will require most methods to be abstract
 
-/// Mutable indexed IOrderedMap<'K,'V> implementation based on IndexedMap<'K,'V>
+/// Mutable indexed IMutableSeries<'K,'V> implementation based on IndexedMap<'K,'V>
 [<AllowNullLiteral>]
 type IndexedMap<'K,'V> // when 'K:equality
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
@@ -864,7 +864,7 @@ type IndexedMap<'K,'V> // when 'K:equality
         value <- Unchecked.defaultof<'V>
         false
 
-  interface IReadOnlyOrderedMap<'K,'V> with
+  interface IReadOnlySeries<'K,'V> with
     member this.Comparer with get() = this.Comparer
     member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
     member this.GetCursor() = this.GetCursor()
@@ -899,7 +899,7 @@ type IndexedMap<'K,'V> // when 'K:equality
     member this.SyncRoot with get() = syncRoot
     
 
-  interface IOrderedMap<'K,'V> with
+  interface IMutableSeries<'K,'V> with
     member this.Complete() = this.Complete()
     member this.Version with get() = int64(this.Version) and set v = version <- int v
     member this.Count with get() = int64(this.size)
@@ -915,9 +915,9 @@ type IndexedMap<'K,'V> // when 'K:equality
     member this.RemoveMany(key:'K,direction:Lookup) = 
       this.RemoveMany(key, direction)
 
-    // TODO move to type memeber, cheack if IROOM is SM and copy arrays in one go
-    member this.Append(appendMap:IReadOnlyOrderedMap<'K,'V>, appendOption:AppendOption) =
-      let hasEqOverlap (old:IReadOnlyOrderedMap<'K,'V>) (append:IReadOnlyOrderedMap<'K,'V>) : bool =
+    // TODO move to type memeber, cheack if IReadOnlySeries is SM and copy arrays in one go
+    member this.Append(appendMap:IReadOnlySeries<'K,'V>, appendOption:AppendOption) =
+      let hasEqOverlap (old:IReadOnlySeries<'K,'V>) (append:IReadOnlySeries<'K,'V>) : bool =
         if comparer.Compare(append.First.Key, old.Last.Key) > 0 then false
         else
           let oldC = old.GetCursor()

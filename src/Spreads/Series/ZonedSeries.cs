@@ -21,7 +21,7 @@ namespace Spreads {
     {
         private ICursor<DateTime, V> _cursor;
         private readonly string _timeZone;
-        //public ZonedCursor(IReadOnlyOrderedMap<DateTime, V> map) : base(map)
+        //public ZonedCursor(IReadOnlySeries<DateTime, V> map) : base(map)
         //{
 
         //}
@@ -71,7 +71,7 @@ namespace Spreads {
 
         public ISeries<DateTime, V> Source {
             get {
-                return new ZonedSeries<V>(_cursor.Source as IOrderedMap<DateTime, V>, _timeZone);
+                return new ZonedSeries<V>(_cursor.Source as IMutableSeries<DateTime, V>, _timeZone);
             }
         }
 
@@ -133,11 +133,11 @@ namespace Spreads {
     /// All keys are transformed into UTC on writes and back on reads
     /// </summary>
     /// <typeparam name="V"></typeparam>
-    public class ZonedSeries<V> : Series<DateTime, V>, IPersistentOrderedMap<DateTime, V> {
-        private readonly IOrderedMap<DateTime, V> _map;
+    public class ZonedSeries<V> : Series<DateTime, V>, IPersistentSeries<DateTime, V> {
+        private readonly IMutableSeries<DateTime, V> _map;
         private readonly string _tz;
 
-        public ZonedSeries(IOrderedMap<DateTime, V> map, string originalTimeZone) {
+        public ZonedSeries(IMutableSeries<DateTime, V> map, string originalTimeZone) {
             _map = map;
             _tz = originalTimeZone;
         }
@@ -185,7 +185,7 @@ namespace Spreads {
             _map.AddLast(k.ConvertToUtcWithUncpecifiedKind(_tz), v);
         }
 
-        public int Append(IReadOnlyOrderedMap<DateTime, V> appendMap, AppendOption option) {
+        public int Append(IReadOnlySeries<DateTime, V> appendMap, AppendOption option) {
             throw new NotImplementedException();
         }
 
@@ -207,7 +207,7 @@ namespace Spreads {
 
         public void Flush()
         {
-            var persistentSource = _map as IPersistentOrderedMap<DateTime, V>;
+            var persistentSource = _map as IPersistentSeries<DateTime, V>;
             persistentSource?.Flush();
         }
 

@@ -14,7 +14,7 @@ open System.Threading.Tasks
 
 
 // TODO! ensure that TGV on Non-continuous cursor returns false if requested key does not exists in input
-// Could add ContainsKey to IROOM/ICursor interface, it is used very often for dict
+// Could add ContainsKey to IReadOnlySeries/ICursor interface, it is used very often for dict
 // Or define explicit contract that calling TGV is not defined for non-cont series when the key in TGV does not exist
 
 // I had an attempt to manually optimize callvirt and object allocation, both failed badly
@@ -75,8 +75,8 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
     clearState(state)
     this.TryCreateState(previous.Key, true, &state)
 
-  abstract TryUpdateNextBatch: nextBatch: IReadOnlyOrderedMap<'K,'V> * [<Out>] batch: byref<IReadOnlyOrderedMap<'K,'R>> -> bool  
-  override this.TryUpdateNextBatch(nextBatch: IReadOnlyOrderedMap<'K,'V>, [<Out>] batch: byref<IReadOnlyOrderedMap<'K,'R>>) : bool = false
+  abstract TryUpdateNextBatch: nextBatch: IReadOnlySeries<'K,'V> * [<Out>] batch: byref<IReadOnlySeries<'K,'R>> -> bool  
+  override this.TryUpdateNextBatch(nextBatch: IReadOnlySeries<'K,'V>, [<Out>] batch: byref<IReadOnlySeries<'K,'R>>) : bool = false
 
   abstract Clone: unit -> ICursor<'K,'R>
 
@@ -431,8 +431,8 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
     clearState(value)
     this.TryGetValue(previous.Key, true, &value)
 
-  abstract TryUpdateNextBatch: nextBatch: IReadOnlyOrderedMap<'K,'V> * [<Out>] batch: byref<IReadOnlyOrderedMap<'K,'R>> -> bool  
-  override this.TryUpdateNextBatch(nextBatch: IReadOnlyOrderedMap<'K,'V>, [<Out>] batch: byref<IReadOnlyOrderedMap<'K,'R>>) : bool = false
+  abstract TryUpdateNextBatch: nextBatch: IReadOnlySeries<'K,'V> * [<Out>] batch: byref<IReadOnlySeries<'K,'R>> -> bool  
+  override this.TryUpdateNextBatch(nextBatch: IReadOnlySeries<'K,'V>, [<Out>] batch: byref<IReadOnlySeries<'K,'R>>) : bool = false
 
   abstract Clone: unit -> ICursor<'K,'R>
 

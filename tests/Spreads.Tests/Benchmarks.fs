@@ -614,7 +614,7 @@ module CollectionsBenchmarks =
     for i in 0..4 do
       //Console.WriteLine("SortedMapRegular Read as RO")
       perf count "SortedMapRegular Read as RO" (fun _ ->
-        let ro = smap.Value.ReadOnly() :> IReadOnlyOrderedMap<int64,int64>
+        let ro = smap.Value.ReadOnly() :> IReadOnlySeries<int64,int64>
         for i in 0L..count do
           let res = ro.Item(i)
           if res <> i then failwith "SortedMap failed"
@@ -640,21 +640,21 @@ module CollectionsBenchmarks =
 
     for i in 0..9 do
       perf count "SortedMapRegular Iterate as RO" (fun _ ->
-        let ro = smap.Value.ReadOnly() :> IReadOnlyOrderedMap<int64,int64>
+        let ro = smap.Value.ReadOnly() :> IReadOnlySeries<int64,int64>
         for i in ro do
           let res = i.Value
           ()
       )
     for i in 0..9 do
       perf count "SMR Iterate as RO+Add" (fun _ ->
-        let ro = smap.Value.ReadOnly().Map(fun x -> x + 123456L) :> IReadOnlyOrderedMap<int64,int64>
+        let ro = smap.Value.ReadOnly().Map(fun x -> x + 123456L) :> IReadOnlySeries<int64,int64>
         for i in ro do
           let res = i.Value
           ()
       )
     for i in 0..9 do
       perf count "SMR Iterate as RO+Map(Add)" (fun _ ->
-        let ro = smap.Value.ReadOnly().Map(fun x -> x + 123456L) :> IReadOnlyOrderedMap<int64,int64>
+        let ro = smap.Value.ReadOnly().Map(fun x -> x + 123456L) :> IReadOnlySeries<int64,int64>
         for i in ro do
           let res = i.Value
           ()
@@ -663,7 +663,7 @@ module CollectionsBenchmarks =
     OptimizationSettings.AlwaysBatch <- false
     for i in 0..9 do
       perf count "SMR Iterate with plus operator" (fun _ ->
-        let ro = (((smap.Value.ReadOnly() + 123456L))):> IReadOnlyOrderedMap<int64,int64>
+        let ro = (((smap.Value.ReadOnly() + 123456L))):> IReadOnlySeries<int64,int64>
         for i in ro do
           let res = i.Value
           ()
@@ -671,7 +671,7 @@ module CollectionsBenchmarks =
     OptimizationSettings.AlwaysBatch <- true
     for i in 0..9 do
       perf count "SMR Iterate with plus operator, batch" (fun _ ->
-        let ro = (((smap.Value.ReadOnly() + 123456L))):> IReadOnlyOrderedMap<int64,int64>
+        let ro = (((smap.Value.ReadOnly() + 123456L))):> IReadOnlySeries<int64,int64>
         for i in ro do
           let res = i.Value
           ()
@@ -679,21 +679,21 @@ module CollectionsBenchmarks =
     OptimizationSettings.AlwaysBatch <- batchSetting
 //    for i in 0..9 do
 //      perf count "SMR Iterate with Zip" (fun _ ->
-//        let ro = (((smap.Value.ReadOnly().Zip(smap.Value, fun v v2 -> v + v2)))):> IReadOnlyOrderedMap<int64,int64>
+//        let ro = (((smap.Value.ReadOnly().Zip(smap.Value, fun v v2 -> v + v2)))):> IReadOnlySeries<int64,int64>
 //        for i in ro do
 //          let res = i.Value
 //          ()
 //      )
     for i in 0..9 do
       perf count "SMR Add Two with operator" (fun _ ->
-        let ro = (smap.Value + smap.Value) :> IReadOnlyOrderedMap<int64,int64>
+        let ro = (smap.Value + smap.Value) :> IReadOnlySeries<int64,int64>
         for i in ro do
           let res = i.Value
           ()
       )
     for i in 0..9 do
       perf count "SMR Iterate with plus LINQ" (fun _ ->
-        let ro = (smap.Value.ReadOnly().Select(fun x -> KVP(x.Key, x.Value + 123456L))) //:> IReadOnlyOrderedMap<int64,int64>
+        let ro = (smap.Value.ReadOnly().Select(fun x -> KVP(x.Key, x.Value + 123456L))) //:> IReadOnlySeries<int64,int64>
         let sm = new SortedMap<_,_>(int count)
         for i in ro do
           sm.AddLast(i.Key,i.Value)
@@ -703,7 +703,7 @@ module CollectionsBenchmarks =
       )
     for i in 0..9 do
       perf count "SMR Iterate as RO+Filter + Mapp(Add)" (fun _ ->
-        let ro = smap.Value.ReadOnly().Filter(fun x -> x % 2L = 0L).Map(fun x -> x + 123456L) :> IReadOnlyOrderedMap<int64,int64>
+        let ro = smap.Value.ReadOnly().Filter(fun x -> x % 2L = 0L).Map(fun x -> x + 123456L) :> IReadOnlySeries<int64,int64>
         let mutable count = 0
         for i in ro do
           let res = i.Value
@@ -713,14 +713,14 @@ module CollectionsBenchmarks =
       )
 //    for i in 0..9 do
 //      perf count "SMR Iterate as RO+AddWithBind" (fun _ ->
-//        let ro = Spreads.Collections.Experimental.SeriesExtensions.AddWithBind(smap.Value.ReadOnly(), 123456L) :> IReadOnlyOrderedMap<int64,int64>
+//        let ro = Spreads.Collections.Experimental.SeriesExtensions.AddWithBind(smap.Value.ReadOnly(), 123456L) :> IReadOnlySeries<int64,int64>
 //        for i in ro do
 //          let res = i.Value
 //          ()
 //      )
     for i in 0..9 do
       perf count "SMR Iterate as RO+Add+ToMap" (fun _ ->
-        let ro = smap.Value.ReadOnly().Map(fun x -> x + 123456L) :> IReadOnlyOrderedMap<int64,int64>
+        let ro = smap.Value.ReadOnly().Map(fun x -> x + 123456L) :> IReadOnlySeries<int64,int64>
         let sm = Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>))
         
         for i in ro do
@@ -731,7 +731,7 @@ module CollectionsBenchmarks =
 
 //    for i in 0..9 do
 //      perf count "SMR Iterate as RO+Log" (fun _ ->
-//        let ro = smap.Value.ReadOnly().Log() :> IReadOnlyOrderedMap<int64,double>
+//        let ro = smap.Value.ReadOnly().Log() :> IReadOnlySeries<int64,double>
 //        for i in ro do
 //          let res = i.Value
 //          ()
@@ -1082,7 +1082,7 @@ module CollectionsBenchmarks =
     OptimizationSettings.AlwaysBatch <- false
     for i in 0..9 do
       perf count "SCM<Auto> Iterate with plus operator" (fun _ ->
-        let ro = (((shm.Value.ReadOnly() + 123456L))):> IReadOnlyOrderedMap<int64,int64>
+        let ro = (((shm.Value.ReadOnly() + 123456L))):> IReadOnlySeries<int64,int64>
         for i in ro do
           let res = i.Value
           ()
@@ -1090,7 +1090,7 @@ module CollectionsBenchmarks =
     OptimizationSettings.AlwaysBatch <- true
     for i in 0..9 do
       perf count "SCM<Auto> Iterate with plus operator, batch" (fun _ ->
-        let ro = (((shm.Value.ReadOnly() + 123456L))):> IReadOnlyOrderedMap<int64,int64>
+        let ro = (((shm.Value.ReadOnly() + 123456L))):> IReadOnlySeries<int64,int64>
         for i in ro do
           let res = i.Value
           ()
@@ -1291,7 +1291,7 @@ module CollectionsBenchmarks =
 //    IntMap64_run()
 //    MapTree_run()
 //    SCGSortedList_run()
-//    SCIOrderedMap_run()
+//    SCIMutableSeries_run()
 ///    SortedDeque_run()
 //    SortedList_run()
     SortedMap_run()

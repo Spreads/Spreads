@@ -22,11 +22,11 @@
 //namespace Spreads.Collections.Tests.Cursors {
 //    public class SimdMathProvider {
 
-//        public bool AddBatch<K>(IReadOnlyOrderedMap<K, double> left, IReadOnlyOrderedMap<K, double> right, out IReadOnlyOrderedMap<K, double> value) {
+//        public bool AddBatch<K>(IReadOnlySeries<K, double> left, IReadOnlySeries<K, double> right, out IReadOnlySeries<K, double> value) {
 //            throw new NotImplementedException();
 //        }
 
-//        public bool AddBatch<K>(double scalar, IReadOnlyOrderedMap<K, double> batch, out IReadOnlyOrderedMap<K, double> value) {
+//        public bool AddBatch<K>(double scalar, IReadOnlySeries<K, double> batch, out IReadOnlySeries<K, double> value) {
 //            var sm = batch as SortedMap<K, double>;
 //            if (!ReferenceEquals(sm, null)) {
 //                double[] newValues = BufferPool<double>.Shared.Rent(sm.size);
@@ -53,7 +53,7 @@
 //            throw new NotImplementedException();
 //        }
 
-//        public bool SumBatch<K>(double scalar, IReadOnlyOrderedMap<K, double> batch, out double value) {
+//        public bool SumBatch<K>(double scalar, IReadOnlySeries<K, double> batch, out double value) {
 //            var sm = batch as SortedMap<K, double>;
 //            if (!ReferenceEquals(sm, null)) {
 //                double[] newValues = new double[sm.size];
@@ -68,7 +68,7 @@
 //            throw new NotImplementedException();
 //        }
 
-//        public bool MapBatch<K, V, V2>(FSharpFunc<V, V2> mapF, IReadOnlyOrderedMap<K, V> batch, out IReadOnlyOrderedMap<K, V2> value) {
+//        public bool MapBatch<K, V, V2>(FSharpFunc<V, V2> mapF, IReadOnlySeries<K, V> batch, out IReadOnlySeries<K, V2> value) {
 //            throw new NotImplementedException();
 //        }
 //    }
@@ -80,7 +80,7 @@
 //        /// <summary>
 //        /// Very straighforward batch operation for testing
 //        /// </summary>
-//        public IReadOnlyOrderedMap<DateTime, double> IncrementMap(IReadOnlyOrderedMap<DateTime, double> batch) {
+//        public IReadOnlySeries<DateTime, double> IncrementMap(IReadOnlySeries<DateTime, double> batch) {
 //            var sm = new SortedMap<DateTime, double>();
 //            foreach (var kvp in batch) {
 //                sm.Add(kvp.Key, kvp.Value + 1.0);
@@ -88,7 +88,7 @@
 //            return sm;
 //        }
 
-//        public IReadOnlyOrderedMap<DateTime, double> MultiplyMap(IReadOnlyOrderedMap<DateTime, double> batch) {
+//        public IReadOnlySeries<DateTime, double> MultiplyMap(IReadOnlySeries<DateTime, double> batch) {
 //            var sm = new SortedMap<DateTime, double>();
 //            foreach (var kvp in batch) {
 //                sm.Add(kvp.Key, kvp.Value * 10.0);
@@ -265,17 +265,17 @@
 
 
 
-//        //public IReadOnlyOrderedMap<DateTime, double> YeppMathProviderSample(IReadOnlyOrderedMap<DateTime, double> batch) {
+//        //public IReadOnlySeries<DateTime, double> YeppMathProviderSample(IReadOnlySeries<DateTime, double> batch) {
 //        //    var mathProviderImpl = new Spreads.NativeMath.YepppMathProvider();
-//        //    IReadOnlyOrderedMap<DateTime, double> sm2;
+//        //    IReadOnlySeries<DateTime, double> sm2;
 //        //    var ok = mathProviderImpl.AddBatch(3.1415926, batch, out sm2);
 //        //    return sm2;
 //        //}
 
 
-//        public IReadOnlyOrderedMap<DateTime, double> SimdMathProviderSample(IReadOnlyOrderedMap<DateTime, double> batch) {
+//        public IReadOnlySeries<DateTime, double> SimdMathProviderSample(IReadOnlySeries<DateTime, double> batch) {
 //            var mathProviderImpl = new SimdMathProvider();
-//            IReadOnlyOrderedMap<DateTime, double> sm2;
+//            IReadOnlySeries<DateTime, double> sm2;
 //            var ok = mathProviderImpl.AddBatch(3.1415926, batch, out sm2);
 //            return sm2;
 //        }
@@ -350,9 +350,9 @@
 //        //}
 
 
-//        public IReadOnlyOrderedMap<DateTime, double> MathProviderSample(IReadOnlyOrderedMap<DateTime, double> batch) {
+//        public IReadOnlySeries<DateTime, double> MathProviderSample(IReadOnlySeries<DateTime, double> batch) {
 //            var mathProviderImpl = new MathProviderImpl() as IVectorMathProvider;
-//            IReadOnlyOrderedMap<DateTime, double> sm2;
+//            IReadOnlySeries<DateTime, double> sm2;
 //            var ok = mathProviderImpl.AddBatch(3.1415926, batch, out sm2);
 //            return sm2;
 //        }

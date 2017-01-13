@@ -181,7 +181,7 @@ and
     interface System.Collections.IEnumerable with
       member this.GetEnumerator() = (this.GetCursor() :> System.Collections.IEnumerator)     
 
-    interface IReadOnlyOrderedMap<'K,'V> with
+    interface IReadOnlySeries<'K,'V> with
       member this.GetCursor() = this.GetCursor()
       member this.Subscribe(observer : IObserver<KVP<'K,'V>>) = this.Subscribe(observer)
       member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
@@ -203,8 +203,8 @@ and
       member this.Values with get() = this.Values
           
 
-//    static member inline private batchFunction (f:Func<'V,'V2>) (vF:Vector<'T> -> Vector<'T2>) : Func<IReadOnlyOrderedMap<'K,'V>,IReadOnlyOrderedMap<'K,'V2>> =
-//      let f (source:IReadOnlyOrderedMap<'K,'V>) : IReadOnlyOrderedMap<'K,'V2> =
+//    static member inline private batchFunction (f:Func<'V,'V2>) (vF:Vector<'T> -> Vector<'T2>) : Func<IReadOnlySeries<'K,'V>,IReadOnlySeries<'K,'V2>> =
+//      let f (source:IReadOnlySeries<'K,'V>) : IReadOnlySeries<'K,'V2> =
 //        match source with
 //        | :? IArrayBasedMap<'K,'V> as arrayMap -> failwith ""
 //        | _ -> 
@@ -213,7 +213,7 @@ and
 //              let newValue = mapF(kvp.Value)
 //              map.AddLast(kvp.Key, newValue)
 //          if map.size > 0 then
-//            value <- map :> IReadOnlyOrderedMap<'K,'V2>
+//            value <- map :> IReadOnlySeries<'K,'V2>
 //            true
 //          else false
 //          null
@@ -603,7 +603,7 @@ and
       Series.ScalarOperatorMap(series, sf.Invoke, if af <> null then Present(af.Invoke) else Missing)
 
 and
-  // TODO (perf) base Series() implements IROOM inefficiently, see comments in above type Series() implementation
+  // TODO (perf) base Series() implements IReadOnlySeries inefficiently, see comments in above type Series() implementation
   /// Wraps Series over ICursor
   [<AllowNullLiteral>]
   [<SealedAttribute>]
@@ -720,7 +720,7 @@ and
       preferBatches <- false
       batchStarted <- false
       if batchCursor <> Unchecked.defaultof<ICursor<'K,'V2>> then batchCursor.Dispose()
-      batch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
+      batch <- Unchecked.defaultof<IReadOnlySeries<'K,'V2>>
       batchCursor <- Unchecked.defaultof<ICursor<'K,'V2>>
       queue.Clear()
 
@@ -783,7 +783,7 @@ and
     member this.Reset() = 
       preferBatches <- fBatch.IsPresent
       batchStarted <- false
-      batch <- Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V2>>
+      batch <- Unchecked.defaultof<IReadOnlySeries<'K,'V2>>
       if batchCursor <> Unchecked.defaultof<ICursor<'K,'V2>> then 
         batchCursor.Dispose()
         batchCursor <- Unchecked.defaultof<ICursor<'K,'V2>>
@@ -918,15 +918,15 @@ and
 //    member this.Current with get () = KVP(this.CurrentKey, this.CurrentValue)
 //
 //    /// Stores current batch for a succesful batch move. Value is defined only after successful MoveNextBatch
-//    member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'R>> with get, set
+//    member val CurrentBatch = Unchecked.defaultof<IReadOnlySeries<'K,'R>> with get, set
 //
 //    /// Update state with a new value. Should be optimized for incremental update of the current state in custom implementations.
 //    abstract TryZip: key:'K * v1:'V1 * v2:'V2 * [<Out>] value: byref<'R> -> bool
 ////      raise (NotImplementedException("must implement in derived cursor"))
 //
 //    /// If input and this cursor support batches, then process a batch and store it in CurrentBatch
-//    abstract TryZipNextBatches: nextBatchL: IReadOnlyOrderedMap<'K,'V1> * nextBatchR: IReadOnlyOrderedMap<'K,'V2> * [<Out>] value: byref<IReadOnlyOrderedMap<'K,'R>> -> bool  
-//    override this.TryZipNextBatches(nextBatchL: IReadOnlyOrderedMap<'K,'V1>, nextBatchR: IReadOnlyOrderedMap<'K,'V2>, [<Out>] value: byref<IReadOnlyOrderedMap<'K,'R>>) : bool =
+//    abstract TryZipNextBatches: nextBatchL: IReadOnlySeries<'K,'V1> * nextBatchR: IReadOnlySeries<'K,'V2> * [<Out>] value: byref<IReadOnlySeries<'K,'R>> -> bool  
+//    override this.TryZipNextBatches(nextBatchL: IReadOnlySeries<'K,'V1>, nextBatchR: IReadOnlySeries<'K,'V2>, [<Out>] value: byref<IReadOnlySeries<'K,'R>>) : bool =
 //      // should work only when keys are equal
 //      false
 //
@@ -1111,7 +1111,7 @@ and
 //    interface ICursor<'K,'R> with
 //      member this.Comparer with get() = cmp
 //      member x.Current: KVP<'K,'R> = KVP(x.CurrentKey, x.CurrentValue)
-//      member x.CurrentBatch: IReadOnlyOrderedMap<'K,'R> = x.CurrentBatch
+//      member x.CurrentBatch: IReadOnlySeries<'K,'R> = x.CurrentBatch
 //      member x.CurrentKey: 'K = x.CurrentKey
 //      member x.CurrentValue: 'R = x.CurrentValue
 //      member x.IsContinuous: bool = x.IsContinuous
@@ -1234,7 +1234,7 @@ and
     member this.Current with get () = KVP(this.CurrentKey, this.CurrentValue)
 
     /// Stores current batch for a succesful batch move. Value is defined only after successful MoveNextBatch
-    member val CurrentBatch = Unchecked.defaultof<IReadOnlyOrderedMap<'K,'V>> with get, set
+    member val CurrentBatch = Unchecked.defaultof<IReadOnlySeries<'K,'V>> with get, set
 
     member this.Reset() = 
       hasValidState <- false
