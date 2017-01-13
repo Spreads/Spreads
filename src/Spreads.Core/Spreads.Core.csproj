@@ -133,6 +133,7 @@
     <Compile Include="Algorithms\Algo.cs" />
     <Compile Include="Algorithms\Hash\xxHash.cs" />
     <Compile Include="Algorithms\Math\MovingMedian.cs" />
+    <Compile Include="BaseCursor.cs" />
     <Compile Include="Blosc\BloscMethods.cs" />
     <Compile Include="Buffers\AtomicCounter.cs" />
     <Compile Include="Buffers\BufferPool.cs" />
@@ -225,6 +226,10 @@
     <Compile Include="Utils\ILSub.cs" />
     <Compile Include="Utils\IntUtil.cs" />
     <Compile Include="Utils\LockUtils.cs" />
+    <Compile Include="Utils\Runtime\CompilerServices\AutoResetAwaiter.cs" />
+    <Compile Include="Utils\Runtime\CompilerServices\IAwaiter.cs" />
+    <Compile Include="Utils\Runtime\CompilerServices\ManualResetAwaiter2.cs" />
+    <Compile Include="Utils\Runtime\CompilerServices\ManualResetAwaiter.cs" />
     <Compile Include="Utils\SpanBinarySearch.cs" />
     <Compile Include="Utils\StringExtensions.cs" />
     <Compile Include="Utils\TaskEx.cs" />
@@ -294,9 +299,7 @@
     </None>
     <None Include="Spreads.Core.licenseheader" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="System\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

@@ -383,8 +383,8 @@ type SortedMap<'K,'V>
           this.isReadOnly <- true
           // immutable doesn't need sync
           Volatile.Write(&this.isSynchronized, false)
-          let updateTcs = Volatile.Read(&this.UpdateTcs)
-          if updateTcs <> null then updateTcs.TrySetResult(0L) |> ignore
+          this.NotifyUpdateTcs()
+          
           //if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
     finally
       Interlocked.Increment(&this.version) |> ignore
@@ -1235,7 +1235,7 @@ type SortedMap<'K,'V>
       // if source is already read-only, MNA will always return false
       if this.isReadOnly then new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
       else 
-        let c = new CursorAsync<'K,'V,_>(this,this.GetEnumerator)
+        let c = new BaseCursorAsync<'K,'V,_>(this,Func<_>(this.GetEnumerator))
         c :> ICursor<'K,'V>
     finally
       exitWriteLockIf &this.Locker entered

@@ -212,7 +212,7 @@ namespace Spreads.Collections.Tests.Cursors {
             histogram.Add(histogram2);
             histogram.Add(histogram3);
             histogram.OutputPercentileDistribution(
-                    printStream: Console.Out,
+                    writer: Console.Out,
                     percentileTicksPerHalfDistance: 3,
                     outputValueUnitScalingRatio: OutputScalingFactor.None);
 
@@ -236,6 +236,14 @@ namespace Spreads.Collections.Tests.Cursors {
         }
 
 
+        [Test]
+        [Ignore]
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_NoSemaphore_ManyTimes() {
+            for (int r = 0; r < 20; r++) {
+                CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_NoSemaphore();
+                GC.Collect(2, GCCollectionMode.Forced);
+            }
+        }
 
         [Test]
         [Ignore]
@@ -350,12 +358,15 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var addTask = Task.Run(() => {
                 //Console.WriteLine($"Adding from thread {Thread.CurrentThread.ManagedThreadId}");
-
-                for (int i = 5; i < count; i++) {
-                    sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                try {
+                    for (int i = 5; i < count; i++) {
+                        sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                    }
+                    sm.Complete();
+                } catch (Exception ex) {
+                    Console.WriteLine(ex);
+                    Environment.FailFast(ex.Message, ex);
                 }
-                sm.Complete();
-
             });
 
 
@@ -376,7 +387,7 @@ namespace Spreads.Collections.Tests.Cursors {
             histogram.Add(histogram2);
             histogram.Add(histogram3);
             histogram.OutputPercentileDistribution(
-                    printStream: Console.Out,
+                    writer: Console.Out,
                     percentileTicksPerHalfDistance: 3,
                     outputValueUnitScalingRatio: OutputScalingFactor.None);
 
@@ -403,8 +414,8 @@ namespace Spreads.Collections.Tests.Cursors {
         [Test]
         [Ignore]
         public void CouldMoveNextAsyncWhenChangingOrder_NoSemaphore() {
-
-            var ct = CancellationToken.None;
+            var cts = new CancellationTokenSource();
+            var ct = cts.Token;
 
             var sm = new SortedMap<int, int>();
 
@@ -421,7 +432,7 @@ namespace Spreads.Collections.Tests.Cursors {
             });
 
             tcs.Task.Wait(ct);
-            
+
             sm.Add(1, 1);
             Thread.Sleep(100);
             //sm.Add(0, 0); // will through OOO

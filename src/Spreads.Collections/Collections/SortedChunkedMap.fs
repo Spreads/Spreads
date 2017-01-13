@@ -1641,7 +1641,7 @@ type SortedChunkedMap<'K,'V>
       // if source is already read-only, MNA will always return false
       if this.isReadOnly then new SortedChunkedMapCursor<_,_>(this) :> ICursor<'K,'V>
       else
-        let c = new CursorAsync<_,_,_>(this,this.GetEnumerator)
+        let c = new BaseCursorAsync<_,_,_>(this,Func<_>(this.GetEnumerator))
         c :> ICursor<'K,'V>
     finally
       exitWriteLockIf &this.Locker entered

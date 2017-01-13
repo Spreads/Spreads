@@ -121,10 +121,6 @@
       <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
       <Private>True</Private>
     </ProjectReference>
-    <Reference Include="Dapper">
-      <HintPath>..\..\packages\Dapper.1.42\lib\net45\Dapper.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="Deedle">
       <HintPath>..\..\packages\Deedle.1.2.4\lib\net40\Deedle.dll</HintPath>
       <Private>True</Private>
@@ -163,7 +159,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System.Buffers">
-      <HintPath>..\..\packages\System.Buffers.4.0.0\lib\netstandard1.1\System.Buffers.dll</HintPath>
+      <HintPath>..\..\packages\System.Buffers.4.3.0\lib\netstandard1.1\System.Buffers.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System.Data" />

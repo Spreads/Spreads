@@ -5,11 +5,12 @@
 
 using System;
 using System.Runtime.InteropServices;
+using System.Security;
 using Bootstrap;
 
 namespace Spreads.Blosc {
 #if NET451
-    [System.Security.SuppressUnmanagedCodeSecurity]
+    [SuppressUnmanagedCodeSecurity]
 #endif
     internal class BloscMethods {
         public const string BloscLibraryName = "libblosc";

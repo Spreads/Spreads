@@ -2,10 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,7 +13,11 @@ namespace Spreads {
 
     public static class TaskEx {
         public static Task CompletedTask = Task.FromResult<object>(null);
+        public static Task<bool> TrueTask = Task.FromResult(true);
+        public static Task<bool> FalseTask = Task.FromResult(false);
+        public static Task<bool> CancelledBoolTask = FromCanceled<bool>(default(CancellationToken));
 #if NET451
+
         private static class TaskExCache<T> {
             private static Task<T> _defaultCompleted;
             public static Task<T> Cancelled;
@@ -44,6 +46,7 @@ namespace Spreads {
                 return tcs.Task;
             }
         }
+
 #endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

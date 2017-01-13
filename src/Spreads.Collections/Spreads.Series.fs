@@ -49,7 +49,7 @@ and
     inherit BaseSeries<'K,'V>(cursorFactory)
     
     new(iseries:ISeries<'K,'V>) = Series<_,_>(iseries.GetCursor)
-    internal new() = Series<_,_>()
+    internal new() = Series<_,_>(Unchecked.defaultof<Func<ICursor<'K,'V>>>)
 
     // TODO (!) IObservable needs much more love and adherence to Rx contracts, see #40
     override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =

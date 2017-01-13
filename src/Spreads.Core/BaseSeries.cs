@@ -15,11 +15,11 @@ namespace Spreads {
     public class BaseSeries {
     }
 
-    public class BaseSeries<TK, TV> : BaseSeries, ISeries<TK, TV> {
+    public abstract class BaseSeries<TK, TV> : BaseSeries, ISeries<TK, TV> {
         private readonly Func<ICursor<TK, TV>> _cursorFactory;
         private ICursor<TK, TV> _c;
         internal int Locker;
-        internal TaskCompletionSource<long> UpdateTcs; // TODO reusable awaiter, see Channels in corefxlab
+        internal TaskCompletionSource<long> UpdateTcs;
 
         private object _syncRoot;
 
@@ -38,7 +38,6 @@ namespace Spreads {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void NotifyUpdateTcs() {
-            // TODO reusable awaiter, see Channels in corefxlab
             while (true) {
                 var updateTcs = Volatile.Read(ref this.UpdateTcs);
                 // stop when the result was already set
