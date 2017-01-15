@@ -97,7 +97,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       let removed = outerMap.RemoveMany(outerMap.First.Key, Lookup.GE)
       if removed then outerMap.Version <- outerMap.Version + 1L
 
-  member this.Comparer with get() = comparer
+  override this.Comparer with get() = comparer
 
   member this.Count
       with get() = 
@@ -127,7 +127,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       finally
         exitWriteLockIf &this.Locker entered
 
-  member this.IsEmpty
+  override this.IsEmpty
       with get() =
         readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> outerMap.IsEmpty)
          
@@ -284,7 +284,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       let bucket = outerMap.First
       bucket.Value.First
       
-  member this.First
+  override this.First
     with get() = 
       readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.FirstUnsafe)
 
@@ -294,7 +294,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       let bucket = outerMap.Last
       bucket.Value.Last
       
-  member this.Last
+  override this.Last
     with get() = 
       readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.LastUnsafe )
 
@@ -342,273 +342,6 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       new SortedChunkedMapGenericCursor<_,_,_>(this)
     )
-
-//  member private this.GetCursorOld(outer:ICursor<'K,'TContainer>, isReset:bool,currentBatch:IReadOnlySeries<'K,'V>, isBatch:bool) : ICursor<'K,'V> =
-//    // TODO
-//    let nextBatch : Task<IReadOnlySeries<'K,'V>> ref = ref Unchecked.defaultof<Task<IReadOnlySeries<'K,'V>>>
-//    
-//    let outer = ref outer
-//    // Need to move, otherwise initial move is skipped in MoveAt, isReset knows that we haven't started in SCM even when outer is started
-//    let mutable inner = if outer.Value.MoveFirst() then try outer.Value.CurrentValue.GetCursor() with | _ -> Unchecked.defaultof<_> else Unchecked.defaultof<_>
-//    let isReset = ref isReset
-//    let mutable currentBatch : IReadOnlySeries<'K,'V> = currentBatch
-//    let isBatch = ref isBatch
-//
-//    let observerStarted = ref false
-//    let mutable semaphore : SemaphoreSlim = Unchecked.defaultof<_>
-//    let mutable are : AutoResetEvent =  Unchecked.defaultof<_>
-//    let onNextHandler : OnNextHandler<'K,'V> = 
-//      OnNextHandler(fun (kvp:KVP<'K,'V>) ->
-//          if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
-//      )
-//    let onCompletedHandler : OnCompletedHandler = 
-//      OnCompletedHandler(fun _ ->
-//          if semaphore.CurrentCount = 0 then semaphore.Release() |> ignore
-//      )
-//
-//    { new ICursor<'K,'V> with
-//        member c.Comparer: IComparer<'K> = comparer
-//        member c.Source with get() = this :> ISeries<_,_>
-//        member c.IsContinuous with get() = false
-//        member c.Clone() =
-//          let clone = this.GetCursorOld(outer.Value.Clone(), !isReset, currentBatch, !isBatch)
-//          if not !isReset then
-//            let moved = clone.MoveAt(c.CurrentKey, Lookup.EQ)
-//            if not moved then invalidOp "cannot correctly clone SCM cursor"
-//          clone
-//        
-//        member x.MoveNext(ct: CancellationToken): Task<bool> = 
-//          let rec completeTcs(tcs:AsyncTaskMethodBuilder<bool>, token: CancellationToken) : unit = // Task<bool> = 
-//            if x.MoveNext() then
-//              tcs.SetResult(true)
-//            else
-//              let semaphoreTask = semaphore.WaitAsync(-1, token)
-//              let awaiter = semaphoreTask.GetAwaiter()
-//              awaiter.UnsafeOnCompleted(fun _ ->
-//                match semaphoreTask.Status with
-//                | TaskStatus.RanToCompletion -> 
-//                  if x.MoveNext() then tcs.SetResult(true)
-//                  elif this.IsReadOnly then tcs.SetResult(false)
-//                  else completeTcs(tcs, token)
-//                | _ -> failwith "TODO process all task results"
-//                ()
-//              )
-//          match x.MoveNext() with
-//          | true -> trueTask            
-//          | false ->
-//            match this.IsReadOnly with
-//            | false ->
-//              let upd = this :> IObservableEvents<'K,'V>
-//              if not !observerStarted then
-//                semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
-//                this.onNextEvent.Publish.AddHandler onNextHandler
-//                this.onCompletedEvent.Publish.AddHandler onCompletedHandler
-//                observerStarted := true
-//              let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
-//              let returnTask = tcs.Task
-//              completeTcs(tcs, ct)
-//              returnTask
-//            | _ -> falseTask
-//
-//        member p.MovePrevious() = 
-//          let entered = enterLockIf this.SyncRoot this.IsSynchronized
-//          try
-//            if isReset.Value then p.MoveLast()
-//            else
-//              let res = inner.MovePrevious()
-//              if res then
-//                isBatch := false
-//                true
-//              else
-//                if outer.Value.MovePrevious() then // go to the previous bucket
-//                  inner <- outer.Value.CurrentValue.GetCursor()
-//                  let res = inner.MoveLast()
-//                  if res then
-//                    isBatch := false
-//                    true
-//                  else
-//                    raise (ApplicationException("Unexpected - empty bucket")) 
-//                else
-//                  false
-//          finally
-//            exitLockIf this.SyncRoot entered
-//
-//        // TODO (!) review the entire method for edge cases
-//        member p.MoveAt(key:'K, direction:Lookup) = 
-//          let entered = enterLockIf this.SyncRoot this.IsSynchronized
-//          try
-//            let res =
-//              if chunkUpperLimit = 0 then
-//                let hash = hasher.Hash(key)
-//                let c = 
-//                  if isReset.Value then 2 // <> 0 below
-//                  else comparer.Compare(hash, outer.Value.CurrentKey)
-//              
-//                if c <> 0 then // not in the current bucket, switch bucket
-//                  if outer.Value.MoveAt(hash, Lookup.EQ) then // Equal!
-//                    inner <- outer.Value.CurrentValue.GetCursor()
-//                    inner.MoveAt(key, direction)
-//                  else
-//                    false
-//                else
-//                  inner.MoveAt(key, direction)
-//              else
-//                if outer.Value.MoveAt(key, Lookup.LE) then // LE!
-//                  inner <- outer.Value.CurrentValue.GetCursor()
-//                  inner.MoveAt(key, direction)
-//                else
-//                  false
-//
-//            if res then
-//              isReset := false
-//              isBatch := false
-//              true
-//            else
-//                match direction with
-//                | Lookup.LT | Lookup.LE ->
-//                  // look into previous bucket
-//                  if outer.Value.MovePrevious() then
-//                    inner <- outer.Value.CurrentValue.GetCursor()
-//                    let res = inner.MoveAt(key, direction)
-//                    if res then
-//                      isBatch := false
-//                      isReset := false
-//                      true
-//                    else
-//                      p.Reset()
-//                      false
-//                  else
-//                    p.Reset()
-//                    false
-//                | Lookup.GT | Lookup.GE ->
-//                  // look into next bucket
-//                  let moved = outer.Value.MoveNext() 
-//                  if moved then
-//                    inner <- outer.Value.CurrentValue.GetCursor()
-//                    let res = inner.MoveAt(key, direction)
-//                    if res then
-//                      isBatch := false
-//                      isReset := false
-//                      true
-//                    else
-//                      p.Reset()
-//                      false 
-//                  else
-//                    p.Reset()
-//                    false 
-//                | _ -> false // LookupDirection.EQ
-//          finally
-//            exitLockIf this.SyncRoot entered
-//
-//        member p.MoveFirst() = 
-//          let entered = enterLockIf this.SyncRoot this.IsSynchronized
-//          try
-//            if this.IsEmpty then false
-//            else try p.MoveAt(this.First.Key, Lookup.EQ) with | _ -> false
-//          finally
-//            exitLockIf this.SyncRoot entered
-//
-//        member p.MoveLast() = 
-//          let entered = enterLockIf this.SyncRoot this.IsSynchronized
-//          try
-//            if this.IsEmpty then false
-//            else p.MoveAt(this.Last.Key, Lookup.EQ)
-//          finally
-//            exitLockIf this.SyncRoot entered
-//
-//        // TODO (v.0.2+) We now require that a false move keeps cursors on the same key before unsuccessfull move
-//        // Also, calling CurrentKey/Value must never throw, remove try/catch here to avoid muting error that should not happen
-//        //
-//        // (delete this) NB These are "undefined" when cursor is in invalid state, but they should not thow
-//        // Try/catch adds almost no overhead, even compared to null check, in the normal case. Calling these properties before move is 
-//        // an application error and should be logged or raise an assertion failure
-//        member c.CurrentKey with get() = try inner.CurrentKey with | _ -> Unchecked.defaultof<_>
-//        member c.CurrentValue with get() = try inner.CurrentValue with | _ -> Unchecked.defaultof<_>
-//        //member c.Current with get() : obj = box c.Current
-//        member c.TryGetValue(key: 'K, value: byref<'V>): bool = this.TryGetValue(key, &value)
-//
-//
-//
-//        member p.CurrentBatch = 
-//          if !isBatch then currentBatch
-//          else invalidOp "Current move is single, cannot return a batch"
-//
-//        member p.MoveNextBatch(ct) =
-//          Async.StartAsTask(async {
-//            let entered = enterLockIf this.SyncRoot this.IsSynchronized
-//            try
-//              if isReset.Value then 
-//                if outer.Value.MoveFirst() then
-//                  currentBatch <- outer.Value.CurrentValue :> IReadOnlySeries<'K,'V>
-//                  isBatch := true
-//                  isReset := false
-//                  return true
-//                else return false
-//              else
-//                if !isBatch then
-//                  let couldMove = outer.Value.MoveNext() // ct |> Async.AwaitTask // NB not async move next!
-//                  if couldMove then
-//                    currentBatch <- outer.Value.CurrentValue :> IReadOnlySeries<'K,'V>
-//                    isBatch := true
-//                    return true
-//                  else 
-//                    // no batch, but place cursor at the end of the last batch so that move next won't get null reference exception
-//                    inner <- outer.Value.CurrentValue.GetCursor()
-//                    if not outer.Value.CurrentValue.IsEmpty then inner.MoveLast() |> ignore
-//                    return false
-//                else
-//                  return false
-//            finally
-//              exitLockIf this.SyncRoot entered
-//          }, TaskCreationOptions.None, ct)
-//
-//      interface IEnumerator<KVP<'K,'V>> with
-//        member p.Reset() = 
-//          if not !isReset then
-//            outer.Value.Reset()
-//            outer.Value.MoveFirst() |> ignore
-//            //inner.Reset()
-//            inner <- Unchecked.defaultof<_>
-//            isReset := true
-//
-//        member p.Dispose() = 
-//            p.Reset()
-//            if !observerStarted then
-//              this.onNextEvent.Publish.RemoveHandler(onNextHandler)
-//              this.onCompletedEvent.Publish.RemoveHandler(onCompletedHandler)
-//        
-//        member p.MoveNext() = 
-//          let entered = enterLockIf this.SyncRoot this.IsSynchronized
-//          try
-//            if isReset.Value then (p :?> ICursor<'K,'V>).MoveFirst()
-//            else
-//              let res = inner.MoveNext() // could pass curent key by ref and save some single-dig %
-//              if res then
-//                if !isBatch then isBatch := false
-//                true
-//              else
-//                //let currentKey = inner.CurrentKey
-//                if outer.Value.MoveNext() then // go to the next bucket
-//                  inner <- outer.Value.CurrentValue.GetCursor()
-//                  let res = inner.MoveFirst()
-//                  if res then
-//                    isBatch := false
-//                    true
-//                  else
-//                    raise (ApplicationException("Unexpected - empty bucket")) 
-//                else
-//                  //p.MoveAt(currentKey, Lookup.GT)
-//                  false
-//          finally
-//            exitLockIf this.SyncRoot entered
-//
-//        member c.Current 
-//          with get() =
-//            if !isBatch then invalidOp "Current move is MoveNextBatxhAsync, cannot return a single valule"
-//            else inner.Current
-//        member this.Current with get(): obj = this.Current :> obj
-//    }
-//
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.TryFindTuple(key:'K, direction:Lookup) = 
@@ -669,14 +402,14 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
     tupleResult.Value1
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
+  override this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
     let res() = this.TryFindTuple(key, direction)
     let tupleResult = readLockIf &this.nextVersion &this.version this.isSynchronized res
     result <- tupleResult.Value2
     tupleResult.Value1
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+  override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     try
       res <- this.First
       true
@@ -686,7 +419,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       false
           
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]  
-  member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+  override this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     try
       res <- this.Last
       true
@@ -696,7 +429,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       false
         
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member this.TryGetValue(k, [<Out>] value:byref<'V>) =
+  override this.TryGetValue(k, [<Out>] value:byref<'V>) =
     let res() = 
       let mutable kvp = Unchecked.defaultof<_>
       let ok = this.TryFind(k, Lookup.EQ, &kvp)
@@ -2116,198 +1849,3 @@ and
       member this.IsContinuous with get() = false
       member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)
 
-
-//and
-//  internal SortedChunkedMapCursorAsync<'K,'V>(source:SortedChunkedMap<'K,'V>) as this =
-//    [<DefaultValueAttribute(false)>]
-//    val mutable private state : SortedChunkedMapCursor<'K,'V>
-//    [<DefaultValueAttribute(false)>]
-//    val mutable private semaphore : SemaphoreSlim
-//    [<DefaultValueAttribute(false)>]
-//    val mutable private onUpdateHandler : OnUpdateHandler
-//
-//    // NB Async cursors are supposed to be long-lived, therefore we opt for fatter 
-//    // cursor object with these fields but avoid closure allocation in the callback.
-//    [<DefaultValueAttribute(false)>]
-//    val mutable private semaphoreTask : Task<bool>
-//    [<DefaultValueAttribute(false)>]
-//    val mutable private tcs : AsyncTaskMethodBuilder<bool>
-//    [<DefaultValueAttribute(false)>]
-//    val mutable private token: CancellationToken
-//    [<DefaultValueAttribute(false)>]
-//    val mutable private callbackAction: Action
-//
-//    do
-//      this.state <- new SortedChunkedMapCursor<'K,'V>(source)
-//
-//    override this.Finalize() = this.Dispose()
-//     
-//    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-//    member private this.CompleteTcsCallback() =
-//      OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed")
-//      match this.semaphoreTask.Status with
-//      | TaskStatus.RanToCompletion -> 
-//        if not this.semaphoreTask.Result then 
-//          OptimizationSettings.TraceVerbose("semaphore timeout " + this.state.source.subscribersCounter.ToString() + " " + this.state.source.isReadOnly.ToString())
-//        if this.state.MoveNext() then
-//          OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed MN true")
-//          this.tcs.SetResult(true)
-//        elif this.state.source.isReadOnly then 
-//          OptimizationSettings.TraceVerbose("SM_MNA: awaiter on completed immutable")
-//          this.tcs.SetResult(false)
-//        else
-//          OptimizationSettings.TraceVerbose("SM_MNA: recursive calling completeTcs")
-//          this.CompleteTcs()
-//      | _ -> failwith "TODO process all task results, e.g. cancelled"
-//      ()
-//
-//    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-//    member private this.CompleteTcs() : unit =
-//      if this.state.MoveNext() then
-//          OptimizationSettings.TraceVerbose("SM_MNA: MN inside completeTcs")
-//          this.tcs.SetResult(true)
-//        else
-//          OptimizationSettings.TraceVerbose("SM_MNA: waiting on semaphore")
-//          // NB this.source.isReadOnly could be set to true right before semaphore.WaitAsync call
-//          // and we will never get signal after that
-//          let mutable entered = false
-//          try
-//            entered <- enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
-//            if this.state.source.isReadOnly then
-//              if this.state.MoveNext() then this.tcs.SetResult(true) else this.tcs.SetResult(false)
-//            else
-//              this.semaphoreTask <- this.semaphore.WaitAsync(500, this.token)
-//              let awaiter = this.semaphoreTask.GetAwaiter()
-//              // TODO profiler says this allocates. This is because we close over the three variables.
-//              // We could turn them into mutable fields and then closure could be allocated just once.
-//              // But then the cursor will become heavier.
-//              awaiter.UnsafeOnCompleted(this.callbackAction)
-//          finally
-//            exitWriteLockIf &this.state.source.locker entered
-//
-//    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-//    member this.MoveNext(ct: CancellationToken): Task<bool> =      
-//      match this.state.MoveNext() with
-//      | true -> 
-//        OptimizationSettings.TraceVerbose("SM_MNA: sync MN true")
-//        trueTask            
-//      | false ->
-//        OptimizationSettings.TraceVerbose("SM_MNA: sync MN false")
-//        match this.state.source.isReadOnly with
-//        | false ->
-//          let sw = SpinWait()
-//          let mutable doSpin = true
-//          let mutable spinCount = 0
-//          // spin 10 times longer than default SpinWait implementation
-//          while doSpin && not this.state.source.isReadOnly && not ct.IsCancellationRequested && spinCount < 100 do
-//            OptimizationSettings.TraceVerbose("SM_MNA: spinning")
-//            doSpin <- (not <| this.state.MoveNext()) 
-//            if doSpin then
-//              if sw.NextSpinWillYield then 
-//                increment &spinCount
-//                sw.Reset()
-//              sw.SpinOnce()
-//          if not doSpin then // exited loop due to successful MN, not due to sw.NextSpinWillYield
-//            OptimizationSettings.TraceVerbose("SM_MNA: spin wait success")
-//            trueTask
-//          elif this.state.source.isReadOnly then
-//            if this.state.MoveNext() then trueTask else falseTask
-//          elif ct.IsCancellationRequested then
-//            raise (OperationCanceledException(ct))
-//          else
-//            // NB expect huge amount of idle tasks. Spinning on all of them is questionable.
-//            //failwith "TODO exit spinning on some condition"
-//            if this.onUpdateHandler = Unchecked.defaultof<_> then
-//              let mutable entered = false
-//              try
-//                entered <- enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
-//                this.semaphore <- new SemaphoreSlim(0,Int32.MaxValue)
-//                this.onUpdateHandler <- OnUpdateHandler(fun _ ->
-//                    if this.semaphore.CurrentCount <> Int32.MaxValue then this.semaphore.Release() |> ignore
-//                )
-//                this.state.source.onUpdateEvent.Publish.AddHandler this.onUpdateHandler
-//                Interlocked.Increment(&this.state.source.subscribersCounter) |> ignore
-//              finally
-//                exitWriteLockIf &this.state.source.locker entered
-//            if this.state.MoveNext() then trueTask
-//            else
-//              this.tcs <- Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
-//              let returnTask = this.tcs.Task
-//              OptimizationSettings.TraceVerbose("SM_MNA: calling completeTcs")
-//              this.token <- ct
-//              if this.callbackAction = Unchecked.defaultof<_> then this.callbackAction <- Action(this.CompleteTcsCallback)
-//              this.CompleteTcs()
-//              returnTask
-//        | _ -> if this.state.MoveNext() then trueTask else falseTask
-//      
-//    member this.Clone() = 
-//      let mutable entered = false
-//      try
-//        entered <- enterWriteLockIf &this.state.source.locker this.state.source.isSynchronized
-//        let clone = new SortedChunkedMapCursorAsync<'K,'V>(this.state.source)
-//        let mutable cloneState = this.state
-//        cloneState.source <- this.state.source
-//        cloneState.outerCursor <- this.state.outerCursor.Clone()
-//        cloneState.innerCursor <- this.state.innerCursor.Clone()
-//        cloneState.isBatch <- this.state.isBatch
-//        clone.state <- cloneState
-//        clone
-//      finally
-//        exitWriteLockIf &this.state.source.locker entered
-//      
-//    member this.Dispose() = this.Dispose(true)
-//    member this.Dispose(disposing:bool) = 
-//      this.state.Reset()
-//      if this.onUpdateHandler <> Unchecked.defaultof<_> then
-//        Interlocked.Decrement(&this.state.source.subscribersCounter) |> ignore
-//        this.state.source.onUpdateEvent.Publish.RemoveHandler(this.onUpdateHandler)
-//        this.semaphore.Dispose()
-//        this.semaphoreTask <- Unchecked.defaultof<_>
-//        this.token <- Unchecked.defaultof<_>
-//        this.tcs <- Unchecked.defaultof<_>
-//      if disposing then GC.SuppressFinalize(this)
-//
-//    // C#-like methods to avoid casting to ICursor all the time
-//    member this.Reset() = this.state.Reset()
-//    member this.MoveNext():bool = this.state.MoveNext()
-//    member this.Current with get(): KVP<'K, 'V> = this.state.Current
-//    member this.Comparer with get() = this.state.source.Comparer
-//    member this.CurrentBatch = this.state.CurrentBatch
-//    member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.state.MoveNextBatch(cancellationToken)
-//    member this.MoveAt(index:'K, lookup:Lookup) = this.state.MoveAt(index, lookup)
-//    member this.MoveFirst():bool = this.state.MoveFirst()
-//    member this.MoveLast():bool =  this.state.MoveLast()
-//    member this.MovePrevious():bool = this.state.MovePrevious()
-//    member this.CurrentKey with get():'K = this.state.CurrentKey
-//    member this.CurrentValue with get():'V = this.state.CurrentValue
-//    member this.Source with get() = this.state.source :> ISeries<'K,'V>
-//    member this.IsContinuous with get() = false
-//    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.state.source.TryGetValue(key, &value)
-//
-//    interface IDisposable with
-//      member this.Dispose() = this.Dispose()
-//
-//    interface IEnumerator<KVP<'K,'V>> with    
-//      member this.Reset() = this.state.Reset()
-//      member this.MoveNext():bool = this.state.MoveNext()
-//      member this.Current with get(): KVP<'K, 'V> = this.state.Current
-//      member this.Current with get(): obj = this.state.Current :> obj
-//
-//    interface IAsyncEnumerator<KVP<'K,'V>> with
-//      member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = this.MoveNext(cancellationToken) 
-//
-//    interface ICursor<'K,'V> with
-//      member this.Comparer with get() = this.state.source.Comparer
-//      member this.CurrentBatch = this.state.CurrentBatch
-//      member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.state.MoveNextBatch(cancellationToken)
-//      member this.MoveAt(index:'K, lookup:Lookup) = this.state.MoveAt(index, lookup)
-//      member this.MoveFirst():bool = this.state.MoveFirst()
-//      member this.MoveLast():bool =  this.state.MoveLast()
-//      member this.MovePrevious():bool = this.state.MovePrevious()
-//      member this.CurrentKey with get():'K = this.state.CurrentKey
-//      member this.CurrentValue with get():'V = this.state.CurrentValue
-//      member this.Source with get() = this.state.source :> ISeries<'K,'V>
-//      member this.Clone() = this.Clone() :> ICursor<'K,'V>
-//      member this.IsContinuous with get() = false
-//      member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.state.source.TryGetValue(key, &value)
-//

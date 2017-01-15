@@ -3,6 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+
 #nowarn "0086" // operator overloads are intentional, Series are as primitive as scalars, all arithmetic operations are defined on them as maps
 namespace Spreads
 
@@ -45,7 +50,7 @@ and
   [<AllowNullLiteral>]
   [<AbstractClassAttribute>]
   //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-  Series<'K,'V> internal(cursorFactory:(Func<ICursor<'K,'V>>)) as this =
+  Series<'K,'V> internal(cursorFactory:(Func<ICursor<'K,'V>>)) =
     inherit BaseSeries<'K,'V>(cursorFactory)
     
     new(iseries:ISeries<'K,'V>) = Series<_,_>(iseries.GetCursor)
@@ -89,9 +94,9 @@ and
         exitWriteLockIf &this.Locker true
 
 
-    member internal this.IsEmpty = lock(this.SyncRoot) (fun _ -> not (this.C.MoveFirst()))
+    override this.IsEmpty = lock(this.SyncRoot) (fun _ -> not (this.C.MoveFirst()))
 
-    member internal this.First
+    override this.First
       with get() = 
         let entered = enterLockIf this.SyncRoot true
         try
@@ -99,7 +104,7 @@ and
         finally
           exitLockIf this.SyncRoot entered
 
-    member internal this.Last 
+    override this.Last 
       with get() =
         let entered = enterLockIf this.SyncRoot true
         try
@@ -107,7 +112,7 @@ and
         finally
           exitLockIf this.SyncRoot entered
 
-    member internal this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
+    override this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
       let entered = enterLockIf this.SyncRoot true
       try
         if this.C.MoveAt(k, direction) then
@@ -117,7 +122,7 @@ and
       finally
         exitLockIf this.SyncRoot entered
 
-    member internal this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+    override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
       let entered = enterLockIf this.SyncRoot true
       try
         if this.C.MoveFirst() then
@@ -127,7 +132,7 @@ and
       finally
         exitLockIf this.SyncRoot entered
 
-    member internal this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) =
+    override this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) =
       let entered = enterLockIf this.SyncRoot true
       try
         if this.C.MoveLast() then
@@ -137,7 +142,7 @@ and
       finally
         exitLockIf this.SyncRoot entered
 
-    member internal this.TryGetValue(k, [<Out>] value:byref<'V>) =
+    override this.TryGetValue(k, [<Out>] value:byref<'V>) =
       let entered = enterLockIf this.SyncRoot true
       try
         if this.C.IsContinuous then
@@ -149,7 +154,7 @@ and
       finally
         exitLockIf this.SyncRoot entered
 
-    member internal this.Item 
+    override this.Item 
       with get k =
         let entered = enterLockIf this.SyncRoot true
         try
@@ -158,7 +163,7 @@ and
         finally
         exitLockIf this.SyncRoot entered
 
-    member internal this.Keys 
+    override this.Keys 
       with get() =
         // TODO manual impl, seq is slow
         use c = this.GetCursor()
@@ -167,7 +172,7 @@ and
             yield c.CurrentKey
         }
 
-    member internal this.Values
+    override this.Values
       with get() =
         // TODO manual impl, seq is slow
         use c = this.GetCursor()
@@ -175,6 +180,8 @@ and
           while c.MoveNext() do
             yield c.CurrentValue
         }
+
+    override this.GetAt(idx:int) = this.Skip(Math.Max(0, idx-1)).First().Value
 
     interface IEnumerable<KeyValuePair<'K, 'V>> with
       member this.GetEnumerator() = this.GetCursor() :> IEnumerator<KeyValuePair<'K, 'V>>
@@ -198,7 +205,7 @@ and
       member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = this.TryGetLast(&res)
       member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
       member this.Item with get k = this.[k]
-      member this.GetAt(idx:int) = this.Skip(Math.Max(0, idx-1)).First().Value
+      member this.GetAt(idx:int) = this.GetAt(idx)
       member this.Keys with get() = this.Keys 
       member this.Values with get() = this.Values
           
@@ -592,8 +599,8 @@ and
 
     // generic
     // TODO (low) dynamic operators via Linq.Expressions, then Panels will work via series
-    static member (+) (source:Series<'K,'V1>, other:Series<'K,'V2>) : Series<'K,'V3> = Series.BinaryOperatorMap2(source, other, fun x y -> Op<'V1,'V2,'V3>.Add(x,y))
-    static member (+) (source:Series<'K,'V1>, other:Series<'K,'V2>) : Series<'K,'V1> = Series.BinaryOperatorMap2(source, other, fun x y -> Op<'V1,'V2,'V1>.Add(x,y))
+    static member (+) (source:Series<'K,'V1>, other:Series<'K,'V2>) : Series<'K,'V3> = Series<_,_>.BinaryOperatorMap2(source, other, fun x y -> Op<'V1,'V2,'V3>.Add(x,y))
+    static member (+) (source:Series<'K,'V1>, other:Series<'K,'V2>) : Series<'K,'V1> = Series<_,_>.BinaryOperatorMap2(source, other, fun x y -> Op<'V1,'V2,'V1>.Add(x,y))
 
     // TODO (high) add all math operators, e.g. Abs, Log, Exp, etc.
     // TODO other primitive numeric types
@@ -1573,6 +1580,7 @@ and
 
 
 and
+  // TODO use Span<'V> instead of 'V[]
   ZipNCursor<'K,'V,'R>(resultSelector:Func<'K,'V[],'R>, [<ParamArray>] cursorFactories:(unit->ICursor<'K,'V>)[]) as this =
     do
       if cursorFactories.Length < 2 then invalidArg "cursorFactories" "ZipN takes at least two cursor factories"

@@ -483,7 +483,7 @@ type SortedMap<'K,'V>
       finally
         exitWriteLockIf &this.Locker entered
 
-  member this.Comparer with get() = comparer
+  override this.Comparer with get() = comparer
 
   member this.Clear() =
     let mutable entered = false
@@ -506,10 +506,10 @@ type SortedMap<'K,'V>
 
   member this.Count with get() = this.size
 
-  member this.IsEmpty with get() = this.size = 0
+  override this.IsEmpty with get() = this.size = 0
 
-  member this.Keys 
-    with get() : IList<'K> =
+  override this.Keys 
+    with get() =
       {new IList<'K> with
         member x.Count with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.size)
         member x.IsReadOnly with get() = true
@@ -569,10 +569,10 @@ type SortedMap<'K,'V>
               index := 0
               currentKey := Unchecked.defaultof<'K>
           }
-      }
+      } :> IEnumerable<_>
 
-  member this.Values
-    with get() : IList<'V> =
+  override this.Values
+    with get() =
       { new IList<'V> with
         member x.Count with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.size)
         member x.IsReadOnly with get() = true
@@ -627,7 +627,7 @@ type SortedMap<'K,'V>
               index := 0
               currentValue := Unchecked.defaultof<'V>
           }
-        }
+        }  :> IEnumerable<_>
 
   member this.ContainsKey(key) = this.IndexOfKey(key) >= 0
 
@@ -659,14 +659,14 @@ type SortedMap<'K,'V>
     )
 
 
-  member this.First
+  override this.First
     with get() =
       readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
         if this.size = 0 then raise (InvalidOperationException("Could not get the first element of an empty map"))
         KeyValuePair(this.keys.[0], this.values.[0])
       )
 
-  member this.Last
+  override this.Last
     with get() =
       readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
         if this.size = 0 then raise (InvalidOperationException("Could not get the last element of an empty map"))
@@ -1174,7 +1174,7 @@ type SortedMap<'K,'V>
       | _ -> raise (ApplicationException("Wrong lookup direction"))
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) =
+  override this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) =
     if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
     let res() = 
       let mutable kvp = Unchecked.defaultof<_>
@@ -1187,7 +1187,7 @@ type SortedMap<'K,'V>
 
   /// Return true if found exact key
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
+  override this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
     if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
     let res() = 
       // first/last optimization
@@ -1208,7 +1208,7 @@ type SortedMap<'K,'V>
     tupleResult.Value1
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+  override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     try
       res <- this.First
       true
@@ -1218,7 +1218,7 @@ type SortedMap<'K,'V>
       false
            
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>] 
-  member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+  override this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     try
       res <- this.Last
       true
@@ -1262,7 +1262,7 @@ type SortedMap<'K,'V>
     base.Subscribe(observer : IObserver<KVP<'K,'V>>)
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member this.GetAt(idx:int) =
+  override this.GetAt(idx:int) =
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       if idx >= 0 && idx < this.size then this.values.[idx] else raise (ArgumentOutOfRangeException("idx", "Idx is out of range in SortedMap GetAt method."))
     )
@@ -1327,8 +1327,8 @@ type SortedMap<'K,'V>
     member this.Item
       with get key = this.Item(key)
       and set key value = this.[key] <- value
-    member this.Keys with get() = this.Keys :> ICollection<'K>
-    member this.Values with get() = this.Values :> ICollection<'V>
+    member this.Keys with get() = this.Keys :?> ICollection<'K>
+    member this.Values with get() = this.Values :?> ICollection<'V>
     member this.Clear() = this.Clear()
     member this.ContainsKey(key) = this.ContainsKey(key)
     member this.Contains(kvp:KeyValuePair<'K,'V>) = this.ContainsKey(kvp.Key)
@@ -1342,7 +1342,7 @@ type SortedMap<'K,'V>
         if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
         if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
         for index in 0..this.Count do
-          let kvp = KeyValuePair(this.Keys.[index], this.Values.[index])
+          let kvp = KeyValuePair(this.keys.[index], this.values.[index])
           array.[arrayIndex + index] <- kvp
       finally
         exitWriteLockIf &this.Locker entered
@@ -1370,8 +1370,8 @@ type SortedMap<'K,'V>
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
     member this.Item with get k = this.Item(k)
     member this.GetAt(idx:int) = this.GetAt(idx:int)
-    member this.Keys with get() = this.Keys :> IEnumerable<'K>
-    member this.Values with get() = this.values :> IEnumerable<'V>
+    member this.Keys with get() = this.Keys
+    member this.Values with get() = this.Values
     member this.SyncRoot with get() = this.SyncRoot
     
 

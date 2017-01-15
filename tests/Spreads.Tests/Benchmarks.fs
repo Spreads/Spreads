@@ -858,32 +858,32 @@ module CollectionsBenchmarks =
           ()
       )
 
-    for i in 0..9 do
-      perf count "Streams Add/divide Chained" (fun _ ->
-        let ro =
-          smap.Value
-          |> Nessos.Streams.Stream.ofSeq
-          |> Nessos.Streams.Stream.map (fun x -> x.Value + 123456.0f)
-          |> Nessos.Streams.Stream.map (fun x -> x/789.0f)
-          |> Nessos.Streams.Stream.map (fun x -> x*10.0f)
-          |> Nessos.Streams.Stream.toSeq
-        
-        for i in ro do
-          let res = i
-          ()
-      )
-
-    for i in 0..9 do
-      perf count "Streams Add/divide Inline" (fun _ ->
-        let ro =
-          smap.Value
-          |> Nessos.Streams.Stream.ofSeq
-          |> Nessos.Streams.Stream.map (fun x -> ((x.Value + 123456.0f)/789.0f)*10.0f)
-          |> Nessos.Streams.Stream.toSeq
-        for i in ro do
-          let res = i
-          ()
-      )
+//    for i in 0..9 do
+//      perf count "Streams Add/divide Chained" (fun _ ->
+//        let ro =
+//          smap.Value
+//          |> Nessos.Streams.Stream.ofSeq
+//          |> Nessos.Streams.Stream.map (fun x -> x.Value + 123456.0f)
+//          |> Nessos.Streams.Stream.map (fun x -> x/789.0f)
+//          |> Nessos.Streams.Stream.map (fun x -> x*10.0f)
+//          |> Nessos.Streams.Stream.toSeq
+//        
+//        for i in ro do
+//          let res = i
+//          ()
+//      )
+//
+//    for i in 0..9 do
+//      perf count "Streams Add/divide Inline" (fun _ ->
+//        let ro =
+//          smap.Value
+//          |> Nessos.Streams.Stream.ofSeq
+//          |> Nessos.Streams.Stream.map (fun x -> ((x.Value + 123456.0f)/789.0f)*10.0f)
+//          |> Nessos.Streams.Stream.toSeq
+//        for i in ro do
+//          let res = i
+//          ()
+//      )
     smap.Value.Dispose();
     GC.Collect();
 

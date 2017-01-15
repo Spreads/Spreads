@@ -15,7 +15,7 @@ namespace Spreads {
     public class BaseSeries {
     }
 
-    public abstract class BaseSeries<TK, TV> : BaseSeries, ISeries<TK, TV> {
+    public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK,TV> {
         private readonly Func<ICursor<TK, TV>> _cursorFactory;
         private ICursor<TK, TV> _c;
         internal int Locker;
@@ -23,11 +23,11 @@ namespace Spreads {
 
         private object _syncRoot;
 
-        public BaseSeries(Func<ICursor<TK, TV>> cursorFactory = null) {
+        protected BaseSeries(Func<ICursor<TK, TV>> cursorFactory = null) {
             _cursorFactory = cursorFactory;
         }
 
-        public BaseSeries(ISeries<TK, TV> series) : this(series.GetCursor) {
+        protected BaseSeries(ISeries<TK, TV> series) : this(series.GetCursor) {
         }
 
         internal ICursor<TK, TV> C
@@ -77,7 +77,7 @@ namespace Spreads {
             return GetCursor();
         }
 
-        public IComparer<TK> Comparer => C.Source.Comparer;
+        public virtual IComparer<TK> Comparer => C.Source.Comparer;
 
         public object SyncRoot
         {
@@ -91,5 +91,18 @@ namespace Spreads {
         ~BaseSeries() {
             _c?.Dispose();
         }
+
+        // IReadOnlySeries members
+        public abstract bool IsEmpty { get; }
+        public abstract KeyValuePair<TK, TV> First { get; }
+        public abstract KeyValuePair<TK, TV> Last { get; }
+        public abstract TV this[TK key] { get; }
+        public abstract TV GetAt(int idx);
+        public abstract IEnumerable<TK> Keys { get; }
+        public abstract IEnumerable<TV> Values { get; }
+        public abstract bool TryFind(TK key, Lookup direction, out KeyValuePair<TK, TV> value);
+        public abstract bool TryGetFirst(out KeyValuePair<TK, TV> value);
+        public abstract bool TryGetLast(out KeyValuePair<TK, TV> value);
+        public abstract bool TryGetValue(TK key, out TV value);
     }
 }

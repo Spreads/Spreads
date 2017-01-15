@@ -92,7 +92,8 @@
     <Compile Include="Interfaces.fs" />
     <Compile Include="ISeriesExtensions.fs" />
     <Compile Include="OptimizationSettings.fs" />
-    <Compile Include="Spreads.Series.fs" />
+    <Compile Include="Series.fs" />
+    <Compile Include="MutableSeries.fs" />
     <Compile Include="BaseCursor.fs" />
     <Compile Include="Collections\Collections.fs" />
     <Compile Include="Collections\ImmutableIntMap64.fs" />

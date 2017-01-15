@@ -261,7 +261,7 @@ namespace Spreads {
         /// Value at key, throws KeyNotFoundException if key is not present in the series (even for continuous series).
         /// Use TryGetValue to get a value between existing keys for continuous series.
         /// </summary>
-        TValue this[TKey value] { get; }
+        TValue this[TKey key] { get; }
 
         /// <summary>
         /// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
