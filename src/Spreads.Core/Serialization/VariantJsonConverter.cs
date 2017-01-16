@@ -72,7 +72,7 @@ namespace Spreads.Serialization {
             }
 
             object obj;
-            if (typeCode != (byte)TypeEnum.None) {
+            if (typeCode != TypeEnum.None) {
                 if (!reader.Read()) throw new Exception("Cannot read JSON");
                 var type = VariantHelper.GetType(typeCode, subTypeCode);
                 obj = serializer.Deserialize(reader, type);

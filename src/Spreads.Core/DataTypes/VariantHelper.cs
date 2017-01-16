@@ -131,8 +131,9 @@ namespace Spreads.DataTypes {
         internal static Type GetType(TypeEnum typeEnum, TypeEnum subTypeEnum = TypeEnum.None) {
             if ((int)typeEnum < Variant.KnownSmallTypesLimit) {
                 switch (typeEnum) {
-                    case TypeEnum.None:
-                        throw new InvalidOperationException("TypeEnum.None is possible only for nulls");
+                    case TypeEnum.Bool:
+                        return typeof(bool);
+
                     case TypeEnum.Int8:
                         return typeof(sbyte);
 

@@ -14,11 +14,9 @@ namespace Spreads.DataTypes {
         // NB Enum values themselves should never be used directly, only the array below should depend on them
         // However, for non-.NET clients they should stabilize rather sooner than later
 
-        None = 0,
-
         // Fixed-length known types - their length is defined by code
 
-        Bool = 197,
+        Bool = 0,
 
         Int8 = 1,
         Int16 = 2,
@@ -30,8 +28,8 @@ namespace Spreads.DataTypes {
         UInt32 = 7,
         UInt64 = 8,
 
-        Float64 = 9, // NB save 1 byte in JSON, double is probably the most popular type
-        Float32 = 10,
+        Float32 = 9,
+        Float64 = 10,
 
         Decimal = 11,
         Price = 12,
@@ -69,51 +67,38 @@ namespace Spreads.DataTypes {
         /// </summary>
         Complex64 = 19,
 
-        // We could define up to 200 known fixed-size types,
-        // e.g. Price, Tick, Point2Df (float), Point3Dd(double)
-        //Symbol8 = 20,
-        //Symbol16 = 21,
-        //Symbol32 = 22,
-        //Symbol64 = 23,
-        //Symbol128 = 24,
-
-        // Comparison [(byte)(TypeEnum) < 198 = true] means known fixed type
+        // ----------------------------------------------------------------
+        // Comparison [(byte)(TypeEnum) < 64 = true] means known fixed type
+        // ----------------------------------------------------------------
 
         /// <summary>
         /// Used for blittable types (fixed-length type with fixed layout)
         /// </summary>
-        FixedBinary = 198,
-
-        /// <summary>
-        /// Array with fixed number of elements (space is reserved even if it is not filled)
-        /// </summary>
-        //FixedArray = 199, // this could be either fixed if sub-type is fixed or variable
+        FixedBinary = 65,
 
         // Variable size types
 
-        String = 200,
-        Binary = 201,
+        String = 66,
+        Binary = 67,
 
-        Variant = 242, // for sub-type in containers, must throw for scalars
-        Object = 243, // custom object, should serialize to Binary
+        Variant = 68, // for sub-type in containers, must throw for scalars
+        Object = 69, // custom object, the type must have a KnownType attribute
 
-        // Containers
+        Array = 70,
+        
+        None = 99
 
-        Array = 250,
-        //Table = 252,
-        //Tuple = 252
-
-        //Category = 252, // just two arrays: Levels (their index is a value) and values
     }
 
     public partial struct Variant {
 
         #region Known Type Sizes
 
-        private static readonly byte[] KnownTypeSizes = new byte[198]
+        // ReSharper disable once RedundantExplicitArraySize
+        private static readonly byte[] KnownTypeSizes = new byte[KnownSmallTypesLimit]
         {
             // Unknown
-            0, // 0
+            1, // 0
             // Int
             1,
             2,
@@ -124,8 +109,8 @@ namespace Spreads.DataTypes {
             4,
             8,
             // Float
-            8, // double
-            4, // single - 10
+            4, // double
+            8, // single - 10
 
             16, // Decimal
             8,  // Price
@@ -133,7 +118,7 @@ namespace Spreads.DataTypes {
 
             // DateTime
             8,
-            8, // 5
+            8, // 15
             4,
             4,
 
@@ -142,184 +127,50 @@ namespace Spreads.DataTypes {
             16,
 
             // Symbols
-            0, // 20 TODO Symbol8, 32-128
+            0, // 20
             0, //
             0,
             0,
             0,
-            0, // 5
+            0, // 25
             0,
             0,
             0,
             0,
-            0, // 0
+            0, // 30
             0,
             0,
             0,
             0,
-            0, // 5
+            0, // 35
             0,
             0,
             0,
             0,
-            0, // 0
+            0, // 40
             0,
             0,
             0,
             0,
-            0, // 5
+            0, // 45
             0,
             0,
             0,
             0,
-            0, // 0
+            0, // 50
             0,
             0,
             0,
             0,
-            0, // 5
+            0, // 55
             0,
             0,
             0,
             0,
-            0, // 0
+            0, // 60
             0,
             0,
-            0,
-            0,
-            0, // 5
-            0,
-            0,
-            0,
-            0,
-            0, // 0
-            0,
-            0,
-            0,
-            0,
-            0, // 5
-            0,
-            0,
-            0,
-            0,
-            0, // 0
-            0,
-            0,
-            0,
-            0,
-            0, // 5
-            0,
-            0,
-            0,
-            0,
-            0, // 0
-            0,
-            0,
-            0,
-            0,
-            0, // 5
-            0,
-            0,
-            0,
-            0,
-            0, // 0
-            0,
-            0,
-            0,
-            0,
-            0, // 5
-            0,
-            0,
-            0,
-            0,
-            0, // 0
-            0,
-            0,
-            0,
-            0,
-            0, // 5
-            0,
-            0,
-            0,
-            0,
-            0, // 0
-            0,
-            0,
-            0,
-            0,
-            0, // 5
-            0,
-            0,
-            0,
-            0,
-            0, // 0
-            0,
-            0,
-            0,
-            0,
-            0, // 5
-            0,
-            0,
-            0,
-            0,
-            0, // 0
-            0,
-            0,
-            0,
-            0,
-            0, // 5
-            0,
-            0,
-            0,
-            0,
-            0, // 0
-            0,
-            0,
-            0,
-            0,
-            0, // 5
-            0,
-            0,
-            0,
-            0,
-            0, // 0
-            0,
-            0,
-            0,
-            0,
-            0, // 5
-            0,
-            0,
-            0,
-            0,
-            0, // 0
-            0,
-            0,
-            0,
-            0,
-            0, // 5
-            0,
-            0,
-            0,
-            0,
-            0, // 0
-            0,
-            0,
-            0,
-            0,
-            0, // 5
-            0,
-            0,
-            0,
-            0,
-            0, // 0
-            0,
-            0,
-            0,
-            0,
-            0, // 5
-            0,
-            1, // 197 - bool
+            0
         };
 
         #endregion Known Type Sizes
