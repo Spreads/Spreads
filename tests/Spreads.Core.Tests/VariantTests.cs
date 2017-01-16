@@ -14,6 +14,17 @@ namespace Spreads.Core.Tests {
     [TestFixture]
     public class VariantTests {
 
+        [KnownType(255)]
+        class TestKnownType : IEquatable<TestKnownType>
+        {
+            public int Int { get; set; }
+            public string Str { get; set; }
+            public bool Equals(TestKnownType other)
+            {
+                return other != null && (this.Int == other.Int && this.Str == other.Str);
+            }
+        }
+
         [Test]
         public void CouldCreateAndReadWriteInlinedVariant() {
             var v = Variant.Create(123.0);
@@ -353,7 +364,19 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(123, arrayVariant2[0].Get<int>(0));
             Assert.AreEqual("456.7", arrayVariant2[1].Get<string>());
             Assert.AreEqual("456.7", arrayVariant2[1].Get<string>(0));
+        }
 
+
+        [Test]
+        public void CouldJsonConvertVariantWithCustomObject() {
+
+            var variant = Variant.Create(new TestKnownType {Int = 123, Str = "str"});
+            var json = JsonConvert.SerializeObject(variant);
+            Console.WriteLine(json);
+
+            var variant2 = JsonConvert.DeserializeObject<Variant>(json);
+
+            Assert.AreEqual(variant._object, variant2._object);
         }
     }
 }

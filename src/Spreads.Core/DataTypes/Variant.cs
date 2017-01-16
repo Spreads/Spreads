@@ -250,6 +250,18 @@ namespace Spreads.DataTypes {
                 //Environment.FailFast("Array shoud have been dispatched via dynamic in the untyped Create method");
             }
 
+            if (objTypeEnum == TypeEnum.Object) {
+                var subTypeEnum = KnownTypeAttribute.GetTypeId(value.GetType());
+                var v = new Variant {
+                    _object = value,
+                    _header = new VariantHeader {
+                        TypeEnum = TypeEnum.Object,
+                        ElementTypeEnum = (TypeEnum)subTypeEnum
+                    }
+                };
+                return v;
+            }
+
             throw new NotImplementedException();
         }
 

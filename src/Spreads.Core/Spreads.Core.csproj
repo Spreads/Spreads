@@ -162,6 +162,7 @@
     <Compile Include="Collections\SingleEmptySequences.cs" />
     <Compile Include="Collections\Vector.cs" />
     <Compile Include="DataTypes\Date.cs" />
+    <Compile Include="DataTypes\KnownTypeAttribute.cs" />
     <Compile Include="DataTypes\Money.cs" />
     <Compile Include="DataTypes\Price.cs" />
     <Compile Include="DataTypes\Symbol128.cs" />

@@ -39,6 +39,11 @@ namespace Spreads.Serialization {
                 throw new NotImplementedException("Need special handling of fixed binary values");
             }
 
+            if (typeCode == TypeEnum.Object) {
+                var subTypeCode = variant.ElementTypeEnum;
+                writer.WriteValue((byte)subTypeCode);
+            }
+
             if (typeCode != TypeEnum.None) {
                 var obj = Variant.ToObject(variant);
                 var t = JToken.FromObject(obj, serializer);
@@ -56,23 +61,33 @@ namespace Spreads.Serialization {
                 throw new Exception("Invalid JSON for Variant type");
             }
 
-            var code = reader.ReadAsInt32();
-            var typeCode = (TypeEnum)(byte)code;
+            var codeValue = reader.ReadAsInt32();
+            Debug.Assert(codeValue != null, "codeValue != null");
+            var typeCode = (TypeEnum)(byte)codeValue;
             TypeEnum subTypeCode = TypeEnum.None;
             if (typeCode == TypeEnum.Array) {
-                subTypeCode = (TypeEnum)(byte)reader.ReadAsInt32();
+                var subTypeCodeValue = reader.ReadAsInt32();
+                Debug.Assert(subTypeCodeValue != null, "subTypeCodeValue != null");
+                subTypeCode = (TypeEnum)(byte)subTypeCodeValue;
                 if (subTypeCode == TypeEnum.FixedBinary) {
                     throw new NotImplementedException("Need special handling of fixed binary values");
                 }
             }
 
             if (typeCode == TypeEnum.FixedBinary) {
-                var size = reader.ReadAsInt32();
+                //var size = reader.ReadAsInt32();
                 throw new NotImplementedException("Need special handling of fixed binary values");
             }
 
             object obj;
-            if (typeCode != TypeEnum.None) {
+            if (typeCode == TypeEnum.Object) {
+                var objectTypeCodeValue = reader.ReadAsInt32();
+                Debug.Assert(objectTypeCodeValue != null, "objectTypeCodeValue != null");
+                var objectTypeCode = (byte)objectTypeCodeValue;
+                var type = KnownTypeAttribute.GetType(objectTypeCode);
+                if (!reader.Read()) throw new Exception("Cannot read JSON");
+                obj = serializer.Deserialize(reader, type);
+            } else if (typeCode != TypeEnum.None) {
                 if (!reader.Read()) throw new Exception("Cannot read JSON");
                 var type = VariantHelper.GetType(typeCode, subTypeCode);
                 obj = serializer.Deserialize(reader, type);
