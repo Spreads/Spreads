@@ -97,6 +97,14 @@
       <HintPath>..\..\packages\NUnit.2.6.3\lib\nunit.framework.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Spreads, Version=0.5.1.0, Culture=neutral, PublicKeyToken=eb70e0fec970faf8, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\bin\Spreads.dll</HintPath>
+    </Reference>
+    <Reference Include="Spreads.Collections, Version=0.6.1.0, Culture=neutral, PublicKeyToken=eb70e0fec970faf8, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\bin\Spreads.Collections.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers, Version=4.0.1.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\..\packages\System.Buffers.4.3.0\lib\netstandard1.1\System.Buffers.dll</HintPath>
@@ -153,17 +161,9 @@
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj">
-      <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
-      <Name>Spreads.Collections</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj">
       <Project>{06e712a1-3141-45b5-8167-e3626f5659a5}</Project>
       <Name>Spreads.Core</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\src\Spreads\Spreads.csproj">
-      <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
-      <Name>Spreads</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

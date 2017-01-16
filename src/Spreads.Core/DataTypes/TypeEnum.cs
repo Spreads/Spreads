@@ -3,12 +3,17 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 namespace Spreads.DataTypes {
-    // NB Any changes to TypeEnum must be reflected in te know type sizes array at the bottom
+    
 
     /// <summary>
     /// Known types and containers enumeration.
     /// </summary>
     public enum TypeEnum : byte {
+        // NB Any changes to TypeEnum must be reflected in the know type sizes array at the bottom
+
+        // NB Enum values themselves should never be used directly, only the array below should depend on them
+        // However, for non-.NET clients they should stabilize rather sooner than later
+
         None = 0,
 
         // Fixed-length known types - their length is defined by code
@@ -25,8 +30,8 @@ namespace Spreads.DataTypes {
         UInt32 = 7,
         UInt64 = 8,
 
-        Float32 = 9,
-        Float64 = 10,
+        Float64 = 9, // NB save 1 byte in JSON, double is probably the most popular type
+        Float32 = 10,
 
         Decimal = 11,
         Price = 12,
@@ -119,8 +124,8 @@ namespace Spreads.DataTypes {
             4,
             8,
             // Float
-            4,
-            8, // 0
+            8, // double
+            4, // single - 10
 
             16, // Decimal
             8,  // Price

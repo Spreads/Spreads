@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 namespace Spreads.DataTypes {
 
     internal class VariantHelper<T> {
+
         // ReSharper disable once StaticMemberInGenericType
         public static TypeEnum TypeEnum = GetTypeEnum();
 
@@ -94,7 +95,6 @@ namespace Spreads.DataTypes {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static TypeEnum GetTypeEnum(Type ty) {
-
             if (ty == typeof(bool)) return TypeEnum.Bool;
             if (ty == typeof(byte)) return TypeEnum.UInt8;
             if (ty == typeof(char)) return TypeEnum.UInt16; // as UInt16
@@ -125,6 +125,86 @@ namespace Spreads.DataTypes {
             if (TypeHelper.GetSize(ty) > 0) return TypeEnum.FixedBinary;
 #pragma warning restore 618
             return TypeEnum.Object;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static Type GetType(TypeEnum typeEnum, TypeEnum subTypeEnum = TypeEnum.None) {
+            if ((int)typeEnum < Variant.KnownSmallTypesLimit) {
+                switch (typeEnum) {
+                    case TypeEnum.None:
+                        throw new InvalidOperationException("TypeEnum.None is possible only for nulls");
+                    case TypeEnum.Int8:
+                        return typeof(sbyte);
+
+                    case TypeEnum.Int16:
+                        return typeof(short);
+
+                    case TypeEnum.Int32:
+                        return typeof(int);
+
+                    case TypeEnum.Int64:
+                        return typeof(long);
+
+                    case TypeEnum.UInt8:
+                        return typeof(byte);
+
+                    case TypeEnum.UInt16:
+                        return typeof(ushort);
+
+                    case TypeEnum.UInt32:
+                        return typeof(uint);
+
+                    case TypeEnum.UInt64:
+                        return typeof(ulong);
+
+                    case TypeEnum.Float32:
+                        return typeof(float);
+
+                    case TypeEnum.Float64:
+                        return typeof(double);
+
+                    case TypeEnum.Decimal:
+                        return typeof(decimal);
+
+                    case TypeEnum.Price:
+                        return typeof(Price);
+
+                    case TypeEnum.Money:
+                        return typeof(Money);
+
+                    case TypeEnum.DateTime:
+                        return typeof(DateTime);
+
+                    case TypeEnum.Timestamp:
+                        return typeof(Timestamp);
+
+                    case TypeEnum.Date:
+                        throw new NotImplementedException();
+                    case TypeEnum.Time:
+                        throw new NotImplementedException();
+                    case TypeEnum.Complex32:
+                        throw new NotImplementedException();
+                    case TypeEnum.Complex64:
+                        throw new NotImplementedException();
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+            }
+
+            if (typeEnum == TypeEnum.Array) {
+                var elementType = GetType(subTypeEnum);
+                return elementType.MakeArrayType();
+            }
+
+            if (typeEnum == TypeEnum.Variant) {
+                return typeof(Variant);
+            }
+
+            if (typeEnum == TypeEnum.String) {
+                return typeof(string);
+            }
+
+            throw new NotImplementedException();
         }
     }
 }

@@ -195,6 +195,7 @@
     <Compile Include="Serialization\SerializationAttribute.cs" />
     <Compile Include="Serialization\StringBinaryConverter.cs" />
     <Compile Include="Serialization\TypeHelper.cs" />
+    <Compile Include="Serialization\VariantJsonConverter.cs" />
     <Compile Include="Serialization\VariantSerializer.cs" />
     <Compile Include="BaseSeries.cs" />
     <Compile Include="Utils\BitUtil.cs" />

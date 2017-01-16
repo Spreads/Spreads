@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Newtonsoft.Json;
 using Spreads.Serialization;
 using System;
 using System.Diagnostics;
@@ -81,8 +82,10 @@ namespace Spreads.DataTypes {
 
     // Runtime representation of Variant type
 
+    [JsonConverter(typeof(VariantJsonConverter))]
     [StructLayout(LayoutKind.Explicit, Pack = 4)]
     public unsafe partial struct Variant {
+        // TODO Structural equality
 
         /// <summary>
         /// Maximum number of types with size LE than 16 bytes that are explicitly defined in TypeEnum
@@ -242,8 +245,7 @@ namespace Spreads.DataTypes {
                 }
             }
 
-            if (objTypeEnum == TypeEnum.Array)
-            {
+            if (objTypeEnum == TypeEnum.Array || objTypeEnum == TypeEnum.String) {
                 return Create(value);
                 //Environment.FailFast("Array shoud have been dispatched via dynamic in the untyped Create method");
             }
@@ -342,9 +344,19 @@ namespace Spreads.DataTypes {
                     TypeEnum = TypeEnum.Array,
                     ElementTypeEnum = VariantHelper<T>.TypeEnum,
 #pragma warning disable 618
-                    TypeSize = checked((byte)TypeHelper<T>.Size) // TODO review
+                    TypeSize = TypeHelper<T>.Size >= 0 ? checked((byte)TypeHelper<T>.Size) : (byte)0 // TODO review
 #pragma warning restore 618
                 }
+            };
+            return v;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Variant Create(string str) {
+            if (str == null) throw new ArgumentNullException(nameof(str));
+            var v = new Variant {
+                _object = str,
+                _header = new VariantHeader { TypeEnum = TypeEnum.String }
             };
             return v;
         }
@@ -395,7 +407,7 @@ namespace Spreads.DataTypes {
             {
                 var boxed = _object as BoxedTypeEnum;
                 if (boxed != null) {
-                    return -1; // inlined scalap has no elements
+                    return -1; // inlined scalar has no elements
                 }
                 if (_header.TypeEnum == TypeEnum.Array) {
                     return _header.TypeSize;
@@ -472,7 +484,7 @@ namespace Spreads.DataTypes {
                     return Unsafe.Read<T>(ptr);
                 }
             }
-            throw new NotImplementedException();
+            return (T)_object;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -528,9 +540,8 @@ namespace Spreads.DataTypes {
             var arrayOfT = _object as T[];
             if (arrayOfT != null) {
                 return arrayOfT[index + (int)_offset];
-            } else {
-                return GetSlow<T>(index);
             }
+            return GetSlow<T>(index);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -547,7 +558,11 @@ namespace Spreads.DataTypes {
             if (_object == null) {
                 throw new NotImplementedException("Pointer is not supported");
             }
-            throw new InvalidCastException();
+            // Object
+            if (index == 0) {
+                return (T)_object;
+            }
+            throw new IndexOutOfRangeException();
         }
 
         /// <summary>
@@ -584,7 +599,6 @@ namespace Spreads.DataTypes {
             }
             throw new InvalidCastException();
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> Span<T>() {
@@ -644,7 +658,7 @@ namespace Spreads.DataTypes {
                     Array array = (Array)_object;
                     var value = array.GetValue(index);
                     var v = Variant.Create(value);
-                    Debug.Assert(elementEnum == v.ElementTypeEnum);
+                    // Debug.Assert(elementEnum == v.ElementTypeEnum); // TODO review, Variant of Variant is a special case
                     return v;
                 }
                 throw new InvalidCastException();

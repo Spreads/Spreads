@@ -7,6 +7,7 @@ using Spreads.DataTypes;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Newtonsoft.Json;
 
 namespace Spreads.Core.Tests {
 
@@ -155,8 +156,7 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void CouldCreateWriteReadInlinedVariantInALoop()
-        {
+        public void CouldCreateWriteReadInlinedVariantInALoop() {
             var count = 100000000;
             var sw = new Stopwatch();
             for (int round = 0; round < 10; round++) {
@@ -281,5 +281,79 @@ namespace Spreads.Core.Tests {
         }
 
         #endregion Benchmarks
+
+
+        [Test]
+        public void CouldUseVariantJsonConverter() {
+            var variant = Variant.Create(123);
+            string json = JsonConvert.SerializeObject(variant);
+            Console.WriteLine(json);
+
+            var arrayVariant = Variant.Create(new[] { 123, 456 });
+            var json2 = JsonConvert.SerializeObject(arrayVariant);
+            Console.WriteLine(json2);
+
+            var variant2 = JsonConvert.DeserializeObject<Variant>(json);
+            Assert.AreEqual(123, variant2.Get<int>(0));
+            Assert.AreEqual(123, variant2.Get<int>());
+
+            var arrayVariant2 = JsonConvert.DeserializeObject<Variant>(json2);
+
+            Assert.AreEqual(123, arrayVariant2.Get<int>(0));
+            Assert.AreEqual(456, arrayVariant2.Get<int>(1));
+
+        }
+
+
+        [Test]
+        public void CouldJsonConvertArrayOfVariants() {
+
+            var arrayVariant = new Variant[] { Variant.Create(123), Variant.Create(456.7) };
+            var json = JsonConvert.SerializeObject(arrayVariant);
+            Console.WriteLine(json);
+
+            var arrayVariant2 = JsonConvert.DeserializeObject<Variant[]>(json);
+
+            Assert.AreEqual(123, arrayVariant2[0].Get<int>());
+            Assert.AreEqual(123, arrayVariant2[0].Get<int>(0));
+            Assert.AreEqual(456.7, arrayVariant2[1].Get<double>());
+            Assert.AreEqual(456.7, arrayVariant2[1].Get<double>(0));
+
+        }
+
+        [Test]
+        public void CouldJsonConvertVariantArrayOfVariants() {
+
+            var arrayVariant = Variant.Create(new Variant[] { Variant.Create(123), Variant.Create(456.7) });
+            var json = JsonConvert.SerializeObject(arrayVariant);
+            Console.WriteLine(json);
+
+            var arrayVariant2 = JsonConvert.DeserializeObject<Variant>(json);
+
+            Assert.AreEqual(123, arrayVariant2[0].Get<int>());
+            Assert.AreEqual(123, arrayVariant2[0].Get<int>(0));
+            Assert.AreEqual(456.7, arrayVariant2[1].Get<double>());
+            Assert.AreEqual(456.7, arrayVariant2[1].Get<double>(0));
+
+        }
+
+        [Test]
+        public void CouldJsonConvertVariantArrayOfVariantsWithString() {
+
+            var arrayVariant = Variant.Create(new Variant[] { Variant.Create(123), Variant.Create("456.7") });
+            var arrayVariantNested = Variant.Create(new Variant[] { Variant.Create(arrayVariant), Variant.Create("456.7") });
+            var json = JsonConvert.SerializeObject(arrayVariant);
+            var json2 = JsonConvert.SerializeObject(arrayVariantNested);
+            Console.WriteLine(json);
+            Console.WriteLine(json2);
+
+            var arrayVariant2 = JsonConvert.DeserializeObject<Variant>(json);
+
+            Assert.AreEqual(123, arrayVariant2[0].Get<int>());
+            Assert.AreEqual(123, arrayVariant2[0].Get<int>(0));
+            Assert.AreEqual("456.7", arrayVariant2[1].Get<string>());
+            Assert.AreEqual("456.7", arrayVariant2[1].Get<string>(0));
+
+        }
     }
 }
