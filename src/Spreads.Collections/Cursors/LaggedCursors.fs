@@ -519,6 +519,7 @@ type WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:
     (fun c p n -> 
       let startPoint = Some(p.Key)
       let endPoint = Some(c.Key)
+      // TODO this is wrong, 
       let rangeCursorFactory() = new RangeCursor<'K,'V>(cursorFactory, startPoint, endPoint, None, None) :> ICursor<'K,'V>
       let windowDefinition = CursorSeries(Func<ICursor<'K,'V>>(rangeCursorFactory)) :> Series<'K,'V>
       windowDefinition

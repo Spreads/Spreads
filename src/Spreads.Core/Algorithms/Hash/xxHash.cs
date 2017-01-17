@@ -39,6 +39,7 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Algorithms.Hash {
 
+    [Obsolete("Consider dropping it altogether or adding to a native C lib and using via P/Invoke. No sense to maintain a port.")]
     public static unsafe class XxHash {
 
         public struct XxHashState32 {

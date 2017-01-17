@@ -122,7 +122,7 @@
     <Compile Include="Cursors\LaggedCursors.fs" />
     <Compile Include="SeriesExtensions.fs" />
     <Compile Include="Panel.fs" />
-    <Compile Include="Spreads.Series.2.fs" />
+    <Compile Include="Series.2.fs" />
     <None Include="Script1.fsx" />
     <Content Include="app.config" />
     <Content Include="packages.config" />

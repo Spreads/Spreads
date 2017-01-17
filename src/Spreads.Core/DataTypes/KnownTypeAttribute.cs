@@ -6,7 +6,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Remoting.Messaging;
 
 namespace Spreads.DataTypes {
 
@@ -35,7 +34,7 @@ namespace Spreads.DataTypes {
             foreach (var t in types) {
                 var attr = t.GetTypeInfo().GetCustomAttribute<KnownTypeAttribute>();
                 if (!KnownTypes.TryAdd(attr.TypeCode, t)) {
-                    throw new ArgumentException($"Duplicate type id: {attr.TypeCode}");
+                    Environment.FailFast($"Duplicate type id: {attr.TypeCode}");
                 }
             }
         }
@@ -51,9 +50,9 @@ namespace Spreads.DataTypes {
         private static readonly ConcurrentDictionary<byte, Type> KnownTypes = new ConcurrentDictionary<byte, Type>();
         private static readonly ConcurrentDictionary<Type, byte> KnownIds = new ConcurrentDictionary<Type, byte>();
 
-        public static void RegisterType<T>(byte typeId) where T : IMessage {
+        public static void RegisterType<T>(byte typeId) {
             if (!KnownTypes.TryAdd(typeId, typeof(T))) {
-                throw new ArgumentException($"Duplicate type id: {typeId}");
+                Environment.FailFast($"Duplicate type id: {typeId}");
             }
         }
 
@@ -63,9 +62,11 @@ namespace Spreads.DataTypes {
 
         public static byte GetTypeId(Type t) {
             return KnownIds.GetOrAdd(t, type => {
-                var attrs = type.GetCustomAttributes<KnownTypeAttribute>();
+                var attrs = type.GetTypeInfo().GetCustomAttributes<KnownTypeAttribute>();
                 var knownTypeAttributes = attrs as KnownTypeAttribute[] ?? attrs.ToArray();
-                if (knownTypeAttributes.Count() != 1) throw new ArgumentException($"Type {type.Name} is not known");
+                if (knownTypeAttributes.Count() != 1) {
+                    Environment.FailFast($"Type {type.Name} is not known");
+                }
                 return knownTypeAttributes.Single().TypeCode;
             });
         }

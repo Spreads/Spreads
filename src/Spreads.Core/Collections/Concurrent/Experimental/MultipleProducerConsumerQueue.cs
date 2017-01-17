@@ -1,4 +1,9 @@
-﻿/*
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+
+/*
 adapted from https://github.com/alexandrnikitin/MPMCQueue.NET
 
 MIT License
@@ -29,8 +34,9 @@ using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace Spreads.Collections.Concurrent {
+namespace Spreads.Collections.Concurrent.Experimental {
 
+    [Obsolete("Use ConcurrentQueue")]
     [StructLayout(LayoutKind.Explicit, Size = 192, CharSet = CharSet.Ansi)]
     public class MultipleProducerConsumerQueue {
 
@@ -98,6 +104,8 @@ namespace Spreads.Collections.Concurrent {
                 }
             } while (true);
         }
+
+        public int Capacity => _buffer.Length;
 
         [StructLayout(LayoutKind.Explicit, Size = 16, CharSet = CharSet.Ansi)]
         private struct Cell {

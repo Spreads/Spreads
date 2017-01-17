@@ -28,7 +28,8 @@
 				"../../src/Spreads.Collections/Interfaces.fs",
 				"../../src/Spreads.Collections/ISeriesExtensions.fs",
 				"../../src/Spreads.Collections/OptimizationSettings.fs",
-				"../../src/Spreads.Collections/Spreads.Series.fs",
+				"../../src/Spreads.Collections/Series.fs",
+				"../../src/Spreads.Collections/MutableSeries.fs",
 				"../../src/Spreads.Collections/BaseCursor.fs",
 				"../../src/Spreads.Collections/Collections/Collections.fs",
 				"../../src/Spreads.Collections/Collections/ImmutableIntMap64.fs",
@@ -56,7 +57,7 @@
 				"../../src/Spreads.Collections/Cursors/LaggedCursors.fs",
 				"../../src/Spreads.Collections/SeriesExtensions.fs",
 				"../../src/Spreads.Collections/Panel.fs",
-				"../../src/Spreads.Collections/Spreads.Series.2.fs",
+				"../../src/Spreads.Collections/Series.2.fs",
 				"../../src/Spreads.Collections/TimeSeries.fs"
 			]
 		},

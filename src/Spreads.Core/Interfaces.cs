@@ -351,6 +351,11 @@ namespace Spreads {
     public interface IPersistentSeries<TKey, TValue> : IMutableSeries<TKey, TValue>, IPersistentObject {
     }
 
+
+    public interface ICloneable<out T> where T : ICloneable<T> {
+        T DeepCopy();
+    }
+
     /// <summary>
     /// Signaling event handler.
     /// </summary>

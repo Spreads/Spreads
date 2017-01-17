@@ -12,7 +12,7 @@ namespace Spreads.Buffers {
         // OwnedMemory<T> is quite fat and is an object, but has Initialize + Dispose methods that made it suitable for pooling
 
         // ReSharper disable once StaticMemberInGenericType
-        private static readonly MultipleProducerConsumerQueue Pool = new MultipleProducerConsumerQueue(64);
+        private static readonly BoundedConcurrentQueue<OwnedPooledArray<T>> Pool = new BoundedConcurrentQueue<OwnedPooledArray<T>>(64);
 
         public new T[] Array => base.Array;
 
@@ -44,9 +44,9 @@ namespace Spreads.Buffers {
         }
 
         public static OwnedMemory<T> Create(T[] array) {
-            object pooled;
+            OwnedPooledArray<T> pooled;
             if (Pool.TryDequeue(out pooled)) {
-                var asOwnedPooledArray = (OwnedPooledArray<T>)pooled;
+                var asOwnedPooledArray = pooled;
                 // ReSharper disable once PossibleNullReferenceException
                 asOwnedPooledArray.Initialize(array, 0, array.Length);
                 return asOwnedPooledArray;

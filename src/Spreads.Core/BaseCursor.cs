@@ -14,9 +14,11 @@ namespace Spreads {
     public class BaseCursorAsync<TK, TV, TCursor> : ICursor<TK, TV>
         where TCursor : ICursor<TK, TV> {
         private readonly BaseSeries<TK, TV> _source;
+
         // NB this is often a struct, should not be made readonly!
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         private TCursor _state;
+
         private TaskCompletionSource<long> _unusedTcs;
         private TaskCompletionSource<Task<bool>> _cancelledTcs;
         private CancellationTokenRegistration _registration;
@@ -54,7 +56,7 @@ namespace Spreads {
                     this._unusedTcs = null;
                     tcs = newTcs;
                 } else {
-                    // Tcs was already set, we set unusedTcs to itself if 
+                    // Tcs was already set, we set unusedTcs to itself if
                     // it was not null or to a new Tcs that we have allocated
                     this._unusedTcs = newTcs;
                     tcs = original;
@@ -72,7 +74,6 @@ namespace Spreads {
             // however it could be shared among many cursors. When its Task completes,
             // we create a continuation Task that does synchronous and very fast
             // work inside its body, so it is a very small and short-lived object
-            // and .NET's GC is best for this.
             // TODO Check if we need to use RunContinuationsAsynchronously from 4.6
             // https://blogs.msdn.microsoft.com/pfxteam/2015/02/02/new-task-apis-in-net-4-6/
 

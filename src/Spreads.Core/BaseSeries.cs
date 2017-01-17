@@ -13,9 +13,10 @@ namespace Spreads {
     // NB C# is currently used only for AsyncCursor.MNA implementation
 
     public class BaseSeries {
+
     }
 
-    public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK,TV> {
+    public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK, TV> {
         private readonly Func<ICursor<TK, TV>> _cursorFactory;
         private ICursor<TK, TV> _c;
         internal int Locker;
@@ -94,15 +95,22 @@ namespace Spreads {
 
         // IReadOnlySeries members
         public abstract bool IsEmpty { get; }
+
         public abstract KeyValuePair<TK, TV> First { get; }
         public abstract KeyValuePair<TK, TV> Last { get; }
         public abstract TV this[TK key] { get; }
+
         public abstract TV GetAt(int idx);
+
         public abstract IEnumerable<TK> Keys { get; }
         public abstract IEnumerable<TV> Values { get; }
+
         public abstract bool TryFind(TK key, Lookup direction, out KeyValuePair<TK, TV> value);
+
         public abstract bool TryGetFirst(out KeyValuePair<TK, TV> value);
+
         public abstract bool TryGetLast(out KeyValuePair<TK, TV> value);
+
         public abstract bool TryGetValue(TK key, out TV value);
     }
 }

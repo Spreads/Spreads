@@ -137,6 +137,7 @@
     <Compile Include="MovingMedianTests.cs" />
     <Compile Include="ColumnsTests.cs" />
     <Compile Include="NanoOptimizationTests.cs" />
+    <Compile Include="ObjectPoolsTests.cs" />
     <Compile Include="SpanTests.cs" />
     <Compile Include="AlgoTests.cs" />
     <Compile Include="SerializationTests.cs" />
