@@ -50,11 +50,8 @@ and
   [<AllowNullLiteral>]
   [<AbstractClassAttribute>]
   //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-  Series<'K,'V> internal(cursorFactory:(Func<ICursor<'K,'V>>)) =
-    inherit BaseSeries<'K,'V>(cursorFactory)
-
-    new(iseries:ISeries<'K,'V>) = Series<_,_>(iseries.GetCursor)
-    internal new() = Series<_,_>(Unchecked.defaultof<Func<ICursor<'K,'V>>>)
+  Series<'K,'V> internal() =
+    inherit BaseSeries<'K,'V>()
 
     // TODO (!) IObservable needs much more love and adherence to Rx contracts, see #40
     // TODO Move to BaseSeries
@@ -170,12 +167,6 @@ and
       let c1, c2 = source.GetCursor, other.GetCursor
       CursorSeries(Func<ICursor<'K,'R>>(fun _ -> (new Zip2Cursor<'K,'V1,'V2,'R>(Func<ICursor<_,_>>(c1), Func<ICursor<_,_>>(c2), (fun k v1 v2 -> mapFunc.Invoke(v1, v2))) :> ICursor<'K,'R>) )) :> Series<'K,'R>
 
-//    static member inline private BinaryOperatorMap2<'K,'V1,'V2,'R>(source:BaseSeries<'K,'V1>,other:BaseSeries<'K,'V2>, mapFunc:Func<'V1,'V2,'R>) = 
-//      let c1, c2 = source.GetCursor, other.GetCursor
-//      CursorSeries(Func<ICursor<'K,'R>>(fun _ -> (new Zip2Cursor<'K,'V1,'V2,'R>(Func<ICursor<_,_>>(c1), Func<ICursor<_,_>>(c2), (fun k v1 v2 -> mapFunc.Invoke(v1, v2))) :> ICursor<'K,'R>) )) :> BaseSeries<'K,'R>
-
-
-    static member (+) (series:BaseSeries<'K,int64>, addition:int64) : BaseSeries<'K,int64> = Unchecked.defaultof<_>
 
     // int64
     static member (+) (series:Series<'K,int64>, addition:int64) : Series<'K,int64> = 
@@ -538,6 +529,10 @@ and
     inherit Series<'K,'V>()
     
     let mutable cursor : ICursor<'K,'V> = Unchecked.defaultof<_>
+
+    new(iseries:ISeries<'K,'V>) = CursorSeries<_,_>(iseries.GetCursor)
+    internal new() = CursorSeries<_,_>(Unchecked.defaultof<Func<ICursor<'K,'V>>>)
+
     member private this.C
       with get () : ICursor<'K,'V> = 
         if cursor <> Unchecked.defaultof<_> then cursor

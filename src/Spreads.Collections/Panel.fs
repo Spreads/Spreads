@@ -22,7 +22,7 @@ open Spreads.Collections
 [<AbstractClassAttribute>]
 [<AllowNullLiteral>]
 type Panel<'TRowKey,'TColumnKey, 'TValue>() =
-  inherit CursorSeries<'TRowKey, Series<'TColumnKey, 'TValue>>(null)
+  inherit CursorSeries<'TRowKey, Series<'TColumnKey, 'TValue>>()
 
   abstract Columns : Series<'TColumnKey, Series<'TRowKey,'TValue>> with get
   abstract Rows : Series<'TRowKey, Series<'TColumnKey,'TValue>> with get

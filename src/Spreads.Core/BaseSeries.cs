@@ -15,16 +15,10 @@ namespace Spreads {
     }
 
     public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK, TV> {
-        internal readonly Func<ICursor<TK, TV>> CursorFactory;
-
         internal int Locker;
         internal TaskCompletionSource<long> UpdateTcs;
 
         private object _syncRoot;
-
-        protected BaseSeries(Func<ICursor<TK, TV>> cursorFactory = null) {
-            CursorFactory = cursorFactory;
-        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void NotifyUpdate() {
@@ -39,10 +33,6 @@ namespace Spreads {
         }
 
         public virtual ICursor<TK, TV> GetCursor() {
-            if (CursorFactory != null) {
-                var asyncCursor = BaseCursorAsync<TK, TV, ICursor<TK, TV>>.Create(this, GetCursor);
-                return asyncCursor;
-            }
             throw new NotImplementedException("BaseSeries<TK, TV, TCursor>.GetCursor is not implemented");
         }
 

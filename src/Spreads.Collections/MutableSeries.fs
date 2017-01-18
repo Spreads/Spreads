@@ -27,8 +27,8 @@ open Spreads.Collections
 [<AllowNullLiteral>]
 [<AbstractClassAttribute>]
 //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-type MutableSeries<'K,'V> internal(cursorFactory:(Func<ICursor<'K,'V>>)) as this =
-  inherit Series<'K,'V>(cursorFactory)
+type MutableSeries<'K,'V> internal() as this =
+  inherit Series<'K,'V>()
 
   abstract member Add : key:'TKey * value:'TValue -> unit
   abstract member AddFirst : key:'TKey * value:'TValue -> unit

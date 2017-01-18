@@ -21,7 +21,7 @@ namespace Spreads {
             Comparer = new ConvertComparer(this as TImpl);
         }
 
-        public ConvertSeries() {
+        protected ConvertSeries() {
         }
 
         public abstract TKey2 ToKey2(TKey key);

@@ -28,7 +28,7 @@ type internal FunctionalBindCursor<'K,'V,'State,'V2>
     stateMapper:Func<'State,'V2>,
     ?isContinuous:bool // stateCreator could be able to create state at any point. TODO: If isContinuous = true but stateCreator returns false, we fail
   ) =
-  inherit CursorSeries<'K,'V2>(null)
+  inherit CursorSeries<'K,'V2>()
   let cursor = cursorFactory.Invoke()
 
   // evaluated only when TryGetValue is called
