@@ -170,6 +170,9 @@ namespace Spreads.DataTypes {
         //[MethodImpl(MethodImplOptions.NoInlining)]
         private static Variant CreateSlow<T>(T value, TypeEnum typeEnum) {
             if (typeEnum == TypeEnum.Variant) return (Variant)(object)(value);
+            if (typeEnum == TypeEnum.String) {
+                return Create(Unsafe.As<string>(value));
+            }
             if (typeEnum == TypeEnum.Object) {
                 return FromObject((object)value);
             }
