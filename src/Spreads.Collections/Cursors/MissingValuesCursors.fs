@@ -47,7 +47,7 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
     member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = cursor.MoveNextBatch(cancellationToken)
     member this.MovePrevious(): bool = cursor.MovePrevious()
     member this.Reset(): unit = cursor.Reset()
-    member this.Source: ISeries<'K,'V> = cursor.Source
+    member this.Source = cursor.Source
     member this.TryGetValue(key: 'K, value: byref<'V>): bool =
       // TODO (perf) optimize the case when key is below the previous one
       if lookupCursor = Unchecked.defaultof<ICursor<'K,'V>> then lookupCursor <- cursor.Clone()
@@ -100,7 +100,7 @@ type internal FillCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, fillValue:'V
     member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = cursor.MoveNextBatch(cancellationToken)
     member this.MovePrevious(): bool = cursor.MovePrevious()
     member this.Reset(): unit = cursor.Reset()
-    member this.Source: ISeries<'K,'V> = cursor.Source
+    member this.Source = cursor.Source
     member this.TryGetValue(key: 'K, value: byref<'V>): bool =
       let mutable v = Unchecked.defaultof<_>
       let ok = cursor.TryGetValue(key, &v)
@@ -138,7 +138,7 @@ type internal ConstantCursor<'K,'V>(fillValue:KVP<'K,'V>) =
     member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = falseTask
     member this.MovePrevious(): bool = true
     member this.Reset(): unit = ()
-    member this.Source: ISeries<'K,'V> = new CursorSeries<'K,'V>(fun _ -> new ConstantCursor<'K,'V>(fillValue) :> ICursor<'K,'V>) :> ISeries<'K,'V>
+    member this.Source = new CursorSeries<'K,'V>(fun _ -> new ConstantCursor<'K,'V>(fillValue) :> ICursor<'K,'V>) :> IReadOnlySeries<_,_>
     member this.TryGetValue(key: 'K, value: byref<'V>): bool =
       value <- fillValue.Value
       true

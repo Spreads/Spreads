@@ -52,7 +52,7 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
   member this.CurrentValue with get() = cursor.CurrentValue
   member this.Current with get() = cursor.Current
 
-  member val CurrentBatch = Unchecked.defaultof<ISeries<'K,'V>> with get, set
+  member val CurrentBatch = Unchecked.defaultof<_> with get, set
 
   member this.Reset() =
     started <- false
@@ -132,7 +132,7 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
       Trace.TraceWarning("MoveNextBatch is not implemented in RangeCursor")
       falseTask
       
-    member this.Source: ISeries<'K,'V> = CursorSeries<'K,'V2>(Func<ICursor<'K,'V>>((this :> ICursor<'K,'V>).Clone)) :> ISeries<'K,'V>
+    member this.Source = CursorSeries<'K,'V>(Func<ICursor<'K,'V>>((this :> ICursor<'K,'V>).Clone)) :> IReadOnlySeries<_,_>
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'V>): bool = 
       if inRange key then
         this.InputCursor.TryGetValue(key, &value)

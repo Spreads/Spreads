@@ -27,18 +27,18 @@ type internal MapValuesWithKeysCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'
   let f : Func<'K,'V,'V2> = f
 
   member this.Current: KVP<'K,'V2> = KVP(this.CurrentKey, this.CurrentValue)
-  member this.CurrentBatch: ISeries<'K,'V2> =
+  member this.CurrentBatch =
     let factory = Func<_>(cursor.CurrentBatch.GetCursor)
     let c() = new MapValuesWithKeysCursor<'K,'V,'V2>(factory, f) :> ICursor<'K,'V2>
-    CursorSeries(Func<_>(c)) :> ISeries<'K,'V2>
+    CursorSeries(Func<_>(c)) :> IReadOnlySeries<_,_>
 
   member this.CurrentKey: 'K = cursor.CurrentKey
   member this.CurrentValue: 'V2 = f.Invoke(cursor.CurrentKey, cursor.CurrentValue)
 
-  member this.Source: ISeries<'K,'V2> = 
+  member this.Source: IReadOnlySeries<_,_> = 
       let factory = Func<_>(cursor.Source.GetCursor)
       let c() = new MapValuesWithKeysCursor<'K,'V,'V2>(cursorFactory, f) :> ICursor<'K,'V2>
-      CursorSeries(Func<_>(c)) :> ISeries<'K,'V2>
+      CursorSeries(Func<_>(c)) :> IReadOnlySeries<_,_>
   member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  
     let mutable v = Unchecked.defaultof<_>
     let ok = cursor.TryGetValue(key, &v)
@@ -69,6 +69,6 @@ type internal MapValuesWithKeysCursor<'K,'V,'V2>(cursorFactory:Func<ICursor<'K,'
     member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = cursor.MoveNextBatch(cancellationToken)
     
     //member this.IsBatch with get() = this.IsBatch
-    member this.Source: ISeries<'K,'V2> = this.Source
+    member this.Source = this.Source
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  this.TryGetValue(key, &value)
     member this.Clone() = this.Clone()

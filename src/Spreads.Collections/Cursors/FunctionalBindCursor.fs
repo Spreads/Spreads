@@ -18,7 +18,7 @@ open Spreads
 open Spreads.Collections
 
 
-[<ObsoleteAttribute("This is 5+ times slower than BindCursor")>]
+//[<ObsoleteAttribute("This is 5+ times slower than BindCursor")>]
 type internal FunctionalBindCursor<'K,'V,'State,'V2>
   (
     cursorFactory:Func<ICursor<'K,'V>>,
@@ -28,7 +28,7 @@ type internal FunctionalBindCursor<'K,'V,'State,'V2>
     stateMapper:Func<'State,'V2>,
     ?isContinuous:bool // stateCreator could be able to create state at any point. TODO: If isContinuous = true but stateCreator returns false, we fail
   ) =
-  inherit Series<'K,'V2>()
+  inherit CursorSeries<'K,'V2>(null)
   let cursor = cursorFactory.Invoke()
 
   // evaluated only when TryGetValue is called
@@ -66,7 +66,7 @@ type internal FunctionalBindCursor<'K,'V,'State,'V2>
 
   member this.Current with get () = KVP(cursor.CurrentKey, this.CurrentValue)
 
-  member this.CurrentBatch with get() = Unchecked.defaultof<ISeries<'K,'V2>>
+  member this.CurrentBatch with get() = Unchecked.defaultof<_>
 
   member this.Reset() = 
     clearState()
@@ -264,7 +264,7 @@ type internal FunctionalBindCursor<'K,'V,'State,'V2>
     member this.MovePrevious(): bool = this.MovePrevious()
     member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = this.MoveNext(cancellationToken)
     member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = falseTask
-    member this.Source: ISeries<'K,'V2> = this :> ISeries<'K,'V2>
+    member this.Source = this :> IReadOnlySeries<_,_>
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  
 #if PRERELEASE
       this.TryGetValueChecked(key, &value)

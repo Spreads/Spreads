@@ -371,7 +371,7 @@ type SortedMap<'K,'V>
       // bucket switch in SHM (TODO really? check) and before serialization
       // the 99% use case is when we load data from a sequential stream or deserialize a map with already regularized keys
     this.size <- this.size + 1
-    this.NotifyUpdateTcs()
+    this.NotifyUpdate()
 
 
   member this.Complete() =
@@ -383,7 +383,7 @@ type SortedMap<'K,'V>
           this.isReadOnly <- true
           // immutable doesn't need sync
           Volatile.Write(&this.isSynchronized, false)
-          this.NotifyUpdateTcs()
+          this.NotifyUpdate()
           
           //if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
     finally
@@ -715,7 +715,7 @@ type SortedMap<'K,'V>
               let lc = this.CompareToLast k
               if lc = 0 then // key = last key
                 this.values.[this.size-1] <- v
-                this.NotifyUpdateTcs()
+                this.NotifyUpdate()
               elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
                 this.Insert(this.size, k, v)
                 keepOrderVersion <- true
@@ -723,7 +723,7 @@ type SortedMap<'K,'V>
                 let index = this.IndexOfKeyUnchecked(k)
                 if index >= 0 then // contains key 
                   this.values.[index] <- v
-                  this.NotifyUpdateTcs()
+                  this.NotifyUpdate()
                 else
                   this.Insert(~~~index, k, v)
           finally
@@ -880,7 +880,7 @@ type SortedMap<'K,'V>
 
     this.size <- newSize
 
-    this.NotifyUpdateTcs()
+    this.NotifyUpdate()
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.Remove(key): bool =
@@ -1037,7 +1037,7 @@ type SortedMap<'K,'V>
             raise (ApplicationException("wrong result of TryFindWithIndex with GT/GE direction"))
         | _ -> failwith "wrong direction"
     finally
-      this.NotifyUpdateTcs()
+      this.NotifyUpdate()
       if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
       #if PRERELEASE
@@ -1235,7 +1235,7 @@ type SortedMap<'K,'V>
       // if source is already read-only, MNA will always return false
       if this.isReadOnly then new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
       else 
-        let c = new BaseCursorAsync<'K,'V,_>(this,Func<_>(this.GetEnumerator))
+        let c = BaseCursorAsync<'K,'V,_>.Create(this,Func<_>(this.GetEnumerator))
         c :> ICursor<'K,'V>
     finally
       exitWriteLockIf &this.Locker entered
@@ -1246,7 +1246,7 @@ type SortedMap<'K,'V>
       // NB: via property with locks
       this.IsSynchronized <- true
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-      new SortedMapCursor<'K,'V>(this)
+      new SortedMapCursor<'K,'V>(this) :> ICursor<_,_>
     )
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
@@ -1255,11 +1255,6 @@ type SortedMap<'K,'V>
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       new SortedMapCursor<'K,'V>(this)
     )
-
-  // TODO Implement MoveNextAsync+Do logic for pushing values directly using the struct cursor or index
-  // By default, do it in a separate task. But then add an option to do a sync push in an event handler.
-  override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
-    base.Subscribe(observer : IObserver<KVP<'K,'V>>)
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   override this.GetAt(idx:int) =
@@ -1354,27 +1349,9 @@ type SortedMap<'K,'V>
 
 
   interface IReadOnlySeries<'K,'V> with
-    member this.Comparer with get() = this.Comparer
-    member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
-    member this.GetCursor() = this.GetCursor()
-    member this.IsEmpty = this.size = 0
-    member this.IsIndexed with get() = false
-    member this.IsReadOnly with get() = this.IsReadOnly
-    member this.First with get() = this.First
-    member this.Last with get() = this.Last
-    member this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) =
-      if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
-      this.TryFindWithIndex(key, direction, &result) >=0
-    member this.TryGetFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryGetFirst(&result)
-    member this.TryGetLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryGetLast(&result)
-    member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
+    // the rest is in BaseSeries
     member this.Item with get k = this.Item(k)
-    member this.GetAt(idx:int) = this.GetAt(idx:int)
-    member this.Keys with get() = this.Keys
-    member this.Values with get() = this.Values
-    member this.SyncRoot with get() = this.SyncRoot
     
-
   interface IMutableSeries<'K,'V> with
     member this.Complete() = this.Complete()
     member this.Version with get() = this.Version and set v = this.Version <- v
@@ -1661,7 +1638,7 @@ and
       result
 
 
-    member this.CurrentBatch: ISeries<'K,'V> = 
+    member this.CurrentBatch: IReadOnlySeries<'K,'V> = 
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -1674,7 +1651,7 @@ and
           if this.isBatch then
             Trace.Assert(this.index = this.source.size - 1)
             Trace.Assert(this.source.isReadOnly)
-            this.source :> ISeries<'K,'V>
+            this.source :> IReadOnlySeries<'K,'V>
           else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
 
         /////////// End read-locked code /////////////
@@ -1905,7 +1882,7 @@ and
       member this.MovePrevious():bool = this.MovePrevious()
       member this.CurrentKey with get():'K = this.CurrentKey
       member this.CurrentValue with get():'V = this.CurrentValue
-      member this.Source with get() = this.source :> ISeries<'K,'V>
+      member this.Source with get() = this.source :> IReadOnlySeries<'K,'V>
       member this.Clone() = this.Clone() :> ICursor<'K,'V>
       member this.IsContinuous with get() = false
       member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)

@@ -598,39 +598,33 @@ namespace Spreads.Collections
         let comparer = LanguagePrimitives.FastGenericComparer<'K> 
         new ImmutableSortedMap<_,_>(comparer,MapTree.ofSeq comparer (elements |> Seq.map (fun x -> x.Key,x.Value) ))
     
-      member internal m.Comparer = comparer
+      override m.Comparer = comparer
       //[<DebuggerBrowsable(DebuggerBrowsableState.Never)>]
       member internal m.Tree = tree
 
-      member this.IsEmpty with get() = MapTree.isEmpty tree
+      override this.IsEmpty with get() = MapTree.isEmpty tree
       override this.IsIndexed with get() = false
       override this.IsReadOnly with get() = true
 
-      member this.First
+      override this.First
         with get() = 
           let res = MapTree.tryFindMin tree
           if res.IsNone then raise (InvalidOperationException("Could not get the first element of an empty map"))
           KeyValuePair(fst res.Value, snd res.Value)
 
-      member this.Last
+      override this.Last
         with get() = 
           let res = MapTree.tryFindMax tree
           if res.IsNone then raise (InvalidOperationException("Could not get the last element of an empty map"))
           KeyValuePair(fst res.Value, snd res.Value)
-
-      member this.Item
-        with get key =
-          let tr = MapTree.tryFind comparer key tree
-          if tr.IsNone then raise (KeyNotFoundException())
-          tr.Value
       
-      [<ObsoleteAttribute("Naive impl, optimize if used often")>]
-      member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)
-      [<ObsoleteAttribute("Naive impl, optimize if used often")>]
-      member this.Values with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Value)
+      //[<ObsoleteAttribute("Naive impl, optimize if used often")>]
+      override this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)
+      
+      //[<ObsoleteAttribute("Naive impl, optimize if used often")>]
+      override this.Values with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Value)
 
-
-      member this.TryFind(key,direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>) : bool =
+      override this.TryFind(key,direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>) : bool =
         result <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
         match direction with
         | Lookup.EQ -> 
@@ -670,7 +664,7 @@ namespace Spreads.Collections
             true
         | _ -> raise (ApplicationException("Wrong lookup direction"))
 
-      member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+      override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
         try
           res <- this.First
           true
@@ -679,7 +673,7 @@ namespace Spreads.Collections
           res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
           false
             
-      member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+      override this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
         try
           res <- this.Last
           true
@@ -688,7 +682,7 @@ namespace Spreads.Collections
           res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
           false
         
-      member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
+      override this.TryGetValue(k, [<Out>] value:byref<'V>) = 
         let success, pair = this.TryFind(k, Lookup.EQ)
         if success then 
           value <- pair.Value
@@ -696,10 +690,8 @@ namespace Spreads.Collections
         else false
 
       override this.GetCursor() = new MapCursor<'K, 'V>(this) :> ICursor<'K, 'V>
-            
-      member this.Size with get() = int64(MapTree.size tree)
 
-      member this.SyncRoot with get() = syncRoot
+      member this.Size with get() = int64(MapTree.size tree)
 
       member this.Add(k, v):ImmutableSortedMap<'K,'V> = 
         ImmutableSortedMap(comparer, MapTree.add comparer k v tree)
@@ -748,53 +740,6 @@ namespace Spreads.Collections
             MapTree.remove comparer k tree
           | _ -> failwith "unexpected wrong direction"
         ImmutableSortedMap<'K,'V>(comparer, newTree)
-
-      interface IEnumerable<KeyValuePair<'K, 'V>> with
-        member m.GetEnumerator() = MapTree.mkIEnumerator tree
-
-      interface System.Collections.IEnumerable with
-        member m.GetEnumerator() = (MapTree.mkIEnumerator tree :> System.Collections.IEnumerator)
-
-      interface IReadOnlySeries<'K,'V> with
-        member this.Comparer with get() = comparer
-        member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
-        member this.GetCursor() = this.GetCursor()
-        member this.IsEmpty = this.IsEmpty
-        member this.IsIndexed with get() = false
-        member this.IsReadOnly with get() = true
-        //member this.Count with get() = int this.Size
-        member this.First  with get() = this.First
-        member this.Last  with get() = this.Last
-        member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-          this.TryFind(k, direction, &result)
-        
-        member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-          try
-            res <- this.First
-            true
-          with
-          | _ -> 
-            res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-            false
-            
-        member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-          try
-            res <- this.Last
-            true
-          with
-          | _ -> 
-            res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-            false
-        
-        member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
-            this.TryGetValue(k, &value)
-        member this.Item with get k = this.Item(k)
-        [<ObsoleteAttribute("Naive impl, optimize if used often")>]
-        member this.Keys with get() = this.Keys
-        [<ObsoleteAttribute("Naive impl, optimize if used often")>]
-        member this.Values with get() = this.Values
-        member this.SyncRoot with get() = this.SyncRoot
-        
 
       interface IImmutableSeries<'K, 'V> with
         member this.Size with get() = this.Size

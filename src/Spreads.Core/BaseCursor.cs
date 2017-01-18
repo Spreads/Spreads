@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Collections.Concurrent;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -13,11 +14,13 @@ namespace Spreads {
 
     public class BaseCursorAsync<TK, TV, TCursor> : ICursor<TK, TV>
         where TCursor : ICursor<TK, TV> {
-        private readonly BaseSeries<TK, TV> _source;
+        private static readonly BoundedConcurrentBag<BaseCursorAsync<TK, TV, TCursor>> Pool = new BoundedConcurrentBag<BaseCursorAsync<TK, TV, TCursor>>(Environment.ProcessorCount * 16);
+
+        private BaseSeries<TK, TV> _source;
 
         // NB this is often a struct, should not be made readonly!
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
-        private TCursor _state;
+        private TCursor _innerCursor;
 
         private TaskCompletionSource<long> _unusedTcs;
         private TaskCompletionSource<Task<bool>> _cancelledTcs;
@@ -29,13 +32,44 @@ namespace Spreads {
         // At the same time, we need access to BaseSeries members and cannot use Source property of the cursor
         public BaseCursorAsync(BaseSeries<TK, TV> source, Func<TCursor> cursorFactory) {
             this._source = source;
-            _state = cursorFactory();
+            _innerCursor = cursorFactory();
+        }
+
+        public static BaseCursorAsync<TK, TV, TCursor> Create(BaseSeries<TK, TV> source, Func<TCursor> cursorFactory) {
+            BaseCursorAsync<TK, TV, TCursor> inst;
+            if (!Pool.TryTake(out inst)) {
+                inst = new BaseCursorAsync<TK, TV, TCursor>(source, cursorFactory);
+            }
+            inst._source = source;
+            inst._innerCursor = cursorFactory();
+            return inst;
+        }
+
+        private void Dispose(bool disposing) {
+            var disposable = _source as IDisposable;
+            disposable?.Dispose();
+
+            _innerCursor.Dispose();
+            _innerCursor = default(TCursor);
+
+            _unusedTcs = null;
+            _cancelledTcs = null;
+            _registration.Dispose();
+            _registration = default(CancellationTokenRegistration);
+
+            _token = default(CancellationToken);
+
+            var pooled = Pool.TryAdd(this);
+            // TODO review
+            if (disposing && !pooled) {
+                GC.SuppressFinalize(this);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNext(CancellationToken cancellationToken) {
             // sync move, hot path
-            if (_state.MoveNext()) {
+            if (_innerCursor.MoveNext()) {
                 return TaskEx.TrueTask;
             }
 
@@ -61,13 +95,13 @@ namespace Spreads {
                     this._unusedTcs = newTcs;
                     tcs = original;
                 }
-                if (_state.MoveNext()) {
+                if (_innerCursor.MoveNext()) {
                     return TaskEx.TrueTask;
                 }
             }
 
             if (_source.IsReadOnly) { // false almost always
-                return _state.MoveNext() ? TaskEx.TrueTask : TaskEx.FalseTask;
+                return _innerCursor.MoveNext() ? TaskEx.TrueTask : TaskEx.FalseTask;
             }
 
             // NB activeTcs is already allocated and we cannot avoid this allocation,
@@ -103,82 +137,82 @@ namespace Spreads {
                 // one of many cursors will succeed
                 Interlocked.CompareExchange(ref _source.UpdateTcs, null, original);
             }
-            return _state.MoveNext() ? TaskEx.TrueTask : MoveNext(_token);
+            return _innerCursor.MoveNext() ? TaskEx.TrueTask : MoveNext(_token);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext() {
-            return _state.MoveNext();
+            return _innerCursor.MoveNext();
         }
 
         public void Reset() {
-            _state.Reset();
+            _innerCursor.Reset();
         }
 
         public KeyValuePair<TK, TV> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _state.Current; }
+            get { return _innerCursor.Current; }
         }
 
-        object IEnumerator.Current => ((IEnumerator)_state).Current;
+        object IEnumerator.Current => ((IEnumerator)_innerCursor).Current;
 
-        public IComparer<TK> Comparer => _state.Comparer;
+        public IComparer<TK> Comparer => _innerCursor.Comparer;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveAt(TK key, Lookup direction) {
-            return _state.MoveAt(key, direction);
+            return _innerCursor.MoveAt(key, direction);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveFirst() {
-            return _state.MoveFirst();
+            return _innerCursor.MoveFirst();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveLast() {
-            return _state.MoveLast();
+            return _innerCursor.MoveLast();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MovePrevious() {
-            return _state.MovePrevious();
+            return _innerCursor.MovePrevious();
         }
 
         public TK CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _state.CurrentKey; }
+            get { return _innerCursor.CurrentKey; }
         }
 
         public TV CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _state.CurrentValue; }
+            get { return _innerCursor.CurrentValue; }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNextBatch(CancellationToken cancellationToken) {
-            return _state.MoveNextBatch(cancellationToken);
+            return _innerCursor.MoveNextBatch(cancellationToken);
         }
 
-        public ISeries<TK, TV> CurrentBatch
+        public IReadOnlySeries<TK, TV> CurrentBatch
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _state.CurrentBatch; }
+            get { return _innerCursor.CurrentBatch; }
         }
 
-        public ISeries<TK, TV> Source => _state.Source;
+        public IReadOnlySeries<TK, TV> Source => _innerCursor.Source;
 
-        public bool IsContinuous => _state.IsContinuous;
+        public bool IsContinuous => _innerCursor.IsContinuous;
 
         public ICursor<TK, TV> Clone() {
-            return _state.Clone();
+            return _innerCursor.Clone();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TK key, out TV value) {
-            return _state.TryGetValue(key, out value);
+            return _innerCursor.TryGetValue(key, out value);
         }
 
         public void Dispose() {
@@ -187,14 +221,6 @@ namespace Spreads {
 
         ~BaseCursorAsync() {
             Dispose(false);
-        }
-
-        private void Dispose(bool disposing) {
-            if (disposing) {
-                GC.SuppressFinalize(this);
-            }
-            _state.Dispose();
-            _registration.Dispose();
         }
     }
 }

@@ -10,35 +10,24 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace Spreads {
-    // NB C# is currently used only for AsyncCursor.MNA implementation
 
     public class BaseSeries {
-
     }
 
     public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK, TV> {
-        private readonly Func<ICursor<TK, TV>> _cursorFactory;
-        private ICursor<TK, TV> _c;
+        internal readonly Func<ICursor<TK, TV>> CursorFactory;
+
         internal int Locker;
         internal TaskCompletionSource<long> UpdateTcs;
 
         private object _syncRoot;
 
         protected BaseSeries(Func<ICursor<TK, TV>> cursorFactory = null) {
-            _cursorFactory = cursorFactory;
-        }
-
-        protected BaseSeries(ISeries<TK, TV> series) : this(series.GetCursor) {
-        }
-
-        internal ICursor<TK, TV> C
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _c ?? Interlocked.CompareExchange(ref _c, GetCursor(), null); }
+            CursorFactory = cursorFactory;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void NotifyUpdateTcs() {
+        internal void NotifyUpdate() {
             while (true) {
                 var updateTcs = Volatile.Read(ref this.UpdateTcs);
                 // stop when the result was already set
@@ -50,16 +39,16 @@ namespace Spreads {
         }
 
         public virtual ICursor<TK, TV> GetCursor() {
-            if (_cursorFactory != null) {
-                return _cursorFactory();
-            } else {
-                throw new NotImplementedException("Series.GetCursor is not implemented");
+            if (CursorFactory != null) {
+                var asyncCursor = BaseCursorAsync<TK, TV, ICursor<TK, TV>>.Create(this, GetCursor);
+                return asyncCursor;
             }
+            throw new NotImplementedException("BaseSeries<TK, TV, TCursor>.GetCursor is not implemented");
         }
 
-        public virtual bool IsIndexed => C.Source.IsIndexed;
-
-        public virtual bool IsReadOnly => C.Source.IsReadOnly;
+        public abstract IComparer<TK> Comparer { get; }
+        public abstract bool IsIndexed { get; }
+        public abstract bool IsReadOnly { get; }
 
         public virtual IDisposable Subscribe(IObserver<KeyValuePair<TK, TV>> observer) {
             // TODO not virtual and implement all logic here, including backpressure case
@@ -78,8 +67,6 @@ namespace Spreads {
             return GetCursor();
         }
 
-        public virtual IComparer<TK> Comparer => C.Source.Comparer;
-
         public object SyncRoot
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -89,16 +76,22 @@ namespace Spreads {
             }
         }
 
-        ~BaseSeries() {
-            _c?.Dispose();
-        }
-
         // IReadOnlySeries members
         public abstract bool IsEmpty { get; }
 
         public abstract KeyValuePair<TK, TV> First { get; }
         public abstract KeyValuePair<TK, TV> Last { get; }
-        public abstract TV this[TK key] { get; }
+        public virtual TV this[TK key]
+        {
+            get
+            {
+                TV tmp;
+                if (TryGetValue(key, out tmp)) {
+                    return tmp;
+                }
+                throw new KeyNotFoundException();
+            }
+        }
 
         public abstract TV GetAt(int idx);
 

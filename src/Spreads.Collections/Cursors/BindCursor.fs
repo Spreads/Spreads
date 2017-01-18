@@ -90,7 +90,7 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
 
   member this.Current with get () = KVP(inputCursor.CurrentKey, this.CurrentValue)
 
-  member this.CurrentBatch with get() = Unchecked.defaultof<ISeries<'K,'R>>
+  member this.CurrentBatch with get() = Unchecked.defaultof<IReadOnlySeries<'K,'R>>
 
   member this.State with get() = moveState
 
@@ -389,7 +389,7 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
     member this.MovePrevious(): bool = this.MovePrevious()
     member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = this.MoveNext(cancellationToken)
     member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = falseTask
-    member this.Source: ISeries<'K,'R> = CursorSeries(fun _ -> this.Clone() :> ICursor<_,_> ) :> ISeries<'K,'R>
+    member this.Source = CursorSeries(fun _ -> this.Clone() :> ICursor<_,_> ) :> IReadOnlySeries<'K,'R>
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool = this.TryGetValue(key, &value)
     member this.Clone() = this.Clone()
 
@@ -443,7 +443,7 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
 
   member this.Current with get () = KVP(inputCursor.CurrentKey, moveState)
 
-  member this.CurrentBatch with get() = Unchecked.defaultof<ISeries<'K,'R>>
+  member this.CurrentBatch with get() = Unchecked.defaultof<_>
 
   member this.State with get() = moveState
 
@@ -772,6 +772,6 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
     member this.MovePrevious(): bool = this.MovePrevious()
     member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = this.MoveNext(cancellationToken)
     member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = falseTask
-    member this.Source: ISeries<'K,'R> = CursorSeries(fun _ -> this.Clone() :> ICursor<_,_> ) :> ISeries<'K,'R>
+    member this.Source = CursorSeries(fun _ -> this.Clone() :> ICursor<_,_> ) :> IReadOnlySeries<_,_>
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool = this.TryGetValue(key, &value)
     member this.Clone() = this.Clone()

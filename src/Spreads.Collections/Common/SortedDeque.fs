@@ -52,7 +52,7 @@ and
     end
     override x.Equals(yobj) =
       match yobj with
-      | :? KV<'K,_> as y -> (Unchecked.equals x.Key y.Key)
+      | :? KV<'K,'V> as y -> (Unchecked.equals x.Key y.Key)
       | _ -> false
     override x.GetHashCode() = Unchecked.hash x.Key
     interface System.IComparable<KV<'K,'V>> with

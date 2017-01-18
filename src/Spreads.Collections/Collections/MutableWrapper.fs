@@ -66,10 +66,8 @@ type internal MutableWrapper<'K,'V  when 'K : comparison>
       map.TryGetValue(k, &value)
     member this.Item with get k = map.Item(k)
     member this.GetAt(idx:int) = this.Skip(Math.Max(0, idx-1)).First().Value
-    [<ObsoleteAttribute("Naive impl, optimize if used often")>]
-    member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)
-    [<ObsoleteAttribute("Naive impl, optimize if used often")>]
-    member this.Values with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Value)
+    member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>).Select(fun kvp -> kvp.Key)
+    member this.Values with get() = (this :> IEnumerable<KVP<'K,'V>>).Select(fun kvp -> kvp.Value)
 
     member this.SyncRoot with get() = map.SyncRoot
     

@@ -50,7 +50,6 @@ type IndexedMap<'K,'V> // when 'K:equality
 
   let mutable isSynchronized : bool = false
   let mutable isMutable : bool = true
-  let syncRoot = new Object()
   let mutable mapKey = ""
 
   do
@@ -129,24 +128,22 @@ type IndexedMap<'K,'V> // when 'K:equality
   member this.IsSynchronized 
     with get() =  isSynchronized
     and set(synced:bool) = 
-      let entered = enterLockIf syncRoot isSynchronized
+      let entered = enterLockIf this.SyncRoot isSynchronized
       isSynchronized <- synced
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
   member internal this.MapKey with get() = mapKey and set(key:string) = mapKey <- key
 
-  member this.SyncRoot with get() = syncRoot
   member this.Version with get() = version and set v = version <- v
 
   //#endregion
-
 
   //#region Public members
 
   member this.Capacity
     with get() = this.values.Length
     and set(value) =
-      let entered = enterLockIf syncRoot  isSynchronized
+      let entered = enterLockIf this.SyncRoot  isSynchronized
       try
         match value with
         | c when c = this.values.Length -> ()
@@ -165,9 +162,9 @@ type IndexedMap<'K,'V> // when 'K:equality
           BufferPool<_>.Return(toReturn, true) |> ignore
         | _ -> ()
       finally
-        exitLockIf syncRoot entered
+        exitLockIf this.SyncRoot entered
 
-  member this.Comparer with get() = Unchecked.defaultof<_>
+  override this.Comparer with get() = comparer
 
   member this.Clear() =
     version <- version + 1
@@ -178,10 +175,10 @@ type IndexedMap<'K,'V> // when 'K:equality
 
   member this.Count with get() = this.size
 
-  member this.IsEmpty with get() = this.size = 0
+  override this.IsEmpty with get() = this.size = 0
 
-  member this.Keys 
-    with get() : IList<'K> =
+  override this.Keys 
+    with get() =
       {new IList<'K> with
         member x.Count with get() = this.size
         member x.IsReadOnly with get() = true
@@ -225,10 +222,10 @@ type IndexedMap<'K,'V> // when 'K:equality
               index := 0
               currentKey := Unchecked.defaultof<'K>
           }
-      }
+      } :> IEnumerable<_>
 
-  member this.Values 
-    with get() : IList<'V> =
+  override this.Values 
+    with get() =
       { new IList<'V> with
         member x.Count with get() = this.size
         member x.IsReadOnly with get() = true
@@ -272,14 +269,14 @@ type IndexedMap<'K,'V> // when 'K:equality
               index := 0
               currentValue := Unchecked.defaultof<'V>
           }
-        }
+        } :> IEnumerable<_>
 
   member this.ContainsKey(key) = this.IndexOfKey(key) >= 0
 
   member this.ContainsValue(value) = this.IndexOfValue(value) >= 0
 
   member internal this.IndexOfKeyUnchecked(key:'K) : int =
-    let entered = enterLockIf syncRoot  isSynchronized
+    let entered = enterLockIf this.SyncRoot  isSynchronized
     try
       let mutable res = 0
       let mutable found = false
@@ -289,7 +286,7 @@ type IndexedMap<'K,'V> // when 'K:equality
           else res <- res + 1
       if found then res else ~~~this.size// add to the end
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
   member this.IndexOfKey(key:'K) : int =
     if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then 
@@ -297,7 +294,7 @@ type IndexedMap<'K,'V> // when 'K:equality
     this.IndexOfKeyUnchecked(key)
 
   member this.IndexOfValue(value:'V) : int =
-    let entered = enterLockIf syncRoot  isSynchronized
+    let entered = enterLockIf this.SyncRoot  isSynchronized
     try
       let mutable res = 0
       let mutable found = false
@@ -308,15 +305,15 @@ type IndexedMap<'K,'V> // when 'K:equality
           else res <- res + 1
       if found then res else -1
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
 
-  member this.First
+  override this.First
     with get() = 
       if this.size = 0 then raise (InvalidOperationException("Could not get the first element of an empty map"))
       KeyValuePair(this.keys.[0], this.values.[0])
 
-  member this.Last
+  override this.Last
     with get() =
       if this.size = 0 then raise (InvalidOperationException("Could not get the last element of an empty map"))
       KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
@@ -325,7 +322,7 @@ type IndexedMap<'K,'V> // when 'K:equality
       with get key =
         if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then 
           raise (ArgumentNullException("key"))
-        let entered = enterLockIf syncRoot  isSynchronized
+        let entered = enterLockIf this.SyncRoot  isSynchronized
         try
           // first/last optimization (only last here)
           if this.size = 0 then
@@ -337,7 +334,7 @@ type IndexedMap<'K,'V> // when 'K:equality
             else
               raise (KeyNotFoundException())
         finally
-          exitLockIf syncRoot entered
+          exitLockIf this.SyncRoot entered
       and set k v =
         if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(k, Unchecked.defaultof<'K>) then 
           raise (ArgumentNullException("key"))
@@ -345,7 +342,7 @@ type IndexedMap<'K,'V> // when 'K:equality
 
   /// Sets the value to the key position and returns the index of the key
   member internal this.SetWithIndex(k, v) =
-    let entered = enterLockIf syncRoot isSynchronized
+    let entered = enterLockIf this.SyncRoot isSynchronized
     try
       // first/last optimization (only last here)
       if this.size = 0 then
@@ -371,12 +368,12 @@ type IndexedMap<'K,'V> // when 'K:equality
             this.Insert(~~~index, k, v)
             ~~~index
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
   member this.Add(key, value) : unit =
     if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then 
         raise (ArgumentNullException("key"))
-    let entered = enterLockIf syncRoot  isSynchronized
+    let entered = enterLockIf this.SyncRoot  isSynchronized
     //try
     if this.size = 0 then
       this.Insert(0, key, value)
@@ -387,12 +384,12 @@ type IndexedMap<'K,'V> // when 'K:equality
       else
           this.Insert(~~~index, key, value)
     //finally
-    exitLockIf syncRoot entered
+    exitLockIf this.SyncRoot entered
 
   member this.AddLast(key, value) : unit = this.Add(key, value)
 
   member this.AddFirst(key, value):unit =
-    let entered = enterLockIf syncRoot  isSynchronized
+    let entered = enterLockIf this.SyncRoot  isSynchronized
     try
       if this.size = 0 then
         this.Insert(0, key, value)
@@ -403,10 +400,10 @@ type IndexedMap<'K,'V> // when 'K:equality
         else
             this.Insert(0, key, value) 
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
     
   member internal this.RemoveAt(index):unit =
-    let entered = enterLockIf syncRoot isSynchronized
+    let entered = enterLockIf this.SyncRoot isSynchronized
     try
       if index < 0 || index >= this.size then raise (ArgumentOutOfRangeException("index"))
       let newSize = this.size - 1
@@ -424,19 +421,19 @@ type IndexedMap<'K,'V> // when 'K:equality
       let updateTcs = Volatile.Read(&this.UpdateTcs)
       if updateTcs <> null then updateTcs.TrySetResult(0L) |> ignore
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
   member this.Remove(key):bool =
-    let entered = enterLockIf syncRoot isSynchronized
+    let entered = enterLockIf this.SyncRoot isSynchronized
     try
       let index = this.IndexOfKey(key)
       if index >= 0 then this.RemoveAt(index)
       index >= 0
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
   member this.RemoveFirst([<Out>]result: byref<KVP<'K,'V>>):bool =
-    let entered = enterLockIf syncRoot  isSynchronized
+    let entered = enterLockIf this.SyncRoot  isSynchronized
     try
       try
         result <- this.First // could throw
@@ -444,21 +441,21 @@ type IndexedMap<'K,'V> // when 'K:equality
         ret
       with | _ -> false
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
   member this.RemoveLast([<Out>]result: byref<KeyValuePair<'K, 'V>>):bool =
-    let entered = enterLockIf syncRoot  isSynchronized
+    let entered = enterLockIf this.SyncRoot  isSynchronized
     try
       try
         result <-this.Last // could throw
         this.Remove(result.Key)
       with | _ -> false
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
   /// Removes all elements that are to `direction` from `key`
   member this.RemoveMany(key:'K,direction:Lookup):bool =
-    let entered = enterLockIf syncRoot  isSynchronized
+    let entered = enterLockIf this.SyncRoot  isSynchronized
     try
       if this.size = 0 then false
       else
@@ -494,7 +491,7 @@ type IndexedMap<'K,'V> // when 'K:equality
             raise (ApplicationException("wrong result of TryFindWithIndex with GT/GE direction"))
         | _ -> failwith "wrong direction"
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
     
   /// Returns the index of found KeyValuePair or a negative value:
   /// -1 if the non-found key is smaller than the first key
@@ -503,7 +500,7 @@ type IndexedMap<'K,'V> // when 'K:equality
   /// -4 empty
   /// Example: (-1) [...current...(-3)...map ...] (-2)
   member internal this.TryFindWithIndex(key:'K,direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>) : int = // rkok
-    let entered = enterLockIf syncRoot  isSynchronized
+    let entered = enterLockIf this.SyncRoot  isSynchronized
     try
       if this.size = 0 then -4
       else
@@ -616,10 +613,10 @@ type IndexedMap<'K,'V> // when 'K:equality
                 index2
         | _ -> raise (ApplicationException("Wrong lookup direction"))
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
 
-  member this.TryFind(k:'K, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+  override this.TryFind(k:'K, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
     let idx, v = this.TryFindWithIndex(k, direction)
     if idx >= 0 then
@@ -628,8 +625,8 @@ type IndexedMap<'K,'V> // when 'K:equality
     else false
 
   /// Return true if found exact key
-  member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
-    let entered = enterLockIf syncRoot  isSynchronized
+  override this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
+    let entered = enterLockIf this.SyncRoot  isSynchronized
     try
       // first/last optimization
       if this.size = 0 then
@@ -649,10 +646,10 @@ type IndexedMap<'K,'V> // when 'K:equality
             value <- Unchecked.defaultof<'V>
             false
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
 
-  member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+  override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     try
       res <- this.First
       true
@@ -661,7 +658,7 @@ type IndexedMap<'K,'V> // when 'K:equality
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
             
-  member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+  override this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     try
       res <- this.Last
       true
@@ -670,141 +667,19 @@ type IndexedMap<'K,'V> // when 'K:equality
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
 
-  override this.GetCursor() = this.GetCursor(-1, version, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>)
+  override this.GetAt(idx:int) =
+      if idx >= 0 && idx < this.size then this.values.[idx] else raise (ArgumentOutOfRangeException("idx", "Idx is out of range in IndexedMap GetAt method."))
+    
+
+  override this.GetCursor() = 
+    let cursor = BaseCursorAsync<'K,'V,_>.Create(this,Func<_>(fun _ -> new MapCursor<_,_>(this)))
+    cursor :> ICursor<_,_>
+    //this.GetCursor(-1, version, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>)
     
   // TODO(?) replace with a mutable struct, like in SCG.SortedList<T>, there are too many virtual calls and reference cells in the most critical paths like MoveNext
   // NB Object expression with ref cells are surprisingly fast insteads of custom class
-  member internal this.GetCursor(index:int,cursorVersion:int,currentKey:'K, currentValue:'V) =
-    //IndexedMapCursor(this, index, cursorVersion, currentKey, currentValue) :> ICursor<'K,'V>
-    let index = ref index
-    let cursorVersion = ref cursorVersion
-    let currentKey : 'K ref = ref currentKey
-    let currentValue : 'V ref = ref currentValue
-    let isBatch = ref false
-    { 
-    new BaseCursor<'K,'V>(this) with
-      override this.IsContinuous with get() = false
-      override p.CurrentBatch: ISeries<'K,'V> = 
-        if !index = -1 then this :> ISeries<'K,'V>
-        else raise (InvalidOperationException(""))
-      override p.MoveNextBatchAsync(cancellationToken: CancellationToken): Task<bool> =
-        if !index = -1 then 
-          index := this.size
-          isBatch := true
-          trueTask
-        else falseTask
-      override p.IsBatch with get() = !isBatch
-      override p.Clone() = this.GetCursor(!index,!cursorVersion, p.CurrentKey, p.CurrentValue) //!currentKey,!currentValue)
-      override p.Current with get() = KeyValuePair(p.CurrentKey, p.CurrentValue) // currentKey.Value, currentValue.Value)
-      override p.MoveNext() = 
-        let entered = enterLockIf syncRoot isSynchronized
-        try
-          if index.Value = -1 then p.MoveFirst() // first move when index = -1
-          elif cursorVersion.Value = version then
-            if index.Value < (this.size - 1) then
-              index := !index + 1
-              currentKey := this.GetKeyByIndex(index.Value)
-              currentValue := this.values.[!index]
-              true
-            else
-              //p.Reset() // NB! Do not reset cursor on false MoveNext
-              false
-          else  // source change
-            cursorVersion := version // update state to new version
-            let position, kvp = this.TryFindWithIndex(p.CurrentKey, Lookup.GT) // reposition cursor after source change //currentKey.Value
-            if position > 0 then
-              index := position
-              currentKey := kvp.Key
-              currentValue := kvp.Value
-              true
-            else  // not found
-              //p.Reset() // NB! Do not reset cursor on false MoveNext
-              false
-        finally
-          exitLockIf syncRoot entered
-
-      override p.MovePrevious() = 
-        let entered = enterLockIf syncRoot  isSynchronized
-        try
-          if index.Value = -1 then p.MoveLast()  // first move when index = -1
-          elif cursorVersion.Value = version then
-            if index.Value > 0 && index.Value < this.size then
-              index := index.Value - 1
-              currentKey := this.GetKeyByIndex(index.Value)
-              currentValue := this.values.[index.Value]
-              true
-            else
-              p.Reset()
-              false
-          else
-            cursorVersion := version // update state to new version
-            let position, kvp = this.TryFindWithIndex(p.CurrentKey, Lookup.LT) //currentKey.Value
-            if position > 0 then
-              index := position
-              currentKey := kvp.Key
-              currentValue := kvp.Value
-              true
-            else  // not found
-              p.Reset()
-              false
-        finally
-          exitLockIf syncRoot entered
-
-      override p.MoveAt(key:'K, lookup:Lookup) = 
-        let entered = enterLockIf syncRoot  isSynchronized
-        try
-          let position, kvp = this.TryFindWithIndex(key, lookup)
-          if position >= 0 then
-            index := position
-            currentKey := kvp.Key
-            currentValue := kvp.Value
-            true
-          else
-            p.Reset()
-            false
-        finally
-          exitLockIf syncRoot entered
-
-      override p.MoveFirst() = 
-        let entered = enterLockIf syncRoot  isSynchronized
-        try
-          if this.size > 0 then
-            index := 0
-            currentKey := this.GetKeyByIndex(index.Value)
-            currentValue := this.values.[index.Value]
-            true
-          else
-            p.Reset()
-            false
-        finally
-          exitLockIf syncRoot entered
-
-      override p.MoveLast() = 
-        let entered = enterLockIf syncRoot  isSynchronized
-        try
-          if this.size > 0 then
-            index := this.size - 1
-            currentKey := this.GetKeyByIndex(index.Value)
-            currentValue := this.values.[index.Value]
-            true
-          else
-            p.Reset()
-            false
-        finally
-          exitLockIf syncRoot entered
-
-      override p.CurrentKey with get() = currentKey.Value //if index.Value >= 0 then this.GetKeyByIndex(index.Value) else Unchecked.defaultof<'K> //currentKey.Value
-
-      override p.CurrentValue with get() = currentValue.Value //if index.Value >= 0 then this.values.[index.Value] else Unchecked.defaultof<'V> //currentValue.Value
-
-      override p.Reset() = 
-        cursorVersion := version // update state to new version
-        index := -1
-        currentKey := Unchecked.defaultof<'K>
-        currentValue := Unchecked.defaultof<'V>
-
-      override p.Dispose() = p.Reset()
-    } :> ICursor<'K,'V>
+  //member internal this.GetCursor(index:int,cursorVersion:int,currentKey:'K, currentValue:'V) =
+    
 
   /// Make the capacity equal to the size
   member this.TrimExcess() = this.Capacity <- this.size
@@ -822,7 +697,7 @@ type IndexedMap<'K,'V> // when 'K:equality
       this.GetCursor() :> IEnumerator<KeyValuePair<'K,'V>>
 
   interface ICollection  with
-    member this.SyncRoot = syncRoot
+    member this.SyncRoot = this.SyncRoot
     member this.CopyTo(array, arrayIndex) =
       if array = null then raise (ArgumentNullException("array"))
       if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
@@ -839,8 +714,8 @@ type IndexedMap<'K,'V> // when 'K:equality
     member this.Item
       with get key = this.Item(key)
       and set key value = this.[key] <- value
-    member this.Keys with get() = this.Keys :> ICollection<'K>
-    member this.Values with get() = this.Values :> ICollection<'V>
+    member this.Keys with get() = this.Keys :?> ICollection<'K>
+    member this.Values with get() = this.Values :?> ICollection<'V>
     member this.Clear() = this.Clear()
     member this.ContainsKey(key) = this.ContainsKey(key)
     member this.Contains(kvp:KeyValuePair<'K,'V>) = this.ContainsKey(kvp.Key)
@@ -849,7 +724,7 @@ type IndexedMap<'K,'V> // when 'K:equality
       if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
       if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
       for index in 0..this.Count do
-        let kvp = KeyValuePair(this.Keys.[index], this.Values.[index])
+        let kvp = KeyValuePair(this.keys.[index], this.values.[index])
         array.[arrayIndex + index] <- kvp
     member this.Add(key, value) = this.Add(key, value)
     member this.Add(kvp:KeyValuePair<'K,'V>) = this.Add(kvp.Key, kvp.Value)
@@ -865,38 +740,8 @@ type IndexedMap<'K,'V> // when 'K:equality
         false
 
   interface IReadOnlySeries<'K,'V> with
-    member this.Comparer with get() = this.Comparer
-    member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
-    member this.GetCursor() = this.GetCursor()
-    member this.IsEmpty = this.size = 0
-    member this.IsIndexed with get() = false
-    member this.IsReadOnly with get() = not this.IsMutable
-    member this.First with get() = this.First
-    member this.Last with get() = this.Last
-    member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      this.TryFindWithIndex(k, direction, &result) >=0
-    member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      try
-        res <- this.First
-        true
-      with
-      | _ -> 
-        res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-        false
-    member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      try
-        res <- this.Last
-        true
-      with
-      | _ -> 
-        res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-        false
-    member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
+    // the rest is in BaseSeries
     member this.Item with get k = this.Item(k)
-    member this.GetAt(idx:int) = this.values.[idx]
-    member this.Keys with get() = this.Keys :> IEnumerable<'K>
-    member this.Values with get() = this.values :> IEnumerable<'V>
-    member this.SyncRoot with get() = syncRoot
     
 
   interface IMutableSeries<'K,'V> with

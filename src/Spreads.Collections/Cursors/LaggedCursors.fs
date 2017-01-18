@@ -538,7 +538,7 @@ type WindowCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:uint32, step:
 
 
 
-[<ObsoleteAttribute>]
+//[<ObsoleteAttribute>]
 type internal LagCursorSlow<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
   inherit FunctionalBindCursor<'K,'V,ICursor<'K,'V>,'V>( // state is lagged cursor
     cursorFactory, 
@@ -585,7 +585,7 @@ type internal LagCursorSlow<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint3
 
 
 /// Apply lagMapFunc to current and lagged value
-[<ObsoleteAttribute>]
+//[<ObsoleteAttribute>]
 type internal ZipLagCursorSlow<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapCurrentPrev:Func<'V,'V,'R>) =
   inherit FunctionalBindCursor<'K,'V,KVP<ICursor<'K,'V>,'V>,'R>( // state is lagged cursor and current value
     cursorFactory, 

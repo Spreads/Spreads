@@ -52,11 +52,12 @@ and
   //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   Series<'K,'V> internal(cursorFactory:(Func<ICursor<'K,'V>>)) =
     inherit BaseSeries<'K,'V>(cursorFactory)
-    
+
     new(iseries:ISeries<'K,'V>) = Series<_,_>(iseries.GetCursor)
     internal new() = Series<_,_>(Unchecked.defaultof<Func<ICursor<'K,'V>>>)
 
     // TODO (!) IObservable needs much more love and adherence to Rx contracts, see #40
+    // TODO Move to BaseSeries
     override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
       let entered = enterWriteLockIf &this.Locker true
       try
@@ -83,7 +84,7 @@ and
               ()
             )
           ) |> ignore
-          { 
+          {
           // NB finalizers should be only in types that are actually keeping some resource
           //  new Object() with
           //    member x.Finalize() = (x :?> IDisposable).Dispose()
@@ -93,121 +94,33 @@ and
       finally
         exitWriteLockIf &this.Locker true
 
-
-    override this.IsEmpty = lock(this.SyncRoot) (fun _ -> not (this.C.MoveFirst()))
-
-    override this.First
-      with get() = 
-        let entered = enterLockIf this.SyncRoot true
-        try
-          if this.C.MoveFirst() then this.C.Current else invalidOp "Series is empty"
-        finally
-          exitLockIf this.SyncRoot entered
-
-    override this.Last 
-      with get() =
-        let entered = enterLockIf this.SyncRoot true
-        try
-          if this.C.MoveLast() then this.C.Current else invalidOp "Series is empty"
-        finally
-          exitLockIf this.SyncRoot entered
-
-    override this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      let entered = enterLockIf this.SyncRoot true
-      try
-        if this.C.MoveAt(k, direction) then
-          result <- this.C.Current 
-          true
-        else false
-      finally
-        exitLockIf this.SyncRoot entered
-
-    override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      let entered = enterLockIf this.SyncRoot true
-      try
-        if this.C.MoveFirst() then
-          res <- this.C.Current
-          true
-        else false
-      finally
-        exitLockIf this.SyncRoot entered
-
-    override this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) =
-      let entered = enterLockIf this.SyncRoot true
-      try
-        if this.C.MoveLast() then
-          res <- this.C.Current
-          true
-        else false
-      finally
-        exitLockIf this.SyncRoot entered
-
-    override this.TryGetValue(k, [<Out>] value:byref<'V>) =
-      let entered = enterLockIf this.SyncRoot true
-      try
-        if this.C.IsContinuous then
-          this.C.TryGetValue(k, &value)
-        else
-          let ok = this.C.MoveAt(k, Lookup.EQ)
-          if ok then value <- this.C.CurrentValue else value <- Unchecked.defaultof<'V>
-          ok
-      finally
-        exitLockIf this.SyncRoot entered
-
-    override this.Item 
-      with get k =
-        let entered = enterLockIf this.SyncRoot true
-        try
-          if this.C.MoveAt(k, Lookup.EQ) then this.C.CurrentValue
-          else raise (KeyNotFoundException())
-        finally
-        exitLockIf this.SyncRoot entered
-
-    override this.Keys 
-      with get() =
-        // TODO manual impl, seq is slow
-        use c = this.GetCursor()
-        seq {
-          while c.MoveNext() do
-            yield c.CurrentKey
-        }
-
-    override this.Values
-      with get() =
-        // TODO manual impl, seq is slow
-        use c = this.GetCursor()
-        seq {
-          while c.MoveNext() do
-            yield c.CurrentValue
-        }
-
     override this.GetAt(idx:int) = this.Skip(Math.Max(0, idx-1)).First().Value
 
-    interface IEnumerable<KeyValuePair<'K, 'V>> with
-      member this.GetEnumerator() = this.GetCursor() :> IEnumerator<KeyValuePair<'K, 'V>>
-    interface System.Collections.IEnumerable with
-      member this.GetEnumerator() = (this.GetCursor() :> System.Collections.IEnumerator)     
+//    interface IEnumerable<KeyValuePair<'K, 'V>> with
+//      member this.GetEnumerator() = this.GetCursor() :> IEnumerator<KeyValuePair<'K, 'V>>
+//    interface System.Collections.IEnumerable with
+//      member this.GetEnumerator() = (this.GetCursor() :> System.Collections.IEnumerator)     
 
-    interface IReadOnlySeries<'K,'V> with
-      member this.GetCursor() = this.GetCursor()
-      member this.Subscribe(observer : IObserver<KVP<'K,'V>>) = this.Subscribe(observer)
-      member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
-      member this.Comparer with get() = this.Comparer
-      member this.IsIndexed with get() = this.IsIndexed
-      member this.IsReadOnly =  this.IsReadOnly
-      member this.SyncRoot with get() = this.SyncRoot
-
-      member this.IsEmpty = this.IsEmpty
-      member this.First with get() = this.First 
-      member this.Last with get() = this.Last
-      member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryFind(k, direction, &result)
-      member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = this.TryGetFirst(&res)
-      member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = this.TryGetLast(&res)
-      member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
-      member this.Item with get k = this.[k]
-      member this.GetAt(idx:int) = this.GetAt(idx)
-      member this.Keys with get() = this.Keys 
-      member this.Values with get() = this.Values
+//    interface IReadOnlySeries<'K,'V> with
+//      member this.GetCursor() = this.GetCursor()
+//      member this.Subscribe(observer : IObserver<KVP<'K,'V>>) = this.Subscribe(observer)
+//      member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
+//      member this.Comparer with get() = this.Comparer
+//      member this.IsIndexed with get() = this.IsIndexed
+//      member this.IsReadOnly =  this.IsReadOnly
+//      member this.SyncRoot with get() = this.SyncRoot
+//
+//      member this.IsEmpty = this.IsEmpty
+//      member this.First with get() = this.First 
+//      member this.Last with get() = this.Last
+//      member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryFind(k, direction, &result)
+//      member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = this.TryGetFirst(&res)
+//      member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = this.TryGetLast(&res)
+//      member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
+//      member this.Item with get k = this.[k]
+//      member this.GetAt(idx:int) = this.GetAt(idx)
+//      member this.Keys with get() = this.Keys 
+//      member this.Values with get() = this.Values
           
 
 //    static member inline private batchFunction (f:Func<'V,'V2>) (vF:Vector<'T> -> Vector<'T2>) : Func<IReadOnlySeries<'K,'V>,IReadOnlySeries<'K,'V2>> =
@@ -257,6 +170,12 @@ and
       let c1, c2 = source.GetCursor, other.GetCursor
       CursorSeries(Func<ICursor<'K,'R>>(fun _ -> (new Zip2Cursor<'K,'V1,'V2,'R>(Func<ICursor<_,_>>(c1), Func<ICursor<_,_>>(c2), (fun k v1 v2 -> mapFunc.Invoke(v1, v2))) :> ICursor<'K,'R>) )) :> Series<'K,'R>
 
+//    static member inline private BinaryOperatorMap2<'K,'V1,'V2,'R>(source:BaseSeries<'K,'V1>,other:BaseSeries<'K,'V2>, mapFunc:Func<'V1,'V2,'R>) = 
+//      let c1, c2 = source.GetCursor, other.GetCursor
+//      CursorSeries(Func<ICursor<'K,'R>>(fun _ -> (new Zip2Cursor<'K,'V1,'V2,'R>(Func<ICursor<_,_>>(c1), Func<ICursor<_,_>>(c2), (fun k v1 v2 -> mapFunc.Invoke(v1, v2))) :> ICursor<'K,'R>) )) :> BaseSeries<'K,'R>
+
+
+    static member (+) (series:BaseSeries<'K,int64>, addition:int64) : BaseSeries<'K,int64> = Unchecked.defaultof<_>
 
     // int64
     static member (+) (series:Series<'K,int64>, addition:int64) : Series<'K,int64> = 
@@ -613,15 +532,100 @@ and
   // TODO (perf) base Series() implements IReadOnlySeries inefficiently, see comments in above type Series() implementation
   /// Wraps Series over ICursor
   [<AllowNullLiteral>]
-  [<SealedAttribute>]
+//  [<SealedAttribute>]
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   CursorSeries<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
     inherit Series<'K,'V>()
-    // we use cursor to implement Obsrvable, but cursor used it for MNA
-    // need to remove indirection and make cursors observable as well
-    let mutable observableTask = Unchecked.defaultof<_>
+    
+    let mutable cursor : ICursor<'K,'V> = Unchecked.defaultof<_>
+    member private this.C
+      with get () : ICursor<'K,'V> = 
+        if cursor <> Unchecked.defaultof<_> then cursor
+        else Interlocked.CompareExchange(&cursor, this.GetCursor(), Unchecked.defaultof<_>)
 
     override this.GetCursor() = cursorFactory.Invoke()
+
+    override this.IsIndexed = lock(this.SyncRoot) (fun _ -> this.C.Source.IsIndexed)
+    override this.IsReadOnly = lock(this.SyncRoot) (fun _ -> this.C.Source.IsReadOnly)
+    override this.Comparer = lock(this.SyncRoot) (fun _ -> this.C.Comparer)
+
+    override this.IsEmpty = lock(this.SyncRoot) (fun _ -> not (this.C.MoveFirst()))
+
+    override this.First
+      with get() = 
+        let entered = enterLockIf this.SyncRoot true
+        try
+          if this.C.MoveFirst() then this.C.Current else invalidOp "Series is empty"
+        finally
+          exitLockIf this.SyncRoot entered
+
+    override this.Last 
+      with get() =
+        let entered = enterLockIf this.SyncRoot true
+        try
+          if this.C.MoveLast() then this.C.Current else invalidOp "Series is empty"
+        finally
+          exitLockIf this.SyncRoot entered
+
+    override this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
+      let entered = enterLockIf this.SyncRoot true
+      try
+        if this.C.MoveAt(k, direction) then
+          result <- this.C.Current 
+          true
+        else false
+      finally
+        exitLockIf this.SyncRoot entered
+
+    override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+      let entered = enterLockIf this.SyncRoot true
+      try
+        if this.C.MoveFirst() then
+          res <- this.C.Current
+          true
+        else false
+      finally
+        exitLockIf this.SyncRoot entered
+
+    override this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) =
+      let entered = enterLockIf this.SyncRoot true
+      try
+        if this.C.MoveLast() then
+          res <- this.C.Current
+          true
+        else false
+      finally
+        exitLockIf this.SyncRoot entered
+
+    override this.TryGetValue(k, [<Out>] value:byref<'V>) =
+      let entered = enterLockIf this.SyncRoot true
+      try
+        if this.C.IsContinuous then
+          this.C.TryGetValue(k, &value)
+        else
+          let ok = this.C.MoveAt(k, Lookup.EQ)
+          if ok then value <- this.C.CurrentValue else value <- Unchecked.defaultof<'V>
+          ok
+      finally
+        exitLockIf this.SyncRoot entered
+
+    override this.Keys 
+      with get() =
+        // TODO manual impl, seq is slow
+        use c = this.GetCursor()
+        seq {
+          while c.MoveNext() do
+            yield c.CurrentKey
+        }
+
+    override this.Values
+      with get() =
+        // TODO manual impl, seq is slow
+        use c = this.GetCursor()
+        seq {
+          while c.MoveNext() do
+            yield c.CurrentValue
+        }
 
     interface ICanMapSeriesValues<'K,'V> with
       member this.Map<'V2>(f2, fBatch): Series<'K,'V2> = 
@@ -650,7 +654,7 @@ and
     // any non-forward move makes this false and we fall back to single items
     let mutable preferBatches = fBatch.IsPresent <> Unchecked.defaultof<_>
     let mutable batchStarted = false
-    let mutable batch = Unchecked.defaultof<ISeries<'K,'V2>>
+    let mutable batch = Unchecked.defaultof<IReadOnlySeries<_,_>>
     let mutable batchCursor = Unchecked.defaultof<ICursor<'K,'V2>>
     let queue = if preferBatches then Queue<Task<_>>(Environment.ProcessorCount + 1) else Unchecked.defaultof<_>
 
@@ -702,7 +706,7 @@ and
                 CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default).Result
         )
 
-    member this.CurrentBatch with get() : ISeries<'K,'V2> = batch
+    member this.CurrentBatch with get() = batch
 
     member this.MoveNext(): bool = 
       if not preferBatches then cursor.MoveNext()
@@ -776,10 +780,10 @@ and
           cancellationToken, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default)
 
 
-    member this.Source: ISeries<'K,'V2> = 
+    member this.Source: IReadOnlySeries<_,_> = 
         let factory = Func<_>(cursor.Source.GetCursor)
         let c() = new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, fBatch) :> ICursor<'K,'V2>
-        CursorSeries(Func<_>(c)) :> ISeries<'K,'V2>
+        CursorSeries(Func<_>(c)) :> IReadOnlySeries<_,_>
 
     member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =
       let mutable v = Unchecked.defaultof<_>
@@ -811,7 +815,7 @@ and
 
     interface ICursor<'K,'V2> with
       member this.Comparer with get() = cursor.Comparer
-      member this.CurrentBatch: ISeries<'K,'V2> = this.CurrentBatch
+      member this.CurrentBatch = this.CurrentBatch
       member this.CurrentKey: 'K = this.CurrentKey
       member this.CurrentValue: 'V2 = this.CurrentValue
       member this.IsContinuous: bool = cursor.IsContinuous
@@ -824,7 +828,7 @@ and
       member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = this.MoveNextBatch(cancellationToken)
     
       //member this.IsBatch with get() = this.IsBatch
-      member this.Source: ISeries<'K,'V2> = this.Source
+      member this.Source = this.Source
       member this.TryGetValue(key: 'K, [<Out>] value: byref<'V2>): bool =  this.TryGetValue(key, &value)
       member this.Clone() = this.Clone() :> ICursor<'K,'V2>
     
@@ -1549,7 +1553,7 @@ and
 
     interface ICursor<'K,'V> with
       member this.Comparer with get() = cmp
-      member this.CurrentBatch: ISeries<'K,'V> = Unchecked.defaultof<ISeries<'K,'V>>
+      member this.CurrentBatch = Unchecked.defaultof<_>
       member this.CurrentKey: 'K = this.CurrentKey
       member this.CurrentValue: 'V = this.CurrentValue
       member this.IsContinuous: bool = this.IsContinuous
@@ -1561,7 +1565,7 @@ and
         this.MoveNext(cancellationToken)
       member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
         falseTask
-      member this.Source: ISeries<'K,'V> = CursorSeries<'K,'V>(Func<ICursor<'K,'V>>((this :> ICursor<'K,'V>).Clone)) :> ISeries<'K,'V>
+      member this.Source = CursorSeries<'K,'V>(Func<ICursor<'K,'V>>((this :> ICursor<'K,'V>).Clone)) :> IReadOnlySeries<_,_>
       member this.TryGetValue(key: 'K, [<Out>] value: byref<'V>): bool =
         raise (NotSupportedException("UnionKeysCursor should be used only as a pivot inside continuous ZipN"))
       member this.Clone() = 
@@ -1842,7 +1846,7 @@ and
     member this.Current with get () = KVP(this.CurrentKey, this.CurrentValue)
 
     /// Stores current batch for a succesful batch move. Value is defined only after successful MoveNextBatch
-    member val CurrentBatch = Unchecked.defaultof<ISeries<'K,'R>> with get, set
+    member val CurrentBatch = Unchecked.defaultof<_> with get, set
 
     member this.Reset() = 
       hasValidState <- false
@@ -2113,7 +2117,7 @@ and
 
     interface ICursor<'K,'R> with
       member this.Comparer with get() = cmp
-      member this.CurrentBatch: ISeries<'K,'R> = this.CurrentBatch
+      member this.CurrentBatch = this.CurrentBatch
       member this.CurrentKey: 'K = this.CurrentKey
       member this.CurrentValue: 'R = this.CurrentValue
       member this.IsContinuous: bool = this.IsContinuous
@@ -2125,7 +2129,7 @@ and
         this.MoveNext(cancellationToken)
       member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
         this.MoveNextBatch(cancellationToken)
-      member this.Source: ISeries<'K,'R> = CursorSeries<'K,'R>(Func<ICursor<'K,'R>>((this :> ICursor<'K,'R>).Clone)) :> ISeries<'K,'R>
+      member this.Source = CursorSeries<'K,'R>(Func<ICursor<'K,'R>>((this :> ICursor<'K,'R>).Clone)) :> IReadOnlySeries<_,_>
       member this.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool =
         this.TryGetValue(key, &value)
       member this.Clone() = this.Clone()

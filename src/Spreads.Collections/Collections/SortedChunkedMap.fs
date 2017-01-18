@@ -141,7 +141,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
           this.isReadOnly <- true
           // immutable doesn't need sync
           this.isSynchronized <- false // TODO the same for SCM
-          this.NotifyUpdateTcs()
+          this.NotifyUpdate()
     finally
       Interlocked.Increment(&this.version) |> ignore
       exitWriteLockIf &this.Locker entered
@@ -213,7 +213,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
           if c = 0 && prevBucketIsSet(&prevBucket') then
             prevBucket'.[key] <- value
             outerMap.Version <- outerMap.Version + 1L
-            this.NotifyUpdateTcs()
+            this.NotifyUpdate()
           else
             if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
             let isNew, bucket = 
@@ -231,7 +231,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
               outerMap.Version <- outerMap.Version + 1L
             //let s2 = bucket.size
             //size <- size + int64(s2 - s1)
-            this.NotifyUpdateTcs()
+            this.NotifyUpdate()
             prevHash <- hash
             prevBucket.SetTarget(bucket)
         else
@@ -240,7 +240,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
           if prevBucketIsSet(&prevBucket') && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket'.Last.Key) <= 0 then
             prevBucket'.[key] <- value
             outerMap.Version <- outerMap.Version + 1L
-            this.NotifyUpdateTcs()
+            this.NotifyUpdate()
           else
             let mutable kvp = Unchecked.defaultof<_>
             let ok = outerMap.TryFind(key, Lookup.LE, &kvp)
@@ -251,7 +251,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
               prevHash <- kvp.Key
               prevBucket.SetTarget kvp.Value
               outerMap.Version <- outerMap.Version + 1L
-              this.NotifyUpdateTcs()
+              this.NotifyUpdate()
             else
               if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
               // create a new bucket at key
@@ -266,7 +266,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
               #endif
               prevHash <- key
               prevBucket.SetTarget newSm
-              this.NotifyUpdateTcs()
+              this.NotifyUpdate()
       finally
         Interlocked.Increment(&this.version) |> ignore
         exitWriteLockIf &this.Locker entered
@@ -440,6 +440,11 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
     value <- tupleResult.Value2
     tupleResult.Value1
 
+  //[<ObsoleteAttribute("Naive impl, optimize if used often")>]
+  override this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>).Select(fun kvp -> kvp.Key)
+  //[<ObsoleteAttribute("Naive impl, optimize if used often")>]
+  override this.Values with get() = (this :> IEnumerable<KVP<'K,'V>>).Select(fun kvp -> kvp.Value)
+
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.AddUnchecked(key, value):unit =
     if chunkUpperLimit = 0 then // deterministic hash
@@ -450,7 +455,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
         prevBucket'.Add(key, value)
         outerMap.Version <- outerMap.Version + 1L
         //size <- size + 1L
-        this.NotifyUpdateTcs()
+        this.NotifyUpdate()
       else
         if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
         let bucket = 
@@ -467,7 +472,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
             newSm
         outerMap.Version <- outerMap.Version + 1L
         //size <- size + 1L
-        this.NotifyUpdateTcs()
+        this.NotifyUpdate()
         prevHash <- hash
         prevBucket.SetTarget bucket
     else
@@ -476,7 +481,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       if prevBucketIsSet(&prevBucket') && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket'.Last.Key) <= 0 then
         prevBucket'.Add(key,value)
         outerMap.Version <- outerMap.Version + 1L
-        this.NotifyUpdateTcs()
+        this.NotifyUpdate()
       else
         let mutable kvp = Unchecked.defaultof<_>
         let ok = outerMap.TryFind(key, Lookup.LE, &kvp)
@@ -487,7 +492,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
           prevHash <- kvp.Key
           prevBucket.SetTarget kvp.Value
           outerMap.Version <- outerMap.Version + 1L
-          this.NotifyUpdateTcs()
+          this.NotifyUpdate()
         else
           let mutable prevBucket' = Unchecked.defaultof<_>
           if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
@@ -503,7 +508,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
           #endif
           prevHash <- key
           prevBucket.SetTarget newSm
-          this.NotifyUpdateTcs()
+          this.NotifyUpdate()
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.Add(key, value):unit =
@@ -632,7 +637,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       removed <- this.RemoveUnchecked(key)
       removed
     finally
-      this.NotifyUpdateTcs()
+      this.NotifyUpdate()
       if removed then Interlocked.Increment(&this.version) |> ignore
       else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
@@ -657,7 +662,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       let ret' = this.Remove(result.Key)
       ret'
     finally
-      this.NotifyUpdateTcs()
+      this.NotifyUpdate()
       if removed then Interlocked.Increment(&this.version) |> ignore
       else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
@@ -682,7 +687,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       let ret' = this.Remove(result.Key)
       ret'
     finally
-      this.NotifyUpdateTcs()
+      this.NotifyUpdate()
       if removed then Interlocked.Increment(&this.version) |> ignore
       else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
@@ -774,7 +779,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       removed <- result
       result
     finally
-      this.NotifyUpdateTcs()
+      this.NotifyUpdate()
       if removed then Interlocked.Increment(&this.version) |> ignore 
       else Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
@@ -906,72 +911,16 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
   member this.Id with get() = id and set(newid) = id <- newid
 
   //#region Interfaces
-
-  interface IEnumerable with
-    member this.GetEnumerator() = this.GetCursor() :> IEnumerator
-
-  interface IEnumerable<KeyValuePair<'K,'V>> with
-    member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
-      this.GetCursor() :> IEnumerator<KeyValuePair<'K,'V>>
-   
-
-  interface IReadOnlySeries<'K,'V> with
-    member this.Comparer with get() = comparer
-    member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<'K, 'V>>
-    member this.GetCursor() = this.GetCursor()
-    member this.IsEmpty = this.IsEmpty
-    member this.IsIndexed with get() = false
-    member this.IsReadOnly with get() = this.IsReadOnly
-    member this.First with get() = this.First
-    member this.Last with get() = this.Last
-    member this.TryFind(k:'K, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-      let ok, value = this.TryFind(k, direction)
-      if ok then
-        res <- value
-        true
-      else
-        false
-    member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      try
-        res <- this.First
-        true
-      with
-      | _ -> 
-        res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-        false
-    member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      try
-        res <- this.Last
-        true
-      with
-      | _ -> 
-        res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
-        false
-    member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
-      let success, v = this.TryGetValue(k)
-      if success then
-        value <- v
-        true
-      else false
-    member this.Item with get k = this.Item(k)
-    member this.GetAt(idx:int) = this.Skip(Math.Max(0, idx-1)).First().Value
-    [<ObsoleteAttribute("Naive impl, optimize if used often")>]
-    member this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Key)
-    [<ObsoleteAttribute("Naive impl, optimize if used often")>]
-    member this.Values with get() = (this :> IEnumerable<KVP<'K,'V>>) |> Seq.map (fun kvp -> kvp.Value)
-
-    member this.SyncRoot with get() = this.SyncRoot
     
+  interface IReadOnlySeries<'K,'V> with
+    // the rest is in BaseSeries
+    member this.Item with get k = this.Item(k)
 
   interface IMutableSeries<'K,'V> with
     member this.Complete() = this.Complete()
     member this.Version with get() = this.Version and set v = this.Version <- v
     member this.Count with get() = this.Count
-    member this.Item
-      with get k = this.Item(k) 
-      and set (k:'K) (v:'V) = this.[k] <- v
-    
+    member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
     member this.Add(k, v) = this.Add(k,v)
     member this.AddLast(k, v) = this.AddLast(k, v)
     member this.AddFirst(k, v) = this.AddFirst(k, v)
@@ -1066,7 +1015,7 @@ and
 
     member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
     member this.IsContinuous with get() = false
-    member this.CurrentBatch: ISeries<'K,'V> = 
+    member this.CurrentBatch: IReadOnlySeries<'K,'V> = 
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -1076,7 +1025,7 @@ and
         result <-
         /////////// Start read-locked code /////////////
 
-          if this.isBatch then this.outerCursor.CurrentValue :> ISeries<'K,'V>
+          if this.isBatch then this.outerCursor.CurrentValue :> IReadOnlySeries<'K,'V>
           else raise (InvalidOperationException("SortedChunkedMapGenericCursor cursor is not at a batch position"))
 
         /////////// End read-locked code /////////////
@@ -1347,7 +1296,7 @@ and
       member this.MovePrevious():bool = this.MovePrevious()
       member this.CurrentKey with get():'K = this.CurrentKey
       member this.CurrentValue with get():'V = this.CurrentValue
-      member this.Source with get() = this.source :> ISeries<'K,'V>
+      member this.Source with get() = this.source :> IReadOnlySeries<'K,'V>
       member this.Clone() = this.Clone() :> ICursor<'K,'V>
       member this.IsContinuous with get() = false
       member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)
@@ -1385,7 +1334,7 @@ type SortedChunkedMap<'K,'V>
 //      // NB: via property with locks
 //      this.IsSynchronized <- true
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-      new SortedChunkedMapCursor<_,_>(this)
+      new SortedChunkedMapCursor<_,_>(this) :> ICursor<_,_>
     )
 
 
@@ -1544,7 +1493,7 @@ and
 
     member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
     member this.IsContinuous with get() = false
-    member this.CurrentBatch: ISeries<'K,'V> = 
+    member this.CurrentBatch: IReadOnlySeries<'K,'V> = 
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -1554,7 +1503,7 @@ and
         result <-
         /////////// Start read-locked code /////////////
 
-          if this.isBatch then this.outerCursor.CurrentValue :> ISeries<'K,'V>
+          if this.isBatch then this.outerCursor.CurrentValue :> IReadOnlySeries<'K,'V>
           else raise (InvalidOperationException("SortedChunkedMapGenericCursor cursor is not at a batch position"))
 
         /////////// End read-locked code /////////////
@@ -1844,7 +1793,7 @@ and
       member this.MovePrevious():bool = this.MovePrevious()
       member this.CurrentKey with get() = this.innerCursor.CurrentKey
       member this.CurrentValue with get() = this.innerCursor.CurrentValue
-      member this.Source with get() = this.source :> ISeries<'K,'V>
+      member this.Source with get() = this.source :> IReadOnlySeries<'K,'V>
       member this.Clone() = this.Clone() :> ICursor<'K,'V>
       member this.IsContinuous with get() = false
       member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)

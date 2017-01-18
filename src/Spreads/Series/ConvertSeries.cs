@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,9 +14,9 @@ namespace Spreads {
         where TImpl : ConvertSeries<TKey, TValue, TKey2, TValue2, TImpl>, new() {
         private static readonly BoundedConcurrentBag<TImpl> Pool = new BoundedConcurrentBag<TImpl>(Environment.ProcessorCount * 2);
 
-        protected ISeries<TKey, TValue> Inner;
+        protected IReadOnlySeries<TKey, TValue> Inner;
 
-        protected ConvertSeries(ISeries<TKey, TValue> inner) {
+        protected ConvertSeries(IReadOnlySeries<TKey, TValue> inner) {
             Inner = inner;
             Comparer = new ConvertComparer(this as TImpl);
         }
@@ -31,13 +32,65 @@ namespace Spreads {
 
         public abstract TValue ToValue(TValue2 value2);
 
+        public override bool IsReadOnly => Inner.IsReadOnly;
+        public override bool IsEmpty => Inner.IsEmpty;
+
+        public override KeyValuePair<TKey2, TValue2> First
+            => new KeyValuePair<TKey2, TValue2>(ToKey2(Inner.First.Key), ToValue2(Inner.First.Value));
+        public override KeyValuePair<TKey2, TValue2> Last
+            => new KeyValuePair<TKey2, TValue2>(ToKey2(Inner.Last.Key), ToValue2(Inner.Last.Value));
+
+        public override IEnumerable<TKey2> Keys => Inner.Keys.Select(ToKey2);
+        public override IEnumerable<TValue2> Values => Inner.Values.Select(ToValue2);
+
+        public override bool TryFind(TKey2 key, Lookup direction, out KeyValuePair<TKey2, TValue2> value) {
+            KeyValuePair<TKey, TValue> tmp;
+            if (Inner.TryFind(ToKey(key), direction, out tmp)) {
+                value = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
+                return true;
+            }
+            value = default(KeyValuePair<TKey2, TValue2>);
+            return false;
+        }
+
+        public override bool TryGetFirst(out KeyValuePair<TKey2, TValue2> value) {
+            KeyValuePair<TKey, TValue> tmp;
+            if (Inner.TryGetFirst(out tmp)) {
+                value = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
+                return true;
+            }
+            value = default(KeyValuePair<TKey2, TValue2>);
+            return false;
+        }
+
+        public override bool TryGetLast(out KeyValuePair<TKey2, TValue2> value) {
+            KeyValuePair<TKey, TValue> tmp;
+            if (Inner.TryGetLast(out tmp)) {
+                value = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
+                return true;
+            }
+            value = default(KeyValuePair<TKey2, TValue2>);
+            return false;
+        }
+
+        public override bool TryGetValue(TKey2 key, out TValue2 value) {
+            TValue tmp;
+            if (Inner.TryGetValue(ToKey(key), out tmp)) {
+                value = ToValue2(tmp);
+                return true;
+            }
+            value = default(TValue2);
+            return false;
+        }
+
         public override IComparer<TKey2> Comparer { get; }
+        public override bool IsIndexed => Inner.IsIndexed;
 
         public override ICursor<TKey2, TValue2> GetCursor() {
             return new ConvertCursor(Inner.GetCursor(), this as TImpl);
         }
 
-        public static TImpl Create(ISeries<TKey, TValue> innerSeries) {
+        public static TImpl Create(IReadOnlySeries<TKey, TValue> innerSeries) {
             TImpl inner;
             if (!Pool.TryTake(out inner)) {
                 inner = new TImpl();
@@ -134,9 +187,9 @@ namespace Spreads {
             public TValue2 CurrentValue => _source.ToValue2(_innerCursor.CurrentValue);
 
             // TODO object pooling
-            public ISeries<TKey2, TValue2> CurrentBatch => Create(_innerCursor.CurrentBatch);
+            public IReadOnlySeries<TKey2, TValue2> CurrentBatch => Create(_innerCursor.CurrentBatch);
 
-            public ISeries<TKey2, TValue2> Source => Create(_innerCursor.Source);
+            public IReadOnlySeries<TKey2, TValue2> Source => Create(_innerCursor.Source);
             public bool IsContinuous => _innerCursor.IsContinuous;
         }
 
@@ -173,7 +226,7 @@ namespace Spreads {
         protected ConvertMutableSeries(IMutableSeries<TKey, TValue> innerSeries) : base(innerSeries) {
         }
 
-        public static TImpl Create(IMutableSeries<TKey, TValue> innerSeries) {
+        internal static TImpl Create(IMutableSeries<TKey, TValue> innerSeries) {
             TImpl inner;
             if (!Pool.TryTake(out inner)) {
                 inner = new TImpl();
@@ -214,18 +267,31 @@ namespace Spreads {
         }
 
         public bool RemoveLast(out KeyValuePair<TKey2, TValue2> kvp) {
-            throw new NotImplementedException();
+            KeyValuePair<TKey, TValue> tmp;
+            if (MutableInner.RemoveLast(out tmp)) {
+                kvp = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
+                return true;
+            }
+            kvp = default(KeyValuePair<TKey2, TValue2>);
+            return false;
         }
 
         public bool RemoveFirst(out KeyValuePair<TKey2, TValue2> kvp) {
-            throw new NotImplementedException();
+            KeyValuePair<TKey, TValue> tmp;
+            if (MutableInner.RemoveFirst(out tmp)) {
+                kvp = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
+                return true;
+            }
+            kvp = default(KeyValuePair<TKey2, TValue2>);
+            return false;
         }
 
         public bool RemoveMany(TKey2 key, Lookup direction) {
-            throw new NotImplementedException();
+            return MutableInner.RemoveMany(ToKey(key), direction);
         }
 
         public int Append(IReadOnlySeries<TKey2, TValue2> appendMap, AppendOption option) {
+            // TODO using ConvertSeries
             throw new NotImplementedException();
         }
 

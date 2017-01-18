@@ -2,19 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+using Spreads.Algorithms.Math;
 using Spreads.Collections;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Spreads.Algorithms.Math;
 
 namespace Spreads {
-
-
     //internal class SMACursor<K> : SimpleBindCursor<K, double, double> {
     //    protected ICursor<K, double> _laggedCursor;
     //    protected double _sum = 0.0;
@@ -97,7 +91,6 @@ namespace Spreads {
     //        }
     //    }
 
-
     //    public override bool TryUpdateNext(KeyValuePair<K, double> next, out double value) {
     //        if (_count >= _period) {
     //            Trace.Assert(_count == _period, "_count should never be above _period");
@@ -130,14 +123,11 @@ namespace Spreads {
     //        return clone;
     //    }
 
-
     //    //public override Series<K, V3> Map<V3>(Func<double, V3> f2)
     //    //{
     //    //    new SMACursor<K>(_cursorFactory, _period, _allowIncomplete, f2);
     //    //}
     //}
-
-
 
     //public class SimpleMovingAverageCursor<K> : SimpleBindCursor<K, double, double> {
     //    protected ICursor<K, double> _laggedCursor;
@@ -227,7 +217,6 @@ namespace Spreads {
     //            return true;
     //        }
 
-
     //    }
 
     //    public override ICursor<K, double> Clone() {
@@ -238,8 +227,6 @@ namespace Spreads {
     //        return clone;
     //    }
     //}
-
-
 
     //public class StandardDeviationCursor<K> : SimpleBindCursor<K, double, double> {
     //    protected ICursor<K, double> _laggedCursor;
@@ -331,7 +318,6 @@ namespace Spreads {
     //    }
     //}
 
-
     internal class SmaState {
         public double Count;
         public double Sum;
@@ -343,9 +329,7 @@ namespace Spreads {
         public double SumSq;
     }
 
-
     public static class CursorSeriesExtensions {
-
         // TODO Rewrite via BindCursor
 
         public static Series<K, double> SMA<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false) {
@@ -367,19 +351,16 @@ namespace Spreads {
         /// <param name="period"></param>
         /// <param name="allowIncomplete"></param>
         /// <returns></returns>
-        public static Series<K, double> MovingMedian<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false)
-        {
+        public static Series<K, double> MovingMedian<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false) {
             // TODO incomplete windows
             Func<ICursor<K, MovingMedian>> factory = () => new ScanLagAllowIncompleteCursor<K, double, MovingMedian>(source.GetCursor, (uint)period, 1,
                () => new MovingMedian(period),
-               (st, add, sub, cnt) =>
-               {
+               (st, add, sub, cnt) => {
                    st.Update(add.Value);
                    return st;
                }, allowIncomplete);
             return (new CursorSeries<K, MovingMedian>(factory).Map(st => st.LastValue));
         }
-
 
         public static Series<K, double> StDev<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false) {
             Func<ICursor<K, StDevState>> factory = () => new ScanLagAllowIncompleteCursor<K, double, StDevState>(source.GetCursor, (uint)period, 1,
@@ -398,8 +379,6 @@ namespace Spreads {
                     return value;
                 }); //.Filter(x => x > 0.0);
         }
-
-
 
         //internal static Series<K, double> SMAOld<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false) {
         //    return new CursorSeries<K, double>(() => new SMACursor<K>(source.GetCursor, period, allowIncomplete));
@@ -430,9 +409,9 @@ namespace Spreads {
         /// <summary>
         /// Projects values from source to destination and back
         /// </summary>
-        public static IPersistentSeries<K, VDest> BiMap<K, VSrc, VDest>(this IMutableSeries<K, VSrc> innerMap,
+        public static IMutableSeries<K, VDest> BiMap<K, VSrc, VDest>(this IMutableSeries<K, VSrc> innerMap,
             Func<VSrc, VDest> srcToDest, Func<VDest, VSrc> destToSrc) {
-            return new ProjectValuesWrapper<K, VSrc, VDest>(innerMap, srcToDest, destToSrc);
+            return ProjectValuesWrapper<K, VSrc, VDest>.Create(innerMap, srcToDest, destToSrc);
         }
     }
 }

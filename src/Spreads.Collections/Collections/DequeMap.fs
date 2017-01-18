@@ -39,7 +39,8 @@ type SortedDequeMap<'K,'V>
   val mutable internal isSynchronized : bool
   [<DefaultValueAttribute>]
   val mutable internal isReadOnly : bool
-  let syncRoot = new Object()
+  
+  //let this.SyncRoot = new Object()
 
   let isKeyReferenceType = not <| typeof<'K>.GetIsValueType()
 
@@ -60,17 +61,19 @@ type SortedDequeMap<'K,'V>
   
   member internal this.GetByIndex(index) = this.sd.[index]
 
-  member this.IsReadOnly with get() = this.isReadOnly
+  override this.IsIndexed with get() = false
+  override this.IsReadOnly with get() = this.isReadOnly
+
   member this.Complete() = this.isReadOnly <- true
 
   member internal this.IsSynchronized 
     with get() =  this.isSynchronized
     and set(synced:bool) = 
-      let entered = enterLockIf syncRoot  this.isSynchronized
+      let entered = enterLockIf this.SyncRoot  this.isSynchronized
       this.isSynchronized <- synced
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
-  member this.SyncRoot with get() = syncRoot
+  member this.SyncRoot with get() = this.SyncRoot
 
   member this.Version with get() = this.version and set v = this.version <- v
 
@@ -83,7 +86,7 @@ type SortedDequeMap<'K,'V>
   member this.Capacity 
     with get() = this.sd.buffer.Length
     //and set(value) = failwith "TODO"
-  member this.Comparer with get() = comparer
+  override this.Comparer with get() = comparer
 
   member this.Clear() = 
     this.sd.Clear()
@@ -91,11 +94,11 @@ type SortedDequeMap<'K,'V>
 
   member this.Count with get() = this.sd.count
 
-  member this.IsEmpty with get() = this.Count = 0
+  override this.IsEmpty with get() = this.Count = 0
 
 
-  member this.Keys 
-    with get() : IList<'K> =
+  override this.Keys 
+    with get() =
       {new IList<'K> with
         member x.Count with get() = this.Count
         member x.IsReadOnly with get() = true
@@ -142,10 +145,10 @@ type SortedDequeMap<'K,'V>
               index := 0
               currentKey := Unchecked.defaultof<'K>
           }
-      }
+      } :> IEnumerable<_>
 
-  member this.Values 
-    with get() : IList<'V> =
+  override this.Values 
+    with get() =
       { new IList<'V> with
         member x.Count with get() = this.Count
         member x.IsReadOnly with get() = true
@@ -192,14 +195,14 @@ type SortedDequeMap<'K,'V>
               index := 0
               currentValue := Unchecked.defaultof<'V>
           }
-        }
+        } :> IEnumerable<_>
 
   member this.ContainsKey(key) = this.IndexOfKey(key) >= 0
 
   member this.ContainsValue(value) = this.IndexOfValue(value) >= 0
 
   member this.IndexOfValue(value:'V) : int =
-    let entered = enterLockIf syncRoot  this.isSynchronized
+    let entered = enterLockIf this.SyncRoot  this.isSynchronized
     try
       let mutable res = 0
       let mutable found = false
@@ -210,26 +213,26 @@ type SortedDequeMap<'K,'V>
           else res <- res + 1
       if found then res else -1
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
   member this.IndexOfKey(key:'K) : int = 
     if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then 
       raise (ArgumentNullException("key"))
     this.sd.IndexOfElement(KVP(key, Unchecked.defaultof<_>))
     
-  member this.First
+  override this.First
     with get() = 
       if this.Count = 0 then raise (InvalidOperationException("Could not get the first element of an empty map"))
       this.sd.First
 
-  member this.Last
+  override this.Last
     with get() =
       if this.Count = 0 then raise (InvalidOperationException("Could not get the last element of an empty map"))
       this.sd.Last
 
   member this.Item
     with get key =
-      let entered = enterLockIf syncRoot  this.isSynchronized
+      let entered = enterLockIf this.SyncRoot  this.isSynchronized
       try
         // first/last optimization (only last here)
         if this.Count = 0 then
@@ -241,7 +244,7 @@ type SortedDequeMap<'K,'V>
           else
               raise (KeyNotFoundException())
       finally
-        exitLockIf syncRoot entered
+        exitLockIf this.SyncRoot entered
     and set k v =
       if this.isReadOnly then invalidOp "SortedDequeMap is read-only"
       this.sd.Set(KVP(k,v))
@@ -252,16 +255,16 @@ type SortedDequeMap<'K,'V>
     if this.isReadOnly then invalidOp "SortedDequeMap is read-only"
     if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then 
         raise (ArgumentNullException("key"))
-    let entered = enterLockIf syncRoot  this.isSynchronized
+    let entered = enterLockIf this.SyncRoot  this.isSynchronized
     try
       this.sd.Add(KVP(key,value))
       this.version <- this.version + 1
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
   member this.AddLast(key, value):unit =
     if this.isReadOnly then invalidOp "SortedDequeMap is read-only"
-    let entered = enterLockIf syncRoot  this.isSynchronized
+    let entered = enterLockIf this.SyncRoot  this.isSynchronized
     try
       let c = comparer.Compare(key, this.sd.Last.Key) 
       if c > 0 then 
@@ -269,11 +272,11 @@ type SortedDequeMap<'K,'V>
         this.version <- this.version + 1
       else raise (ArgumentOutOfRangeException("New key is smaller or equal to the largest existing key"))
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
   member this.AddFirst(key, value):unit =
     if this.isReadOnly then invalidOp "SortedDequeMap is read-only"
-    let entered = enterLockIf syncRoot  this.isSynchronized
+    let entered = enterLockIf this.SyncRoot  this.isSynchronized
     try
       let c = comparer.Compare(key, this.sd.Last.Key) 
       if c < 0 then
@@ -281,20 +284,20 @@ type SortedDequeMap<'K,'V>
         this.version <- this.version + 1
       else raise (ArgumentOutOfRangeException("New key is smaller or equal to the largest existing key"))
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
     
   member public this.RemoveAt(index):unit =
     if this.isReadOnly then invalidOp "SortedDequeMap is read-only"
-    let entered = enterLockIf syncRoot  this.isSynchronized
+    let entered = enterLockIf this.SyncRoot  this.isSynchronized
     try
       this.sd.RemoveAt(index)
       this.version <- this.version + 1
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
   member this.Remove(key):bool =
     if this.isReadOnly then invalidOp "SortedDequeMap is read-only"
-    let entered = enterLockIf syncRoot  this.isSynchronized
+    let entered = enterLockIf this.SyncRoot  this.isSynchronized
     try
       if this.Count > 0 then
         try
@@ -304,11 +307,11 @@ type SortedDequeMap<'K,'V>
         with | _ -> false
       else false
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
   member this.RemoveFirst([<Out>]result: byref<KeyValuePair<'K, 'V>>):bool =
     if this.isReadOnly then invalidOp "SortedDequeMap is read-only"
-    let entered = enterLockIf syncRoot  this.isSynchronized
+    let entered = enterLockIf this.SyncRoot  this.isSynchronized
     try
       if this.Count > 0 then
         result <- this.sd.RemoveFirst()
@@ -316,11 +319,11 @@ type SortedDequeMap<'K,'V>
         true
       else false
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
   member this.RemoveLast([<Out>]result: byref<KeyValuePair<'K, 'V>>):bool =
     if this.isReadOnly then invalidOp "SortedDequeMap is read-only"
-    let entered = enterLockIf syncRoot  this.isSynchronized
+    let entered = enterLockIf this.SyncRoot  this.isSynchronized
     try
       if this.Count > 0 then
         result <- this.sd.RemoveLast()
@@ -328,11 +331,11 @@ type SortedDequeMap<'K,'V>
         true
       else false
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
   member this.RemoveMany(key:'K,direction:Lookup):bool =
     if this.isReadOnly then invalidOp "SortedDequeMap is read-only"
-    let entered = enterLockIf syncRoot  this.isSynchronized
+    let entered = enterLockIf this.SyncRoot  this.isSynchronized
     try
       let mutable result = false
       match direction with
@@ -356,7 +359,7 @@ type SortedDequeMap<'K,'V>
       | _ -> failwith "wrong direction"
       result
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
     
   /// Returns the index of found KeyValuePair or a negative value:
   /// -1 if the non-found key is smaller than the first key
@@ -364,7 +367,7 @@ type SortedDequeMap<'K,'V>
   /// -3 if the non-found key is within the key range (for EQ direction only)
   /// Example: (-1) [...current...(-3)...map ...] (-2)
   member internal this.TryFindWithIndex(key:'K,direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>) : int =
-    let entered = enterLockIf syncRoot  this.isSynchronized
+    let entered = enterLockIf this.SyncRoot  this.isSynchronized
     try
       match direction with
       | Lookup.EQ ->
@@ -468,10 +471,10 @@ type SortedDequeMap<'K,'V>
               index2
       | _ -> raise (ApplicationException("Wrong lookup direction"))
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
 
-  member this.TryFind(k:'K, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+  override this.TryFind(k:'K, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     let mutable kvp = Unchecked.defaultof<_>
     let idx = this.TryFindWithIndex(k, direction, &kvp)
     if idx >= 0 then
@@ -481,8 +484,8 @@ type SortedDequeMap<'K,'V>
         false
 
   /// Return true if found exact key
-  member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
-    let entered = enterLockIf syncRoot  this.isSynchronized
+  override this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
+    let entered = enterLockIf this.SyncRoot  this.isSynchronized
     try
       // first/last optimization
       if this.Count = 0 then
@@ -502,10 +505,10 @@ type SortedDequeMap<'K,'V>
             value <- Unchecked.defaultof<'V>
             false
     finally
-      exitLockIf syncRoot entered
+      exitLockIf this.SyncRoot entered
 
 
-  member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+  override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     try
       res <- this.First
       true
@@ -514,7 +517,7 @@ type SortedDequeMap<'K,'V>
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
             
-  member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+  override this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     try
       res <- this.Last
       true
@@ -540,7 +543,7 @@ type SortedDequeMap<'K,'V>
       this.GetCursor() :> IEnumerator<KeyValuePair<'K,'V>>
 
   interface ICollection  with
-    member this.SyncRoot = syncRoot
+    member this.SyncRoot = this.SyncRoot
     member this.CopyTo(array, arrayIndex) =
       if array = null then raise (ArgumentNullException("array"))
       if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
@@ -557,8 +560,8 @@ type SortedDequeMap<'K,'V>
     member this.Item
       with get key = this.Item(key)
       and set key value = this.[key] <- value
-    member this.Keys with get() = this.Keys :> ICollection<'K>
-    member this.Values with get() = this.Values :> ICollection<'V>
+    member this.Keys with get() = this.Keys :?> ICollection<'K>
+    member this.Values with get() = this.Values :?> ICollection<'V>
     member this.Clear() = this.Clear()
     member this.ContainsKey(key) = this.ContainsKey(key)
     member this.Contains(kvp:KeyValuePair<'K,'V>) = this.ContainsKey(kvp.Key)
@@ -566,9 +569,10 @@ type SortedDequeMap<'K,'V>
       if array = null then raise (ArgumentNullException("array"))
       if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
       if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
-      for index in 0..this.Count do
-        let kvp = KeyValuePair(this.Keys.[index], this.Values.[index])
-        array.[arrayIndex + index] <- kvp
+      let mutable c = 0
+      for item in this do
+        array.[arrayIndex + c] <- item
+        c <- c + 1
     member this.Add(key, value) = this.Add(key, value)
     member this.Add(kvp:KeyValuePair<'K,'V>) = this.Add(kvp.Key, kvp.Value)
     member this.Remove(key) = this.Remove(key)
@@ -613,9 +617,9 @@ type SortedDequeMap<'K,'V>
     member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
     member this.Item with get k = this.Item(k)
     member this.GetAt(idx:int) = this.GetByIndex(idx).Value
-    member this.Keys with get() = this.Keys :> IEnumerable<'K>
-    member this.Values with get() = this.Values :> IEnumerable<'V>
-    member this.SyncRoot with get() = syncRoot
+    member this.Keys with get() = this.Keys
+    member this.Values with get() = this.Values
+    member this.SyncRoot with get() = this.SyncRoot
     
 
   interface IMutableSeries<'K,'V> with
@@ -707,14 +711,14 @@ and
 
     member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
     member this.IsContinuous with get() = false
-    member this.CurrentBatch: ISeries<'K,'V> = 
+    member this.CurrentBatch: IReadOnlySeries<'K,'V> = 
       let entered = enterLockIf this.source.SyncRoot  this.source.IsSynchronized
       try
         // TODO! how to do this correct for mutable case. Looks like impossible without copying
         if this.isBatch then
           Trace.Assert(this.index = this.source.Count - 1)
           Trace.Assert(this.source.IsReadOnly)
-          this.source :> ISeries<'K,'V>
+          this.source :> IReadOnlySeries<'K,'V>
         else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
       finally
         exitLockIf this.source.SyncRoot entered
@@ -837,7 +841,7 @@ and
       member this.MovePrevious():bool = this.MovePrevious()
       member this.CurrentKey with get():'K = this.CurrentKey
       member this.CurrentValue with get():'V = this.CurrentValue
-      member this.Source with get() = this.source :> ISeries<'K,'V>
+      member this.Source with get() = this.source :> IReadOnlySeries<_,_>
       member this.Clone() = this.Clone() :> ICursor<'K,'V>
       member this.IsContinuous with get() = false
       member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)

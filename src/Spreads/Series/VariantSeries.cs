@@ -9,7 +9,7 @@ namespace Spreads {
         public VariantSeries() {
         }
 
-        public VariantSeries(ISeries<TKey, TValue> inner) : base(inner) {
+        public VariantSeries(IReadOnlySeries<TKey, TValue> inner) : base(inner) {
         }
 
         public override Variant ToKey2(TKey key) {
