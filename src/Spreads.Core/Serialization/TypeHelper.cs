@@ -151,7 +151,7 @@ namespace Spreads.Serialization {
                      Marshal.UnsafeAddrOfPinnedArrayElement(array, 0).ToInt64());
                 pinnedArrayHandle.Free();
                 // Type helper works only with types that could be pinned in arrays
-                // Heret we just cross-check, happens only in static constructor
+                // Here we just cross-check, happens only in static constructor
                 var unsafeSize = Unsafe.SizeOf<T>();
                 if (unsafeSize != size) Environment.FailFast("Pinned and unsafe sizes differ!");
                 return size;

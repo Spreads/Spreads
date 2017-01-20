@@ -16,27 +16,7 @@ using System.Text;
 namespace Spreads.Serialization {
 
     public static class BinarySerializer {
-        //private class JsonNetArrayPoolImpl : Newtonsoft.Json.IArrayPool<char> {
-        //    public static readonly JsonNetArrayPoolImpl Instance = new JsonNetArrayPoolImpl();
-
-        //    public char[] Rent(int minimumLength) {
-        //        return BufferPool<char>.Shared.Rent(minimumLength);
-        //    }
-
-        //    public void Return(char[] array) {
-        //        BufferPool<char>.Shared.Return(array, true);
-        //    }
-        //}
-
-        //[Obsolete("Consider using an overload with memory stream")]
-        //public static int SizeOf<T>(T value) {
-        //    MemoryStream temp;
-        //    var size = SizeOf<T>(value, out temp);
-        //    // NB we could use CWT if T is reference type, but that defeats the purpose of the overload with ms
-        //    temp?.Dispose();
-        //    return size;
-        //}
-
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Size<T>() {
             return TypeHelper<T>.Size;
@@ -49,7 +29,22 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write<T>(T value, ref DirectBuffer destination, uint offset = 0u, MemoryStream temporaryStream = null) {
+        public unsafe static int Write<T>(T value, ref DirectBuffer destination, uint offset = 0u,
+            MemoryStream temporaryStream = null) {
+            int size = TypeHelper<T>.Size;
+            if (size > 0) {
+                Debug.Assert(temporaryStream == null, "For primitive types MemoryStream should not be populated");
+                if (destination.Length < offset + size) throw new ArgumentException("Value size is too big for destination");
+                var pointer = destination.Data + (int)offset;
+                Debug.Assert(pointer.ToInt64() % size == 0, "Unaligned unsafe write");
+                Unsafe.Write<T>((void*)pointer, value);
+                return size;
+            }
+            return WriteSlow(value, ref destination, offset, temporaryStream);
+        }
+
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int WriteSlow<T>(T value, ref DirectBuffer destination, uint offset = 0u, MemoryStream temporaryStream = null) {
             if (value == null) throw new ArgumentNullException(nameof(value));
             int size;
             if (temporaryStream != null) {
@@ -68,12 +63,7 @@ namespace Spreads.Serialization {
             }
 
             size = TypeHelper<T>.Size; //TypeHelper<T>.SizeOf(value, out tempStream);
-            if (size > 0) {
-                if (destination.Length < offset + size) throw new ArgumentException("Value size is too big for destination");
-                var size2 = TypeHelper<T>.Write(value, ref destination, offset);
-                Debug.Assert(size == size2, "Size and SizeOf must be equal for fixed-sized types.");
-                return size;
-            }
+
             if (size == 0) {
                 MemoryStream tempStream;
                 size = TypeHelper<T>.SizeOf(value, out tempStream);
@@ -95,6 +85,7 @@ namespace Spreads.Serialization {
             return size;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Write<T>(T value, byte[] destination, uint offset = 0u, MemoryStream temporaryStream = null) {
             fixed (byte* ptr = &destination[0]) {
                 var buffer = new DirectBuffer(destination.Length, (IntPtr)ptr);
@@ -102,6 +93,7 @@ namespace Spreads.Serialization {
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe static int Write<T>(T value, ref PreservedMemory<byte> destination, uint offset = 0u,
             MemoryStream temporaryStream = null) {
             var tmpArraySegment = default(ArraySegment<byte>);
@@ -123,6 +115,7 @@ namespace Spreads.Serialization {
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(IntPtr ptr, ref T value) {
             var size = TypeHelper<T>.Size;
             if (size >= 0) {
@@ -134,6 +127,7 @@ namespace Spreads.Serialization {
             return size;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(byte[] buffer, int offset, ref T value) {
             fixed (byte* ptr = &buffer[offset]) {
                 var size = *(int*)ptr;
@@ -142,13 +136,14 @@ namespace Spreads.Serialization {
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(PreservedMemory<byte> source, uint offset, ref T value) {
-            var tmpArraySegment = default(ArraySegment<byte>);
             var fixedMemory = default(FixedMemory<byte>);
             try {
                 void* pointer;
                 if (!source.Memory.TryGetPointer(out pointer)) {
                     fixedMemory = source.Fix();
+                    ArraySegment<byte> tmpArraySegment;
                     if (fixedMemory.Memory.TryGetArray(out tmpArraySegment)) {
                         pointer = (void*)Marshal.UnsafeAddrOfPinnedArrayElement(tmpArraySegment.Array, tmpArraySegment.Offset + (int)offset);
                     }
@@ -161,16 +156,19 @@ namespace Spreads.Serialization {
             }
         }
 
-        public static unsafe int Read<T>(byte[] buffer, ref T value) {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Read<T>(byte[] buffer, ref T value) {
             return Read<T>(buffer, 0, ref value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(DirectBuffer buffer, int offset, ref T value) {
             var len = *(int*)buffer.Data;
             if ((uint)offset + len > buffer.Length) throw new ArgumentException("Buffer is too small");
             return Read<T>(buffer.Data, ref value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Read<T>(DirectBuffer buffer, ref T value) {
             return Read<T>(buffer, 0, ref value);
         }
@@ -178,6 +176,18 @@ namespace Spreads.Serialization {
         internal static JsonSerializer Json => JsonSerializer.Instance;
 
         internal sealed class JsonSerializer {
+            private class JsonNetArrayPool : IArrayPool<char> {
+                public static readonly JsonNetArrayPool Pool = new JsonNetArrayPool();
+
+                public char[] Rent(int minimumLength) {
+                    return BufferPool<char>.Rent(minimumLength);
+                }
+
+                public void Return(char[] array) {
+                    BufferPool<char>.Return(array, true);
+                }
+            }
+
             private readonly Newtonsoft.Json.JsonSerializer _serializer;
             internal static JsonSerializer Instance = new JsonSerializer();
 
@@ -194,7 +204,9 @@ namespace Spreads.Serialization {
             public MemoryStream Serialize<T>(T value) {
                 var ms = RecyclableMemoryManager.MemoryStreams.GetStream();
                 ms.WriteAsPtr<long>(0L);
-                using (var writer = new StreamWriter(ms, Encoding.UTF8, 4096, true)) {
+                using (var writer = new StreamWriter(ms, Encoding.UTF8, 4096, true)) 
+                using (var jsonwriter = new JsonTextWriter(writer)) {
+                    jsonwriter.ArrayPool = JsonNetArrayPool.Pool;
                     _serializer.Serialize(writer, value);
                     //writer.CloseOutput = false;
                 }
@@ -207,7 +219,9 @@ namespace Spreads.Serialization {
             public T Deserialize<T>(Stream stream) {
                 // skip header
                 stream.Position = 8;
-                using (var reader = new JsonTextReader(new StreamReader(stream, Encoding.UTF8, true, 4096, true))) {
+                using (var reader = new JsonTextReader(new StreamReader(stream, Encoding.UTF8, true, 4096, true)))
+                {
+                    reader.ArrayPool = JsonNetArrayPool.Pool;
                     return _serializer.Deserialize<T>(reader);
                 }
             }

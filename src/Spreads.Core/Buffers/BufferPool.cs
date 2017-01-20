@@ -2,8 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using Spreads.Utils;
 
 namespace Spreads.Buffers {
 
@@ -38,12 +40,15 @@ namespace Spreads.Buffers {
     }
 
     internal static class BufferPool {
-        private static readonly object SyncRoot = new object();
 
+        // max pooled array size
+        private const int SharedBufferSize = 8 * 32; // NB must ensure that the upcoming safe disposal machinery won't allocate and we never exceed the initial bitmask capacity if every segment is used once
+
+        [ThreadStatic]
         private static OwnedMemory<byte> _sharedBuffer;
-        private static int _sharedBufferOffset;
 
-        // NB
+        [ThreadStatic]
+        private static int _sharedBufferOffset;
 
         /// <summary>
         /// Return a contiguous segment of memory backed by a pooled array
@@ -51,28 +56,25 @@ namespace Spreads.Buffers {
         /// <param name="length"></param>
         /// <returns></returns>
         public static PreservedMemory<byte> PreserveMemory(int length) {
+            // https://github.com/dotnet/corefx/blob/master/src/System.Buffers/src/System/Buffers/DefaultArrayPool.cs#L35
+            // DefaultArrayPool has a minimum size of 16
             const int smallTreshhold = 16;
-            // max pooled array size
-            const int sharedBufferSize = 8 * 32; // NB must ensure that the upcoming safe disposal machinery won't allocate and we never exceed the initial bitmask capacity if every segment is used once
-
             if (length < smallTreshhold) {
-                lock (SyncRoot) { // hopefully such small buffers are a cold path
-                    if (_sharedBuffer == null) {
-                        _sharedBuffer = BufferPool<byte>.RentMemory(sharedBufferSize, false);
-                        _sharedBufferOffset = 0;
-                    }
-                    var bufferSize = _sharedBuffer.Length;
-                    var newOffset = _sharedBufferOffset + length;
-                    if (newOffset > bufferSize) {
-                        // replace shared buffer, the old one will be disposed
-                        // when all ReservedMemory views on it are disposed
-                        _sharedBuffer = BufferPool<byte>.RentMemory(sharedBufferSize, false);
-                        _sharedBufferOffset = 0;
-                    }
-                    var memory = _sharedBuffer.Memory.Slice(_sharedBufferOffset, length);
-                    _sharedBufferOffset += length;
-                    return memory.Preserve();
+                if (_sharedBuffer == null) {
+                    _sharedBuffer = BufferPool<byte>.RentMemory(SharedBufferSize, false);
+                    _sharedBufferOffset = 0;
                 }
+                var bufferSize = _sharedBuffer.Length;
+                var newOffset = _sharedBufferOffset + length;
+                if (newOffset > bufferSize) {
+                    // replace shared buffer, the old one will be disposed
+                    // when all ReservedMemory views on it are disposed
+                    _sharedBuffer = BufferPool<byte>.RentMemory(SharedBufferSize, false);
+                    _sharedBufferOffset = 0;
+                }
+                var memory = _sharedBuffer.Memory.Slice(_sharedBufferOffset, length);
+                _sharedBufferOffset = BitUtil.Align(newOffset, IntPtr.Size);
+                return memory.Preserve();
             }
             var ownedMemory = BufferPool<byte>.RentMemory(length, false);
             var memory2 = ownedMemory.Memory.Slice(0, length);

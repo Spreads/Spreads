@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using Spreads.Collections.Concurrent;
 using System.Buffers;
 
@@ -12,7 +13,7 @@ namespace Spreads.Buffers {
         // OwnedMemory<T> is quite fat and is an object, but has Initialize + Dispose methods that made it suitable for pooling
 
         // ReSharper disable once StaticMemberInGenericType
-        private static readonly BoundedConcurrentQueue<OwnedPooledArray<T>> Pool = new BoundedConcurrentQueue<OwnedPooledArray<T>>(64);
+        private static readonly BoundedConcurrentBag<OwnedPooledArray<T>> Pool = new BoundedConcurrentBag<OwnedPooledArray<T>>(Environment.ProcessorCount * 16);
 
         public new T[] Array => base.Array;
 
@@ -28,7 +29,7 @@ namespace Spreads.Buffers {
             // cleaning the fields
             BufferPool<T>.Return(Array);
             base.Dispose(disposing);
-            Pool.TryEnqueue(this);
+            Pool.TryAdd(this);
         }
 
         // ReSharper disable once RedundantOverridenMember
@@ -45,7 +46,7 @@ namespace Spreads.Buffers {
 
         public static OwnedMemory<T> Create(T[] array) {
             OwnedPooledArray<T> pooled;
-            if (Pool.TryDequeue(out pooled)) {
+            if (Pool.TryTake(out pooled)) {
                 var asOwnedPooledArray = pooled;
                 // ReSharper disable once PossibleNullReferenceException
                 asOwnedPooledArray.Initialize(array, 0, array.Length);
