@@ -155,6 +155,7 @@
     <Compile Include="Extensions\DateTimeExtensions.cs" />
     <Compile Include="Generation\SortedMapGenerator.cs" />
     <Compile Include="Series\ConvertSeries.cs" />
+    <Compile Include="Series\MutableSeries.cs" />
     <Compile Include="Series\ProjectValuesWrapper.cs" />
     <Compile Include="Series\CursorSeries.cs" />
     <Compile Include="Series\VariantSeries.cs" />
