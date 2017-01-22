@@ -299,7 +299,7 @@ namespace Spreads.Serialization {
                 throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
             }
             Debug.Assert(_size > 0);
-            Debug.Assert(ptr.ToInt64() % _size == 0, "Unaligned unsafe read");
+            //Debug.Assert(ptr.ToInt64() % _size == 0, "Unaligned unsafe read");
             value = Unsafe.Read<T>((void*)ptr);
             return _size;
         }
@@ -316,7 +316,7 @@ namespace Spreads.Serialization {
             Debug.Assert(_size > 0);
             if (!destination.HasCapacity(offset, _size)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
             var pointer = destination.Data + (int)offset;
-            Debug.Assert(pointer.ToInt64() % _size == 0, "Unaligned unsafe write");
+            //Debug.Assert(pointer.ToInt64() % _size == 0, "Unaligned unsafe write");
             Unsafe.Write<T>((void*)pointer, value);
             return _size;
         }
@@ -333,11 +333,11 @@ namespace Spreads.Serialization {
                 Debug.Assert(_size == 0);
                 return _converterInstance.SizeOf(value, out memoryStream);
             }
+            memoryStream = null;
             if (_size < 0) {
-                throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
+                return -1;
             }
             Debug.Assert(_size > 0);
-            memoryStream = null;
             return _size;
         }
 

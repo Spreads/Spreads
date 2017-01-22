@@ -451,13 +451,14 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       let hash = hasher.Hash(key)
       // the most common scenario is to hit the previous bucket
       let mutable prevBucket' = Unchecked.defaultof<_>
-      if prevBucketIsSet(&prevBucket') && comparer.Compare(hash, prevHash) = 0 then
+      let bucketIsSet = prevBucketIsSet(&prevBucket')
+      if bucketIsSet && comparer.Compare(hash, prevHash) = 0 then
         prevBucket'.Add(key, value)
         outerMap.Version <- outerMap.Version + 1L
         //size <- size + 1L
         this.NotifyUpdate()
       else
-        if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
+        if bucketIsSet then this.FlushUnchecked()
         let bucket = 
           let mutable bucketKvp = Unchecked.defaultof<_>
           let ok = outerMap.TryFind(hash, Lookup.EQ, &bucketKvp)

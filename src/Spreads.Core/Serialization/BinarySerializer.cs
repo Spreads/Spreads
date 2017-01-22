@@ -36,7 +36,7 @@ namespace Spreads.Serialization {
                 Debug.Assert(temporaryStream == null, "For primitive types MemoryStream should not be populated");
                 if (destination.Length < offset + size) throw new ArgumentException("Value size is too big for destination");
                 var pointer = destination.Data + (int)offset;
-                Debug.Assert(pointer.ToInt64() % size == 0, "Unaligned unsafe write");
+                //Debug.Assert(pointer.ToInt64() % size == 0, "Unaligned unsafe write");
                 Unsafe.Write<T>((void*)pointer, value);
                 return size;
             }
