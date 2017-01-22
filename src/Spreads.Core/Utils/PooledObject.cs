@@ -85,11 +85,9 @@ namespace Spreads.Utils {
         }
 
         public virtual void Dispose(bool disposing) {
+            if (!disposing) return;
+
             var pooled = _pool.TryEnqueue(this as TObject);
-            // TODO review
-            if (disposing && !pooled) {
-                GC.SuppressFinalize(this);
-            }
 #if DEBUG
             _falseReturns++;
             if (!pooled && (_falseReturns > MissLimit) && ((double)_falseReturns / (double)_tries) > MissShareLimit) {
@@ -99,10 +97,6 @@ namespace Spreads.Utils {
                 Debug.Fail($"Too many false returns for {typeof(TObject).Name}.");
             }
 #endif
-        }
-
-        ~PooledObject() {
-            Dispose(false);
         }
     }
 }

@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 // ReSharper disable once CheckNamespace
 namespace Spreads {
 
+    // TODO seal overriden methods
+
     public abstract class ConvertSeries<TKey, TValue, TKey2, TValue2, TImpl> : Series<TKey2, TValue2>, IDisposable
         where TImpl : ConvertSeries<TKey, TValue, TKey2, TValue2, TImpl>, new() {
         private static readonly BoundedConcurrentBag<TImpl> Pool = new BoundedConcurrentBag<TImpl>(Environment.ProcessorCount * 2);

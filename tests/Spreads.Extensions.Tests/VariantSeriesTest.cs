@@ -4,6 +4,7 @@
 
 using NUnit.Framework;
 using Spreads.Collections;
+using Spreads.DataTypes;
 
 namespace Spreads.Tests {
 
@@ -27,9 +28,15 @@ namespace Spreads.Tests {
 
             var vs = new VariantSeries<int, string>(sm);
 
+            
             foreach (var item in vs) {
                 System.Console.WriteLine(item.Key.Get<int>() + ": " + item.Value.Get<string>());
             }
+
+            Assert.AreEqual(Variant.Create(0), vs.First.Key);
+            Assert.AreEqual(Variant.Create("0"), vs.First.Value);
+            Assert.AreEqual(Variant.Create(99), vs.Last.Key);
+            Assert.AreEqual(Variant.Create("9900"), vs.Last.Value);
 
         }
     }

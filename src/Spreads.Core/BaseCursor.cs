@@ -46,8 +46,8 @@ namespace Spreads {
         }
 
         private void Dispose(bool disposing) {
-            var disposable = _source as IDisposable;
-            disposable?.Dispose();
+            if (!disposing) return;
+            _source = null;
 
             _innerCursor.Dispose();
             _innerCursor = default(TCursor);
@@ -59,11 +59,7 @@ namespace Spreads {
 
             _token = default(CancellationToken);
 
-            var pooled = Pool.TryAdd(this);
-            // TODO review
-            if (disposing && !pooled) {
-                GC.SuppressFinalize(this);
-            }
+            Pool.TryAdd(this);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -217,10 +213,13 @@ namespace Spreads {
 
         public void Dispose() {
             Dispose(true);
+            //GC.SuppressFinalize(this);
         }
 
-        ~BaseCursorAsync() {
-            Dispose(false);
-        }
+        // NB IS we did not called dispose explicitly, let the object die and do not try
+        // to use finalizers
+        //~BaseCursorAsync() {
+        //    Dispose(false);
+        //}
     }
 }
