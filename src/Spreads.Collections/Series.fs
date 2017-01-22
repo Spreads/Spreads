@@ -535,8 +535,9 @@ and
 
     member private this.C
       with get () : ICursor<'K,'V> = 
-        if cursor <> Unchecked.defaultof<_> then cursor
-        else Interlocked.CompareExchange(&cursor, this.GetCursor(), Unchecked.defaultof<_>)
+        if cursor = Unchecked.defaultof<_> then
+          Interlocked.CompareExchange(&cursor, this.GetCursor(), Unchecked.defaultof<_>) |> ignore
+        cursor
 
     override this.GetCursor() = cursorFactory.Invoke()
 
@@ -547,8 +548,10 @@ and
     override this.IsEmpty = lock(this.SyncRoot) (fun _ -> not (this.C.MoveFirst()))
 
     override this.First
-      with get() = 
-        let entered = enterLockIf this.SyncRoot true
+      with get() =
+        let sr = this.SyncRoot
+        Debug.Assert(sr <> null)
+        let entered = enterLockIf sr true
         try
           if this.C.MoveFirst() then this.C.Current else invalidOp "Series is empty"
         finally

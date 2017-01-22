@@ -62,7 +62,10 @@ namespace Spreads {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return _syncRoot ?? Interlocked.CompareExchange(ref _syncRoot, new object(), null);
+                if (_syncRoot == null) {
+                    Interlocked.CompareExchange(ref _syncRoot, new object(), null);
+                }
+                return _syncRoot;
             }
         }
 
@@ -71,6 +74,7 @@ namespace Spreads {
 
         public abstract KeyValuePair<TK, TV> First { get; }
         public abstract KeyValuePair<TK, TV> Last { get; }
+
         public virtual TV this[TK key]
         {
             get

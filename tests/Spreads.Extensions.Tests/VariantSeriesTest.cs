@@ -38,6 +38,9 @@ namespace Spreads.Tests {
             Assert.AreEqual(Variant.Create(99), vs.Last.Key);
             Assert.AreEqual(Variant.Create("9900"), vs.Last.Value);
 
+
+            var cursorSeries = new CursorSeries<int, string>(sm);
+            Assert.AreEqual(0, cursorSeries.First.Key);
         }
     }
 }
