@@ -2,12 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Newtonsoft.Json;
 using NUnit.Framework;
 using Spreads.DataTypes;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using Newtonsoft.Json;
 
 namespace Spreads.Core.Tests {
 
@@ -15,12 +15,11 @@ namespace Spreads.Core.Tests {
     public class VariantTests {
 
         [KnownType(255)]
-        class TestKnownType : IEquatable<TestKnownType>
-        {
+        private class TestKnownType : IEquatable<TestKnownType> {
             public int Int { get; set; }
             public string Str { get; set; }
-            public bool Equals(TestKnownType other)
-            {
+
+            public bool Equals(TestKnownType other) {
                 return other != null && (this.Int == other.Int && this.Str == other.Str);
             }
         }
@@ -226,7 +225,6 @@ namespace Spreads.Core.Tests {
                 if (sum < double.MaxValue)
                     Console.WriteLine($"Get/Set(idx) Variant Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
 
-
                 sw.Restart();
                 sum = 0.0;
                 var array = new[] { 0.0 };
@@ -293,7 +291,6 @@ namespace Spreads.Core.Tests {
 
         #endregion Benchmarks
 
-
         [Test]
         public void CouldUseVariantJsonConverter() {
             var variant = Variant.Create(123);
@@ -312,13 +309,10 @@ namespace Spreads.Core.Tests {
 
             Assert.AreEqual(123, arrayVariant2.Get<int>(0));
             Assert.AreEqual(456, arrayVariant2.Get<int>(1));
-
         }
-
 
         [Test]
         public void CouldJsonConvertArrayOfVariants() {
-
             var arrayVariant = new Variant[] { Variant.Create(123), Variant.Create(456.7) };
             var json = JsonConvert.SerializeObject(arrayVariant);
             Console.WriteLine(json);
@@ -329,12 +323,10 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(123, arrayVariant2[0].Get<int>(0));
             Assert.AreEqual(456.7, arrayVariant2[1].Get<double>());
             Assert.AreEqual(456.7, arrayVariant2[1].Get<double>(0));
-
         }
 
         [Test]
         public void CouldJsonConvertVariantArrayOfVariants() {
-
             var arrayVariant = Variant.Create(new Variant[] { Variant.Create(123), Variant.Create(456.7) });
             var json = JsonConvert.SerializeObject(arrayVariant);
             Console.WriteLine(json);
@@ -345,12 +337,10 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(123, arrayVariant2[0].Get<int>(0));
             Assert.AreEqual(456.7, arrayVariant2[1].Get<double>());
             Assert.AreEqual(456.7, arrayVariant2[1].Get<double>(0));
-
         }
 
         [Test]
         public void CouldJsonConvertVariantArrayOfVariantsWithString() {
-
             var arrayVariant = Variant.Create(new Variant[] { Variant.Create(123), Variant.Create("456.7") });
             var arrayVariantNested = Variant.Create(new Variant[] { Variant.Create(arrayVariant), Variant.Create("456.7") });
             var json = JsonConvert.SerializeObject(arrayVariant);
@@ -366,17 +356,37 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual("456.7", arrayVariant2[1].Get<string>(0));
         }
 
-
         [Test]
         public void CouldJsonConvertVariantWithCustomObject() {
-
-            var variant = Variant.Create(new TestKnownType {Int = 123, Str = "str"});
+            var variant = Variant.Create(new TestKnownType { Int = 123, Str = "str" });
             var json = JsonConvert.SerializeObject(variant);
             Console.WriteLine(json);
 
             var variant2 = JsonConvert.DeserializeObject<Variant>(json);
 
             Assert.AreEqual(variant._object, variant2._object);
+        }
+
+        [Test]
+        public void DefaultVariantHasTypeNone() {
+            var d = default(Variant);
+            Assert.AreEqual(TypeEnum.None, d.TypeEnum);
+        }
+
+        [Test]
+        public void CouldCreateAndReadBool() {
+            var b = Variant.Create(true);
+            Assert.AreEqual(TypeEnum.Bool, b.TypeEnum);
+            Assert.AreEqual(true, b.Get<bool>());
+        }
+
+        [Test]
+        public void CouldCreateAndReadErrorCode() {
+            var variant = Variant.Create(new ErrorCode { Code = 123456789 });
+            Assert.AreEqual(TypeEnum.ErrorCode, variant.TypeEnum);
+            Assert.AreEqual(123456789, variant.Get<ErrorCode>().Code);
+            var obj = variant.ToObject();
+            Assert.AreEqual(typeof(ErrorCode), obj.GetType());
         }
     }
 }

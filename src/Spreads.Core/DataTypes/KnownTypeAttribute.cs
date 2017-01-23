@@ -14,7 +14,7 @@ namespace Spreads.DataTypes {
 
         static KnownTypeAttribute() {
             var assemblied = AppDomain.CurrentDomain
-                .GetAssemblies();
+                .GetAssemblies().Where(a => !a.CodeBase.Contains("mscorlib.dll"));
             var types = assemblied
                     .SelectMany(s => {
                         try {
@@ -34,7 +34,8 @@ namespace Spreads.DataTypes {
             foreach (var t in types) {
                 var attr = t.GetTypeInfo().GetCustomAttribute<KnownTypeAttribute>();
                 if (!KnownTypes.TryAdd(attr.TypeCode, t)) {
-                    Environment.FailFast($"Duplicate type id: {attr.TypeCode}");
+                    KnownTypes[attr.TypeCode] = t;
+                    //Environment.FailFast($"Duplicate type id: {attr.TypeCode}");
                 }
             }
         }

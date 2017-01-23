@@ -49,6 +49,7 @@ namespace Spreads.DataTypes {
 
             if (typeof(T) == typeof(Variant)) return TypeEnum.Variant;
             if (typeof(T) == typeof(string)) return TypeEnum.String;
+            if (typeof(T) == typeof(ErrorCode)) return TypeEnum.ErrorCode;
             if (typeof(T).IsArray) return TypeEnum.Array;
 
             // TODO known types, otherwise will fallback to fixed binary
@@ -117,6 +118,8 @@ namespace Spreads.DataTypes {
 
             if (ty == typeof(Variant)) return TypeEnum.Variant;
             if (ty == typeof(string)) return TypeEnum.String;
+            if (ty == typeof(ErrorCode)) return TypeEnum.ErrorCode;
+
             if (ty.IsArray) return TypeEnum.Array;
 
             // TODO known types, otherwise will fallback to fixed binary
@@ -124,6 +127,9 @@ namespace Spreads.DataTypes {
 #pragma warning disable 618
             if (TypeHelper.GetSize(ty) > 0) return TypeEnum.FixedBinary;
 #pragma warning restore 618
+
+            //if (typeof(Exception).IsAssignableFrom(ty)) return TypeEnum.ErrorCode;
+
             return TypeEnum.Object;
         }
 
@@ -203,6 +209,10 @@ namespace Spreads.DataTypes {
 
             if (typeEnum == TypeEnum.String) {
                 return typeof(string);
+            }
+
+            if (typeEnum == TypeEnum.ErrorCode) {
+                return typeof(Exception);
             }
 
             throw new NotImplementedException();

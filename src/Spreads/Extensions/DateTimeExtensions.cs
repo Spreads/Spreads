@@ -95,7 +95,7 @@ namespace Spreads {
             var givenTz = DateTimeZoneProviders.Tzdb[tz];
 
             var timeToConvert = new LocalDateTime(utcDateTime.Year, utcDateTime.Month, utcDateTime.Day, utcDateTime.Hour,
-                utcDateTime.Minute, utcDateTime.Second, (int)(utcDateTime.Ticks % TimeSpan.TicksPerSecond)).InUtc();
+                utcDateTime.Minute, utcDateTime.Second, utcDateTime.Millisecond,(int)(utcDateTime.Ticks % TimeSpan.TicksPerMillisecond)).InUtc();
             DateTime zonedTime = timeToConvert.WithZone(givenTz).ToDateTimeUnspecified();
             Debug.Assert(zonedTime.Kind == DateTimeKind.Unspecified);
             return zonedTime; //DateTime.SpecifyKind(utcTime, DateTimeKind.Unspecified);

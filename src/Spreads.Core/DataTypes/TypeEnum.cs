@@ -15,8 +15,7 @@ namespace Spreads.DataTypes {
         // However, for non-.NET clients they should stabilize rather sooner than later
 
         // Fixed-length known types - their length is defined by code
-
-        Bool = 0,
+        None = 0,
 
         Int8 = 1,
         Int16 = 2,
@@ -67,6 +66,10 @@ namespace Spreads.DataTypes {
         /// </summary>
         Complex64 = 19,
 
+        Bool = 20,
+
+        ErrorCode = 63,
+
         // ----------------------------------------------------------------
         // Comparison [(byte)(TypeEnum) < 64 = true] means known fixed type
         // ----------------------------------------------------------------
@@ -86,8 +89,6 @@ namespace Spreads.DataTypes {
 
         Array = 70,
         
-        None = 99
-
     }
 
     public partial struct Variant {
@@ -98,7 +99,7 @@ namespace Spreads.DataTypes {
         private static readonly byte[] KnownTypeSizes = new byte[KnownSmallTypesLimit]
         {
             // Unknown
-            1, // 0
+            0, // None
             // Int
             1,
             2,
@@ -127,7 +128,7 @@ namespace Spreads.DataTypes {
             16,
 
             // Symbols
-            0, // 20
+            1, // 20
             0, //
             0,
             0,
@@ -170,7 +171,7 @@ namespace Spreads.DataTypes {
             0, // 60
             0,
             0,
-            0
+            8
         };
 
         #endregion Known Type Sizes

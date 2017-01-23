@@ -243,6 +243,11 @@ namespace Spreads.DataTypes {
                         throw new NotImplementedException();
                     case TypeEnum.Complex64:
                         throw new NotImplementedException();
+
+                    case TypeEnum.Bool:
+                        return Create((bool)value);
+                    case TypeEnum.ErrorCode:
+                        return Create((ErrorCode)value);
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
@@ -332,6 +337,10 @@ namespace Spreads.DataTypes {
                         throw new NotImplementedException();
                     case TypeEnum.Complex64:
                         throw new NotImplementedException();
+                    case TypeEnum.Bool:
+                        return value.Get<bool>();
+                    case TypeEnum.ErrorCode:
+                        return value.Get<ErrorCode>();
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
