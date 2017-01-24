@@ -4,6 +4,7 @@
 
 using Newtonsoft.Json;
 using Spreads.Buffers;
+using Spreads.DataTypes;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -16,7 +17,7 @@ using System.Text;
 namespace Spreads.Serialization {
 
     public static class BinarySerializer {
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Size<T>() {
             return TypeHelper<T>.Size;
@@ -25,13 +26,18 @@ namespace Spreads.Serialization {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOf<T>(T value, out MemoryStream temporaryStream) {
             var size = TypeHelper<T>.SizeOf(value, out temporaryStream);
-            return size >= 0 ? size : Json.SizeOfJson<T>(value, out temporaryStream);
+            if (size >= 0) {
+                return size;
+            }
+            var ms = Json.SerializeWithHeader(value);
+            temporaryStream = ms;
+            return (checked((int)ms.Length));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe static int Write<T>(T value, ref DirectBuffer destination, uint offset = 0u,
             MemoryStream temporaryStream = null) {
-            int size = TypeHelper<T>.Size;
+            var size = TypeHelper<T>.Size;
             if (size > 0) {
                 Debug.Assert(temporaryStream == null, "For primitive types MemoryStream should not be populated");
                 if (destination.Length < offset + size) throw new ArgumentException("Value size is too big for destination");
@@ -77,7 +83,7 @@ namespace Spreads.Serialization {
                 return size;
             }
 
-            var jsonStream = Json.Serialize<T>(value);
+            var jsonStream = Json.SerializeWithHeader(value);
             size = checked((int)jsonStream.Length);
             if (destination.Length < offset + size) throw new ArgumentException("Value size is too big for destination");
             jsonStream.WriteToPtr(destination.Data + (int)offset);
@@ -122,7 +128,9 @@ namespace Spreads.Serialization {
                 return TypeHelper<T>.Read(ptr, ref value);
             }
             size = *(int*)ptr;
-            var stream = new UnmanagedMemoryStream((byte*)ptr, size);
+            var version = *(byte*)(ptr + 4);
+            if (version != 0) throw new NotImplementedException("Only versio 0 is supported for unknown types that are serialized as JSON");
+            var stream = new UnmanagedMemoryStream((byte*)(ptr + 8), size);
             value = Json.Deserialize<T>(stream);
             return size;
         }
@@ -173,9 +181,10 @@ namespace Spreads.Serialization {
             return Read<T>(buffer, 0, ref value);
         }
 
-        internal static JsonSerializer Json => JsonSerializer.Instance;
+        public static JsonSerializer Json => JsonSerializer.Instance;
 
-        internal sealed class JsonSerializer {
+        public sealed class JsonSerializer {
+
             private class JsonNetArrayPool : IArrayPool<char> {
                 public static readonly JsonNetArrayPool Pool = new JsonNetArrayPool();
 
@@ -195,21 +204,33 @@ namespace Spreads.Serialization {
                 _serializer = new Newtonsoft.Json.JsonSerializer();
             }
 
-            public int SizeOfJson<T>(T value, out MemoryStream memoryStream) {
-                memoryStream = Serialize<T>(value);
-                memoryStream.Position = 0;
-                return checked((int)memoryStream.Length);
-            }
+            //public int SizeOfJson<T>(T value, out MemoryStream memoryStream) {
+            //    memoryStream = Serialize<T>(value);
+            //    memoryStream.Position = 0;
+            //    return checked((int)memoryStream.Length);
+            //}
 
             public MemoryStream Serialize<T>(T value) {
-                var ms = RecyclableMemoryManager.MemoryStreams.GetStream();
-                ms.WriteAsPtr<long>(0L);
-                using (var writer = new StreamWriter(ms, Encoding.UTF8, 4096, true)) 
+                var ms = RecyclableMemoryStreamManager.Default.GetStream();
+                using (var writer = new StreamWriter(ms, Encoding.UTF8, 4096, true))
                 using (var jsonwriter = new JsonTextWriter(writer)) {
                     jsonwriter.ArrayPool = JsonNetArrayPool.Pool;
                     _serializer.Serialize(writer, value);
-                    //writer.CloseOutput = false;
                 }
+                // we created the stream with initial positoin 0, return to that position
+                ms.Position = 0;
+                return ms;
+            }
+
+            internal MemoryStream SerializeWithHeader<T>(T value) {
+                var ms = RecyclableMemoryStreamManager.Default.GetStream();
+                ms.WriteAsPtr<long>(0L);
+                using (var writer = new StreamWriter(ms, Encoding.UTF8, 4096, true))
+                using (var jsonwriter = new JsonTextWriter(writer)) {
+                    jsonwriter.ArrayPool = JsonNetArrayPool.Pool;
+                    _serializer.Serialize(writer, value);
+                }
+                // we created the stream with initial positoin 0, return to that position
                 ms.Position = 0;
                 ms.WriteAsPtr<int>(checked((int)ms.Length));
                 ms.Position = 0;
@@ -217,12 +238,29 @@ namespace Spreads.Serialization {
             }
 
             public T Deserialize<T>(Stream stream) {
-                // skip header
-                stream.Position = 8;
-                using (var reader = new JsonTextReader(new StreamReader(stream, Encoding.UTF8, true, 4096, true)))
-                {
+                using (var reader = new JsonTextReader(new StreamReader(stream, Encoding.UTF8, true, 4096, true))) {
                     reader.ArrayPool = JsonNetArrayPool.Pool;
                     return _serializer.Deserialize<T>(reader);
+                }
+            }
+
+            public MemoryStream Serialize(object value) {
+                var ms = RecyclableMemoryStreamManager.Default.GetStream();
+                using (var writer = new StreamWriter(ms, Encoding.UTF8, 4096, true))
+                using (var jsonwriter = new JsonTextWriter(writer)) {
+                    jsonwriter.ArrayPool = JsonNetArrayPool.Pool;
+                    _serializer.Serialize(writer, value);
+                }
+                // we created the stream with initial positoin 0, return to that position
+                ms.Position = 0;
+                return ms;
+            }
+
+            public object Deserialize(Stream stream, Type ty) {
+                using (var reader = new JsonTextReader(new StreamReader(stream, Encoding.UTF8, true, 4096, true))) {
+                    reader.ArrayPool = JsonNetArrayPool.Pool;
+                    _serializer.Deserialize(reader);
+                    return _serializer.Deserialize(reader, ty);
                 }
             }
         }

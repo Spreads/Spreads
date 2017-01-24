@@ -33,7 +33,6 @@ namespace Spreads.Buffers {
             return new BufferWrapper<byte>(staticBuffer, true);
         }
 
-        public static RecyclableMemoryStreamManager MemoryStreams = new RecyclableMemoryStreamManager();
 
         private RecyclableMemoryManager() {
         }

@@ -161,6 +161,9 @@
     <Compile Include="Collections\Concurrent\ProducerConsumerCollectionDebugView.cs" />
     <Compile Include="Collections\Concurrent\ObjectPoolArray.cs" />
     <Compile Include="DataTypes\ErrorCode.cs" />
+    <Compile Include="Serialization\IMessage.cs" />
+    <Compile Include="Serialization\IMessageJsonConverter.cs" />
+    <Compile Include="Serialization\JsonExtensions.cs" />
     <Compile Include="Utils\PooledObject.cs" />
     <Compile Include="Collections\BaseDataTable.cs" />
     <Compile Include="Collections\Concurrent\SingleProducerConsumerQueue.cs" />

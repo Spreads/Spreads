@@ -43,7 +43,7 @@ namespace Spreads {
             size += keysSize;
             size += valuesSize;
 
-            temporaryStream = RecyclableMemoryManager.MemoryStreams.GetStream("ArrayBasedMapConverter.SizeOf",
+            temporaryStream = RecyclableMemoryStreamManager.Default.GetStream("ArrayBasedMapConverter.SizeOf",
                 size);
             // binary size
             temporaryStream.WriteAsPtr<int>(size);

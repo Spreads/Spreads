@@ -20,7 +20,7 @@ namespace Spreads.Core.Tests {
     [TestFixture]
     public class SerializationTests {
 
-        
+
         [Serialization(BlittableSize = 12)]
         [StructLayout(LayoutKind.Sequential, Pack = 4)]
         public struct BlittableStruct {
@@ -181,8 +181,7 @@ namespace Spreads.Core.Tests {
 
 
         [Test]
-        public void CouldSerializeSortedMap()
-        {
+        public void CouldSerializeSortedMap() {
             var rng = new Random();
             var ptr = Marshal.AllocHGlobal(100000);
             var db = new DirectBuffer(100000, ptr);
@@ -198,7 +197,7 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 16.0))}");
             SortedMap<DateTime, decimal> sm2 = null;
             var len2 = BinarySerializer.Read(db, 0, ref sm2);
-            
+
             Assert.AreEqual(len, len2);
 
             Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
@@ -227,11 +226,23 @@ namespace Spreads.Core.Tests {
             SortedMap<int, int> sm2 = null;
             var len3 = BinarySerializer.Read(db, 0, ref sm2);
 
-            
+
             Assert.AreEqual(len, len3);
 
             Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
             Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
+        }
+
+        [Test]
+        public void CouldSerializeIMessage() {
+            var ping = new PingMessage();
+            var ms = BinarySerializer.Json.Serialize(ping);
+
+            var ping2 = BinarySerializer.Json.Deserialize<IMessage>(ms);
+
+            Assert.AreEqual("ping", ping2.Type);
+            Assert.AreEqual(ping.Id, ping2.Id);
+
         }
     }
 }

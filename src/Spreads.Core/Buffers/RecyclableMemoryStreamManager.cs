@@ -47,6 +47,8 @@ namespace Spreads.Buffers {
     /// </remarks>
     public partial class RecyclableMemoryStreamManager {
 
+        public static RecyclableMemoryStreamManager Default = new RecyclableMemoryStreamManager(8 * 1024, DefaultLargeBufferMultiple, DefaultMaximumBufferSize);
+
         /// <summary>
         /// Generic delegate for handling events without any arguments.
         /// </summary>
