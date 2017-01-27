@@ -125,6 +125,9 @@
       <HintPath>..\..\packages\Deedle.1.2.4\lib\net40\Deedle.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="FSharp.Charting">
+      <HintPath>..\..\packages\FSharp.Charting.0.90.14\lib\net40\FSharp.Charting.dll</HintPath>
+    </Reference>
     <Reference Include="FSharp.Core">
       <HintPath>..\..\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
       <Private>True</Private>

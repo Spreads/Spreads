@@ -63,6 +63,10 @@
       <HintPath>..\..\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="MathNet.Numerics, Version=3.17.0.0, Culture=neutral, PublicKeyToken=cd8b63ad3d691a37, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\MathNet.Numerics.Signed.3.17.0\lib\net40\MathNet.Numerics.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
@@ -150,6 +154,7 @@
     <Compile Include="DataTypes\Candles.cs" />
     <Compile Include="DataTypes\Order.cs" />
     <Compile Include="DataTypes\Quote.cs" />
+    <Compile Include="Generation\RandomWalk.cs" />
     <Compile Include="Generation\SeriesGenerator.cs" />
     <Compile Include="Properties\Attributes.cs" />
     <Compile Include="Extensions\DateTimeExtensions.cs" />
