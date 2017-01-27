@@ -127,6 +127,7 @@
     <Content Include="app.config" />
     <Content Include="packages.config" />
     <None Include="Duality.fsx" />
+    <Compile Include="Statistics.fs" />
     <Compile Include="TimeSeries.fs" />
     <None Include="Series.fsx" />
     <None Include="Spreads.Collections.licenseheader" />

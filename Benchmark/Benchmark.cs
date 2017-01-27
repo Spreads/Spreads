@@ -12,6 +12,7 @@ using System.Diagnostics;
 
 namespace Benchmark
 {
+    using Spreads.Collections;
     using System.Reflection;
 
     // assembly, method, time in msecs, mops, totalMem, peakMem, gen0, gen1, gen2, gen3,typeName, comment
@@ -21,8 +22,11 @@ namespace Benchmark
     {
         private readonly LogAction _logAction;
 
+
         public Benchmark()
         {
+            var sm = new SortedMap<int, double>();
+            
             ////int p, int((endtMem - startMem)/1024L)
             //Console.WriteLine(message + ", #{0}, ops: {1}, mem/item: {2}",
             //  count.ToString(), p.ToString(), ((endtMem - startMem) / count).ToString())

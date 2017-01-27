@@ -58,10 +58,11 @@
 				"../../src/Spreads.Collections/SeriesExtensions.fs",
 				"../../src/Spreads.Collections/Panel.fs",
 				"../../src/Spreads.Collections/Series.2.fs",
+				"../../src/Spreads.Collections/Statistics.fs",
 				"../../src/Spreads.Collections/TimeSeries.fs"
 			]
 		},
-		"keyFile": "../../tools/SpreadsKey.snk"
+		//"keyFile": "../../tools/SpreadsKey.snk"
 	},
 	"dependencies": {
 		"Spreads.Core": "0.7.*",

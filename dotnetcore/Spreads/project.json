@@ -5,10 +5,14 @@
 		"Spreads.Collections": "0.7.*",
 		"Newtonsoft.Json": "9.0.1",
 		"NodaTime": "2.0.0-alpha20160707",
-		"System.Slices": "0.1.0-*"
+		"System.Slices": "0.1.0-*",
+
 	},
 	"frameworks": {
 		"net451": {
+			"dependencies": {
+				"MathNet.Numerics.Signed": "3.17.0"
+			},
 			"frameworkAssemblies": {
 				"System.IO.Compression": "",
 				"System.IO.Compression.FileSystem": ""
@@ -55,7 +59,7 @@
 
 			}
 		},
-		"keyFile": "../../tools/SpreadsKey.snk"
+		//"keyFile": "../../tools/SpreadsKey.snk"
 	},
 	"authors": [
 		"Victor Baybekov"
