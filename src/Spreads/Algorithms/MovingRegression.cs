@@ -2,20 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-//using System.Numerics;
-using MathNet.Numerics;
 using MathNet.Numerics.LinearAlgebra;
-using Spreads;
+using System;
 
 namespace Spreads.Algorithms {
+
     public static class MovingRegressionExtension {
-        public static Series<DateTime, Matrix<double>> MovingRegression(this Series<DateTime, double> y, Series<DateTime, double[]> xs, uint window) {
+
+        public static Series<DateTime, Matrix<double>> MovingRegression(this Series<DateTime, double> y, Series<DateTime, double[]> xs, uint window, uint step = 1) {
             var xpx = xs.Zip(y, (dt, xrow, yrow) => {
                 // first x row transposed
                 var xt = Matrix<double>.Build.DenseOfColumnArrays(new[] { xrow });
@@ -32,11 +26,17 @@ namespace Spreads.Algorithms {
             var dim = xs.First.Value.Length;
             var cursorFactory = new Func<ScanLagAllowIncompleteCursor<DateTime, ValueTuple<Matrix<double>, Matrix<double>>, ValueTuple<Matrix<double>, Matrix<double>>>>(() =>
                 new ScanLagAllowIncompleteCursor<DateTime, ValueTuple<Matrix<double>, Matrix<double>>, ValueTuple<Matrix<double>, Matrix<double>>>(
-                    xpx.GetCursor, window, 1,
+                    xpx.GetCursor, window, step,
                     () => new ValueTuple<Matrix<double>, Matrix<double>>(Matrix<double>.Build.Dense(dim, dim), Matrix<double>.Build.Dense(dim, 1)),
                     (st, add, sub, cnt) => {
-                        var cov = st.Value1.Add(add.Value.Value1).Subtract(sub.Value.Value1);
-                        var variance = st.Value2.Add(add.Value.Value2).Subtract(sub.Value.Value2);
+                        var cov = st.Value1.Add(add.Value.Value1);
+                        if (sub.Value.Value1 != null) {
+                            cov = cov.Subtract(sub.Value.Value1);
+                        }
+                        var variance = st.Value2.Add(add.Value.Value2);
+                        if (sub.Value.Value2 != null) {
+                            variance = variance.Subtract(sub.Value.Value2);
+                        }
                         return new ValueTuple<Matrix<double>, Matrix<double>>(cov, variance);
                     }, false));
 

@@ -127,6 +127,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Algorithm\RankerTests.cs" />
+    <Compile Include="MovingRegressionTest.cs" />
     <Compile Include="VariantSeriesTest.cs" />
     <Compile Include="ComplexObject.cs" />
     <Compile Include="CursorSeriesExtensions.cs" />
