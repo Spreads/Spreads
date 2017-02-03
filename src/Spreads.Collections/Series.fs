@@ -1311,7 +1311,7 @@ and
       if moved then
         match direction with
         | Lookup.EQ ->
-          #if PRERELEASE
+          #if DEBUG
           Trace.Assert(cmp.Compare(movedKeys.First.Key, movedKeys.Last.Key) = 0)
           Trace.Assert(cmp.Compare(key, movedKeys.Last.Key) = 0)
           #endif
@@ -1657,7 +1657,7 @@ and
       // the loop could stop only when all cursors are at the same key or we cannot move ahead
       if continueMoves then
         // this only possible if all discrete cursors are at the same key
-        #if PRERELEASE
+        #if DEBUG
         Trace.Assert(cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0)
         #endif
         if fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
@@ -1707,7 +1707,7 @@ and
       // the loop could stop only when all cursors are at the same key or we cannot move ahead
       if continueMoves then
         // this only possible if all discrete cursors are at the same key
-        #if PRERELEASE
+        #if DEBUG
         Trace.Assert(cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0)
         #endif
         if fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
@@ -1734,7 +1734,7 @@ and
 
     // Manual state machine instead of a task computation expression, this is visibly faster
     let doMoveNextTask(ct:CancellationToken) : Task<bool> =
-      #if PRERELEASE
+      #if DEBUG
       //Trace.Assert(this.HasValidState)
       #endif
       let mutable tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create() //new TaskCompletionSource<_>() //
@@ -1802,7 +1802,7 @@ and
                       loop(true)
                 else
                   let c = cmp.Compare(cursor.CurrentKey, this.CurrentKey)
-                  #if PRERELEASE
+                  #if DEBUG
                   Trace.Assert(c > 0)
                   #endif
 //                  if c < 0 then

@@ -195,7 +195,7 @@ type SortedMap<'K,'V>
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.rkGetStep() =
-    #if PRERELEASE
+    #if DEBUG
     Trace.Assert(this.size > 1)
     #endif
     if rkStep_ > 0L then rkStep_
@@ -212,7 +212,7 @@ type SortedMap<'K,'V>
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.rkIndexOfKey (key:'K) : int =
-    #if PRERELEASE
+    #if DEBUG
     Trace.Assert(this.size > 1)
     #endif
 
@@ -301,7 +301,7 @@ type SortedMap<'K,'V>
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.CompareToLast (k:'K) =
     if couldHaveRegularKeys && this.size > 1 then
-      #if PRERELEASE
+      #if DEBUG
       Trace.Assert(not <| Unchecked.equals rkLast Unchecked.defaultof<'K>)
       #endif
       comparer.Compare(k, rkLast)
@@ -322,7 +322,7 @@ type SortedMap<'K,'V>
     // already inside a lock statement in a caller method if synchronized
    
     if this.size = this.values.Length then this.EnsureCapacity(this.size + 1)
-    #if PRERELEASE
+    #if DEBUG
     Trace.Assert(index <= this.size, "index must be <= this.size")
     Trace.Assert(couldHaveRegularKeys || (this.values.Length = this.keys.Length), "keys and values must have equal length for non-regular case")
     #endif
@@ -700,8 +700,10 @@ type SortedMap<'K,'V>
           if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(k, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
 
           let mutable keepOrderVersion = false
-        
           let mutable entered = false
+          #if DEBUG
+          let mutable finished = false
+          #endif
           try
             try ()
             finally
@@ -726,11 +728,15 @@ type SortedMap<'K,'V>
                   this.NotifyUpdate()
                 else
                   this.Insert(~~~index, k, v)
+            #if DEBUG
+            finished <- true
+            #endif
           finally
-            if not keepOrderVersion then increment(&this.orderVersion)
             Interlocked.Increment(&this.version) |> ignore
+            if not keepOrderVersion then increment(&this.orderVersion)
             exitWriteLockIf &this.Locker entered
-            #if PRERELEASE
+            #if DEBUG
+            if not finished then Environment.FailFast("SM.Item set must always succeed")
             if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
             #else
             if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -742,6 +748,7 @@ type SortedMap<'K,'V>
     if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
     
     let mutable keepOrderVersion = false
+    let mutable added = false
     let mutable entered = false
     try
       try ()
@@ -767,11 +774,12 @@ type SortedMap<'K,'V>
             raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
           else
             this.Insert(~~~index, key, value)
+      added <- true
     finally
       if not keepOrderVersion then increment(&this.orderVersion)
-      Interlocked.Increment(&this.version) |> ignore
+      if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
-      #if PRERELEASE
+      #if DEBUG
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -780,6 +788,7 @@ type SortedMap<'K,'V>
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.AddLast(key, value):unit =
     let mutable entered = false
+    let mutable added = false
     try
       try ()
       finally
@@ -794,10 +803,11 @@ type SortedMap<'K,'V>
         else
           let exn = OutOfOrderKeyException(this.Last.Key, key, "SortedMap.AddLast: New key is smaller or equal to the largest existing key")
           raise (exn)
+      added <- true
     finally
-      Interlocked.Increment(&this.version) |> ignore
       exitWriteLockIf &this.Locker entered
-      #if PRERELEASE
+      if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
+      #if DEBUG
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -819,6 +829,7 @@ type SortedMap<'K,'V>
   member this.AddFirst(key, value):unit =
     let mutable keepOrderVersion = false
     let mutable entered = false
+    let mutable added = false
     try
       try ()
       finally
@@ -834,11 +845,12 @@ type SortedMap<'K,'V>
         else 
           let exn = OutOfOrderKeyException(this.Last.Key, key, "SortedMap.AddLast: New key is larger or equal to the smallest existing key")
           raise (exn)
+      added <- true
     finally
+      if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       if not keepOrderVersion then increment(&this.orderVersion)
-      Interlocked.Increment(&this.version) |> ignore
       exitWriteLockIf &this.Locker entered
-      #if PRERELEASE
+      #if DEBUG
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -900,9 +912,9 @@ type SortedMap<'K,'V>
         removed <- true
       index >= 0
     finally
-      if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
+      if removed then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
-      #if PRERELEASE
+      #if DEBUG
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -925,9 +937,9 @@ type SortedMap<'K,'V>
         true
       else false
     finally
-      if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
+      if removed then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
-      #if PRERELEASE
+      #if DEBUG
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -954,9 +966,9 @@ type SortedMap<'K,'V>
         true
       else false
     finally
-      if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
+      if removed then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
-      #if PRERELEASE
+      #if DEBUG
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -1038,9 +1050,9 @@ type SortedMap<'K,'V>
         | _ -> failwith "wrong direction"
     finally
       this.NotifyUpdate()
-      if removed then Interlocked.Increment(&this.version) |> ignore else Interlocked.Decrement(&this.nextVersion) |> ignore
+      if removed then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
-      #if PRERELEASE
+      #if DEBUG
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -1062,7 +1074,7 @@ type SortedMap<'K,'V>
         if this.size > 0 && this.CompareToLast(key) = 0 then // key = last key
           result <- 
             if couldHaveRegularKeys && this.size > 1 then
-              #if PRERELEASE
+              #if DEBUG
               Trace.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
               #endif
               KeyValuePair(rkLast, this.values.[this.size - 1])

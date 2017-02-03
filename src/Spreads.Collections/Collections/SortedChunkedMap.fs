@@ -117,7 +117,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
   member internal this.Hasher with get() = hasher
 
   member this.Version 
-    with get() = readLockIf &this.nextVersion &this.version true (fun _ -> this.version)
+    with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.version)
     and internal set v = 
       let mutable entered = false
       try
@@ -257,10 +257,10 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
               // create a new bucket at key
               let newSm = innerFactory(4, comparer)
               newSm.[key] <- value
-              #if PRERELEASE
+              #if DEBUG
               let v = outerMap.Version
               outerMap.[key] <- newSm // outerMap.Version is incremented here, set non-empty bucket only
-              Trace.Assert(v + 1L = outerMap.Version, "Outer setter must increment its version")
+              Debug.Assert(v + 1L = outerMap.Version, "Outer setter must increment its version")
               #else
               outerMap.[key] <- newSm // outerMap.Version is incremented here, set non-empty bucket only
               #endif
@@ -270,7 +270,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       finally
         Interlocked.Increment(&this.version) |> ignore
         exitWriteLockIf &this.Locker entered
-        #if PRERELEASE
+        #if DEBUG
         if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
         #else
         if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -500,10 +500,10 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
           // create a new bucket at key
           let newSm = innerFactory(4, comparer)
           newSm.[key] <- value
-          #if PRERELEASE
+          #if DEBUG
           let v = outerMap.Version
           outerMap.[key] <- newSm // outerMap.Version is incremented here, set non-empty bucket only
-          Trace.Assert(v + 1L = outerMap.Version, "Outer setter must increment its version")
+          Debug.Assert(v + 1L = outerMap.Version, "Outer setter must increment its version")
           #else
           outerMap.[key] <- newSm // outerMap.Version is incremented here, set non-empty bucket only
           #endif
@@ -514,16 +514,18 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.Add(key, value):unit =
     let mutable entered = false
+    let mutable added = false
     try
       try ()
       finally
         entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       this.AddUnchecked(key, value)
+      added <- true
     finally
-      Interlocked.Increment(&this.version) |> ignore
+      if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
-      #if PRERELEASE
+      #if DEBUG
       Trace.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
@@ -534,6 +536,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.AddLast(key, value):unit =
     let mutable entered = false
+    let mutable added = false
     try
       try ()
       finally
@@ -548,11 +551,12 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       else
         let exn = OutOfOrderKeyException(this.LastUnsafe.Key, key, "New key is smaller or equal to the largest existing key")
         raise (exn)
+      added <- true
     finally
-      Interlocked.Increment(&this.version) |> ignore
+      if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
-      #if PRERELEASE
-      Trace.Assert(outerMap.Version = this.version)
+      #if DEBUG
+      Debug.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -561,6 +565,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.AddFirst(key, value):unit =
     let mutable entered = false
+    let mutable added = false
     try
       try ()
       finally
@@ -575,11 +580,12 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       else 
         let exn = OutOfOrderKeyException(this.LastUnsafe.Key, key, "New key is larger or equal to the smallest existing key")
         raise (exn)
+      added <- true
     finally
-      Interlocked.Increment(&this.version) |> ignore
+      if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
-      #if PRERELEASE
-      Trace.Assert(outerMap.Version = this.version)
+      #if DEBUG
+      Debug.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -640,10 +646,10 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
     finally
       this.NotifyUpdate()
       if removed then Interlocked.Increment(&this.version) |> ignore
-      else Interlocked.Decrement(&this.nextVersion) |> ignore
+      elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
-      #if PRERELEASE
-      Trace.Assert(outerMap.Version = this.version)
+      #if DEBUG
+      Debug.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -665,10 +671,10 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
     finally
       this.NotifyUpdate()
       if removed then Interlocked.Increment(&this.version) |> ignore
-      else Interlocked.Decrement(&this.nextVersion) |> ignore
+      elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
-      #if PRERELEASE
-      Trace.Assert(outerMap.Version = this.version) 
+      #if DEBUG
+      Debug.Assert(outerMap.Version = this.version) 
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -690,10 +696,10 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
     finally
       this.NotifyUpdate()
       if removed then Interlocked.Increment(&this.version) |> ignore
-      else Interlocked.Decrement(&this.nextVersion) |> ignore
+      elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
-      #if PRERELEASE
-      Trace.Assert(outerMap.Version = this.version)
+      #if DEBUG
+      Debug.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -782,10 +788,10 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
     finally
       this.NotifyUpdate()
       if removed then Interlocked.Increment(&this.version) |> ignore 
-      else Interlocked.Decrement(&this.nextVersion) |> ignore
+      elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
-      #if PRERELEASE
-      Trace.Assert(outerMap.Version = this.version)
+      #if DEBUG
+      Debug.Assert(outerMap.Version = this.version)
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
       #else
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -818,92 +824,96 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       0
     else
       let mutable entered = false
+      let mutable finished = false
       try
         try ()
         finally
           entered <- enterWriteLockIf &this.Locker this.isSynchronized
           if entered then Interlocked.Increment(&this.nextVersion) |> ignore
-
-        match option with
-        | AppendOption.ThrowOnOverlap ->
-          if outerMap.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
-            let mutable c = 0
-            for i in appendMap do
-              c <- c + 1
-              this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
-            c
-          else 
-            let exn = SpreadsException("values overlap with existing")
-            raise exn
-        | AppendOption.DropOldOverlap ->
-          if outerMap.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
-            let mutable c = 0
-            for i in appendMap do
-              c <- c + 1
-              this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
-            c
-          else
-            let removed = this.RemoveMany(appendMap.First.Key, Lookup.GE)
-            Trace.Assert(removed)
-            let mutable c = 0
-            for i in appendMap do
-              c <- c + 1
-              this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
-            c
-        | AppendOption.IgnoreEqualOverlap ->
-          if outerMap.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
-            let mutable c = 0
-            for i in appendMap do
-              c <- c + 1
-              this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
-            c
-          else
-            let isEqOverlap = hasEqOverlap this appendMap
-            if isEqOverlap then
-              let appC = appendMap.GetCursor();
-              if appC.MoveAt(this.LastUnsafe.Key, Lookup.GT) then
-                this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
-                let mutable c = 1
-                while appC.MoveNext() do
-                  this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
-                  c <- c + 1
-                c
-              else 0
+        let result =
+          match option with
+          | AppendOption.ThrowOnOverlap ->
+            if outerMap.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
+              let mutable c = 0
+              for i in appendMap do
+                c <- c + 1
+                this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+              c
             else 
-              let exn = SpreadsException("overlapping values are not equal")
+              let exn = SpreadsException("values overlap with existing")
               raise exn
-        | AppendOption.RequireEqualOverlap ->
-          if outerMap.IsEmpty then
-            let mutable c = 0
-            for i in appendMap do
-              c <- c + 1
-              this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
-            c
-          elif comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
-            let exn = SpreadsException("values do not overlap with existing")
-            raise exn
-          else
-            let isEqOverlap = hasEqOverlap this appendMap
-            if isEqOverlap then
-              let appC = appendMap.GetCursor();
-              if appC.MoveAt(this.LastUnsafe.Key, Lookup.GT) then
-                this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
-                let mutable c = 1
-                while appC.MoveNext() do
+          | AppendOption.DropOldOverlap ->
+            if outerMap.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
+              let mutable c = 0
+              for i in appendMap do
+                c <- c + 1
+                this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+              c
+            else
+              let removed = this.RemoveMany(appendMap.First.Key, Lookup.GE)
+              Trace.Assert(removed)
+              let mutable c = 0
+              for i in appendMap do
+                c <- c + 1
+                this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+              c
+          | AppendOption.IgnoreEqualOverlap ->
+            if outerMap.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
+              let mutable c = 0
+              for i in appendMap do
+                c <- c + 1
+                this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+              c
+            else
+              let isEqOverlap = hasEqOverlap this appendMap
+              if isEqOverlap then
+                let appC = appendMap.GetCursor();
+                if appC.MoveAt(this.LastUnsafe.Key, Lookup.GT) then
                   this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
-                  c <- c + 1
-                c
-              else 0
-            else 
-              let exn = SpreadsException("overlapping values are not equal")
+                  let mutable c = 1
+                  while appC.MoveNext() do
+                    this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                    c <- c + 1
+                  c
+                else 0
+              else 
+                let exn = SpreadsException("overlapping values are not equal")
+                raise exn
+          | AppendOption.RequireEqualOverlap ->
+            if outerMap.IsEmpty then
+              let mutable c = 0
+              for i in appendMap do
+                c <- c + 1
+                this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+              c
+            elif comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
+              let exn = SpreadsException("values do not overlap with existing")
               raise exn
-        | _ -> failwith "Unknown AppendOption"
+            else
+              let isEqOverlap = hasEqOverlap this appendMap
+              if isEqOverlap then
+                let appC = appendMap.GetCursor();
+                if appC.MoveAt(this.LastUnsafe.Key, Lookup.GT) then
+                  this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                  let mutable c = 1
+                  while appC.MoveNext() do
+                    this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+                    c <- c + 1
+                  c
+                else 0
+              else 
+                let exn = SpreadsException("overlapping values are not equal")
+                raise exn
+          | _ -> failwith "Unknown AppendOption"
+        finished <- true
+        result
       finally
+        if not finished then Environment.FailFast("SCM.Append must always succeed")
         Interlocked.Increment(&this.version) |> ignore
         this.FlushUnchecked()
         exitWriteLockIf &this.Locker entered
-        #if PRERELEASE
-        Trace.Assert(outerMap.Version = this.version)
+        #if DEBUG
+        Debug.Assert(outerMap.Version = this.version)
         if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
         #else
         if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")

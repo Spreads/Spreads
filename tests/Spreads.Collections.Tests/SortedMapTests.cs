@@ -163,5 +163,15 @@ namespace Spreads.Collections.Tests {
             Assert.IsTrue(sm.IsSynchronized);
         }
 
+
+        [Test]
+        public void AddExistingThrowsAndKeepsVersion() {
+            var sm = new SortedMap<long, long>();
+            sm.Add(1, 1);
+            Assert.AreEqual(1, sm.Version);
+            Assert.Throws<ArgumentException>(() => sm.Add(1, 1));
+            Assert.AreEqual(1, sm.Version);
+        }
+
     }
 }

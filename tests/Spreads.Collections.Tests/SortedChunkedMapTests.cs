@@ -2,30 +2,21 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using NUnit.Framework;
-using System.Runtime.InteropServices;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Collections;
 
 namespace Spreads.Collections.Tests {
 
     [TestFixture]
     public class SortedChunkedMapTests {
 
-
-
         [SetUp]
         public void Init() {
         }
-
 
         [Test]
         public void CouldRemoveFirst() {
@@ -54,7 +45,6 @@ namespace Spreads.Collections.Tests {
             Assert.AreEqual(2, scm.outerMap.Count);
         }
 
-
         [Test]
         public void CouldMoveAtGE() {
             var scm = new SortedChunkedMap<int, int>(50);
@@ -70,10 +60,7 @@ namespace Spreads.Collections.Tests {
             Assert.AreEqual(0, cursor.CurrentValue);
             var shouldBeFalse = cursor.MoveAt(-100, Lookup.LE);
             Assert.IsFalse(shouldBeFalse);
-
         }
-
-
 
         [Test]
         public async void CouldReadReadOnlyChildWhileAddingToParent() {
@@ -111,22 +98,9 @@ namespace Spreads.Collections.Tests {
             //(scm as IPersistentSeries<int, int>).Dispose();
         }
 
-
-    }
-
-
-
-    // TODO (low) merge this with above
-    [TestFixture]
-    public class SCMTests {
-
         private const int _small = 500;
         private const int _big = 100000;
         private Random _rng = new System.Random();
-
-        [SetUp]
-        public void Init() {
-        }
 
         public Dictionary<string, IReadOnlySeries<DateTime, double>> GetImplementation() {
             var implemetations = new Dictionary<string, IReadOnlySeries<DateTime, double>>();
@@ -175,7 +149,6 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void CouldCreateSCM() {
-
             var scm_irregular_small = new SortedChunkedMap<DateTime, double>();
 
             scm_irregular_small.Add(DateTime.Today.AddDays(-2), -2.0);
@@ -185,10 +158,8 @@ namespace Spreads.Collections.Tests {
             }
         }
 
-
         [Test]
         public void CouldAddMoreThanChunkSize() {
-
             var scm = new SortedChunkedMap<int, int>(1024);
             var cnt = 0;
             for (int i = 0; i < 10000; i = i + 2) {
@@ -222,10 +193,8 @@ namespace Spreads.Collections.Tests {
             Assert.IsTrue(pos > 0);
         }
 
-
         [Test]
         public void CouldRemoveMany() {
-
             var scm = new SortedChunkedMap<int, int>();
             scm.Add(1, 1);
             var removed = scm.RemoveMany(0, Lookup.GE);
@@ -235,7 +204,7 @@ namespace Spreads.Collections.Tests {
         }
 
         [Test]
-        public void CouldRemoveFirst() {
+        public void CouldRemoveFirst2() {
             var scm = new SortedChunkedMap<int, int>();
             for (int i = 0; i < 10000; i++) {
                 scm.Add(i, i);
@@ -249,10 +218,8 @@ namespace Spreads.Collections.Tests {
             Assert.IsTrue(scm.First.Key == 1);
         }
 
-
         [Test]
         public void CouldMoveAtOnEmpty() {
-
             var scm = new SortedChunkedMap<int, int>();
             var c = scm.GetCursor();
             Assert.IsFalse(c.MoveAt(1, Lookup.GT));
@@ -260,13 +227,10 @@ namespace Spreads.Collections.Tests {
             Assert.IsFalse(c.MoveAt(1, Lookup.EQ));
             Assert.IsFalse(c.MoveAt(1, Lookup.LE));
             Assert.IsFalse(c.MoveAt(1, Lookup.LT));
-
         }
-
 
         [Test]
         public void CouldMoveAtOnNonEmpty() {
-
             var scm = new SortedChunkedMap<int, int>();
             scm.Add(1, 1);
             var c = scm.GetCursor();
@@ -275,9 +239,7 @@ namespace Spreads.Collections.Tests {
             Assert.IsTrue(c.MoveAt(1, Lookup.EQ));
             Assert.IsTrue(c.MoveAt(1, Lookup.LE));
             Assert.IsFalse(c.MoveAt(1, Lookup.LT));
-
         }
-
 
         /// <summary>
         /// MoveAt inside SCM was failing
@@ -308,7 +270,15 @@ namespace Spreads.Collections.Tests {
                 }
             }).ToSortedMap();
             Console.WriteLine(sm.Count);
+        }
 
+        [Test]
+        public void AddExistingThrowsAndKeepsVersion() {
+            var sm = new SortedChunkedMap<long, long>();
+            sm.Add(1, 1);
+            Assert.AreEqual(1, sm.Version);
+            Assert.Throws<ArgumentException>(() => sm.Add(1, 1));
+            Assert.AreEqual(1, sm.Version);
         }
 
     }

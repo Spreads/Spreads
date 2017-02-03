@@ -76,5 +76,11 @@ namespace Spreads {
         public static Task FromException(Exception exception) {
             return FromException<object>(exception);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Task<T> FromResult<T>(T result) {
+
+            return TaskExCache<T>.GetCompleted(result);
+        }
     }
 }

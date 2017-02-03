@@ -119,25 +119,25 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
         moved <- inputCursor.MoveNext()
         if moved then
 
-          #if PRERELEASE
+          #if DEBUG
           let before = inputCursor.CurrentKey
           #endif
 
           found <- this.TryUpdateNext(inputCursor.Current, &moveState)
 
-          #if PRERELEASE
+          #if DEBUG
           if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("SimpleBindCursor's TryGetValue implementation must not move InputCursor"))
           #endif
         else
           // if we are unable to move, state must remain valid TODO link to contracts spec
           ()
       if not moved then 
-        #if PRERELEASE
+        #if DEBUG
         Trace.Assert(hasValidState, "When MN returns false due to the end of series, valid state should remain ")
         #endif
         false // we cannot move, but keep state as valid and unchanged for a potential retry
       else 
-        #if PRERELEASE
+        #if DEBUG
         Trace.Assert(found && hasValidState, "When MN returns false due to the end of series, valid state should remain ")
         #endif
         true
@@ -151,13 +151,13 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
       hasValidState <- false
 
     if inputCursor.MoveFirst() then
-      #if PRERELEASE
+      #if DEBUG
       let before = inputCursor.CurrentKey
       #endif
 
       hasValidState <- this.TryCreateState(inputCursor.CurrentKey, true, &moveState)
       
-      #if PRERELEASE
+      #if DEBUG
       if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
       #endif
 
@@ -166,14 +166,14 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
       else
         //let mutable found = false
         while not hasValidState && inputCursor.MoveNext() do
-          #if PRERELEASE
+          #if DEBUG
           let before = inputCursor.CurrentKey
           #endif
           
           // NB we could modify internalState directly here, but this is hard to assert
           hasValidState <- this.TryUpdateNext(inputCursor.Current, &moveState)
 
-          #if PRERELEASE
+          #if DEBUG
           if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
           #endif
         hasValidState
@@ -189,13 +189,13 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
       hasValidState <- false
 
     if inputCursor.MoveLast() then
-      #if PRERELEASE
+      #if DEBUG
       let before = inputCursor.CurrentKey
       #endif
 
       hasValidState <- this.TryCreateState(inputCursor.CurrentKey, true, &moveState)
       
-      #if PRERELEASE
+      #if DEBUG
       if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
       #endif
 
@@ -204,14 +204,14 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
       else
         //let mutable found = false
         while not hasValidState && inputCursor.MovePrevious() do
-          #if PRERELEASE
+          #if DEBUG
           let before = inputCursor.CurrentKey
           #endif
           
           // NB we could modify internalState directly here, but this is hard to assert
           hasValidState <- this.TryUpdatePrevious(inputCursor.Current, &moveState)
 
-          #if PRERELEASE
+          #if DEBUG
           if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
           #endif
         hasValidState
@@ -228,26 +228,26 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
         moved <- inputCursor.MovePrevious()
         if moved then
 
-          #if PRERELEASE
+          #if DEBUG
           let before = inputCursor.CurrentKey
           #endif
 
           // if TryUpdateNext returns false, it MUST NOT change state TODO assert this
           found <- this.TryUpdatePrevious(inputCursor.Current, &moveState)
 
-          #if PRERELEASE
+          #if DEBUG
           if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("SimpleBindCursor's TryGetValue implementation must not move InputCursor"))
           #endif
         else
           // if we are unable to move, state must remain valid TODO link to contracts spec
           ()
       if not moved then 
-        #if PRERELEASE
+        #if DEBUG
         Trace.Assert(hasValidState, "When MP returns false due to the end of series, valid state should remain ")
         #endif
         false // we cannot move, but keep state as valid and unchanged for a potential retry
       else 
-        #if PRERELEASE
+        #if DEBUG
         Trace.Assert(found && hasValidState, "When MP returns false due to the end of series, valid state should remain ")
         #endif
         true
@@ -264,13 +264,13 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
 
     if (inputCursor.Comparer.Compare(index, this.InputCursor.CurrentKey) = 0 && not (direction = Lookup.LT || direction = Lookup.GT)) 
         || this.InputCursor.MoveAt(index, direction) then
-      #if PRERELEASE
+      #if DEBUG
       let before = inputCursor.CurrentKey
       #endif
 
       hasValidState <- this.TryCreateState(inputCursor.CurrentKey, true, &moveState)
       
-      #if PRERELEASE
+      #if DEBUG
       if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
       #endif
 
@@ -282,28 +282,28 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
         | Lookup.GE | Lookup.GT ->
           //let mutable found = false
           while not hasValidState && inputCursor.MoveNext() do
-            #if PRERELEASE
+            #if DEBUG
             let before = inputCursor.CurrentKey
             #endif
           
             // NB we could modify internalState directly here, but this is hard to assert
             hasValidState <- this.TryUpdateNext(inputCursor.Current, &moveState)
 
-            #if PRERELEASE
+            #if DEBUG
             if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
             #endif
           hasValidState
         | Lookup.LE | Lookup.LT ->
           //let mutable found = false
           while not hasValidState && inputCursor.MovePrevious() do
-            #if PRERELEASE
+            #if DEBUG
             let before = inputCursor.CurrentKey
             #endif
           
             // NB we could modify internalState directly here, but this is hard to assert
             hasValidState <- this.TryUpdatePrevious(inputCursor.Current, &moveState)
 
-            #if PRERELEASE
+            #if DEBUG
             if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
             #endif
           hasValidState
@@ -322,26 +322,26 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
           moved <- moved'
           if moved then
 
-            #if PRERELEASE
+            #if DEBUG
             let before = inputCursor.CurrentKey
             #endif
 
             // if TryUpdateNext returns false, it MUST NOT change state TODO assert this
             found <- this.TryUpdateNext(inputCursor.Current, &moveState)
 
-            #if PRERELEASE
+            #if DEBUG
             if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("SimpleBindCursor's TryGetValue implementation must not move InputCursor"))
             #endif
           else
             // if we are unable to move, state must remain valid TODO link to contracts spec
             ()
         if not moved then 
-          #if PRERELEASE
+          #if DEBUG
           Trace.Assert(hasValidState, "When MN returns false due to the end of series, valid state should remain ")
           #endif
           return false // we cannot move, but keep state as valid and unchanged for a potential retry
         else 
-          #if PRERELEASE
+          #if DEBUG
           Trace.Assert(found && hasValidState, "When MN returns false due to the end of series, valid state should remain ")
           #endif
           return true
@@ -350,7 +350,7 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
 
   member this.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool = 
     
-    #if PRERELEASE
+    #if DEBUG
     let before = inputCursor.CurrentKey
     #endif
     try
@@ -365,7 +365,7 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
           true
         else false
     finally 
-      #if PRERELEASE
+      #if DEBUG
       if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("SimpleBindCursor's TryGetValue implementation must not move InputCursor"))
       #endif
       ()
@@ -472,25 +472,25 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
         moved <- inputCursor.MoveNext()
         if moved then
 
-          #if PRERELEASE
+          #if DEBUG
           let before = inputCursor.CurrentKey
           #endif
 
           found <- this.TryUpdateNext(inputCursor.Current, &moveState)
 
-          #if PRERELEASE
+          #if DEBUG
           if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("SimpleBindCursor's TryGetValue implementation must not move InputCursor"))
           #endif
         else
           // if we are unable to move, value must remain valid TODO link to contracts spec
           ()
       if not moved then 
-        #if PRERELEASE
+        #if DEBUG
         Trace.Assert(hasValidState, "When MN returns false due to the end of series, valid value should remain ")
         #endif
         false // we cannot move, but keep value as valid and unchanged for a potential retry
       else 
-        #if PRERELEASE
+        #if DEBUG
         Trace.Assert(found && hasValidState, "When MN returns false due to the end of series, valid value should remain ")
         #endif
         true
@@ -504,13 +504,13 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
       hasValidState <- false
 
     if inputCursor.MoveFirst() then
-      #if PRERELEASE
+      #if DEBUG
       let before = inputCursor.CurrentKey
       #endif
 
       hasValidState <- this.TryGetValue(inputCursor.CurrentKey, true, &moveState)
       
-      #if PRERELEASE
+      #if DEBUG
       if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
       #endif
 
@@ -519,14 +519,14 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
       else
         //let mutable found = false
         while not hasValidState && inputCursor.MoveNext() do
-          #if PRERELEASE
+          #if DEBUG
           let before = inputCursor.CurrentKey
           #endif
           
           // NB we could modify internalState directly here, but this is hard to assert
           hasValidState <- this.TryUpdateNext(inputCursor.Current, &moveState)
 
-          #if PRERELEASE
+          #if DEBUG
           if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
           #endif
         hasValidState
@@ -542,13 +542,13 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
       hasValidState <- false
 
     if inputCursor.MoveLast() then
-      #if PRERELEASE
+      #if DEBUG
       let before = inputCursor.CurrentKey
       #endif
 
       hasValidState <- this.TryGetValue(inputCursor.CurrentKey, true, &moveState)
       
-      #if PRERELEASE
+      #if DEBUG
       if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
       #endif
 
@@ -557,14 +557,14 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
       else
         //let mutable found = false
         while not hasValidState && inputCursor.MovePrevious() do
-          #if PRERELEASE
+          #if DEBUG
           let before = inputCursor.CurrentKey
           #endif
           
           // NB we could modify internalState directly here, but this is hard to assert
           hasValidState <- this.TryUpdatePrevious(inputCursor.Current, &moveState)
 
-          #if PRERELEASE
+          #if DEBUG
           if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
           #endif
         hasValidState
@@ -581,26 +581,26 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
         moved <- inputCursor.MovePrevious()
         if moved then
 
-          #if PRERELEASE
+          #if DEBUG
           let before = inputCursor.CurrentKey
           #endif
 
           // if TryUpdateNext returns false, it MUST NOT change value TODO assert this
           found <- this.TryUpdatePrevious(inputCursor.Current, &moveState)
 
-          #if PRERELEASE
+          #if DEBUG
           if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("SimpleBindCursor's TryGetValue implementation must not move InputCursor"))
           #endif
         else
           // if we are unable to move, value must remain valid TODO link to contracts spec
           ()
       if not moved then 
-        #if PRERELEASE
+        #if DEBUG
         Trace.Assert(hasValidState, "When MP returns false due to the end of series, valid value should remain ")
         #endif
         false // we cannot move, but keep value as valid and unchanged for a potential retry
       else 
-        #if PRERELEASE
+        #if DEBUG
         Trace.Assert(found && hasValidState, "When MP returns false due to the end of series, valid value should remain ")
         #endif
         true
@@ -619,13 +619,13 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
 //    if (inputCursor.Comparer.Compare(index, this.InputCursor.CurrentKey) = 0 && not (direction = Lookup.LT || direction = Lookup.GT)) 
 //        || this.InputCursor.MoveAt(index, direction) then
     if this.InputCursor.MoveAt(index, direction) then
-      #if PRERELEASE
+      #if DEBUG
       let before = inputCursor.CurrentKey
       #endif
 
       hasValidState <- this.TryGetValue(inputCursor.CurrentKey, true, &moveState)
       
-      #if PRERELEASE
+      #if DEBUG
       if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
       #endif
 
@@ -637,28 +637,28 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
         | Lookup.GE | Lookup.GT ->
           //let mutable found = false
           while not hasValidState && inputCursor.MoveNext() do
-            #if PRERELEASE
+            #if DEBUG
             let before = inputCursor.CurrentKey
             #endif
           
             // NB we could modify internalState directly here, but this is hard to assert
             hasValidState <- this.TryUpdateNext(inputCursor.Current, &moveState)
 
-            #if PRERELEASE
+            #if DEBUG
             if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
             #endif
           hasValidState
         | Lookup.LE | Lookup.LT ->
           //let mutable found = false
           while not hasValidState && inputCursor.MovePrevious() do
-            #if PRERELEASE
+            #if DEBUG
             let before = inputCursor.CurrentKey
             #endif
           
             // NB we could modify internalState directly here, but this is hard to assert
             hasValidState <- this.TryUpdatePrevious(inputCursor.Current, &moveState)
 
-            #if PRERELEASE
+            #if DEBUG
             if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
             #endif
           hasValidState
@@ -677,39 +677,39 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
           moved <- moved'
           if moved then
 
-            #if PRERELEASE
+            #if DEBUG
             let before = inputCursor.CurrentKey
             #endif
 
             // if TryUpdateNext returns false, it MUST NOT change value TODO assert this
             found <- this.TryUpdateNext(inputCursor.Current, &moveState)
 
-            #if PRERELEASE
+            #if DEBUG
             if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("SimpleBindCursor's TryGetValue implementation must not move InputCursor"))
             #endif
           else
             // if we are unable to move, value must remain valid TODO link to contracts spec
             ()
         if not moved then 
-          #if PRERELEASE
+          #if DEBUG
           Trace.Assert(hasValidState, "When MN returns false due to the end of series, valid value should remain ")
           #endif
           return false // we cannot move, but keep value as valid and unchanged for a potential retry
         else 
-          #if PRERELEASE
+          #if DEBUG
           Trace.Assert(found && hasValidState, "When MN returns false due to the end of series, valid value should remain ")
           #endif
           return true
       else
         let! moved' = inputCursor.MoveNext(cancellationToken)
         if moved' then
-          #if PRERELEASE
+          #if DEBUG
           let before = inputCursor.CurrentKey
           #endif
 
           hasValidState <- this.TryGetValue(inputCursor.CurrentKey, true, &moveState)
       
-          #if PRERELEASE
+          #if DEBUG
           if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
           #endif
 
@@ -719,14 +719,14 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
             //let mutable found = false
             let! moved' = inputCursor.MoveNext(cancellationToken)
             while not hasValidState && moved' do
-              #if PRERELEASE
+              #if DEBUG
               let before = inputCursor.CurrentKey
               #endif
           
               // NB we could modify internalState directly here, but this is hard to assert
               hasValidState <- this.TryUpdateNext(inputCursor.Current, &moveState)
 
-              #if PRERELEASE
+              #if DEBUG
               if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("CursorBind's TryGetValue implementation must not move InputCursor"))
               #endif
             return hasValidState
@@ -737,7 +737,7 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
     }
 
   member this.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool = 
-    #if PRERELEASE
+    #if DEBUG
     let before = inputCursor.CurrentKey
     #endif
     try
@@ -748,7 +748,7 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
       else
         this.TryGetValue(key, false, &value) 
     finally 
-      #if PRERELEASE
+      #if DEBUG
       if inputCursor.Comparer.Compare(before, inputCursor.CurrentKey) <> 0 then raise (InvalidOperationException("SimpleBindCursor's TryGetValue implementation must not move InputCursor"))
       #endif
       ()
