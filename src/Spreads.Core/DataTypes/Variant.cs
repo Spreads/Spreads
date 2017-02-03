@@ -84,7 +84,9 @@ namespace Spreads.DataTypes {
 
     [JsonConverter(typeof(VariantJsonConverter))]
     [StructLayout(LayoutKind.Explicit, Pack = 4)]
-    public unsafe partial struct Variant {
+    public unsafe partial struct Variant : IEquatable<Variant> {
+
+
         // TODO Structural equality
 
         /// <summary>
@@ -171,10 +173,10 @@ namespace Spreads.DataTypes {
         private static Variant CreateSlow<T>(T value, TypeEnum typeEnum) {
             if (typeEnum == TypeEnum.Variant) return (Variant)(object)(value);
             if (typeEnum == TypeEnum.String) {
-                return Create(Unsafe.As<string>(value));
+                return Create((string)(object)(value));
             }
-            if (typeEnum == TypeEnum.Object) {
-                return FromObject((object)value);
+            if (typeEnum == TypeEnum.Object || typeEnum == TypeEnum.Matrix || typeEnum == TypeEnum.Table) {
+                return FromObject(value);
             }
             throw new NotImplementedException();
         }
@@ -256,6 +258,31 @@ namespace Spreads.DataTypes {
             if (objTypeEnum == TypeEnum.Array || objTypeEnum == TypeEnum.String) {
                 return Create(value);
                 //Environment.FailFast("Array shoud have been dispatched via dynamic in the untyped Create method");
+            }
+
+            if (objTypeEnum == TypeEnum.Matrix) {
+                var elTy = value.GetType().GetElementType();
+                var subTypeEnum = VariantHelper.GetTypeEnum(elTy);
+                var v = new Variant {
+                    _object = value,
+                    _header = new VariantHeader {
+                        TypeEnum = TypeEnum.Matrix,
+                        ElementTypeEnum = subTypeEnum
+                    }
+                };
+                return v;
+            }
+
+            if (objTypeEnum == TypeEnum.Table) {
+                var subTypeEnum = TypeEnum.Variant;
+                var v = new Variant {
+                    _object = value,
+                    _header = new VariantHeader {
+                        TypeEnum = TypeEnum.Matrix,
+                        ElementTypeEnum = subTypeEnum
+                    }
+                };
+                return v;
             }
 
             if (objTypeEnum == TypeEnum.Object) {
@@ -678,10 +705,10 @@ namespace Spreads.DataTypes {
                 // Object
                 var typeEnum = _header.TypeEnum;
                 if (typeEnum == TypeEnum.Array) {
-                    var elementEnum = _header.ElementTypeEnum;
+                    //var elementEnum = _header.ElementTypeEnum;
                     Array array = (Array)_object;
                     var value = array.GetValue(index);
-                    var v = Variant.Create(value);
+                    var v = Create(value);
                     // Debug.Assert(elementEnum == v.ElementTypeEnum); // TODO review, Variant of Variant is a special case
                     return v;
                 }
@@ -743,6 +770,54 @@ namespace Spreads.DataTypes {
 
         internal class BoxedTypeEnum<T> {
             public static BoxedTypeEnum CachedBoxedTypeEnum = new BoxedTypeEnum(VariantHelper<T>.TypeEnum);
+        }
+
+        public bool Equals(Variant other) {
+            if (this.TypeEnum != other.TypeEnum) return false;
+            // None equals None without value checks
+            if (this.TypeEnum == TypeEnum.None) return true;
+            if ((int)this.TypeEnum < KnownSmallTypesLimit) {
+                fixed (byte* thisPtr = _data) {
+                    var otherPtr = other._data;
+                    return (*(ulong*)thisPtr == *(ulong*)otherPtr) && (*(ulong*)(thisPtr + 8) == *(ulong*)(otherPtr + 8));
+                }
+            }
+            var thisAsObject = this.ToObject();
+            var otherAsObject = other.ToObject();
+            return Equals(thisAsObject, otherAsObject);
+        }
+
+        public override bool Equals(object obj) {
+            if (ReferenceEquals(null, obj)) return false;
+            return obj is Variant && Equals((Variant)obj);
+            // NB No, Variant(123) does not equals 123. When this is needed, we could always call ToObject() and compare objects
+            //return Equals(this.ToObject(), obj);
+        }
+
+        public override int GetHashCode() {
+            if (this.TypeEnum == TypeEnum.None) return 0;
+            if ((int)this.TypeEnum < KnownSmallTypesLimit) {
+                // ReSharper disable once NonReadonlyMemberInGetHashCode
+                fixed (byte* dataPtr = _data) {
+                    unchecked {
+                        int hashCode = (int)TypeEnum;
+                        hashCode = (hashCode * 397) ^ *(int*)(dataPtr);
+                        hashCode = (hashCode * 397) ^ *(int*)(dataPtr + 4);
+                        hashCode = (hashCode * 397) ^ *(int*)(dataPtr + 8);
+                        hashCode = (hashCode * 397) ^ *(int*)(dataPtr + 12);
+                        return hashCode;
+                    }
+                }
+            }
+            return this.ToObject().GetHashCode();
+        }
+
+        public static bool operator ==(Variant first, Variant second) {
+            return first.Equals(second);
+        }
+
+        public static bool operator !=(Variant first, Variant second) {
+            return !(first == second);
         }
     }
 }

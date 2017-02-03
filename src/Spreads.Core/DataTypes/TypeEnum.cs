@@ -88,7 +88,8 @@ namespace Spreads.DataTypes {
         Object = 69, // custom object, the type must have a KnownType attribute
 
         Array = 70,
-        
+        Matrix = 71, // same as array must have a subtype defined
+        Table = 72,  // matrix if variants
     }
 
     public partial struct Variant {

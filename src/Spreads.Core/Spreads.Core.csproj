@@ -161,6 +161,8 @@
     <Compile Include="Collections\Concurrent\ProducerConsumerCollectionDebugView.cs" />
     <Compile Include="Collections\Concurrent\ObjectPoolArray.cs" />
     <Compile Include="DataTypes\ErrorCode.cs" />
+    <Compile Include="DataTypes\Matrix.cs" />
+    <Compile Include="DataTypes\Table.cs" />
     <Compile Include="Serialization\IMessage.cs" />
     <Compile Include="Serialization\IMessageJsonConverter.cs" />
     <Compile Include="Serialization\JsonExtensions.cs" />

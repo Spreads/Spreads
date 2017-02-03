@@ -52,6 +52,9 @@ namespace Spreads.DataTypes {
             if (typeof(T) == typeof(ErrorCode)) return TypeEnum.ErrorCode;
             if (typeof(T).IsArray) return TypeEnum.Array;
 
+            if (typeof(T) == typeof(Table)) return TypeEnum.Table;
+            if (typeof(T).GetGenericTypeDefinition() == typeof(Matrix<>)) return TypeEnum.Matrix;
+
             // TODO known types, otherwise will fallback to fixed binary
 
 #pragma warning disable 618
@@ -121,6 +124,9 @@ namespace Spreads.DataTypes {
             if (ty == typeof(ErrorCode)) return TypeEnum.ErrorCode;
 
             if (ty.IsArray) return TypeEnum.Array;
+            if (ty == typeof(Matrix<>)) return TypeEnum.Matrix;
+            if (ty == typeof(Table)) return TypeEnum.Table;
+
 
             // TODO known types, otherwise will fallback to fixed binary
 
@@ -135,6 +141,10 @@ namespace Spreads.DataTypes {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static Type GetType(TypeEnum typeEnum, TypeEnum subTypeEnum = TypeEnum.None) {
+            if (typeEnum == TypeEnum.Variant) {
+                return typeof(Variant);
+            }
+
             if ((int)typeEnum < Variant.KnownSmallTypesLimit) {
                 switch (typeEnum) {
                     case TypeEnum.Bool:
@@ -203,8 +213,13 @@ namespace Spreads.DataTypes {
                 return elementType.MakeArrayType();
             }
 
-            if (typeEnum == TypeEnum.Variant) {
-                return typeof(Variant);
+            if (typeEnum == TypeEnum.Matrix) {
+                var elementType = GetType(subTypeEnum);
+                return typeof(Table).MakeGenericType(elementType);
+            }
+
+            if (typeEnum == TypeEnum.Table) {
+                return typeof(Table);
             }
 
             if (typeEnum == TypeEnum.String) {

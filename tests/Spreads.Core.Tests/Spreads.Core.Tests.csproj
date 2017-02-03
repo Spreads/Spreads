@@ -148,6 +148,7 @@
     <Compile Include="SIMD.cs" />
     <Compile Include="SingleEnumerableTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TableTests.cs" />
     <Compile Include="TypeHelperTests.cs" />
     <Compile Include="UnsafeTests.cs" />
     <Compile Include="VariantTests.cs" />
