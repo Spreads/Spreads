@@ -667,8 +667,8 @@ type SortedChunkedMapGeneric<'K,'V>
         entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       result <- this.FirstUnsafe
-      let ret' = this.Remove(result.Key)
-      ret'
+      let removed = this.Remove(result.Key)
+      removed
     finally
       this.NotifyUpdate()
       if removed then Interlocked.Increment(&this.version) |> ignore
@@ -692,8 +692,8 @@ type SortedChunkedMapGeneric<'K,'V>
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       
       result <- this.LastUnsafe
-      let ret' = this.Remove(result.Key)
-      ret'
+      let removed = this.Remove(result.Key)
+      removed
     finally
       this.NotifyUpdate()
       if removed then Interlocked.Increment(&this.version) |> ignore
