@@ -22,11 +22,11 @@ open Spreads.Collections
 // NB outer map version must be synced with SCM.version
 
 [<AllowNullLiteral>]
-type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSeries<'K,'V>> 
-  internal
+type SortedChunkedMapGeneric<'K,'V> 
+  internal 
   (
-    outerFactory:IComparer<'K>->IMutableSeries<'K, 'TContainer>,
-    innerFactory:int * IComparer<'K>->'TContainer, 
+    outerFactory:IComparer<'K>->IMutableChunksSeries<'K, 'V, SortedMap<'K,'V>>,
+    innerFactory:int * IComparer<'K>->SortedMap<'K,'V>, 
     comparer:IComparer<'K>,
     hasher:IKeyHasher<'K> option, 
     chunkMaxSize:int option) as this=
@@ -44,8 +44,8 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
 
 
   let mutable prevHash = Unchecked.defaultof<'K>
-  let mutable prevBucket = WeakReference<IMutableSeries<'K,'V>>(null)
-  let prevBucketIsSet (prevBucket':IMutableSeries<'K,'V> byref) : bool = 
+  let mutable prevBucket = WeakReference<SortedMap<'K,'V>>(null)
+  let prevBucketIsSet (prevBucket':SortedMap<'K,'V> byref) : bool = 
     let hasValue = prevBucket.TryGetTarget(&prevBucket') 
     hasValue && prevBucket' <> null
 
@@ -90,12 +90,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
     this.version <- outerMap.Version
     this.nextVersion <- outerMap.Version
 
-
-
-  member this.Clear() : unit =
-    if not this.IsEmpty then 
-      let removed = outerMap.RemoveMany(outerMap.First.Key, Lookup.GE)
-      if removed then outerMap.Version <- outerMap.Version + 1L
+  member this.Clear() : unit = this.RemoveMany(this.First.Key, Lookup.GE) |> ignore
 
   override this.Comparer with get() = comparer
 
@@ -106,7 +101,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
           entered <- enterWriteLockIf &this.Locker this.isSynchronized
           let mutable size' = 0L
           for okvp in outerMap do
-            size' <- size' + okvp.Value.Count
+            size' <- size' + int64 okvp.Value.Count
           //size <- size'
           size'
         finally
@@ -200,6 +195,9 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
 
     and set key value =
       let mutable entered = false
+      #if DEBUG
+      let mutable finished = false
+      #endif
       try
         try ()
         finally
@@ -212,7 +210,6 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
           let mutable prevBucket' = Unchecked.defaultof<_>
           if c = 0 && prevBucketIsSet(&prevBucket') then
             prevBucket'.[key] <- value
-            outerMap.Version <- outerMap.Version + 1L
             this.NotifyUpdate()
           else
             if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
@@ -223,14 +220,11 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
                 false, bucketKvp.Value
               else
                 let newSm = innerFactory(4, comparer)
+                newSm.version <- this.version
                 true, newSm
             bucket.[key] <- value
             if isNew then
               outerMap.[hash] <- bucket
-            else
-              outerMap.Version <- outerMap.Version + 1L
-            //let s2 = bucket.size
-            //size <- size + int64(s2 - s1)
             this.NotifyUpdate()
             prevHash <- hash
             prevBucket.SetTarget(bucket)
@@ -239,23 +233,22 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
           let mutable prevBucket' = Unchecked.defaultof<_>
           if prevBucketIsSet(&prevBucket') && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket'.Last.Key) <= 0 then
             prevBucket'.[key] <- value
-            outerMap.Version <- outerMap.Version + 1L
             this.NotifyUpdate()
           else
             let mutable kvp = Unchecked.defaultof<_>
             let ok = outerMap.TryFind(key, Lookup.LE, &kvp)
             if ok &&
               // the second condition here is for the case when we add inside existing bucket, overflow above chunkUpperLimit is inevitable without a separate split logic (TODO?)
-              (kvp.Value.Count < int64 chunkUpperLimit || comparer.Compare(key, kvp.Value.Last.Key) <= 0) then
+              (kvp.Value.Count < chunkUpperLimit || comparer.Compare(key, kvp.Value.Last.Key) <= 0) then
               kvp.Value.[key] <- value
               prevHash <- kvp.Key
               prevBucket.SetTarget kvp.Value
-              outerMap.Version <- outerMap.Version + 1L
               this.NotifyUpdate()
             else
               if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
               // create a new bucket at key
               let newSm = innerFactory(4, comparer)
+              newSm.Version <- this.version
               newSm.[key] <- value
               #if DEBUG
               let v = outerMap.Version
@@ -267,10 +260,14 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
               prevHash <- key
               prevBucket.SetTarget newSm
               this.NotifyUpdate()
+        #if DEBUG
+        finished <- true
+        #endif
       finally
         Interlocked.Increment(&this.version) |> ignore
         exitWriteLockIf &this.Locker entered
         #if DEBUG
+        if not finished then Environment.FailFast("SCM.Item set must always succeed")
         if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
         #else
         if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
@@ -301,6 +298,8 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
   member private this.FlushUnchecked() =
     let mutable temp = Unchecked.defaultof<_>
     if prevBucket.TryGetTarget(&temp) then
+      // ensure the version of current bucket is saved in outer
+      outerMap.[prevHash] <- temp
       prevBucket.SetTarget (null)
       temp <- null
     if isOuterPersistent then outerAsPersistent.Flush()
@@ -326,7 +325,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
     try
       entered <- enterWriteLockIf &this.Locker this.isSynchronized
       // if source is already read-only, MNA will always return false
-      if this.isReadOnly then new SortedChunkedMapGenericCursor<_,_,_>(this) :> ICursor<'K,'V>
+      if this.isReadOnly then new SortedChunkedMapGenericCursor<_,_>(this) :> ICursor<'K,'V>
       else
         raise (NotImplementedException())
 //        let c = new SortedChunkedMapGenericCursorAsync<_,_,_>(this)
@@ -340,7 +339,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       // NB: via property with locks
       this.IsSynchronized <- true
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-      new SortedChunkedMapGenericCursor<_,_,_>(this)
+      new SortedChunkedMapGenericCursor<_,_>(this)
     )
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
@@ -454,7 +453,6 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       let bucketIsSet = prevBucketIsSet(&prevBucket')
       if bucketIsSet && comparer.Compare(hash, prevHash) = 0 then
         prevBucket'.Add(key, value)
-        outerMap.Version <- outerMap.Version + 1L
         //size <- size + 1L
         this.NotifyUpdate()
       else
@@ -467,11 +465,10 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
             bucketKvp.Value
           else
             let newSm = innerFactory(0,comparer)
+            newSm.version <- this.version
             newSm.Add(key, value)
-            outerMap.Version <- outerMap.Version - 1L
             outerMap.[hash]<- newSm
             newSm
-        outerMap.Version <- outerMap.Version + 1L
         //size <- size + 1L
         this.NotifyUpdate()
         prevHash <- hash
@@ -481,24 +478,23 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       let mutable prevBucket' = Unchecked.defaultof<_>
       if prevBucketIsSet(&prevBucket') && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket'.Last.Key) <= 0 then
         prevBucket'.Add(key,value)
-        outerMap.Version <- outerMap.Version + 1L
         this.NotifyUpdate()
       else
         let mutable kvp = Unchecked.defaultof<_>
         let ok = outerMap.TryFind(key, Lookup.LE, &kvp)
         if ok &&
           // the second condition here is for the case when we add inside existing bucket, overflow above chunkUpperLimit is inevitable without a separate split logic (TODO?)
-          (kvp.Value.Count < int64 chunkUpperLimit || comparer.Compare(key, kvp.Value.Last.Key) <= 0) then
+          (kvp.Value.Count < chunkUpperLimit || comparer.Compare(key, kvp.Value.Last.Key) <= 0) then
           kvp.Value.Add(key, value)
           prevHash <- kvp.Key
           prevBucket.SetTarget kvp.Value
-          outerMap.Version <- outerMap.Version + 1L
           this.NotifyUpdate()
         else
           let mutable prevBucket' = Unchecked.defaultof<_>
           if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
           // create a new bucket at key
           let newSm = innerFactory(4, comparer)
+          newSm.version <- this.version
           newSm.[key] <- value
           #if DEBUG
           let v = outerMap.Version
@@ -602,16 +598,22 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
     let mutable prevBucket' = Unchecked.defaultof<_>
     if c = 0 && prevBucketIsSet(&prevBucket') then
       let res = prevBucket'.Remove(key)
-      if res then 
-        outerMap.Version <- outerMap.Version + 1L
-        //size <- size - 1L
-        if prevBucket'.Count = 0L then
-          outerMap.Remove(prevHash) |> ignore
+      if res then
+        Debug.Assert(prevBucket'.version = this.version + 1L, "Verion of the active bucket must much SCM version")
+        prevBucket'.version <- this.version + 1L
+        // NB no outer set here, it must happen on prev bucket switch
+        if prevBucket'.Count = 0 then
+          // but here we must notify outer that version has changed
+          // setting empty bucket will remove it in the outer map
+          // (implementation detail, but this is internal) 
+          outerMap.[prevHash] <- prevBucket'
           prevBucket.SetTarget null
       res
     else
       let mutable prevBucket' = Unchecked.defaultof<_>
-      if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
+      if prevBucketIsSet(&prevBucket') then 
+        // store potentially modified active bucket in the outer, including version
+        this.FlushUnchecked()
       let mutable innerMapKvp = Unchecked.defaultof<_>
       let ok = outerMap.TryFind(hash, Lookup.EQ, &innerMapKvp)
       if ok then
@@ -620,13 +622,10 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
         prevBucket.SetTarget bucket
         let res = bucket.Remove(key)
         if res then
-          outerMap.Version <- outerMap.Version + 1L
-          //size <- size - 1L
-          if prevBucket'.Count > 0L then
-            outerMap.Version <- outerMap.Version - 1L
-            outerMap.[prevHash] <- bucket
-          else
-            outerMap.Remove(prevHash) |> ignore
+          bucket.version <- this.version + 1L
+          // NB empty will be removed, see comment above
+          outerMap.[prevHash] <- bucket
+          if prevBucket'.Count = 0 then
             prevBucket.SetTarget null
         res
       else
@@ -642,6 +641,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
         entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       removed <- this.RemoveUnchecked(key)
+      if removed then increment &this.orderVersion
       removed
     finally
       this.NotifyUpdate()
@@ -664,7 +664,6 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       finally
         entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
-      
       result <- this.FirstUnsafe
       let ret' = this.Remove(result.Key)
       ret'
@@ -707,6 +706,8 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
 
   /// Removes all elements that are to `direction` from `key`
   member this.RemoveMany(key:'K,direction:Lookup):bool =
+    // TODO(low) for non-EQ this is not atomic now, could add a special method for removed in IMutableChunksSeries
+    // then in its impl it could be done in a transaction. However, this nethod is not used frequently
     let mutable removed = false
     let mutable entered = false
     try
@@ -718,7 +719,10 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
       let version = outerMap.Version
       let result = 
         if outerMap.Count = 0L then
-          // TODO(!) trace assert that they are no set
+          #if DEBUG
+          let mutable temp = Unchecked.defaultof<_>
+          Debug.Assert(not <| prevBucketIsSet(&temp), "there must be no active bucket for empty outer")
+          #endif
           prevBucket.SetTarget null
           false
         else
@@ -728,62 +732,36 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
               this.Remove(key)
             | Lookup.LT | Lookup.LE ->
               let hash = existingHash key
-              let hasPivot, pivot = this.TryFindUnchecked(key, direction)
-              if hasPivot then
-                let r1 = outerMap.RemoveMany(hash, Lookup.LT)  // strictly LT
-                if not outerMap.IsEmpty then
-                  let r2 = outerMap.First.Value.RemoveMany(key, direction) // same direction
-                  if r2 then
-                    if outerMap.First.Value.Count > 0L then
-                      outerMap.Version <- outerMap.Version - 1L
-                      outerMap.[outerMap.First.Key] <- outerMap.First.Value // Flush
-                    else
-                      outerMap.Version <- outerMap.Version - 1L
-                      outerMap.Remove(outerMap.First.Key) |> ignore
-                  r1 || r2
-                else r1
-              else 
-                let c = comparer.Compare(key, this.LastUnsafe.Key)
-                if c > 0 then // remove all keys
-                  outerMap.RemoveMany(outerMap.First.Key, Lookup.GE)
-                elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
-                else false
+              this.FlushUnchecked() // ensure current version is set in the outer map, then the next line will just increment it
+              let r1 = outerMap.RemoveMany(hash, Lookup.LT)  // strictly LT
+              if not outerMap.IsEmpty then
+                let r2 = outerMap.First.Value.RemoveMany(key, direction) // same direction
+                if r2 then
+                  outerMap.First.Value.version <- this.version + 1L
+                  // update version and save/remove bucket
+                  outerMap.[outerMap.First.Key] <- outerMap.First.Value
+                r1 || r2
+              else r1
             | Lookup.GT | Lookup.GE ->
               let hash = existingHash key
-              let subKey = key
-              let hasPivot, pivot = this.TryFindUnchecked(key, direction)
-              if hasPivot then
-                if comparer.Compare(key, hash) = 0 && direction = Lookup.GE then
-                  outerMap.RemoveMany(hash, Lookup.GE) // remove in one go
-                else
-                  let r1 = outerMap.RemoveMany(hash, Lookup.GT)  // strictly GT
-                  if not outerMap.IsEmpty then
-                    let lastChunk = outerMap.Last.Value
-                    let r2 = lastChunk.RemoveMany(subKey, direction) // same direction
-                    if lastChunk.IsEmpty then
-                      outerMap.Remove(outerMap.Last.Key) |> ignore
-                      outerMap.Version <- outerMap.Version - 1L
-                    else
-                      outerMap.Version <- outerMap.Version - 1L
-                      outerMap.[outerMap.Last.Key] <- lastChunk // Flush
-                    r1 || r2
-                  else r1
-              else
-                let c = comparer.Compare(key, this.FirstUnsafe.Key)
-                if c < 0 then // remove all keys
-                  outerMap.RemoveMany(outerMap.First.Key, Lookup.GE)
-                elif c = 0 then raise (ApplicationException("Impossible condition when hasPivot is false"))
-                else false
+              this.FlushUnchecked() // ensure current version is set in the outer map, then the next line will just increment it
+              let r1 = outerMap.RemoveMany(hash, Lookup.GT)  // strictly GT
+              if not outerMap.IsEmpty then
+                let r2 = outerMap.Last.Value.RemoveMany(key, direction) // same direction
+                if r2 then
+                  outerMap.Last.Value.version <- this.version + 1L
+                  // update version and save/remove bucket
+                  outerMap.[outerMap.Last.Key] <- outerMap.Last.Value
+                r1 || r2
+              else r1
+             
             | _ -> failwith "wrong direction"
           // TODO return condition
           //if removed then // we have Flushed, when needed for partial bucket change, above - just invalidate cache
           prevBucket.SetTarget null
           removed
-      if result then 
-        outerMap.Version <- version + 1L
-      else
-        outerMap.Version <- version
       removed <- result
+      if removed then increment &this.orderVersion
       result
     finally
       this.NotifyUpdate()
@@ -801,10 +779,10 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
   // TODO atomic append with single version increase, now it is a sequence of remove/add mutations
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.Append(appendMap:IReadOnlySeries<'K,'V>, option:AppendOption) : int =
-    let hasEqOverlap (old:SortedChunkedMapGeneric<_,_,_>) (append:IReadOnlySeries<'K,'V>) : bool =
+    let hasEqOverlap (old:SortedChunkedMapGeneric<_,_>) (append:IReadOnlySeries<'K,'V>) : bool =
       if comparer.Compare(append.First.Key, old.LastUnsafe.Key) > 0 then false
       else
-        let oldC = new SortedChunkedMapGenericCursor<_,_,_>(old, false) :> ICursor<'K,'V>
+        let oldC = new SortedChunkedMapGenericCursor<_,_>(old, false) :> ICursor<'K,'V>
         let appC = append.GetCursor();
         let mutable cont = true
         let mutable overlapOk = 
@@ -929,7 +907,7 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
 
   interface IMutableSeries<'K,'V> with
     member this.Complete() = this.Complete()
-    member this.Version with get() = this.Version and set v = this.Version <- v
+    member this.Version with get() = this.Version
     member this.Count with get() = this.Count
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
     member this.Add(k, v) = this.Add(k,v)
@@ -953,21 +931,21 @@ type SortedChunkedMapGeneric<'K,'V,'TContainer when 'TContainer :> IMutableSerie
   //#endregion
 
 and
-  public SortedChunkedMapGenericCursor<'K,'V,'TContainer when 'TContainer :> IMutableSeries<'K,'V>> =
+  public SortedChunkedMapGenericCursor<'K,'V> =
     struct
-      val mutable internal source : SortedChunkedMapGeneric<'K,'V,'TContainer>
-      val mutable internal outerCursor : ICursor<'K,'TContainer>
+      val mutable internal source : SortedChunkedMapGeneric<'K,'V>
+      val mutable internal outerCursor : ICursor<'K,SortedMap<'K,'V>>
       val mutable internal innerCursor : ICursor<'K,'V>
       val mutable internal isBatch : bool
       val mutable internal synced : bool
-      new(source:SortedChunkedMapGeneric<'K,'V,'TContainer>, synced) = 
+      internal new(source:SortedChunkedMapGeneric<'K,'V>, synced) = 
         { source = source; 
           outerCursor = source.OuterMap.GetCursor();
           innerCursor = Unchecked.defaultof<_>;
           isBatch = false;
           synced = synced;
         }
-      new(source:SortedChunkedMapGeneric<'K,'V,'TContainer>) = 
+      internal new(source:SortedChunkedMapGeneric<'K,'V>) = 
         { source = source; 
           outerCursor = source.OuterMap.GetCursor();
           innerCursor = Unchecked.defaultof<_>;
@@ -1269,7 +1247,7 @@ and
       let mutable entered = false
       try
         entered <- enterWriteLockIf &this.source.Locker this.source.isSynchronized
-        let clone = new SortedChunkedMapGenericCursor<_,_,_>(this.source)
+        let clone = new SortedChunkedMapGenericCursor<_,_>(this.source)
         clone.MoveAt(this.CurrentKey, Lookup.EQ) |> ignore
         clone
       finally
@@ -1318,12 +1296,12 @@ and
 type SortedChunkedMap<'K,'V>
   internal 
   (
-    outerFactory:IComparer<'K>->IMutableSeries<'K, SortedMap<'K,'V>>,
+    outerFactory:IComparer<'K>->IMutableChunksSeries<'K,'V, SortedMap<'K,'V>>,
     innerFactory:int * IComparer<'K>->SortedMap<'K,'V>, 
     comparer:IComparer<'K>,
     hasher:IKeyHasher<'K> option, 
     chunkMaxSize:int option) =
-  inherit SortedChunkedMapGeneric<'K,'V,SortedMap<'K,'V>>(outerFactory, innerFactory, comparer, hasher, chunkMaxSize)
+  inherit SortedChunkedMapGeneric<'K,'V>(outerFactory, innerFactory, comparer, hasher, chunkMaxSize)
 
 
   override this.GetCursor() =
@@ -1353,30 +1331,31 @@ type SortedChunkedMap<'K,'V>
   
   new() = 
     let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
-    let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c, IsSynchronized = false) :> IMutableSeries<'K, SortedMap<'K,'V>>)
+    let factory = (fun (c:IComparer<'K>) -> new ChunksContainer<'K,'V>(c, IsSynchronized = false) :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>)
     new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, None)
   
   // x1
 
   /// In-memory sorted chunked map
   new(comparer:IComparer<'K>) = 
-    let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c, IsSynchronized = false) :> IMutableSeries<'K, SortedMap<'K,'V>>)
+    let factory = (fun (c:IComparer<'K>) -> new ChunksContainer<'K,'V>(c, IsSynchronized = false) :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>)
     new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)),comparer, None, None)
   
   /// In-memory sorted chunked map
   new(hasher:Func<'K,'K>) = 
-    let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c, IsSynchronized = false) :> IMutableSeries<'K, SortedMap<'K,'V>>)
+    let factory = (fun (c:IComparer<'K>) -> new ChunksContainer<'K,'V>(c, IsSynchronized = false) :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>)
     let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
     let hasher = { new IKeyHasher<'K> with
           member x.Hash(k) = hasher.Invoke k
         }
     new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, Some(hasher), None)
+  
   new(chunkMaxSize:int) = 
-    let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c, IsSynchronized = false) :> IMutableSeries<'K, SortedMap<'K,'V>>)
+    let factory = (fun (c:IComparer<'K>) -> new ChunksContainer<'K,'V>(c, IsSynchronized = false) :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>)
     let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
     new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, Some(chunkMaxSize))
 
-  internal new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K, SortedMap<'K,'V>>>) = 
+  internal new(outerFactory:Func<IComparer<'K>,IMutableChunksSeries<'K,'V, SortedMap<'K,'V>>>) = 
     let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
     new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, None)
   
@@ -1384,39 +1363,39 @@ type SortedChunkedMap<'K,'V>
 
   /// In-memory sorted chunked map
   new(comparer:IComparer<'K>,hasher:Func<'K,'K>) = 
-    let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c, IsSynchronized = false) :> IMutableSeries<'K, SortedMap<'K,'V>>)
+    let factory = (fun (c:IComparer<'K>) -> new ChunksContainer<'K,'V>(c, IsSynchronized = false) :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>)
     let hasher = { new IKeyHasher<'K> with
           member x.Hash(k) = hasher.Invoke k
         }
     new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, Some(hasher), None)
 
   new(comparer:IComparer<'K>,chunkMaxSize:int) = 
-    let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K, SortedMap<'K,'V>>(c, IsSynchronized = false) :> IMutableSeries<'K, SortedMap<'K,'V>>)
+    let factory = (fun (c:IComparer<'K>) -> new ChunksContainer<'K,'V>(c, IsSynchronized = false) :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>)
     new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, Some(chunkMaxSize))
 
-  new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K, SortedMap<'K,'V>>>,comparer:IComparer<'K>) = 
+  internal new(outerFactory:Func<IComparer<'K>,IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>>,comparer:IComparer<'K>) = 
     new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, None)
 
-  new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K, SortedMap<'K,'V>>>,hasher:Func<'K,'K>) = 
+  internal new(outerFactory:Func<IComparer<'K>,IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>>,hasher:Func<'K,'K>) = 
     let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
     let hasher = { new IKeyHasher<'K> with
           member x.Hash(k) = hasher.Invoke k
         }
     new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, Some(hasher), None)
   
-  new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K, SortedMap<'K,'V>>>,chunkMaxSize:int) = 
+  internal new(outerFactory:Func<IComparer<'K>,IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>>,chunkMaxSize:int) = 
     let comparer:IComparer<'K> = KeyComparer.GetDefault<'K>()
     new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, Some(chunkMaxSize))
 
   // x3
 
-  new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K, SortedMap<'K,'V>>>,comparer:IComparer<'K>,hasher:Func<'K,'K>) =
+  internal new(outerFactory:Func<IComparer<'K>,IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>>,comparer:IComparer<'K>,hasher:Func<'K,'K>) =
     let hasher = { new IKeyHasher<'K> with
           member x.Hash(k) = hasher.Invoke k
         }
     new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, Some(hasher), None)
   
-  new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K, SortedMap<'K,'V>>>,comparer:IComparer<'K>,chunkMaxSize:int) = 
+  new(outerFactory:Func<IComparer<'K>,IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>>,comparer:IComparer<'K>,chunkMaxSize:int) = 
     new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, Some(chunkMaxSize))
 
 

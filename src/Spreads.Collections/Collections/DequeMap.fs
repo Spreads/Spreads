@@ -75,7 +75,7 @@ type SortedDequeMap<'K,'V>
 
   member this.SyncRoot with get() = this.SyncRoot
 
-  member this.Version with get() = this.version and set v = this.version <- v
+  member this.Version with get() = this.version and internal set v = this.version <- v
 
 
   //#endregion
@@ -623,7 +623,7 @@ type SortedDequeMap<'K,'V>
     
 
   interface IMutableSeries<'K,'V> with
-    member this.Version with get() = int64(this.Version) and set v = this.version <- int v
+    member this.Version with get() = int64(this.Version)
     member this.Complete() = this.Complete()
     member this.Count with get() = int64(this.Count)
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v

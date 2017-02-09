@@ -296,7 +296,7 @@ namespace Spreads {
         /// <summary>
         /// Incremented after any change to data, including setting of the same value to the same key
         /// </summary>
-        long Version { get; set; }
+        long Version { get; }
 
         new TValue this[TKey key] { get; set; }
 
@@ -367,5 +367,10 @@ namespace Spreads {
     internal interface IUpdateable {
 
         event OnUpdateHandler OnUpdate;
+    }
+
+
+    internal interface IMutableChunksSeries<TKey, TValue, TContainer> : IMutableSeries<TKey, TContainer>
+        where TContainer : IMutableSeries<TKey, TValue> {
     }
 }

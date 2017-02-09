@@ -79,8 +79,11 @@ namespace Spreads {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Task<T> FromResult<T>(T result) {
-
+#if NET451
             return TaskExCache<T>.GetCompleted(result);
+#else
+            return Task.FromResult<T>(result);
+#endif
         }
     }
 }

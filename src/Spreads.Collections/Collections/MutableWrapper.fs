@@ -74,7 +74,7 @@ type internal MutableWrapper<'K,'V  when 'K : comparison>
 
 
   interface IMutableSeries<'K,'V> with
-    member this.Version with get() = raise (NotImplementedException("TODO (low) if this type is ever used")) and set(v) = raise (NotImplementedException("TODO (low) if this type is ever used"))
+    member this.Version with get() = raise (NotImplementedException("TODO (low) if this type is ever used"))
     member this.Count with get() = map.Size
     member this.Item
       with get (k:'K) : 'V = map.Item(k)

@@ -62,7 +62,7 @@ type MutableSeries<'K,'V> internal() as this =
 
   interface IMutableSeries<'K,'V> with
     member this.Complete() = this.Complete()
-    member this.Version with get() = this.Version and set v = this.Version <- v
+    member this.Version with get() = this.Version
     member this.Count with get() = this.Count
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.Item(k,v)
     member this.Add(k, v) = this.Add(k,v)

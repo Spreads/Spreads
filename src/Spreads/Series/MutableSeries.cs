@@ -15,11 +15,7 @@ namespace Spreads.Series {
 
         public long Count => _innerSeries.Count;
 
-        public long Version
-        {
-            get { return _innerSeries.Version; }
-            set { _innerSeries.Version = value; }
-        }
+        public long Version => _innerSeries.Version;
 
         public override bool IsReadOnly => _innerSeries.IsReadOnly;
 

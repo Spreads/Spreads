@@ -1366,7 +1366,7 @@ type SortedMap<'K,'V>
     
   interface IMutableSeries<'K,'V> with
     member this.Complete() = this.Complete()
-    member this.Version with get() = this.Version and set v = this.Version <- v
+    member this.Version with get() = this.Version
     member this.Count with get() = int64(this.size)
     member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
     member this.Add(k, v) = this.Add(k,v)
@@ -1899,3 +1899,57 @@ and
       member this.IsContinuous with get() = false
       member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)
 
+
+type internal ChunksContainer<'K,'V>
+  (comparer : IComparer<'K>) as t =
+  inherit SortedMap<'K,SortedMap<'K,'V>>(comparer)
+  let a = 'b'
+  interface IReadOnlySeries<'K,SortedMap<'K,'V>> with
+    member x.Comparer = t.Comparer
+    member x.First = t.First
+    member x.GetAt(idx) = t.GetAt(idx)
+    member x.GetCursor() = t.GetCursor()
+    member x.GetEnumerator(): IAsyncEnumerator<KeyValuePair<'K,SortedMap<'K, 'V>>> = 
+      t.GetEnumerator() :> IAsyncEnumerator<KeyValuePair<'K,SortedMap<'K, 'V>>>
+    member x.GetEnumerator(): IEnumerator = 
+      t.GetEnumerator() :> IEnumerator
+    member x.GetEnumerator(): IEnumerator<KeyValuePair<'K,SortedMap<'K, 'V>>> = 
+      t.GetEnumerator() :> IEnumerator<KeyValuePair<'K,SortedMap<'K, 'V>>>
+    member x.IsEmpty = t.IsEmpty
+    member x.IsIndexed = false
+    member x.IsReadOnly = t.IsReadOnly
+    member x.Item
+      with get (key) = t.Item(key)
+    member x.Keys = t.Keys
+    member x.Last = t.Last 
+    member x.Subscribe(observer) = t.Subscribe(observer)
+    member x.SyncRoot = t.SyncRoot
+    member x.TryFind(key, direction, value) = t.TryFind(key, direction, &value)
+    member x.TryGetFirst(value) = t.TryGetFirst(&value)
+    member x.TryGetLast(value) = t.TryGetLast(&value)
+    member x.TryGetValue(key, value) = t.TryGetValue(key, &value)
+    member x.Values = t.Values 
+    
+    
+  interface IMutableChunksSeries<'K,'V,SortedMap<'K,'V>> with
+    member x.Add(key, value) = t.Add(key, value)
+    member x.AddFirst(key, value) = t.AddFirst(key, value)
+    member x.AddLast(key, value) = t.AddLast(key, value)
+    member x.Append(appendMap, option) = (t :> IMutableSeries<_,_>).Append(appendMap, option)
+    member x.Complete() = t.Complete()
+    member x.Count = int64 t.Count
+    
+    member x.Item
+      with set (key) v =
+        // NB lock is not needed since this is used only inside SCM within its locks
+        // NB this is used to set version provided by SCM as a part of inner SM
+        // SCM could set empty inner SM just to provide the version info
+        if v.size > 0 then t.[key] <- v
+        else t.Remove(key) |> ignore
+        t.version <- v.version
+    member x.Remove(key) = raise (new NotSupportedException("use item setter with empty SM to set version"))
+    member x.RemoveFirst(kvp) = t.RemoveFirst(&kvp)
+    member x.RemoveLast(kvp) = t.RemoveLast(&kvp)
+    member x.RemoveMany(key, direction) = t.RemoveMany(key, direction)
+    member x.Version = t.Version
+   
