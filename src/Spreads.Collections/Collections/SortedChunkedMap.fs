@@ -299,6 +299,8 @@ type SortedChunkedMapGeneric<'K,'V>
     let mutable temp = Unchecked.defaultof<_>
     if prevBucket.TryGetTarget(&temp) then
       // ensure the version of current bucket is saved in outer
+      Debug.Assert(temp.version = this.version, "TODO review/test, this must be true? RemoveMany doesn't use prev bucket, review logic there")
+      temp.version <- this.version
       outerMap.[prevHash] <- temp
       prevBucket.SetTarget (null)
       temp <- null
@@ -540,7 +542,7 @@ type SortedChunkedMapGeneric<'K,'V>
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       
       let c =
-        if outerMap.Count = 0L then 1
+        if outerMap.IsEmpty then 1
         else comparer.Compare(key, this.LastUnsafe.Key)
       if c > 0 then
         this.AddUnchecked(key, value)
@@ -718,7 +720,7 @@ type SortedChunkedMapGeneric<'K,'V>
       
       let version = outerMap.Version
       let result = 
-        if outerMap.Count = 0L then
+        if outerMap.IsEmpty then
           #if DEBUG
           let mutable temp = Unchecked.defaultof<_>
           Debug.Assert(not <| prevBucketIsSet(&temp), "there must be no active bucket for empty outer")
@@ -731,34 +733,28 @@ type SortedChunkedMapGeneric<'K,'V>
             | Lookup.EQ -> 
               this.Remove(key)
             | Lookup.LT | Lookup.LE ->
-              let hash = existingHash key
-              this.FlushUnchecked() // ensure current version is set in the outer map, then the next line will just increment it
-              let r1 = outerMap.RemoveMany(hash, Lookup.LT)  // strictly LT
-              if not outerMap.IsEmpty then
-                let r2 = outerMap.First.Value.RemoveMany(key, direction) // same direction
-                if r2 then
-                  outerMap.First.Value.version <- this.version + 1L
-                  // update version and save/remove bucket
-                  outerMap.[outerMap.First.Key] <- outerMap.First.Value
-                r1 || r2
-              else r1
+              this.FlushUnchecked() // ensure current version is set in the outer map from the active chunk
+              prevBucket.SetTarget null
+              let mutable tmp = Unchecked.defaultof<_>
+              if outerMap.TryFind(key, Lookup.LE, &tmp) then
+                let r = tmp.Value.RemoveMany(key, direction)
+                tmp.Value.version <- this.version + 1L
+                outerMap.RemoveMany(key, tmp.Value, direction) || r // NB order matters
+              else false // no key below the requested key, notjing to delete
             | Lookup.GT | Lookup.GE ->
-              let hash = existingHash key
-              this.FlushUnchecked() // ensure current version is set in the outer map, then the next line will just increment it
-              let r1 = outerMap.RemoveMany(hash, Lookup.GT)  // strictly GT
-              if not outerMap.IsEmpty then
-                let r2 = outerMap.Last.Value.RemoveMany(key, direction) // same direction
-                if r2 then
-                  outerMap.Last.Value.version <- this.version + 1L
-                  // update version and save/remove bucket
-                  outerMap.[outerMap.Last.Key] <- outerMap.Last.Value
+              this.FlushUnchecked() // ensure current version is set in the outer map from the active chunk
+              prevBucket.SetTarget null
+              let mutable tmp = Unchecked.defaultof<_>
+              if outerMap.TryFind(key, Lookup.LE, &tmp) then // NB for deterministic hash LE still works
+                let r1 = tmp.Value.RemoveMany(key, direction)
+                let r2 = outerMap.RemoveMany(key, tmp.Value, direction)
                 r1 || r2
-              else r1
-             
-            | _ -> failwith "wrong direction"
-          // TODO return condition
-          //if removed then // we have Flushed, when needed for partial bucket change, above - just invalidate cache
-          prevBucket.SetTarget null
+              else
+                let r1 = outerMap.First.Value.RemoveMany(key, direction) // this will remove all items in the chunk
+                outerMap.First.Value.version <- this.version + 1L
+                let r2 = outerMap.RemoveMany(key, outerMap.First.Value, direction)
+                r1 || r2
+            | _ -> failwith "wrong direction"          
           removed
       removed <- result
       if removed then increment &this.orderVersion

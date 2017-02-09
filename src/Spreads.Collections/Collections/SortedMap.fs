@@ -1932,24 +1932,23 @@ type internal ChunksContainer<'K,'V>
     
     
   interface IMutableChunksSeries<'K,'V,SortedMap<'K,'V>> with
-    member x.Add(key, value) = t.Add(key, value)
-    member x.AddFirst(key, value) = t.AddFirst(key, value)
-    member x.AddLast(key, value) = t.AddLast(key, value)
-    member x.Append(appendMap, option) = (t :> IMutableSeries<_,_>).Append(appendMap, option)
-    member x.Complete() = t.Complete()
-    member x.Count = int64 t.Count
-    
     member x.Item
-      with set (key) v =
-        // NB lock is not needed since this is used only inside SCM within its locks
-        // NB this is used to set version provided by SCM as a part of inner SM
-        // SCM could set empty inner SM just to provide the version info
+      with get (key) = t.Item(key) 
+      and set (key) v =
         if v.size > 0 then t.[key] <- v
         else t.Remove(key) |> ignore
         t.version <- v.version
-    member x.Remove(key) = raise (new NotSupportedException("use item setter with empty SM to set version"))
-    member x.RemoveFirst(kvp) = t.RemoveFirst(&kvp)
-    member x.RemoveLast(kvp) = t.RemoveLast(&kvp)
-    member x.RemoveMany(key, direction) = t.RemoveMany(key, direction)
+    member x.RemoveMany(key, keyChunk, direction) =
+      match direction with
+      | Lookup.EQ -> x.[key] = keyChunk
+      | Lookup.LT | Lookup.LE -> 
+        let res = t.RemoveMany(key, Lookup.LT)
+        x.[key] <- keyChunk
+        res
+      | Lookup.GT | Lookup.GE -> 
+        let res = t.RemoveMany(key, Lookup.GT)
+        x.[key] <- keyChunk
+        res
+      | _ -> failwith "mute F# warning"
     member x.Version = t.Version
    

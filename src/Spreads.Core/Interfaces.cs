@@ -370,7 +370,13 @@ namespace Spreads {
     }
 
 
-    internal interface IMutableChunksSeries<TKey, TValue, TContainer> : IMutableSeries<TKey, TContainer>
+    internal interface IMutableChunksSeries<TKey, TValue, TContainer> : IReadOnlySeries<TKey, TContainer>
         where TContainer : IMutableSeries<TKey, TValue> {
+        /// <summary>
+        /// Keep the key chunk if it is not empty, remove all other chunks to the direction side, update version from the key chunk
+        /// </summary>
+        bool RemoveMany(TKey key, TContainer keyChunk, Lookup direction);
+        new TContainer this[TKey key] { get; set; }
+        long Version { get; }
     }
 }
