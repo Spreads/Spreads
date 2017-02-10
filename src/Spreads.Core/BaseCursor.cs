@@ -37,19 +37,24 @@ namespace Spreads {
 
         public static BaseCursorAsync<TK, TV, TCursor> Create(BaseSeries<TK, TV> source, Func<TCursor> cursorFactory) {
             BaseCursorAsync<TK, TV, TCursor> inst;
-            if (!Pool.TryTake(out inst)) {
-                inst = new BaseCursorAsync<TK, TV, TCursor>(source, cursorFactory);
-            }
-            inst._source = source;
-            inst._innerCursor = cursorFactory();
-            return inst;
+            return new BaseCursorAsync<TK, TV, TCursor>(source, cursorFactory);
+
+            // TODO #84
+
+            //if (!Pool.TryTake(out inst)) {
+            //    inst = new BaseCursorAsync<TK, TV, TCursor>(source, cursorFactory);
+            //}
+            //inst._source = source;
+            //inst._innerCursor = cursorFactory();
+            //inst._disposed = false;
+            //return inst;
         }
 
         private void Dispose(bool disposing) {
             if (!disposing) return;
             _source = null;
 
-            _innerCursor.Dispose();
+            _innerCursor?.Dispose();
             _innerCursor = default(TCursor);
 
             _unusedTcs = null;
@@ -59,7 +64,8 @@ namespace Spreads {
 
             _token = default(CancellationToken);
 
-            Pool.TryAdd(this);
+            // TODO #84
+            //Pool.TryAdd(this);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -142,7 +148,7 @@ namespace Spreads {
         }
 
         public void Reset() {
-            _innerCursor.Reset();
+            _innerCursor?.Reset();
         }
 
         public KeyValuePair<TK, TV> Current {

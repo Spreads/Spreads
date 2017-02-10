@@ -410,19 +410,24 @@ namespace Spreads.Collections.Tests.Cursors {
         public void ZipLagIssue11Test() {
             OptimizationSettings.CombineFilterMapDelegates = true;
 
-            var data = new SortedMap<DateTime, double>();
+            var data = new SortedMap<int, double>();
 
             var count = 5000;
 
             for (int i = 0; i < count; i++) {
-                data.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                data.Add(i, i);
             }
 
-            var sma = data.SMA(20, true).Lag(1u);
+            var sma = data.SMA(20, true).ZipLag(1u, (c, p) => p).Lag(1u);
             Console.WriteLine($"laggedSma count: {sma.Count()}");
 
-            var deviation = sma;
-
+            var deviation = sma.StDev(10);
+            var e = (deviation as IEnumerable<KeyValuePair<int, double>>).GetEnumerator();
+            var cnt = 0;
+            while (e.MoveNext()) {
+                cnt++;
+            }
+            Console.WriteLine(cnt);
             // this line or any other intermediate enumeration affect the last line
             Console.WriteLine($"deviation count: {deviation.Count()}");
 

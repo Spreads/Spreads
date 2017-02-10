@@ -48,7 +48,7 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         public void CouldMoveAsyncOnEmptySM() {
-            var sm = new SortedMap<DateTime, double>();
+            var sm = new SortedChunkedMap<DateTime, double>();
             var c = sm.GetCursor();
             var moveTask = c.MoveNext(CancellationToken.None);
             sm.Add(DateTime.UtcNow.Date.AddSeconds(0), 0);
@@ -587,7 +587,7 @@ namespace Spreads.Collections.Tests.Cursors {
             var sw = new Stopwatch();
             sw.Start();
 
-            var sm = new SortedMap<DateTime, double>();
+            var sm = new SortedChunkedMap<DateTime, double>();
             sm.IsSynchronized = true;
 
             var addTask = Task.Run(async () => {

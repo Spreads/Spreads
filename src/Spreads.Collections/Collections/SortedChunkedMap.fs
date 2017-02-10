@@ -1457,7 +1457,7 @@ and
       val mutable internal innerCursor : SortedMapCursor<'K,'V>
       val mutable internal isBatch : bool
       new(source:SortedChunkedMap<'K,'V>) = 
-        { source = source; 
+        { source = if source <> Unchecked.defaultof<_> then source else failwith "source is null"; 
           outerCursor = source.OuterMap.GetCursor();
           innerCursor = Unchecked.defaultof<_>;
           isBatch = false;

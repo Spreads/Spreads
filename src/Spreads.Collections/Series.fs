@@ -610,19 +610,21 @@ and
     override this.Keys 
       with get() =
         // TODO manual impl, seq is slow
-        use c = this.GetCursor()
+        let c = this.GetCursor()
         seq {
           while c.MoveNext() do
             yield c.CurrentKey
+          c.Dispose()
         }
 
     override this.Values
       with get() =
         // TODO manual impl, seq is slow
-        use c = this.GetCursor()
+        let c = this.GetCursor()
         seq {
           while c.MoveNext() do
             yield c.CurrentValue
+          c.Dispose()
         }
 
     interface ICanMapSeriesValues<'K,'V> with
@@ -800,6 +802,7 @@ and
       cursor.Reset()
 
     member this.Clone() = 
+      // TODO #84
       new BatchMapValuesCursor<'K,'V,'V2>(Func<_>(cursor.Clone), f, fBatch)
 
     interface IEnumerator<KVP<'K,'V2>> with    

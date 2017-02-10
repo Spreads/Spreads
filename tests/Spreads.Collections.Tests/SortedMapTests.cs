@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Spreads.Serialization;
 
 namespace Spreads.Collections.Tests {
 
@@ -125,17 +126,17 @@ namespace Spreads.Collections.Tests {
 
         }
 
-        [Test]
-        public void CouldSerializeSMWithSingleElement() {
-            var sm = new SortedMap<long, long>();
-            sm.Add(1, 1);
-            Assert.Fail("TODO");
-            //var sm2 = Serialization.Serializer.Deserialize<SortedMap<long, long>>(Serialization.Serializer.Serialize(sm));
-            //Assert.AreEqual(1, sm2.Count);
-            //Assert.AreEqual(1, sm2.First.Value);
-            //Assert.AreEqual(1, sm2.First.Key);
+        //[Test]
+        //public void CouldSerializeSMWithSingleElement() {
+        //    var sm = new SortedMap<long, long>();
+        //    sm.Add(1, 1);
+        //    //Assert.Fail("TODO");
+        //    //var sm2 = BinarySerializer.Deserialize<SortedMap<long, long>>(Serialization.Serializer.Serialize(sm));
+        //    //Assert.AreEqual(1, sm2.Count);
+        //    //Assert.AreEqual(1, sm2.First.Value);
+        //    //Assert.AreEqual(1, sm2.First.Key);
 
-        }
+        //}
 
 
         [Test]

@@ -29,12 +29,11 @@ type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
 
   override this.TryGetValue(key:'K, isMove:bool, [<Out>] value: byref<'V>): bool =
     if isMove then
-      if laggedCursor = Unchecked.defaultof<_> then 
-        laggedCursor <- this.InputCursor.Clone()
-      else
-        let moved = laggedCursor.MoveAt(key, Lookup.EQ)
-        if not moved then raise (ApplicationException("This should not happen by design"))
-      #if PRERELEASE
+      if laggedCursor = Unchecked.defaultof<_> then laggedCursor <- this.InputCursor.Clone()
+      
+      let moved = laggedCursor.MoveAt(key, Lookup.EQ)
+      if not moved then raise (ApplicationException("This should not happen by design"))
+      #if DEBUG
       Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,key) = 0 )
       Trace.Assert(laggedCursor.Comparer.Compare(this.InputCursor.CurrentKey,key) = 0 )
       #endif
@@ -43,7 +42,7 @@ type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
       while currentLag < lag && cont do
         let moved = laggedCursor.MovePrevious()
         if moved then
-#if PRERELEASE
+#if DEBUG
           Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
 #endif
           currentLag <- currentLag + 1u
@@ -63,7 +62,7 @@ type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
       while currentLag' < lag && cont do
         let moved = lookupCursor.MovePrevious()
         if moved then
-#if PRERELEASE
+#if DEBUG
           Trace.Assert(lookupCursor.Comparer.Compare(lookupCursor.CurrentKey,key) <= 0 )
 #endif
           currentLag' <- currentLag' + 1u
@@ -77,14 +76,14 @@ type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'V>) : bool =
     if this.HasValidState then
       if laggedCursor.MoveNext() then
-  #if PRERELEASE
+  #if DEBUG
         Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
   #endif
         value <- laggedCursor.CurrentValue
         true
       else false
     else
-  #if PRERELEASE
+  #if DEBUG
       Trace.Assert(currentLag < lag, "This should not happen by design")
   #endif
       // input cursor moved before calling this method, we keep lagged cursor where it was and increment the current lag value
@@ -108,7 +107,7 @@ type LagCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32) =
 
   override this.Dispose() = 
     if laggedCursor <> Unchecked.defaultof<_> then laggedCursor.Dispose()
-    if lookupCursor <> Unchecked.defaultof<_> then laggedCursor.Dispose()
+    if lookupCursor <> Unchecked.defaultof<_> then lookupCursor.Dispose()
     base.Dispose()
 
 
@@ -128,10 +127,9 @@ type ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapC
     if isMove then
       if laggedCursor = Unchecked.defaultof<_> then 
         laggedCursor <- this.InputCursor.Clone()
-      else 
-        let moved = laggedCursor.MoveAt(key, Lookup.EQ)
-        if not moved then raise (ApplicationException("This should not happen by design"))
-      #if PRERELEASE
+      let moved = laggedCursor.MoveAt(key, Lookup.EQ)
+      if not moved then raise (ApplicationException("This should not happen by design"))
+      #if DEBUG
       Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,key) = 0 )
       Trace.Assert(laggedCursor.Comparer.Compare(this.InputCursor.CurrentKey,key) = 0 )
       #endif
@@ -140,9 +138,9 @@ type ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapC
       while currentLag < lag && cont do
         let moved = laggedCursor.MovePrevious()
         if moved then
-#if PRERELEASE
+          #if DEBUG
           Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
-#endif
+          #endif
           currentLag <- currentLag + 1u
         else
           let moved' = laggedCursor.MoveFirst()
@@ -160,7 +158,7 @@ type ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapC
       while currentLag' < lag && cont do
         let moved = lookupCursor.MovePrevious()
         if moved then
-#if PRERELEASE
+#if DEBUG
           Trace.Assert(lookupCursor.Comparer.Compare(lookupCursor.CurrentKey,key) <= 0 )
 #endif
           currentLag' <- currentLag' + 1u
@@ -177,14 +175,14 @@ type ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapC
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
     if this.HasValidState then
       if laggedCursor.MoveNext() then
-  #if PRERELEASE
+  #if DEBUG
         Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
   #endif
         value <- mapCurrentPrev.Invoke(this.InputCursor.CurrentValue, laggedCursor.CurrentValue)
         true
       else false
     else
-  #if PRERELEASE
+  #if DEBUG
       Trace.Assert(currentLag < lag, "This should not happen by design")
   #endif
       // input cursor moved before calling this method, we keep lagged cursor where it was and increment the current lag value
@@ -208,7 +206,7 @@ type ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapC
 
   override this.Dispose() = 
     if laggedCursor <> Unchecked.defaultof<_> then laggedCursor.Dispose()
-    if lookupCursor <> Unchecked.defaultof<_> then laggedCursor.Dispose()
+    if lookupCursor <> Unchecked.defaultof<_> then lookupCursor.Dispose()
     base.Dispose()
 
   // almost 10% gain on a trivial call: CompareHirizontalCursorWithCursorBind in Benchmarks
@@ -233,12 +231,10 @@ type ZipLagAllowIncompleteCursor<'K,'V,'R>
 
   override this.TryGetValue(key:'K, isMove:bool, [<Out>] value: byref<'R>): bool =
     if isMove then
-      if laggedCursor = Unchecked.defaultof<_> then 
-        laggedCursor <- this.InputCursor.Clone()
-      else
-        let moved = laggedCursor.MoveAt(key, Lookup.EQ)
-        if not moved then raise (ApplicationException("This should not happen by design"))
-      #if PRERELEASE
+      if laggedCursor = Unchecked.defaultof<_> then laggedCursor <- this.InputCursor.Clone()
+      let moved = laggedCursor.MoveAt(key, Lookup.EQ)
+      if not moved then raise (ApplicationException("This should not happen by design"))
+      #if DEBUG
       Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,key) = 0 )
       Trace.Assert(laggedCursor.Comparer.Compare(this.InputCursor.CurrentKey,key) = 0 )
       #endif
@@ -247,7 +243,7 @@ type ZipLagAllowIncompleteCursor<'K,'V,'R>
       while currentLag < zeroBasedLag && cont do
         let moved = laggedCursor.MovePrevious()
         if moved then
-#if PRERELEASE
+#if DEBUG
           Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
 #endif
           currentLag <- currentLag + 1u
@@ -267,7 +263,7 @@ type ZipLagAllowIncompleteCursor<'K,'V,'R>
       while currentLag' < zeroBasedLag && cont do
         let moved = lookupCursor.MovePrevious()
         if moved then
-#if PRERELEASE
+#if DEBUG
           Trace.Assert(lookupCursor.Comparer.Compare(lookupCursor.CurrentKey,key) <= 0 )
 #endif
           currentLag' <- currentLag' + 1u
@@ -283,12 +279,12 @@ type ZipLagAllowIncompleteCursor<'K,'V,'R>
 
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
     if this.HasValidState then
-  #if PRERELEASE
+  #if DEBUG
       Trace.Assert((currentLag <= zeroBasedLag), "This should not happen by design")
   #endif
       if currentLag = zeroBasedLag then
         let moved = laggedCursor.MoveNext()
-  #if PRERELEASE
+  #if DEBUG
         Trace.Assert((moved), "This should not happen by design")
   #endif
         currentSteps <- currentSteps + 1u
@@ -310,7 +306,7 @@ type ZipLagAllowIncompleteCursor<'K,'V,'R>
           false
       else false
     else
-  #if PRERELEASE
+  #if DEBUG
       Trace.Assert(not allowIncomplete, "This should not happen by design")
       Trace.Assert(currentLag <= zeroBasedLag, "This should not happen by design")
   #else
@@ -354,7 +350,7 @@ type ZipLagAllowIncompleteCursor<'K,'V,'R>
 
   override this.Dispose() = 
     if laggedCursor <> Unchecked.defaultof<_> then laggedCursor.Dispose()
-    if lookupCursor <> Unchecked.defaultof<_> then laggedCursor.Dispose()
+    if lookupCursor <> Unchecked.defaultof<_> then lookupCursor.Dispose()
     base.Dispose()
 
   interface ICanMapSeriesValues<'K,'R> with
@@ -380,12 +376,10 @@ type ScanLagAllowIncompleteCursor<'K,'V,'R>
 
   override this.TryGetValue(key:'K, isMove:bool, [<Out>] value: byref<'R>): bool =
     if isMove then
-      if laggedCursor = Unchecked.defaultof<_> then 
-        laggedCursor <- this.InputCursor.Clone()
-      else
-        let moved = laggedCursor.MoveAt(key, Lookup.EQ)
-        if not moved then raise (ApplicationException("This should not happen by design"))
-      #if PRERELEASE
+      if laggedCursor = Unchecked.defaultof<_> then laggedCursor <- this.InputCursor.Clone()
+      let moved = laggedCursor.MoveAt(key, Lookup.EQ)
+      if not moved then raise (ApplicationException("This should not happen by design"))
+      #if DEBUG
       Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,key) = 0 )
       Trace.Assert(laggedCursor.Comparer.Compare(this.InputCursor.CurrentKey,key) = 0 )
       #endif
@@ -400,7 +394,7 @@ type ScanLagAllowIncompleteCursor<'K,'V,'R>
       while currentWidth < width && cont do
         let moved = laggedCursor.MovePrevious()
         if moved then
-#if PRERELEASE
+#if DEBUG
           Trace.Assert(laggedCursor.Comparer.Compare(laggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
 #endif
           currentWidth <- currentWidth + 1u
@@ -433,7 +427,7 @@ type ScanLagAllowIncompleteCursor<'K,'V,'R>
       while currentWidth' < width && cont do
         let moved = lookupCursor.MovePrevious()
         if moved then
-#if PRERELEASE
+#if DEBUG
           Trace.Assert(lookupCursor.Comparer.Compare(lookupCursor.CurrentKey,key) <= 0 )
 #endif
           currentWidth' <- currentWidth' + 1u //!!!
@@ -450,14 +444,14 @@ type ScanLagAllowIncompleteCursor<'K,'V,'R>
 
   override this.TryUpdateNext(next:KVP<'K,'V>, [<Out>] value: byref<'R>) : bool =
     if this.HasValidState then
-  #if PRERELEASE
+  #if DEBUG
       Trace.Assert((currentWidth <= width), "This should not happen by design")
   #endif
       if currentWidth = width then
         // this value will be dropped from a window
         let out = laggedCursor.Current
         let moved = laggedCursor.MoveNext()
-  #if PRERELEASE
+  #if DEBUG
         Trace.Assert((moved), "This should not happen by design")
   #endif
         currentState <- updateStateAddSubstract.Invoke(currentState, this.InputCursor.Current, out, currentWidth)
@@ -481,7 +475,7 @@ type ScanLagAllowIncompleteCursor<'K,'V,'R>
           false
       else false
     else
-  #if PRERELEASE
+  #if DEBUG
       Trace.Assert(not allowIncomplete, "This should not happen by design")
       Trace.Assert(currentWidth <= width, "This should not happen by design")
   #else
@@ -506,7 +500,7 @@ type ScanLagAllowIncompleteCursor<'K,'V,'R>
 
   override this.Dispose() = 
     if laggedCursor <> Unchecked.defaultof<_> then laggedCursor.Dispose()
-    if lookupCursor <> Unchecked.defaultof<_> then laggedCursor.Dispose()
+    if lookupCursor <> Unchecked.defaultof<_> then lookupCursor.Dispose()
     base.Dispose()
 
 
@@ -664,7 +658,7 @@ type internal WindowCursorOld<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:u
       while lag < int width && activeLaggedCursor.MovePrevious() do
         lag <- lag + 1
       if lag = int width then // reached width
-#if PRERELEASE
+#if DEBUG
         Trace.Assert(laggedCursor.Comparer.Compare(activeLaggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
 #endif
         // NB! freeze bounds for the range cursor
@@ -683,7 +677,7 @@ type internal WindowCursorOld<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, width:u
           while lag < int step && activeLaggedCursor.MovePrevious() do
             lag <- lag + 1
           if lag = int step then // reached width
-#if PRERELEASE
+#if DEBUG
             Trace.Assert(laggedCursor.Comparer.Compare(activeLaggedCursor.CurrentKey,this.InputCursor.CurrentKey) <= 0 )
 #endif
             // NB! freeze bounds for the range cursor
