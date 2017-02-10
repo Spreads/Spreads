@@ -145,8 +145,7 @@ namespace Spreads {
             _innerCursor.Reset();
         }
 
-        public KeyValuePair<TK, TV> Current
-        {
+        public KeyValuePair<TK, TV> Current {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _innerCursor.Current; }
         }
@@ -175,14 +174,12 @@ namespace Spreads {
             return _innerCursor.MovePrevious();
         }
 
-        public TK CurrentKey
-        {
+        public TK CurrentKey {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _innerCursor.CurrentKey; }
         }
 
-        public TV CurrentValue
-        {
+        public TV CurrentValue {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _innerCursor.CurrentValue; }
         }
@@ -192,8 +189,7 @@ namespace Spreads {
             return _innerCursor.MoveNextBatch(cancellationToken);
         }
 
-        public IReadOnlySeries<TK, TV> CurrentBatch
-        {
+        public IReadOnlySeries<TK, TV> CurrentBatch {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _innerCursor.CurrentBatch; }
         }

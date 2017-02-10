@@ -234,6 +234,7 @@
     <Compile Include="Utils\Runtime\CompilerServices\ManualResetAwaiter.cs" />
     <Compile Include="Utils\SpanBinarySearch.cs" />
     <Compile Include="Utils\StringExtensions.cs" />
+    <Compile Include="Utils\StrongReference.cs" />
     <Compile Include="Utils\TaskEx.cs" />
     <Compile Include="Utils\ThrowHelper.cs" />
     <Compile Include="Utils\Unsafe.cs" />

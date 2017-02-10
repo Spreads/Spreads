@@ -42,7 +42,7 @@ namespace Spreads.Collections.Tests {
                 scm[i] = i;
             }
 
-            Assert.AreEqual(2, scm.outerMap.Count);
+            Assert.AreEqual(2, scm.outerMap.Count());
         }
 
         [Test]
@@ -65,18 +65,26 @@ namespace Spreads.Collections.Tests {
         [Test]
         public async void CouldReadReadOnlyChildWhileAddingToParent() {
             // TODO if we change the first element to -1 and add from 0, some weird assertion related to regular keys fails
-            var total = 1000;
+            var total = 150;
             var scm = new SortedChunkedMap<int, int>(50);
             scm.IsSynchronized = true;
             scm.AddLast(1, 1);
+            var cc = 1;
             var addTask = Task.Run(() => {
                 for (int i = 2; i < total + 2; i++) {
+                    cc++;
+                    if (cc == 50) {
+                        Console.WriteLine("Next bucket");
+                    }
                     scm.Add(i, i);
                     //scm[i] = i;
                     Thread.Sleep(5);
                 }
                 scm.Complete(); // this will trigger a false return of MoveNextAsync()
             });
+
+
+            //Thread.Sleep(5000000);
 
             var reader = scm.ReadOnly();
             Console.WriteLine("Writer IsReadOnly: {0}", scm.IsReadOnly);
@@ -279,6 +287,22 @@ namespace Spreads.Collections.Tests {
             Assert.AreEqual(1, sm.Version);
             Assert.Throws<ArgumentException>(() => sm.Add(1, 1));
             Assert.AreEqual(1, sm.Version);
+        }
+
+
+
+        [Test]
+        public void RemoveFirstLastIncrementsVersion() {
+            var map = new SortedChunkedMap<long, long>();
+            map.Add(1, 1);
+            Assert.AreEqual(1, map.Version);
+            map.Add(2, 2);
+            Assert.AreEqual(2, map.Version);
+            KeyValuePair<long, long> tmp;
+            map.RemoveFirst(out tmp);
+            Assert.AreEqual(3, map.Version);
+            map.RemoveLast(out tmp);
+            Assert.AreEqual(4, map.Version);
         }
 
     }

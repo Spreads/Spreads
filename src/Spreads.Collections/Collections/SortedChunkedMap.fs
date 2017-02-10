@@ -17,7 +17,7 @@ open System.Diagnostics
 
 open Spreads
 open Spreads.Collections
-
+open Spreads.Utils
 
 // NB outer map version must be synced with SCM.version
 
@@ -42,10 +42,11 @@ type SortedChunkedMapGeneric<'K,'V>
   [<DefaultValueAttribute>]
   val mutable internal version : int64
 
-
   let mutable prevHash = Unchecked.defaultof<'K>
-  let mutable prevBucket = WeakReference<SortedMap<'K,'V>>(null)
-  let prevBucketIsSet (prevBucket':SortedMap<'K,'V> byref) : bool = 
+  // TODO this is temp replacement of WeakReference, with the same signature
+  // WR is too complicated. If we want to release active bucket, just call Flush
+  let mutable prevBucket = StrongReference<SortedMap<'K,'V>>(null)
+  let prevBucketIsSet (prevBucket':SortedMap<'K,'V> byref) : bool =
     let hasValue = prevBucket.TryGetTarget(&prevBucket') 
     hasValue && prevBucket' <> null
 
@@ -77,13 +78,14 @@ type SortedChunkedMapGeneric<'K,'V>
     | None -> Unchecked.defaultof<_>
 
   // hash for locating existing value
-  let existingHash key =
-    if chunkUpperLimit = 0 then hasher.Hash(key) 
+  let existingHashBucket key =
+    // we return KVP to save TryFind(LE) call for the case when chunkUpperLimit > 0
+    if chunkUpperLimit = 0 then
+      KVP(hasher.Hash(key), Unchecked.defaultof<_>)
     else
-      //if outerCursor.MoveAt(key, Lookup.LE) then outerCursor.CurrentKey else Unchecked.defaultof<_>
       let mutable h = Unchecked.defaultof<_>
       outerMap.TryFind(key, Lookup.LE, &h) |> ignore
-      h.Key
+      h
 
   do
     this.isSynchronized <- false
@@ -131,14 +133,14 @@ type SortedChunkedMapGeneric<'K,'V>
     let mutable entered = false
     try
       entered <- enterWriteLockIf &this.Locker true
-      if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+      //if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if not this.isReadOnly then 
           this.isReadOnly <- true
           // immutable doesn't need sync
           this.isSynchronized <- false // TODO the same for SCM
           this.NotifyUpdate()
     finally
-      Interlocked.Increment(&this.version) |> ignore
+      //Interlocked.Increment(&this.version) |> ignore
       exitWriteLockIf &this.Locker entered
 
   override this.IsReadOnly with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.isReadOnly)
@@ -165,9 +167,12 @@ type SortedChunkedMapGeneric<'K,'V>
           let hash = hasher.Hash(key)
           let c = comparer.Compare(hash, prevHash)
           let mutable prevBucket' = Unchecked.defaultof<_>
-          if c = 0 && prevBucketIsSet(&prevBucket') then
+          let bucketIsSet = prevBucketIsSet(&prevBucket')
+          if c = 0 && bucketIsSet then
             prevBucket'.[key] // this could raise keynotfound exeption
           else
+            // bucket switch
+            if bucketIsSet then this.FlushUnchecked()
             let bucket =
               let mutable bucketKvp = Unchecked.defaultof<_>
               let ok = outerMap.TryFind(hash, Lookup.EQ, &bucketKvp)
@@ -208,11 +213,14 @@ type SortedChunkedMapGeneric<'K,'V>
           let hash = hasher.Hash(key)
           let c = comparer.Compare(hash, prevHash)
           let mutable prevBucket' = Unchecked.defaultof<_>
-          if c = 0 && prevBucketIsSet(&prevBucket') then
+          let bucketIsSet = prevBucketIsSet(&prevBucket')
+          if c = 0 && bucketIsSet then
+            Debug.Assert(prevBucket'.version = this.version)
             prevBucket'.[key] <- value
             this.NotifyUpdate()
           else
-            if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
+            // bucket switch
+            if bucketIsSet then this.FlushUnchecked()
             let isNew, bucket = 
               let mutable bucketKvp = Unchecked.defaultof<_>
               let ok = outerMap.TryFind(hash, Lookup.EQ, &bucketKvp)
@@ -220,18 +228,22 @@ type SortedChunkedMapGeneric<'K,'V>
                 false, bucketKvp.Value
               else
                 let newSm = innerFactory(4, comparer)
-                newSm.version <- this.version
                 true, newSm
+            bucket.version <- this.version // NB old bucket could have stale version, update for both cases
+            bucket.nextVersion <- this.version
             bucket.[key] <- value
             if isNew then
               outerMap.[hash] <- bucket
+              Debug.Assert(bucket.version = outerMap.Version, "Outer setter must update its version")
             this.NotifyUpdate()
             prevHash <- hash
             prevBucket.SetTarget(bucket)
         else
-          // we are inside previous bucket, setter has no choice but to set to this bucket regardless of its size
           let mutable prevBucket' = Unchecked.defaultof<_>
-          if prevBucketIsSet(&prevBucket') && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket'.Last.Key) <= 0 then
+          let bucketIsSet = prevBucketIsSet(&prevBucket')
+          if bucketIsSet && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket'.Last.Key) <= 0 then
+            // we are inside previous bucket, setter has no choice but to set to this bucket regardless of its size
+            Debug.Assert(prevBucket'.version = this.version)
             prevBucket'.[key] <- value
             this.NotifyUpdate()
           else
@@ -239,16 +251,24 @@ type SortedChunkedMapGeneric<'K,'V>
             let ok = outerMap.TryFind(key, Lookup.LE, &kvp)
             if ok &&
               // the second condition here is for the case when we add inside existing bucket, overflow above chunkUpperLimit is inevitable without a separate split logic (TODO?)
-              (kvp.Value.Count < chunkUpperLimit || comparer.Compare(key, kvp.Value.Last.Key) <= 0) then
+              (kvp.Value.size < chunkUpperLimit || comparer.Compare(key, kvp.Value.Last.Key) <= 0) then
+              if comparer.Compare(prevHash, kvp.Key) <> 0 then 
+                // switched active bucket
+                this.FlushUnchecked()
+                // if add fails later, it is ok to update the stale version to this.version
+                kvp.Value.version <- this.version
+                kvp.Value.nextVersion <- this.version
+                prevHash <- kvp.Key
+                prevBucket.SetTarget kvp.Value
+              Debug.Assert(kvp.Value.version = this.version)
               kvp.Value.[key] <- value
-              prevHash <- kvp.Key
-              prevBucket.SetTarget kvp.Value
               this.NotifyUpdate()
             else
-              if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
+              if bucketIsSet then this.FlushUnchecked()
               // create a new bucket at key
               let newSm = innerFactory(4, comparer)
-              newSm.Version <- this.version
+              newSm.version <- this.version
+              newSm.nextVersion <- this.version
               newSm.[key] <- value
               #if DEBUG
               let v = outerMap.Version
@@ -297,14 +317,18 @@ type SortedChunkedMapGeneric<'K,'V>
 
   member private this.FlushUnchecked() =
     let mutable temp = Unchecked.defaultof<_>
-    if prevBucket.TryGetTarget(&temp) then
+    if prevBucket.TryGetTarget(&temp) && temp.version <> outerMap.Version then
       // ensure the version of current bucket is saved in outer
       Debug.Assert(temp.version = this.version, "TODO review/test, this must be true? RemoveMany doesn't use prev bucket, review logic there")
       temp.version <- this.version
+      temp.nextVersion <- this.version
       outerMap.[prevHash] <- temp
-      prevBucket.SetTarget (null)
       temp <- null
-    if isOuterPersistent then outerAsPersistent.Flush()
+      if isOuterPersistent then outerAsPersistent.Flush()
+    else
+      Debug.Assert(outerMap.Version = this.version)
+      () // nothing to flush
+    prevBucket.SetTarget (null) // release active bucket so it can be GCed
 
   // Ensure than current inner map is saved (set) to the outer map
   member this.Flush() =
@@ -329,9 +353,7 @@ type SortedChunkedMapGeneric<'K,'V>
       // if source is already read-only, MNA will always return false
       if this.isReadOnly then new SortedChunkedMapGenericCursor<_,_>(this) :> ICursor<'K,'V>
       else
-        raise (NotImplementedException())
-//        let c = new SortedChunkedMapGenericCursorAsync<_,_,_>(this)
-//        c :> ICursor<'K,'V>
+        raise (NotImplementedException()) // implemented below for non-generic SCM
     finally
       exitWriteLockIf &this.Locker entered
 
@@ -348,16 +370,23 @@ type SortedChunkedMapGeneric<'K,'V>
   member private this.TryFindTuple(key:'K, direction:Lookup) = 
     let tupleResult =
       let mutable kvp = Unchecked.defaultof<KeyValuePair<'K, 'V>>
-        
-      let hash = existingHash key
+      
+      let hashBucket = existingHashBucket key
+      let hash = hashBucket.Key
       let c = comparer.Compare(hash, prevHash)
 
       let res, pair =
         let mutable prevBucket' = Unchecked.defaultof<_>
         if c <> 0 || (not <| prevBucketIsSet(&prevBucket')) then // not in the prev bucket, switch bucket to newHash
           let mutable innerMapKvp = Unchecked.defaultof<_>
-          let ok = outerMap.TryFind(hash, Lookup.EQ, &innerMapKvp)
+          let ok = 
+            if hashBucket.Value <> Unchecked.defaultof<_> then
+              innerMapKvp <- hashBucket
+              true
+            else outerMap.TryFind(hash, Lookup.EQ, &innerMapKvp)
           if ok then
+            // bucket switch
+            this.FlushUnchecked()
             prevHash <- hash
             prevBucket.SetTarget (innerMapKvp.Value)
             innerMapKvp.Value.TryFind(key, direction)
@@ -454,31 +483,36 @@ type SortedChunkedMapGeneric<'K,'V>
       let mutable prevBucket' = Unchecked.defaultof<_>
       let bucketIsSet = prevBucketIsSet(&prevBucket')
       if bucketIsSet && comparer.Compare(hash, prevHash) = 0 then
+        Debug.Assert(prevBucket'.version = this.version)
         prevBucket'.Add(key, value)
-        //size <- size + 1L
         this.NotifyUpdate()
       else
+        // bucket switch
         if bucketIsSet then this.FlushUnchecked()
         let bucket = 
           let mutable bucketKvp = Unchecked.defaultof<_>
           let ok = outerMap.TryFind(hash, Lookup.EQ, &bucketKvp)
-          if ok then 
+          if ok then
+            bucketKvp.Value.version <- this.version
+            bucketKvp.Value.nextVersion <- this.version
             bucketKvp.Value.Add(key, value)
             bucketKvp.Value
           else
             let newSm = innerFactory(0,comparer)
             newSm.version <- this.version
+            newSm.nextVersion <- this.version
             newSm.Add(key, value)
             outerMap.[hash]<- newSm
             newSm
-        //size <- size + 1L
         this.NotifyUpdate()
         prevHash <- hash
         prevBucket.SetTarget bucket
     else
-      // we are inside previous bucket, setter has no choice but to set to this bucket regardless of its size
       let mutable prevBucket' = Unchecked.defaultof<_>
-      if prevBucketIsSet(&prevBucket') && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket'.Last.Key) <= 0 then
+      let bucketIsSet = prevBucketIsSet(&prevBucket')
+      if bucketIsSet && comparer.Compare(key, prevHash) >= 0 && comparer.Compare(key, prevBucket'.Last.Key) <= 0 then
+        // we are inside previous bucket, setter has no choice but to set to this bucket regardless of its size
+        Debug.Assert(prevBucket'.version = this.version)
         prevBucket'.Add(key,value)
         this.NotifyUpdate()
       else
@@ -486,17 +520,24 @@ type SortedChunkedMapGeneric<'K,'V>
         let ok = outerMap.TryFind(key, Lookup.LE, &kvp)
         if ok &&
           // the second condition here is for the case when we add inside existing bucket, overflow above chunkUpperLimit is inevitable without a separate split logic (TODO?)
-          (kvp.Value.Count < chunkUpperLimit || comparer.Compare(key, kvp.Value.Last.Key) <= 0) then
+          (kvp.Value.size < chunkUpperLimit || comparer.Compare(key, kvp.Value.Last.Key) <= 0) then
+          if comparer.Compare(prevHash, kvp.Key) <> 0 then 
+            // switched active bucket
+            this.FlushUnchecked()
+            // if add fails later, it is ok to update the stale version to this.version
+            kvp.Value.version <- this.version
+            kvp.Value.nextVersion <- this.version
+            prevHash <- kvp.Key
+            prevBucket.SetTarget kvp.Value
+          Debug.Assert(kvp.Value.version = this.version)
           kvp.Value.Add(key, value)
-          prevHash <- kvp.Key
-          prevBucket.SetTarget kvp.Value
           this.NotifyUpdate()
         else
-          let mutable prevBucket' = Unchecked.defaultof<_>
-          if prevBucketIsSet(&prevBucket') then this.FlushUnchecked()
+          if bucketIsSet then this.FlushUnchecked()
           // create a new bucket at key
           let newSm = innerFactory(4, comparer)
           newSm.version <- this.version
+          newSm.nextVersion <- this.version
           newSm.[key] <- value
           #if DEBUG
           let v = outerMap.Version
@@ -524,10 +565,12 @@ type SortedChunkedMapGeneric<'K,'V>
       if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
       #if DEBUG
-      Trace.Assert(outerMap.Version = this.version)
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+      // TODO in debug this will make any storage unusable, add tests instead
+      //this.FlushUnchecked() 
+      //Trace.Assert(outerMap.Version = this.version)
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
 
   // TODO add last to empty fails
@@ -554,10 +597,12 @@ type SortedChunkedMapGeneric<'K,'V>
       if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
       #if DEBUG
-      Debug.Assert(outerMap.Version = this.version)
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+      // TODO in debug this will make any storage unusable, add tests instead
+      //this.FlushUnchecked() 
+      //Debug.Assert(outerMap.Version = this.version)
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
@@ -583,26 +628,27 @@ type SortedChunkedMapGeneric<'K,'V>
       if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
       #if DEBUG
-      Debug.Assert(outerMap.Version = this.version)
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+      //Debug.Assert(outerMap.Version = this.version)
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
 
     
-  // do not reset prevBucket in any remove method
-
   // NB first/last optimization is possible, but removes are rare in the primary use case
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member private this.RemoveUnchecked(key):bool =
-    let hash = existingHash key
+    let hashBucket = existingHashBucket key
+    let hash = hashBucket.Key
     let c = comparer.Compare(hash, prevHash)
     let mutable prevBucket' = Unchecked.defaultof<_>
-    if c = 0 && prevBucketIsSet(&prevBucket') then
+    let prevBucketIsSet = prevBucketIsSet(&prevBucket')
+    if c = 0 && prevBucketIsSet then
       let res = prevBucket'.Remove(key)
       if res then
         Debug.Assert(prevBucket'.version = this.version + 1L, "Verion of the active bucket must much SCM version")
         prevBucket'.version <- this.version + 1L
+        prevBucket'.nextVersion <- this.version + 1L
         // NB no outer set here, it must happen on prev bucket switch
         if prevBucket'.Count = 0 then
           // but here we must notify outer that version has changed
@@ -612,12 +658,15 @@ type SortedChunkedMapGeneric<'K,'V>
           prevBucket.SetTarget null
       res
     else
-      let mutable prevBucket' = Unchecked.defaultof<_>
-      if prevBucketIsSet(&prevBucket') then 
+      if prevBucketIsSet then 
         // store potentially modified active bucket in the outer, including version
         this.FlushUnchecked()
       let mutable innerMapKvp = Unchecked.defaultof<_>
-      let ok = outerMap.TryFind(hash, Lookup.EQ, &innerMapKvp)
+      let ok = 
+        if hashBucket.Value <> Unchecked.defaultof<_> then
+          innerMapKvp <- hashBucket
+          true
+        else outerMap.TryFind(hash, Lookup.EQ, &innerMapKvp)
       if ok then
         let bucket = (innerMapKvp.Value)
         prevHash <- hash
@@ -625,9 +674,10 @@ type SortedChunkedMapGeneric<'K,'V>
         let res = bucket.Remove(key)
         if res then
           bucket.version <- this.version + 1L
+          bucket.nextVersion <- this.version + 1L
           // NB empty will be removed, see comment above
           outerMap.[prevHash] <- bucket
-          if prevBucket'.Count = 0 then
+          if bucket.Count = 0 then
             prevBucket.SetTarget null
         res
       else
@@ -651,10 +701,11 @@ type SortedChunkedMapGeneric<'K,'V>
       elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
       #if DEBUG
-      Debug.Assert(outerMap.Version = this.version)
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+      this.FlushUnchecked()
+      Debug.Assert((outerMap.Version = this.version))
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
@@ -667,7 +718,7 @@ type SortedChunkedMapGeneric<'K,'V>
         entered <- enterWriteLockIf &this.Locker this.isSynchronized
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       result <- this.FirstUnsafe
-      let removed = this.Remove(result.Key)
+      removed <- this.RemoveUnchecked(result.Key)
       removed
     finally
       this.NotifyUpdate()
@@ -675,10 +726,11 @@ type SortedChunkedMapGeneric<'K,'V>
       elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
       #if DEBUG
-      Debug.Assert(outerMap.Version = this.version) 
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+      this.FlushUnchecked()
+      Debug.Assert((outerMap.Version = this.version)) 
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
@@ -692,7 +744,7 @@ type SortedChunkedMapGeneric<'K,'V>
         if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       
       result <- this.LastUnsafe
-      let removed = this.Remove(result.Key)
+      removed <- this.RemoveUnchecked(result.Key)
       removed
     finally
       this.NotifyUpdate()
@@ -700,10 +752,11 @@ type SortedChunkedMapGeneric<'K,'V>
       elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
       #if DEBUG
+      this.FlushUnchecked()
       Debug.Assert(outerMap.Version = this.version)
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
 
   /// Removes all elements that are to `direction` from `key`
@@ -734,24 +787,25 @@ type SortedChunkedMapGeneric<'K,'V>
               this.Remove(key)
             | Lookup.LT | Lookup.LE ->
               this.FlushUnchecked() // ensure current version is set in the outer map from the active chunk
-              prevBucket.SetTarget null
               let mutable tmp = Unchecked.defaultof<_>
               if outerMap.TryFind(key, Lookup.LE, &tmp) then
                 let r = tmp.Value.RemoveMany(key, direction)
                 tmp.Value.version <- this.version + 1L
+                tmp.Value.nextVersion <- this.version + 1L
                 outerMap.RemoveMany(key, tmp.Value, direction) || r // NB order matters
               else false // no key below the requested key, notjing to delete
             | Lookup.GT | Lookup.GE ->
               this.FlushUnchecked() // ensure current version is set in the outer map from the active chunk
-              prevBucket.SetTarget null
               let mutable tmp = Unchecked.defaultof<_>
               if outerMap.TryFind(key, Lookup.LE, &tmp) then // NB for deterministic hash LE still works
                 let r1 = tmp.Value.RemoveMany(key, direction)
                 let r2 = outerMap.RemoveMany(key, tmp.Value, direction)
                 r1 || r2
               else
+                // TODO the next line is not needed, we remove all items in SCM here
                 let r1 = outerMap.First.Value.RemoveMany(key, direction) // this will remove all items in the chunk
                 outerMap.First.Value.version <- this.version + 1L
+                outerMap.First.Value.nextVersion <- this.version + 1L
                 let r2 = outerMap.RemoveMany(key, outerMap.First.Value, direction)
                 r1 || r2
             | _ -> failwith "wrong direction"          
@@ -766,9 +820,9 @@ type SortedChunkedMapGeneric<'K,'V>
       exitWriteLockIf &this.Locker entered
       #if DEBUG
       Debug.Assert(outerMap.Version = this.version)
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
 
   // TODO after checks, should form changed new chunks and use outer append method with rewrite
@@ -888,9 +942,9 @@ type SortedChunkedMapGeneric<'K,'V>
         exitWriteLockIf &this.Locker entered
         #if DEBUG
         Debug.Assert(outerMap.Version = this.version)
-        if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+        if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
         #else
-        if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+        if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
         #endif
     
   member this.Id with get() = id and set(newid) = id <- newid
@@ -967,7 +1021,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           try
@@ -1006,7 +1060,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
 
@@ -1028,7 +1082,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           // TODO test & review
@@ -1061,7 +1115,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           try
@@ -1106,7 +1160,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           if this.outerCursor.MoveFirst() then
@@ -1137,7 +1191,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           if this.outerCursor.MoveLast() then
@@ -1168,7 +1222,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           let res =
@@ -1313,13 +1367,13 @@ type SortedChunkedMap<'K,'V>
     finally
       exitWriteLockIf &this.Locker entered
 
-  // .NETs foreach optimization
+  // .NETs foreach optimization - return a struct
   member this.GetEnumerator() =
 //    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then 
 //      // NB: via property with locks
 //      this.IsSynchronized <- true
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-      new SortedChunkedMapCursor<_,_>(this) :> ICursor<_,_>
+      new SortedChunkedMapCursor<_,_>(this)
     )
 
 
@@ -1429,7 +1483,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           try
@@ -1485,7 +1539,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
 
@@ -1507,7 +1561,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           // TODO test & review
@@ -1541,7 +1595,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           try
@@ -1595,7 +1649,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           if this.outerCursor.MoveFirst() then
@@ -1626,7 +1680,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           if this.outerCursor.MoveLast() then
@@ -1657,7 +1711,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           let mutable entered = false
@@ -1747,7 +1801,8 @@ and
       finally
         exitWriteLockIf &this.source.Locker entered
       
-    member this.Reset() = 
+    member this.Reset() =
+      this.source.Flush() // 
       if this.HasValidInner then this.innerCursor.Dispose()
       this.innerCursor <- Unchecked.defaultof<_>
       this.outerCursor.Reset()

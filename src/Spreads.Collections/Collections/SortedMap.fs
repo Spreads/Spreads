@@ -96,7 +96,7 @@ type SortedMap<'K,'V>
       if couldHaveRegularKeys then 
         // regular keys are the first and the second value, their diff is the step
         // NB: Buffer pools could return a buffer greater than the requested length,
-        // but for regular keys we alway need a fixed-length array of size 2, so we allocate a new one.
+        // but for regular keys we always need a fixed-length array of size 2, so we allocate a new one.
         // TODO wrap the corefx buffer and for len = 2 use a special self-adjusting ObjectPool, because these 
         // arrays are not short-lived and could accumulate in gen 1+ easily.
         Array.zeroCreate 2
@@ -378,16 +378,15 @@ type SortedMap<'K,'V>
     let mutable entered = false
     try
       entered <- enterWriteLockIf &this.Locker true
-      if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+      //if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if not this.isReadOnly then 
           this.isReadOnly <- true
           // immutable doesn't need sync
           Volatile.Write(&this.isSynchronized, false)
           this.NotifyUpdate()
-          
           //if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
     finally
-      Interlocked.Increment(&this.version) |> ignore
+      //Interlocked.Increment(&this.version) |> ignore
       exitWriteLockIf &this.Locker entered
 
   override this.IsReadOnly with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.isReadOnly)
@@ -737,9 +736,9 @@ type SortedMap<'K,'V>
             exitWriteLockIf &this.Locker entered
             #if DEBUG
             if not finished then Environment.FailFast("SM.Item set must always succeed")
-            if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+            if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
             #else
-            if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+            if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
             #endif
 
 
@@ -780,9 +779,9 @@ type SortedMap<'K,'V>
       if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
       #if DEBUG
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
@@ -808,9 +807,9 @@ type SortedMap<'K,'V>
       exitWriteLockIf &this.Locker entered
       if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       #if DEBUG
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
 
   // TODO lockless AddLast for temporary Append implementation
@@ -851,9 +850,9 @@ type SortedMap<'K,'V>
       if not keepOrderVersion then increment(&this.orderVersion)
       exitWriteLockIf &this.Locker entered
       #if DEBUG
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
     
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
@@ -915,9 +914,9 @@ type SortedMap<'K,'V>
       if removed then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
       #if DEBUG
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
 
 
@@ -940,9 +939,9 @@ type SortedMap<'K,'V>
       if removed then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
       #if DEBUG
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
 
 
@@ -969,9 +968,9 @@ type SortedMap<'K,'V>
       if removed then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
       #if DEBUG
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
 
   /// Removes all elements that are to `direction` from `key`
@@ -1053,9 +1052,9 @@ type SortedMap<'K,'V>
       if removed then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
       #if DEBUG
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.orderVersion <> this.nextVersion")
+      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
     
   /// Returns the index of found KeyValuePair or a negative value:
@@ -1636,8 +1635,7 @@ and
               false
           else // source order change
             // NB: we no longer recover on order change, some cursor require special logic to recover
-            //raise (new OutOfOrderKeyException<'K>(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
-            false
+            raise (new OutOfOrderKeyException<'K>(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
         /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source.nextVersion)
@@ -1656,7 +1654,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
 
@@ -1684,7 +1682,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
 
@@ -1720,7 +1718,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           if this.index = -1 then
@@ -1765,7 +1763,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           let mutable kvp = Unchecked.defaultof<_>
@@ -1800,7 +1798,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           if this.source.size > 0 then
@@ -1833,7 +1831,7 @@ and
       let sw = new SpinWait()
       while doSpin do
         doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else this.source.orderVersion
+        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           if this.source.size > 0 then
@@ -1862,7 +1860,7 @@ and
       copy
 
     member this.Reset() = 
-      this.cursorVersion <- -1L
+      this.cursorVersion <- this.source.orderVersion
       this.currentKey <- Unchecked.defaultof<'K>
       this.currentValue <- Unchecked.defaultof<'V>
       this.index <- -1
@@ -1903,7 +1901,6 @@ and
 type internal ChunksContainer<'K,'V>
   (comparer : IComparer<'K>) as t =
   inherit SortedMap<'K,SortedMap<'K,'V>>(comparer)
-  let a = 'b'
   interface IReadOnlySeries<'K,SortedMap<'K,'V>> with
     member x.Comparer = t.Comparer
     member x.First = t.First
@@ -1935,20 +1932,23 @@ type internal ChunksContainer<'K,'V>
     member x.Item
       with get (key) = t.Item(key) 
       and set (key) v =
-        if v.size > 0 then t.[key] <- v
+        if v.size > 0 then 
+          let ov = t.orderVersion
+          t.[key] <- v
+          t.orderVersion <- ov
         else t.Remove(key) |> ignore
         t.version <- v.version
     member x.RemoveMany(key, keyChunk, direction) =
       match direction with
-      | Lookup.EQ -> x.[key] = keyChunk
+      | Lookup.EQ -> (x :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>).[key] = keyChunk
       | Lookup.LT | Lookup.LE -> 
         let res = t.RemoveMany(key, Lookup.LT)
-        x.[key] <- keyChunk
+        (x :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>).[key] <- keyChunk
         res
       | Lookup.GT | Lookup.GE -> 
         let res = t.RemoveMany(key, Lookup.GT)
-        x.[key] <- keyChunk
+        (x :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>).[key] <- keyChunk
         res
       | _ -> failwith "mute F# warning"
-    member x.Version = t.Version
+    member x.Version = t.version // small v, field
    
