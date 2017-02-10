@@ -370,7 +370,7 @@ namespace Spreads {
     }
 
 
-    internal interface IMutableChunksSeries<TKey, TValue, TContainer> : IReadOnlySeries<TKey, TContainer>
+    internal interface IMutableChunksSeries<TKey, TValue, TContainer> : IReadOnlySeries<TKey, TContainer>, IPersistentObject
         where TContainer : IMutableSeries<TKey, TValue> {
         /// <summary>
         /// Keep the key chunk if it is not empty, remove all other chunks to the direction side, update version from the key chunk

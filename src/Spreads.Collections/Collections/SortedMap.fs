@@ -1929,6 +1929,10 @@ type internal ChunksContainer<'K,'V>
     
     
   interface IMutableChunksSeries<'K,'V,SortedMap<'K,'V>> with
+    member x.Dispose() = ()
+    member x.Flush() = ()
+    member x.Id = ""
+    
     member x.Item
       with get (key) = t.Item(key) 
       and set (key) v =
