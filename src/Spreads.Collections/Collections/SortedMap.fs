@@ -1239,30 +1239,34 @@ type SortedMap<'K,'V>
       false
 
   override this.GetCursor() =
-    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then this.IsSynchronized <- true // NB: via property with locks
+    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then
+      // NB: via property with locks
+      this.IsSynchronized <- true 
     let mutable entered = false
     try
       entered <- enterWriteLockIf &this.Locker this.isSynchronized
       // if source is already read-only, MNA will always return false
       if this.isReadOnly then new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
       else 
-        let c = BaseCursorAsync<'K,'V,_>.Create(this,Func<_>(this.GetEnumerator))
+        let c = new SortedMapCursor<'K,'V>(this)
         c :> ICursor<'K,'V>
     finally
       exitWriteLockIf &this.Locker entered
 
-  // .NETs foreach optimization
-  member this.GetEnumerator() =
+  // .NETs foreach optimization must return struct
+  member this.GetEnumerator() : SortedMapCursor<_,_> =
     if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then 
       // NB: via property with locks
       this.IsSynchronized <- true
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-      new SortedMapCursor<'K,'V>(this) :> ICursor<_,_>
+      new SortedMapCursor<'K,'V>(this)
     )
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member internal this.GetSMCursor() =
-    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then this.IsSynchronized <- true // NB: via property with locks
+    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then
+      // NB: via property with locks
+      this.IsSynchronized <- true
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       new SortedMapCursor<'K,'V>(this)
     )
@@ -1473,38 +1477,7 @@ type SortedMap<'K,'V>
           | _ -> failwith "Unknown AppendOption"
         finally
           exitWriteLockIf &this.Locker entered
-    
-//  interface ICanMapSeriesValues<'K,'V> with
-//    member x.Map(f:('V->'V2), fBatch:(ArraySegment<'V>->ArraySegment<'V2>) opt) : Series<'K,'V2> =
-//      let series =
-//        { new Series<'K,'V2>() with
-//            member __.GetCursor() = 
-//              let keys = Array.zeroCreate this.keys.Length // BufferPool<'K>.Rent(this.size)
-//              Array.Copy(this.keys, keys, this.size)
-//              let values : 'V2[] = 
-//                if fBatch.IsPresent then
-//                  let segment = fBatch.Present(ArraySegment(this.values, 0, this.size))
-//                  segment.Array
-//                else 
-//                  let arr = Array.zeroCreate this.values.Length //BufferPool<'V2>.Rent(this.size)
-//                  for i in 0..(this.size - 1) do
-//                    arr.[i] <- f(this.values.[i])
-//                  arr
-//              let comparer = this.Comparer
-//              let sm = SortedMap<'K,'V2>.OfSortedKeysAndValues(keys, values, this.size, comparer, false, this.IsRegular)
-//              sm.GetCursor()
-//
-//          interface ICanMapSeriesValues<'K,'V2> with
-//            member __.Map(f2:('V2->'V3), fBatch2:(ArraySegment<'V2>->ArraySegment<'V3>) opt) : Series<'K,'V3> =
-//              let func = f >> f2
-//              let batchFunc =
-//                if fBatch.IsPresent && fBatch2.IsPresent then
-//                  Present(fBatch.Present >> fBatch2.Present)
-//                else Missing
-//              (x :> ICanMapSeriesValues<'K,'V>).Map(func, batchFunc)
-//        }
-//      series
-     
+
   //#endregion
 
   //#region Constructors
@@ -1592,7 +1565,7 @@ and
       val mutable internal currentValue: 'V
       val mutable internal cursorVersion : int64
       val mutable internal isBatch : bool
-
+      val mutable internal asyncCursor : AsyncCursor<'K,'V,SortedMapCursor<'K,'V>>
       new(source:SortedMap<'K,'V>) = 
         { source = source; 
           index = -1;
@@ -1600,6 +1573,7 @@ and
           currentValue = Unchecked.defaultof<_>;
           cursorVersion = source.orderVersion;
           isBatch = false;
+          asyncCursor = null;
         }
     end
 
@@ -1854,9 +1828,23 @@ and
         this.currentValue <- newValue
       result
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    member this.MoveNext(cancellationToken:CancellationToken): Task<bool> =
+      if this.MoveNext() then trueTask
+      elif this.source.IsReadOnly then
+        if this.MoveNext() then trueTask else falseTask
+      else
+        if this.asyncCursor = Unchecked.defaultof<_> then this.asyncCursor <- new AsyncCursor<_,_,_>(this.source, this)
+        this.asyncCursor.MoveNext(cancellationToken)
+
 
     member this.Clone() = 
-      let copy = this
+      let mutable copy = this
+      // NB this is not needed, because MNA of copy will recreate async cursor on demand
+      // if this.asyncCursor <> Unchecked.defaultof<_> then
+      //   copy.asyncCursor <- new AsyncCursor<_,_,_>(copy.source, copy)
+      // But we need to clear the field if it is set
+      copy.asyncCursor <- Unchecked.defaultof<_>
       copy
 
     member this.Reset() = 
@@ -1865,7 +1853,9 @@ and
       this.currentValue <- Unchecked.defaultof<'V>
       this.index <- -1
 
-    member this.Dispose() = this.Reset()
+    member this.Dispose() = 
+      this.Reset()
+      if this.asyncCursor <> Unchecked.defaultof<_> then this.asyncCursor.Dispose()
 
     interface IDisposable with
       member this.Dispose() = this.Dispose()
@@ -1878,9 +1868,7 @@ and
 
     interface IAsyncEnumerator<KVP<'K,'V>> with
       member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = 
-        if this.source.IsReadOnly then
-          if this.MoveNext() then trueTask else falseTask
-        else raise (NotSupportedException("Use SortedMapCursorAsync instead"))
+        this.MoveNext(cancellationToken:CancellationToken)
 
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.source.Comparer
