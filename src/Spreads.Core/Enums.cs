@@ -27,18 +27,18 @@ namespace Spreads {
     public enum AppendOption {
 
         /// <summary>
-        /// Throw if new values overlap with existing values.
+        /// Throw if new keys overlap with existing keys.
         /// </summary>
         ThrowOnOverlap = 0,
 
         /// <summary>
-        /// Ignore overlap if all new key and values are equal to existing, throw on unequal keys/values.
+        /// Ignore overlap if all new overlapped key are equal to existing, throw on unequal keys.
         /// </summary>
         IgnoreEqualOverlap = 1,
 
         /// <summary>
-        /// Require that at least one (first) new value matches at least one (last) value of a map
-        /// (foolproofing to avoid holes in the data).
+        /// Require that at least one (first) new key matches at least one (last) key of a map
+        /// (foolproofing to avoid holes in the data). Existing values are not updated.
         /// </summary>
         RequireEqualOverlap = 2,
 
@@ -58,7 +58,7 @@ namespace Spreads {
         /// Ignores equal overlap and updates the last value only.
         /// Throws if other values are different or keys do not match in the overlap region.
         /// </summary>
-        [Obsolete("TODO Not implemented in SM/SCM")]
-        UpdateLastValueOnly = 5
+        //[Obsolete("TODO Not implemented in SM/SCM")]
+        //UpdateLastValueOnly = 5
     }
 }

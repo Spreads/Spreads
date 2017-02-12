@@ -212,12 +212,11 @@ namespace Spreads {
     }
 
     public abstract class ConvertMutableSeries<TKey, TValue, TKey2, TValue2, TImpl>
-        : ConvertSeries<TKey, TValue, TKey2, TValue2, TImpl>, IMutableSeries<TKey2, TValue2>
+        : ConvertSeries<TKey, TValue, TKey2, TValue2, TImpl>, IPersistentSeries<TKey2, TValue2>
         where TImpl : ConvertMutableSeries<TKey, TValue, TKey2, TValue2, TImpl>, new() {
         private static readonly BoundedConcurrentBag<TImpl> Pool = new BoundedConcurrentBag<TImpl>(Environment.ProcessorCount * 2);
 
-        private IMutableSeries<TKey, TValue> MutableInner
-        {
+        private IMutableSeries<TKey, TValue> MutableInner {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return Unsafe.As<IMutableSeries<TKey, TValue>>(Inner); }
         }
@@ -303,17 +302,27 @@ namespace Spreads {
 
         public long Count => MutableInner.Count;
 
-        public long Version
-        {
+        public long Version {
             get { return MutableInner.Version; }
         }
 
         public override TValue2 this[TKey2 key] => ToValue2(MutableInner[ToKey(key)]);
 
-        TValue2 IMutableSeries<TKey2, TValue2>.this[TKey2 key]
-        {
+        TValue2 IMutableSeries<TKey2, TValue2>.this[TKey2 key] {
             get { return ToValue2(MutableInner[ToKey(key)]); }
             set { MutableInner[ToKey(key)] = ToValue(value); }
+        }
+
+        public void Flush() {
+            var p = MutableInner as IPersistentObject;
+            p?.Flush();
+        }
+
+        public string Id {
+            get {
+                var p = MutableInner as IPersistentObject;
+                return p?.Id;
+            }
         }
     }
 }

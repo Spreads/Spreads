@@ -305,5 +305,121 @@ namespace Spreads.Collections.Tests {
             Assert.AreEqual(4, map.Version);
         }
 
+        [Test]
+        public void CouldRemoeAllFromBothEndsOnEmpty() {
+            var map = new SortedChunkedMap<long, long>();
+            map.Add(1, 1);
+            Assert.True(map.RemoveMany(map.First.Key, Lookup.GE));
+            Assert.AreEqual(0, map.Count);
+            Assert.True(map.IsEmpty);
+            map.Add(1, 1);
+            Assert.True(map.RemoveMany(map.Last.Key, Lookup.LE));
+            Assert.AreEqual(0, map.Count);
+            Assert.True(map.IsEmpty);
+        }
+
+        private static Random rng = new Random();
+
+        public static void Shuffle<T>(IList<T> list) {
+            int n = list.Count;
+            while (n > 1) {
+                n--;
+                int k = rng.Next(n + 1);
+                T value = list[k];
+                list[k] = list[n];
+                list[n] = value;
+            }
+        }
+
+        [Test]
+        public void CouldAddRandomlyRemoveValues() {
+            var map = new SortedChunkedMap<int, int>(50);
+            var list = new List<int>();
+            var count = 100000;
+            for (int i = 0; i < count; i++) {
+                list.Add(i);
+            }
+            for (int i = 0; i < count; i++) {
+                map.Add(list[i], list[i]);
+                Assert.AreEqual(i + 1, map.Version);
+            }
+
+            Shuffle(list);
+
+            for (int i = 0; i < count; i++) {
+                Assert.True(map.Remove(list[i]));
+                Assert.AreEqual(i + count + 1, map.Version);
+            }
+            Assert.True(map.IsEmpty);
+        }
+
+        [Test]
+        public void CouldRandomlyAddRemoveValues() {
+            var map = new SortedChunkedMap<int, int>(50);
+            var list = new List<int>();
+            var count = 100000;
+            for (int i = 0; i < count; i++) {
+                list.Add(i);
+            }
+            Shuffle(list);
+            for (int i = 0; i < count; i++) {
+                map.Add(list[i], list[i]);
+                Assert.AreEqual(i + 1, map.Version);
+            }
+            
+            Shuffle(list);
+
+            for (int i = 0; i < count; i++) {
+                Assert.True(map.Remove(list[i]));
+                Assert.AreEqual(i + count + 1, map.Version);
+            }
+            Assert.True(map.IsEmpty);
+        }
+
+
+        [Test]
+        public void CouldRandomlyAddRemoveFirst() {
+            var map = new SortedChunkedMap<int, int>(50);
+            var list = new List<int>();
+            var count = 10000;
+            for (int i = 0; i < count; i++) {
+                list.Add(i);
+            }
+            Shuffle(list);
+            for (int i = 0; i < count; i++) {
+                map.Add(list[i], list[i]);
+                Assert.AreEqual(i + 1, map.Version);
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                KeyValuePair<int, int> tmp;
+                Assert.True(map.RemoveFirst(out tmp));
+                Assert.AreEqual(i + count + 1, map.Version);
+            }
+            Assert.True(map.IsEmpty);
+        }
+
+        [Test]
+        public void CouldRandomlyAddRemoveLast() {
+            var map = new SortedChunkedMap<int, int>(50);
+            var list = new List<int>();
+            var count = 10000;
+            for (int i = 0; i < count; i++) {
+                list.Add(i);
+            }
+            Shuffle(list);
+            for (int i = 0; i < count; i++) {
+                map.Add(list[i], list[i]);
+                Assert.AreEqual(i + 1, map.Version);
+            }
+
+            for (int i = 0; i < count; i++) {
+                KeyValuePair<int, int> tmp;
+                Assert.True(map.RemoveLast(out tmp));
+                Assert.AreEqual(i + count + 1, map.Version);
+            }
+            Assert.True(map.IsEmpty);
+        }
     }
 }

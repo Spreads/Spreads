@@ -36,7 +36,7 @@ type MutableSeries<'K,'V> internal() as this =
   abstract member RemoveFirst : kvp:byref<KeyValuePair<'TKey,'TValue>> -> bool
   abstract member RemoveLast : kvp:byref<KeyValuePair<'TKey,'TValue>> -> bool
   abstract member RemoveMany : key:'TKey * direction:Lookup -> bool
-  abstract member Version : int64 with get, set
+  abstract member Version : int64 with get
 
   interface IReadOnlySeries<'K,'V> with
     member x.Comparer = this.Comparer
@@ -73,3 +73,10 @@ type MutableSeries<'K,'V> internal() as this =
     member this.RemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.RemoveFirst(&result)
     member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.RemoveLast(&result)
     member this.RemoveMany(key:'K,direction:Lookup) = this.RemoveMany(key, direction)
+
+
+[<AllowNullLiteral>]
+//[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
+type internal MutableSeriesWrapper<'K,'V> internal(inner:IMutableSeries<'K,'V>) as this =
+  inherit MutableSeries<'K,'V>()
+  let foo = "a"

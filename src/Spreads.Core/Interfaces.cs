@@ -351,6 +351,16 @@ namespace Spreads {
     public interface IPersistentSeries<TKey, TValue> : IMutableSeries<TKey, TValue>, IPersistentObject {
     }
 
+    /// <summary>
+    /// Time series
+    /// </summary>
+    public interface ITimeSeries<TKey, TValue> : IReadOnlySeries<TKey, TValue> {
+        // NB we do not restrict TKey to DateTime, it could be long or whatever, depending on context
+        // For storage we just require that TKey must have KeyComparer, i.e. strictly monotonic conversion to long
+        UnitPeriod UnitPeriod { get; }
+        int PeriodCount { get; }
+        string TimeZone { get; }
+    }
 
     public interface ICloneable<out T> where T : ICloneable<T> {
         T DeepCopy();

@@ -5,6 +5,8 @@
 
 namespace Spreads.Collections
 
+// TODO Pooling and cursor counter to avoid disposing of a SM with outstanding cursors
+
 open System
 open System.Linq
 open System.Diagnostics

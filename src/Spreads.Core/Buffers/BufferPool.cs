@@ -42,7 +42,7 @@ namespace Spreads.Buffers {
     internal static class BufferPool {
 
         // max pooled array size
-        private const int SharedBufferSize = 8 * 32; // NB must ensure that the upcoming safe disposal machinery won't allocate and we never exceed the initial bitmask capacity if every segment is used once
+        private const int SharedBufferSize = 4096; // 8 * 32; // NB must ensure that the upcoming safe disposal machinery won't allocate and we never exceed the initial bitmask capacity if every segment is used once
 
         [ThreadStatic]
         private static OwnedMemory<byte> _sharedBuffer;
@@ -55,11 +55,12 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="length"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static PreservedMemory<byte> PreserveMemory(int length) {
             // https://github.com/dotnet/corefx/blob/master/src/System.Buffers/src/System/Buffers/DefaultArrayPool.cs#L35
             // DefaultArrayPool has a minimum size of 16
             const int smallTreshhold = 16;
-            if (length < smallTreshhold) {
+            if (length <= smallTreshhold) {
                 if (_sharedBuffer == null) {
                     _sharedBuffer = BufferPool<byte>.RentMemory(SharedBufferSize, false);
                     _sharedBufferOffset = 0;
@@ -73,6 +74,7 @@ namespace Spreads.Buffers {
                     _sharedBufferOffset = 0;
                 }
                 var memory = _sharedBuffer.Memory.Slice(_sharedBufferOffset, length);
+
                 _sharedBufferOffset = BitUtil.Align(newOffset, IntPtr.Size);
                 return memory.Preserve();
             }
