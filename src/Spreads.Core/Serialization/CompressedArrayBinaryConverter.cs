@@ -202,9 +202,13 @@ namespace Spreads.Serialization {
                     } else {
                         var pinnedArray = GCHandle.Alloc(value.Array, GCHandleType.Pinned);
                         var destination = pinnedArray.AddrOfPinnedObject();
-
-                        var decompSize = BloscMethods.blosc_decompress_ctx(
-                            source, destination, new UIntPtr((uint)nbytes), BloscMethods.ProcessorCount);
+                        int decompSize = 0;
+                        try {
+                            decompSize = BloscMethods.blosc_decompress_ctx(
+                                source, destination, new UIntPtr((uint)nbytes), BloscMethods.ProcessorCount);
+                        } catch (Exception ex) {
+                            Trace.WriteLine($"Blosc error: nbytes: {nbytes}, arr segment size: {value.Count}, \n\r exeption: {ex.Message + Environment.NewLine + ex.ToString()}");
+                        }
                         if (decompSize <= 0) throw new ArgumentException("Invalid compressed input");
                         Debug.Assert(decompSize == nbytes);
                         pinnedArray.Free();
