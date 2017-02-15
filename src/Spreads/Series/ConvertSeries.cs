@@ -302,9 +302,7 @@ namespace Spreads {
 
         public long Count => MutableInner.Count;
 
-        public long Version {
-            get { return MutableInner.Version; }
-        }
+        public long Version => MutableInner.Version;
 
         public override TValue2 this[TKey2 key] => ToValue2(MutableInner[ToKey(key)]);
 

@@ -73,13 +73,13 @@ namespace Spreads.DataTypes {
                 return (TypeEnum)(byte)_elementType;
             }
             var ty = typeof(T);
-            if (!ty.IsArray) {
-                ThrowHelper.ThrowInvalidOperationException_ForVariantTypeMissmatch();
+            if (ty.IsArray) {
+                var elTy = ty.GetElementType();
+                var elTypeEnum = VariantHelper.GetTypeEnum(elTy);
+                _elementType = (int)elTypeEnum;
+                return elTypeEnum;
             }
-            var elTy = ty.GetElementType();
-            var elTypeEnum = VariantHelper.GetTypeEnum(elTy);
-            _elementType = (int)elTypeEnum;
-            return elTypeEnum;
+            return TypeEnum.None;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

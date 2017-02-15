@@ -74,9 +74,3 @@ type MutableSeries<'K,'V> internal() as this =
     member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.RemoveLast(&result)
     member this.RemoveMany(key:'K,direction:Lookup) = this.RemoveMany(key, direction)
 
-
-[<AllowNullLiteral>]
-//[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-type internal MutableSeriesWrapper<'K,'V> internal(inner:IMutableSeries<'K,'V>) as this =
-  inherit MutableSeries<'K,'V>()
-  let foo = "a"

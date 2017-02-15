@@ -521,7 +521,7 @@ type SortedChunkedMapGeneric<'K,'V>
         if ok &&
           // the second condition here is for the case when we add inside existing bucket, overflow above chunkUpperLimit is inevitable without a separate split logic (TODO?)
           (kvp.Value.size < chunkUpperLimit || comparer.Compare(key, kvp.Value.Last.Key) <= 0) then
-          if comparer.Compare(prevHash, kvp.Key) <> 0 then 
+          if comparer.Compare(prevHash, kvp.Key) <> 0 || not bucketIsSet then 
             // switched active bucket
             this.FlushUnchecked()
             // if add fails later, it is ok to update the stale version to this.version
@@ -798,15 +798,20 @@ type SortedChunkedMapGeneric<'K,'V>
               this.FlushUnchecked() // ensure current version is set in the outer map from the active chunk
               let mutable tmp = Unchecked.defaultof<_>
               if outerMap.TryFind(key, Lookup.LE, &tmp) then // NB for deterministic hash LE still works
-                let r1 = tmp.Value.RemoveMany(key, direction)
-                let r2 = outerMap.RemoveMany(key, tmp.Value, direction)
+                let chunk = tmp.Value;
+                let r1 = chunk.RemoveMany(key, direction)
+                chunk.version <- this.version + 1L
+                chunk.nextVersion <- this.version + 1L
+                let r2 = outerMap.RemoveMany(key, chunk, direction)
                 r1 || r2
               else
-                // TODO the next line is not needed, we remove all items in SCM here
-                let r1 = outerMap.First.Value.RemoveMany(key, direction) // this will remove all items in the chunk
-                outerMap.First.Value.version <- this.version + 1L
-                outerMap.First.Value.nextVersion <- this.version + 1L
-                let r2 = outerMap.RemoveMany(key, outerMap.First.Value, direction)
+                // TODO the next line is not needed, we remove all items in SCM here and use the chunk to set the version
+                let firstChunk = outerMap.First.Value
+                let r1 = firstChunk.RemoveMany(key, direction) // this will remove all items in the chunk
+                Debug.Assert(firstChunk.Count = 0, "The first chunk must have been completely cleared")
+                firstChunk.version <- this.version + 1L
+                firstChunk.nextVersion <- this.version + 1L
+                let r2 = outerMap.RemoveMany(key, firstChunk, direction)
                 r1 || r2
             | _ -> failwith "wrong direction"          
           removed
@@ -1088,6 +1093,7 @@ and
           // TODO test & review
           raise (NotImplementedException("TODO test & review"))
           try
+            // TODO should await outer MNA after false MN
             if (not this.HasValidInner || this.isBatch) && this.outerCursor.MoveNext() then
                 newIsBatch <- true
                 trueTask

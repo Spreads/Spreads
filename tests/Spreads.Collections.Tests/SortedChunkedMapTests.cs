@@ -366,7 +366,7 @@ namespace Spreads.Collections.Tests {
                 map.Add(list[i], list[i]);
                 Assert.AreEqual(i + 1, map.Version);
             }
-            
+
             Shuffle(list);
 
             for (int i = 0; i < count; i++) {
@@ -391,8 +391,7 @@ namespace Spreads.Collections.Tests {
                 Assert.AreEqual(i + 1, map.Version);
             }
 
-            for (int i = 0; i < count; i++)
-            {
+            for (int i = 0; i < count; i++) {
                 KeyValuePair<int, int> tmp;
                 Assert.True(map.RemoveFirst(out tmp));
                 Assert.AreEqual(i + count + 1, map.Version);
@@ -420,6 +419,32 @@ namespace Spreads.Collections.Tests {
                 Assert.AreEqual(i + count + 1, map.Version);
             }
             Assert.True(map.IsEmpty);
+        }
+
+        [Test]
+        public void OuterMapCachesInnerMaps(SortedChunkedMap<int, int> scm)
+        {
+            scm.RemoveMany(int.MinValue, Lookup.GE);
+            for (int i = 0; i < 10000; i++)
+            {
+                scm.Add(i,i);
+            }
+            var outer = scm.outerMap;
+            var oc = outer.GetCursor();
+
+            var first = outer.First;
+            scm.Add(10001, 10001);
+            Assert.True(oc.MoveFirst());
+            Assert.ReferenceEquals(first.Value, oc.CurrentValue);
+
+
+            var last = outer.Last;
+            Assert.True(oc.MoveLast());
+            Assert.ReferenceEquals(last.Value, oc.CurrentValue);
+
+            // TODO other cases
+
+            scm.RemoveMany(int.MinValue, Lookup.GE);
         }
     }
 }
