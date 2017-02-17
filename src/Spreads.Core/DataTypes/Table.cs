@@ -12,23 +12,25 @@ namespace Spreads.DataTypes {
 
     [JsonConverter(typeof(TableJsonConverter))]
     public class Table : Matrix<Variant>, IEquatable<Table> {
+        private readonly bool _caseSensitive;
 
         // TODO
         internal static int LinearSearchLimit = 30;
 
         [JsonIgnore]
-        private Dictionary<object, int> _rowKeyIndex;
+        private Dictionary<Variant, int> _rowKeyIndex;
 
         [JsonIgnore]
-        private Dictionary<object, int> _columnKeyIndex;
+        private Dictionary<Variant, int> _columnKeyIndex;
 
         private readonly int _rows;
         private readonly int _columns;
 
-        public Table(int rows, int columns) : this(new Variant[rows, columns]) {
+        public Table(int rows, int columns, bool caseSensitive = false) : this(new Variant[rows, columns], caseSensitive) {
         }
 
-        public Table(Variant[,] data) : base(data) {
+        public Table(Variant[,] data, bool caseSensitive = false) : base(data) {
+            _caseSensitive = caseSensitive;
             _rows = this.RowsCount;
             _columns = this.ColumnsCount;
         }
@@ -37,22 +39,17 @@ namespace Spreads.DataTypes {
         public DateTime DateTime { get; set; }
         public long Version { get; set; }
 
-        public Variant this[int row, int column]
-        {
-            get
-            {
+        public Variant this[int row, int column] {
+            get {
                 return Data[row, column];
             }
-            set
-            {
+            set {
                 Data[row, column] = value;
             }
         }
 
-        public object this[object rowKey, object columnKey]
-        {
-            get
-            {
+        public object this[object rowKey, object columnKey] {
+            get {
                 var row = GetRowIndex(Variant.FromObject(rowKey));
                 if (row == -1) return null;
                 var column = GetColumnIndex(Variant.FromObject(columnKey));
@@ -61,10 +58,8 @@ namespace Spreads.DataTypes {
             }
         }
 
-        public object this[Variant rowKey, Variant columnKey]
-        {
-            get
-            {
+        public object this[Variant rowKey, Variant columnKey] {
+            get {
                 var row = GetRowIndex(rowKey);
                 if (row == -1) return null;
                 var column = GetColumnIndex(columnKey);
@@ -76,11 +71,22 @@ namespace Spreads.DataTypes {
         private int GetRowIndex(Variant rowKey) {
             if (_rows < LinearSearchLimit) {
                 for (var i = 0; i < _rows; i++) {
-                    if (Data[i, 0] == rowKey) {
+                    var variant = Data[i, 0];
+                    if (!_caseSensitive && variant.TypeEnum == TypeEnum.String && rowKey.TypeEnum == TypeEnum.String) {
+                        var str = variant.Get<string>();
+                        if (str.Equals(rowKey.Get<string>(), StringComparison.InvariantCultureIgnoreCase)) {
+                            return i;
+                        }
+                    }
+                    if (variant == rowKey) {
                         return i;
                     }
                 }
                 return -1;
+            }
+
+            if (_caseSensitive) {
+                throw new NotImplementedException();
             }
 
             if (_rowKeyIndex == null) {
@@ -98,7 +104,14 @@ namespace Spreads.DataTypes {
         private int GetColumnIndex(Variant columnKey) {
             if (_columns < LinearSearchLimit) {
                 for (var i = 0; i < _rows; i++) {
-                    if (Data[0, i] == columnKey) {
+                    var variant = Data[i, 0];
+                    if (!_caseSensitive && variant.TypeEnum == TypeEnum.String && columnKey.TypeEnum == TypeEnum.String) {
+                        var str = variant.Get<string>();
+                        if (str.Equals(columnKey.Get<string>(), StringComparison.InvariantCultureIgnoreCase)) {
+                            return i;
+                        }
+                    }
+                    if (variant == columnKey) {
                         return i;
                     }
                 }
@@ -118,9 +131,9 @@ namespace Spreads.DataTypes {
         }
 
         private void PopulateRowKeys() {
-            _rowKeyIndex = new Dictionary<object, int>();
+            _rowKeyIndex = _caseSensitive ? new Dictionary<Variant, int>() : new Dictionary<Variant, int>(new CaseInsensitiveVariantEqualityComparer());
             for (int i = 0; i < RowsCount; i++) {
-                var value = Variant.ToObject(Data[i, 0]);
+                var value = Data[i, 0];
                 if (!_rowKeyIndex.ContainsKey(value)) {
                     _rowKeyIndex[value] = i;
                 }
@@ -128,9 +141,9 @@ namespace Spreads.DataTypes {
         }
 
         private void PopulateColumnKeys() {
-            _columnKeyIndex = new Dictionary<object, int>();
+            _columnKeyIndex = _caseSensitive ? new Dictionary<Variant, int>() : new Dictionary<Variant, int>(new CaseInsensitiveVariantEqualityComparer());
             for (int i = 0; i < ColumnsCount; i++) {
-                var value = Variant.ToObject(Data[0, i]);
+                var value = Data[0, i];
                 if (!_columnKeyIndex.ContainsKey(value)) {
                     _columnKeyIndex[value] = i;
                 }
