@@ -218,7 +218,7 @@ namespace Spreads {
 
         private IMutableSeries<TKey, TValue> MutableInner {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return Unsafe.As<IMutableSeries<TKey, TValue>>(Inner); }
+            get { return (IMutableSeries<TKey, TValue>)(Inner); }
         }
 
         protected ConvertMutableSeries() {

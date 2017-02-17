@@ -4,17 +4,19 @@
 	"dependencies": {
 		"Newtonsoft.Json": "9.0.1",
 		"System.Buffers": "4.3.0",
-		"System.Slices": "0.1.0-*",
-		"System.Memory": "4.4.0-*",
-		"System.Runtime.CompilerServices.Unsafe": "4.4.0-*"
+		"Spreads.Utils": "0.7.0" 
 	},
 
 	"frameworks": {
 		"net451": {
-			"frameworkAssemblies": {
-				"System.IO.Compression": "",
-				"System.IO.Compression.FileSystem": ""
-			}
+      "frameworkAssemblies": {
+        "System.Runtime": {
+          "type": "build",
+          "version": ""
+        },
+        "System.IO.Compression": "",
+        "System.IO.Compression.FileSystem": ""
+      }
 		},
 		"netstandard1.3": {
 			"dependencies": {

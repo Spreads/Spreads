@@ -143,64 +143,63 @@ Target "RunTests" (fun _ ->
 
 Target "NuGet" (fun _ ->
 
-    let packageName = project + "." + "Core"
+    let packageName = project + "." + "Utils"
     NuGet (fun p ->
         { p with
             Authors = authors
             Project = packageName
             Summary = packageName // "TODO"
             Description = packageName // "TODO"
-            Version = release.NugetVersion
+            Version = "0.7.0"
             ReleaseNotes = ""
             Tags = tags
-            OutputPath = "bin"
+            OutputPath = "C:/tools/LocalNuget/"
             AccessKey = getBuildParamOrDefault "nugetkey" ""
             Publish = hasBuildParam "nugetkey"
-            Dependencies = 
-              [ "FSharp.Core", GetPackageVersion "packages" "FSharp.Core" ]
+            Dependencies = [  ]
                })
         ("nuget/" + packageName + ".nuspec")
 
-    let packageName = project + "." + "Extensions"
-    NuGet (fun p ->
-        { p with
-            Authors = authors
-            Project = packageName
-            Summary = packageName // "TODO"
-            Description = packageName // "TODO"
-            Version = release.NugetVersion
-            ReleaseNotes = ""
-            Tags = tags
-            OutputPath = "bin"
-            AccessKey = getBuildParamOrDefault "nugetkey" ""
-            Publish = hasBuildParam "nugetkey"
-            Dependencies = 
-              [ "Spreads.Core", release.NugetVersion
-                "Newtonsoft.Json", GetPackageVersion "packages" "Newtonsoft.Json"
-                "NodaTime", GetPackageVersion "packages" "NodaTime"
-                ]
-            })
-        ("nuget/" + packageName + ".nuspec")
-
-    let packageName = project
-    NuGet (fun p ->
-        { p with
-            Authors = authors
-            Project = packageName
-            Summary = packageName // "TODO"
-            Description = packageName // "TODO"
-            Version = release.NugetVersion
-            ReleaseNotes = ""
-            Tags = tags
-            OutputPath = "bin"
-            AccessKey = getBuildParamOrDefault "nugetkey" ""
-            Publish = hasBuildParam "nugetkey"
-            Dependencies = 
-              [ "Spreads.Core", release.NugetVersion
-                "Spreads.Extensions", release.NugetVersion
-                ]
-            })
-        ("nuget/" + packageName + ".nuspec")
+//    let packageName = project + "." + "Extensions"
+//    NuGet (fun p ->
+//        { p with
+//            Authors = authors
+//            Project = packageName
+//            Summary = packageName // "TODO"
+//            Description = packageName // "TODO"
+//            Version = release.NugetVersion
+//            ReleaseNotes = ""
+//            Tags = tags
+//            OutputPath = "bin"
+//            AccessKey = getBuildParamOrDefault "nugetkey" ""
+//            Publish = hasBuildParam "nugetkey"
+//            Dependencies = 
+//              [ "Spreads.Core", release.NugetVersion
+//                "Newtonsoft.Json", GetPackageVersion "packages" "Newtonsoft.Json"
+//                "NodaTime", GetPackageVersion "packages" "NodaTime"
+//                ]
+//            })
+//        ("nuget/" + packageName + ".nuspec")
+//
+//    let packageName = project
+//    NuGet (fun p ->
+//        { p with
+//            Authors = authors
+//            Project = packageName
+//            Summary = packageName // "TODO"
+//            Description = packageName // "TODO"
+//            Version = release.NugetVersion
+//            ReleaseNotes = ""
+//            Tags = tags
+//            OutputPath = "bin"
+//            AccessKey = getBuildParamOrDefault "nugetkey" ""
+//            Publish = hasBuildParam "nugetkey"
+//            Dependencies = 
+//              [ "Spreads.Core", release.NugetVersion
+//                "Spreads.Extensions", release.NugetVersion
+//                ]
+//            })
+//        ("nuget/" + packageName + ".nuspec")
 
 //    let packageName = project + "." + "RPlugin"
 //    NuGet (fun p ->
