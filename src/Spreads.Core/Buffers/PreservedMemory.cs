@@ -14,7 +14,7 @@ namespace Spreads.Buffers {
     // and never having two places working with the same segment.
 
     public struct PreservedMemory<T> : IDisposable {
-        private DisposableReservation _reservation;
+        private DisposableReservation<T> _reservation;
 
         public PreservedMemory(Memory<T> memory) {
             Memory = memory;

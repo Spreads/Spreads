@@ -212,13 +212,13 @@ namespace Spreads.Serialization {
                             if (decompSize <= 0) throw new ArgumentException("Invalid compressed input");
                         } catch (Exception ex) {
                             Debugger.Launch();
-                            UIntPtr nbytes2 = UIntPtr.Zero;
-                            UIntPtr cbytes = UIntPtr.Zero;
-                            UIntPtr blocksize = UIntPtr.Zero;
+                            UIntPtr nb = UIntPtr.Zero;
+                            UIntPtr cb = UIntPtr.Zero;
+                            UIntPtr bl = UIntPtr.Zero;
 
-                            BloscMethods.blosc_cbuffer_sizes(source, ref nbytes2, ref cbytes, ref blocksize);
+                            BloscMethods.blosc_cbuffer_sizes(source, ref nb, ref cb, ref bl);
                             //}
-                            Trace.WriteLine($"Blosc error: nbytes: {nbytes}, nbytes2: {nbytes2}, cbytes: {cbytes} arr segment size: {value.Count}, \n\r exeption: {ex.Message + Environment.NewLine + ex.ToString()}");
+                            Trace.WriteLine($"Blosc error: nbytes: {nbytes}, nbytes2: {nb}, cbytes: {cb} arr segment size: {value.Count}, \n\r exeption: {ex.Message + Environment.NewLine + ex.ToString()}");
                             throw;
                         }
                         

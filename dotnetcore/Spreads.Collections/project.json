@@ -65,7 +65,8 @@
 		//"keyFile": "../../tools/SpreadsKey.snk"
 	},
 	"dependencies": {
-		"Spreads.Core": "0.7.*",
+    "Spreads.Core": "0.7.*",
+    "System.Numerics.Vectors": "4.3.0"
 	},
 	"tools": {
 		"dotnet-compile-fsc": {

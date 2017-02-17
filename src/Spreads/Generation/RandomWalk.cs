@@ -6,7 +6,6 @@ using MathNet.Numerics.Distributions;
 #endif
 using Spreads.Collections;
 using System;
-using Angara;
 
 namespace Spreads.Generation {
 

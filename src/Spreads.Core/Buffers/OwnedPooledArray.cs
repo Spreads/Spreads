@@ -32,16 +32,11 @@ namespace Spreads.Buffers {
             Pool.TryAdd(this);
         }
 
-        // ReSharper disable once RedundantOverridenMember
-        protected override void OnReferenceCountChanged(int newReferenceCount) {
-            // NB When we dispose ReservedMemory, we could already lose an explicit
-            // reference to its OwnedMemory, so the last release of ReservedMemory
-            // should return the backing array to the pool.
-
-            if (newReferenceCount == 0) {
-                Dispose();
-            }
-            base.OnReferenceCountChanged(newReferenceCount);
+        
+        protected override void OnZeroReferences()
+        {
+            Dispose();
+            base.OnZeroReferences();
         }
 
         public static OwnedMemory<T> Create(T[] array) {
