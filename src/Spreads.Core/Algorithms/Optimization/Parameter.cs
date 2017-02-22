@@ -6,6 +6,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace Spreads.Algorithms.Optimization {
@@ -162,6 +163,19 @@ namespace Spreads.Algorithms.Optimization {
                 address = address * parameterArray[i].Steps + parameterArray[i].GridPosition;
             }
             return address;
+        }
+
+        public static Parameter[] SetPositionsFromLinearAddress(this Parameter[] parameterArray, long linearAddress) {
+            var newParameters = parameterArray.ToArray();
+            for (int i = parameterArray.Length - 1; i >= 1; i--) {
+                var steps = parameterArray[i].Steps;
+                var tmp = linearAddress / steps;
+                var iPos = checked((int)(linearAddress - tmp * steps));
+                newParameters[i].CurrentPosition = iPos;
+                linearAddress = tmp;
+            }
+            newParameters[0].CurrentPosition = checked((int)linearAddress);
+            return newParameters;
         }
     }
 }

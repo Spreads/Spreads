@@ -3,12 +3,12 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Spreads.Algorithms.Optimization {
-
 
 
     public class GridMaximizer {
@@ -18,35 +18,40 @@ namespace Spreads.Algorithms.Optimization {
             public Parameter[] Parameters;
             public double Value;
         }
-
+        // TODO ValueTask
         public struct EvalResultTask {
             public Parameter[] Parameters;
             public Task<double> Value;
         }
 
         private readonly Parameter[] _parameters;
-        private readonly Func<double[], Task<double>> _targetFunc;
-        private ConcurrentDictionary<long, Task<double>> _results = new ConcurrentDictionary<long, Task<double>>();
+        private readonly Func<Parameter[], Task<double>> _targetFunc;
+        private Dictionary<long, double> _results = new Dictionary<long, double>();
         private int _tail = 0;
-        private readonly int _concurrencyLimit = Environment.ProcessorCount * 2;
-        private List<EvalResultTask> _activeTasks;
+        private readonly int _concurrencyLimit;
+        private readonly List<EvalResultTask> _activeTasks;
 
-        public GridMaximizer(Parameter[] parameters, Func<double[], Task<double>> targetFunc) {
+        public GridMaximizer(Parameter[] parameters, Func<Parameter[], Task<double>> targetFunc) {
             _parameters = parameters;
             _targetFunc = targetFunc;
+            var total = parameters.Select(x => x.Steps).Aggregate(1, (i, st) => checked(i * st));
+            Debug.WriteLine($"ProcessGrid total iterations: {total}");
+            _concurrencyLimit = Math.Min(Environment.ProcessorCount * 2, total);
             _activeTasks = new List<EvalResultTask>(_concurrencyLimit);
         }
 
-        public async Task<EvalResult> ProcessGrid(Parameter[] parameters, Func<EvalResult[], Task<EvalResult>> reducer) {
-            var total = parameters.Select(x => x.Steps).Aggregate(1, (i, st) => checked(i * st));
-            Debug.WriteLine($"ProcessGrid total iterations: {total}");
-            var evalResults = new List<Task<EvalResult>>(total);
+        public async Task<T> ProcessGrid<T>(Parameter[] parameters, T seed, Func<T, EvalResult, T> folder) {
 
+            //var evalResults = new List<Task<EvalResult>>(total);
+
+            // TODO remove this commnet about initial BAD idea
             // Idea is that we will have to touch all points in the grid, so instead of 
             // complex parallelism we schedule all the work to the TPL (default thread pool)
             // but limit the concurrency via a semaphore (could be replaced with a custom task scheduler with limited concurrency)
             // Then we accumulate all the tasks and await all of them.
             // Later we apply a folder function that could select optimal parameters, or average/best/worst in the region, etc.
+
+            var accumulator = seed;
 
             var depth = 0;
             while (true) {
@@ -60,9 +65,40 @@ namespace Spreads.Algorithms.Optimization {
                     }
                 } else {
                     try {
-                        // now parameters are at some position
-                        var position = parameters.ToArray();
-                        evalResults.Add(GetResult(position, CancellationToken.None));
+                        var position = _tail % _concurrencyLimit;
+                        if (_activeTasks.Count < _concurrencyLimit) {
+                            var point = parameters.ToArray();
+
+                            // TODO ValueTask and memoize results by parameters linear address
+                            _activeTasks.Add(new EvalResultTask {Parameters = point, Value = _targetFunc(point)});
+
+                        } else {
+                            // now the active tasks buffer is full
+                            // await on the task at the position, process the result and replace the task at the position
+                            // if current task is slow and other tasks already completed, we will just replace them very quickly
+                            // later, but while we are waiting for the tail task concurrency could drop,
+                            // so here is 'amortized' concurrency.
+
+                            var currentTask = _activeTasks[position];
+                            await currentTask.Value;
+                            var evalResult = new EvalResult() {
+                                Value = currentTask.Value.Result,
+                                Parameters = currentTask.Parameters
+                            };
+                            // NB this is single-threaded application of folder and evalResult.Parameters could be modified
+                            // later since they are reused. Folder should copy parameters or store linear address
+                            // TODO rebuild position from linear address
+                            accumulator = folder(accumulator, evalResult);
+
+                            for (int i = 0; i < parameters.Length; i++) {
+                                currentTask.Parameters[i] = parameters[i];
+
+                            }
+                            currentTask.Value = _targetFunc(currentTask.Parameters);
+                            _activeTasks[position] = currentTask;
+                            _tail++;
+                        }
+
                     } finally {
                         depth--;
                     }
@@ -70,16 +106,25 @@ namespace Spreads.Algorithms.Optimization {
                 if (depth == -1) break;
             }
 
-            var all = await Task.WhenAll(evalResults);
-            var result = await reducer(all);
-            return result;
+            // NB All items in _activeTask are active
+
+            foreach (var currentTask in _activeTasks) {
+                await currentTask.Value;
+                var evalResult = new EvalResult() {
+                    Value = currentTask.Value.Result,
+                    Parameters = currentTask.Parameters
+                };
+                accumulator = folder(accumulator, evalResult);
+            }
+
+            return accumulator;
         }
 
 
         private Task<EvalResult> GetResult(Parameter[] parameters, CancellationToken ct) {
 
             var xxx = new EvalResult() {
-                Value = _targetFunc(parameters.Select(x => x.Current).ToArray()).Result,
+                Value = _targetFunc(parameters).Result,
                 Parameters = parameters
             };
             return Task.FromResult(xxx);

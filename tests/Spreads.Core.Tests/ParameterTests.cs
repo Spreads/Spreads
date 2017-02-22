@@ -147,8 +147,14 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(6, pars.LinearAddress());
 
             pars[0].CurrentPosition = 4;
-            pars[1].CurrentPosition = 4;
-            Assert.AreEqual(24, pars.LinearAddress());
+            pars[1].CurrentPosition = 3;
+            Assert.AreEqual(23, pars.LinearAddress());
+
+            var pars2 = pars.SetPositionsFromLinearAddress(23);
+
+            Assert.AreEqual(4, pars2[0].CurrentPosition);
+            Assert.AreEqual(3, pars2[1].CurrentPosition);
+
         }
     }
 }
