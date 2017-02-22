@@ -129,11 +129,5 @@ namespace Spreads.Core.Tests {
             }
         }
 
-        private EvalAddress FolderFunc2(EvalAddress state, ref GridMaximizer.EvalResult item) {
-            if (item.Value > state.Value) {
-                return new EvalAddress() { Value = item.Value, LinearAddress = item.Parameters.LinearAddress() };
-            }
-            return state;
-        }
     }
 }

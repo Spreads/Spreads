@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Spreads.Algorithms.Optimization {
 
-    public class GridMaximizer {
+    public struct GridMaximizer {
 
         public delegate T FolderFunc<T>(T state, ref EvalResult item);
 
@@ -22,23 +22,39 @@ namespace Spreads.Algorithms.Optimization {
             public ValueTask<double> Value;
         }
 
-        private readonly Parameter[] _parameters;
-        private readonly Func<Parameter[], ValueTask<double>> _targetFunc;
-        private readonly bool _memoize;
-        private readonly Dictionary<long, double> _results = new Dictionary<long, double>();
+        private Parameter[] _parameters;
+        private Func<Parameter[], ValueTask<double>> _targetFunc;
+        private bool _memoize;
+        private readonly Dictionary<long, double> _results;
         private int _tail;
-        private readonly int _concurrencyLimit;
-        private readonly List<EvalResultTask> _activeTasks;
+        private int _concurrencyLimit;
+        private List<EvalResultTask> _activeTasks;
 
         public GridMaximizer(Parameter[] parameters, Func<Parameter[], ValueTask<double>> targetFunc, bool memoize = false) {
             _parameters = parameters;
             _targetFunc = targetFunc;
             _memoize = memoize;
+            _results = _memoize ? new Dictionary<long, double>() : null;
             var total = parameters.Select(x => x.Steps).Aggregate(1, (i, st) => checked(i * st));
             Debug.WriteLine($"ProcessGrid total iterations: {total}");
             _concurrencyLimit = Math.Min(Environment.ProcessorCount * 2, total);
             _activeTasks = new List<EvalResultTask>(_concurrencyLimit);
+            _tail = 0;
         }
+
+        //public void Reset(Parameter[] parameters, Func<Parameter[], ValueTask<double>> targetFunc, bool memoize = false)
+        //{
+        //    _parameters = parameters;
+        //    _targetFunc = targetFunc;
+        //    _memoize = memoize;
+        //    _results.Clear();
+        //    _activeTasks.Clear();
+
+        //    var total = parameters.Select(x => x.Steps).Aggregate(1, (i, st) => checked(i * st));
+        //    Debug.WriteLine($"ProcessGrid total iterations: {total}");
+        //    _concurrencyLimit = Math.Min(Environment.ProcessorCount * 2, total);
+        //    _activeTasks = new List<EvalResultTask>(_concurrencyLimit);
+        //}
 
         public async Task<T> ProcessGrid<T>(T seed, FolderFunc<T> folder, Parameter[] parameters = null) {
             parameters = parameters ?? _parameters.Select(p => { p.Reset(); return p; }).ToArray();
