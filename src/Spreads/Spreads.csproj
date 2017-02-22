@@ -137,7 +137,7 @@
     <Compile Include="..\..\lib\Ix.NET\Ix.NET\Source\System.Interactive.Async\TaskExt.cs">
       <Link>System\Threading\Tasks\TaskExt.cs</Link>
     </Compile>
-    <Compile Include="Algorithms\MovingRegression.cs" />
+    <Compile Include="Algorithms\Online\MovingRegression.cs" />
     <Compile Include="Algorithms\Ranker.cs" />
     <Compile Include="DataTypes\OrderBook.cs" />
     <Compile Include="DataTypes\Tick.cs" />

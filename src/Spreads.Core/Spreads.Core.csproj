@@ -122,7 +122,8 @@
   <ItemGroup>
     <Compile Include="Algorithms\Algo.cs" />
     <Compile Include="Algorithms\Hash\xxHash.cs" />
-    <Compile Include="Algorithms\Math\MovingMedian.cs" />
+    <Compile Include="Algorithms\Online\MovingMedian.cs" />
+    <Compile Include="Algorithms\Optimization\Parameter.cs" />
     <Compile Include="BaseCursor.cs" />
     <Compile Include="Blosc\BloscMethods.cs" />
     <Compile Include="Buffers\AtomicCounter.cs" />

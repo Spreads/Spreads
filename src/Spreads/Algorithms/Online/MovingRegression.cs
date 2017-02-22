@@ -2,10 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #if NET451
-using MathNet.Numerics.LinearAlgebra;
 using System;
+using MathNet.Numerics.LinearAlgebra;
 
-namespace Spreads.Algorithms {
+namespace Spreads.Algorithms.Online {
 
     public static class MovingRegressionExtension {
 

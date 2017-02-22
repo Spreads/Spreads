@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Algorithms.Math {
+namespace Spreads.Algorithms.Online {
     // implementation of LIGO's Efficient Algorithm for computing a Running Median
     // https://dcc.ligo.org/public/0027/T030168/000/T030168-00.pdf
 

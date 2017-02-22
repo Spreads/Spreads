@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Spreads.Algorithms;
 using Spreads.Collections;
 using System;
+using Spreads.Algorithms.Online;
 
 namespace Spreads.Tests {
 
