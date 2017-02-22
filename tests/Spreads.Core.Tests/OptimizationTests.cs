@@ -44,18 +44,21 @@ namespace Spreads.Core.Tests {
                 //});
 
                 var result = -(Math.Pow(200 - args[0].Current, 2) + Math.Pow(10 - args[1].Current, 2) +
-                          Math.Pow(70 - args[2].Current, 2));
+                               Math.Pow(70 - args[2].Current, 2));
                 return new ValueTask<double>(result);
             };
 
             var maximizer = new GridMaximizer(pars, targetFunc);
 
-            Func<EvalAddress, GridMaximizer.EvalResult, EvalAddress> folder = (state, item) => {
-                if (item.Value > state.Value) {
-                    return new EvalAddress() { Value = item.Value, LinearAddress = item.Parameters.LinearAddress() };
-                }
-                return state;
-            };
+            GridMaximizer.FolderFunc<EvalAddress> folder = FolderFunc;
+
+            // NB Func<> cannot have byref params
+            //Func<EvalAddress, GridMaximizer.EvalResult, EvalAddress> folder = (state, item) => {
+            //    if (item.Value > state.Value) {
+            //        return new EvalAddress() { Value = item.Value, LinearAddress = item.Parameters.LinearAddress() };
+            //    }
+            //    return state;
+            //};
 
             var optimum = await maximizer.ProcessGrid(pars, EvalAddress.Worst, folder);
 
@@ -66,6 +69,14 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Elapsed: {sw.ElapsedMilliseconds}");
             Console.WriteLine($"Memory: {endMemory - startMemory}");
             Console.WriteLine($"Optimum: {optParams[0].Current} - {optParams[1].Current} - {optParams[2].Current}");
+
+        }
+
+        private EvalAddress FolderFunc(EvalAddress state, ref GridMaximizer.EvalResult item) {
+            if (item.Value > state.Value) {
+                return new EvalAddress() { Value = item.Value, LinearAddress = item.Parameters.LinearAddress() };
+            }
+            return state;
         }
 
         /// <summary>
@@ -100,12 +111,7 @@ namespace Spreads.Core.Tests {
             // true for memoize, second run is almost instant
             var maximizer = new GridMaximizer(pars, targetFunc, true);
 
-            Func<EvalAddress, GridMaximizer.EvalResult, EvalAddress> folder = (state, item) => {
-                if (item.Value > state.Value) {
-                    return new EvalAddress() { Value = item.Value, LinearAddress = item.Parameters.LinearAddress() };
-                }
-                return state;
-            };
+            GridMaximizer.FolderFunc<EvalAddress> folder = FolderFunc;
 
             for (int i = 0; i < 2; i++) {
                 var sw = new Stopwatch();
@@ -121,6 +127,13 @@ namespace Spreads.Core.Tests {
                 Console.WriteLine($"Memory: {endMemory - startMemory}");
                 Console.WriteLine($"Optimum: {optParams[0].Current} - {optParams[1].Current} - {optParams[2].Current}");
             }
+        }
+
+        private EvalAddress FolderFunc2(EvalAddress state, ref GridMaximizer.EvalResult item) {
+            if (item.Value > state.Value) {
+                return new EvalAddress() { Value = item.Value, LinearAddress = item.Parameters.LinearAddress() };
+            }
+            return state;
         }
     }
 }

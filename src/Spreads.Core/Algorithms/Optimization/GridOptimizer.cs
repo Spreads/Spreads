@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Spreads.Algorithms.Optimization {
 
     public class GridMaximizer {
-
+        public delegate T FolderFunc<T>(T state, ref EvalResult item);
         // result of evaluating a target function with given parameters
         public struct EvalResult {
             public Parameter[] Parameters;
@@ -38,7 +38,7 @@ namespace Spreads.Algorithms.Optimization {
             _activeTasks = new List<EvalResultTask>(_concurrencyLimit);
         }
 
-        public async Task<T> ProcessGrid<T>(Parameter[] parameters, T seed, Func<T, EvalResult, T> folder) {
+        public async Task<T> ProcessGrid<T>(Parameter[] parameters, T seed, FolderFunc<T> folder) {
             var accumulator = seed;
 
             var depth = 0;
@@ -89,7 +89,7 @@ namespace Spreads.Algorithms.Optimization {
                             // NB this is single-threaded application of folder and evalResult.Parameters could be modified
                             // later since they are reused. Folder should copy parameters or store linear address
                             // TODO rebuild position from linear address
-                            accumulator = folder(accumulator, evalResult);
+                            accumulator = folder(accumulator, ref evalResult);
 
                             for (int i = 0; i < parameters.Length; i++) {
                                 currentTask.Parameters[i] = parameters[i];
@@ -112,11 +112,12 @@ namespace Spreads.Algorithms.Optimization {
 
             foreach (var currentTask in _activeTasks) {
                 await currentTask.Value;
-                var evalResult = new EvalResult() {
+                var evalResult = new EvalResult
+                {
                     Value = currentTask.Value.Result,
                     Parameters = currentTask.Parameters
                 };
-                accumulator = folder(accumulator, evalResult);
+                accumulator = folder(accumulator, ref evalResult);
             }
 
             return accumulator;
