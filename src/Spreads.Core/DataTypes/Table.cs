@@ -74,7 +74,7 @@ namespace Spreads.DataTypes {
                     var variant = Data[i, 0];
                     if (!_caseSensitive && variant.TypeEnum == TypeEnum.String && rowKey.TypeEnum == TypeEnum.String) {
                         var str = variant.Get<string>();
-                        if (str.Equals(rowKey.Get<string>(), StringComparison.InvariantCultureIgnoreCase)) {
+                        if (str.Equals(rowKey.Get<string>(), StringComparison.OrdinalIgnoreCase)) {
                             return i;
                         }
                     }
@@ -107,7 +107,7 @@ namespace Spreads.DataTypes {
                     var variant = Data[i, 0];
                     if (!_caseSensitive && variant.TypeEnum == TypeEnum.String && columnKey.TypeEnum == TypeEnum.String) {
                         var str = variant.Get<string>();
-                        if (str.Equals(columnKey.Get<string>(), StringComparison.InvariantCultureIgnoreCase)) {
+                        if (str.Equals(columnKey.Get<string>(), StringComparison.OrdinalIgnoreCase)) {
                             return i;
                         }
                     }

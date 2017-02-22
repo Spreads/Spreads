@@ -110,6 +110,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public char ReadChar(long index) {
             Assert(index, 1);
             return *((char*)new IntPtr(_data.ToInt64() + index));
@@ -120,6 +121,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteChar(long index, char value) {
             Assert(index, 1);
             *((byte*)new IntPtr(_data.ToInt64() + index)) = (byte)value;
@@ -130,6 +132,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public sbyte ReadSByte(long index) {
             Assert(index, 1);
             return *(sbyte*)(new IntPtr(_data.ToInt64() + index));
@@ -140,6 +143,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteSByte(long index, sbyte value) {
             *(sbyte*)(new IntPtr(_data.ToInt64() + index)) = value;
         }
@@ -149,6 +153,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte ReadByte(long index) {
             Assert(index, 1);
             return *((byte*)new IntPtr(_data.ToInt64() + index));
@@ -159,6 +164,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteByte(long index, byte value) {
             Assert(index, 1);
             *((byte*)new IntPtr(_data.ToInt64() + index)) = value;
@@ -166,11 +172,13 @@ namespace Spreads.Buffers {
 
         public byte this[long index]
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 Assert(index, 1);
                 return *((byte*)new IntPtr(_data.ToInt64() + index));
             }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
                 Assert(index, 1);
@@ -183,6 +191,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public short ReadInt16(long index) {
             Assert(index, 2);
             return *(short*)(new IntPtr(_data.ToInt64() + index));
@@ -193,6 +202,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteInt16(long index, short value) {
             Assert(index, 2);
             *(short*)(new IntPtr(_data.ToInt64() + index)) = value;
@@ -203,6 +213,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int ReadInt32(long index) {
             Assert(index, 4);
             return *(int*)(new IntPtr(_data.ToInt64() + index));
@@ -213,76 +224,91 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteInt32(long index, int value) {
             Assert(index, 4);
             *(int*)(new IntPtr(_data.ToInt64() + index)) = value;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int VolatileReadInt32(long index) {
             Assert(index, 4);
             return Volatile.Read(ref *(int*)(new IntPtr(_data.ToInt64() + index)));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void VolatileWriteInt32(long index, int value) {
             Assert(index, 4);
             Volatile.Write(ref *(int*)(new IntPtr(_data.ToInt64() + index)), value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long VolatileReadInt64(long index) {
             Assert(index, 8);
             return Volatile.Read(ref *(long*)(new IntPtr(_data.ToInt64() + index)));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void VolatileWriteInt64(long index, long value) {
             Assert(index, 8);
             Volatile.Write(ref *(long*)(new IntPtr(_data.ToInt64() + index)), value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int InterlockedIncrementInt32(long index) {
             Assert(index, 4);
             return Interlocked.Increment(ref *(int*)(new IntPtr(_data.ToInt64() + index)));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int InterlockedDecrementInt32(long index) {
             Assert(index, 4);
             return Interlocked.Decrement(ref *(int*)(new IntPtr(_data.ToInt64() + index)));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int InterlockedAddInt32(long index, int value) {
             Assert(index, 4);
             return Interlocked.Add(ref *(int*)(new IntPtr(_data.ToInt64() + index)), value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int InterlockedReadInt32(long index) {
             Assert(index, 4);
             return Interlocked.Add(ref *(int*)(new IntPtr(_data.ToInt64() + index)), 0);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int InterlockedCompareExchangeInt32(long index, int value, int comparand) {
             Assert(index, 4);
             return Interlocked.CompareExchange(ref *(int*)(new IntPtr(_data.ToInt64() + index)), value, comparand);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long InterlockedIncrementInt64(long index) {
             Assert(index, 8);
             return Interlocked.Increment(ref *(long*)(new IntPtr(_data.ToInt64() + index)));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long InterlockedDecrementInt64(long index) {
             Assert(index, 8);
             return Interlocked.Decrement(ref *(long*)(new IntPtr(_data.ToInt64() + index)));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long InterlockedAddInt64(long index, long value) {
             Assert(index, 8);
             return Interlocked.Add(ref *(long*)(new IntPtr(_data.ToInt64() + index)), value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long InterlockedReadInt64(long index) {
             Assert(index, 8);
             return Interlocked.Add(ref *(long*)(new IntPtr(_data.ToInt64() + index)), 0);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long InterlockedCompareExchangeInt64(long index, long value, long comparand) {
             Assert(index, 8);
             return Interlocked.CompareExchange(ref *(long*)(new IntPtr(_data.ToInt64() + index)), value, comparand);
@@ -293,6 +319,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long ReadInt64(long index) {
             return *(long*)(new IntPtr(_data.ToInt64() + index));
         }
@@ -302,6 +329,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteInt64(long index, long value) {
             Assert(index, 8);
             *(long*)(new IntPtr(_data.ToInt64() + index)) = value;
@@ -312,6 +340,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort ReadUint16(long index) {
             Assert(index, 8);
             return *(ushort*)(new IntPtr(_data.ToInt64() + index));
@@ -322,6 +351,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteUint16(long index, ushort value) {
             Assert(index, 2);
             *(ushort*)(new IntPtr(_data.ToInt64() + index)) = value;
@@ -354,6 +384,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ulong ReadUint64(long index) {
             Assert(index, 4);
             return *(ulong*)(new IntPtr(_data.ToInt64() + index));
@@ -374,6 +405,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float ReadFloat(long index) {
             Assert(index, 8);
             return *(float*)(new IntPtr(_data.ToInt64() + index));
@@ -384,6 +416,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteFloat(long index, float value) {
             Assert(index, 4);
             *(float*)(new IntPtr(_data.ToInt64() + index)) = value;
@@ -394,6 +427,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public double ReadDouble(long index) {
             Assert(index, 8);
             return *(double*)(new IntPtr(_data.ToInt64() + index));
@@ -404,6 +438,7 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteDouble(long index, double value) {
             Assert(index, 8);
             *(double*)(new IntPtr(_data.ToInt64() + index)) = value;
@@ -424,6 +459,7 @@ namespace Spreads.Buffers {
             return len;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int ReadAllBytes(byte[] destination) {
             if (_length > int.MaxValue) {
                 // TODO (low) .NET already supports arrays larger than 2 Gb,
@@ -488,27 +524,32 @@ namespace Spreads.Buffers {
             Unsafe.InitBlockUnaligned((void*)destination, 0, (uint)length);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public UUID ReadUUID(long index) {
             Assert(index, 16);
             return *(UUID*)(new IntPtr(_data.ToInt64() + index));
             //return new UUID(*(ulong*)(_pBuffer + index), *(ulong*)(_pBuffer + index + 8));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteUUID(long index, UUID value) {
             Assert(index, 16);
             *(UUID*)(new IntPtr(_data.ToInt64() + index)) = value;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int ReadAsciiDigit(long index) {
             Assert(index, 1);
             return (*((byte*)new IntPtr(_data.ToInt64() + index))) - '0';
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteAsciiDigit(long index, int value) {
             Assert(index, 1);
             *(byte*)(new IntPtr(_data.ToInt64() + index)) = (byte)(value + '0');
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void VerifyAlignment(int alignment) {
             if (0 != (_data.ToInt64() & (alignment - 1))) {
                 throw new InvalidOperationException(

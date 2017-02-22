@@ -26,7 +26,7 @@ namespace Spreads.DataTypes {
     public class CaseInsensitiveVariantEqualityComparer : IEqualityComparer<Variant> {
         public bool Equals(Variant x, Variant y) {
             if (x.TypeEnum == TypeEnum.String && y.TypeEnum == TypeEnum.String) {
-                return x.Get<string>().Equals(y.Get<string>(), StringComparison.InvariantCultureIgnoreCase);
+                return x.Get<string>().Equals(y.Get<string>(), StringComparison.OrdinalIgnoreCase);
             }
             return x.Equals(y);
         }

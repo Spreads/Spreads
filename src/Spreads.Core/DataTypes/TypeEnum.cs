@@ -89,7 +89,7 @@ namespace Spreads.DataTypes {
 
         Array = 70,
         Matrix = 71, // same as array must have a subtype defined
-        Table = 72,  // matrix if variants
+        Table = 72,  // matrix of variants
     }
 
     public partial struct Variant {

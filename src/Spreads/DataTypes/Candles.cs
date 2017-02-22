@@ -53,13 +53,12 @@ namespace Spreads.DataTypes {
     /// <summary>
     /// A blittable structure for bars with volume and weighted average price
     /// </summary>
-    [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 40)]
+    [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 48)]
     public struct OHLCFull {
-        private readonly OHLCV _ohlcv;
-        private readonly double _vWap;
-
-        private readonly int _tradeCount;
-        private readonly int _openInterest;
+        private readonly OHLCV _ohlcv; // 24
+        private readonly int _tradeCount; // 28
+        private readonly int _openInterest; // 32
+        private readonly decimal _value; //48
 
         public Price Open => _ohlcv.Open;
         public Price High => _ohlcv.High;
@@ -68,19 +67,20 @@ namespace Spreads.DataTypes {
         public int Volume => _ohlcv.Volume;
         public int TradeCount => _tradeCount;
         public int OpenInterest => _openInterest;
+        public decimal MoneyVolume => _value;
 
         public OHLCV OHLCV => _ohlcv;
 
-        public OHLCFull(Price open, Price high, Price low, Price close, int volume = 0, double weightedAveragePrice = 0, int tradeCount = 0, int openInterest = 0) {
+        public OHLCFull(Price open, Price high, Price low, Price close, int volume = 0, decimal moneyVolume = 0, int tradeCount = 0, int openInterest = 0) {
             _ohlcv = new OHLCV(open, high, low, close, volume);
-            _vWap = weightedAveragePrice;
+            _value = new Price(moneyVolume, 5);
             _tradeCount = tradeCount;
             _openInterest = openInterest;
         }
 
-        public OHLCFull(decimal open, decimal high, decimal low, decimal close, int volume = 0, double weightedAveragePrice = 0, int tradeCount = 0, int openInterest = 0, int precision = 6) {
+        public OHLCFull(decimal open, decimal high, decimal low, decimal close, int volume = 0, decimal moneyVolume = 0, int tradeCount = 0, int openInterest = 0, int precision = 6) {
             _ohlcv = new OHLCV(open, high, low, close, volume, precision);
-            _vWap = weightedAveragePrice;
+            _value = moneyVolume;
             _tradeCount = tradeCount;
             _openInterest = openInterest;
         }
