@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Algorithms.Optimization {
 
+    [StructLayout(LayoutKind.Sequential)]
     public struct Parameter : IEnumerable<double>, IEnumerator<double> {
         private readonly string _code;
         private readonly double _startValue;
@@ -18,11 +19,12 @@ namespace Spreads.Algorithms.Optimization {
         private readonly int _steps;
         private readonly int _bigStepMultiple;
         private int _currentPosition;
+        private int _offset;
 
         public Parameter(string code, double startValue, double endValue, double stepSize = 0, int bigStepMultiple = 1) {
             //
-            if (endValue <= startValue && stepSize > 0) { throw new ArgumentException("endValue <= startValue while step > 0"); }
-            if (endValue >= startValue && stepSize < 0) { throw new ArgumentException("endValue >= startValue while step < 0"); }
+            if (endValue < startValue && stepSize > 0) { throw new ArgumentException("endValue <= startValue while step > 0"); }
+            if (endValue > startValue && stepSize < 0) { throw new ArgumentException("endValue >= startValue while step < 0"); }
             // ReSharper disable once CompareOfFloatsByEqualityOperator
             if (stepSize == 0) {
                 Trace.TraceWarning("Step size is zero, assuming differefe between start and end");
@@ -32,11 +34,12 @@ namespace Spreads.Algorithms.Optimization {
             _startValue = startValue;
             _endValue = endValue;
             _stepSize = stepSize;
-            Debug.Assert((_endValue - _startValue) / _stepSize > 0);
+            //Debug.Assert((_endValue - _startValue) / _stepSize > 0);
             _steps = 1 + (int)Math.Ceiling((_endValue - _startValue) / _stepSize);
             if (bigStepMultiple < 1) { throw new ArgumentOutOfRangeException(nameof(bigStepMultiple)); }
             _bigStepMultiple = bigStepMultiple;
             _currentPosition = -1;
+            _offset = 0;
         }
 
         public string Code => _code;
@@ -46,7 +49,15 @@ namespace Spreads.Algorithms.Optimization {
         public int Steps => _steps;
         public int BigStepMultiple => _bigStepMultiple;
 
-        public int CurrentPosition => _currentPosition;
+        public int CurrentPosition {
+            get { return _currentPosition; }
+            set {
+                if (value < 0 || value >= _steps) throw new ArgumentOutOfRangeException(nameof(value));
+                _currentPosition = value;
+            }
+        }
+
+        public int GridPosition => _offset + (_currentPosition == -1 ? 0 : _currentPosition);
 
         public double this[int index] {
             get {
@@ -63,9 +74,19 @@ namespace Spreads.Algorithms.Optimization {
         /// <param name="epsilon"></param>
         /// <returns></returns>
         public Parameter GetRegion(int position, int epsilon) {
-            var start = this[Math.Max(position - epsilon, 0)];
+            var offset = Math.Max(position - epsilon, 0);
+            var start = this[offset];
             var end = this[Math.Min(position + epsilon, _steps - 1)];
-            var newParameter = new Parameter(_code, start, end, _stepSize, _bigStepMultiple);
+            var newParameter = new Parameter(_code, start, end, _stepSize, _bigStepMultiple) {
+                _offset = this._offset + offset
+            };
+            return newParameter;
+        }
+
+        public Parameter WithBigStep() {
+            var newParameter = new Parameter(_code, _startValue, _endValue, _stepSize * _bigStepMultiple, 1) {
+                _offset = this._offset
+            };
             return newParameter;
         }
 
@@ -122,6 +143,25 @@ namespace Spreads.Algorithms.Optimization {
 
         IEnumerator<double> IEnumerable<double>.GetEnumerator() {
             return GetEnumerator();
+        }
+    }
+
+    public static class ParameterExtensions {
+        // useful to as a key to memoize target function result at a point, instead of int[]
+        public static long LinearAddress(this Parameter[] parameterArray) {
+            if (parameterArray == null) throw new ArgumentNullException(nameof(parameterArray));
+
+            var address = -1L;
+            if (parameterArray.Length == 0) return address;
+
+            address = parameterArray[0].CurrentPosition;
+
+            // previous * current dim + current addr
+            // TODO test + review
+            for (int i = 1; i < parameterArray.Length; i++) {
+                address = address * parameterArray[i].Steps + parameterArray[i].GridPosition;
+            }
+            return address;
         }
     }
 }

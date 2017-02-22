@@ -3,15 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
-using Spreads.Collections;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using Spreads.Algorithms.Optimization;
 
 namespace Spreads.Core.Tests {
-
 
     [TestFixture]
     public class ParameterTests {
@@ -86,7 +80,6 @@ namespace Spreads.Core.Tests {
             Assert.IsFalse(par.BigMoveNext());
             Assert.AreEqual(19, par.Current);
             Assert.AreEqual(4, par.CurrentPosition);
-
         }
 
         [Test]
@@ -104,14 +97,12 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(19, par.Current);
             Assert.AreEqual(4, par.CurrentPosition);
 
-
             Assert.IsFalse(par.BigMoveNext());
             Assert.AreEqual(19, par.Current);
             Assert.AreEqual(4, par.CurrentPosition);
 
             Assert.IsFalse(par.MoveNext());
         }
-
 
         [Test]
         public void RegionTest() {
@@ -126,8 +117,38 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(10, region[1]);
             Assert.AreEqual(15, region[2]);
 
+            Assert.IsTrue(region.MoveNext());
+
+            Assert.AreEqual(0, region.CurrentPosition);
+
+            // GridPosition position is measured from the original
+            Assert.AreEqual(1, region.GridPosition);
+
+            var region2 = region.GetRegion(1, 0);
+            Assert.AreEqual(1, region2.Steps);
+
+            Assert.IsTrue(region2.MoveNext());
+            Assert.AreEqual(0, region2.CurrentPosition);
+            Assert.AreEqual(2, region2.GridPosition);
         }
 
+        [Test]
+        public void LinearAddressTest() {
+            var par1 = new Parameter("par1", 0, 4, 1);
+            var par2 = new Parameter("par2", 0, 4, 1);
+            var pars = new[] { par1, par2 };
 
+            pars[0].CurrentPosition = 1;
+
+            Assert.AreEqual(5, pars.LinearAddress());
+
+            pars[1].CurrentPosition = 1;
+
+            Assert.AreEqual(6, pars.LinearAddress());
+
+            pars[0].CurrentPosition = 4;
+            pars[1].CurrentPosition = 4;
+            Assert.AreEqual(24, pars.LinearAddress());
+        }
     }
 }
