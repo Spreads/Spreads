@@ -7,6 +7,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Spreads.Algorithms.Optimization {
@@ -47,20 +48,31 @@ namespace Spreads.Algorithms.Optimization {
         public double StartValue => _startValue;
         public double EndValue => _endValue;
         public double StepSize => _stepSize;
-        public int Steps => _steps;
+        public int Steps {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _steps; }
+        }
+
         public int BigStepMultiple => _bigStepMultiple;
 
         public int CurrentPosition {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _currentPosition; }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set {
                 if (value < 0 || value >= _steps) throw new ArgumentOutOfRangeException(nameof(value));
                 _currentPosition = value;
             }
         }
 
-        public int GridPosition => _offset + (_currentPosition == -1 ? 0 : _currentPosition);
+
+        public int GridPosition {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _offset + (_currentPosition == -1 ? 0 : _currentPosition); }
+        }
 
         public double this[int index] {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get {
                 if (index < 0) throw new ArgumentException("Parameter index is negative");
                 if (index >= _steps) throw new ArgumentException("Parameter index is greater than number of steps");
@@ -95,6 +107,7 @@ namespace Spreads.Algorithms.Optimization {
         }
 
         public double Current {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get {
                 Debug.Assert(_currentPosition >= 0, "Wrong access to Current of not started Parameter");
                 Debug.Assert(_currentPosition < _steps, "Wrong _current position");
@@ -110,6 +123,7 @@ namespace Spreads.Algorithms.Optimization {
             return copy;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext() {
             var nextPosition = _currentPosition + 1;
             Debug.Assert(nextPosition <= _steps);
@@ -149,6 +163,7 @@ namespace Spreads.Algorithms.Optimization {
 
     public static class ParameterExtensions {
         // useful to as a key to memoize target function result at a point, instead of int[]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long LinearAddress(this Parameter[] parameterArray) {
             if (parameterArray == null) throw new ArgumentNullException(nameof(parameterArray));
 
@@ -165,6 +180,7 @@ namespace Spreads.Algorithms.Optimization {
             return address;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Parameter[] SetPositionsFromLinearAddress(this Parameter[] parameterArray, long linearAddress) {
             var newParameters = parameterArray.ToArray();
             for (int i = parameterArray.Length - 1; i >= 1; i--) {
