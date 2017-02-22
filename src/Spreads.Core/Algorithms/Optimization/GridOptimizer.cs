@@ -21,17 +21,17 @@ namespace Spreads.Algorithms.Optimization {
         // TODO ValueTask
         public struct EvalResultTask {
             public Parameter[] Parameters;
-            public Task<double> Value;
+            public ValueTask<double> Value;
         }
 
         private readonly Parameter[] _parameters;
-        private readonly Func<Parameter[], Task<double>> _targetFunc;
+        private readonly Func<Parameter[], ValueTask<double>> _targetFunc;
         private Dictionary<long, double> _results = new Dictionary<long, double>();
         private int _tail = 0;
         private readonly int _concurrencyLimit;
         private readonly List<EvalResultTask> _activeTasks;
 
-        public GridMaximizer(Parameter[] parameters, Func<Parameter[], Task<double>> targetFunc) {
+        public GridMaximizer(Parameter[] parameters, Func<Parameter[], ValueTask<double>> targetFunc) {
             _parameters = parameters;
             _targetFunc = targetFunc;
             var total = parameters.Select(x => x.Steps).Aggregate(1, (i, st) => checked(i * st));

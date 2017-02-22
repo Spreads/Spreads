@@ -7,9 +7,11 @@ using System;
 
 namespace Spreads.Core.Tests {
     class Program {
-        static void Main(string[] args)
-        {
-            (new ObjectPoolsTests()).ComparePoolsPerformance();
+        static void Main(string[] args) {
+            for (int i = 0; i < 10; i++) {
+                (new OptimizationTests()).CouldFindMaximum();
+            }
+
             Console.ReadLine();
         }
     }

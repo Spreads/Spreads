@@ -37,7 +37,7 @@ namespace Spreads.Core.Tests {
             var total = pars.Select(x => x.Steps).Aggregate(1, (i, st) => checked(i * st));
             Console.WriteLine($"Total iterations: {total}");
 
-            Func<Parameter[], Task<double>> targetFunc = (args) => {
+            Func<Parameter[], ValueTask<double>> targetFunc = (args) => {
                 //return Task.Run(() => {
                 //    //await Task.Delay(0);
                 //    var result = -(Math.Pow(200 - args[0].Current, 2) + Math.Pow(10 - args[1].Current, 2) +
@@ -45,9 +45,11 @@ namespace Spreads.Core.Tests {
                 //    return result;
                 //});
 
+                
+
                 var result = -(Math.Pow(200 - args[0].Current, 2) + Math.Pow(10 - args[1].Current, 2) +
                           Math.Pow(70 - args[2].Current, 2));
-                return Task.FromResult(result);
+                return new ValueTask<double>(result);
             };
 
             var maximizer = new GridMaximizer(pars, targetFunc);
@@ -88,8 +90,8 @@ namespace Spreads.Core.Tests {
             var total = pars.Select(x => x.Steps).Aggregate(1, (i, st) => checked(i * st));
             Console.WriteLine($"Total iterations: {total}");
 
-            Func<Parameter[], Task<double>> targetFunc = (args) => {
-                return Task.Run(() => {
+            Func<Parameter[], ValueTask<double>> targetFunc = (args) => {
+                var task = Task.Run(() => {
 
                     var sum = 0L;
                     for (var i = 0; i < 10000000; i++) {
@@ -101,6 +103,7 @@ namespace Spreads.Core.Tests {
                     var result = -(Math.Pow(20 - args[0].Current, 2) + Math.Pow(1 - args[1].Current, 2) + Math.Pow(7 - args[2].Current, 2));
                     return result;
                 });
+                return new ValueTask<double>(task);
             };
 
             var maximizer = new GridMaximizer(pars, targetFunc);
