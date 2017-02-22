@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 namespace Spreads.Algorithms.Optimization {
 
     public class GridMaximizer {
+
         public delegate T FolderFunc<T>(T state, ref EvalResult item);
+
         // result of evaluating a target function with given parameters
         public struct EvalResult {
             public Parameter[] Parameters;
@@ -38,7 +40,9 @@ namespace Spreads.Algorithms.Optimization {
             _activeTasks = new List<EvalResultTask>(_concurrencyLimit);
         }
 
-        public async Task<T> ProcessGrid<T>(Parameter[] parameters, T seed, FolderFunc<T> folder) {
+        public async Task<T> ProcessGrid<T>(T seed, FolderFunc<T> folder, Parameter[] parameters = null) {
+            parameters = parameters ?? _parameters.Select(p => { p.Reset(); return p; }).ToArray();
+
             var accumulator = seed;
 
             var depth = 0;
@@ -112,8 +116,7 @@ namespace Spreads.Algorithms.Optimization {
 
             foreach (var currentTask in _activeTasks) {
                 await currentTask.Value;
-                var evalResult = new EvalResult
-                {
+                var evalResult = new EvalResult {
                     Value = currentTask.Value.Result,
                     Parameters = currentTask.Parameters
                 };

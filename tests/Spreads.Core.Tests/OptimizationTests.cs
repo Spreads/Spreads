@@ -60,7 +60,7 @@ namespace Spreads.Core.Tests {
             //    return state;
             //};
 
-            var optimum = await maximizer.ProcessGrid(pars, EvalAddress.Worst, folder);
+            var optimum = await maximizer.ProcessGrid(EvalAddress.Worst, folder);
 
             var optParams = pars.SetPositionsFromLinearAddress(optimum.LinearAddress);
 
@@ -118,7 +118,7 @@ namespace Spreads.Core.Tests {
                 var startMemory = GC.GetTotalMemory(true);
                 sw.Restart();
 
-                var optimum = await maximizer.ProcessGrid(pars, EvalAddress.Worst, folder);
+                var optimum = await maximizer.ProcessGrid(EvalAddress.Worst, folder);
                 var optParams = pars.SetPositionsFromLinearAddress(optimum.LinearAddress);
 
                 var endMemory = GC.GetTotalMemory(false);
