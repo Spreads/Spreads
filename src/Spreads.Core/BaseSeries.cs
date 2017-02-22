@@ -12,6 +12,21 @@ using System.Threading.Tasks;
 namespace Spreads {
 
     public class BaseSeries {
+        private static readonly ConditionalWeakTable<BaseSeries, Dictionary<string, object>> Attributes = new ConditionalWeakTable<BaseSeries, Dictionary<string, object>>();
+
+        public object GetAttribute(string attributeName) {
+            object res;
+            Dictionary<string, object> dic;
+            if (Attributes.TryGetValue(this, out dic) && dic.TryGetValue(attributeName, out res)) {
+                return res;
+            }
+            return null;
+        }
+
+        public void SetAttribute(string attributeName, object attributeValue) {
+            var dic = Attributes.GetOrCreateValue(this);
+            dic[attributeName] = attributeValue;
+        }
     }
 
     public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK, TV> {
@@ -57,11 +72,9 @@ namespace Spreads {
             return GetCursor();
         }
 
-        public object SyncRoot
-        {
+        public object SyncRoot {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
+            get {
                 if (_syncRoot == null) {
                     Interlocked.CompareExchange(ref _syncRoot, new object(), null);
                 }
@@ -75,10 +88,8 @@ namespace Spreads {
         public abstract KeyValuePair<TK, TV> First { get; }
         public abstract KeyValuePair<TK, TV> Last { get; }
 
-        public virtual TV this[TK key]
-        {
-            get
-            {
+        public virtual TV this[TK key] {
+            get {
                 TV tmp;
                 if (TryGetValue(key, out tmp)) {
                     return tmp;
