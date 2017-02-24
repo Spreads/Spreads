@@ -86,6 +86,10 @@ type SortedMap<'K,'V>
   let ownerThreadId : int = Thread.CurrentThread.ManagedThreadId
   let mutable mapKey = String.Empty
 
+  [<DefaultValueAttribute>] 
+  val mutable internal subscriberCount : int
+  [<DefaultValueAttribute>] 
+  val mutable internal isReadyToDispose : int
 
   do
     // NB: There is no single imaginable reason not to have it true by default!
@@ -663,20 +667,25 @@ type SortedMap<'K,'V>
   override this.First
     with get() =
       readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-        if this.size = 0 then raise (InvalidOperationException("Could not get the first element of an empty map"))
-        KeyValuePair(this.keys.[0], this.values.[0])
+        this.FirstUnchecked
       )
 
+  member private this.FirstUnchecked
+    with get() =
+      KeyValuePair(this.keys.[0], this.values.[0])
+      
   override this.Last
     with get() =
       readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-        if this.size = 0 then raise (InvalidOperationException("Could not get the last element of an empty map"))
-        if couldHaveRegularKeys && this.size > 1 then
-          Trace.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
-          KeyValuePair(rkLast, this.values.[this.size - 1])
-        else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
+        this.LastUnchecked
       )
 
+  member private this.LastUnchecked
+    with get() =
+      if couldHaveRegularKeys && this.size > 1 then
+        Trace.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
+        KeyValuePair(rkLast, this.values.[this.size - 1])
+      else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
   
   member this.Item
       with get key =
@@ -802,7 +811,7 @@ type SortedMap<'K,'V>
         if c > 0 then 
           this.Insert(this.size, key, value)
         else
-          let exn = OutOfOrderKeyException(this.Last.Key, key, "SortedMap.AddLast: New key is smaller or equal to the largest existing key")
+          let exn = OutOfOrderKeyException(this.LastUnchecked.Key, key, "SortedMap.AddLast: New key is smaller or equal to the largest existing key")
           raise (exn)
       added <- true
     finally
@@ -844,7 +853,7 @@ type SortedMap<'K,'V>
         if c < 0 then
             this.Insert(0, key, value)
         else 
-          let exn = OutOfOrderKeyException(this.Last.Key, key, "SortedMap.AddLast: New key is larger or equal to the smallest existing key")
+          let exn = OutOfOrderKeyException(this.FirstUnchecked.Key, key, "SortedMap.AddFirst: New key is larger or equal to the smallest existing key")
           raise (exn)
       added <- true
     finally
@@ -1412,7 +1421,7 @@ type SortedMap<'K,'V>
           entered <- enterWriteLockIf &this.Locker this.isSynchronized
           match option with
           | AppendOption.ThrowOnOverlap ->
-            if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+            if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnchecked.Key) > 0 then
               let mutable c = 0
               for i in appendMap do
                 c <- c + 1
@@ -1420,7 +1429,7 @@ type SortedMap<'K,'V>
               c
             else invalidOp "values overlap with existing"
           | AppendOption.DropOldOverlap ->
-            if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+            if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnchecked.Key) > 0 then
               let mutable c = 0
               for i in appendMap do
                 c <- c + 1
@@ -1435,7 +1444,7 @@ type SortedMap<'K,'V>
                 this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
               c
           | AppendOption.IgnoreEqualOverlap ->
-            if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+            if this.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnchecked.Key) > 0 then
               let mutable c = 0
               for i in appendMap do
                 c <- c + 1
@@ -1445,7 +1454,7 @@ type SortedMap<'K,'V>
               let isEqOverlap = hasEqOverlap this appendMap
               if isEqOverlap then
                 let appC = appendMap.GetCursor();
-                if appC.MoveAt(this.Last.Key, Lookup.GT) then
+                if appC.MoveAt(this.LastUnchecked.Key, Lookup.GT) then
                   this.AddLastUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                   let mutable c = 1
                   while appC.MoveNext() do
@@ -1461,13 +1470,13 @@ type SortedMap<'K,'V>
                 c <- c + 1
                 this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
               c
-            elif comparer.Compare(appendMap.First.Key, this.Last.Key) > 0 then
+            elif comparer.Compare(appendMap.First.Key, this.LastUnchecked.Key) > 0 then
               invalidOp "values do not overlap with existing"
             else
               let isEqOverlap = hasEqOverlap this appendMap
               if isEqOverlap then
                 let appC = appendMap.GetCursor();
-                if appC.MoveAt(this.Last.Key, Lookup.GT) then
+                if appC.MoveAt(this.LastUnchecked.Key, Lookup.GT) then
                   this.AddLastUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
                   let mutable c = 1
                   while appC.MoveNext() do

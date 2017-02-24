@@ -4,12 +4,14 @@
 
 
 using System;
+using Spreads.Core.Tests.Algorithms;
+using Spreads.Core.Tests.Enumerators;
 
 namespace Spreads.Core.Tests {
     class Program {
         static void Main(string[] args) {
             for (int i = 0; i < 10; i++) {
-                (new OptimizationTests()).CouldFindMaximum();
+                (new TimeSliceTests()).CouldAggregate();
             }
 
             Console.ReadLine();

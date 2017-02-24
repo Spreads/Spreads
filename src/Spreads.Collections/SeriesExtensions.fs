@@ -167,7 +167,16 @@ type SeriesExtensions () =
       let cursor = source.GetCursor()
       while cursor.MoveNext() do
         // TODO AddLast
-        sm.Add(cursor.CurrentKey, cursor.CurrentValue)
+        sm.AddLast(cursor.CurrentKey, cursor.CurrentValue)
+      sm
+
+    /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
+    [<Extension>]
+    static member inline ToSortedMap(source: IEnumerable<KVP<'K,'V>>) : SortedMap<'K,'V> =
+      let sm = SortedMap()
+      let e = source.GetEnumerator()
+      while e.MoveNext() do
+        sm.AddLast(e.Current.Key, e.Current.Value)
       sm
 
     [<Extension>]

@@ -18,5 +18,7 @@ namespace Spreads.Collections {
         public int Compare(T x, T y) {
             return -_comparer.Compare(x, y);
         }
+
+        public static IComparer<T> Default => new ReverseComparer<T>(Comparer<T>.Default);
     }
 }

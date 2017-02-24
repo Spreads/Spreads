@@ -6,6 +6,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Dynamic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -32,7 +33,7 @@ namespace Spreads.Algorithms.Optimization {
                 Trace.TraceWarning("Step size is zero, assuming differefe between start and end");
                 stepSize = endValue - startValue;
             }
-            _code = code;
+            _code = code.Trim();
             _startValue = startValue;
             _endValue = endValue;
             _stepSize = stepSize;
@@ -161,10 +162,13 @@ namespace Spreads.Algorithms.Optimization {
         }
     }
 
-    public class Parameters {
+    public class Parameters : DynamicObject {
         private readonly Parameter[] _parameters;
 
         public Parameters(Parameter[] parameters) {
+            if (parameters.Select(x => x.Code).Distinct(StringComparer.OrdinalIgnoreCase).Count() != parameters.Length) {
+                throw new ArgumentException("Parameter codes are not unique");
+            }
             _parameters = parameters;
         }
 
@@ -181,7 +185,14 @@ namespace Spreads.Algorithms.Optimization {
                         return par.Current;
                     }
                 }
-                throw new KeyNotFoundException($"Unknown parameter: {code}");
+                var trimmed = code.Trim();
+                if (trimmed != code) {
+                    var result = this[trimmed];
+                    Trace.TraceWarning($"Parameter {code} has leading or trailing spaces, check for typos in accessor");
+                    return result;
+                } else {
+                    throw new KeyNotFoundException($"Unknown parameter: {code}");
+                }
             }
         }
 
@@ -205,6 +216,14 @@ namespace Spreads.Algorithms.Optimization {
 
         public int TotalInterations => _parameters.Select(x => x.Steps).Aggregate(1, (i, st) => checked(i * st));
 
+        public Parameters GetRegion(int epsilon) {
+            var clone = this.Clone();
+            for (int i = 0; i < _parameters.Length; i++) {
+                clone._parameters[i] = _parameters[i].GetRegion(_parameters[i].CurrentPosition, epsilon);
+            }
+            return clone;
+        }
+
         public Parameters Clone() {
             return new Parameters(_parameters.ToArray());
         }
@@ -214,6 +233,18 @@ namespace Spreads.Algorithms.Optimization {
                 p.Reset();
             }
             return this;
+        }
+
+        public override bool TryGetMember(GetMemberBinder binder, out object result) {
+            var name = binder.Name;
+            foreach (var par in _parameters) {
+                if (par.Code.Equals(name, StringComparison.OrdinalIgnoreCase)) {
+                    result = par.Current;
+                    return true;
+                }
+            }
+            result = null;
+            return false;
         }
     }
 

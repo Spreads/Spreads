@@ -3,12 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
-using Spreads.Algorithms;
+using Spreads.Algorithms.Online;
 using Spreads.Collections;
 using System;
-using Spreads.Algorithms.Online;
 
-namespace Spreads.Tests {
+namespace Spreads.Tests.Algorithms.Online {
 
     [TestFixture]
     public class MovingRegressionTest {

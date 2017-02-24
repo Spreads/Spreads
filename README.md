@@ -51,7 +51,8 @@ Even though .NET is a managed platform with garbage collection, in a steady stat
 should not allocate many objects and create GC pressure. 
 .NET properly supports generic value types and arrays of them are laid out 
 contiguously in memory. Such layout enables CPUs to prefetch data efficiently,
-resulting in great performance boost compared to collections of boxed objects. Also .NET makes it trivial to call native methods and *Spreads.Extensions* project 
+resulting in great performance boost compared to collections of boxed objects. Also .NET makes
+it trivial to call native methods and *Spreads.Core* project 
 uses SIMD-optimized compression and math libraries written in C.
 
 We haven't compared Spreads performance to performance of commercial systems yet 

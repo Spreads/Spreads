@@ -2,24 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+using NUnit.Framework;
+using Spreads.Algorithms;
 using System;
 using System.Diagnostics;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Threading;
-using NUnit.Framework;
-using Spreads.Buffers;
-using Spreads.Serialization;
 using System.Linq;
-using Spreads.Collections;
-using Spreads.Algorithms;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using Spreads.Utils;
+using System.Runtime.InteropServices;
 
-namespace Spreads.Core.Tests {
-
+namespace Spreads.Core.Tests.Algorithms {
 
     [TestFixture]
     public class AlgoTests {
@@ -44,7 +36,6 @@ namespace Spreads.Core.Tests {
             var sw = new Stopwatch();
             double readValue = 0.0;
             for (int r = 0; r < 10; r++) {
-
                 sw.Restart();
                 for (int i = 0; i < count; i++) {
                     var target = (void*)(ptr + (i));
@@ -55,7 +46,6 @@ namespace Spreads.Core.Tests {
                 sw.Stop();
                 Console.WriteLine($"Unaligned: {sw.ElapsedMilliseconds}, {readValue}");
 
-
                 sw.Restart();
                 for (int i = 0; i < count; i++) {
                     var target = (void*)(ptr + (i));
@@ -65,7 +55,6 @@ namespace Spreads.Core.Tests {
                 }
                 sw.Stop();
                 Console.WriteLine($"Aligned: {sw.ElapsedMilliseconds}, {readValue}");
-
             }
             Console.WriteLine(readValue);
         }
@@ -101,7 +90,6 @@ namespace Spreads.Core.Tests {
                     sw.Stop();
                     Console.WriteLine($"Size: {source.Length}, LoopSafe elapsed: {sw.ElapsedTicks}, last value: {result[source.Length - 1]}");
 
-
                     //source = new float[(int)Math.Pow(10, size)];
                     for (int i = 0; i < source.Length; i++) {
                         source[i] = i;
@@ -126,12 +114,10 @@ namespace Spreads.Core.Tests {
                     sw.Stop();
                     Console.WriteLine($"Size: {source.Length}, SIMD elapsed: {sw.ElapsedTicks}, last value: {result[source.Length - 1]}");
 
-
                     Console.WriteLine("----------");
                 }
             }
         }
-
 
         [Test]
         [Ignore]
@@ -152,7 +138,6 @@ namespace Spreads.Core.Tests {
                     sw.Stop();
                     Console.WriteLine($"Size: {source.Length}, LoopSafe elapsed: {sw.ElapsedTicks}, last value: {result[source.Length - 1]}");
 
-
                     //source = new float[(int)Math.Pow(10, size)];
                     for (int i = 0; i < source.Length; i++) {
                         source[i] = i;
@@ -165,7 +150,6 @@ namespace Spreads.Core.Tests {
                     sw.Stop();
                     Console.WriteLine($"Size: {source.Length}, Yeppp elapsed: {sw.ElapsedTicks}, last value: {result[source.Length - 1]}");
 
-
                     Console.WriteLine("----------");
                 }
             }
@@ -174,7 +158,6 @@ namespace Spreads.Core.Tests {
         [Test]
         [Ignore]
         public unsafe void SimdAddOfEnumerable() {
-
             var sw = new Stopwatch();
             var sum = 0L;
             for (int round = 0; round < 5; round++) {
@@ -222,13 +205,10 @@ namespace Spreads.Core.Tests {
                     sw.Stop();
                     Console.WriteLine($"Size: {len}, SIMD elapsed: {sw.ElapsedTicks}, value: {sum}");
 
-
                     Console.WriteLine("----------");
                 }
-
             }
         }
-
 
         [Test]
         public unsafe void SimdUnsafeVector() {
@@ -240,11 +220,9 @@ namespace Spreads.Core.Tests {
             var sw = new Stopwatch();
             var sum = 0.0f;
             for (int round = 0; round < 10; round++) {
-
                 GC.Collect(3, GCCollectionMode.Forced, true);
                 sw.Restart();
-                for (int x = 0; x < 2000; x++)
-                {
+                for (int x = 0; x < 2000; x++) {
                     sum = 0.0f;
                     var sumVector = Vector<float>.Zero;
                     for (int index = 0; index < values.Length; index = index + step) {
@@ -255,27 +233,23 @@ namespace Spreads.Core.Tests {
                         sum += sumVector[i];
                     }
                 }
-                
+
                 sw.Stop();
                 Console.WriteLine($"Ctor elapsed: {sw.ElapsedTicks}, value: {sum}");
 
                 GC.Collect(3, GCCollectionMode.Forced, true);
                 var arr = new int[Vector<int>.Count];
                 sw.Restart();
-                for (int x = 0; x < 2000; x++)
-                {
+                for (int x = 0; x < 2000; x++) {
                     sum = 0.0f;
                     var sumVector = Vector<float>.Zero;
-                    fixed (float* ptr = &values[0])
-                    {
-                        byte* bptr = (byte*) ptr;
-                        for (int index = 0; index < values.Length; index = index + step)
-                        {
-                            var vector = Unsafe.Read<Vector<float>>(bptr + index*4);
+                    fixed (float* ptr = &values[0]) {
+                        byte* bptr = (byte*)ptr;
+                        for (int index = 0; index < values.Length; index = index + step) {
+                            var vector = Unsafe.Read<Vector<float>>(bptr + index * 4);
                             sumVector += vector;
                         }
-                        for (int i = 0; i < step; i++)
-                        {
+                        for (int i = 0; i < step; i++) {
                             sum += sumVector[i];
                         }
                     }
@@ -283,10 +257,7 @@ namespace Spreads.Core.Tests {
                 sw.Stop();
                 Console.WriteLine($"Unsafe elapsed: {sw.ElapsedTicks}, value: {sum}");
 
-
                 Console.WriteLine("----------");
-
-
             }
         }
     }

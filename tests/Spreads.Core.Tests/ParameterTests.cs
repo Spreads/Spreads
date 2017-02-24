@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using NUnit.Framework;
 using Spreads.Algorithms.Optimization;
 
@@ -136,7 +137,7 @@ namespace Spreads.Core.Tests {
         public void LinearAddressTest() {
             var par1 = new Parameter("par1", 0, 4, 1);
             var par2 = new Parameter("par2", 0, 4, 1);
-            var pars = new[] {par1, par2};
+            var pars = new[] { par1, par2 };
             //var pars = new Parameters();
 
             pars[0].CurrentPosition = 1;
@@ -155,6 +156,31 @@ namespace Spreads.Core.Tests {
 
             Assert.AreEqual(4, pars2[0].CurrentPosition);
             Assert.AreEqual(3, pars2[1].CurrentPosition);
+
+        }
+
+        [Test]
+        public void DynamicAccessToParameters() {
+            var par1 = new Parameter("Par1", 0, 4, 1);
+            var par2 = new Parameter("par2", 0, 4, 1);
+            var pars = new[] { par1, par2 };
+            dynamic parameters = new Parameters(pars);
+
+            pars[0].CurrentPosition = 1;
+            pars[1].CurrentPosition = 2;
+            var p1 = (int)parameters.par1;
+            Assert.AreEqual(1, p1);
+            Assert.AreEqual(2, parameters.Par2);
+        }
+
+        [Test]
+        public void NonUniqueParameterCodesThrow() {
+            var par1 = new Parameter("Par1", 0, 4, 1);
+            var par2 = new Parameter("par1", 0, 4, 1);
+            var pars = new[] { par1, par2 };
+            Assert.Throws<ArgumentException>(() => {
+                var parameters = new Parameters(pars);
+            });
 
         }
     }

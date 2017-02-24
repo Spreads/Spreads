@@ -8,7 +8,7 @@ using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
-namespace Spreads.Core.Tests {
+namespace Spreads.Core.Tests.Algorithms {
 
     [TestFixture]
     public class OptimizationTests {
@@ -157,7 +157,6 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Memory: {endMemory - startMemory}");
             Console.WriteLine($"Optimum: {optParams[0].Current} - {optParams[1].Current} - {optParams[2].Current}");
         }
-
 
         [Test]
         public async void CouldFindMaximumUsingMaximizeMethodWithBigStep() {

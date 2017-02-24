@@ -8,8 +8,7 @@ using System.Diagnostics;
 using NUnit.Framework;
 using Spreads.Algorithms;
 
-
-namespace Spreads.Extensions.Tests.Algorithm {
+namespace Spreads.Tests.Algorithms {
     [TestFixture]
     public class RankerTests {
 

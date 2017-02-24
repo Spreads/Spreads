@@ -3,12 +3,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
+using Spreads.Algorithms.Online;
 using Spreads.Collections;
 using System;
 using System.Diagnostics;
-using Spreads.Algorithms.Online;
 
-namespace Spreads.Core.Tests {
+namespace Spreads.Core.Tests.Algorithms {
 
     [TestFixture]
     public class MovingMedianTests {

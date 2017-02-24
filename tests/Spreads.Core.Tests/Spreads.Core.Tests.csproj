@@ -138,14 +138,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AwaiterTests.cs" />
-    <Compile Include="MovingMedianTests.cs" />
+    <Compile Include="Algorithms\MovingMedianTests.cs" />
     <Compile Include="ColumnsTests.cs" />
+    <Compile Include="Enumerators\TimeSliceTests.cs" />
     <Compile Include="NanoOptimizationTests.cs" />
     <Compile Include="ObjectPoolsTests.cs" />
-    <Compile Include="OptimizationTests.cs" />
+    <Compile Include="Algorithms\OptimizationTests.cs" />
     <Compile Include="ParameterTests.cs" />
     <Compile Include="SpanTests.cs" />
-    <Compile Include="AlgoTests.cs" />
+    <Compile Include="Algorithms\AlgoTests.cs" />
     <Compile Include="SerializationTests.cs" />
     <Compile Include="FunctionCombinationTests.cs" />
     <Compile Include="BuffersTests.cs" />
