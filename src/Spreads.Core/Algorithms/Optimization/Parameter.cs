@@ -48,6 +48,7 @@ namespace Spreads.Algorithms.Optimization {
         public double StartValue => _startValue;
         public double EndValue => _endValue;
         public double StepSize => _stepSize;
+
         public int Steps {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _steps; }
@@ -64,7 +65,6 @@ namespace Spreads.Algorithms.Optimization {
                 _currentPosition = value;
             }
         }
-
 
         public int GridPosition {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -161,30 +161,96 @@ namespace Spreads.Algorithms.Optimization {
         }
     }
 
+    public class Parameters {
+        private readonly Parameter[] _parameters;
+
+        public Parameters(Parameter[] parameters) {
+            _parameters = parameters;
+        }
+
+        public Parameter[] Array => _parameters;
+
+        //public Parameter[] Array => _parameters;
+        public int Count => _parameters.Length;
+
+        public double this[string code] {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get {
+                foreach (var par in _parameters) {
+                    if (par.Code.Equals(code, StringComparison.OrdinalIgnoreCase)) {
+                        return par.Current;
+                    }
+                }
+                throw new KeyNotFoundException($"Unknown parameter: {code}");
+            }
+        }
+
+        public Parameter this[int index] {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get {
+                if (index < 0 || index >= _parameters.Length) {
+                    throw new IndexOutOfRangeException();
+                }
+                return _parameters[index];
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set {
+                if (index < 0 || index >= _parameters.Length) {
+                    throw new IndexOutOfRangeException();
+                }
+                _parameters[index] = value;
+            }
+        }
+
+        public int TotalInterations => _parameters.Select(x => x.Steps).Aggregate(1, (i, st) => checked(i * st));
+
+        public Parameters Clone() {
+            return new Parameters(_parameters.ToArray());
+        }
+
+        public Parameters Reset() {
+            foreach (var p in _parameters) {
+                p.Reset();
+            }
+            return this;
+        }
+    }
+
     public static class ParameterExtensions {
+
         // useful to as a key to memoize target function result at a point, instead of int[]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static long LinearAddress(this Parameter[] parameterArray) {
-            if (parameterArray == null) throw new ArgumentNullException(nameof(parameterArray));
+        public static long LinearAddress(this Parameters parameters) {
+            return parameters.Array.LinearAddress();
+        }
 
+        // useful to as a key to memoize target function result at a point, instead of int[]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long LinearAddress(this Parameter[] parameters) {
+            if (parameters == null) throw new ArgumentNullException(nameof(parameters));
             var address = -1L;
-            if (parameterArray.Length == 0) return address;
-
-            address = parameterArray[0].CurrentPosition;
-
+            if (parameters.Length == 0) return address;
+            address = parameters[0].CurrentPosition;
             // previous * current dim + current addr
             // TODO test + review
-            for (int i = 1; i < parameterArray.Length; i++) {
-                address = address * parameterArray[i].Steps + parameterArray[i].GridPosition;
+            for (int i = 1; i < parameters.Length; i++) {
+                address = address * parameters[i].Steps + parameters[i].CurrentPosition;
             }
             return address;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Parameter[] SetPositionsFromLinearAddress(this Parameter[] parameterArray, long linearAddress) {
-            var newParameters = parameterArray.ToArray();
-            for (int i = parameterArray.Length - 1; i >= 1; i--) {
-                var steps = parameterArray[i].Steps;
+        public static Parameters SetPositionsFromLinearAddress(this Parameters parameters, long linearAddress) {
+            var newParameters = SetPositionsFromLinearAddress(parameters.Array, linearAddress);
+            return new Parameters(newParameters);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Parameter[] SetPositionsFromLinearAddress(this Parameter[] parameters, long linearAddress) {
+            var newParameters = parameters.ToArray();
+            for (int i = parameters.Length - 1; i >= 1; i--) {
+                var steps = parameters[i].Steps;
                 var tmp = linearAddress / steps;
                 var iPos = checked((int)(linearAddress - tmp * steps));
                 newParameters[i].CurrentPosition = iPos;

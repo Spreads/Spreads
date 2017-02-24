@@ -10,78 +10,74 @@ using System.Threading.Tasks;
 
 namespace Spreads.Algorithms.Optimization {
 
-    public struct GridMaximizer {
+    /// <summary>
+    /// Result of evaluating a target function with given parameters.
+    /// </summary>
+    public struct EvalParametersResult<TEval> {
+        public Parameters Parameters;
+        public TEval Value;
+    }
 
-        public delegate T FolderFunc<T>(T state, ref EvalResult item);
+    public struct EvalAddressResult<TEval> {
+        public long LinearAddress;
+        public TEval Value;
+    }
 
-        // result of evaluating a target function with given parameters
-        public struct EvalResult {
-            public Parameter[] Parameters;
-            public double Value;
+    public delegate TState EvalFolderFunc<TEval, TState>(TState state, ref EvalParametersResult<TEval> item);
+
+    public struct GridOptimizer<TEval> {
+
+        private struct EvalResultTask {
+            public Parameters Parameters;
+            public ValueTask<TEval> Value;
         }
 
-        public struct EvalResultTask {
-            public Parameter[] Parameters;
-            public ValueTask<double> Value;
-        }
-
-        private Parameter[] _parameters;
-        private Func<Parameter[], ValueTask<double>> _targetFunc;
-        private bool _memoize;
-        private readonly Dictionary<long, double> _results;
+        private readonly Parameters _parameters;
+        private readonly Func<Parameters, ValueTask<TEval>> _targetFunc;
+        private readonly bool _memoize;
+        private readonly Dictionary<long, TEval> _results;
         private int _tail;
-        private int _concurrencyLimit;
-        private List<EvalResultTask> _activeTasks;
+        private readonly int _concurrencyLimit;
+        private readonly List<EvalResultTask> _activeTasks;
 
-        public GridMaximizer(Parameter[] parameters, Func<Parameter[], ValueTask<double>> targetFunc, bool memoize = false) {
+        public GridOptimizer(Parameters parameters, Func<Parameters, ValueTask<TEval>> targetFunc, bool memoize = false) {
             _parameters = parameters;
             _targetFunc = targetFunc;
             _memoize = memoize;
-            _results = _memoize ? new Dictionary<long, double>() : null;
-            var total = parameters.Select(x => x.Steps).Aggregate(1, (i, st) => checked(i * st));
-            Debug.WriteLine($"ProcessGrid total iterations: {total}");
+            _results = _memoize ? new Dictionary<long, TEval>() : null;
+            var total = parameters.TotalInterations;
+            Debug.WriteLine($"FoldGrid total iterations: {total}");
             _concurrencyLimit = Math.Min(Environment.ProcessorCount * 2, total);
             _activeTasks = new List<EvalResultTask>(_concurrencyLimit);
             _tail = 0;
         }
 
-        //public void Reset(Parameter[] parameters, Func<Parameter[], ValueTask<double>> targetFunc, bool memoize = false)
-        //{
-        //    _parameters = parameters;
-        //    _targetFunc = targetFunc;
-        //    _memoize = memoize;
-        //    _results.Clear();
-        //    _activeTasks.Clear();
-
-        //    var total = parameters.Select(x => x.Steps).Aggregate(1, (i, st) => checked(i * st));
-        //    Debug.WriteLine($"ProcessGrid total iterations: {total}");
-        //    _concurrencyLimit = Math.Min(Environment.ProcessorCount * 2, total);
-        //    _activeTasks = new List<EvalResultTask>(_concurrencyLimit);
-        //}
-
-        public async Task<T> ProcessGrid<T>(T seed, FolderFunc<T> folder, Parameter[] parameters = null) {
-            parameters = parameters ?? _parameters.Select(p => { p.Reset(); return p; }).ToArray();
+        /// <summary>
+        /// Iterate over grid, evaluate target function and fold its results.
+        /// </summary>
+        public async Task<TState> FoldGrid<TState>(TState seed, EvalFolderFunc<TEval, TState> evalFolder, Parameters parameters = null) {
+            parameters = parameters ?? _parameters.Clone().Reset();
 
             var accumulator = seed;
 
             var depth = 0;
             while (true) {
-                if (depth < _parameters.Length) {
-                    if (parameters[depth].MoveNext()) {
+                if (depth < _parameters.Count) {
+                    if (parameters.Array[depth].MoveNext()) {
                         depth++;
                         // when all moved, the first `if` above is false
                     } else {
-                        parameters[depth].Reset();
+                        parameters.Array[depth].Reset();
                         depth--;
                     }
                 } else {
                     try {
                         var position = _tail % _concurrencyLimit;
                         if (_activeTasks.Count < _concurrencyLimit) {
-                            var point = parameters.ToArray();
+                            var point = parameters.Clone();
                             var address = point.LinearAddress();
-                            double tmp;
-                            var t = (_memoize && _results.TryGetValue(address, out tmp)) ? new ValueTask<double>(tmp) : _targetFunc(point);
+                            TEval tmp;
+                            var t = (_memoize && _results.TryGetValue(address, out tmp)) ? new ValueTask<TEval>(tmp) : _targetFunc(point);
                             _activeTasks.Add(new EvalResultTask { Parameters = point, Value = t });
                         } else {
                             // now the active tasks buffer is full
@@ -93,32 +89,28 @@ namespace Spreads.Algorithms.Optimization {
                             var currentTask = _activeTasks[position];
                             await currentTask.Value;
 
-                            var evalResult = new EvalResult() {
+                            var evalResult = new EvalParametersResult<TEval>() {
                                 Value = currentTask.Value.Result,
                                 Parameters = currentTask.Parameters
                             };
                             var address = currentTask.Parameters.LinearAddress();
-                            double tmp;
+                            TEval tmp;
                             if (_memoize) {
-                                if (_results.TryGetValue(address, out tmp)) {
-                                    Debug.Assert(
-                                        Math.Abs((tmp - currentTask.Value.Result) / ((tmp + currentTask.Value.Result))) <
-                                        0.00001);
-                                } else {
+                                if (!_results.TryGetValue(address, out tmp)) {
                                     _results[address] = currentTask.Value.Result;
                                 }
                             }
 
-                            // NB this is single-threaded application of folder and evalResult.Parameters could be modified
+                            // NB this is single-threaded application of evalFolder and evalResult.Parameters could be modified
                             // later since they are reused. Folder should copy parameters or store linear address
                             // TODO rebuild position from linear address
-                            accumulator = folder(accumulator, ref evalResult);
+                            accumulator = evalFolder(accumulator, ref evalResult);
 
-                            for (int i = 0; i < parameters.Length; i++) {
-                                currentTask.Parameters[i] = parameters[i];
+                            for (int i = 0; i < parameters.Count; i++) {
+                                currentTask.Parameters.Array[i] = parameters.Array[i];
                             }
                             address = currentTask.Parameters.LinearAddress();
-                            var t = (_memoize && _results.TryGetValue(address, out tmp)) ? new ValueTask<double>(tmp) : _targetFunc(currentTask.Parameters);
+                            var t = (_memoize && _results.TryGetValue(address, out tmp)) ? new ValueTask<TEval>(tmp) : _targetFunc(currentTask.Parameters);
 
                             currentTask.Value = t;
                             _activeTasks[position] = currentTask;
@@ -135,14 +127,67 @@ namespace Spreads.Algorithms.Optimization {
 
             foreach (var currentTask in _activeTasks) {
                 await currentTask.Value;
-                var evalResult = new EvalResult {
+                var evalResult = new EvalParametersResult<TEval> {
                     Value = currentTask.Value.Result,
                     Parameters = currentTask.Parameters
                 };
-                accumulator = folder(accumulator, ref evalResult);
+                accumulator = evalFolder(accumulator, ref evalResult);
             }
 
             return accumulator;
+        }
+    }
+
+    public static class GridOptimizer {
+        private static readonly EvalAddressResult<double> WorstDouble = new EvalAddressResult<double>() { Value = double.MinValue };
+        private static readonly EvalFolderFunc<double, EvalAddressResult<double>> DoubleMaxFolder = MaxFolderFunc;
+
+        private static EvalAddressResult<double> MaxFolderFunc(EvalAddressResult<double> state, ref EvalParametersResult<double> item) {
+            if (item.Value > state.Value) {
+                return new EvalAddressResult<double> { Value = item.Value, LinearAddress = item.Parameters.LinearAddress() };
+            }
+            return state;
+        }
+
+        /// <summary>
+        /// Find parameters that maximize the target function over the parameter grid.
+        /// </summary>
+        public static async Task<EvalParametersResult<double>> Maximize(Parameters parameters,
+            Func<Parameters, ValueTask<double>> targetFunc, bool memoize = false) {
+            var maximizer = new GridOptimizer<double>(parameters, targetFunc, memoize);
+            var optimum = await maximizer.FoldGrid(WorstDouble, DoubleMaxFolder);
+            var optParams = parameters.SetPositionsFromLinearAddress(optimum.LinearAddress);
+            var result = new EvalParametersResult<double> { Value = optimum.Value, Parameters = optParams };
+            return result;
+        }
+
+        /// <summary>
+        /// Find parameters that maximize the target function over the parameter grid, first searching with big steps.
+        /// </summary>
+        public static async Task<EvalParametersResult<double>> MaximizeWithBigStep(Parameters parameters,
+            Func<Parameters, ValueTask<double>> targetFunc, bool memoize = false) {
+
+            var newParameters = new Parameters(parameters.Array.Select(p => p.WithBigStep()).ToArray());
+
+            var maximizer = new GridOptimizer<double>(newParameters, targetFunc, memoize);
+            var optimum = await maximizer.FoldGrid(WorstDouble, DoubleMaxFolder);
+            var optParams = newParameters.SetPositionsFromLinearAddress(optimum.LinearAddress);
+
+            // 2nd step, get a region around optimal big step
+            for (int i = 0; i < parameters.Array.Length; i++) {
+                newParameters.Array[i] = parameters.Array[i].GetRegion(optParams.Array[i].GridPosition * parameters.Array[i].BigStepMultiple, parameters.Array[i].BigStepMultiple);
+            }
+
+            maximizer = new GridOptimizer<double>(newParameters, targetFunc, memoize);
+            optimum = await maximizer.FoldGrid(WorstDouble, DoubleMaxFolder);
+            optParams = newParameters.SetPositionsFromLinearAddress(optimum.LinearAddress);
+            var ret = parameters.Clone();
+            for (int i = 0; i < parameters.Array.Length; i++) {
+                ret.Array[i].CurrentPosition = optParams[i].GridPosition;
+            }
+
+            var result = new EvalParametersResult<double> { Value = optimum.Value, Parameters = ret };
+            return result;
         }
     }
 }
