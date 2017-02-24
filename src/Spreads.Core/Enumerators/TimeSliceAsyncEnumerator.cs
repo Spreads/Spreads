@@ -6,6 +6,12 @@ using System.Threading.Tasks;
 
 namespace Spreads.Enumerators {
 
+    // NB it is incorrect to aggregate values based on end of period:
+    // first, we lose points at the beginning or have a weird point, e.g. 10:00:00 that has only values exactly at that moment.
+    // second, all periods technically start at zero and end one tick before the next period, e.g. midnight point belongs to the following day, 
+    //    which ends at 23:59:59.9999999...
+    // third, we could easily get 'correct' aggregates with end-of-period (without missing values) by just applying `lag(1)`
+
     /// <summary>
     /// 
     /// </summary>
@@ -19,7 +25,7 @@ namespace Spreads.Enumerators {
         private readonly int _periodLength;
         private readonly int _offset;
 
-        public TimeSliceAsyncEnumerable(IEnumerable<KeyValuePair<DateTime, TValue>> series, Func<TValue,TAggr> initState,
+        public TimeSliceAsyncEnumerable(IEnumerable<KeyValuePair<DateTime, TValue>> series, Func<TValue, TAggr> initState,
             Func<TAggr, TValue, TAggr> aggregator, UnitPeriod unitPeriod, int periodLength = 1, int offset = 0) {
             if (periodLength <= 0) throw new ArgumentOutOfRangeException(nameof(periodLength));
             if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
@@ -71,7 +77,7 @@ namespace Spreads.Enumerators {
                 _position = TimeSlicePosition.NotStarted;
             }
 
-            private DateTime EndOfSlice(DateTime tick) {
+            private DateTime StartOfSlice(DateTime tick) {
                 long ticksPerPeriod;
                 switch (_source._unitPeriod) {
                     case UnitPeriod.Tick:
@@ -105,7 +111,7 @@ namespace Spreads.Enumerators {
                         throw new ArgumentOutOfRangeException();
                 }
 
-                var ticks = ((tick.Ticks / (ticksPerPeriod * _source._periodLength)) + _source._periodLength + _source._offset) * ticksPerPeriod;
+                var ticks = ((tick.Ticks / (ticksPerPeriod * _source._periodLength)) + _source._offset) * ticksPerPeriod;
                 return new DateTime(ticks, tick.Kind);
             }
 
@@ -117,7 +123,7 @@ namespace Spreads.Enumerators {
                 switch (_position) {
                     case TimeSlicePosition.NotStarted:
                         if (_enumerator.MoveNext()) {
-                            var slice = EndOfSlice(_enumerator.Current.Key);
+                            var slice = StartOfSlice(_enumerator.Current.Key);
                             _current = new KeyValuePair<DateTime, TAggr>(slice, _source._initState(_enumerator.Current.Value));
                             _position = TimeSlicePosition.Aggregating;
                             goto case TimeSlicePosition.Aggregating;
@@ -128,7 +134,7 @@ namespace Spreads.Enumerators {
                     case TimeSlicePosition.Aggregating:
                         var prev = _current;
                         while (_enumerator.MoveNext()) {
-                            var slice = EndOfSlice(_enumerator.Current.Key);
+                            var slice = StartOfSlice(_enumerator.Current.Key);
                             if (slice == prev.Key) {
                                 _current = new KeyValuePair<DateTime, TAggr>(slice, _source._aggregator(prev.Value, _enumerator.Current.Value));
                                 prev = _current;
@@ -144,7 +150,7 @@ namespace Spreads.Enumerators {
                     case TimeSlicePosition.PassedToNext:
                         // here we have one unused value at the current position
                         {
-                            var slice = EndOfSlice(_enumerator.Current.Key);
+                            var slice = StartOfSlice(_enumerator.Current.Key);
                             _current = new KeyValuePair<DateTime, TAggr>(slice, _source._initState(_enumerator.Current.Value));
                             _position = TimeSlicePosition.Aggregating;
                             goto case TimeSlicePosition.Aggregating;
@@ -172,7 +178,7 @@ namespace Spreads.Enumerators {
                 switch (_position) {
                     case TimeSlicePosition.NotStarted:
                         if (await e.MoveNext(cancellationToken)) {
-                            var slice = EndOfSlice(_enumerator.Current.Key);
+                            var slice = StartOfSlice(_enumerator.Current.Key);
                             _current = new KeyValuePair<DateTime, TAggr>(slice, _source._initState(_enumerator.Current.Value));
                             _position = TimeSlicePosition.Aggregating;
                             goto case TimeSlicePosition.Aggregating;
@@ -183,7 +189,7 @@ namespace Spreads.Enumerators {
                     case TimeSlicePosition.Aggregating:
                         var prev = _current;
                         while (await e.MoveNext(cancellationToken)) {
-                            var slice = EndOfSlice(_enumerator.Current.Key);
+                            var slice = StartOfSlice(_enumerator.Current.Key);
                             if (slice == prev.Key) {
                                 _current = new KeyValuePair<DateTime, TAggr>(slice, _source._aggregator(prev.Value, _enumerator.Current.Value));
                                 prev = _current;
@@ -198,7 +204,7 @@ namespace Spreads.Enumerators {
                     case TimeSlicePosition.PassedToNext:
                         // here we have one unused value at the current position
                         {
-                            var slice = EndOfSlice(_enumerator.Current.Key);
+                            var slice = StartOfSlice(_enumerator.Current.Key);
                             _current = new KeyValuePair<DateTime, TAggr>(slice, _source._initState(_enumerator.Current.Value));
                             _position = TimeSlicePosition.Aggregating;
                             goto case TimeSlicePosition.Aggregating;

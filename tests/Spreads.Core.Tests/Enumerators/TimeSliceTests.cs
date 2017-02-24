@@ -16,7 +16,7 @@ namespace Spreads.Core.Tests.Enumerators {
 
         [Test, Ignore]
         public void CouldAggregate() {
-            var count = 1000000;
+            var count = 10000;
             var start = DateTime.UtcNow.Date;
             var source = new List<Tick>();
             for (int i = 0; i < count; i++) {
@@ -36,7 +36,7 @@ namespace Spreads.Core.Tests.Enumerators {
                 }, UnitPeriod.Second, 1, 0); //.ToSortedMap();
 
             var grouped =
-                source.GroupBy(t => new DateTime((t.DateTimeUtc.Ticks / TimeSpan.TicksPerSecond + 1) * TimeSpan.TicksPerSecond, t.DateTimeUtc.Kind))
+                source.GroupBy(t => new DateTime((t.DateTimeUtc.Ticks / TimeSpan.TicksPerSecond) * TimeSpan.TicksPerSecond, t.DateTimeUtc.Kind))
                 .Select(gr => gr.Aggregate(new KeyValuePair<DateTime, OHLCV>(default(DateTime), new OHLCV((decimal)(-1), -1, -1, -1, 0, 5)), (st, t) => {
                     if (st.Value.Open == -1) {
                         var res = new OHLCV(
@@ -61,31 +61,68 @@ namespace Spreads.Core.Tests.Enumerators {
 
             var sw = new Stopwatch();
             Console.WriteLine($"Memory: {GC.GetTotalMemory(false)}");
-            for (int r = 0; r < 10; r++) {
+            for (int r = 0; r < 1; r++) {
                 //Console.WriteLine("Spreads");
                 sw.Restart();
                 var total = 0L;
                 foreach (var kvp in seconds) {
                     total += kvp.Value.Volume;
-                    //Console.WriteLine($"{kvp.Key} - {kvp.Value.Open} - {kvp.Value.High} - {kvp.Value.Low} - {kvp.Value.Close} - {kvp.Value.Volume}");
+                    Console.WriteLine($"{kvp.Key} - {kvp.Value.Open} - {kvp.Value.High} - {kvp.Value.Low} - {kvp.Value.Close} - {kvp.Value.Volume}");
                 }
                 if (total == short.MaxValue) Console.WriteLine("avoid optimizations");
+                sw.Stop();
                 Console.WriteLine($"Spreads: {sw.ElapsedMilliseconds}");
 
-                //Console.WriteLine("LINQ");
-                //sw.Restart();
-                //var total2 = 0L;
-                //foreach (var kvp in grouped) {
-                //    total2 += kvp.Value.Volume;
-                //    //Console.WriteLine($"{kvp.Key} - {kvp.Value.Open} - {kvp.Value.High} - {kvp.Value.Low} - {kvp.Value.Close} - {kvp.Value.Volume}");
-                //}
-                //if (total2 == short.MaxValue) Console.WriteLine("avoid optimizations");
-                //Console.WriteLine($"LINQ: {sw.ElapsedMilliseconds}");
-                //Assert.AreEqual(total, total2);
-                //Console.WriteLine($"GC: {GC.CollectionCount(0)} - {GC.CollectionCount(1)} - {GC.CollectionCount(2)}");
+                Console.WriteLine("LINQ");
+                sw.Restart();
+                var total2 = 0L;
+                foreach (var kvp in grouped) {
+                    total2 += kvp.Value.Volume;
+                    Console.WriteLine($"{kvp.Key} - {kvp.Value.Open} - {kvp.Value.High} - {kvp.Value.Low} - {kvp.Value.Close} - {kvp.Value.Volume}");
+                }
+                if (total2 == short.MaxValue) Console.WriteLine("avoid optimizations");
+                sw.Stop();
+                Console.WriteLine($"LINQ: {sw.ElapsedMilliseconds}");
+                Assert.AreEqual(total, total2);
+                Console.WriteLine($"GC: {GC.CollectionCount(0)} - {GC.CollectionCount(1)} - {GC.CollectionCount(2)}");
             }
             Console.WriteLine($"Memory: {GC.GetTotalMemory(false)}");
             Console.WriteLine($"GC: {GC.CollectionCount(0)} - {GC.CollectionCount(1)} - {GC.CollectionCount(2)}");
+        }
+
+
+        [Test, Ignore]
+        public void CouldAggregateWithHoles() {
+            var count = 1000000;
+            var start = DateTime.UtcNow.Date;
+            var source = new List<Tick>();
+            source.Add(new Tick(start.AddMilliseconds(250), new Price(1), 1));
+            source.Add(new Tick(start.AddMilliseconds(750), new Price(2), 2));
+            source.Add(new Tick(start.AddMilliseconds(2500), new Price(3), 3));
+
+
+            var seconds = source.Select(x => new KeyValuePair<DateTime, Tick>(x.DateTimeUtc, x)).TimeSlice((t) => new OHLCV(t.Price, t.Price, t.Price, t.Price, t.Volume),
+                (st, t) => {
+                    var res = new OHLCV(
+                        st.Open,
+                        t.Price > st.High ? t.Price : st.High,
+                        t.Price < st.Low ? t.Price : st.Low,
+                        t.Price,
+                        st.Volume + t.Volume
+                        );
+                    return res;
+                }, UnitPeriod.Second, 1, 0); //.ToSortedMap();
+
+            var sw = new Stopwatch();
+            //Console.WriteLine("Spreads");
+            sw.Restart();
+            var total = 0L;
+            foreach (var kvp in seconds) {
+                total += kvp.Value.Volume;
+                Console.WriteLine($"{kvp.Key} - {kvp.Value.Open} - {kvp.Value.High} - {kvp.Value.Low} - {kvp.Value.Close} - {kvp.Value.Volume}");
+            }
+            if (total == short.MaxValue) Console.WriteLine("avoid optimizations");
+
         }
     }
 }
