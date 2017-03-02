@@ -2,24 +2,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
-using System;
-using System.Diagnostics;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Threading;
 using NUnit.Framework;
 using Spreads.Buffers;
-using Spreads.Serialization;
-using System.Linq;
 using Spreads.Collections;
+using Spreads.Serialization;
+using System;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
 
-namespace Spreads.Core.Tests {
-
+namespace Spreads.Core.Tests.Serialization {
 
     [TestFixture]
     public class SerializationTests {
-
 
         [Serialization(BlittableSize = 12)]
         [StructLayout(LayoutKind.Sequential, Pack = 4)]
@@ -31,11 +26,11 @@ namespace Spreads.Core.Tests {
         public class SimplePoco : IEquatable<SimplePoco> {
             public int Value1;
             public string Value2;
+
             public bool Equals(SimplePoco other) {
                 return this.Value1 == other.Value1 && this.Value2 == other.Value2;
             }
         }
-
 
         [Test]
         [ExpectedException(typeof(System.ArgumentException))]
@@ -78,7 +73,6 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(len, len2);
             Assert.IsTrue(ints.SequenceEqual(ints2));
         }
-
 
         [Test]
         public void CouldSerializeDecimalArray() {
@@ -128,7 +122,6 @@ namespace Spreads.Core.Tests {
             Assert.IsTrue(arr.SequenceEqual(arr2));
         }
 
-
         [Test]
         public void CouldSerializePocoArray() {
             var bytes = new byte[1000];
@@ -148,7 +141,6 @@ namespace Spreads.Core.Tests {
             Assert.IsTrue(arr.SequenceEqual(arr2));
         }
 
-
         [Test]
         public void CouldSerializeString() {
             var bytes = new byte[1000];
@@ -159,7 +151,6 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(len, len2);
             Assert.AreEqual(str, str2);
         }
-
 
         [Test]
         public void JsonWorksWithArraySegment() {
@@ -177,8 +168,6 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(2, newInts2[0]);
             Assert.AreEqual(3, newInts2[1]);
         }
-
-
 
         [Test]
         public void CouldSerializeSortedMap() {
@@ -204,7 +193,6 @@ namespace Spreads.Core.Tests {
             Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
         }
 
-
         [Test]
         public void CouldSerializeSortedMap2() {
             var rng = new Random();
@@ -226,7 +214,6 @@ namespace Spreads.Core.Tests {
             SortedMap<int, int> sm2 = null;
             var len3 = BinarySerializer.Read(db, 0, ref sm2);
 
-
             Assert.AreEqual(len, len3);
 
             Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
@@ -242,7 +229,6 @@ namespace Spreads.Core.Tests {
 
             Assert.AreEqual("ping", ping2.Type);
             Assert.AreEqual(ping.Id, ping2.Id);
-
         }
     }
 }

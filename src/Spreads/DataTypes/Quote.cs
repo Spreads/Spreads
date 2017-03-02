@@ -29,11 +29,18 @@ namespace Spreads.DataTypes {
         
         public Price Price => _price;
         public int Volume => _volume;
+        public int Reserved => _reserved;
 
         public Quote(Price price, int volume) {
             _price = price;
             _volume = volume;
             _reserved = 0;
+        }
+
+        public Quote(Price price, int volume, int reserved) {
+            _price = price;
+            _volume = volume;
+            _reserved = reserved;
         }
 
         public bool Equals(Quote other) {

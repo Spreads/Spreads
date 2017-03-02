@@ -227,7 +227,7 @@ type SortedChunkedMapGeneric<'K,'V>
               if ok then
                 false, bucketKvp.Value
               else
-                let newSm = innerFactory(4, comparer)
+                let newSm = innerFactory(0, comparer)
                 true, newSm
             bucket.version <- this.version // NB old bucket could have stale version, update for both cases
             bucket.nextVersion <- this.version
@@ -266,7 +266,7 @@ type SortedChunkedMapGeneric<'K,'V>
             else
               if bucketIsSet then this.FlushUnchecked()
               // create a new bucket at key
-              let newSm = innerFactory(4, comparer)
+              let newSm = innerFactory(0, comparer)
               newSm.version <- this.version
               newSm.nextVersion <- this.version
               newSm.[key] <- value
@@ -498,7 +498,7 @@ type SortedChunkedMapGeneric<'K,'V>
             bucketKvp.Value.Add(key, value)
             bucketKvp.Value
           else
-            let newSm = innerFactory(0,comparer)
+            let newSm = innerFactory(0, comparer)
             newSm.version <- this.version
             newSm.nextVersion <- this.version
             newSm.Add(key, value)
@@ -535,7 +535,7 @@ type SortedChunkedMapGeneric<'K,'V>
         else
           if bucketIsSet then this.FlushUnchecked()
           // create a new bucket at key
-          let newSm = innerFactory(4, comparer)
+          let newSm = innerFactory(0, comparer)
           newSm.version <- this.version
           newSm.nextVersion <- this.version
           newSm.[key] <- value

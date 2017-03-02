@@ -145,9 +145,10 @@
     <Compile Include="ObjectPoolsTests.cs" />
     <Compile Include="Algorithms\OptimizationTests.cs" />
     <Compile Include="ParameterTests.cs" />
+    <Compile Include="Serialization\VariableLengthValues.cs" />
     <Compile Include="SpanTests.cs" />
     <Compile Include="Algorithms\AlgoTests.cs" />
-    <Compile Include="SerializationTests.cs" />
+    <Compile Include="Serialization\SerializationTests.cs" />
     <Compile Include="FunctionCombinationTests.cs" />
     <Compile Include="BuffersTests.cs" />
     <Compile Include="Primes.cs" />
