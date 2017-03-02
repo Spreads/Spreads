@@ -27,6 +27,10 @@ namespace Spreads {
         public override TValue ToValue(Variant value) {
             return value.Get<TValue>();
         }
+
+        public TypeEnum KeyType { get; } = VariantHelper<TKey>.TypeEnum;
+        public TypeEnum ValueType { get; } = VariantHelper<TValue>.TypeEnum;
+
     }
 
     public class VariantMutableSeries<TKey, TValue> : ConvertMutableSeries<TKey, TValue, Variant, Variant, VariantMutableSeries<TKey, TValue>> {
@@ -52,5 +56,8 @@ namespace Spreads {
         public override TValue ToValue(Variant value) {
             return value.Get<TValue>();
         }
+
+        public TypeEnum KeyType { get; } = VariantHelper<TKey>.TypeEnum;
+        public TypeEnum ValueType { get; } = VariantHelper<TValue>.TypeEnum;
     }
 }
