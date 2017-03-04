@@ -13,18 +13,40 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Algorithms.Optimization {
 
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Explicit, Pack = 4, Size = 64)]
     public struct Parameter : IEnumerable<double>, IEnumerator<double> {
+
+        [FieldOffset(0)]
         private readonly string _code;
+
+        [FieldOffset(8)]
+        private readonly string _description;
+
+        [FieldOffset(16)]
+        private readonly double _defaultValue;
+
+        [FieldOffset(24)]
         private readonly double _startValue;
+
+        [FieldOffset(32)]
         private readonly double _endValue;
+
+        [FieldOffset(40)]
         private readonly double _stepSize;
+
+        [FieldOffset(48)]
         private readonly int _steps;
+
+        [FieldOffset(52)]
         private readonly int _bigStepMultiple;
+
+        [FieldOffset(56)]
         private int _currentPosition;
+
+        [FieldOffset(60)]
         private int _offset;
 
-        public Parameter(string code, double startValue, double endValue, double stepSize = 0, int bigStepMultiple = 1) {
+        public Parameter(string code, string description, double defaultValue, double startValue, double endValue, double stepSize = 0, int bigStepMultiple = 1) {
             //
             if (endValue < startValue && stepSize > 0) { throw new ArgumentException("endValue <= startValue while step > 0"); }
             if (endValue > startValue && stepSize < 0) { throw new ArgumentException("endValue >= startValue while step < 0"); }
@@ -34,10 +56,11 @@ namespace Spreads.Algorithms.Optimization {
                 stepSize = endValue - startValue;
             }
             _code = code.Trim();
+            _description = description;
+            _defaultValue = defaultValue;
             _startValue = startValue;
             _endValue = endValue;
             _stepSize = stepSize;
-            //Debug.Assert((_endValue - _startValue) / _stepSize > 0);
             _steps = 1 + (int)Math.Ceiling((_endValue - _startValue) / _stepSize);
             if (bigStepMultiple < 1) { throw new ArgumentOutOfRangeException(nameof(bigStepMultiple)); }
             _bigStepMultiple = bigStepMultiple;
@@ -45,7 +68,12 @@ namespace Spreads.Algorithms.Optimization {
             _offset = 0;
         }
 
+        public Parameter(string code, double startValue, double endValue, double stepSize = 0, int bigStepMultiple = 1)
+            : this(code, null, (startValue + endValue) / 2.0, startValue, endValue, stepSize, bigStepMultiple) { }
+
         public string Code => _code;
+        public string Description => _description ?? string.Empty;
+        public double DefaultValue => _defaultValue;
         public double StartValue => _startValue;
         public double EndValue => _endValue;
         public double StepSize => _stepSize;
@@ -110,8 +138,11 @@ namespace Spreads.Algorithms.Optimization {
         public double Current {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get {
-                Debug.Assert(_currentPosition >= 0, "Wrong access to Current of not started Parameter");
                 Debug.Assert(_currentPosition < _steps, "Wrong _current position");
+                Debug.Assert(_currentPosition >= -1, "Wrong _current position");
+                if (_currentPosition == -1) {
+                    return _defaultValue;
+                }
                 return _currentPosition == (_steps - 1) ? _endValue : _startValue + _currentPosition * _stepSize;
             }
         }

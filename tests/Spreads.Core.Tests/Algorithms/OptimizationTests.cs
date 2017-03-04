@@ -25,8 +25,8 @@ namespace Spreads.Core.Tests.Algorithms {
             var sw = new Stopwatch();
             var startMemory = GC.GetTotalMemory(true);
             sw.Restart();
-            var par0 = new Parameter("par1", 0, 100, 1);
-            var par1 = new Parameter("par2", 0, 100, 1);
+            var par0 = new Parameter("par0", 0, 100, 1);
+            var par1 = new Parameter("par1", 0, 100, 1);
             var par2 = new Parameter("par2", 0, 100, 1);
 
             var pars = new Parameters(new[] { par0, par1, par2 });
@@ -82,8 +82,8 @@ namespace Spreads.Core.Tests.Algorithms {
         /// </summary>
         [Test, Ignore]
         public async void CouldFindMaximumWithSpinWait() {
-            var par0 = new Parameter("par1", 0, 10, 1);
-            var par1 = new Parameter("par2", 0, 10, 1);
+            var par0 = new Parameter("par0", 0, 10, 1);
+            var par1 = new Parameter("par1", 0, 10, 1);
             var par2 = new Parameter("par2", 0, 10, 1);
 
             var pars = new Parameters(new[] { par0, par1, par2 });
@@ -132,8 +132,8 @@ namespace Spreads.Core.Tests.Algorithms {
             var sw = new Stopwatch();
             var startMemory = GC.GetTotalMemory(true);
             sw.Restart();
-            var par0 = new Parameter("par1", 0, 1000, 1);
-            var par1 = new Parameter("par2", 0, 100, 1);
+            var par0 = new Parameter("par0", 0, 1000, 1);
+            var par1 = new Parameter("par1", 0, 100, 1);
             var par2 = new Parameter("par2", 0, 100, 1);
 
             var pars = new Parameters(new[] { par0, par1, par2 });
@@ -163,8 +163,8 @@ namespace Spreads.Core.Tests.Algorithms {
             var sw = new Stopwatch();
             var startMemory = GC.GetTotalMemory(true);
             sw.Restart();
-            var par0 = new Parameter("par1", 0, 1000, 1, 10);
-            var par1 = new Parameter("par2", 0, 100, 1, 10);
+            var par0 = new Parameter("par0", 0, 1000, 1, 10);
+            var par1 = new Parameter("par1", 0, 100, 1, 10);
             var par2 = new Parameter("par2", 0, 100, 1, 10);
 
             var pars = new Parameters(new[] { par0, par1, par2 });

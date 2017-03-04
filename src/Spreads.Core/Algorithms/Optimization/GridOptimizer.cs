@@ -103,7 +103,6 @@ namespace Spreads.Algorithms.Optimization {
 
                             // NB this is single-threaded application of evalFolder and evalResult.Parameters could be modified
                             // later since they are reused. Folder should copy parameters or store linear address
-                            // TODO rebuild position from linear address
                             accumulator = evalFolder(accumulator, ref evalResult);
 
                             for (int i = 0; i < parameters.Count; i++) {
