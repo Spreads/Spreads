@@ -1,23 +1,46 @@
-﻿// This Source Code Form is subject to the terms of the Mozilla Public
+﻿<#@ template debug="false" hostspecific="false" language="C#" #>
+<#@ output extension=".cs" #>
+<#
+	var sizes = new []
+	{
+		"4",
+		"8",
+        //"16",
+        "24",
+        "32",
+        "64",
+        "128",
+        "256"
+	};
+#>
+// This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+// Generated code, edit Symbol16.cs and copy its changes to Symbol.tt to make changes (TODO leave only Symbol.tt)
 
 using System;
 using System.Diagnostics;
 using System.Text;
 using Spreads.Buffers;
-using Spreads.Serialization;
 
 namespace Spreads.DataTypes {
 
-    [DebuggerDisplay("{AsString}")]
-    public unsafe struct Symbol128 : IEquatable<Symbol128>
+	// See https://codeblog.jonskeet.uk/2011/04/05/of-memory-and-strings/
+    // why this has a lot of sense: on x64 a string takes 26 + length * 2,
+    // so we always win for small strings even with padding.
+	<#
+        foreach(var size in sizes)
+        {
+    #>
+
+	[DebuggerDisplay("{AsString}")]
+    public unsafe struct Symbol<#= size #> : IEquatable<Symbol<#= size #>>
     {
-        private const int Size = 128;
+        private const int Size = <#= size #>;
         private fixed byte Bytes[Size];
 
-        public Symbol128(string symbol) {
+        public Symbol<#= size #>(string symbol) {
             var byteCount = Encoding.UTF8.GetByteCount(symbol);
             if (byteCount > Size) {
                 throw new ArgumentOutOfRangeException(nameof(symbol), "Symbol length is too large");
@@ -31,7 +54,7 @@ namespace Spreads.DataTypes {
 
         public string AsString => ToString();
 
-        public bool Equals(Symbol128 other) {
+        public bool Equals(Symbol<#= size #> other) {
             fixed (byte* thisPtr = Bytes)
             {
                 for (int i = 0; i < Size; i++) {
@@ -61,7 +84,7 @@ namespace Spreads.DataTypes {
 
         public override bool Equals(object obj) {
             if (ReferenceEquals(null, obj)) return false;
-            return obj is Symbol128 && Equals((Symbol128)obj);
+            return obj is Symbol<#= size #> && Equals((Symbol<#= size #>)obj);
         }
 
         public override int GetHashCode() {
@@ -88,11 +111,16 @@ namespace Spreads.DataTypes {
 
         }
 
-        public static bool operator ==(Symbol128 x, Symbol128 y) {
+        public static bool operator ==(Symbol<#= size #> x, Symbol<#= size #> y) {
             return x.Equals(y);
         }
-        public static bool operator !=(Symbol128 x, Symbol128 y) {
+        public static bool operator !=(Symbol<#= size #> x, Symbol<#= size #> y) {
             return !x.Equals(y);
         }
     }
+
+	<#
+		}
+	#>
+
 }

@@ -2,23 +2,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+using Spreads.Buffers;
 using System;
 using System.Diagnostics;
 using System.Text;
-using Spreads.Buffers;
-using Spreads.Serialization;
 
 namespace Spreads.DataTypes {
-
-
-    // TODO (low) Symbol8, 32, 64, 128
-    // TODO implicit conversion to Symbol128 for all SymbolXXX types
-    // Equality then will be resolved automatically to Symbol128
+    // See https://codeblog.jonskeet.uk/2011/04/05/of-memory-and-strings/
+    // why this has a lot of sense: on x64 a string takes 26 + length * 2,
+    // so we always win for small strings even with padding.
 
     [DebuggerDisplay("{AsString}")]
-    public unsafe struct Symbol16 : IEquatable<Symbol16>
-    {
+    public unsafe struct Symbol16 : IEquatable<Symbol16> {
         private const int Size = 16;
         private fixed byte Bytes[Size];
 
@@ -28,8 +23,7 @@ namespace Spreads.DataTypes {
                 throw new ArgumentOutOfRangeException(nameof(symbol), "Symbol length is too large");
             }
             fixed (char* charPtr = symbol)
-            fixed (byte* ptr = Bytes)
-            {
+            fixed (byte* ptr = Bytes) {
                 Encoding.UTF8.GetBytes(charPtr, symbol.Length, (byte*)ptr, Size);
             }
         }
@@ -37,8 +31,7 @@ namespace Spreads.DataTypes {
         public string AsString => ToString();
 
         public bool Equals(Symbol16 other) {
-            fixed (byte* thisPtr = Bytes)
-            {
+            fixed (byte* thisPtr = Bytes) {
                 for (int i = 0; i < Size; i++) {
                     if (*(byte*)(thisPtr + i) != *(byte*)(other.Bytes + i)) return false;
                 }
@@ -49,8 +42,7 @@ namespace Spreads.DataTypes {
         public override string ToString() {
             var buffer = RecyclableMemoryManager.ThreadStaticBuffer;
             var len = 0;
-            fixed (byte* thisPtr = Bytes)
-            {
+            fixed (byte* thisPtr = Bytes) {
                 for (int i = 0; i < Size; i++) {
                     var b = *(byte*)(thisPtr + i);
                     if (b == 0) {
@@ -70,8 +62,7 @@ namespace Spreads.DataTypes {
         }
 
         public override int GetHashCode() {
-            fixed (byte* ptr = Bytes)
-            {
+            fixed (byte* ptr = Bytes) {
                 unchecked {
                     const int p = 16777619;
                     int hash = (int)2166136261;
@@ -90,12 +81,12 @@ namespace Spreads.DataTypes {
                     return hash;
                 }
             }
-
         }
 
         public static bool operator ==(Symbol16 x, Symbol16 y) {
             return x.Equals(y);
         }
+
         public static bool operator !=(Symbol16 x, Symbol16 y) {
             return !x.Equals(y);
         }
