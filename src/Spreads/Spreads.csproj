@@ -139,6 +139,7 @@
     </Compile>
     <Compile Include="Algorithms\Online\MovingRegression.cs" />
     <Compile Include="Algorithms\Ranker.cs" />
+    <Compile Include="Collections\MultiValue.cs" />
     <Compile Include="DataTypes\OrderBook.cs" />
     <Compile Include="DataTypes\Tick.cs" />
     <Compile Include="DataTypes\Candles.cs" />
@@ -150,6 +151,7 @@
     <Compile Include="Extensions\DateTimeExtensions.cs" />
     <Compile Include="Generation\SortedMapGenerator.cs" />
     <Compile Include="Series\ConvertSeries.cs" />
+    <Compile Include="Series\LastValueSeries.cs" />
     <Compile Include="Series\MutableSeries.cs" />
     <Compile Include="Series\ProjectValuesWrapper.cs" />
     <Compile Include="Series\CursorSeries.cs" />
