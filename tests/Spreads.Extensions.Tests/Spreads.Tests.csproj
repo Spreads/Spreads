@@ -118,6 +118,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System.Core" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -128,6 +129,7 @@
   <ItemGroup>
     <Compile Include="Algorithms\RankerTests.cs" />
     <Compile Include="Algorithms\Online\MovingRegressionTest.cs" />
+    <Compile Include="DataTypes\TypeFlattenerTests.cs" />
     <Compile Include="VariantSeriesTest.cs" />
     <Compile Include="ComplexObject.cs" />
     <Compile Include="CursorSeriesExtensions.cs" />
