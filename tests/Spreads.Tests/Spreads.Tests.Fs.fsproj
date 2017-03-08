@@ -10,7 +10,7 @@
     <RootNamespace>Spreads.Tests</RootNamespace>
     <AssemblyName>Spreads.Tests.Fs</AssemblyName>
     <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
-    <TargetFSharpCoreVersion>4.3.1.0</TargetFSharpCoreVersion>
+    <TargetFSharpCoreVersion>4.4.1.0</TargetFSharpCoreVersion>
     <Name>Spreads.Tests.Fs</Name>
     <TargetFrameworkProfile />
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
@@ -134,8 +134,7 @@
       <HintPath>..\..\packages\FSharp.Charting.0.90.14\lib\net40\FSharp.Charting.dll</HintPath>
     </Reference>
     <Reference Include="FSharp.Core">
-      <HintPath>..\..\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\..\packages\FSharp.Core.4.1.0\lib\net40\FSharp.Core.dll</HintPath>
     </Reference>
     <Reference Include="FSharp.Data">
       <HintPath>..\..\packages\FSharp.Data.2.0.14\lib\net40\FSharp.Data.dll</HintPath>
@@ -177,6 +176,9 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Numerics.Vectors">
       <HintPath>..\..\packages\System.Numerics.Vectors.4.1.1\lib\netstandard1.0\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
+    <Reference Include="System.ValueTuple">
+      <HintPath>..\..\packages\System.ValueTuple.4.3.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
     </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System" />

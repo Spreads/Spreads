@@ -27,12 +27,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\..\lib\libblosc\w32\libblosc.dll" Link="native\w32\libblosc.dll" />
-    <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll" Link="native\w64\libblosc.dll" />
-    <EmbeddedResource Include="..\..\lib\libyeppp\win\x32\yeppp.dll" Link="native\w32\yeppp.dll" />
-    <EmbeddedResource Include="..\..\lib\libyeppp\win\x64\yeppp.dll" Link="native\w64\yeppp.dll" />
+    <EmbeddedResource Include="..\..\lib\libyeppp\win\x64\yeppp.dll">
+      <Link>native\w64\yeppp.dll</Link>
+      <LogicalName>win.x64.yeppp.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\libyeppp\win\x32\yeppp.dll">
+      <Link>native\w32\yeppp.dll</Link>
+      <LogicalName>win.x32.yeppp.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
+      <Link>native\w64\libblosc.dll</Link>
+      <LogicalName>win.x64.libblosc.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\lib\libblosc\w32\libblosc.dll">
+      <Link>native\w32\libblosc.dll</Link>
+      <LogicalName>win.x32.libblosc.dll</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="9.0.1" />
     <PackageReference Include="Spreads.Utils" Version="0.7.0" />
