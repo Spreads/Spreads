@@ -2,9 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
 using NUnit.Framework;
 using Spreads.Algorithms.Optimization;
+using System;
 
 namespace Spreads.Core.Tests {
 
@@ -141,6 +141,7 @@ namespace Spreads.Core.Tests {
             //var pars = new Parameters();
 
             pars[0].CurrentPosition = 1;
+            pars[1].CurrentPosition = 0;
 
             Assert.AreEqual(5, pars.LinearAddress());
 
@@ -156,7 +157,6 @@ namespace Spreads.Core.Tests {
 
             Assert.AreEqual(4, pars2[0].CurrentPosition);
             Assert.AreEqual(3, pars2[1].CurrentPosition);
-
         }
 
         [Test]
@@ -181,7 +181,6 @@ namespace Spreads.Core.Tests {
             Assert.Throws<ArgumentException>(() => {
                 var parameters = new Parameters(pars);
             });
-
         }
     }
 }

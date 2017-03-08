@@ -99,11 +99,11 @@
     </Reference>
     <Reference Include="Spreads, Version=0.5.1.0, Culture=neutral, PublicKeyToken=eb70e0fec970faf8, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\bin\Spreads.dll</HintPath>
+      <HintPath>..\..\bin\net451\Spreads.dll</HintPath>
     </Reference>
     <Reference Include="Spreads.Collections, Version=0.6.1.0, Culture=neutral, PublicKeyToken=eb70e0fec970faf8, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\bin\Spreads.Collections.dll</HintPath>
+      <HintPath>..\..\bin\net451\Spreads.Collections.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers, Version=4.0.1.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
@@ -122,6 +122,7 @@
     <Reference Include="System.Runtime.CompilerServices.Unsafe">
       <HintPath>..\..\packages\System.Runtime.CompilerServices.Unsafe.4.4.0-beta-24721-02\lib\netstandard1.0\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Slices">
       <HintPath>..\..\packages\System.Slices.0.1.0-e161123-9\lib\netstandard1.1\System.Slices.dll</HintPath>
     </Reference>
@@ -140,6 +141,7 @@
     <Compile Include="AwaiterTests.cs" />
     <Compile Include="Algorithms\MovingMedianTests.cs" />
     <Compile Include="ColumnsTests.cs" />
+    <Compile Include="DataTypes\TypeFlattenerTests.cs" />
     <Compile Include="Enumerators\TimeSliceTests.cs" />
     <Compile Include="NanoOptimizationTests.cs" />
     <Compile Include="ObjectPoolsTests.cs" />

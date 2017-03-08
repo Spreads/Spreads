@@ -16,7 +16,7 @@ namespace Spreads.Core.Tests {
     [TestFixture]
     public class SpanTests {
 
-        [Test]
+        [Test,Ignore]
         public unsafe void CouldUseBinarySearchOverSpan() {
             var upper = 8 * 1024;
             var ptr = Marshal.AllocHGlobal(8 * upper);

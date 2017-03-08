@@ -210,7 +210,7 @@ namespace Spreads.Core.Tests.Algorithms {
             }
         }
 
-        [Test]
+        [Test,Ignore]
         public unsafe void SimdUnsafeVector() {
             float[] values = new float[1024 * 1024];
             for (int i = 0; i < values.Length; i++) {

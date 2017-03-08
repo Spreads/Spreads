@@ -294,9 +294,11 @@ namespace Spreads.Algorithms.Optimization {
             var address = -1L;
             if (parameters.Length == 0) return address;
             address = parameters[0].CurrentPosition;
+            if(address == -1) throw new InvalidOperationException("Cannot get address of not started parameter");
             // previous * current dim + current addr
             // TODO test + review
             for (int i = 1; i < parameters.Length; i++) {
+                if (parameters[i].CurrentPosition == -1) throw new InvalidOperationException("Cannot get address of not started parameter");
                 address = address * parameters[i].Steps + parameters[i].CurrentPosition;
             }
             return address;

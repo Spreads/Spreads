@@ -19,7 +19,7 @@ dotnet restore ..\src\Spreads.Collections\Spreads.Collections.2017.fsproj
 dotnet pack ..\src\Spreads.Collections\Spreads.Collections.2017.fsproj -c DEBUG -o C:\tools\LocalNuget --version-suffix "%build%"
 rmdir /s /q ..\src\Spreads.Collections\obj
 
-dotnet restore ..\src\Spreads\Spreads.csproj
-dotnet pack ..\src\Spreads\Spreads.csproj -c DEBUG -o C:\tools\LocalNuget --version-suffix "%build%"
+dotnet restore ..\src\Spreads\Spreads.2017.csproj
+dotnet pack ..\src\Spreads\Spreads.2017.csproj -c DEBUG -o C:\tools\LocalNuget --version-suffix "%build%"
 
 pause

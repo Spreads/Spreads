@@ -129,7 +129,6 @@
   <ItemGroup>
     <Compile Include="Algorithms\RankerTests.cs" />
     <Compile Include="Algorithms\Online\MovingRegressionTest.cs" />
-    <Compile Include="DataTypes\TypeFlattenerTests.cs" />
     <Compile Include="VariantSeriesTest.cs" />
     <Compile Include="ComplexObject.cs" />
     <Compile Include="CursorSeriesExtensions.cs" />

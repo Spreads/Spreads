@@ -2,9 +2,9 @@
   <Import Project="..\..\build\common.props" />
   <PropertyGroup>
     <TargetFramework>net451</TargetFramework>
-    <AssemblyName>Spreads.Core</AssemblyName>
+    <AssemblyName>Spreads</AssemblyName>
     <RootNamespace>Spreads</RootNamespace>
-    
+
     <Description />
   </PropertyGroup>
 
@@ -27,28 +27,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\..\lib\libyeppp\win\x64\yeppp.dll">
-      <Link>native\w64\yeppp.dll</Link>
-      <LogicalName>win.x64.yeppp.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\libyeppp\win\x32\yeppp.dll">
-      <Link>native\w32\yeppp.dll</Link>
-      <LogicalName>win.x32.yeppp.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
-      <Link>native\w64\libblosc.dll</Link>
-      <LogicalName>win.x64.libblosc.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\libblosc\w32\libblosc.dll">
-      <Link>native\w32\libblosc.dll</Link>
-      <LogicalName>win.x32.libblosc.dll</LogicalName>
-    </EmbeddedResource>
+    <Compile Remove="native\**" />
+    <EmbeddedResource Remove="native\**" />
+    <None Remove="native\**" />
   </ItemGroup>
+
   <ItemGroup>
+    <PackageReference Include="MathNet.Numerics.Signed" Version="3.17.0" />
     <PackageReference Include="Newtonsoft.Json" Version="9.0.1" />
+    <PackageReference Include="NodaTime" Version="1.3.3" />
     <PackageReference Include="Spreads.Utils" Version="0.7.0" />
     <PackageReference Include="System.Buffers" Version="4.3.0" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.3.0" />
+    <PackageReference Include="System.ValueTuple" Version="4.3.0" />
+    <PackageReference Include="Spreads.Collections" Version="0.7.0-*" />
   </ItemGroup>
 
   <ItemGroup>
@@ -58,20 +50,7 @@
   <ItemGroup>
     <None Update="DataTypes\Symbol.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>Symbol.cs</LastGenOutput>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Update="DataTypes\Symbol.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Symbol.tt</DependentUpon>
-    </Compile>
   </ItemGroup>
 
 </Project>
