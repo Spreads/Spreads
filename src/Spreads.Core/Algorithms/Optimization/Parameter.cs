@@ -219,7 +219,7 @@ namespace Spreads.Algorithms.Optimization {
                 var trimmed = code.Trim();
                 if (trimmed != code) {
                     var result = this[trimmed];
-                    Trace.TraceWarning($"Parameter {code} has leading or trailing spaces, check for typos in accessor");
+                    Trace.TraceWarning($"Parameter {code} has leading or trailing spaces, check for typos");
                     return result;
                 } else {
                     throw new KeyNotFoundException($"Unknown parameter: {code}");

@@ -107,8 +107,12 @@
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
       <Name>Spreads.Collections</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj">
+      <Project>{68a4ee77-ddf3-4e83-89c4-4473322d8006}</Project>
+      <Name>Spreads.Core</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\src\Spreads\Spreads.csproj">
-      <Project>{92a26d3b-7d41-4517-b7a4-95cbdd98ad4a}</Project>
+      <Project>{70445300-4409-447e-b1ac-10fa148b9dd0}</Project>
       <Name>Spreads</Name>
     </ProjectReference>
     <ProjectReference Include="..\Spreads.Extensions.Tests\Spreads.Tests.csproj">

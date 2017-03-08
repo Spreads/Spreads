@@ -31,6 +31,7 @@ namespace Spreads {
 
     public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK, TV> {
         internal int Locker;
+        // TODO at least int, or byte
         internal TaskCompletionSource<long> UpdateTcs;
 
         private object _syncRoot;
@@ -47,9 +48,7 @@ namespace Spreads {
             }
         }
 
-        public virtual ICursor<TK, TV> GetCursor() {
-            throw new NotImplementedException("BaseSeries<TK, TV, TCursor>.GetCursor is not implemented");
-        }
+        public abstract ICursor<TK, TV> GetCursor();
 
         public abstract IComparer<TK> Comparer { get; }
         public abstract bool IsIndexed { get; }

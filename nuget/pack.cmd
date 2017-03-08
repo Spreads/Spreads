@@ -1,10 +1,11 @@
-dotnet restore ..\dotnetcore\Spreads.Core
-dotnet pack ..\dotnetcore\Spreads.Core -c RELEASE -o ..\artifacts
+dotnet restore ..\src\Spreads.Core\Spreads.Core.csproj
+dotnet pack ..\src\Spreads.Core\Spreads.Core.csproj -c RELEASE -o ..\..\artifacts
 
-dotnet restore ..\dotnetcore\Spreads.Collections
-dotnet pack ..\dotnetcore\Spreads.Collections -c RELEASE -o ..\artifacts
+dotnet restore ..\src\Spreads.Collections\Spreads.Collections.2017.fsproj
+dotnet pack ..\src\Spreads.Collections\Spreads.Collections.2017.fsproj -c RELEASE -o ..\..\artifacts
+rmdir /s /q ..\src\Spreads.Collections\obj
 
-dotnet restore ..\dotnetcore\Spreads
-dotnet pack ..\dotnetcore\Spreads -c RELEASE -o ..\artifacts
+dotnet restore ..\src\Spreads\Spreads.csproj
+dotnet pack ..\src\Spreads\Spreads.csproj -c RELEASE -o ..\..\artifacts
 
 pause

@@ -1,0 +1,76 @@
+﻿<Project Sdk="FSharp.NET.Sdk;Microsoft.NET.Sdk">
+  <Import Project="..\..\build\common.props" />
+  <PropertyGroup>
+    <TargetFramework>net451</TargetFramework>
+    <AssemblyName>Spreads.Collections</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Attributes.fs" />
+    <Compile Include="KeyComparer.fs" />
+    <Compile Include="Common/Types.fs" />
+    <Compile Include="Common/FastEvents.fs" />
+    <Compile Include="Common/Operators.fs" />
+    <Compile Include="Common/ObjectPool.fs" />
+    <Compile Include="Common/Utils.fs" />
+    <Compile Include="Common/SortedDeque.fs" />
+    <Compile Include="Common/Exceptions.fs" />
+    <Compile Include="Common/OptionalValue.fs" />
+    <Compile Include="Common/GenericOperators.fs" />
+    <Compile Include="Common/SIMDArrayUtils.fs" />
+    <Compile Include="Common/SIMDArray.fs" />
+    <Compile Include="Common/Mappers.fs" />
+    <Compile Include="Interfaces.fs" />
+    <Compile Include="ISeriesExtensions.fs" />
+    <Compile Include="OptimizationSettings.fs" />
+    <Compile Include="Series.fs" />
+    <Compile Include="MutableSeries.fs" />
+    <Compile Include="BaseCursor.fs" />
+    <Compile Include="Collections/Collections.fs" />
+    <Compile Include="Collections/ImmutableIntMap64.fs" />
+    <Compile Include="Collections/ImmutableIntMap64U.fs" />
+    <Compile Include="Collections/ImmutableIntMap32.fs" />
+    <Compile Include="Collections/ImmutableIntMap32U.fs" />
+    <Compile Include="Collections/ImmutableIntConvertibleMap.fs" />
+    <Compile Include="Collections/ImmutableSortedMap.fs" />
+    <Compile Include="Collections/MutableWrapper.fs" />
+    <Compile Include="Collections/DequeMap.fs" />
+    <Compile Include="Collections/DequePanel.fs" />
+    <Compile Include="Collections/SortedMap.Obsolete.fs" />
+    <Compile Include="Collections/IndexedMap.fs" />
+    <Compile Include="Collections/SortedMap.fs" />
+    <Compile Include="Collections/SortedChunkedMap.fs" />
+    <Compile Include="Collections/DataStream.fs" />
+    <Compile Include="Cursors/BindCursor.fs" />
+    <Compile Include="Cursors/FunctionalBindCursor.fs" />
+    <Compile Include="Cursors/Append.fs" />
+    <Compile Include="Cursors/MapCursors.fs" />
+    <Compile Include="Cursors/MissingValuesCursors.fs" />
+    <Compile Include="Cursors/RangeCursor.fs" />
+    <Compile Include="Cursors/MiscCursors.fs" />
+    <Compile Include="Cursors/FilterCursors.fs" />
+    <Compile Include="Cursors/LaggedCursors.fs" />
+    <Compile Include="SeriesExtensions.fs" />
+    <Compile Include="Panel.fs" />
+    <Compile Include="Series.2.fs" />
+    <Compile Include="Statistics.fs" />
+    <Compile Include="TimeSeries.fs" />
+
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!--<PackageReference Include="Spreads.Core" Version="0.7.*" Prerelease="true" />-->
+    <PackageReference Include="Newtonsoft.Json" Version="9.0.1" />
+    <PackageReference Include="Spreads.Utils" Version="0.7.0" />
+    <PackageReference Include="System.Buffers" Version="4.3.0" />
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.3.0" />
+    <PackageReference Include="System.Numerics.Vectors" Version="4.3.0" />
+    <PackageReference Include="FSharp.Core" Version="4.1.*" />
+    <PackageReference Include="FSharp.NET.Sdk" Version="1.0.*" PrivateAssets="All" />
+  </ItemGroup>
+
+</Project>

@@ -12,10 +12,14 @@ REM echo fullstamp: "%fullstamp%"
 set "build=build%fullstamp%"
 echo build: "%build%"
 
-dotnet pack ..\dotnetcore\Spreads.Core -c DEBUG -o C:\tools\LocalNuget --version-suffix "%build%"
+dotnet restore ..\src\Spreads.Core\Spreads.Core.csproj
+dotnet pack ..\src\Spreads.Core\Spreads.Core.csproj -c DEBUG -o C:\tools\LocalNuget --version-suffix "%build%"
 
-dotnet pack ..\dotnetcore\Spreads.Collections -c DEBUG -o C:\tools\LocalNuget --version-suffix "%build%"
+dotnet restore ..\src\Spreads.Collections\Spreads.Collections.2017.fsproj
+dotnet pack ..\src\Spreads.Collections\Spreads.Collections.2017.fsproj -c DEBUG -o C:\tools\LocalNuget --version-suffix "%build%"
+rmdir /s /q ..\src\Spreads.Collections\obj
 
-dotnet pack ..\dotnetcore\Spreads -c DEBUG -o C:\tools\LocalNuget --version-suffix "%build%"
+dotnet restore ..\src\Spreads\Spreads.csproj
+dotnet pack ..\src\Spreads\Spreads.csproj -c DEBUG -o C:\tools\LocalNuget --version-suffix "%build%"
 
 pause

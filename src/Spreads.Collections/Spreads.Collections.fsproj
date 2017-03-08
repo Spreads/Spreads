@@ -21,7 +21,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <Tailcalls>false</Tailcalls>
-    <OutputPath>..\..\bin\</OutputPath>
+    <OutputPath>..\..\bin\net451\</OutputPath>
     <DefineConstants>TRACE;DEBUG;NET451;PRERELEASE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>
@@ -31,7 +31,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
-    <OutputPath>..\..\bin\</OutputPath>
+    <OutputPath>..\..\bin\net451\</OutputPath>
     <DefineConstants>NET451;</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>
@@ -50,7 +50,7 @@
     <WarningLevel>3</WarningLevel>
     <DocumentationFile />
     <OtherFlags>--warnon:52</OtherFlags>
-    <OutputPath>..\..\bin\</OutputPath>
+    <OutputPath>..\..\bin\net451\</OutputPath>
   </PropertyGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '11.0'">
@@ -145,20 +145,23 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Data.Linq" />
     <Reference Include="System.Memory">
-      <HintPath>..\..\packages\System.Memory.4.4.0-beta-24721-02\lib\netstandard1.0\System.Memory.dll</HintPath>
+      <HintPath>..\..\packages\Spreads.Utils.0.7.0\lib\netstandard1.1\System.Memory.dll</HintPath>
     </Reference>
     <Reference Include="System.Numerics" />
     <Reference Include="System.Numerics.Vectors">
       <HintPath>..\..\packages\System.Numerics.Vectors.4.1.1\lib\netstandard1.0\System.Numerics.Vectors.dll</HintPath>
     </Reference>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe">
+      <HintPath>..\..\packages\Spreads.Utils.0.7.0\lib\netstandard1.1\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    </Reference>
     <Reference Include="System.Slices">
-      <HintPath>..\..\packages\System.Slices.0.1.0-e161123-9\lib\netstandard1.1\System.Slices.dll</HintPath>
+      <HintPath>..\..\packages\Spreads.Utils.0.7.0\lib\netstandard1.1\System.Slices.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj">
       <Name>Spreads.Core</Name>
-      <Project>{06e712a1-3141-45b5-8167-e3626f5659a5}</Project>
+      <Project>{68a4ee77-ddf3-4e83-89c4-4473322d8006}</Project>
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>

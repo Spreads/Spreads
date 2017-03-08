@@ -304,6 +304,8 @@ namespace Spreads {
             // TODO Check if we need to use RunContinuationsAsynchronously from 4.6
             // https://blogs.msdn.microsoft.com/pfxteam/2015/02/02/new-task-apis-in-net-4-6/
 
+
+            // TODO what happens when we dispose/collect a cursor that has active MNA call?
             Task<Task<bool>> returnTask = tcs.Task.ContinueWith(continuationFunction: MoveNextContinuation, continuationOptions: TaskContinuationOptions.DenyChildAttach);
 
             if (!cancellationToken.CanBeCanceled) {

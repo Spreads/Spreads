@@ -172,7 +172,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj">
-      <Project>{06e712a1-3141-45b5-8167-e3626f5659a5}</Project>
+      <Project>{68a4ee77-ddf3-4e83-89c4-4473322d8006}</Project>
       <Name>Spreads.Core</Name>
     </ProjectReference>
   </ItemGroup>

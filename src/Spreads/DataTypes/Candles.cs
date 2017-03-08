@@ -5,6 +5,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using Spreads.Serialization;
 
 namespace Spreads.DataTypes {
 
@@ -14,6 +15,7 @@ namespace Spreads.DataTypes {
     /// A blittable structure for bars
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 24)]
+    [Serialization(BlittableSize = 24)]
     public struct OHLCV {
         // Uses 8 + 4*4 = 24 instead of 4*16 + 4 = 68 bytes for decimals + int
         // NB do not change field order
@@ -54,6 +56,7 @@ namespace Spreads.DataTypes {
     /// A blittable structure for bars with volume and weighted average price
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 48)]
+    [Serialization(BlittableSize = 48)]
     public struct OHLCFull {
         private readonly OHLCV _ohlcv; // 24
         private readonly int _tradeCount; // 28

@@ -100,7 +100,7 @@ namespace Spreads {
         //new ISubscription Subscribe(IObserver<T> subscriber);
     }
 
-    public interface IDataStream<T> : IAsyncEnumerable<T>, IPublisher<T> { }
+    public interface IDataStream<out T> : IAsyncEnumerable<T>, IPublisher<T> { }
 
     /// <summary>
     /// A Processor represents a processing stage—which is both a Subscriber

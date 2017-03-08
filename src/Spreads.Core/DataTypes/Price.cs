@@ -343,4 +343,8 @@ namespace Spreads.DataTypes {
             return asDecimal.ToString(CultureInfo.InvariantCulture);
         }
     }
+
+    public class InvalidPriceException : Exception {
+        public InvalidPriceException(string message) : base(message) { }
+    }
 }

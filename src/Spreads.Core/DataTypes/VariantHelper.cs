@@ -53,7 +53,7 @@ namespace Spreads.DataTypes {
             if (typeof(T).IsArray) return TypeEnum.Array;
 
             if (typeof(T) == typeof(Table)) return TypeEnum.Table;
-            if (typeof(T).GetGenericTypeDefinition() == typeof(Matrix<>)) return TypeEnum.Matrix;
+            if (typeof(T).IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Matrix<>)) return TypeEnum.Matrix;
 
             // TODO known types, otherwise will fallback to fixed binary
 
