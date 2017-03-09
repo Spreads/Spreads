@@ -16,7 +16,6 @@
 x64/
 x32/
 x86/
-build/
 [Bb]in/
 [Oo]bj/
 artifacts/

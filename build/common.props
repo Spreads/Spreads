@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <VersionPrefix>0.7.0</VersionPrefix>
+    <VersionSuffix>alpha1</VersionSuffix>
+    <PackageTags>Spreads F# data streaming real-time analysis streams time series reactive</PackageTags>
+    <Product>Spreads</Product>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/Spreads/Spreads.git</RepositoryUrl>
+    <Authors>Victor Baybekov</Authors>
+    <Company />
+    <Product />
+    <Copyright>Victor Baybekov</Copyright>
+    <VersionSuffix Condition="'$(VersionSuffix)' != '' And '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
+  </PropertyGroup>
+
+</Project>
