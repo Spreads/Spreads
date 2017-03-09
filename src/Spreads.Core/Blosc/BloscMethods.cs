@@ -9,12 +9,27 @@ using System.Security;
 using Bootstrap;
 
 namespace Spreads.Blosc {
+
+    public static class BloscSettings {
+        internal static string defaultCompressionMethod = "lz4";
+        public static string CompressionMethod {
+            get => defaultCompressionMethod;
+            set {
+                if (value != "lz4" && value != "zstd") {
+                    throw new ArgumentException("CompressionMethod could be either `lz4` or `zstd`");
+                }
+                defaultCompressionMethod = value;
+            }
+        }
+    }
+
 #if NET451
     [SuppressUnmanagedCodeSecurity]
 #endif
     internal class BloscMethods {
         public const string BloscLibraryName = "libblosc";
-        static BloscMethods() {
+        static BloscMethods()
+        {
             // Ensure Bootstrapper is initialized and native libraries are loaded
             Bootstrapper.Instance.Bootstrap<BloscMethods>(
                 new[] { BloscLibraryName },
@@ -23,7 +38,8 @@ namespace Spreads.Blosc {
                 null,
                 () => { },
                 () => { },
-                () => {
+                () =>
+                {
                 });
         }
 

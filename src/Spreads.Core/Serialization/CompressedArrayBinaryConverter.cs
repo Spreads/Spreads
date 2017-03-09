@@ -85,14 +85,14 @@ namespace Spreads.Serialization {
                                 *(DateTime*)(srcPtr + i * 8) = dtArray[i + valueOffset];
                             }
                             compressedSize = BloscMethods.blosc_compress_ctx(
-                            new IntPtr(9), // max compression
-                            new IntPtr(1), // do shuffle
+                            new IntPtr(9), // max compression 9
+                            new IntPtr(1), // do byte shuffle 1
                             new UIntPtr((uint)ItemSize), // type size
                             new UIntPtr((uint)(valueCount * ItemSize)), // number of input bytes
                             (IntPtr)srcPtr,
                             destination.Data + position, // destination
                             new UIntPtr((uint)(destination.Length - position)), // destination length
-                            "lz4", // hardcoded, do not change
+                            BloscSettings.defaultCompressionMethod,
                             new UIntPtr((uint)0), // default block size
                             BloscMethods.ProcessorCount // 
                             );
@@ -102,14 +102,14 @@ namespace Spreads.Serialization {
                         var pinnedArray = GCHandle.Alloc(value, GCHandleType.Pinned);
                         var srcPtr = Marshal.UnsafeAddrOfPinnedArrayElement(value, valueOffset);
                         compressedSize = BloscMethods.blosc_compress_ctx(
-                            new IntPtr(9), // max compression
-                            new IntPtr(1), // do shuffle
+                            new IntPtr(9), // max compression 9
+                            new IntPtr(1), // do byte shuffle 1
                             new UIntPtr((uint)ItemSize), // type size
                             new UIntPtr((uint)(valueCount * ItemSize)), // number of input bytes
                             srcPtr,
                             destination.Data + position, // destination
                             new UIntPtr((uint)(destination.Length - position)), // destination length
-                            "lz4", // hardcoded, do not change
+                            BloscSettings.defaultCompressionMethod,
                             new UIntPtr((uint)0), // default block size
                             BloscMethods.ProcessorCount // 
                             );
