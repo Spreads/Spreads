@@ -33,9 +33,6 @@ namespace Spreads.DataTypes {
         private MemberSet _members;
         private List<string> _columns = new List<string>();
 
-        [ThreadStatic]
-        private object[] _values;
-
         public TypeFlattenner(Type type) {
             _accessor = TypeAccessor.Create(type);
 
@@ -67,12 +64,14 @@ namespace Spreads.DataTypes {
                     _columns.Add(m.Name);
                 }
             } else if (_layout == Layout.DataContract) {
-                Func<Member, int> getorder = (m) => {
+                int getorder(Member m)
+                {
                     var order = ((DataMemberAttribute)m.GetAttribute(typeof(DataMemberAttribute), true)).Order;
                     if (order <= 0) order = int.MaxValue;
                     return order;
                 };
-                Func<Member, string> getName = (m) => {
+                string getName(Member m)
+                {
                     var name = ((DataMemberAttribute)m.GetAttribute(typeof(DataMemberAttribute), true)).Name;
                     if (string.IsNullOrEmpty(name)) {
                         name = m.Name;
@@ -95,23 +94,24 @@ namespace Spreads.DataTypes {
         public int Width => _width;
         public List<string> Columns => _columns;
 
-        public void Flatten(object value, ref object[] flattennedValues) {
-            if (_values == null) {
-                _values = new object[_width];
+        public void Flatten(object value, ref object[] flattennedValues, int offset = 0) {
+            if (flattennedValues == null) {
+                flattennedValues = new object[_width];
             }
-            Array.Clear(_values, 0, _values.Length);
+            // it's a caller's job to do Array.Clear(flattennedValues, offset, _width);
             switch (_layout) {
                 case Layout.Scalar:
-                    _values[0] = value;
-                    flattennedValues = _values;
+                    flattennedValues[offset] = value;
                     break;
 
                 case Layout.PublicProperties:
                 case Layout.DataContract:
-                    for (int i = 0; i < _orderedMembers.Count; i++) {
-                        _values[i] = _accessor[value, _orderedMembers[i].Name];
+                    // TODO Assume it is not thread-safe just-in-case, check from MG if FM is thread-safe
+                    lock (_accessor) {
+                        for (int i = 0; i < _orderedMembers.Count; i++) {
+                            flattennedValues[offset + i] = _accessor[value, _orderedMembers[i].Name];
+                        }
                     }
-                    flattennedValues = _values;
                     break;
 
                 default:
