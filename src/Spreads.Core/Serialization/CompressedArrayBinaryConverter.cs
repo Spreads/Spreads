@@ -205,7 +205,8 @@ namespace Spreads.Serialization {
                         int decompSize = 0;
 
                        
-
+                        // TODO remove this try/catch and debugger stuff, it was used tp catch an eror that disappeared after adding 
+                        // try/catch. Probably some reordering, maybe add a memory barrier before the call
                         try {
                             decompSize = BloscMethods.blosc_decompress_ctx(
                                 source, destination, new UIntPtr((uint)nbytes), BloscMethods.ProcessorCount);

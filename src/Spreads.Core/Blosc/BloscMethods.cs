@@ -28,8 +28,7 @@ namespace Spreads.Blosc {
 #endif
     internal class BloscMethods {
         public const string BloscLibraryName = "libblosc";
-        static BloscMethods()
-        {
+        static BloscMethods(){
             // Ensure Bootstrapper is initialized and native libraries are loaded
             Bootstrapper.Instance.Bootstrap<BloscMethods>(
                 new[] { BloscLibraryName },

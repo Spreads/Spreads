@@ -106,11 +106,8 @@ namespace Spreads.DataTypes {
 
                 case Layout.PublicProperties:
                 case Layout.DataContract:
-                    // TODO Assume it is not thread-safe just-in-case, check from MG if FM is thread-safe
-                    lock (_accessor) {
-                        for (int i = 0; i < _orderedMembers.Count; i++) {
-                            flattennedValues[offset + i] = _accessor[value, _orderedMembers[i].Name];
-                        }
+                    for (int i = 0; i < _orderedMembers.Count; i++) {
+                        flattennedValues[offset + i] = _accessor[value, _orderedMembers[i].Name];
                     }
                     break;
 

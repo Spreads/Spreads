@@ -226,10 +226,8 @@ namespace Spreads {
         //}
     }
 
-
-    public class AsyncCursor<TK, TV, TCursor> : ICursor<TK, TV>
+    public sealed class AsyncCursor<TK, TV, TCursor> : ICursor<TK, TV>
         where TCursor : ICursor<TK, TV> {
-
         private BaseSeries<TK, TV> _source;
 
         // NB this is often a struct, should not be made readonly!
@@ -304,7 +302,6 @@ namespace Spreads {
             // TODO Check if we need to use RunContinuationsAsynchronously from 4.6
             // https://blogs.msdn.microsoft.com/pfxteam/2015/02/02/new-task-apis-in-net-4-6/
 
-
             // TODO what happens when we dispose/collect a cursor that has active MNA call?
             Task<Task<bool>> returnTask = tcs.Task.ContinueWith(continuationFunction: MoveNextContinuation, continuationOptions: TaskContinuationOptions.DenyChildAttach);
 
@@ -324,6 +321,7 @@ namespace Spreads {
             return anyReturn.Unwrap().Unwrap();
         }
 
+        // TODO benchmark it as a local function
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Task<bool> MoveNextContinuation(Task<long> t) {
             // while this is not null, noone would be able to set a new one
@@ -408,15 +406,6 @@ namespace Spreads {
 
         public void Dispose() {
             Dispose(true);
-            //GC.SuppressFinalize(this);
         }
-
-        // NB If we did not called dispose explicitly, let the object die and do not try
-        // to use finalizers
-        //~AsyncCursor() {
-        //    Dispose(false);
-        //}
     }
-
-
 }
