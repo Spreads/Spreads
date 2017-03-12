@@ -9,7 +9,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
-namespace Spreads.DataTypes {
+namespace Spreads.DataTypes.Experimental {
 
     // TODO methods for rescale
     // TODO Alpha2/Alpha3 types similar to Symbol, always restricting to ASCII with the same capitalization (Upper)

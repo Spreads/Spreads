@@ -33,7 +33,7 @@ namespace Spreads.DataTypes {
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
     [Serialization(BlittableSize = 8)]
-    public struct Price : IComparable<Price>, IEquatable<Price> {
+    public struct Price : IComparable<Price>, IEquatable<Price>, IConvertible {
 
 
         public override int GetHashCode() {
@@ -105,10 +105,8 @@ namespace Spreads.DataTypes {
         };
 
         public ulong Exponent => (_value >> 56) & 15UL;
-        public long Mantissa
-        {
-            get
-            {
+        public long Mantissa {
+            get {
                 var mantissaValue = (long)(_value & MantissaValueMask);
                 if ((SignMask & _value) > 0UL) {
                     return -mantissaValue;
@@ -123,10 +121,8 @@ namespace Spreads.DataTypes {
 
         public bool IsQualified => _value >> 63 == 1UL;
 
-        public bool? IsTrade
-        {
-            get
-            {
+        public bool? IsTrade {
+            get {
                 var firstTwo = _value >> 62;
                 // 11
                 if (firstTwo == 3UL) {
@@ -145,10 +141,8 @@ namespace Spreads.DataTypes {
             }
         }
 
-        public bool? IsBuy
-        {
-            get
-            {
+        public bool? IsBuy {
+            get {
                 if (!IsQualified) return null;
                 var thirdAndForth = (_value >> 60) & 3UL;
                 // 1_11
@@ -164,10 +158,8 @@ namespace Spreads.DataTypes {
             }
         }
 
-        public bool? IsSell
-        {
-            get
-            {
+        public bool? IsSell {
+            get {
                 if (!IsQualified) return null;
                 var thirdAndForth = (_value >> 60) & 3UL;
                 // 1_11
@@ -183,10 +175,8 @@ namespace Spreads.DataTypes {
             }
         }
 
-        public TradeSide? TradeSide
-        {
-            get
-            {
+        public TradeSide? TradeSide {
+            get {
                 if (!IsQualified) return null;
                 // ReSharper disable once PossibleInvalidOperationException
                 if (IsBuy.Value) {
@@ -341,6 +331,74 @@ namespace Spreads.DataTypes {
         public override string ToString() {
             var asDecimal = (decimal)this;
             return asDecimal.ToString(CultureInfo.InvariantCulture);
+        }
+
+        public TypeCode GetTypeCode() {
+            return TypeCode.Decimal;
+        }
+
+        public bool ToBoolean(IFormatProvider provider) {
+            throw new InvalidCastException();
+        }
+
+        public char ToChar(IFormatProvider provider) {
+            throw new InvalidCastException();
+        }
+
+        public sbyte ToSByte(IFormatProvider provider) {
+            throw new InvalidCastException();
+        }
+
+        public byte ToByte(IFormatProvider provider) {
+            throw new InvalidCastException();
+        }
+
+        public short ToInt16(IFormatProvider provider) {
+            throw new InvalidCastException();
+        }
+
+        public ushort ToUInt16(IFormatProvider provider) {
+            throw new InvalidCastException();
+        }
+
+        public int ToInt32(IFormatProvider provider) {
+            throw new InvalidCastException();
+        }
+
+        public uint ToUInt32(IFormatProvider provider) {
+            throw new InvalidCastException();
+        }
+
+        public long ToInt64(IFormatProvider provider) {
+            throw new InvalidCastException();
+        }
+
+        public ulong ToUInt64(IFormatProvider provider) {
+            throw new InvalidCastException();
+        }
+
+        public float ToSingle(IFormatProvider provider) {
+            return (float)this;
+        }
+
+        public double ToDouble(IFormatProvider provider) {
+            return (double)this;
+        }
+
+        public decimal ToDecimal(IFormatProvider provider) {
+            return (decimal)this;
+        }
+
+        public DateTime ToDateTime(IFormatProvider provider) {
+            throw new InvalidCastException();
+        }
+
+        public string ToString(IFormatProvider provider) {
+            return this.ToString();
+        }
+
+        public object ToType(Type conversionType, IFormatProvider provider) {
+            throw new InvalidCastException();
         }
     }
 
