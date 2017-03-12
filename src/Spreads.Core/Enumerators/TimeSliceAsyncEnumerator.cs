@@ -110,8 +110,8 @@ namespace Spreads.Enumerators {
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
-
-                var ticks = ((tick.Ticks / (ticksPerPeriod * _source._periodLength)) + _source._offset) * ticksPerPeriod;
+                var ticksPerSlice = ticksPerPeriod * _source._periodLength;
+                var ticks = ((tick.Ticks / (ticksPerSlice)) + _source._offset) * ticksPerSlice;
                 return new DateTime(ticks, tick.Kind);
             }
 
