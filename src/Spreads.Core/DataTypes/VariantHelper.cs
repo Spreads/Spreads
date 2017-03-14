@@ -43,7 +43,7 @@ namespace Spreads.DataTypes {
             if (typeof(T) == typeof(double)) return TypeEnum.Float64;
             if (typeof(T) == typeof(decimal)) return TypeEnum.Decimal;
             if (typeof(T) == typeof(Price)) return TypeEnum.Price;
-            if (typeof(T) == typeof(Money)) return TypeEnum.Money;
+            //if (typeof(T) == typeof(Money)) return TypeEnum.Money;
             if (typeof(T) == typeof(DateTime)) return TypeEnum.DateTime;
             if (typeof(T) == typeof(Timestamp)) return TypeEnum.Timestamp;
 
@@ -115,7 +115,7 @@ namespace Spreads.DataTypes {
             if (ty == typeof(double)) return TypeEnum.Float64;
             if (ty == typeof(decimal)) return TypeEnum.Decimal;
             if (ty == typeof(Price)) return TypeEnum.Price;
-            if (ty == typeof(Money)) return TypeEnum.Money;
+            //if (ty == typeof(Money)) return TypeEnum.Money;
             if (ty == typeof(DateTime)) return TypeEnum.DateTime;
             if (ty == typeof(Timestamp)) return TypeEnum.Timestamp;
 
@@ -187,7 +187,8 @@ namespace Spreads.DataTypes {
                         return typeof(Price);
 
                     case TypeEnum.Money:
-                        return typeof(Money);
+                        throw new NotImplementedException();
+                        //return typeof(Money);
 
                     case TypeEnum.DateTime:
                         return typeof(DateTime);

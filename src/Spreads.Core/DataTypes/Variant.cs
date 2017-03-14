@@ -27,16 +27,14 @@ namespace Spreads.DataTypes {
 
         private byte _value;
 
-        public byte Version
-        {
+        public byte Version {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return (byte)(_value >> VersionBitsOffset); }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set { _value = (byte)(_value | (value << VersionBitsOffset)); }
         }
 
-        public bool IsCompressed
-        {
+        public bool IsCompressed {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return (_value & (1 << CompressedBitOffset)) > 0; }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -229,7 +227,8 @@ namespace Spreads.DataTypes {
                         return Create((Price)value);
 
                     case TypeEnum.Money:
-                        return Create((Money)value);
+                        throw new NotImplementedException();
+                    //return Create((Money)value);
 
                     case TypeEnum.DateTime:
                         return Create((DateTime)value);
@@ -348,7 +347,8 @@ namespace Spreads.DataTypes {
                         return value.Get<Price>();
 
                     case TypeEnum.Money:
-                        return value.Get<Money>();
+                        throw new NotImplementedException();
+                        //return value.Get<Money>();
 
                     case TypeEnum.DateTime:
                         return value.Get<DateTime>();
@@ -412,11 +412,9 @@ namespace Spreads.DataTypes {
             return v;
         }
 
-        public TypeEnum TypeEnum
-        {
+        public TypeEnum TypeEnum {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
+            get {
                 var boxed = _object as BoxedTypeEnum;
                 if (boxed != null) {
                     return boxed.TypeEnum;
@@ -425,21 +423,17 @@ namespace Spreads.DataTypes {
             }
         }
 
-        public bool IsFixedSize
-        {
+        public bool IsFixedSize {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
+            get {
                 var te = TypeEnum;
                 return (int)te < KnownSmallTypesLimit | te == TypeEnum.FixedBinary;
             }
         }
 
-        public int ByteSize
-        {
+        public int ByteSize {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
+            get {
                 var boxed = _object as BoxedTypeEnum;
                 if (boxed != null) {
                     return KnownTypeSizes[(int)boxed.TypeEnum];
@@ -451,11 +445,9 @@ namespace Spreads.DataTypes {
             }
         }
 
-        public int ElementByteSize
-        {
+        public int ElementByteSize {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
+            get {
                 var boxed = _object as BoxedTypeEnum;
                 if (boxed != null) {
                     return -1; // inlined scalar has no elements
@@ -467,11 +459,9 @@ namespace Spreads.DataTypes {
             }
         }
 
-        public TypeEnum ElementTypeEnum
-        {
+        public TypeEnum ElementTypeEnum {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
+            get {
                 var boxed = _object as BoxedTypeEnum;
                 if (boxed != null) {
                     return TypeEnum.None;
@@ -483,11 +473,9 @@ namespace Spreads.DataTypes {
         /// <summary>
         /// Number of values stored in Variant (1 for scalar values)
         /// </summary>
-        public int Count
-        {
+        public int Count {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
+            get {
                 var boxed = _object as BoxedTypeEnum;
                 if (boxed != null) {
                     return 1;
@@ -496,11 +484,9 @@ namespace Spreads.DataTypes {
             }
         }
 
-        internal VariantLayout Layout
-        {
+        internal VariantLayout Layout {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
+            get {
                 if (_object == null) {
                     return VariantLayout.Pointer;
                 }
@@ -686,10 +672,8 @@ namespace Spreads.DataTypes {
         /// <summary>
         ///
         /// </summary>
-        public Variant this[int index]
-        {
-            get
-            {
+        public Variant this[int index] {
+            get {
                 if ((uint)index >= (uint)Count) {
                     throw new ArgumentOutOfRangeException();
                 }
@@ -714,8 +698,7 @@ namespace Spreads.DataTypes {
                 }
                 throw new InvalidCastException();
             }
-            set
-            {
+            set {
                 if ((uint)index >= (uint)Count) {
                     throw new ArgumentOutOfRangeException();
                 }
