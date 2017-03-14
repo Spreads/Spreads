@@ -1259,7 +1259,8 @@ type SortedMap<'K,'V>
       // if source is already read-only, MNA will always return false
       if this.isReadOnly then new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
       else 
-        let c = new SortedMapCursor<'K,'V>(this)
+        let c = BaseCursorAsync<'K,'V,_>.Create(this,Func<_>(this.GetEnumerator))
+        //let c = new SortedMapCursor<'K,'V>(this)
         c :> ICursor<'K,'V>
     finally
       exitWriteLockIf &this.Locker entered
@@ -1576,15 +1577,13 @@ and
       val mutable internal currentValue: 'V
       val mutable internal cursorVersion : int64
       val mutable internal isBatch : bool
-      val mutable internal asyncCursor : AsyncCursor<'K,'V,SortedMapCursor<'K,'V>>
       new(source:SortedMap<'K,'V>) = 
-        { source = source; 
+        { source = source;
           index = -1;
           currentKey = Unchecked.defaultof<_>;
           currentValue = Unchecked.defaultof<_>;
           cursorVersion = source.orderVersion;
           isBatch = false;
-          asyncCursor = null;
         }
     end
 
@@ -1839,23 +1838,18 @@ and
         this.currentValue <- newValue
       result
 
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-    member this.MoveNext(cancellationToken:CancellationToken): Task<bool> =
-      if this.MoveNext() then trueTask
-      elif this.source.IsReadOnly then
-        if this.MoveNext() then trueTask else falseTask
-      else
-        if this.asyncCursor = Unchecked.defaultof<_> then this.asyncCursor <- new AsyncCursor<_,_,_>(this.source, this)
-        this.asyncCursor.MoveNext(cancellationToken)
+    //[<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    //member this.MoveNext(cancellationToken:CancellationToken): Task<bool> =
+    //  if this.MoveNext() then trueTask
+    //  elif this.source.IsReadOnly then
+    //    if this.MoveNext() then trueTask else falseTask
+    //  else
+    //    if this.asyncCursor = Unchecked.defaultof<_> then this.asyncCursor <- new AsyncCursor<_,_,_>(this.source, this)
+    //    this.asyncCursor.MoveNext(cancellationToken)
 
 
     member this.Clone() = 
       let mutable copy = this
-      // NB this is not needed, because MNA of copy will recreate async cursor on demand
-      // if this.asyncCursor <> Unchecked.defaultof<_> then
-      //   copy.asyncCursor <- new AsyncCursor<_,_,_>(copy.source, copy)
-      // But we need to clear the field if it is set
-      copy.asyncCursor <- Unchecked.defaultof<_>
       copy
 
     member this.Reset() = 
@@ -1864,9 +1858,7 @@ and
       this.currentValue <- Unchecked.defaultof<'V>
       this.index <- -1
 
-    member this.Dispose() = 
-      this.Reset()
-      if this.asyncCursor <> Unchecked.defaultof<_> then this.asyncCursor.Dispose()
+    member this.Dispose() = this.Reset()
 
     interface IDisposable with
       member this.Dispose() = this.Dispose()
@@ -1878,8 +1870,11 @@ and
       member this.Current with get(): obj = this.Current :> obj
 
     interface IAsyncEnumerator<KVP<'K,'V>> with
-      member this.MoveNext(cancellationToken:CancellationToken): Task<bool> = 
-        this.MoveNext(cancellationToken:CancellationToken)
+      member this.MoveNext(cancellationToken:CancellationToken): Task<bool> =
+        if this.source.IsReadOnly then
+          if this.MoveNext() then trueTask else falseTask
+        else raise (NotSupportedException("Use BaseCursorAsync instead"))
+        //this.MoveNext(cancellationToken:CancellationToken)
 
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.source.Comparer

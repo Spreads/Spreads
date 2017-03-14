@@ -19,23 +19,28 @@ using System.Runtime.CompilerServices;
 using HdrHistogram;
 
 
-namespace Spreads.Collections.Tests.Cursors {
+namespace Spreads.Collections.Tests.Cursors
+{
 
     [TestFixture]
-    public class MoveNextAsyncTests {
+    public class MoveNextAsyncTests
+    {
 
-        private void NOP(long durationTicks) {
+        private void NOP(long durationTicks)
+        {
             Stopwatch sw = new Stopwatch();
 
             sw.Start();
 
-            while (sw.ElapsedTicks < durationTicks) {
+            while (sw.ElapsedTicks < durationTicks)
+            {
 
             }
         }
 
         [Test]
-        public void CouldUseAwaiter() {
+        public void CouldUseAwaiter()
+        {
 
             var t = Task.Delay(1000);
             var awaiter = t.GetAwaiter();
@@ -47,7 +52,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void CouldMoveAsyncOnEmptySM() {
+        public void CouldMoveAsyncOnEmptySM()
+        {
             var sm = new SortedChunkedMap<DateTime, double>();
             var c = sm.GetCursor();
             var moveTask = c.MoveNext(CancellationToken.None);
@@ -57,7 +63,8 @@ namespace Spreads.Collections.Tests.Cursors {
         }
 
         [Test]
-        public void CouldMoveAsyncOnEmptySCM() {
+        public void CouldMoveAsyncOnEmptySCM()
+        {
             var sm = new SortedChunkedMap<DateTime, double>();
             var c = sm.GetCursor();
             var moveTask = c.MoveNext(CancellationToken.None);
@@ -68,7 +75,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         [Ignore]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes() {
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes()
+        {
             ////use the second Core/Processor for the test
             //Process.GetCurrentProcess().ProcessorAffinity = new IntPtr(2);
             ////prevent "Normal" Processes from interrupting Threads
@@ -79,9 +87,11 @@ namespace Spreads.Collections.Tests.Cursors {
             System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.LowLatency;
             GCLatencyMode oldMode = GCSettings.LatencyMode;
             GCSettings.LatencyMode = GCLatencyMode.LowLatency;
-            for (int round = 0; round < 50; round++) {
+            for (int round = 0; round < 50; round++)
+            {
 
-                if (GC.TryStartNoGCRegion(100 * 1024 * 1024)) {
+                if (GC.TryStartNoGCRegion(100 * 1024 * 1024))
+                {
                     CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
                     GC.EndNoGCRegion();
                 }
@@ -91,41 +101,55 @@ namespace Spreads.Collections.Tests.Cursors {
         }
 
         [Test]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor() {
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor()
+        {
             var count = 10000000;
             var sw = new Stopwatch();
             sw.Start();
-
+            var syncAddCnt = 0;
             var sm = new SortedMap<DateTime, double>();
             sm.IsSynchronized = true;
             //var sm = new SortedChunkedMap<DateTime, double>();
             //sm.Add(DateTime.UtcNow.Date.AddSeconds(-2), 0);
 
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < syncAddCnt; i++)
+            {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
             var histogram = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
             double sum = 0;
             var cnt = 0;
             var histogram1 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
-            var sumTask = Task.Run(async () => {
+            var sumTask = Task.Run(async () =>
+            {
                 var c = sm.GetCursor();
 
                 var startTick = sw.ElapsedTicks;
 
-                while (await c.MoveNext(CancellationToken.None)) {
+                while (await c.MoveNext(CancellationToken.None))
+                {
                     sum += c.CurrentValue;
-                    if ((int)c.CurrentValue != cnt) {
+                    if ((int)c.CurrentValue != cnt)
+                    {
                         //Console.WriteLine("Wrong sequence");
                         //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
                         Trace.WriteLine($"Wrong sequence1: {c.CurrentValue} != {cnt}; thread {Thread.CurrentThread.ManagedThreadId}");
-                    } else {
+                    }
+                    else
+                    {
                         //Console.WriteLine("Async move");
                     }
                     cnt++;
                     var ticks = sw.ElapsedTicks - startTick;
                     var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
-                    histogram1.RecordValue(nanos);
+                    try
+                    {
+                        histogram1.RecordValue(nanos);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"Nanos: {nanos}; " + e.Message);
+                    }
                     startTick = sw.ElapsedTicks;
                 }
             });
@@ -133,24 +157,36 @@ namespace Spreads.Collections.Tests.Cursors {
             double sum2 = 0;
             var cnt2 = 0;
             var histogram2 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
-            var sumTask2 = Task.Run(async () => {
+            var sumTask2 = Task.Run(async () =>
+            {
                 var c = sm.GetCursor();
 
                 var startTick = sw.ElapsedTicks;
 
-                while (await c.MoveNext(CancellationToken.None)) {
+                while (await c.MoveNext(CancellationToken.None))
+                {
                     sum2 += c.CurrentValue;
-                    if ((int)c.CurrentValue != cnt2) {
+                    if ((int)c.CurrentValue != cnt2)
+                    {
                         //Console.WriteLine("Wrong sequence");
                         //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
                         Trace.WriteLine($"Wrong sequence2: {c.CurrentValue} != {cnt2}; thread {Thread.CurrentThread.ManagedThreadId}");
-                    } else {
+                    }
+                    else
+                    {
                         //Console.WriteLine("Async move");
                     }
                     cnt2++;
                     var ticks = sw.ElapsedTicks - startTick;
                     var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
-                    histogram2.RecordValue(nanos);
+                    try
+                    {
+                        histogram2.RecordValue(nanos);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"Nanos: {nanos}; " + e.Message);
+                    }
                     startTick = sw.ElapsedTicks;
                 }
             });
@@ -158,24 +194,36 @@ namespace Spreads.Collections.Tests.Cursors {
             double sum3 = 0;
             var cnt3 = 0;
             var histogram3 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
-            var sumTask3 = Task.Run(async () => {
+            var sumTask3 = Task.Run(async () =>
+            {
                 var c = sm.GetCursor();
 
                 var startTick = sw.ElapsedTicks;
 
-                while (await c.MoveNext(CancellationToken.None)) {
+                while (await c.MoveNext(CancellationToken.None))
+                {
                     sum3 += c.CurrentValue;
-                    if ((int)c.CurrentValue != cnt3) {
+                    if ((int)c.CurrentValue != cnt3)
+                    {
                         //Console.WriteLine("Wrong sequence");
                         //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
                         Trace.WriteLine($"Wrong sequence3: {c.CurrentValue} != {cnt3}; thread {Thread.CurrentThread.ManagedThreadId}");
-                    } else {
+                    }
+                    else
+                    {
                         //Console.WriteLine("Async move");
                     }
                     cnt3++;
                     var ticks = sw.ElapsedTicks - startTick;
                     var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
-                    histogram3.RecordValue(nanos);
+                    try
+                    {
+                        histogram3.RecordValue(nanos);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"Nanos: {nanos}; " + e.Message);
+                    }
                     startTick = sw.ElapsedTicks;
                 }
 
@@ -184,10 +232,12 @@ namespace Spreads.Collections.Tests.Cursors {
 
             Thread.Sleep(1);
 
-            var addTask = Task.Run(() => {
+            var addTask = Task.Run(() =>
+            {
                 //Console.WriteLine($"Adding from thread {Thread.CurrentThread.ManagedThreadId}");
 
-                for (int i = 5; i < count; i++) {
+                for (int i = syncAddCnt; i < count; i++)
+                {
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 }
                 sm.Complete();
@@ -195,15 +245,18 @@ namespace Spreads.Collections.Tests.Cursors {
             });
 
 
-            while (!sumTask.Wait(2000)) {
+            while (!sumTask.Wait(2000))
+            {
                 OptimizationSettings.Verbose = true;
                 Trace.WriteLine($"cnt: {cnt}");
             }
-            while (!sumTask2.Wait(2000)) {
+            while (!sumTask2.Wait(2000))
+            {
                 //OptimizationSettings.Verbose = true;
                 Trace.WriteLine($"cnt2: {cnt2}");
             }
-            while (!sumTask3.Wait(2000)) {
+            while (!sumTask3.Wait(2000))
+            {
                 //OptimizationSettings.Verbose = true;
                 Trace.WriteLine($"cnt3: {cnt3}");
             }
@@ -221,7 +274,8 @@ namespace Spreads.Collections.Tests.Cursors {
             Trace.WriteLine($"Ops: {Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2)}");
 
             double expectedSum = 0.0;
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 expectedSum += i;
             }
             if (expectedSum != sum) Trace.WriteLine("Sum 1 is wrong");
@@ -238,8 +292,10 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         [Ignore]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_NoSemaphore_ManyTimes() {
-            for (int r = 0; r < 20; r++) {
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_NoSemaphore_ManyTimes()
+        {
+            for (int r = 0; r < 20; r++)
+            {
                 CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_NoSemaphore();
                 GC.Collect(2, GCCollectionMode.Forced);
             }
@@ -247,7 +303,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         [Ignore]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_NoSemaphore() {
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_NoSemaphore()
+        {
 
             var cts = new CancellationTokenSource();
             var ct = CancellationToken.None; // cts.Token; //
@@ -261,33 +318,42 @@ namespace Spreads.Collections.Tests.Cursors {
             //var sm = new SortedChunkedMap<DateTime, double>();
             //sm.Add(DateTime.UtcNow.Date.AddSeconds(-2), 0);
 
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 5; i++)
+            {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
             var histogram = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
             double sum = 0;
             var cnt = 0;
             var histogram1 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
-            var sumTask = Task.Run(async () => {
+            var sumTask = Task.Run(async () =>
+            {
                 var c = sm.GetCursor();
 
                 var startTick = sw.ElapsedTicks;
 
-                while (await c.MoveNext(ct)) {
+                while (await c.MoveNext(ct))
+                {
                     sum += c.CurrentValue;
-                    if ((int)c.CurrentValue != cnt) {
+                    if ((int)c.CurrentValue != cnt)
+                    {
                         //Console.WriteLine("Wrong sequence");
                         //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
                         Trace.WriteLine($"Wrong sequence1: {c.CurrentValue} != {cnt}; thread {Thread.CurrentThread.ManagedThreadId}");
-                    } else {
+                    }
+                    else
+                    {
                         //Console.WriteLine("Async move");
                     }
                     cnt++;
                     var ticks = sw.ElapsedTicks - startTick;
                     var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
-                    try {
+                    try
+                    {
                         histogram1.RecordValue(nanos);
-                    } catch (Exception e) {
+                    }
+                    catch (Exception e)
+                    {
                         Console.WriteLine($"Nanos: {nanos}; " + e.Message);
                     }
                     startTick = sw.ElapsedTicks;
@@ -297,26 +363,34 @@ namespace Spreads.Collections.Tests.Cursors {
             double sum2 = 0;
             var cnt2 = 0;
             var histogram2 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
-            var sumTask2 = Task.Run(async () => {
+            var sumTask2 = Task.Run(async () =>
+            {
                 var c = sm.GetCursor();
 
                 var startTick = sw.ElapsedTicks;
 
-                while (await c.MoveNext(ct)) {
+                while (await c.MoveNext(ct))
+                {
                     sum2 += c.CurrentValue;
-                    if ((int)c.CurrentValue != cnt2) {
+                    if ((int)c.CurrentValue != cnt2)
+                    {
                         //Console.WriteLine("Wrong sequence");
                         //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
                         Trace.WriteLine($"Wrong sequence2: {c.CurrentValue} != {cnt2}; thread {Thread.CurrentThread.ManagedThreadId}");
-                    } else {
+                    }
+                    else
+                    {
                         //Console.WriteLine("Async move");
                     }
                     cnt2++;
                     var ticks = sw.ElapsedTicks - startTick;
                     var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
-                    try {
+                    try
+                    {
                         histogram2.RecordValue(nanos);
-                    } catch (Exception e) {
+                    }
+                    catch (Exception e)
+                    {
                         Console.WriteLine($"Nanos: {nanos}; " + e.Message);
                     }
                     startTick = sw.ElapsedTicks;
@@ -326,26 +400,34 @@ namespace Spreads.Collections.Tests.Cursors {
             double sum3 = 0;
             var cnt3 = 0;
             var histogram3 = new LongHistogram(TimeSpan.TicksPerMillisecond * 100 * 1000, 3);
-            var sumTask3 = Task.Run(async () => {
+            var sumTask3 = Task.Run(async () =>
+            {
                 var c = sm.GetCursor();
 
                 var startTick = sw.ElapsedTicks;
 
-                while (await c.MoveNext(ct)) {
+                while (await c.MoveNext(ct))
+                {
                     sum3 += c.CurrentValue;
-                    if ((int)c.CurrentValue != cnt3) {
+                    if ((int)c.CurrentValue != cnt3)
+                    {
                         //Console.WriteLine("Wrong sequence");
                         //Assert.Fail($"Wrong sequence: {c.CurrentValue} != {cnt}");
                         Trace.WriteLine($"Wrong sequence3: {c.CurrentValue} != {cnt3}; thread {Thread.CurrentThread.ManagedThreadId}");
-                    } else {
+                    }
+                    else
+                    {
                         //Console.WriteLine("Async move");
                     }
                     cnt3++;
                     var ticks = sw.ElapsedTicks - startTick;
                     var nanos = (long)(1000000000.0 * (double)ticks / Stopwatch.Frequency);
-                    try {
+                    try
+                    {
                         histogram3.RecordValue(nanos);
-                    } catch (Exception e) {
+                    }
+                    catch (Exception e)
+                    {
                         Console.WriteLine($"Nanos: {nanos}; " + e.Message);
                     }
                     startTick = sw.ElapsedTicks;
@@ -356,29 +438,37 @@ namespace Spreads.Collections.Tests.Cursors {
 
             Thread.Sleep(1);
 
-            var addTask = Task.Run(() => {
+            var addTask = Task.Run(() =>
+            {
                 //Console.WriteLine($"Adding from thread {Thread.CurrentThread.ManagedThreadId}");
-                try {
-                    for (int i = 5; i < count; i++) {
+                try
+                {
+                    for (int i = 5; i < count; i++)
+                    {
                         sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                     }
                     sm.Complete();
-                } catch (Exception ex) {
+                }
+                catch (Exception ex)
+                {
                     Console.WriteLine(ex);
                     Environment.FailFast(ex.Message, ex);
                 }
             });
 
 
-            while (!sumTask.Wait(2000)) {
+            while (!sumTask.Wait(2000))
+            {
                 OptimizationSettings.Verbose = true;
                 Trace.WriteLine($"cnt: {cnt}");
             }
-            while (!sumTask2.Wait(2000)) {
+            while (!sumTask2.Wait(2000))
+            {
                 //OptimizationSettings.Verbose = true;
                 Trace.WriteLine($"cnt2: {cnt2}");
             }
-            while (!sumTask3.Wait(2000)) {
+            while (!sumTask3.Wait(2000))
+            {
                 //OptimizationSettings.Verbose = true;
                 Trace.WriteLine($"cnt3: {cnt3}");
             }
@@ -396,7 +486,8 @@ namespace Spreads.Collections.Tests.Cursors {
             Trace.WriteLine($"Ops: {Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2)}");
 
             double expectedSum = 0.0;
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 expectedSum += i;
             }
             if (expectedSum != sum) Trace.WriteLine("Sum 1 is wrong");
@@ -413,7 +504,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
         [Test]
         [Ignore]
-        public void CouldMoveNextAsyncWhenChangingOrder_NoSemaphore() {
+        public void CouldMoveNextAsyncWhenChangingOrder_NoSemaphore()
+        {
             var cts = new CancellationTokenSource();
             var ct = cts.Token;
 
@@ -421,7 +513,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
             sm.IsSynchronized = true;
             var tcs = new TaskCompletionSource<bool>();
-            var sumTask = Task.Run(async () => {
+            var sumTask = Task.Run(async () =>
+            {
                 var c = sm.GetCursor();
                 tcs.SetResult(true);
                 Assert.IsTrue(await c.MoveNext(ct));
@@ -464,32 +557,39 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_spinwait() {
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_spinwait()
+        {
 
 
-            for (int r = 0; r < 10; r++) {
+            for (int r = 0; r < 10; r++)
+            {
                 var count = 100000;
                 var sw = new Stopwatch();
 
 
                 var sm = new SortedMap<DateTime, double>();
                 sm.IsSynchronized = true;
-                for (int i = 0; i < 5; i++) {
+                for (int i = 0; i < 5; i++)
+                {
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 }
 
-                var addTask = Task.Run(async () => {
+                var addTask = Task.Run(async () =>
+                {
                     await Task.Delay(50);
-                    for (int i = 5; i < count; i++) {
+                    for (int i = 5; i < count; i++)
+                    {
                         sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                         //await Task.Delay(1);
                     }
                 });
 
                 double sum = 0.0;
-                var sumTask = Task.Run(() => {
+                var sumTask = Task.Run(() =>
+                {
                     var c = sm.GetCursor();
-                    while (c.MoveNext()) {
+                    while (c.MoveNext())
+                    {
                         sum += c.CurrentValue;
                     }
                     Assert.AreEqual(10, sum);
@@ -497,14 +597,17 @@ namespace Spreads.Collections.Tests.Cursors {
 
                     sw.Start();
 
-                    while (true) {
+                    while (true)
+                    {
                         // spinwait
-                        while (!c.MoveNext()) {
+                        while (!c.MoveNext())
+                        {
                         }
                         ;
                         sum += c.CurrentValue;
                         //Console.WriteLine("Current key: {0}", c.CurrentKey);
-                        if (c.CurrentKey == stop) {
+                        if (c.CurrentKey == stop)
+                        {
                             break;
                         }
                     }
@@ -516,7 +619,8 @@ namespace Spreads.Collections.Tests.Cursors {
                 sw.Stop();
 
                 double expectedSum = 0.0;
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     expectedSum += i;
                 }
                 Assert.AreEqual(expectedSum, sum);
@@ -529,7 +633,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_StartEmpty() {
+        public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_StartEmpty()
+        {
             var count = 1000000;
             var sw = new Stopwatch();
             sw.Start();
@@ -537,27 +642,33 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm = new SortedMap<DateTime, double>();
             sm.IsSynchronized = true;
 
-            var addTask = Task.Run(async () => {
+            var addTask = Task.Run(async () =>
+            {
                 await Task.Delay(50);
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                     //await Task.Delay(1);
                 }
             });
 
             double sum = 0.0;
-            var sumTask = Task.Run(async () => {
+            var sumTask = Task.Run(async () =>
+            {
                 var c = sm.GetCursor();
-                while (c.MoveNext()) {
+                while (c.MoveNext())
+                {
                     sum += c.CurrentValue;
                 }
                 Assert.AreEqual(0, sum);
                 var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
                 //await Task.Delay(50);
-                while (await c.MoveNext(CancellationToken.None)) {
+                while (await c.MoveNext(CancellationToken.None))
+                {
                     sum += c.CurrentValue;
                     //Console.WriteLine("Current key: {0}", c.CurrentKey);
-                    if (c.CurrentKey == stop) {
+                    if (c.CurrentKey == stop)
+                    {
                         break;
                     }
                 }
@@ -569,7 +680,8 @@ namespace Spreads.Collections.Tests.Cursors {
             sw.Stop();
 
             double expectedSum = 0.0;
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 expectedSum += i;
             }
             Assert.AreEqual(expectedSum, sum);
@@ -582,39 +694,62 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void CouldUseCacheExtensionMethod() {
-            var count = 100;
+        public void CouldUseCacheExtensionMethod()
+        {
+            var count = 3;
             var sw = new Stopwatch();
             sw.Start();
 
-            var sm = new SortedChunkedMap<DateTime, double>();
+            var sm = new SortedMap<DateTime, double>();
             sm.IsSynchronized = true;
 
-            var addTask = Task.Run(async () => {
+            var addTask = Task.Run(async () =>
+            {
                 await Task.Delay(50);
-                for (int i = 0; i < count; i++) {
-                    sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
-                    //await Task.Delay(1);
+                try
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
+                        //await Task.Delay(1);
+                    }
+                    sm.Complete();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
                 }
             });
 
-            var cached = sm.Cache();
+            var cached = sm;//.Cache();
 
             double sum = 0.0;
-            var sumTask = Task.Run(async () => {
-                var c = cached.GetCursor();
-                while (c.MoveNext()) {
-                    sum += c.CurrentValue;
-                }
-                Assert.AreEqual(0, sum);
-                var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
-                //await Task.Delay(50);
-                while (await c.MoveNext(CancellationToken.None)) {
-                    sum += c.CurrentValue;
-                    //Console.WriteLine("Current key: {0}", c.CurrentKey);
-                    if (c.CurrentKey == stop) {
-                        break;
+            var sumTask = Task.Run(async () =>
+            {
+                try
+                {
+                    var c = cached.GetCursor();
+                    while (c.MoveNext())
+                    {
+                        sum += c.CurrentValue;
                     }
+                    Assert.AreEqual(0, sum);
+                    var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
+                    //await Task.Delay(50);
+                    while (await c.MoveNext(CancellationToken.None))
+                    //while (c.MoveNext())
+                    {
+                        sum += c.CurrentValue;
+                        Console.WriteLine($"Current: {c.CurrentKey} - {c.CurrentValue}");
+                        if (c.CurrentKey == stop)
+                        {
+                            break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message + ":\n" + ex.ToString());
                 }
             });
 
@@ -623,7 +758,8 @@ namespace Spreads.Collections.Tests.Cursors {
             sw.Stop();
 
             double expectedSum = 0.0;
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 expectedSum += i;
             }
             Assert.AreEqual(expectedSum, sum);
@@ -631,11 +767,25 @@ namespace Spreads.Collections.Tests.Cursors {
             Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds - 50);
             Console.WriteLine("Ops: {0}", Math.Round(0.000001 * count * 1000.0 / (sw.ElapsedMilliseconds * 1.0), 2));
 
+            try
+            {
+
+            }
+            finally
+            {
+                foreach (var kvp in sm)
+                {
+                    Console.WriteLine($"SM: {kvp.Key} - {kvp.Value}");
+                }
+            }
+
+            Thread.Sleep(1000);
         }
 
 
         [Test]
-        public void CouldUseDoExtensionMethod() {
+        public void CouldUseDoExtensionMethod()
+        {
             var count = 100;
             var sw = new Stopwatch();
             sw.Start();
@@ -643,9 +793,11 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm = new SortedChunkedMap<DateTime, double>();
             sm.IsSynchronized = true;
 
-            var addTask = Task.Run(async () => {
+            var addTask = Task.Run(async () =>
+            {
                 await Task.Delay(50);
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 }
                 // signal data completion
@@ -656,18 +808,21 @@ namespace Spreads.Collections.Tests.Cursors {
 
             double sum = 0.0;
 
-            cached.Do((k, v) => {
+            var doTask = cached.Do((k, v) =>
+            {
                 Console.WriteLine($"{k} - {v}");
                 sum += v;
             });
 
 
             addTask.Wait();
-            Thread.Sleep(100);
+            doTask.Wait();
+            //Thread.Sleep(100);
             sw.Stop();
 
             double expectedSum = 0.0;
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 expectedSum += i;
             }
             Assert.AreEqual(expectedSum, sum);
@@ -679,7 +834,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void CouldUseDoExtensionMethodOnRange() {
+        public void CouldUseDoExtensionMethodOnRange()
+        {
             var count = 100;
             var sw = new Stopwatch();
             sw.Start();
@@ -687,9 +843,11 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm = new SortedChunkedMap<DateTime, double>();
             sm.IsSynchronized = true;
 
-            var addTask = Task.Run(async () => {
+            var addTask = Task.Run(async () =>
+            {
                 await Task.Delay(50);
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
                 }
                 // signal data completion
@@ -700,18 +858,20 @@ namespace Spreads.Collections.Tests.Cursors {
 
             double sum = 0.0;
 
-            cached.Do((k, v) => {
+            var doTask = cached.Do((k, v) =>
+            {
                 sum += v;
                 Console.WriteLine($"{k} : {v}");
             });
 
 
             addTask.Wait();
-            Thread.Sleep(100);
+            doTask.Wait(1000);
             sw.Stop();
 
             double expectedSum = 0.0;
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 expectedSum += i;
             }
             Assert.AreEqual(expectedSum, sum);
@@ -722,7 +882,8 @@ namespace Spreads.Collections.Tests.Cursors {
         }
 
         [Test]
-        public void MoveNextAsyncBenchmark() {
+        public void MoveNextAsyncBenchmark()
+        {
 
             // this benchmark shows that simple async enumeration gives 13+ mops,
             // this means than we should use parallel enumeration on joins.
@@ -738,22 +899,26 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var sm = new SortedMap<DateTime, double>();
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
             sm.Complete();
             sw.Start();
             double sum = 0.0;
             var c = sm.GetCursor();
-            Task.Run(async () => {
-                while (await c.MoveNext(CancellationToken.None)) {
+            Task.Run(async () =>
+            {
+                while (await c.MoveNext(CancellationToken.None))
+                {
                     sum += c.CurrentValue;
                 }
             }).Wait();
             sw.Stop();
 
             double expectedSum = 0.0;
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 expectedSum += i;
             }
             Assert.AreEqual(expectedSum, sum);
@@ -765,17 +930,20 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
 
-        internal class TestCompareExchange {
+        internal class TestCompareExchange
+        {
             public static TestCompareExchange defalt = new TestCompareExchange();
             public static bool allocated = false;
-            public TestCompareExchange() {
+            public TestCompareExchange()
+            {
                 allocated = true;
                 Console.WriteLine("I am created");
             }
         }
 
         [Test]
-        public void CompareExchangeAllocatesValue() {
+        public void CompareExchangeAllocatesValue()
+        {
 
             if (TestCompareExchange.allocated && (new TestCompareExchange()) != null) // the second part after && is not evaluated 
             {
