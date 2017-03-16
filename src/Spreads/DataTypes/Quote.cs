@@ -33,10 +33,10 @@ namespace Spreads.DataTypes
         [DataMember(Order = 1)]
         public Price Price => _price;
 
-        [DataMember(Order = 1)]
+        [DataMember(Order = 2)]
         public int Volume => _volume;
 
-        [DataMember(Order = 1)]
+        [DataMember(Order = 3)]
         public int Reserved => _reserved;
 
         public Quote(Price price, int volume)
