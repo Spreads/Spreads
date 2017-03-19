@@ -20,7 +20,7 @@ namespace Spreads.Core.Tests.Enumerators {
             var start = DateTime.UtcNow.Date;
             var source = new List<Tick>();
             for (int i = 0; i < count; i++) {
-                source.Add(new Tick(start.AddMilliseconds((i / 5) * 5), new Price(i), i));
+                source.Add(new Tick(start.AddMilliseconds((i / 5) * 5), new Price((double)i), i));
             }
 
             var seconds = source.Select(x => new KeyValuePair<DateTime, Tick>(x.DateTimeUtc, x)).TimeSlice((t) => new OHLCV(t.Price, t.Price, t.Price, t.Price, t.Volume),
@@ -96,9 +96,9 @@ namespace Spreads.Core.Tests.Enumerators {
             var count = 1000000;
             var start = DateTime.UtcNow.Date;
             var source = new List<Tick>();
-            source.Add(new Tick(start.AddMilliseconds(250), new Price(1), 1));
-            source.Add(new Tick(start.AddMilliseconds(750), new Price(2), 2));
-            source.Add(new Tick(start.AddMilliseconds(2500), new Price(3), 3));
+            source.Add(new Tick(start.AddMilliseconds(250), new Price(1.0), 1));
+            source.Add(new Tick(start.AddMilliseconds(750), new Price(2.0), 2));
+            source.Add(new Tick(start.AddMilliseconds(2500), new Price(3.0), 3));
 
 
             var seconds = source.Select(x => new KeyValuePair<DateTime, Tick>(x.DateTimeUtc, x)).TimeSlice((t) => new OHLCV(t.Price, t.Price, t.Price, t.Price, t.Volume),

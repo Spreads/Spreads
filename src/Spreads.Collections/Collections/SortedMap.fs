@@ -37,7 +37,7 @@ open Spreads.Collections
 /// Mutable sorted thread-safe IMutableSeries<'K,'V> implementation similar to SCG.SortedList<'K,'V>
 [<AllowNullLiteral>]
 [<DebuggerTypeProxy(typeof<IDictionaryDebugView<_,_>>)>]
-[<DebuggerDisplay("Count = {Count}")>]
+[<DebuggerDisplay("SortedMap: Count = {Count}")>]
 type SortedMap<'K,'V>
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
   inherit Series<'K,'V>()
