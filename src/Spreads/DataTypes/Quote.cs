@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using Spreads.Serialization;
@@ -26,7 +27,7 @@ namespace Spreads.DataTypes
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 16)]
     [Serialization(BlittableSize = 16)]
     [DataContract]
-    public struct Quote : IEquatable<Quote>, IQuote
+    public struct Quote : IEquatable<Quote>, IQuote, IDiffable<Quote>
     {
         private readonly Price _price;
         private readonly int _volume;
@@ -71,6 +72,16 @@ namespace Spreads.DataTypes
             {
                 return false;
             }
+        }
+
+        public Quote GetDelta(Quote next)
+        {
+            return new Quote(next.Price - Price, next.Volume, next.Reserved);
+        }
+
+        public Quote AddDelta(Quote delta)
+        {
+            return new Quote(Price + delta.Price, delta.Volume, delta.Reserved);
         }
     }
 }

@@ -17,17 +17,17 @@ namespace Spreads.DataTypes
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 24)]
     [Serialization(BlittableSize = 24)]
     [DataContract]
-    public struct OHLCV
+    public struct OHLCV : IDiffable<OHLCV>
     {
         // Uses 8 + 4*4 = 24 instead of 4*16 + 4 = 68 bytes for decimals + int
         // NB do not change field order
         // Close goes first to keep 8-bytes alignment
-        private readonly Price _close;
+        private Price _close;
 
-        private readonly int _open;
-        private readonly int _high;
-        private readonly int _low;
-        private readonly int _volume;
+        private int _open;
+        private int _high;
+        private int _low;
+        private int _volume;
 
         [DataMember(Order = 1)]
         public Price Open => new Price((int)_close.Exponent, _open + (long)_close.Mantissa);
@@ -63,6 +63,25 @@ namespace Spreads.DataTypes
 
         public OHLCV(decimal open, decimal high, decimal low, decimal close, int volume = 0, int precision = 6)
             : this(new Price(open, precision), new Price(high, precision), new Price(low, precision), new Price(close, precision), volume) { }
+
+        public OHLCV GetDelta(OHLCV next)
+        {
+            var newCandle = new OHLCV();
+            // NB only Price diff matters, otehr fields already diffed in a different way
+            // Volume diff changes sign often that is bad
+            // This IDiffable impl reduces size by more than 2x, while 
+            // an implementation with all fields delta even slightly increases compressed size
+            // probbaly due to frequent sign changes, which are bad for byteshuffling compression
+            newCandle._close = next.Close - _close;
+            return newCandle;
+        }
+
+        public OHLCV AddDelta(OHLCV delta)
+        {
+            var newCandle = new OHLCV();
+            newCandle._close = delta.Close + _close;
+            return newCandle;
+        }
     }
 
     /// <summary>
@@ -80,18 +99,25 @@ namespace Spreads.DataTypes
 
         [DataMember(Order = 1)]
         public Price Open => _ohlcv.Open;
+
         [DataMember(Order = 2)]
         public Price High => _ohlcv.High;
+
         [DataMember(Order = 3)]
         public Price Low => _ohlcv.Low;
+
         [DataMember(Order = 4)]
         public Price Close => _ohlcv.Close;
+
         [DataMember(Order = 5)]
         public int Volume => _ohlcv.Volume;
+
         [DataMember(Order = 6)]
         public int TradeCount => _tradeCount;
+
         [DataMember(Order = 7)]
         public int OpenInterest => _openInterest;
+
         [DataMember(Order = 8)]
         public decimal MoneyVolume => _value;
 

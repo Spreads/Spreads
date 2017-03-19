@@ -58,11 +58,11 @@ namespace Spreads.DataTypes
             var delta = new MarketDepth(
 
                 next.SmallAskPrice - this.SmallAskPrice,
-                next.SmallAskSize - this.SmallAskSize,
-                next.SmallAskOffset - this.SmallAskOffset,
+                next.SmallAskSize,
+                next.SmallAskOffset,
                 next.SmallBidPrice - this.SmallBidPrice,
-                next.SmallBidSize - this.SmallBidSize,
-                next.SmallBidOffset - this.SmallBidOffset
+                next.SmallBidSize,
+                next.SmallBidOffset
 
                 );
 
@@ -73,14 +73,14 @@ namespace Spreads.DataTypes
         {
             var newValue = new MarketDepth(
                 this.SmallAskPrice + delta.SmallAskPrice,
-                this.SmallAskSize + delta.SmallAskSize,
-                this.SmallAskOffset + delta.SmallAskOffset,
+                delta.SmallAskSize,
+                delta.SmallAskOffset,
                 this.SmallBidPrice + delta.SmallBidPrice,
-                this.SmallBidSize + delta.SmallBidSize,
-                this.SmallBidOffset + delta.SmallBidOffset
+                delta.SmallBidSize,
+                delta.SmallBidOffset
                 );
 
-            return delta;
+            return newValue;
         }
     }
 }

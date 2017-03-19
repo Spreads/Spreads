@@ -2,43 +2,52 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security;
 using Bootstrap;
+using Spreads.Serialization;
 
-namespace Spreads.Blosc {
-
-    public static class BloscSettings {
+namespace Spreads.Blosc
+{
+    public static class BloscSettings
+    {
         internal static string defaultCompressionMethod = "lz4";
-        public static string CompressionMethod {
-            get => defaultCompressionMethod;
-            set {
-                if (value != "lz4" && value != "zstd") {
-                    if (value == "zstd")
-                    {
-                        Trace.TraceWarning("Zstd support is experimental");
-                    }
-                    throw new ArgumentException("CompressionMethod could be either `lz4` or `zstd`");
+
+        public static CompressionMethod CompressionMethod
+        {
+            get => defaultCompressionMethod == "lz4" ? CompressionMethod.LZ4 : CompressionMethod.Zstd;
+            set
+            {
+                if (value == CompressionMethod.Zstd)
+                {
+                    Trace.TraceWarning("Zstd support is experimental");
+                    defaultCompressionMethod = "zstd";
                 }
-                defaultCompressionMethod = value;
+                else
+                {
+                    defaultCompressionMethod = "lz4";
+                }
             }
         }
     }
 
 #if NET451
+
     [SuppressUnmanagedCodeSecurity]
 #endif
-    internal class BloscMethods {
+    internal class BloscMethods
+    {
         public const string BloscLibraryName = "libblosc";
-        static BloscMethods(){
+
+        static BloscMethods()
+        {
             try
             {
                 // Ensure Bootstrapper is initialized and native libraries are loaded
                 Bootstrapper.Instance.Bootstrap<BloscMethods>(
-                    new[] {BloscLibraryName},
+                    new[] { BloscLibraryName },
                     null,
                     null,
                     null,
@@ -72,7 +81,6 @@ namespace Spreads.Blosc {
         public static extern int blosc_cbuffer_sizes(IntPtr cbuffer, ref UIntPtr nbytes,
             ref UIntPtr cbytes, ref UIntPtr blocksize);
 
-        #endregion
-
+        #endregion Blosc
     }
 }

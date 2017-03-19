@@ -159,7 +159,7 @@ namespace Spreads.Extensions.Tests
             var ptr = Marshal.AllocHGlobal(100000);
             var db = new DirectBuffer(100000, ptr);
             var sm = new SortedMap<DateTime, MarketDepth2>();
-            for (var i = 0; i < 10000; i++)
+            for (var i = 1; i <= 10000; i++)
             {
                 sm.Add(DateTime.Today.AddHours(i),
                     new MarketDepth2(i, i, i, i, i, i, i, i, i, i, i, i));
@@ -176,7 +176,7 @@ namespace Spreads.Extensions.Tests
             Assert.AreEqual(len, len2);
 
             Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
-            Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
+            Assert.IsTrue(sm2.Values.Select(x => x.LargeAskPrice).SequenceEqual(sm.Values.Select(x => x.LargeAskPrice)));
         }
     }
 }

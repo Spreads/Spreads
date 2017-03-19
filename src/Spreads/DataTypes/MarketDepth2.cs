@@ -81,17 +81,17 @@ namespace Spreads.DataTypes
         {
             var delta = new MarketDepth2(
                 next.LargeAskPrice - this.LargeAskPrice,
-                next.LargeAskSize - this.LargeAskSize,
-                next.LargeAskOffset - this.LargeAskOffset,
+                next.LargeAskSize,
+                next.LargeAskOffset,
                 next.SmallAskPrice - this.SmallAskPrice,
-                next.SmallAskSize - this.SmallAskSize,
-                next.SmallAskOffset - this.SmallAskOffset,
+                next.SmallAskSize,
+                next.SmallAskOffset,
                 next.SmallBidPrice - this.SmallBidPrice,
-                next.SmallBidSize - this.SmallBidSize,
-                next.SmallBidOffset - this.SmallBidOffset,
+                next.SmallBidSize,
+                next.SmallBidOffset,
                 next.LargeBidPrice - this.LargeBidPrice,
-                next.LargeBidSize - this.LargeBidSize,
-                next.LargeBidOffset - this.LargeBidOffset
+                next.LargeBidSize,
+                next.LargeBidOffset
                 );
 
             return delta;
@@ -99,21 +99,22 @@ namespace Spreads.DataTypes
 
         public MarketDepth2 AddDelta(MarketDepth2 delta)
         {
-            var newValue = new MarketDepth2(this.LargeAskPrice + delta.LargeAskPrice,
-                this.LargeAskSize + delta.LargeAskSize,
-                this.LargeAskOffset + delta.LargeAskOffset,
+            var newValue = new MarketDepth2(
+                this.LargeAskPrice + delta.LargeAskPrice,
+                delta.LargeAskSize,
+                delta.LargeAskOffset,
                 this.SmallAskPrice + delta.SmallAskPrice,
-                this.SmallAskSize + delta.SmallAskSize,
-                this.SmallAskOffset + delta.SmallAskOffset,
+                delta.SmallAskSize,
+                delta.SmallAskOffset,
                 this.SmallBidPrice + delta.SmallBidPrice,
-                this.SmallBidSize + delta.SmallBidSize,
-                this.SmallBidOffset + delta.SmallBidOffset,
+                delta.SmallBidSize,
+                delta.SmallBidOffset,
                 this.LargeBidPrice + delta.LargeBidPrice,
-                this.LargeBidSize + delta.LargeBidSize,
-                this.LargeBidOffset + delta.LargeBidOffset
+                delta.LargeBidSize,
+                delta.LargeBidOffset
                 );
 
-            return delta;
+            return newValue;
         }
     }
 }

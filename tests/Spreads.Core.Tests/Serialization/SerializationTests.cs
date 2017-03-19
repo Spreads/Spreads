@@ -216,7 +216,7 @@ namespace Spreads.Core.Tests.Serialization
         [Test]
         public void CouldSerializeRegularSortedMapWithZstd()
         {
-            BloscSettings.CompressionMethod = "zstd";
+            BloscSettings.CompressionMethod = CompressionMethod.Zstd;
             var rng = new Random();
             var ptr = Marshal.AllocHGlobal(10000);
             var db = new DirectBuffer(10000, ptr);
