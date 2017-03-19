@@ -4,6 +4,7 @@
 
 
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security;
 using Bootstrap;
@@ -16,6 +17,10 @@ namespace Spreads.Blosc {
             get => defaultCompressionMethod;
             set {
                 if (value != "lz4" && value != "zstd") {
+                    if (value == "zstd")
+                    {
+                        Trace.TraceWarning("Zstd support is experimental");
+                    }
                     throw new ArgumentException("CompressionMethod could be either `lz4` or `zstd`");
                 }
                 defaultCompressionMethod = value;
@@ -29,17 +34,24 @@ namespace Spreads.Blosc {
     internal class BloscMethods {
         public const string BloscLibraryName = "libblosc";
         static BloscMethods(){
-            // Ensure Bootstrapper is initialized and native libraries are loaded
-            Bootstrapper.Instance.Bootstrap<BloscMethods>(
-                new[] { BloscLibraryName },
-                null,
-                null,
-                null,
-                () => { },
-                () => { },
-                () =>
-                {
-                });
+            try
+            {
+                // Ensure Bootstrapper is initialized and native libraries are loaded
+                Bootstrapper.Instance.Bootstrap<BloscMethods>(
+                    new[] {BloscLibraryName},
+                    null,
+                    null,
+                    null,
+                    () => { },
+                    () => { },
+                    () =>
+                    {
+                    });
+            }
+            catch (Exception ex)
+            {
+                Environment.FailFast(ex.Message);
+            }
         }
 
         public static readonly int ProcessorCount = Environment.ProcessorCount;

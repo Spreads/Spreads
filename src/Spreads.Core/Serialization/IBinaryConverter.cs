@@ -22,9 +22,12 @@ namespace Spreads.Serialization {
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     /// |R|              Length (including this header)                 |
     /// +---------------------------------------------------------------+
-    /// |  Ver  | Flg |C|    TypeEnum   |  TypeSize     | SubTypeEnum   |
+    /// |  Ver  |R|R|D|C|    TypeEnum   |  TypeSize     | SubTypeEnum   |
     /// +---------------------------------------------------------------+
     /// |                     Serialized Payload                      ...
+    /// C - compressed
+    /// D - diffed (if a type implements IDiffable<T>)
+    /// R - reserved
     /// </summary>
     public interface IBinaryConverter<T> {
         /// <summary>
@@ -48,12 +51,12 @@ namespace Spreads.Serialization {
         /// possible to calculate serialized bytes length without actually performing serialization.
         /// The stream temporaryStream contains a header and its length is equal to the returned value.
         /// </summary>
-        int SizeOf(T value, out MemoryStream temporaryStream);
+        int SizeOf(T value, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
         /// <summary>
         /// Write serialized value to the buffer at offset if there is enough capacity
         /// </summary>
-        int Write(T value, ref DirectBuffer destination, uint offset = 0u, MemoryStream temporaryStream = null);
+        int Write(T value, ref DirectBuffer destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
         /// <summary>
         /// Reads new value or fill existing value with data from the pointer, 

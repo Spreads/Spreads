@@ -2,23 +2,27 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using Spreads.Buffers;
 
-namespace Spreads.Serialization {
-    internal class MemoryStreamBinaryConverter : IBinaryConverter<MemoryStream> {
+namespace Spreads.Serialization
+{
+    internal class MemoryStreamBinaryConverter : IBinaryConverter<MemoryStream>
+    {
         public bool IsFixedSize => false;
         public int Size => 0;
-        public int SizeOf(MemoryStream value, out MemoryStream temporaryStream) {
+
+        public int SizeOf(MemoryStream value, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        {
             if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(temporaryStream), "Memory stream is too large");
             temporaryStream = null;
             return checked((int)value.Length + 8);
         }
 
-        public unsafe int Write(MemoryStream value, ref DirectBuffer destination, uint offset, MemoryStream temporaryStream = null) {
+        public unsafe int Write(MemoryStream value, ref DirectBuffer destination, uint offset, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        {
             if (temporaryStream != null) throw new NotSupportedException("MemoryStreamBinaryConverter does not work with temp streams.");
 
             if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(temporaryStream), "Memory stream is too large");
@@ -38,7 +42,8 @@ namespace Spreads.Serialization {
             return totalLength;
         }
 
-        public int Read(IntPtr ptr, ref MemoryStream value) {
+        public int Read(IntPtr ptr, ref MemoryStream value)
+        {
             var length = Marshal.ReadInt32(ptr);
             var version = Marshal.ReadInt32(ptr + 4);
             if (version != 0) throw new NotSupportedException();

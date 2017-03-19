@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using Spreads.Buffers;
 using Spreads.DataTypes;
 
-namespace Spreads.Serialization
+namespace Spreads.Serialization.Experimental
 {
     // NB this layout should support any Variant tree (e.g. Variant containing Variants)
 

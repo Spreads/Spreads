@@ -2,23 +2,24 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-namespace Spreads.Serialization {
-
+namespace Spreads.Serialization
+{
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false)]
-    public class SerializationAttribute : Attribute {
-
-        internal static SerializationAttribute GetSerializationAttribute(Type type) {
+    public class SerializationAttribute : Attribute
+    {
+        internal static SerializationAttribute GetSerializationAttribute(Type type)
+        {
             var attr = type.GetTypeInfo().GetCustomAttributes<SerializationAttribute>(true).FirstOrDefault();
             return attr;
         }
 
-        internal static StructLayoutAttribute GetStructLayoutAttribute(Type type) {
+        internal static StructLayoutAttribute GetStructLayoutAttribute(Type type)
+        {
             return type.GetTypeInfo().GetCustomAttributes<StructLayoutAttribute>(true).FirstOrDefault();
         }
 
@@ -35,6 +36,5 @@ namespace Spreads.Serialization {
         /// StructLayout.Size has the same behavior.
         /// </summary>
         public int BlittableSize { get; set; }
-
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
+using Spreads.Serialization;
 
 namespace Spreads.DataTypes
 {
@@ -15,8 +16,9 @@ namespace Spreads.DataTypes
     /// Offset equalt to zero indicates that this is the best bid/ask.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 32)]
+    [Serialization(BlittableSize = 32)]
     [DataContract(Name = "MarketDepth")]
-    public struct MarketDepth
+    public struct MarketDepth : IDiffable<MarketDepth>
     {
         internal Quote _smallAsk;
         internal Quote _smallBid;
@@ -50,5 +52,35 @@ namespace Spreads.DataTypes
 
         public bool IsBestAsk => _smallAsk.Reserved == 0;
         public bool IsBestBid => _smallBid.Reserved == 0;
+
+        public MarketDepth GetDelta(MarketDepth next)
+        {
+            var delta = new MarketDepth(
+
+                next.SmallAskPrice - this.SmallAskPrice,
+                next.SmallAskSize - this.SmallAskSize,
+                next.SmallAskOffset - this.SmallAskOffset,
+                next.SmallBidPrice - this.SmallBidPrice,
+                next.SmallBidSize - this.SmallBidSize,
+                next.SmallBidOffset - this.SmallBidOffset
+
+                );
+
+            return delta;
+        }
+
+        public MarketDepth AddDelta(MarketDepth delta)
+        {
+            var newValue = new MarketDepth(
+                this.SmallAskPrice + delta.SmallAskPrice,
+                this.SmallAskSize + delta.SmallAskSize,
+                this.SmallAskOffset + delta.SmallAskOffset,
+                this.SmallBidPrice + delta.SmallBidPrice,
+                this.SmallBidSize + delta.SmallBidSize,
+                this.SmallBidOffset + delta.SmallBidOffset
+                );
+
+            return delta;
+        }
     }
 }

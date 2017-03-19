@@ -51,7 +51,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
-    <Optimize>true</Optimize>
+    <Optimize>false</Optimize>
     <DebugType>pdbonly</DebugType>
     <PlatformTarget>x64</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
@@ -141,6 +141,7 @@
     <Compile Include="AwaiterTests.cs" />
     <Compile Include="Algorithms\MovingMedianTests.cs" />
     <Compile Include="ColumnsTests.cs" />
+    <Compile Include="DataTypes\PriceTests.cs" />
     <Compile Include="DataTypes\TypeFlattenerTests.cs" />
     <Compile Include="Enumerators\TimeSliceTests.cs" />
     <Compile Include="NanoOptimizationTests.cs" />

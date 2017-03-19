@@ -1,5 +1,7 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
+using Spreads.Serialization;
 
 namespace Spreads.DataTypes
 {
@@ -14,8 +16,9 @@ namespace Spreads.DataTypes
     /// Allows to recover those absolute best bid/ask levels with known price step or estimate market impact.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 64)]
+    [Serialization(BlittableSize = 64)]
     [DataContract(Name = "MarketDepth2")]
-    public struct MarketDepth2
+    public struct MarketDepth2 : IDiffable<MarketDepth2>
     {
         internal Quote _largeAsk;
         internal Quote _smallAsk;
@@ -73,5 +76,44 @@ namespace Spreads.DataTypes
 
         public bool IsBestAsk => _smallAsk.Reserved == 0;
         public bool IsBestBid => _smallBid.Reserved == 0;
+
+        public MarketDepth2 GetDelta(MarketDepth2 next)
+        {
+            var delta = new MarketDepth2(
+                next.LargeAskPrice - this.LargeAskPrice,
+                next.LargeAskSize - this.LargeAskSize,
+                next.LargeAskOffset - this.LargeAskOffset,
+                next.SmallAskPrice - this.SmallAskPrice,
+                next.SmallAskSize - this.SmallAskSize,
+                next.SmallAskOffset - this.SmallAskOffset,
+                next.SmallBidPrice - this.SmallBidPrice,
+                next.SmallBidSize - this.SmallBidSize,
+                next.SmallBidOffset - this.SmallBidOffset,
+                next.LargeBidPrice - this.LargeBidPrice,
+                next.LargeBidSize - this.LargeBidSize,
+                next.LargeBidOffset - this.LargeBidOffset
+                );
+
+            return delta;
+        }
+
+        public MarketDepth2 AddDelta(MarketDepth2 delta)
+        {
+            var newValue = new MarketDepth2(this.LargeAskPrice + delta.LargeAskPrice,
+                this.LargeAskSize + delta.LargeAskSize,
+                this.LargeAskOffset + delta.LargeAskOffset,
+                this.SmallAskPrice + delta.SmallAskPrice,
+                this.SmallAskSize + delta.SmallAskSize,
+                this.SmallAskOffset + delta.SmallAskOffset,
+                this.SmallBidPrice + delta.SmallBidPrice,
+                this.SmallBidSize + delta.SmallBidSize,
+                this.SmallBidOffset + delta.SmallBidOffset,
+                this.LargeBidPrice + delta.LargeBidPrice,
+                this.LargeBidSize + delta.LargeBidSize,
+                this.LargeBidOffset + delta.LargeBidOffset
+                );
+
+            return delta;
+        }
     }
 }

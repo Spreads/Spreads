@@ -10,44 +10,51 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Spreads.Blosc;
 
-namespace Spreads.Core.Tests.Serialization {
-
+namespace Spreads.Core.Tests.Serialization
+{
     [TestFixture]
-    public class SerializationTests {
-
+    public class SerializationTests
+    {
         [Serialization(BlittableSize = 12)]
         [StructLayout(LayoutKind.Sequential, Pack = 4)]
-        public struct BlittableStruct {
+        public struct BlittableStruct
+        {
             public int Value1;
             public long Value2;
         }
 
-        public class SimplePoco : IEquatable<SimplePoco> {
+        public class SimplePoco : IEquatable<SimplePoco>
+        {
             public int Value1;
             public string Value2;
 
-            public bool Equals(SimplePoco other) {
+            public bool Equals(SimplePoco other)
+            {
                 return this.Value1 == other.Value1 && this.Value2 == other.Value2;
             }
         }
 
         [Test]
         [ExpectedException(typeof(System.ArgumentException))]
-        public void CouldNotPinDateTimeArray() {
+        public void CouldNotPinDateTimeArray()
+        {
             var dta = new DateTime[2];
             GCHandle.Alloc(dta, GCHandleType.Pinned);
         }
 
         [Test]
-        public void CouldPinDecimalArray() {
+        public void CouldPinDecimalArray()
+        {
             var dta = new decimal[2];
             var handle = GCHandle.Alloc(dta, GCHandleType.Pinned);
             handle.Free();
         }
 
         [Test]
-        public void CouldSerializeDateTimeArray() {
+        public void CouldSerializeDateTimeArray()
+        {
             var bytes = new byte[1000];
             var dta = new DateTime[2];
             dta[0] = DateTime.Today;
@@ -61,7 +68,8 @@ namespace Spreads.Core.Tests.Serialization {
         }
 
         [Test]
-        public void CouldSerializeIntArray() {
+        public void CouldSerializeIntArray()
+        {
             var bytes = new byte[1000];
             var ints = new int[2];
             ints[0] = 123;
@@ -75,7 +83,8 @@ namespace Spreads.Core.Tests.Serialization {
         }
 
         [Test]
-        public void CouldSerializeDecimalArray() {
+        public void CouldSerializeDecimalArray()
+        {
             var bytes = new byte[1000];
             var decimals = new decimal[2];
             decimals[0] = 123;
@@ -89,7 +98,8 @@ namespace Spreads.Core.Tests.Serialization {
         }
 
         [Test]
-        public void CouldSerializeStringArray() {
+        public void CouldSerializeStringArray()
+        {
             var bytes = new byte[1000];
             var arr = new string[2];
             arr[0] = "123";
@@ -103,14 +113,17 @@ namespace Spreads.Core.Tests.Serialization {
         }
 
         [Test]
-        public void CouldSerializeBlittableStructArray() {
+        public void CouldSerializeBlittableStructArray()
+        {
             var bytes = new byte[1000];
             var arr = new BlittableStruct[2];
-            arr[0] = new BlittableStruct {
+            arr[0] = new BlittableStruct
+            {
                 Value1 = 123,
                 Value2 = 1230
             };
-            arr[1] = new BlittableStruct {
+            arr[1] = new BlittableStruct
+            {
                 Value1 = 456,
                 Value2 = 4560
             };
@@ -123,14 +136,17 @@ namespace Spreads.Core.Tests.Serialization {
         }
 
         [Test]
-        public void CouldSerializePocoArray() {
+        public void CouldSerializePocoArray()
+        {
             var bytes = new byte[1000];
             var arr = new SimplePoco[2];
-            arr[0] = new SimplePoco {
+            arr[0] = new SimplePoco
+            {
                 Value1 = 123,
                 Value2 = "1230"
             };
-            arr[1] = new SimplePoco {
+            arr[1] = new SimplePoco
+            {
                 Value1 = 456,
                 Value2 = "4560"
             };
@@ -142,7 +158,8 @@ namespace Spreads.Core.Tests.Serialization {
         }
 
         [Test]
-        public void CouldSerializeString() {
+        public void CouldSerializeString()
+        {
             var bytes = new byte[1000];
             var str = "This is string";
             var len = BinarySerializer.Write(str, bytes);
@@ -153,7 +170,8 @@ namespace Spreads.Core.Tests.Serialization {
         }
 
         [Test]
-        public void JsonWorksWithArraySegment() {
+        public void JsonWorksWithArraySegment()
+        {
             var ints = new int[4] { 1, 2, 3, 4 };
             var segment = new ArraySegment<int>(ints, 1, 2);
             var serialized = Newtonsoft.Json.JsonConvert.SerializeObject(segment);
@@ -170,20 +188,22 @@ namespace Spreads.Core.Tests.Serialization {
         }
 
         [Test]
-        public void CouldSerializeSortedMap() {
+        public void CouldSerializeSortedMap()
+        {
             var rng = new Random();
-            var ptr = Marshal.AllocHGlobal(100000);
-            var db = new DirectBuffer(100000, ptr);
+            var ptr = Marshal.AllocHGlobal(1000000);
+            var db = new DirectBuffer(1000000, ptr);
             var sm = new SortedMap<DateTime, decimal>();
-            for (var i = 0; i < 10000; i++) {
+            for (var i = 0; i < 10000; i++)
+            {
                 sm.Add(DateTime.Today.AddHours(i), (decimal)Math.Round(i + rng.NextDouble(), 2));
             }
-            var len = BinarySerializer.Write(sm, ref db);
-            Console.WriteLine($"Useful: {sm.Count * 16}");
+            var len = BinarySerializer.Write(sm, ref db, compression: CompressionMethod.Zstd);
+            Console.WriteLine($"Useful: {sm.Count * 24.0}");
             Console.WriteLine($"Total: {len}");
             // NB interesting that with converting double to decimal savings go from 65% to 85%,
             // even calculated from (8+8) base size not decimal's 16 size
-            Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 16.0))}");
+            Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 24.0))}");
             SortedMap<DateTime, decimal> sm2 = null;
             var len2 = BinarySerializer.Read(db, 0, ref sm2);
 
@@ -194,12 +214,44 @@ namespace Spreads.Core.Tests.Serialization {
         }
 
         [Test]
-        public void CouldSerializeSortedMap2() {
+        public void CouldSerializeRegularSortedMapWithZstd()
+        {
+            BloscSettings.CompressionMethod = "zstd";
             var rng = new Random();
-            var ptr = Marshal.AllocHGlobal(100000);
-            var db = new DirectBuffer(100000, ptr);
+            var ptr = Marshal.AllocHGlobal(10000);
+            var db = new DirectBuffer(10000, ptr);
+            var sm = new SortedMap<DateTime, decimal>();
+            for (var i = 0; i < 1; i++)
+            {
+                sm.Add(DateTime.Today.AddSeconds(i), (decimal)Math.Round(i + rng.NextDouble(), 2));
+            }
+
+            MemoryStream tmp;
+            var size = BinarySerializer.SizeOf(sm, out tmp);
+            var len = BinarySerializer.Write(sm, ref db, 0, tmp);
+            Console.WriteLine($"Useful: {sm.Count * 24}");
+            Console.WriteLine($"Total: {len}");
+            // NB interesting that with converting double to decimal savings go from 65% to 85%,
+            // even calculated from (8+8) base size not decimal's 16 size
+            Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 24.0))}");
+            SortedMap<DateTime, decimal> sm2 = null;
+            var len2 = BinarySerializer.Read(db, 0, ref sm2);
+
+            Assert.AreEqual(len, len2);
+
+            Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
+            Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
+        }
+
+        [Test]
+        public void CouldSerializeSortedMap2()
+        {
+            var rng = new Random();
+            var ptr = Marshal.AllocHGlobal(1000000);
+            var db = new DirectBuffer(1000000, ptr);
             var sm = new SortedMap<int, int>();
-            for (var i = 0; i < 10000; i++) {
+            for (var i = 0; i < 10000; i++)
+            {
                 sm.Add(i, i);
             }
             MemoryStream temp;
@@ -221,7 +273,8 @@ namespace Spreads.Core.Tests.Serialization {
         }
 
         [Test]
-        public void CouldSerializeIMessage() {
+        public void CouldSerializeIMessage()
+        {
             var ping = new PingMessage();
             var ms = BinarySerializer.Json.Serialize(ping);
 

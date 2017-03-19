@@ -9,9 +9,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 
-namespace Spreads {
-
-    internal interface IArrayBasedMap<TKey, TValue> {
+namespace Spreads
+{
+    internal interface IArrayBasedMap<TKey, TValue>
+    {
         int Length { get; }
         long Version { get; }
         bool IsRegular { get; }
@@ -20,7 +21,8 @@ namespace Spreads {
         TValue[] Values { get; }
     }
 
-    internal abstract class ArrayBasedMapConverter<TKey, TValue, T> : IBinaryConverter<T> where T : IArrayBasedMap<TKey, TValue> {
+    internal abstract class ArrayBasedMapConverter<TKey, TValue, T> : IBinaryConverter<T> where T : IArrayBasedMap<TKey, TValue>
+    {
 #pragma warning disable 0618
 
         //private static readonly int KeySize = TypeHelper<TKey>.Size;
@@ -31,14 +33,15 @@ namespace Spreads {
         public byte Version => 1;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int SizeOf(T value, out MemoryStream temporaryStream) {
+        public int SizeOf(T value, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        {
             // headers
             var size = 8 + 14;
             MemoryStream keys;
             MemoryStream values;
             // NB for regular keys, use keys array length
-            var keysSize = CompressedArrayBinaryConverter<TKey>.Instance.SizeOf(value.Keys, 0, value.IsRegular ? value.Keys.Length : value.Length, out keys);
-            var valuesSize = CompressedArrayBinaryConverter<TValue>.Instance.SizeOf(value.Values, 0, value.Length, out values);
+            var keysSize = CompressedArrayBinaryConverter<TKey>.Instance.SizeOf(value.Keys, 0, value.IsRegular ? value.Keys.Length : value.Length, out keys, compression);
+            var valuesSize = CompressedArrayBinaryConverter<TValue>.Instance.SizeOf(value.Values, 0, value.Length, out values, compression);
             Debug.Assert(keys != null && values != null);
             size += keysSize;
             size += valuesSize;
@@ -47,7 +50,7 @@ namespace Spreads {
                 size);
             // binary size
             temporaryStream.WriteAsPtr<int>(size);
-            // binary version
+            // binary version + flags
             temporaryStream.WriteAsPtr<byte>(Version);
             // flags + reserved
             temporaryStream.WriteAsPtr<byte>(0);
@@ -68,8 +71,10 @@ namespace Spreads {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Write(T value, ref DirectBuffer destination, uint offset = 0, MemoryStream temporaryStream = null) {
-            if (temporaryStream != null) {
+        public int Write(T value, ref DirectBuffer destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        {
+            if (temporaryStream != null)
+            {
                 var len = temporaryStream.Length;
                 if (destination.Length < offset + len) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
                 temporaryStream.WriteToPtr(destination.Data + (int)offset);
@@ -97,18 +102,24 @@ namespace Spreads {
             //    keysSize = BinarySerializer.Write<TKey[]>(value.Keys, ref destination, (uint)position);
             //}
             var keysSize = CompressedArrayBinaryConverter<TKey>.Instance.Write(
-                        value.Keys, 0, value.Length, ref destination, (uint)position);
-            if (keysSize > 0) {
+                        value.Keys, 0, value.Length, ref destination, (uint)position, null, compression);
+            if (keysSize > 0)
+            {
                 position += keysSize;
-            } else {
+            }
+            else
+            {
                 return (int)BinaryConverterErrorCode.NotEnoughCapacity;
             }
 
             var valuesSize = CompressedArrayBinaryConverter<TValue>.Instance.Write(
-                    value.Values, 0, value.Length, ref destination, (uint)position);
-            if (valuesSize > 0) {
+                    value.Values, 0, value.Length, ref destination, (uint)position, null, compression);
+            if (valuesSize > 0)
+            {
                 position += valuesSize;
-            } else {
+            }
+            else
+            {
                 return (int)BinaryConverterErrorCode.NotEnoughCapacity;
             }
 

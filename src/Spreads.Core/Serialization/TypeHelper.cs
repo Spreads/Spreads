@@ -12,7 +12,8 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Spreads.Serialization {
+namespace Spreads.Serialization
+{
     // TODO remove special treatment of decimal, it is blittable/pinnable
 
     internal delegate int FromPtrDelegate(IntPtr ptr, ref object value);
@@ -21,7 +22,8 @@ namespace Spreads.Serialization {
 
     internal delegate int SizeOfDelegate(object value, out MemoryStream memoryStream);
 
-    internal class TypeParams {
+    internal class TypeParams
+    {
         public int Size;
 
         /// <summary>
@@ -39,33 +41,38 @@ namespace Spreads.Serialization {
     }
 
     [Obsolete("TypeHelper should only be used inside BinarySerializer or for known types. Use #pragma warning disable 0618/#pragma warning restore 0618 where its usage is justified.")]
-    internal class TypeHelper {
-
-        private static int ReadObject<T>(IntPtr ptr, ref object value) {
+    internal class TypeHelper
+    {
+        private static int ReadObject<T>(IntPtr ptr, ref object value)
+        {
             var temp = value == null ? default(T) : (T)value;
             var len = TypeHelper<T>.Read(ptr, ref temp);
             value = temp;
             return len;
         }
 
-        private static int WriteObject<T>(object value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null) {
+        private static int WriteObject<T>(object value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        {
             var temp = value == null ? default(T) : (T)value;
-            return TypeHelper<T>.Write(temp, ref destination, offset, ms);
+            return TypeHelper<T>.Write(temp, ref destination, offset, ms, compression);
         }
 
-        private static int SizeOfObject<T>(object value, out MemoryStream memoryStream) {
+        private static int SizeOfObject<T>(object value, out MemoryStream memoryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        {
             var temp = value == null ? default(T) : (T)value;
-            return TypeHelper<T>.SizeOf(temp, out memoryStream);
+            return TypeHelper<T>.SizeOf(temp, out memoryStream, compression);
         }
 
-        private static int Size<T>() {
+        private static int Size<T>()
+        {
             return TypeHelper<T>.Size;
         }
 
         private static readonly Dictionary<Type, FromPtrDelegate> FromPtrDelegateCache = new Dictionary<Type, FromPtrDelegate>();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static FromPtrDelegate GetFromPtrDelegate(Type ty) {
+        internal static FromPtrDelegate GetFromPtrDelegate(Type ty)
+        {
             FromPtrDelegate temp;
             if (FromPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("ReadObject", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
@@ -82,7 +89,8 @@ namespace Spreads.Serialization {
         private static readonly Dictionary<Type, ToPtrDelegate> ToPtrDelegateCache = new Dictionary<Type, ToPtrDelegate>();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static ToPtrDelegate GetToPtrDelegate(Type ty) {
+        internal static ToPtrDelegate GetToPtrDelegate(Type ty)
+        {
             ToPtrDelegate temp;
             if (ToPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("WriteObject", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
@@ -99,7 +107,8 @@ namespace Spreads.Serialization {
         private static readonly Dictionary<Type, SizeOfDelegate> SizeOfDelegateCache = new Dictionary<Type, SizeOfDelegate>();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static SizeOfDelegate GetSizeOfDelegate(Type ty) {
+        internal static SizeOfDelegate GetSizeOfDelegate(Type ty)
+        {
             SizeOfDelegate temp;
             if (SizeOfDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("SizeOfObject", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
@@ -116,7 +125,8 @@ namespace Spreads.Serialization {
         private static readonly Dictionary<Type, int> SizeDelegateCache = new Dictionary<Type, int>();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int GetSize(Type ty) {
+        internal static int GetSize(Type ty)
+        {
             int temp;
             if (SizeDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("Size", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
@@ -128,8 +138,8 @@ namespace Spreads.Serialization {
     }
 
     [Obsolete("TypeHelper should only be used inside BinarySerializer or for known types. Use #pragma warning disable 0618/#pragma warning restore 0618 where its usage is justified.")]
-    internal unsafe sealed class TypeHelper<T> : TypeHelper {
-
+    internal unsafe sealed class TypeHelper<T> : TypeHelper
+    {
         // ReSharper disable StaticMemberInGenericType
         private static bool _hasBinaryConverter;
 
@@ -142,8 +152,10 @@ namespace Spreads.Serialization {
         // static TypeHelper() { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int PinnedSize() {
-            try {
+        private static int PinnedSize()
+        {
+            try
+            {
                 var array = new T[2];
                 var pinnedArrayHandle = GCHandle.Alloc(array, GCHandleType.Pinned);
                 var size = (int)
@@ -155,16 +167,22 @@ namespace Spreads.Serialization {
                 var unsafeSize = Unsafe.SizeOf<T>();
                 if (unsafeSize != size) Environment.FailFast("Pinned and unsafe sizes differ!");
                 return size;
-            } catch {
+            }
+            catch
+            {
                 return -1;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int InitChecked() {
-            try {
+        private static int InitChecked()
+        {
+            try
+            {
                 return Init();
-            } catch {
+            }
+            catch
+            {
                 return -1;
             }
         }
@@ -174,17 +192,20 @@ namespace Spreads.Serialization {
         /// </summary>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int Init() {
+        private static int Init()
+        {
             _typeParams = new TypeParams();
             var ty = typeof(T);
-            if (ty == typeof(DateTime)) {
+            if (ty == typeof(DateTime))
+            {
                 _typeParams.IsBlittable = true;
                 _typeParams.IsFixedSize = true;
                 _typeParams.IsDateTime = true;
                 _typeParams.Size = 8;
                 return 8;
             }
-            if (ty == typeof(decimal)) {
+            if (ty == typeof(decimal))
+            {
                 _typeParams.IsBlittable = true;
                 _typeParams.IsFixedSize = true;
                 _typeParams.IsDateTime = true;
@@ -195,8 +216,10 @@ namespace Spreads.Serialization {
             _typeParams.IsValueType = ty.GetTypeInfo().IsValueType;
             var pinnedSize = PinnedSize();
 
-            if (pinnedSize > 0) {
-                if (ty.GetTypeInfo().IsPrimitive && (ty != typeof(bool) && ty != typeof(char))) {
+            if (pinnedSize > 0)
+            {
+                if (ty.GetTypeInfo().IsPrimitive && (ty != typeof(bool) && ty != typeof(char)))
+                {
                     _typeParams.IsBlittable = true;
                     _typeParams.IsFixedSize = true;
                     _typeParams.Size = pinnedSize;
@@ -206,14 +229,18 @@ namespace Spreads.Serialization {
                 // for a non-primitive type to be blittable, it must have an attribute
                 var sa = SerializationAttribute.GetSerializationAttribute(ty);
                 var hasSizeAttribute = false;
-                if (sa != null && sa.BlittableSize > 0) {
-                    if (pinnedSize != sa.BlittableSize) {
+                if (sa != null && sa.BlittableSize > 0)
+                {
+                    if (pinnedSize != sa.BlittableSize)
+                    {
                         Environment.FailFast($"Size of type {ty.Name} defined in SerializationAttribute {sa.BlittableSize} differs from calculated size {pinnedSize}.");
                     }
                     hasSizeAttribute = true;
                 }
-                if (hasSizeAttribute) {
-                    if (typeof(IBinaryConverter<T>).IsAssignableFrom(ty)) {
+                if (hasSizeAttribute)
+                {
+                    if (typeof(IBinaryConverter<T>).IsAssignableFrom(ty))
+                    {
                         // NB: this makes no sense, because blittable is version 0, if we have any change
                         // to struct layout later, we won't be able to work with version 0 anymore
                         // and will lose ability to work with old values.
@@ -224,7 +251,8 @@ namespace Spreads.Serialization {
                     _typeParams.Size = pinnedSize;
                     return pinnedSize;
                 }
-                if (sa != null && sa.PreferBlittable) {
+                if (sa != null && sa.PreferBlittable)
+                {
                     // NB: here it is OK to have an interface, we just opt-in for blittable
                     // when we know it won't change, e.g. generic struct with fixed fields (KV<K,V>, DictEntry<K,V>, Message<T>, etc.)
                     // usually those types are internal
@@ -242,15 +270,20 @@ namespace Spreads.Serialization {
             // could implement IBinaryConverter<T> but still be blittable for certain types,
             // e.g. DateTime vs long in PersistentMap<K,V>.Entry
             //if (tmp is IBinaryConverter<T>) {
-            if (typeof(IBinaryConverter<T>).IsAssignableFrom(ty)) {
+            if (typeof(IBinaryConverter<T>).IsAssignableFrom(ty))
+            {
                 IBinaryConverter<T> converter;
-                try {
+                try
+                {
                     converter = (IBinaryConverter<T>)Activator.CreateInstance<T>();
-                } catch {
+                }
+                catch
+                {
                     //Trace.TraceWarning($"Type {typeof(T).FullName} is marked as IBinaryConverter and so it must have a parameterless constructor");
                     throw new ApplicationException($"Type T ({typeof(T).FullName}) is marked as IBinaryConverter<T> and so it must have a parameterless constructor.");
                 }
-                if (converter.Version <= 0) {
+                if (converter.Version <= 0)
+                {
                     throw new InvalidOperationException("IBinaryConverter<T> implementation for a type T should have a positive version.");
                 }
                 _converterInstance = converter;
@@ -258,25 +291,30 @@ namespace Spreads.Serialization {
                 return _converterInstance.IsFixedSize ? _converterInstance.Size : 0;
             }
             //byte[] should work as any other primitive array
-            if (ty == typeof(byte[])) {
+            if (ty == typeof(byte[]))
+            {
                 _converterInstance = (IBinaryConverter<T>)(new ByteArrayBinaryConverter());
                 _hasBinaryConverter = true;
                 return 0;
             }
-            if (ty == typeof(DateTime[])) {
+            if (ty == typeof(DateTime[]))
+            {
                 _converterInstance = (IBinaryConverter<T>)(new DateTimeArrayBinaryConverter());
                 _hasBinaryConverter = true;
                 return 0;
             }
-            if (ty == typeof(string)) {
+            if (ty == typeof(string))
+            {
                 _converterInstance = (IBinaryConverter<T>)(new StringBinaryConverter());
                 _hasBinaryConverter = true;
                 return 0;
             }
-            if (ty.IsArray) {
+            if (ty.IsArray)
+            {
                 var elementType = ty.GetElementType();
                 var elementSize = GetSize(elementType);
-                if (elementSize > 0) { // only for blittable types
+                if (elementSize > 0)
+                { // only for blittable types
                     var converter = (IBinaryConverter<T>)BlittableArrayConverterFactory.Create(elementType);
                     if (converter == null) return -1;
                     _converterInstance = converter;
@@ -290,12 +328,15 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read(IntPtr ptr, ref T value) {
-            if (_hasBinaryConverter) {
+        public static int Read(IntPtr ptr, ref T value)
+        {
+            if (_hasBinaryConverter)
+            {
                 Debug.Assert(_size == 0);
                 return _converterInstance.Read(ptr, ref value);
             }
-            if (_size < 0) {
+            if (_size < 0)
+            {
                 throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
             }
             Debug.Assert(_size > 0);
@@ -305,12 +346,15 @@ namespace Spreads.Serialization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write(T value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null) {
-            if (_hasBinaryConverter) {
+        public static int Write(T value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        {
+            if (_hasBinaryConverter)
+            {
                 Debug.Assert(_size == 0);
-                return _converterInstance.Write(value, ref destination, offset, ms);
+                return _converterInstance.Write(value, ref destination, offset, ms, compression);
             }
-            if (Size < 0) {
+            if (Size < 0)
+            {
                 throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
             }
             Debug.Assert(_size > 0);
@@ -328,13 +372,16 @@ namespace Spreads.Serialization {
         /// <param name="memoryStream"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int SizeOf(T value, out MemoryStream memoryStream) {
-            if (_hasBinaryConverter) {
+        internal static int SizeOf(T value, out MemoryStream memoryStream, CompressionMethod compression)
+        { //= CompressionMethod.DefaultOrNone
+            if (_hasBinaryConverter)
+            {
                 Debug.Assert(_size == 0);
-                return _converterInstance.SizeOf(value, out memoryStream);
+                return _converterInstance.SizeOf(value, out memoryStream, compression);
             }
             memoryStream = null;
-            if (_size < 0) {
+            if (_size < 0)
+            {
                 return -1;
             }
             Debug.Assert(_size > 0);
@@ -362,12 +409,14 @@ namespace Spreads.Serialization {
 
         public static byte Version => _hasBinaryConverter ? _converterInstance.Version : (byte)0;
 
-        internal static void RegisterConverter(IBinaryConverter<T> converter, bool overrideExisting = false) {
+        internal static void RegisterConverter(IBinaryConverter<T> converter, bool overrideExisting = false)
+        {
             if (converter == null) throw new ArgumentNullException(nameof(converter));
             if (Size > 0) throw new InvalidOperationException("Cannot register a custom converter for fixed-size types");
 
             // NB TypeHelper is internal, we could provide some hooks later e.g. for char or bool
-            if (converter.Version == 0) {
+            if (converter.Version == 0)
+            {
                 Trace.TraceWarning("Adding a converter with version zero");
             }
 
@@ -375,7 +424,8 @@ namespace Spreads.Serialization {
                 throw new InvalidOperationException(
                     $"Type {typeof(T)} already implements IBinaryConverter<{typeof(T)}> interface. Use versioning to add a new converter (not supported yet)");
 
-            if (_typeParams.IsBlittable) {
+            if (_typeParams.IsBlittable)
+            {
                 Environment.FailFast($"Blittable types must not have IBinaryConverter<T>.");
             }
             _hasBinaryConverter = true;
@@ -383,14 +433,17 @@ namespace Spreads.Serialization {
             _size = converter.Size;
         }
 
-        public static T ConvertFrom<TSource>(TSource s) {
+        public static T ConvertFrom<TSource>(TSource s)
+        {
             return ConverterCache<TSource>.Converter(s);
         }
 
-        private static class ConverterCache<TSource> {
+        private static class ConverterCache<TSource>
+        {
             internal static readonly Func<TSource, T> Converter = Get();
 
-            private static Func<TSource, T> Get() {
+            private static Func<TSource, T> Get()
+            {
                 var p = Expression.Parameter(typeof(TSource));
                 var c = Expression.ConvertChecked(p, typeof(T));
                 return Expression.Lambda<Func<TSource, T>>(c, p).Compile();

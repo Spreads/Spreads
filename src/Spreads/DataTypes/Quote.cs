@@ -5,6 +5,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
+using Spreads.Serialization;
 
 namespace Spreads.DataTypes
 {
@@ -23,6 +24,7 @@ namespace Spreads.DataTypes
     /// A blittable structure to store quotes.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 16)]
+    [Serialization(BlittableSize = 16)]
     [DataContract]
     public struct Quote : IEquatable<Quote>, IQuote
     {

@@ -2,28 +2,31 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using Spreads.Buffers;
-using System.Reflection;
 using Spreads.Utils;
 
-namespace Spreads.Serialization {
-
-    internal static class BlittableArrayConverterFactory {
-        public static IBinaryConverter<TElement[]> GenericCreate<TElement>() {
+namespace Spreads.Serialization
+{
+    internal static class BlittableArrayConverterFactory
+    {
+        public static IBinaryConverter<TElement[]> GenericCreate<TElement>()
+        {
             return new BlittableArrayBinaryConverter<TElement>();
         }
-        public static object Create(Type type) {
+
+        public static object Create(Type type)
+        {
             var method = typeof(BlittableArrayConverterFactory).GetMethod("GenericCreate");
             var generic = method.MakeGenericMethod(type);
             return generic.Invoke(null, null);
         }
     }
 
-    internal class BlittableArrayBinaryConverter<TElement> : IBinaryConverter<TElement[]> {
+    internal class BlittableArrayBinaryConverter<TElement> : IBinaryConverter<TElement[]>
+    {
         public bool IsFixedSize => false;
         public int Size => 0;
 #pragma warning disable 618
@@ -31,19 +34,29 @@ namespace Spreads.Serialization {
         private static readonly int ItemSize = TypeHelper<TElement>.Size;
 #pragma warning restore 618
 
-        public int SizeOf(TElement[] value, out MemoryStream temporaryStream) {
-            if (ItemSize > 0) {
-                temporaryStream = null;
-                return 8 + ItemSize * value.Length;
+        public int SizeOf(TElement[] value, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        {
+            if (ItemSize > 0)
+            {
+                if (compression == CompressionMethod.DefaultOrNone)
+                {
+                    temporaryStream = null;
+                    return 8 + ItemSize * value.Length;
+                }
+                else
+                {
+                    CompressedArrayBinaryConverter<TElement>.Instance.SizeOf(value, 0, value.Length, out temporaryStream, compression);
+                }
             }
             throw new InvalidOperationException("BlittableArrayBinaryConverter must be called only on blittable types");
         }
 
-
-        public unsafe int Write(TElement[] value, ref DirectBuffer destination, uint offset = 0u, MemoryStream temporaryStream = null) {
+        public unsafe int Write(TElement[] value, ref DirectBuffer destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        {
             if (value == null) throw new ArgumentNullException(nameof(value));
             if (temporaryStream != null) throw new NotSupportedException("BlittableArrayBinaryConverter does not work with temp streams.");
-            if (ItemSize > 0) {
+            if (ItemSize > 0)
+            {
                 var totalSize = 8 + ItemSize * value.Length;
                 if (!destination.HasCapacity(offset, totalSize)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
                 var ptr = destination.Data + (int)offset;
@@ -53,7 +66,8 @@ namespace Spreads.Serialization {
                 Marshal.WriteInt32(ptr, totalSize);
                 // version
                 Marshal.WriteByte(ptr + 4, Version);
-                if (value.Length > 0) {
+                if (value.Length > 0)
+                {
                     var source = Marshal.UnsafeAddrOfPinnedArrayElement(value, 0);
                     ByteUtil.MemoryCopy((byte*)(ptr + 8), (byte*)source, checked((uint)(ItemSize * value.Length)));
                 }
@@ -63,24 +77,41 @@ namespace Spreads.Serialization {
             throw new InvalidOperationException("BlittableArrayBinaryConverter must be called only on blittable types");
         }
 
-        public unsafe int Read(IntPtr ptr, ref TElement[] value) {
+        public unsafe int Read(IntPtr ptr, ref TElement[] value)
+        {
             var totalSize = Marshal.ReadInt32(ptr);
-            var version = Marshal.ReadByte(ptr + 4);
+            var versionFlags = Marshal.ReadByte(ptr + 4);
+            var version = (byte)(versionFlags >> 4);
+            var isCompressed = (versionFlags & 0b0000_0001) != 0;
             if (version != 0) throw new NotSupportedException("ByteArrayBinaryConverter work only with version 0");
-            if (ItemSize > 0) {
-                var arraySize = (totalSize - 8) / ItemSize;
-                if (arraySize > 0) {
-                    var array = new TElement[arraySize];
-                    var pinnedArray = GCHandle.Alloc(array, GCHandleType.Pinned);
-                    var destination = Marshal.UnsafeAddrOfPinnedArrayElement(array, 0);
-                    var source = ptr + 8;
-                    ByteUtil.MemoryCopy((byte*)destination, (byte*)source, checked((uint)(totalSize - 8)));
-                    value = array;
-                    pinnedArray.Free();
-                } else {
-                    value = new TElement[0];
+            if (ItemSize > 0)
+            {
+                if (!isCompressed)
+                {
+                    var arraySize = (totalSize - 8) / ItemSize;
+                    if (arraySize > 0)
+                    {
+                        var array = new TElement[arraySize];
+                        var pinnedArray = GCHandle.Alloc(array, GCHandleType.Pinned);
+                        var destination = Marshal.UnsafeAddrOfPinnedArrayElement(array, 0);
+                        var source = ptr + 8;
+                        ByteUtil.MemoryCopy((byte*)destination, (byte*)source, checked((uint)(totalSize - 8)));
+                        value = array;
+                        pinnedArray.Free();
+                    }
+                    else
+                    {
+                        value = new TElement[0];
+                    }
+                    return totalSize;
                 }
-                return totalSize;
+                else
+                {
+                    ArraySegment<TElement> tmp = default(ArraySegment<TElement>);
+                    var len = CompressedArrayBinaryConverter<TElement>.Instance.Read(ptr, ref tmp, true);
+                    value = tmp.Array;
+                    return len;
+                }
             }
             throw new InvalidOperationException("BlittableArrayBinaryConverter must be called only on blittable types");
         }
