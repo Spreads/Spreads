@@ -1,4 +1,7 @@
-#Spreads
+[![Linux Build Status](https://travis-ci.org/Spreads/Spreads.svg?branch=master)](https://travis-ci.org/Spreads/Spreads)
+
+
+# Spreads
 <img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png" alt="Spreads" width="200" align="right" />
 
 The name **Spreads** stands for **S**eries and **P**anels for **R**eal-time and **E**xploratory **A**nalysis of
