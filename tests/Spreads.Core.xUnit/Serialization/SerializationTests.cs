@@ -11,11 +11,20 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using Spreads.Blosc;
+using Xunit.Abstractions;
 
 namespace Spreads.Core.Tests.Serialization
 {
     public class SerializationTests
     {
+
+        private readonly ITestOutputHelper output;
+
+        public SerializationTests(ITestOutputHelper output)
+        {
+            this.output = output;
+        }
+
         [Serialization(BlittableSize = 12)]
         [StructLayout(LayoutKind.Sequential, Pack = 4)]
         public struct BlittableStruct
@@ -176,7 +185,7 @@ namespace Spreads.Core.Tests.Serialization
             var ints = new int[4] { 1, 2, 3, 4 };
             var segment = new ArraySegment<int>(ints, 1, 2);
             var serialized = Newtonsoft.Json.JsonConvert.SerializeObject(segment);
-            Console.WriteLine(serialized);
+            output.WriteLine(serialized);
             var newInts = Newtonsoft.Json.JsonConvert.DeserializeObject<int[]>(serialized);
             Assert.Equal(2, newInts[0]);
             Assert.Equal(3, newInts[1]);
@@ -201,17 +210,17 @@ namespace Spreads.Core.Tests.Serialization
                 source[i] = i;
             }
 
-            var len = CompressedArrayBinaryConverter<decimal>.Instance.Write(new ArraySegment<decimal>(source), ref db, 0, null,
+            var len = BinarySerializer.Write(source, ref db, 0, null,
                 CompressionMethod.LZ4);
 
-            Console.WriteLine($"Useful: {source.Length * 16}");
-            Console.WriteLine($"Total: {len}");
+            output.WriteLine($"Useful: {source.Length * 16}");
+            output.WriteLine($"Total: {len}");
 
-            var destination = new ArraySegment<decimal>(new decimal[10000]);
+            var destination = new decimal[10000];
 
-            var len2 = CompressedArrayBinaryConverter<decimal>.Instance.Read(ptr, ref destination, false);
+            var len2 = BinarySerializer.Read(db, ref destination);
 
-            Assert.True(source.SequenceEqual(destination.Array));
+            Assert.True(source.SequenceEqual(destination));
 
         }
 

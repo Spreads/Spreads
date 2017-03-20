@@ -31,24 +31,6 @@ namespace Spreads.Core.Tests
             }
         }
 
-        // https://github.com/dotnet/corefx/pull/14126
-        [Fact(Skip = "Long running")]
-        public void ComparePoolsPerformance()
-        {
-            int capacity = Environment.ProcessorCount * 2;
-            var arrayPool = new ObjectPoolArray<DummyPoolable>(capacity);
-            var bagPool = new ObjectPoolBag<DummyPoolable>(capacity);
-            var queuePool = new ObjectPoolQueue<DummyPoolable>(capacity);
-            //var mpmcQueuePool = new ObjectPoolMPMCQueue<DummyPoolable>(capacity);
-            for (int round = 0; round < 10; round++)
-            {
-                TestPool(arrayPool);
-                TestPool(bagPool);
-                TestPool(queuePool);
-                //TestPool(mpmcQueuePool);
-                Console.WriteLine("----------");
-            }
-        }
 
         public void TestPool(IObjectPool<DummyPoolable> pool)
         {

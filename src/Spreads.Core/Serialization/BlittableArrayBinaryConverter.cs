@@ -46,7 +46,7 @@ namespace Spreads.Serialization
                 }
                 else
                 {
-                    CompressedArrayBinaryConverter<TElement>.Instance.SizeOf(value, 0, value.Length, out temporaryStream, compression);
+                    return CompressedArrayBinaryConverter<TElement>.Instance.SizeOf(value, 0, value.Length, out temporaryStream, compression);
                 }
             }
             throw new InvalidOperationException("BlittableArrayBinaryConverter must be called only on blittable types");
