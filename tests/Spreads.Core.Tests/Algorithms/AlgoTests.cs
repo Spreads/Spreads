@@ -107,20 +107,7 @@ namespace Spreads.Core.Tests.Algorithms
                         source[i] = i;
                     }
                     GC.Collect(3, GCCollectionMode.Forced, true);
-                    sw.Restart();
-                    for (int r = 0; r < 1000; r++)
-                    {
-                        SimdMath.YepppAdd(null, source, 123.4567f, result, source.Length);
-                    }
-                    sw.Stop();
-                    Console.WriteLine($"Size: {source.Length}, Yeppp elapsed: {sw.ElapsedTicks}, last value: {result[source.Length - 1]}");
 
-                    //source = new float[(int)Math.Pow(10, size)];
-                    for (int i = 0; i < source.Length; i++)
-                    {
-                        source[i] = i;
-                    }
-                    GC.Collect(3, GCCollectionMode.Forced, true);
                     sw.Restart();
                     for (int r = 0; r < 1000; r++)
                     {
@@ -164,13 +151,6 @@ namespace Spreads.Core.Tests.Algorithms
                         source[i] = i;
                     }
                     GC.Collect(3, GCCollectionMode.Forced, true);
-                    sw.Restart();
-                    for (int r = 0; r < 1000; r++)
-                    {
-                        SimdMath.YepppExp(null, source, result, source.Length);
-                    }
-                    sw.Stop();
-                    Console.WriteLine($"Size: {source.Length}, Yeppp elapsed: {sw.ElapsedTicks}, last value: {result[source.Length - 1]}");
 
                     Console.WriteLine("----------");
                 }

@@ -38,26 +38,6 @@ namespace Spreads.Algorithms
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void YepppAdd(this Algo.MathProvider provider, float[] array, float scalar, float[] result, int count)
-        {
-            fixed (float* src = &array[0])
-            fixed (float* tgt = &result[0])
-            {
-                Yeppp.Core.yepCore_Add_V32fS32f_V32f(src, scalar, tgt, new UIntPtr((uint)count));
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void YepppExp(this Algo.MathProvider provider, double[] array, double[] result, int count)
-        {
-            fixed (double* src = &array[0])
-            fixed (double* tgt = &result[0])
-            {
-                Yeppp.Math.yepMath_Exp_V64f_V64f(src, tgt, new UIntPtr((uint)count));
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void LoopAdd(this Algo.MathProvider provider, float[] array, float scalar, float[] result, int count)
         {
             fixed (float* src = &array[0])

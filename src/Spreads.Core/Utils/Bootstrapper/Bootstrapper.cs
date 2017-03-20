@@ -244,7 +244,7 @@ namespace Bootstrap
             ABI = Process.DetectABI();
 
             instance.Bootstrap<Loader>(
-                new[] { "yeppp" },
+                new string[] { }, // 
                 null, //new[] { "Newtonsoft.Json.dll" },
                 null,
                 null,
@@ -256,14 +256,12 @@ namespace Bootstrap
                 },
                 () =>
                 {
-                    Spreads.Yeppp.Library.Init();
 #if DEBUG
                     Console.WriteLine("Post-copy action");
 #endif
                 },
                 () =>
                 {
-                    Spreads.Yeppp.Library.Release();
                 });
 
             //new ResolveEventHandler(Loader.ResolveManagedAssembly);
@@ -421,6 +419,7 @@ namespace Bootstrap
                 {
                     if (nativeLibraries.ContainsKey(nativeName)) continue;
                     nativeLibraries.Add(nativeName, Loader.LoadNativeLibrary<T>(nativeName));
+                    Console.WriteLine("Loaded native linrary: " + nativeName);
                 }
             }
 
