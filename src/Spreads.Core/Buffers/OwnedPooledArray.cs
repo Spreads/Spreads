@@ -6,9 +6,10 @@ using System;
 using Spreads.Collections.Concurrent;
 using System.Buffers;
 
-namespace Spreads.Buffers {
-
-    public sealed class OwnedPooledArray<T> : OwnedMemory<T> {
+namespace Spreads.Buffers
+{
+    public sealed class OwnedPooledArray<T> : OwnedMemory<T>
+    {
         // NB In ArrayPool implementation, DefaultMaxNumberOfArraysPerBucket = 50, but MPMCQ requires a power of two
         // OwnedMemory<T> is quite fat and is an object, but has Initialize + Dispose methods that made it suitable for pooling
 
@@ -17,14 +18,17 @@ namespace Spreads.Buffers {
 
         public new T[] Array => base.Array;
 
-        public static implicit operator T[] (OwnedPooledArray<T> owner) {
+        public static implicit operator T[] (OwnedPooledArray<T> owner)
+        {
             return owner.Array;
         }
 
-        private OwnedPooledArray(T[] array) : base(array, 0, array.Length) {
+        private OwnedPooledArray(T[] array) : base(array, 0, array.Length)
+        {
         }
 
-        protected override void Dispose(bool disposing) {
+        protected override void Dispose(bool disposing)
+        {
             // NB this method is called after ensuring that refcount is zero but before
             // cleaning the fields
             BufferPool<T>.Return(Array);
@@ -32,16 +36,17 @@ namespace Spreads.Buffers {
             Pool.TryAdd(this);
         }
 
-        
         protected override void OnZeroReferences()
         {
             Dispose();
             base.OnZeroReferences();
         }
 
-        public static OwnedMemory<T> Create(T[] array) {
+        public static OwnedMemory<T> Create(T[] array)
+        {
             OwnedPooledArray<T> pooled;
-            if (Pool.TryTake(out pooled)) {
+            if (Pool.TryTake(out pooled))
+            {
                 var asOwnedPooledArray = pooled;
                 // ReSharper disable once PossibleNullReferenceException
                 asOwnedPooledArray.Initialize(array, 0, array.Length);

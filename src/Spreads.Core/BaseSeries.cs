@@ -9,39 +9,48 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads {
-
-    public class BaseSeries {
+namespace Spreads
+{
+    public class BaseSeries
+    {
         private static readonly ConditionalWeakTable<BaseSeries, Dictionary<string, object>> Attributes = new ConditionalWeakTable<BaseSeries, Dictionary<string, object>>();
 
-        public object GetAttribute(string attributeName) {
+        public object GetAttribute(string attributeName)
+        {
             object res;
             Dictionary<string, object> dic;
-            if (Attributes.TryGetValue(this, out dic) && dic.TryGetValue(attributeName, out res)) {
+            if (Attributes.TryGetValue(this, out dic) && dic.TryGetValue(attributeName, out res))
+            {
                 return res;
             }
             return null;
         }
 
-        public void SetAttribute(string attributeName, object attributeValue) {
+        public void SetAttribute(string attributeName, object attributeValue)
+        {
             var dic = Attributes.GetOrCreateValue(this);
             dic[attributeName] = attributeValue;
         }
     }
 
-    public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK, TV> {
+    public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK, TV>
+    {
         internal int Locker;
+
         // TODO at least int, or byte
         internal TaskCompletionSource<long> UpdateTcs;
 
         private object _syncRoot;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void NotifyUpdate() {
-            while (true) {
+        internal void NotifyUpdate()
+        {
+            while (true)
+            {
                 var updateTcs = Volatile.Read(ref this.UpdateTcs);
                 // stop when the result was already set
-                if (updateTcs != null && !updateTcs.TrySetResult(0L)) {
+                if (updateTcs != null && !updateTcs.TrySetResult(0L))
+                {
                     continue;
                 }
                 break;
@@ -54,27 +63,34 @@ namespace Spreads {
         public abstract bool IsIndexed { get; }
         public abstract bool IsReadOnly { get; }
 
-        public virtual IDisposable Subscribe(IObserver<KeyValuePair<TK, TV>> observer) {
+        public virtual IDisposable Subscribe(IObserver<KeyValuePair<TK, TV>> observer)
+        {
             // TODO not virtual and implement all logic here, including backpressure case
             throw new NotImplementedException();
         }
 
-        IAsyncEnumerator<KeyValuePair<TK, TV>> IAsyncEnumerable<KeyValuePair<TK, TV>>.GetEnumerator() {
+        IAsyncEnumerator<KeyValuePair<TK, TV>> IAsyncEnumerable<KeyValuePair<TK, TV>>.GetEnumerator()
+        {
             return GetCursor();
         }
 
-        IEnumerator<KeyValuePair<TK, TV>> IEnumerable<KeyValuePair<TK, TV>>.GetEnumerator() {
+        IEnumerator<KeyValuePair<TK, TV>> IEnumerable<KeyValuePair<TK, TV>>.GetEnumerator()
+        {
             return GetCursor();
         }
 
-        IEnumerator IEnumerable.GetEnumerator() {
+        IEnumerator IEnumerable.GetEnumerator()
+        {
             return GetCursor();
         }
 
-        public object SyncRoot {
+        public object SyncRoot
+        {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get {
-                if (_syncRoot == null) {
+            get
+            {
+                if (_syncRoot == null)
+                {
                     Interlocked.CompareExchange(ref _syncRoot, new object(), null);
                 }
                 return _syncRoot;
@@ -87,10 +103,13 @@ namespace Spreads {
         public abstract KeyValuePair<TK, TV> First { get; }
         public abstract KeyValuePair<TK, TV> Last { get; }
 
-        public virtual TV this[TK key] {
-            get {
+        public virtual TV this[TK key]
+        {
+            get
+            {
                 TV tmp;
-                if (TryGetValue(key, out tmp)) {
+                if (TryGetValue(key, out tmp))
+                {
                     return tmp;
                 }
                 throw new KeyNotFoundException();

@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +13,7 @@ namespace Spreads.Collections
     // TODO this is draft of draft...
 
     // base class to represent tabular data, inclusing series (single column)
-    // BaseDataTable is Variant array of 
+    // BaseDataTable is Variant array of
 
     public class BaseDataTable
     {
@@ -25,7 +24,6 @@ namespace Spreads.Collections
 
         public BaseDataTable()
         {
-
             var columns = new Variant();
             var rootArray = new Variant[3];
         }

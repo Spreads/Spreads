@@ -4,11 +4,13 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace Spreads.Utils {
+namespace Spreads.Utils
+{
     /// <summary>
     /// Miscellaneous useful functions for dealing with low level bits and bytes.
     /// </summary>
-    public class BitUtil {
+    public class BitUtil
+    {
         /// <summary>
         /// Size of a byte in bytes
         /// </summary>
@@ -61,7 +63,8 @@ namespace Spreads.Utils {
 
         private static readonly byte[] FromHexDigitTable;
 
-        static BitUtil() {
+        static BitUtil()
+        {
             FromHexDigitTable = new byte[128];
             FromHexDigitTable['0'] = 0x00;
             FromHexDigitTable['1'] = 0x01;
@@ -93,15 +96,16 @@ namespace Spreads.Utils {
 
         /// <summary>
         /// Fast method of finding the next power of 2 greater than or equal to the supplied value.
-        /// 
+        ///
         /// If the value is &lt;= 0 then 1 will be returned.
-        /// 
+        ///
         /// This method is not suitable for <seealso cref="int.MinValue"/> or numbers greater than 2^30.
         /// </summary>
         /// <param name="value"> from which to search for next power of 2 </param>
         /// <returns> The next power of 2 or the value itself if it is a power of 2 </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int FindNextPositivePowerOfTwo(int value) {
+        public static int FindNextPositivePowerOfTwo(int value)
+        {
             return 1 << (32 - IntUtil.NumberOfLeadingZeros(value - 1));
         }
 
@@ -111,14 +115,15 @@ namespace Spreads.Utils {
         /// <para>
         /// This method executes without branching. This code is designed to be use in the fast path and should not
         /// be used with negative numbers. Negative numbers will result in undefined behaviour.
-        /// 
+        ///
         /// </para>
         /// </summary>
         /// <param name="value">     to be aligned up. </param>
         /// <param name="alignment"> to be used. </param>
         /// <returns> the value aligned to the next boundary. </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Align(int value, int alignment) {
+        public static int Align(int value, int alignment)
+        {
             return (value + (alignment - 1)) & ~(alignment - 1);
         }
 
@@ -128,10 +133,12 @@ namespace Spreads.Utils {
         /// <param name="buffer"> to convert from a hex representation (in Big Endian) </param>
         /// <returns> new byte array that is decimal representation of the passed array </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte[] FromHexByteArray(byte[] buffer) {
+        public static byte[] FromHexByteArray(byte[] buffer)
+        {
             byte[] outputBuffer = new byte[buffer.Length >> 1];
 
-            for (int i = 0; i < buffer.Length; i += 2) {
+            for (int i = 0; i < buffer.Length; i += 2)
+            {
                 outputBuffer[i >> 1] = (byte)((FromHexDigitTable[buffer[i]] << 4) | FromHexDigitTable[buffer[i + 1]]);
             }
 
@@ -144,7 +151,8 @@ namespace Spreads.Utils {
         /// <param name="buffer"> to convert to a hex representation </param>
         /// <returns> new byte array that is hex representation (in Big Endian) of the passed array </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte[] ToHexByteArray(byte[] buffer) {
+        public static byte[] ToHexByteArray(byte[] buffer)
+        {
             return ToHexByteArray(buffer, 0, buffer.Length);
         }
 
@@ -156,10 +164,12 @@ namespace Spreads.Utils {
         /// <param name="length"> the number of bytes to convert </param>
         /// <returns> new byte array that is hex representation (in Big Endian) of the passed array </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte[] ToHexByteArray(byte[] buffer, int offset, int length) {
+        public static byte[] ToHexByteArray(byte[] buffer, int offset, int length)
+        {
             var outputBuffer = new byte[length << 1];
 
-            for (var i = 0; i < (length << 1); i += 2) {
+            for (var i = 0; i < (length << 1); i += 2)
+            {
                 var b = buffer[offset + (i >> 1)];
 
                 outputBuffer[i] = HexDigitTable[(b >> 4) & 0x0F];
@@ -175,7 +185,8 @@ namespace Spreads.Utils {
         /// <param name="value"> to convert from a hex representation (in Big Endian) </param>
         /// <returns> new byte array holding the decimal representation of the passed array </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte[] FromHex(string value) {
+        public static byte[] FromHex(string value)
+        {
             return FromHexByteArray(Utf8Encoding.GetBytes(value));
         }
 
@@ -187,7 +198,8 @@ namespace Spreads.Utils {
         /// <param name="length"> the number of bytes to convert </param>
         /// <returns> new String holding the hex representation (in Big Endian) of the passed array </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string ToHex(byte[] buffer, int offset, int length) {
+        public static string ToHex(byte[] buffer, int offset, int length)
+        {
             var hexByteArray = ToHexByteArray(buffer, offset, length);
             return Utf8Encoding.GetString(hexByteArray, 0, hexByteArray.Length);
         }
@@ -198,7 +210,8 @@ namespace Spreads.Utils {
         /// <param name="buffer"> to convert to a hex representation </param>
         /// <returns> new String holding the hex representation (in Big Endian) of the passed array </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string ToHex(byte[] buffer) {
+        public static string ToHex(byte[] buffer)
+        {
             var hexByteArray = ToHexByteArray(buffer);
             return Utf8Encoding.GetString(hexByteArray, 0, hexByteArray.Length);
         }
@@ -209,7 +222,8 @@ namespace Spreads.Utils {
         /// <param name="value"> to check. </param>
         /// <returns> true if the number is even otherwise false. </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsEven(int value) {
+        public static bool IsEven(int value)
+        {
             return (value & LastDigitMask) == 0;
         }
 
@@ -219,7 +233,8 @@ namespace Spreads.Utils {
         /// <param name="value"> to be checked. </param>
         /// <returns> true if the number is a positive power of two otherwise false. </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsPowerOfTwo(int value) {
+        public static bool IsPowerOfTwo(int value)
+        {
             return value > 0 && ((value & (~value + 1)) == value);
         }
 
@@ -230,9 +245,11 @@ namespace Spreads.Utils {
         /// <param name="max">     value for the cycle. </param>
         /// <returns> the next value, or zero if max is reached. </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Next(int current, int max) {
+        public static int Next(int current, int max)
+        {
             int next = current + 1;
-            if (next == max) {
+            if (next == max)
+            {
                 next = 0;
             }
 
@@ -246,8 +263,10 @@ namespace Spreads.Utils {
         /// <param name="max">     value of the cycle. </param>
         /// <returns> the next value, or max - 1 if current is zero </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Previous(int current, int max) {
-            if (0 == current) {
+        public static int Previous(int current, int max)
+        {
+            if (0 == current)
+            {
                 return max - 1;
             }
 
@@ -262,8 +281,10 @@ namespace Spreads.Utils {
         /// <returns> true if the address is on the aligned boundary otherwise false. </returns>
         /// <exception cref="ArgumentException"> if the alignment is not a power of 2` </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsAligned(long address, int alignment) {
-            if (!IsPowerOfTwo(alignment)) {
+        public static bool IsAligned(long address, int alignment)
+        {
+            if (!IsPowerOfTwo(alignment))
+            {
                 throw new ArgumentException("Alignment must be a power of 2: alignment=" + alignment);
             }
 

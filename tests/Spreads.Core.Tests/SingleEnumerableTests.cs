@@ -9,40 +9,47 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
-namespace Spreads.Core.Tests {
-
-    public static class SingleEumerable<T> {
-
-        public static IEnumerable<T> Get(T item) {
+namespace Spreads.Core.Tests
+{
+    public static class SingleEumerable<T>
+    {
+        public static IEnumerable<T> Get(T item)
+        {
             yield return item;
         }
     }
 
-    public struct SingleValue<T> {
+    public struct SingleValue<T>
+    {
         public T Value { get; }
 
-        public SingleValue(T value) {
+        public SingleValue(T value)
+        {
             Value = value;
         }
     }
 
-    public class SingleValueClass<T> {
+    public class SingleValueClass<T>
+    {
         public T Value { get; }
 
-        public SingleValueClass(T value) {
+        public SingleValueClass(T value)
+        {
             Value = value;
         }
     }
 
     [TestFixture]
-    public class SingleEnumerableTests {
-
+    public class SingleEnumerableTests
+    {
         [Test, Ignore]
-        public void DirectSum() {
+        public void DirectSum()
+        {
             var sw = new Stopwatch();
             sw.Start();
             long sum = 0;
-            for (var i = 0; i < 100000000; i++) {
+            for (var i = 0; i < 100000000; i++)
+            {
                 sum += i;
             }
             sw.Stop();
@@ -51,11 +58,13 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void DirectStructSum() {
+        public void DirectStructSum()
+        {
             var sw = new Stopwatch();
             sw.Start();
             long sum = 0;
-            for (var i = 0; i < 100000000; i++) {
+            for (var i = 0; i < 100000000; i++)
+            {
                 var str = new SingleValue<int>(i);
                 sum += str.Value;
             }
@@ -65,11 +74,13 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void DirectClassSum() {
+        public void DirectClassSum()
+        {
             var sw = new Stopwatch();
             sw.Start();
             long sum = 0;
-            for (var i = 0; i < 100000000; i++) {
+            for (var i = 0; i < 100000000; i++)
+            {
                 var str = new SingleValueClass<int>(i);
                 sum += str.Value;
             }
@@ -79,19 +90,24 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void SingleEnumerableWithYieldForEachManyTimes() {
-            for (int i = 0; i < 5; i++) {
+        public void SingleEnumerableWithYieldForEachManyTimes()
+        {
+            for (int i = 0; i < 5; i++)
+            {
                 SingleEnumerableWithYieldForEach();
             }
         }
 
         [Test, Ignore]
-        public void SingleEnumerableWithYieldForEach() {
+        public void SingleEnumerableWithYieldForEach()
+        {
             var sw = new Stopwatch();
             sw.Start();
             long sum = 0;
-            for (var i = 0; i < 100000000; i++) {
-                foreach (var single in SingleEumerable<int>.Get(i)) {
+            for (var i = 0; i < 100000000; i++)
+            {
+                foreach (var single in SingleEumerable<int>.Get(i))
+                {
                     sum += single;
                 }
             }
@@ -101,11 +117,13 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void SingleEnumerableWithYieldLinq() {
+        public void SingleEnumerableWithYieldLinq()
+        {
             var sw = new Stopwatch();
             sw.Start();
             long sum = 0;
-            for (var i = 0; i < 100000000; i++) {
+            for (var i = 0; i < 100000000; i++)
+            {
                 sum = SingleEumerable<int>.Get(i).Aggregate(sum, (current, single) => current + single);
             }
             sw.Stop();
@@ -114,8 +132,10 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void SingleSequenceStructForEachManyTimes() {
-            for (int i = 0; i < 20; i++) {
+        public void SingleSequenceStructForEachManyTimes()
+        {
+            for (int i = 0; i < 20; i++)
+            {
                 SingleSequenceStructForEach();
             }
         }
@@ -123,12 +143,15 @@ namespace Spreads.Core.Tests {
         // Fastest among seqs, but still 30x times slower than direct sum
         // 49 mops vs 37 mops, or c.30% faster
         [Test, Ignore]
-        public void SingleSequenceStructForEach() {
+        public void SingleSequenceStructForEach()
+        {
             var sw = new Stopwatch();
             sw.Start();
             long sum = 0;
-            for (var i = 0; i < 100000000; i++) {
-                foreach (var single in new SingleSequence<int>(i)) {
+            for (var i = 0; i < 100000000; i++)
+            {
+                foreach (var single in new SingleSequence<int>(i))
+                {
                     sum += single;
                 }
             }
@@ -138,13 +161,16 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void SingleSequenceStructReusedForEach() {
+        public void SingleSequenceStructReusedForEach()
+        {
             var sw = new Stopwatch();
             sw.Start();
             long sum = 0;
             var st = new SingleSequence<int>(1);
-            for (var i = 0; i < 100000000; i++) {
-                foreach (var single in st) {
+            for (var i = 0; i < 100000000; i++)
+            {
+                foreach (var single in st)
+                {
                     sum += single;
                 }
             }
@@ -154,11 +180,13 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void SingleSequenceStructLinq() {
+        public void SingleSequenceStructLinq()
+        {
             var sw = new Stopwatch();
             sw.Start();
             long sum = 0;
-            for (var i = 0; i < 100000000; i++) {
+            for (var i = 0; i < 100000000; i++)
+            {
                 sum = new SingleSequence<int>(i).Aggregate(sum, (current, single) => current + single);
             }
             sw.Stop();
@@ -168,12 +196,15 @@ namespace Spreads.Core.Tests {
 
         //Enumerable.Repeat("abc",1);
         [Test, Ignore]
-        public void SingleLinqRepeatForEach() {
+        public void SingleLinqRepeatForEach()
+        {
             var sw = new Stopwatch();
             sw.Start();
             long sum = 0;
-            for (var i = 0; i < 100000000; i++) {
-                foreach (var single in Enumerable.Repeat(i, 1)) {
+            for (var i = 0; i < 100000000; i++)
+            {
+                foreach (var single in Enumerable.Repeat(i, 1))
+                {
                     sum += single;
                 }
             }
@@ -183,11 +214,13 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void SingleLinqRepeatLinq() {
+        public void SingleLinqRepeatLinq()
+        {
             var sw = new Stopwatch();
             sw.Start();
             long sum = 0;
-            for (var i = 0; i < 100000000; i++) {
+            for (var i = 0; i < 100000000; i++)
+            {
                 sum = Enumerable.Repeat(i, 1).Aggregate(sum, (current, single) => current + single);
             }
             sw.Stop();

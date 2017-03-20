@@ -8,14 +8,15 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace Spreads.Buffers {
-
+namespace Spreads.Buffers
+{
     // we will use this eventually for SM key sharing, but start with
     // switching b/w ThreadStatic and pooled buffers
     [StructLayout(LayoutKind.Sequential)]
-    public struct BufferWrapper<T> : IDisposable {
-
-        public BufferWrapper(T[] buffer, bool isPooled = false) {
+    public struct BufferWrapper<T> : IDisposable
+    {
+        public BufferWrapper(T[] buffer, bool isPooled = false)
+        {
             _buffer = buffer;
             _isPooled = isPooled;
             _isDisposed = false;
@@ -42,7 +43,8 @@ namespace Spreads.Buffers {
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private Counter EnsureCounterCreated() {
+        private Counter EnsureCounterCreated()
+        {
             Interlocked.CompareExchange(ref _counter, new Counter(), null);
             return _counter;
         }
@@ -53,7 +55,8 @@ namespace Spreads.Buffers {
         // buffer return from a finalizer
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int SubRent() {
+        public int SubRent()
+        {
             var tenants = Counter.Increment();
             // That situation was possibe if we decremented
             if (tenants == 0 || _isDisposed) throw new InvalidOperationException("Cannot subrent without an owner: it must be present during subrent");
@@ -61,25 +64,32 @@ namespace Spreads.Buffers {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Return() {
+        public int Return()
+        {
             var tenants = Counter.Decrement();
             if (tenants >= 0) return tenants;
 
             // no subletters and we are releasing the buffer
             _isDisposed = true;
-            if (_isPooled) {
+            if (_isPooled)
+            {
                 ArrayPool<T>.Shared.Return(_buffer, true);
             }
             return tenants;
         }
 
-        public void Dispose() {
-            if (Volatile.Read(ref _counter) == null) {
+        public void Dispose()
+        {
+            if (Volatile.Read(ref _counter) == null)
+            {
                 _isDisposed = true;
-                if (_isPooled) {
+                if (_isPooled)
+                {
                     ArrayPool<T>.Shared.Return(_buffer, true);
                 }
-            } else {
+            }
+            else
+            {
                 Return();
             }
         }

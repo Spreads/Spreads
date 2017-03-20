@@ -7,30 +7,35 @@ using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters;
 
-namespace Spreads.Serialization {
-
+namespace Spreads.Serialization
+{
     /// <summary>
     /// Extensions for JSON.NET
     /// </summary>
-    public static class JsonExtensions {
+    public static class JsonExtensions
+    {
         private static readonly JsonSerializer Serializer = new JsonSerializer();
         private static JsonSerializer _messageSerializer;
         private static MessageConverter _messageConverter;
 
-        static JsonExtensions() {
+        static JsonExtensions()
+        {
         }
 
         /// <summary>
         ///
         /// </summary>
-        public static T FromJson<T>(this string json) {
-            var obj = JsonConvert.DeserializeObject<T>(json, new JsonSerializerSettings {
+        public static T FromJson<T>(this string json)
+        {
+            var obj = JsonConvert.DeserializeObject<T>(json, new JsonSerializerSettings
+            {
                 TypeNameHandling = TypeNameHandling.None
             });
             return obj;
         }
 
-        internal static IMessage FromJson(this string json) {
+        internal static IMessage FromJson(this string json)
+        {
             var obj = JsonConvert.DeserializeObject<IMessage>(json, _messageConverter);
             return obj;
         }
@@ -38,8 +43,10 @@ namespace Spreads.Serialization {
         /// <summary>
         ///
         /// </summary>
-        public static object FromJson(this string json, Type type) {
-            var obj = JsonConvert.DeserializeObject(json, type, new JsonSerializerSettings {
+        public static object FromJson(this string json, Type type)
+        {
+            var obj = JsonConvert.DeserializeObject(json, type, new JsonSerializerSettings
+            {
                 TypeNameHandling = TypeNameHandling.None,
                 // NB this is important for correctness and performance
                 // Transaction could have many null properties
@@ -51,9 +58,11 @@ namespace Spreads.Serialization {
         /// <summary>
         ///
         /// </summary>
-        public static string ToJson<T>(this T obj) {
+        public static string ToJson<T>(this T obj)
+        {
             var message = JsonConvert.SerializeObject(obj, Formatting.None,
-                new JsonSerializerSettings {
+                new JsonSerializerSettings
+                {
                     TypeNameHandling = TypeNameHandling.None, // Objects
                     TypeNameAssemblyFormat = FormatterAssemblyStyle.Simple,
                     // NB this is important for correctness and performance
@@ -66,9 +75,11 @@ namespace Spreads.Serialization {
         /// <summary>
         /// Returns indented JSON
         /// </summary>
-        public static string ToJsonFormatted<T>(this T obj) {
+        public static string ToJsonFormatted<T>(this T obj)
+        {
             var message = JsonConvert.SerializeObject(obj, Formatting.Indented,
-                new JsonSerializerSettings {
+                new JsonSerializerSettings
+                {
                     TypeNameHandling = TypeNameHandling.None, // Objects
                     TypeNameAssemblyFormat = FormatterAssemblyStyle.Simple,
                     // NB this is important for correctness and performance
@@ -78,11 +89,13 @@ namespace Spreads.Serialization {
             return message;
         }
 
-        public static MemoryStream WriteJson<T>(this T value) {
+        public static MemoryStream WriteJson<T>(this T value)
+        {
             return BinarySerializer.Json.Serialize<T>(value);
         }
 
-        public static T ReadJson<T>(this MemoryStream stream) {
+        public static T ReadJson<T>(this MemoryStream stream)
+        {
             return BinarySerializer.Json.Deserialize<T>(stream);
         }
     }

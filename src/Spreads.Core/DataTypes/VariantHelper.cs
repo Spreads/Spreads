@@ -4,12 +4,13 @@
 
 using Spreads.Serialization;
 using System;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.DataTypes {
-
-    internal class VariantHelper<T> {
-
+namespace Spreads.DataTypes
+{
+    internal class VariantHelper<T>
+    {
         // ReSharper disable once StaticMemberInGenericType
         public static TypeEnum TypeEnum = GetTypeEnum();
 
@@ -24,7 +25,8 @@ namespace Spreads.DataTypes {
         */
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static TypeEnum GetTypeEnum() {
+        private static TypeEnum GetTypeEnum()
+        {
             // TODO check if return is the same as if else and the pattern above holds
 
             if (typeof(T) == typeof(bool)) { return TypeEnum.Bool; }
@@ -53,7 +55,7 @@ namespace Spreads.DataTypes {
             if (typeof(T).IsArray) return TypeEnum.Array;
 
             if (typeof(T) == typeof(Table)) return TypeEnum.Table;
-            if (typeof(T).IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Matrix<>)) return TypeEnum.Matrix;
+            if (typeof(T).GetTypeInfo().IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Matrix<>)) return TypeEnum.Matrix;
 
             // TODO known types, otherwise will fallback to fixed binary
 
@@ -68,12 +70,15 @@ namespace Spreads.DataTypes {
         private static int _elementType = -1;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static TypeEnum GetElementTypeEnum() {
-            if (_elementType != -1) {
+        internal static TypeEnum GetElementTypeEnum()
+        {
+            if (_elementType != -1)
+            {
                 return (TypeEnum)(byte)_elementType;
             }
             var ty = typeof(T);
-            if (ty.IsArray) {
+            if (ty.IsArray)
+            {
                 var elTy = ty.GetElementType();
                 var elTypeEnum = VariantHelper.GetTypeEnum(elTy);
                 _elementType = (int)elTypeEnum;
@@ -83,9 +88,11 @@ namespace Spreads.DataTypes {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int GetElementTypeSize() {
+        internal static int GetElementTypeSize()
+        {
             var ty = typeof(T);
-            if (!ty.IsArray) {
+            if (!ty.IsArray)
+            {
                 ThrowHelper.ThrowInvalidOperationException_ForVariantTypeMissmatch();
             }
             var elTy = ty.GetElementType();
@@ -95,10 +102,11 @@ namespace Spreads.DataTypes {
         }
     }
 
-    public class VariantHelper {
-
+    public class VariantHelper
+    {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static TypeEnum GetTypeEnum(Type ty) {
+        internal static TypeEnum GetTypeEnum(Type ty)
+        {
             if (ty == typeof(bool)) return TypeEnum.Bool;
             if (ty == typeof(byte)) return TypeEnum.UInt8;
             if (ty == typeof(char)) return TypeEnum.UInt16; // as UInt16
@@ -127,7 +135,6 @@ namespace Spreads.DataTypes {
             if (ty == typeof(Matrix<>)) return TypeEnum.Matrix;
             if (ty == typeof(Table)) return TypeEnum.Table;
 
-
             // TODO known types, otherwise will fallback to fixed binary
 
 #pragma warning disable 618
@@ -140,94 +147,103 @@ namespace Spreads.DataTypes {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static Type GetType(TypeEnum typeEnum, TypeEnum subTypeEnum = TypeEnum.None) {
-            if (typeEnum == TypeEnum.Variant) {
+        internal static Type GetType(TypeEnum typeEnum, TypeEnum subTypeEnum = TypeEnum.None)
+        {
+            if (typeEnum == TypeEnum.Variant)
+            {
                 return typeof(Variant);
             }
 
-            if ((int)typeEnum < Variant.KnownSmallTypesLimit) {
-                switch (typeEnum) {
+            if ((int)typeEnum < Variant.KnownSmallTypesLimit)
+            {
+                switch (typeEnum)
+                {
                     case TypeEnum.Bool:
-                        return typeof(bool);
+                    return typeof(bool);
 
                     case TypeEnum.Int8:
-                        return typeof(sbyte);
+                    return typeof(sbyte);
 
                     case TypeEnum.Int16:
-                        return typeof(short);
+                    return typeof(short);
 
                     case TypeEnum.Int32:
-                        return typeof(int);
+                    return typeof(int);
 
                     case TypeEnum.Int64:
-                        return typeof(long);
+                    return typeof(long);
 
                     case TypeEnum.UInt8:
-                        return typeof(byte);
+                    return typeof(byte);
 
                     case TypeEnum.UInt16:
-                        return typeof(ushort);
+                    return typeof(ushort);
 
                     case TypeEnum.UInt32:
-                        return typeof(uint);
+                    return typeof(uint);
 
                     case TypeEnum.UInt64:
-                        return typeof(ulong);
+                    return typeof(ulong);
 
                     case TypeEnum.Float32:
-                        return typeof(float);
+                    return typeof(float);
 
                     case TypeEnum.Float64:
-                        return typeof(double);
+                    return typeof(double);
 
                     case TypeEnum.Decimal:
-                        return typeof(decimal);
+                    return typeof(decimal);
 
                     case TypeEnum.Price:
-                        return typeof(Price);
+                    return typeof(Price);
 
                     case TypeEnum.Money:
-                        throw new NotImplementedException();
-                        //return typeof(Money);
+                    throw new NotImplementedException();
+                    //return typeof(Money);
 
                     case TypeEnum.DateTime:
-                        return typeof(DateTime);
+                    return typeof(DateTime);
 
                     case TypeEnum.Timestamp:
-                        return typeof(Timestamp);
+                    return typeof(Timestamp);
 
                     case TypeEnum.Date:
-                        throw new NotImplementedException();
+                    throw new NotImplementedException();
                     case TypeEnum.Time:
-                        throw new NotImplementedException();
+                    throw new NotImplementedException();
                     case TypeEnum.Complex32:
-                        throw new NotImplementedException();
+                    throw new NotImplementedException();
                     case TypeEnum.Complex64:
-                        throw new NotImplementedException();
+                    throw new NotImplementedException();
                     default:
-                        throw new ArgumentOutOfRangeException();
+                    throw new ArgumentOutOfRangeException();
                 }
             }
 
-            if (typeEnum == TypeEnum.Array) {
+            if (typeEnum == TypeEnum.Array)
+            {
                 var elementType = GetType(subTypeEnum);
                 return elementType.MakeArrayType();
             }
 
-            if (typeEnum == TypeEnum.Matrix) {
+            if (typeEnum == TypeEnum.Matrix)
+            {
                 var elementType = GetType(subTypeEnum);
                 return typeof(Table).MakeGenericType(elementType);
             }
 
-            if (typeEnum == TypeEnum.Table) {
+            if (typeEnum == TypeEnum.Table)
+            {
                 return typeof(Table);
             }
 
-            if (typeEnum == TypeEnum.String) {
+            if (typeEnum == TypeEnum.String)
+            {
                 return typeof(string);
             }
 
-            if (typeEnum == TypeEnum.ErrorCode) {
+            if (typeEnum == TypeEnum.ErrorCode)
+            {
                 return typeof(Exception);
             }
 

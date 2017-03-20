@@ -7,7 +7,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace Spreads.Buffers {
+namespace Spreads.Buffers
+{
     // TODO pinning of arrays is only needed when
     //  - DirectBuffer property is accessed
     //  - Unmanaged Accessor/Stream is created
@@ -15,14 +16,17 @@ namespace Spreads.Buffers {
     // TODO add back all read/write methods from DB, and use fixed where possible instead of pinning
     // The Move(*byte) method should work without pinning but using fixed()
 
-    internal class UnpinWhenGCed {
+    internal class UnpinWhenGCed
+    {
         internal readonly GCHandle PinnedGCHandle;
 
-        public UnpinWhenGCed(GCHandle pinnedGCHandle) {
+        public UnpinWhenGCed(GCHandle pinnedGCHandle)
+        {
             PinnedGCHandle = pinnedGCHandle;
         }
 
-        ~UnpinWhenGCed() {
+        ~UnpinWhenGCed()
+        {
             PinnedGCHandle.Free();
         }
     }
@@ -30,7 +34,8 @@ namespace Spreads.Buffers {
     /// <summary>
     /// Provides read/write opertaions on a byte buffer that is fixed in memory.
     /// </summary>
-    public unsafe struct FixedBuffer : IDirectBuffer {
+    public unsafe struct FixedBuffer : IDirectBuffer
+    {
 #if PRERELEASE
 
         static FixedBuffer() {
@@ -59,7 +64,8 @@ namespace Spreads.Buffers {
         /// <param name="buffer">buffer to which the view is attached.</param>
         /// <param name="offset"></param>
         /// <param name="length"></param>
-        public FixedBuffer(byte[] buffer, int offset = 0, int length = 0) {
+        public FixedBuffer(byte[] buffer, int offset = 0, int length = 0)
+        {
             if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
             if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
             if (length + offset > buffer.Length) throw new ArgumentException("Length plus offset exceed capacity");
@@ -84,7 +90,8 @@ namespace Spreads.Buffers {
         //    _unpinner = null;
         //}
 
-        private void PinBuffer() {
+        private void PinBuffer()
+        {
             // we postpone pinning array as much as possible
             // whenever this struct is copied by value, a reference to
             // unpinner is copied with it, so there is no way to manually unpin
@@ -95,7 +102,8 @@ namespace Spreads.Buffers {
         /// <summary>
         /// Copy this buffer to a pointer
         /// </summary>
-        public void Copy(IntPtr destination, long srcOffset, long length) {
+        public void Copy(IntPtr destination, long srcOffset, long length)
+        {
             if (srcOffset + length > _buffer.Length) throw new ArgumentException("srcOffset + length > _buffer.Length");
             Marshal.Copy(_buffer, (int)srcOffset, destination, (int)length);
         }
@@ -103,17 +111,20 @@ namespace Spreads.Buffers {
         /// <summary>
         /// Copy data and move the fixed buffer to the new location
         /// </summary>
-        public IDirectBuffer Move(IntPtr destination, long srcOffset, long length) {
+        public IDirectBuffer Move(IntPtr destination, long srcOffset, long length)
+        {
             if (srcOffset + length > _buffer.Length) throw new ArgumentException("srcOffset + length > _buffer.Length");
             Marshal.Copy(_buffer, (int)srcOffset, destination, (int)length);
             return new DirectBuffer(length, destination);
         }
 
-        public void Copy(byte[] destination, int srcOffset, int destOffset, int length) {
+        public void Copy(byte[] destination, int srcOffset, int destOffset, int length)
+        {
             Array.Copy(_buffer, srcOffset, destination, destOffset, length);
         }
 
-        public IDirectBuffer Move(byte[] destination, int srcOffset, int destOffset, int length) {
+        public IDirectBuffer Move(byte[] destination, int srcOffset, int destOffset, int length)
+        {
             Array.Copy(_buffer, srcOffset, destination, destOffset, length);
             return new FixedBuffer(destination);
         }
@@ -131,8 +142,10 @@ namespace Spreads.Buffers {
         /// <summary>
         /// Fix a buffer only for the execution of the func
         /// </summary>
-        public T Fixed<T>(Func<DirectBuffer, T> function) {
-            fixed (byte* ptr = &_buffer[_offset]) {
+        public T Fixed<T>(Func<DirectBuffer, T> function)
+        {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return function(new DirectBuffer(_length, (IntPtr)ptr));
             }
         }
@@ -140,18 +153,23 @@ namespace Spreads.Buffers {
         /// <summary>
         /// Fix a buffer only for the execution of the func
         /// </summary>
-        public void Fixed(Action<DirectBuffer> action) {
-            fixed (byte* ptr = &_buffer[_offset]) {
+        public void Fixed(Action<DirectBuffer> action)
+        {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 action(new DirectBuffer(_length, (IntPtr)ptr));
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void Assert(long index, int length) {
-            if (index + length > _length) {
+        private void Assert(long index, int length)
+        {
+            if (index + length > _length)
+            {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
-            if (index < 0) {
+            if (index < 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
         }
@@ -161,9 +179,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        public char ReadChar(long index) {
+        public char ReadChar(long index)
+        {
             Assert(index, 1);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return *((char*)ptr + index);
             }
         }
@@ -173,9 +193,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        public void WriteChar(long index, char value) {
+        public void WriteChar(long index, char value)
+        {
             Assert(index, 1);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 *((byte*)ptr + index) = (byte)value;
             }
         }
@@ -185,9 +207,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        public sbyte ReadSByte(long index) {
+        public sbyte ReadSByte(long index)
+        {
             Assert(index, 1);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return *(sbyte*)(ptr + index);
             }
         }
@@ -197,9 +221,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        public void WriteSByte(long index, sbyte value) {
+        public void WriteSByte(long index, sbyte value)
+        {
             Assert(index, 1);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 *(sbyte*)(ptr + index) = value;
             }
         }
@@ -209,9 +235,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        public byte ReadByte(long index) {
+        public byte ReadByte(long index)
+        {
             Assert(index, 1);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return *((byte*)ptr + index);
             }
         }
@@ -221,9 +249,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        public void WriteByte(long index, byte value) {
+        public void WriteByte(long index, byte value)
+        {
             Assert(index, 1);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 *((byte*)ptr + index) = value;
             }
         }
@@ -233,14 +263,16 @@ namespace Spreads.Buffers {
             get
             {
                 Assert(index, 1);
-                fixed (byte* ptr = &_buffer[_offset]) {
+                fixed (byte* ptr = &_buffer[_offset])
+                {
                     return *((byte*)ptr + index);
                 }
             }
             set
             {
                 Assert(index, 1);
-                fixed (byte* ptr = &_buffer[_offset]) {
+                fixed (byte* ptr = &_buffer[_offset])
+                {
                     *((byte*)ptr + index) = value;
                 }
             }
@@ -251,9 +283,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        public short ReadInt16(long index) {
+        public short ReadInt16(long index)
+        {
             Assert(index, 2);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return *(short*)(ptr + index);
             }
         }
@@ -263,9 +297,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        public void WriteInt16(long index, short value) {
+        public void WriteInt16(long index, short value)
+        {
             Assert(index, 2);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 *(short*)(ptr + index) = value;
             }
         }
@@ -275,9 +311,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        public int ReadInt32(long index) {
+        public int ReadInt32(long index)
+        {
             Assert(index, 4);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return *(int*)(ptr + index);
             }
         }
@@ -287,107 +325,137 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        public void WriteInt32(long index, int value) {
+        public void WriteInt32(long index, int value)
+        {
             Assert(index, 4);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 *(int*)(ptr + index) = value;
             }
         }
 
-        public int VolatileReadInt32(long index) {
+        public int VolatileReadInt32(long index)
+        {
             Assert(index, 4);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return Volatile.Read(ref *(int*)(ptr + index));
             }
         }
 
-        public void VolatileWriteInt32(long index, int value) {
+        public void VolatileWriteInt32(long index, int value)
+        {
             Assert(index, 4);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 Volatile.Write(ref *(int*)(ptr + index), value);
             }
         }
 
-        public long VolatileReadInt64(long index) {
+        public long VolatileReadInt64(long index)
+        {
             Assert(index, 8);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return Volatile.Read(ref *(int*)(ptr + index));
             }
         }
 
-        public void VolatileWriteInt64(long index, long value) {
+        public void VolatileWriteInt64(long index, long value)
+        {
             Assert(index, 8);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 Volatile.Write(ref *(long*)(ptr + index), value);
             }
         }
 
-        public int InterlockedIncrementInt32(long index) {
+        public int InterlockedIncrementInt32(long index)
+        {
             Assert(index, 4);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return Interlocked.Increment(ref *(int*)(ptr + index));
             }
         }
 
-        public int InterlockedDecrementInt32(long index) {
+        public int InterlockedDecrementInt32(long index)
+        {
             Assert(index, 4);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return Interlocked.Decrement(ref *(int*)(ptr + index));
             }
         }
 
-        public int InterlockedAddInt32(long index, int value) {
+        public int InterlockedAddInt32(long index, int value)
+        {
             Assert(index, 4);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return Interlocked.Add(ref *(int*)(ptr + index), value);
             }
         }
 
-        public int InterlockedReadInt32(long index) {
+        public int InterlockedReadInt32(long index)
+        {
             Assert(index, 4);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return Interlocked.Add(ref *(int*)(ptr + index), 0);
             }
         }
 
-        public int InterlockedCompareExchangeInt32(long index, int value, int comparand) {
+        public int InterlockedCompareExchangeInt32(long index, int value, int comparand)
+        {
             Assert(index, 4);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return Interlocked.CompareExchange(ref *(int*)(ptr + index), value, comparand);
             }
         }
 
-        public long InterlockedIncrementInt64(long index) {
+        public long InterlockedIncrementInt64(long index)
+        {
             Assert(index, 8);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return Interlocked.Increment(ref *(long*)(ptr + index));
             }
         }
 
-        public long InterlockedDecrementInt64(long index) {
+        public long InterlockedDecrementInt64(long index)
+        {
             Assert(index, 8);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return Interlocked.Decrement(ref *(long*)(ptr + index));
             }
         }
 
-        public long InterlockedAddInt64(long index, long value) {
+        public long InterlockedAddInt64(long index, long value)
+        {
             Assert(index, 8);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return Interlocked.Add(ref *(long*)(ptr + index), value);
             }
         }
 
-        public long InterlockedReadInt64(long index) {
+        public long InterlockedReadInt64(long index)
+        {
             Assert(index, 8);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return Interlocked.Add(ref *(long*)(ptr + index), 0);
             }
         }
 
-        public long InterlockedCompareExchangeInt64(long index, long value, long comparand) {
+        public long InterlockedCompareExchangeInt64(long index, long value, long comparand)
+        {
             Assert(index, 8);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return Interlocked.CompareExchange(ref *(long*)(ptr + index), value, comparand);
             }
         }
@@ -397,9 +465,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        public long ReadInt64(long index) {
+        public long ReadInt64(long index)
+        {
             Assert(index, 8);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return *(long*)(ptr + index);
             }
         }
@@ -409,9 +479,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        public void WriteInt64(long index, long value) {
+        public void WriteInt64(long index, long value)
+        {
             Assert(index, 8);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 *(long*)(ptr + index) = value;
             }
         }
@@ -421,9 +493,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        public ushort ReadUint16(long index) {
+        public ushort ReadUint16(long index)
+        {
             Assert(index, 2);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return *(ushort*)(ptr + index);
             }
         }
@@ -433,9 +507,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        public void WriteUint16(long index, ushort value) {
+        public void WriteUint16(long index, ushort value)
+        {
             Assert(index, 2);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 *(ushort*)(ptr + index) = value;
             }
         }
@@ -445,9 +521,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        public uint ReadUint32(long index) {
+        public uint ReadUint32(long index)
+        {
             Assert(index, 4);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return *(uint*)(ptr + index);
             }
         }
@@ -457,9 +535,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        public void WriteUint32(long index, uint value) {
+        public void WriteUint32(long index, uint value)
+        {
             Assert(index, 4);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 *(uint*)(ptr + index) = value;
             }
         }
@@ -469,9 +549,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        public ulong ReadUint64(long index) {
+        public ulong ReadUint64(long index)
+        {
             Assert(index, 8);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return *(ulong*)(ptr + index);
             }
         }
@@ -481,9 +563,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        public void WriteUint64(long index, ulong value) {
+        public void WriteUint64(long index, ulong value)
+        {
             Assert(index, 8);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 *(ulong*)(ptr + index) = value;
             }
         }
@@ -493,9 +577,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        public float ReadFloat(long index) {
+        public float ReadFloat(long index)
+        {
             Assert(index, 4);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return *(float*)(ptr + index);
             }
         }
@@ -505,9 +591,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        public void WriteFloat(long index, float value) {
+        public void WriteFloat(long index, float value)
+        {
             Assert(index, 4);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 *(float*)(ptr + index) = value;
             }
         }
@@ -517,9 +605,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
-        public double ReadDouble(long index) {
+        public double ReadDouble(long index)
+        {
             Assert(index, 8);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return *(double*)(ptr + index);
             }
         }
@@ -529,9 +619,11 @@ namespace Spreads.Buffers {
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        public void WriteDouble(long index, double value) {
+        public void WriteDouble(long index, double value)
+        {
             Assert(index, 8);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 *(double*)(ptr + index) = value;
             }
         }
@@ -545,23 +637,30 @@ namespace Spreads.Buffers {
         /// <param name="len">length of the supplied buffer to use.</param>
         /// <returns>count of bytes copied.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // TODO test if that has an impact
-        public int ReadBytes(long index, byte[] destination, int offsetDestination, int len) {
-            fixed (byte* ptr = &_buffer[_offset]) {
+        public int ReadBytes(long index, byte[] destination, int offsetDestination, int len)
+        {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 if (len > this._length - index) throw new ArgumentException("length > _capacity - index");
                 Marshal.Copy((IntPtr)(ptr + index), destination, offsetDestination, len);
                 return len;
             }
         }
 
-        public int ReadAllBytes(byte[] destination) {
-            fixed (byte* ptr = &_buffer[_offset]) {
-                if (_length > int.MaxValue) {
+        public int ReadAllBytes(byte[] destination)
+        {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
+                if (_length > int.MaxValue)
+                {
                     // TODO (low) .NET already supports arrays larger than 2 Gb,
                     // but Marshal.Copy doesn't accept long as a parameter
                     // Use memcpy and fixed() over an empty large array
                     throw new NotImplementedException(
                         "Buffer length is larger than the maximum size of a byte array.");
-                } else {
+                }
+                else
+                {
                     Marshal.Copy((IntPtr)(ptr), destination, 0, (int)_length);
                     return (int)_length;
                 }
@@ -577,9 +676,11 @@ namespace Spreads.Buffers {
         /// <param name="len">length of the supplied buffer to copy.</param>
         /// <returns>count of bytes copied.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // TODO test if that has an impact
-        public int WriteBytes(long index, byte[] src, int offset, int len) {
+        public int WriteBytes(long index, byte[] src, int offset, int len)
+        {
             Assert(index, len);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 int count = Math.Min(len, (int)(this._length - index));
                 Marshal.Copy(src, offset, (IntPtr)(ptr + index), count);
                 return count;
@@ -587,35 +688,44 @@ namespace Spreads.Buffers {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Clear(long index, int len) {
+        public void Clear(long index, int len)
+        {
             Assert(index, len);
             Array.Clear(_buffer, (int)index, len);
         }
 
-        public UUID ReadUUID(long index) {
+        public UUID ReadUUID(long index)
+        {
             Assert(index, 16);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return *(UUID*)(ptr + index);
             }
         }
 
-        public void WriteUUID(long index, UUID value) {
+        public void WriteUUID(long index, UUID value)
+        {
             Assert(index, 16);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 *(UUID*)(ptr + index) = value;
             }
         }
 
-        public int ReadAsciiDigit(long index) {
+        public int ReadAsciiDigit(long index)
+        {
             Assert(index, 1);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 return (*((byte*)ptr + index)) - '0';
             }
         }
 
-        public void WriteAsciiDigit(long index, int value) {
+        public void WriteAsciiDigit(long index, int value)
+        {
             Assert(index, 1);
-            fixed (byte* ptr = &_buffer[_offset]) {
+            fixed (byte* ptr = &_buffer[_offset])
+            {
                 *(byte*)(ptr + index) = (byte)(value + '0');
             }
         }
@@ -627,22 +737,25 @@ namespace Spreads.Buffers {
         ///
         /// </summary>
         /// <returns></returns>
-        public SafeBuffer CreateSafeBuffer() {
+        public SafeBuffer CreateSafeBuffer()
+        {
             return new SafeFixedBuffer(ref this);
         }
 
         // NB SafeBuffer Read<> is very slow compared to DirectBuffer unsafe methods
         // Use SafeBuffer only when explicitly requested
-        internal sealed class SafeFixedBuffer : SafeBuffer {
-
-            public SafeFixedBuffer(ref FixedBuffer fixedBuffer) : base(false) {
+        internal sealed class SafeFixedBuffer : SafeBuffer
+        {
+            public SafeFixedBuffer(ref FixedBuffer fixedBuffer) : base(false)
+            {
                 var fixedBuffer1 = fixedBuffer;
                 fixedBuffer1.PinBuffer();
                 base.SetHandle(new IntPtr(fixedBuffer1._unpinner.PinnedGCHandle.AddrOfPinnedObject().ToInt64() + fixedBuffer1._offset));
                 base.Initialize((uint)fixedBuffer1._length);
             }
 
-            protected override bool ReleaseHandle() {
+            protected override bool ReleaseHandle()
+            {
                 return true;
             }
         }

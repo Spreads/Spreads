@@ -1,9 +1,11 @@
 ﻿// Copyright (c) 2017, Marc Gravell https://github.com/mgravell/fast-member
 using System;
-#if !NO_DYNAMIC
-using System.Dynamic;
-#endif
 
+#if !NO_DYNAMIC
+
+using System.Dynamic;
+
+#endif
 
 namespace Spreads.Utils.FastMember
 {
@@ -16,10 +18,12 @@ namespace Spreads.Utils.FastMember
         /// Get or Set the value of a named member for the underlying object
         /// </summary>
         public abstract object this[string name] { get; set; }
+
         /// <summary>
         /// The object represented by this instance
         /// </summary>
         public abstract object Target { get; }
+
         /// <summary>
         /// Use the target types definition of equality
         /// </summary>
@@ -27,6 +31,7 @@ namespace Spreads.Utils.FastMember
         {
             return Target.Equals(obj);
         }
+
         /// <summary>
         /// Obtain the hash of the target object
         /// </summary>
@@ -34,6 +39,7 @@ namespace Spreads.Utils.FastMember
         {
             return Target.GetHashCode();
         }
+
         /// <summary>
         /// Use the target's definition of a string representation
         /// </summary>
@@ -49,6 +55,7 @@ namespace Spreads.Utils.FastMember
         {
             return Create(target, false);
         }
+
         /// <summary>
         /// Wraps an individual object, allowing by-name access to that instance
         /// </summary>
@@ -61,45 +68,53 @@ namespace Spreads.Utils.FastMember
 #endif
             return new TypeAccessorWrapper(target, TypeAccessor.Create(target.GetType(), allowNonPublicAccessors));
         }
-        sealed class TypeAccessorWrapper : ObjectAccessor
+
+        private sealed class TypeAccessorWrapper : ObjectAccessor
         {
             private readonly object target;
             private readonly TypeAccessor accessor;
+
             public TypeAccessorWrapper(object target, TypeAccessor accessor)
             {
                 this.target = target;
                 this.accessor = accessor;
             }
+
             public override object this[string name]
             {
                 get { return accessor[target, name]; }
                 set { accessor[target, name] = value; }
             }
+
             public override object Target
             {
                 get { return target; }
             }
         }
+
 #if !NO_DYNAMIC
-        sealed class DynamicWrapper : ObjectAccessor
+
+        private sealed class DynamicWrapper : ObjectAccessor
         {
             private readonly IDynamicMetaObjectProvider target;
+
             public override object Target
             {
                 get { return target; }
             }
+
             public DynamicWrapper(IDynamicMetaObjectProvider target)
             {
                 this.target = target;
             }
+
             public override object this[string name]
             {
                 get { return CallSiteCache.GetValue(name, target); }
                 set { CallSiteCache.SetValue(name, target, value); }
             }
-
         }
+
 #endif
     }
-
 }

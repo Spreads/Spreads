@@ -2,28 +2,29 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 
-namespace Spreads.Utils {
-
-    public class ChaosMonkeyException : Exception {
-
+namespace Spreads.Utils
+{
+    public class ChaosMonkeyException : Exception
+    {
     }
 
     /// <summary>
     /// When CHAOS_MONKEY conditional-compilation directive is set,
     /// calling the methods will raise an error with a given probability
     /// </summary>
-    public static class ChaosMonkey {
+    public static class ChaosMonkey
+    {
 #if CHAOS_MONKEY
         public const bool Enabled = true;
 #else
         public const bool Enabled = false;
 #endif
+
         [ThreadStatic]
         private static Random _rng;
 
@@ -47,12 +48,14 @@ namespace Spreads.Utils {
         public static Dictionary<string, object> TraceData => _traceData;
 
         [Conditional("CHAOS_MONKEY")]
-        public static void SetTraceData(string key, object value) {
+        public static void SetTraceData(string key, object value)
+        {
             _traceData[key] = value;
         }
 
         [Conditional("CHAOS_MONKEY")]
-        public static void OutOfMemory(double probability = 0.0) {
+        public static void OutOfMemory(double probability = 0.0)
+        {
             if (Force) { probability = 1.0; }
             if (probability == 0.0) return;
             if (_rng == null) _rng = new Random();
@@ -62,7 +65,8 @@ namespace Spreads.Utils {
         }
 
         [Conditional("CHAOS_MONKEY")]
-        public static void StackOverFlow(double probability = 0.0) {
+        public static void StackOverFlow(double probability = 0.0)
+        {
             if (Force) { probability = 1.0; }
             if (probability == 0.0) return;
             if (_rng == null) _rng = new Random();
@@ -75,9 +79,9 @@ namespace Spreads.Utils {
 #endif
         }
 
-
         [Conditional("CHAOS_MONKEY")]
-        public static void Exception(double probability = 0.0, int scenario = 0) {
+        public static void Exception(double probability = 0.0, int scenario = 0)
+        {
             if (Force) { probability = 1.0; }
             if (probability == 0.0) return;
             if (scenario > 0 && scenario != Scenario) return;
@@ -89,7 +93,8 @@ namespace Spreads.Utils {
         }
 
         [Conditional("CHAOS_MONKEY")]
-        public static void ThreadAbort(double probability = 0.0) {
+        public static void ThreadAbort(double probability = 0.0)
+        {
             if (Force) { probability = 1.0; }
             if (probability == 0.0) return;
             if (_rng == null) _rng = new Random();
@@ -103,7 +108,8 @@ namespace Spreads.Utils {
         }
 
         [Conditional("CHAOS_MONKEY")]
-        public static void Slowpoke(double probability = 0.0) {
+        public static void Slowpoke(double probability = 0.0)
+        {
             if (Force) { probability = 1.0; }
             if (probability == 0.0) return;
             if (_rng == null) _rng = new Random();
@@ -113,23 +119,25 @@ namespace Spreads.Utils {
         }
 
         [Conditional("CHAOS_MONKEY")]
-        public static void Chaos(double probability = 0.0) {
+        public static void Chaos(double probability = 0.0)
+        {
             if (Force) { probability = 1.0; }
             if (probability == 0.0) return;
             if (_rng == null) _rng = new Random();
             var rn = _rng.NextDouble();
             if (rn > probability) return;
             Force = false;
-            if (rn < probability / 3.0) {
+            if (rn < probability / 3.0)
+            {
                 throw new OutOfMemoryException();
             }
-            if (rn < probability * 2.0 / 3.0) {
+            if (rn < probability * 2.0 / 3.0)
+            {
 #if NET451
             throw new StackOverflowException();
 #else
                 throw new ChaosMonkeyException();
 #endif
-
             }
 #if NET451
             Thread.CurrentThread.Abort();

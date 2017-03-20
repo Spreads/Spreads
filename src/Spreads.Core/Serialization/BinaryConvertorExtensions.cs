@@ -15,7 +15,7 @@ namespace Spreads.Serialization
     internal static class BinaryConverterExtensions
     {
         /// <summary>
-        /// 
+        ///
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int WriteAsPtr<T>(this MemoryStream stream, T value)

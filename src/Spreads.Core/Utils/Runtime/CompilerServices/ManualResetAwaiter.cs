@@ -7,9 +7,10 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads.Experimental.Utils.Runtime.CompilerServices {
-
-    public sealed class ManualResetAwaiter : IAwaiter<bool> {
+namespace Spreads.Experimental.Utils.Runtime.CompilerServices
+{
+    public sealed class ManualResetAwaiter : IAwaiter<bool>
+    {
         private readonly bool _runContinuationsAsynchronously;
 
         // TODO if it ever works, use a field for a single continuation as a special case,
@@ -18,7 +19,8 @@ namespace Spreads.Experimental.Utils.Runtime.CompilerServices {
 
         private long _result;
 
-        public ManualResetAwaiter(bool runContinuationsAsynchronously = true) {
+        public ManualResetAwaiter(bool runContinuationsAsynchronously = true)
+        {
             _runContinuationsAsynchronously = runContinuationsAsynchronously;
         }
 
@@ -29,35 +31,45 @@ namespace Spreads.Experimental.Utils.Runtime.CompilerServices {
         /// Consumers must check the returned value and retry if they received false
         /// </summary>
         /// <returns></returns>
-        public bool GetResult() {
+        public bool GetResult()
+        {
             var result = Interlocked.Decrement(ref _result);
-            if (result < 0) {
+            if (result < 0)
+            {
                 Interlocked.Increment(ref _result);
                 result = 0L;
             }
             return result > 0L;
         }
 
-        public long SignalResult() {
+        public long SignalResult()
+        {
             var result = Interlocked.Increment(ref _result);
             NotifyAwaiter(result);
             return result;
         }
 
-        private void NotifyAwaiter(long result) {
+        private void NotifyAwaiter(long result)
+        {
             if (result == 0L) return;
             Action c;
-            while (_continuations.TryDequeue(out c)) {
-                if (_runContinuationsAsynchronously) {
+            while (_continuations.TryDequeue(out c))
+            {
+                if (_runContinuationsAsynchronously)
+                {
                     Task.Run(c);
-                } else {
+                }
+                else
+                {
                     c();
                 }
             }
         }
 
-        public void OnCompleted(Action continuation) {
-            if (IsCompleted) {
+        public void OnCompleted(Action continuation)
+        {
+            if (IsCompleted)
+            {
                 Task.Run(continuation);
                 return;
             }
@@ -67,10 +79,12 @@ namespace Spreads.Experimental.Utils.Runtime.CompilerServices {
         public void UnsafeOnCompleted(Action continuation) => OnCompleted(continuation);
     }
 
-    internal class ManualResetAwaitable {
+    internal class ManualResetAwaitable
+    {
         public readonly ManualResetAwaiter Awaiter = new ManualResetAwaiter();
 
-        public ManualResetAwaiter GetAwaiter() {
+        public ManualResetAwaiter GetAwaiter()
+        {
             return Awaiter;
         }
     }

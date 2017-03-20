@@ -2,17 +2,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 namespace Spreads.Collections.Concurrent
 {
-    public interface IPoolable<T> where T : class, new() {
-
+    public interface IPoolable<T> where T : class, new()
+    {
         void Init();
 
         void Release();
     }
 
-    public interface IObjectPool<T> where T : class, IPoolable<T>, new() {
+    public interface IObjectPool<T> where T : class, IPoolable<T>, new()
+    {
         bool IsBounded { get; }
         int Capacity { get; }
         int Count { get; }

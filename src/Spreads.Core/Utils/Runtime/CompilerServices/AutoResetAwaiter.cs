@@ -8,31 +8,38 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads.Experimental.Utils.Runtime.CompilerServices {
+namespace Spreads.Experimental.Utils.Runtime.CompilerServices
+{
     /// <summary>Provides a reusable object that can be awaited by a consumer and manually completed by a producer.</summary>
     /// <typeparam name="TResult">The type of data being passed from producer to consumer.</typeparam>
-    public sealed class AutoResetAwaiter<TResult> : IAwaiter<TResult> where TResult : class {
+    public sealed class AutoResetAwaiter<TResult> : IAwaiter<TResult> where TResult : class
+    {
         /// <summary>Sentinel object indicating that the operation has completed prior to OnCompleted being called.</summary>
         private static readonly Action s_completionSentinel = () => Debug.Fail("Completion sentinel should never be invoked");
 
         /// <summary>true if the producer should invoke the continuation asynchronously; otherwise, false.</summary>
         private readonly bool _runContinuationsAsynchronously;
+
         /// <summary>
         /// The continuation to invoke when the operation completes, or <see cref="s_completionSentinel"/> if the operation
         /// has completed before OnCompleted is called.
         /// </summary>
         private Action _continuation;
+
         /// <summary>The exception representing the failed async operation, if it failed.</summary>
         private ExceptionDispatchInfo _error;
+
         /// <summary>The result of the async operation, if it succeeded.</summary>
         private TResult _result;
+
 #if DEBUG
         private bool _resultSet;
 #endif
 
         /// <summary>Iniitalize the awaiter.</summary>
         /// <param name="runContinuationsAsynchronously">true if the producer should invoke the continuation asynchronously; otherwise, false.</param>
-        public AutoResetAwaiter(bool runContinuationsAsynchronously = true) {
+        public AutoResetAwaiter(bool runContinuationsAsynchronously = true)
+        {
             _runContinuationsAsynchronously = runContinuationsAsynchronously;
         }
 
@@ -47,7 +54,8 @@ namespace Spreads.Experimental.Utils.Runtime.CompilerServices {
             }
         }
 
-        public TResult GetResult() {
+        public TResult GetResult()
+        {
             AssertResultConsistency(expectedCompleted: true);
 
             // Clear out the continuation to prepare for another use
@@ -57,7 +65,8 @@ namespace Spreads.Experimental.Utils.Runtime.CompilerServices {
             // Propagate any error if there is one, clearing it out first to prepare for reuse.
             // We don't need to clear a result, as result and error are mutually exclusive.
             ExceptionDispatchInfo error = _error;
-            if (error != null) {
+            if (error != null)
+            {
                 _error = null;
                 error.Throw();
             }
@@ -71,7 +80,8 @@ namespace Spreads.Experimental.Utils.Runtime.CompilerServices {
         }
 
         /// <summary>Set the result of the operation.</summary>
-        public TResult SetResult(TResult result) {
+        public TResult SetResult(TResult result)
+        {
             AssertResultConsistency(expectedCompleted: false);
             var previous = Interlocked.Exchange(ref _result, result);
 #if DEBUG
@@ -82,12 +92,14 @@ namespace Spreads.Experimental.Utils.Runtime.CompilerServices {
         }
 
         /// <summary>Set that the operation was canceled.</summary>
-        public void SetCanceled(CancellationToken token = default(CancellationToken)) {
+        public void SetCanceled(CancellationToken token = default(CancellationToken))
+        {
             SetException(token.IsCancellationRequested ? new OperationCanceledException(token) : new OperationCanceledException());
         }
 
         /// <summary>Set the failure for the operation.</summary>
-        public void SetException(Exception exception) {
+        public void SetException(Exception exception)
+        {
             Debug.Assert(exception != null);
             AssertResultConsistency(expectedCompleted: false);
 
@@ -96,25 +108,32 @@ namespace Spreads.Experimental.Utils.Runtime.CompilerServices {
         }
 
         /// <summary>Alerts any awaiter that the operation has completed.</summary>
-        private void NotifyAwaiter() {
+        private void NotifyAwaiter()
+        {
             Action c = _continuation ?? Interlocked.CompareExchange(ref _continuation, s_completionSentinel, null);
-            if (c != null) {
+            if (c != null)
+            {
                 Debug.Assert(c != s_completionSentinel);
 
-                if (_runContinuationsAsynchronously) {
+                if (_runContinuationsAsynchronously)
+                {
                     Task.Run(c);
-                } else {
+                }
+                else
+                {
                     c();
                 }
             }
         }
 
         /// <summary>Register the continuation to invoke when the operation completes.</summary>
-        public void OnCompleted(Action continuation) {
+        public void OnCompleted(Action continuation)
+        {
             Debug.Assert(continuation != null);
             MulticastDelegate multi = _continuation + continuation;
             Action c = _continuation ?? Interlocked.CompareExchange(ref _continuation, continuation, null);
-            if (c != null) {
+            if (c != null)
+            {
                 Debug.Assert(c == s_completionSentinel);
                 Task.Run(continuation);
             }
@@ -124,11 +143,15 @@ namespace Spreads.Experimental.Utils.Runtime.CompilerServices {
         public void UnsafeOnCompleted(Action continuation) => OnCompleted(continuation);
 
         [Conditional("DEBUG")]
-        private void AssertResultConsistency(bool expectedCompleted) {
+        private void AssertResultConsistency(bool expectedCompleted)
+        {
 #if DEBUG
-            if (expectedCompleted) {
+            if (expectedCompleted)
+            {
                 Debug.Assert(_resultSet ^ (_error != null));
-            } else {
+            }
+            else
+            {
                 Debug.Assert(!_resultSet && _error == null);
             }
 #endif

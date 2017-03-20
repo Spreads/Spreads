@@ -3,13 +3,14 @@ using Spreads.DataTypes;
 using System;
 using System.Runtime.Serialization;
 
-namespace Spreads.Tests.DataTypes {
-
+namespace Spreads.Tests.DataTypes
+{
     [TestFixture]
-    public class TypeFlattenerTests {
-
+    public class TypeFlattenerTests
+    {
         [Test]
-        public void CouldFlattenStructWithDataMembers() {
+        public void CouldFlattenStructWithDataMembers()
+        {
             var tick = new Tick(DateTime.UtcNow.Date, new Price(123.45), 4242);
             var flattener = new TypeFlattenner(tick.GetType());
             object[] values = null;
@@ -29,7 +30,8 @@ namespace Spreads.Tests.DataTypes {
         }
 
         [Test]
-        public void CouldFlattenScalar() {
+        public void CouldFlattenScalar()
+        {
             var price = new Price(123.45);
             var flattener = new TypeFlattenner(price.GetType());
             object[] values = null;
@@ -43,7 +45,8 @@ namespace Spreads.Tests.DataTypes {
         }
 
         [Test]
-        public void CouldFlattenDouble() {
+        public void CouldFlattenDouble()
+        {
             var dbl = 123.45;
             var flattener = new TypeFlattenner(dbl.GetType());
             object[] values = null;
@@ -56,14 +59,15 @@ namespace Spreads.Tests.DataTypes {
             Assert.AreEqual(123.45, values[0]);
         }
 
-        public class TestType {
+        public class TestType
+        {
             public int Number { get; set; }
             public string Text { get; set; }
             public Price Price { get; set; }
         }
 
-        public class TestTypeWithPartialOrder {
-
+        public class TestTypeWithPartialOrder
+        {
             [DataMember]
             public int Number { get; set; }
 
@@ -75,7 +79,8 @@ namespace Spreads.Tests.DataTypes {
         }
 
         [Test]
-        public void CouldFlattenCustomType() {
+        public void CouldFlattenCustomType()
+        {
             var value = new TestType { Number = 42, Text = "foo", Price = new Price(123.45) };
             var flattener = new TypeFlattenner(value.GetType());
             object[] values = null;
@@ -94,7 +99,8 @@ namespace Spreads.Tests.DataTypes {
         }
 
         [Test]
-        public void CouldFlattenCustomTypeWithPartialOrder() {
+        public void CouldFlattenCustomTypeWithPartialOrder()
+        {
             var value = new TestTypeWithPartialOrder { Number = 42, Text = "foo", Price = new Price(123.45) };
             var flattener = new TypeFlattenner(value.GetType());
             object[] values = null;

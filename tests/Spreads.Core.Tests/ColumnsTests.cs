@@ -10,9 +10,10 @@ using System;
 using System.Diagnostics;
 using Spreads.DataTypes;
 
-namespace Spreads.Core.Tests {
-
-    public class TestRow {
+namespace Spreads.Core.Tests
+{
+    public class TestRow
+    {
         public int Col1 { get; set; }
         public double Col2 { get; set; }
         public decimal Col3 { get; set; }
@@ -22,15 +23,18 @@ namespace Spreads.Core.Tests {
     }
 
     [TestFixture]
-    public class ColumnsTests {
-
+    public class ColumnsTests
+    {
         [Test, Ignore]
-        public void ColumnTest() {
+        public void ColumnTest()
+        {
             var count = 100000;
             var accessor = TypeAccessor.Create(typeof(TestRow));
             var rows = new TestRow[count];
-            for (int i = 0; i < count; i++) {
-                rows[i] = new TestRow {
+            for (int i = 0; i < count; i++)
+            {
+                rows[i] = new TestRow
+                {
                     Col1 = i,
                     Col2 = i,
                     Col3 = i,
@@ -43,9 +47,10 @@ namespace Spreads.Core.Tests {
             var memberSet = accessor.GetMembers();
             Array[] arrays = new Array[memberSet.Count];
             Variant[] variants = new Variant[memberSet.Count];
-            
+
             var memberCount = memberSet.Count;
-            for (int i = 0; i < memberCount; i++) {
+            for (int i = 0; i < memberCount; i++)
+            {
                 arrays[i] = Array.CreateInstance(memberSet[i].Type, count);
                 var arr = arrays[i];
                 variants[i] = Variant.Create(arr);
@@ -53,12 +58,15 @@ namespace Spreads.Core.Tests {
 
             var names = memberSet.Select(m => m.Name).ToArray();
 
-            for (int round = 0; round < 100; round++) {
+            for (int round = 0; round < 100; round++)
+            {
                 var sw = new Stopwatch();
                 sw.Restart();
 
-                for (var r = 0; r < count; r++) {
-                    for (var c = 0; c < memberCount; c++) {
+                for (var r = 0; r < count; r++)
+                {
+                    for (var c = 0; c < memberCount; c++)
+                    {
                         var value = accessor[rows[r], names[c]];
                         //arrays[c].SetValue(value, r);
                         variants[c][r] = Variant.Create(value); // almost 4x slower

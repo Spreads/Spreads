@@ -5,11 +5,12 @@
 using Spreads.Serialization;
 using System.Runtime.InteropServices;
 
-namespace Spreads.DataTypes {
-
+namespace Spreads.DataTypes
+{
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
     [Serialization(BlittableSize = 8)]
-    public struct ErrorCode {
+    public struct ErrorCode
+    {
         public long Code;
     }
 }

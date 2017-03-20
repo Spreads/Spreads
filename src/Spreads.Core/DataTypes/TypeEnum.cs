@@ -2,13 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-namespace Spreads.DataTypes {
-    
-
+namespace Spreads.DataTypes
+{
     /// <summary>
     /// Known types and containers enumeration.
     /// </summary>
-    public enum TypeEnum : byte {
+    public enum TypeEnum : byte
+    {
         // NB Any changes to TypeEnum must be reflected in the know type sizes array at the bottom
 
         // NB Enum values themselves should never be used directly, only the array below should depend on them
@@ -92,8 +92,8 @@ namespace Spreads.DataTypes {
         Table = 72,  // matrix of variants
     }
 
-    public partial struct Variant {
-
+    public partial struct Variant
+    {
         #region Known Type Sizes
 
         // ReSharper disable once RedundantExplicitArraySize

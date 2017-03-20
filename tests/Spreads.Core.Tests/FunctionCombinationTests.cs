@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -13,9 +12,8 @@ using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using System.Runtime.InteropServices;
 
-
-namespace Spreads.Core.Tests {
-
+namespace Spreads.Core.Tests
+{
     public class IdClass<T>
     {
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -26,18 +24,17 @@ namespace Spreads.Core.Tests {
     }
 
     [TestFixture]
-    public class FunctionCombinationTests {
-
-
-
-
+    public class FunctionCombinationTests
+    {
         [Test]
         [Ignore]
-        public void IdentityFunctionTests() {
+        public void IdentityFunctionTests()
+        {
             var sw = new Stopwatch();
             sw.Start();
             long sum = 0;
-            for (var i = 0; i < 2000000000; i++) {
+            for (var i = 0; i < 2000000000; i++)
+            {
                 sum += i;
             }
             sw.Stop();
@@ -48,7 +45,8 @@ namespace Spreads.Core.Tests {
             sw = new Stopwatch();
             sw.Start();
             sum = 0;
-            for (var i = 0; i < 2000000000; i++) {
+            for (var i = 0; i < 2000000000; i++)
+            {
                 sum += idClass.GetNoInline(i);
             }
             sw.Stop();
@@ -59,30 +57,25 @@ namespace Spreads.Core.Tests {
             sw.Start();
             sum = 0;
             Func<int, int> id = x => x;
-            for (var i = 0; i < 2000000000; i++) {
+            for (var i = 0; i < 2000000000; i++)
+            {
                 sum += id(i);
             }
             sw.Stop();
             Console.WriteLine($"Elapsed ID {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {2000000.0/sw.ElapsedMilliseconds*1.0}");
+            Console.WriteLine($"Mops {2000000.0 / sw.ElapsedMilliseconds * 1.0}");
 
             sw = new Stopwatch();
             sw.Start();
             sum = 0;
             var f = CoreUtils.IdentityFunction<int>.Instance;
-            for (var i = 0; i < 2000000000; i++) {
+            for (var i = 0; i < 2000000000; i++)
+            {
                 sum += f(i);
             }
             sw.Stop();
             Console.WriteLine($"Elapsed IdentityFunction {sw.ElapsedMilliseconds}");
             Console.WriteLine($"Mops {2000000.0 / sw.ElapsedMilliseconds * 1.0}");
-
-            
-
-
         }
-
-        
-
     }
 }

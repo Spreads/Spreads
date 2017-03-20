@@ -11,11 +11,11 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Spreads.Algorithms.Optimization {
-
+namespace Spreads.Algorithms.Optimization
+{
     [StructLayout(LayoutKind.Explicit, Pack = 4, Size = 64)]
-    public struct Parameter : IEnumerable<double>, IEnumerator<double> {
-
+    public struct Parameter : IEnumerable<double>, IEnumerator<double>
+    {
         [FieldOffset(0)]
         private readonly string _code;
 
@@ -46,12 +46,14 @@ namespace Spreads.Algorithms.Optimization {
         [FieldOffset(60)]
         private int _offset;
 
-        public Parameter(string code, string description, double defaultValue, double startValue, double endValue, double stepSize = 0, int bigStepMultiple = 1) {
+        public Parameter(string code, string description, double defaultValue, double startValue, double endValue, double stepSize = 0, int bigStepMultiple = 1)
+        {
             //
             if (endValue < startValue && stepSize > 0) { throw new ArgumentException("endValue <= startValue while step > 0"); }
             if (endValue > startValue && stepSize < 0) { throw new ArgumentException("endValue >= startValue while step < 0"); }
             // ReSharper disable once CompareOfFloatsByEqualityOperator
-            if (stepSize == 0) {
+            if (stepSize == 0)
+            {
                 Trace.TraceWarning("Step size is zero, assuming differefe between start and end");
                 stepSize = endValue - startValue;
             }
@@ -78,31 +80,37 @@ namespace Spreads.Algorithms.Optimization {
         public double EndValue => _endValue;
         public double StepSize => _stepSize;
 
-        public int Steps {
+        public int Steps
+        {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _steps; }
         }
 
         public int BigStepMultiple => _bigStepMultiple;
 
-        public int CurrentPosition {
+        public int CurrentPosition
+        {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _currentPosition; }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set {
+            set
+            {
                 if (value < 0 || value >= _steps) throw new ArgumentOutOfRangeException(nameof(value));
                 _currentPosition = value;
             }
         }
 
-        public int GridPosition {
+        public int GridPosition
+        {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _offset + (_currentPosition == -1 ? 0 : _currentPosition); }
         }
 
-        public double this[int index] {
+        public double this[int index]
+        {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get {
+            get
+            {
                 if (index < 0) throw new ArgumentException("Parameter index is negative");
                 if (index >= _steps) throw new ArgumentException("Parameter index is greater than number of steps");
                 return index == (_steps - 1) ? _endValue : _startValue + index * _stepSize;
@@ -115,32 +123,40 @@ namespace Spreads.Algorithms.Optimization {
         /// <param name="position"></param>
         /// <param name="epsilon"></param>
         /// <returns></returns>
-        public Parameter GetRegion(int position, int epsilon) {
+        public Parameter GetRegion(int position, int epsilon)
+        {
             var offset = Math.Max(position - epsilon, 0);
             var start = this[offset];
             var end = this[Math.Min(position + epsilon, _steps - 1)];
-            var newParameter = new Parameter(_code, start, end, _stepSize, _bigStepMultiple) {
+            var newParameter = new Parameter(_code, start, end, _stepSize, _bigStepMultiple)
+            {
                 _offset = this._offset + offset
             };
             return newParameter;
         }
 
-        public Parameter WithBigStep() {
-            var newParameter = new Parameter(_code, _startValue, _endValue, _stepSize * _bigStepMultiple, 1) {
+        public Parameter WithBigStep()
+        {
+            var newParameter = new Parameter(_code, _startValue, _endValue, _stepSize * _bigStepMultiple, 1)
+            {
                 _offset = this._offset
             };
             return newParameter;
         }
 
-        public void Dispose() {
+        public void Dispose()
+        {
         }
 
-        public double Current {
+        public double Current
+        {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get {
+            get
+            {
                 Debug.Assert(_currentPosition < _steps, "Wrong _current position");
                 Debug.Assert(_currentPosition >= -1, "Wrong _current position");
-                if (_currentPosition == -1) {
+                if (_currentPosition == -1)
+                {
                     return _defaultValue;
                 }
                 return _currentPosition == (_steps - 1) ? _endValue : _startValue + _currentPosition * _stepSize;
@@ -149,14 +165,16 @@ namespace Spreads.Algorithms.Optimization {
 
         object IEnumerator.Current => this.Current;
 
-        public Parameter GetEnumerator() {
+        public Parameter GetEnumerator()
+        {
             var copy = this;
             copy._currentPosition = -1;
             return copy;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool MoveNext() {
+        public bool MoveNext()
+        {
             var nextPosition = _currentPosition + 1;
             Debug.Assert(nextPosition <= _steps);
             if (nextPosition == _steps) { return false; }
@@ -164,15 +182,18 @@ namespace Spreads.Algorithms.Optimization {
             return true;
         }
 
-        public bool BigMoveNext() {
+        public bool BigMoveNext()
+        {
             Debug.Assert(_currentPosition + 1 <= _steps);
             if (_currentPosition + 1 == _steps) { return false; }
-            if (_currentPosition == -1) {
+            if (_currentPosition == -1)
+            {
                 _currentPosition++;
                 return true;
             }
             var nextPosition = _currentPosition + _bigStepMultiple;
-            if (nextPosition >= _steps) {
+            if (nextPosition >= _steps)
+            {
                 _currentPosition = _steps - 1;
                 return true;
             }
@@ -180,24 +201,30 @@ namespace Spreads.Algorithms.Optimization {
             return true;
         }
 
-        public void Reset() {
+        public void Reset()
+        {
             _currentPosition = -1;
         }
 
-        IEnumerator IEnumerable.GetEnumerator() {
+        IEnumerator IEnumerable.GetEnumerator()
+        {
             return GetEnumerator();
         }
 
-        IEnumerator<double> IEnumerable<double>.GetEnumerator() {
+        IEnumerator<double> IEnumerable<double>.GetEnumerator()
+        {
             return GetEnumerator();
         }
     }
 
-    public class Parameters : DynamicObject {
+    public class Parameters : DynamicObject
+    {
         private readonly Parameter[] _parameters;
 
-        public Parameters(Parameter[] parameters) {
-            if (parameters.Select(x => x.Code).Distinct(StringComparer.OrdinalIgnoreCase).Count() != parameters.Length) {
+        public Parameters(Parameter[] parameters)
+        {
+            if (parameters.Select(x => x.Code).Distinct(StringComparer.OrdinalIgnoreCase).Count() != parameters.Length)
+            {
                 throw new ArgumentException("Parameter codes are not unique");
             }
             _parameters = parameters;
@@ -208,37 +235,49 @@ namespace Spreads.Algorithms.Optimization {
         //public Parameter[] Array => _parameters;
         public int Count => _parameters.Length;
 
-        public double this[string code] {
+        public double this[string code]
+        {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get {
-                foreach (var par in _parameters) {
-                    if (par.Code.Equals(code, StringComparison.OrdinalIgnoreCase)) {
+            get
+            {
+                foreach (var par in _parameters)
+                {
+                    if (par.Code.Equals(code, StringComparison.OrdinalIgnoreCase))
+                    {
                         return par.Current;
                     }
                 }
                 var trimmed = code.Trim();
-                if (trimmed != code) {
+                if (trimmed != code)
+                {
                     var result = this[trimmed];
                     Trace.TraceWarning($"Parameter {code} has leading or trailing spaces, check for typos");
                     return result;
-                } else {
+                }
+                else
+                {
                     throw new KeyNotFoundException($"Unknown parameter: {code}");
                 }
             }
         }
 
-        public Parameter this[int index] {
+        public Parameter this[int index]
+        {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get {
-                if (index < 0 || index >= _parameters.Length) {
+            get
+            {
+                if (index < 0 || index >= _parameters.Length)
+                {
                     throw new IndexOutOfRangeException();
                 }
                 return _parameters[index];
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set {
-                if (index < 0 || index >= _parameters.Length) {
+            set
+            {
+                if (index < 0 || index >= _parameters.Length)
+                {
                     throw new IndexOutOfRangeException();
                 }
                 _parameters[index] = value;
@@ -247,29 +286,37 @@ namespace Spreads.Algorithms.Optimization {
 
         public int TotalInterations => _parameters.Select(x => x.Steps).Aggregate(1, (i, st) => checked(i * st));
 
-        public Parameters GetRegion(int epsilon) {
+        public Parameters GetRegion(int epsilon)
+        {
             var clone = this.Clone();
-            for (int i = 0; i < _parameters.Length; i++) {
+            for (int i = 0; i < _parameters.Length; i++)
+            {
                 clone._parameters[i] = _parameters[i].GetRegion(_parameters[i].CurrentPosition, epsilon);
             }
             return clone;
         }
 
-        public Parameters Clone() {
+        public Parameters Clone()
+        {
             return new Parameters(_parameters.ToArray());
         }
 
-        public Parameters Reset() {
-            foreach (var p in _parameters) {
+        public Parameters Reset()
+        {
+            foreach (var p in _parameters)
+            {
                 p.Reset();
             }
             return this;
         }
 
-        public override bool TryGetMember(GetMemberBinder binder, out object result) {
+        public override bool TryGetMember(GetMemberBinder binder, out object result)
+        {
             var name = binder.Name;
-            foreach (var par in _parameters) {
-                if (par.Code.Equals(name, StringComparison.OrdinalIgnoreCase)) {
+            foreach (var par in _parameters)
+            {
+                if (par.Code.Equals(name, StringComparison.OrdinalIgnoreCase))
+                {
                     result = par.Current;
                     return true;
                 }
@@ -279,25 +326,28 @@ namespace Spreads.Algorithms.Optimization {
         }
     }
 
-    public static class ParameterExtensions {
-
+    public static class ParameterExtensions
+    {
         // useful to as a key to memoize target function result at a point, instead of int[]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static long LinearAddress(this Parameters parameters) {
+        public static long LinearAddress(this Parameters parameters)
+        {
             return parameters.Array.LinearAddress();
         }
 
         // useful to as a key to memoize target function result at a point, instead of int[]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static long LinearAddress(this Parameter[] parameters) {
+        public static long LinearAddress(this Parameter[] parameters)
+        {
             if (parameters == null) throw new ArgumentNullException(nameof(parameters));
             var address = -1L;
             if (parameters.Length == 0) return address;
             address = parameters[0].CurrentPosition;
-            if(address == -1) throw new InvalidOperationException("Cannot get address of not started parameter");
+            if (address == -1) throw new InvalidOperationException("Cannot get address of not started parameter");
             // previous * current dim + current addr
             // TODO test + review
-            for (int i = 1; i < parameters.Length; i++) {
+            for (int i = 1; i < parameters.Length; i++)
+            {
                 if (parameters[i].CurrentPosition == -1) throw new InvalidOperationException("Cannot get address of not started parameter");
                 address = address * parameters[i].Steps + parameters[i].CurrentPosition;
             }
@@ -305,15 +355,18 @@ namespace Spreads.Algorithms.Optimization {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Parameters SetPositionsFromLinearAddress(this Parameters parameters, long linearAddress) {
+        public static Parameters SetPositionsFromLinearAddress(this Parameters parameters, long linearAddress)
+        {
             var newParameters = SetPositionsFromLinearAddress(parameters.Array, linearAddress);
             return new Parameters(newParameters);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Parameter[] SetPositionsFromLinearAddress(this Parameter[] parameters, long linearAddress) {
+        public static Parameter[] SetPositionsFromLinearAddress(this Parameter[] parameters, long linearAddress)
+        {
             var newParameters = parameters.ToArray();
-            for (int i = parameters.Length - 1; i >= 1; i--) {
+            for (int i = parameters.Length - 1; i >= 1; i--)
+            {
                 var steps = parameters[i].Steps;
                 var tmp = linearAddress / steps;
                 var iPos = checked((int)(linearAddress - tmp * steps));

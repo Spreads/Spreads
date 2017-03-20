@@ -4,26 +4,31 @@
 
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Algorithms {
-
+namespace Spreads.Algorithms
+{
     // TODO this structure is probably bad idea, namespace+types are simpler
 
-    public static class Algo {
+    public static class Algo
+    {
         public static MathProvider Math = MathProvider.Instance;
 
-        public class MathProvider {
+        public class MathProvider
+        {
             internal static MathProvider Instance = new MathProvider();
 
-            private MathProvider() {
+            private MathProvider()
+            {
             }
         }
 
         public static HashProvider Hash = HashProvider.Instance;
 
-        public class HashProvider {
+        public class HashProvider
+        {
             internal static HashProvider Instance = new HashProvider();
 
-            private HashProvider() {
+            private HashProvider()
+            {
             }
         }
     }
@@ -31,14 +36,16 @@ namespace Spreads.Algorithms {
     // we could use extension methods to extend Algo.Math, it is quite convenient at first glance
     // extension methods are normal static methods and could be inlined by JIT
     //
-    internal static class SimpleMath {
-
+    internal static class SimpleMath
+    {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int AddTwoInts(this Algo.MathProvider provider, int first, int second) {
+        public static int AddTwoInts(this Algo.MathProvider provider, int first, int second)
+        {
             return first + second;
         }
 
-        public static void TestMe() {
+        public static void TestMe()
+        {
             System.Math.Abs(-1);
             Algo.Math.AddTwoInts(42, 3);
         }

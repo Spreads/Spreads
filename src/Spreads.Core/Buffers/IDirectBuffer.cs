@@ -5,10 +5,10 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Spreads.Buffers {
-
-    public interface IDirectBuffer {
-
+namespace Spreads.Buffers
+{
+    public interface IDirectBuffer
+    {
         /// <summary>
         /// Capacity of the underlying buffer
         /// </summary>

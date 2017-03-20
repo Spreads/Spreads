@@ -13,8 +13,8 @@ namespace Spreads.DataTypes
     // why this has a lot of sense in some cases: on x64 a string takes 26 + length * 2,
     // so we always win for small strings even with padding.
 
-    // TODO Watch for usage of this. This is convenient when reading/writing a binary stream from a wire, e.g. when we 
-    // know that a ticker has max length. But in many cases they could be manually "interned", or there could be a special 
+    // TODO Watch for usage of this. This is convenient when reading/writing a binary stream from a wire, e.g. when we
+    // know that a ticker has max length. But in many cases they could be manually "interned", or there could be a special
     // class Symbol with additional info and a concurrent dictionary that indexes Symbol by string.
     // Then we could store a 8-byte pointer instead of 16-byte symbol (or even an int and have another dictionary). Many tradeoffs...
     // Also see String.Intern method

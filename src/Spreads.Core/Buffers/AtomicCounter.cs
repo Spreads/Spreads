@@ -5,12 +5,14 @@
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace Spreads.Buffers {
-
-    public sealed class Counter {
+namespace Spreads.Buffers
+{
+    public sealed class Counter
+    {
         private int _value;
 
-        public Counter(int initialValue = 0) {
+        public Counter(int initialValue = 0)
+        {
             _value = initialValue;
         }
 
@@ -23,17 +25,20 @@ namespace Spreads.Buffers {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Add(int delta) {
+        public void Add(int delta)
+        {
             Interlocked.Add(ref _value, delta);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Increment() {
+        public int Increment()
+        {
             return Interlocked.Increment(ref _value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Decrement() {
+        public int Decrement()
+        {
             return Interlocked.Decrement(ref _value);
         }
     }

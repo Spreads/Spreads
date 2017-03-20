@@ -11,21 +11,24 @@ using Spreads.Buffers;
 using Spreads.DataTypes;
 using Spreads.Serialization;
 
-namespace Spreads.Core.Tests {
-
+namespace Spreads.Core.Tests
+{
     [TestFixture]
-    public class TableTests {
-
+    public class TableTests
+    {
         [Test, Ignore]
-        public void CouldSerializeTable() {
+        public void CouldSerializeTable()
+        {
             var sw = new Stopwatch();
             sw.Restart();
             var rows = 100;
             var columns = 100;
             var data = new Variant[rows, columns];
 
-            for (int i = 0; i < rows; i++) {
-                for (int j = 0; j < columns; j++) {
+            for (int i = 0; i < rows; i++)
+            {
+                for (int j = 0; j < columns; j++)
+                {
                     data[i, j] = Variant.Create(i * j);
                 }
             }
@@ -59,12 +62,13 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Elapsed delta: {sw.ElapsedMilliseconds}");
             var str2 = JsonConvert.SerializeObject(delta);
             Console.WriteLine($"Delta length: {str2.Length} count: {delta.Cells.Count}");
-
         }
 
         [Test, Ignore]
-        public void CouldSerializeTableManyTimes() {
-            for (int round = 0; round < 10; round++) {
+        public void CouldSerializeTableManyTimes()
+        {
+            for (int round = 0; round < 10; round++)
+            {
                 CouldSerializeTable();
             }
         }

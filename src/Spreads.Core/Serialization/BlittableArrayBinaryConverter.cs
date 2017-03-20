@@ -4,6 +4,7 @@
 
 using System;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using Spreads.Buffers;
 using Spreads.Utils;
@@ -19,7 +20,7 @@ namespace Spreads.Serialization
 
         public static object Create(Type type)
         {
-            var method = typeof(BlittableArrayConverterFactory).GetMethod("GenericCreate");
+            var method = typeof(BlittableArrayConverterFactory).GetTypeInfo().GetMethod("GenericCreate");
             var generic = method.MakeGenericMethod(type);
             return generic.Invoke(null, null);
         }

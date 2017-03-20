@@ -12,13 +12,14 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace Spreads.Collections {
-
+namespace Spreads.Collections
+{
     /// <summary>
     /// Very simple heap data structure, of fixed size.
     /// </summary>
     /// <typeparam name="TElement"></typeparam>
-    public class FixedMaxHeap<TElement> {
+    public class FixedMaxHeap<TElement>
+    {
         private TElement[] _elements; // Element array.
         private int _count; // Current count.
         private IComparer<TElement> _comparer; // Element comparison routine.
@@ -28,10 +29,12 @@ namespace Spreads.Collections {
         //
 
         internal FixedMaxHeap(int maximumSize)
-            : this(maximumSize, Comparer<TElement>.Default) {
+            : this(maximumSize, Comparer<TElement>.Default)
+        {
         }
 
-        internal FixedMaxHeap(int maximumSize, IComparer<TElement> comparer) {
+        internal FixedMaxHeap(int maximumSize, IComparer<TElement> comparer)
+        {
             Debug.Assert(comparer != null);
 
             _elements = new TElement[maximumSize];
@@ -68,7 +71,8 @@ namespace Spreads.Collections {
         {
             get
             {
-                if (_count == 0) {
+                if (_count == 0)
+                {
                     throw new InvalidOperationException("No elements");
                 }
 
@@ -81,7 +85,8 @@ namespace Spreads.Collections {
         // Removes all elements from the heap.
         //
 
-        internal void Clear() {
+        internal void Clear()
+        {
             _count = 0;
         }
 
@@ -93,18 +98,23 @@ namespace Spreads.Collections {
         //     false without modifying the heap. Otherwise, it returns true.
         //
 
-        internal bool Insert(TElement e) {
-            if (_count < _elements.Length) {
+        internal bool Insert(TElement e)
+        {
+            if (_count < _elements.Length)
+            {
                 // There is room. We can add it and then max-heapify.
                 _elements[_count] = e;
                 _count++;
                 HeapifyLastLeaf();
                 return true;
-            } else {
+            }
+            else
+            {
                 // No more room. The element might not even fit in the heap. The check
                 // is simple: if it's greater than the maximum element, then it can't be
                 // inserted. Otherwise, we replace the head with it and reheapify.
-                if (_comparer.Compare(e, _elements[0]) < 0) {
+                if (_comparer.Compare(e, _elements[0]) < 0)
+                {
                     _elements[0] = e;
                     HeapifyRoot();
                     return true;
@@ -119,7 +129,8 @@ namespace Spreads.Collections {
         // the heap property.
         //
 
-        internal void ReplaceMax(TElement newValue) {
+        internal void ReplaceMax(TElement newValue)
+        {
             Debug.Assert(_count > 0);
             _elements[0] = newValue;
             HeapifyRoot();
@@ -129,11 +140,13 @@ namespace Spreads.Collections {
         // Removes the maximum value from the heap, and restores the heap property.
         //
 
-        internal void RemoveMax() {
+        internal void RemoveMax()
+        {
             Debug.Assert(_count > 0);
             _count--;
 
-            if (_count > 0) {
+            if (_count > 0)
+            {
                 _elements[0] = _elements[_count];
                 HeapifyRoot();
             }
@@ -144,39 +157,50 @@ namespace Spreads.Collections {
         // from a leaf element, depending on what is needed.
         //
 
-        private void Swap(int i, int j) {
+        private void Swap(int i, int j)
+        {
             TElement tmpElement = _elements[i];
             _elements[i] = _elements[j];
             _elements[j] = tmpElement;
         }
 
-        private void HeapifyRoot() {
+        private void HeapifyRoot()
+        {
             // We are heapifying from the head of the list.
             int i = 0;
             int n = _count;
 
-            while (i < n) {
+            while (i < n)
+            {
                 // Calculate the current child node indexes.
                 int n0 = ((i + 1) * 2) - 1;
                 int n1 = n0 + 1;
 
-                if (n0 < n && _comparer.Compare(_elements[i], _elements[n0]) < 0) {
+                if (n0 < n && _comparer.Compare(_elements[i], _elements[n0]) < 0)
+                {
                     // We have to select the bigger of the two subtrees, and float
                     // the current element down. This maintains the max-heap property.
-                    if (n1 < n && _comparer.Compare(_elements[n0], _elements[n1]) < 0) {
+                    if (n1 < n && _comparer.Compare(_elements[n0], _elements[n1]) < 0)
+                    {
                         Swap(i, n1);
                         i = n1;
-                    } else {
+                    }
+                    else
+                    {
                         Swap(i, n0);
                         i = n0;
                     }
-                } else if (n1 < n && _comparer.Compare(_elements[i], _elements[n1]) < 0) {
+                }
+                else if (n1 < n && _comparer.Compare(_elements[i], _elements[n1]) < 0)
+                {
                     // Float down the "right" subtree. We needn't compare this subtree
                     // to the "left", because if the element was smaller than that, the
                     // first if statement's predicate would have evaluated to true.
                     Swap(i, n1);
                     i = n1;
-                } else {
+                }
+                else
+                {
                     // Else, the current key is in its final position. Break out
                     // of the current loop and return.
                     break;
@@ -184,15 +208,20 @@ namespace Spreads.Collections {
             }
         }
 
-        private void HeapifyLastLeaf() {
+        private void HeapifyLastLeaf()
+        {
             int i = _count - 1;
-            while (i > 0) {
+            while (i > 0)
+            {
                 int j = ((i + 1) / 2) - 1;
 
-                if (_comparer.Compare(_elements[i], _elements[j]) > 0) {
+                if (_comparer.Compare(_elements[i], _elements[j]) > 0)
+                {
                     Swap(i, j);
                     i = j;
-                } else {
+                }
+                else
+                {
                     break;
                 }
             }

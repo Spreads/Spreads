@@ -1,5 +1,14 @@
 #!/bin/bash
-dotnet build src\Spreads.Core -c RELEASE
-dotnet build src\Spreads.Collections -c RELEASE
-dotnet build src\Spreads.Extensions -c RELEASE
-dotnet build src\Spreads -c RELEASE -o
+dotnet restore src/Spreads.Core/Spreads.Core.csproj
+dotnet build src/Spreads.Core/Spreads.Core.csproj -c RELEASE
+
+#dotnet restore src/Spreads.Collections/Spreads.Collections.2017.fsproj
+#dotnet build src/Spreads.Collections/Spreads.Collections.2017.fsproj -c RELEASE
+
+#dotnet restore src/Spreads/Spreads.2017.csproj
+#dotnet build src/Spreads/Spreads.2017.csproj -c RELEASE
+
+cd tests/Spreads.Core.xUnit
+dotnet restore
+dotnet test -f netcoreapp1.1
+rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi

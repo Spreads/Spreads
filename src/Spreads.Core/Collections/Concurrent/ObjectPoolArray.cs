@@ -23,9 +23,8 @@ using System.Runtime.CompilerServices;
 
 #endif
 
-namespace Spreads.Collections.Concurrent {
-    
-
+namespace Spreads.Collections.Concurrent
+{
     /// <summary>
     /// Generic implementation of object pooling pattern with predefined pool size limit. The main
     /// purpose is that limited number of frequently used objects can be kept in the pool for
@@ -43,10 +42,11 @@ namespace Spreads.Collections.Concurrent {
     /// Rationale:
     ///    If there is no intent for reusing the object, do not use pool - just use "new".
     /// </summary>
-    public class ObjectPoolArray<T> : IObjectPool<T> where T : class, IPoolable<T>, new() {
-
+    public class ObjectPoolArray<T> : IObjectPool<T> where T : class, IPoolable<T>, new()
+    {
         [DebuggerDisplay("{Value,nq}")]
-        private struct Element {
+        private struct Element
+        {
             internal T Value;
         }
 
@@ -105,7 +105,8 @@ namespace Spreads.Collections.Concurrent {
         internal ObjectPoolArray()
             : this(Environment.ProcessorCount * 2) { }
 
-        internal ObjectPoolArray(int size) {
+        internal ObjectPoolArray(int size)
+        {
             Debug.Assert(size >= 1);
             _items = new Element[size - 1];
         }
@@ -113,6 +114,7 @@ namespace Spreads.Collections.Concurrent {
         public bool IsBounded => true;
         public int Capacity => _items.Length + 1;
         public int Count => _items.Length + 1;
+
         /// <summary>
         /// Produces an instance.
         /// </summary>
@@ -121,13 +123,15 @@ namespace Spreads.Collections.Concurrent {
         /// Note that Free will try to store recycled objects close to the start thus statistically
         /// reducing how far we will typically search.
         /// </remarks>
-        public T Allocate() {
+        public T Allocate()
+        {
             // PERF: Examine the first element. If that fails, AllocateSlow will look at the remaining elements.
             // Note that the initial read is optimistically not synchronized. That is intentional.
             // We will interlock only when we have a candidate. in a worst case we may miss some
             // recently returned objects. Not a big deal.
             T inst = _firstItem;
-            if (inst == null || inst != Interlocked.CompareExchange(ref _firstItem, null, inst)) {
+            if (inst == null || inst != Interlocked.CompareExchange(ref _firstItem, null, inst))
+            {
                 inst = AllocateSlow();
             }
 
@@ -144,16 +148,20 @@ namespace Spreads.Collections.Concurrent {
             return inst;
         }
 
-        private T AllocateSlow() {
+        private T AllocateSlow()
+        {
             var items = _items;
 
-            for (int i = 0; i < items.Length; i++) {
+            for (int i = 0; i < items.Length; i++)
+            {
                 // Note that the initial read is optimistically not synchronized. That is intentional.
                 // We will interlock only when we have a candidate. in a worst case we may miss some
                 // recently returned objects. Not a big deal.
                 T inst = items[i].Value;
-                if (inst != null) {
-                    if (inst == Interlocked.CompareExchange(ref items[i].Value, null, inst)) {
+                if (inst != null)
+                {
+                    if (inst == Interlocked.CompareExchange(ref items[i].Value, null, inst))
+                    {
                         return inst;
                     }
                 }
@@ -170,26 +178,33 @@ namespace Spreads.Collections.Concurrent {
         /// Note that Free will try to store recycled objects close to the start thus statistically
         /// reducing how far we will typically search in Allocate.
         /// </remarks>
-        public void Free(T obj) {
+        public void Free(T obj)
+        {
             Validate(obj);
             ForgetTrackedObject(obj);
 
             obj.Release();
 
-            if (_firstItem == null) {
+            if (_firstItem == null)
+            {
                 // Intentionally not using interlocked here.
                 // In a worst case scenario two objects may be stored into same slot.
                 // It is very unlikely to happen and will only mean that one of the objects will get collected.
                 _firstItem = obj;
-            } else {
+            }
+            else
+            {
                 FreeSlow(obj);
             }
         }
 
-        private void FreeSlow(T obj) {
+        private void FreeSlow(T obj)
+        {
             var items = _items;
-            for (int i = 0; i < items.Length; i++) {
-                if (items[i].Value == null) {
+            for (int i = 0; i < items.Length; i++)
+            {
+                if (items[i].Value == null)
+                {
                     // Intentionally not using interlocked here.
                     // In a worst case scenario two objects may be stored into same slot.
                     // It is very unlikely to happen and will only mean that one of the objects will get collected.
@@ -208,7 +223,8 @@ namespace Spreads.Collections.Concurrent {
         /// return a larger array to the pool than was originally allocated.
         /// </summary>
         [Conditional("DEBUG")]
-        internal void ForgetTrackedObject(T old, T replacement = null) {
+        internal void ForgetTrackedObject(T old, T replacement = null)
+        {
 #if DETECT_LEAKS
             LeakTracker tracker;
             if (leakTrackers.TryGetValue(old, out tracker))
@@ -240,15 +256,18 @@ namespace Spreads.Collections.Concurrent {
 #endif
 
         [Conditional("DEBUG")]
-        private void Validate(object obj) {
+        private void Validate(object obj)
+        {
             Debug.Assert(obj != null, "freeing null?");
 
             Debug.Assert(_firstItem != obj, "freeing twice?");
 
             var items = _items;
-            for (int i = 0; i < items.Length; i++) {
+            for (int i = 0; i < items.Length; i++)
+            {
                 var value = items[i].Value;
-                if (value == null) {
+                if (value == null)
+                {
                     return;
                 }
 

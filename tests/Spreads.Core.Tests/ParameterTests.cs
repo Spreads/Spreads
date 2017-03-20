@@ -6,13 +6,14 @@ using NUnit.Framework;
 using Spreads.Algorithms.Optimization;
 using System;
 
-namespace Spreads.Core.Tests {
-
+namespace Spreads.Core.Tests
+{
     [TestFixture]
-    public class ParameterTests {
-
+    public class ParameterTests
+    {
         [Test]
-        public void ParameterTest() {
+        public void ParameterTest()
+        {
             // 0, 5, 10, 15, 19
             var par = new Parameter("test", 0, 19, 5, 2);
 
@@ -44,7 +45,8 @@ namespace Spreads.Core.Tests {
             Assert.AreEqual(19, par.Current);
 
             var e = par.GetEnumerator();
-            for (int j = 0; j < 2; j++) {
+            for (int j = 0; j < 2; j++)
+            {
                 Assert.AreEqual(-1, e.CurrentPosition);
                 Assert.IsTrue(e.MoveNext());
                 Assert.AreEqual(0, e.Current);
@@ -56,7 +58,8 @@ namespace Spreads.Core.Tests {
             e.Dispose();
 
             var i = 0;
-            foreach (var current in par) {
+            foreach (var current in par)
+            {
                 Assert.AreEqual(par[i], current);
                 i++;
             }
@@ -84,7 +87,8 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
-        public void BigStepGreaterThanRange() {
+        public void BigStepGreaterThanRange()
+        {
             // 0, 5, 10, 15, 19
             var par = new Parameter("test", 0, 19, 5, 4);
 
@@ -106,7 +110,8 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
-        public void RegionTest() {
+        public void RegionTest()
+        {
             // 0, 5, 10, 15, 19
             var par = new Parameter("test", 0, 19, 5, 4);
 
@@ -134,7 +139,8 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
-        public void LinearAddressTest() {
+        public void LinearAddressTest()
+        {
             var par1 = new Parameter("par1", 0, 4, 1);
             var par2 = new Parameter("par2", 0, 4, 1);
             var pars = new[] { par1, par2 };
@@ -160,7 +166,8 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
-        public void DynamicAccessToParameters() {
+        public void DynamicAccessToParameters()
+        {
             var par1 = new Parameter("Par1", 0, 4, 1);
             var par2 = new Parameter("par2", 0, 4, 1);
             var pars = new[] { par1, par2 };
@@ -174,11 +181,13 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
-        public void NonUniqueParameterCodesThrow() {
+        public void NonUniqueParameterCodesThrow()
+        {
             var par1 = new Parameter("Par1", 0, 4, 1);
             var par2 = new Parameter("par1", 0, 4, 1);
             var pars = new[] { par1, par2 };
-            Assert.Throws<ArgumentException>(() => {
+            Assert.Throws<ArgumentException>(() =>
+            {
                 var parameters = new Parameters(pars);
             });
         }

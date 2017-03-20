@@ -7,9 +7,10 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Reflection;
 
-namespace Spreads.DataTypes {
-
-    public class KnownTypeAttribute : Attribute {
+namespace Spreads.DataTypes
+{
+    public class KnownTypeAttribute : Attribute
+    {
 #if NET451
 
         static KnownTypeAttribute() {
@@ -42,7 +43,8 @@ namespace Spreads.DataTypes {
 
 #endif
 
-        public KnownTypeAttribute(byte typeCode) {
+        public KnownTypeAttribute(byte typeCode)
+        {
             TypeCode = typeCode;
         }
 
@@ -51,21 +53,27 @@ namespace Spreads.DataTypes {
         private static readonly ConcurrentDictionary<byte, Type> KnownTypes = new ConcurrentDictionary<byte, Type>();
         private static readonly ConcurrentDictionary<Type, byte> KnownIds = new ConcurrentDictionary<Type, byte>();
 
-        public static void RegisterType<T>(byte typeId) {
-            if (!KnownTypes.TryAdd(typeId, typeof(T))) {
+        public static void RegisterType<T>(byte typeId)
+        {
+            if (!KnownTypes.TryAdd(typeId, typeof(T)))
+            {
                 Environment.FailFast($"Duplicate type id: {typeId}");
             }
         }
 
-        public static Type GetType(byte typeId) {
+        public static Type GetType(byte typeId)
+        {
             return KnownTypes[typeId];
         }
 
-        public static byte GetTypeId(Type t) {
-            return KnownIds.GetOrAdd(t, type => {
+        public static byte GetTypeId(Type t)
+        {
+            return KnownIds.GetOrAdd(t, type =>
+            {
                 var attrs = type.GetTypeInfo().GetCustomAttributes<KnownTypeAttribute>();
                 var knownTypeAttributes = attrs as KnownTypeAttribute[] ?? attrs.ToArray();
-                if (knownTypeAttributes.Count() != 1) {
+                if (knownTypeAttributes.Count() != 1)
+                {
                     Environment.FailFast($"Type {type.Name} is not known");
                 }
                 return knownTypeAttributes.Single().TypeCode;

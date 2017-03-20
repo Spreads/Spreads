@@ -9,9 +9,10 @@ using System.Threading;
 using System.Threading.Tasks;
 
 // ReSharper disable once CheckNamespace
-namespace Spreads {
-
-    public static class TaskEx {
+namespace Spreads
+{
+    public static class TaskEx
+    {
         public static Task CompletedTask = Task.FromResult<object>(null);
         public static Task<bool> TrueTask = Task.FromResult(true);
         public static Task<bool> FalseTask = Task.FromResult(false);
@@ -50,7 +51,8 @@ namespace Spreads {
 #endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Task<T> FromCanceled<T>(CancellationToken cancellationToken) {
+        public static Task<T> FromCanceled<T>(CancellationToken cancellationToken)
+        {
 #if NET451
             return TaskExCache<T>.GetCancelled();
 #else
@@ -59,12 +61,14 @@ namespace Spreads {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Task FromCanceled(CancellationToken cancellationToken) {
+        public static Task FromCanceled(CancellationToken cancellationToken)
+        {
             return FromCanceled<object>(cancellationToken);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Task<T> FromException<T>(Exception exception) {
+        public static Task<T> FromException<T>(Exception exception)
+        {
 #if NET451
             return TaskExCache<T>.GetFromException(exception);
 #else
@@ -73,12 +77,14 @@ namespace Spreads {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Task FromException(Exception exception) {
+        public static Task FromException(Exception exception)
+        {
             return FromException<object>(exception);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Task<T> FromResult<T>(T result) {
+        public static Task<T> FromResult<T>(T result)
+        {
 #if NET451
             return TaskExCache<T>.GetCompleted(result);
 #else

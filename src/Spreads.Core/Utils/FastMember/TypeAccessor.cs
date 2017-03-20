@@ -9,7 +9,9 @@ using System.Collections.Generic;
 using static Spreads.Utils.FastMember.TypeHelpers;
 
 #if !NO_DYNAMIC
+
 using System.Dynamic;
+
 #endif
 
 namespace Spreads.Utils.FastMember
@@ -32,6 +34,7 @@ namespace Spreads.Utils.FastMember
         /// Does this type support new instances via a parameterless constructor?
         /// </summary>
         public virtual bool CreateNewSupported { get { return false; } }
+
         /// <summary>
         /// Create a new instance of this type
         /// </summary>
@@ -41,6 +44,7 @@ namespace Spreads.Utils.FastMember
         /// Can this type be queried for member availability?
         /// </summary>
         public virtual bool GetMembersSupported { get { return false; } }
+
         /// <summary>
         /// Query the members available for this type
         /// </summary>
@@ -78,17 +82,24 @@ namespace Spreads.Utils.FastMember
                 return obj;
             }
         }
+
 #if !NO_DYNAMIC
-        sealed class DynamicAccessor : TypeAccessor
+
+        private sealed class DynamicAccessor : TypeAccessor
         {
             public static readonly DynamicAccessor Singleton = new DynamicAccessor();
-            private DynamicAccessor() { }
+
+            private DynamicAccessor()
+            {
+            }
+
             public override object this[object target, string name]
             {
                 get { return CallSiteCache.GetValue(name, target); }
                 set { CallSiteCache.SetValue(name, target, value); }
             }
         }
+
 #endif
 
         private static AssemblyBuilder assembly;
@@ -98,10 +109,11 @@ namespace Spreads.Utils.FastMember
 #if COREFX
         private static readonly object counterLock = new object();
 #endif
+
         private static int GetNextCounterValue()
         {
 #if COREFX
-            lock(counterLock)
+            lock (counterLock)
             {
                 return counter++;
             }
@@ -110,7 +122,8 @@ namespace Spreads.Utils.FastMember
 #endif
         }
 
-        static readonly MethodInfo tryGetValue = typeof(Dictionary<string, int>).GetMethod("TryGetValue");
+        private static readonly MethodInfo tryGetValue = typeof(Dictionary<string, int>).GetMethod("TryGetValue");
+
         private static void WriteMapImpl(ILGenerator il, Type type, List<MemberInfo> members, FieldBuilder mapField, bool allowNonPublicAccessors, bool isGet)
         {
             OpCode obj, index, value;
@@ -135,7 +148,7 @@ namespace Spreads.Utils.FastMember
                 il.Emit(OpCodes.Ldloca_S, (byte)0);
                 il.EmitCall(OpCodes.Callvirt, tryGetValue, null);
                 il.Emit(OpCodes.Brfalse, fail);
-            }            
+            }
             Label[] labels = new Label[members.Count];
             for (int i = 0; i < labels.Length; i++)
             {
@@ -154,7 +167,7 @@ namespace Spreads.Utils.FastMember
                 bool isFail = true;
                 FieldInfo field;
                 PropertyInfo prop;
-                if((field = member as FieldInfo) != null)
+                if ((field = member as FieldInfo) != null)
                 {
                     il.Emit(obj);
                     Cast(il, type, true);
@@ -214,7 +227,9 @@ namespace Spreads.Utils.FastMember
             /// Can this type be queried for member availability?
             /// </summary>
             public override bool GetMembersSupported { get { return true; } }
+
             private MemberSet members;
+
             /// <summary>
             /// Query the members available for this type
             /// </summary>
@@ -223,17 +238,20 @@ namespace Spreads.Utils.FastMember
                 return members ?? (members = new MemberSet(Type));
             }
         }
-        sealed class DelegateAccessor : RuntimeTypeAccessor
+
+        private sealed class DelegateAccessor : RuntimeTypeAccessor
         {
             private readonly Dictionary<string, int> map;
             private readonly Func<int, object, object> getter;
             private readonly Action<int, object, object> setter;
             private readonly Func<object> ctor;
             private readonly Type type;
+
             protected override Type Type
             {
                 get { return type; }
             }
+
             public DelegateAccessor(Dictionary<string, int> map, Func<int, object, object> getter, Action<int, object, object> setter, Func<object> ctor, Type type)
             {
                 this.map = map;
@@ -242,11 +260,14 @@ namespace Spreads.Utils.FastMember
                 this.ctor = ctor;
                 this.type = type;
             }
+
             public override bool CreateNewSupported { get { return ctor != null; } }
+
             public override object CreateNew()
             {
                 return ctor != null ? ctor() : base.CreateNew();
             }
+
             public override object this[object target, string name]
             {
                 get
@@ -263,6 +284,7 @@ namespace Spreads.Utils.FastMember
                 }
             }
         }
+
         private static bool IsFullyPublic(Type type, PropertyInfo[] props, bool allowNonPublicAccessors)
         {
             while (_IsNestedPublic(type)) type = type.DeclaringType;
@@ -279,7 +301,8 @@ namespace Spreads.Utils.FastMember
 
             return true;
         }
-        static TypeAccessor CreateNew(Type type, bool allowNonPublicAccessors)
+
+        private static TypeAccessor CreateNew(Type type, bool allowNonPublicAccessors)
         {
 #if !NO_DYNAMIC
             if (typeof(IDynamicMetaObjectProvider).IsAssignableFrom(type))
@@ -357,7 +380,6 @@ namespace Spreads.Utils.FastMember
             FieldBuilder mapField = tb.DefineField("_map", typeof(Dictionary<string, int>), FieldAttributes.InitOnly | FieldAttributes.Private);
             il.Emit(OpCodes.Stfld, mapField);
             il.Emit(OpCodes.Ret);
-
 
             PropertyInfo indexer = typeof(TypeAccessor).GetProperty("Item");
             MethodInfo baseGetter = indexer.GetGetMethod(), baseSetter = indexer.GetSetMethod();

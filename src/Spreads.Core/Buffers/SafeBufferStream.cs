@@ -7,20 +7,25 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace Spreads.Buffers {
-
-    internal sealed class SafeBufferStream : UnmanagedMemoryStream {
-
+namespace Spreads.Buffers
+{
+    internal sealed class SafeBufferStream : UnmanagedMemoryStream
+    {
         [SecurityCritical]
-        internal SafeBufferStream(SafeBuffer buffer, long offset, long length, bool readOnly) {
+        internal SafeBufferStream(SafeBuffer buffer, long offset, long length, bool readOnly)
+        {
             Debug.Assert(buffer != null, "buffer is null");
             Initialize(buffer, offset, length, readOnly ? FileAccess.Read : FileAccess.ReadWrite);
         }
 
-        protected override void Dispose(bool disposing) {
-            try {
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
                 // todo?
-            } finally {
+            }
+            finally
+            {
                 base.Dispose(disposing);
             }
         }

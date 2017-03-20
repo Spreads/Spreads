@@ -5,32 +5,39 @@
 using Newtonsoft.Json;
 using System;
 
-namespace Spreads.Serialization {
-
+namespace Spreads.Serialization
+{
     [JsonConverter(typeof(MessageConverter))]
-    public interface IMessage {
+    public interface IMessage
+    {
         [JsonProperty("type")]
         string Type { get; }
+
         [JsonProperty("id")]
         string Id { get; }
     }
 
-    public class MessageTypeAttribute : Attribute {
-        public MessageTypeAttribute(string type) {
+    public class MessageTypeAttribute : Attribute
+    {
+        public MessageTypeAttribute(string type)
+        {
             Type = type;
         }
+
         public string Type { get; }
     }
 
     [MessageType("ping")]
-    public class PingMessage : IMessage {
+    public class PingMessage : IMessage
+    {
         public string Type => "ping";
         public string Id { get; set; } = Guid.NewGuid().ToString("N");
         public DateTime DateTimeUtc { get; set; } = DateTime.UtcNow;
     }
 
     [MessageType("pong")]
-    public class PongMessage : IMessage {
+    public class PongMessage : IMessage
+    {
         public string Type => "pong";
         public string Id { get; set; }
         public DateTime DateTimeUtc { get; set; } = DateTime.UtcNow;

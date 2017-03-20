@@ -6,13 +6,14 @@ using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Buffers {
-
+namespace Spreads.Buffers
+{
     /// <summary>
     /// A helper class that holds a RecyclableMemoryStreamManager singletone
     /// and methods to get temporary buffers.
     /// </summary>
-    public class RecyclableMemoryManager {
+    public class RecyclableMemoryManager
+    {
         public const int StaticBufferSize = 16 * 1024;
 
         [ThreadStatic]
@@ -25,16 +26,18 @@ namespace Spreads.Buffers {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static BufferWrapper<byte> GetBuffer(int minimumSize) {
-            if (StaticBufferSize >= minimumSize) {
+        internal static BufferWrapper<byte> GetBuffer(int minimumSize)
+        {
+            if (StaticBufferSize >= minimumSize)
+            {
                 return new BufferWrapper<byte>(ThreadStaticBuffer, false);
             }
             var staticBuffer = ArrayPool<byte>.Shared.Rent(minimumSize);
             return new BufferWrapper<byte>(staticBuffer, true);
         }
 
-
-        private RecyclableMemoryManager() {
+        private RecyclableMemoryManager()
+        {
         }
     }
 }

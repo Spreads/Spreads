@@ -5,24 +5,27 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Spreads.DataTypes {
-
+namespace Spreads.DataTypes
+{
     [StructLayout(LayoutKind.Sequential)]
-    public struct Variant<T> {
-
-        public Variant(T value) {
+    public struct Variant<T>
+    {
+        public Variant(T value)
+        {
             _value = Variant.Create(value);
         }
 
         private Variant _value;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static implicit operator Variant(Variant<T> value) {
+        public static implicit operator Variant(Variant<T> value)
+        {
             return value._value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static implicit operator T(Variant<T> value) {
+        public static implicit operator T(Variant<T> value)
+        {
             return value._value.Get<T>();
         }
 

@@ -9,17 +9,19 @@ using System;
 using System.Collections.Concurrent;
 using System.Reflection;
 
-namespace Spreads.Serialization {
-
+namespace Spreads.Serialization
+{
     /// <summary>
     /// Limits enum serialization only to defined values
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class SafeEnumConverter<T> : StringEnumConverter {
-
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer) {
+    public class SafeEnumConverter<T> : StringEnumConverter
+    {
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
             var isDef = Enum.IsDefined(typeof(T), value);
-            if (!isDef) {
+            if (!isDef)
+            {
                 value = null;
             }
             base.WriteJson(writer, value, serializer);
@@ -29,16 +31,18 @@ namespace Spreads.Serialization {
     /// <summary>
     /// Serialize as string with ToString()
     /// </summary>
-    public class ToStringConverter<T> : JsonConverter {
-
-        public override bool CanConvert(Type objectType) {
+    public class ToStringConverter<T> : JsonConverter
+    {
+        public override bool CanConvert(Type objectType)
+        {
             return true;
         }
 
         public override object ReadJson(JsonReader reader,
                                         Type objectType,
                                          object existingValue,
-                                         JsonSerializer serializer) {
+                                         JsonSerializer serializer)
+        {
             var t = JToken.Load(reader);
             T target = t.Value<T>();
             return target;
@@ -46,7 +50,8 @@ namespace Spreads.Serialization {
 
         public override void WriteJson(JsonWriter writer,
                                        object value,
-                                       JsonSerializer serializer) {
+                                       JsonSerializer serializer)
+        {
             var t = JToken.FromObject(value.ToString());
             t.WriteTo(writer);
         }
@@ -55,23 +60,26 @@ namespace Spreads.Serialization {
     /// <summary>
     /// Serialize Decimal to string without trailing zeros
     /// </summary>
-    public class DecimalG29ToStringConverter : JsonConverter {
-
-        public override bool CanConvert(Type objectType) {
+    public class DecimalG29ToStringConverter : JsonConverter
+    {
+        public override bool CanConvert(Type objectType)
+        {
             return objectType.Equals(typeof(decimal));
         }
 
         public override object ReadJson(JsonReader reader,
                                         Type objectType,
                                          object existingValue,
-                                         JsonSerializer serializer) {
+                                         JsonSerializer serializer)
+        {
             var t = JToken.Load(reader);
             return t.Value<decimal>();
         }
 
         public override void WriteJson(JsonWriter writer,
                                        object value,
-                                       JsonSerializer serializer) {
+                                       JsonSerializer serializer)
+        {
             decimal d = (decimal)value;
             var t = JToken.FromObject(d.ToString("G29"));
             t.WriteTo(writer);
@@ -82,16 +90,18 @@ namespace Spreads.Serialization {
     /// Convert DateTime to HHMMSS
     /// </summary>
     // ReSharper disable once InconsistentNaming
-    public class HHMMSSDateTimeConverter : JsonConverter {
-
-        public override bool CanConvert(Type objectType) {
+    public class HHMMSSDateTimeConverter : JsonConverter
+    {
+        public override bool CanConvert(Type objectType)
+        {
             return true;
         }
 
         public override object ReadJson(JsonReader reader,
                                         Type objectType,
                                          object existingValue,
-                                         JsonSerializer serializer) {
+                                         JsonSerializer serializer)
+        {
             var t = JToken.Load(reader);
             var target = t.Value<string>();
             if (target == null) return null;
@@ -105,13 +115,15 @@ namespace Spreads.Serialization {
 
         public override void WriteJson(JsonWriter writer,
                                        object value,
-                                       JsonSerializer serializer) {
+                                       JsonSerializer serializer)
+        {
             var t = JToken.FromObject(((DateTime)value).ToString("HHmmss"));
             t.WriteTo(writer);
         }
     }
 
-    public class MessageConverter : JsonCreationConverter<IMessage> {
+    public class MessageConverter : JsonCreationConverter<IMessage>
+    {
 #if NET451x
         // TODO(?,low) reflection to cache types by names and use activator create instance
         // http://mattgabriel.co.uk/2016/02/10/object-creation-using-lambda-expression/
@@ -144,44 +156,51 @@ namespace Spreads.Serialization {
 
         private static readonly ConcurrentDictionary<string, Type> KnownTypes = new ConcurrentDictionary<string, Type>();
 
-        public static void RegisterType<T>(string type) where T : IMessage {
-            if (!KnownTypes.TryAdd(type, typeof(T))) {
+        public static void RegisterType<T>(string type) where T : IMessage
+        {
+            if (!KnownTypes.TryAdd(type, typeof(T)))
+            {
                 throw new ArgumentException($"Type {type} already registered");
             }
         }
 
         // we learn object type from correlation id and a type stored in responses dictionary
         // ReSharper disable once RedundantAssignment
-        protected override IMessage Create(Type objectType, JObject jObject) {
-            if (FieldExists("type", jObject)) {
+        protected override IMessage Create(Type objectType, JObject jObject)
+        {
+            if (FieldExists("type", jObject))
+            {
                 // without id we have an event
                 var type = jObject.GetValue("type").Value<string>();
-                switch (type) {
+                switch (type)
+                {
                     case "ping":
-                        return new PingMessage();
+                    return new PingMessage();
 
                     case "pong":
-                        return new PongMessage();
+                    return new PongMessage();
 
                     default:
-                        Type t;
-                        if (KnownTypes.TryGetValue(type, out t)) {
-                            var instance = Activator.CreateInstance(t);
-                            return (IMessage)instance;
-                        }
-                        throw new InvalidOperationException("Unknown message type");
+                    Type t;
+                    if (KnownTypes.TryGetValue(type, out t))
+                    {
+                        var instance = Activator.CreateInstance(t);
+                        return (IMessage)instance;
+                    }
+                    throw new InvalidOperationException("Unknown message type");
                 }
             }
             throw new ArgumentException("Bad message format: no type field");
         }
 
-        private static bool FieldExists(string fieldName, JObject jObject) {
+        private static bool FieldExists(string fieldName, JObject jObject)
+        {
             return jObject[fieldName] != null;
         }
     }
 
-    public abstract class JsonCreationConverter<T> : JsonConverter {
-
+    public abstract class JsonCreationConverter<T> : JsonConverter
+    {
         /// <summary>
         /// Create an instance of objectType, based properties in the JSON object
         /// </summary>
@@ -192,14 +211,16 @@ namespace Spreads.Serialization {
         /// <returns></returns>
         protected abstract T Create(Type objectType, JObject jObject);
 
-        public override bool CanConvert(Type objectType) {
+        public override bool CanConvert(Type objectType)
+        {
             return typeof(T).GetTypeInfo().IsAssignableFrom(objectType.GetTypeInfo());
         }
 
         public override object ReadJson(JsonReader reader,
                                         Type objectType,
                                          object existingValue,
-                                         JsonSerializer serializer) {
+                                         JsonSerializer serializer)
+        {
             // Load JObject from stream
             JObject jObject = JObject.Load(reader);
 
@@ -216,7 +237,8 @@ namespace Spreads.Serialization {
 
         public override void WriteJson(JsonWriter writer,
                                        object value,
-                                       JsonSerializer serializer) {
+                                       JsonSerializer serializer)
+        {
             //writer.WriteValue(value);
             throw new NotSupportedException();
         }

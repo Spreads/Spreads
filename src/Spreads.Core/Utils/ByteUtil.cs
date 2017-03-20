@@ -5,72 +5,92 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Utils {
-
+namespace Spreads.Utils
+{
     /// <summary>
     /// Utility to copy blocks of memory
     /// </summary>
-    public unsafe class ByteUtil {
+    public unsafe class ByteUtil
+    {
         private static readonly int _wordSize = IntPtr.Size;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void MemoryCopy(byte* destination, byte* source, uint length) {
+        public static void MemoryCopy(byte* destination, byte* source, uint length)
+        {
             // NB The behavior of cpblk is unspecified if the source and destination areas overlap.
             // https://msdn.microsoft.com/en-us/library/system.reflection.emit.opcodes.cpblk%28v=vs.110%29.aspx?f=255&MSPPError=-2147217396
             Unsafe.CopyBlockUnaligned(destination, source, length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void MemoryMove(byte* destination, byte* source, uint length) {
-            if (destination < source) {
+        public static void MemoryMove(byte* destination, byte* source, uint length)
+        {
+            if (destination < source)
+            {
                 var pos = 0;
                 int nextPos;
-                if (_wordSize == 8) {
+                if (_wordSize == 8)
+                {
                     nextPos = pos + 8;
-                    while (nextPos <= length) {
+                    while (nextPos <= length)
+                    {
                         *(long*)(destination + pos) = *(long*)(source + pos);
                         pos = nextPos;
                         nextPos += 8;
                     }
-                } else {
+                }
+                else
+                {
                     nextPos = pos + 4;
-                    while (nextPos <= length) {
+                    while (nextPos <= length)
+                    {
                         *(int*)(destination + pos) = *(int*)(source + pos);
                         pos = nextPos;
                         nextPos += 4;
                     }
                 }
-                while (pos < length) {
+                while (pos < length)
+                {
                     *(byte*)(destination + pos) = *(byte*)(source + pos);
                     pos++;
                 }
-            } else if (destination > source) {
+            }
+            else if (destination > source)
+            {
                 var pos = (int)length;
                 int nextPos;
-                if (_wordSize == 8) {
+                if (_wordSize == 8)
+                {
                     nextPos = pos - 8;
-                    while (nextPos >= 0) {
+                    while (nextPos >= 0)
+                    {
                         *(long*)(destination + pos) = *(long*)(source + pos);
                         pos = nextPos;
                         nextPos -= 8;
                     }
-                } else {
+                }
+                else
+                {
                     nextPos = pos - 4;
-                    while (nextPos >= 0) {
+                    while (nextPos >= 0)
+                    {
                         *(int*)(destination + pos) = *(int*)(source + pos);
                         pos = nextPos;
                         nextPos -= 4;
                     }
                 }
-                while (pos > 0) {
+                while (pos > 0)
+                {
                     *(byte*)(destination + pos) = *(byte*)(source + pos);
                     pos--;
                 }
             }
         }
 
-        public static int GetHashCode(IntPtr ptr, int len) {
-            unchecked {
+        public static int GetHashCode(IntPtr ptr, int len)
+        {
+            unchecked
+            {
                 const int p = 16777619;
                 int hash = (int)2166136261;
 

@@ -2,17 +2,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Runtime.CompilerServices;
 
 // ReSharper disable once CheckNamespace
-namespace System.Runtime.CompilerServices {
-
+namespace System.Runtime.CompilerServices
+{
     /// <summary>
     /// Contains generic, low-level functionality for manipulating pointers.
     /// </summary>
-    public static class UnsafeEx {
+    public static class UnsafeEx
+    {
         /// <summary>
         /// Reads a value of type T from the given location.
         /// </summary>
@@ -23,13 +23,13 @@ namespace System.Runtime.CompilerServices {
         [ILSub(@"
             .maxstack 1
             ldarg.0
-            unaligned. 1 
+            unaligned. 1
             ldobj !!T
             ret")]
-        public unsafe static T ReadUnaligned<T>(void* source) {
+        public unsafe static T ReadUnaligned<T>(void* source)
+        {
             throw new NotImplementedException();
         }
-
 
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
         //[ILSub(@"
@@ -40,7 +40,6 @@ namespace System.Runtime.CompilerServices {
         //public unsafe static T ReadAligned<T>(void* source) {
         //    throw new NotImplementedException();
         //}
-
 
         /// <summary>
         /// Writes a value of type T to the given location.
@@ -53,10 +52,11 @@ namespace System.Runtime.CompilerServices {
             .maxstack 2
             ldarg.0
             ldarg.1
-            unaligned. 1 
+            unaligned. 1
             stobj !!T
             ret")]
-        public unsafe static void WriteUnaligned<T>(void* destination, T value) {
+        public unsafe static void WriteUnaligned<T>(void* destination, T value)
+        {
             throw new NotImplementedException();
         }
 
@@ -71,7 +71,6 @@ namespace System.Runtime.CompilerServices {
         //    throw new NotImplementedException();
         //}
 
-
         /// <summary>
         /// Copies a value of type T to the given location.
         /// </summary>
@@ -84,7 +83,7 @@ namespace System.Runtime.CompilerServices {
         //    ldarg.0
         //    ldarg.1
         //    ldobj !!T
-        //    unaligned. 1 
+        //    unaligned. 1
         //    stobj !!T
         //    ret")]
         //public unsafe static void Copy<T>(void* destination, ref T source) {
@@ -102,7 +101,7 @@ namespace System.Runtime.CompilerServices {
         //    .maxstack 2
         //    ldarg.0
         //    ldarg.1
-        //    unaligned. 1 
+        //    unaligned. 1
         //    ldobj !!T
         //    stobj !!T
         //    ret")]
@@ -153,7 +152,7 @@ namespace System.Runtime.CompilerServices {
         //    ldarg.0
         //    ldarg.1
         //    ldarg.2
-        //    unaligned. 1 
+        //    unaligned. 1
         //    cpblk
         //    ret")]
         //public unsafe static void CopyBlock(void* destination, void* source, uint byteCount) {
@@ -172,7 +171,7 @@ namespace System.Runtime.CompilerServices {
         //    ldarg.0
         //    ldarg.1
         //    ldarg.2
-        //    unaligned. 1 
+        //    unaligned. 1
         //    initblk
         //    ret")]
         //public unsafe static void InitBlock(void* startAddress, byte value, uint byteCount) {
@@ -220,6 +219,5 @@ namespace System.Runtime.CompilerServices {
         //{
         //    throw new NotImplementedException();
         //}
-
     }
 }

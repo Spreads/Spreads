@@ -8,8 +8,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads {
-
+namespace Spreads
+{
     /// <summary>
     /// Extends <c>IEnumerator[out T]</c> to support asynchronous MoveNext with cancellation.
     /// </summary>
@@ -24,8 +24,8 @@ namespace Spreads {
     /// Some implementations guarantee that <c>Current</c> keeps its last value from successfull MoveNext(),
     /// but that must be explicitly stated in a data structure documentation (e.g. SortedMap).
     /// </remarks>
-    public interface IAsyncEnumerator<out T> : IEnumerator<T> {
-
+    public interface IAsyncEnumerator<out T> : IEnumerator<T>
+    {
         /// <summary>
         /// Async move next.
         /// </summary>
@@ -39,13 +39,15 @@ namespace Spreads {
     }
 
     // Convenience aliases, no need to pollute interfaces
-    public static class AsyncEnumeratorExtensions {
-
-        public static Task<bool> MoveNextAsync<T>(this IAsyncEnumerator<T> enumerator) {
+    public static class AsyncEnumeratorExtensions
+    {
+        public static Task<bool> MoveNextAsync<T>(this IAsyncEnumerator<T> enumerator)
+        {
             return enumerator.MoveNext(CancellationToken.None);
         }
 
-        public static Task<bool> MoveNextAsync<T>(this IAsyncEnumerator<T> enumerator, CancellationToken cancellationToken) {
+        public static Task<bool> MoveNextAsync<T>(this IAsyncEnumerator<T> enumerator, CancellationToken cancellationToken)
+        {
             return enumerator.MoveNext(cancellationToken);
         }
     }
@@ -54,16 +56,16 @@ namespace Spreads {
     /// Exposes the async enumerator, which supports a sync and async iteration over a collection of a specified type.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public interface IAsyncEnumerable<out T> : IEnumerable<T> {
-
+    public interface IAsyncEnumerable<out T> : IEnumerable<T>
+    {
         /// <summary>
         /// Returns an async enumerator.
         /// </summary>
         new IAsyncEnumerator<T> GetEnumerator();
     }
 
-    public interface ISubscription : IDisposable {
-
+    public interface ISubscription : IDisposable
+    {
         /// <summary>
         /// No events will be sent by a Publisher until demand is signaled via this method.
         ///
@@ -86,8 +88,8 @@ namespace Spreads {
         //void Dispose();
     }
 
-    public interface ISubscriber<in T> : IObserver<T> {
-
+    public interface ISubscriber<in T> : IObserver<T>
+    {
         void OnSubscribe(ISubscription s);
 
         //void OnCompleted();
@@ -95,7 +97,8 @@ namespace Spreads {
         //void OnNext(T value);
     }
 
-    public interface IPublisher<out T> : IObservable<T> {
+    public interface IPublisher<out T> : IObservable<T>
+    {
         //[Obsolete("Use typecheck in implementations")]
         //new ISubscription Subscribe(IObserver<T> subscriber);
     }
@@ -109,15 +112,16 @@ namespace Spreads {
     /// </summary>
     /// <typeparam name="TIn">the type of element signaled to the Subscriber</typeparam>
     /// <typeparam name="TOut">the type of element signaled by the Publisher</typeparam>
-    public interface IProcessor<in TIn, out TOut> : ISubscriber<TIn>, IPublisher<TOut> {
+    public interface IProcessor<in TIn, out TOut> : ISubscriber<TIn>, IPublisher<TOut>
+    {
     }
 
     /// <summary>
     /// Main interface for data series.
     /// </summary>
     public interface ISeries<TKey, TValue>
-        : IPublisher<KeyValuePair<TKey, TValue>>, IAsyncEnumerable<KeyValuePair<TKey, TValue>> {
-
+        : IPublisher<KeyValuePair<TKey, TValue>>, IAsyncEnumerable<KeyValuePair<TKey, TValue>>
+    {
         /// <summary>
         /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys.
         /// </summary>
@@ -144,7 +148,8 @@ namespace Spreads {
         object SyncRoot { get; }
     }
 
-    public interface ISeries : ISeries<Variant, Variant> {
+    public interface ISeries : ISeries<Variant, Variant>
+    {
     }
 
     /// <summary>
@@ -179,7 +184,8 @@ namespace Spreads {
     ///
     /// </summary>
     public interface ICursor<TKey, TValue>
-        : IAsyncEnumerator<KeyValuePair<TKey, TValue>> {
+        : IAsyncEnumerator<KeyValuePair<TKey, TValue>>
+    {
         IComparer<TKey> Comparer { get; }
 
         /// <summary>
@@ -244,7 +250,8 @@ namespace Spreads {
     /// changes use lock (Monitor.Enter) on the SyncRoot property. Doing so will block any changes for
     /// mutable implementations and won't affect immutable implementations.
     /// </summary>
-    public interface IReadOnlySeries<TKey, TValue> : ISeries<TKey, TValue> {
+    public interface IReadOnlySeries<TKey, TValue> : ISeries<TKey, TValue>
+    {
         bool IsEmpty { get; }
 
         /// <summary>
@@ -341,28 +348,32 @@ namespace Spreads {
     /// <summary>
     /// `Flush` has a standard meaning, e.g. as in Stream, and saves all changes. `Dispose` calls `Flush`. `Id` is globally unique.
     /// </summary>
-    public interface IPersistentObject : IDisposable {
-
+    public interface IPersistentObject : IDisposable
+    {
         void Flush();
 
         string Id { get; }
     }
 
-    public interface IPersistentSeries<TKey, TValue> : IMutableSeries<TKey, TValue>, IPersistentObject {
+    public interface IPersistentSeries<TKey, TValue> : IMutableSeries<TKey, TValue>, IPersistentObject
+    {
     }
 
     /// <summary>
     /// Time series
     /// </summary>
-    public interface ITimeSeries<TKey, TValue> : IReadOnlySeries<TKey, TValue> {
+    public interface ITimeSeries<TKey, TValue> : IReadOnlySeries<TKey, TValue>
+    {
         // NB we do not restrict TKey to DateTime, it could be long or whatever, depending on context
         // For storage we just require that TKey must have KeyComparer, i.e. strictly monotonic conversion to long
         UnitPeriod UnitPeriod { get; }
+
         int PeriodCount { get; }
         string TimeZone { get; }
     }
 
-    public interface ICloneable<out T> where T : ICloneable<T> {
+    public interface ICloneable<out T> where T : ICloneable<T>
+    {
         T DeepCopy();
     }
 
@@ -374,18 +385,19 @@ namespace Spreads {
     internal delegate void OnUpdateHandler(bool flag);
 
     [Obsolete("This should no longer be used")]
-    internal interface IUpdateable {
-
+    internal interface IUpdateable
+    {
         event OnUpdateHandler OnUpdate;
     }
 
-
     internal interface IMutableChunksSeries<TKey, TValue, TContainer> : IReadOnlySeries<TKey, TContainer>, IPersistentObject
-        where TContainer : IMutableSeries<TKey, TValue> {
+        where TContainer : IMutableSeries<TKey, TValue>
+    {
         /// <summary>
         /// Keep the key chunk if it is not empty, remove all other chunks to the direction side, update version from the key chunk
         /// </summary>
         bool RemoveMany(TKey key, TContainer keyChunk, Lookup direction);
+
         new TContainer this[TKey key] { get; set; }
         long Version { get; }
     }

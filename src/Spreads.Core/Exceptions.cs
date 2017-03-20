@@ -4,17 +4,19 @@
 
 using System;
 
-namespace Spreads {
-
+namespace Spreads
+{
     /// <summary>
     /// Exceptions related to data integrity and other Spreads-specific logic
     /// </summary>
-    public class SpreadsException : Exception {
-
-        public SpreadsException() {
+    public class SpreadsException : Exception
+    {
+        public SpreadsException()
+        {
         }
 
-        public SpreadsException(string message) : base(message) {
+        public SpreadsException(string message) : base(message)
+        {
         }
     }
 
@@ -30,8 +32,8 @@ namespace Spreads {
     /// behavior unless it is a part of cursor definition and is explicitly documented.
     /// The state of cursor is undefined and invalid after the exception is thrown.
     /// </summary>
-    public class OutOfOrderKeyException<K> : SpreadsException {
-
+    public class OutOfOrderKeyException<K> : SpreadsException
+    {
         /// <summary>
         /// Key/value before arrival of out-of-order data point
         /// </summary>
@@ -44,13 +46,15 @@ namespace Spreads {
 
         public bool HasKnownNewKey { get; }
 
-        public OutOfOrderKeyException(K currentKey, K newKey, string message = "Out of order data") : base(message) {
+        public OutOfOrderKeyException(K currentKey, K newKey, string message = "Out of order data") : base(message)
+        {
             CurrentKey = currentKey;
             NewKey = newKey;
             HasKnownNewKey = true;
         }
 
-        public OutOfOrderKeyException(K currentKey, string message = "Out of order data") : base(message) {
+        public OutOfOrderKeyException(K currentKey, string message = "Out of order data") : base(message)
+        {
             CurrentKey = currentKey;
             HasKnownNewKey = false;
         }

@@ -2,18 +2,21 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+
 // TODO back to internal
-namespace System.Collections.Generic {
-    public sealed class IDictionaryDebugView<K, V> {
+namespace System.Collections.Generic
+{
+    public sealed class IDictionaryDebugView<K, V>
+    {
         private readonly IDictionary<K, V> _dict;
 
-        public IDictionaryDebugView(IDictionary<K, V> dictionary) {
+        public IDictionaryDebugView(IDictionary<K, V> dictionary)
+        {
             if (dictionary == null)
                 throw new ArgumentNullException(nameof(dictionary));
 
@@ -32,10 +35,12 @@ namespace System.Collections.Generic {
         }
     }
 
-    public sealed class DictionaryKeyCollectionDebugView<TKey, TValue> {
+    public sealed class DictionaryKeyCollectionDebugView<TKey, TValue>
+    {
         private readonly ICollection<TKey> _collection;
 
-        public DictionaryKeyCollectionDebugView(ICollection<TKey> collection) {
+        public DictionaryKeyCollectionDebugView(ICollection<TKey> collection)
+        {
             if (collection == null)
                 throw new ArgumentNullException(nameof(collection));
 
@@ -54,10 +59,12 @@ namespace System.Collections.Generic {
         }
     }
 
-    public sealed class DictionaryValueCollectionDebugView<TKey, TValue> {
+    public sealed class DictionaryValueCollectionDebugView<TKey, TValue>
+    {
         private readonly ICollection<TValue> _collection;
 
-        public DictionaryValueCollectionDebugView(ICollection<TValue> collection) {
+        public DictionaryValueCollectionDebugView(ICollection<TValue> collection)
+        {
             if (collection == null)
                 throw new ArgumentNullException(nameof(collection));
 

@@ -2,13 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-namespace Spreads {
-
+namespace Spreads
+{
     /// <summary>
     /// Direction to lookup data or move from a starting point
     /// </summary>
-    public enum Lookup {
-
+    public enum Lookup
+    {
         /// <summary>
         /// Less than, excludes a strating point even if it is present
         /// </summary>

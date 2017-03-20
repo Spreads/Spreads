@@ -4,12 +4,13 @@
 
 using System;
 
-namespace Spreads {
-
+namespace Spreads
+{
     /// <summary>
     /// Base unit of a period
     /// </summary>
-    public enum UnitPeriod : byte {
+    public enum UnitPeriod : byte
+    {
         Tick = 0,          //               100 nanosec
         Millisecond = 1,   //              10 000 ticks
         Second = 2,        //          10 000 000 ticks
@@ -18,14 +19,14 @@ namespace Spreads {
         Day = 5,           //     864 000 000 000 ticks
         Month = 6,         //                  Variable
 
-                           /// <summary>
-                           /// Static or constant
-                           /// </summary>
+        /// <summary>
+        /// Static or constant
+        /// </summary>
         Eternity = 7,      //                  Infinity
     }
 
-    public enum AppendOption {
-
+    public enum AppendOption
+    {
         /// <summary>
         /// Throw if new keys overlap with existing keys.
         /// </summary>

@@ -188,8 +188,8 @@ docs/content/release-notes.md
 
 *.ide
 *.vs
-*.so
-*.dylib
+#*.so
+#*.dylib
 
 
 !libyeppp.dll
@@ -202,5 +202,7 @@ docs/content/release-notes.md
 !lib/libyeppp/win/x64/
 !lib/libyeppp/win/x32/*.dll
 !lib/libyeppp/win/x64/*.dll
+!lib/libyeppp/lin/x64/*.so
+!lib/*/*/x64/
 
 project.lock.json

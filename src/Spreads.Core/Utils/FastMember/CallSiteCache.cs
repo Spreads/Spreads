@@ -1,5 +1,6 @@
 ﻿// Copyright (c) 2017, Marc Gravell https://github.com/mgravell/fast-member
 #if !NO_DYNAMIC
+
 using System.Collections;
 using System.Runtime.CompilerServices;
 using System;
@@ -28,6 +29,7 @@ namespace Spreads.Utils.FastMember
             }
             return callSite.Target(callSite, target);
         }
+
         internal static void SetValue(string name, object target, object value)
         {
             CallSite<Func<CallSite, object, object, object>> callSite = (CallSite<Func<CallSite, object, object, object>>)setters[name];
@@ -45,7 +47,7 @@ namespace Spreads.Utils.FastMember
             }
             callSite.Target(callSite, target, value);
         }
-        
     }
 }
+
 #endif

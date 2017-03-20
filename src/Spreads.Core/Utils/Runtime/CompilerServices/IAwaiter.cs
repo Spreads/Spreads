@@ -4,9 +4,12 @@
 
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Experimental.Utils.Runtime.CompilerServices {
-    public interface IAwaiter<T> : ICriticalNotifyCompletion {
+namespace Spreads.Experimental.Utils.Runtime.CompilerServices
+{
+    public interface IAwaiter<T> : ICriticalNotifyCompletion
+    {
         bool IsCompleted { get; }
+
         T GetResult();
     }
 }

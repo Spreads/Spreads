@@ -8,12 +8,13 @@ using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
-namespace Spreads.Core.Tests.Algorithms {
-
+namespace Spreads.Core.Tests.Algorithms
+{
     [TestFixture]
-    public class OptimizationTests {
-
-        public struct EvalAddress {
+    public class OptimizationTests
+    {
+        public struct EvalAddress
+        {
             public long LinearAddress;
             public double Value;
 
@@ -21,7 +22,8 @@ namespace Spreads.Core.Tests.Algorithms {
         }
 
         [Test]
-        public async void CouldFindMaximum() {
+        public async void CouldFindMaximum()
+        {
             var sw = new Stopwatch();
             var startMemory = GC.GetTotalMemory(true);
             sw.Restart();
@@ -34,7 +36,8 @@ namespace Spreads.Core.Tests.Algorithms {
             var total = pars.TotalInterations;
             Console.WriteLine($"Total iterations: {total}");
 
-            Func<Parameters, ValueTask<double>> targetFunc = (args) => {
+            Func<Parameters, ValueTask<double>> targetFunc = (args) =>
+            {
                 //return Task.Run(() => {
                 //    //await Task.Delay(0);
                 //    var result = -(Math.Pow(200 - args[0].Current, 2) + Math.Pow(10 - args[1].Current, 2) +
@@ -70,8 +73,10 @@ namespace Spreads.Core.Tests.Algorithms {
             Console.WriteLine($"Optimum: {optParams[0].Current} - {optParams[1].Current} - {optParams[2].Current}");
         }
 
-        private EvalAddress FolderFunc(EvalAddress state, ref EvalParametersResult<double> item) {
-            if (item.Value > state.Value) {
+        private EvalAddress FolderFunc(EvalAddress state, ref EvalParametersResult<double> item)
+        {
+            if (item.Value > state.Value)
+            {
                 return new EvalAddress() { Value = item.Value, LinearAddress = item.Parameters.LinearAddress() };
             }
             return state;
@@ -81,7 +86,8 @@ namespace Spreads.Core.Tests.Algorithms {
         /// This test should load CPU significantly above one core
         /// </summary>
         [Test, Ignore]
-        public async void CouldFindMaximumWithSpinWait() {
+        public async void CouldFindMaximumWithSpinWait()
+        {
             var par0 = new Parameter("par0", 0, 10, 1);
             var par1 = new Parameter("par1", 0, 10, 1);
             var par2 = new Parameter("par2", 0, 10, 1);
@@ -91,10 +97,13 @@ namespace Spreads.Core.Tests.Algorithms {
             var total = pars.TotalInterations;
             Console.WriteLine($"Total iterations: {total}");
 
-            Func<Parameters, ValueTask<double>> targetFunc = (args) => {
-                var task = Task.Run(() => {
+            Func<Parameters, ValueTask<double>> targetFunc = (args) =>
+            {
+                var task = Task.Run(() =>
+                {
                     var sum = 0L;
-                    for (var i = 0; i < 10000000; i++) {
+                    for (var i = 0; i < 10000000; i++)
+                    {
                         sum = sum + i;
                     }
                     // avoid any release optimization
@@ -111,7 +120,8 @@ namespace Spreads.Core.Tests.Algorithms {
 
             EvalFolderFunc<double, EvalAddress> folder = FolderFunc;
 
-            for (int i = 0; i < 2; i++) {
+            for (int i = 0; i < 2; i++)
+            {
                 var sw = new Stopwatch();
                 var startMemory = GC.GetTotalMemory(true);
                 sw.Restart();
@@ -128,7 +138,8 @@ namespace Spreads.Core.Tests.Algorithms {
         }
 
         [Test]
-        public async void CouldFindMaximumUsingMaximizeMethod() {
+        public async void CouldFindMaximumUsingMaximizeMethod()
+        {
             var sw = new Stopwatch();
             var startMemory = GC.GetTotalMemory(true);
             sw.Restart();
@@ -141,7 +152,8 @@ namespace Spreads.Core.Tests.Algorithms {
             var total = pars.TotalInterations;
             Console.WriteLine($"Total iterations: {total}");
 
-            Func<Parameters, ValueTask<double>> targetFunc = (args) => {
+            Func<Parameters, ValueTask<double>> targetFunc = (args) =>
+            {
                 var result = -(Math.Pow(200 - args[0].Current, 2) + Math.Pow(10 - args[1].Current, 2) +
                                Math.Pow(70 - args[2].Current, 2));
                 return new ValueTask<double>(result);
@@ -159,7 +171,8 @@ namespace Spreads.Core.Tests.Algorithms {
         }
 
         [Test]
-        public async void CouldFindMaximumUsingMaximizeMethodWithBigStep() {
+        public async void CouldFindMaximumUsingMaximizeMethodWithBigStep()
+        {
             var sw = new Stopwatch();
             var startMemory = GC.GetTotalMemory(true);
             sw.Restart();
@@ -172,7 +185,8 @@ namespace Spreads.Core.Tests.Algorithms {
             var total = pars.TotalInterations;
             Console.WriteLine($"Total iterations: {total}");
 
-            Func<Parameters, ValueTask<double>> targetFunc = (args) => {
+            Func<Parameters, ValueTask<double>> targetFunc = (args) =>
+            {
                 var result = -(Math.Pow(200 - args[0].Current, 2) + Math.Pow(10 - args[1].Current, 2) +
                                Math.Pow(70 - args[2].Current, 2));
                 return new ValueTask<double>(result);

@@ -8,19 +8,21 @@ using Spreads.Collections;
 using System;
 using System.Diagnostics;
 
-namespace Spreads.Core.Tests.Algorithms {
-
+namespace Spreads.Core.Tests.Algorithms
+{
     [TestFixture]
-    public class MovingMedianTests {
-
+    public class MovingMedianTests
+    {
         [Test, Ignore]
-        public void CouldCalculateMovingMedian() {
+        public void CouldCalculateMovingMedian()
+        {
             var rng = new System.Random();
             var count = 100000;
             var m = rng.Next(10, 200);
             Console.Write($"{m}|");
             var data = new double[count];
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 data[i] = rng.NextDouble();
             }
             var mm = new MovingMedian(m);
@@ -38,7 +40,8 @@ namespace Spreads.Core.Tests.Algorithms {
 
             sw.Restart();
             var startIdx = m - 1;
-            for (int i = startIdx; i < count; i++) {
+            for (int i = startIdx; i < count; i++)
+            {
                 var arraySegment = new ArraySegment<double>(data, i - startIdx, m);
                 naiveMedians[i - startIdx] = MovingMedian.NaiveMedian(arraySegment);
             }
@@ -50,20 +53,24 @@ namespace Spreads.Core.Tests.Algorithms {
         }
 
         [Test, Ignore]
-        public void CouldCalculateMovingMedianManyTimes() {
-            for (int r = 0; r < 100; r++) {
+        public void CouldCalculateMovingMedianManyTimes()
+        {
+            for (int r = 0; r < 100; r++)
+            {
                 CouldCalculateMovingMedian();
             }
         }
 
         [Test, Ignore]
-        public void MovingMedianIsCorrect() {
+        public void MovingMedianIsCorrect()
+        {
             var rng = new System.Random();
             var count = 1000000;
             var m = rng.Next(10, 50);
             Console.WriteLine($"Window size: {m}");
             var data = new double[count];
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 data[i] = rng.NextDouble();
             }
             var mm = new MovingMedian(m);
@@ -79,14 +86,16 @@ namespace Spreads.Core.Tests.Algorithms {
 
             sw.Restart();
             var startIdx = m - 1;
-            for (int i = startIdx; i < count; i++) {
+            for (int i = startIdx; i < count; i++)
+            {
                 var arraySegment = new ArraySegment<double>(data, i - startIdx, m);
                 naiveMedians[i - startIdx] = MovingMedian.NaiveMedian(arraySegment);
             }
             sw.Stop();
             Console.WriteLine($"Elapsed NAIVE {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
 
-            for (int i = 0; i < medians.Length; i++) {
+            for (int i = 0; i < medians.Length; i++)
+            {
                 if (medians[i] != naiveMedians[i]) //&& i == 0
                 {
                     Console.WriteLine($"{i + startIdx} - LIGO {medians[i]} - Naive {naiveMedians[i]}");
@@ -96,14 +105,17 @@ namespace Spreads.Core.Tests.Algorithms {
         }
 
         [Test, Ignore]
-        public void MovingMedianIsCorrectManyTimes() {
-            for (int r = 0; r < 50; r++) {
+        public void MovingMedianIsCorrectManyTimes()
+        {
+            for (int r = 0; r < 50; r++)
+            {
                 MovingMedianIsCorrect();
             }
         }
 
         [Test, Ignore]
-        public void IncompleteMovingMedianIsCorrect() {
+        public void IncompleteMovingMedianIsCorrect()
+        {
             var rng = new System.Random();
             var count = 100000;
             var m = rng.Next(10, 199);
@@ -111,7 +123,8 @@ namespace Spreads.Core.Tests.Algorithms {
             var keys = new int[count];
             var data = new double[count];
             //var sm = new SortedMap<int, double>(count);
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 keys[i] = i;
                 data[i] = rng.NextDouble();
                 //sm.Add(i, data[i]);
@@ -126,7 +139,8 @@ namespace Spreads.Core.Tests.Algorithms {
 
             var sw = new Stopwatch();
             sw.Restart();
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 medians[i] = mm.Update(data[i]);
             }
             //var result = mm.Rngmed(data, medians);
@@ -135,7 +149,8 @@ namespace Spreads.Core.Tests.Algorithms {
 
             sw.Restart();
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 var arraySegment = new ArraySegment<double>(data, Math.Max(i - m + 1, 0), Math.Min(m, i + 1));
                 //if (i + 1 >= m && arraySegment.Count != m) {
                 //    Assert.Fail("Wrong array segment");
@@ -149,19 +164,23 @@ namespace Spreads.Core.Tests.Algorithms {
 
             sw.Restart();
             var cursor = medianSeries.GetCursor();
-            while (cursor.MoveNext()) {
+            while (cursor.MoveNext())
+            {
                 cursorMedians[cursor.CurrentKey] = cursor.CurrentValue;
             }
             sw.Stop();
             Console.WriteLine($"Elapsed CURSOR {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
 
-            for (int i = 0; i < medians.Length; i++) {
-                if (medians[i] != naiveMedians[i]) {
+            for (int i = 0; i < medians.Length; i++)
+            {
+                if (medians[i] != naiveMedians[i])
+                {
                     Console.WriteLine($"{i} - LIGO {medians[i]} - Naive {naiveMedians[i]}");
                 }
                 Assert.AreEqual(medians[i], naiveMedians[i]);
 
-                if (naiveMedians[i] != cursorMedians[i]) {
+                if (naiveMedians[i] != cursorMedians[i])
+                {
                     Console.WriteLine($"{i} - CURSOR {cursorMedians[i]} - Naive {naiveMedians[i]}");
                 }
                 Assert.AreEqual(cursorMedians[i], naiveMedians[i]);
@@ -169,8 +188,10 @@ namespace Spreads.Core.Tests.Algorithms {
         }
 
         [Test, Ignore]
-        public void IncompleteMovingMedianIsCorrectManyTimes() {
-            for (int r = 0; r < 50; r++) {
+        public void IncompleteMovingMedianIsCorrectManyTimes()
+        {
+            for (int r = 0; r < 50; r++)
+            {
                 IncompleteMovingMedianIsCorrect();
             }
         }

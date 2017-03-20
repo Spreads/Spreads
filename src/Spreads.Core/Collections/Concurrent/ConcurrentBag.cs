@@ -7,6 +7,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+
 //using System.Runtime.Serialization;
 using System.Threading;
 
@@ -14,9 +15,10 @@ using System.Threading;
 // https://github.com/dotnet/corefx/pull/14126
 // TODO Uncomment serialization stuff when netstandard 2 is used
 
-namespace Spreads.Collections.Concurrent {
+namespace Spreads.Collections.Concurrent
+{
     /// <summary>
-    /// Represents a thread-safe, unordered collection of objects. 
+    /// Represents a thread-safe, unordered collection of objects.
     /// </summary>
     /// <typeparam name="T">Specifies the type of elements in the bag.</typeparam>
     /// <remarks>
@@ -26,7 +28,7 @@ namespace Spreads.Collections.Concurrent {
     /// scenarios where the same thread will be both producing and consuming data stored in the bag.
     /// </para>
     /// <para>
-    /// <see cref="ConcurrentBag{T}"/> accepts null reference (Nothing in Visual Basic) as a valid 
+    /// <see cref="ConcurrentBag{T}"/> accepts null reference (Nothing in Visual Basic) as a valid
     /// value for reference types.
     /// </para>
     /// <para>
@@ -37,18 +39,22 @@ namespace Spreads.Collections.Concurrent {
     [DebuggerTypeProxy(typeof(IProducerConsumerCollectionDebugView<>))]
     [DebuggerDisplay("Count = {Count}")]
     //[Serializable]
-    public class ConcurrentBag<T> : IProducerConsumerCollection<T>, IReadOnlyCollection<T> {
+    public class ConcurrentBag<T> : IProducerConsumerCollection<T>, IReadOnlyCollection<T>
+    {
         /// <summary>The per-bag, per-thread work-stealing queues.</summary>
         //[NonSerialized]
         private ThreadLocal<WorkStealingQueue> _locals;
+
         /// <summary>The head work stealing queue in a linked list of queues.</summary>
         //[NonSerialized]
         private volatile WorkStealingQueue _workStealingQueues;
+
         /// <summary>Temporary storage of the bag's contents used during serialization.</summary>
         private T[] _serializationArray;
 
         /// <summary>Initializes a new instance of the <see cref="ConcurrentBag{T}"/> class.</summary>
-        public ConcurrentBag() {
+        public ConcurrentBag()
+        {
             _locals = new ThreadLocal<WorkStealingQueue>();
         }
 
@@ -60,15 +66,18 @@ namespace Spreads.Collections.Concurrent {
         /// cref="ConcurrentBag{T}"/>.</param>
         /// <exception cref="ArgumentNullException"><paramref name="collection"/> is a null reference
         /// (Nothing in Visual Basic).</exception>
-        public ConcurrentBag(IEnumerable<T> collection) {
-            if (collection == null) {
+        public ConcurrentBag(IEnumerable<T> collection)
+        {
+            if (collection == null)
+            {
                 throw new ArgumentNullException(nameof(collection), "ConcurrentBag_Ctor_ArgumentNullException");
             }
 
             _locals = new ThreadLocal<WorkStealingQueue>();
 
             WorkStealingQueue queue = GetCurrentThreadWorkStealingQueue(forceCreate: true);
-            foreach (T item in collection) {
+            foreach (T item in collection)
+            {
                 queue.LocalPush(item);
             }
         }
@@ -112,11 +121,12 @@ namespace Spreads.Collections.Concurrent {
         /// <summary>
         /// Attempts to add an object to the <see cref="ConcurrentBag{T}"/>.
         /// </summary>
-        /// <param name="item">The object to be added to the 
+        /// <param name="item">The object to be added to the
         /// <see cref="ConcurrentBag{T}"/>. The value can be a null reference
         /// (Nothing in Visual Basic) for reference types.</param>
         /// <returns>Always returns true</returns>
-        bool IProducerConsumerCollection<T>.TryAdd(T item) {
+        bool IProducerConsumerCollection<T>.TryAdd(T item)
+        {
             Add(item);
             return true;
         }
@@ -128,7 +138,8 @@ namespace Spreads.Collections.Concurrent {
         /// removed from the <see cref="ConcurrentBag{T}"/> or the default value
         /// of <typeparamref name="T"/> if the operation failed.</param>
         /// <returns>true if an object was removed successfully; otherwise, false.</returns>
-        public bool TryTake(out T result) {
+        public bool TryTake(out T result)
+        {
             WorkStealingQueue queue = GetCurrentThreadWorkStealingQueue(forceCreate: false);
             return (queue != null && queue.TryLocalPop(out result)) || TrySteal(out result, take: true);
         }
@@ -140,7 +151,8 @@ namespace Spreads.Collections.Concurrent {
         /// the <see cref="ConcurrentBag{T}"/> or the default value of
         /// <typeparamref name="T"/> if the operation failed.</param>
         /// <returns>true if and object was returned successfully; otherwise, false.</returns>
-        public bool TryPeek(out T result) {
+        public bool TryPeek(out T result)
+        {
             WorkStealingQueue queue = GetCurrentThreadWorkStealingQueue(forceCreate: false);
             return (queue != null && queue.TryLocalPeek(out result)) || TrySteal(out result, take: false);
         }
@@ -152,13 +164,15 @@ namespace Spreads.Collections.Concurrent {
             _locals.Value ??
             (forceCreate ? CreateWorkStealingQueueForCurrentThread() : null);
 
-        private WorkStealingQueue CreateWorkStealingQueueForCurrentThread() {
+        private WorkStealingQueue CreateWorkStealingQueueForCurrentThread()
+        {
             lock (GlobalQueuesLock) // necessary to update _workStealingQueues, so as to synchronize with freezing operations
             {
                 WorkStealingQueue head = _workStealingQueues;
 
                 WorkStealingQueue queue = head != null ? GetUnownedWorkStealingQueue() : null;
-                if (queue == null) {
+                if (queue == null)
+                {
                     _workStealingQueues = queue = new WorkStealingQueue(head);
                 }
                 _locals.Value = queue;
@@ -172,15 +186,18 @@ namespace Spreads.Collections.Concurrent {
         /// the bag purposefully retains its queue, as it contains data associated with the bag.
         /// </summary>
         /// <returns>The queue object, or null if no unowned queue could be gathered.</returns>
-        private WorkStealingQueue GetUnownedWorkStealingQueue() {
+        private WorkStealingQueue GetUnownedWorkStealingQueue()
+        {
             Debug.Assert(Monitor.IsEntered(GlobalQueuesLock));
 
             // Look for a thread that has the same ID as this one.  It won't have come from the same thread,
             // but if our thread ID is reused, we know that no other thread can have the same ID and thus
             // no other thread can be using this queue.
             int currentThreadId = Environment.CurrentManagedThreadId;
-            for (WorkStealingQueue queue = _workStealingQueues; queue != null; queue = queue._nextQueue) {
-                if (queue._ownerThreadId == currentThreadId) {
+            for (WorkStealingQueue queue = _workStealingQueues; queue != null; queue = queue._nextQueue)
+            {
+                if (queue._ownerThreadId == currentThreadId)
+                {
                     return queue;
                 }
             }
@@ -192,12 +209,13 @@ namespace Spreads.Collections.Concurrent {
         /// <param name="result">To receive the item retrieved from the bag</param>
         /// <param name="take">Whether to remove or peek.</param>
         /// <returns>True if succeeded, false otherwise.</returns>
-        private bool TrySteal(out T result, bool take) {
-
+        private bool TrySteal(out T result, bool take)
+        {
             // If there's no local queue for this thread, just start from the head queue
             // and try to steal from each queue until we get a result.
             WorkStealingQueue localQueue = GetCurrentThreadWorkStealingQueue(forceCreate: false);
-            if (localQueue == null) {
+            if (localQueue == null)
+            {
                 return TryStealFromTo(_workStealingQueues, null, out result, take);
             }
 
@@ -214,9 +232,12 @@ namespace Spreads.Collections.Concurrent {
         /// <summary>
         /// Attempts to steal from each queue starting from <paramref name="startInclusive"/> to <paramref name="endExclusive"/>.
         /// </summary>
-        private bool TryStealFromTo(WorkStealingQueue startInclusive, WorkStealingQueue endExclusive, out T result, bool take) {
-            for (WorkStealingQueue queue = startInclusive; queue != endExclusive; queue = queue._nextQueue) {
-                if (queue.TrySteal(out result, take)) {
+        private bool TryStealFromTo(WorkStealingQueue startInclusive, WorkStealingQueue endExclusive, out T result, bool take)
+        {
+            for (WorkStealingQueue queue = startInclusive; queue != endExclusive; queue = queue._nextQueue)
+            {
+                if (queue.TrySteal(out result, take))
+                {
                     return true;
                 }
             }
@@ -245,48 +266,61 @@ namespace Spreads.Collections.Concurrent {
         /// -or- the number of elements in the source <see
         /// cref="ConcurrentBag{T}"/> is greater than the available space from
         /// <paramref name="index"/> to the end of the destination <paramref name="array"/>.</exception>
-        public void CopyTo(T[] array, int index) {
-            if (array == null) {
+        public void CopyTo(T[] array, int index)
+        {
+            if (array == null)
+            {
                 throw new ArgumentNullException(nameof(array), "ConcurrentBag_CopyTo_ArgumentNullException");
             }
-            if (index < 0) {
+            if (index < 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(index), "Collection_CopyTo_ArgumentOutOfRangeException");
             }
 
             // Short path if the bag is empty
-            if (_workStealingQueues == null) {
+            if (_workStealingQueues == null)
+            {
                 return;
             }
 
             bool lockTaken = false;
-            try {
+            try
+            {
                 FreezeBag(ref lockTaken);
 
                 // Make sure we won't go out of bounds on the array
                 int count = DangerousCount;
-                if (index > array.Length - count) {
+                if (index > array.Length - count)
+                {
                     throw new ArgumentException("Collection_CopyTo_TooManyElems", nameof(index));
                 }
 
                 // Do the copy
-                try {
+                try
+                {
                     int copied = CopyFromEachQueueToArray(array, index);
                     Debug.Assert(copied == count);
-                } catch (ArrayTypeMismatchException e) {
+                }
+                catch (ArrayTypeMismatchException e)
+                {
                     // Propagate same exception as in desktop
                     throw new InvalidCastException(e.Message, e);
                 }
-            } finally {
+            }
+            finally
+            {
                 UnfreezeBag(lockTaken);
             }
         }
 
         /// <summary>Copies from each queue to the target array, starting at the specified index.</summary>
-        private int CopyFromEachQueueToArray(T[] array, int index) {
+        private int CopyFromEachQueueToArray(T[] array, int index)
+        {
             Debug.Assert(Monitor.IsEntered(GlobalQueuesLock));
 
             int i = index;
-            for (WorkStealingQueue queue = _workStealingQueues; queue != null; queue = queue._nextQueue) {
+            for (WorkStealingQueue queue = _workStealingQueues; queue != null; queue = queue._nextQueue)
+            {
                 i += queue.DangerousCopyTo(array, i);
             }
             return i - index;
@@ -317,18 +351,21 @@ namespace Spreads.Collections.Concurrent {
         /// cref="T:System.Collections.ICollection"/> cannot be cast automatically to the type of the
         /// destination <paramref name="array"/>.
         /// </exception>
-        void ICollection.CopyTo(Array array, int index) {
+        void ICollection.CopyTo(Array array, int index)
+        {
             // If the destination is actually a T[], use the strongly-typed
             // overload that doesn't allocate/copy an extra array.
             T[] szArray = array as T[];
-            if (szArray != null) {
+            if (szArray != null)
+            {
                 CopyTo(szArray, index);
                 return;
             }
 
             // Otherwise, fall back to first storing the contents to an array,
             // and then relying on its CopyTo to copy to the target Array.
-            if (array == null) {
+            if (array == null)
+            {
                 throw new ArgumentNullException(nameof(array), "ConcurrentBag_CopyTo_ArgumentNullException");
             }
             ToArray().CopyTo(array, index);
@@ -339,20 +376,26 @@ namespace Spreads.Collections.Concurrent {
         /// </summary>
         /// <returns>A new array containing a snapshot of elements copied from the <see
         /// cref="ConcurrentBag{T}"/>.</returns>
-        public T[] ToArray() {
-            if (_workStealingQueues != null) {
+        public T[] ToArray()
+        {
+            if (_workStealingQueues != null)
+            {
                 bool lockTaken = false;
-                try {
+                try
+                {
                     FreezeBag(ref lockTaken);
 
                     int count = DangerousCount;
-                    if (count > 0) {
+                    if (count > 0)
+                    {
                         var arr = new T[count];
                         int copied = CopyFromEachQueueToArray(arr, 0);
                         Debug.Assert(copied == count);
                         return arr;
                     }
-                } finally {
+                }
+                finally
+                {
                     UnfreezeBag(lockTaken);
                 }
             }
@@ -369,7 +412,7 @@ namespace Spreads.Collections.Concurrent {
         /// cref="ConcurrentBag{T}"/>.</returns>
         /// <remarks>
         /// The enumeration represents a moment-in-time snapshot of the contents
-        /// of the bag.  It does not reflect any updates to the collection after 
+        /// of the bag.  It does not reflect any updates to the collection after
         /// <see cref="GetEnumerator"/> was called.  The enumerator is safe to use
         /// concurrently with reads from and writes to the bag.
         /// </remarks>
@@ -383,7 +426,7 @@ namespace Spreads.Collections.Concurrent {
         /// cref="ConcurrentBag{T}"/>.</returns>
         /// <remarks>
         /// The items enumerated represent a moment-in-time snapshot of the contents
-        /// of the bag.  It does not reflect any update to the collection after 
+        /// of the bag.  It does not reflect any update to the collection after
         /// <see cref="GetEnumerator"/> was called.
         /// </remarks>
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -394,7 +437,7 @@ namespace Spreads.Collections.Concurrent {
         /// <value>The number of elements contained in the <see cref="ConcurrentBag{T}"/>.</value>
         /// <remarks>
         /// The count returned represents a moment-in-time snapshot of the contents
-        /// of the bag.  It does not reflect any updates to the collection after 
+        /// of the bag.  It does not reflect any updates to the collection after
         /// <see cref="GetEnumerator"/> was called.
         /// </remarks>
         public int Count
@@ -402,15 +445,19 @@ namespace Spreads.Collections.Concurrent {
             get
             {
                 // Short path if the bag is empty
-                if (_workStealingQueues == null) {
+                if (_workStealingQueues == null)
+                {
                     return 0;
                 }
 
                 bool lockTaken = false;
-                try {
+                try
+                {
                     FreezeBag(ref lockTaken);
                     return DangerousCount;
-                } finally {
+                }
+                finally
+                {
                     UnfreezeBag(lockTaken);
                 }
             }
@@ -423,7 +470,8 @@ namespace Spreads.Collections.Concurrent {
             get
             {
                 int count = 0;
-                for (WorkStealingQueue queue = _workStealingQueues; queue != null; queue = queue._nextQueue) {
+                for (WorkStealingQueue queue = _workStealingQueues; queue != null; queue = queue._nextQueue)
+                {
                     checked { count += queue.DangerousCount; }
                 }
 
@@ -442,20 +490,23 @@ namespace Spreads.Collections.Concurrent {
             {
                 // Fast-path based on the current thread's local queue.
                 WorkStealingQueue local = GetCurrentThreadWorkStealingQueue(forceCreate: false);
-                if (local != null) {
+                if (local != null)
+                {
                     // We don't need the lock to check the local queue, as no other thread
                     // could be adding to it, and a concurrent steal that transitions from
                     // non-empty to empty doesn't matter because if we see this as non-empty,
                     // then that's a valid moment-in-time answer, and if we see this as empty,
                     // we check other things.
-                    if (!local.IsEmpty) {
+                    if (!local.IsEmpty)
+                    {
                         return false;
                     }
 
                     // We know the local queue is empty (no one besides this thread could have
                     // added to it since we checked).  If the local queue is the only one
                     // in the bag, then the bag is empty, too.
-                    if (local._nextQueue == null && local == _workStealingQueues) {
+                    if (local._nextQueue == null && local == _workStealingQueues)
+                    {
                         return true;
                     }
                 }
@@ -463,14 +514,19 @@ namespace Spreads.Collections.Concurrent {
                 // Couldn't take a fast path. Freeze the bag, and enumerate the queues to see if
                 // any is non-empty.
                 bool lockTaken = false;
-                try {
+                try
+                {
                     FreezeBag(ref lockTaken);
-                    for (WorkStealingQueue queue = _workStealingQueues; queue != null; queue = queue._nextQueue) {
-                        if (!queue.IsEmpty) {
+                    for (WorkStealingQueue queue = _workStealingQueues; queue != null; queue = queue._nextQueue)
+                    {
+                        if (!queue.IsEmpty)
+                        {
                             return false;
                         }
                     }
-                } finally {
+                }
+                finally
+                {
                     UnfreezeBag(lockTaken);
                 }
 
@@ -510,7 +566,8 @@ namespace Spreads.Collections.Concurrent {
 
         /// <summary>"Freezes" the bag, such that no concurrent operations will be mutating the bag when it returns.</summary>
         /// <param name="lockTaken">true if the global lock was taken; otherwise, false.</param>
-        private void FreezeBag(ref bool lockTaken) {
+        private void FreezeBag(ref bool lockTaken)
+        {
             // Take the global lock to start freezing the bag.  This helps, for example,
             // to prevent other threads from joining the bag (adding their local queues)
             // while a global operation is in progress.
@@ -519,14 +576,17 @@ namespace Spreads.Collections.Concurrent {
             WorkStealingQueue head = _workStealingQueues; // stable at least until GlobalQueuesLock is released in UnfreezeBag
 
             // Then acquire all local queue locks, noting on each that it's been taken.
-            for (WorkStealingQueue queue = head; queue != null; queue = queue._nextQueue) {
+            for (WorkStealingQueue queue = head; queue != null; queue = queue._nextQueue)
+            {
                 Monitor.Enter(queue, ref queue._frozen);
             }
             Interlocked.MemoryBarrier(); // prevent reads of _currentOp from moving before writes to _frozen
 
             // Finally, wait for all unsynchronized operations on each queue to be done.
-            for (WorkStealingQueue queue = head; queue != null; queue = queue._nextQueue) {
-                if (queue._currentOp != (int)Operation.None) {
+            for (WorkStealingQueue queue = head; queue != null; queue = queue._nextQueue)
+            {
+                if (queue._currentOp != (int)Operation.None)
+                {
                     var spinner = new SpinWait();
                     do { spinner.SpinOnce(); }
                     while (queue._currentOp != (int)Operation.None);
@@ -536,12 +596,16 @@ namespace Spreads.Collections.Concurrent {
 
         /// <summary>"Unfreezes" a bag frozen with <see cref="FreezeBag(ref bool)"/>.</summary>
         /// <param name="lockTaken">The result of the <see cref="FreezeBag(ref bool)"/> method.</param>
-        private void UnfreezeBag(bool lockTaken) {
+        private void UnfreezeBag(bool lockTaken)
+        {
             Debug.Assert(Monitor.IsEntered(GlobalQueuesLock) == lockTaken);
-            if (lockTaken) {
+            if (lockTaken)
+            {
                 // Release all of the individual queue locks.
-                for (WorkStealingQueue queue = _workStealingQueues; queue != null; queue = queue._nextQueue) {
-                    if (queue._frozen) {
+                for (WorkStealingQueue queue = _workStealingQueues; queue != null; queue = queue._nextQueue)
+                {
+                    if (queue._frozen)
+                    {
                         queue._frozen = false;
                         Monitor.Exit(queue);
                     }
@@ -553,40 +617,54 @@ namespace Spreads.Collections.Concurrent {
         }
 
         /// <summary>Provides a work-stealing queue data structure stored per thread.</summary>
-        private sealed class WorkStealingQueue {
+        private sealed class WorkStealingQueue
+        {
             /// <summary>Initial size of the queue's array.</summary>
             private const int InitialSize = 32;
+
             /// <summary>Starting index for the head and tail indices.</summary>
             private const int StartIndex =
 #if DEBUG
                 int.MaxValue; // in debug builds, start at the end so we exercise the index reset logic
+
 #else
                 0;
 #endif
+
             /// <summary>Head index from which to steal.  This and'd with the <see cref="_mask"/> is the index into <see cref="_array"/>.</summary>
             private volatile int _headIndex = StartIndex;
+
             /// <summary>Tail index at which local pushes/pops happen. This and'd with the <see cref="_mask"/> is the index into <see cref="_array"/>.</summary>
             private volatile int _tailIndex = StartIndex;
+
             /// <summary>The array storing the queue's data.</summary>
             private volatile T[] _array = new T[InitialSize];
+
             /// <summary>Mask and'd with <see cref="_headIndex"/> and <see cref="_tailIndex"/> to get an index into <see cref="_array"/>.</summary>
             private volatile int _mask = InitialSize - 1;
+
             /// <summary>Numbers of elements in the queue from the local perspective; needs to be combined with <see cref="_stealCount"/> to get an actual Count.</summary>
             private int _addTakeCount;
+
             /// <summary>Number of steals; needs to be combined with <see cref="_addTakeCount"/> to get an actual Count.</summary>
             private int _stealCount;
+
             /// <summary>The current queue operation. Used to quiesce before performing operations from one thread onto another.</summary>
             internal volatile int _currentOp;
+
             /// <summary>true if this queue's lock is held as part of a global freeze.</summary>
             internal bool _frozen;
+
             /// <summary>Next queue in the <see cref="ConcurrentBag{T}"/>'s set of thread-local queues.</summary>
             internal readonly WorkStealingQueue _nextQueue;
+
             /// <summary>Thread ID that owns this queue.</summary>
             internal readonly int _ownerThreadId;
 
             /// <summary>Initialize the WorkStealingQueue.</summary>
             /// <param name="nextQueue">The next queue in the linked list of work-stealing queues.</param>
-            internal WorkStealingQueue(WorkStealingQueue nextQueue) {
+            internal WorkStealingQueue(WorkStealingQueue nextQueue)
+            {
                 _ownerThreadId = Environment.CurrentManagedThreadId;
                 _nextQueue = nextQueue;
             }
@@ -609,19 +687,23 @@ namespace Spreads.Collections.Concurrent {
             /// Add new item to the tail of the queue.
             /// </summary>
             /// <param name="item">The item to add.</param>
-            internal void LocalPush(T item) {
+            internal void LocalPush(T item)
+            {
                 Debug.Assert(Environment.CurrentManagedThreadId == _ownerThreadId);
                 bool lockTaken = false;
-                try {
+                try
+                {
                     // Full fence to ensure subsequent reads don't get reordered before this
                     Interlocked.Exchange(ref _currentOp, (int)Operation.Add);
                     int tail = _tailIndex;
 
                     // Rare corner case (at most once every 2 billion pushes on this thread):
                     // We're going to increment the tail; if we'll overflow, then we need to reset our counts
-                    if (tail == int.MaxValue) {
+                    if (tail == int.MaxValue)
+                    {
                         _currentOp = (int)Operation.None; // set back to None temporarily to avoid a deadlock
-                        lock (this) {
+                        lock (this)
+                        {
                             Debug.Assert(_tailIndex == int.MaxValue, "No other thread should be changing _tailIndex");
 
                             // Rather than resetting to zero, we'll just mask off the bits we don't care about.
@@ -647,10 +729,13 @@ namespace Spreads.Collections.Concurrent {
                     // read from that slot.  We could potentially have a race condition whereby _headIndex is incremented just
                     // before this check, in which case we could overwrite the element being stolen as that slot would appear
                     // to be empty.  Thus, we only allow the fast path if there are two empty slots.
-                    if (!_frozen && tail < (_headIndex + _mask)) {
+                    if (!_frozen && tail < (_headIndex + _mask))
+                    {
                         _array[tail & _mask] = item;
                         _tailIndex = tail + 1;
-                    } else {
+                    }
+                    else
+                    {
                         // We need to contend with foreign operations (e.g. steals, enumeration, etc.), so we lock.
                         _currentOp = (int)Operation.None; // set back to None to avoid a deadlock
                         Monitor.Enter(this, ref lockTaken);
@@ -659,13 +744,17 @@ namespace Spreads.Collections.Concurrent {
                         int count = _tailIndex - _headIndex;
 
                         // If we're full, expand the array.
-                        if (count >= _mask) {
+                        if (count >= _mask)
+                        {
                             // Expand the queue by doubling its size.
                             var newArray = new T[_array.Length << 1];
                             int headIdx = head & _mask;
-                            if (headIdx == 0) {
+                            if (headIdx == 0)
+                            {
                                 Array.Copy(_array, 0, newArray, 0, _array.Length);
-                            } else {
+                            }
+                            else
+                            {
                                 Array.Copy(_array, headIdx, newArray, 0, _array.Length - headIdx);
                                 Array.Copy(_array, 0, newArray, _array.Length - headIdx, headIdx);
                             }
@@ -689,9 +778,12 @@ namespace Spreads.Collections.Concurrent {
 
                     // Increment the count from the add/take perspective
                     checked { _addTakeCount++; }
-                } finally {
+                }
+                finally
+                {
                     _currentOp = (int)Operation.None;
-                    if (lockTaken) {
+                    if (lockTaken)
+                    {
                         Monitor.Exit(this);
                     }
                 }
@@ -699,17 +791,20 @@ namespace Spreads.Collections.Concurrent {
 
             /// <summary>Remove an item from the tail of the queue.</summary>
             /// <param name="result">The removed item</param>
-            internal bool TryLocalPop(out T result) {
+            internal bool TryLocalPop(out T result)
+            {
                 Debug.Assert(Environment.CurrentManagedThreadId == _ownerThreadId);
 
                 int tail = _tailIndex;
-                if (_headIndex >= tail) {
+                if (_headIndex >= tail)
+                {
                     result = default(T);
                     return false;
                 }
 
                 bool lockTaken = false;
-                try {
+                try
+                {
                     // Decrement the tail using a full fence to ensure subsequent reads don't reorder before this.
                     // If the read of _headIndex moved before this write to _tailIndex, we could erroneously end up
                     // popping an element that's concurrently being stolen, leading to the same element being
@@ -721,33 +816,42 @@ namespace Spreads.Collections.Concurrent {
                     // Note that we use _headIndex < tail rather than _headIndex <= tail to account
                     // for stealing peeks, which don't increment _headIndex, and which could observe
                     // the written default(T) in a race condition to peek at the element.
-                    if (!_frozen && _headIndex < tail) {
+                    if (!_frozen && _headIndex < tail)
+                    {
                         int idx = tail & _mask;
                         result = _array[idx];
                         _array[idx] = default(T);
                         _addTakeCount--;
                         return true;
-                    } else {
+                    }
+                    else
+                    {
                         // Interaction with steals: 0 or 1 elements left.
                         _currentOp = (int)Operation.None; // set back to None to avoid a deadlock
                         Monitor.Enter(this, ref lockTaken);
-                        if (_headIndex <= tail) {
+                        if (_headIndex <= tail)
+                        {
                             // Element still available. Take it.
                             int idx = tail & _mask;
                             result = _array[idx];
                             _array[idx] = default(T);
                             _addTakeCount--;
                             return true;
-                        } else {
+                        }
+                        else
+                        {
                             // We encountered a race condition and the element was stolen, restore the tail.
                             _tailIndex = tail + 1;
                             result = default(T);
                             return false;
                         }
                     }
-                } finally {
+                }
+                finally
+                {
                     _currentOp = (int)Operation.None;
-                    if (lockTaken) {
+                    if (lockTaken)
+                    {
                         Monitor.Exit(this);
                     }
                 }
@@ -756,11 +860,13 @@ namespace Spreads.Collections.Concurrent {
             /// <summary>Peek an item from the tail of the queue.</summary>
             /// <param name="result">the peeked item</param>
             /// <returns>True if succeeded, false otherwise</returns>
-            internal bool TryLocalPeek(out T result) {
+            internal bool TryLocalPeek(out T result)
+            {
                 Debug.Assert(Environment.CurrentManagedThreadId == _ownerThreadId);
 
                 int tail = _tailIndex;
-                if (_headIndex < tail) {
+                if (_headIndex < tail)
+                {
                     // It is possible to enable lock-free peeks, following the same general approach
                     // that's used in TryLocalPop.  However, peeks are more complicated as we can't
                     // do the same kind of index reservation that's done in TryLocalPop; doing so could
@@ -770,8 +876,10 @@ namespace Spreads.Collections.Concurrent {
                     // effectively only incur two interlocked operations (entering/exiting the lock) instead
                     // of one (setting Peek as the _currentOp).  Combined with Peeks on a bag being rare,
                     // for now we'll use the simpler/safer code.
-                    lock (this) {
-                        if (_headIndex < tail) {
+                    lock (this)
+                    {
+                        if (_headIndex < tail)
+                        {
                             result = _array[(tail - 1) & _mask];
                             return true;
                         }
@@ -785,30 +893,39 @@ namespace Spreads.Collections.Concurrent {
             /// <summary>Steal an item from the head of the queue.</summary>
             /// <param name="result">the removed item</param>
             /// <param name="take">true to take the item; false to simply peek at it</param>
-            internal bool TrySteal(out T result, bool take) {
+            internal bool TrySteal(out T result, bool take)
+            {
                 // Fast-path check to see if the queue is empty.
-                if (_headIndex < _tailIndex) {
+                if (_headIndex < _tailIndex)
+                {
                     // Anything other than empty requires synchronization.
-                    lock (this) {
+                    lock (this)
+                    {
                         int head = _headIndex;
-                        if (take) {
+                        if (take)
+                        {
                             // Increment head to tentatively take an element: a full fence is used to ensure the read
                             // of _tailIndex doesn't move earlier, as otherwise we could potentially end up stealing
                             // the same element that's being popped locally.
                             Interlocked.Exchange(ref _headIndex, head + 1);
 
                             // If there's an element to steal, do it.
-                            if (head < _tailIndex) {
+                            if (head < _tailIndex)
+                            {
                                 int idx = head & _mask;
                                 result = _array[idx];
                                 _array[idx] = default(T);
                                 _stealCount++;
                                 return true;
-                            } else {
+                            }
+                            else
+                            {
                                 // We contended with the local thread and lost the race, so restore the head.
                                 _headIndex = head;
                             }
-                        } else if (head < _tailIndex) {
+                        }
+                        else if (head < _tailIndex)
+                        {
                             // Peek, if there's an element available
                             result = _array[head & _mask];
                             return true;
@@ -822,7 +939,8 @@ namespace Spreads.Collections.Concurrent {
             }
 
             /// <summary>Copies the contents of this queue to the target array starting at the specified index.</summary>
-            internal int DangerousCopyTo(T[] array, int arrayIndex) {
+            internal int DangerousCopyTo(T[] array, int arrayIndex)
+            {
                 Debug.Assert(Monitor.IsEntered(this));
                 Debug.Assert(_frozen);
                 Debug.Assert(array != null);
@@ -839,7 +957,8 @@ namespace Spreads.Collections.Concurrent {
 
                 // Copy from this queue's array to the destination array, but in reverse
                 // order to match the ordering of desktop.
-                for (int i = arrayIndex + count - 1; i >= arrayIndex; i--) {
+                for (int i = arrayIndex + count - 1; i >= arrayIndex; i--)
+                {
                     array[i] = _array[headIndex++ & _mask];
                 }
 
@@ -864,7 +983,8 @@ namespace Spreads.Collections.Concurrent {
         }
 
         /// <summary>Lock-free operations performed on a queue.</summary>
-        internal enum Operation {
+        internal enum Operation
+        {
             None,
             Add,
             Take
@@ -880,18 +1000,22 @@ namespace Spreads.Collections.Concurrent {
         /// the essential elements of both list's and array's enumerators.
         /// </remarks>
         //[Serializable]
-        private sealed class Enumerator : IEnumerator<T> {
+        private sealed class Enumerator : IEnumerator<T>
+        {
             private readonly T[] _array;
             private T _current;
             private int _index;
 
-            public Enumerator(T[] array) {
+            public Enumerator(T[] array)
+            {
                 Debug.Assert(array != null);
                 _array = array;
             }
 
-            public bool MoveNext() {
-                if (_index < _array.Length) {
+            public bool MoveNext()
+            {
+                if (_index < _array.Length)
+                {
                     _current = _array[_index++];
                     return true;
                 }
@@ -906,19 +1030,23 @@ namespace Spreads.Collections.Concurrent {
             {
                 get
                 {
-                    if (_index == 0 || _index == _array.Length + 1) {
+                    if (_index == 0 || _index == _array.Length + 1)
+                    {
                         throw new InvalidOperationException("ConcurrentBag_Enumerator_EnumerationNotStartedOrAlreadyFinished");
                     }
                     return Current;
                 }
             }
 
-            public void Reset() {
+            public void Reset()
+            {
                 _index = 0;
                 _current = default(T);
             }
 
-            public void Dispose() { }
+            public void Dispose()
+            {
+            }
         }
     }
 }

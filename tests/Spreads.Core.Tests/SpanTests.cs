@@ -11,13 +11,14 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Spreads.Core.Tests {
-
+namespace Spreads.Core.Tests
+{
     [TestFixture]
-    public class SpanTests {
-
-        [Test,Ignore]
-        public unsafe void CouldUseBinarySearchOverSpan() {
+    public class SpanTests
+    {
+        [Test, Ignore]
+        public unsafe void CouldUseBinarySearchOverSpan()
+        {
             var upper = 8 * 1024;
             var ptr = Marshal.AllocHGlobal(8 * upper);
             var byteBuffer = new byte[8 * upper];
@@ -31,10 +32,12 @@ namespace Spreads.Core.Tests {
             var indices = new long[upper];
 
             var rounds = 20;
-            for (int r = 0; r < rounds; r++) {
+            for (int r = 0; r < rounds; r++)
+            {
                 Console.WriteLine($"Round: {r} ------------------");
                 // indices are the same for all spans
-                for (int i = 0; i < upper; i++) {
+                for (int i = 0; i < upper; i++)
+                {
                     indices[i] = rng.Next(0, upper);
                 }
 
@@ -45,11 +48,14 @@ namespace Spreads.Core.Tests {
             }
         }
 
-        private void TestSpanForFillAndBinarySearch(Span<long> span, long[] indices, string caseName) {
+        private void TestSpanForFillAndBinarySearch(Span<long> span, long[] indices, string caseName)
+        {
             var sw = new Stopwatch();
             sw.Start();
-            for (int r = 0; r < 10000; r++) {
-                for (int i = 0; i < span.Length; i++) {
+            for (int r = 0; r < 10000; r++)
+            {
+                for (int i = 0; i < span.Length; i++)
+                {
                     span[i] = i;
                 }
             }
@@ -57,8 +63,10 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Fill {caseName}: \t\t {10000 * span.Length * 0.001 / sw.ElapsedMilliseconds} Mops");
 
             sw.Restart();
-            for (int r = 0; r < 500; r++) {
-                for (int i = 0; i < indices.Length; i++) {
+            for (int r = 0; r < 500; r++)
+            {
+                for (int i = 0; i < indices.Length; i++)
+                {
                     var target = indices[i];
                     var found = span.BinarySearch(0, span.Length, target, null);
                     if (found != target) Assert.Fail($"Wrong binary search: expected {target}, found {found}");
@@ -68,11 +76,14 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Find {caseName}: \t\t {500 * indices.Length * 0.001 / sw.ElapsedMilliseconds} Mops");
         }
 
-        private void TestArrayForFillAndBinarySearch(long[] array, long[] indices, string caseName) {
+        private void TestArrayForFillAndBinarySearch(long[] array, long[] indices, string caseName)
+        {
             var sw = new Stopwatch();
             sw.Start();
-            for (int r = 0; r < 10000; r++) {
-                for (int i = 0; i < array.Length; i++) {
+            for (int r = 0; r < 10000; r++)
+            {
+                for (int i = 0; i < array.Length; i++)
+                {
                     array[i] = i;
                 }
             }
@@ -80,8 +91,10 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Fill {caseName}: \t\t {10000 * array.Length * 0.001 / sw.ElapsedMilliseconds} Mops");
 
             sw.Restart();
-            for (int r = 0; r < 500; r++) {
-                for (int i = 0; i < indices.Length; i++) {
+            for (int r = 0; r < 500; r++)
+            {
+                for (int i = 0; i < indices.Length; i++)
+                {
                     var target = indices[i];
                     var found = Array.BinarySearch(array, 0, array.Length, target, null);
                     if (found != target) Assert.Fail("Wrong binary search");
@@ -92,16 +105,20 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
-        public void OffsetTests() {
+        public void OffsetTests()
+        {
             var array = Enumerable.Range(0, 32 * 1024).ToArray();
             var sw = new Stopwatch();
             long sum = 0;
             var rpmax = 10000;
-            for (int rounds = 0; rounds < 10; rounds++) {
+            for (int rounds = 0; rounds < 10; rounds++)
+            {
                 sw.Restart();
                 sum = 0;
-                for (int rp = 0; rp < rpmax; rp++) {
-                    for (long i = 0; i < array.Length; i++) {
+                for (int rp = 0; rp < rpmax; rp++)
+                {
+                    for (long i = 0; i < array.Length; i++)
+                    {
                         sum += GetAtOffset(array, (Offset)i);
                     }
                 }
@@ -111,8 +128,10 @@ namespace Spreads.Core.Tests {
 
                 sw.Restart();
 
-                for (int rp = 0; rp < rpmax; rp++) {
-                    for (long i = 0; i < array.Length; i++) {
+                for (int rp = 0; rp < rpmax; rp++)
+                {
+                    for (long i = 0; i < array.Length; i++)
+                    {
                         sum += GetAtIndex(array, i);
                     }
                 }
@@ -122,8 +141,10 @@ namespace Spreads.Core.Tests {
 
                 sw.Restart();
                 sum = 0;
-                for (int rp = 0; rp < rpmax; rp++) {
-                    for (long i = 0; i < array.Length; i++) {
+                for (int rp = 0; rp < rpmax; rp++)
+                {
+                    for (long i = 0; i < array.Length; i++)
+                    {
                         sum += array[i];
                     }
                 }
@@ -134,12 +155,14 @@ namespace Spreads.Core.Tests {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int GetAtIndex(int[] array, long index) {
+        private static int GetAtIndex(int[] array, long index)
+        {
             return array[index];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int GetAtOffset(int[] array, Offset offset) {
+        private static int GetAtOffset(int[] array, Offset offset)
+        {
             return array[(long)offset];
         }
     }

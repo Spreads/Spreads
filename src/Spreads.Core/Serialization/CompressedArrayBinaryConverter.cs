@@ -76,7 +76,7 @@ namespace Spreads.Serialization
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe int Write(TElement[] value, int valueOffset, int valueCount, ref DirectBuffer destination,
-            uint destinationOffset = 0u, MemoryStream temporaryStream = null, 
+            uint destinationOffset = 0u, MemoryStream temporaryStream = null,
             CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (value == null) throw new ArgumentNullException(nameof(value));

@@ -7,18 +7,21 @@ using Spreads.Collections;
 using Spreads.DataTypes;
 using System;
 
-namespace Spreads.Core.Tests.Serialization {
-
+namespace Spreads.Core.Tests.Serialization
+{
     [TestFixture]
-    public class VariableLengthValuesTests {
-
-        [Test,Ignore]
-        public void CouldCreateSortemMapWithMemoryTAsValue() {
+    public class VariableLengthValuesTests
+    {
+        [Test, Ignore]
+        public void CouldCreateSortemMapWithMemoryTAsValue()
+        {
             var sm = new SortedMap<DateTime, Memory<Tick>>();
             var rng = new System.Random();
-            for (int i = 0; i < 1000; i++) {
+            for (int i = 0; i < 1000; i++)
+            {
                 var valueCount = rng.Next(1, 10);
-                for (int j = 0; j < valueCount; j++) {
+                for (int j = 0; j < valueCount; j++)
+                {
                     // TODO issue 93 could be implemented with Memory<T> or PreservedMemory<T>
                     // * Not clear how to dispose buffers when SM is disposed (e.g. should array pools
                     //   do this for IDisposable types in the Clear() method?)

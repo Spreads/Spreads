@@ -7,19 +7,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Algorithms.Online {
+namespace Spreads.Algorithms.Online
+{
     // implementation of LIGO's Efficient Algorithm for computing a Running Median
     // https://dcc.ligo.org/public/0027/T030168/000/T030168-00.pdf
 
-    public class MovingMedian {
+    public class MovingMedian
+    {
         private readonly Comparer<RngmedValIndex> _valIndexComparer;
 
-        public MovingMedian(int nblocks) {
+        public MovingMedian(int nblocks)
+        {
             this._nblocks = nblocks;
             _valIndexComparer = new RngmedValIndexComparer(Comparer<double>.Default);
         }
 
-        private struct Node {
+        private struct Node
+        {
             public double Data;
             public int NextSorted;
             public int NextSequence;
@@ -27,19 +31,23 @@ namespace Spreads.Algorithms.Online {
         }
 
         // TODO use two arrays, take them from pool, use Array.Sort overload for parallel sorting of two arrays
-        private struct RngmedValIndex {
+        private struct RngmedValIndex
+        {
             public double Data;
             public int Index;
         }
 
-        private class RngmedValIndexComparer : Comparer<RngmedValIndex> {
+        private class RngmedValIndexComparer : Comparer<RngmedValIndex>
+        {
             private readonly Comparer<double> _comparer;
 
-            public RngmedValIndexComparer(Comparer<double> comparer) {
+            public RngmedValIndexComparer(Comparer<double> comparer)
+            {
                 _comparer = comparer;
             }
 
-            public override int Compare(RngmedValIndex x, RngmedValIndex y) {
+            public override int Compare(RngmedValIndex x, RngmedValIndex y)
+            {
                 return _comparer.Compare(x.Data, y.Data);
             }
         }
@@ -80,10 +88,14 @@ namespace Spreads.Algorithms.Online {
         private int _incompleteCount;
         private int _nblocks;
 
-        public double Init(double[] data) {
-            if (data.Length < _nblocks) {
+        public double Init(double[] data)
+        {
+            if (data.Length < _nblocks)
+            {
                 throw new ArgumentOutOfRangeException($"Data is too small for the windows size {_nblocks}");
-            } else {
+            }
+            else
+            {
                 // disable incomplete logic in update
                 _incompleteCount = data.Length;
             }
@@ -93,7 +105,8 @@ namespace Spreads.Algorithms.Online {
               using the qsort function
             ------------------------------------*/
             _indexBlock = new RngmedValIndex[_nblocks];
-            for (_k = 0; _k < (int)_nblocks; _k++) {
+            for (_k = 0; _k < (int)_nblocks; _k++)
+            {
                 _indexBlock[_k].Data = data[_k];
                 _indexBlock[_k].Index = _k;
             }
@@ -102,7 +115,8 @@ namespace Spreads.Algorithms.Online {
 
             // TODO Pool
             _sortedIndices = new int[_nblocks];
-            for (_k = 0; _k < (int)_nblocks; _k++) {
+            for (_k = 0; _k < (int)_nblocks; _k++)
+            {
                 _sortedIndices[_k] = _indexBlock[_k].Index;
             }
 
@@ -125,11 +139,14 @@ namespace Spreads.Algorithms.Online {
               (node(offset(1))+node(offset(1)))/2;
               THIS CAN BE OPTIMISED.
              ----------------------------------*/
-            if (_nblocks % 2 == 1) { // (int)System.Math.IEEERemainder(()nblocks, 2.0)) {
+            if (_nblocks % 2 == 1)
+            { // (int)System.Math.IEEERemainder(()nblocks, 2.0)) {
                 /*Odd*/
                 _midpoint = (_nblocks + 1) / 2 - 1;
                 _numberoffsets = 1;
-            } else {
+            }
+            else
+            {
                 /*Even*/
                 _midpoint = _nblocks / 2 - 1;
                 _numberoffsets = 2;
@@ -156,7 +173,8 @@ namespace Spreads.Algorithms.Online {
 
             //var previousnode = first_sequence;
 
-            for (_samplecount = 1; _samplecount < (int)_nblocks; _samplecount++) {
+            for (_samplecount = 1; _samplecount < (int)_nblocks; _samplecount++)
+            {
                 var currentnode = new Node();//  (struct node *)LALCalloc(1,sizeof(struct node));
                 currentnode.NextSequence = -1;
                 currentnode.PrevSorted = -1;
@@ -181,13 +199,15 @@ namespace Spreads.Algorithms.Online {
             _checks[0] = _currentnodeIdx;
             _nextchkptindx = _stepchkpts;
             _counterChkpt = 1;
-            for (_samplecount = 1; _samplecount < (int)_nblocks; _samplecount++) {
+            for (_samplecount = 1; _samplecount < (int)_nblocks; _samplecount++)
+            {
                 _dummyNodeIdx = _sortedIndices[_samplecount];
                 _nodes[_currentnodeIdx].NextSorted = _dummyNodeIdx;
                 _nodes[_currentnodeIdx].PrevSorted = _previousnodeIdx;
                 _previousnodeIdx = _currentnodeIdx;
                 _currentnodeIdx = _dummyNodeIdx;
-                if (_samplecount == _nextchkptindx && _counterChkpt < _ncheckpts) {
+                if (_samplecount == _nextchkptindx && _counterChkpt < _ncheckpts)
+                {
                     _checks[_counterChkpt] = _currentnodeIdx;
                     _nextchkptindx += _stepchkpts;
                     _counterChkpt++;
@@ -202,11 +222,13 @@ namespace Spreads.Algorithms.Online {
             -------------------------------*/
 
             _currentnodeIdx = _checks[_nearestchk];
-            for (_k = 1; _k <= _offset; _k++) {
+            for (_k = 1; _k <= _offset; _k++)
+            {
                 _currentnodeIdx = _nodes[_currentnodeIdx].NextSorted;
             }
             _dummy = 0;
-            for (_k = 1; _k <= _numberoffsets; _k++) {
+            for (_k = 1; _k <= _numberoffsets; _k++)
+            {
                 _dummy += _nodes[_currentnodeIdx].Data;
                 _currentnodeIdx = _nodes[_currentnodeIdx].NextSorted;
             }
@@ -216,15 +238,18 @@ namespace Spreads.Algorithms.Online {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public double Update(double nextValue) {
-            if (_incompleteCount + 1 < _nblocks) {
+        public double Update(double nextValue)
+        {
+            if (_incompleteCount + 1 < _nblocks)
+            {
                 if (_incompleteWindow == null) _incompleteWindow = new double[_nblocks];
                 _incompleteWindow[_incompleteCount] = nextValue;
                 _incompleteCount++;
                 LastValue = NaiveMedian(new ArraySegment<double>(_incompleteWindow, 0, _incompleteCount));
                 return LastValue;
             }
-            if (_incompleteWindow != null) {
+            if (_incompleteWindow != null)
+            {
                 _incompleteWindow[_incompleteCount] = nextValue; // happens only once
                 var result = Init(_incompleteWindow);
                 _incompleteWindow = null;
@@ -241,10 +266,15 @@ namespace Spreads.Algorithms.Online {
             the new value.
             ----------------------------------*/
             _nextsample = nextValue;
-            if (_nextsample >= _nodes[_checks[0]].Data) {
-                for (_chkcount = 1; _chkcount < _ncheckpts; _chkcount++) {
-                    if (_nextsample >= _nodes[_checks[_chkcount]].Data) {
-                    } else {
+            if (_nextsample >= _nodes[_checks[0]].Data)
+            {
+                for (_chkcount = 1; _chkcount < _ncheckpts; _chkcount++)
+                {
+                    if (_nextsample >= _nodes[_checks[_chkcount]].Data)
+                    {
+                    }
+                    else
+                    {
                         break;
                     }
                 }
@@ -253,15 +283,20 @@ namespace Spreads.Algorithms.Online {
                 _leftnodeIdx = -1; /*NEW*/
                                    // NB originally it was a pointer, so we need to check for >=0 for index in array
                                    // because pointer to the zero addressed node would evaluate to true in C
-                while (_rightnodeIdx >= 0) {
-                    if (_nextsample < _nodes[_rightnodeIdx].Data) {
+                while (_rightnodeIdx >= 0)
+                {
+                    if (_nextsample < _nodes[_rightnodeIdx].Data)
+                    {
                         break;
                     }
                     _leftnodeIdx = _rightnodeIdx;
                     _rightnodeIdx = _nodes[_rightnodeIdx].NextSorted;
                 }
-            } else {
-                if (_nextsample < _nodes[_checks[0]].Data) {
+            }
+            else
+            {
+                if (_nextsample < _nodes[_checks[0]].Data)
+                {
                     _chkcount = 0;
                     /* dummy_node=checks[0]; */
                     _rightnodeIdx = _checks[0];
@@ -274,19 +309,25 @@ namespace Spreads.Algorithms.Online {
                  shifted or not.
                ---------------------------*/
             _dummyNodeIdx = -1;
-            if (_rightnodeIdx == _firstSequenceIdx) {
+            if (_rightnodeIdx == _firstSequenceIdx)
+            {
                 _dummyNodeIdx = _rightnodeIdx;
-            } else if (_leftnodeIdx == _firstSequenceIdx) {
+            }
+            else if (_leftnodeIdx == _firstSequenceIdx)
+            {
                 _dummyNodeIdx = _leftnodeIdx;
             }
-            if (_dummyNodeIdx >= 0) {
+            if (_dummyNodeIdx >= 0)
+            {
                 _nodes[_dummyNodeIdx].Data = _nextsample;
                 _firstSequenceIdx = _nodes[_firstSequenceIdx].NextSequence;
                 _nodes[_dummyNodeIdx].NextSequence = -1;
                 _nodes[_lastSequenceIdx].NextSequence = _dummyNodeIdx;
                 _lastSequenceIdx = _dummyNodeIdx;
                 _shift = 0;
-            } else {
+            }
+            else
+            {
                 _reuseNextSortedIdx = _rightnodeIdx;
                 _reusePrevSortedIdx = _leftnodeIdx;
                 _shift = 1; /*shift maybe required*/
@@ -296,31 +337,44 @@ namespace Spreads.Algorithms.Online {
                Getting check points to be shifted
              -----------------------------------*/
             // NB shift was originally int, not note*, so GT, not GE
-            if (_shift != 0) {
+            if (_shift != 0)
+            {
                 _deletesample = _nodes[_firstSequenceIdx].Data;
-                if (_deletesample > _nextsample) {
+                if (_deletesample > _nextsample)
+                {
                     _shiftcounter = 0;
-                    for (_k = _chkcount; _k < _ncheckpts; _k++) {
+                    for (_k = _chkcount; _k < _ncheckpts; _k++)
+                    {
                         _dummy = _nodes[_checks[_k]].Data;
-                        if (_dummy > _nextsample) {
-                            if (_dummy <= _deletesample) {
+                        if (_dummy > _nextsample)
+                        {
+                            if (_dummy <= _deletesample)
+                            {
                                 _checks4Shift[_shiftcounter] = _k;
                                 _shiftcounter++;
-                            } else {
+                            }
+                            else
+                            {
                                 break;
                             }
                         }
                     }
                     _shift = -1; /*Left shift*/
-                } else
-                      if (_deletesample <= _nextsample) {
+                }
+                else
+                      if (_deletesample <= _nextsample)
+                {
                     _shiftcounter = 0;
-                    for (_k = _chkcount; _k >= 0; _k--) {
+                    for (_k = _chkcount; _k >= 0; _k--)
+                    {
                         _dummy = _nodes[_checks[_k]].Data;
-                        if (_dummy >= _deletesample) {
+                        if (_dummy >= _deletesample)
+                        {
                             _checks4Shift[_shiftcounter] = _k;
                             _shiftcounter++;
-                        } else {
+                        }
+                        else
+                        {
                             break;
                         }
                     }
@@ -332,7 +386,8 @@ namespace Spreads.Algorithms.Online {
              Recycle the node with the
              oldest value.
             --------------------------------*/
-            if (_shift != 0) {
+            if (_shift != 0)
+            {
                 /*---------------------
                  Reset sequential links
                  ---------------------*/
@@ -347,12 +402,18 @@ namespace Spreads.Algorithms.Online {
                 /*-----------------------
                   Repair deletion point
                 ------------------------*/
-                if (_dummyNode1Idx == -1) {
+                if (_dummyNode1Idx == -1)
+                {
                     _nodes[_dummyNode2Idx].PrevSorted = _dummyNode1Idx;
-                } else {
-                    if (_dummyNode2Idx == -1) {
+                }
+                else
+                {
+                    if (_dummyNode2Idx == -1)
+                    {
                         _nodes[_dummyNode1Idx].NextSorted = _dummyNode2Idx;
-                    } else {
+                    }
+                    else
+                    {
                         _nodes[_dummyNode1Idx].NextSorted = _dummyNode2Idx;
                         _nodes[_dummyNode2Idx].PrevSorted = _dummyNode1Idx;
                     }
@@ -360,12 +421,18 @@ namespace Spreads.Algorithms.Online {
                 /*------------------------
                   Set pointers from neighbours to new node at insertion point
                 -------------------------*/
-                if (_rightnodeIdx == -1) {
+                if (_rightnodeIdx == -1)
+                {
                     _nodes[_leftnodeIdx].NextSorted = _dummyNodeIdx;
-                } else {
-                    if (_leftnodeIdx == -1) {
+                }
+                else
+                {
+                    if (_leftnodeIdx == -1)
+                    {
                         _nodes[_rightnodeIdx].PrevSorted = _dummyNodeIdx;
-                    } else {
+                    }
+                    else
+                    {
                         _nodes[_leftnodeIdx].NextSorted = _dummyNodeIdx;
                         _nodes[_rightnodeIdx].PrevSorted = _dummyNodeIdx;
                     }
@@ -374,14 +441,19 @@ namespace Spreads.Algorithms.Online {
                 /*-------------------------------
                   Shift check points before resetting sorted list
                 --------------------------------*/
-                if (_shift == -1) {
-                    for (_k = 0; _k < _shiftcounter; _k++) {
+                if (_shift == -1)
+                {
+                    for (_k = 0; _k < _shiftcounter; _k++)
+                    {
                         _dummyInt = _checks4Shift[_k];
                         _checks[_dummyInt] = _nodes[_checks[_dummyInt]].PrevSorted;
                     }
-                } else
-                       if (_shift == 1) {
-                    for (_k = 0; _k < _shiftcounter; _k++) {
+                }
+                else
+                       if (_shift == 1)
+                {
+                    for (_k = 0; _k < _shiftcounter; _k++)
+                    {
                         _dummyInt = _checks4Shift[_k];
                         _checks[_dummyInt] = _nodes[_checks[_dummyInt]].NextSorted;
                     }
@@ -398,11 +470,13 @@ namespace Spreads.Algorithms.Online {
               Get the median
             ---------------------------------*/
             _currentnodeIdx = _checks[_nearestchk];
-            for (_k = 1; _k <= _offset; _k++) {
+            for (_k = 1; _k <= _offset; _k++)
+            {
                 _currentnodeIdx = _nodes[_currentnodeIdx].NextSorted;
             }
             _dummy = 0;
-            for (_k = 1; _k <= _numberoffsets; _k++) {
+            for (_k = 1; _k <= _numberoffsets; _k++)
+            {
                 _dummy += _nodes[_currentnodeIdx].Data;
                 _currentnodeIdx = _nodes[_currentnodeIdx].NextSorted;
             }
@@ -410,16 +484,19 @@ namespace Spreads.Algorithms.Online {
             return LastValue;
         }
 
-        public int Rngmed(double[] data, double[] medians) {
+        public int Rngmed(double[] data, double[] medians)
+        {
             medians[0] = Init(data);
-            for (_samplecount = _nblocks; _samplecount < (int)data.Length; _samplecount++) {
+            for (_samplecount = _nblocks; _samplecount < (int)data.Length; _samplecount++)
+            {
                 _nextsample = data[_samplecount];
                 medians[_samplecount - _nblocks + 1] = Update(_nextsample);
             }
             return 0;
         }
 
-        public static double NaiveMedian(ArraySegment<double> sourceNumbers) {
+        public static double NaiveMedian(ArraySegment<double> sourceNumbers)
+        {
             //Framework 2.0 version of this method. there is an easier way in F4
             if (sourceNumbers == null || sourceNumbers.Count == 0)
                 throw new Exception("Median of empty array not defined.");

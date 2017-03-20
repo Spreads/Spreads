@@ -8,10 +8,11 @@ using System.Diagnostics;
 using Newtonsoft.Json;
 using Spreads.Serialization;
 
-namespace Spreads.DataTypes {
-
+namespace Spreads.DataTypes
+{
     [JsonConverter(typeof(TableJsonConverter))]
-    public class Table : Matrix<Variant>, IEquatable<Table> {
+    public class Table : Matrix<Variant>, IEquatable<Table>
+    {
         private readonly bool _caseSensitive;
 
         // TODO
@@ -26,10 +27,12 @@ namespace Spreads.DataTypes {
         private readonly int _rows;
         private readonly int _columns;
 
-        public Table(int rows, int columns, bool caseSensitive = false) : this(new Variant[rows, columns], caseSensitive) {
+        public Table(int rows, int columns, bool caseSensitive = false) : this(new Variant[rows, columns], caseSensitive)
+        {
         }
 
-        public Table(Variant[,] data, bool caseSensitive = false) : base(data) {
+        public Table(Variant[,] data, bool caseSensitive = false) : base(data)
+        {
             _caseSensitive = caseSensitive;
             _rows = this.RowsCount;
             _columns = this.ColumnsCount;
@@ -39,17 +42,22 @@ namespace Spreads.DataTypes {
         public DateTime DateTime { get; set; }
         public long Version { get; set; }
 
-        public Variant this[int row, int column] {
-            get {
+        public Variant this[int row, int column]
+        {
+            get
+            {
                 return Data[row, column];
             }
-            set {
+            set
+            {
                 Data[row, column] = value;
             }
         }
 
-        public object this[object rowKey, object columnKey] {
-            get {
+        public object this[object rowKey, object columnKey]
+        {
+            get
+            {
                 var row = GetRowIndex(Variant.FromObject(rowKey));
                 if (row == -1) return null;
                 var column = GetColumnIndex(Variant.FromObject(columnKey));
@@ -58,8 +66,10 @@ namespace Spreads.DataTypes {
             }
         }
 
-        public object this[Variant rowKey, Variant columnKey] {
-            get {
+        public object this[Variant rowKey, Variant columnKey]
+        {
+            get
+            {
                 var row = GetRowIndex(rowKey);
                 if (row == -1) return null;
                 var column = GetColumnIndex(columnKey);
@@ -68,109 +78,140 @@ namespace Spreads.DataTypes {
             }
         }
 
-        private int GetRowIndex(Variant rowKey) {
-            if (_rows < LinearSearchLimit) {
-                for (var i = 0; i < _rows; i++) {
+        private int GetRowIndex(Variant rowKey)
+        {
+            if (_rows < LinearSearchLimit)
+            {
+                for (var i = 0; i < _rows; i++)
+                {
                     var variant = Data[i, 0];
-                    if (!_caseSensitive && variant.TypeEnum == TypeEnum.String && rowKey.TypeEnum == TypeEnum.String) {
+                    if (!_caseSensitive && variant.TypeEnum == TypeEnum.String && rowKey.TypeEnum == TypeEnum.String)
+                    {
                         var str = variant.Get<string>();
-                        if (str.Equals(rowKey.Get<string>(), StringComparison.OrdinalIgnoreCase)) {
+                        if (str.Equals(rowKey.Get<string>(), StringComparison.OrdinalIgnoreCase))
+                        {
                             return i;
                         }
                     }
-                    if (variant == rowKey) {
+                    if (variant == rowKey)
+                    {
                         return i;
                     }
                 }
                 return -1;
             }
 
-            if (_caseSensitive) {
+            if (_caseSensitive)
+            {
                 throw new NotImplementedException();
             }
 
-            if (_rowKeyIndex == null) {
+            if (_rowKeyIndex == null)
+            {
                 PopulateRowKeys();
             }
 
             int row;
             Debug.Assert(_rowKeyIndex != null, "_rowKeyIndex != null");
-            if (!_rowKeyIndex.TryGetValue(rowKey, out row)) {
+            if (!_rowKeyIndex.TryGetValue(rowKey, out row))
+            {
                 return -1;
             }
             return row;
         }
 
-        private int GetColumnIndex(Variant columnKey) {
-            if (_columns < LinearSearchLimit) {
-                for (var i = 0; i < _rows; i++) {
+        private int GetColumnIndex(Variant columnKey)
+        {
+            if (_columns < LinearSearchLimit)
+            {
+                for (var i = 0; i < _rows; i++)
+                {
                     var variant = Data[i, 0];
-                    if (!_caseSensitive && variant.TypeEnum == TypeEnum.String && columnKey.TypeEnum == TypeEnum.String) {
+                    if (!_caseSensitive && variant.TypeEnum == TypeEnum.String && columnKey.TypeEnum == TypeEnum.String)
+                    {
                         var str = variant.Get<string>();
-                        if (str.Equals(columnKey.Get<string>(), StringComparison.OrdinalIgnoreCase)) {
+                        if (str.Equals(columnKey.Get<string>(), StringComparison.OrdinalIgnoreCase))
+                        {
                             return i;
                         }
                     }
-                    if (variant == columnKey) {
+                    if (variant == columnKey)
+                    {
                         return i;
                     }
                 }
                 return -1;
             }
 
-            if (_columnKeyIndex == null) {
+            if (_columnKeyIndex == null)
+            {
                 PopulateColumnKeys();
             }
 
             int column;
             Debug.Assert(_columnKeyIndex != null, "_columnKeyIndex != null");
-            if (!_columnKeyIndex.TryGetValue(columnKey, out column)) {
+            if (!_columnKeyIndex.TryGetValue(columnKey, out column))
+            {
                 return -1;
             }
             return column;
         }
 
-        private void PopulateRowKeys() {
+        private void PopulateRowKeys()
+        {
             _rowKeyIndex = _caseSensitive ? new Dictionary<Variant, int>() : new Dictionary<Variant, int>(new CaseInsensitiveVariantEqualityComparer());
-            for (int i = 0; i < RowsCount; i++) {
+            for (int i = 0; i < RowsCount; i++)
+            {
                 var value = Data[i, 0];
-                if (!_rowKeyIndex.ContainsKey(value)) {
+                if (!_rowKeyIndex.ContainsKey(value))
+                {
                     _rowKeyIndex[value] = i;
                 }
             }
         }
 
-        private void PopulateColumnKeys() {
+        private void PopulateColumnKeys()
+        {
             _columnKeyIndex = _caseSensitive ? new Dictionary<Variant, int>() : new Dictionary<Variant, int>(new CaseInsensitiveVariantEqualityComparer());
-            for (int i = 0; i < ColumnsCount; i++) {
+            for (int i = 0; i < ColumnsCount; i++)
+            {
                 var value = Data[0, i];
-                if (!_columnKeyIndex.ContainsKey(value)) {
+                if (!_columnKeyIndex.ContainsKey(value))
+                {
                     _columnKeyIndex[value] = i;
                 }
             }
         }
 
-        public override bool Equals(object obj) {
-            if (ReferenceEquals(this, obj)) {
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(this, obj))
+            {
                 return true;
             }
-            if (obj == null) {
+            if (obj == null)
+            {
                 return false;
             }
             var t = obj as Table;
             return this.Equals(t);
         }
 
-        public override int GetHashCode() {
+        public override int GetHashCode()
+        {
             return Data.GetHashCode();
         }
 
-        public bool Equals(Table t) {
+        public bool Equals(Table t)
+        {
             if (t == null) return false;
             if (this.RowsCount != t.RowsCount || this.ColumnsCount != t.ColumnsCount) return false;
-            for (var r = 0; r < RowsCount; r++) {
-                for (var c = 0; c < ColumnsCount; c++) {
-                    if (this[r, c] != t[r, c]) {
+            for (var r = 0; r < RowsCount; r++)
+            {
+                for (var c = 0; c < ColumnsCount; c++)
+                {
+                    if (this[r, c] != t[r, c])
+                    {
                         return false;
                     }
                 }
@@ -178,13 +219,14 @@ namespace Spreads.DataTypes {
             return true;
         }
 
-
         /// <summary>
         /// Create a full snapshort of this table
         /// </summary>
         /// <returns></returns>
-        public TableDto ToSnapshot() {
-            var dto = new TableDto {
+        public TableDto ToSnapshot()
+        {
+            var dto = new TableDto
+            {
                 TableName = this.TableName,
                 Id = this.TableName,
                 DateTime = this.DateTime,
@@ -194,12 +236,15 @@ namespace Spreads.DataTypes {
                 Version = Version,
                 Cells = new List<TableCell>()
             };
-            for (int row = 0; row < dto.RowsCount; row++) {
-                for (int column = 0; column < dto.ColumnsCount; column++) {
+            for (int row = 0; row < dto.RowsCount; row++)
+            {
+                for (int column = 0; column < dto.ColumnsCount; column++)
+                {
                     var value = Data[row, column];
                     // default(Variant) has this type
                     if (value.TypeEnum == TypeEnum.None) continue;
-                    dto.Cells.Add(new TableCell {
+                    dto.Cells.Add(new TableCell
+                    {
                         Row = row,
                         Column = column,
                         Value = value
@@ -210,11 +255,14 @@ namespace Spreads.DataTypes {
             return dto;
         }
 
-        public TableDto ToDelta(Table previous) {
-            if (RowsCount != previous.RowsCount || ColumnsCount != previous.ColumnsCount) {
+        public TableDto ToDelta(Table previous)
+        {
+            if (RowsCount != previous.RowsCount || ColumnsCount != previous.ColumnsCount)
+            {
                 return ToSnapshot();
             }
-            var dto = new TableDto {
+            var dto = new TableDto
+            {
                 TableName = this.TableName,
                 Id = this.TableName,
                 DateTime = this.DateTime,
@@ -224,15 +272,19 @@ namespace Spreads.DataTypes {
                 Version = Version,
                 Cells = new List<TableCell>()
             };
-            for (var row = 0; row < dto.RowsCount; row++) {
-                for (var column = 0; column < dto.ColumnsCount; column++) {
+            for (var row = 0; row < dto.RowsCount; row++)
+            {
+                for (var column = 0; column < dto.ColumnsCount; column++)
+                {
                     var value = Data[row, column];
                     var previousValue = previous.Data[row, column];
-                    if (value == previousValue) {
+                    if (value == previousValue)
+                    {
                         continue;
                     }
 
-                    dto.Cells.Add(new TableCell {
+                    dto.Cells.Add(new TableCell
+                    {
                         Row = row,
                         Column = column,
                         Value = value
@@ -243,32 +295,39 @@ namespace Spreads.DataTypes {
             return dto;
         }
 
-        public static Table FromSnapshot(TableDto dto) {
+        public static Table FromSnapshot(TableDto dto)
+        {
             if (!dto.IsComplete) throw new ArgumentException("Snapshot must be complete");
-            var table = new Table(dto.RowsCount, dto.ColumnsCount) {
+            var table = new Table(dto.RowsCount, dto.ColumnsCount)
+            {
                 TableName = dto.TableName,
                 DateTime = dto.DateTime,
                 Version = dto.Version,
             };
-            foreach (var cell in dto.Cells) {
+            foreach (var cell in dto.Cells)
+            {
                 table.Data[cell.Row, cell.Column] = cell.Value;
             }
 
             return table;
         }
 
-        public static Table ApplyDelta(Table previous, TableDto dto) {
-            if (previous.RowsCount != dto.RowsCount || previous.ColumnsCount != dto.ColumnsCount || dto.IsComplete) {
+        public static Table ApplyDelta(Table previous, TableDto dto)
+        {
+            if (previous.RowsCount != dto.RowsCount || previous.ColumnsCount != dto.ColumnsCount || dto.IsComplete)
+            {
                 Trace.Assert(dto.IsComplete);
                 return FromSnapshot(dto);
             }
             var dataCopy = (Variant[,])previous.Data.Clone();
-            var table = new Table(dataCopy) {
+            var table = new Table(dataCopy)
+            {
                 TableName = dto.TableName,
                 DateTime = dto.DateTime,
                 Version = dto.Version,
             };
-            foreach (var cell in dto.Cells) {
+            foreach (var cell in dto.Cells)
+            {
                 table.Data[cell.Row, cell.Column] = cell.Value;
             }
 
@@ -277,8 +336,8 @@ namespace Spreads.DataTypes {
     }
 
     [JsonConverter(typeof(TableCellJsonConverter))]
-    public struct TableCell {
-
+    public struct TableCell
+    {
         //[JsonProperty("r")]
         public int Row;
 
@@ -290,8 +349,8 @@ namespace Spreads.DataTypes {
     }
 
     [MessageType("table_delta")]
-    public class TableDto : IMessage {
-
+    public class TableDto : IMessage
+    {
         [JsonProperty("type")]
         public string Type => "table_delta";
 
@@ -323,9 +382,10 @@ namespace Spreads.DataTypes {
         public int ColumnsCount { get; set; }
     }
 
-    public class TableCellJsonConverter : JsonConverter {
-
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer) {
+    public class TableCellJsonConverter : JsonConverter
+    {
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
             var cell = (TableCell)value;
             writer.WriteStartArray();
             writer.WriteValue(cell.Row);
@@ -335,11 +395,14 @@ namespace Spreads.DataTypes {
             writer.WriteEndArray();
         }
 
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer) {
-            if (reader.TokenType == JsonToken.Null) {
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            if (reader.TokenType == JsonToken.Null)
+            {
                 return Variant.FromObject(null);
             }
-            if (reader.TokenType != JsonToken.StartArray) {
+            if (reader.TokenType != JsonToken.StartArray)
+            {
                 throw new Exception("Invalid JSON for Variant type");
             }
 
@@ -354,34 +417,38 @@ namespace Spreads.DataTypes {
             Trace.Assert(reader.TokenType == JsonToken.EndArray);
             Debug.Assert(row != null, "row != null");
             Debug.Assert(column != null, "column != null");
-            return new TableCell() {
+            return new TableCell()
+            {
                 Row = row.Value,
                 Column = column.Value,
                 Value = obj
             };
         }
 
-        public override bool CanConvert(Type objectType) {
+        public override bool CanConvert(Type objectType)
+        {
             return objectType == typeof(TableCell);
         }
     }
 
-
-    public class TableJsonConverter : JsonConverter {
-
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer) {
+    public class TableJsonConverter : JsonConverter
+    {
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
             var table = (Table)value;
             var tableDto = table.ToSnapshot();
             serializer.Serialize(writer, tableDto);
         }
 
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer) {
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
             var tableDto = serializer.Deserialize<TableDto>(reader);
             var table = Table.FromSnapshot(tableDto);
             return table;
         }
 
-        public override bool CanConvert(Type objectType) {
+        public override bool CanConvert(Type objectType)
+        {
             return objectType == typeof(TableCell);
         }
     }

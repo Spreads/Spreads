@@ -11,188 +11,220 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace Spreads.Core.Tests {
-
+namespace Spreads.Core.Tests
+{
     [TestFixture]
-    public unsafe class NanoOptimizationTests {
-
-        public interface IIncrementable {
-
+    public unsafe class NanoOptimizationTests
+    {
+        public interface IIncrementable
+        {
             int Increment();
         }
 
-        public struct ThisIsSrtuct : IIncrementable {
+        public struct ThisIsSrtuct : IIncrementable
+        {
             private byte[] value;
             private int* ptr;
             private GCHandle pinnedGcHandle;
 
-            public ThisIsSrtuct(byte[] bytes) {
+            public ThisIsSrtuct(byte[] bytes)
+            {
                 value = bytes;
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
                 ptr = (int*)pinnedGcHandle.AddrOfPinnedObject().ToPointer();
             }
 
-            public int Increment() {
+            public int Increment()
+            {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
                 //return (*((int*)ptr))++;
             }
         }
 
-        public static class ThisIsStaticClass {
+        public static class ThisIsStaticClass
+        {
             private static byte[] value = new byte[4];
             private static IntPtr ptr;
             private static GCHandle pinnedGcHandle;
 
-            static ThisIsStaticClass() {
+            static ThisIsStaticClass()
+            {
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public static int Increment() {
+            public static int Increment()
+            {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
             }
         }
 
-        public class ThisIsClass : IIncrementable {
+        public class ThisIsClass : IIncrementable
+        {
             private byte[] value = new byte[4];
             private IntPtr ptr;
             private GCHandle pinnedGcHandle;
 
-            public ThisIsClass() {
+            public ThisIsClass()
+            {
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Increment() {
+            public int Increment()
+            {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
             }
         }
 
-        public class ThisIsBaseClass : IIncrementable {
+        public class ThisIsBaseClass : IIncrementable
+        {
             private byte[] value = new byte[4];
             private IntPtr ptr;
             private GCHandle pinnedGcHandle;
 
-            public ThisIsBaseClass() {
+            public ThisIsBaseClass()
+            {
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public virtual int Increment() {
+            public virtual int Increment()
+            {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
             }
         }
 
-        public class ThisIsDerivedClass : ThisIsBaseClass, IIncrementable {
+        public class ThisIsDerivedClass : ThisIsBaseClass, IIncrementable
+        {
             private byte[] value = new byte[4];
             private IntPtr ptr;
             private GCHandle pinnedGcHandle;
 
-            public ThisIsDerivedClass() {
+            public ThisIsDerivedClass()
+            {
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Increment() {
+            public override int Increment()
+            {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
             }
         }
 
-        public class ThisIsDerivedClass2 : ThisIsBaseClass, IIncrementable {
+        public class ThisIsDerivedClass2 : ThisIsBaseClass, IIncrementable
+        {
             private byte[] value = new byte[4];
             private IntPtr ptr;
             private GCHandle pinnedGcHandle;
 
-            public ThisIsDerivedClass2() {
+            public ThisIsDerivedClass2()
+            {
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Increment() {
+            public override int Increment()
+            {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
             }
         }
 
-        public sealed class ThisIsSealedDerivedClass : ThisIsDerivedClass, IIncrementable {
+        public sealed class ThisIsSealedDerivedClass : ThisIsDerivedClass, IIncrementable
+        {
             private byte[] value = new byte[4];
             private IntPtr ptr;
             private GCHandle pinnedGcHandle;
 
-            public ThisIsSealedDerivedClass() {
+            public ThisIsSealedDerivedClass()
+            {
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Increment() {
+            public override int Increment()
+            {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
             }
         }
 
-        public sealed class ThisIsSealedDerivedClass2 : ThisIsDerivedClass, IIncrementable {
+        public sealed class ThisIsSealedDerivedClass2 : ThisIsDerivedClass, IIncrementable
+        {
             private byte[] value = new byte[4];
             private IntPtr ptr;
             private GCHandle pinnedGcHandle;
 
-            public ThisIsSealedDerivedClass2() {
+            public ThisIsSealedDerivedClass2()
+            {
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Increment() {
+            public override int Increment()
+            {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
             }
         }
 
-        public sealed class ThisIsSealedClass : IIncrementable {
+        public sealed class ThisIsSealedClass : IIncrementable
+        {
             private byte[] value = new byte[4];
             private IntPtr ptr;
             private GCHandle pinnedGcHandle;
 
-            public ThisIsSealedClass() {
+            public ThisIsSealedClass()
+            {
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Increment() {
+            public int Increment()
+            {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 return (*((int*)ptr));
             }
         }
 
-        public class ThisIsComposedClass : IIncrementable {
+        public class ThisIsComposedClass : IIncrementable
+        {
             private ThisIsClass value;
 
-            public ThisIsComposedClass() {
+            public ThisIsComposedClass()
+            {
                 value = new ThisIsClass();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Increment() {
+            public int Increment()
+            {
                 return value.Increment();
             }
         }
 
-        private void ConstrainedStruct<T>(T incrementable) where T : IIncrementable {
+        private void ConstrainedStruct<T>(T incrementable) where T : IIncrementable
+        {
             var count = 100000000;
             var sw = new Stopwatch();
             sw.Restart();
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 incrementable.Increment();
             }
             sw.Stop();
@@ -200,7 +232,8 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void CallVsCallVirt(int r) {
+        public void CallVsCallVirt(int r)
+        {
             var count = 100000000;
             var sw = new Stopwatch();
 
@@ -208,7 +241,8 @@ namespace Spreads.Core.Tests {
             int* ptr = stackalloc int[1];
 
             int intValue = 0;
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 *((int*)ptr) = *((int*)ptr) + 1;
                 intValue = (*((int*)ptr));
             }
@@ -217,7 +251,8 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             var str = new ThisIsSrtuct(new byte[4]);
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 str.Increment();
             }
             sw.Stop();
@@ -225,7 +260,8 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             IIncrementable strAsInterface = (IIncrementable)(new ThisIsSrtuct(new byte[4]));
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 strAsInterface.Increment();
             }
             sw.Stop();
@@ -235,7 +271,8 @@ namespace Spreads.Core.Tests {
             ConstrainedStruct(constrainedStr);
 
             sw.Restart();
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 ThisIsStaticClass.Increment();
             }
             sw.Stop();
@@ -243,7 +280,8 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             var cl = new ThisIsClass();
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 cl.Increment();
             }
             sw.Stop();
@@ -251,7 +289,8 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             var scl = new ThisIsSealedClass();
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 scl.Increment();
             }
             sw.Stop();
@@ -259,7 +298,8 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             IIncrementable cli = (IIncrementable)new ThisIsClass();
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 cli.Increment();
             }
             sw.Stop();
@@ -267,7 +307,8 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             var dcl = new ThisIsDerivedClass();
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 dcl.Increment();
             }
             sw.Stop();
@@ -275,7 +316,8 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             IIncrementable dcli = (IIncrementable)new ThisIsDerivedClass();
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 dcli.Increment();
             }
             sw.Stop();
@@ -283,7 +325,8 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             var sdcl = new ThisIsSealedDerivedClass();
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 sdcl.Increment();
             }
             sw.Stop();
@@ -291,7 +334,8 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             IIncrementable sdcli = (IIncrementable)new ThisIsSealedDerivedClass();
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 sdcli.Increment();
             }
             sw.Stop();
@@ -299,7 +343,8 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             var comp = new ThisIsComposedClass();
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 comp.Increment();
             }
             sw.Stop();
@@ -307,15 +352,18 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void CallVsCallVirt() {
-            for (int r = 0; r < 10; r++) {
+        public void CallVsCallVirt()
+        {
+            for (int r = 0; r < 10; r++)
+            {
                 CallVsCallVirt(r);
                 Console.WriteLine("-----------------");
             }
         }
 
         [Test, Ignore]
-        public void SOVolatileQuestion() {
+        public void SOVolatileQuestion()
+        {
             long counter = 0;
             var values = new double[1000000];
 
@@ -328,14 +376,17 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void ArrayVsListVsIListManyTimes() {
-            for (int times = 0; times < 5; times++) {
+        public void ArrayVsListVsIListManyTimes()
+        {
+            for (int times = 0; times < 5; times++)
+            {
                 ArrayVsListVsIList();
             }
         }
 
         [Test, Ignore]
-        public void ArrayVsListVsIList() {
+        public void ArrayVsListVsIList()
+        {
             var len = 1000;
 
             var arr = new double[len];
@@ -346,7 +397,8 @@ namespace Spreads.Core.Tests {
             var unmanagedMemory = Marshal.AllocHGlobal(len * 8);
             var directBuffer = new DirectBuffer(len * 8, unmanagedMemory);
 
-            for (int i = 0; i < len; i++) {
+            for (int i = 0; i < len; i++)
+            {
                 arr[i] = i;
                 fixedBuffer.WriteDouble(i * 8, i);
                 directBuffer.WriteDouble(i * 8, i);
@@ -361,7 +413,8 @@ namespace Spreads.Core.Tests {
             var idxs = new int[len / 10];
             var rng = new System.Random();
 
-            for (int i = 0; i < idxs.Length; i++) {
+            for (int i = 0; i < idxs.Length; i++)
+            {
                 idxs[i] = rng.Next(0, len);
             }
 
@@ -374,8 +427,10 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++) {
-                foreach (var idx in idxs) {
+            for (int rounds = 0; rounds < maxRounds; rounds++)
+            {
+                foreach (var idx in idxs)
+                {
                     sum += arr[idx];
                 }
             }
@@ -387,8 +442,10 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++) {
-                foreach (var idx in idxs) {
+            for (int rounds = 0; rounds < maxRounds; rounds++)
+            {
+                foreach (var idx in idxs)
+                {
                     sum += list[idx];
                 }
             }
@@ -400,8 +457,10 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++) {
-                foreach (var idx in idxs) {
+            for (int rounds = 0; rounds < maxRounds; rounds++)
+            {
+                foreach (var idx in idxs)
+                {
                     sum += vector[idx];
                 }
             }
@@ -413,9 +472,12 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++) {
-                foreach (var idx in idxs) {
-                    lock (list) {
+            for (int rounds = 0; rounds < maxRounds; rounds++)
+            {
+                foreach (var idx in idxs)
+                {
+                    lock (list)
+                    {
                         sum += list[idx];
                     }
                 }
@@ -429,14 +491,19 @@ namespace Spreads.Core.Tests {
             sw.Restart();
             sum = 0.0;
             SpinLock sl = new SpinLock();
-            for (int rounds = 0; rounds < maxRounds; rounds++) {
-                foreach (var idx in idxs) {
+            for (int rounds = 0; rounds < maxRounds; rounds++)
+            {
+                foreach (var idx in idxs)
+                {
                     bool gotLock = false;
                     gotLock = false;
-                    try {
+                    try
+                    {
                         sl.Enter(ref gotLock);
                         sum += list[idx];
-                    } finally {
+                    }
+                    finally
+                    {
                         // Only give up the lock if you actually acquired it
                         if (gotLock) sl.Exit();
                     }
@@ -451,8 +518,10 @@ namespace Spreads.Core.Tests {
             sw.Restart();
             sum = 0.0;
             var counter = 0L;
-            for (int rounds = 0; rounds < maxRounds; rounds++) {
-                foreach (var idx in idxs) {
+            for (int rounds = 0; rounds < maxRounds; rounds++)
+            {
+                foreach (var idx in idxs)
+                {
                     var dummy = Interlocked.CompareExchange(ref counter, idx, 0L);
                     sum += list[idx] + dummy;
                 }
@@ -465,8 +534,10 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++) {
-                foreach (var idx in idxs) {
+            for (int rounds = 0; rounds < maxRounds; rounds++)
+            {
+                foreach (var idx in idxs)
+                {
                     sum += ilist[idx];
                 }
             }
@@ -478,8 +549,10 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++) {
-                foreach (var idx in idxs) {
+            for (int rounds = 0; rounds < maxRounds; rounds++)
+            {
+                foreach (var idx in idxs)
+                {
                     sum += fixedBuffer.ReadDouble(idx * 8);
                 }
             }
@@ -492,8 +565,10 @@ namespace Spreads.Core.Tests {
             sw.Restart();
             sum = 0.0;
             var ifb = fixedBuffer as IDirectBuffer;
-            for (int rounds = 0; rounds < maxRounds; rounds++) {
-                foreach (var idx in idxs) {
+            for (int rounds = 0; rounds < maxRounds; rounds++)
+            {
+                foreach (var idx in idxs)
+                {
                     sum += ifb.ReadDouble(idx * 8);
                 }
             }
@@ -505,8 +580,10 @@ namespace Spreads.Core.Tests {
 
             sw.Restart();
             sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++) {
-                foreach (var idx in idxs) {
+            for (int rounds = 0; rounds < maxRounds; rounds++)
+            {
+                foreach (var idx in idxs)
+                {
                     sum += directBuffer.ReadDouble(idx * 8);
                 }
             }
@@ -519,8 +596,10 @@ namespace Spreads.Core.Tests {
             sw.Restart();
             sum = 0.0;
             var idb = directBuffer as IDirectBuffer;
-            for (int rounds = 0; rounds < maxRounds; rounds++) {
-                foreach (var idx in idxs) {
+            for (int rounds = 0; rounds < maxRounds; rounds++)
+            {
+                foreach (var idx in idxs)
+                {
                     sum += idb.ReadDouble(idx * 8);
                 }
             }
@@ -530,6 +609,5 @@ namespace Spreads.Core.Tests {
             Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
             Console.WriteLine("---");
         }
-
     }
 }

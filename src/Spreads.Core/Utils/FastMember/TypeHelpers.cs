@@ -5,7 +5,6 @@ using System.Reflection.Emit;
 
 namespace Spreads.Utils.FastMember
 {
-
     internal static class TypeHelpers
     {
 #if COREFX
@@ -22,6 +21,7 @@ namespace Spreads.Utils.FastMember
             return type.IsValueType;
 #endif
         }
+
         public static bool _IsPublic(Type type)
         {
 #if COREFX
@@ -39,6 +39,7 @@ namespace Spreads.Utils.FastMember
             return type.IsNestedPublic;
 #endif
         }
+
         public static bool _IsClass(Type type)
         {
 #if COREFX
@@ -56,6 +57,7 @@ namespace Spreads.Utils.FastMember
             return type.IsAbstract;
 #endif
         }
+
         public static Type _CreateType(TypeBuilder type)
         {
 #if COREFX

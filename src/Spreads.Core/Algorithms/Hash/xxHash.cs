@@ -37,12 +37,13 @@ using Spreads.Utils;
 using System;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Algorithms.Hash {
-
+namespace Spreads.Algorithms.Hash
+{
     [Obsolete("Consider dropping it altogether or adding to a native C lib and using via P/Invoke. No sense to maintain a port.")]
-    public static unsafe class XxHash {
-
-        public struct XxHashState32 {
+    public static unsafe class XxHash
+    {
+        public struct XxHashState32
+        {
             internal ulong TotalLen;
             internal uint Seed;
             internal uint V1;
@@ -52,7 +53,8 @@ namespace Spreads.Algorithms.Hash {
             internal fixed byte Memory[16];
             internal uint Memsize;
 
-            public XxHashState32(uint seed = 0) {
+            public XxHashState32(uint seed = 0)
+            {
                 Seed = seed;
                 V1 = seed + PRIME32_1 + PRIME32_2;
                 V2 = seed + PRIME32_2;
@@ -73,18 +75,21 @@ namespace Spreads.Algorithms.Hash {
         // ReSharper restore InconsistentNaming
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint CalculateHash(IntPtr data, int len, uint seed = 0) {
+        public static uint CalculateHash(IntPtr data, int len, uint seed = 0)
+        {
             uint h32;
             int index = 0;
 
-            if (len >= 16) {
+            if (len >= 16)
+            {
                 int limit = len - 16;
                 uint v1 = seed + PRIME32_1 + PRIME32_2;
                 uint v2 = seed + PRIME32_2;
                 uint v3 = seed + 0;
                 uint v4 = seed - PRIME32_1;
 
-                do {
+                do
+                {
                     v1 = CalcSubHash(v1, data, index);
                     index += 4;
                     v2 = CalcSubHash(v2, data, index);
@@ -96,19 +101,23 @@ namespace Spreads.Algorithms.Hash {
                 } while (index <= limit);
 
                 h32 = RotateLeft(v1, 1) + RotateLeft(v2, 7) + RotateLeft(v3, 12) + RotateLeft(v4, 18);
-            } else {
+            }
+            else
+            {
                 h32 = seed + PRIME32_5;
             }
 
             h32 += (uint)len;
 
-            while (index <= len - 4) {
+            while (index <= len - 4)
+            {
                 h32 += *(uint*)(data + index) * PRIME32_3;
                 h32 = RotateLeft(h32, 17) * PRIME32_4;
                 index += 4;
             }
 
-            while (index < len) {
+            while (index < len)
+            {
                 h32 += *(byte*)(data + index) * PRIME32_5;
                 h32 = RotateLeft(h32, 11) * PRIME32_1;
                 index++;
@@ -124,13 +133,16 @@ namespace Spreads.Algorithms.Hash {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool Update(ref XxHashState32 state, IntPtr input, int len) {
+        public static bool Update(ref XxHashState32 state, IntPtr input, int len)
+        {
             int index = 0;
 
             state.TotalLen += (uint)len;
 
-            if (state.Memsize + len < 16) {
-                fixed (byte* ptr = state.Memory) {
+            if (state.Memsize + len < 16)
+            {
+                fixed (byte* ptr = state.Memory)
+                {
                     ByteUtil.MemoryCopy(ptr + state.Memsize, (byte*)input, (uint)len);
                 }
                 //Array.Copy(input, 0, state.Memory, state.Memsize, len);
@@ -139,12 +151,15 @@ namespace Spreads.Algorithms.Hash {
                 return true;
             }
 
-            if (state.Memsize > 0) {
-                fixed (byte* ptr = state.Memory) {
+            if (state.Memsize > 0)
+            {
+                fixed (byte* ptr = state.Memory)
+                {
                     ByteUtil.MemoryCopy(ptr + state.Memsize, (byte*)input, (uint)(16 - state.Memsize));
                 }
                 //Array.Copy(input, 0, state.Memory, state.Memsize, 16 - state.Memsize);
-                fixed (byte* ptr = state.Memory) {
+                fixed (byte* ptr = state.Memory)
+                {
                     state.V1 = CalcSubHash(state.V1, (IntPtr)ptr, index);
                     index += 4;
                     state.V2 = CalcSubHash(state.V2, (IntPtr)ptr, index);
@@ -159,14 +174,16 @@ namespace Spreads.Algorithms.Hash {
                 state.Memsize = 0;
             }
 
-            if (index <= len - 16) {
+            if (index <= len - 16)
+            {
                 int limit = len - 16;
                 uint v1 = state.V1;
                 uint v2 = state.V2;
                 uint v3 = state.V3;
                 uint v4 = state.V4;
 
-                do {
+                do
+                {
                     v1 = CalcSubHash(v1, input, index);
                     index += 4;
                     v2 = CalcSubHash(v2, input, index);
@@ -183,8 +200,10 @@ namespace Spreads.Algorithms.Hash {
                 state.V4 = v4;
             }
 
-            if (index < len) {
-                fixed (byte* ptr = state.Memory) {
+            if (index < len)
+            {
+                fixed (byte* ptr = state.Memory)
+                {
                     ByteUtil.MemoryCopy(ptr + 0, (byte*)(input + index), (uint)(len - index));
                 }
                 //Array.Copy(input, index, state.Memory, 0, len - index);
@@ -194,24 +213,30 @@ namespace Spreads.Algorithms.Hash {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint Digest(XxHashState32 state) {
+        public static uint Digest(XxHashState32 state)
+        {
             uint h32;
             int index = 0;
-            if (state.TotalLen >= 16) {
+            if (state.TotalLen >= 16)
+            {
                 h32 = RotateLeft(state.V1, 1) + RotateLeft(state.V2, 7) + RotateLeft(state.V3, 12) + RotateLeft(state.V4, 18);
-            } else {
+            }
+            else
+            {
                 h32 = state.Seed + PRIME32_5;
             }
 
             h32 += (uint)state.TotalLen;
 
-            while (index <= state.Memsize - 4) {
+            while (index <= state.Memsize - 4)
+            {
                 h32 += *(uint*)(state.Memory + index) * PRIME32_3;
                 h32 = RotateLeft(h32, 17) * PRIME32_4;
                 index += 4;
             }
 
-            while (index < state.Memsize) {
+            while (index < state.Memsize)
+            {
                 h32 += state.Memory[index] * PRIME32_5;
                 h32 = RotateLeft(h32, 11) * PRIME32_1;
                 index++;
@@ -227,7 +252,8 @@ namespace Spreads.Algorithms.Hash {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint CalcSubHash(uint value, IntPtr buf, int index) {
+        private static uint CalcSubHash(uint value, IntPtr buf, int index)
+        {
             var readValue = *(uint*)(buf + index);
             value += readValue * PRIME32_2;
             value = RotateLeft(value, 13);
@@ -236,12 +262,14 @@ namespace Spreads.Algorithms.Hash {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint RotateLeft(uint value, int count) {
+        private static uint RotateLeft(uint value, int count)
+        {
             return (value << count) | (value >> (32 - count));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint Xxh32(this Algo.HashProvider provider, IntPtr data, int len, uint seed = 0) {
+        public static uint Xxh32(this Algo.HashProvider provider, IntPtr data, int len, uint seed = 0)
+        {
             return CalculateHash(data, len, seed);
         }
     }

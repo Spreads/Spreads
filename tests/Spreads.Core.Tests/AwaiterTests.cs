@@ -15,25 +15,29 @@ using Spreads.Experimental.Utils.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads.Experimental.Core.Tests {
-
+namespace Spreads.Experimental.Core.Tests
+{
     [TestFixture]
-    public class AwaiterTests {
-
+    public class AwaiterTests
+    {
         [Test, Ignore]
-        public void MultipleWaiters() {
+        public void MultipleWaiters()
+        {
             var awaitabe = new ManualResetAwaitable();
 
-            var t = Task.Run(async () => {
+            var t = Task.Run(async () =>
+            {
                 var result = await awaitabe;
                 Assert.AreEqual(true, result);
             });
-            var t2 = Task.Run(async () => {
+            var t2 = Task.Run(async () =>
+            {
                 var result = await awaitabe;
                 Assert.AreEqual(true, result);
             });
 
-            var t3 = Task.Run(async () => {
+            var t3 = Task.Run(async () =>
+            {
                 var result = await awaitabe;
                 Assert.AreEqual(true, result);
             });

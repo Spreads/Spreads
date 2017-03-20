@@ -18,9 +18,9 @@ namespace Spreads.Serialization
 
     internal delegate int FromPtrDelegate(IntPtr ptr, ref object value);
 
-    internal delegate int ToPtrDelegate(object value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null);
+    internal delegate int ToPtrDelegate(object value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
-    internal delegate int SizeOfDelegate(object value, out MemoryStream memoryStream);
+    internal delegate int SizeOfDelegate(object value, out MemoryStream memoryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
     internal class TypeParams
     {

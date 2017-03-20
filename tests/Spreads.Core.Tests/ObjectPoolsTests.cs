@@ -14,30 +14,36 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads.Core.Tests {
-
+namespace Spreads.Core.Tests
+{
     [TestFixture]
-    public class ObjectPoolsTests {
-        public class DummyPoolable : IPoolable<DummyPoolable> {
+    public class ObjectPoolsTests
+    {
+        public class DummyPoolable : IPoolable<DummyPoolable>
+        {
             public int I { get; set; }
 
-            public void Init() {
+            public void Init()
+            {
             }
 
-            public void Release() {
+            public void Release()
+            {
             }
         }
 
         // https://github.com/dotnet/corefx/pull/14126
         [Test]
         [Ignore]
-        public void ComparePoolsPerformance() {
+        public void ComparePoolsPerformance()
+        {
             int capacity = Environment.ProcessorCount * 2;
             var arrayPool = new ObjectPoolArray<DummyPoolable>(capacity);
             var bagPool = new ObjectPoolBag<DummyPoolable>(capacity);
             var queuePool = new ObjectPoolQueue<DummyPoolable>(capacity);
             //var mpmcQueuePool = new ObjectPoolMPMCQueue<DummyPoolable>(capacity);
-            for (int round = 0; round < 10; round++) {
+            for (int round = 0; round < 10; round++)
+            {
                 TestPool(arrayPool);
                 TestPool(bagPool);
                 TestPool(queuePool);
@@ -46,13 +52,16 @@ namespace Spreads.Core.Tests {
             }
         }
 
-        public void TestPool(IObjectPool<DummyPoolable> pool) {
+        public void TestPool(IObjectPool<DummyPoolable> pool)
+        {
             var sw = new Stopwatch();
             //while (true) {
             int gen0 = GC.CollectionCount(0);
             sw.Restart();
-            Task.WaitAll(Enumerable.Range(0, Environment.ProcessorCount * 2).Select(_ => Task.Run(() => {
-                for (int i = 0; i < 1000000; i++) {
+            Task.WaitAll(Enumerable.Range(0, Environment.ProcessorCount * 2).Select(_ => Task.Run(() =>
+            {
+                for (int i = 0; i < 1000000; i++)
+                {
                     var x1 = pool.Allocate();
                     var x2 = pool.Allocate();
                     Interlocked.MemoryBarrier();

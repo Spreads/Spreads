@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,20 +9,25 @@ using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Spreads.Core.Tests {
+namespace Spreads.Core.Tests
+{
     [TestFixture]
-    public class Primes {
-        public static bool isPrime(long number) {
+    public class Primes
+    {
+        public static bool isPrime(long number)
+        {
             long boundary = (long)Math.Floor(Math.Sqrt(number)) + 1L;
 
             if (number == 1) return false;
             if (number == 2) return true;
 
-            for (long i = 2L; i <= boundary; ++i) {
+            for (long i = 2L; i <= boundary; ++i)
+            {
                 if (number % i == 0L) return false;
             }
             return true;
         }
+
         [Test]
         public void ClosestPrimesToPowersOfTwo()
         {

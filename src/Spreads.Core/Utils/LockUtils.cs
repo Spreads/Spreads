@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,14 +10,19 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads.Utils {
-    internal static class LockUtils {
+namespace Spreads.Utils
+{
+    internal static class LockUtils
+    {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool EnterWriteLockIf(ref int locker, bool condition = true) {
+        public static bool EnterWriteLockIf(ref int locker, bool condition = true)
+        {
             if (!condition) return false;
             var sw = new SpinWait();
-            while (true) {
-                if (Interlocked.CompareExchange(ref locker, 1, 0) == 0) {
+            while (true)
+            {
+                if (Interlocked.CompareExchange(ref locker, 1, 0) == 0)
+                {
                     return true;
                 }
                 sw.SpinOnce();
@@ -27,10 +31,10 @@ namespace Spreads.Utils {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void ExitWriteLockIf(ref int locker, bool condition) {
+        public static void ExitWriteLockIf(ref int locker, bool condition)
+        {
             if (!condition) return;
             Interlocked.Exchange(ref locker, 0);
         }
-
     }
 }

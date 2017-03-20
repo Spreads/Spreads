@@ -5,17 +5,19 @@
 using System;
 using System.Threading;
 
-namespace Spreads.Collections.Concurrent {
-
+namespace Spreads.Collections.Concurrent
+{
     /// <summary>
     /// Object pool based on ConcurrentBag
     /// </summary>
-    public class ObjectPoolBag<T> : IObjectPool<T> where T : class, IPoolable<T>, new() {
+    public class ObjectPoolBag<T> : IObjectPool<T> where T : class, IPoolable<T>, new()
+    {
         private readonly int _capacity;
         private int _count;
         private readonly ConcurrentBag<T> _pool = new ConcurrentBag<T>();
 
-        public ObjectPoolBag(int capacity = int.MaxValue) {
+        public ObjectPoolBag(int capacity = int.MaxValue)
+        {
             if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
             _capacity = capacity;
         }
@@ -24,12 +26,17 @@ namespace Spreads.Collections.Concurrent {
         public int Capacity => _capacity;
         public int Count => _pool.Count;
 
-        public T Allocate() {
+        public T Allocate()
+        {
             T result;
-            if (!_pool.TryTake(out result)) {
+            if (!_pool.TryTake(out result))
+            {
                 result = new T();
-            } else {
-                if (_capacity < int.MaxValue) {
+            }
+            else
+            {
+                if (_capacity < int.MaxValue)
+                {
                     Interlocked.Decrement(ref _count);
                 }
             }
@@ -37,9 +44,11 @@ namespace Spreads.Collections.Concurrent {
             return result;
         }
 
-        public void Free(T obj) {
+        public void Free(T obj)
+        {
             obj.Release();
-            if (_capacity < int.MaxValue) {
+            if (_capacity < int.MaxValue)
+            {
                 var count = Volatile.Read(ref _count);
                 if (count >= _capacity) return;
                 Interlocked.Increment(ref count);
@@ -51,11 +60,13 @@ namespace Spreads.Collections.Concurrent {
     /// <summary>
     /// Object pool based on BoundedConcurrentQueue
     /// </summary>
-    public class ObjectPoolQueue<T> : IObjectPool<T> where T : class, IPoolable<T>, new() {
+    public class ObjectPoolQueue<T> : IObjectPool<T> where T : class, IPoolable<T>, new()
+    {
         private readonly int _capacity;
         private readonly BoundedConcurrentQueue<T> _pool;
 
-        public ObjectPoolQueue(int capacity = int.MaxValue) {
+        public ObjectPoolQueue(int capacity = int.MaxValue)
+        {
             if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
             _capacity = capacity;
             _pool = new BoundedConcurrentQueue<T>(_capacity);
@@ -65,16 +76,19 @@ namespace Spreads.Collections.Concurrent {
         public int Capacity => _capacity;
         public int Count => _pool.Count;
 
-        public T Allocate() {
+        public T Allocate()
+        {
             T result;
-            if (!_pool.TryDequeue(out result)) {
+            if (!_pool.TryDequeue(out result))
+            {
                 result = new T();
             }
             result.Init();
             return result;
         }
 
-        public void Free(T obj) {
+        public void Free(T obj)
+        {
             obj.Release();
             _pool.TryEnqueue(obj);
         }

@@ -9,26 +9,30 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Core.Tests {
-
+namespace Spreads.Core.Tests
+{
     [TestFixture]
-    public class VariantTests {
-
+    public class VariantTests
+    {
         [KnownType(255)]
-        private class TestKnownType : IEquatable<TestKnownType> {
+        private class TestKnownType : IEquatable<TestKnownType>
+        {
             public int Int { get; set; }
             public string Str { get; set; }
 
-            public bool Equals(TestKnownType other) {
+            public bool Equals(TestKnownType other)
+            {
                 return other != null && (this.Int == other.Int && this.Str == other.Str);
             }
         }
 
         [Test]
-        public void CouldCreateAndReadWriteInlinedVariant() {
+        public void CouldCreateAndReadWriteInlinedVariant()
+        {
             var v = Variant.Create(123.0);
             Assert.AreEqual(123.0, v.Get<double>());
-            Assert.Throws<InvalidCastException>(() => {
+            Assert.Throws<InvalidCastException>(() =>
+            {
                 v.Set(456); // no implicit conversion
             });
             v.Set(456.0);
@@ -50,7 +54,8 @@ namespace Spreads.Core.Tests {
 
             var x = 44.0.AsVariant();
             Assert.AreEqual(44.0, x.Get<double>());
-            Assert.Throws<InvalidCastException>(() => {
+            Assert.Throws<InvalidCastException>(() =>
+            {
                 v2[0] = 44.AsVariant(); // no implicit conversion
             });
             v2[0] = 44.0.AsVariant();
@@ -59,7 +64,8 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
-        public void CouldCreateAndReadWriteArrayVariant() {
+        public void CouldCreateAndReadWriteArrayVariant()
+        {
             var array = new double[2];
             array[0] = 123;
             array[1] = 456;
@@ -99,13 +105,16 @@ namespace Spreads.Core.Tests {
         #region Benchmarks
 
         [Test, Ignore]
-        public void CouldCreateAndReadInlinedVariantInALoop() {
+        public void CouldCreateAndReadInlinedVariantInALoop()
+        {
             var count = 100000000;
             var sw = new Stopwatch();
-            for (int round = 0; round < 10; round++) {
+            for (int round = 0; round < 10; round++)
+            {
                 sw.Restart();
                 var sum = 0.0;
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     var v = Variant.Create<double>(i);
                     var d = v.Get<double>();
                     sum += d;
@@ -116,7 +125,8 @@ namespace Spreads.Core.Tests {
             }
         }
 
-        private struct Container<T> {
+        private struct Container<T>
+        {
             private T _value;
 
             public T Value
@@ -129,7 +139,8 @@ namespace Spreads.Core.Tests {
         }
 
         // not inlined access to the field
-        private struct DummyContainer<T> {
+        private struct DummyContainer<T>
+        {
             private T _value;
 
             public T Value
@@ -141,7 +152,8 @@ namespace Spreads.Core.Tests {
             }
         }
 
-        private struct BoxedContainer {
+        private struct BoxedContainer
+        {
             private object _value;
 
             public object Value
@@ -153,7 +165,8 @@ namespace Spreads.Core.Tests {
             }
         }
 
-        private struct BoxedDummyContainer {
+        private struct BoxedDummyContainer
+        {
             private object _value;
 
             public object Value
@@ -166,14 +179,17 @@ namespace Spreads.Core.Tests {
         }
 
         [Test, Ignore]
-        public void CouldCreateWriteReadInlinedVariantInALoop() {
+        public void CouldCreateWriteReadInlinedVariantInALoop()
+        {
             var count = 100000000;
             var sw = new Stopwatch();
-            for (int round = 0; round < 10; round++) {
+            for (int round = 0; round < 10; round++)
+            {
                 sw.Restart();
                 var sum = 0.0;
                 var v = Variant.Create<double>(0.0);
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     v.Set<double>(i);
                     var d = v.Get<double>();
                     sum += d;
@@ -183,7 +199,8 @@ namespace Spreads.Core.Tests {
                     Console.WriteLine($"Variant Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
 
                 sw.Restart();
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     v.UnsafeSetInlined<double>(i);
                     var d = v.UnsafeGetInilned<double>();
                     sum += d;
@@ -193,7 +210,8 @@ namespace Spreads.Core.Tests {
                     Console.WriteLine($"Unsafe Variant Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
 
                 sw.Restart();
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     var span = v.Span<double>();
                     span[0] = i;
                     var d = span[0];
@@ -205,7 +223,8 @@ namespace Spreads.Core.Tests {
 
                 var v2 = Variant.Create<double>(new[] { 0.0 });
                 sw.Restart();
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     var span = v2.Span<double>();
                     span[0] = i;
                     var d = span[0];
@@ -216,7 +235,8 @@ namespace Spreads.Core.Tests {
                     Console.WriteLine($"Span (Array) Variant Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
 
                 sw.Restart();
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     v2.Set<double>(0, 0.0);
                     var d = v2.Get<double>(0);
                     sum += d;
@@ -228,7 +248,8 @@ namespace Spreads.Core.Tests {
                 sw.Restart();
                 sum = 0.0;
                 var array = new[] { 0.0 };
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     array[0] = i;
                     var d = array[0];
                     sum += d;
@@ -240,7 +261,8 @@ namespace Spreads.Core.Tests {
                 sw.Restart();
                 sum = 0.0;
                 var container = new Container<double>();
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     container.Value = i;
                     var d = container.Value;
                     sum += d;
@@ -252,7 +274,8 @@ namespace Spreads.Core.Tests {
                 sw.Restart();
                 sum = 0.0;
                 var dummyContainer = new DummyContainer<double>();
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     dummyContainer.Value = i;
                     var d = dummyContainer.Value;
                     sum += d;
@@ -264,7 +287,8 @@ namespace Spreads.Core.Tests {
                 sw.Restart();
                 sum = 0.0;
                 var boxed = new BoxedContainer();
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     boxed.Value = (double)i;
                     var d = (double)boxed.Value;
                     sum += d;
@@ -276,7 +300,8 @@ namespace Spreads.Core.Tests {
                 sw.Restart();
                 sum = 0.0;
                 var boxedDummy = new BoxedDummyContainer();
-                for (int i = 0; i < count; i++) {
+                for (int i = 0; i < count; i++)
+                {
                     boxedDummy.Value = (double)i;
                     var d = (double)boxed.Value;
                     sum += d;
@@ -292,7 +317,8 @@ namespace Spreads.Core.Tests {
         #endregion Benchmarks
 
         [Test]
-        public void CouldUseVariantJsonConverter() {
+        public void CouldUseVariantJsonConverter()
+        {
             var variant = Variant.Create(123);
             string json = JsonConvert.SerializeObject(variant);
             Console.WriteLine(json);
@@ -312,7 +338,8 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
-        public void CouldJsonConvertArrayOfVariants() {
+        public void CouldJsonConvertArrayOfVariants()
+        {
             var arrayVariant = new Variant[] { Variant.Create(123), Variant.Create(456.7) };
             var json = JsonConvert.SerializeObject(arrayVariant);
             Console.WriteLine(json);
@@ -326,7 +353,8 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
-        public void CouldJsonConvertVariantArrayOfVariants() {
+        public void CouldJsonConvertVariantArrayOfVariants()
+        {
             var arrayVariant = Variant.Create(new Variant[] { Variant.Create(123), Variant.Create(456.7) });
             var json = JsonConvert.SerializeObject(arrayVariant);
             Console.WriteLine(json);
@@ -340,7 +368,8 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
-        public void CouldJsonConvertVariantArrayOfVariantsWithString() {
+        public void CouldJsonConvertVariantArrayOfVariantsWithString()
+        {
             var arrayVariant = Variant.Create(new Variant[] { Variant.Create(123), Variant.Create("456.7") });
             var arrayVariantNested = Variant.Create(new Variant[] { Variant.Create(arrayVariant), Variant.Create("456.7") });
             var json = JsonConvert.SerializeObject(arrayVariant);
@@ -357,7 +386,8 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
-        public void CouldJsonConvertVariantWithCustomObject() {
+        public void CouldJsonConvertVariantWithCustomObject()
+        {
             var variant = Variant.Create(new TestKnownType { Int = 123, Str = "str" });
             var json = JsonConvert.SerializeObject(variant);
             Console.WriteLine(json);
@@ -368,20 +398,23 @@ namespace Spreads.Core.Tests {
         }
 
         [Test]
-        public void DefaultVariantHasTypeNone() {
+        public void DefaultVariantHasTypeNone()
+        {
             var d = default(Variant);
             Assert.AreEqual(TypeEnum.None, d.TypeEnum);
         }
 
         [Test]
-        public void CouldCreateAndReadBool() {
+        public void CouldCreateAndReadBool()
+        {
             var b = Variant.Create(true);
             Assert.AreEqual(TypeEnum.Bool, b.TypeEnum);
             Assert.AreEqual(true, b.Get<bool>());
         }
 
         [Test]
-        public void CouldCreateAndReadErrorCode() {
+        public void CouldCreateAndReadErrorCode()
+        {
             var variant = Variant.Create(new ErrorCode { Code = 123456789 });
             Assert.AreEqual(TypeEnum.ErrorCode, variant.TypeEnum);
             Assert.AreEqual(123456789, variant.Get<ErrorCode>().Code);

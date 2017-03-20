@@ -4,9 +4,10 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace Spreads.Utils {
-
-    public abstract class PooledObject<TObject> : IDisposable where TObject : PooledObject<TObject>, new() {
+namespace Spreads.Utils
+{
+    public abstract class PooledObject<TObject> : IDisposable where TObject : PooledObject<TObject>, new()
+    {
         internal const int DefaultCapacity = 16;
         internal const int MaxCapacity = 128;
         private const int MissLimit = 1000;
@@ -29,18 +30,23 @@ namespace Spreads.Utils {
         internal abstract void Init();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static TObject Create() {
+        internal static TObject Create()
+        {
             _tries++;
             TObject tmp;
-            if (_pool.TryDequeue(out tmp)) {
+            if (_pool.TryDequeue(out tmp))
+            {
                 tmp.Init();
                 return tmp;
             }
             _misses++;
 
-            if (_misses > MissLimit && (double)_misses / (double)_tries > MissShareLimit) {
-                lock (StaticSyncRoot) {
-                    if (_misses > MissLimit && (double)_misses / (double)_tries > MissShareLimit) {
+            if (_misses > MissLimit && (double)_misses / (double)_tries > MissShareLimit)
+            {
+                lock (StaticSyncRoot)
+                {
+                    if (_misses > MissLimit && (double)_misses / (double)_tries > MissShareLimit)
+                    {
                         PoolCapacity = PoolCapacity + 1;
                     }
                     _tries = 0;
@@ -59,38 +65,46 @@ namespace Spreads.Utils {
             {
                 var newCapacity = Utils.BitUtil.FindNextPositivePowerOfTwo(value);
 #if DEBUG
-                if (newCapacity >= 1024) {
+                if (newCapacity >= 1024)
+                {
                     Debug.Fail($"New capacity for {typeof(TObject).Name} is abnormally big: {newCapacity}. Likely objects are not properly disposed.");
                 }
 #else
                 newCapacity = Math.Min(newCapacity, MaxCapacity);
 #endif
-                if (newCapacity > PoolCapacity) {
+                if (newCapacity > PoolCapacity)
+                {
                     Trace.WriteLine($"Increasing pool capacity for {typeof(TObject).Name} from {PoolCapacity} to {newCapacity}.");
-                } else {
+                }
+                else
+                {
                     Trace.WriteLine($"Tried to increase pool capacity for {typeof(TObject).Name} from {PoolCapacity} to {Utils.BitUtil.FindNextPositivePowerOfTwo(value)}.");
                 }
                 var newPool = new BoundedConcurrentQueue<TObject>(newCapacity);
                 var oldPool = Interlocked.Exchange(ref _pool, newPool);
                 TObject tmp;
-                while (oldPool.TryDequeue(out tmp)) {
+                while (oldPool.TryDequeue(out tmp))
+                {
                     // this will return old objects to the new pool
                     tmp.Dispose();
                 }
             }
         }
 
-        public void Dispose() {
+        public void Dispose()
+        {
             Dispose(true);
         }
 
-        public virtual void Dispose(bool disposing) {
+        public virtual void Dispose(bool disposing)
+        {
             if (!disposing) return;
 
             var pooled = _pool.TryEnqueue(this as TObject);
 #if DEBUG
             _falseReturns++;
-            if (!pooled && (_falseReturns > MissLimit) && ((double)_falseReturns / (double)_tries) > MissShareLimit) {
+            if (!pooled && (_falseReturns > MissLimit) && ((double)_falseReturns / (double)_tries) > MissShareLimit)
+            {
                 _tries = 0;
                 _misses = 0;
                 _falseReturns = 0;

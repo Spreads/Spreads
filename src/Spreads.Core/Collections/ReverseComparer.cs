@@ -5,17 +5,20 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Collections {
-
-    public class ReverseComparer<T> : IComparer<T> {
+namespace Spreads.Collections
+{
+    public class ReverseComparer<T> : IComparer<T>
+    {
         private readonly IComparer<T> _comparer;
 
-        public ReverseComparer(IComparer<T> comparer) {
+        public ReverseComparer(IComparer<T> comparer)
+        {
             _comparer = comparer;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Compare(T x, T y) {
+        public int Compare(T x, T y)
+        {
             return -_comparer.Compare(x, y);
         }
 
