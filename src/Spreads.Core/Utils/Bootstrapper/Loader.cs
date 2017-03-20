@@ -6,7 +6,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -57,8 +56,27 @@ namespace Bootstrap
     {
         IntPtr INativeLibraryLoader.LoadLibrary(string path)
         {
-            int flags = GetDLOpenFlags();
-            return UnixLibraryLoader.dlopen(path, flags);
+            Trace.WriteLine("Opening a library: " + path);
+            try
+            {
+                int flags = GetDLOpenFlags();
+                var result = UnixLibraryLoader.dlopen(path, flags);
+                Trace.WriteLine("Open result: " + result);
+                if (result == IntPtr.Zero)
+                {
+                    var lastError = dlerror();
+                    Trace.WriteLine($"Failed to load native library \"{path}\".\r\nLast Error:{lastError}\r\nCheck inner exception and\\or windows event log.");
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                var lastError = dlerror();
+                Trace.WriteLine($"Failed to load native library \"{path}\".\r\nLast Error:{lastError}\r\nCheck inner exception and\\or windows event log.\r\nInner Exception: {ex.ToString()}");
+
+                Trace.WriteLine(ex.ToString());
+                return IntPtr.Zero;
+            }
         }
 
         bool INativeLibraryLoader.UnloadLibrary(IntPtr library)
@@ -81,6 +99,9 @@ namespace Bootstrap
 
         [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
         private static extern int dlclose(IntPtr library);
+
+        [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr dlerror();
     }
 
     internal sealed class AndroidLibraryLoader : UnixLibraryLoader
@@ -379,7 +400,7 @@ namespace Bootstrap
             }
             catch (IOException e)
             {
-                Console.WriteLine(e.ToString());
+                Trace.WriteLine(e.ToString());
             }
         }
 
@@ -395,7 +416,7 @@ namespace Bootstrap
             }
             catch (IOException e)
             {
-                Console.WriteLine(e.ToString());
+                Trace.WriteLine(e.ToString());
             }
         }
     }

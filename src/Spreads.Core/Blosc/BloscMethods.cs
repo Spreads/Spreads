@@ -59,7 +59,8 @@ namespace Spreads.Blosc
             }
             catch (Exception ex)
             {
-                Environment.FailFast(ex.Message);
+                Trace.TraceError($"Error in BloscMethods Init: {ex.ToString()}");
+                throw;
             }
         }
 

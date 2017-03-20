@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Diagnostics;
 
 namespace Bootstrap
 {
@@ -20,6 +21,8 @@ namespace Bootstrap
             this.handle = loader.LoadLibrary(path);
             if (this.handle == IntPtr.Zero)
             {
+                
+                Trace.TraceError("NativeLibrary handle == IntPtr.Zero");
                 throw new DllNotFoundException(path);
             }
         }

@@ -163,7 +163,6 @@
     <Compile Include="TypeHelperTests.cs" />
     <Compile Include="UnsafeTests.cs" />
     <Compile Include="VariantTests.cs" />
-    <Compile Include="YeppTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

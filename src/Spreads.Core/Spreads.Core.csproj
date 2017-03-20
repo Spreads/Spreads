@@ -41,18 +41,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\..\lib\libyeppp\win\x64\libyeppp.dll">
-      <Link>native\w64\libyeppp.dll</Link>
-      <LogicalName>win.x64.libyeppp.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\libyeppp\win\x32\libyeppp.dll">
-      <Link>native\w32\libyeppp.dll</Link>
-      <LogicalName>win.x32.libyeppp.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\libyeppp\lin\x64\libyeppp.so">
-      <Link>native\l64\libyeppp.so</Link>
-      <LogicalName>lin.x64.libyeppp.so</LogicalName>
-    </EmbeddedResource>
     
     
     <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
