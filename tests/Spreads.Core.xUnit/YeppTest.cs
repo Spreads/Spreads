@@ -13,7 +13,7 @@ namespace Spreads.Core.Tests
 {
     public class YepppTests
     {
-        [Fact]
+        [Fact(Skip = "Yeppp not used so far")]
         public void RunYeppTest()
         {
             YepppTest.Run();

@@ -224,6 +224,32 @@ namespace Spreads.Core.Tests.Serialization
 
         }
 
+        [Fact]
+        public void CouldUseBloscCompressionZstd()
+        {
+
+            var rng = new Random();
+            var ptr = Marshal.AllocHGlobal(1000000);
+            var db = new DirectBuffer(1000000, ptr);
+            var source = new decimal[10000];
+            for (var i = 0; i < 10000; i++)
+            {
+                source[i] = i;
+            }
+
+            var len = BinarySerializer.Write(source, ref db, 0, null,
+                CompressionMethod.Zstd);
+
+            output.WriteLine($"Useful: {source.Length * 16}");
+            output.WriteLine($"Total: {len}");
+
+            var destination = new decimal[10000];
+
+            var len2 = BinarySerializer.Read(db, ref destination);
+
+            Assert.True(source.SequenceEqual(destination));
+
+        }
 
         [Fact]
         public void CouldSerializeIMessage()

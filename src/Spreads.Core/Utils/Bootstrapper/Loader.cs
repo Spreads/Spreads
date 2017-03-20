@@ -73,13 +73,13 @@ namespace Bootstrap
 
         protected abstract int GetDLOpenFlags();
 
-        [DllImport("dl", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr dlopen([MarshalAs(UnmanagedType.LPStr)] string path, int flags);
 
-        [DllImport("dl", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr dlsym(IntPtr library, [MarshalAs(UnmanagedType.LPStr)] string function);
 
-        [DllImport("dl", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
         private static extern int dlclose(IntPtr library);
     }
 
