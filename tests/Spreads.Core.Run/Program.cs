@@ -10,6 +10,41 @@ namespace Spreads.Core.Run
     {
         static void Main(string[] args)
         {
+            LZ4();
+            Zstd();
+            Console.ReadLine();
+        }
+
+        static void LZ4()
+        {
+            var rng = new Random();
+            var ptr = Marshal.AllocHGlobal(1000000);
+            var db = new DirectBuffer(1000000, ptr);
+            var source = new decimal[10000];
+            for (var i = 0; i < 10000; i++)
+            {
+                source[i] = i;
+            }
+
+            var len = BinarySerializer.Write(source, ref db, 0, null,
+                CompressionMethod.LZ4);
+
+            Console.WriteLine($"Useful: {source.Length * 16}");
+            Console.WriteLine($"Total: {len}");
+
+            var destination = new decimal[10000];
+
+            var len2 = BinarySerializer.Read(db, ref destination);
+
+            if (source.SequenceEqual(destination))
+            {
+                Console.WriteLine("LZ4 OK");
+            }
+
+        }
+
+        static void Zstd()
+        {
             var rng = new Random();
             var ptr = Marshal.AllocHGlobal(1000000);
             var db = new DirectBuffer(1000000, ptr);
@@ -31,9 +66,9 @@ namespace Spreads.Core.Run
 
             if (source.SequenceEqual(destination))
             {
-                Console.WriteLine("OK");
+                Console.WriteLine("Zstd OK");
             }
-            Console.ReadLine();
+            
         }
     }
 }

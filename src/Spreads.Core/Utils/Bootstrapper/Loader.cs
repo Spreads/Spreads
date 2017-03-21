@@ -19,6 +19,8 @@ namespace Bootstrap
         bool UnloadLibrary(IntPtr library);
 
         IntPtr FindFunction(IntPtr library, string function);
+
+        IntPtr LastError();
     }
 
     internal sealed class WindowsLibraryLoader : INativeLibraryLoader
@@ -50,6 +52,11 @@ namespace Bootstrap
 
         [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
         public static extern bool SetDllDirectory(string lpPathName);
+
+        public IntPtr LastError()
+        {
+            throw new NotImplementedException();
+        }
     }
 
     internal abstract class UnixLibraryLoader : INativeLibraryLoader
@@ -102,6 +109,11 @@ namespace Bootstrap
 
         [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr dlerror();
+
+        public IntPtr LastError()
+        {
+            return UnixLibraryLoader.dlerror();
+        }
     }
 
     internal sealed class AndroidLibraryLoader : UnixLibraryLoader

@@ -10,9 +10,9 @@ namespace Bootstrap
     // TODO internal
     public class NativeLibrary : IDisposable
     {
-        private string path;
-        private IntPtr handle;
-        private readonly INativeLibraryLoader loader;
+        public string path;
+        public IntPtr handle;
+        public readonly INativeLibraryLoader loader;
 
         public NativeLibrary(string path, INativeLibraryLoader loader)
         {
@@ -21,7 +21,6 @@ namespace Bootstrap
             this.handle = loader.LoadLibrary(path);
             if (this.handle == IntPtr.Zero)
             {
-                
                 Trace.TraceError("NativeLibrary handle == IntPtr.Zero");
                 throw new DllNotFoundException(path);
             }

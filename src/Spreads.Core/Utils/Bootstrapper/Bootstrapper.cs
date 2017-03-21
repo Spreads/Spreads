@@ -226,43 +226,30 @@ namespace Bootstrap
             }
         }
 
-        // Bootstrapper extracts dlls embedded as resource to the app folder.
-        // Those dlls could contain other embedded dlls, which are extracted recursively as Russian dolls.
-        // Bootstrapper overwrites existing files
-        // TODO major version
-
-        // AppData/fi.im/bin/ - all dlls and exes
-        // AppData/fi.im/config/config.sdb - all app and users configuration
-        // LocalAppData/fi.im/data - data folder
-        //                   /data/local.sdb - data for not logged-in user
-        //                   /data/userid.sdb - data for not logged-in user
-        // Documents/Modules - distributes LGPL libraries + user libraries.
-        //                      All are loaded to app domain
-
         static Bootstrapper()
         {
             ABI = Process.DetectABI();
 
-            instance.Bootstrap<Loader>(
-                new string[] { }, // 
-                null, //new[] { "Newtonsoft.Json.dll" },
-                null,
-                null,
-                () =>
-                {
-#if DEBUG
-                    Console.WriteLine("Pre-copy action");
-#endif
-                },
-                () =>
-                {
-#if DEBUG
-                    Console.WriteLine("Post-copy action");
-#endif
-                },
-                () =>
-                {
-                });
+            //            instance.Bootstrap<Loader>(
+            //                new string[] { }, //
+            //                null, //new[] { "Newtonsoft.Json.dll" },
+            //                null,
+            //                null,
+            //                () =>
+            //                {
+            //#if DEBUG
+            //                    Console.WriteLine("Pre-copy action");
+            //#endif
+            //                },
+            //                () =>
+            //                {
+            //#if DEBUG
+            //                    Console.WriteLine("Post-copy action");
+            //#endif
+            //                },
+            //                () =>
+            //                {
+            //                });
 
             //new ResolveEventHandler(Loader.ResolveManagedAssembly);
         }
@@ -403,36 +390,23 @@ namespace Bootstrap
         /// <summary>
         /// From assembly with type T load libraries
         /// </summary>
-        public void Bootstrap<T>(string[] nativeLibNames = null,
-            string[] managedLibNames = null,
+        public void Bootstrap<T>(string nativeLibraryName,
             string[] resourceNames = null,
-            string[] serviceNames = null, // ensure these .exes are running
             Action preCopyAction = null,
-            Action postCopyAction = null,
+            Action<NativeLibrary> postCopyAction = null,
             Action disposeAction = null)
         {
             if (preCopyAction != null) preCopyAction.Invoke();
 
-            if (nativeLibNames != null)
+            NativeLibrary nativeLibrary = null;
+            if (nativeLibraryName != null)
             {
-                foreach (var nativeName in nativeLibNames)
+                if (!nativeLibraries.ContainsKey(nativeLibraryName))
                 {
-                    if (nativeLibraries.ContainsKey(nativeName)) continue;
-                    nativeLibraries.Add(nativeName, Loader.LoadNativeLibrary<T>(nativeName));
-                    Console.WriteLine("Loaded native linrary: " + nativeName);
+                    nativeLibrary = Loader.LoadNativeLibrary<T>(nativeLibraryName);
+                    nativeLibraries.Add(nativeLibraryName, nativeLibrary);
+                    Console.WriteLine("Loaded native library: " + nativeLibraryName);
                 }
-            }
-
-            if (managedLibNames != null)
-            {
-                throw new NotSupportedException("Managed librraies are no longer supported in bootstrapper");
-                //foreach (var managedName in managedLibNames) {
-                //    if (managedLibraries.ContainsKey(managedName)) continue;
-                //    //if (!Environment.UserInteractive){
-                //    //    Debugger.Launch();
-                //    //}
-                //    managedLibraries.Add(managedName, Loader.LoadManagedDll<T>(managedName));
-                //}
             }
 
             if (resourceNames != null)
@@ -443,17 +417,7 @@ namespace Bootstrap
                 }
             }
 
-            if (serviceNames != null)
-            {
-                foreach (var serviceName in serviceNames)
-                {
-                    Trace.Assert(serviceName.EndsWith(".exe"));
-                    // TODO run exe as singletone process by path
-                    throw new NotImplementedException("TODO start exe process");
-                }
-            }
-
-            if (postCopyAction != null) postCopyAction.Invoke();
+            if (postCopyAction != null) postCopyAction.Invoke(nativeLibrary);
 
             DisposeActions.Add(disposeAction);
         }
