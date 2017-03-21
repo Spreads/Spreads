@@ -1,3 +1,6 @@
+#### 0.8.0-prerelease
+* .NET Core packages. Stabilized functionality.
+
 #### 0.5.1 - May 31, 2016
 * Fix serious bug fix incorrect cloning of SCM cursors (it was there since 0.4.x, 
 however we did't use those in production and cautioned in the readme that something 

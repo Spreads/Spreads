@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,14 +9,15 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Spreads.DataTypes {
-
+namespace Spreads.DataTypes
+{
     // Some common ground for
     // http://www.nyxdata.com/doc/244339
     // ftp://ftp.moex.com/pub/FORTS/Plaza2/docs/p2gate_ru.pdf
     // Numbers correspond to NYSE description
 
-    public enum OrderType : byte {
+    public enum OrderType : byte
+    {
         None = 0,
         Add = 100,
         Modify = 101,
@@ -26,23 +26,25 @@ namespace Spreads.DataTypes {
         Replace = 104,
     }
 
-
-    public interface IOrder : ITick, IQuote {
+    public interface IOrder : ITick, IQuote
+    {
         long OrderId { get; }
         OrderType OrderType { get; }
         Symbol16 Symbol { get; }
+
         // ITick interface
         //DateTime DateTimeUtc { get; }
         // incl. IQuote interface
         //Price Price { get; }
         //int Volume { get; }
         TradeSide TradeSide { get; }
+
         long TradeId { get; }
     }
 
-
     [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 64)]
-    public struct Order : IOrder {
+    public struct Order : IOrder
+    {
         private readonly long _orderId; // 8
         private readonly long _tradeId; // 8
         private readonly Symbol16 _symbol; // 16
@@ -55,7 +57,6 @@ namespace Spreads.DataTypes {
 
         private int _reservedInt; // 4
 
-
         public Order(long orderId,
             OrderType orderType,
             Symbol16 symbol,
@@ -63,7 +64,8 @@ namespace Spreads.DataTypes {
             Price price,
             int volume,
             TradeSide tradeSide,
-            long tradeId) {
+            long tradeId)
+        {
             _orderId = orderId;
             _tradeId = tradeId;
             _symbol = symbol;
@@ -84,11 +86,11 @@ namespace Spreads.DataTypes {
 
         public TradeSide TradeSide => _tradeSide;
         public long TradeId => _tradeId;
+
         public int Reserved
         {
             get { return _reservedInt; }
             set { _reservedInt = value; }
         }
     }
-
 }

@@ -113,7 +113,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static int Write<T>(T value, ref PreservedMemory<byte> destination, uint offset = 0u,
+        public unsafe static int Write<T>(T value, ref PreservedBuffer<byte> destination, uint offset = 0u,
             MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             var tmpArraySegment = default(ArraySegment<byte>);
@@ -121,10 +121,10 @@ namespace Spreads.Serialization
             try
             {
                 void* pointer;
-                if (!destination.Memory.TryGetPointer(out pointer))
+                if (!destination.Buffer.TryGetPointer(out pointer))
                 {
                     fixedMemory = destination.Fix();
-                    if (fixedMemory.Memory.TryGetArray(out tmpArraySegment))
+                    if (fixedMemory.Buffer.TryGetArray(out tmpArraySegment))
                     {
                         pointer = (void*)Marshal.UnsafeAddrOfPinnedArrayElement(tmpArraySegment.Array, tmpArraySegment.Offset);
                     }
@@ -178,17 +178,17 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Read<T>(PreservedMemory<byte> source, uint offset, ref T value)
+        public static unsafe int Read<T>(PreservedBuffer<byte> source, uint offset, ref T value)
         {
             var fixedMemory = default(FixedMemory<byte>);
             try
             {
                 void* pointer;
-                if (!source.Memory.TryGetPointer(out pointer))
+                if (!source.Buffer.TryGetPointer(out pointer))
                 {
                     fixedMemory = source.Fix();
                     ArraySegment<byte> tmpArraySegment;
-                    if (fixedMemory.Memory.TryGetArray(out tmpArraySegment))
+                    if (fixedMemory.Buffer.TryGetArray(out tmpArraySegment))
                     {
                         pointer = (void*)Marshal.UnsafeAddrOfPinnedArrayElement(tmpArraySegment.Array, tmpArraySegment.Offset + (int)offset);
                     }

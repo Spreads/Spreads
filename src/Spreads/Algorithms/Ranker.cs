@@ -7,13 +7,13 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Algorithms {
-
+namespace Spreads.Algorithms
+{
     /// <summary>
     /// Calculate ranks of values without allocations.
     /// </summary>
-    public static class Ranker<T> {
-
+    public static class Ranker<T>
+    {
         [ThreadStatic]
         private static KV<T, int>[] _sorted;
 
@@ -27,27 +27,36 @@ namespace Spreads.Algorithms {
         /// Simple ascending zero-based rank
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ArraySegment<int> SortRank(ArraySegment<T> values, IComparer<T> comparer = null) {
+        public static ArraySegment<int> SortRank(ArraySegment<T> values, IComparer<T> comparer = null)
+        {
             KVKeyComparer<T, int> kvComparer;
-            if (_comparer == null) {
+            if (_comparer == null)
+            {
                 _comparer = comparer ?? Comparer<T>.Default;
                 _kvComparer = new KVKeyComparer<T, int>(_comparer);
                 kvComparer = _kvComparer;
-            } else if (comparer != null && comparer != _comparer) {
+            }
+            else if (comparer != null && comparer != _comparer)
+            {
                 kvComparer = new KVKeyComparer<T, int>(comparer);
-            } else {
+            }
+            else
+            {
                 kvComparer = _kvComparer;
             }
-            if (_sorted == null || values.Count > _sorted.Length) {
+            if (_sorted == null || values.Count > _sorted.Length)
+            {
                 _sorted = new KV<T, int>[values.Count];
                 _ranked = new int[values.Count];
             }
-            for (int i = 0; i < values.Count; i++) {
+            for (int i = 0; i < values.Count; i++)
+            {
                 _sorted[i] = new KV<T, int>(values.Array[values.Offset + i], i);
             }
             // TODO use two arrays instead of the _sorted one and use the pool
             Array.Sort(_sorted, kvComparer);
-            for (int i = 0; i < _sorted.Length; i++) {
+            for (int i = 0; i < _sorted.Length; i++)
+            {
                 _ranked[_sorted[i].Value] = i;
             }
             Array.Clear(_sorted, 0, values.Count);

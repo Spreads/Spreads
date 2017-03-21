@@ -69,7 +69,7 @@ namespace Spreads.DataTypes
             var newCandle = new OHLCV();
             // NB only Price diff matters, otehr fields already diffed in a different way
             // Volume diff changes sign often that is bad
-            // This IDiffable impl reduces size by more than 2x, while 
+            // This IDiffable impl reduces size by more than 2x, while
             // an implementation with all fields delta even slightly increases compressed size
             // probbaly due to frequent sign changes, which are bad for byteshuffling compression
             newCandle._close = next.Close - _close;

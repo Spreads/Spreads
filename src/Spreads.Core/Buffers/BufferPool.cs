@@ -39,7 +39,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static OwnedMemory<T> RentMemory(int minLength, bool requireExact = true)
+        public static OwnedBuffer<T> RentMemory(int minLength, bool requireExact = true)
         {
             var array = Rent(minLength, requireExact);
             return OwnedPooledArray<T>.Create(array);
@@ -52,7 +52,7 @@ namespace Spreads.Buffers
         private const int SharedBufferSize = 4096; // 8 * 32; // NB must ensure that the upcoming safe disposal machinery won't allocate and we never exceed the initial bitmask capacity if every segment is used once
 
         [ThreadStatic]
-        private static OwnedMemory<byte> _sharedBuffer;
+        private static OwnedBuffer<byte> _sharedBuffer;
 
         [ThreadStatic]
         private static int _sharedBufferOffset;
@@ -63,7 +63,7 @@ namespace Spreads.Buffers
         /// <param name="length"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static PreservedMemory<byte> PreserveMemory(int length)
+        public static PreservedBuffer<byte> PreserveMemory(int length)
         {
             // https://github.com/dotnet/corefx/blob/master/src/System.Buffers/src/System/Buffers/DefaultArrayPool.cs#L35
             // DefaultArrayPool has a minimum size of 16
@@ -84,13 +84,13 @@ namespace Spreads.Buffers
                     _sharedBuffer = BufferPool<byte>.RentMemory(SharedBufferSize, false);
                     _sharedBufferOffset = 0;
                 }
-                var memory = _sharedBuffer.Memory.Slice(_sharedBufferOffset, length);
+                var memory = _sharedBuffer.Buffer.Slice(_sharedBufferOffset, length);
 
                 _sharedBufferOffset = BitUtil.Align(newOffset, IntPtr.Size);
                 return memory.Preserve();
             }
             var ownedMemory = BufferPool<byte>.RentMemory(length, false);
-            var memory2 = ownedMemory.Memory.Slice(0, length);
+            var memory2 = ownedMemory.Buffer.Slice(0, length);
             return memory2.Preserve();
         }
     }

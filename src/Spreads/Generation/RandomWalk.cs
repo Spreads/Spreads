@@ -2,17 +2,21 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #if NET451
+
 using MathNet.Numerics.Distributions;
+
 #endif
+
 using Spreads.Collections;
 using System;
 
-namespace Spreads.Generation {
-
-    public static class RandomWalk {
-
+namespace Spreads.Generation
+{
+    public static class RandomWalk
+    {
         public static SortedMap<DateTime, double> Generate(DateTime startDate, DateTime endDate, TimeSpan step,
-            double annualizedVolatility, double drift = 0.0, double daysPerYear = 365.25, int? seed = null) {
+            double annualizedVolatility, double drift = 0.0, double daysPerYear = 365.25, int? seed = null)
+        {
             if (startDate > endDate) throw new ArgumentException();
             var capacity = (int)((endDate - startDate).Ticks / step.Ticks);
             var current = 0.0;
@@ -28,9 +32,9 @@ namespace Spreads.Generation {
             var nd2 = new Statistics.Distribution.Normal(0.0, annualizedVolatility * Math.Sqrt(tDelta));
             var gen = new Statistics.MT19937(unchecked((uint)seed.Value));
 #endif
-            
-            
-            while (dt < endDate) {
+
+            while (dt < endDate)
+            {
 #if NET451
                 var random = nd.Sample();
 #else

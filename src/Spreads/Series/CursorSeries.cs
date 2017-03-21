@@ -8,7 +8,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Spreads.Algorithms.Online;
 
-namespace Spreads {
+namespace Spreads
+{
     //internal class SMACursor<K> : SimpleBindCursor<K, double, double> {
     //    protected ICursor<K, double> _laggedCursor;
     //    protected double _sum = 0.0;
@@ -318,24 +319,29 @@ namespace Spreads {
     //    }
     //}
 
-    internal class SmaState {
+    internal class SmaState
+    {
         public double Count;
         public double Sum;
     }
 
-    internal class StDevState {
+    internal class StDevState
+    {
         public double Count;
         public double Sum;
         public double SumSq;
     }
 
-    public static class CursorSeriesExtensions {
+    public static class CursorSeriesExtensions
+    {
         // TODO Rewrite via BindCursor
 
-        public static Series<K, double> SMA<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false) {
+        public static Series<K, double> SMA<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false)
+        {
             Func<ICursor<K, SmaState>> factory = () => new ScanLagAllowIncompleteCursor<K, double, SmaState>(source.GetCursor, (uint)period, 1,
                () => new SmaState(),
-               (st, add, sub, cnt) => {
+               (st, add, sub, cnt) =>
+               {
                    st.Count = cnt;
                    st.Sum = st.Sum + add.Value - sub.Value;
                    return st;
@@ -351,21 +357,25 @@ namespace Spreads {
         /// <param name="period"></param>
         /// <param name="allowIncomplete"></param>
         /// <returns></returns>
-        public static Series<K, double> MovingMedian<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false) {
+        public static Series<K, double> MovingMedian<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false)
+        {
             // TODO incomplete windows
             Func<ICursor<K, MovingMedian>> factory = () => new ScanLagAllowIncompleteCursor<K, double, MovingMedian>(source.GetCursor, (uint)period, 1,
                () => new MovingMedian(period),
-               (st, add, sub, cnt) => {
+               (st, add, sub, cnt) =>
+               {
                    st.Update(add.Value);
                    return st;
                }, allowIncomplete);
             return (new CursorSeries<K, MovingMedian>(factory).Map(st => st.LastValue));
         }
 
-        public static Series<K, double> StDev<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false) {
+        public static Series<K, double> StDev<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false)
+        {
             Func<ICursor<K, StDevState>> factory = () => new ScanLagAllowIncompleteCursor<K, double, StDevState>(source.GetCursor, (uint)period, 1,
                 () => new StDevState(),
-                (st, add, sub, cnt) => {
+                (st, add, sub, cnt) =>
+                {
                     st.Count = cnt;
                     st.Sum = st.Sum + add.Value - sub.Value;
                     st.SumSq = st.SumSq + (add.Value * add.Value) - (sub.Value * sub.Value);
@@ -373,7 +383,8 @@ namespace Spreads {
                 }, allowIncomplete);
             // Filter (k, st) => st.Count > 1,
             return (new CursorSeries<K, StDevState>(factory))
-                .FilterMap((k, st) => st.Count > 1, st => {
+                .FilterMap((k, st) => st.Count > 1, st =>
+                {
                     var periodMinusOne = (double)(st.Count - 1.0);
                     var value = Math.Sqrt((st.SumSq / periodMinusOne) - (st.Sum * st.Sum) / ((double)(st.Count) * (periodMinusOne)));
                     return value;
@@ -398,9 +409,11 @@ namespace Spreads {
         /// <summary>
         /// Eager grouping using LINQ group by on Series IEnumerable<KVP<,>> interface
         /// </summary>
-        public static Series<K, V> GroupBy<K, V>(this ISeries<K, V> source, Func<K, K> keySelector, Func<IEnumerable<KeyValuePair<K, V>>, V> valueSelector) {
+        public static Series<K, V> GroupBy<K, V>(this ISeries<K, V> source, Func<K, K> keySelector, Func<IEnumerable<KeyValuePair<K, V>>, V> valueSelector)
+        {
             var sm = new SortedMap<K, V>();
-            foreach (var gr in (source as IEnumerable<KeyValuePair<K, V>>).GroupBy(kvp => keySelector(kvp.Key))) {
+            foreach (var gr in (source as IEnumerable<KeyValuePair<K, V>>).GroupBy(kvp => keySelector(kvp.Key)))
+            {
                 sm.Add(gr.Key, valueSelector(gr));
             }
             return sm;
@@ -410,7 +423,8 @@ namespace Spreads {
         /// Projects values from source to destination and back
         /// </summary>
         public static IMutableSeries<K, VDest> BiMap<K, VSrc, VDest>(this IMutableSeries<K, VSrc> innerMap,
-            Func<VSrc, VDest> srcToDest, Func<VDest, VSrc> destToSrc) {
+            Func<VSrc, VDest> srcToDest, Func<VDest, VSrc> destToSrc)
+        {
             return ProjectValuesWrapper<K, VSrc, VDest>.Create(innerMap, srcToDest, destToSrc);
         }
     }

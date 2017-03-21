@@ -22,7 +22,7 @@ namespace Spreads.Core.Tests.Serialization
                 var valueCount = rng.Next(1, 10);
                 for (int j = 0; j < valueCount; j++)
                 {
-                    // TODO issue 93 could be implemented with Memory<T> or PreservedMemory<T>
+                    // TODO issue 93 could be implemented with Memory<T> or PreservedBuffer<T>
                     // * Not clear how to dispose buffers when SM is disposed (e.g. should array pools
                     //   do this for IDisposable types in the Clear() method?)
                     // * Not clear how addition should happen: Memory is fixed-length, but we do not know the number

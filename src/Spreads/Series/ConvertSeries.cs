@@ -8,22 +8,25 @@ using System.Threading;
 using System.Threading.Tasks;
 
 // ReSharper disable once CheckNamespace
-namespace Spreads {
-
+namespace Spreads
+{
     // TODO seal overriden methods
 
     public abstract class ConvertSeries<TKey, TValue, TKey2, TValue2, TImpl> : Series<TKey2, TValue2>, IDisposable
-        where TImpl : ConvertSeries<TKey, TValue, TKey2, TValue2, TImpl>, new() {
+        where TImpl : ConvertSeries<TKey, TValue, TKey2, TValue2, TImpl>, new()
+    {
         private static readonly BoundedConcurrentBag<TImpl> Pool = new BoundedConcurrentBag<TImpl>(Environment.ProcessorCount * 2);
 
         protected IReadOnlySeries<TKey, TValue> Inner;
 
-        protected ConvertSeries(IReadOnlySeries<TKey, TValue> inner) {
+        protected ConvertSeries(IReadOnlySeries<TKey, TValue> inner)
+        {
             Inner = inner;
             Comparer = new ConvertComparer(this as TImpl);
         }
 
-        protected ConvertSeries() {
+        protected ConvertSeries()
+        {
         }
 
         public abstract TKey2 ToKey2(TKey key);
@@ -39,15 +42,18 @@ namespace Spreads {
 
         public override KeyValuePair<TKey2, TValue2> First
             => new KeyValuePair<TKey2, TValue2>(ToKey2(Inner.First.Key), ToValue2(Inner.First.Value));
+
         public override KeyValuePair<TKey2, TValue2> Last
             => new KeyValuePair<TKey2, TValue2>(ToKey2(Inner.Last.Key), ToValue2(Inner.Last.Value));
 
         public override IEnumerable<TKey2> Keys => Inner.Keys.Select(ToKey2);
         public override IEnumerable<TValue2> Values => Inner.Values.Select(ToValue2);
 
-        public override bool TryFind(TKey2 key, Lookup direction, out KeyValuePair<TKey2, TValue2> value) {
+        public override bool TryFind(TKey2 key, Lookup direction, out KeyValuePair<TKey2, TValue2> value)
+        {
             KeyValuePair<TKey, TValue> tmp;
-            if (Inner.TryFind(ToKey(key), direction, out tmp)) {
+            if (Inner.TryFind(ToKey(key), direction, out tmp))
+            {
                 value = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
                 return true;
             }
@@ -55,9 +61,11 @@ namespace Spreads {
             return false;
         }
 
-        public override bool TryGetFirst(out KeyValuePair<TKey2, TValue2> value) {
+        public override bool TryGetFirst(out KeyValuePair<TKey2, TValue2> value)
+        {
             KeyValuePair<TKey, TValue> tmp;
-            if (Inner.TryGetFirst(out tmp)) {
+            if (Inner.TryGetFirst(out tmp))
+            {
                 value = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
                 return true;
             }
@@ -65,9 +73,11 @@ namespace Spreads {
             return false;
         }
 
-        public override bool TryGetLast(out KeyValuePair<TKey2, TValue2> value) {
+        public override bool TryGetLast(out KeyValuePair<TKey2, TValue2> value)
+        {
             KeyValuePair<TKey, TValue> tmp;
-            if (Inner.TryGetLast(out tmp)) {
+            if (Inner.TryGetLast(out tmp))
+            {
                 value = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
                 return true;
             }
@@ -75,9 +85,11 @@ namespace Spreads {
             return false;
         }
 
-        public override bool TryGetValue(TKey2 key, out TValue2 value) {
+        public override bool TryGetValue(TKey2 key, out TValue2 value)
+        {
             TValue tmp;
-            if (Inner.TryGetValue(ToKey(key), out tmp)) {
+            if (Inner.TryGetValue(ToKey(key), out tmp))
+            {
                 value = ToValue2(tmp);
                 return true;
             }
@@ -88,60 +100,73 @@ namespace Spreads {
         public override IComparer<TKey2> Comparer { get; }
         public override bool IsIndexed => Inner.IsIndexed;
 
-        public override ICursor<TKey2, TValue2> GetCursor() {
+        public override ICursor<TKey2, TValue2> GetCursor()
+        {
             return new ConvertCursor(Inner.GetCursor(), this as TImpl);
         }
 
-        public static TImpl Create(IReadOnlySeries<TKey, TValue> innerSeries) {
+        public static TImpl Create(IReadOnlySeries<TKey, TValue> innerSeries)
+        {
             TImpl inner;
-            if (!Pool.TryTake(out inner)) {
+            if (!Pool.TryTake(out inner))
+            {
                 inner = new TImpl();
             }
             inner.Inner = innerSeries;
             return inner;
         }
 
-        public virtual void Dispose(bool disposing) {
+        public virtual void Dispose(bool disposing)
+        {
             var disposable = Inner as IDisposable;
             disposable?.Dispose();
             Inner = null;
             var pooled = Pool.TryAdd(this as TImpl);
             // TODO review
-            if (disposing && !pooled) {
+            if (disposing && !pooled)
+            {
                 GC.SuppressFinalize(this);
             }
         }
 
-        public void Dispose() {
+        public void Dispose()
+        {
             Dispose(true);
         }
 
-        ~ConvertSeries() {
+        ~ConvertSeries()
+        {
             Dispose(false);
         }
 
-        private struct ConvertCursor : ICursor<TKey2, TValue2> {
+        private struct ConvertCursor : ICursor<TKey2, TValue2>
+        {
             private readonly ICursor<TKey, TValue> _innerCursor;
             private readonly TImpl _source;
 
-            public ConvertCursor(ICursor<TKey, TValue> innerCursor, TImpl source) {
+            public ConvertCursor(ICursor<TKey, TValue> innerCursor, TImpl source)
+            {
                 _innerCursor = innerCursor;
                 _source = source;
             }
 
-            public Task<bool> MoveNext(CancellationToken cancellationToken) {
+            public Task<bool> MoveNext(CancellationToken cancellationToken)
+            {
                 return _innerCursor.MoveNext(cancellationToken);
             }
 
-            public void Dispose() {
+            public void Dispose()
+            {
                 _innerCursor.Dispose();
             }
 
-            public bool MoveNext() {
+            public bool MoveNext()
+            {
                 return _innerCursor.MoveNext();
             }
 
-            public void Reset() {
+            public void Reset()
+            {
                 _innerCursor.Reset();
             }
 
@@ -150,33 +175,41 @@ namespace Spreads {
 
             object IEnumerator.Current => Current;
 
-            public bool MoveAt(TKey2 key, Lookup direction) {
+            public bool MoveAt(TKey2 key, Lookup direction)
+            {
                 return _innerCursor.MoveAt(_source.ToKey(key), direction);
             }
 
-            public bool MoveFirst() {
+            public bool MoveFirst()
+            {
                 return _innerCursor.MoveFirst();
             }
 
-            public bool MoveLast() {
+            public bool MoveLast()
+            {
                 return _innerCursor.MoveLast();
             }
 
-            public bool MovePrevious() {
+            public bool MovePrevious()
+            {
                 return _innerCursor.MovePrevious();
             }
 
-            public Task<bool> MoveNextBatch(CancellationToken cancellationToken) {
+            public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+            {
                 return _innerCursor.MoveNextBatch(cancellationToken);
             }
 
-            public ICursor<TKey2, TValue2> Clone() {
+            public ICursor<TKey2, TValue2> Clone()
+            {
                 return new ConvertCursor(_innerCursor.Clone(), _source);
             }
 
-            public bool TryGetValue(TKey2 key, out TValue2 value) {
+            public bool TryGetValue(TKey2 key, out TValue2 value)
+            {
                 TValue tmp;
-                if (_innerCursor.TryGetValue(_source.ToKey(key), out tmp)) {
+                if (_innerCursor.TryGetValue(_source.ToKey(key), out tmp))
+                {
                     value = _source.ToValue2(tmp);
                     return true;
                 }
@@ -195,14 +228,17 @@ namespace Spreads {
             public bool IsContinuous => _innerCursor.IsContinuous;
         }
 
-        private class ConvertComparer : IComparer<TKey2> {
+        private class ConvertComparer : IComparer<TKey2>
+        {
             private readonly TImpl _source;
 
-            public ConvertComparer(TImpl source) {
+            public ConvertComparer(TImpl source)
+            {
                 _source = source;
             }
 
-            public int Compare(TKey2 x, TKey2 y) {
+            public int Compare(TKey2 x, TKey2 y)
+            {
                 var comparer = _source.Inner.Comparer;
                 var x1 = _source.ToKey(x);
                 var y1 = _source.ToKey(y);
@@ -213,63 +249,78 @@ namespace Spreads {
 
     public abstract class ConvertMutableSeries<TKey, TValue, TKey2, TValue2, TImpl>
         : ConvertSeries<TKey, TValue, TKey2, TValue2, TImpl>, IPersistentSeries<TKey2, TValue2>
-        where TImpl : ConvertMutableSeries<TKey, TValue, TKey2, TValue2, TImpl>, new() {
+        where TImpl : ConvertMutableSeries<TKey, TValue, TKey2, TValue2, TImpl>, new()
+    {
         private static readonly BoundedConcurrentBag<TImpl> Pool = new BoundedConcurrentBag<TImpl>(Environment.ProcessorCount * 2);
 
-        private IMutableSeries<TKey, TValue> MutableInner {
+        private IMutableSeries<TKey, TValue> MutableInner
+        {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return (IMutableSeries<TKey, TValue>)(Inner); }
         }
 
-        protected ConvertMutableSeries() {
+        protected ConvertMutableSeries()
+        {
         }
 
-        protected ConvertMutableSeries(IMutableSeries<TKey, TValue> innerSeries) : base(innerSeries) {
+        protected ConvertMutableSeries(IMutableSeries<TKey, TValue> innerSeries) : base(innerSeries)
+        {
         }
 
-        internal static TImpl Create(IMutableSeries<TKey, TValue> innerSeries) {
+        internal static TImpl Create(IMutableSeries<TKey, TValue> innerSeries)
+        {
             TImpl inner;
-            if (!Pool.TryTake(out inner)) {
+            if (!Pool.TryTake(out inner))
+            {
                 inner = new TImpl();
             }
             inner.Inner = innerSeries;
             return inner;
         }
 
-        public override void Dispose(bool disposing) {
+        public override void Dispose(bool disposing)
+        {
             var disposable = Inner as IDisposable;
             disposable?.Dispose();
             Inner = null;
             var pooled = Pool.TryAdd(this as TImpl);
             // TODO review
-            if (disposing && !pooled) {
+            if (disposing && !pooled)
+            {
                 GC.SuppressFinalize(this);
             }
         }
 
-        ~ConvertMutableSeries() {
+        ~ConvertMutableSeries()
+        {
             Dispose(false);
         }
 
-        public void Add(TKey2 key, TValue2 value) {
+        public void Add(TKey2 key, TValue2 value)
+        {
             MutableInner.Add(ToKey(key), ToValue(value));
         }
 
-        public void AddLast(TKey2 key, TValue2 value) {
+        public void AddLast(TKey2 key, TValue2 value)
+        {
             MutableInner.AddLast(ToKey(key), ToValue(value));
         }
 
-        public void AddFirst(TKey2 key, TValue2 value) {
+        public void AddFirst(TKey2 key, TValue2 value)
+        {
             MutableInner.AddFirst(ToKey(key), ToValue(value));
         }
 
-        public bool Remove(TKey2 key) {
+        public bool Remove(TKey2 key)
+        {
             return MutableInner.Remove(ToKey(key));
         }
 
-        public bool RemoveLast(out KeyValuePair<TKey2, TValue2> kvp) {
+        public bool RemoveLast(out KeyValuePair<TKey2, TValue2> kvp)
+        {
             KeyValuePair<TKey, TValue> tmp;
-            if (MutableInner.RemoveLast(out tmp)) {
+            if (MutableInner.RemoveLast(out tmp))
+            {
                 kvp = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
                 return true;
             }
@@ -277,9 +328,11 @@ namespace Spreads {
             return false;
         }
 
-        public bool RemoveFirst(out KeyValuePair<TKey2, TValue2> kvp) {
+        public bool RemoveFirst(out KeyValuePair<TKey2, TValue2> kvp)
+        {
             KeyValuePair<TKey, TValue> tmp;
-            if (MutableInner.RemoveFirst(out tmp)) {
+            if (MutableInner.RemoveFirst(out tmp))
+            {
                 kvp = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
                 return true;
             }
@@ -287,16 +340,19 @@ namespace Spreads {
             return false;
         }
 
-        public bool RemoveMany(TKey2 key, Lookup direction) {
+        public bool RemoveMany(TKey2 key, Lookup direction)
+        {
             return MutableInner.RemoveMany(ToKey(key), direction);
         }
 
-        public int Append(IReadOnlySeries<TKey2, TValue2> appendMap, AppendOption option) {
+        public int Append(IReadOnlySeries<TKey2, TValue2> appendMap, AppendOption option)
+        {
             // TODO using ConvertSeries
             throw new NotImplementedException();
         }
 
-        public void Complete() {
+        public void Complete()
+        {
             MutableInner.Complete();
         }
 
@@ -306,18 +362,22 @@ namespace Spreads {
 
         public override TValue2 this[TKey2 key] => ToValue2(MutableInner[ToKey(key)]);
 
-        TValue2 IMutableSeries<TKey2, TValue2>.this[TKey2 key] {
+        TValue2 IMutableSeries<TKey2, TValue2>.this[TKey2 key]
+        {
             get { return ToValue2(MutableInner[ToKey(key)]); }
             set { MutableInner[ToKey(key)] = ToValue(value); }
         }
 
-        public void Flush() {
+        public void Flush()
+        {
             var p = MutableInner as IPersistentObject;
             p?.Flush();
         }
 
-        public string Id {
-            get {
+        public string Id
+        {
+            get
+            {
                 var p = MutableInner as IPersistentObject;
                 return p?.Id;
             }

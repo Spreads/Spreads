@@ -17,9 +17,9 @@
 	@dependencies@
   </metadata>
   <files>
-	<file src="..\bin\System.Memory.dll" target="lib/netstandard1.1" />
-	<file src="..\bin\System.Runtime.CompilerServices.Unsafe.dll" target="lib/netstandard1.1" />
-	<file src="..\bin\System.Slices.dll" target="lib/netstandard1.1" />
+	<file src="..\lib\utils\System.Memory.dll" target="lib/netstandard1.1" />
+	<file src="..\lib\utils\System.Runtime.CompilerServices.Unsafe.dll" target="lib/netstandard1.1" />
+	<file src="..\lib\utils\System.Buffers.Primitives.dll" target="lib/netstandard1.1" />
 		
   </files>
 </package>

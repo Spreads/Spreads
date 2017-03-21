@@ -5,12 +5,14 @@
 using System;
 using System.Collections.Generic;
 
-namespace Spreads.Series {
-
-    public class MutableSeries<TK, TV> : Series<TK, TV>, IMutableSeries<TK, TV> {
+namespace Spreads.Series
+{
+    public class MutableSeries<TK, TV> : Series<TK, TV>, IMutableSeries<TK, TV>
+    {
         private readonly IMutableSeries<TK, TV> _innerSeries;
 
-        public MutableSeries(IMutableSeries<TK, TV> innerSeries) {
+        public MutableSeries(IMutableSeries<TK, TV> innerSeries)
+        {
             _innerSeries = innerSeries;
         }
 
@@ -30,7 +32,8 @@ namespace Spreads.Series {
 
         public override KeyValuePair<TK, TV> Last => _innerSeries.Last;
 
-        TV IMutableSeries<TK, TV>.this[TK key] {
+        TV IMutableSeries<TK, TV>.this[TK key]
+        {
             get { return _innerSeries[key]; }
             set { _innerSeries[key] = value; }
         }
@@ -39,59 +42,73 @@ namespace Spreads.Series {
 
         public override IEnumerable<TV> Values => _innerSeries.Values;
 
-        public override bool TryFind(TK key, Lookup direction, out KeyValuePair<TK, TV> value) {
+        public override bool TryFind(TK key, Lookup direction, out KeyValuePair<TK, TV> value)
+        {
             return _innerSeries.TryFind(key, direction, out value);
         }
 
-        public override bool TryGetFirst(out KeyValuePair<TK, TV> value) {
+        public override bool TryGetFirst(out KeyValuePair<TK, TV> value)
+        {
             return _innerSeries.TryGetFirst(out value);
         }
 
-        public override bool TryGetLast(out KeyValuePair<TK, TV> value) {
+        public override bool TryGetLast(out KeyValuePair<TK, TV> value)
+        {
             return _innerSeries.TryGetLast(out value);
         }
 
-        public override bool TryGetValue(TK key, out TV value) {
+        public override bool TryGetValue(TK key, out TV value)
+        {
             return _innerSeries.TryGetValue(key, out value);
         }
 
-        public void Add(TK key, TV value) {
+        public void Add(TK key, TV value)
+        {
             _innerSeries.Add(key, value);
         }
 
-        public void AddLast(TK key, TV value) {
+        public void AddLast(TK key, TV value)
+        {
             _innerSeries.AddLast(key, value);
         }
 
-        public void AddFirst(TK key, TV value) {
+        public void AddFirst(TK key, TV value)
+        {
             _innerSeries.AddFirst(key, value);
         }
 
-        public bool Remove(TK key) {
+        public bool Remove(TK key)
+        {
             return _innerSeries.Remove(key);
         }
 
-        public bool RemoveLast(out KeyValuePair<TK, TV> kvp) {
+        public bool RemoveLast(out KeyValuePair<TK, TV> kvp)
+        {
             return _innerSeries.RemoveLast(out kvp);
         }
 
-        public bool RemoveFirst(out KeyValuePair<TK, TV> kvp) {
+        public bool RemoveFirst(out KeyValuePair<TK, TV> kvp)
+        {
             return _innerSeries.RemoveFirst(out kvp);
         }
 
-        public bool RemoveMany(TK key, Lookup direction) {
+        public bool RemoveMany(TK key, Lookup direction)
+        {
             return _innerSeries.RemoveMany(key, direction);
         }
 
-        public int Append(IReadOnlySeries<TK, TV> appendMap, AppendOption option) {
+        public int Append(IReadOnlySeries<TK, TV> appendMap, AppendOption option)
+        {
             return _innerSeries.Append(appendMap, option);
         }
 
-        public void Complete() {
+        public void Complete()
+        {
             _innerSeries.Complete();
         }
 
-        public override ICursor<TK, TV> GetCursor() {
+        public override ICursor<TK, TV> GetCursor()
+        {
             throw new NotImplementedException();
         }
     }

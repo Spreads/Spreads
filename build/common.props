@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
-    <VersionPrefix>0.7.0</VersionPrefix>
-    <VersionSuffix>alpha1</VersionSuffix>
+    <VersionPrefix>0.8.0</VersionPrefix>
+    <VersionSuffix>alpha</VersionSuffix>
     <PackageTags>Spreads F# data streaming real-time analysis streams time series reactive</PackageTags>
     <Product>Spreads</Product>
     <RepositoryType>git</RepositoryType>
@@ -13,4 +13,27 @@
     <VersionSuffix Condition="'$(VersionSuffix)' != '' And '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net451|AnyCPU'">
+    <DefineConstants>TRACE;SPREADS;NO_VARIANCE;NET451;</DefineConstants>
+    <OutputPath>..\..\bin\</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net451|AnyCPU'">
+    <DefineConstants>TRACE;DEBUG;SPREADS;NO_VARIANCE;NET451;</DefineConstants>
+    <OutputPath>..\..\bin\</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|netstandard1.6|AnyCPU'">
+    <DefineConstants>TRACE;SPREADS;NO_VARIANCE;COREFX;</DefineConstants>
+    <OutputPath>..\..\bin\</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard1.6|AnyCPU'">
+    <DefineConstants>TRACE;DEBUG;SPREADS;NO_VARIANCE;COREFX;</DefineConstants>
+    <OutputPath>..\..\bin\</OutputPath>
+  </PropertyGroup>
 </Project>

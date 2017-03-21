@@ -4,45 +4,15 @@
     <TargetFrameworks>net451;netstandard1.6</TargetFrameworks>
     <AssemblyName>Spreads.Core</AssemblyName>
     <RootNamespace>Spreads</RootNamespace>
-
     <Description />
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net451|AnyCPU'">
-    <DefineConstants>TRACE;SPREADS;NO_VARIANCE;NET451;</DefineConstants>
-    <OutputPath>..\..\bin\</OutputPath>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net451|AnyCPU'">
-    <DefineConstants>TRACE;DEBUG;SPREADS;NO_VARIANCE;NET451;</DefineConstants>
-    <OutputPath>..\..\bin\</OutputPath>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|netstandard1.6|AnyCPU'">
-    <DefineConstants>TRACE;SPREADS;NO_VARIANCE;COREFX;</DefineConstants>
-    <OutputPath>..\..\bin\</OutputPath>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard1.6|AnyCPU'">
-    <DefineConstants>TRACE;DEBUG;SPREADS;NO_VARIANCE;COREFX;</DefineConstants>
-    <OutputPath>..\..\bin\</OutputPath>
-  </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="Utils\FastMember\ObjectReader.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    
-    
+  <ItemGroup>   
     <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
       <Link>native\w64\libblosc.dll</Link>
       <LogicalName>win.x64.libblosc.dll</LogicalName>
@@ -57,8 +27,8 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="9.0.1" />
-    <PackageReference Include="Spreads.Utils" Version="0.7.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="10.0.1" />
+    <PackageReference Include="Spreads.Utils" Version="0.8.0-alpha" />
     <PackageReference Include="System.Buffers" Version="4.3.0" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.3.0" />
   </ItemGroup>
@@ -70,9 +40,6 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard1.6'">
-    <PackageReference Include="NETStandard.Library">
-      <Version>1.6.1</Version>
-    </PackageReference>
     <PackageReference Include="Microsoft.CSharp">
       <Version>4.3.0</Version>
     </PackageReference>

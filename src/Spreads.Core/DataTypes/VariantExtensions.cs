@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 
 namespace Spreads.DataTypes
@@ -20,7 +21,7 @@ namespace Spreads.DataTypes
             return Variant.ToObject(value);
         }
 
-        public static void WriteToMemory(this Variant value, Memory<byte> memory)
+        public static void WriteToMemory(this Variant value, Buffer<byte> buffer)
         {
             throw new NotImplementedException();
         }

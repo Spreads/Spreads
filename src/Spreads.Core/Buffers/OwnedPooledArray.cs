@@ -8,7 +8,7 @@ using System.Buffers;
 
 namespace Spreads.Buffers
 {
-    public sealed class OwnedPooledArray<T> : OwnedMemory<T>
+    public sealed class OwnedPooledArray<T> : OwnedBuffer<T>
     {
         // NB In ArrayPool implementation, DefaultMaxNumberOfArraysPerBucket = 50, but MPMCQ requires a power of two
         // OwnedMemory<T> is quite fat and is an object, but has Initialize + Dispose methods that made it suitable for pooling
@@ -42,7 +42,7 @@ namespace Spreads.Buffers
             base.OnZeroReferences();
         }
 
-        public static OwnedMemory<T> Create(T[] array)
+        public static OwnedBuffer<T> Create(T[] array)
         {
             OwnedPooledArray<T> pooled;
             if (Pool.TryTake(out pooled))

@@ -11,20 +11,20 @@ namespace Spreads.Buffers
 {
     // NB this pattern will soon be added to CoreFxLab upstream, but for now
     // imitate the API with *Pr*eserved instead of *R*eserved names.
-    // We achieve safe disposal by always passing ownership of a memory segment
+    // We achieve safe disposal by always passing ownership of a buffer segment
     // and never having two places working with the same segment.
 
-    public struct PreservedMemory<T> : IDisposable
+    public struct PreservedBuffer<T> : IDisposable
     {
         private DisposableReservation<T> _reservation;
 
-        public PreservedMemory(Memory<T> memory)
+        public PreservedBuffer(Buffer<T> buffer)
         {
-            Memory = memory;
-            _reservation = memory.Reserve();
+            Buffer = buffer;
+            _reservation = buffer.Reserve();
         }
 
-        public Memory<T> Memory { get; }
+        public Buffer<T> Buffer { get; }
 
         public void Dispose()
         {
@@ -34,19 +34,19 @@ namespace Spreads.Buffers
 
     public static class PreservedMemoryExtension
     {
-        public static PreservedMemory<T> Preserve<T>(this Memory<T> memory)
+        public static PreservedBuffer<T> Preserve<T>(this Buffer<T> buffer)
         {
-            return new PreservedMemory<T>(memory);
+            return new PreservedBuffer<T>(buffer);
         }
 
-        public static FixedMemory<T> Fix<T>(this Memory<T> memory)
+        public static FixedMemory<T> Fix<T>(this Buffer<T> buffer)
         {
-            return new FixedMemory<T>(memory);
+            return new FixedMemory<T>(buffer);
         }
 
-        public static FixedMemory<T> Fix<T>(this PreservedMemory<T> memory)
+        public static FixedMemory<T> Fix<T>(this PreservedBuffer<T> buffer)
         {
-            return new FixedMemory<T>(memory.Memory);
+            return new FixedMemory<T>(buffer.Buffer);
         }
     }
 
@@ -55,11 +55,11 @@ namespace Spreads.Buffers
     {
         private GCHandle _handle;
 
-        public unsafe FixedMemory(Memory<T> memory)
+        public unsafe FixedMemory(Buffer<T> buffer)
         {
-            Memory = memory;
+            Buffer = buffer;
             void* tmp;
-            if (memory.TryGetPointer(out tmp))
+            if (buffer.TryGetPointer(out tmp))
             {
                 Pointer = new IntPtr(tmp);
                 _handle = default(GCHandle);
@@ -67,7 +67,7 @@ namespace Spreads.Buffers
             else
             {
                 ArraySegment<T> tmp2;
-                if (memory.TryGetArray(out tmp2))
+                if (buffer.TryGetArray(out tmp2))
                 {
                     _handle = GCHandle.Alloc(tmp2.Array, GCHandleType.Pinned);
                     Pointer = new IntPtr((byte*)_handle.AddrOfPinnedObject() // address of array start
@@ -82,7 +82,7 @@ namespace Spreads.Buffers
 
         public IntPtr Pointer { get; }
 
-        public Memory<T> Memory { get; }
+        public Buffer<T> Buffer { get; }
 
         public void Dispose()
         {

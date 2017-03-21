@@ -7,18 +7,21 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace Spreads {
-
-    public static class DateTimeExtensions {
-
-        public static long ToInt64(this DateTime dt) {
+namespace Spreads
+{
+    public static class DateTimeExtensions
+    {
+        public static long ToInt64(this DateTime dt)
+        {
             return dt.ToBinary(); // ((Int64)dt.Ticks | ((Int64)dt.Kind << 62)); for local, ToBinary() transforms local to UTC, for other types, it is slightly faster and does the same
         }
 
-        public static DateTime ToDateTime(this long dt) {
+        public static DateTime ToDateTime(this long dt)
+        {
             const ulong mask = (3UL << 62);
             ulong asUlong;
-            unchecked {
+            unchecked
+            {
                 asUlong = (ulong)dt;
             }
             var cleared = (asUlong & mask);
@@ -30,7 +33,8 @@ namespace Spreads {
 
         private static readonly Dictionary<string, string> Normalizer = new Dictionary<string, string>();
 
-        static DateTimeExtensions() {
+        static DateTimeExtensions()
+        {
             // Add all shortcuts that are deemed convenient
             Normalizer.Add("", "UTC");
             Normalizer.Add("moscow", "Europe/Moscow");
@@ -50,13 +54,16 @@ namespace Spreads {
         }
 
         /// Returns UTC DateTime with Kind.Unspecified
-        public static DateTime ConvertToUtcWithUncpecifiedKind(this DateTime dateTime, string tzFrom) {
+        public static DateTime ConvertToUtcWithUncpecifiedKind(this DateTime dateTime, string tzFrom)
+        {
             string tz;
-            if (!Normalizer.TryGetValue(tzFrom.ToLowerInvariant(), out tz)) {
+            if (!Normalizer.TryGetValue(tzFrom.ToLowerInvariant(), out tz))
+            {
                 tz = tzFrom;
             }
             //tz = tz.ToLowerInvariant();
-            if (tz.ToLowerInvariant() == "utc") {
+            if (tz.ToLowerInvariant() == "utc")
+            {
                 if (dateTime.Kind == DateTimeKind.Local) throw new ArgumentException("Cannot treat local time as Utc, please specify kind = Utc or Uncpecified");
                 return DateTime.SpecifyKind(dateTime, DateTimeKind.Unspecified);
             }
@@ -72,22 +79,23 @@ namespace Spreads {
                     dateTime.Hour,
                     dateTime.Minute,
                     dateTime.Second,
-                    millis,
-                    tickWithinMillis
-                ).InZoneStrictly(givenTz); ;
+                    millis).PlusTicks(tickWithinMillis).InZoneStrictly(givenTz); ;
             DateTime utcTime = timeToConvert.ToDateTimeUtc();
             return DateTime.SpecifyKind(utcTime, DateTimeKind.Unspecified);
         }
 
         /// Returns UTC DateTime with Kind.Unspecified
-        public static DateTime ConvertToZoneWithUncpecifiedKind(this DateTime utcDateTime, string tzTo) {
+        public static DateTime ConvertToZoneWithUncpecifiedKind(this DateTime utcDateTime, string tzTo)
+        {
             string tz;
-            if (!Normalizer.TryGetValue(tzTo.ToLowerInvariant(), out tz)) {
+            if (!Normalizer.TryGetValue(tzTo.ToLowerInvariant(), out tz))
+            {
                 tz = tzTo;
             }
             //TODO!implement this
             //tz = tz.ToLowerInvariant();
-            if (tz.ToLowerInvariant() == "utc") {
+            if (tz.ToLowerInvariant() == "utc")
+            {
                 if (utcDateTime.Kind == DateTimeKind.Local) throw new ArgumentException("Cannot treat local time as Utc, please specify kind = Utc or Uncpecified");
                 return DateTime.SpecifyKind(utcDateTime, DateTimeKind.Unspecified);
             }
@@ -95,51 +103,53 @@ namespace Spreads {
             var givenTz = DateTimeZoneProviders.Tzdb[tz];
 
             var timeToConvert = new LocalDateTime(utcDateTime.Year, utcDateTime.Month, utcDateTime.Day, utcDateTime.Hour,
-                utcDateTime.Minute, utcDateTime.Second, utcDateTime.Millisecond,(int)(utcDateTime.Ticks % TimeSpan.TicksPerMillisecond)).InUtc();
+                utcDateTime.Minute, utcDateTime.Second, utcDateTime.Millisecond).PlusTicks((int)(utcDateTime.Ticks % TimeSpan.TicksPerMillisecond)).InUtc();
             DateTime zonedTime = timeToConvert.WithZone(givenTz).ToDateTimeUnspecified();
             Debug.Assert(zonedTime.Kind == DateTimeKind.Unspecified);
             return zonedTime; //DateTime.SpecifyKind(utcTime, DateTimeKind.Unspecified);
         }
 
-        public static DateTime ToTimeFrameStart(this DateTime moment, UnitPeriod unitPeriod, uint length = 1) {
+        public static DateTime ToTimeFrameStart(this DateTime moment, UnitPeriod unitPeriod, uint length = 1)
+        {
             // TODO (low): support offset, e.g. 1 hours that starts at 15th minute
 
             if (length == 0) throw new InvalidOperationException("Length is zero");
             long divisor;
-            switch (unitPeriod) {
+            switch (unitPeriod)
+            {
                 case UnitPeriod.Tick:
-                    if (length != 1) throw new InvalidOperationException("Tick length != 1 is meaningless");
-                    return moment;
+                if (length != 1) throw new InvalidOperationException("Tick length != 1 is meaningless");
+                return moment;
 
                 case UnitPeriod.Millisecond:
-                    divisor = TimeSpan.TicksPerMillisecond * length;
-                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+                divisor = TimeSpan.TicksPerMillisecond * length;
+                return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
 
                 case UnitPeriod.Second:
-                    divisor = TimeSpan.TicksPerSecond * length;
-                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+                divisor = TimeSpan.TicksPerSecond * length;
+                return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
 
                 case UnitPeriod.Minute:
-                    divisor = TimeSpan.TicksPerMinute * length;
-                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+                divisor = TimeSpan.TicksPerMinute * length;
+                return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
 
                 case UnitPeriod.Hour:
-                    divisor = TimeSpan.TicksPerHour * length;
-                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+                divisor = TimeSpan.TicksPerHour * length;
+                return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
 
                 case UnitPeriod.Day:
-                    divisor = TimeSpan.TicksPerDay * length;
-                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+                divisor = TimeSpan.TicksPerDay * length;
+                return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
 
                 case UnitPeriod.Month:
-                    if (length != 1) throw new NotSupportedException();
-                    return new DateTime(moment.Year, moment.Month, 1, 0, 0, 0, moment.Kind);
+                if (length != 1) throw new NotSupportedException();
+                return new DateTime(moment.Year, moment.Month, 1, 0, 0, 0, moment.Kind);
 
                 case UnitPeriod.Eternity:
-                    return DateTime.MinValue;
+                return DateTime.MinValue;
 
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(unitPeriod), unitPeriod, null);
+                throw new ArgumentOutOfRangeException(nameof(unitPeriod), unitPeriod, null);
             }
         }
     }
