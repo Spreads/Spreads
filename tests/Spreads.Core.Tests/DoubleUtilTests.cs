@@ -22,7 +22,7 @@ namespace Spreads.Core.Tests
             var doubles = new double[10000000];
             var rng = new System.Random();
             doubles[0] = 0.0;
-            doubles[1] = -0.0;
+            doubles[1] = 0.0;
             for (int i = 2; i < doubles.Length; i++)
             {
                 doubles[i] = rng.NextDouble() - 0.5;

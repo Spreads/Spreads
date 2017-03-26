@@ -38,10 +38,7 @@ namespace Spreads.DataTypes
             }
         }
 
-        public override int GetHashCode()
-        {
-            return (int)(_value & int.MaxValue);
-        }
+        public static Price Zero = default(Price);
 
         /// <summary>
         /// 4-7 bits
@@ -127,7 +124,7 @@ namespace Spreads.DataTypes
         public decimal AsDecimal => (this);
         public double AsDouble => (double)(this);
 
-        internal Price(int exponent, long mantissaValue)
+        public Price(int exponent, long mantissaValue)
         {
             if ((ulong)exponent > 15) throw new ArgumentOutOfRangeException(nameof(exponent));
 
@@ -296,6 +293,11 @@ namespace Spreads.DataTypes
         {
             var asDecimal = (decimal)this;
             return asDecimal.ToString(CultureInfo.InvariantCulture);
+        }
+
+        public override int GetHashCode()
+        {
+            return (int)(_value & int.MaxValue);
         }
 
         #region IConvertible

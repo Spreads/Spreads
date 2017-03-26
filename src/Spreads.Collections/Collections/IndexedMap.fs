@@ -18,7 +18,7 @@ open Spreads
 open Spreads.Buffers
 open Spreads.Collections
 
-// This could be done as a base class OrderedMap and derived classes IndexedMap and IndexedMap
+// This could be done as a base class OrderedMap and derived classes SortedMap and IndexedMap
 // with the only difference in an abstract method GetIndexOfElement, but IndexedMap is too
 // complicated with regular keys stuff and it will require most methods to be abstract
 
@@ -668,7 +668,8 @@ type IndexedMap<'K,'V> // when 'K:equality
       false
 
   override this.GetAt(idx:int) =
-      if idx >= 0 && idx < this.size then this.values.[idx] else raise (ArgumentOutOfRangeException("idx", "Idx is out of range in IndexedMap GetAt method."))
+      if idx >= 0 && idx < this.size then this.values.[idx] 
+      else raise (ArgumentOutOfRangeException("idx", "Idx is out of range in IndexedMap GetAt method."))
     
 
   override this.GetCursor() = 
