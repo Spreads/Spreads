@@ -5,6 +5,7 @@
 using Newtonsoft.Json;
 using Spreads.Buffers;
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -117,14 +118,14 @@ namespace Spreads.Serialization
             MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             var tmpArraySegment = default(ArraySegment<byte>);
-            var fixedMemory = default(FixedMemory<byte>);
+            var handle = default(BufferHandle);
             try
             {
                 void* pointer;
                 if (!destination.Buffer.TryGetPointer(out pointer))
                 {
-                    fixedMemory = destination.Fix();
-                    if (fixedMemory.Buffer.TryGetArray(out tmpArraySegment))
+                    handle = destination.Buffer.Pin();
+                    if (destination.Buffer.TryGetArray(out tmpArraySegment))
                     {
                         pointer = (void*)Marshal.UnsafeAddrOfPinnedArrayElement(tmpArraySegment.Array, tmpArraySegment.Offset);
                     }
@@ -134,10 +135,7 @@ namespace Spreads.Serialization
             }
             finally
             {
-                if (!fixedMemory.Equals(default(FixedMemory<byte>)))
-                {
-                    fixedMemory.Dispose();
-                }
+                handle.Free();
             }
         }
 
@@ -180,15 +178,15 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(PreservedBuffer<byte> source, uint offset, ref T value)
         {
-            var fixedMemory = default(FixedMemory<byte>);
+            var handle = default(BufferHandle);
             try
             {
                 void* pointer;
                 if (!source.Buffer.TryGetPointer(out pointer))
                 {
-                    fixedMemory = source.Fix();
+                    handle = source.Buffer.Pin();
                     ArraySegment<byte> tmpArraySegment;
-                    if (fixedMemory.Buffer.TryGetArray(out tmpArraySegment))
+                    if (source.Buffer.TryGetArray(out tmpArraySegment))
                     {
                         pointer = (void*)Marshal.UnsafeAddrOfPinnedArrayElement(tmpArraySegment.Array, tmpArraySegment.Offset + (int)offset);
                     }
@@ -197,10 +195,7 @@ namespace Spreads.Serialization
             }
             finally
             {
-                if (!fixedMemory.Equals(default(FixedMemory<byte>)))
-                {
-                    fixedMemory.Dispose();
-                }
+                handle.Free();
             }
         }
 

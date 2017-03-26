@@ -84,14 +84,14 @@ namespace Spreads.Buffers
                     _sharedBuffer = BufferPool<byte>.RentMemory(SharedBufferSize, false);
                     _sharedBufferOffset = 0;
                 }
-                var memory = _sharedBuffer.Buffer.Slice(_sharedBufferOffset, length);
+                var buffer = _sharedBuffer.Buffer.Slice(_sharedBufferOffset, length);
 
                 _sharedBufferOffset = BitUtil.Align(newOffset, IntPtr.Size);
-                return memory.Preserve();
+                return new PreservedBuffer<byte>(buffer);
             }
             var ownedMemory = BufferPool<byte>.RentMemory(length, false);
-            var memory2 = ownedMemory.Buffer.Slice(0, length);
-            return memory2.Preserve();
+            var buffer2 = ownedMemory.Buffer.Slice(0, length);
+            return new PreservedBuffer<byte>(buffer2);
         }
     }
 }
