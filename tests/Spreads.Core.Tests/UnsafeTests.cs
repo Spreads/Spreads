@@ -8,6 +8,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using NUnit.Framework;
 
 namespace Spreads.Core.Tests
 {
@@ -34,7 +35,23 @@ namespace Spreads.Core.Tests
         }
     }
 
-    internal class UnsafeTests
+    public class Disposable : IDisposable
     {
+        public void Dispose()
+        {
+            Console.WriteLine("Called Dispose");
+        }
+    }
+
+
+    [TestFixture]
+    public class UnsafeTests
+    {
+        [Test]
+        public void UnsafeDisposeWorks()
+        {
+            var instance = new Disposable();
+            UnsafeEx.Dispose(instance);
+        }
     }
 }

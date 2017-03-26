@@ -11,8 +11,25 @@ namespace System.Runtime.CompilerServices
     /// <summary>
     /// Contains generic, low-level functionality for manipulating pointers.
     /// </summary>
+    [Obsolete()]
     public static class UnsafeEx
     {
+
+        /// <summary>
+        /// Dispose a generic instance T without imposing IDisposable contraint
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [ILSub(@"
+            .maxstack 1
+            ldarga.s 0
+            constrained. !!T
+            callvirt instance void [mscorlib]System.IDisposable::Dispose()
+            ")]
+        public unsafe static void Dispose<T>(T item)
+        {
+            ((IDisposable)item).Dispose();
+        }
+
         /// <summary>
         /// Reads a value of type T from the given location.
         /// </summary>

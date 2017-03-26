@@ -4,6 +4,7 @@
 
 using System;
 using System.Buffers;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Spreads.Serialization;
 using Spreads.Utils;
@@ -12,6 +13,8 @@ namespace Spreads.Buffers
 {
     public static class BufferPool<T>
     {
+        private static bool _isDisposable = typeof(IDisposable).GetTypeInfo().IsAssignableFrom(typeof(T));
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T[] Rent(int minLength, bool requireExact = true)
         {
@@ -30,6 +33,15 @@ namespace Spreads.Buffers
         {
             try
             {
+                if (_isDisposable && clearArray)
+                {
+                    foreach (var element in array)
+                    {
+                        // TODO this causes boxing, need to pass array as an object to some strongly typed "disposer"
+                        // But for the primary usage with PreservedBuffer<T> this is very short-lived compared to allocating T[]
+                        ((IDisposable)element).Dispose();
+                    }
+                }
                 ArrayPool<T>.Shared.Return(array, clearArray);
             }
             catch
@@ -40,7 +52,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static OwnedBuffer<T> RentMemory(int minLength, bool requireExact = true)
+        public static OwnedBuffer<T> RentBuffer(int minLength, bool requireExact = true)
         {
             var array = Rent(minLength, requireExact);
             return OwnedPooledArray<T>.Create(array);
@@ -74,7 +86,7 @@ namespace Spreads.Buffers
             {
                 if (_sharedBuffer == null)
                 {
-                    _sharedBuffer = BufferPool<byte>.RentMemory(SharedBufferSize, false);
+                    _sharedBuffer = BufferPool<byte>.RentBuffer(SharedBufferSize, false);
                     _sharedBufferOffset = 0;
                 }
                 var bufferSize = _sharedBuffer.Length;
@@ -83,7 +95,7 @@ namespace Spreads.Buffers
                 {
                     // replace shared buffer, the old one will be disposed
                     // when all ReservedMemory views on it are disposed
-                    _sharedBuffer = BufferPool<byte>.RentMemory(SharedBufferSize, false);
+                    _sharedBuffer = BufferPool<byte>.RentBuffer(SharedBufferSize, false);
                     _sharedBufferOffset = 0;
                 }
                 var buffer = _sharedBuffer.Buffer.Slice(_sharedBufferOffset, length);
@@ -91,7 +103,7 @@ namespace Spreads.Buffers
                 _sharedBufferOffset = BitUtil.Align(newOffset, IntPtr.Size);
                 return new PreservedBuffer<byte>(buffer);
             }
-            var ownedMemory = BufferPool<byte>.RentMemory(length, false);
+            var ownedMemory = BufferPool<byte>.RentBuffer(length, false);
             var buffer2 = ownedMemory.Buffer.Slice(0, length);
             return new PreservedBuffer<byte>(buffer2);
         }
@@ -149,14 +161,14 @@ namespace Spreads.Buffers
         /// <param name="length"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PreservedBuffer<T> PreserveMemory(int length)
+        public PreservedBuffer<T> PreserveBuffer(int length)
         {
 
             if (length <= _smallTreshhold)
             {
                 if (_sharedBuffer == null)
                 {
-                    _sharedBuffer = BufferPool<T>.RentMemory(this._sharedBufferSize, false);
+                    _sharedBuffer = BufferPool<T>.RentBuffer(this._sharedBufferSize, false);
                     _sharedBufferOffset = 0;
                 }
                 var bufferSize = _sharedBuffer.Length;
@@ -165,7 +177,7 @@ namespace Spreads.Buffers
                 {
                     // replace shared buffer, the old one will be disposed
                     // when all ReservedMemory views on it are disposed
-                    _sharedBuffer = BufferPool<T>.RentMemory(_sharedBufferSize, false);
+                    _sharedBuffer = BufferPool<T>.RentBuffer(_sharedBufferSize, false);
                     _sharedBufferOffset = 0;
                 }
                 var buffer = _sharedBuffer.Buffer.Slice(_sharedBufferOffset, length);
@@ -173,7 +185,7 @@ namespace Spreads.Buffers
                 _sharedBufferOffset = BitUtil.Align(newOffset, IntPtr.Size);
                 return new PreservedBuffer<T>(buffer);
             }
-            var ownedMemory = BufferPool<T>.RentMemory(length, false);
+            var ownedMemory = BufferPool<T>.RentBuffer(length, false);
             var buffer2 = ownedMemory.Buffer.Slice(0, length);
             return new PreservedBuffer<T>(buffer2);
         }
