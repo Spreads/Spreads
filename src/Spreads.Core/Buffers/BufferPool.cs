@@ -115,6 +115,9 @@ namespace Spreads.Buffers
     /// <typeparam name="T"></typeparam>
     public class PreservedBufferPool<T>
     {
+        private static int _sizeOfT = BinarySerializer.Size<T>();
+        private static int _alignment = Math.Max(IntPtr.Size, BitUtil.FindNextPositivePowerOfTwo(BinarySerializer.Size<T>()));
+
         /// <summary>
         /// Constructs a new PreservedBufferPool instance.
         /// Keep in mind that every thread using this pool will have a thread-static
@@ -125,8 +128,7 @@ namespace Spreads.Buffers
         /// <param name="smallTreshhold"></param>
         public PreservedBufferPool(int sharedBufferSize = 0)
         {
-            var typeSize = BinarySerializer.Size<T>();
-            if (typeSize <= 0)
+            if (_sizeOfT <= 0)
             {
                 throw new NotSupportedException("PreservedBufferPool only supports blittable types");
             }
@@ -136,8 +138,8 @@ namespace Spreads.Buffers
             }
             else
             {
-                var bytesLength = BitUtil.FindNextPositivePowerOfTwo(sharedBufferSize * typeSize);
-                sharedBufferSize = bytesLength / typeSize;
+                var bytesLength = BitUtil.FindNextPositivePowerOfTwo(sharedBufferSize * _sizeOfT);
+                sharedBufferSize = bytesLength / _sizeOfT;
             }
             _sharedBufferSize = sharedBufferSize;
             _smallTreshhold = 16;
@@ -182,7 +184,7 @@ namespace Spreads.Buffers
                 }
                 var buffer = _sharedBuffer.Buffer.Slice(_sharedBufferOffset, length);
 
-                _sharedBufferOffset = BitUtil.Align(newOffset, IntPtr.Size);
+                _sharedBufferOffset = BitUtil.Align(newOffset, _alignment);
                 return new PreservedBuffer<T>(buffer);
             }
             var ownedMemory = BufferPool<T>.RentBuffer(length, false);
