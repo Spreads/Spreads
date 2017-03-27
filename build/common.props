@@ -2,6 +2,7 @@
   <PropertyGroup>
     <VersionPrefix>0.8.0</VersionPrefix>
     <VersionSuffix>alpha</VersionSuffix>
+    <VersionSuffix Condition="'$(VersionSuffix)' != '' And '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
     <PackageTags>Spreads F# data streaming real-time analysis streams time series reactive</PackageTags>
     <Product>Spreads</Product>
     <RepositoryType>git</RepositoryType>
@@ -10,7 +11,7 @@
     <Company />
     <Product />
     <Copyright>Victor Baybekov</Copyright>
-    <VersionSuffix Condition="'$(VersionSuffix)' != '' And '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <PropertyGroup>
