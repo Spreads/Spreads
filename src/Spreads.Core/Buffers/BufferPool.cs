@@ -90,6 +90,22 @@ namespace Spreads.Buffers
             var buffer2 = ownedMemory.Buffer.Slice(0, length);
             return new PreservedBuffer<byte>(buffer2);
         }
+
+
+        internal static bool IsPreservedBuffer<T>()
+        {
+            return typeof(T).GetTypeInfo().GetGenericTypeDefinition() == typeof(PreservedBuffer<>);
+        }
+
+        internal static void DisposePreservedBuffers<T>(T[] array, int offset, int len)
+        {
+            // TODO it is possible to this without boxing using reflection,
+            // however boxing is Gen0 here and should be fast
+            for (int i = offset; i < offset + len; i++)
+            {
+                ((IDisposable)array[i]).Dispose();
+            }
+        }
     }
 
     /// <summary>

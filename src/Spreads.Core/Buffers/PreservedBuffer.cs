@@ -4,21 +4,19 @@
 
 using System;
 using System.Buffers;
-using System.Diagnostics;
 
 namespace Spreads.Buffers
 {
-    // NB this pattern will soon be added to CoreFxLab upstream, but for now
-    // imitate the API with *Pr*eserved instead of *R*eserved names.
-    // We achieve safe disposal by always passing ownership of a buffer segment
-    // and never having two places working with the same segment.
 
     /// <summary>
     /// A struct that wraps a System.Memory.Buffer and its DisposableReservation that is returned after calling buffer.Reserver().
     /// Increases the ref count of underlying OwnedBuffer by one.
     /// Use this struct carefully: it must always be explicitly disposed, otherwise underlying OwnedPooledArray
-    /// will never be returned to a pool and memory will leak.
+    /// will never be returned to the pool and memory will leak.
     /// Use Clone() method to create a copy of this buffer and ensure that the underlying OwnedPooledArray is not returned to the pool.
+    /// When adding to a Spreads disposable collection (e.g. SortedMap) ownership is transfered to a collection and PreservedBuffer
+    /// will be disposed during disposal of that collection. To keep ownership outside the collection, use PreservedBuffer.Clone() method and 
+    /// add a cloned PreservedBuffer value to the collection.
     /// </summary>
     public struct PreservedBuffer<T> : IDisposable
     {

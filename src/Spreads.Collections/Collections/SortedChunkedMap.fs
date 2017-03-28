@@ -34,11 +34,6 @@ type SortedChunkedMapGeneric<'K,'V>
 
   let outerMap = outerFactory(comparer)
 
-  let isOuterPersistent, outerAsPersistent = match outerMap with | :? IPersistentObject as pm -> true, pm | _ -> false, Unchecked.defaultof<_>
-  
-
-  // TODO serialize size, add a method to calculate size based on outerMap only
-//  let mutable size = 0L
   [<DefaultValueAttribute>]
   val mutable internal version : int64
 
@@ -324,7 +319,7 @@ type SortedChunkedMapGeneric<'K,'V>
       temp.nextVersion <- this.version
       outerMap.[prevHash] <- temp
       temp <- null
-      if isOuterPersistent then outerAsPersistent.Flush()
+      outerMap.Flush()
     else
       Debug.Assert(outerMap.Version = this.version)
       () // nothing to flush

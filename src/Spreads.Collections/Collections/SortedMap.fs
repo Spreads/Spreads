@@ -1294,6 +1294,8 @@ type SortedMap<'K,'V>
   member this.TrimExcess() = this.Capacity <- this.size
 
   member private this.Dispose(disposing:bool) =
+    if BufferPool.IsPreservedBuffer<'V>() then BufferPool.DisposePreservedBuffers<'V>(this.values, 0, this.size)
+
     if not couldHaveRegularKeys then BufferPool<_>.Return(this.keys, true) |> ignore
     BufferPool<_>.Return(this.values, true) |> ignore
     if disposing then GC.SuppressFinalize(this)
