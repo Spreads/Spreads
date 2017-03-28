@@ -8,7 +8,6 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using Spreads.Buffers;
-using System.Buffers;
 
 namespace Spreads.Serialization
 {
@@ -83,11 +82,11 @@ namespace Spreads.Serialization
             else
             {
                 needReturn = true;
-                buffer = ArrayPool<byte>.Shared.Rent(length);
+                buffer = BufferPool<byte>.Rent(length);
             }
             Marshal.Copy(ptr + 8, buffer, 0, length);
             value = Encoding.UTF8.GetString(buffer, 0, length - 8);
-            if (needReturn) ArrayPool<byte>.Shared.Return(buffer, true);
+            if (needReturn) BufferPool<byte>.Return(buffer, true);
             return length;
         }
 

@@ -4,6 +4,7 @@
 
 using System;
 using System.Buffers;
+using System.Diagnostics;
 
 namespace Spreads.Buffers
 {
@@ -12,8 +13,17 @@ namespace Spreads.Buffers
     // We achieve safe disposal by always passing ownership of a buffer segment
     // and never having two places working with the same segment.
 
+    /// <summary>
+    /// A struct that wraps a System.Memory.Buffer and its DisposableReservation that is returned after calling buffer.Reserver().
+    /// Increases the ref count of underlying OwnedBuffer by one.
+    /// Use this struct carefully: it must always be explicitly disposed, otherwise underlying OwnedPooledArray
+    /// will never be returned to a pool and memory will leak.
+    /// Use Clone() method to create a copy of this buffer and ensure that the underlying OwnedPooledArray is not returned to the pool.
+    /// </summary>
     public struct PreservedBuffer<T> : IDisposable
     {
+        public static bool TrackLeaks { get; set; }
+
         private DisposableReservation<T> _reservation;
 
         public PreservedBuffer(Buffer<T> buffer)
@@ -27,6 +37,11 @@ namespace Spreads.Buffers
         public void Dispose()
         {
             _reservation.Dispose();
+        }
+
+        public PreservedBuffer<T> Clone()
+        {
+            return new PreservedBuffer<T>(Buffer);
         }
     }
 }

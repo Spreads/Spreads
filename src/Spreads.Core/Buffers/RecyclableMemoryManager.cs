@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Buffers;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Buffers
@@ -32,7 +31,7 @@ namespace Spreads.Buffers
             {
                 return new BufferWrapper<byte>(ThreadStaticBuffer, false);
             }
-            var staticBuffer = ArrayPool<byte>.Shared.Rent(minimumSize);
+            var staticBuffer = BufferPool<byte>.Rent(minimumSize);
             return new BufferWrapper<byte>(staticBuffer, true);
         }
 

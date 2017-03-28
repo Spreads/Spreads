@@ -13,13 +13,13 @@ namespace Spreads.Buffers
 {
     public static class BufferPool<T>
     {
-        private static bool _isDisposable = typeof(IDisposable).GetTypeInfo().IsAssignableFrom(typeof(T));
+        private static ArrayPool<T> PoolImpl = new DefaultArrayPool<T>();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T[] Rent(int minLength, bool requireExact = true)
         {
             // temp fix while SM doesn't support unequal keys/values
-            var buffer = ArrayPool<T>.Shared.Rent(minLength);
+            var buffer = PoolImpl.Rent(minLength);
             if (requireExact && buffer.Length != minLength)
             {
                 Return(buffer, false);
@@ -31,24 +31,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Return(T[] array, bool clearArray = true)
         {
-            try
-            {
-                if (_isDisposable && clearArray)
-                {
-                    foreach (var element in array)
-                    {
-                        // TODO this causes boxing, need to pass array as an object to some strongly typed "disposer"
-                        // But for the primary usage with PreservedBuffer<T> this is very short-lived compared to allocating T[]
-                        ((IDisposable)element).Dispose();
-                    }
-                }
-                ArrayPool<T>.Shared.Return(array, clearArray);
-            }
-            catch
-            {
-                // ignored
-                // NB temporarily, we ignore alien arrays instead of throwing. The method should return a bool, think about returning customized impl instead of relying on System.Buffer, it was just three small files
-            }
+            PoolImpl.Return(array, clearArray);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -59,7 +42,6 @@ namespace Spreads.Buffers
         }
     }
 
-    [Obsolete("Use an instance of PreservedBufferPool<byte> instead. Make it a static field of the class that uses such pool.")]
     internal static class BufferPool
     {
         // max pooled array size
@@ -97,6 +79,7 @@ namespace Spreads.Buffers
                     // when all ReservedMemory views on it are disposed
                     _sharedBuffer = BufferPool<byte>.RentBuffer(SharedBufferSize, false);
                     _sharedBufferOffset = 0;
+                    newOffset = length;
                 }
                 var buffer = _sharedBuffer.Buffer.Slice(_sharedBufferOffset, length);
 
@@ -116,7 +99,6 @@ namespace Spreads.Buffers
     public class PreservedBufferPool<T>
     {
         private static int _sizeOfT = BinarySerializer.Size<T>();
-        private static int _alignment = Math.Max(IntPtr.Size, BitUtil.FindNextPositivePowerOfTwo(BinarySerializer.Size<T>()));
 
         /// <summary>
         /// Constructs a new PreservedBufferPool instance.
@@ -144,6 +126,7 @@ namespace Spreads.Buffers
             _sharedBufferSize = sharedBufferSize;
             _smallTreshhold = 16;
         }
+
         // max pooled array size
         private int _sharedBufferSize;
 
@@ -165,7 +148,6 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public PreservedBuffer<T> PreserveBuffer(int length)
         {
-
             if (length <= _smallTreshhold)
             {
                 if (_sharedBuffer == null)
@@ -181,10 +163,11 @@ namespace Spreads.Buffers
                     // when all ReservedMemory views on it are disposed
                     _sharedBuffer = BufferPool<T>.RentBuffer(_sharedBufferSize, false);
                     _sharedBufferOffset = 0;
+                    newOffset = length;
                 }
                 var buffer = _sharedBuffer.Buffer.Slice(_sharedBufferOffset, length);
 
-                _sharedBufferOffset = BitUtil.Align(newOffset, _alignment);
+                _sharedBufferOffset = newOffset;
                 return new PreservedBuffer<T>(buffer);
             }
             var ownedMemory = BufferPool<T>.RentBuffer(length, false);
@@ -192,5 +175,4 @@ namespace Spreads.Buffers
             return new PreservedBuffer<T>(buffer2);
         }
     }
-
 }

@@ -73,7 +73,7 @@ namespace Spreads.Buffers
             _isDisposed = true;
             if (_isPooled)
             {
-                ArrayPool<T>.Shared.Return(_buffer, true);
+                BufferPool<T>.Return(_buffer, true);
             }
             return tenants;
         }
@@ -85,7 +85,7 @@ namespace Spreads.Buffers
                 _isDisposed = true;
                 if (_isPooled)
                 {
-                    ArrayPool<T>.Shared.Return(_buffer, true);
+                    BufferPool<T>.Return(_buffer, true);
                 }
             }
             else
