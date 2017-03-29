@@ -31,7 +31,7 @@ namespace Spreads.Serialization
             uint destinationOffset = 0u, MemoryStream temporaryStream = null,
             CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
-        //unsafe int Read(IntPtr ptr, ref ArraySegment<TElement> value, bool exactSize = false);
+        unsafe int Read(IntPtr ptr, out TArray array, out int count, bool exactSize = false);
     }
 
     /// <summary>

@@ -5,16 +5,17 @@
 using System;
 using System.IO;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using Spreads.Buffers;
-using Spreads.Utils;
 using System.Buffers;
 
 namespace Spreads.Serialization
 {
+
+    // TODO BlittableArrayConverter should redirect here for uncompressed case as well
+
     internal static class PreservedBufferArrayBinaryConverterFactory
     {
-        public static ICompressedArrayBinaryConverter<PreservedBuffer<TElement>[]> GenericCreate<TElement>()
+        public static PreservedBufferArrayBinaryConverterImpl<TElement> GenericCreate<TElement>()
         {
             return new PreservedBufferArrayBinaryConverterImpl<TElement>();
         }
@@ -24,22 +25,22 @@ namespace Spreads.Serialization
             var elementType = bufferType.GetTypeInfo().GetGenericArguments()[0];
             var method = typeof(PreservedBufferArrayBinaryConverterFactory).GetTypeInfo().GetMethod("GenericCreate");
             var generic = method.MakeGenericMethod(elementType);
-            return generic.Invoke(null, null);
+            var converter = generic.Invoke(null, null);
+            var type = converter.GetType();
+            return converter;
         }
     }
 
-
     internal static class PreservedBufferArrayBinaryConverterFactory<TBuffer>
     {
-
+        public static ICompressedArrayBinaryConverter<TBuffer> Instance =
+            (ICompressedArrayBinaryConverter<TBuffer>)(PreservedBufferArrayBinaryConverterFactory.Create(typeof(TBuffer)));
+        // TODO move the two methods (isPB, Dipose) from BufferPool. Use strongly-typed disposal to avoid boxing.
     }
 
 
-    /// <summary>
-    /// Type is generic, but its methods are non-generic and cast objects to generics, the casts must succeed by construction.
-    /// </summary>
-    /// <typeparam name="TElement"></typeparam>
-    internal class PreservedBufferArrayBinaryConverterImpl<TElement> : ICompressedArrayBinaryConverter<PreservedBuffer<TElement>[]> //, IBinaryConverter<object>
+    internal class PreservedBufferArrayBinaryConverterImpl<TElement> :
+        ICompressedArrayBinaryConverter<PreservedBuffer<TElement>[]>, ICompressedArrayBinaryConverter<object>
     {
         public bool IsFixedSize => false;
         public int Size => 0;
@@ -49,13 +50,41 @@ namespace Spreads.Serialization
 
         public int SizeOf(PreservedBuffer<TElement>[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
-            throw new NotImplementedException();
+            throw new NotImplementedException("TODO PreservedBufferArray typed methods");
         }
 
         public int Write(PreservedBuffer<TElement>[] value, int valueOffset, int valueCount, ref Buffer<byte> destination, uint destinationOffset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
-            throw new NotImplementedException();
+            throw new NotImplementedException("TODO PreservedBufferArray typed methods");
         }
+
+        public int Read(IntPtr ptr, out PreservedBuffer<TElement>[] array, out int count, bool exactSize = false)
+        {
+            throw new NotImplementedException("TODO PreservedBufferArray typed methods");
+        }
+
+
+
+        public int SizeOf(object value, int valueOffset, int valueCount, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        {
+            var typedValue = (PreservedBuffer<TElement>[])value;
+            return SizeOf(typedValue, valueOffset, valueCount, out temporaryStream, compression);
+        }
+
+        public int Write(object value, int valueOffset, int valueCount, ref Buffer<byte> destination, uint destinationOffset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        {
+            var typedValue = (PreservedBuffer<TElement>[])value;
+            return Write(typedValue, valueOffset, valueCount, ref destination, destinationOffset, temporaryStream, compression);
+        }
+
+        public int Read(IntPtr ptr, out object array, out int count, bool exactSize = false)
+        {
+            var result = Read(ptr, out PreservedBuffer<TElement>[] typedArray, out count, exactSize);
+            array = typedArray;
+            return result;
+        }
+
+
 #pragma warning restore 618
 
 
