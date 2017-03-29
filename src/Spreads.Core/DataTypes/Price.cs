@@ -202,6 +202,7 @@ namespace Spreads.DataTypes
             return new Price(0, (long)value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int CompareTo(Price other)
         {
             var c = (int)this.Exponent - (int)other.Exponent;
@@ -221,7 +222,25 @@ namespace Spreads.DataTypes
 
         public bool Equals(Price other)
         {
-            return this.CompareTo(other) == 0;
+            if (_value == other._value)
+            {
+                return true;
+            }
+            var c = Exponent - other.Exponent;
+            if (c == 0)
+            {
+                // NB if exponents are equal, then equality is possible only if mantissas are equal,
+                // but we have covered this case in _value comparison, therefore return just false
+                return false;
+            }
+            if (c > 0)
+            {
+                return Mantissa * Powers10[c] == other.Mantissa;
+            }
+            else
+            {
+                return Mantissa == other.Mantissa * Powers10[-c];
+            }
         }
 
         public override bool Equals(object obj)

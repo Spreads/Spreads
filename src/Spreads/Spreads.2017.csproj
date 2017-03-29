@@ -29,10 +29,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="Microsoft.CSharp" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Update="DataTypes\Symbol.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
     </None>

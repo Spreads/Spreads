@@ -8,7 +8,7 @@ using Spreads.Collections;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads
+namespace Spreads.Generation
 {
     public class SortedMapGenerator<V>
     {

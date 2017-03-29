@@ -11,21 +11,30 @@ using System.Threading.Tasks;
 
 namespace Spreads
 {
+    /// <summary>
+    /// Base class for all series implementations.
+    /// </summary>
     public class BaseSeries
     {
         private static readonly ConditionalWeakTable<BaseSeries, Dictionary<string, object>> Attributes = new ConditionalWeakTable<BaseSeries, Dictionary<string, object>>();
 
+        /// <summary>
+        /// Get an attribute that was set using SetAttribute() method.
+        /// </summary>
+        /// <param name="attributeName">Name of an attribute.</param>
+        /// <returns>Return an attribute value or null is the attribute is not found.</returns>
         public object GetAttribute(string attributeName)
         {
-            object res;
-            Dictionary<string, object> dic;
-            if (Attributes.TryGetValue(this, out dic) && dic.TryGetValue(attributeName, out res))
+            if (Attributes.TryGetValue(this, out Dictionary<string, object> dic) && dic.TryGetValue(attributeName, out object res))
             {
                 return res;
             }
             return null;
         }
 
+        /// <summary>
+        /// Set any custom attribute to a series. An attribute is available during lifetime of a series and is available via GetAttribute() method.
+        /// </summary>
         public void SetAttribute(string attributeName, object attributeValue)
         {
             var dic = Attributes.GetOrCreateValue(this);
@@ -33,6 +42,11 @@ namespace Spreads
         }
     }
 
+    /// <summary>
+    /// Base generic class for all series implementations.
+    /// </summary>
+    /// <typeparam name="TK">Type of series keys.</typeparam>
+    /// <typeparam name="TV">Type of series values.</typeparam>
     public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK, TV>
     {
         internal int Locker;

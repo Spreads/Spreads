@@ -8,7 +8,6 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using NUnit.Framework;
 using Spreads.Buffers;
-using System.Buffers;
 
 namespace Spreads.Core.Tests
 {
@@ -101,10 +100,10 @@ namespace Spreads.Core.Tests
                 sum = 0L;
                 for (var i = 0; i < count; i++)
                 {
-                    var buffer = ArrayPool<byte>.Shared.Rent(RecyclableMemoryManager.StaticBufferSize);
+                    var buffer = BufferPool<byte>.Rent(RecyclableMemoryManager.StaticBufferSize);
                     buffer[0] = 123;
                     sum += buffer[0] + buffer[1];
-                    ArrayPool<byte>.Shared.Return(buffer, true);
+                    BufferPool<byte>.Return(buffer, true);
                 }
                 Assert.IsTrue(sum > 0);
                 sw.Stop();
@@ -114,10 +113,10 @@ namespace Spreads.Core.Tests
                 sum = 0L;
                 for (var i = 0; i < count; i++)
                 {
-                    var buffer = ArrayPool<byte>.Shared.Rent(RecyclableMemoryManager.StaticBufferSize + 1);
+                    var buffer = BufferPool<byte>.Rent(RecyclableMemoryManager.StaticBufferSize + 1);
                     buffer[0] = 123;
                     sum += buffer[0] + buffer[1];
-                    ArrayPool<byte>.Shared.Return(buffer, true);
+                    BufferPool<byte>.Return(buffer, true);
                 }
                 Assert.IsTrue(sum > 0);
                 sw.Stop();

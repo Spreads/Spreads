@@ -52,7 +52,7 @@ type Panel<'TRowKey,'TColumnKey, 'TValue>() =
 // RowsPanel has metarialized rows
 // It is an IMutableSeries of arrays as rows + column key arrays
 
-// RowsSeriesPanel or Surphace has rows as series, e.g. any of the two above mapped to some continuous series
+// RowsSeriesPanel or Surface has rows as series, e.g. any of the two above mapped to some continuous series
 // YieldCurve => Splines is on-demand 
 
 

@@ -188,21 +188,16 @@ docs/content/release-notes.md
 
 *.ide
 *.vs
-#*.so
-#*.dylib
+*.dll
+*.so
+*.dylib
 
 
-!libyeppp.dll
 !lib/Common/*.dll
 !lib/msvcrt/x32/
 !lib/msvcrt/x64/
 !lib/msvcrt/x32/*.zip
 !lib/msvcrt/x64/*.zip
-!lib/libyeppp/win/x32/
-!lib/libyeppp/win/x64/
-!lib/libyeppp/win/x32/*.dll
-!lib/libyeppp/win/x64/*.dll
-!lib/libyeppp/lin/x64/*.so
 !lib/*/*/x64/
 
 project.lock.json
