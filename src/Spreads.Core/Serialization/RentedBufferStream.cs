@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
+using System.Buffers;
 using System.IO;
 using Spreads.Buffers;
 
@@ -10,9 +12,9 @@ namespace Spreads.Serialization
     /// <summary>
     /// Wraps a rented buffer and returns it to the shared pool on Dispose
     /// </summary>
-    internal class RentedMemoryStream : MemoryStream
+    internal class RentedBufferStream : MemoryStream
     {
-        private readonly byte[] _rentedBuffer;
+        private readonly OwnedBuffer<byte> _rentedBuffer;
 
         /// <summary>
         /// Wraps a rented buffer and returns it to the shared pool on Dispose
@@ -20,18 +22,31 @@ namespace Spreads.Serialization
         /// <param name="rentedBuffer">A buffer that was previously rented from the shared BufferPool</param>
         /// <param name="offset"></param>
         /// <param name="count"></param>
-        public RentedMemoryStream(byte[] rentedBuffer, int offset, int count) : base(rentedBuffer, offset, count)
+        public RentedBufferStream(OwnedBuffer<byte> rentedBuffer, int count) : base(GetSegment(rentedBuffer).Array, 0, count)
         {
             _rentedBuffer = rentedBuffer;
         }
 
+        private static ArraySegment<byte> GetSegment(OwnedBuffer<byte> rentedBuffer)
+        {
+            if (rentedBuffer.Buffer.TryGetArray(out var segment))
+            {
+                return segment;
+            }
+            else
+            {
+                throw new ApplicationException();
+            }
+        }
+
         protected override void Dispose(bool disposing)
         {
-            BufferPool<byte>.Return(_rentedBuffer);
+            _rentedBuffer.Release();
+            //_rentedBuffer.Dispose();
             base.Dispose(disposing);
         }
 
-        ~RentedMemoryStream()
+        ~RentedBufferStream()
         {
             Dispose(false);
         }

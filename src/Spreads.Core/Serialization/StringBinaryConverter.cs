@@ -3,11 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using Spreads.Buffers;
 
 namespace Spreads.Serialization
 {
@@ -33,7 +33,7 @@ namespace Spreads.Serialization
             }
         }
 
-        public unsafe int Write(string value, ref DirectBuffer destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public unsafe int Write(string value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (compression == CompressionMethod.DefaultOrNone)
             {
@@ -42,8 +42,11 @@ namespace Spreads.Serialization
                     fixed (char* charPtr = value)
                     {
                         var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
-                        if (!destination.HasCapacity(offset, totalLength)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-                        var ptr = destination.Data + (int)offset;
+                        if (destination.Length < offset + totalLength) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
+
+                        var handle = destination.Pin();
+                        var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
+
                         // size
                         Marshal.WriteInt32(ptr, totalLength);
                         // version
@@ -51,6 +54,9 @@ namespace Spreads.Serialization
                         // payload
                         var len = Encoding.UTF8.GetBytes(charPtr, value.Length, (byte*)ptr + 8, totalLength);
                         Debug.Assert(totalLength == len + 8);
+
+                        handle.Free();
+
                         return len + 8;
                     }
                 }
@@ -68,26 +74,34 @@ namespace Spreads.Serialization
             }
         }
 
-        public int Read(IntPtr ptr, ref string value)
+        public int Read(IntPtr ptr, out string value)
         {
             var version = Marshal.ReadInt32(ptr + 4);
             if (version != 0) throw new NotSupportedException();
             var length = Marshal.ReadInt32(ptr);
-            bool needReturn = false;
-            byte[] buffer;
-            if (length < RecyclableMemoryManager.StaticBufferSize)
+            OwnedBuffer<byte> ownedBuffer = Buffers.BufferPool.UseTempBuffer(length);
+            var buffer = ownedBuffer.Buffer;
+            var handle = buffer.Pin();
+
+            try
             {
-                buffer = RecyclableMemoryManager.ThreadStaticBuffer;
+                if (buffer.TryGetArray(out var segment))
+                {
+                    Marshal.Copy(ptr + 8, segment.Array, 0, length);
+
+                    value = Encoding.UTF8.GetString(segment.Array, segment.Offset, length - 8);
+                }
+                else
+                {
+                    throw new ApplicationException();
+                }
+                return length;
             }
-            else
+            finally
             {
-                needReturn = true;
-                buffer = BufferPool<byte>.Rent(length);
+                handle.Free();
+                ownedBuffer.Dispose();
             }
-            Marshal.Copy(ptr + 8, buffer, 0, length);
-            value = Encoding.UTF8.GetString(buffer, 0, length - 8);
-            if (needReturn) BufferPool<byte>.Return(buffer, true);
-            return length;
         }
 
         public byte Version => 0;

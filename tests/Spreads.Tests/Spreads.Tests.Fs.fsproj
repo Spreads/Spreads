@@ -174,7 +174,8 @@
     </Reference>
     <Reference Include="System.Data" />
     <Reference Include="System.Numerics.Vectors">
-      <HintPath>..\..\packages\System.Numerics.Vectors.4.1.1\lib\netstandard1.0\System.Numerics.Vectors.dll</HintPath>
+      <HintPath>..\..\packages\System.Numerics.Vectors.4.3.0\lib\portable-net45+win8+wp8+wpa81\System.Numerics.Vectors.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="System.ValueTuple">
       <HintPath>..\..\packages\System.ValueTuple.4.3.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>

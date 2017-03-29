@@ -5,7 +5,7 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using Spreads.Buffers;
+using System.Buffers;
 
 namespace Spreads.Serialization
 {
@@ -27,22 +27,27 @@ namespace Spreads.Serialization
             }
         }
 
-        public int Write(byte[] value, ref DirectBuffer destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public unsafe int Write(byte[] value, ref Buffer<byte> destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (compression == CompressionMethod.DefaultOrNone)
             {
                 if (temporaryStream != null)
                     throw new NotSupportedException("ByteArrayBinaryConverter does not work with temp streams.");
                 var totalSize = value.Length + 8;
-                if (!destination.HasCapacity(offset, totalSize))
+                if (destination.Length < offset + totalSize)
+                {
                     return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-                var ptr = destination.Data + (int)offset;
+                }
+
+                var handle = destination.Pin();
+                var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
                 // size
                 Marshal.WriteInt32(ptr, totalSize);
                 // version
                 Marshal.WriteByte(ptr + 4, Version);
                 // payload
                 Marshal.Copy(value, 0, ptr + 8, value.Length);
+                handle.Free();
                 return totalSize;
             }
             else
@@ -52,7 +57,7 @@ namespace Spreads.Serialization
             }
         }
 
-        public int Read(IntPtr ptr, ref byte[] value)
+        public int Read(IntPtr ptr, out byte[] value)
         {
             var totalSize = Marshal.ReadInt32(ptr);
             var versionFlags = Marshal.ReadByte(ptr + 4);
@@ -69,9 +74,8 @@ namespace Spreads.Serialization
             }
             else
             {
-                ArraySegment<byte> tmp = default(ArraySegment<byte>);
-                var len = CompressedArrayBinaryConverter<byte>.Instance.Read(ptr, ref tmp, true);
-                value = tmp.Array;
+                var len = CompressedArrayBinaryConverter<byte>.Instance.Read(ptr, out var tmp, out int count, true);
+                value = tmp;
                 return len;
             }
         }

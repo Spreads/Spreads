@@ -8,11 +8,8 @@ using System.Buffers;
 
 namespace Spreads.Buffers
 {
-    public sealed class OwnedPooledArray<T> : OwnedBuffer<T>
+    internal sealed class OwnedPooledArray<T> : OwnedBuffer<T>
     {
-        // NB In ArrayPool implementation, DefaultMaxNumberOfArraysPerBucket = 50, but MPMCQ requires a power of two
-        // OwnedMemory<T> is quite fat and is an object, but has Initialize + Dispose methods that made it suitable for pooling
-
         // ReSharper disable once StaticMemberInGenericType
         private static readonly BoundedConcurrentBag<OwnedPooledArray<T>> Pool = new BoundedConcurrentBag<OwnedPooledArray<T>>(Environment.ProcessorCount * 16);
 
@@ -23,9 +20,7 @@ namespace Spreads.Buffers
             return owner.Array;
         }
 
-        private OwnedPooledArray(T[] array) : base(array, 0, array.Length)
-        {
-        }
+        private OwnedPooledArray(T[] array) : base(array, 0, array.Length) { }
 
         protected override void Dispose(bool disposing)
         {
@@ -33,7 +28,11 @@ namespace Spreads.Buffers
             // cleaning the fields
             BufferPool<T>.Return(Array);
             base.Dispose(disposing);
-            Pool.TryAdd(this);
+            if (disposing)
+            {
+                Pool.TryAdd(this);
+                GC.SuppressFinalize(this);
+            }
         }
 
         protected override void OnZeroReferences()
@@ -44,8 +43,7 @@ namespace Spreads.Buffers
 
         public static OwnedBuffer<T> Create(T[] array)
         {
-            OwnedPooledArray<T> pooled;
-            if (Pool.TryTake(out pooled))
+            if (Pool.TryTake(out OwnedPooledArray<T> pooled))
             {
                 var asOwnedPooledArray = pooled;
                 // ReSharper disable once PossibleNullReferenceException
@@ -54,5 +52,15 @@ namespace Spreads.Buffers
             }
             return new OwnedPooledArray<T>(array);
         }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        ~OwnedPooledArray()
+        {
+            Dispose(false);
+        }
     }
+
+
 }

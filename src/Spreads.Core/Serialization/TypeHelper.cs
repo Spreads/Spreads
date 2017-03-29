@@ -4,6 +4,7 @@
 
 using Spreads.Buffers;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -16,9 +17,9 @@ namespace Spreads.Serialization
 {
     // TODO remove special treatment of decimal, it is blittable/pinnable
 
-    internal delegate int FromPtrDelegate(IntPtr ptr, ref object value);
+    internal delegate int FromPtrDelegate(IntPtr ptr, out object value);
 
-    internal delegate int ToPtrDelegate(object value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone);
+    internal delegate int ToPtrDelegate(object value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
     internal delegate int SizeOfDelegate(object value, out MemoryStream memoryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
@@ -43,15 +44,14 @@ namespace Spreads.Serialization
     [Obsolete("TypeHelper should only be used inside BinarySerializer or for known types. Use #pragma warning disable 0618/#pragma warning restore 0618 where its usage is justified.")]
     internal class TypeHelper
     {
-        private static int ReadObject<T>(IntPtr ptr, ref object value)
+        private static int ReadObject<T>(IntPtr ptr, out object value)
         {
-            var temp = value == null ? default(T) : (T)value;
-            var len = TypeHelper<T>.Read(ptr, ref temp);
+            var len = TypeHelper<T>.Read(ptr, out var temp);
             value = temp;
             return len;
         }
 
-        private static int WriteObject<T>(object value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        private static int WriteObject<T>(object value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             var temp = value == null ? default(T) : (T)value;
             return TypeHelper<T>.Write(temp, ref destination, offset, ms, compression);
@@ -328,12 +328,12 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read(IntPtr ptr, ref T value)
+        public static int Read(IntPtr ptr, out T value)
         {
             if (_hasBinaryConverter)
             {
                 Debug.Assert(_size == 0);
-                return _converterInstance.Read(ptr, ref value);
+                return _converterInstance.Read(ptr, out value);
             }
             if (_size < 0)
             {
@@ -346,7 +346,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write(T value, ref DirectBuffer destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public static int Write(T value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (_hasBinaryConverter)
             {
@@ -358,10 +358,18 @@ namespace Spreads.Serialization
                 throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
             }
             Debug.Assert(_size > 0);
-            if (!destination.HasCapacity(offset, _size)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-            var pointer = destination.Data + (int)offset;
-            //Debug.Assert(pointer.ToInt64() % _size == 0, "Unaligned unsafe write");
-            Unsafe.Write<T>((void*)pointer, value);
+            if (destination.Length < offset + _size)
+            {
+                return (int)BinaryConverterErrorCode.NotEnoughCapacity;
+            }
+            var handle = destination.Pin();
+
+            var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
+
+            Unsafe.Write<T>((void*)ptr, value);
+
+            handle.Free();
+
             return _size;
         }
 

@@ -5,9 +5,11 @@
 using Spreads.Buffers;
 using Spreads.Serialization;
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Spreads
 {
@@ -71,13 +73,16 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Write(T value, ref DirectBuffer destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public unsafe int Write(T value, ref Buffer<byte> destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
+            var handle = destination.Pin();
+            var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
+
             if (temporaryStream != null)
             {
                 var len = temporaryStream.Length;
                 if (destination.Length < offset + len) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-                temporaryStream.WriteToPtr(destination.Data + (int)offset);
+                temporaryStream.WriteToPtr(ptr);
                 temporaryStream.Dispose();
                 return checked((int)len);
             }
@@ -85,12 +90,14 @@ namespace Spreads
             // all headers: serializer + map properties + 2 * Blosc
             if (destination.Length < offset + 8 + 14) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
 
-            var position = (int)offset + 8;
+            // relative to ptr + offset
+            var position = 8;
+
             // 14 - map header
-            destination.WriteInt32(position, value.Length);
-            destination.WriteInt64(position + 4, value.Version);
-            destination.WriteByte(position + 4 + 8, (byte)(value.IsRegular ? 1 : 0));
-            destination.WriteByte(position + 4 + 8 + 1, (byte)(value.IsReadOnly ? 1 : 0));
+            Marshal.WriteInt32(ptr + position, value.Length);
+            Marshal.WriteInt64(ptr + position + 4, value.Version);
+            Marshal.WriteByte(ptr + position + 4 + 8, (byte)(value.IsRegular ? 1 : 0));
+            Marshal.WriteByte(ptr + position + 4 + 8 + 1, (byte)(value.IsReadOnly ? 1 : 0));
 
             position = position + 14;
 
@@ -101,8 +108,8 @@ namespace Spreads
             //if (value.IsRegular) {
             //    keysSize = BinarySerializer.Write<TKey[]>(value.Keys, ref destination, (uint)position);
             //}
-            var keysSize = CompressedArrayBinaryConverter<TKey>.Instance.Write(
-                        value.Keys, 0, value.Length, ref destination, (uint)position, null, compression);
+            var keysSize = CompressedArrayBinaryConverter<TKey>.Instance.Write(value.Keys, 0, value.Length,
+                ref destination, (uint)position, null, compression);
             if (keysSize > 0)
             {
                 position += keysSize;
@@ -124,14 +131,17 @@ namespace Spreads
             }
 
             // length (include all headers)
-            destination.WriteInt32(0, position);
+            Marshal.WriteInt32(ptr, position);
             // version
-            destination.WriteByte(4, Version);
+            Marshal.WriteInt32(ptr + 4, Version);
+
+            handle.Free();
+
             return position;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public abstract int Read(IntPtr ptr, ref T value);
+        public abstract int Read(IntPtr ptr, out T value);
 
 #pragma warning restore 0618
     }

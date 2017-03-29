@@ -16,6 +16,8 @@ namespace Spreads.Buffers
     // but we must draw the line where we do bound checks on unsafe code and where we don't
     // we should not protect ourselves from shooting in the leg just by hiding the guns
 
+    // TODO Implicit conversion from Buffer<byte>
+
     /// <summary>
     /// Provides unsafe read/write opertaions on a memory pointer.
     /// </summary>
@@ -546,16 +548,16 @@ namespace Spreads.Buffers
             return len;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Write<T>(long index, T value, MemoryStream ms = null)
-        {
-            return Serialization.BinarySerializer.Write<T>(value, ref this, checked((uint)index), ms);
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public int Write<T>(long index, T value, MemoryStream ms = null)
+        //{
+        //    return Serialization.BinarySerializer.Write<T>(value, ref this, checked((uint)index), ms);
+        //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Read<T>(long index, ref T value)
+        public int Read<T>(long index, out T value)
         {
-            return Serialization.BinarySerializer.Read<T>(new IntPtr(_data.ToInt64() + index), ref value);
+            return Serialization.BinarySerializer.Read<T>(new IntPtr(_data.ToInt64() + index), out value);
         }
 
         /// <summary>

@@ -169,19 +169,21 @@ type SortedMap<'K,'V>
           value <- 
             if mapSize > 0 then
               let ptr = new IntPtr(ptr.ToInt64() + 8L + 14L)
-              let mutable keysSegment = Unchecked.defaultof<ArraySegment<'K>>
-              let keysLen = CompressedArrayBinaryConverter<'K>.Instance.Read(ptr, &keysSegment)
+              let mutable keysArray = Unchecked.defaultof<'K[]>
+              let mutable keysCount = 0
+              let keysLen = CompressedArrayBinaryConverter<'K>.Instance.Read(ptr, &keysArray, &keysCount, false)
               let keys = 
                 if isRegular then
-                  let arr = Array.sub keysSegment.Array 0 2
-                  BufferPool<_>.Return keysSegment.Array |> ignore
+                  let arr = Array.sub keysArray 0 2
+                  BufferPool<_>.Return keysArray |> ignore
                   arr
-                else keysSegment.Array
+                else keysArray
               let ptr = new IntPtr(ptr.ToInt64() + (int64 keysLen))
-              let mutable valuesSegment = Unchecked.defaultof<ArraySegment<'V>>
-              let valuesLen = CompressedArrayBinaryConverter<'V>.Instance.Read(ptr, &valuesSegment)
+              let mutable valuesArray = Unchecked.defaultof<'V[]>
+              let mutable valuesCount = 0
+              let valuesLen = CompressedArrayBinaryConverter<'V>.Instance.Read(ptr, &valuesArray, &valuesCount, false)
               Debug.Assert((totalSize = 8 + 14 + keysLen + valuesLen))
-              let sm : SortedMap<'K,'V> = SortedMap.OfSortedKeysAndValues(keys, valuesSegment.Array, mapSize, KeyComparer.GetDefault<'K>(), false, isRegular)
+              let sm : SortedMap<'K,'V> = SortedMap.OfSortedKeysAndValues(keys, valuesArray, mapSize, KeyComparer.GetDefault<'K>(), false, isRegular)
               sm.version <- mapVersion
               sm.nextVersion <- mapVersion
               sm.orderVersion <- mapVersion

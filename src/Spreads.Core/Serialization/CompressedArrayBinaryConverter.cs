@@ -2,22 +2,43 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Blosc;
+using Spreads.Buffers;
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Buffers;
-using System.Reflection;
-using Spreads.Blosc;
 
 namespace Spreads.Serialization
 {
+    // TODO check effect of [MethodImpl(MethodImplOptions.AggressiveInlining)] in a real context (and wether the methods are actually inlined).
+    // The methods are huge here and deal with P/Invoke and do a lot of work, probably method calls
+    // are irrelevant. Yet still to find the case where such attribute hurts.
+
+    internal interface ICompressedArrayBinaryConverter<TArray>
+    {
+        bool IsFixedSize { get; }
+        int Size { get; }
+        byte Version { get; }
+
+        unsafe int SizeOf(TArray value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
+            CompressionMethod compression = CompressionMethod.DefaultOrNone);
+
+        unsafe int Write(TArray value, int valueOffset, int valueCount, ref Buffer<byte> destination,
+            uint destinationOffset = 0u, MemoryStream temporaryStream = null,
+            CompressionMethod compression = CompressionMethod.DefaultOrNone);
+
+        //unsafe int Read(IntPtr ptr, ref ArraySegment<TElement> value, bool exactSize = false);
+    }
+
     /// <summary>
     /// Used for IArrayBasedMap serialization and for arrays serialization with forced compression
     /// </summary>
     /// <typeparam name="TElement"></typeparam>
-    internal class CompressedArrayBinaryConverter<TElement>
+    internal class CompressedArrayBinaryConverter<TElement> : ICompressedArrayBinaryConverter<TElement[]>
     {
         internal static CompressedArrayBinaryConverter<TElement> Instance =
             new CompressedArrayBinaryConverter<TElement>();
@@ -41,14 +62,17 @@ namespace Spreads.Serialization
             if (ItemSize > 0)
             {
                 var maxSize = 8 + (16 + BloscMethods.ProcessorCount * 4) + ItemSize * valueCount;
-                var buffer = BufferPool<byte>.Rent(maxSize);
-                fixed (byte* ptr = &buffer[0])
-                {
-                    var directBuffer = new DirectBuffer(maxSize, ptr);
-                    var totalSize = Write(value, valueOffset, valueCount, ref directBuffer, 0, null, compression);
-                    temporaryStream = new RentedMemoryStream(buffer, 0, totalSize);
-                    return totalSize;
-                }
+                var ownedBuffer = BufferPool<byte>.RentOwnedBuffer(maxSize);
+                ownedBuffer.AddReference();
+                var buffer = ownedBuffer.Buffer;
+
+                var totalSize = Write(value, valueOffset, valueCount, ref buffer, 0, null, compression);
+                temporaryStream = new RentedBufferStream(ownedBuffer, totalSize);
+                return totalSize;
+            }
+            else if (Buffers.BufferPool.IsPreservedBuffer<TElement>())
+            {
+                throw new NotImplementedException();
             }
             else
             {
@@ -67,7 +91,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Write(ArraySegment<TElement> segment, ref DirectBuffer destination,
+        public int Write(ArraySegment<TElement> segment, ref Buffer<byte> destination,
             uint destinationOffset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             return Write(segment.Array, segment.Offset, segment.Count, ref destination, destinationOffset,
@@ -75,138 +99,161 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int Write(TElement[] value, int valueOffset, int valueCount, ref DirectBuffer destination,
+        public unsafe int Write(TElement[] value, int valueOffset, int valueCount, ref Buffer<byte> destination,
             uint destinationOffset = 0u, MemoryStream temporaryStream = null,
             CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
+            // NB Blosc calls below are visually large - many LOCs with comments, but this is only a single method call
             if (value == null) throw new ArgumentNullException(nameof(value));
 
-            if (temporaryStream != null)
+            var handle = destination.Pin();
+            try
             {
-                var len = temporaryStream.Length;
-                if (destination.Length < destinationOffset + len) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-                temporaryStream.WriteToPtr(destination.Data + (int)destinationOffset);
-                temporaryStream.Dispose();
-                return checked((int)len);
-            }
-            bool isDiffable = false;
-            var compressionMethod = compression == CompressionMethod.DefaultOrNone
-                ? BloscSettings.defaultCompressionMethod
-                : (compression == CompressionMethod.LZ4 ? "lz4" : "zstd");
+                var ptr = (IntPtr)handle.PinnedPointer + (int)destinationOffset;
 
-            var position = 8;
-            if (valueCount > 0)
-            {
-                int compressedSize;
-                if (ItemSize > 0)
+                if (temporaryStream != null)
                 {
-                    if (typeof(TElement) == typeof(DateTime))
+                    var len = temporaryStream.Length;
+                    if (destination.Length < destinationOffset + len)
                     {
-                        var buffer = BufferPool<byte>.Rent(valueCount * 8);
-                        var dtArray = (DateTime[])(object)value;
-                        fixed (byte* srcPtr = &buffer[0])
-                        {
-                            for (var i = 0; i < valueCount; i++)
-                            {
-                                *(DateTime*)(srcPtr + i * 8) = dtArray[i + valueOffset];
-                            }
-                            compressedSize = BloscMethods.blosc_compress_ctx(
-                                new IntPtr(9), // max compression 9
-                                new IntPtr(1), // do byte shuffle 1
-                                new UIntPtr((uint)ItemSize), // type size
-                                new UIntPtr((uint)(valueCount * ItemSize)), // number of input bytes
-                                (IntPtr)srcPtr,
-                                destination.Data + position, // destination
-                                new UIntPtr((uint)(destination.Length - position)), // destination length
-                                compressionMethod,
-                                new UIntPtr((uint)0), // default block size
-                                BloscMethods.ProcessorCount //
-                            );
-                        }
-                        BufferPool<byte>.Return(buffer);
+                        return (int)BinaryConverterErrorCode.NotEnoughCapacity;
                     }
-                    else if (value[0] is IDiffable<TElement> diffableFirst)
-                    {
-                        isDiffable = true;
-                        // TODO (!) this is probably inefficient... some generic method caching or dynamic dispatch?
-                        // however there is only a single pattern match with IDiffable boxing
-                        var first = value[0];
-                        var buffer = BufferPool<byte>.Rent(valueCount * ItemSize);
+                    temporaryStream.WriteToPtr(ptr);
+                    temporaryStream.Dispose();
+                    return checked((int)len);
+                }
+                bool isDiffable = false;
+                var compressionMethod = compression == CompressionMethod.DefaultOrNone
+                    ? BloscSettings.defaultCompressionMethod
+                    : (compression == CompressionMethod.LZ4 ? "lz4" : "zstd");
 
-                        fixed (byte* srcPtr = &buffer[0])
+                var position = 8;
+                if (valueCount > 0)
+                {
+                    int compressedSize;
+                    if (ItemSize > 0)
+                    {
+                        if (typeof(TElement) == typeof(DateTime))
                         {
-                            Unsafe.Write(srcPtr, first);
-                            for (var i = 1; i < valueCount; i++)
+                            var buffer = BufferPool<byte>.Rent(valueCount * 8);
+                            var dtArray = (DateTime[])(object)value;
+                            fixed (byte* srcPtr = &buffer[0])
                             {
-                                var current = value[i];
-                                var diff = diffableFirst.GetDelta(current);
-                                Unsafe.Write(srcPtr + i * ItemSize, diff);
+                                for (var i = 0; i < valueCount; i++)
+                                {
+                                    *(DateTime*)(srcPtr + i * 8) = dtArray[i + valueOffset];
+                                }
+                                compressedSize = BloscMethods.blosc_compress_ctx(
+                                    new IntPtr(9), // max compression 9
+                                    new IntPtr(1), // do byte shuffle 1
+                                    new UIntPtr((uint)ItemSize), // type size
+                                    new UIntPtr((uint)(valueCount * ItemSize)), // number of input bytes
+                                    (IntPtr)srcPtr,
+                                    ptr + position, // destination
+                                    new UIntPtr((uint)(destination.Length - position)), // destination length
+                                    compressionMethod,
+                                    new UIntPtr((uint)0), // default block size
+                                    BloscMethods.ProcessorCount //
+                                );
                             }
+                            BufferPool<byte>.Return(buffer);
+                        }
+                        else if (value[0] is IDiffable<TElement> diffableFirst)
+                        {
+                            isDiffable = true;
+                            // TODO (!) this is probably inefficient... some generic method caching or dynamic dispatch?
+                            // however there is only a single pattern match with IDiffable boxing
+                            var first = value[0];
+                            var buffer = BufferPool<byte>.Rent(valueCount * ItemSize);
+
+                            fixed (byte* srcPtr = &buffer[0])
+                            {
+                                Unsafe.Write(srcPtr, first);
+                                for (var i = 1; i < valueCount; i++)
+                                {
+                                    var current = value[i];
+                                    var diff = diffableFirst.GetDelta(current);
+                                    Unsafe.Write(srcPtr + i * ItemSize, diff);
+                                }
+                                compressedSize = BloscMethods.blosc_compress_ctx(
+                                    new IntPtr(9), // max compression 9
+                                    new IntPtr(1), // do byte shuffle 1
+                                    new UIntPtr((uint)ItemSize), // type size
+                                    new UIntPtr((uint)(valueCount * ItemSize)), // number of input bytes
+                                    (IntPtr)srcPtr,
+                                    ptr + position, // destination
+                                    new UIntPtr((uint)(destination.Length - position)), // destination length
+                                    compressionMethod,
+                                    new UIntPtr((uint)0), // default block size
+                                    BloscMethods.ProcessorCount //
+                                );
+                            }
+                            BufferPool<byte>.Return(buffer);
+                        }
+                        else
+                        {
+                            var pinnedArray = GCHandle.Alloc(value, GCHandleType.Pinned);
+                            var srcPtr = Marshal.UnsafeAddrOfPinnedArrayElement(value, valueOffset);
                             compressedSize = BloscMethods.blosc_compress_ctx(
                                 new IntPtr(9), // max compression 9
                                 new IntPtr(1), // do byte shuffle 1
                                 new UIntPtr((uint)ItemSize), // type size
                                 new UIntPtr((uint)(valueCount * ItemSize)), // number of input bytes
-                                (IntPtr)srcPtr,
-                                destination.Data + position, // destination
+                                srcPtr,
+                                ptr + position, // destination
                                 new UIntPtr((uint)(destination.Length - position)), // destination length
                                 compressionMethod,
                                 new UIntPtr((uint)0), // default block size
                                 BloscMethods.ProcessorCount //
                             );
+                            pinnedArray.Free();
                         }
-                        BufferPool<byte>.Return(buffer);
+                    }
+                    else if (Buffers.BufferPool.IsPreservedBuffer<TElement>())
+                    {
+                        throw new NotImplementedException();
                     }
                     else
                     {
-                        var pinnedArray = GCHandle.Alloc(value, GCHandleType.Pinned);
-                        var srcPtr = Marshal.UnsafeAddrOfPinnedArrayElement(value, valueOffset);
-                        compressedSize = BloscMethods.blosc_compress_ctx(
-                            new IntPtr(9), // max compression 9
-                            new IntPtr(1), // do byte shuffle 1
-                            new UIntPtr((uint)ItemSize), // type size
-                            new UIntPtr((uint)(valueCount * ItemSize)), // number of input bytes
-                            srcPtr,
-                            destination.Data + position, // destination
-                            new UIntPtr((uint)(destination.Length - position)), // destination length
-                            compressionMethod,
-                            new UIntPtr((uint)0), // default block size
-                            BloscMethods.ProcessorCount //
-                            );
-                        pinnedArray.Free();
+                        MemoryStream tempStream;
+                        var bytesSize =
+                            BinarySerializer.SizeOf(new ArraySegment<TElement>(value, valueOffset, valueCount),
+                                out tempStream, compression);
+                        var buffer = BufferPool<byte>.Rent(bytesSize);
+                        var writtenBytes =
+                            BinarySerializer.Write(new ArraySegment<TElement>(value, valueOffset, valueCount), buffer, 0,
+                                tempStream);
+                        tempStream?.Dispose();
+                        Debug.Assert(bytesSize == writtenBytes);
+                        compressedSize = CompressedArrayBinaryConverter<byte>.Instance.Write(buffer, 0, writtenBytes,
+                            ref destination, destinationOffset, null, compression);
+                        BufferPool<byte>.Return(buffer);
+                    }
+
+                    if (compressedSize > 0)
+                    {
+                        position += compressedSize;
+                    }
+                    else
+                    {
+                        return (int)BinaryConverterErrorCode.NotEnoughCapacity;
                     }
                 }
-                else
-                {
-                    MemoryStream tempStream;
-                    var bytesSize = BinarySerializer.SizeOf(new ArraySegment<TElement>(value, valueOffset, valueCount), out tempStream, compression);
-                    var buffer = BufferPool<byte>.Rent(bytesSize);
-                    var writtenBytes = BinarySerializer.Write(new ArraySegment<TElement>(value, valueOffset, valueCount), buffer, 0, tempStream);
-                    tempStream?.Dispose();
-                    Debug.Assert(bytesSize == writtenBytes);
-                    compressedSize = CompressedArrayBinaryConverter<byte>.Instance.Write(buffer, 0, writtenBytes, ref destination, destinationOffset, null, compression);
-                    BufferPool<byte>.Return(buffer);
-                }
 
-                if (compressedSize > 0)
-                {
-                    position += compressedSize;
-                }
-                else
-                {
-                    return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-                }
+                // length
+                Marshal.WriteInt32(ptr, position);
+                // version & flags
+                Marshal.WriteByte(ptr + 4, (byte)((Version << 4) | (isDiffable ? 0b0000_0011 : 0b0000_0001)));
+                return position;
             }
-
-            // length
-            destination.WriteInt32(0, position); // include all headers
-            // version & flags
-            destination.WriteByte(4, (byte)((Version << 4) | (isDiffable ? 0b0000_0011 : 0b0000_0001)));
-            return position;
+            finally
+            {
+                handle.Free();
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int Read(IntPtr ptr, ref ArraySegment<TElement> value, bool exactSize = false)
+        public unsafe int Read(IntPtr ptr, out TElement[] value, out int length, bool exactSize = false)
         {
             var totalSize = Marshal.ReadInt32(ptr);
             var versionFlag = Marshal.ReadByte(ptr + 4);
@@ -219,24 +266,28 @@ namespace Spreads.Serialization
             if (ItemSize <= 0)
             {
                 // first decompress bytes
-                var decompressedBytes = default(ArraySegment<byte>);
-                var size = CompressedArrayBinaryConverter<byte>.Instance.Read(ptr, ref decompressedBytes);
+                var size = CompressedArrayBinaryConverter<byte>.Instance.Read(ptr, out byte[] decompressedBytes, out length);
+
                 // NB the length is encoded in the header and is returned as a part of ArraySegment
-                Debug.Assert(decompressedBytes.Count == BitConverter.ToInt32(decompressedBytes.Array, 0));
+                Debug.Assert(length == BitConverter.ToInt32(decompressedBytes, 0));
+
                 // then deserialize
-                TElement[] array = null;
-                // NB the size of the array will be exact, the byte array has the correct length
-                BinarySerializer.Read<TElement[]>(decompressedBytes.Array, ref array);
-                value = new ArraySegment<TElement>(array, 0, array.Length);
-                // when array segment is default(), Read fills its ref with a new ArraySegment with array taken from the pool
-                BufferPool<byte>.Return(decompressedBytes.Array);
+                // NB the size of the array will be exact, BinarySerializer.Read does not support non-exact buffers
+                BinarySerializer.Read(decompressedBytes, out value);
+
+                BufferPool<byte>.Return(decompressedBytes);
                 return size;
+            }
+            else if (Buffers.BufferPool.IsPreservedBuffer<TElement>())
+            {
+                throw new NotImplementedException();
             }
             else
             {
                 if (totalSize <= 8 + 16)
                 {
-                    value = new ArraySegment<TElement>(EmptyArray<TElement>.Instance, 0, 0);
+                    value = EmptyArray<TElement>.Instance;
+                    length = 0;
                     return totalSize;
                 }
 
@@ -257,12 +308,10 @@ namespace Spreads.Serialization
                 Debug.Assert(blocksize == blocksize2.ToUInt32());
 #endif
                 var arraySize = nbytes / ItemSize;
-                if (value.Array == null || value.Count < arraySize)
-                {
-                    // when caller provides an empty AS, it could require exact size, e.g. DateTimeArrayBinaryConverter
-                    var array = BufferPool<TElement>.Rent(arraySize, exactSize);
-                    value = new ArraySegment<TElement>(array, 0, arraySize);
-                }
+                // when caller provides an empty AS, it could require exact size, e.g. DateTimeArrayBinaryConverter
+                var array = BufferPool<TElement>.Rent(arraySize, exactSize);
+                length = arraySize;
+                value = array;
 
                 if (arraySize > 0)
                 {
@@ -282,7 +331,7 @@ namespace Spreads.Serialization
                                 dtArray[i] = *(DateTime*)(destination + i * 8);
                             }
                         }
-                        value = (ArraySegment<TElement>)(object)(new ArraySegment<DateTime>(dtArray, 0, arraySize));
+                        value = (TElement[])(object)(dtArray);
                         BufferPool<byte>.Return(buffer);
                     }
                     else if (isDiffable && typeof(IDiffable<TElement>).GetTypeInfo().IsAssignableFrom(typeof(TElement).GetTypeInfo()))
@@ -309,12 +358,12 @@ namespace Spreads.Serialization
                                 targetArray[i] = current;
                             }
                         }
-                        value = (ArraySegment<TElement>)(object)(new ArraySegment<TElement>(targetArray, 0, arraySize));
+                        value = targetArray; // (<TElement>)(object)(new ArraySegment<TElement>(targetArray, 0, arraySize));
                         BufferPool<byte>.Return(buffer);
                     }
                     else
                     {
-                        var pinnedArray = GCHandle.Alloc(value.Array, GCHandleType.Pinned);
+                        var pinnedArray = GCHandle.Alloc(value, GCHandleType.Pinned);
                         var destination = pinnedArray.AddrOfPinnedObject();
                         int decompSize = 0;
 
@@ -325,6 +374,7 @@ namespace Spreads.Serialization
                             decompSize = BloscMethods.blosc_decompress_ctx(
                                 source, destination, new UIntPtr((uint)nbytes), BloscMethods.ProcessorCount);
                             if (decompSize <= 0) throw new ArgumentException("Invalid compressed input");
+                            Debug.Assert(decompSize == nbytes);
                         }
                         catch (Exception ex)
                         {
@@ -335,12 +385,13 @@ namespace Spreads.Serialization
 
                             BloscMethods.blosc_cbuffer_sizes(source, ref nb, ref cb, ref bl);
                             //}
-                            Trace.WriteLine($"Blosc error: nbytes: {nbytes}, nbytes2: {nb}, cbytes: {cb} arr segment size: {value.Count}, \n\r exeption: {ex.Message + Environment.NewLine + ex.ToString()}");
+                            Trace.WriteLine($"Blosc error: nbytes: {nbytes}, nbytes2: {nb}, cbytes: {cb} arr size: {value.Length}, \n\r exeption: {ex.Message + Environment.NewLine + ex.ToString()}");
                             throw;
                         }
-
-                        Debug.Assert(decompSize == nbytes);
-                        pinnedArray.Free();
+                        finally
+                        {
+                            pinnedArray.Free();
+                        }
                     }
                 }
                 else

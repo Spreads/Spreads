@@ -1,17 +1,17 @@
 ﻿<#@ template debug="false" hostspecific="false" language="C#" #>
 <#@ output extension=".cs" #>
 <#
-	var sizes = new []
-	{
-		"4",
-		"8",
-        //"16",
-        "24",
-        "32",
-        "64",
-        "128",
-        "256"
-	};
+	var sizes = new string[0];
+	//{
+	//	"4",
+	//	"8",
+    //    //"16",
+    //    "24",
+    //    "32",
+    //    "64",
+    //    "128",
+    //    "256"
+	//};
 #>
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -35,7 +35,7 @@ namespace Spreads.DataTypes {
     #>
 
 	[DebuggerDisplay("{AsString}")]
-    public unsafe struct Symbol<#= size #> : IEquatable<Symbol<#= size #>>
+    internal unsafe struct SymbolX<#= size #> : IEquatable<Symbol<#= size #>>
     {
         private const int Size = <#= size #>;
         private fixed byte Bytes[Size];

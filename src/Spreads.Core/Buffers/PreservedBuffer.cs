@@ -20,23 +20,40 @@ namespace Spreads.Buffers
     /// </summary>
     public struct PreservedBuffer<T> : IDisposable
     {
-        public static bool TrackLeaks { get; set; }
-
         private DisposableReservation<T> _reservation;
 
+        /// <summary>
+        /// Create a new PreservedBuffer structure.
+        /// </summary>
+        /// <param name="buffer"></param>
         public PreservedBuffer(Buffer<T> buffer)
         {
             Buffer = buffer;
             _reservation = buffer.Reserve();
         }
 
-        public Buffer<T> Buffer { get; }
+        /// <summary>
+        /// Buffer
+        /// </summary>
+        public Buffer<T> Buffer { get; private set; }
 
+        /// <summary>
+        /// A shortcut to Buffer.Span property.
+        /// </summary>
+        public Span<T> Span => Buffer.Span;
+
+        /// <summary>
+        /// Release a reference of the underlying OwnedBuffer.
+        /// </summary>
         public void Dispose()
         {
             _reservation.Dispose();
+            Buffer = default(Buffer<T>);
         }
 
+        /// <summary>
+        /// Increment the underlying OwnedBuffer reference count and return a copy of this preserved buffer.
+        /// </summary>
         public PreservedBuffer<T> Clone()
         {
             return new PreservedBuffer<T>(Buffer);

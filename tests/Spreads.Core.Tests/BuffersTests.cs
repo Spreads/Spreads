@@ -72,10 +72,10 @@ namespace Spreads.Core.Tests
                 var sum = 0L;
                 for (var i = 0; i < count; i++)
                 {
-                    using (var wrapper = RecyclableMemoryManager.GetBuffer(RecyclableMemoryManager.StaticBufferSize))
+                    using (var wrapper = BufferPool.UseTempBuffer(BufferPool.StaticBufferSize))
                     {
-                        wrapper.Buffer[0] = 123;
-                        sum += wrapper.Buffer[0] + wrapper.Buffer[1];
+                        wrapper.Buffer.Span[0] = 123;
+                        sum += wrapper.Buffer.Span[0] + wrapper.Buffer.Span[1];
                     }
                 }
                 Assert.IsTrue(sum > 0);
@@ -86,10 +86,10 @@ namespace Spreads.Core.Tests
                 sum = 0L;
                 for (var i = 0; i < count; i++)
                 {
-                    using (var wrapper = RecyclableMemoryManager.GetBuffer(RecyclableMemoryManager.StaticBufferSize + 1))
+                    using (var wrapper = BufferPool.UseTempBuffer(BufferPool.StaticBufferSize + 1))
                     {
-                        wrapper.Buffer[0] = 123;
-                        sum += wrapper.Buffer[0] + wrapper.Buffer[1];
+                        wrapper.Buffer.Span[0] = 123;
+                        sum += wrapper.Buffer.Span[0] + wrapper.Buffer.Span[1];
                     }
                 }
                 Assert.IsTrue(sum > 0);
@@ -100,7 +100,7 @@ namespace Spreads.Core.Tests
                 sum = 0L;
                 for (var i = 0; i < count; i++)
                 {
-                    var buffer = BufferPool<byte>.Rent(RecyclableMemoryManager.StaticBufferSize);
+                    var buffer = BufferPool<byte>.Rent(BufferPool.StaticBufferSize);
                     buffer[0] = 123;
                     sum += buffer[0] + buffer[1];
                     BufferPool<byte>.Return(buffer, true);
@@ -113,7 +113,7 @@ namespace Spreads.Core.Tests
                 sum = 0L;
                 for (var i = 0; i < count; i++)
                 {
-                    var buffer = BufferPool<byte>.Rent(RecyclableMemoryManager.StaticBufferSize + 1);
+                    var buffer = BufferPool<byte>.Rent(BufferPool.StaticBufferSize + 1);
                     buffer[0] = 123;
                     sum += buffer[0] + buffer[1];
                     BufferPool<byte>.Return(buffer, true);
@@ -126,7 +126,7 @@ namespace Spreads.Core.Tests
                 sum = 0L;
                 for (var i = 0; i < count; i++)
                 {
-                    var buffer = new byte[RecyclableMemoryManager.StaticBufferSize];
+                    var buffer = new byte[BufferPool.StaticBufferSize];
                     buffer[0] = 123;
                     sum += buffer[0] + buffer[1];
                 }
@@ -138,7 +138,7 @@ namespace Spreads.Core.Tests
                 sum = 0L;
                 for (var i = 0; i < count; i++)
                 {
-                    var buffer = new byte[RecyclableMemoryManager.StaticBufferSize + 1];
+                    var buffer = new byte[BufferPool.StaticBufferSize + 1];
                     buffer[0] = 123;
                     sum += buffer[0] + buffer[1];
                 }

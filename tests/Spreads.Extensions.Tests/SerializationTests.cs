@@ -2,28 +2,22 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+using Newtonsoft.Json;
+using NUnit.Framework;
+using Spreads.Buffers;
+using Spreads.Collections;
+using Spreads.DataTypes;
+using Spreads.Serialization;
 using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using NUnit.Framework;
-using Spreads.Buffers;
-using Spreads.Collections;
-using Spreads.Serialization;
-using Newtonsoft.Json;
-using Spreads.Blosc;
-using Spreads.DataTypes;
 
 namespace Spreads.Extensions.Tests
 {
-
-
     [TestFixture]
     public class SerializationTests
     {
-
-
         [Test]
         public void CouldSerializeSortedMapWithJsonNet()
         {
@@ -56,32 +50,30 @@ namespace Spreads.Extensions.Tests
             Assert.AreEqual(len, len2);
 
             SortedMap<DateTime, double> sm2 = null;
-            BinarySerializer.Read<SortedMap<DateTime, double>>(dest, 0, ref sm2);
+            BinarySerializer.Read<SortedMap<DateTime, double>>(dest, 0, out sm2);
 
             Assert.IsTrue(sm.SequenceEqual(sm2));
         }
-
 
         [Test]
         public void CouldSerializeSortedMap()
         {
             SortedMap<DateTime, decimal>.Init();
             var rng = new Random();
-            var ptr = Marshal.AllocHGlobal(100000);
-            var db = new DirectBuffer(100000, ptr);
+            var buffer = new byte[100000];
             var sm = new SortedMap<DateTime, decimal>();
             for (var i = 0; i < 10000; i++)
             {
                 sm.Add(DateTime.Today.AddHours(i), (decimal)Math.Round(i + rng.NextDouble(), 2));
             }
-            var len = BinarySerializer.Write(sm, ref db, compression: CompressionMethod.Zstd);
+            var len = BinarySerializer.Write(sm, buffer, compression: CompressionMethod.Zstd);
             Console.WriteLine($"Useful: {sm.Count * 24.0}");
             Console.WriteLine($"Total: {len}");
             // NB interesting that with converting double to decimal savings go from 65% to 85%,
             // even calculated from (8+8) base size not decimal's 16 size
             Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 24.0))}");
             SortedMap<DateTime, decimal> sm2 = null;
-            var len2 = BinarySerializer.Read(db, 0, ref sm2);
+            var len2 = BinarySerializer.Read(buffer, 0, out sm2);
 
             Assert.AreEqual(len, len2);
 
@@ -95,8 +87,7 @@ namespace Spreads.Extensions.Tests
             SortedMap<DateTime, decimal>.Init();
             //BloscSettings.CompressionMethod = "zstd";
             var rng = new Random();
-            var ptr = Marshal.AllocHGlobal(10000);
-            var db = new DirectBuffer(10000, ptr);
+            var buffer = new byte[10000];
             var sm = new SortedMap<DateTime, decimal>();
             for (var i = 0; i < 1; i++)
             {
@@ -105,14 +96,14 @@ namespace Spreads.Extensions.Tests
 
             MemoryStream tmp;
             var size = BinarySerializer.SizeOf(sm, out tmp, CompressionMethod.Zstd);
-            var len = BinarySerializer.Write(sm, ref db, 0, tmp);
+            var len = BinarySerializer.Write(sm, buffer, 0, tmp);
             Console.WriteLine($"Useful: {sm.Count * 24}");
             Console.WriteLine($"Total: {len}");
             // NB interesting that with converting double to decimal savings go from 65% to 85%,
             // even calculated from (8+8) base size not decimal's 16 size
             Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 24.0))}");
             SortedMap<DateTime, decimal> sm2 = null;
-            var len2 = BinarySerializer.Read(db, 0, ref sm2);
+            var len2 = BinarySerializer.Read(buffer, 0, out sm2);
 
             Assert.AreEqual(len, len2);
 
@@ -125,8 +116,7 @@ namespace Spreads.Extensions.Tests
         {
             SortedMap<int, int>.Init();
             var rng = new Random();
-            var ptr = Marshal.AllocHGlobal(100000);
-            var db = new DirectBuffer(100000, ptr);
+            var buffer = new byte[100000];
             var sm = new SortedMap<int, int>();
             for (var i = 0; i < 10000; i++)
             {
@@ -134,7 +124,7 @@ namespace Spreads.Extensions.Tests
             }
             MemoryStream temp;
             var len = BinarySerializer.SizeOf(sm, out temp, CompressionMethod.LZ4);
-            var len2 = BinarySerializer.Write(sm, ref db, 0, temp, CompressionMethod.LZ4);
+            var len2 = BinarySerializer.Write(sm, buffer, 0, temp, CompressionMethod.LZ4);
             Assert.AreEqual(len, len2);
             Console.WriteLine($"Useful: {sm.Count * 8}");
             Console.WriteLine($"Total: {len}");
@@ -142,7 +132,7 @@ namespace Spreads.Extensions.Tests
             // even calculated from (8+8) base size not decimal's 16 size
             Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 8.0))}");
             SortedMap<int, int> sm2 = null;
-            var len3 = BinarySerializer.Read(db, 0, ref sm2);
+            var len3 = BinarySerializer.Read(buffer, 0, out sm2);
 
             Assert.AreEqual(len, len3);
 
@@ -150,28 +140,27 @@ namespace Spreads.Extensions.Tests
             Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
         }
 
-
         [Test]
         public void CouldSerializeIDiffableSortedMap()
         {
             //SortedMap<DateTime, MarketDepth2>.Init();
             var rng = new Random();
             var ptr = Marshal.AllocHGlobal(100000);
-            var db = new DirectBuffer(100000, ptr);
+            var buffer = new byte[100000];
             var sm = new SortedMap<DateTime, MarketDepth2>();
             for (var i = 1; i <= 10000; i++)
             {
                 sm.Add(DateTime.Today.AddHours(i),
                     new MarketDepth2(i, i, i, i, i, i, i, i, i, i, i, i));
             }
-            var len = BinarySerializer.Write(sm, ref db, compression: CompressionMethod.Zstd);
+            var len = BinarySerializer.Write(sm, buffer, compression: CompressionMethod.Zstd);
             Console.WriteLine($"Useful: {sm.Count * 24.0}");
             Console.WriteLine($"Total: {len}");
             // NB interesting that with converting double to decimal savings go from 65% to 85%,
             // even calculated from (8+8) base size not decimal's 16 size
             Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 24.0))}");
             SortedMap<DateTime, MarketDepth2> sm2 = null;
-            var len2 = BinarySerializer.Read(db, 0, ref sm2);
+            var len2 = BinarySerializer.Read(buffer, 0, out sm2);
 
             Assert.AreEqual(len, len2);
 

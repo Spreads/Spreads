@@ -16,6 +16,7 @@ using Spreads.Buffers;
 using Spreads.Serialization;
 using System.Runtime.CompilerServices;
 using Spreads.Utils;
+using System.Buffers;
 
 namespace Spreads.Core.Tests
 {
@@ -64,12 +65,12 @@ namespace Spreads.Core.Tests
                 throw new NotImplementedException();
             }
 
-            public int Write(MyPocoWithConvertor value, ref DirectBuffer destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+            public int Write(MyPocoWithConvertor value, ref Buffer<byte> destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
             {
                 throw new NotImplementedException();
             }
 
-            public int Read(IntPtr ptr, ref MyPocoWithConvertor value)
+            public int Read(IntPtr ptr, out MyPocoWithConvertor value)
             {
                 throw new NotImplementedException();
             }
@@ -130,17 +131,19 @@ namespace Spreads.Core.Tests
         }
 
         [Test]
-        public void CouldWriteBlittableStruct1()
+        public unsafe void CouldWriteBlittableStruct1()
         {
-            var ptr = Marshal.AllocHGlobal(1024);
-            var dest = new DirectBuffer(1024, ptr);
+            var dest = (OwnedBuffer<byte>)new byte[1024];
+            var buffer = dest.Buffer;
             var myBlittableStruct1 = new BlittableStruct1
             {
                 Value1 = 12345
             };
-            TypeHelper<BlittableStruct1>.Write(myBlittableStruct1, ref dest);
-            var newBlittableStruct1 = default(BlittableStruct1);
-            TypeHelper<BlittableStruct1>.Read(ptr, ref newBlittableStruct1);
+            TypeHelper<BlittableStruct1>.Write(myBlittableStruct1, ref buffer);
+
+            var handle = buffer.Pin();
+
+            TypeHelper<BlittableStruct1>.Read((IntPtr)handle.PinnedPointer, out var newBlittableStruct1);
             Assert.AreEqual(myBlittableStruct1.Value1, newBlittableStruct1.Value1);
         }
 
@@ -161,18 +164,19 @@ namespace Spreads.Core.Tests
         //}
 
         [Test]
-        public void CouldWriteArray()
+        public unsafe void CouldWriteArray()
         {
-            var ptr = Marshal.AllocHGlobal(1024);
-            var dest = new DirectBuffer(1024, ptr);
+            var dest = (OwnedBuffer<byte>)new byte[1024];
+            var buffer = dest.Buffer;
             var myArray = new int[2];
             myArray[0] = 123;
             myArray[1] = 456;
 
-            TypeHelper<int[]>.Write(myArray, ref dest);
+            TypeHelper<int[]>.Write(myArray, ref buffer);
 
-            var newArray = default(int[]);
-            TypeHelper<int[]>.Read(ptr, ref newArray);
+            var handle = buffer.Pin();
+
+            TypeHelper<int[]>.Read((IntPtr)handle.PinnedPointer, out var newArray);
             Assert.IsTrue(myArray.SequenceEqual(newArray));
         }
 
@@ -210,24 +214,26 @@ namespace Spreads.Core.Tests
         //}
 
         [Test]
-        public void CouldCreateNongenericDelegates()
+        public unsafe void CouldCreateNongenericDelegates()
         {
-            var ptr = Marshal.AllocHGlobal(1024);
-            var buffer = new DirectBuffer(1024, ptr);
+            var dest = (OwnedBuffer<byte>)new byte[1024];
+            var buffer = dest.Buffer;
+            var handle = buffer.Pin();
+            var ptr = (IntPtr)handle.PinnedPointer;
 
             var fromPtrInt = TypeHelper.GetFromPtrDelegate(typeof(int));
 
             TypeHelper<int>.Write(12345, ref buffer);
 
             object res = null;
-            fromPtrInt(ptr, ref res);
+            fromPtrInt(ptr, out res);
             Assert.AreEqual((int)res, 12345);
 
             var toPtrInt = TypeHelper.GetToPtrDelegate(typeof(int));
             toPtrInt(42, ref buffer);
 
             int temp = 0;
-            TypeHelper<int>.Read(ptr, ref temp);
+            TypeHelper<int>.Read(ptr, out temp);
             Assert.AreEqual(42, temp);
 
             var sizeOfInt = TypeHelper.GetSizeOfDelegate(typeof(int));

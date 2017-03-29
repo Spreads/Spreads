@@ -5,6 +5,7 @@
 using System;
 using System.IO;
 using Spreads.Buffers;
+using System.Buffers;
 
 namespace Spreads.Serialization
 {
@@ -47,22 +48,34 @@ namespace Spreads.Serialization
 
         /// <summary>
         /// Returns the size of serialized bytes including the version+lenght header.
-        /// For types with non-fixed size this method could serialize value into the temporaryStream if it is not
+        /// For types with non-fixed size this method could serialize value into a temporary stream if it is not
         /// possible to calculate serialized bytes length without actually performing serialization.
         /// The stream temporaryStream contains a header and its length is equal to the returned value.
         /// </summary>
+        /// <param name="value">A value to serialize.</param>
+        /// <param name="temporaryStream">A stream a value is serialized into if it is not possible to calculate serialized buffer size
+        /// without actually performing serialization.</param>
+        /// <param name="compression">Compression method.</param>
+        /// <returns></returns>
         int SizeOf(T value, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
         /// <summary>
-        /// Write serialized value to the buffer at offset if there is enough capacity
+        /// Write serialized value to the buffer at offset if there is enough capacity.
         /// </summary>
-        int Write(T value, ref DirectBuffer destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone);
+        /// <param name="value">A value to serialize.</param>
+        /// <param name="destination">A buffer to serialize the value into.</param>
+        /// <param name="offset">Buffer offset.</param>
+        /// <param name="temporaryStream">A stream that was returned by SizeOf method. If it is not null then its content is written to the buffer.</param>
+        /// <param name="compression">Compression method.</param>
+        /// <exception cref=""></exception>
+        /// <returns>Returns the number of bytes written to the destination buffer or a negative error code that corresponds to <see cref="BinaryConverterErrorCode"/>.</returns>
+        int Write(T value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
         /// <summary>
         /// Reads new value or fill existing value with data from the pointer,
         /// returns number of bytes read including any header.
         /// If not IsFixedSize, checks that version from the pointer equals the Version property.
         /// </summary>
-        int Read(IntPtr ptr, ref T value);
+        int Read(IntPtr ptr, out T value);
     }
 }

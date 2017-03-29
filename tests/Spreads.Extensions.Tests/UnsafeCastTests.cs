@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Serialization;
+using System.Buffers;
 
 namespace Spreads.Extensions.Tests {
 
@@ -31,9 +32,14 @@ namespace Spreads.Extensions.Tests {
         }
 
         [Test]
-        public void DateTimeIsBlittable() {
-            var ptr = Marshal.AllocHGlobal(10000);
-            var buffer = new DirectBuffer(10000, ptr);
+        public unsafe void DateTimeIsBlittable() {
+
+
+            var dest = (OwnedBuffer<byte>)new byte[10000];
+            var buffer = dest.Buffer;
+            var handle = buffer.Pin();
+            var ptr = (IntPtr)handle.PinnedPointer;
+
             Assert.IsTrue(TypeHelper<StructWithDateTime>.Size > 0);
             Assert.IsTrue(TypeHelper<KVPair<long, double>>.Size > 0);
 
@@ -46,7 +52,7 @@ namespace Spreads.Extensions.Tests {
             TypeHelper<StructWithDateTime>.Write(str, ref buffer, 0);
 
             var str2 = default(StructWithDateTime);
-            TypeHelper<StructWithDateTime>.Read(ptr, ref str2);
+            TypeHelper<StructWithDateTime>.Read(ptr, out str2);
 
             Assert.AreEqual(str.Dt, str2.Dt);
             Assert.AreEqual(str.Dbl, str2.Dbl);

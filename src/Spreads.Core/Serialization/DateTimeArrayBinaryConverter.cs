@@ -3,9 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.IO;
-using Spreads.Buffers;
+using System.Runtime.InteropServices;
 
 namespace Spreads.Serialization
 {
@@ -29,7 +30,7 @@ namespace Spreads.Serialization
             }
         }
 
-        public unsafe int Write(DateTime[] value, ref DirectBuffer destination, uint offset = 0, MemoryStream temporaryStream = null,
+        public unsafe int Write(DateTime[] value, ref Buffer<byte> destination, uint offset = 0, MemoryStream temporaryStream = null,
             CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (compression == CompressionMethod.DefaultOrNone)
@@ -40,13 +41,28 @@ namespace Spreads.Serialization
                 {
                     return (int)BinaryConverterErrorCode.NotEnoughCapacity;
                 }
-                for (var i = 0; i < value.Length; i++)
+
+                var handle = destination.Pin();
+                try
                 {
-                    *(DateTime*)(destination.Data + (int)offset + 8 + i * 8) = value[i];
+                    var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
+
+                    for (var i = 0; i < value.Length; i++)
+                    {
+                        *(DateTime*)(ptr + 8 + i * 8) = value[i];
+                    }
+                    // size
+                    Marshal.WriteInt32(ptr, length);
+                    // version
+                    Debug.Assert(Version == 0, "all flags and version are zero for default impl");
+                    Marshal.WriteByte(ptr + 4, Version);
+
+                    return length;
                 }
-                destination.WriteInt32(offset, length);
-                destination.WriteByte(offset + 4, Version);
-                return length;
+                finally
+                {
+                    handle.Free();
+                }
             }
             else
             {
@@ -54,17 +70,15 @@ namespace Spreads.Serialization
             }
         }
 
-        public unsafe int Read(IntPtr ptr, ref DateTime[] value)
+        public unsafe int Read(IntPtr ptr, out DateTime[] value)
         {
             var isCompressed = ((*(int*)(ptr + 4)) & 0b0000_0001) != 0;
             if (!isCompressed)
             {
                 var len = *(int*)ptr;
                 var arrLen = (len - 8) / 8;
-                if (value == null || value.Length < arrLen)
-                {
-                    value = new DateTime[arrLen];
-                }
+                value = new DateTime[arrLen];
+
                 for (int i = 0; i < arrLen; i++)
                 {
                     value[i] = *(DateTime*)(ptr + 8 + i * 8);
@@ -73,9 +87,8 @@ namespace Spreads.Serialization
             }
             else
             {
-                ArraySegment<DateTime> tmp = default(ArraySegment<DateTime>);
-                var len = CompressedArrayBinaryConverter<DateTime>.Instance.Read(ptr, ref tmp, true);
-                value = tmp.Array;
+                var len = CompressedArrayBinaryConverter<DateTime>.Instance.Read(ptr, out var tmp, out int count, true);
+                value = tmp;
                 return len;
             }
         }

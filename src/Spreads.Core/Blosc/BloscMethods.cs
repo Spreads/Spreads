@@ -12,10 +12,18 @@ using Spreads.Serialization;
 
 namespace Spreads.Blosc
 {
+    // TODO Move to global Settings
+
+    /// <summary>
+    /// Blosc settings.
+    /// </summary>
     public static class BloscSettings
     {
         internal static string defaultCompressionMethod = "lz4";
 
+        /// <summary>
+        /// Get or set default compression method (LZ4 or Zstd). Initially the value is LZ4.
+        /// </summary>
         public static CompressionMethod CompressionMethod
         {
             get => defaultCompressionMethod == "lz4" ? CompressionMethod.LZ4 : CompressionMethod.Zstd;
@@ -23,7 +31,6 @@ namespace Spreads.Blosc
             {
                 if (value == CompressionMethod.Zstd)
                 {
-                    Trace.TraceWarning("Zstd support is experimental");
                     defaultCompressionMethod = "zstd";
                 }
                 else

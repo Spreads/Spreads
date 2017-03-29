@@ -6,6 +6,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using Spreads.Buffers;
+using System.Buffers;
 
 namespace Spreads.Serialization
 {
@@ -21,15 +22,21 @@ namespace Spreads.Serialization
             return checked((int)value.Length + 8);
         }
 
-        public unsafe int Write(MemoryStream value, ref DirectBuffer destination, uint offset, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public unsafe int Write(MemoryStream value, ref Buffer<byte> destination, uint offset, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (temporaryStream != null) throw new NotSupportedException("MemoryStreamBinaryConverter does not work with temp streams.");
 
             if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(temporaryStream), "Memory stream is too large");
 
             var totalLength = checked((int)value.Length + 8);
-            if (!destination.HasCapacity(offset, totalLength)) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-            var ptr = destination.Data + (int)offset;
+            if (destination.Length < offset + totalLength)
+            {
+                return (int)BinaryConverterErrorCode.NotEnoughCapacity;
+            }
+
+            var handle = destination.Pin();
+
+            var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
             // size
             Marshal.WriteInt32(ptr, totalLength);
             // version
@@ -37,12 +44,14 @@ namespace Spreads.Serialization
 
             // payload
             ptr = ptr + 8;
-
             value.WriteToPtr(ptr);
+
+            handle.Free();
+
             return totalLength;
         }
 
-        public int Read(IntPtr ptr, ref MemoryStream value)
+        public int Read(IntPtr ptr, out MemoryStream value)
         {
             var length = Marshal.ReadInt32(ptr);
             var version = Marshal.ReadInt32(ptr + 4);

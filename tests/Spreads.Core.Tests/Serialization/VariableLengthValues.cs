@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.DataTypes;
 using System;
+using System.Buffers;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -15,7 +16,7 @@ namespace Spreads.Core.Tests.Serialization
         [Test, Ignore]
         public void CouldCreateSortemMapWithMemoryTAsValue()
         {
-            var sm = new SortedMap<DateTime, Memory<Tick>>();
+            var sm = new SortedMap<DateTime, Buffer<Tick>>();
             var rng = new System.Random();
             for (int i = 0; i < 1000; i++)
             {

@@ -1,6 +1,7 @@
 ﻿using Spreads.Buffers;
 using Spreads.Serialization;
 using System;
+using System.Buffers;
 using System.Linq;
 using System.Runtime.InteropServices;
 
@@ -15,18 +16,22 @@ namespace Spreads.Core.Run
             Console.ReadLine();
         }
 
-        static void LZ4()
+        static unsafe void LZ4()
         {
             var rng = new Random();
-            var ptr = Marshal.AllocHGlobal(1000000);
-            var db = new DirectBuffer(1000000, ptr);
+
+            var dest = (OwnedBuffer<byte>)new byte[1000000];
+            var buffer = dest.Buffer;
+            var handle = buffer.Pin();
+            var ptr = (IntPtr)handle.PinnedPointer;
+
             var source = new decimal[10000];
             for (var i = 0; i < 10000; i++)
             {
                 source[i] = i;
             }
 
-            var len = BinarySerializer.Write(source, ref db, 0, null,
+            var len = BinarySerializer.Write(source, ref buffer, 0, null,
                 CompressionMethod.LZ4);
 
             Console.WriteLine($"Useful: {source.Length * 16}");
@@ -34,27 +39,32 @@ namespace Spreads.Core.Run
 
             var destination = new decimal[10000];
 
-            var len2 = BinarySerializer.Read(db, ref destination);
+            var len2 = BinarySerializer.Read(buffer, out destination);
 
             if (source.SequenceEqual(destination))
             {
                 Console.WriteLine("LZ4 OK");
             }
+            handle.Free();
 
         }
 
-        static void Zstd()
+        static unsafe void Zstd()
         {
             var rng = new Random();
-            var ptr = Marshal.AllocHGlobal(1000000);
-            var db = new DirectBuffer(1000000, ptr);
+
+            var dest = (OwnedBuffer<byte>)new byte[1000000];
+            var buffer = dest.Buffer;
+            var handle = buffer.Pin();
+            var ptr = (IntPtr)handle.PinnedPointer;
+
             var source = new decimal[10000];
             for (var i = 0; i < 10000; i++)
             {
                 source[i] = i;
             }
 
-            var len = BinarySerializer.Write(source, ref db, 0, null,
+            var len = BinarySerializer.Write(source, ref buffer, 0, null,
                 CompressionMethod.Zstd);
 
             Console.WriteLine($"Useful: {source.Length * 16}");
@@ -62,13 +72,13 @@ namespace Spreads.Core.Run
 
             var destination = new decimal[10000];
 
-            var len2 = BinarySerializer.Read(db, ref destination);
+            var len2 = BinarySerializer.Read(buffer, out destination);
 
             if (source.SequenceEqual(destination))
             {
                 Console.WriteLine("Zstd OK");
             }
-            
+            handle.Free();
         }
     }
 }

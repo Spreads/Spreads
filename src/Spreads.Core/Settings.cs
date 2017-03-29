@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace Spreads
 {
+    /// <summary>
+    /// Global settings.
+    /// </summary>
     public static class Settings
     {
         /// <summary>
