@@ -38,7 +38,7 @@ namespace Spreads.Core.Tests.Collections
                 {
                     for (int j = 0; j < 1000; j++)
                     {
-                        sum += d[j] & j;
+                        sum += d[j];
                     }
                 }
                 sw.Stop();
@@ -52,7 +52,7 @@ namespace Spreads.Core.Tests.Collections
                 {
                     for (int j = 0; j < 1000; j++)
                     {
-                        sum += fd[j] & j;
+                        sum += fd[j];
                     }
                 }
                 sw.Stop();
@@ -88,7 +88,7 @@ namespace Spreads.Core.Tests.Collections
                 {
                     for (int j = 0; j < 1000; j++)
                     {
-                        sum += d[symbols[j]] & j;
+                        sum += d[symbols[j]];
                     }
                 }
                 sw.Stop();
@@ -102,7 +102,7 @@ namespace Spreads.Core.Tests.Collections
                 {
                     for (int j = 0; j < 1000; j++)
                     {
-                        sum += fd[symbols[j]] & j;
+                        sum += fd[symbols[j]];
                     }
                 }
                 sw.Stop();

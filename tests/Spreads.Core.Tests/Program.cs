@@ -5,6 +5,7 @@
 using System;
 using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Enumerators;
+using Spreads.Core.Tests.Collections;
 
 namespace Spreads.Core.Tests
 {
@@ -12,9 +13,9 @@ namespace Spreads.Core.Tests
     {
         private static void Main(string[] args)
         {
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 3; i++)
             {
-                (new TimeSliceTests()).CouldAggregate();
+                (new KeyComparerTests()).ComparerInterfaceAndCachedConstrainedComparer();
             }
 
             Console.ReadLine();
