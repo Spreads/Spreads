@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-// Original code is based on CoreCLR Dictoinary, MIT licensed:
+// Original code is based on CoreCLR Dictoinary<TKey, TValue>, MIT licensed:
 
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
@@ -47,6 +47,7 @@ namespace Spreads.Collections.Generic
     public class FastDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue>
         where TKey : IEquatable<TKey>
     {
+        private static TValue[] dafuleValue = new TValue[1];
         private struct Entry
         {
             public int hashCode;    // Lower 31 bits of hash code, -1 if unused
@@ -213,7 +214,7 @@ namespace Spreads.Collections.Generic
             }
         }
 
-        public TValue this[TKey key]
+        TValue IDictionary<TKey, TValue>.this[TKey key]
         {
             get
             {
@@ -226,6 +227,28 @@ namespace Spreads.Collections.Generic
             {
                 bool modified = TryInsert(key, value, InsertionBehavior.OverwriteExisting);
                 Debug.Assert(modified);
+            }
+        }
+
+        TValue IReadOnlyDictionary<TKey, TValue>.this[TKey key]
+        {
+            get
+            {
+                int i = FindEntry(key);
+                if (i >= 0) return entries[i].value;
+                ThrowHelper.ThrowKeyNotFoundException();
+                return default(TValue);
+            }
+        }
+
+        public ref TValue this[TKey key]
+        {
+            get
+            {
+                int i = FindEntry(key);
+                if (i >= 0) return ref entries[i].value;
+                ThrowHelper.ThrowKeyNotFoundException();
+                return ref dafuleValue[0];
             }
         }
 

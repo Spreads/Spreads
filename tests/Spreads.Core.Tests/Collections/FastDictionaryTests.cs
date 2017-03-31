@@ -46,18 +46,19 @@ namespace Spreads.Core.Tests.Collections
 
                 Assert.True(sum > 0);
 
-                sum = 0L;
+                var sum1 = 0L;
                 sw.Restart();
                 for (int i = 0; i < count; i++)
                 {
                     for (int j = 0; j < 1000; j++)
                     {
-                        sum += fd[j];
+                        sum1 += fd[j];
                     }
                 }
                 sw.Stop();
                 Console.WriteLine($"FastDictionary {sw.ElapsedMilliseconds}");
                 Assert.True(sum > 0);
+                Assert.AreEqual(sum, sum1);
             }
         }
 
