@@ -138,6 +138,7 @@
   <ItemGroup>
     <Compile Include="AwaiterTests.cs" />
     <Compile Include="Algorithms\MovingMedianTests.cs" />
+    <Compile Include="Collections\FastDictionaryTests.cs" />
     <Compile Include="ColumnsTests.cs" />
     <Compile Include="DataTypes\PriceTests.cs" />
     <Compile Include="DataTypes\TypeFlattenerTests.cs" />
