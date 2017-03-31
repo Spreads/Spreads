@@ -18,10 +18,10 @@ namespace Spreads.Core.Tests.Collections
         {
             var c = Comparer<long>.Default;
             IComparer<long> ic = Comparer<long>.Default;
-            var cc = KeyComparer<long>.Instance;
-            var manualcc = new ConstrainedKeyComparer<long>();
+            var cc = KeyComparer<long>.Default;
+            //var manualcc = new ConstrainedKeyComparerLong();
 
-            const int count = 500000000;
+            const long count = 500000000L;
 
             var sw = new Stopwatch();
 
@@ -29,9 +29,9 @@ namespace Spreads.Core.Tests.Collections
             {
                 var sum = 0L;
                 sw.Restart();
-                for (int i = 0; i < count; i++)
+                for (long i = 0; i < count; i++)
                 {
-                    sum += c.Compare(i, i - 1);
+                    sum += c.Compare(i, i - 1L);
                 }
                 sw.Stop();
                 Console.WriteLine($"Default comparer: {sw.ElapsedMilliseconds}");
@@ -40,9 +40,9 @@ namespace Spreads.Core.Tests.Collections
 
                 sum = 0L;
                 sw.Restart();
-                for (int i = 0; i < count; i++)
+                for (long i = 0; i < count; i++)
                 {
-                    sum += ic.Compare(i, i - 1);
+                    sum += ic.Compare(i, i - 1L);
                 }
                 sw.Stop();
                 Console.WriteLine($"Interface comparer: {sw.ElapsedMilliseconds}");
@@ -51,23 +51,23 @@ namespace Spreads.Core.Tests.Collections
 
                 sum = 0L;
                 sw.Restart();
-                for (int i = 0; i < count; i++)
+                for (long i = 0; i < count; i++)
                 {
-                    sum += cc.Compare(i, i - 1);
+                    sum += cc.Compare(i, i - 1L);
                 }
                 sw.Stop();
                 Console.WriteLine($"Constrained comparer: {sw.ElapsedMilliseconds}");
                 Assert.True(sum > 0);
 
-                sum = 0L;
-                sw.Restart();
-                for (int i = 0; i < count; i++)
-                {
-                    sum += manualcc.Compare(i, i - 1);
-                }
-                sw.Stop();
-                Console.WriteLine($"Manual constrained comparer: {sw.ElapsedMilliseconds}");
-                Assert.True(sum > 0);
+                //sum = 0L;
+                //sw.Restart();
+                //for (long i = 0; i < count; i++)
+                //{
+                //    sum += manualcc.Compare(i, i - 1L);
+                //}
+                //sw.Stop();
+                //Console.WriteLine($"Manual constrained comparer: {sw.ElapsedMilliseconds}");
+                //Assert.True(sum > 0);
             }
         }
     }
