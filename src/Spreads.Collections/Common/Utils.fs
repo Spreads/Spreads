@@ -6,12 +6,10 @@
 namespace Spreads
 
 open System
-open System.IO
 open System.Threading
 open System.Threading.Tasks
 open System.Diagnostics
 open System.Runtime.CompilerServices
-//open System.Runtime.ConstrainedExecution
 
 [<AutoOpenAttribute>]
 module TestUtils =
@@ -34,14 +32,9 @@ module TestUtils =
     let gen2 = GC.CollectionCount(2) - gen2;
     let gen3 = GC.CollectionCount(3) - gen3;
     let p = (1000L * count/sw.ElapsedMilliseconds)
-    //int p, int((endtMem - startMem)/1024L)
     Console.WriteLine(message + ", #{0}, ops: {1}, pm: {2}, em: {3}, g+: {4}", 
       count.ToString(), p.ToString(), ((peakMem - startMem)/count).ToString(), ((endMem - startMem)/count).ToString(), gen0+gen1+gen2+gen3)
-//
-//    Console.WriteLine(message + ", #{0}, ops: {1}, \n\r\t pm: {2}, em: {3}, g0: {4}, g1: {5}, g2: {6}, g3: {7}", 
-//      count.ToString(), p.ToString(), ((peakMem - startMem)/count).ToString(), ((endMem - startMem)/count).ToString(), gen0, gen1, gen2, gen3)
 
-// TODO clean up this from unused snippets
 
 [<AutoOpen>]
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
@@ -118,11 +111,6 @@ module internal Utils =
 
   
 
-
-
-
-// TODO add back cancellation. this was taken from F#x and stripped from everything that is not needed for MoveNextAsync in cursors
-
 [<AutoOpenAttribute>]
 module TaskModule =
   let trueTask = Task.FromResult(true)
@@ -131,120 +119,56 @@ module TaskModule =
     let tcs = new TaskCompletionSource<bool>()
     tcs.SetCanceled()
     tcs.Task
-//  let inline konst a _ = a
 
-  /// Task result
-//  type Result<'T> = 
-//      /// Task was canceled
-//      | Canceled
-//      /// Unhandled exception in task
-//      | Error of exn 
-//      /// Task completed successfully
-//      | Successful of 'T
 
-//  let run (t: unit -> Task<_>) = 
-//      try
-//          let task = t()
-//          task.Result |> Result.Successful
-//      with 
-//      | :? OperationCanceledException -> Result.Canceled
-//      | :? AggregateException as e ->
-//          match e.InnerException with
-//          | :? TaskCanceledException -> Result.Canceled
-//          | _ -> Result.Error e
-//      | e -> Result.Error e
-
-//  let toAsync (t: Task<'T>): Async<'T> =
-//      let abegin (cb: AsyncCallback, state: obj) : IAsyncResult = 
-//          match cb with
-//          | null -> upcast t
-//          | cb -> 
-//              t.ContinueWith(fun (_ : Task<_>) -> cb.Invoke t) |> ignore
-//              upcast t
-//      let aend (r: IAsyncResult) = 
-//          (r :?> Task<'T>).Result
-//      Async.FromBeginEnd(abegin, aend)
-
-  /// Transforms a Task's first value by using a specified mapping function.
-//  let inline mapWithOptions (token: CancellationToken) (continuationOptions: TaskContinuationOptions) (scheduler: TaskScheduler) f (m: Task<_>) =
-//      m.ContinueWith((fun (t: Task<_>) -> f t.Result), token, continuationOptions, scheduler)
-//
-//  /// Transforms a Task's first value by using a specified mapping function.
-//  let inline map f (m: Task<_>) =
-//      m.ContinueWith(fun (t: Task<_>) -> f t.Result)
-
-  let inline bind  (f: 'T -> Task<'U>) (m: Task<'T>) =
-      if m.IsCompleted then f m.Result
-      else
-        let tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<_>.Create()) // new TaskCompletionSource<_>() // NB do not allocate objects
-        let t = tcs.Task
-        let awaiter = m.GetAwaiter() // NB this is faster than ContinueWith
-        awaiter.OnCompleted(fun _ -> tcs.SetResult(f m.Result))
-        t.Unwrap()
-        //m.ContinueWith((fun (x: Task<_>) -> f x.Result)).Unwrap()
-
-//  let inline bind (f: 'T -> Task<'U>) (m: Task<'T>) = 
-//      m.ContinueWith(fun (x: Task<_>) -> f x.Result).Unwrap()
+  let inline bind (f: 'T -> Task<'U>) (m: Task<'T>) =
+    if m.Status = TaskStatus.RanToCompletion then f m.Result
+    elif m.IsCanceled then TaskEx.FromCanceled<'U>(CancellationToken.None)
+    elif m.IsFaulted then TaskEx.FromException<'U>(m.Exception)
+    else
+      let tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<_>.Create()) // new TaskCompletionSource<_>() // NB do not allocate objects
+      let t = tcs.Task
+      let awaiter = m.GetAwaiter() // NB this is faster than ContinueWith
+      awaiter.OnCompleted(fun _ -> 
+        if m.IsCanceled then tcs.SetException(OperationCanceledException())
+        elif m.IsCompleted then tcs.SetResult(f m.Result)
+        else tcs.SetException(m.Exception)
+        )
+      t.Unwrap()
 
   let inline returnM a = Task.FromResult(a)
 
-  let inline bindBool  (f: bool -> Task<bool>) (m: Task<bool>) =
-      if m.IsCompleted then f m.Result
-      else
-        let tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<_>.Create()) // new TaskCompletionSource<_>() // NB do not allocate objects
-        let t = tcs.Task
-        let awaiter = m.GetAwaiter() // NB this is faster than ContinueWith
-        awaiter.OnCompleted(fun _ -> tcs.SetResult(f m.Result))
-        t.Unwrap()
+
+  let inline bindBool (f: bool -> Task<bool>) (m: Task<bool>) =
+    if m.Status = TaskStatus.RanToCompletion then f m.Result
+    elif m.IsCanceled || m.IsFaulted then m
+    else
+      let tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<_>.Create()) // new TaskCompletionSource<_>() // NB do not allocate objects
+      let t = tcs.Task
+      let awaiter = m.GetAwaiter() // NB this is faster than ContinueWith
+      awaiter.OnCompleted(fun _ -> 
+        if m.IsCanceled then tcs.SetResult(m)
+        elif m.IsCompleted then tcs.SetResult(f m.Result)
+        else tcs.SetResult(TaskEx.FromException<bool>(m.Exception))
+      )
+      t.Unwrap()
 
   let inline returnMBool (a:bool) = if a then trueTask else falseTask
 
-//  /// Sequentially compose two actions, passing any value produced by the first as an argument to the second.
-//  let inline (>>=) m f = bind f m
-//
-//  /// Flipped >>=
-//  let inline (=<<) f m = bind f m
-//
-//  /// Sequentially compose two either actions, discarding any value produced by the first
-//  let inline (>>.) m1 m2 = m1 >>= (fun _ -> m2)
-//
-//  /// Left-to-right Kleisli composition
-//  let inline (>=>) f g = fun x -> f x >>= g
-//
-//  /// Right-to-left Kleisli composition
-//  //let inline (<=<) x = flip (>=>) x
-//
-//  /// Promote a function to a monad/applicative, scanning the monadic/applicative arguments from left to right.
-//  let inline lift2 f a b = 
-//      a >>= fun aa -> b >>= fun bb -> f aa bb |> returnM
-//
-//  /// Sequential application
-//  let inline ap x f = lift2 id f x
-//
-//  /// Sequential application
-//  let inline (<*>) f x = ap x f
-//
-//  /// Infix map
-//  let inline (<!>) f x = map f x
-//
-//  /// Sequence actions, discarding the value of the first argument.
-//  let inline ( *>) a b = lift2 (fun _ z -> z) a b
-//
-//  /// Sequence actions, discarding the value of the second argument.
-//  let inline ( <*) a b = lift2 (fun z _ -> z) a b
-    
   type TaskBuilder(?continuationOptions, ?scheduler, ?cancellationToken) =
       let contOptions = defaultArg continuationOptions TaskContinuationOptions.None
       let scheduler = defaultArg scheduler TaskScheduler.Default
       let cancellationToken = defaultArg cancellationToken CancellationToken.None
 
-      member this.Return x = returnM x
+      member inline this.Return x = returnM x
 
-      member this.Zero() = returnM()
+      member inline this.Zero() = returnM()
 
-      member this.ReturnFrom (a: Task<'T>) = a
+      member inline this.ReturnFrom (a: Task<'T>) = a
 
-      member this.Bind(m, f) = bind f m // bindWithOptions cancellationToken contOptions scheduler f m
+      member inline this.Bind(m, f) = bind f m
+
+      //member this.Bind(m, f) = bindBool f m // bindWithOptions cancellationToken contOptions scheduler f m
 
       member this.Combine(comp1, comp2) =
           this.Bind(comp1, comp2)

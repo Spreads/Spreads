@@ -345,7 +345,9 @@ type BindCursor<'K,'V,'State,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
           Trace.Assert(found && hasValidState, "When MN returns false due to the end of series, valid state should remain ")
           #endif
           return true
-      else return this.MoveFirst()
+      else
+        // TODO! this will return false instead of waiting for empty series
+        return this.MoveFirst()
     }
 
   member this.TryGetValue(key: 'K, [<Out>] value: byref<'R>): bool = 
@@ -717,6 +719,7 @@ type SimpleBindCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>) =
             return true
           else
             //let mutable found = false
+            // TODO (WTF!) why this line not in the loop, cannot remember, need to review & test
             let! moved' = inputCursor.MoveNext(cancellationToken)
             while not hasValidState && moved' do
               #if DEBUG

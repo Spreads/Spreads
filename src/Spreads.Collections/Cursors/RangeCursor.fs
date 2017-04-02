@@ -54,6 +54,13 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
 
   member val CurrentBatch = Unchecked.defaultof<_> with get, set
 
+  member this.MoveNext(): bool =
+      if started then
+        if this.InputCursor.MoveNext() && endOk this.InputCursor.CurrentKey then
+          true
+        else false
+      else (this :> ICursor<'K,'V>).MoveFirst()
+
   member this.Reset() =
     started <- false
     cursor.Reset()
@@ -63,12 +70,7 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
 
   interface IEnumerator<KVP<'K,'V>> with    
     member this.Reset() = this.Reset()
-    member this.MoveNext(): bool =
-      if started then
-        if this.InputCursor.MoveNext() && endOk this.InputCursor.CurrentKey then
-          true
-        else false
-      else (this :> ICursor<'K,'V>).MoveFirst()
+    member this.MoveNext(): bool = this.MoveNext()
     member this.Current with get(): KVP<'K,'V> = this.Current
     member this.Current with get(): obj = this.Current :> obj 
     member x.Dispose(): unit = x.Dispose()
