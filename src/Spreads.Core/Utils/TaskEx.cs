@@ -32,12 +32,12 @@ namespace Spreads
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public static Task<T> GetCancelled() {
+            public static Task<T> GetCancelled(CancellationToken cancellationToken) {
                 if (Cancelled != null) return Cancelled;
-                var tcs = new TaskCompletionSource<T>();
-                tcs.SetCanceled();
-                Cancelled = tcs.Task;
-                return Cancelled;
+                var tcs = AsyncTaskMethodBuilder<T>.Create(); // new TaskCompletionSource<T>();
+                var t = tcs.Task;
+                tcs.SetException(new OperationCanceledException(cancellationToken));
+                return t;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -54,7 +54,7 @@ namespace Spreads
         public static Task<T> FromCanceled<T>(CancellationToken cancellationToken)
         {
 #if NET451
-            return TaskExCache<T>.GetCancelled();
+            return TaskExCache<T>.GetCancelled(cancellationToken);
 #else
             return Task.FromCanceled<T>(cancellationToken);
 #endif

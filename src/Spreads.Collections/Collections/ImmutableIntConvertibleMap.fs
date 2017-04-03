@@ -60,6 +60,7 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
 
 
     interface IImmutableSeries<'K, 'V> with
+        member this.Updated = falseTask
         member this.Subscribe(observer) = raise (NotImplementedException())
         member this.Comparer with get() = (this :> IImmutableSeries<'K, 'V>).GetCursor().Comparer
         member this.GetEnumerator() = new MapCursor<'K, 'V>(this) :> IAsyncEnumerator<KVP<'K, 'V>>

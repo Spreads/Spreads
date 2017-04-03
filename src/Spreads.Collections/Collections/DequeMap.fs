@@ -13,6 +13,7 @@ open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
 
+// TODO NotifyUpdate is not used
 
 open Spreads
 open Spreads.Collections

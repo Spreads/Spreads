@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Collections.Concurrent;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,10 +11,10 @@ using System.Threading.Tasks;
 
 namespace Spreads
 {
-    public class BaseCursorAsync<TK, TV, TCursor> : ICursor<TK, TV>
+    internal sealed class BaseCursorAsync<TK, TV, TCursor> : ICursor<TK, TV>
         where TCursor : ICursor<TK, TV>
     {
-        private static readonly BoundedConcurrentBag<BaseCursorAsync<TK, TV, TCursor>> Pool = new BoundedConcurrentBag<BaseCursorAsync<TK, TV, TCursor>>(Environment.ProcessorCount * 16);
+        //private static readonly BoundedConcurrentBag<BaseCursorAsync<TK, TV, TCursor>> Pool = new BoundedConcurrentBag<BaseCursorAsync<TK, TV, TCursor>>(Environment.ProcessorCount * 16);
 
         private BaseSeries<TK, TV> _source;
 
@@ -23,10 +22,8 @@ namespace Spreads
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         private TCursor _innerCursor;
 
-        private TaskCompletionSource<long> _unusedTcs;
         private TaskCompletionSource<Task<bool>> _cancelledTcs;
         private CancellationTokenRegistration _registration;
-
         private CancellationToken _token;
 
         // NB factory could be more specific than GetCursor method of the source, which returns an interface
@@ -61,7 +58,6 @@ namespace Spreads
             _innerCursor?.Dispose();
             _innerCursor = default(TCursor);
 
-            _unusedTcs = null;
             _cancelledTcs = null;
             _registration.Dispose();
             _registration = default(CancellationTokenRegistration);
@@ -81,39 +77,11 @@ namespace Spreads
                 return TaskEx.TrueTask;
             }
 
-            var tcs = Volatile.Read(ref _source.UpdateTcs);
-            if (tcs == null)
+            // we took a task, but it could have been created after the previous update, need to try moving next
+            var task = _source.Updated;
+            if (_innerCursor.MoveNext())
             {
-                TaskCompletionSource<long> newTcs;
-                if (_unusedTcs != null)
-                {
-                    newTcs = _unusedTcs;
-                    _unusedTcs = null;
-                }
-                else
-                {
-                    newTcs = new TaskCompletionSource<long>();
-                }
-                var original = Interlocked.CompareExchange(ref _source.UpdateTcs, newTcs, null);
-                if (original == null)
-                {
-                    // newTcs was put to the SM
-                    // if unusedTcs was not null, newTcs = unusedTcs
-                    // and unusedTcs went to SM
-                    this._unusedTcs = null;
-                    tcs = newTcs;
-                }
-                else
-                {
-                    // Tcs was already set, we set unusedTcs to itself if
-                    // it was not null or to a new Tcs that we have allocated
-                    this._unusedTcs = newTcs;
-                    tcs = original;
-                }
-                if (_innerCursor.MoveNext())
-                {
-                    return TaskEx.TrueTask;
-                }
+                return TaskEx.TrueTask;
             }
 
             if (_source.IsReadOnly)
@@ -121,14 +89,10 @@ namespace Spreads
                 return _innerCursor.MoveNext() ? TaskEx.TrueTask : TaskEx.FalseTask;
             }
 
-            // NB activeTcs is already allocated and we cannot avoid this allocation,
-            // however it could be shared among many cursors. When its Task completes,
-            // we create a continuation Task that does synchronous and very fast
-            // work inside its body, so it is a very small and short-lived object
-            // TODO Check if we need to use RunContinuationsAsynchronously from 4.6
-            // https://blogs.msdn.microsoft.com/pfxteam/2015/02/02/new-task-apis-in-net-4-6/
+            // now task will always be completed by NotifyUpdate
 
-            Task<Task<bool>> returnTask = tcs.Task.ContinueWith(continuationFunction: MoveNextContinuation, continuationOptions: TaskContinuationOptions.DenyChildAttach);
+            Task<Task<bool>> returnTask = task.ContinueWith(continuationFunction: MoveNextContinuation,
+                continuationOptions: TaskContinuationOptions.DenyChildAttach);
 
             if (!cancellationToken.CanBeCanceled)
             {
@@ -140,7 +104,11 @@ namespace Spreads
                 _registration.Dispose();
                 _token = cancellationToken;
                 _cancelledTcs = new TaskCompletionSource<Task<bool>>();
-                _registration = _token.Register(() => _cancelledTcs.SetResult(TaskEx.CancelledBoolTask));
+                _registration = _token.Register(() =>
+                {
+                    _cancelledTcs.SetResult(TaskEx.FromCanceled<bool>(_token));
+                    _source.NotifyUpdate();
+                });
             }
 
             var anyReturn = Task.WhenAny(returnTask, _cancelledTcs.Task);
@@ -148,16 +116,12 @@ namespace Spreads
             return anyReturn.Unwrap().Unwrap();
         }
 
+        // TODO check if caching for this delegate is needed
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Task<bool> MoveNextContinuation(Task<long> t)
+        private Task<bool> MoveNextContinuation(Task<bool> t)
         {
-            // while this is not null, noone would be able to set a new one
-            var original = Volatile.Read(ref _source.UpdateTcs);
-            if (original != null)
-            {
-                // one of many cursors will succeed
-                Interlocked.CompareExchange(ref _source.UpdateTcs, null, original);
-            }
+            if (!t.Result) return TaskEx.FalseTask;
+            if (_token.IsCancellationRequested) return TaskEx.FromCanceled<bool>(_token);
             return _innerCursor.MoveNext() ? TaskEx.TrueTask : MoveNext(_token);
         }
 
@@ -256,6 +220,16 @@ namespace Spreads
         //~BaseCursorAsync() {
         //    Dispose(false);
         //}
+    }
+
+    internal interface IChainedCursor<TK, TV> : ICursor<TK, TV>
+    {
+        bool OnMovedNext();
+    }
+
+    internal class ChainedCursorAsync<TK, TV, TCursor> // : ICursor<TK, TV>
+        where TCursor : IChainedCursor<TK, TV>
+    {
     }
 
     //[Obsolete("This is plain wrong!")]

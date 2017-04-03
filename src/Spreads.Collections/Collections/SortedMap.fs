@@ -286,6 +286,10 @@ type SortedMap<'K,'V>
   member private this.Clone() = new SortedMap<'K,'V>(Some(this :> IDictionary<'K,'V>), None, Some(comparer))
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  member internal this.CheckNull(key) =
+    if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
+    
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member internal this.GetKeyByIndexUnchecked(index) =
     if couldHaveRegularKeys && this.size > 1 then this.rkKeyAtIndex index
     else this.keys.[index]
@@ -391,7 +395,7 @@ type SortedMap<'K,'V>
           this.isReadOnly <- true
           // immutable doesn't need sync
           Volatile.Write(&this.isSynchronized, false)
-          this.NotifyUpdate()
+          this.NotifyUpdate(false)
           //if this.subscribersCounter > 0 then this.onUpdateEvent.Trigger(false)
     finally
       //Interlocked.Increment(&this.version) |> ignore
@@ -647,7 +651,7 @@ type SortedMap<'K,'V>
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.IndexOfKey(key:'K) : int =
-    if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
+    this.CheckNull(key)
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       this.IndexOfKeyUnchecked(key)
     )
@@ -691,7 +695,7 @@ type SortedMap<'K,'V>
   
   member this.Item
       with get key =
-        if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
+        this.CheckNull(key)
         readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
         // first/last optimization (only last here)
         if this.size = 0 then
@@ -757,7 +761,7 @@ type SortedMap<'K,'V>
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.Add(key, value) : unit =
-    if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
+    this.CheckNull(key)
     
     let mutable keepOrderVersion = false
     let mutable added = false
@@ -908,7 +912,7 @@ type SortedMap<'K,'V>
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.Remove(key): bool =
-    if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
+    this.CheckNull(key)
     let mutable removed = false
     let mutable entered = false
     try
@@ -988,7 +992,7 @@ type SortedMap<'K,'V>
 
   /// Removes all elements that are to `direction` from `key`
   member this.RemoveMany(key:'K,direction:Lookup) : bool =
-    if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
+    this.CheckNull(key)
     let mutable removed = false
     let mutable entered = false
     try
@@ -1199,7 +1203,7 @@ type SortedMap<'K,'V>
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   override this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) =
-    if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
+    this.CheckNull(key)
     let res() = 
       let mutable kvp = Unchecked.defaultof<_>
       let idx = this.TryFindWithIndex(key, direction, &kvp)
@@ -1212,7 +1216,7 @@ type SortedMap<'K,'V>
   /// Return true if found exact key
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   override this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
-    if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
+    this.CheckNull(key)
     let res() = 
       // first/last optimization
       if this.size = 0 then

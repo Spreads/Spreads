@@ -742,6 +742,7 @@ namespace Spreads.Collections
         ImmutableSortedMap<'K,'V>(comparer, newTree)
 
       interface IImmutableSeries<'K, 'V> with
+        member this.Updated = falseTask
         member this.Size with get() = this.Size
         member this.Add(key, value):IImmutableSeries<'K, 'V> =
           this.Add(key, value) :> IImmutableSeries<'K, 'V>

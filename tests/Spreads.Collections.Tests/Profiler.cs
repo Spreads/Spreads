@@ -13,9 +13,8 @@ namespace Spreads.Collections.Tests {
     public static class Profiler {
         public static void Main() {
             //new ZipNTests().ContinuousZipIsCorrectByRandomCheck();
-            //var test = new MoveNextAsyncTests();
-            //test.CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
-
+            var test = new MoveNextAsyncTests();
+            test.CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes();
 
             //(new BatchMapValuesCursorTests()).CouldAddWithSimdMathProvider();
             ////////////////////////////////////////

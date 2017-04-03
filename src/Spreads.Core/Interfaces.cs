@@ -144,8 +144,19 @@ namespace Spreads
         /// </summary>
         ICursor<TKey, TValue> GetCursor();
 
+        /// <summary>
+        /// Synchronization object.
+        /// </summary>
         [Obsolete]
         object SyncRoot { get; }
+
+        /// <summary>
+        /// A Task that is completed with True whenever underlying data is changed.
+        /// Internally used for signaling to async cursors.
+        /// After getting the Task one should check if any changes happened (version change or cursor move) before awating the task.
+        /// If the task is completed with false then the series is read-only, immutable or complete.
+        /// </summary>
+        Task<bool> Updated { get; }
     }
 
     public interface ISeries : ISeries<Variant, Variant>

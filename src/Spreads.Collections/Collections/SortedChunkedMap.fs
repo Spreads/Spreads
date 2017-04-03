@@ -133,7 +133,7 @@ type SortedChunkedMapGeneric<'K,'V>
           this.isReadOnly <- true
           // immutable doesn't need sync
           this.isSynchronized <- false // TODO the same for SCM
-          this.NotifyUpdate()
+          this.NotifyUpdate(false)
     finally
       //Interlocked.Increment(&this.version) |> ignore
       exitWriteLockIf &this.Locker entered

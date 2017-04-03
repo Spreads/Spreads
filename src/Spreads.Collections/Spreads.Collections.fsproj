@@ -102,7 +102,6 @@
     <Compile Include="Collections\ImmutableIntMap32U.fs" />
     <Compile Include="Collections\ImmutableIntConvertibleMap.fs" />
     <Compile Include="Collections\ImmutableSortedMap.fs" />
-    <Compile Include="Collections\MutableWrapper.fs" />
     <Compile Include="Collections\DequeMap.fs" />
     <Compile Include="Collections\DequePanel.fs" />
     <Compile Include="Collections\SortedMap.Obsolete.fs" />

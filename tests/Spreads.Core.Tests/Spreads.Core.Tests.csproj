@@ -150,6 +150,7 @@
     <Compile Include="ParameterTests.cs" />
     <Compile Include="DoubleUtilTests.cs" />
     <Compile Include="Serialization\VariableLengthValues.cs" />
+    <Compile Include="AsyncCursorTests.cs" />
     <Compile Include="SpanTests.cs" />
     <Compile Include="Algorithms\AlgoTests.cs" />
     <Compile Include="Serialization\SerializationTests.cs" />

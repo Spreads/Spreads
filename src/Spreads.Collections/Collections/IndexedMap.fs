@@ -113,14 +113,12 @@ type IndexedMap<'K,'V> // when 'K:equality
     this.values.[index] <- v     
     version <- version + 1
     this.size <- this.size + 1
-    let updateTcs = Volatile.Read(&this.UpdateTcs)
-    if updateTcs <> null then updateTcs.TrySetResult(0L) |> ignore
+    this.NotifyUpdate()
     
   member this.Complete() = 
     if isMutable then 
         isMutable <- false
-        let updateTcs = Volatile.Read(&this.UpdateTcs)
-        if updateTcs <> null then updateTcs.TrySetResult(0L) |> ignore
+        this.NotifyUpdate(false)
   member internal this.IsMutable with get() = isMutable
   override this.IsReadOnly with get() = not isMutable
   override this.IsIndexed with get() = false
@@ -353,16 +351,14 @@ type IndexedMap<'K,'V> // when 'K:equality
         if comparer.Compare(k, this.keys.[lastIdx]) = 0 then // key = last key
           this.values.[lastIdx] <- v
           version <- version + 1
-          let updateTcs = Volatile.Read(&this.UpdateTcs)
-          if updateTcs <> null then updateTcs.TrySetResult(0L) |> ignore
+          this.NotifyUpdate()
           lastIdx
         else   
           let index = this.IndexOfKeyUnchecked(k)
           if index >= 0 then // contains key 
             this.values.[index] <- v
             version <- version + 1 
-            let updateTcs = Volatile.Read(&this.UpdateTcs)
-            if updateTcs <> null then updateTcs.TrySetResult(0L) |> ignore
+            this.NotifyUpdate()
             index     
           else
             this.Insert(~~~index, k, v)
@@ -418,8 +414,7 @@ type IndexedMap<'K,'V> // when 'K:equality
       this.size <- newSize
       version <- version + 1
 
-      let updateTcs = Volatile.Read(&this.UpdateTcs)
-      if updateTcs <> null then updateTcs.TrySetResult(0L) |> ignore
+      this.NotifyUpdate()
     finally
       exitLockIf this.SyncRoot entered
 

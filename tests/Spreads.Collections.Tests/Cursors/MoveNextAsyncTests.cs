@@ -87,14 +87,14 @@ namespace Spreads.Collections.Tests.Cursors
             System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.LowLatency;
             GCLatencyMode oldMode = GCSettings.LatencyMode;
             GCSettings.LatencyMode = GCLatencyMode.LowLatency;
-            for (int round = 0; round < 50; round++)
+            for (int round = 0; round < 10; round++)
             {
-
-                if (GC.TryStartNoGCRegion(100 * 1024 * 1024))
-                {
-                    CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
-                    GC.EndNoGCRegion();
-                }
+                CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
+                //if (GC.TryStartNoGCRegion(100 * 1024 * 1024))
+                //{
+                //    CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor();
+                //    GC.EndNoGCRegion();
+                //}
 
             }
             GCSettings.LatencyMode = oldMode;
@@ -103,7 +103,7 @@ namespace Spreads.Collections.Tests.Cursors
         [Test]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor()
         {
-            var count = 10000000;
+            var count = 5000000;
             var sw = new Stopwatch();
             sw.Start();
             var syncAddCnt = 0;
