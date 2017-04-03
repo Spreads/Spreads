@@ -7,24 +7,25 @@ namespace Spreads
     internal enum CursorState : byte
     {
         /// <summary>
-        /// Not initialized
+        /// Not initialized.
         /// </summary>
         None = 0,
 
         /// <summary>
-        /// Initialized via GetCursor() call of ISeries and is ready to move
+        /// Initialized via GetCursor() call of ISeries and is ready to move.
+        /// The cursor is nowhere with this state.
         /// </summary>
         Initialized = 1,
 
         /// <summary>
-        /// Started moving and is at valid position
+        /// Started moving and is at valid position.
+        /// A false move from this state must restore cursor to its position before the move.
         /// </summary>
         Moving = 2,
 
         /// <summary>
-        /// Cursor is used for IReadOnlySeries implementation
+        /// Cursor is used for IReadOnlySeries implementation.
         /// </summary>
-        Navigating = 3,
-
+        Navigating = 3
     }
 }
