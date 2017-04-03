@@ -109,26 +109,27 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
       else (this :> ICursor<'K,'V>).MoveLast()
     
     member this.MoveNext(cancellationToken: Threading.CancellationToken): Task<bool> = 
-      task { 
-        if started then
-          let! moved = this.InputCursor.MoveNext(cancellationToken) 
-          if moved && endOk this.InputCursor.CurrentKey then
-            return true
-          else return false
-        else
-          if (this :> ICursor<'K,'V>).MoveFirst() then return true
-          else
-            // TODO review this
-            let mutable movedFirst = false
-            let mutable complete = false
-            while not movedFirst && not complete do
-              let! moved' = this.InputCursor.MoveNext(cancellationToken)
-              complete <- not moved'
-              if moved' then
-                // this.MF has additional logic
-                movedFirst <- (this :> ICursor<'K,'V>).MoveFirst()
-            return movedFirst
-      }
+      raise (NotSupportedException())
+      //task { 
+      //  if started then
+      //    let! moved = this.InputCursor.MoveNext(cancellationToken) 
+      //    if moved && endOk this.InputCursor.CurrentKey then
+      //      return true
+      //    else return false
+      //  else
+      //    if (this :> ICursor<'K,'V>).MoveFirst() then return true
+      //    else
+      //      // TODO review this
+      //      let mutable movedFirst = false
+      //      let mutable complete = false
+      //      while not movedFirst && not complete do
+      //        let! moved' = this.InputCursor.MoveNext(cancellationToken)
+      //        complete <- not moved'
+      //        if moved' then
+      //          // this.MF has additional logic
+      //          movedFirst <- (this :> ICursor<'K,'V>).MoveFirst()
+      //      return movedFirst
+      //}
 
     member this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
       Trace.TraceWarning("MoveNextBatch is not implemented in RangeCursor")
@@ -144,3 +145,106 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
       let clone = new RangeCursor<'K,'V>(cursorFactory,startKey, endKey, startLookup, endLookup) :>  ICursor<'K,'V> 
       if started then clone.MoveAt(this.CurrentKey, Lookup.EQ) |> ignore
       clone
+
+
+
+
+/// Range from start to end key. 
+//[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
+[<Sealed>]
+type internal RangeSeries<'K,'V>(origin:ISeries<'K,'V>, startKey:'K option, endKey:'K option, startLookup: Lookup option, endLookup:Lookup option) =
+  inherit AbstractCursorSeries<'K,'V,RangeSeries<'K,'V>>()
+  do
+    if origin.IsIndexed then raise (NotSupportedException("RangeSeries are not supported for indexed series, only for sorted ones."))
+  let cursor = origin.GetCursor()
+  let mutable started = false
+    
+  // EQ just means inclusive
+  let firstLookup = if startLookup.IsSome && startLookup.Value <> Lookup.EQ then startLookup.Value else Lookup.GE
+  let lastLookup = 
+    if endLookup.IsSome && endLookup.Value <> Lookup.EQ then 
+      endLookup.Value 
+    else Lookup.LE
+
+  // if limits are not set then eny key is ok
+  let startOk k = 
+    if startKey.IsSome then cursor.Comparer.Compare(k, startKey.Value) >= 0
+    else true
+  let endOk k = 
+    if endKey.IsSome then cursor.Comparer.Compare(k, endKey.Value) <= 0
+    else true
+  let inRange k = (startOk k) && (endOk k)
+
+  do
+    cursor.Reset()
+
+  override this.IsIndexed = origin.IsIndexed
+  override this.IsReadOnly = origin.IsReadOnly
+  override this.Comparer = origin.Comparer
+  override this.Clone() =
+      let clone = new RangeSeries<_,_>(origin, startKey, endKey, startLookup, endLookup)
+      if started then clone.MoveAt(this.CurrentKey, Lookup.EQ) |> ignore
+      clone
+
+  override this.Updated 
+    with [<MethodImpl(MethodImplOptions.AggressiveInlining)>] get() : Task<bool> = origin.Updated
+
+  override this.IsContinuous with get() = cursor.IsContinuous
+
+  member this.InputCursor with get() : ICursor<'K,'V> = cursor
+
+  override this.CurrentKey with get() = cursor.CurrentKey
+  override this.CurrentValue with get() = cursor.CurrentValue
+  override this.Current with get() = cursor.Current
+
+  override val CurrentBatch = Unchecked.defaultof<_> with get
+
+  override this.MoveNext(): bool =
+      if started then
+        if this.InputCursor.MoveNext() && endOk this.InputCursor.CurrentKey then
+          true
+        else false
+      else (this :> ICursor<'K,'V>).MoveFirst()
+
+  override this.Reset() =
+    started <- false
+    cursor.Reset()
+
+  override this.Dispose() = cursor.Dispose()
+
+  override this.MoveAt(key: 'K, direction: Lookup): bool = 
+    if this.InputCursor.MoveAt(key, direction) && inRange this.InputCursor.CurrentKey then
+      started <- true
+      true
+    else false
+      
+  override this.MoveFirst(): bool = 
+    if (startKey.IsSome && this.InputCursor.MoveAt(startKey.Value, firstLookup) && inRange this.InputCursor.CurrentKey)
+      || (startKey.IsNone && this.InputCursor.MoveFirst()) then
+      started <- true
+      true
+    else false
+    
+  override this.MoveLast(): bool = 
+    if (endKey.IsSome && this.InputCursor.MoveAt(endKey.Value, lastLookup) && inRange this.InputCursor.CurrentKey)
+      || (endKey.IsNone && this.InputCursor.MoveLast()) then
+      started <- true
+      true
+    else false
+
+  override this.MovePrevious(): bool = 
+    if started then
+      if this.InputCursor.MovePrevious() && startOk this.InputCursor.CurrentKey then
+        true
+      else false
+    else (this :> ICursor<'K,'V>).MoveLast()
+
+  override this.MoveNextBatch(cancellationToken: Threading.CancellationToken): Task<bool> = 
+    Trace.TraceWarning("MoveNextBatch is not implemented in RangeCursor")
+    falseTask
+      
+  override this.TryGetValue(key: 'K, [<Out>] value: byref<'V>): bool = 
+    if inRange key then
+      this.InputCursor.TryGetValue(key, &value)
+    else false
+    

@@ -36,11 +36,12 @@ open Spreads.Collections
 
 /// Mutable sorted thread-safe IMutableSeries<'K,'V> implementation similar to SCG.SortedList<'K,'V>
 [<AllowNullLiteral>]
+[<Sealed>]
 [<DebuggerTypeProxy(typeof<IDictionaryDebugView<_,_>>)>]
 [<DebuggerDisplay("SortedMap: Count = {Count}")>]
 type SortedMap<'K,'V>
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
-  inherit Series<'K,'V>()
+  inherit ContainerSeries<'K,'V>()
   static do
     SortedMap<'K,'V>.Init()
 
@@ -383,7 +384,7 @@ type SortedMap<'K,'V>
       // bucket switch in SHM (TODO really? check) and before serialization
       // the 99% use case is when we load data from a sequential stream or deserialize a map with already regularized keys
     this.size <- this.size + 1
-    this.NotifyUpdate()
+    this.NotifyUpdate(true)
 
 
   member this.Complete() =
@@ -733,7 +734,7 @@ type SortedMap<'K,'V>
               let lc = this.CompareToLast k
               if lc = 0 then // key = last key
                 this.values.[this.size-1] <- v
-                this.NotifyUpdate()
+                this.NotifyUpdate(true)
               elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
                 this.Insert(this.size, k, v)
                 keepOrderVersion <- true
@@ -741,7 +742,7 @@ type SortedMap<'K,'V>
                 let index = this.IndexOfKeyUnchecked(k)
                 if index >= 0 then // contains key 
                   this.values.[index] <- v
-                  this.NotifyUpdate()
+                  this.NotifyUpdate(true)
                 else
                   this.Insert(~~~index, k, v)
             #if DEBUG
@@ -908,7 +909,7 @@ type SortedMap<'K,'V>
 
     this.size <- newSize
 
-    this.NotifyUpdate()
+    this.NotifyUpdate(true)
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.Remove(key): bool =
@@ -1065,7 +1066,7 @@ type SortedMap<'K,'V>
             raise (ApplicationException("wrong result of TryFindWithIndex with GT/GE direction"))
         | _ -> failwith "wrong direction"
     finally
-      this.NotifyUpdate()
+      this.NotifyUpdate(true)
       if removed then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
       #if DEBUG
@@ -1901,9 +1902,10 @@ and
 
 
 type internal ChunksContainer<'K,'V>
-  (comparer : IComparer<'K>) as t =
-  inherit SortedMap<'K,SortedMap<'K,'V>>(comparer)
+  (comparer : IComparer<'K>, synced: bool)  =
+  let t = new SortedMap<_,_>(comparer, IsSynchronized = synced)
   interface IReadOnlySeries<'K,SortedMap<'K,'V>> with
+    member x.Updated = t.Updated
     member x.Comparer = t.Comparer
     member x.First = t.First
     member x.GetAt(idx) = t.GetAt(idx)

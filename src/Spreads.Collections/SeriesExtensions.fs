@@ -209,8 +209,15 @@ type SeriesExtensions () =
       CursorSeries(fun _ -> new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), Some(startKey), Some(endKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
       
     [<Extension>]
+    static member After2(source: ISeries<'K,'V>, startKey:'K, lookup:Lookup) = 
+      new RangeSeries<_,_>(source, Some(startKey), None, Some(lookup), None) :> Series<'K,'V>
+
+    [<Extension>]
     static member inline After(source: ISeries<'K,'V>, startKey:'K, lookup:Lookup) : Series<'K,'V> = 
-      CursorSeries(fun _ -> new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), Some(startKey), None, Some(lookup), None) :> ICursor<'K,'V>) :> Series<'K,'V>
+      CursorSeries(fun _ ->
+        new BaseCursorAsync<'K,'V, RangeCursor<'K,'V>>(source, 
+        Func<_>(fun _ -> new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), Some(startKey), None, Some(lookup), None))
+        ) :> ICursor<'K,'V>) :> Series<'K,'V>
 
     [<Extension>]
     static member inline Before(source: ISeries<'K,'V>, endKey:'K, lookup:Lookup) : Series<'K,'V> = 

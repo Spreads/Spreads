@@ -127,6 +127,7 @@ namespace Spreads
         /// </summary>
         bool IsIndexed { get; }
 
+        // TODO! Rename to IsComplete, see #102
         /// <summary>
         /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
         /// for adding (e.g. after OnCompleted in Rx) or IsReadOnly in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).

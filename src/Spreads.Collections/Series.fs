@@ -3,11 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-
 #nowarn "0086" // operator overloads are intentional, Series are as primitive as scalars, all arithmetic operations are defined on them as maps
 namespace Spreads
 
@@ -48,10 +43,16 @@ type internal ICanMapSeriesValues<'K,'V> =
 
 and
   [<AllowNullLiteral>]
-  [<AbstractClassAttribute>]
+  [<AbstractClass>]
   //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   Series<'K,'V> internal() =
     inherit BaseSeries<'K,'V>()
+
+    [<DefaultValueAttribute>]
+    val mutable internal Locker : int
+
+    override this.Updated 
+      with [<MethodImpl(MethodImplOptions.AggressiveInlining)>] get() : Task<bool> = raise (NotImplementedException())
 
     // TODO (!) IObservable needs much more love and adherence to Rx contracts, see #40
     // TODO Move to BaseSeries
@@ -520,6 +521,40 @@ and
       Series.ScalarOperatorMap(series, sf.Invoke, if af <> null then Present(af.Invoke) else Missing)
 
 and
+  [<AllowNullLiteral>]
+  [<AbstractClass>]
+  ContainerSeries<'K,'V>() =
+    inherit Series<'K,'V>()
+
+    [<DefaultValueAttribute>]
+    val mutable private tcs : TaskCompletionSource<bool>
+     [<DefaultValueAttribute>]
+    val mutable private unusedTcs : TaskCompletionSource<bool>
+
+    [<MethodImpl(MethodImplOptions.AggressiveInlining)>]
+    member internal this.NotifyUpdate(result : bool) =
+      // when result = false, we will keep completed tcs with false forever
+      let tcs = if result then Interlocked.Exchange(&this.tcs, null) else Volatile.Read(&this.tcs)
+      if tcs <> null then tcs.SetResult(result);
+      // TODO (low, perf) review if this could be better and safe. Manual benchmarking is inconclusive.
+      //var tcs = Volatile.Read(ref _tcs);
+      //Volatile.Write(ref _tcs, null);
+
+    override this.Updated 
+      with [<MethodImpl(MethodImplOptions.AggressiveInlining)>] get() : Task<bool> =
+        // saving one allocation vs Interlocked.Exchange call
+        let unusedTcs = Interlocked.Exchange(&this.unusedTcs, null);
+        let newTcs = if unusedTcs = null then new TaskCompletionSource<bool>() else unusedTcs
+        let mutable tcs = Interlocked.CompareExchange(&this.tcs, newTcs, null);
+        if tcs = null then
+          // newTcs was put to the _tcs field, use it
+          tcs <- newTcs;
+        else
+          Volatile.Write(&this.unusedTcs, newTcs);
+        tcs.Task;
+        
+
+and
   // TODO (perf) base Series() implements IReadOnlySeries inefficiently, see comments in above type Series() implementation
   /// Wraps Series over ICursor
   [<AllowNullLiteral>]
@@ -539,11 +574,16 @@ and
           Interlocked.CompareExchange(&cursor, this.GetCursor(), Unchecked.defaultof<_>) |> ignore
         cursor
 
-    override this.GetCursor() = cursorFactory.Invoke()
+    //override this.GetCursor() = new BaseCursorAsync<'K,'V,ICursor<'K,'V>>(cursorFactory) :> ICursor<'K,'V>
+    override this.GetCursor() = cursorFactory.Invoke() :> ICursor<'K,'V>
 
     override this.IsIndexed = lock(this.SyncRoot) (fun _ -> this.C.Source.IsIndexed)
     override this.IsReadOnly = lock(this.SyncRoot) (fun _ -> this.C.Source.IsReadOnly)
     override this.Comparer = lock(this.SyncRoot) (fun _ -> this.C.Comparer)
+
+    // TODO only
+    override this.Updated 
+      with [<MethodImpl(MethodImplOptions.AggressiveInlining)>] get() : Task<bool> = cursor.Source.Updated
 
     override this.IsEmpty = lock(this.SyncRoot) (fun _ -> not (this.C.MoveFirst()))
 
@@ -641,6 +681,203 @@ and
                 new BatchMapValuesCursor<_,_,_>(cursorFactory, f2, Missing) :> ICursor<_,_>
               ) :> Series<_,_>
 
+
+and
+  // TODO (perf) base Series() implements IReadOnlySeries inefficiently, see comments in above type Series() implementation
+  [<AllowNullLiteral>]
+  [<AbstractClass>]
+//  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
+  internal AbstractCursorSeries<'K,'V,'TCursor when 'TCursor :> AbstractCursorSeries<'K,'V,'TCursor>>() as this =
+    inherit Series<'K,'V>()
+    
+    /// a cursor that is used for IReadOnlySeries members implementation
+    let mutable navigationCursor : 'TCursor = Unchecked.defaultof<_>
+
+    do
+      this.threadId <- Environment.CurrentManagedThreadId
+
+    [<DefaultValueAttribute>]
+    val mutable internal threadId : int
+
+    [<DefaultValueAttribute>]
+    val mutable internal state : int
+
+    //[<DefaultValueAttribute>]
+    //val mutable internal currentKey : 'K
+    //[<DefaultValueAttribute>]
+    //val mutable internal currentValue : 'V
+
+    member internal this.C
+      with get () : 'TCursor =
+        if Unchecked.equals navigationCursor Unchecked.defaultof<_> then
+          
+          let initialState = this.state
+          navigationCursor <- this.Clone()
+
+          // this.Clone() will return `this` as 'TCursor if requested from the same thread and the state was 0
+          // but it must set state to 1 after that
+          if initialState = 0 
+              && this.threadId = Environment.CurrentManagedThreadId
+              && not (this.state = 1) then
+            #if DEBUG
+              raise (ApplicationException("CursorSeries.Clone must return itself when state was zero and the method was called from the owner thread."))
+            #else
+              // NB it actually "should", not "must"
+              Trace.TraceWarning("CursorSeries.Clone should return itself when state was zero and the method was called from the owner thread.")
+            #endif
+        navigationCursor
+
+    
+    //#region ICursor members
+    member this.Source: IReadOnlySeries<'K,'V> = this :> IReadOnlySeries<'K,'V>
+
+    abstract Current: KeyValuePair<'K,'V> with get
+    abstract CurrentKey: 'K with get
+    abstract CurrentValue: 'V with get
+    
+
+    abstract Clone: unit -> 'TCursor
+    abstract CurrentBatch: IReadOnlySeries<'K,'V> with get
+    abstract member Dispose: unit -> unit
+    abstract IsContinuous: bool with get
+    abstract MoveAt: key: 'K * direction: Lookup ->  bool
+    abstract MoveFirst: unit -> bool
+    abstract MoveLast: unit -> bool
+    abstract MoveNext: unit -> bool
+    abstract MoveNextBatch: cancellationToken: CancellationToken ->  Task<bool>
+    abstract MovePrevious: unit -> bool
+    abstract Reset: unit -> unit
+    
+    //#endregion
+    
+    //#region IReadOnlySeries members
+
+    member this.GetEnumerator() = this.Clone()
+
+    override this.GetCursor() = new BaseCursorAsync<'K,'V,'TCursor>(this, Func<_>(this.Clone)) :> ICursor<'K,'V>
+
+    override this.IsEmpty = lock(this.SyncRoot) (fun _ -> not (this.C.MoveFirst()))
+
+    override this.First
+      with get() =
+        let sr = this.SyncRoot
+        Debug.Assert(sr <> null)
+        let entered = enterLockIf sr true
+        try
+          if this.C.MoveFirst() then this.C.Current else invalidOp "Series is empty"
+        finally
+          exitLockIf this.SyncRoot entered
+
+    override this.Last 
+      with get() =
+        let entered = enterLockIf this.SyncRoot true
+        try
+          if this.C.MoveLast() then this.C.Current else invalidOp "Series is empty"
+        finally
+          exitLockIf this.SyncRoot entered
+
+    override this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
+      let entered = enterLockIf this.SyncRoot true
+      try
+        if this.C.MoveAt(k, direction) then
+          result <- this.C.Current 
+          true
+        else false
+      finally
+        exitLockIf this.SyncRoot entered
+
+    override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+      let entered = enterLockIf this.SyncRoot true
+      try
+        if this.C.MoveFirst() then
+          res <- this.C.Current
+          true
+        else false
+      finally
+        exitLockIf this.SyncRoot entered
+
+    override this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) =
+      let entered = enterLockIf this.SyncRoot true
+      try
+        if this.C.MoveLast() then
+          res <- this.C.Current
+          true
+        else false
+      finally
+        exitLockIf this.SyncRoot entered
+
+    // NB for cursor series, this.C is created automatically, no longer we need to check for isMove
+    // and create a shaddow navigational cursor in cursor implementations.
+    override this.TryGetValue(k, [<Out>] value:byref<'V>) =
+      let entered = enterLockIf this.SyncRoot true
+      try
+        if this.C.IsContinuous then
+          this.C.TryGetValue(k, &value)
+        else
+          let ok = this.C.MoveAt(k, Lookup.EQ)
+          if ok then value <- this.C.CurrentValue else value <- Unchecked.defaultof<'V>
+          ok
+      finally
+        exitLockIf this.SyncRoot entered
+
+    override this.Keys 
+      with get() =
+        // TODO manual impl, seq is slow
+        let c = this.GetCursor()
+        seq {
+          while c.MoveNext() do
+            yield c.CurrentKey
+          c.Dispose()
+        }
+
+    override this.Values
+      with get() =
+        // TODO manual impl, seq is slow
+        let c = this.GetCursor()
+        seq {
+          while c.MoveNext() do
+            yield c.CurrentValue
+          c.Dispose()
+        }
+
+    //#endregion
+
+
+    interface ICanMapSeriesValues<'K,'V> with
+      member this.Map<'V2>(f2, fBatch): Series<'K,'V2> = 
+        let cursor = this.GetCursor()
+        match cursor with
+        | :? ICanMapSeriesValues<'K,'V> as mappable -> mappable.Map(f2, fBatch)
+        | _ ->
+          CursorSeries(fun _ ->
+                // NB #11 we had (fun _ -> cursor) as factory, but that was a closure over cursor instance
+                // with the current design, we cannot reuse the cursor allocated to check its interface implementation
+                // we must dispose it and provide factory here
+                cursor.Dispose()
+                new BatchMapValuesCursor<_,_,_>(Func<_>(this.GetCursor), f2, Missing) :> ICursor<_,_>
+              ) :> Series<_,_>
+
+
+    interface ICursor<'K,'V> with
+      member this.Clone(): ICursor<'K,'V> = this.Clone() :> ICursor<'K,'V>
+      member this.Comparer: IComparer<'K> = this.Comparer
+      member this.Current: KeyValuePair<'K,'V> = this.Current
+      member this.Current: obj = this.Current :> obj
+      member this.CurrentBatch: IReadOnlySeries<'K,'V> = this.CurrentBatch
+      member this.CurrentKey: 'K = this.CurrentKey
+      member this.CurrentValue: 'V = this.CurrentValue
+      member this.Dispose(): unit = this.Dispose()
+      member this.IsContinuous: bool = this.IsContinuous
+      member this.MoveAt(key: 'K, direction: Lookup): bool = this.MoveAt(key, direction)
+      member this.MoveFirst(): bool = this.MoveFirst()
+      member this.MoveLast(): bool = this.MoveLast()
+      member this.MoveNext(cancellationToken: CancellationToken): Task<bool> = raise (NotSupportedException())
+      member this.MoveNext(): bool = this.MoveNext()
+      member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatch(cancellationToken)
+      member this.MovePrevious(): bool = this.MovePrevious()
+      member this.Reset(): unit = this.Reset()
+      member this.Source: IReadOnlySeries<'K,'V> = this.Source
+      member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.TryGetValue(key, &value)
 
 and
   // NB! Remember that cursors are single-threaded

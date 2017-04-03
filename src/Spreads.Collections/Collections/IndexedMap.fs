@@ -26,7 +26,7 @@ open Spreads.Collections
 [<AllowNullLiteral>]
 type IndexedMap<'K,'V> // when 'K:equality
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
-  inherit Series<'K,'V>()
+  inherit ContainerSeries<'K,'V>()
 
   //#region Main internal constructor
     
@@ -113,7 +113,7 @@ type IndexedMap<'K,'V> // when 'K:equality
     this.values.[index] <- v     
     version <- version + 1
     this.size <- this.size + 1
-    this.NotifyUpdate()
+    this.NotifyUpdate(true)
     
   member this.Complete() = 
     if isMutable then 
@@ -351,14 +351,14 @@ type IndexedMap<'K,'V> // when 'K:equality
         if comparer.Compare(k, this.keys.[lastIdx]) = 0 then // key = last key
           this.values.[lastIdx] <- v
           version <- version + 1
-          this.NotifyUpdate()
+          this.NotifyUpdate(true)
           lastIdx
         else   
           let index = this.IndexOfKeyUnchecked(k)
           if index >= 0 then // contains key 
             this.values.[index] <- v
             version <- version + 1 
-            this.NotifyUpdate()
+            this.NotifyUpdate(true)
             index     
           else
             this.Insert(~~~index, k, v)
@@ -414,7 +414,7 @@ type IndexedMap<'K,'V> // when 'K:equality
       this.size <- newSize
       version <- version + 1
 
-      this.NotifyUpdate()
+      this.NotifyUpdate(true)
     finally
       exitLockIf this.SyncRoot entered
 

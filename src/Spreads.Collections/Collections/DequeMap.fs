@@ -21,7 +21,7 @@ open Spreads.Collections
 [<AllowNullLiteral>]
 type SortedDequeMap<'K,'V>
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
-  inherit Series<'K,'V>()
+  inherit ContainerSeries<'K,'V>()
   
   [<DefaultValueAttribute>]
   val mutable internal version : int

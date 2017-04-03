@@ -49,54 +49,7 @@ namespace Spreads
     /// <typeparam name="TV">Type of series values.</typeparam>
     public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK, TV>
     {
-        internal int Locker;
-
-        private TaskCompletionSource<bool> _tcs;
-        private TaskCompletionSource<bool> _unusedTcs;
-
         private object _syncRoot;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void NotifyUpdate(bool result = true)
-        {
-            var tcs = Interlocked.Exchange(ref _tcs, null);
-
-            if (tcs != null)
-            {
-                tcs.SetResult(result);
-            }
-            // TODO (low, perf) review if this could be better and safe. Manual benchmarking is inconclusive.
-            //var tcs = Volatile.Read(ref _tcs);
-            //Volatile.Write(ref _tcs, null);
-        }
-
-        /// <summary>
-        /// A Task that is completed with True whenever underlying data is changed.
-        /// Internally used for signaling to async cursors.
-        /// After getting the Task one should check if any changes happened (version change or cursor move) before awating the task.
-        /// If the task is completed with false then the series is read-only, immutable or complete.
-        /// </summary>
-        public virtual Task<bool> Updated
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                // saving one allocation vs Interlocked.Exchange call
-                var unusedTcs = Interlocked.Exchange(ref _unusedTcs, null);
-                var newTcs = unusedTcs ?? new TaskCompletionSource<bool>();
-                var tcs = Interlocked.CompareExchange(ref _tcs, newTcs, null);
-                if (tcs == null)
-                {
-                    // newTcs was put to the _tcs field, use it
-                    tcs = newTcs;
-                }
-                else
-                {
-                    Volatile.Write(ref _unusedTcs, newTcs);
-                }
-                return tcs.Task;
-            }
-        }
 
         public abstract ICursor<TK, TV> GetCursor();
 
@@ -161,6 +114,7 @@ namespace Spreads
 
         public abstract IEnumerable<TK> Keys { get; }
         public abstract IEnumerable<TV> Values { get; }
+        public abstract Task<bool> Updated { get; }
 
         public abstract bool TryFind(TK key, Lookup direction, out KeyValuePair<TK, TV> value);
 

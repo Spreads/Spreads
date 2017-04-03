@@ -16,7 +16,7 @@ namespace Spreads
     {
         //private static readonly BoundedConcurrentBag<BaseCursorAsync<TK, TV, TCursor>> Pool = new BoundedConcurrentBag<BaseCursorAsync<TK, TV, TCursor>>(Environment.ProcessorCount * 16);
 
-        private BaseSeries<TK, TV> _source;
+        private ISeries<TK, TV> _source;
 
         // NB this is often a struct, should not be made readonly!
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
@@ -28,13 +28,19 @@ namespace Spreads
 
         // NB factory could be more specific than GetCursor method of the source, which returns an interface
         // At the same time, we need access to BaseSeries members and cannot use Source property of the cursor
-        public BaseCursorAsync(BaseSeries<TK, TV> source, Func<TCursor> cursorFactory)
+        public BaseCursorAsync(ISeries<TK, TV> source, Func<TCursor> cursorFactory)
         {
             this._source = source;
             _innerCursor = cursorFactory();
         }
 
-        public static BaseCursorAsync<TK, TV, TCursor> Create(BaseSeries<TK, TV> source, Func<TCursor> cursorFactory)
+        public BaseCursorAsync(Func<TCursor> cursorFactory)
+        {
+            _innerCursor = cursorFactory();
+            this._source = _innerCursor.Source;
+        }
+
+        public static BaseCursorAsync<TK, TV, TCursor> Create(ISeries<TK, TV> source, Func<TCursor> cursorFactory)
         {
             BaseCursorAsync<TK, TV, TCursor> inst;
             return new BaseCursorAsync<TK, TV, TCursor>(source, cursorFactory);
@@ -77,6 +83,11 @@ namespace Spreads
                 return TaskEx.TrueTask;
             }
 
+            return MoveNextSlow(cancellationToken);
+        }
+
+        private Task<bool> MoveNextSlow(CancellationToken cancellationToken)
+        {
             // we took a task, but it could have been created after the previous update, need to try moving next
             var task = _source.Updated;
             if (_innerCursor.MoveNext())
@@ -107,7 +118,6 @@ namespace Spreads
                 _registration = _token.Register(() =>
                 {
                     _cancelledTcs.SetResult(TaskEx.FromCanceled<bool>(_token));
-                    _source.NotifyUpdate();
                 });
             }
 
