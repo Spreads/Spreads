@@ -700,7 +700,7 @@ and
     val mutable internal threadId : int
 
     [<DefaultValueAttribute>]
-    val mutable internal state : int
+    val mutable internal state : CursorState
 
     //[<DefaultValueAttribute>]
     //val mutable internal currentKey : 'K
@@ -716,15 +716,16 @@ and
 
           // this.Clone() will return `this` as 'TCursor if requested from the same thread and the state was 0
           // but it must set state to 1 after that
-          if initialState = 0 
+          if initialState = CursorState.None 
               && this.threadId = Environment.CurrentManagedThreadId
-              && not (this.state = 1) then
+              && not (this.state = CursorState.Initialized) then
             #if DEBUG
               raise (ApplicationException("CursorSeries.Clone must return itself when state was zero and the method was called from the owner thread."))
             #else
               // NB it actually "should", not "must"
               Trace.TraceWarning("CursorSeries.Clone should return itself when state was zero and the method was called from the owner thread.")
             #endif
+          navigationCursor.state <- CursorState.Navigating
         navigationCursor
 
     
@@ -754,7 +755,7 @@ and
 
     member this.GetEnumerator() = this.Clone()
 
-    override this.GetCursor() = new BaseCursorAsync<'K,'V,'TCursor>(this, Func<_>(this.Clone)) :> ICursor<'K,'V>
+    override this.GetCursor() = new BaseCursorAsync<'K,'V,'TCursor>(Func<_>(this.Clone)) :> ICursor<'K,'V>
 
     override this.IsEmpty = lock(this.SyncRoot) (fun _ -> not (this.C.MoveFirst()))
 

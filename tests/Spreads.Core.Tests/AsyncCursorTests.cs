@@ -53,7 +53,7 @@ namespace Spreads.Core.Tests
 
             var cts = new CancellationTokenSource();
 
-            var t = sm.After(0, Lookup.GT).Do((k, v) =>
+            var t = sm.After(0, false).Do((k, v) =>
             {
                 Console.WriteLine($"{k} - {v}");
             }, cts.Token);
@@ -154,7 +154,7 @@ namespace Spreads.Core.Tests
 
             sm.Add(1, 1);
 
-            var range = sm.After2(0, Lookup.GE);
+            var range = sm.After(0);
 
             Assert.AreEqual(1, range.First.Value);
 
@@ -180,13 +180,45 @@ namespace Spreads.Core.Tests
         }
 
         [Test]
+        public void RangeCursorStopsBeforeEndKey()
+        {
+            var sm = new SortedMap<int, int>();
+
+            sm.Add(1, 1);
+            sm.Add(2, 2);
+            sm.Add(3, 3);
+            var range = sm.Before(2, true);
+
+            //Assert.AreEqual(1, range.First.Value);
+
+            var cursor = range.GetCursor();
+
+            var source = cursor.Source;
+           
+
+            var cts = new CancellationTokenSource();
+
+            var t = Task.Run(async () =>
+            {
+                var moved = await cursor.MoveNext(cts.Token);
+                Assert.True(moved);
+                moved = await cursor.MoveNext(cts.Token);
+                Assert.True(moved);
+                moved = await cursor.MoveNext(cts.Token);
+                Assert.False(moved);
+            });
+
+            t.Wait();
+        }
+
+        [Test]
         public void CouldCancelMapCursor()
         {
             var sm = new SortedMap<int, int>();
 
             sm.Add(1, 1);
 
-            var range = sm.Map(x => x + 1).After2(0, Lookup.GE);
+            var range = sm.Map(x => x + 1).After(0);
 
             var cursor = range.GetCursor();
             Assert.True(cursor.MoveNext());

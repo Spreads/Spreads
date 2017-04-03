@@ -204,25 +204,45 @@ type SeriesExtensions () =
     static member Scan(source: ISeries<'K,'V>, init:'R, folder:Func<'R,'K,'V,'R>) : Series<'K,'R> = 
       CursorSeries(fun _ -> new ScanCursor<'K,'V,'R>(Func<ICursor<'K,'V>>(source.GetCursor), init, folder) :> ICursor<'K,'R>) :> Series<'K,'R>
       
-    [<Extension>]
-    static member inline Range(source: ISeries<'K,'V>, startKey:'K, endKey:'K) : Series<'K,'V> = 
-      CursorSeries(fun _ -> new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), Some(startKey), Some(endKey), None, None) :> ICursor<'K,'V>) :> Series<'K,'V>
-      
-    [<Extension>]
-    static member After2(source: ISeries<'K,'V>, startKey:'K, lookup:Lookup) = 
-      new RangeSeries<_,_>(source, Some(startKey), None, Some(lookup), None) :> Series<'K,'V>
 
-    [<Extension>]
-    static member inline After(source: ISeries<'K,'V>, startKey:'K, lookup:Lookup) : Series<'K,'V> = 
-      CursorSeries(fun _ ->
-        new BaseCursorAsync<'K,'V, RangeCursor<'K,'V>>(source, 
-        Func<_>(fun _ -> new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), Some(startKey), None, Some(lookup), None))
-        ) :> ICursor<'K,'V>) :> Series<'K,'V>
 
-    [<Extension>]
-    static member inline Before(source: ISeries<'K,'V>, endKey:'K, lookup:Lookup) : Series<'K,'V> = 
-      CursorSeries(fun _ -> new RangeCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), None, Some(endKey), None, Some(Lookup.GT)) :> ICursor<'K,'V>) :> Series<'K,'V>
+
     
+    /// Range between startKey and endKey
+    [<Extension>]
+    static member Range(source: ISeries<'K,'V>, startKey:'K, endKey:'K, startInclusive:bool, endInclusive:bool) : Series<'K,'V> = 
+      new RangeSeries<'K,'V>(source, Some(startKey), Some(endKey), startInclusive, endInclusive) :> Series<'K,'V>
+
+    /// Range between startKey and endKey
+    [<Extension>]
+    static member Range(source: ISeries<'K,'V>, startKey:'K, endKey:'K, inclusive:bool) : Series<'K,'V> = 
+      new RangeSeries<'K,'V>(source, Some(startKey), Some(endKey), inclusive, inclusive) :> Series<'K,'V>
+      
+    /// Inclusive range between startKey and endKey
+    [<Extension>]
+    static member Range(source: ISeries<'K,'V>, startKey:'K, endKey:'K) : Series<'K,'V> = source.Range(startKey, endKey, true)
+
+    /// Range after startKey 
+    [<Extension>]
+    static member After(source: ISeries<'K,'V>, startKey:'K, inclusive:bool) = 
+      new RangeSeries<_,_>(source, Some(startKey), None, inclusive, inclusive) :> Series<'K,'V>
+
+    /// Inclusive range after startKey 
+    [<Extension>]
+    static member After(source: ISeries<'K,'V>, startKey:'K) = source.After(startKey, true)
+
+    /// Range before endKey 
+    [<Extension>]
+    static member Before(source: ISeries<'K,'V>, endKey:'K, inclusive:bool) : Series<'K,'V> = 
+      new RangeSeries<'K,'V>(source, None, Some(endKey), inclusive, inclusive) :> Series<'K,'V>
+    
+    /// Inclusive range before endKey 
+    [<Extension>]
+    static member Before(source: ISeries<'K,'V>, endKey:'K) : Series<'K,'V> = source.Before(endKey)
+
+
+
+
 
     [<Extension>]
     static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V2>, mapFunc:Func<'K,'V,'V2,'R>) : Series<'K,'R> =

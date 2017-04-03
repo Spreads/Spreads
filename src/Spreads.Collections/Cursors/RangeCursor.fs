@@ -152,42 +152,48 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
 /// Range from start to end key. 
 //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
 [<Sealed>]
-type internal RangeSeries<'K,'V>(origin:ISeries<'K,'V>, startKey:'K option, endKey:'K option, startLookup: Lookup option, endLookup:Lookup option) =
+type internal RangeSeries<'K,'V>(origin:ISeries<'K,'V>, startKey:'K option, endKey:'K option, startInclusive: bool, endInclusive:bool) as this =
   inherit AbstractCursorSeries<'K,'V,RangeSeries<'K,'V>>()
   do
     if origin.IsIndexed then raise (NotSupportedException("RangeSeries are not supported for indexed series, only for sorted ones."))
   let cursor = origin.GetCursor()
-  let mutable started = false
     
   // EQ just means inclusive
-  let firstLookup = if startLookup.IsSome && startLookup.Value <> Lookup.EQ then startLookup.Value else Lookup.GE
-  let lastLookup = 
-    if endLookup.IsSome && endLookup.Value <> Lookup.EQ then 
-      endLookup.Value 
-    else Lookup.LE
+  let firstLookup = if startInclusive then Lookup.GE else Lookup.GT
+  let lastLookup = if endInclusive then Lookup.LE else Lookup.LT
 
   // if limits are not set then eny key is ok
-  let startOk k = 
-    if startKey.IsSome then cursor.Comparer.Compare(k, startKey.Value) >= 0
+  let startOk k =
+    if startKey.IsSome then
+      if startInclusive then cursor.Comparer.Compare(k, startKey.Value) >= 0
+      else cursor.Comparer.Compare(k, startKey.Value) > 0
     else true
-  let endOk k = 
-    if endKey.IsSome then cursor.Comparer.Compare(k, endKey.Value) <= 0
+  let endOk k =
+    if endKey.IsSome then 
+      if endInclusive then cursor.Comparer.Compare(k, endKey.Value) <= 0
+      else cursor.Comparer.Compare(k, endKey.Value) < 0
     else true
   let inRange k = (startOk k) && (endOk k)
 
-  do
-    cursor.Reset()
 
   override this.IsIndexed = origin.IsIndexed
+
   override this.IsReadOnly = origin.IsReadOnly
+
   override this.Comparer = origin.Comparer
   override this.Clone() =
-      let clone = new RangeSeries<_,_>(origin, startKey, endKey, startLookup, endLookup)
-      if started then clone.MoveAt(this.CurrentKey, Lookup.EQ) |> ignore
+    if this.state = CursorState.None && this.threadId = Environment.CurrentManagedThreadId then
+      this.state <- CursorState.Initialized
+      this
+    else
+      let clone = new RangeSeries<_,_>(origin, startKey, endKey, startInclusive, endInclusive)
+      if this.state = CursorState.Moving then clone.MoveAt(this.CurrentKey, Lookup.EQ) |> ignore
+      else clone.state <- CursorState.Initialized
       clone
 
   override this.Updated 
-    with [<MethodImpl(MethodImplOptions.AggressiveInlining)>] get() : Task<bool> = origin.Updated
+    with [<MethodImpl(MethodImplOptions.AggressiveInlining)>] get() : Task<bool> = 
+      if this.state <> CursorState.Moving || endOk cursor.CurrentKey then origin.Updated else TaskEx.FalseTask
 
   override this.IsContinuous with get() = cursor.IsContinuous
 
@@ -200,40 +206,46 @@ type internal RangeSeries<'K,'V>(origin:ISeries<'K,'V>, startKey:'K option, endK
   override val CurrentBatch = Unchecked.defaultof<_> with get
 
   override this.MoveNext(): bool =
-      if started then
-        if this.InputCursor.MoveNext() && endOk this.InputCursor.CurrentKey then
-          true
-        else false
-      else (this :> ICursor<'K,'V>).MoveFirst()
+    if int this.state >= int CursorState.Moving then
+      if this.InputCursor.MoveNext() && endOk this.InputCursor.CurrentKey then
+        true
+      else false
+    else (this :> ICursor<'K,'V>).MoveFirst()
 
   override this.Reset() =
-    started <- false
+    this.state <- CursorState.Initialized
     cursor.Reset()
 
-  override this.Dispose() = cursor.Dispose()
+  override this.Dispose() = 
+    this.state <- CursorState.None
+    cursor.Dispose()
 
   override this.MoveAt(key: 'K, direction: Lookup): bool = 
     if this.InputCursor.MoveAt(key, direction) && inRange this.InputCursor.CurrentKey then
-      started <- true
+      Debug.Assert(int this.state > 0)
+      // keep navigating state unchanged
+      if this.state = CursorState.Initialized then this.state <- CursorState.Moving
       true
     else false
       
   override this.MoveFirst(): bool = 
     if (startKey.IsSome && this.InputCursor.MoveAt(startKey.Value, firstLookup) && inRange this.InputCursor.CurrentKey)
       || (startKey.IsNone && this.InputCursor.MoveFirst()) then
-      started <- true
+      Debug.Assert(int this.state > 0)
+      if this.state = CursorState.Initialized then this.state <- CursorState.Moving
       true
     else false
     
   override this.MoveLast(): bool = 
     if (endKey.IsSome && this.InputCursor.MoveAt(endKey.Value, lastLookup) && inRange this.InputCursor.CurrentKey)
       || (endKey.IsNone && this.InputCursor.MoveLast()) then
-      started <- true
+      Debug.Assert(int this.state > 0)
+      if this.state = CursorState.Initialized then this.state <- CursorState.Moving
       true
     else false
 
   override this.MovePrevious(): bool = 
-    if started then
+    if int this.state >= int CursorState.Moving then
       if this.InputCursor.MovePrevious() && startOk this.InputCursor.CurrentKey then
         true
       else false
