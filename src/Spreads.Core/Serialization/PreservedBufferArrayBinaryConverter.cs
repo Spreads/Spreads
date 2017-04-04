@@ -26,7 +26,6 @@ namespace Spreads.Serialization
             var method = typeof(PreservedBufferArrayBinaryConverterFactory).GetTypeInfo().GetMethod("GenericCreate");
             var generic = method.MakeGenericMethod(elementType);
             var converter = generic.Invoke(null, null);
-            var type = converter.GetType();
             return converter;
         }
     }

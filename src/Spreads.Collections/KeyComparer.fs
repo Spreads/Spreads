@@ -48,7 +48,7 @@ type internal SpreadsComparerInt64() =
   inherit BaseSpreadsComparer<int64>()
   override x.Compare(a,b) = a.CompareTo(b)
   override x.Diff(a,b) =  a - b
-  override x.Add(a,diff) = a + (int64 diff)
+  override x.Add(a,diff) = a + (diff)
 
   override x.Equals(y) =
     match y with 

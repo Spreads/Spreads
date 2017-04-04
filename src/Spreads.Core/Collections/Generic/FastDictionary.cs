@@ -47,7 +47,7 @@ namespace Spreads.Collections.Generic
     public class FastDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue>
         where TKey : IEquatable<TKey>
     {
-        private static TValue[] dafuleValue = new TValue[1];
+        private static TValue[] dafaultValue = new TValue[1];
         private struct Entry
         {
             public int hashCode;    // Lower 31 bits of hash code, -1 if unused
@@ -248,7 +248,7 @@ namespace Spreads.Collections.Generic
                 int i = FindEntry(key);
                 if (i >= 0) return ref entries[i].value;
                 ThrowHelper.ThrowKeyNotFoundException();
-                return ref dafuleValue[0];
+                return ref dafaultValue[0];
             }
         }
 

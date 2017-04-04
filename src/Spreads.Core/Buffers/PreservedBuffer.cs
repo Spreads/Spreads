@@ -4,9 +4,13 @@
 
 using System;
 using System.Buffers;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace Spreads.Buffers
 {
+
+    // TODO IReadOnlyList
 
     /// <summary>
     /// A struct that wraps a System.Memory.Buffer and its DisposableReservation that is returned after calling buffer.Reserver().
@@ -18,7 +22,7 @@ namespace Spreads.Buffers
     /// will be disposed during disposal of that collection. To keep ownership outside the collection, use PreservedBuffer.Clone() method and 
     /// add a cloned PreservedBuffer value to the collection.
     /// </summary>
-    public struct PreservedBuffer<T> : IDisposable
+    public struct PreservedBuffer<T> : IReadOnlyList<T>, IDisposable
     {
         private DisposableReservation<T> _reservation;
 
@@ -43,6 +47,16 @@ namespace Spreads.Buffers
         public Span<T> Span => Buffer.Span;
 
         /// <summary>
+        /// Gets the number of elements in the PreservedBuffer.
+        /// </summary>
+        public int Count => Buffer.Length;
+
+        /// <summary>
+        /// Gets the element at the specified index in the PreservedBuffer.
+        /// </summary>
+        public T this[int index] => Buffer.Span[index];
+
+        /// <summary>
         /// Release a reference of the underlying OwnedBuffer.
         /// </summary>
         public void Dispose()
@@ -57,6 +71,23 @@ namespace Spreads.Buffers
         public PreservedBuffer<T> Clone()
         {
             return new PreservedBuffer<T>(Buffer);
+        }
+
+        /// <summary>
+        /// Returns an enumerator that iterates through the PreservedBuffer.
+        /// </summary>
+        public IEnumerator<T> GetEnumerator()
+        {
+            var span = Buffer.Span;
+            for (int i = 0; i < Buffer.Length; i++)
+            {
+                yield return span[i];
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
     }
 }

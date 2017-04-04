@@ -854,7 +854,7 @@ namespace Spreads.Collections.Tests.Cursors
                 sm.Complete();
             });
 
-            var cached = sm.Cache().After(DateTime.UtcNow.Date.AddSeconds(0), Lookup.EQ);
+            var cached = sm.Cache().After(DateTime.UtcNow.Date.AddSeconds(0), true);
 
             double sum = 0.0;
 

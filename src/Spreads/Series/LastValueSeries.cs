@@ -9,7 +9,7 @@ namespace Spreads.Series
     /// </summary>
     /// <typeparam name="TKey"></typeparam>
     /// <typeparam name="TValue"></typeparam>
-    public class LastValueSeries<TKey, TValue> : Series<TKey, TValue>
+    public class LastValueSeries<TKey, TValue> : ContainerSeries<TKey, TValue>
     {
         private KeyValuePair<TKey, TValue> _lastValue;
         private bool _isSet = false;
@@ -35,7 +35,7 @@ namespace Spreads.Series
             {
                 _lastValue = new KeyValuePair<TKey, TValue>(key, value);
                 _isSet = true;
-                this.NotifyUpdate();
+                this.NotifyUpdate(true);
             }
         }
 

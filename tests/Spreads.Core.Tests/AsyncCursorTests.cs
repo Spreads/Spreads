@@ -152,16 +152,18 @@ namespace Spreads.Core.Tests
         {
             var sm = new SortedMap<int, int>();
 
+            sm.Add(-1, -1);
             sm.Add(1, 1);
+            sm.Add(2, 2);
 
-            var range = sm.After(0);
+            var range = sm.Range(0, 2, true, false);
 
             Assert.AreEqual(1, range.First.Value);
 
             var cursor = range.GetCursor();
 
             var source = cursor.Source;
-            Console.WriteLine(source.Count());
+            Assert.AreEqual(1, source.Count());
 
             Assert.True(cursor.MoveNext());
             Assert.False(cursor.MoveNext());
@@ -194,7 +196,7 @@ namespace Spreads.Core.Tests
             var cursor = range.GetCursor();
 
             var source = cursor.Source;
-           
+
 
             var cts = new CancellationTokenSource();
 
@@ -206,8 +208,46 @@ namespace Spreads.Core.Tests
                 Assert.True(moved);
                 moved = await cursor.MoveNext(cts.Token);
                 Assert.False(moved);
+                Assert.AreEqual(2, cursor.CurrentKey);
+                Assert.AreEqual(2, cursor.CurrentValue);
             });
 
+            t.Wait();
+        }
+
+
+        [Test]
+        public void RangeCursorMovesAfterAwating()
+        {
+            var sm = new SortedMap<int, int>();
+
+            sm.Add(1, 1);
+            
+            var range = sm.Before(2, true);
+
+            //Assert.AreEqual(1, range.First.Value);
+
+            var cursor = range.GetCursor();
+
+            var source = cursor.Source;
+
+
+            var cts = new CancellationTokenSource();
+
+            var t = Task.Run(async () =>
+            {
+                var moved = await cursor.MoveNext(cts.Token);
+                Assert.True(moved);
+                moved = await cursor.MoveNext(cts.Token);
+                Assert.True(moved);
+                moved = await cursor.MoveNext(cts.Token);
+                Assert.False(moved);
+                Assert.AreEqual(2, cursor.CurrentKey);
+                Assert.AreEqual(2, cursor.CurrentValue);
+            });
+            Thread.Sleep(100);
+            sm.Add(2, 2);
+            sm.Add(3, 3);
             t.Wait();
         }
 
