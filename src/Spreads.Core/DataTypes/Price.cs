@@ -2,11 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Serialization;
 using System;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Serialization;
 
 namespace Spreads.DataTypes
 {
@@ -202,6 +202,7 @@ namespace Spreads.DataTypes
             return new Price(0, (long)value);
         }
 
+        /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int CompareTo(Price other)
         {
@@ -220,6 +221,7 @@ namespace Spreads.DataTypes
             }
         }
 
+        /// <inheritdoc />
         public bool Equals(Price other)
         {
             if (_value == other._value)
@@ -243,6 +245,7 @@ namespace Spreads.DataTypes
             }
         }
 
+        /// <inheritdoc />
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj)) return false;
@@ -308,12 +311,14 @@ namespace Spreads.DataTypes
             return new Price((int)x.Exponent, (long)(x.Mantissa * y));
         }
 
+        /// <inheritdoc />
         public override string ToString()
         {
             var asDecimal = (decimal)this;
             return asDecimal.ToString(CultureInfo.InvariantCulture);
         }
 
+        /// <inheritdoc />
         public override int GetHashCode()
         {
             return (int)(_value & int.MaxValue);
@@ -321,98 +326,108 @@ namespace Spreads.DataTypes
 
         #region IConvertible
 
+        /// <inheritdoc />
         public TypeCode GetTypeCode()
         {
             return TypeCode.Decimal;
         }
 
+        /// <inheritdoc />
         public bool ToBoolean(IFormatProvider provider)
         {
             throw new InvalidCastException();
         }
 
+        /// <inheritdoc />
         public char ToChar(IFormatProvider provider)
         {
             throw new InvalidCastException();
         }
 
+        /// <inheritdoc />
         public sbyte ToSByte(IFormatProvider provider)
         {
             throw new InvalidCastException();
         }
 
+        /// <inheritdoc />
         public byte ToByte(IFormatProvider provider)
         {
             throw new InvalidCastException();
         }
 
+        /// <inheritdoc />
         public short ToInt16(IFormatProvider provider)
         {
             throw new InvalidCastException();
         }
 
+        /// <inheritdoc />
         public ushort ToUInt16(IFormatProvider provider)
         {
             throw new InvalidCastException();
         }
 
+        /// <inheritdoc />
         public int ToInt32(IFormatProvider provider)
         {
             throw new InvalidCastException();
         }
 
+        /// <inheritdoc />
         public uint ToUInt32(IFormatProvider provider)
         {
             throw new InvalidCastException();
         }
 
+        /// <inheritdoc />
         public long ToInt64(IFormatProvider provider)
         {
             throw new InvalidCastException();
         }
 
+        /// <inheritdoc />
         public ulong ToUInt64(IFormatProvider provider)
         {
             throw new InvalidCastException();
         }
 
+        /// <inheritdoc />
         public float ToSingle(IFormatProvider provider)
         {
             return (float)this;
         }
 
+        /// <inheritdoc />
         public double ToDouble(IFormatProvider provider)
         {
             return (double)this;
         }
 
+        /// <inheritdoc />
         public decimal ToDecimal(IFormatProvider provider)
         {
             return (decimal)this;
         }
 
+        /// <inheritdoc />
         public DateTime ToDateTime(IFormatProvider provider)
         {
             throw new InvalidCastException();
         }
 
+        /// <inheritdoc />
         public string ToString(IFormatProvider provider)
         {
             return this.ToString();
         }
 
+        /// <inheritdoc />
         public object ToType(Type conversionType, IFormatProvider provider)
         {
             throw new InvalidCastException();
         }
 
         #endregion IConvertible
-    }
-
-    public class InvalidPriceException : Exception
-    {
-        public InvalidPriceException(string message) : base(message)
-        {
-        }
     }
 }
