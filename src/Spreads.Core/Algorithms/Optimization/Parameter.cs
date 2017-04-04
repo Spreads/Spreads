@@ -2,11 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Collections.Generic;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Dynamic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -217,136 +217,27 @@ namespace Spreads.Algorithms.Optimization
         }
     }
 
-    public class Parameters : DynamicObject
-    {
-        private readonly Parameter[] _parameters;
-
-        public Parameters(Parameter[] parameters)
-        {
-            if (parameters.Select(x => x.Code).Distinct(StringComparer.OrdinalIgnoreCase).Count() != parameters.Length)
-            {
-                throw new ArgumentException("Parameter codes are not unique");
-            }
-            _parameters = parameters;
-        }
-
-        public Parameter[] Array => _parameters;
-
-        //public Parameter[] Array => _parameters;
-        public int Count => _parameters.Length;
-
-        public double this[string code]
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                foreach (var par in _parameters)
-                {
-                    if (par.Code.Equals(code, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return par.Current;
-                    }
-                }
-                var trimmed = code.Trim();
-                if (trimmed != code)
-                {
-                    var result = this[trimmed];
-                    Trace.TraceWarning($"Parameter {code} has leading or trailing spaces, check for typos");
-                    return result;
-                }
-                else
-                {
-                    throw new KeyNotFoundException($"Unknown parameter: {code}");
-                }
-            }
-        }
-
-        public Parameter this[int index]
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (index < 0 || index >= _parameters.Length)
-                {
-                    throw new IndexOutOfRangeException();
-                }
-                return _parameters[index];
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set
-            {
-                if (index < 0 || index >= _parameters.Length)
-                {
-                    throw new IndexOutOfRangeException();
-                }
-                _parameters[index] = value;
-            }
-        }
-
-        public int TotalInterations => _parameters.Select(x => x.Steps).Aggregate(1, (i, st) => checked(i * st));
-
-        public Parameters GetRegion(int epsilon)
-        {
-            var clone = this.Clone();
-            for (int i = 0; i < _parameters.Length; i++)
-            {
-                clone._parameters[i] = _parameters[i].GetRegion(_parameters[i].CurrentPosition, epsilon);
-            }
-            return clone;
-        }
-
-        public Parameters Clone()
-        {
-            return new Parameters(_parameters.ToArray());
-        }
-
-        public Parameters Reset()
-        {
-            foreach (var p in _parameters)
-            {
-                p.Reset();
-            }
-            return this;
-        }
-
-        public override bool TryGetMember(GetMemberBinder binder, out object result)
-        {
-            var name = binder.Name;
-            foreach (var par in _parameters)
-            {
-                if (par.Code.Equals(name, StringComparison.OrdinalIgnoreCase))
-                {
-                    result = par.Current;
-                    return true;
-                }
-            }
-            result = null;
-            return false;
-        }
-    }
-
     public static class ParameterExtensions
     {
         // useful to as a key to memoize target function result at a point, instead of int[]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long LinearAddress(this Parameters parameters)
         {
-            return parameters.Array.LinearAddress();
+            return parameters.List.LinearAddress();
         }
 
         // useful to as a key to memoize target function result at a point, instead of int[]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static long LinearAddress(this Parameter[] parameters)
+        public static long LinearAddress(this RefList<Parameter> parameters)
         {
             if (parameters == null) throw new ArgumentNullException(nameof(parameters));
             var address = -1L;
-            if (parameters.Length == 0) return address;
+            if (parameters.Count == 0) return address;
             address = parameters[0].CurrentPosition;
             if (address == -1) throw new InvalidOperationException("Cannot get address of not started parameter");
             // previous * current dim + current addr
             // TODO test + review
-            for (int i = 1; i < parameters.Length; i++)
+            for (int i = 1; i < parameters.Count; i++)
             {
                 if (parameters[i].CurrentPosition == -1) throw new InvalidOperationException("Cannot get address of not started parameter");
                 address = address * parameters[i].Steps + parameters[i].CurrentPosition;
@@ -357,15 +248,15 @@ namespace Spreads.Algorithms.Optimization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Parameters SetPositionsFromLinearAddress(this Parameters parameters, long linearAddress)
         {
-            var newParameters = SetPositionsFromLinearAddress(parameters.Array, linearAddress);
+            var newParameters = SetPositionsFromLinearAddress(parameters.List, linearAddress);
             return new Parameters(newParameters);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Parameter[] SetPositionsFromLinearAddress(this Parameter[] parameters, long linearAddress)
+        public static Parameter[] SetPositionsFromLinearAddress(this RefList<Parameter> parameters, long linearAddress)
         {
             var newParameters = parameters.ToArray();
-            for (int i = parameters.Length - 1; i >= 1; i--)
+            for (int i = parameters.Count - 1; i >= 1; i--)
             {
                 var steps = parameters[i].Steps;
                 var tmp = linearAddress / steps;

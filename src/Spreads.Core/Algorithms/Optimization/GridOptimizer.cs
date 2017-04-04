@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Spreads.Algorithms.Optimization;
 
 namespace Spreads.Algorithms.Optimization
 {
@@ -70,14 +71,14 @@ namespace Spreads.Algorithms.Optimization
             {
                 if (depth < _parameters.Count)
                 {
-                    if (parameters.Array[depth].MoveNext())
+                    if (parameters.List[depth].MoveNext())
                     {
                         depth++;
                         // when all moved, the first `if` above is false
                     }
                     else
                     {
-                        parameters.Array[depth].Reset();
+                        parameters.List[depth].Reset();
                         depth--;
                     }
                 }
@@ -126,7 +127,7 @@ namespace Spreads.Algorithms.Optimization
 
                             for (int i = 0; i < parameters.Count; i++)
                             {
-                                currentTask.Parameters.Array[i] = parameters.Array[i];
+                                currentTask.Parameters.List[i] = parameters.List[i];
                             }
                             address = currentTask.Parameters.LinearAddress();
                             var t = (_memoize && _results.TryGetValue(address, out tmp)) ? new ValueTask<TEval>(tmp) : _targetFunc(currentTask.Parameters);
@@ -194,25 +195,25 @@ namespace Spreads.Algorithms.Optimization
         public static async Task<EvalParametersResult<double>> MaximizeWithBigStep(Parameters parameters,
             Func<Parameters, ValueTask<double>> targetFunc, bool memoize = false)
         {
-            var newParameters = new Parameters(parameters.Array.Select(p => p.WithBigStep()).ToArray());
+            var newParameters = new Parameters(parameters.List.Select(p => p.WithBigStep()).ToArray());
 
             var maximizer = new GridOptimizer<double>(newParameters, targetFunc, memoize);
             var optimum = await maximizer.FoldGrid(WorstDouble, DoubleMaxFolder);
             var optParams = newParameters.SetPositionsFromLinearAddress(optimum.LinearAddress);
 
             // 2nd step, get a region around optimal big step
-            for (int i = 0; i < parameters.Array.Length; i++)
+            for (int i = 0; i < parameters.List.Count; i++)
             {
-                newParameters.Array[i] = parameters.Array[i].GetRegion(optParams.Array[i].GridPosition * parameters.Array[i].BigStepMultiple, parameters.Array[i].BigStepMultiple);
+                newParameters.List[i] = parameters.List[i].GetRegion(optParams.List[i].GridPosition * parameters.List[i].BigStepMultiple, parameters.List[i].BigStepMultiple);
             }
 
             maximizer = new GridOptimizer<double>(newParameters, targetFunc, memoize);
             optimum = await maximizer.FoldGrid(WorstDouble, DoubleMaxFolder);
             optParams = newParameters.SetPositionsFromLinearAddress(optimum.LinearAddress);
             var ret = parameters.Clone();
-            for (int i = 0; i < parameters.Array.Length; i++)
+            for (int i = 0; i < parameters.List.Count; i++)
             {
-                ret.Array[i].CurrentPosition = optParams[i].GridPosition;
+                ret.List[i].CurrentPosition = optParams[i].GridPosition;
             }
 
             var result = new EvalParametersResult<double> { Value = optimum.Value, Parameters = ret };
