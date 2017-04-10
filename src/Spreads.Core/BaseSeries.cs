@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Collections.Experimantal;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -50,6 +51,9 @@ namespace Spreads
     public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK, TV>
     {
         private object _syncRoot;
+        private int _writeLocker;
+        internal long _version;
+        internal long _nextVersion;
 
         public abstract ICursor<TK, TV> GetCursor();
 
@@ -123,5 +127,67 @@ namespace Spreads
         public abstract bool TryGetLast(out KeyValuePair<TK, TV> value);
 
         public abstract bool TryGetValue(TK key, out TV value);
+
+        /// <summary>
+        /// Takes a write lock, increments _nextVersion field and returns the current value of the _version field.
+        /// </summary>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected long BeforWrite()
+        {
+            long version = 0;
+            // NB try{} finally{ .. code here .. } prevents method inlining, therefore should be used at the caller place, not here
+            while (true)
+            {
+                if (Interlocked.CompareExchange(ref _writeLocker, 1, 0) == 0)
+                {
+                    // Interlocked.CompareExchange generated implicit memory barrier
+                    var nextVersion = _nextVersion + 1;
+                    // Volatile.Write prevents the read above to move below
+                    Volatile.Write(ref _nextVersion, nextVersion);
+                    // Volatile.Read prevents any read/write after to to move above it
+                    // see CoreClr 6121, esp. comment by CarolEidt
+                    version = Volatile.Read(ref _version);
+                    // do not return from a loop, see CoreClr #9692
+                    break;
+                }
+            }
+
+            return version;
+        }
+
+        /// <summary>
+        /// Release write lock and increment _version field or decrement _nextVersion field if no updates were made
+        /// </summary>
+        /// <param name="version"></param>
+        /// <param name="doIncrement"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected void AfterWrite(long version, bool doIncrement = true)
+        {
+            // Volatile.Write will prevent any read/write to move below it
+            if (doIncrement)
+            {
+                Volatile.Write(ref _version, version + 1);
+            }
+            else
+            {
+                // set nextVersion back to original version, no changes were made
+                Volatile.Write(ref _nextVersion, version);
+            }
+            // release write lock
+            //Interlocked.Exchange(ref _writeLocker, 0);
+            // TODO review if this is enough. Iterlocked is right for sure, but is more expensive (slower by more than 25% on field increment test)
+            Volatile.Write(ref _writeLocker, 0);
+        }
+    }
+
+    // Experiment
+    internal abstract class SpecializedBaseSeries<TK, TV, TComparer> : BaseSeries<TK, TV>
+        where TComparer : IKeyComparer<TK>
+    {
+        // https://ayende.com/blog/177377/fast-dictionary-and-struct-generic-arguments
+        // if TComparer is a struct then all calls to it could be inlined
+        // if TComparer is an instance of KeyComparer we have optimized virtual calls to sealed class
+        // if TComparer is IComparer we have interface calls and this is what we have now
     }
 }

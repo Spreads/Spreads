@@ -15,7 +15,7 @@ namespace Spreads.Core.Tests
         {
             for (int i = 0; i < 10; i++)
             {
-                (new KeyComparerTests()).ComparerInterfaceAndCachedConstrainedComparer();
+                (new LockFreeTests()).CouldUseWriteLockManyTimes();
             }
 
             Console.ReadLine();

@@ -144,6 +144,7 @@
     <Compile Include="DataTypes\PriceTests.cs" />
     <Compile Include="DataTypes\TypeFlattenerTests.cs" />
     <Compile Include="Enumerators\TimeSliceTests.cs" />
+    <Compile Include="LockFreeTests.cs" />
     <Compile Include="NanoOptimizationTests.cs" />
     <Compile Include="ObjectPoolsTests.cs" />
     <Compile Include="Algorithms\OptimizationTests.cs" />
