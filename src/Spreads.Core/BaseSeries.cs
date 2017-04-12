@@ -50,10 +50,14 @@ namespace Spreads
     /// <typeparam name="TV">Type of series values.</typeparam>
     public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK, TV>
     {
-        private object _syncRoot;
-        private int _writeLocker;
+        // TODO move locking to base container series
         internal long _version;
         internal long _nextVersion;
+        private int _writeLocker;
+        private object _syncRoot;
+        private TaskCompletionSource<bool> _tcs;
+        private TaskCompletionSource<bool> _unusedTcs;
+        private ManualResetEventSlim _mre = new ManualResetEventSlim(false);
 
         public abstract ICursor<TK, TV> GetCursor();
 
@@ -118,7 +122,6 @@ namespace Spreads
 
         public abstract IEnumerable<TK> Keys { get; }
         public abstract IEnumerable<TV> Values { get; }
-        public abstract Task<bool> Updated { get; }
 
         public abstract bool TryFind(TK key, Lookup direction, out KeyValuePair<TK, TV> value);
 
@@ -135,14 +138,14 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected long BeforWrite()
         {
-            long version = 0;
+            long version = 0L;
             // NB try{} finally{ .. code here .. } prevents method inlining, therefore should be used at the caller place, not here
             while (true)
             {
                 if (Interlocked.CompareExchange(ref _writeLocker, 1, 0) == 0)
                 {
                     // Interlocked.CompareExchange generated implicit memory barrier
-                    var nextVersion = _nextVersion + 1;
+                    var nextVersion = _nextVersion + 1L;
                     // Volatile.Write prevents the read above to move below
                     Volatile.Write(ref _nextVersion, nextVersion);
                     // Volatile.Read prevents any read/write after to to move above it
@@ -167,7 +170,16 @@ namespace Spreads
             // Volatile.Write will prevent any read/write to move below it
             if (doIncrement)
             {
-                Volatile.Write(ref _version, version + 1);
+                Volatile.Write(ref _version, version + 1L);
+
+                var tcs = _tcs;
+                _tcs = null;
+                if (tcs != null)
+                {
+                    tcs.SetResult(true);
+                }
+                //_mre.Set();
+                //_mre.Reset();
             }
             else
             {
@@ -178,6 +190,47 @@ namespace Spreads
             //Interlocked.Exchange(ref _writeLocker, 0);
             // TODO review if this is enough. Iterlocked is right for sure, but is more expensive (slower by more than 25% on field increment test)
             Volatile.Write(ref _writeLocker, 0);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void NotifyUpdate(bool result = true)
+        {
+            var tcs = Interlocked.Exchange(ref _tcs, null);
+            if (tcs != null)
+            {
+                tcs.SetResult(result);
+            }
+            // TODO (low, perf) review if this could be better and safe. Manual benchmarking is inconclusive.
+            //var tcs = Volatile.Read(ref _tcs);
+            //Volatile.Write(ref _tcs, null);
+        }
+
+        /// <summary>
+        /// A Task that is completed with True whenever underlying data is changed.
+        /// Internally used for signaling to async cursors.
+        /// After getting the Task one should check if any changes happened (version change or cursor move) before awating the task.
+        /// If the task is completed with false then the series is read-only, immutable or complete.
+        /// </summary>
+        public virtual Task<bool> Updated
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                // saving one allocation vs Interlocked.Exchange call
+                var unusedTcs = Interlocked.Exchange(ref _unusedTcs, null);
+                var newTcs = unusedTcs ?? new TaskCompletionSource<bool>();
+                var tcs = Interlocked.CompareExchange(ref _tcs, newTcs, null);
+                if (tcs == null)
+                {
+                    // newTcs was put to the _tcs field, use it
+                    tcs = newTcs;
+                }
+                else
+                {
+                    Volatile.Write(ref _unusedTcs, newTcs);
+                }
+                return tcs.Task;
+            }
         }
     }
 
