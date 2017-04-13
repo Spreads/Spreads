@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Collections.Experimantal;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -58,14 +57,20 @@ namespace Spreads
         private object _syncRoot;
         private TaskCompletionSource<bool> _tcs;
         private TaskCompletionSource<bool> _unusedTcs;
-        private ManualResetEventSlim _mre = new ManualResetEventSlim(false);
 
+        /// <inheritdoc />
         public abstract ICursor<TK, TV> GetCursor();
 
+        /// <inheritdoc />
         public abstract IComparer<TK> Comparer { get; }
+
+        /// <inheritdoc />
         public abstract bool IsIndexed { get; }
+
+        /// <inheritdoc />
         public abstract bool IsReadOnly { get; }
 
+        /// <inheritdoc />
         public virtual IDisposable Subscribe(IObserver<KeyValuePair<TK, TV>> observer)
         {
             // TODO not virtual and implement all logic here, including backpressure case
@@ -87,6 +92,7 @@ namespace Spreads
             return GetCursor();
         }
 
+        /// <inheritdoc />
         public object SyncRoot
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -100,12 +106,16 @@ namespace Spreads
             }
         }
 
-        // IReadOnlySeries members
+        /// <inheritdoc />
         public abstract bool IsEmpty { get; }
 
+        /// <inheritdoc />
         public abstract KeyValuePair<TK, TV> First { get; }
+
+        /// <inheritdoc />
         public abstract KeyValuePair<TK, TV> Last { get; }
 
+        /// <inheritdoc />
         public virtual TV this[TK key]
         {
             get
@@ -119,17 +129,25 @@ namespace Spreads
             }
         }
 
+        /// <inheritdoc />
         public abstract TV GetAt(int idx);
 
+        /// <inheritdoc />
         public abstract IEnumerable<TK> Keys { get; }
+
+        /// <inheritdoc />
         public abstract IEnumerable<TV> Values { get; }
 
+        /// <inheritdoc />
         public abstract bool TryFind(TK key, Lookup direction, out KeyValuePair<TK, TV> value);
 
+        /// <inheritdoc />
         public abstract bool TryGetFirst(out KeyValuePair<TK, TV> value);
 
+        /// <inheritdoc />
         public abstract bool TryGetLast(out KeyValuePair<TK, TV> value);
 
+        /// <inheritdoc />
         public abstract bool TryGetValue(TK key, out TV value);
 
         /// <summary>
@@ -141,6 +159,7 @@ namespace Spreads
         {
             long version = -1L;
             // NB try{} finally{ .. code here .. } prevents method inlining, therefore should be used at the caller place, not here
+            // ReSharper disable once LoopVariableIsNeverChangedInsideLoop
             while (takeLock)
             {
                 if (Interlocked.CompareExchange(ref _writeLocker, 1, 0) == 0)
@@ -167,19 +186,17 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void AfterWrite(long version, bool doIncrement = true)
         {
+            if (version < 0L) return;
+
             // Volatile.Write will prevent any read/write to move below it
             if (doIncrement)
             {
                 Volatile.Write(ref _version, version + 1L);
 
+                // NB no Interlocked inside write lock, readers must follow pattern to retry MN after getting `Updated` Task, and MN has it's own read lock. For other cases the behavior in undefined.
                 var tcs = _tcs;
                 _tcs = null;
-                if (tcs != null)
-                {
-                    tcs.SetResult(true);
-                }
-                //_mre.Set();
-                //_mre.Reset();
+                tcs?.SetResult(true);
             }
             else
             {
@@ -195,14 +212,9 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void NotifyUpdate(bool result = true)
         {
+            // NB in some cases (inside write lock) interlocked is not needed, but we then use this same lgic manually without Interlocked
             var tcs = Interlocked.Exchange(ref _tcs, null);
-            if (tcs != null)
-            {
-                tcs.SetResult(result);
-            }
-            // TODO (low, perf) review if this could be better and safe. Manual benchmarking is inconclusive.
-            //var tcs = Volatile.Read(ref _tcs);
-            //Volatile.Write(ref _tcs, null);
+            tcs?.SetResult(result);
         }
 
         /// <summary>
@@ -234,13 +246,13 @@ namespace Spreads
         }
     }
 
-    // Experiment
-    internal abstract class SpecializedBaseSeries<TK, TV, TComparer> : BaseSeries<TK, TV>
-        where TComparer : IKeyComparer<TK>
-    {
-        // https://ayende.com/blog/177377/fast-dictionary-and-struct-generic-arguments
-        // if TComparer is a struct then all calls to it could be inlined
-        // if TComparer is an instance of KeyComparer we have optimized virtual calls to sealed class
-        // if TComparer is IComparer we have interface calls and this is what we have now
-    }
+    // Experiment #100
+    //internal abstract class SpecializedBaseSeries<TK, TV, TComparer> : BaseSeries<TK, TV>
+    //    where TComparer : IKeyComparer<TK>
+    //{
+    //    // https://ayende.com/blog/177377/fast-dictionary-and-struct-generic-arguments
+    //    // if TComparer is a struct then all calls to it could be inlined
+    //    // if TComparer is an instance of KeyComparer we have optimized virtual calls to sealed class
+    //    // if TComparer is IComparer we have interface calls and this is what we have now
+    //}
 }
