@@ -51,8 +51,8 @@ and
     [<DefaultValueAttribute>]
     val mutable internal Locker : int
 
-    override this.Updated 
-      with [<MethodImpl(MethodImplOptions.AggressiveInlining)>] get() : Task<bool> = raise (NotImplementedException())
+    //override this.Updated 
+    //  with [<MethodImpl(MethodImplOptions.AggressiveInlining)>] get() : Task<bool> = raise (NotImplementedException())
 
     // TODO (!) IObservable needs much more love and adherence to Rx contracts, see #40
     // TODO Move to BaseSeries
@@ -526,32 +526,32 @@ and
   ContainerSeries<'K,'V>() =
     inherit Series<'K,'V>()
 
-    [<DefaultValueAttribute>]
-    val mutable private tcs : TaskCompletionSource<bool>
-     [<DefaultValueAttribute>]
-    val mutable private unusedTcs : TaskCompletionSource<bool>
+    //[<DefaultValueAttribute>]
+    //val mutable private tcs : TaskCompletionSource<bool>
+    // [<DefaultValueAttribute>]
+    //val mutable private unusedTcs : TaskCompletionSource<bool>
 
-    [<MethodImpl(MethodImplOptions.AggressiveInlining)>]
-    member internal this.NotifyUpdate(result : bool) =
-      // when result = false, we will keep completed tcs with false forever
-      let tcs = if result then Interlocked.Exchange(&this.tcs, null) else Volatile.Read(&this.tcs)
-      if tcs <> null then tcs.SetResult(result);
-      // TODO (low, perf) review if this could be better and safe. Manual benchmarking is inconclusive.
-      //var tcs = Volatile.Read(ref _tcs);
-      //Volatile.Write(ref _tcs, null);
+    //[<MethodImpl(MethodImplOptions.AggressiveInlining)>]
+    //member internal this.NotifyUpdate(result : bool) =
+    //  // when result = false, we will keep completed tcs with false forever
+    //  let tcs = if result then Interlocked.Exchange(&this.tcs, null) else Volatile.Read(&this.tcs)
+    //  if tcs <> null then tcs.SetResult(result);
+    //  // TODO (low, perf) review if this could be better and safe. Manual benchmarking is inconclusive.
+    //  //var tcs = Volatile.Read(ref _tcs);
+    //  //Volatile.Write(ref _tcs, null);
 
-    override this.Updated 
-      with [<MethodImpl(MethodImplOptions.AggressiveInlining)>] get() : Task<bool> =
-        // saving one allocation vs Interlocked.Exchange call
-        let unusedTcs = Interlocked.Exchange(&this.unusedTcs, null);
-        let newTcs = if unusedTcs = null then new TaskCompletionSource<bool>() else unusedTcs
-        let mutable tcs = Interlocked.CompareExchange(&this.tcs, newTcs, null);
-        if tcs = null then
-          // newTcs was put to the _tcs field, use it
-          tcs <- newTcs;
-        else
-          Volatile.Write(&this.unusedTcs, newTcs);
-        tcs.Task;
+    //override this.Updated 
+    //  with [<MethodImpl(MethodImplOptions.AggressiveInlining)>] get() : Task<bool> =
+    //    // saving one allocation vs Interlocked.Exchange call
+    //    let unusedTcs = Interlocked.Exchange(&this.unusedTcs, null);
+    //    let newTcs = if unusedTcs = null then new TaskCompletionSource<bool>() else unusedTcs
+    //    let mutable tcs = Interlocked.CompareExchange(&this.tcs, newTcs, null);
+    //    if tcs = null then
+    //      // newTcs was put to the _tcs field, use it
+    //      tcs <- newTcs;
+    //    else
+    //      Volatile.Write(&this.unusedTcs, newTcs);
+    //    tcs.Task;
         
 
 and

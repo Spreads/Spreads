@@ -39,7 +39,7 @@ namespace Spreads.DataTypes
         public int SmallAskSize => _smallAsk.Volume;
 
         [DataMember(Order = 3)]
-        public int SmallAskOffset => _smallAsk.Reserved;
+        public int SmallAskOffset => _smallAsk._reserved;
 
         [DataMember(Order = 4)]
         public Price SmallBidPrice => _smallBid.Price;
@@ -48,10 +48,10 @@ namespace Spreads.DataTypes
         public int SmallBidSize => _smallBid.Volume;
 
         [DataMember(Order = 6)]
-        public int SmallBidOffset => _smallBid.Reserved;
+        public int SmallBidOffset => _smallBid._reserved;
 
-        public bool IsBestAsk => _smallAsk.Reserved == 0;
-        public bool IsBestBid => _smallBid.Reserved == 0;
+        public bool IsBestAsk => _smallAsk._reserved == 0;
+        public bool IsBestBid => _smallBid._reserved == 0;
 
         public MarketDepth GetDelta(MarketDepth next)
         {

@@ -12,9 +12,9 @@ namespace Spreads.DataTypes
     /// <summary>
     /// Marker struct to have type safety for integer identity id.
     /// </summary>
-    /// <remarks>See <see href="http://stackoverflow.com/questions/39179385/c-sharp-marker-structures-performance">details on market interfaces in C#</see>.
+    /// <remarks>See <see href="http://stackoverflow.com/questions/39179385/c-sharp-marker-structures-performance">details on marker structs in C#</see>.
     /// It is similar to type aliases in F#.
-    /// Useful to prevent wrong usage of some index as an Id or for method overloading.
+    /// Useful for preventing wrong usage of some index as an Id or for method overloading.
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 4)]
     [Serialization(BlittableSize = 4)]

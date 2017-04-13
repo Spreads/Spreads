@@ -52,6 +52,7 @@ namespace Spreads
     {
         // TODO move locking to base container series
         internal long _version;
+
         internal long _nextVersion;
         private int _writeLocker;
         private object _syncRoot;
@@ -136,11 +137,11 @@ namespace Spreads
         /// </summary>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected long BeforWrite()
+        protected long BeforWrite(bool takeLock = true)
         {
-            long version = 0L;
+            long version = -1L;
             // NB try{} finally{ .. code here .. } prevents method inlining, therefore should be used at the caller place, not here
-            while (true)
+            while (takeLock)
             {
                 if (Interlocked.CompareExchange(ref _writeLocker, 1, 0) == 0)
                 {
@@ -155,7 +156,6 @@ namespace Spreads
                     break;
                 }
             }
-
             return version;
         }
 

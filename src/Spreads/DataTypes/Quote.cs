@@ -31,16 +31,13 @@ namespace Spreads.DataTypes
     {
         private readonly Price _price;
         private readonly int _volume;
-        private readonly int _reserved; // padding
+        internal readonly int _reserved; // padding
 
         [DataMember(Order = 1)]
         public Price Price => _price;
 
         [DataMember(Order = 2)]
         public int Volume => _volume;
-
-        [DataMember(Order = 3)]
-        public int Reserved => _reserved;
 
         public Quote(Price price, int volume)
         {
@@ -49,7 +46,7 @@ namespace Spreads.DataTypes
             _reserved = 0;
         }
 
-        public Quote(Price price, int volume, int reserved)
+        internal Quote(Price price, int volume, int reserved)
         {
             _price = price;
             _volume = volume;
@@ -76,12 +73,12 @@ namespace Spreads.DataTypes
 
         public Quote GetDelta(Quote next)
         {
-            return new Quote(next.Price - Price, next.Volume, next.Reserved);
+            return new Quote(next.Price - Price, next.Volume, next._reserved);
         }
 
         public Quote AddDelta(Quote delta)
         {
-            return new Quote(Price + delta.Price, delta.Volume, delta.Reserved);
+            return new Quote(Price + delta.Price, delta.Volume, delta._reserved);
         }
     }
 }

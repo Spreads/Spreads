@@ -21,10 +21,17 @@ namespace Spreads.Core.Tests
     [TestFixture]
     public unsafe class LockFreeTests
     {
-        public sealed class LockTestSeries : BaseSeries<int, int>
+        //sealed
+        public class LockTestSeries : BaseSeries<int, int>
         {
             private object _syncRoot = new object();
             private long _counter;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            private void DoIncrement()
+            {
+                _counter++;
+            }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Increment()
@@ -33,7 +40,7 @@ namespace Spreads.Core.Tests
                 // therefore such `finally` usage should be only in public API methods, which are OK to be not inlined
                 // (except for cursor moves, which are the hottest path)
                 // For mutations performance is just fine, we do not use Add/Set when reading history anyways but recreate entire SMs in a single call.
-                long v2 = 0;
+                var v2 = 0L;
                 try
                 {
                     try { }
@@ -41,7 +48,7 @@ namespace Spreads.Core.Tests
                     {
                         v2 = this.BeforWrite();
                     }
-                    _counter++;
+                    DoIncrement();
                 }
                 finally
                 {

@@ -12,6 +12,10 @@ type LockTestSeries()=
 
   member this.Counter = this.counter
 
+  //[<MethodImpl(MethodImplOptions.NoInlining)>]
+  member private this.DoIncrement() =
+    this.counter <- this.counter + 1L
+
   [<MethodImpl(MethodImplOptions.AggressiveInlining)>]
   member this.Increment() : unit =
       let mutable v2 = 0L;
@@ -20,7 +24,7 @@ type LockTestSeries()=
           ()
         finally
           v2 <- this.BeforWrite()
-        this.counter <- this.counter + 1L
+        this.DoIncrement()
       finally
         this.AfterWrite(v2, true);
       

@@ -19,6 +19,9 @@ namespace Spreads.DataTypes
     // Then we could store a 8-byte pointer instead of 16-byte symbol (or even an int and have another dictionary). Many tradeoffs...
     // Also see String.Intern method
 
+
+    // TODO there are WIP changes that was accidentally commited
+
     [DebuggerDisplay("{AsString}")]
     public unsafe struct Symbol : IEquatable<Symbol>
     {

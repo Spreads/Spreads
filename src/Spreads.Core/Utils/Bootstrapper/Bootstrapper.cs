@@ -405,7 +405,7 @@ namespace Bootstrap
                 {
                     nativeLibrary = Loader.LoadNativeLibrary<T>(nativeLibraryName);
                     nativeLibraries.Add(nativeLibraryName, nativeLibrary);
-                    Console.WriteLine("Loaded native library: " + nativeLibraryName);
+                    Trace.TraceInformation("Loaded native library: " + nativeLibraryName);
                 }
             }
 
