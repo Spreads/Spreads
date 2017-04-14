@@ -190,7 +190,7 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void CouldCompareDates() {
-            var dtc = KeyComparer.GetDefault<DateTime>();
+            var dtc = KeyComparer<DateTime>.Default;
             var neg = dtc.Compare(DateTime.Today.AddDays(-2), DateTime.Today);
             var pos = dtc.Compare(DateTime.Today.AddDays(2), DateTime.Today.AddDays(-2));
 

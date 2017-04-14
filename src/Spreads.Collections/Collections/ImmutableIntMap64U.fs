@@ -1227,7 +1227,7 @@ namespace Spreads.Collections
         interface IImmutableSeries<uint64, 'T> with
           member this.Updated = falseTask
           member this.Subscribe(observer) = raise (NotImplementedException())
-          member this.Comparer with get() = KeyComparer.GetDefault<uint64>()
+          member this.Comparer with get() = KeyComparer<uint64>.Default
           member this.GetEnumerator() = this.GetCursor() :> IAsyncEnumerator<KVP<uint64, 'T>>
           member this.GetCursor() = this.GetCursor()
           member this.IsEmpty = this.IsEmpty

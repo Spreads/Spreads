@@ -5,12 +5,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Collections
+namespace Spreads
 {
-
     /// <summary>
     /// Fast IComparer implementation.
     /// </summary>
@@ -94,6 +92,12 @@ namespace Spreads.Collections
             {
                 return Default;
             }
+
+            if (comparer is KeyComparer<T> kc)
+            {
+                return kc;
+            }
+
             return new KeyComparer<T>(comparer);
         }
 
@@ -102,7 +106,15 @@ namespace Spreads.Collections
         /// </summary>
         public static KeyComparer<T> Create(IKeyComparer<T> comparer)
         {
-            return comparer == null ? Default : new KeyComparer<T>(comparer);
+            if (comparer == null)
+            {
+                return Default;
+            }
+            if (comparer is KeyComparer<T> kc)
+            {
+                return kc;
+            }
+            return new KeyComparer<T>(comparer);
         }
 
         /// <summary>
@@ -116,36 +128,34 @@ namespace Spreads.Collections
                 return _keyComparer.Add(value, diff);
             }
 
-            var ty = typeof(T);
-
-            if (ty == typeof(DateTime))
+            if (typeof(T) == typeof(DateTime))
             {
                 var value1 = (DateTime)(object)(value);
                 return (T)(object)value1.AddTicks(diff);
             }
 
-            if (ty == typeof(long))
+            if (typeof(T) == typeof(long))
             {
                 var value1 = (long)(object)(value);
                 return (T)(object)(checked(value1 + diff));
             }
 
-            if (ty == typeof(ulong))
+            if (typeof(T) == typeof(ulong))
             {
                 var value1 = (ulong)(object)(value);
-                return (T)(object)(checked((long)value1 + diff));
+                return (T)(object)(checked((ulong)((long)value1 + diff)));
             }
 
-            if (ty == typeof(int))
+            if (typeof(T) == typeof(int))
             {
                 var value1 = (int)(object)(value);
-                return (T)(object)(checked(value1 + diff));
+                return (T)(object)(checked((int)(value1 + diff)));
             }
 
-            if (ty == typeof(uint))
+            if (typeof(T) == typeof(uint))
             {
                 var value1 = (uint)(object)(value);
-                return (T)(object)(checked((int)value1 + diff));
+                return (T)(object)(checked((uint)((int)value1 + diff)));
             }
 
             throw new NotSupportedException();
@@ -163,16 +173,15 @@ namespace Spreads.Collections
 
             if (typeof(T) == typeof(DateTime))
             {
+                // TODO (low) unsafe impl with bitwise sign
                 var x1 = (DateTime)(object)(x);
                 var y1 = (DateTime)(object)(y);
-
-                if (x1 < y1) return -1;
-                if (x1 > y1) return 1;
-                return 0;
+                return x1.CompareTo(y1);
             }
 
             if (typeof(T) == typeof(long))
             {
+                // TODO (low) unsafe impl with bitwise sign
                 var x1 = (long)(object)(x);
                 var y1 = (long)(object)(y);
 
@@ -265,5 +274,4 @@ namespace Spreads.Collections
             throw new NotSupportedException();
         }
     }
-
 }

@@ -29,7 +29,7 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
 
   interface ICursor<'K,'V> with
     member this.Clone(): ICursor<'K,'V> = this.Clone() :> ICursor<'K,'V>
-    member this.Comparer: IComparer<'K> = cursor.Comparer
+    member this.Comparer = cursor.Comparer
     member this.Current: KVP<'K,'V> = cursor.Current
     member this.Current: obj = cursor.Current :> obj
     member this.CurrentBatch = cursor.CurrentBatch
@@ -84,7 +84,7 @@ type internal FillCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, fillValue:'V
 
   interface ICursor<'K,'V> with
     member this.Clone(): ICursor<'K,'V> = this.Clone() :> ICursor<'K,'V>
-    member this.Comparer: IComparer<'K> = cursor.Comparer
+    member this.Comparer = cursor.Comparer
     member this.Current: KVP<'K,'V> = cursor.Current
     member this.Current: obj = cursor.Current :> obj
     member this.CurrentBatch = cursor.CurrentBatch
@@ -122,7 +122,7 @@ type internal ConstantCursor<'K,'V>(fillValue:KVP<'K,'V>) =
 
   interface ICursor<'K,'V> with
     member this.Clone(): ICursor<'K,'V> = this.Clone() :> ICursor<'K,'V>
-    member this.Comparer: IComparer<'K> = KeyComparer.GetDefault<'K>()
+    member this.Comparer = KeyComparer<'K>.Default
     member this.Current: KVP<'K,'V> = fillValue
     member this.Current: obj = fillValue :> obj
     member this.CurrentBatch = Unchecked.defaultof<_>

@@ -20,7 +20,7 @@ open Spreads.Collections
 
 [<AllowNullLiteral>]
 type SortedDequeMap<'K,'V>
-  internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
+  internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:KeyComparer<'K> option) as this=
   inherit ContainerSeries<'K,'V>()
   
   [<DefaultValueAttribute>]
@@ -28,11 +28,9 @@ type SortedDequeMap<'K,'V>
   [<DefaultValueAttribute>]
   val mutable internal sd : SortedDeque<KVP<'K,'V>>
 
-  let mutable comparer : IComparer<'K> = 
+  let mutable comparer : KeyComparer<'K> = 
     if comparerOpt.IsNone || Comparer<'K>.Default.Equals(comparerOpt.Value) then
-      let kc = KeyComparer.GetDefault<'K>()
-      if kc = Unchecked.defaultof<_> then Comparer<'K>.Default :> IComparer<'K> 
-      else kc
+      KeyComparer<'K>.Default
     else comparerOpt.Value // do not try to replace with KeyComparer if a comparer was given
 
   
@@ -50,7 +48,8 @@ type SortedDequeMap<'K,'V>
     this.isSynchronized <- false
     this.isReadOnly <- false
     let capacity = if capacity.IsSome then capacity.Value else 2
-    this.sd <- new SortedDeque<KVP<'K,'V>>(capacity, KVPKeyComparer(comparer))
+    // TODO(!, perf) KeyComparer for KVP
+    this.sd <- new SortedDeque<KVP<'K,'V>>(capacity, KeyComparer<_>.Create(KVPKeyComparer(comparer)))
     if dictionary.IsSome then
       for kvp in dictionary.Value do
         this.sd.Add(KVP(kvp.Key, kvp.Value))
@@ -649,11 +648,11 @@ type SortedDequeMap<'K,'V>
   //#region Constructors
 
   new() = SortedDequeMap(None, None, None)
-  new(comparer:IComparer<'K>) = SortedDequeMap(None, None, Some(comparer))
+  new(comparer:KeyComparer<'K>) = SortedDequeMap(None, None, Some(comparer))
   new(dictionary:IDictionary<'K,'V>) = SortedDequeMap(Some(dictionary), Some(dictionary.Count), None)
   new(capacity:int) = SortedDequeMap(None, Some(capacity), None)
-  new(dictionary:IDictionary<'K,'V>,comparer:IComparer<'K>) = SortedDequeMap(Some(dictionary), Some(dictionary.Count), Some(comparer))
-  new(capacity:int,comparer:IComparer<'K>) = SortedDequeMap(None, Some(capacity), Some(comparer))
+  new(dictionary:IDictionary<'K,'V>,comparer:KeyComparer<'K>) = SortedDequeMap(Some(dictionary), Some(dictionary.Count), Some(comparer))
+  new(capacity:int,comparer:KeyComparer<'K>) = SortedDequeMap(None, Some(capacity), Some(comparer))
 
   static member internal OfKeysAndValues(size:int, keys:'K[],values:'V[]) =
     let sdm = new SortedDequeMap<'K,'V>()
@@ -681,7 +680,7 @@ and
         }
     end
 
-    member this.Comparer: IComparer<'K> = this.source.Comparer
+    member this.Comparer = this.source.Comparer
     member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
     member this.MoveNext() =
       let entered = enterLockIf this.source.SyncRoot this.source.IsSynchronized

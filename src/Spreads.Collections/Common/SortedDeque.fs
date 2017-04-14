@@ -12,6 +12,8 @@ open System.Diagnostics
 
 open Spreads
 
+// TODO rework this
+
 type KVComparer<'K,'V>(keyComparer:IComparer<'K>, valueComparer:IComparer<'V>) = 
   interface IComparer<KV<'K,'V>> with
     member this.Compare(x: KV<'K, 'V>, y: KV<'K, 'V>): int = 
@@ -30,14 +32,12 @@ and KVPKeyComparer<'K,'V>(keyComparer:IComparer<'K>) =
     member this.Compare(x: KVP<'K, 'V>, y: KVP<'K, 'V>): int = keyComparer.Compare(x.Key, y.Key)
   end
 
-and internal ZipNComparer<'K>(keyComparer:IComparer<'K>) = 
+and internal ZipNComparer<'K>(keyComparer:KeyComparer<'K>) = 
   interface IComparer<KV<'K,int>> with
     member this.Compare(x: KV<'K,int>, y: KV<'K,int>): int = 
       let c1 = keyComparer.Compare(x.Key, y.Key)
-      if c1 = 0 then 
-        if x.Value < y.Value then -1
-        elif x.Value > y.Value then 1
-        else 0
+      if c1 = 0 then
+        x.Value - y.Value
       else c1
   end
 
@@ -69,14 +69,14 @@ and
         | _ -> invalidArg "other" "Cannot compare values of different types"
 
 
-type SortedDeque<'T> (capacity:int, comparer:IComparer<'T>) as this=
-  [<DefaultValue>] val mutable internal comparer : IComparer<'T>
+type SortedDeque<'T> (capacity:int, comparer:KeyComparer<'T>) as this=
+  [<DefaultValue>] val mutable internal comparer : KeyComparer<'T>
   [<DefaultValue>] val mutable internal firstOffset : int
   [<DefaultValue>] val mutable internal count : int
   [<DefaultValue>] val mutable internal buffer : 'T[]
   
   do
-    this.comparer <- if comparer = null then Comparer<'T>.Default :> IComparer<'T> else comparer
+    this.comparer <- if comparer = null then KeyComparer<'T>.Default else comparer
     this.buffer <- Array.zeroCreate capacity
 
   /// Sets the total number of elements the internal array can hold without resizing.
@@ -97,9 +97,10 @@ type SortedDeque<'T> (capacity:int, comparer:IComparer<'T>) as this=
     this.buffer <- copyBuffer newCapacity
     this.firstOffset <- 0
 
-  new() = new SortedDeque<'T>(2, Spreads.KeyComparer.GetDefault<'T>())
-  new(comparer:IComparer<'T>) = new SortedDeque<'T>(2, comparer)
-  new(capacity) = new SortedDeque<'T>(capacity, Spreads.KeyComparer.GetDefault<'T>())
+  new() = new SortedDeque<'T>(2, KeyComparer<'T>.Default)
+  new(comparer:IComparer<'T>) = new SortedDeque<'T>(2, KeyComparer<'T>.Create(comparer))
+  new(comparer:KeyComparer<'T>) = new SortedDeque<'T>(2, comparer)
+  new(capacity) = new SortedDeque<'T>(capacity, KeyComparer<'T>.Default)
 
   member inline internal this.IndexToOffset(index) = 
     (index + this.firstOffset) % (this.buffer.Length)

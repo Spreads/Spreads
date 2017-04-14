@@ -62,7 +62,7 @@ namespace Spreads
         public abstract ICursor<TK, TV> GetCursor();
 
         /// <inheritdoc />
-        public abstract IComparer<TK> Comparer { get; }
+        public abstract KeyComparer<TK> Comparer { get; }
 
         /// <inheritdoc />
         public abstract bool IsIndexed { get; }

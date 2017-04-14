@@ -861,7 +861,7 @@ and
 
     interface ICursor<'K,'V> with
       member this.Clone(): ICursor<'K,'V> = this.Clone() :> ICursor<'K,'V>
-      member this.Comparer: IComparer<'K> = this.Comparer
+      member this.Comparer = this.Comparer
       member this.Current: KeyValuePair<'K,'V> = this.Current
       member this.Current: obj = this.Current :> obj
       member this.CurrentBatch: IReadOnlySeries<'K,'V> = this.CurrentBatch

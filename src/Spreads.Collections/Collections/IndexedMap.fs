@@ -25,7 +25,7 @@ open Spreads.Collections
 /// Mutable indexed IMutableSeries<'K,'V> implementation based on IndexedMap<'K,'V>
 [<AllowNullLiteral>]
 type IndexedMap<'K,'V> // when 'K:equality
-  internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
+  internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:KeyComparer<'K> option) as this=
   inherit ContainerSeries<'K,'V>()
 
   //#region Main internal constructor
@@ -40,11 +40,9 @@ type IndexedMap<'K,'V> // when 'K:equality
   val mutable internal values : 'V array
 
 
-  let comparer : IComparer<'K> = 
+  let comparer : KeyComparer<'K> = 
     if comparerOpt.IsNone || Comparer<'K>.Default.Equals(comparerOpt.Value) then
-      let kc = KeyComparer.GetDefault<'K>()
-      if kc = Unchecked.defaultof<_> then Comparer<'K>.Default :> IComparer<'K> 
-      else kc
+      KeyComparer<'K>.Default
     else comparerOpt.Value
   let isKeyReferenceType : bool = not <| typeof<'K>.GetIsValueType()
 
@@ -863,37 +861,37 @@ type IndexedMap<'K,'V> // when 'K:equality
 
   // TODO try resolve KeyComparer for know types
   new() = IndexedMap(None, None, None)
-  new(dictionary:IDictionary<'K,'V>) = IndexedMap(Some(dictionary), Some(dictionary.Count), Some(Comparer<'K>.Default :> IComparer<'K>))
-  new(capacity:int) = IndexedMap(None, Some(capacity), Some(Comparer<'K>.Default :> IComparer<'K>))
+  new(dictionary:IDictionary<'K,'V>) = IndexedMap(Some(dictionary), Some(dictionary.Count), None)
+  new(capacity:int) = IndexedMap(None, Some(capacity), None)
 
   // do not expose ctors with comparer to public
-  internal new(comparer:IComparer<'K>) = IndexedMap(None, None, Some(comparer))
-  internal new(dictionary:IDictionary<'K,'V>,comparer:IComparer<'K>) = IndexedMap(Some(dictionary), Some(dictionary.Count), Some(comparer))
-  internal new(capacity:int,comparer:IComparer<'K>) = IndexedMap(None, Some(capacity), Some(comparer))
+  internal new(comparer:KeyComparer<'K>) = IndexedMap(None, None, Some(comparer))
+  internal new(dictionary:IDictionary<'K,'V>,comparer:KeyComparer<'K>) = IndexedMap(Some(dictionary), Some(dictionary.Count), Some(comparer))
+  internal new(capacity:int,comparer:KeyComparer<'K>) = IndexedMap(None, Some(capacity), Some(comparer))
 
-  internal new(comparer:IEqualityComparer<'K>) = 
-    let comparer' = 
-      {new IComparer<'K> with
-          member this.Compare(x,y) = 
-            if comparer.Equals(x,y) then 0 else -1
-      }
-    IndexedMap(None, None, Some(comparer'))
+  //internal new(comparer:IEqualityComparer<'K>) = 
+  //  let comparer' = 
+  //    {new IComparer<'K> with
+  //        member this.Compare(x,y) = 
+  //          if comparer.Equals(x,y) then 0 else -1
+  //    }
+  //  IndexedMap(None, None, Some(comparer'))
 
-  internal new(dictionary:IDictionary<'K,'V>,comparer:IEqualityComparer<'K>) = 
-    let comparer' = 
-      {new IComparer<'K> with
-          member this.Compare(x,y) = 
-            if comparer.Equals(x,y) then 0 else -1
-      }
-    IndexedMap(Some(dictionary), Some(dictionary.Count), Some(comparer'))
+  //internal new(dictionary:IDictionary<'K,'V>,comparer:IEqualityComparer<'K>) = 
+  //  let comparer' = 
+  //    {new IComparer<'K> with
+  //        member this.Compare(x,y) = 
+  //          if comparer.Equals(x,y) then 0 else -1
+  //    }
+  //  IndexedMap(Some(dictionary), Some(dictionary.Count), Some(comparer'))
 
-  internal new(capacity:int,comparer:IEqualityComparer<'K>) =
-    let comparer' = 
-      {new IComparer<'K> with
-          member this.Compare(x,y) = 
-            if comparer.Equals(x,y) then 0 else -1
-      }
-    IndexedMap(None, Some(capacity), Some(comparer'))
+  //internal new(capacity:int,comparer:IEqualityComparer<'K>) =
+  //  let comparer' = 
+  //    {new IComparer<'K> with
+  //        member this.Compare(x,y) = 
+  //          if comparer.Equals(x,y) then 0 else -1
+  //    }
+  //  IndexedMap(None, Some(capacity), Some(comparer'))
 
 
   static member internal OfSortedKeysAndValues(keys:'K[], values:'V[], size:int) =

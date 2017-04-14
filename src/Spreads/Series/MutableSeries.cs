@@ -22,7 +22,7 @@ namespace Spreads.Series
 
         public override bool IsReadOnly => _innerSeries.IsReadOnly;
 
-        public override IComparer<TK> Comparer => _innerSeries.Comparer;
+        public override KeyComparer<TK> Comparer => _innerSeries.Comparer;
 
         public override bool IsIndexed => _innerSeries.IsIndexed;
 

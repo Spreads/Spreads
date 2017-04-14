@@ -29,8 +29,7 @@ type LockTestSeries()=
         this.AfterWrite(v2, true);
       
 
-  override this.Comparer: System.Collections.Generic.IComparer<int> = 
-    raise (System.NotImplementedException())
+  override this.Comparer = raise (System.NotImplementedException())
   override this.First: System.Collections.Generic.KeyValuePair<int,int> = 
     raise (System.NotImplementedException())
   override this.GetAt(idx: int): int = 

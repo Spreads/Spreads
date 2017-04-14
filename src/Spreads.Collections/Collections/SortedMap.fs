@@ -40,7 +40,7 @@ open Spreads.Collections
 [<DebuggerTypeProxy(typeof<IDictionaryDebugView<_,_>>)>]
 [<DebuggerDisplay("SortedMap: Count = {Count}")>]
 type SortedMap<'K,'V>
-  internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:IComparer<'K> option) as this=
+  internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:KeyComparer<'K> option) as this=
   inherit ContainerSeries<'K,'V>()
   static do
     SortedMap<'K,'V>.Init()
@@ -63,20 +63,19 @@ type SortedMap<'K,'V>
   val mutable internal nextVersion : int64
   
   // util fields
-  let comparer : IComparer<'K> = 
+  let comparer : KeyComparer<'K> = 
     if comparerOpt.IsNone || Comparer<'K>.Default.Equals(comparerOpt.Value) then
-      let kc = KeyComparer.GetDefault<'K>()
-      if kc = Unchecked.defaultof<_> then Comparer<'K>.Default :> IComparer<'K> 
-      else kc
+      KeyComparer<'K>.Default
     else comparerOpt.Value // do not try to replace with KeyComparer if a comparer was given
 
   [<DefaultValueAttribute>] 
   val mutable isKeyReferenceType : bool
   
-  let mutable couldHaveRegularKeys : bool = comparer :? IKeyComparer<'K>
-  let mutable diffCalc : IKeyComparer<'K> =
-    if couldHaveRegularKeys then comparer :?> IKeyComparer<'K> 
-    else Unchecked.defaultof<IKeyComparer<'K>>
+  let mutable couldHaveRegularKeys : bool = comparer.IsDiffable
+
+  // TODO Remove this
+  let mutable diffCalc : KeyComparer<'K> = comparer
+  
   let mutable rkStep_ : int64 = 0L
   let mutable rkLast = Unchecked.defaultof<'K>
 
@@ -143,7 +142,7 @@ type SortedMap<'K,'V>
           this.size <- dictionary.Value.Count
 
           if couldHaveRegularKeys && this.size > 1 then // if could be regular based on initial check of comparer type
-            let isReg, step, regularKeys = this.rkCheckArray tempKeys this.size (comparer :?> IKeyComparer<'K>)
+            let isReg, step, regularKeys = this.rkCheckArray tempKeys this.size (comparer)
             couldHaveRegularKeys <- isReg
             if couldHaveRegularKeys then 
               this.keys <- regularKeys
@@ -184,7 +183,7 @@ type SortedMap<'K,'V>
               let mutable valuesCount = 0
               let valuesLen = CompressedArrayBinaryConverter<'V>.Instance.Read(ptr, &valuesArray, &valuesCount, false)
               Debug.Assert((totalSize = 8 + 14 + keysLen + valuesLen))
-              let sm : SortedMap<'K,'V> = SortedMap.OfSortedKeysAndValues(keys, valuesArray, mapSize, KeyComparer.GetDefault<'K>(), false, isRegular)
+              let sm : SortedMap<'K,'V> = SortedMap.OfSortedKeysAndValues(keys, valuesArray, mapSize, KeyComparer<'K>.Default, false, isRegular)
               sm.version <- mapVersion
               sm.nextVersion <- mapVersion
               sm.orderVersion <- mapVersion
@@ -1509,9 +1508,13 @@ type SortedMap<'K,'V>
   new(minimumCapacity:int) = new SortedMap<_,_>(None, Some(minimumCapacity), None)
 
   // do not expose ctors with comparer to public
-  internal new(comparer:IComparer<'K>) = new SortedMap<_,_>(None, None, Some(comparer))
-  internal new(dictionary:IDictionary<'K,'V>,comparer:IComparer<'K>) = new SortedMap<_,_>(Some(dictionary), Some(dictionary.Count), Some(comparer))
-  internal new(minimumCapacity:int,comparer:IComparer<'K>) = new SortedMap<_,_>(None, Some(minimumCapacity), Some(comparer))
+  internal new(comparer:IComparer<'K>) = new SortedMap<_,_>(None, None, Some(KeyComparer<'K>.Create(comparer)))
+  internal new(dictionary:IDictionary<'K,'V>,comparer:IComparer<'K>) = new SortedMap<_,_>(Some(dictionary), Some(dictionary.Count), Some(KeyComparer<'K>.Create(comparer)))
+  internal new(minimumCapacity:int,comparer:IComparer<'K>) = new SortedMap<_,_>(None, Some(minimumCapacity), Some(KeyComparer<'K>.Create(comparer)))
+
+  internal new(comparer:KeyComparer<'K>) = new SortedMap<_,_>(None, None, Some(comparer))
+  internal new(dictionary:IDictionary<'K,'V>,comparer:KeyComparer<'K>) = new SortedMap<_,_>(Some(dictionary), Some(dictionary.Count), Some(comparer))
+  internal new(minimumCapacity:int,comparer:KeyComparer<'K>) = new SortedMap<_,_>(None, Some(minimumCapacity), Some(comparer))
 
   static member internal OfSortedKeysAndValues(keys:'K[], values:'V[], size:int, comparer:IComparer<'K>, doCheckSorted:bool, isAlreadyRegular) =
     if keys.Length < size && not isAlreadyRegular then raise (new ArgumentException("Keys array is smaller than provided size"))
@@ -1523,7 +1526,7 @@ type SortedMap<'K,'V>
 
     // at this point IsRegular means could be regular
     if sm.IsRegular && not isAlreadyRegular then
-      let isReg, step, firstArr = sm.rkCheckArray keys size (sm.Comparer :?> IKeyComparer<'K>)
+      let isReg, step, firstArr = sm.rkCheckArray keys size sm.Comparer
       if isReg then
         sm.keys <- firstArr
       else 
@@ -1550,9 +1553,7 @@ type SortedMap<'K,'V>
   /// Create a SortedMap using the first `size` elements of the provided keys and values, with default comparer.
   static member OfSortedKeysAndValues(keys:'K[], values:'V[], size:int) =
     let comparer =
-      let kc = KeyComparer.GetDefault<'K>()
-      if kc = Unchecked.defaultof<_> then Comparer<'K>.Default :> IComparer<'K> 
-      else kc
+      KeyComparer<'K>.Default
     SortedMap.OfSortedKeysAndValues(keys, values, size, comparer, true, false)
 
   static member OfSortedKeysAndValues(keys:'K[], values:'V[]) =
@@ -1601,7 +1602,7 @@ and
     member this.Current with get() : KVP<'K,'V> = KeyValuePair(this.currentKey, this.currentValue)
     member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
     member this.IsContinuous with get() = false
-    member this.Comparer: IComparer<'K> = this.source.Comparer
+    member this.Comparer: KeyComparer<'K> = this.source.Comparer
     member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
     
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]

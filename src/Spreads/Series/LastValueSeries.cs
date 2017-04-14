@@ -59,7 +59,7 @@ namespace Spreads.Series
             throw new NotImplementedException();
         }
 
-        public override IComparer<TKey> Comparer { get; } = KeyComparer.GetDefault<TKey>();
+        public override KeyComparer<TKey> Comparer { get; } = KeyComparer<TKey>.Default;
         public override bool IsIndexed => false;
 
         public override ICursor<TKey, TValue> GetCursor()

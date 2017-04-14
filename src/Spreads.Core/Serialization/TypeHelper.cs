@@ -195,8 +195,7 @@ namespace Spreads.Serialization
         private static int Init()
         {
             _typeParams = new TypeParams();
-            var ty = typeof(T);
-            if (ty == typeof(DateTime))
+            if (typeof(T) == typeof(DateTime))
             {
                 _typeParams.IsBlittable = true;
                 _typeParams.IsFixedSize = true;
@@ -204,7 +203,7 @@ namespace Spreads.Serialization
                 _typeParams.Size = 8;
                 return 8;
             }
-            if (ty == typeof(decimal))
+            if (typeof(T) == typeof(decimal))
             {
                 _typeParams.IsBlittable = true;
                 _typeParams.IsFixedSize = true;
@@ -213,12 +212,12 @@ namespace Spreads.Serialization
                 return 16;
             }
 
-            _typeParams.IsValueType = ty.GetTypeInfo().IsValueType;
+            _typeParams.IsValueType = typeof(T).GetTypeInfo().IsValueType;
             var pinnedSize = PinnedSize();
 
             if (pinnedSize > 0)
             {
-                if (ty.GetTypeInfo().IsPrimitive && (ty != typeof(bool) && ty != typeof(char)))
+                if (typeof(T).GetTypeInfo().IsPrimitive && (typeof(T) != typeof(bool) && typeof(T) != typeof(char)))
                 {
                     _typeParams.IsBlittable = true;
                     _typeParams.IsFixedSize = true;
@@ -227,19 +226,19 @@ namespace Spreads.Serialization
                 }
 
                 // for a non-primitive type to be blittable, it must have an attribute
-                var sa = SerializationAttribute.GetSerializationAttribute(ty);
+                var sa = SerializationAttribute.GetSerializationAttribute(typeof(T));
                 var hasSizeAttribute = false;
                 if (sa != null && sa.BlittableSize > 0)
                 {
                     if (pinnedSize != sa.BlittableSize)
                     {
-                        Environment.FailFast($"Size of type {ty.Name} defined in SerializationAttribute {sa.BlittableSize} differs from calculated size {pinnedSize}.");
+                        Environment.FailFast($"Size of type {typeof(T).Name} defined in SerializationAttribute {sa.BlittableSize} differs from calculated size {pinnedSize}.");
                     }
                     hasSizeAttribute = true;
                 }
                 if (hasSizeAttribute)
                 {
-                    if (typeof(IBinaryConverter<T>).IsAssignableFrom(ty))
+                    if (typeof(IBinaryConverter<T>).IsAssignableFrom(typeof(T)))
                     {
                         // NB: this makes no sense, because blittable is version 0, if we have any change
                         // to struct layout later, we won't be able to work with version 0 anymore
@@ -270,7 +269,7 @@ namespace Spreads.Serialization
             // could implement IBinaryConverter<T> but still be blittable for certain types,
             // e.g. DateTime vs long in PersistentMap<K,V>.Entry
             //if (tmp is IBinaryConverter<T>) {
-            if (typeof(IBinaryConverter<T>).IsAssignableFrom(ty))
+            if (typeof(IBinaryConverter<T>).IsAssignableFrom(typeof(T)))
             {
                 IBinaryConverter<T> converter;
                 try
@@ -291,27 +290,27 @@ namespace Spreads.Serialization
                 return _converterInstance.IsFixedSize ? _converterInstance.Size : 0;
             }
             //byte[] should work as any other primitive array
-            if (ty == typeof(byte[]))
+            if (typeof(T) == typeof(byte[]))
             {
                 _converterInstance = (IBinaryConverter<T>)(new ByteArrayBinaryConverter());
                 _hasBinaryConverter = true;
                 return 0;
             }
-            if (ty == typeof(DateTime[]))
+            if (typeof(T) == typeof(DateTime[]))
             {
                 _converterInstance = (IBinaryConverter<T>)(new DateTimeArrayBinaryConverter());
                 _hasBinaryConverter = true;
                 return 0;
             }
-            if (ty == typeof(string))
+            if (typeof(T) == typeof(string))
             {
                 _converterInstance = (IBinaryConverter<T>)(new StringBinaryConverter());
                 _hasBinaryConverter = true;
                 return 0;
             }
-            if (ty.IsArray)
+            if (typeof(T).IsArray)
             {
-                var elementType = ty.GetElementType();
+                var elementType = typeof(T).GetElementType();
                 var elementSize = GetSize(elementType);
                 if (elementSize > 0)
                 { // only for blittable types

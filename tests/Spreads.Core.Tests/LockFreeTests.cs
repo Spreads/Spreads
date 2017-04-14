@@ -71,7 +71,7 @@ namespace Spreads.Core.Tests
                 _counter++;
             }
 
-            public override IComparer<int> Comparer => throw new NotImplementedException();
+            public override KeyComparer<int> Comparer => throw new NotImplementedException();
 
             public override bool IsIndexed => throw new NotImplementedException();
 

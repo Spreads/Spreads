@@ -22,7 +22,7 @@ namespace Spreads
         protected ConvertSeries(IReadOnlySeries<TKey, TValue> inner)
         {
             Inner = inner;
-            Comparer = new ConvertComparer(this as TImpl);
+            Comparer = KeyComparer<TKey2>.Create(new ConvertComparer(this as TImpl));
         }
 
         protected ConvertSeries()
@@ -97,7 +97,7 @@ namespace Spreads
             return false;
         }
 
-        public override IComparer<TKey2> Comparer { get; }
+        public override KeyComparer<TKey2> Comparer { get; }
         public override bool IsIndexed => Inner.IsIndexed;
 
         public override ICursor<TKey2, TValue2> GetCursor()
@@ -217,7 +217,7 @@ namespace Spreads
                 return false;
             }
 
-            public IComparer<TKey2> Comparer => _source.Comparer;
+            public KeyComparer<TKey2> Comparer => _source.Comparer;
             public TKey2 CurrentKey => _source.ToKey2(_innerCursor.CurrentKey);
             public TValue2 CurrentValue => _source.ToValue2(_innerCursor.CurrentValue);
 

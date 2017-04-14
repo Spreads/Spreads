@@ -575,7 +575,7 @@ namespace Spreads.Collections
     [<Sealed>]
     [<CompiledName("ImmutableSortedMap`2")>]
     type ImmutableSortedMap<[<EqualityConditionalOn>]'K,[<EqualityConditionalOn;ComparisonConditionalOn>]'V when 'K : comparison >
-      internal(comparer: IComparer<'K>, tree: MapTree<'K,'V>) =
+      internal(comparer: KeyComparer<'K>, tree: MapTree<'K,'V>) =
       inherit Series<'K,'V>()
 
       let syncRoot = new Object()
@@ -583,19 +583,19 @@ namespace Spreads.Collections
       // We use .NET generics per-instantiation static fields to avoid allocating a new object for each empty
       // set (it is just a lookup into a .NET table of type-instantiation-indexed static fields).
       static let empty = 
-        let comparer = Comparer<'K>.Default :> IComparer<'K>
+        let comparer = KeyComparer<'K>.Default
         new ImmutableSortedMap<'K,'V>(comparer,MapTree<_,_>.MapEmpty)
 
       static member Empty : ImmutableSortedMap<'K,'V> = empty
 
       static member Create(elements : IEnumerable<KeyValuePair<'K, 'V>>) : ImmutableSortedMap<'K,'V> = 
-        let comparer = LanguagePrimitives.FastGenericComparer<'K> 
+        let comparer = KeyComparer<'K>.Default
         new ImmutableSortedMap<_,_>(comparer,MapTree.ofSeq comparer (elements |> Seq.map (fun x -> x.Key,x.Value) ))
     
       static member Create() : ImmutableSortedMap<'K,'V> = empty
 
       new(elements : IEnumerable<KeyValuePair<'K, 'V>>) = 
-        let comparer = LanguagePrimitives.FastGenericComparer<'K> 
+        let comparer = KeyComparer<'K>.Default
         new ImmutableSortedMap<_,_>(comparer,MapTree.ofSeq comparer (elements |> Seq.map (fun x -> x.Key,x.Value) ))
     
       override m.Comparer = comparer

@@ -401,7 +401,7 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void CouldAddKVsWithSimilarKey() {
-            var sd = new SortedDeque<KV<int, int>>(new ZipNComparer<int>(Comparer<int>.Default));
+            var sd = new SortedDeque<KV<int, int>>(new ZipNComparer<int>(KeyComparer<int>.Default));
             for (int i = 0; i < 3; i++) {
                 sd.Add(new KV<int, int>(1, i));
             }

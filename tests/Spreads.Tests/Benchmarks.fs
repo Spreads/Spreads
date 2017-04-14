@@ -554,7 +554,7 @@ module CollectionsBenchmarks =
   let SortedMapDT_run() = SortedMapDTTest(1000000L)
 
   let SortedMapRegularTest(count:int64) =
-    let dc : IKeyComparer<int64> = SpreadsComparerInt64() :> IKeyComparer<int64> 
+    let dc : KeyComparer<int64> = KeyComparer<int64>.Default
 
     let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
 
@@ -764,7 +764,7 @@ module CollectionsBenchmarks =
 
 
   let SeriesNestedMap(count:int64) =
-    let dc : IKeyComparer<int64> = SpreadsComparerInt64() :> IKeyComparer<int64> 
+    let dc : KeyComparer<int64> = KeyComparer<int64>.Default
 
     let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
     
@@ -955,7 +955,7 @@ module CollectionsBenchmarks =
     // Also, delegates signatures for non-trivial cursors blow mind and too complex
     // Functions are compiler-generated classes, we should keep cursor as classes with methods instead of functions
 
-    let dc : IKeyComparer<int64> = SpreadsComparerInt64() :> IKeyComparer<int64> 
+    let dc : KeyComparer<int64> = KeyComparer<int64>.Default
 
     let smap = ref (Spreads.Collections.SortedMap(comparer = (dc :> IComparer<int64>)))
     
@@ -1056,7 +1056,7 @@ module CollectionsBenchmarks =
   [<TestCase(10000000)>]
   let SCM(count:int64) =
     let batchSize = 1024L //8192us
-    let shm = ref (SortedChunkedMap(SpreadsComparerInt64()))
+    let shm = ref (SortedChunkedMap())
     shm.Value.IsSynchronized <- false
     for i in 0..9 do
       shm := SortedChunkedMap()
@@ -1098,7 +1098,7 @@ module CollectionsBenchmarks =
     OptimizationSettings.AlwaysBatch <- batchSetting
 
     for i in 0..9 do
-      shm := SortedChunkedMap(SpreadsComparerInt64(), fun x -> x / 10240L)
+      shm := SortedChunkedMap(fun x -> x / 10240L)
       perf count "SCM<1024> Add" (fun _ ->
         for i in 0L..count do
           shm.Value.Add(i, i)
@@ -1125,7 +1125,7 @@ module CollectionsBenchmarks =
           if res <> Math.Exp ( Math.Log( Math.PI * float (i.Value * 123L / 2L + 456L))) then failwith "SCM failed"
           ()
       )
-    shm := (SortedChunkedMap(SpreadsComparerInt64()))
+    shm := (SortedChunkedMap())
     let count = count / 10L
     perf count "SCM<1024> Add Reverse" (fun _ ->
       for i in 0L..count do

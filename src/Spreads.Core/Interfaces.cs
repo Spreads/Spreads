@@ -137,7 +137,7 @@ namespace Spreads
         /// <summary>
         /// Key comparer.
         /// </summary>
-        IComparer<TKey> Comparer { get; }
+        KeyComparer<TKey> Comparer { get; }
 
         /// <summary>
         /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact
@@ -198,7 +198,7 @@ namespace Spreads
     public interface ICursor<TKey, TValue>
         : IAsyncEnumerator<KeyValuePair<TKey, TValue>>
     {
-        IComparer<TKey> Comparer { get; }
+        KeyComparer<TKey> Comparer { get; }
 
         /// <summary>
         /// Puts the cursor to the position according to LookupDirection

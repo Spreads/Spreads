@@ -16,7 +16,7 @@ namespace Spreads.Collections.Experimental
     /// Fast IComparer implementation.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class KeyComparer<T> : Spreads.Collections.IKeyComparer<T>
+    public class KeyComparer<T> : IKeyComparer<T>
     {
         // Set this to ConstrainedKeyComparer<T> if T implements IComparable<T>,
         // otherwise fallback to default IComparer or a provided one (not implemented here)
@@ -104,32 +104,31 @@ namespace Spreads.Collections.Experimental
 
         private static KeyComparer<T> CreateInstance()
         {
-            var ty = typeof(T);
-            if (ty == typeof(long))
+            if (typeof(T) == typeof(long))
             {
                 return (KeyComparer<T>)(object)(new ConstrainedKeyComparerLong());
             }
 
-            if (ty == typeof(ulong))
+            if (typeof(T) == typeof(ulong))
             {
                 return (KeyComparer<T>)(object)(new ConstrainedKeyComparerULong());
             }
 
-            if (ty == typeof(int))
+            if (typeof(T) == typeof(int))
             {
                 return (KeyComparer<T>)(object)(new ConstrainedKeyComparerInt());
             }
-            if (ty == typeof(uint))
+            if (typeof(T) == typeof(uint))
             {
                 return (KeyComparer<T>)(object)(new ConstrainedKeyComparerUInt());
             }
-            if (ty == typeof(DateTime))
+            if (typeof(T) == typeof(DateTime))
             {
                 return (KeyComparer<T>)(object)(new ConstrainedKeyComparerDateTime());
             }
 
             // TODO IDiffable : IComparable
-            if (typeof(IComparable<T>).IsAssignableFrom(ty))
+            if (typeof(IComparable<T>).IsAssignableFrom(typeof(T)))
             {
                 return (KeyComparer<T>)KeyComparer.Create(typeof(T));
             }

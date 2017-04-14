@@ -153,7 +153,7 @@ namespace Spreads
 
         object IEnumerator.Current => ((IEnumerator)_innerCursor).Current;
 
-        public IComparer<TK> Comparer => _innerCursor.Comparer;
+        public KeyComparer<TK> Comparer => _innerCursor.Comparer;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveAt(TK key, Lookup direction)

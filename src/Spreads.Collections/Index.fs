@@ -32,7 +32,7 @@ open Spreads.Collections
 [<DebuggerTypeProxy(typeof<IDictionaryDebugView<_,_>>)>]
 [<DebuggerDisplay("Count = {Count}")>]
 type Index<'K>
-  internal(keys:'K[] opt, size:int opt, comparerOpt:IComparer<'K> opt) as this=
+  internal(keys:'K[] opt, size:int opt, comparerOpt:KeyComparer<'K> opt) as this=
 
   // data fields
   [<DefaultValueAttribute>]
@@ -51,21 +51,20 @@ type Index<'K>
   [<DefaultValueAttribute>]
   val mutable internal syncRoot : obj
 
-  let comparer : IComparer<'K> = 
+  let comparer : KeyComparer<'K> = 
     if comparerOpt.IsMissing || Comparer<'K>.Default.Equals(comparerOpt.Present) then
-      let kc = KeyComparer.GetDefault<'K>()
-      if kc = Unchecked.defaultof<_> then Comparer<'K>.Default :> IComparer<'K> 
-      else kc
+      KeyComparer<'K>.Default
     else comparerOpt.Present // do not try to replace with KeyComparer if a comparer was given
 
 
   [<DefaultValueAttribute>] 
   val mutable isKeyReferenceType : bool
   
-  let mutable couldHaveRegularKeys : bool = comparer :? IKeyComparer<'K>
-  let mutable diffCalc : IKeyComparer<'K> =
-    if couldHaveRegularKeys then comparer :?> IKeyComparer<'K> 
-    else Unchecked.defaultof<IKeyComparer<'K>>
+  let mutable couldHaveRegularKeys : bool = comparer.IsDiffable
+  
+  // TODO Remove this
+  let mutable diffCalc : KeyComparer<'K> = comparer
+  
   let mutable rkStep_ : int64 = 0L
   let mutable rkLast = Unchecked.defaultof<'K>
 
