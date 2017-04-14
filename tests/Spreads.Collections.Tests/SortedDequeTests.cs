@@ -106,7 +106,7 @@ namespace Spreads.Collections.Tests {
 
 
 
-        [Test]
+        [Test, Ignore]
         public void AddRemoveTest() {
             var rng = new System.Random();
             for (int r = 0; r < 1000; r++) {
@@ -184,7 +184,7 @@ namespace Spreads.Collections.Tests {
             }
         }
 
-        [Test]
+        [Test, Ignore]
         public void RemoveTest() {
             for (int r = 0; r < 10000; r++) {
 
@@ -313,7 +313,7 @@ namespace Spreads.Collections.Tests {
             }
         }
 
-        [Test]
+        [Test, Ignore]
         public void AddTest() {
             for (int r = 0; r < 10000; r++) {
 
@@ -401,9 +401,9 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void CouldAddKVsWithSimilarKey() {
-            var sd = new SortedDeque<KV<int, int>>(new ZipNComparer<int>(KeyComparer<int>.Default));
+            var sd = new SortedDeque<KeyValuePair<int, int>>(new KVPComparer<int, int>(KeyComparer<int>.Default, KeyComparer<int>.Default));
             for (int i = 0; i < 3; i++) {
-                sd.Add(new KV<int, int>(1, i));
+                sd.Add(new KeyValuePair<int, int>(1, i));
             }
             var expected = 1 * 3;
             int[] values = new int[3];

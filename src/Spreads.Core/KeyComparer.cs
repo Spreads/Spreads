@@ -274,4 +274,42 @@ namespace Spreads
             throw new NotSupportedException();
         }
     }
+
+    /// <summary>
+    /// Fast IComparer for KeyValuePair.
+    /// </summary>
+    public sealed class KVPComparer<TKey, TValue> : IComparer<KeyValuePair<TKey, TValue>>
+    {
+        private readonly KeyComparer<TKey> _keyComparer;
+        private readonly KeyComparer<TValue> _valueComparer;
+
+        /// <summary>
+        /// Create a KVP comparer that compares keys and values.
+        /// </summary>
+        public KVPComparer(KeyComparer<TKey> keyComparer, KeyComparer<TValue> valueComparer)
+        {
+            _keyComparer = keyComparer ?? KeyComparer<TKey>.Default;
+            _valueComparer = valueComparer ?? KeyComparer<TValue>.Default;
+        }
+
+        /// <summary>
+        /// Create a KVP comparer that only compares keys.
+        /// </summary>
+        public KVPComparer(KeyComparer<TKey> keyComparer)
+        {
+            _keyComparer = keyComparer ?? KeyComparer<TKey>.Default;
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int Compare(KeyValuePair<TKey, TValue> x, KeyValuePair<TKey, TValue> y)
+        {
+            var c1 = _keyComparer.Compare(x.Key, y.Key);
+            if (c1 == 0 && _valueComparer != null)
+            {
+                return _valueComparer.Compare(x.Value, y.Value);
+            }
+            return c1;
+        }
+    }
 }

@@ -26,7 +26,7 @@ type SortedDequeMap<'K,'V>
   [<DefaultValueAttribute>]
   val mutable internal version : int
   [<DefaultValueAttribute>]
-  val mutable internal sd : SortedDeque<KVP<'K,'V>>
+  val mutable internal sd : SortedDequeKVP<'K,'V>
 
   let mutable comparer : KeyComparer<'K> = 
     if comparerOpt.IsNone || Comparer<'K>.Default.Equals(comparerOpt.Value) then
@@ -49,7 +49,7 @@ type SortedDequeMap<'K,'V>
     this.isReadOnly <- false
     let capacity = if capacity.IsSome then capacity.Value else 2
     // TODO(!, perf) KeyComparer for KVP
-    this.sd <- new SortedDeque<KVP<'K,'V>>(capacity, KeyComparer<_>.Create(KVPKeyComparer(comparer)))
+    this.sd <- new SortedDequeKVP<'K,'V>(capacity, KVPComparer(comparer))
     if dictionary.IsSome then
       for kvp in dictionary.Value do
         this.sd.Add(KVP(kvp.Key, kvp.Value))

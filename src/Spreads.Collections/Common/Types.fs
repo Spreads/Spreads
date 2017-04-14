@@ -17,6 +17,7 @@ type KVP<'K,'V> = KeyValuePair<'K,'V>
 
 // Tuples as value types
 
+// TODO Replace this with System.ValueTuples
 
 type ValueTuple<'V1,'V2> =
   struct

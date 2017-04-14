@@ -1461,7 +1461,7 @@ and
       c'
     // TODO (perf) allocates for the lifetime of cursor
     let movedKeysFlags : bool[] = Array.zeroCreate cursors.Length
-    let movedKeys = SortedDeque(ZipNComparer(cmp)) // , cursors.Length
+    let movedKeys = SortedDequeKVP(KVPComparer(cmp, null)) // , cursors.Length
 
     let mutable semaphore : SemaphoreSlim = Unchecked.defaultof<_> //  new SemaphoreSlim(0) //, cursors.Length
     // Live counter shows how many cont cursor not yet returned false on MoveNextAsync
@@ -1508,7 +1508,7 @@ and
         let moved' = c.MoveFirst()
         if moved' then 
           movedKeysFlags.[i] <- true
-          movedKeys.Add(KV(c.CurrentKey, i)) |> ignore
+          movedKeys.Add(KVP(c.CurrentKey, i)) |> ignore
         moved <- moved || moved'
         i <- i + 1
       if moved then
@@ -1528,7 +1528,7 @@ and
         let moved' = c.MoveFirst()
         if moved' then 
           movedKeysFlags.[i] <- true
-          movedKeys.Add(KV(c.CurrentKey, i)) |> ignore
+          movedKeys.Add(KVP(c.CurrentKey, i)) |> ignore
         moved <- moved || moved'
         i <- i + 1
       if moved then
@@ -1546,7 +1546,7 @@ and
         let moved' = c.MoveAt(key, direction)
         if moved' then 
           movedKeysFlags.[i] <- true
-          movedKeys.Add(KV(c.CurrentKey, i)) |> ignore
+          movedKeys.Add(KVP(c.CurrentKey, i)) |> ignore
         moved <- moved || moved'
         i <- i + 1
       if moved then
@@ -1577,7 +1577,7 @@ and
               let moved' = c.MoveAt(this.CurrentKey, Lookup.GT)
               if moved' then 
                 movedKeysFlags.[i] <- true
-                movedKeys.Add(KV(c.CurrentKey, i)) |> ignore
+                movedKeys.Add(KVP(c.CurrentKey, i)) |> ignore
             i <- i + 1
 
         // ignore cursors that cannot move ahead of frontier during this move, but do 
@@ -1602,7 +1602,7 @@ and
           
           if movedAtLeastOnce || passedFrontier then
             if movedAtLeastOnce then
-              let newPosition = KV(cursor.CurrentKey, initialPosition.Value)
+              let newPosition = KVP(cursor.CurrentKey, initialPosition.Value)
               // update positions if the current has changed, regardless of the frontier
               movedKeys.RemoveAt(ignoreOffset) |> ignore
               movedKeys.Add(newPosition)
@@ -1633,7 +1633,7 @@ and
               let moved' = c.MoveAt(this.CurrentKey, Lookup.LT)
               if moved' then 
                 movedKeysFlags.[i] <- true
-                movedKeys.Add(KV(c.CurrentKey, i)) |> ignore
+                movedKeys.Add(KVP(c.CurrentKey, i)) |> ignore
             i <- i + 1
 
         let mutable ignoreOffset = movedKeys.Count - 1
@@ -1654,7 +1654,7 @@ and
           
           if movedAtLeastOnce || passedFrontier then
             if movedAtLeastOnce then
-              let newPosition = KV(cursor.CurrentKey, initialPosition.Value)
+              let newPosition = KVP(cursor.CurrentKey, initialPosition.Value)
               // update positions if the current has changed, regardless of the frontier
               movedKeys.RemoveAt(ignoreOffset) |> ignore
               movedKeys.Add(newPosition)
@@ -1683,7 +1683,7 @@ and
           let x = cursors.[i]
           let movedFirst' = x.MoveFirst()
           if movedFirst' then
-            lock(movedKeys) (fun _ -> movedKeys.Add(KV(x.CurrentKey, i)) |> ignore )
+            lock(movedKeys) (fun _ -> movedKeys.Add(KVP(x.CurrentKey, i)) |> ignore )
             semaphore.Release() |> ignore
           else
             // MF returns false only when series is empty, then MNAsync is equivalent to MFAsync
@@ -1691,7 +1691,7 @@ and
               match t.Status with
               | TaskStatus.RanToCompletion -> 
                 if t.Result then
-                  lock(movedKeys) (fun _ -> movedKeys.Add(KV(x.CurrentKey, i)) |> ignore )
+                  lock(movedKeys) (fun _ -> movedKeys.Add(KVP(x.CurrentKey, i)) |> ignore )
                   semaphore.Release() |> ignore
                 else
                   let decremented = Interlocked.Decrement(&liveCounter)
@@ -1843,7 +1843,7 @@ and
     // Same meaning as in BingCursor: we have at least one sucessful move and some state for further moves
     let mutable hasValidState = false
     // all keys where discrete cursors are positioned. their intersect define where resulting keys are present.
-    let discreteKeysSet = SortedDeque(ZipNComparer(cmp))
+    let discreteKeysSet = SortedDequeKVP(KVPComparer(cmp, null))
 
     let isContinuous = cursors |> Array.map (fun x -> x.IsContinuous) |> Array.forall id
     let unionKeys : ICursor<'K,'V> = if isContinuous then new UnionKeysCursor<'K,'V>(cursors) :> ICursor<'K,'V> else Unchecked.defaultof<_>
@@ -1892,7 +1892,7 @@ and
         // must add it back regardless of moves
         // TODO (perf) should benefit here from RemoveFirstAddLast method, becuase is moved = true, 
         // we add the last value by construction
-        discreteKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
+        discreteKeysSet.Add(KVP(ac.CurrentKey, first.Value)) |> ignore
 
       // now all discrete cursors have moved at or ahead of frontier
       // the loop could stop only when all cursors are at the same key or we cannot move ahead
@@ -1915,11 +1915,11 @@ and
           let first = discreteKeysSet.RemoveFirst()
           let firstCursor = if isContinuous then unionKeys else cursors.[first.Value]
           if firstCursor.MoveNext() then
-            discreteKeysSet.Add(KV(firstCursor.CurrentKey, first.Value)) |> ignore
+            discreteKeysSet.Add(KVP(firstCursor.CurrentKey, first.Value)) |> ignore
             doMoveNext() // recursive
           else
             // add back, should not be very often TODO (perf, low) add counter to see if this happens often
-            discreteKeysSet.Add(KV(firstCursor.CurrentKey, first.Value)) |> ignore
+            discreteKeysSet.Add(KVP(firstCursor.CurrentKey, first.Value)) |> ignore
             false
       else false
     
@@ -1942,7 +1942,7 @@ and
 
         if not moved then continueMoves <- false
         // must add it back regardless of moves
-        discreteKeysSet.Add(KV(ac.CurrentKey, last.Value)) |> ignore
+        discreteKeysSet.Add(KVP(ac.CurrentKey, last.Value)) |> ignore
 
       // now all discrete cursors have moved at or ahead of frontier
       // the loop could stop only when all cursors are at the same key or we cannot move ahead
@@ -1965,11 +1965,11 @@ and
           let last = discreteKeysSet.RemoveLast()
           let lastCursor = if isContinuous then unionKeys else cursors.[last.Value]
           if lastCursor.MovePrevious() then
-            discreteKeysSet.Add(KV(lastCursor.CurrentKey, last.Value)) |> ignore
+            discreteKeysSet.Add(KVP(lastCursor.CurrentKey, last.Value)) |> ignore
             doMovePrevious() // recursive
           else
             // add back, should not be very often TODO (perf, low) add counter to see if this happens often
-            discreteKeysSet.Add(KV(lastCursor.CurrentKey, last.Value)) |> ignore
+            discreteKeysSet.Add(KVP(lastCursor.CurrentKey, last.Value)) |> ignore
             false
       else false
 
@@ -2010,7 +2010,7 @@ and
           let idx = initialPosition.Value
           let cursor = ac
           let inline onMoved() =
-            discreteKeysSet.Add(KV(cursor.CurrentKey, idx)) |> ignore
+            discreteKeysSet.Add(KVP(cursor.CurrentKey, idx)) |> ignore
             loop(true)
           let mutable reachedFrontier = false
           while not reachedFrontier && cursor.MoveNext() do
@@ -2115,7 +2115,7 @@ and
         if not movedFirst then
           if isContinuous then
             movedFirst <- unionKeys.MoveFirst()
-            if movedFirst then discreteKeysSet.Add(KV(unionKeys.CurrentKey, 0)) |> ignore
+            if movedFirst then discreteKeysSet.Add(KVP(unionKeys.CurrentKey, 0)) |> ignore
             doContinue <- movedFirst
           else
             let mutable i = 0
@@ -2123,7 +2123,7 @@ and
               if not cursors.[i].IsContinuous then 
                 let movedFirst' = x.MoveFirst()
                 if movedFirst' then
-                  discreteKeysSet.Add(KV(x.CurrentKey, i)) |> ignore 
+                  discreteKeysSet.Add(KVP(x.CurrentKey, i)) |> ignore 
                 else doContinue <- false
               i <- i + 1
             movedFirst <- doContinue
@@ -2154,7 +2154,7 @@ and
         if not movedLast then
           if isContinuous then
             movedLast <- unionKeys.MoveLast()
-            if movedLast then discreteKeysSet.Add(KV(unionKeys.CurrentKey, 0)) |> ignore
+            if movedLast then discreteKeysSet.Add(KVP(unionKeys.CurrentKey, 0)) |> ignore
             doContinue <- movedLast
           else
             let mutable i = 0
@@ -2162,7 +2162,7 @@ and
               if not x.IsContinuous then 
                 let movedFirst' = x.MoveLast()
                 if movedFirst' then
-                  let kv = KV(x.CurrentKey, i)
+                  let kv = KVP(x.CurrentKey, i)
                   discreteKeysSet.Add(kv) |> ignore 
                 else doContinue <- false
               i <- i + 1
@@ -2191,7 +2191,7 @@ and
         if not movedAt then
           if isContinuous then
             movedAt <- unionKeys.MoveAt(key, direction)
-            if movedAt then discreteKeysSet.Add(KV(unionKeys.CurrentKey, 0)) |> ignore
+            if movedAt then discreteKeysSet.Add(KVP(unionKeys.CurrentKey, 0)) |> ignore
             doContinue <- movedAt
           else
             let mutable i = 0
@@ -2199,7 +2199,7 @@ and
               if not cursors.[i].IsContinuous then 
                 let movedAt' = x.MoveAt(key, direction)
                 if movedAt' then
-                  discreteKeysSet.Add(KV(x.CurrentKey, i)) |> ignore 
+                  discreteKeysSet.Add(KVP(x.CurrentKey, i)) |> ignore 
                 else doContinue <- false
               i <- i + 1
             movedAt <- doContinue
@@ -2233,7 +2233,7 @@ and
             let first = discreteKeysSet.RemoveFirst()
             let ac = if isContinuous then unionKeys else cursors.[first.Value]
             if ac.MoveNext() then
-              discreteKeysSet.Add(KV(ac.CurrentKey, first.Value)) |> ignore
+              discreteKeysSet.Add(KVP(ac.CurrentKey, first.Value)) |> ignore
               true
             else
               discreteKeysSet.Add(first)
@@ -2250,7 +2250,7 @@ and
             let last = discreteKeysSet.RemoveLast()
             let ac = if isContinuous then unionKeys else cursors.[last.Value]
             if ac.MovePrevious() then
-              discreteKeysSet.Add(KV(ac.CurrentKey, last.Value)) |> ignore
+              discreteKeysSet.Add(KVP(ac.CurrentKey, last.Value)) |> ignore
               true
             else 
               discreteKeysSet.Add(last)
@@ -2274,7 +2274,7 @@ and
                 let! movedAsync = unionKeys.MoveNext(ct)
                 movedFirst <- movedAsync
               if movedFirst then
-                discreteKeysSet.Add(KV(unionKeys.CurrentKey, 0)) |> ignore
+                discreteKeysSet.Add(KVP(unionKeys.CurrentKey, 0)) |> ignore
               doContinue <- movedFirst
             else
               let mutable i = 0
@@ -2285,7 +2285,7 @@ and
                     let! movedAsync = x.MoveNext(ct)
                     movedFirst' <- movedAsync
                   if movedFirst' then
-                    discreteKeysSet.Add(KV(x.CurrentKey, i)) |> ignore 
+                    discreteKeysSet.Add(KVP(x.CurrentKey, i)) |> ignore 
                   else doContinue <- false
                 i <- i + 1
               movedFirst <- doContinue

@@ -820,6 +820,15 @@ namespace Spreads.Collections.Tests.Cursors
             Console.WriteLine("Total sum: {0}", totalSum);
         }
 
+        [Test, Ignore]
+        public void CouldZipManyIntsx500ManyTimes()
+        {
+            for (int i = 0; i < 30; i++)
+            {
+                CouldZipManyIntsx500();
+            }
+        }
+
         [Test]
         public void CouldZipManyIntsx500()
         {
