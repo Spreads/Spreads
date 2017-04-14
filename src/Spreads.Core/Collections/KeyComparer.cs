@@ -4,204 +4,266 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections
 {
 
-    // TODO Add/diff methods for primitives
-
-    /// <summary>
-    /// IComparer'T with optional Add/Diff methods.
-    /// </summary>
-    public interface IKeyComparer<T> : IComparer<T>
-    {
-        /// <summary>
-        /// True is Add/Diff methods are supported.
-        /// </summary>
-        bool IsDiffable { get; }
-
-        /// <summary>
-        /// If Diff(A,B) = X, then Add(A,X) = B, this is a mirrow method for Diff
-        /// </summary>
-        T Add(T value, long diff);
-
-        /// <summary>
-        /// Returns int64 distance between two values when they are stored in
-        /// a regular sorted map. Regular means continuous integers or days or seconds, etc.
-        /// </summary>
-        /// <remarks>
-        /// This method could be used for IComparer'T.Compare implementation,
-        /// but must be checked for int overflow (e.g. compare Diff result to 0L instead of int cast).
-        /// </remarks>
-        long Diff(T x, T y);
-    }
-
     /// <summary>
     /// Fast IComparer implementation.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class KeyComparer<T> : IKeyComparer<T>
+    public sealed class KeyComparer<T> : IKeyComparer<T>
     {
-        // Set this to ConstrainedKeyComparer<T> if T implements IComparable<T>,
-        // otherwise fallback to default IComparer or a provided one (not implemented here)
-        public static KeyComparer<T> Default = Create();
-
+        private static readonly KeyComparer<T> _default = new KeyComparer<T>();
         private readonly IComparer<T> _comparer;
-        public KeyComparer() : this(null)
+        private readonly IKeyComparer<T> _keyComparer;
+
+        /// <summary>
+        /// Create a new KeyComparer instance.
+        /// </summary>
+        private KeyComparer() : this(null) { }
+
+        private KeyComparer(IComparer<T> comparer)
         {
+            if (comparer != null && !ReferenceEquals(comparer, Comparer<T>.Default))
+            {
+                _comparer = comparer;
+                if (comparer is IKeyComparer<T> kc)
+                {
+                    _keyComparer = kc;
+                }
+            }
         }
 
-        public KeyComparer(IComparer<T> comparer)
+        /// <summary>
+        /// Default instance of a KeyComparer for type T.
+        /// </summary>
+        public static KeyComparer<T> Default => _default;
+
+        /// <summary>
+        /// True if type T support Diff/Add methods
+        /// </summary>
+        public bool IsDiffable
         {
-            _comparer = comparer ?? Comparer<T>.Default;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (_keyComparer != null)
+                {
+                    return _keyComparer.IsDiffable;
+                }
+
+                if (typeof(T) == typeof(DateTime))
+                {
+                    return true;
+                }
+
+                if (typeof(T) == typeof(long))
+                {
+                    return true;
+                }
+
+                if (typeof(T) == typeof(ulong))
+                {
+                    return true;
+                }
+
+                if (typeof(T) == typeof(int))
+                {
+                    return true;
+                }
+
+                if (typeof(T) == typeof(uint))
+                {
+                    return true;
+                }
+
+                return false;
+            }
         }
 
-        public virtual bool IsDiffable => false;
+        /// <summary>
+        /// Get a new or default instance of KeyComparer.
+        /// </summary>
+        public static KeyComparer<T> Create(IComparer<T> comparer = null)
+        {
+            if (comparer == null || ReferenceEquals(comparer, Comparer<T>.Default))
+            {
+                return Default;
+            }
+            return new KeyComparer<T>(comparer);
+        }
 
+        /// <summary>
+        /// Get a new or default instance of KeyComparer.
+        /// </summary>
+        public static KeyComparer<T> Create(IKeyComparer<T> comparer)
+        {
+            return comparer == null ? Default : new KeyComparer<T>(comparer);
+        }
+
+        /// <summary>
         /// If Diff(A,B) = X, then Add(A,X) = B, this is a mirrow method for Diff
-        public virtual T Add(T value, long diff)
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Add(T value, long diff)
         {
-            throw new NotSupportedException();
-        }
+            if (_keyComparer != null)
+            {
+                return _keyComparer.Add(value, diff);
+            }
 
-        public virtual int Compare(T x, T y)
-        {
-            return _comparer.Compare(x, y);
-        }
-
-        /// Returns int64 distance between two values when they are stored in
-        /// a regular sorted map. Regular means continuous integers or days or seconds, etc.
-        /// ## Remarks
-        /// This method could be used for IComparer<'K>.Compare implementation,
-        /// but must be checked for int overflow (e.g. compare Diff result to 0L instead of int cast).
-        public virtual long Diff(T x, T y)
-        {
-            throw new NotSupportedException();
-        }
-
-        private static KeyComparer<T> Create()
-        {
             var ty = typeof(T);
+
+            if (ty == typeof(DateTime))
+            {
+                var value1 = (DateTime)(object)(value);
+                return (T)(object)value1.AddTicks(diff);
+            }
+
             if (ty == typeof(long))
             {
-                return (KeyComparer<T>)(object)(new ConstrainedKeyComparerLong());
+                var value1 = (long)(object)(value);
+                return (T)(object)(checked(value1 + diff));
             }
 
             if (ty == typeof(ulong))
             {
-                return (KeyComparer<T>)(object)(new ConstrainedKeyComparerULong());
+                var value1 = (ulong)(object)(value);
+                return (T)(object)(checked((long)value1 + diff));
             }
 
             if (ty == typeof(int))
             {
-                return (KeyComparer<T>)(object)(new ConstrainedKeyComparerInt());
+                var value1 = (int)(object)(value);
+                return (T)(object)(checked(value1 + diff));
             }
+
             if (ty == typeof(uint))
             {
-                return (KeyComparer<T>)(object)(new ConstrainedKeyComparerUInt());
-            }
-            if (ty == typeof(DateTime))
-            {
-                return (KeyComparer<T>)(object)(new ConstrainedKeyComparerDateTime());
+                var value1 = (uint)(object)(value);
+                return (T)(object)(checked((int)value1 + diff));
             }
 
-            if (typeof(IComparable<T>).IsAssignableFrom(ty))
-            {
-                return (KeyComparer<T>)KeyComparer.Create(typeof(T));
-            }
-
-            return new KeyComparer<T>(Comparer<T>.Default);
-        }
-        #region Implementations for primitive types
-
-        internal sealed class ConstrainedKeyComparerDateTime : KeyComparer<DateTime>
-        {
-            public override bool IsDiffable => true;
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Compare(DateTime x, DateTime y)
-            {
-                return x.CompareTo(y);
-            }
+            throw new NotSupportedException();
         }
 
-        private sealed class ConstrainedKeyComparerInt : KeyComparer<int>
-        {
-            public override bool IsDiffable => true;
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Compare(int x, int y)
-            {
-                return x.CompareTo(y);
-            }
-        }
-
-        private sealed class ConstrainedKeyComparerLong : KeyComparer<long>
-        {
-            public override bool IsDiffable => true;
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Compare(long x, long y)
-            {
-                return x.CompareTo(y);
-            }
-        }
-
-        private sealed class ConstrainedKeyComparerUInt : KeyComparer<uint>
-        {
-            public override bool IsDiffable => true;
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Compare(uint x, uint y)
-            {
-                return x.CompareTo(y);
-            }
-        }
-
-        private sealed class ConstrainedKeyComparerULong : KeyComparer<ulong>
-        {
-            public override bool IsDiffable => true;
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Compare(ulong x, ulong y)
-            {
-                return x.CompareTo(y);
-            }
-        }
-        #endregion Implementations for primitive types
-    }
-
-
-    internal sealed class ConstrainedKeyComparer<T> : KeyComparer<T> where T : IComparable<T>
-    {
-        public static ConstrainedKeyComparer<T> Default = new ConstrainedKeyComparer<T>();
-
-        private ConstrainedKeyComparer()
-        {
-        }
-
+        /// <inheritdoc />
+        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override int Compare(T x, T y)
+        public int Compare(T x, T y)
         {
-            return x.CompareTo(y);
+            if (_comparer != null)
+            {
+                return _comparer.Compare(x, y);
+            }
+
+            if (typeof(T) == typeof(DateTime))
+            {
+                var x1 = (DateTime)(object)(x);
+                var y1 = (DateTime)(object)(y);
+
+                if (x1 < y1) return -1;
+                if (x1 > y1) return 1;
+                return 0;
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                var x1 = (long)(object)(x);
+                var y1 = (long)(object)(y);
+
+                // Need to use compare because subtraction will wrap
+                // to positive for very large neg numbers, etc.
+                if (x1 < y1) return -1;
+                if (x1 > y1) return 1;
+                return 0;
+            }
+
+            if (typeof(T) == typeof(ulong))
+            {
+                var x1 = (ulong)(object)(x);
+                var y1 = (ulong)(object)(y);
+
+                if (x1 < y1) return -1;
+                if (x1 > y1) return 1;
+                return 0;
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                var x1 = (int)(object)(x);
+                var y1 = (int)(object)(y);
+                return x1 - y1;
+            }
+
+            if (typeof(T) == typeof(uint))
+            {
+                var x1 = (uint)(object)(x);
+                var y1 = (uint)(object)(y);
+
+                if (x1 < y1) return -1;
+                if (x1 > y1) return 1;
+                return 0;
+            }
+
+            return Comparer<T>.Default.Compare(x, y);
+        }
+
+        /// <summary>
+        /// Returns Int64 distance between two values.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long Diff(T x, T y)
+        {
+            if (_keyComparer != null)
+            {
+                return _keyComparer.Diff(x, y);
+            }
+
+            if (typeof(T) == typeof(DateTime))
+            {
+                var x1 = (DateTime)(object)(x);
+                var y1 = (DateTime)(object)(y);
+
+                return x1.Ticks - y1.Ticks;
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                var x1 = (long)(object)(x);
+                var y1 = (long)(object)(y);
+
+                return x1 - y1;
+            }
+
+            if (typeof(T) == typeof(ulong))
+            {
+                var x1 = (ulong)(object)(x);
+                var y1 = (ulong)(object)(y);
+                return checked((long)(x1) - (long)y1);
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                var x1 = (int)(object)(x);
+                var y1 = (int)(object)(y);
+                return x1 - y1;
+            }
+
+            if (typeof(T) == typeof(uint))
+            {
+                var x1 = (uint)(object)(x);
+                var y1 = (uint)(object)(y);
+
+                return checked((long)(x1) - (long)y1);
+            }
+
+            throw new NotSupportedException();
         }
     }
 
-    internal class KeyComparer
-    {
-        public static object Create(Type type)
-        {
-            var method = typeof(KeyComparer).GetTypeInfo().GetMethod("CreateConstrained", BindingFlags.NonPublic | BindingFlags.Static);
-            var generic = method.MakeGenericMethod(type);
-            var comparer = generic.Invoke(null, null);
-            return comparer;
-        }
-
-        internal static ConstrainedKeyComparer<T> CreateConstrained<T>() where T : IComparable<T>
-        {
-            return ConstrainedKeyComparer<T>.Default;
-        }
-    }
 }

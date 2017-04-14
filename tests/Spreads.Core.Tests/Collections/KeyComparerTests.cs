@@ -14,12 +14,12 @@ namespace Spreads.Core.Tests.Collections
     public class KeyComparerTests
     {
         [Test, Ignore]
-        public unsafe void ComparerInterfaceAndCachedConstrainedComparer()
+        public void ComparerInterfaceAndCachedConstrainedComparer()
         {
-            var c = Comparer<int>.Default;
-            IComparer<int> ic = Comparer<int>.Default;
-            var cc = KeyComparer<int>.Default;
-            var cc2 = Spreads.Collections.Experimental.KeyComparer<int>.Default;
+            var c = Comparer<long>.Default;
+            IComparer<long> ic = Comparer<long>.Default;
+            var cc = KeyComparer<long>.Default;
+            var cc2 = Spreads.Collections.Experimental.KeyComparer<long>.Default;
             //var manualcc = new ConstrainedKeyComparerLong();
 
             const long count = 100000000L;
@@ -29,6 +29,7 @@ namespace Spreads.Core.Tests.Collections
             for (int r = 0; r < 10; r++)
             {
                 var sum = 0L;
+
                 sw.Restart();
                 for (int i = 0; i < count; i++)
                 {
