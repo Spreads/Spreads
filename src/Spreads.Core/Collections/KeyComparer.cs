@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Collections.Experimantal
+namespace Spreads.Collections
 {
 
     // TODO Add/diff methods for primitives

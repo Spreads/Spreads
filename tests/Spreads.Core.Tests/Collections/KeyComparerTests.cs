@@ -3,10 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
-using Spreads.Collections.Experimantal;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using Spreads.Collections;
 
 namespace Spreads.Core.Tests.Collections
 {
@@ -16,12 +16,13 @@ namespace Spreads.Core.Tests.Collections
         [Test, Ignore]
         public unsafe void ComparerInterfaceAndCachedConstrainedComparer()
         {
-            var c = Comparer<long>.Default;
-            IComparer<long> ic = Comparer<long>.Default;
-            var cc = KeyComparer<long>.Default;
+            var c = Comparer<int>.Default;
+            IComparer<int> ic = Comparer<int>.Default;
+            var cc = KeyComparer<int>.Default;
+            var cc2 = Spreads.Collections.Experimental.KeyComparer<int>.Default;
             //var manualcc = new ConstrainedKeyComparerLong();
 
-            const long count = 500000000L;
+            const long count = 100000000L;
 
             var sw = new Stopwatch();
 
@@ -29,9 +30,9 @@ namespace Spreads.Core.Tests.Collections
             {
                 var sum = 0L;
                 sw.Restart();
-                for (long i = 0; i < count; i++)
+                for (int i = 0; i < count; i++)
                 {
-                    sum += c.Compare(i, i - 1L);
+                    sum += c.Compare(i, i - 1);
                 }
                 sw.Stop();
                 Console.WriteLine($"Default comparer: {sw.ElapsedMilliseconds}");
@@ -40,9 +41,9 @@ namespace Spreads.Core.Tests.Collections
 
                 sum = 0L;
                 sw.Restart();
-                for (long i = 0; i < count; i++)
+                for (int i = 0; i < count; i++)
                 {
-                    sum += ic.Compare(i, i - 1L);
+                    sum += ic.Compare(i, i - 1);
                 }
                 sw.Stop();
                 Console.WriteLine($"Interface comparer: {sw.ElapsedMilliseconds}");
@@ -51,12 +52,22 @@ namespace Spreads.Core.Tests.Collections
 
                 sum = 0L;
                 sw.Restart();
-                for (long i = 0; i < count; i++)
+                for (int i = 0; i < count; i++)
                 {
-                    sum += cc.Compare(i, i - 1L);
+                    sum += cc.Compare(i, i - 1);
                 }
                 sw.Stop();
-                Console.WriteLine($"Constrained comparer: {sw.ElapsedMilliseconds}");
+                Console.WriteLine($"Key comparer: {sw.ElapsedMilliseconds}");
+                Assert.True(sum > 0);
+
+                sum = 0L;
+                sw.Restart();
+                for (int i = 0; i < count; i++)
+                {
+                    sum += cc2.Compare(i, i - 1);
+                }
+                sw.Stop();
+                Console.WriteLine($"Key comparer 2: {sw.ElapsedMilliseconds}");
                 Assert.True(sum > 0);
 
                 //sum = 0L;
