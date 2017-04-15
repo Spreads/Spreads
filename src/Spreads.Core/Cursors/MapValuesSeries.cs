@@ -94,23 +94,15 @@ namespace Spreads.Cursors
         public override bool IsReadOnly => _series.IsReadOnly;
 
         /// <inheritdoc />
-        public override MapValuesSeries<TKey, TValue, TResult, TCursor> Clone()
+        public override MapValuesSeries<TKey, TValue, TResult, TCursor> Create()
         {
             if (State == CursorState.None && ThreadId == Environment.CurrentManagedThreadId)
             {
                 State = CursorState.Initialized;
                 return this;
             }
-
             var clone = new MapValuesSeries<TKey, TValue, TResult, TCursor>(_series, _selector);
-            if (State == CursorState.Moving)
-            {
-                clone.MoveAt(CurrentKey, Lookup.EQ);
-            }
-            else
-            {
-                clone.State = CursorState.Initialized;
-            }
+            clone.State = CursorState.Initialized;
             return clone;
         }
 
