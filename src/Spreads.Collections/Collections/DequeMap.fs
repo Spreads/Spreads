@@ -12,6 +12,7 @@ open System.Collections.Generic
 open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
+open System.Reflection
 
 // TODO NotifyUpdate is not used
 
@@ -42,7 +43,7 @@ type SortedDequeMap<'K,'V>
   
   //let this.SyncRoot = new Object()
 
-  let isKeyReferenceType = not <| typeof<'K>.GetIsValueType()
+  let isKeyReferenceType = not <| typeof<'K>.GetTypeInfo().IsValueType
 
 
   do

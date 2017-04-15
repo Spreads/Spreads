@@ -17,6 +17,7 @@ open System.Runtime.CompilerServices
 open System.Threading
 open System.Threading.Tasks
 open System.Runtime.CompilerServices
+open System.Reflection
 
 open Spreads
 open Spreads.Buffers
@@ -95,7 +96,7 @@ type SortedMap<'K,'V>
     // NB: There is no single imaginable reason not to have it true by default!
     // Uncontended performance is close to non-synced.
     this.isSynchronized <- true
-    this.isKeyReferenceType <- not <| typeof<'K>.GetIsValueType()
+    this.isKeyReferenceType <- not <| typeof<'K>.GetTypeInfo().IsValueType
 
     let tempCap = if capacity.IsSome && capacity.Value > 0 then capacity.Value else 2
     this.keys <- 

@@ -13,6 +13,7 @@ open System.Collections.Generic
 open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
+open System.Reflection
 
 open Spreads
 open Spreads.Buffers
@@ -44,7 +45,7 @@ type IndexedMap<'K,'V> // when 'K:equality
     if comparerOpt.IsNone || Comparer<'K>.Default.Equals(comparerOpt.Value) then
       KeyComparer<'K>.Default
     else comparerOpt.Value
-  let isKeyReferenceType : bool = not <| typeof<'K>.GetIsValueType()
+  let isKeyReferenceType : bool = not <| typeof<'K>.GetTypeInfo().IsValueType
 
   let mutable isSynchronized : bool = false
   let mutable isMutable : bool = true

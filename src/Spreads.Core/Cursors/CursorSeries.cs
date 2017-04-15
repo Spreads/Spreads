@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -16,8 +15,8 @@ namespace Spreads.Cursors
     /// <summary>
     /// Base abstract class for cursor series (objects that implement both IReadOnlySeries and ICursor).
     /// </summary>
-    public abstract class CursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue>, ICursor<TKey, TValue>
-        where TCursor : CursorSeries<TKey, TValue, TCursor>
+    public abstract class CursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue>
+        where TCursor : CursorSeries<TKey, TValue, TCursor>, ICursor<TKey, TValue>
     {
         private TCursor _navigationCursor;
         internal int ThreadId = Environment.CurrentManagedThreadId;
@@ -206,72 +205,18 @@ namespace Spreads.Cursors
         }
 
         /// <summary>
-        /// Create a copy of TCursor initialized to its position.
-        /// </summary>
-        public TCursor Clone()
-        {
-            var clone = Create();
-            Debug.Assert(clone.State == CursorState.Initialized);
-            if (State == CursorState.Moving)
-            {
-                clone.MoveAt(CurrentKey, Lookup.EQ);
-            }
-            return clone;
-        }
-
-        /// <inheritdoc />
-        public Task<bool> MoveNext(CancellationToken cancellationToken) => throw new NotSupportedException("Async MoveNext should use BaseCursor via CursorSeries");
-
-        object IEnumerator.Current => Current;
-
-        ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
-        {
-            return Clone();
-        }
-
-        /// <inheritdoc />
-        public KeyValuePair<TKey, TValue> Current => new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue);
-
-        /// <inheritdoc />
-        public abstract TKey CurrentKey { get; }
-
-        /// <inheritdoc />
-        public abstract TValue CurrentValue { get; }
-
-        /// <summary>
         /// Create an uninitialized copy of TCursor
         /// </summary>
         public abstract TCursor Create();
 
-        /// <inheritdoc />
-        public abstract IReadOnlySeries<TKey, TValue> CurrentBatch { get; }
+        /// <summary>
+        /// Create a copy of TCursor initialized to its position.
+        /// </summary>
+        public abstract TCursor Clone();
 
         /// <inheritdoc />
-        public abstract void Dispose();
+        public Task<bool> MoveNext(CancellationToken cancellationToken) => throw new NotSupportedException("Async MoveNext should use BaseCursor via CursorSeries");
 
-        /// <inheritdoc />
-        public abstract bool IsContinuous { get; }
-
-        /// <inheritdoc />
-        public abstract bool MoveAt(TKey key, Lookup direction);
-
-        /// <inheritdoc />
-        public abstract bool MoveFirst();
-
-        /// <inheritdoc />
-        public abstract bool MoveLast();
-
-        /// <inheritdoc />
-        public abstract bool MoveNext();
-
-        /// <inheritdoc />
-        public abstract Task<bool> MoveNextBatch(CancellationToken cancellationToken);
-
-        /// <inheritdoc />
-        public abstract bool MovePrevious();
-
-        /// <inheritdoc />
-        public abstract void Reset();
     }
 
     //internal static class CursorSeriesExtensions

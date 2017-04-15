@@ -15,6 +15,7 @@ open System.Runtime.CompilerServices
 open System.Threading
 open System.Threading.Tasks
 open System.Runtime.CompilerServices
+open System.Reflection
 
 open Spreads
 open Spreads.Buffers
@@ -69,7 +70,7 @@ type Index<'K>
   let mutable rkLast = Unchecked.defaultof<'K>
 
   do
-    this.isKeyReferenceType <- not <| typeof<'K>.GetIsValueType()
+    this.isKeyReferenceType <- not <| typeof<'K>.GetTypeInfo().IsValueType
 
     if not(keys.BothPresentOrMissing(size)) then raise (ArgumentException("Keys and size must be both either missing or set"))
     if keys.IsPresent && uint32 size.Present > uint32 keys.Present.Length then raise (ArgumentOutOfRangeException("Wrong size"))

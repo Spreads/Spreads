@@ -51,7 +51,7 @@ namespace Spreads.Algorithms.Online
                 tpl =>
                 {
                     return tpl.Value1.Inverse().Multiply(tpl.Value2);
-                });
+                }, null);
             return betas;
         }
     }
