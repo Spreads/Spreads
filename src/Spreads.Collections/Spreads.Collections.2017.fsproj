@@ -9,13 +9,11 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Attributes.fs" />
-    <Compile Include="KeyComparer.fs" />
     <Compile Include="Common/Types.fs" />
     <Compile Include="Common/FastEvents.fs" />
     <Compile Include="Common/Operators.fs" />
     <Compile Include="Common/ObjectPool.fs" />
     <Compile Include="Common/Utils.fs" />
-    <Compile Include="Common/SortedDeque.fs" />
     <Compile Include="Common/Exceptions.fs" />
     <Compile Include="Common/OptionalValue.fs" />
     <Compile Include="Common/GenericOperators.fs" />

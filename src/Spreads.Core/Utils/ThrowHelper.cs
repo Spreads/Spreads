@@ -41,6 +41,11 @@ namespace Spreads
             throw GetInvalidOperationException();
         }
 
+        public static void ThrowInvalidOperationException(string message)
+        {
+            throw GetInvalidOperationException(message);
+        }
+
         public static void ThrowInvalidOperationException_ForVariantTypeMissmatch()
         {
             throw GetInvalidOperationException_ForVariantTypeMissmatch();
@@ -87,6 +92,12 @@ namespace Spreads
         private static InvalidOperationException GetInvalidOperationException()
         {
             return new InvalidOperationException();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static InvalidOperationException GetInvalidOperationException(string message)
+        {
+            return new InvalidOperationException(message);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

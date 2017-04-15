@@ -13,7 +13,7 @@ namespace Spreads
     /// Fast IComparer implementation.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public sealed class KeyComparer<T> : IKeyComparer<T>
+    public sealed class KeyComparer<T> : IKeyComparer<T>, IEqualityComparer<T>
     {
         private static readonly KeyComparer<T> _default = new KeyComparer<T>();
         private readonly IComparer<T> _comparer;
@@ -271,6 +271,61 @@ namespace Spreads
                 return checked((long)(x1) - (long)y1);
             }
 
+            throw new NotSupportedException("KeyComparer should not be used for hash code calculatons.");
+        }
+
+        public bool Equals(T x, T y)
+        {
+            if (_comparer != null)
+            {
+                return _comparer.Compare(x, y) == 0;
+            }
+
+            if (typeof(T) == typeof(DateTime))
+            {
+                // TODO (low) unsafe impl with bitwise sign
+                var x1 = (DateTime)(object)(x);
+                var y1 = (DateTime)(object)(y);
+                return x1 == y1;
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                // TODO (low) unsafe impl with bitwise sign
+                var x1 = (long)(object)(x);
+                var y1 = (long)(object)(y);
+
+                return x1 == y1;
+            }
+
+            if (typeof(T) == typeof(ulong))
+            {
+                var x1 = (ulong)(object)(x);
+                var y1 = (ulong)(object)(y);
+
+                return x1 == y1;
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                var x1 = (int)(object)(x);
+                var y1 = (int)(object)(y);
+                return x1 == y1;
+            }
+
+            if (typeof(T) == typeof(uint))
+            {
+                var x1 = (uint)(object)(x);
+                var y1 = (uint)(object)(y);
+
+                return x1 == y1;
+            }
+
+            return EqualityComparer<T>.Default.Equals(x, y);
+        }
+
+        public int GetHashCode(T obj)
+        {
             throw new NotSupportedException();
         }
     }
@@ -278,7 +333,7 @@ namespace Spreads
     /// <summary>
     /// Fast IComparer for KeyValuePair.
     /// </summary>
-    public sealed class KVPComparer<TKey, TValue> : IComparer<KeyValuePair<TKey, TValue>>
+    public sealed class KVPComparer<TKey, TValue> : IComparer<KeyValuePair<TKey, TValue>>, IEqualityComparer<KeyValuePair<TKey, TValue>>
     {
         private readonly KeyComparer<TKey> _keyComparer;
         private readonly KeyComparer<TValue> _valueComparer;
@@ -310,6 +365,19 @@ namespace Spreads
                 return _valueComparer.Compare(x.Value, y.Value);
             }
             return c1;
+        }
+
+        /// <inheritdoc />
+        public bool Equals(KeyValuePair<TKey, TValue> x, KeyValuePair<TKey, TValue> y)
+        {
+            return _keyComparer.Equals(x.Key, y.Key) && _valueComparer == null ? true : _valueComparer.Equals(x.Value, y.Value);
+        }
+
+        /// <inheritdoc />
+        public int GetHashCode(KeyValuePair<TKey, TValue> obj)
+        {
+            // TODO (?)
+            throw new NotSupportedException("KVPComparer should not be used for hash code calculatons.");
         }
     }
 }

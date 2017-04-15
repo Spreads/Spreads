@@ -17,6 +17,7 @@ open System.Threading.Tasks
 
 open Spreads
 open Spreads.Collections
+open Spreads.Collections.Generic
 
 [<AllowNullLiteral>]
 type SortedDequeMap<'K,'V>
@@ -26,7 +27,7 @@ type SortedDequeMap<'K,'V>
   [<DefaultValueAttribute>]
   val mutable internal version : int
   [<DefaultValueAttribute>]
-  val mutable internal sd : SortedDequeKVP<'K,'V>
+  val mutable internal sd : SortedDeque<'K,'V>
 
   let mutable comparer : KeyComparer<'K> = 
     if comparerOpt.IsNone || Comparer<'K>.Default.Equals(comparerOpt.Value) then
@@ -49,7 +50,7 @@ type SortedDequeMap<'K,'V>
     this.isReadOnly <- false
     let capacity = if capacity.IsSome then capacity.Value else 2
     // TODO(!, perf) KeyComparer for KVP
-    this.sd <- new SortedDequeKVP<'K,'V>(capacity, KVPComparer(comparer))
+    this.sd <- new SortedDeque<'K,'V>(capacity, KVPComparer(comparer))
     if dictionary.IsSome then
       for kvp in dictionary.Value do
         this.sd.Add(KVP(kvp.Key, kvp.Value))
@@ -84,7 +85,7 @@ type SortedDequeMap<'K,'V>
   //#region Public members
 
   member this.Capacity 
-    with get() = this.sd.buffer.Length
+    with get() = this.sd.Capacity
     //and set(value) = failwith "TODO"
   override this.Comparer with get() = comparer
 
@@ -92,7 +93,7 @@ type SortedDequeMap<'K,'V>
     this.sd.Clear()
     this.version <- this.version + 1
 
-  member this.Count with get() = this.sd.count
+  member this.Count with get() = this.sd.Count
 
   override this.IsEmpty with get() = this.Count = 0
 
@@ -128,7 +129,7 @@ type SortedDequeMap<'K,'V>
             member e.MoveNext() = 
               if eVersion.Value <> this.version then
                 raise (InvalidOperationException("Collection changed during enumeration"))
-              if index.Value < this.sd.count then
+              if index.Value < this.sd.Count then
                 currentKey := this.sd.[index.Value].Key
                 incr index
                 true

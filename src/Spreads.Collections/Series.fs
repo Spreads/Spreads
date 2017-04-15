@@ -1461,7 +1461,7 @@ and
       c'
     // TODO (perf) allocates for the lifetime of cursor
     let movedKeysFlags : bool[] = Array.zeroCreate cursors.Length
-    let movedKeys = SortedDequeKVP(KVPComparer(cmp, null)) // , cursors.Length
+    let movedKeys = SortedDeque<_,_>(cursors.Length, KVPComparer(cmp, null)) // , cursors.Length
 
     let mutable semaphore : SemaphoreSlim = Unchecked.defaultof<_> //  new SemaphoreSlim(0) //, cursors.Length
     // Live counter shows how many cont cursor not yet returned false on MoveNextAsync
@@ -1745,7 +1745,7 @@ and
                       // Union key then could return repeated keys and OOO keys,
                       // and it is ZipNs responsibility to handle these cases
                       if cmp.Compare(kvp.Key, this.CurrentKey) <= 0 then
-                        if outOfOrderKeys = Unchecked.defaultof<_> then outOfOrderKeys <- SortedDeque(cmp)
+                        if outOfOrderKeys = Unchecked.defaultof<_> then outOfOrderKeys <- SortedDeque<_>(2, cmp)
                         lock (outOfOrderKeys) (fun _ -> 
                           // TODO check this, add perf counters for frequence and max size
                           //if not <| outOfOrderKeys.TryAdd(kvp.Key) then
@@ -1843,7 +1843,7 @@ and
     // Same meaning as in BingCursor: we have at least one sucessful move and some state for further moves
     let mutable hasValidState = false
     // all keys where discrete cursors are positioned. their intersect define where resulting keys are present.
-    let discreteKeysSet = SortedDequeKVP(KVPComparer(cmp, null))
+    let discreteKeysSet = SortedDeque<_,_>(cursorFactories.Length, KVPComparer(cmp, null))
 
     let isContinuous = cursors |> Array.map (fun x -> x.IsContinuous) |> Array.forall id
     let unionKeys : ICursor<'K,'V> = if isContinuous then new UnionKeysCursor<'K,'V>(cursors) :> ICursor<'K,'V> else Unchecked.defaultof<_>
@@ -1871,11 +1871,11 @@ and
     let rec doMoveNext() =
       let mutable continueMoves = true
       // check if we reached the state where all cursors are at the same position
-      while cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) < 0 && continueMoves do
+      while cmp.Compare(discreteKeysSet.FirstUnsafe.Key, discreteKeysSet.LastUnsafe.Key) < 0 && continueMoves do
         // pivotKeysSet is essentially a task queue:
         // we take every cursor that is not at the frontier and try to move it forward until it reaches the frontier
         // if we do this in parallel, the frontier could be moving while we move cursors
-        let first = discreteKeysSet.RemoveFirst()
+        let first = discreteKeysSet.RemoveFirstUnsafe()
         let ac = cursors.[first.Value]
         let mutable moved = true
         let mutable c = -1 // by construction // cmp.Compare(ac.CurrentKey, pivotKeysSet.Max.Key)
@@ -1886,48 +1886,48 @@ and
         // and the old one becomes unreachable
         while c < 0 && moved do
           moved <- ac.MoveNext()
-          if moved then c <- cmp.Compare(ac.CurrentKey, discreteKeysSet.Last.Key)
+          if moved then c <- cmp.Compare(ac.CurrentKey, discreteKeysSet.LastUnsafe.Key)
 
         if not moved then continueMoves <- false
         // must add it back regardless of moves
         // TODO (perf) should benefit here from RemoveFirstAddLast method, becuase is moved = true, 
         // we add the last value by construction
-        discreteKeysSet.Add(KVP(ac.CurrentKey, first.Value)) |> ignore
+        discreteKeysSet.AddUnsafe(KVP(ac.CurrentKey, first.Value)) |> ignore
 
       // now all discrete cursors have moved at or ahead of frontier
       // the loop could stop only when all cursors are at the same key or we cannot move ahead
       if continueMoves then
         // this only possible if all discrete cursors are at the same key
         #if DEBUG
-        Trace.Assert(cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0)
+        Trace.Assert(cmp.Compare(discreteKeysSet.FirstUnsafe.Key, discreteKeysSet.LastUnsafe.Key) = 0)
         #endif
-        if fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
+        if fillContinuousValuesAtKey(discreteKeysSet.FirstUnsafe.Key) then
           if not isContinuous then
             // now we could access values of discrete keys and fill current values with them
             for kvp in discreteKeysSet do // TODO (perf) Check if F# compiler behaves like C# one, optimizing for structs enumerator. Or just benchmark compared with for loop
               currentValues.[kvp.Value] <- cursors.[kvp.Value].CurrentValue
-          this.CurrentKey <- discreteKeysSet.First.Key
+          this.CurrentKey <- discreteKeysSet.FirstUnsafe.Key
           true
         else
           // cannot get contiuous values at this key
           // move first non-cont cursor to next position
 
-          let first = discreteKeysSet.RemoveFirst()
+          let first = discreteKeysSet.RemoveFirstUnsafe()
           let firstCursor = if isContinuous then unionKeys else cursors.[first.Value]
           if firstCursor.MoveNext() then
-            discreteKeysSet.Add(KVP(firstCursor.CurrentKey, first.Value)) |> ignore
+            discreteKeysSet.AddUnsafe(KVP(firstCursor.CurrentKey, first.Value)) |> ignore
             doMoveNext() // recursive
           else
             // add back, should not be very often TODO (perf, low) add counter to see if this happens often
-            discreteKeysSet.Add(KVP(firstCursor.CurrentKey, first.Value)) |> ignore
+            discreteKeysSet.AddUnsafe(KVP(firstCursor.CurrentKey, first.Value)) |> ignore
             false
       else false
     
     // a copy of doMoveNextDiscrete() with changed direction. 
     let rec doMovePrevious() =
       let mutable continueMoves = true
-      while cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) < 0 && continueMoves do
-        let last = discreteKeysSet.RemoveLast()
+      while cmp.Compare(discreteKeysSet.FirstUnsafe.Key, discreteKeysSet.LastUnsafe.Key) < 0 && continueMoves do
+        let last = discreteKeysSet.RemoveLastUnsafe()
         let ac = cursors.[last.Value]
         let mutable moved = true
         let mutable c = +1
@@ -1938,38 +1938,38 @@ and
         // and the old one becomes unreachable
         while c > 0 && moved do
           moved <- ac.MovePrevious()
-          if moved then c <- cmp.Compare(ac.CurrentKey, discreteKeysSet.First.Key)
+          if moved then c <- cmp.Compare(ac.CurrentKey, discreteKeysSet.FirstUnsafe.Key)
 
         if not moved then continueMoves <- false
         // must add it back regardless of moves
-        discreteKeysSet.Add(KVP(ac.CurrentKey, last.Value)) |> ignore
+        discreteKeysSet.AddUnsafe(KVP(ac.CurrentKey, last.Value)) |> ignore
 
       // now all discrete cursors have moved at or ahead of frontier
       // the loop could stop only when all cursors are at the same key or we cannot move ahead
       if continueMoves then
         // this only possible if all discrete cursors are at the same key
         #if DEBUG
-        Trace.Assert(cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0)
+        Trace.Assert(cmp.Compare(discreteKeysSet.FirstUnsafe.Key, discreteKeysSet.LastUnsafe.Key) = 0)
         #endif
-        if fillContinuousValuesAtKey(discreteKeysSet.First.Key) then
+        if fillContinuousValuesAtKey(discreteKeysSet.FirstUnsafe.Key) then
           if not isContinuous then
             // now we could access values of discrete keys and fill current values with them
             for kvp in discreteKeysSet do // TODO (perf) Check if F# compiler behaves like C# one, optimizing for structs enumerator. Or just benchmark compared with for loop
               currentValues.[kvp.Value] <- cursors.[kvp.Value].CurrentValue
-          this.CurrentKey <- discreteKeysSet.Last.Key
+          this.CurrentKey <- discreteKeysSet.LastUnsafe.Key
           true
         else
           // cannot get contiuous values at this key
           // move first non-cont cursor to next position
 
-          let last = discreteKeysSet.RemoveLast()
+          let last = discreteKeysSet.RemoveLastUnsafe()
           let lastCursor = if isContinuous then unionKeys else cursors.[last.Value]
           if lastCursor.MovePrevious() then
-            discreteKeysSet.Add(KVP(lastCursor.CurrentKey, last.Value)) |> ignore
+            discreteKeysSet.AddUnsafe(KVP(lastCursor.CurrentKey, last.Value)) |> ignore
             doMovePrevious() // recursive
           else
             // add back, should not be very often TODO (perf, low) add counter to see if this happens often
-            discreteKeysSet.Add(KVP(lastCursor.CurrentKey, last.Value)) |> ignore
+            discreteKeysSet.AddUnsafe(KVP(lastCursor.CurrentKey, last.Value)) |> ignore
             false
       else false
 
@@ -2002,7 +2002,7 @@ and
             tcs.SetResult(true) // the only true exit
           else
             if discreteKeysSet.Count = 0 then invalidOp "discreteKeysSet is empty"
-            initialPosition <- discreteKeysSet.RemoveFirst()
+            initialPosition <- discreteKeysSet.RemoveFirstUnsafe()
             ac <- if isContinuous then unionKeys else cursors.[initialPosition.Value]
             loop(false)
         else
@@ -2230,7 +2230,7 @@ and
       else
         let doContinue =
           if cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 then
-            let first = discreteKeysSet.RemoveFirst()
+            let first = discreteKeysSet.RemoveFirstUnsafe()
             let ac = if isContinuous then unionKeys else cursors.[first.Value]
             if ac.MoveNext() then
               discreteKeysSet.Add(KVP(ac.CurrentKey, first.Value)) |> ignore
@@ -2247,7 +2247,7 @@ and
       else
         let cont =
           if cmp.Compare(discreteKeysSet.First.Key, discreteKeysSet.Last.Key) = 0 then
-            let last = discreteKeysSet.RemoveLast()
+            let last = discreteKeysSet.RemoveLastUnsafe()
             let ac = if isContinuous then unionKeys else cursors.[last.Value]
             if ac.MovePrevious() then
               discreteKeysSet.Add(KVP(ac.CurrentKey, last.Value)) |> ignore

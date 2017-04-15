@@ -22,7 +22,7 @@ namespace Spreads.Collections.Tests {
                     isFirst = false;
                     prev = e;
                 } else {
-                    if (deque.comparer.Compare(e, prev) < 0) return false;
+                    if (deque._comparer.Compare(e, prev) < 0) return false;
                     prev = e;
                 }
             }
@@ -235,7 +235,7 @@ namespace Spreads.Collections.Tests {
                     }
                 }
                 while (sd.Count > 0) {
-                    var midElement = sd.buffer[((sd.firstOffset + sd.count / 2) % sd.buffer.Length)];
+                    var midElement = sd._buffer[((sd._firstOffset + sd._count / 2) % sd._buffer.Length)];
                     sd.Remove(midElement);
                     set.Remove(midElement);
                     Assert.AreEqual(set.Count, sd.Count);
@@ -274,7 +274,7 @@ namespace Spreads.Collections.Tests {
                 }
             }
             {
-                var midElement = sd.buffer[0]; //[.___    ____]
+                var midElement = sd._buffer[0]; //[.___    ____]
                 sd.Remove(midElement);
                 set.Remove(midElement);
                 Assert.AreEqual(set.Count, sd.Count);
@@ -293,7 +293,7 @@ namespace Spreads.Collections.Tests {
                 }
             }
             {
-                var midElement = sd.buffer[sd.buffer.Length - 1]; //[___    ____.]
+                var midElement = sd._buffer[sd._buffer.Length - 1]; //[___    ____.]
                 sd.Remove(midElement);
                 set.Remove(midElement);
                 Assert.AreEqual(set.Count, sd.Count);
@@ -382,7 +382,7 @@ namespace Spreads.Collections.Tests {
             Assert.AreEqual(6, sd.Count);
         }
 
-        [Test]
+        [Test,Ignore]
         public void CouldCompareDatesManyTimes() {
             var sw = new System.Diagnostics.Stopwatch();
             sw.Start();
@@ -401,7 +401,7 @@ namespace Spreads.Collections.Tests {
 
         [Test]
         public void CouldAddKVsWithSimilarKey() {
-            var sd = new SortedDeque<KeyValuePair<int, int>>(new KVPComparer<int, int>(KeyComparer<int>.Default, KeyComparer<int>.Default));
+            var sd = new SortedDeque<int, int>(2, new KVPComparer<int, int>(KeyComparer<int>.Default, KeyComparer<int>.Default));
             for (int i = 0; i < 3; i++) {
                 sd.Add(new KeyValuePair<int, int>(1, i));
             }
