@@ -13,8 +13,7 @@ using System.Runtime.CompilerServices;
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
-
-    public static class CoreUtils
+    internal static class CoreUtils
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Func<TSource, bool> CombinePredicates<TSource>(Func<TSource, bool> predicate1, Func<TSource, bool> predicate2)
@@ -91,7 +90,7 @@ namespace Spreads
         }
     }
 
-    public static class TypeExtensions
+    internal static class TypeExtensions
     {
         public static Assembly GetAssembly(this Type type)
         {
@@ -110,7 +109,7 @@ namespace Spreads
         }
     }
 
-    public static class StopwatchExtensions
+    internal static class StopwatchExtensions
     {
         public static double MOPS(this Stopwatch stopwatch, int count, int decimals = 2)
         {

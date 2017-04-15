@@ -3,16 +3,23 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
 
+// ReSharper disable once CheckNamespace
 namespace Spreads.Cursors
 {
+    internal interface ICanMapValues<TKey, TValue>
+    {
+        BaseSeries<TKey, TResult> Map<TResult>(Func<TValue, TResult> selector, Func<Buffer<TValue>, Buffer<TResult>> batchSelector);
+    }
+
     /// <summary>
     /// A series that applies a selector to each value of its input series. Specialized for input cursor.
     /// </summary>
     public class MapValuesSeries<TKey, TValue, TResult, TCursor> : CursorSeries<TKey, TResult,
-        MapValuesSeries<TKey, TValue, TResult, TCursor>>
+        MapValuesSeries<TKey, TValue, TResult, TCursor>>, ICanMapValues<TKey, TResult>
         where TCursor : ICursor<TKey, TValue>
     {
         internal readonly ISeries<TKey, TValue> _series;
@@ -160,6 +167,11 @@ namespace Spreads.Cursors
         {
             _cursor.Reset();
             State = CursorState.Initialized;
+        }
+
+        BaseSeries<TKey, TResult1> ICanMapValues<TKey, TResult>.Map<TResult1>(Func<TResult, TResult1> selector, Func<Buffer<TResult>, Buffer<TResult1>> batchSelector)
+        {
+            return new MapValuesSeries<TKey, TValue, TResult1, TCursor>(_series, CoreUtils.CombineMaps(_selector, selector));
         }
     }
 

@@ -61,7 +61,7 @@ namespace Spreads.Core.Tests.Cursors
                 Assert.IsTrue(sum > 0);
 
                 Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-                Console.WriteLine($"Mops {count * 1000.0 / sw.ElapsedMilliseconds}");
+                Console.WriteLine($"Mops {sw.MOPS(count)}");
             }
 
             for (int r = 0; r < 10; r++)
@@ -78,7 +78,7 @@ namespace Spreads.Core.Tests.Cursors
                 Assert.IsTrue(sum > 0);
 
                 Console.WriteLine($"Elapsed LINQ {sw.ElapsedMilliseconds}");
-                Console.WriteLine($"Mops {count * 1000.0 / sw.ElapsedMilliseconds}");
+                Console.WriteLine($"Mops {sw.MOPS(count)}");
             }
         }
     }
