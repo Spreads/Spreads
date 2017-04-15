@@ -15,7 +15,7 @@ namespace Spreads.Cursors
     /// <summary>
     /// Base abstract class for cursor series (objects that implement both IReadOnlySeries and ICursor).
     /// </summary>
-    internal abstract class CursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue>, ICursor<TKey, TValue>
+    public abstract class CursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue>, ICursor<TKey, TValue>
         where TCursor : CursorSeries<TKey, TValue, TCursor>
     {
         private TCursor _navigationCursor;
@@ -54,7 +54,7 @@ namespace Spreads.Cursors
 
         public IReadOnlySeries<TKey, TValue> Source => this;
 
-        public TCursor GetEnumerator()
+        public override IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
             return Clone();
         }
@@ -200,7 +200,7 @@ namespace Spreads.Cursors
             return Clone();
         }
 
-        public abstract KeyValuePair<TKey, TValue> Current { get; }
+        public KeyValuePair<TKey, TValue> Current => new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue);
 
         public abstract TKey CurrentKey { get; }
         public abstract TValue CurrentValue { get; }
@@ -226,5 +226,18 @@ namespace Spreads.Cursors
         public abstract bool MovePrevious();
 
         public abstract void Reset();
+    }
+
+    internal static class CursorSeriesExtensions
+    {
+        // TODO think how to use this approach for chaining extensions and keep type info
+        // We have 4 collections (SM, SCM, DM, IM) and everything else should be CursorSeries
+        // Could make CursorSeries public - type info will be also helpful for debugging
+        internal static void Map<T, TKey, TValue, TCursor>(this T value)
+            where T : CursorSeries<TKey, TValue, TCursor>
+            where TCursor : CursorSeries<TKey, TValue, TCursor>
+        {
+            var c = value.Clone();
+        }
     }
 }

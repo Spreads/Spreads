@@ -152,11 +152,12 @@ type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, 
 /// Range from start to end key. 
 //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
 [<Sealed>]
-type internal RangeSeries<'K,'V>(origin:ISeries<'K,'V>, startKey:'K option, endKey:'K option, startInclusive: bool, endInclusive:bool) as this =
-  inherit AbstractCursorSeries<'K,'V,RangeSeries<'K,'V>>()
+type internal RangeSeries<'K,'V,'TCursor when 'TCursor :> ICursor<'K,'V>>(origin:ISeries<'K,'V>, startKey:'K option, endKey:'K option, startInclusive: bool, endInclusive:bool) as this =
+  inherit AbstractCursorSeries<'K,'V,RangeSeries<'K,'V,'TCursor>>()
   do
-    if origin.IsIndexed then raise (NotSupportedException("RangeSeries are not supported for indexed series, only for sorted ones."))
-  let cursor = origin.GetCursor()
+    if origin.IsIndexed then raise (NotSupportedException("RangeSeries is not supported for indexed series, only for sorted ones."))
+  // NB mutable because 'TCursor could be a struct
+  let mutable cursor = origin.GetCursor() :?> 'TCursor
     
   // range with limits could reach bounds while underlying series still has data
   let mutable atTheStart = false
@@ -190,7 +191,7 @@ type internal RangeSeries<'K,'V>(origin:ISeries<'K,'V>, startKey:'K option, endK
       this.state <- CursorState.Initialized
       this
     else
-      let clone = new RangeSeries<_,_>(origin, startKey, endKey, startInclusive, endInclusive)
+      let clone = new RangeSeries<_,_,_>(origin, startKey, endKey, startInclusive, endInclusive)
       if this.state = CursorState.Moving then clone.MoveAt(this.CurrentKey, Lookup.EQ) |> ignore
       else clone.state <- CursorState.Initialized
       clone

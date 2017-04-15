@@ -2,18 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using System.Numerics;
-using System.Threading;
 using NUnit.Framework;
 using Spreads.Collections;
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Core.Tests.Cursors
 {
     [TestFixture]
     public class AsyncCursorTests
@@ -65,7 +61,6 @@ namespace Spreads.Core.Tests
             Assert.True(t.IsCanceled);
         }
 
-
         [Test]
         public void DeadCursorDoesntCauseEndlessLoopInNotifyUpdate()
         {
@@ -91,10 +86,8 @@ namespace Spreads.Core.Tests
             sm.Add(2, 2);
             sm.Add(3, 3);
 
-
             Assert.True(sm.Count == 3);
         }
-
 
         [Test]
         public void CancelledCursorDoesntCauseEndlessLoopInNotifyUpdate()
@@ -113,14 +106,11 @@ namespace Spreads.Core.Tests
 
             cts.Cancel();
 
-
             sm.Add(2, 2);
             sm.Add(3, 3);
 
-
             Assert.True(sm.Count == 3);
         }
-
 
         [Test]
         public void CancelledCursorThrowsOperationCancelledException()
@@ -197,7 +187,6 @@ namespace Spreads.Core.Tests
 
             var source = cursor.Source;
 
-
             var cts = new CancellationTokenSource();
 
             var t = Task.Run(async () =>
@@ -215,14 +204,13 @@ namespace Spreads.Core.Tests
             t.Wait();
         }
 
-
         [Test]
         public void RangeCursorMovesAfterAwating()
         {
             var sm = new SortedMap<int, int>();
 
             sm.Add(1, 1);
-            
+
             var range = sm.Before(2, true);
 
             //Assert.AreEqual(1, range.First.Value);
@@ -230,7 +218,6 @@ namespace Spreads.Core.Tests
             var cursor = range.GetCursor();
 
             var source = cursor.Source;
-
 
             var cts = new CancellationTokenSource();
 

@@ -30,7 +30,7 @@ type SortedChunkedMapGeneric<'K,'V>
     comparer:KeyComparer<'K>,
     hasher:IKeyHasher<'K> option, 
     chunkMaxSize:int option) as this=
-  inherit ContainerSeries<'K,'V>()
+  inherit Series<'K,'V>()
 
   let outerMap = outerFactory(comparer)
 

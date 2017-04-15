@@ -10,8 +10,10 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 
+// ReSharper disable once CheckNamespace
 namespace Spreads
 {
+
     public static class CoreUtils
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

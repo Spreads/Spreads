@@ -20,7 +20,7 @@ namespace Spreads
 
         // NB this is often a struct, should not be made readonly!
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
-        private TCursor _innerCursor;
+        internal TCursor _innerCursor;
 
         private TaskCompletionSource<Task<bool>> _cancelledTcs;
         private CancellationTokenRegistration _registration;

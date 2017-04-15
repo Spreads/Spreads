@@ -141,6 +141,7 @@
     <Compile Include="Collections\KeyComparerTests.cs" />
     <Compile Include="Collections\FastDictionaryTests.cs" />
     <Compile Include="ColumnsTests.cs" />
+    <Compile Include="Cursors\MapValuesTest.cs" />
     <Compile Include="DataTypes\PriceTests.cs" />
     <Compile Include="DataTypes\TypeFlattenerTests.cs" />
     <Compile Include="Enumerators\TimeSliceTests.cs" />
@@ -151,7 +152,7 @@
     <Compile Include="ParameterTests.cs" />
     <Compile Include="DoubleUtilTests.cs" />
     <Compile Include="Serialization\VariableLengthValues.cs" />
-    <Compile Include="AsyncCursorTests.cs" />
+    <Compile Include="Cursors\AsyncCursorTests.cs" />
     <Compile Include="SpanTests.cs" />
     <Compile Include="Algorithms\AlgoTests.cs" />
     <Compile Include="Serialization\SerializationTests.cs" />

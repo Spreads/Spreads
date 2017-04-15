@@ -46,7 +46,7 @@ and
   [<AbstractClass>]
   //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   Series<'K,'V> internal() =
-    inherit BaseSeries<'K,'V>()
+    inherit ContainerSeries<'K,'V>()
 
     [<DefaultValueAttribute>]
     val mutable internal Locker : int
@@ -520,39 +520,6 @@ and
     static member public Map (series:Series<'K,'V>, sf:Func<'V,'V2>, af:Func<ArraySegment<'V>,ArraySegment<'V2>>) : Series<'K,'V2> = 
       Series.ScalarOperatorMap(series, sf.Invoke, if af <> null then Present(af.Invoke) else Missing)
 
-and
-  [<AllowNullLiteral>]
-  [<AbstractClass>]
-  ContainerSeries<'K,'V>() =
-    inherit Series<'K,'V>()
-
-    //[<DefaultValueAttribute>]
-    //val mutable private tcs : TaskCompletionSource<bool>
-    // [<DefaultValueAttribute>]
-    //val mutable private unusedTcs : TaskCompletionSource<bool>
-
-    //[<MethodImpl(MethodImplOptions.AggressiveInlining)>]
-    //member internal this.NotifyUpdate(result : bool) =
-    //  // when result = false, we will keep completed tcs with false forever
-    //  let tcs = if result then Interlocked.Exchange(&this.tcs, null) else Volatile.Read(&this.tcs)
-    //  if tcs <> null then tcs.SetResult(result);
-    //  // TODO (low, perf) review if this could be better and safe. Manual benchmarking is inconclusive.
-    //  //var tcs = Volatile.Read(ref _tcs);
-    //  //Volatile.Write(ref _tcs, null);
-
-    //override this.Updated 
-    //  with [<MethodImpl(MethodImplOptions.AggressiveInlining)>] get() : Task<bool> =
-    //    // saving one allocation vs Interlocked.Exchange call
-    //    let unusedTcs = Interlocked.Exchange(&this.unusedTcs, null);
-    //    let newTcs = if unusedTcs = null then new TaskCompletionSource<bool>() else unusedTcs
-    //    let mutable tcs = Interlocked.CompareExchange(&this.tcs, newTcs, null);
-    //    if tcs = null then
-    //      // newTcs was put to the _tcs field, use it
-    //      tcs <- newTcs;
-    //    else
-    //      Volatile.Write(&this.unusedTcs, newTcs);
-    //    tcs.Task;
-        
 
 and
   // TODO (perf) base Series() implements IReadOnlySeries inefficiently, see comments in above type Series() implementation

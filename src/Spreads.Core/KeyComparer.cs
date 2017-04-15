@@ -274,6 +274,7 @@ namespace Spreads
             throw new NotSupportedException("KeyComparer should not be used for hash code calculatons.");
         }
 
+        /// <inheritdoc />
         public bool Equals(T x, T y)
         {
             if (_comparer != null)
@@ -324,6 +325,9 @@ namespace Spreads
             return EqualityComparer<T>.Default.Equals(x, y);
         }
 
+        /// <summary>
+        /// GetHashCode is not supported.
+        /// </summary>
         public int GetHashCode(T obj)
         {
             throw new NotSupportedException();
@@ -373,7 +377,9 @@ namespace Spreads
             return _keyComparer.Equals(x.Key, y.Key) && _valueComparer == null ? true : _valueComparer.Equals(x.Value, y.Value);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// GetHashCode is not supported.
+        /// </summary>
         public int GetHashCode(KeyValuePair<TKey, TValue> obj)
         {
             // TODO (?)

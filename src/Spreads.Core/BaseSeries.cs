@@ -49,17 +49,16 @@ namespace Spreads
     /// <typeparam name="TV">Type of series values.</typeparam>
     public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK, TV>
     {
-        // TODO move locking to base container series
-        internal long _version;
-
-        internal long _nextVersion;
-        private int _writeLocker;
         private object _syncRoot;
-        private TaskCompletionSource<bool> _tcs;
-        private TaskCompletionSource<bool> _unusedTcs;
 
         /// <inheritdoc />
         public abstract ICursor<TK, TV> GetCursor();
+
+        /// <inheritdoc />
+        public virtual IEnumerator<KeyValuePair<TK, TV>> GetEnumerator()
+        {
+            return GetCursor();
+        }
 
         /// <inheritdoc />
         public abstract KeyComparer<TK> Comparer { get; }
@@ -84,12 +83,12 @@ namespace Spreads
 
         IEnumerator<KeyValuePair<TK, TV>> IEnumerable<KeyValuePair<TK, TV>>.GetEnumerator()
         {
-            return GetCursor();
+            return GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return GetCursor();
+            return GetEnumerator();
         }
 
         /// <inheritdoc />
@@ -105,6 +104,8 @@ namespace Spreads
                 return _syncRoot;
             }
         }
+
+        public abstract Task<bool> Updated { get; }
 
         /// <inheritdoc />
         public abstract bool IsEmpty { get; }
@@ -149,6 +150,16 @@ namespace Spreads
 
         /// <inheritdoc />
         public abstract bool TryGetValue(TK key, out TV value);
+    }
+
+    public abstract class ContainerSeries<TK, TV> : BaseSeries<TK, TV>
+    {
+        internal long _version;
+
+        internal long _nextVersion;
+        private int _writeLocker;
+        private TaskCompletionSource<bool> _tcs;
+        private TaskCompletionSource<bool> _unusedTcs;
 
         /// <summary>
         /// Takes a write lock, increments _nextVersion field and returns the current value of the _version field.
@@ -223,7 +234,7 @@ namespace Spreads
         /// After getting the Task one should check if any changes happened (version change or cursor move) before awating the task.
         /// If the task is completed with false then the series is read-only, immutable or complete.
         /// </summary>
-        public virtual Task<bool> Updated
+        public override Task<bool> Updated
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -245,14 +256,4 @@ namespace Spreads
             }
         }
     }
-
-    // Experiment #100
-    //internal abstract class SpecializedBaseSeries<TK, TV, TComparer> : BaseSeries<TK, TV>
-    //    where TComparer : IKeyComparer<TK>
-    //{
-    //    // https://ayende.com/blog/177377/fast-dictionary-and-struct-generic-arguments
-    //    // if TComparer is a struct then all calls to it could be inlined
-    //    // if TComparer is an instance of KeyComparer we have optimized virtual calls to sealed class
-    //    // if TComparer is IComparer we have interface calls and this is what we have now
-    //}
 }

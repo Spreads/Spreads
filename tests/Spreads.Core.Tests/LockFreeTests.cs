@@ -22,7 +22,7 @@ namespace Spreads.Core.Tests
     public unsafe class LockFreeTests
     {
         //sealed
-        public class LockTestSeries : BaseSeries<int, int>
+        public class LockTestSeries : ContainerSeries<int, int>
         {
             private object _syncRoot = new object();
             private long _counter;

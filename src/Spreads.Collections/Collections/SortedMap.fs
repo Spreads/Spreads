@@ -41,7 +41,7 @@ open Spreads.Collections
 [<DebuggerDisplay("SortedMap: Count = {Count}")>]
 type SortedMap<'K,'V>
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:KeyComparer<'K> option) as this=
-  inherit ContainerSeries<'K,'V>()
+  inherit Series<'K,'V>()
   static do
     SortedMap<'K,'V>.Init()
 
@@ -1326,11 +1326,11 @@ type SortedMap<'K,'V>
     member this.Dispose() = this.Dispose(true)
 
   interface IEnumerable with
-    member this.GetEnumerator() = this.GetCursor() :> IEnumerator
+    member this.GetEnumerator() = this.GetEnumerator() :> IEnumerator
 
   interface IEnumerable<KeyValuePair<'K,'V>> with
     member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
-      this.GetCursor() :> IEnumerator<KeyValuePair<'K,'V>>
+      this.GetEnumerator() :> IEnumerator<KeyValuePair<'K,'V>>
 
   interface ICollection  with
     member this.SyncRoot = this.SyncRoot
