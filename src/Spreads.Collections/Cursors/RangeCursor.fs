@@ -16,6 +16,7 @@ open System.Threading.Tasks
 
 open Spreads
 open Spreads.Collections
+open System.Threading
 
 
 /// Range from start to end key. 
@@ -297,8 +298,29 @@ type internal RangeSeries<'K,'V,'TCursor when 'TCursor :> ICursor<'K,'V>>(origin
     Trace.TraceWarning("MoveNextBatch is not implemented in RangeCursor")
     falseTask
       
-  override this.TryGetValue(key: 'K, [<Out>] value: byref<'V>): bool = 
+  member this.TryGetValue(key: 'K, [<Out>] value: byref<'V>): bool = 
     if inRange key then
       cursor.TryGetValue(key, &value)
     else false
     
+  
+  interface ICursor<'K,'V> with
+    member this.Clone(): ICursor<'K,'V> = this.Clone() :> ICursor<'K,'V>
+    member this.Comparer = this.Comparer
+    member this.Current: KeyValuePair<'K,'V> = this.Current
+    member this.Current: obj = this.Current :> obj
+    member this.CurrentBatch: IReadOnlySeries<'K,'V> = this.CurrentBatch
+    member this.CurrentKey: 'K = this.CurrentKey
+    member this.CurrentValue: 'V = this.CurrentValue
+    member this.Dispose(): unit = this.Dispose()
+    member this.IsContinuous: bool = this.IsContinuous
+    member this.MoveAt(key: 'K, direction: Lookup): bool = this.MoveAt(key, direction)
+    member this.MoveFirst(): bool = this.MoveFirst()
+    member this.MoveLast(): bool = this.MoveLast()
+    member this.MoveNext(cancellationToken: CancellationToken): Task<bool> = raise (NotSupportedException())
+    member this.MoveNext(): bool = this.MoveNext()
+    member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatch(cancellationToken)
+    member this.MovePrevious(): bool = this.MovePrevious()
+    member this.Reset(): unit = this.Reset()
+    member this.Source: IReadOnlySeries<'K,'V> = this.Source
+    member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.TryGetValue(key, &value)

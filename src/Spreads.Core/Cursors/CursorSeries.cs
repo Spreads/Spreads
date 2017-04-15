@@ -107,6 +107,27 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
+        public override TValue GetAt(int idx)
+        {
+            if (idx < 0) throw new ArgumentOutOfRangeException(nameof(idx));
+            lock (SyncRoot)
+            {
+                if (!this.NavCursor.MoveFirst())
+                {
+                    throw new KeyNotFoundException();
+                }
+                for (int i = 0; i < idx - 1; i++)
+                {
+                    if (!this.NavCursor.MoveNext())
+                    {
+                        throw new KeyNotFoundException();
+                    }
+                }
+                return this.NavCursor.CurrentValue;
+            }
+        }
+
+        /// <inheritdoc />
         public override bool TryFind(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> value)
         {
             lock (SyncRoot)
@@ -134,26 +155,6 @@ namespace Spreads.Cursors
                     return true;
                 }
                 value = default(KeyValuePair<TKey, TValue>);
-                return false;
-            }
-        }
-
-        /// <inheritdoc />
-        public override bool TryGetValue(TKey key, out TValue value)
-        {
-            lock (SyncRoot)
-            {
-                var c = NavCursor;
-                if (c.IsContinuous)
-                {
-                    return c.TryGetValue(key, out value);
-                }
-                if (c.MoveAt(key, Lookup.EQ))
-                {
-                    value = c.CurrentValue;
-                    return true;
-                }
-                value = default(TValue);
                 return false;
             }
         }
@@ -217,6 +218,37 @@ namespace Spreads.Cursors
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken) => throw new NotSupportedException("Async MoveNext should use BaseCursor via CursorSeries");
 
+
+        internal static TCursor1 GetCursor<TKey1, TValue1, TCursor1>(ISeries<TKey1, TValue1> series) where TCursor1 : ICursor<TKey1, TValue1>
+        {
+            var c = series.GetCursor();
+            TCursor1 cursor;
+            if (c is BaseCursorAsync<TKey1, TValue1, TCursor1> bca)
+            {
+                cursor = bca._innerCursor;
+            }
+            else if (c is TCursor1 tCursor)
+            {
+                cursor = tCursor;
+            }
+            else
+            {
+                var e = series.GetEnumerator();
+                if (e is BaseCursorAsync<TKey1, TValue1, TCursor1> bca1)
+                {
+                    cursor = bca1._innerCursor;
+                }
+                else if (e is TCursor1 tCursor1)
+                {
+                    cursor = tCursor1;
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+            }
+            return cursor;
+        }
     }
 
     //internal static class CursorSeriesExtensions

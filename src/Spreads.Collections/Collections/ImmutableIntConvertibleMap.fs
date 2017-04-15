@@ -115,13 +115,6 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
             | _ -> 
                 res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
                 false
-        
-        member this.TryGetValue(k, [<Out>] value:byref<'V>) = 
-            let success, pair = (this :> IImmutableSeries<'K, 'V>).TryFind(k, Lookup.EQ)
-            if success then 
-                value <- pair.Value
-                true
-            else false
 
 //        member this.Count with get() = int map.Size
         member this.Size with get() = map.Size

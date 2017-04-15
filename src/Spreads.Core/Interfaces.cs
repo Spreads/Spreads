@@ -247,11 +247,14 @@ namespace Spreads
         /// <summary>
         /// Gets a calculated value for continuous series without moving the cursor position.
         /// E.g. a continuous cursor for Repeat() will check if current state allows to get previous value,
-        /// and if not then .Source.GetCursor().MoveAt(key, LE). The TryGetValue method should be optimized
+        /// and if not then .Source.GetCursor().MoveAt(key, LE). 
+        /// </summary>
+        /// <remarks>
+        /// The TryGetValue method should be optimized
         /// for sort join case using enumerator, e.g. for repeat it should keep previous value and check if
         /// the requested key is between the previous and the current keys, and then return the previous one.
         /// NB This is not thread safe. ICursors must be used from a single thread.
-        /// </summary>
+        /// </remarks>
         bool TryGetValue(TKey key, out TValue value);
     }
 
@@ -264,6 +267,9 @@ namespace Spreads
     /// </summary>
     public interface IReadOnlySeries<TKey, TValue> : ISeries<TKey, TValue>
     {
+        /// <summary>
+        /// True if a series is empty.
+        /// </summary>
         bool IsEmpty { get; }
 
         /// <summary>
@@ -288,21 +294,34 @@ namespace Spreads
         /// </summary>
         TValue GetAt(int idx);
 
+        /// <summary>
+        /// Keys enumerable.
+        /// </summary>
         IEnumerable<TKey> Keys { get; }
+
+        /// <summary>
+        /// Values enumerable.
+        /// </summary>
         IEnumerable<TValue> Values { get; }
 
         /// <summary>
         /// The method finds value according to direction, returns false if it could not find such a value
         /// For indexed series LE/GE directions are invalid (throws InvalidOperationException), while
         /// LT/GT search is done by index rather than by key and possible only when a key exists.
+        /// TryFind works only with existing keys and is an equivalent of ICursor.MoveAt.
         /// </summary>
         bool TryFind(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> value);
 
+        /// <summary>
+        /// Try get first element.
+        /// </summary>
         bool TryGetFirst(out KeyValuePair<TKey, TValue> value);
 
+        /// <summary>
+        /// Try get last element.
+        /// </summary>
         bool TryGetLast(out KeyValuePair<TKey, TValue> value);
 
-        bool TryGetValue(TKey key, out TValue value);
     }
 
     /// <summary>
@@ -362,11 +381,22 @@ namespace Spreads
     /// </summary>
     public interface IPersistentObject : IDisposable
     {
+        /// <summary>
+        /// Persist any cached data.
+        /// </summary>
         void Flush();
 
+        /// <summary>
+        /// String identificator of series.
+        /// </summary>
         string Id { get; }
     }
 
+    /// <summary>
+    /// ISeries backed by some persistent storage.
+    /// </summary>
+    /// <typeparam name="TKey"></typeparam>
+    /// <typeparam name="TValue"></typeparam>
     public interface IPersistentSeries<TKey, TValue> : IMutableSeries<TKey, TValue>, IPersistentObject
     {
     }

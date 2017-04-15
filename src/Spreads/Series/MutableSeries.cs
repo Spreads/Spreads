@@ -7,6 +7,7 @@ using System.Collections.Generic;
 
 namespace Spreads.Series
 {
+    [Obsolete("Use interface")]
     public class MutableSeries<TK, TV> : Series<TK, TV>, IMutableSeries<TK, TV>
     {
         private readonly IMutableSeries<TK, TV> _innerSeries;
@@ -55,11 +56,6 @@ namespace Spreads.Series
         public override bool TryGetLast(out KeyValuePair<TK, TV> value)
         {
             return _innerSeries.TryGetLast(out value);
-        }
-
-        public override bool TryGetValue(TK key, out TV value)
-        {
-            return _innerSeries.TryGetValue(key, out value);
         }
 
         public void Add(TK key, TV value)

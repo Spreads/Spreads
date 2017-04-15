@@ -30,7 +30,7 @@ type BaseCursor<'K,'V>(source:IReadOnlySeries<'K,'V>) =
 
   abstract MoveLast: unit -> bool
 
-  abstract member MoveNext : unit -> bool
+  abstract MoveNext : unit -> bool
   
   abstract MovePrevious: unit -> bool
 
@@ -56,6 +56,7 @@ type BaseCursor<'K,'V>(source:IReadOnlySeries<'K,'V>) =
   abstract Clone: unit -> ICursor<'K,'V>
   abstract IsContinuous: bool with get
 
+  abstract TryGetValue: 'K * [<Out>]value: byref<'V> -> bool
 
   interface IDisposable with
     member this.Dispose() = this.Dispose()
@@ -82,7 +83,7 @@ type BaseCursor<'K,'V>(source:IReadOnlySeries<'K,'V>) =
     member this.Source with get() = this.Source
     member this.Clone() = this.Clone()
     member this.IsContinuous with get() = this.IsContinuous
-    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = source.TryGetValue(key, &value)
+    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.TryGetValue(key, &value)
 
 
 /// Uses IReadOnlySeries's TryFind method, doesn't know anything about underlying sequence
@@ -144,4 +145,10 @@ type MapCursor<'K,'V>(map:IReadOnlySeries<'K,'V>) =
 
   override this.IsContinuous with get() = false
 
-
+  override this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
+    let mutable tmp = Unchecked.defaultof<_>
+    let found = map.TryFind(key, Lookup.EQ, &tmp)
+    if found then
+      value <- tmp.Value
+      true
+    else false

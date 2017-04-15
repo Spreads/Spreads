@@ -121,10 +121,9 @@ namespace Spreads
         {
             get
             {
-                TV tmp;
-                if (TryGetValue(key, out tmp))
+                if (TryFind(key, Lookup.EQ, out var tmp))
                 {
-                    return tmp;
+                    return tmp.Value;
                 }
                 throw new KeyNotFoundException();
             }
@@ -148,8 +147,6 @@ namespace Spreads
         /// <inheritdoc />
         public abstract bool TryGetLast(out KeyValuePair<TK, TV> value);
 
-        /// <inheritdoc />
-        public abstract bool TryGetValue(TK key, out TV value);
     }
 
     public abstract class ContainerSeries<TK, TV> : BaseSeries<TK, TV>

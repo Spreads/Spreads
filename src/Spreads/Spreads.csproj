@@ -11,6 +11,9 @@
     <OutputPath>..\..\bin\</OutputPath>
     <DocumentationFile>..\..\bin\net451\Spreads.xml</DocumentationFile>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>..\..\bin\</OutputPath>
+  </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="native\**" />

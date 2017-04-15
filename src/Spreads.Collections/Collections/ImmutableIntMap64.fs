@@ -1258,12 +1258,6 @@ namespace Spreads.Collections
             | _ -> 
               res <- Unchecked.defaultof<KeyValuePair<int64, 'T>>
               false
-          member this.TryGetValue(k, [<Out>] value:byref<'T>) = 
-            let success, pair = this.TryFind(k, Lookup.EQ)
-            if success then 
-              value <- pair.Value
-              true
-            else false
 
 //            member this.Count with get(): int = int this.Size
           member this.Size with get() = this.Size

@@ -619,7 +619,7 @@ type IndexedMap<'K,'V> // when 'K:equality
     else false
 
   /// Return true if found exact key
-  override this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
+  member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
     let entered = enterLockIf this.SyncRoot  isSynchronized
     try
       // first/last optimization

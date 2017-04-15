@@ -486,7 +486,7 @@ type SortedDequeMap<'K,'V>
         false
 
   /// Return true if found exact key
-  override this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
+  member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
     let entered = enterLockIf this.SyncRoot  this.isSynchronized
     try
       // first/last optimization
@@ -616,7 +616,6 @@ type SortedDequeMap<'K,'V>
       | _ -> 
         res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
         false
-    member this.TryGetValue(k, [<Out>] value:byref<'V>) = this.TryGetValue(k, &value)
     member this.Item with get k = this.Item(k)
     member this.GetAt(idx:int) = this.GetByIndex(idx).Value
     member this.Keys with get() = this.Keys

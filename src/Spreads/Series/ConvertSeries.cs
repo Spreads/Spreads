@@ -1,4 +1,8 @@
-﻿using Spreads.Collections.Concurrent;
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+using Spreads.Collections.Concurrent;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -82,18 +86,6 @@ namespace Spreads
                 return true;
             }
             value = default(KeyValuePair<TKey2, TValue2>);
-            return false;
-        }
-
-        public override bool TryGetValue(TKey2 key, out TValue2 value)
-        {
-            TValue tmp;
-            if (Inner.TryGetValue(ToKey(key), out tmp))
-            {
-                value = ToValue2(tmp);
-                return true;
-            }
-            value = default(TValue2);
             return false;
         }
 

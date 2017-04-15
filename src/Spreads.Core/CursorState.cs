@@ -24,8 +24,14 @@ namespace Spreads
         Moving = 2,
 
         /// <summary>
+        /// Started batch moving and is at valid position.
+        /// A false move from this state must restore cursor to its position before the move.
+        /// </summary>
+        BatchMoving = 3,
+
+        /// <summary>
         /// Cursor is used for IReadOnlySeries implementation.
         /// </summary>
-        Navigating = 3
+        Navigating = 255
     }
 }

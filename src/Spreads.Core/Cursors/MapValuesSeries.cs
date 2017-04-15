@@ -27,8 +27,8 @@ namespace Spreads.Cursors
         ICursor<TKey, TResult>, ICanMapValues<TKey, TResult>
         where TCursor : ICursor<TKey, TValue>
     {
-        internal readonly ISeries<TKey, TValue> _series;
         internal readonly Func<TValue, TResult> _selector;
+        internal readonly ISeries<TKey, TValue> _series;
 
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
@@ -40,36 +40,7 @@ namespace Spreads.Cursors
         internal MapValuesSeries(ISeries<TKey, TValue> series, Func<TValue, TResult> selector)
         {
             _series = series;
-
-            // TODO (low) this pattern is repeating and not ideal
-            // However, specialized impl is only used internally (no public constructor)
-
-            var c = _series.GetCursor();
-            if (c is BaseCursorAsync<TKey, TValue, TCursor> bca)
-            {
-                _cursor = bca._innerCursor;
-            }
-            else if (c is TCursor tCursor)
-            {
-                _cursor = tCursor;
-            }
-            else
-            {
-                var e = series.GetEnumerator();
-                if (e is BaseCursorAsync<TKey, TValue, TCursor> bca1)
-                {
-                    _cursor = bca1._innerCursor;
-                }
-                if (e is TCursor tCursor1)
-                {
-                    _cursor = tCursor1;
-                }
-                else
-                {
-                    throw new NotImplementedException();
-                }
-            }
-
+            _cursor = GetCursor<TKey, TValue, TCursor>(_series);
             _selector = selector;
         }
 
@@ -78,6 +49,18 @@ namespace Spreads.Cursors
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return new KeyValuePair<TKey, TResult>(CurrentKey, CurrentValue); }
+        }
+
+        /// <inheritdoc />
+        public IReadOnlySeries<TKey, TResult> CurrentBatch
+        {
+            get
+            {
+                var batch = _cursor.CurrentBatch;
+                // TODO when batching is proper implemented (nested batches) reuse an instance for this
+                var mapped = new MapValuesSeries<TKey, TValue, TResult, TCursor>(batch, _selector);
+                return mapped;
+            }
         }
 
         /// <inheritdoc />
@@ -95,19 +78,21 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TResult> CurrentBatch
-        {
-            get
-            {
-                var batch = _cursor.CurrentBatch;
-                // TODO when batching is proper implemented (nested batches) reuse an instance for this
-                var mapped = new MapValuesSeries<TKey, TValue, TResult, TCursor>(batch, _selector);
-                return mapped;
-            }
-        }
+        public override KeyComparer<TKey> Comparer => _cursor.Comparer;
+
+        object IEnumerator.Current => Current;
 
         /// <inheritdoc />
         public bool IsContinuous => _cursor.IsContinuous;
+
+        /// <inheritdoc />
+        public override bool IsIndexed => _series.IsIndexed;
+
+        /// <inheritdoc />
+        public override bool IsReadOnly => _series.IsReadOnly;
+
+        /// <inheritdoc />
+        public override Task<bool> Updated => _cursor.Source.Updated;
 
         /// <inheritdoc />
         public override MapValuesSeries<TKey, TValue, TResult, TCursor> Clone()
@@ -120,22 +105,6 @@ namespace Spreads.Cursors
             }
             return clone;
         }
-
-        ICursor<TKey, TResult> ICursor<TKey, TResult>.Clone()
-        {
-            return Clone();
-        }
-
-        /// <inheritdoc />
-        public override KeyComparer<TKey> Comparer => _cursor.Comparer;
-
-        public override Task<bool> Updated => _cursor.Source.Updated;
-
-        /// <inheritdoc />
-        public override bool IsIndexed => _series.IsIndexed;
-
-        /// <inheritdoc />
-        public override bool IsReadOnly => _series.IsReadOnly;
 
         /// <inheritdoc />
         public override MapValuesSeries<TKey, TValue, TResult, TCursor> Create()
@@ -164,38 +133,82 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryGetValue(TKey key, out TResult value)
+        {
+            if (_cursor.TryGetValue(key, out var v))
+            {
+                value = _selector(v);
+                return true;
+            }
+            value = default(TResult);
+            return false;
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveAt(TKey key, Lookup direction)
         {
-            return _cursor.MoveAt(key, direction);
+            var moved = _cursor.MoveAt(key, direction);
+            // keep navigating state unchanged
+            if (moved && State == CursorState.Initialized)
+            {
+                State = CursorState.Moving;
+            }
+            return moved;
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveFirst()
         {
-            return _cursor.MoveFirst();
+            var moved = _cursor.MoveFirst();
+            // keep navigating state unchanged
+            if (moved && State == CursorState.Initialized)
+            {
+                State = CursorState.Moving;
+            }
+            return moved;
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveLast()
         {
-            return _cursor.MoveLast();
+            var moved = _cursor.MoveLast();
+            // keep navigating state unchanged
+            if (moved && State == CursorState.Initialized)
+            {
+                State = CursorState.Moving;
+            }
+            return moved;
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {
+            if ((int)State < (int)CursorState.Moving) return MoveFirst();
             return _cursor.MoveNext();
         }
 
         /// <inheritdoc />
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
-            return _cursor.MoveNextBatch(cancellationToken);
+            var moved = await _cursor.MoveNextBatch(cancellationToken);
+            if (moved)
+            {
+                State = CursorState.BatchMoving;
+            }
+            return moved;
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MovePrevious()
         {
+            if ((int)State < (int)CursorState.Moving) return MoveLast();
             return _cursor.MovePrevious();
         }
 
@@ -206,14 +219,14 @@ namespace Spreads.Cursors
             State = CursorState.Initialized;
         }
 
-
-        object IEnumerator.Current => Current;
+        ICursor<TKey, TResult> ICursor<TKey, TResult>.Clone()
+        {
+            return Clone();
+        }
 
         BaseSeries<TKey, TResult1> ICanMapValues<TKey, TResult>.Map<TResult1>(Func<TResult, TResult1> selector, Func<Buffer<TResult>, Buffer<TResult1>> batchSelector)
         {
             return new MapValuesSeries<TKey, TValue, TResult1, TCursor>(_series, CoreUtils.CombineMaps(_selector, selector));
         }
-
-
     }
 }

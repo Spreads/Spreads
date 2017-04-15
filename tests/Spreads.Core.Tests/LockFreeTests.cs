@@ -115,11 +115,6 @@ namespace Spreads.Core.Tests
             {
                 throw new NotImplementedException();
             }
-
-            public override bool TryGetValue(int key, out int value)
-            {
-                throw new NotImplementedException();
-            }
         }
 
         [Test, Ignore]

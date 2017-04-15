@@ -1216,7 +1216,7 @@ type SortedMap<'K,'V>
 
   /// Return true if found exact key
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  override this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
+  member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
     this.CheckNull(key)
     let res() = 
       // first/last optimization
@@ -1930,7 +1930,6 @@ type internal ChunksContainer<'K,'V>
     member x.TryFind(key, direction, value) = t.TryFind(key, direction, &value)
     member x.TryGetFirst(value) = t.TryGetFirst(&value)
     member x.TryGetLast(value) = t.TryGetLast(&value)
-    member x.TryGetValue(key, value) = t.TryGetValue(key, &value)
     member x.Values = t.Values 
     
     

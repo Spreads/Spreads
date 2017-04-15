@@ -50,7 +50,7 @@ namespace Spreads.Core.Tests.Cursors
 
             var cts = new CancellationTokenSource();
 
-            var t = sm.After(0, false).Do((k, v) =>
+            var t = sm.Range(int.MinValue, 2, true, true).Do((k, v) =>
             {
                 Console.WriteLine($"{k} - {v}");
             }, cts.Token);
@@ -180,7 +180,7 @@ namespace Spreads.Core.Tests.Cursors
             sm.Add(1, 1);
             sm.Add(2, 2);
             sm.Add(3, 3);
-            var range = sm.Before(2, true);
+            var range = sm.Range(int.MinValue, 2, true, true);
 
             //Assert.AreEqual(1, range.First.Value);
 
@@ -212,7 +212,7 @@ namespace Spreads.Core.Tests.Cursors
 
             sm.Add(1, 1);
 
-            var range = sm.Before(2, true);
+            var range = sm.Range(int.MinValue, 2, true, true);
 
             //Assert.AreEqual(1, range.First.Value);
 
@@ -246,7 +246,7 @@ namespace Spreads.Core.Tests.Cursors
 
             sm.Add(1, 1);
 
-            var range = sm.Map(x => x + 1).After(0);
+            var range = sm.Map(x => x + 1).Range(0, Int32.MaxValue, true, true);
 
             var cursor = range.GetCursor();
             Assert.True(cursor.MoveNext());

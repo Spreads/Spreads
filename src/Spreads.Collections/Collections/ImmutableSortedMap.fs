@@ -681,13 +681,6 @@ namespace Spreads.Collections
         | _ -> 
           res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
           false
-        
-      override this.TryGetValue(k, [<Out>] value:byref<'V>) = 
-        let success, pair = this.TryFind(k, Lookup.EQ)
-        if success then 
-          value <- pair.Value
-          true
-        else false
 
       override this.GetCursor() = new MapCursor<'K, 'V>(this) :> ICursor<'K, 'V>
 

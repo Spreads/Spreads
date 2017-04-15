@@ -602,7 +602,7 @@ and
       finally
         exitLockIf this.SyncRoot entered
 
-    override this.TryGetValue(k, [<Out>] value:byref<'V>) =
+    member this.TryGetValue(k, [<Out>] value:byref<'V>) =
       let entered = enterLockIf this.SyncRoot true
       try
         if this.C.IsContinuous then
@@ -654,7 +654,8 @@ and
   [<AllowNullLiteral>]
   [<AbstractClass>]
 //  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-  internal AbstractCursorSeries<'K,'V,'TCursor when 'TCursor :> AbstractCursorSeries<'K,'V,'TCursor>>() as this =
+  internal AbstractCursorSeries<'K,'V,'TCursor 
+    when 'TCursor :> AbstractCursorSeries<'K,'V,'TCursor> and 'TCursor :> ICursor<'K,'V>>() as this =
     inherit Series<'K,'V>()
     
     /// a cursor that is used for IReadOnlySeries members implementation
@@ -774,20 +775,6 @@ and
       finally
         exitLockIf this.SyncRoot entered
 
-    // NB for cursor series, this.C is created automatically, no longer we need to check for isMove
-    // and create a shaddow navigational cursor in cursor implementations.
-    override this.TryGetValue(k, [<Out>] value:byref<'V>) =
-      let entered = enterLockIf this.SyncRoot true
-      try
-        if this.C.IsContinuous then
-          this.C.TryGetValue(k, &value)
-        else
-          let ok = this.C.MoveAt(k, Lookup.EQ)
-          if ok then value <- this.C.CurrentValue else value <- Unchecked.defaultof<'V>
-          ok
-      finally
-        exitLockIf this.SyncRoot entered
-
     override this.Keys 
       with get() =
         // TODO manual impl, seq is slow
@@ -824,29 +811,7 @@ and
                 cursor.Dispose()
                 new BatchMapValuesCursor<_,_,_>(Func<_>(this.GetCursor), f2, Missing) :> ICursor<_,_>
               ) :> Series<_,_>
-
-
-    interface ICursor<'K,'V> with
-      member this.Clone(): ICursor<'K,'V> = this.Clone() :> ICursor<'K,'V>
-      member this.Comparer = this.Comparer
-      member this.Current: KeyValuePair<'K,'V> = this.Current
-      member this.Current: obj = this.Current :> obj
-      member this.CurrentBatch: IReadOnlySeries<'K,'V> = this.CurrentBatch
-      member this.CurrentKey: 'K = this.CurrentKey
-      member this.CurrentValue: 'V = this.CurrentValue
-      member this.Dispose(): unit = this.Dispose()
-      member this.IsContinuous: bool = this.IsContinuous
-      member this.MoveAt(key: 'K, direction: Lookup): bool = this.MoveAt(key, direction)
-      member this.MoveFirst(): bool = this.MoveFirst()
-      member this.MoveLast(): bool = this.MoveLast()
-      member this.MoveNext(cancellationToken: CancellationToken): Task<bool> = raise (NotSupportedException())
-      member this.MoveNext(): bool = this.MoveNext()
-      member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatch(cancellationToken)
-      member this.MovePrevious(): bool = this.MovePrevious()
-      member this.Reset(): unit = this.Reset()
-      member this.Source: IReadOnlySeries<'K,'V> = this.Source
-      member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.TryGetValue(key, &value)
-
+    
 and
   // NB! Remember that cursors are single-threaded
   // TODO make it a struct

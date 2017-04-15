@@ -37,5 +37,13 @@ namespace Spreads.Cursors
         {
             return new MapValuesSeries<TKey, TValue, TResult, ICursor<TKey, TValue>>(series, selector);
         }
+
+        // RangeSeries<TKey, TValue, TCursor>
+        public static MapValuesSeries<TKey, TValue, TResult, RangeSeries<TKey, TValue, TCursor>> Map<TKey, TValue, TResult, TCursor>(
+            this RangeSeries<TKey, TValue, TCursor> series, Func<TValue, TResult> selector)
+            where TCursor : ICursor<TKey, TValue>
+        {
+            return new MapValuesSeries<TKey, TValue, TResult, RangeSeries<TKey, TValue, TCursor>>(series, selector);
+        }
     }
 }

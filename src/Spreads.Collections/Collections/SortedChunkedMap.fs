@@ -454,7 +454,7 @@ type SortedChunkedMapGeneric<'K,'V>
       false
         
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  override this.TryGetValue(k, [<Out>] value:byref<'V>) =
+  member this.TryGetValue(k, [<Out>] value:byref<'V>) =
     let res() = 
       let mutable kvp = Unchecked.defaultof<_>
       let ok = this.TryFind(k, Lookup.EQ, &kvp)
