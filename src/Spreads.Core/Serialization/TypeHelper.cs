@@ -143,7 +143,17 @@ namespace Spreads.Serialization
         // ReSharper disable StaticMemberInGenericType
         private static bool _hasBinaryConverter;
 
-        private static int _size = InitChecked();
+        /// <summary>
+        /// Returns a positive size of a blittable type T, -1 if the type T is not blittable and has
+        /// no registered converter, 0 if there is a registered converter for variable-length type.
+        /// We assume the type T is blittable if `GCHandle.Alloc(T[2], GCHandleType.Pinned) = true`.
+        /// This is more relaxed than Marshal.SizeOf, but still doesn't cover cases such as
+        /// an array of KVP[DateTime,double], which has contiguous layout in memory.
+        /// </summary>
+        public static readonly int Size = InitChecked();
+
+        public static readonly bool IsBlittable = Size > 0;
+
         private static IBinaryConverter<T> _converterInstance;
         private static TypeParams _typeParams;
         // ReSharper restore StaticMemberInGenericType
@@ -331,17 +341,17 @@ namespace Spreads.Serialization
         {
             if (_hasBinaryConverter)
             {
-                Debug.Assert(_size == 0);
+                Debug.Assert(Size == 0);
                 return _converterInstance.Read(ptr, out value);
             }
-            if (_size < 0)
+            if (Size < 0)
             {
                 throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
             }
-            Debug.Assert(_size > 0);
-            //Debug.Assert(ptr.ToInt64() % _size == 0, "Unaligned unsafe read");
+            Debug.Assert(Size > 0);
+            //Debug.Assert(ptr.ToInt64() % Size == 0, "Unaligned unsafe read");
             value = Unsafe.Read<T>((void*)ptr);
-            return _size;
+            return Size;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -349,15 +359,15 @@ namespace Spreads.Serialization
         {
             if (_hasBinaryConverter)
             {
-                Debug.Assert(_size == 0);
+                Debug.Assert(Size == 0);
                 return _converterInstance.Write(value, ref destination, offset, ms, compression);
             }
             if (Size < 0)
             {
                 throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
             }
-            Debug.Assert(_size > 0);
-            if (destination.Length < offset + _size)
+            Debug.Assert(Size > 0);
+            if (destination.Length < offset + Size)
             {
                 return (int)BinaryConverterErrorCode.NotEnoughCapacity;
             }
@@ -369,7 +379,7 @@ namespace Spreads.Serialization
 
             handle.Free();
 
-            return _size;
+            return Size;
         }
 
         /// <summary>
@@ -383,35 +393,16 @@ namespace Spreads.Serialization
         { //= CompressionMethod.DefaultOrNone
             if (_hasBinaryConverter)
             {
-                Debug.Assert(_size == 0);
+                Debug.Assert(Size == 0);
                 return _converterInstance.SizeOf(value, out memoryStream, compression);
             }
             memoryStream = null;
-            if (_size < 0)
+            if (Size < 0)
             {
                 return -1;
             }
-            Debug.Assert(_size > 0);
-            return _size;
-        }
-
-        /// <summary>
-        /// Returns a positive size of a blittable type T, -1 if the type T is not blittable and has
-        /// no registered converter, 0 is there is a registered converter for variable-length type.
-        /// We assume the type T is blittable if `GCHandle.Alloc(T[2], GCHandleType.Pinned) = true`.
-        /// This is more relaxed than Marshal.SizeOf, but still doesn't cover cases such as
-        /// an array of KVP[DateTime,double], which has a contiguous layout in memory.
-        /// </summary>
-        public static int Size
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _size; }
-        }
-
-        public static bool IsBlittable
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _size > 0; }
+            Debug.Assert(Size > 0);
+            return Size;
         }
 
         public static byte Version => _hasBinaryConverter ? _converterInstance.Version : (byte)0;
@@ -437,7 +428,6 @@ namespace Spreads.Serialization
             }
             _hasBinaryConverter = true;
             _converterInstance = converter;
-            _size = converter.Size;
         }
 
         public static T ConvertFrom<TSource>(TSource s)
