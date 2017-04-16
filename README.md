@@ -212,7 +212,7 @@ every point. But this works without allocating memory and also works in real-tim
 data.
 
 
-##Install
+## Install
 
     PM> Install-Package Spreads
 
