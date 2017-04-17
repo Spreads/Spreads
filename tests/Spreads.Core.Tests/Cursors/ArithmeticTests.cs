@@ -241,23 +241,23 @@ namespace Spreads.Core.Tests.Cursors
                 Console.WriteLine($"Mops {sw.MOPS(count)}");
             }
 
-            //for (int r = 0; r < 10; r++)
-            //{
-            //    var sw = new Stopwatch();
-            //    sw.Restart();
-            //    var map = (sm as BaseSeries<int, double>)
-            //        .Select(x => new KeyValuePair<int, double>(x.Key, x.Value * 2))
-            //        .Select(x => new KeyValuePair<int, double>(x.Key, x.Value * 2));
-            //    var sum = 0.0;
-            //    foreach (var kvp in map)
-            //    {
-            //        sum += kvp.Value;
-            //    }
-            //    sw.Stop();
-            //    Assert.IsTrue(sum > 0);
+            for (int r = 0; r < 10; r++)
+            {
+                var sw = new Stopwatch();
+                sw.Restart();
+                var map = (sm as BaseSeries<int, double, ICursor<int, double>>)
+                    .Select(x => new KeyValuePair<int, double>(x.Key, x.Value * 2))
+                    .Select(x => new KeyValuePair<int, double>(x.Key, x.Value * 2));
+                var sum = 0.0;
+                foreach (var kvp in map)
+                {
+                    sum += kvp.Value;
+                }
+                sw.Stop();
+                Assert.IsTrue(sum > 0);
 
-            //    Console.WriteLine($"LINQ Mops {sw.MOPS(count)}");
-            //}
+                Console.WriteLine($"LINQ Mops {sw.MOPS(count)}");
+            }
         }
     }
 }

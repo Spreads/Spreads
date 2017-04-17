@@ -590,12 +590,10 @@ namespace Spreads.Cursors
         //    return new MapValuesSeries<TKey, TValue, TValue1, TCursor>(_series, CoreUtils.CombineMaps<TValue, TValue, TValue1>(Apply, selector));
         //}
 
-
         #region Unary Operators
 
-        // NB This allows to combine arithmetic operators using sealed ArithmeticSeries<> as TCursor 
+        // NB This allows to combine arithmetic operators using sealed ArithmeticSeries<> as TCursor
         // and to inline Apply() methods.
-
 
         /// <summary>
         /// Add operator.
@@ -703,6 +701,6 @@ namespace Spreads.Cursors
             return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>(series, ArithmeticOp.Modulo, constant);
         }
 
-        #endregion
+        #endregion Unary Operators
     }
 }

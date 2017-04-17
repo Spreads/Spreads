@@ -2,13 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Cursors;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Cursors;
 
 namespace Spreads
 {
@@ -152,6 +152,8 @@ namespace Spreads
 
         #region Unary Operators
 
+        // UNARY ARITHMETIC
+
         /// <summary>
         /// Add operator.
         /// </summary>
@@ -250,16 +252,81 @@ namespace Spreads
             return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.ModuloFrom, constant);
         }
 
+        // UNARY LOGIC
+
         /// <summary>
-        /// Power operator.
+        /// Values equal operator. Use ReferenceEquals or SequenceEquals for other cases.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, TCursor> operator ^(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
+        public static UnaryLogicSeries<TKey, TValue, TCursor> operator ==(BaseSeries<TKey, TValue, TCursor> series, TValue comparand)
         {
-            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Modulo, constant);
+            return new UnaryLogicSeries<TKey, TValue, TCursor>(series, comparand, UnaryLogicOp.EQ);
         }
 
-        #endregion
+        /// <summary>
+        /// Values equal operator. Use ReferenceEquals or SequenceEquals for other cases.
+        /// </summary>
+        public static UnaryLogicSeries<TKey, TValue, TCursor> operator ==(TValue comparand, BaseSeries<TKey, TValue, TCursor> series)
+        {
+            return new UnaryLogicSeries<TKey, TValue, TCursor>(series, comparand, UnaryLogicOp.EQ);
+        }
 
+        /// <summary>
+        /// Values not equal operator. Use !ReferenceEquals or !SequenceEquals for other cases.
+        /// </summary>
+        public static UnaryLogicSeries<TKey, TValue, TCursor> operator !=(BaseSeries<TKey, TValue, TCursor> series, TValue comparand)
+        {
+            return new UnaryLogicSeries<TKey, TValue, TCursor>(series, comparand, UnaryLogicOp.NEQ);
+        }
+
+        /// <summary>
+        /// Values not equal operator. Use !ReferenceEquals or !SequenceEquals for other cases.
+        /// </summary>
+        public static UnaryLogicSeries<TKey, TValue, TCursor> operator !=(TValue comparand, BaseSeries<TKey, TValue, TCursor> series)
+        {
+            return new UnaryLogicSeries<TKey, TValue, TCursor>(series, comparand, UnaryLogicOp.NEQ);
+        }
+
+        public static UnaryLogicSeries<TKey, TValue, TCursor> operator <(BaseSeries<TKey, TValue, TCursor> series, TValue comparand)
+        {
+            return new UnaryLogicSeries<TKey, TValue, TCursor>(series, comparand, UnaryLogicOp.LT);
+        }
+
+        public static UnaryLogicSeries<TKey, TValue, TCursor> operator <(TValue comparand, BaseSeries<TKey, TValue, TCursor> series)
+        {
+            return new UnaryLogicSeries<TKey, TValue, TCursor>(series, comparand, UnaryLogicOp.LTReverse);
+        }
+
+        public static UnaryLogicSeries<TKey, TValue, TCursor> operator >(BaseSeries<TKey, TValue, TCursor> series, TValue comparand)
+        {
+            return new UnaryLogicSeries<TKey, TValue, TCursor>(series, comparand, UnaryLogicOp.GT);
+        }
+
+        public static UnaryLogicSeries<TKey, TValue, TCursor> operator >(TValue comparand, BaseSeries<TKey, TValue, TCursor> series)
+        {
+            return new UnaryLogicSeries<TKey, TValue, TCursor>(series, comparand, UnaryLogicOp.GTReverse);
+        }
+
+        public static UnaryLogicSeries<TKey, TValue, TCursor> operator <=(BaseSeries<TKey, TValue, TCursor> series, TValue comparand)
+        {
+            return new UnaryLogicSeries<TKey, TValue, TCursor>(series, comparand, UnaryLogicOp.LE);
+        }
+
+        public static UnaryLogicSeries<TKey, TValue, TCursor> operator <=(TValue comparand, BaseSeries<TKey, TValue, TCursor> series)
+        {
+            return new UnaryLogicSeries<TKey, TValue, TCursor>(series, comparand, UnaryLogicOp.LEReverse);
+        }
+
+        public static UnaryLogicSeries<TKey, TValue, TCursor> operator >=(BaseSeries<TKey, TValue, TCursor> series, TValue comparand)
+        {
+            return new UnaryLogicSeries<TKey, TValue, TCursor>(series, comparand, UnaryLogicOp.GE);
+        }
+
+        public static UnaryLogicSeries<TKey, TValue, TCursor> operator >=(TValue comparand, BaseSeries<TKey, TValue, TCursor> series)
+        {
+            return new UnaryLogicSeries<TKey, TValue, TCursor>(series, comparand, UnaryLogicOp.GEReverse);
+        }
+
+        #endregion Unary Operators
     }
 
     public abstract class ContainerSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue, TCursor> where TCursor : ICursor<TKey, TValue>
