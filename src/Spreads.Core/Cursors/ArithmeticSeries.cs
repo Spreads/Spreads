@@ -140,7 +140,7 @@ namespace Spreads.Cursors
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        // NB this hurts, without it perf is 50% better [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [SuppressMessage("ReSharper", "RedundantCast")]
         [SuppressMessage("ReSharper", "RedundantOverflowCheckingContext")]
         private TValue Apply(TValue input)
@@ -373,7 +373,6 @@ namespace Spreads.Cursors
             return ApplyDynamic(input);
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
         private TValue ApplyDynamic(TValue input)
         {
             // NB this is 5-10 slower for doubles, but event for them it can process 10 Mops and "just works"

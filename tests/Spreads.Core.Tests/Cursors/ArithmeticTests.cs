@@ -6,7 +6,9 @@ using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Cursors;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Core.Tests.Cursors
@@ -99,7 +101,7 @@ namespace Spreads.Core.Tests.Cursors
                             map, ArithmeticOp.Multiply, 2.0);
 
                     var sum = 0.0;
-                    foreach (var kvp in map)
+                    foreach (var kvp in map2)
                     {
                         sum += kvp.Value;
                     }
@@ -113,7 +115,7 @@ namespace Spreads.Core.Tests.Cursors
                     var map = new MapValuesSeries<int, double, double, SortedMapCursor<int, double>>(sm, i => Apply(i, 2.0));
                     var map2 = new MapValuesSeries<int, double, double, MapValuesSeries<int, double, double, SortedMapCursor<int, double>>>(map, i => Apply(i, 2.0));
                     var sum = 0.0;
-                    foreach (var kvp in map)
+                    foreach (var kvp in map2)
                     {
                         sum += kvp.Value;
                     }
@@ -121,6 +123,24 @@ namespace Spreads.Core.Tests.Cursors
                     Assert.IsTrue(sum > 0);
 
                     Console.WriteLine($"MapValuesSeries {sw.MOPS(count)}");
+                }
+
+                {
+
+                    sw.Restart();
+                    var map = sm
+                        .Select(x => new KeyValuePair<int, double>(x.Key, x.Value * 2))
+                        .Select(x => new KeyValuePair<int, double>(x.Key, x.Value * 2));
+                    var sum = 0.0;
+                    foreach (var kvp in map)
+                    {
+                        sum += kvp.Value;
+                    }
+                    sw.Stop();
+                    Assert.IsTrue(sum > 0);
+
+                    Console.WriteLine($"LINQ {sw.MOPS(count)}");
+
                 }
             }
         }
