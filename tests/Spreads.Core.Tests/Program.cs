@@ -6,6 +6,7 @@ using System;
 using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Enumerators;
 using Spreads.Core.Tests.Collections;
+using Spreads.Core.Tests.Cursors;
 
 namespace Spreads.Core.Tests
 {
@@ -15,7 +16,7 @@ namespace Spreads.Core.Tests
         {
             for (int i = 0; i < 10; i++)
             {
-                (new LockFreeTests()).CouldUseWriteLockManyTimes();
+                (new ArithmeticTests()).CouldMapValuesBenchmarkArithmeticVsMapCursor();
             }
 
             Console.ReadLine();

@@ -6,14 +6,13 @@ using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Cursors;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace Spreads.Core.Tests.Cursors
 {
     [TestFixture]
-    public class ArithmeticTest
+    public class ArithmeticTests
     {
         [Test]
         public void CouldMapValues()
@@ -28,8 +27,6 @@ namespace Spreads.Core.Tests.Cursors
             Assert.AreEqual(2, map.First.Value);
             Assert.AreEqual(4, map1.First.Value);
         }
-
-
 
         [Test, Ignore]
         public void CouldMapValuesBenchmark()
@@ -78,7 +75,6 @@ namespace Spreads.Core.Tests.Cursors
             //}
         }
 
-
         [Test, Ignore]
         public void CouldMapValuesBenchmarkArithmeticVsMapCursor()
         {
@@ -103,7 +99,7 @@ namespace Spreads.Core.Tests.Cursors
                             map, ArithmeticOp.Multiply, 2.0);
 
                     var sum = 0.0;
-                    foreach (var kvp in map2)
+                    foreach (var kvp in map)
                     {
                         sum += kvp.Value;
                     }
@@ -114,10 +110,10 @@ namespace Spreads.Core.Tests.Cursors
 
                 {
                     sw.Restart();
-                    var map = new MapValuesSeries<int, double, double, SortedMapCursor<int, double>>(sm, i => i * 2.0);
-                    var map2 = new MapValuesSeries<int, double, double, MapValuesSeries<int, double, double, SortedMapCursor<int, double>>>(map, i => i * 2.0);
+                    var map = new MapValuesSeries<int, double, double, SortedMapCursor<int, double>>(sm, i => Apply(i, 2.0));
+                    var map2 = new MapValuesSeries<int, double, double, MapValuesSeries<int, double, double, SortedMapCursor<int, double>>>(map, i => Apply(i, 2.0));
                     var sum = 0.0;
-                    foreach (var kvp in map2)
+                    foreach (var kvp in map)
                     {
                         sum += kvp.Value;
                     }
@@ -127,9 +123,61 @@ namespace Spreads.Core.Tests.Cursors
                     Console.WriteLine($"MapValuesSeries {sw.MOPS(count)}");
                 }
             }
-                        
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static TValue Apply<TValue>(TValue input, TValue value)
+        {
+            if (typeof(TValue) == typeof(double))
+            {
+                var v1 = (double)(object)(input);
+                var v2 = (double)(object)(value);
+
+                return (TValue)(object)(double)(v1 * v2);
+            }
+
+            if (typeof(TValue) == typeof(float))
+            {
+                var v1 = (float)(object)(input);
+                var v2 = (float)(object)(value);
+
+                return (TValue)(object)(float)(v1 * v2);
+            }
+
+            if (typeof(TValue) == typeof(int))
+            {
+                var v1 = (int)(object)(input);
+                var v2 = (int)(object)(value);
+
+                return (TValue)(object)(int)(v1 * v2);
+            }
+
+            if (typeof(TValue) == typeof(long))
+            {
+                var v1 = (long)(object)(input);
+                var v2 = (long)(object)(value);
+
+                return (TValue)(object)(long)(v1 * v2);
+            }
+
+            if (typeof(TValue) == typeof(decimal))
+            {
+                var v1 = (decimal)(object)(input);
+                var v2 = (decimal)(object)(value);
+
+                return (TValue)(object)(decimal)(v1 * v2);
+            }
+
+            return ApplyDynamic(input, value);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static TValue ApplyDynamic<TValue>(TValue input, TValue value)
+        {
+            var v1 = (dynamic)input;
+            var v2 = (dynamic)value;
+            return (TValue)(v1 * v2);
+        }
 
         [Test]
         public void CouldMapValuesWithOperator()
@@ -144,7 +192,6 @@ namespace Spreads.Core.Tests.Cursors
             Assert.AreEqual(2, map.First.Value);
             Assert.AreEqual(4, map1.First.Value);
         }
-
 
         [Test, Ignore]
         public void CouldMapValuesWithOperatorBenchmark()
