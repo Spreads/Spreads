@@ -110,10 +110,10 @@
     <Compile Include="Benchmarks.fs" />
     <Compile Include="Series.Tests.fs" />
     <Compile Include="ReadmeTests.fs" />
-    <Content Include="packages.config" />
     <None Include="Script1.fsx" />
     <None Include="TAQDemo.fsx" />
     <None Include="Spreads.Tests.licenseheader" />
+    <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj">
@@ -128,7 +128,6 @@
     </ProjectReference>
     <Reference Include="Deedle">
       <HintPath>..\..\packages\Deedle.1.2.4\lib\net40\Deedle.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="FSharp.Charting">
       <HintPath>..\..\packages\FSharp.Charting.0.90.14\lib\net40\FSharp.Charting.dll</HintPath>
@@ -138,23 +137,18 @@
     </Reference>
     <Reference Include="FSharp.Data">
       <HintPath>..\..\packages\FSharp.Data.2.0.14\lib\net40\FSharp.Data.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="FSharpx.Collections">
       <HintPath>..\..\packages\FSharpx.Collections.1.9.4\lib\net35\FSharpx.Collections.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="FSharpx.Collections.Experimental">
       <HintPath>..\..\packages\FSharpx.Collections.Experimental.1.9.3\lib\net35\FSharpx.Collections.Experimental.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="FsUnit.NUnit">
-      <HintPath>..\..\packages\FsUnit.1.3.0.1\lib\Net40\FsUnit.NUnit.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\..\packages\FsUnit.1.3.0.1\Lib\Net40\FsUnit.NUnit.dll</HintPath>
     </Reference>
     <Reference Include="HdrHistogram">
       <HintPath>..\..\packages\HdrHistogram.1.18.0\lib\net45\HdrHistogram.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="Newtonsoft.Json">
@@ -162,15 +156,12 @@
     </Reference>
     <Reference Include="nunit.framework">
       <HintPath>..\..\packages\NUnit.2.6.3\lib\nunit.framework.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="Streams">
       <HintPath>..\..\packages\Streams.0.4.1\lib\net45\Streams.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="System.Buffers">
       <HintPath>..\..\packages\System.Buffers.4.3.0\lib\netstandard1.1\System.Buffers.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="System.Data" />
     <Reference Include="System.Numerics.Vectors">

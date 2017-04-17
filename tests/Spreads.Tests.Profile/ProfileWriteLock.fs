@@ -5,7 +5,7 @@ open System.Runtime.CompilerServices
 
 [<Sealed>]
 type LockTestSeries()=
-  inherit BaseSeries<int, int>()
+  inherit ContainerSeries<int, int>()
 
   [<DefaultValueAttribute>]
   val mutable counter : int64
@@ -55,8 +55,6 @@ type LockTestSeries()=
   override this.TryGetFirst(value: byref<System.Collections.Generic.KeyValuePair<int,int>>): bool = 
     raise (System.NotImplementedException())
   override this.TryGetLast(value: byref<System.Collections.Generic.KeyValuePair<int,int>>): bool = 
-    raise (System.NotImplementedException())
-  override this.TryGetValue(key: int, value: byref<int>): bool = 
     raise (System.NotImplementedException())
   override this.Values: System.Collections.Generic.IEnumerable<int> = 
     raise (System.NotImplementedException())

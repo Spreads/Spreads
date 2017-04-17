@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System.Buffers;
 using System.Collections;
 
 // A copy of .NET SortedList  implementation
@@ -57,6 +58,9 @@ namespace Spreads.Collections.Extra
     public class SortedList<TKey, TValue> :
         IDictionary<TKey, TValue>, System.Collections.IDictionary
     {
+        private OwnedBuffer<TKey> _keys;
+        private OwnedBuffer<TValue> _values;
+
         private TKey[] keys;
         private TValue[] values;
         private int _size;

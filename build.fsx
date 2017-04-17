@@ -75,7 +75,7 @@ Target "NuGet" (fun _ ->
             Project = packageName
             Summary = packageName // "TODO"
             Description = packageName // "TODO"
-            Version = "0.8.0-alpha"
+            Version = "0.8.1"
             ReleaseNotes = ""
             Tags = tags
             OutputPath = "C:/tools/LocalNuget/"

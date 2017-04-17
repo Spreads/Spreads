@@ -149,12 +149,12 @@
     <Compile Include="ProfileWriteLock.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
-    <Content Include="packages.config" />
     <None Include="Example.fsx" />
-    <None Include="any\netstandard1.6\FSharp.Core.sigdata" />
-    <None Include="any\netstandard1.6\FSharp.Core.optdata" />
     <None Include="Spreads.Tests.Profile.licenseheader" />
     <None Include="Fable.fsx" />
+    <Content Include="packages.config" />
+    <None Include="any\netstandard1.6\FSharp.Core.sigdata" />
+    <None Include="any\netstandard1.6\FSharp.Core.optdata" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj">
@@ -180,23 +180,18 @@
     </Reference>
     <Reference Include="FSharpx.Collections">
       <HintPath>..\..\packages\FSharpx.Collections.1.9.4\lib\net35\FSharpx.Collections.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="FSharpx.Collections.Experimental">
       <HintPath>..\..\packages\FSharpx.Collections.Experimental.1.9.3\lib\net35\FSharpx.Collections.Experimental.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="FsPickler">
       <HintPath>..\..\packages\FsPickler.1.0.6\lib\net45\FsPickler.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="FsUnit.NUnit">
       <HintPath>..\..\packages\FsUnit.1.3.0.1\Lib\Net40\FsUnit.NUnit.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="HdrHistogram">
       <HintPath>..\..\packages\HdrHistogram.1.18.0\lib\net45\HdrHistogram.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="mscorlib" />
@@ -205,16 +200,13 @@
     </Reference>
     <Reference Include="nunit.framework">
       <HintPath>..\..\packages\NUnit.2.6.3\lib\nunit.framework.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="Streams">
       <HintPath>..\..\packages\Streams.0.4.1\lib\net45\Streams.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers">
       <HintPath>..\..\packages\System.Buffers.4.3.0\lib\netstandard1.1\System.Buffers.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
