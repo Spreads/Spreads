@@ -19,7 +19,7 @@ namespace Spreads.Cursors
     /// </summary>
     public class RangeSeries<TKey, TValue, TCursor> :
         CursorSeries<TKey, TValue, RangeSeries<TKey, TValue, TCursor>>,
-        ICursor<TKey, TValue>, ICanMapValues<TKey, TValue>
+        ICursor<TKey, TValue> //, ICanMapValues<TKey, TValue>
         where TCursor : ICursor<TKey, TValue>
     {
         internal readonly ISeries<TKey, TValue> _series;
@@ -148,10 +148,10 @@ namespace Spreads.Cursors
             State = CursorState.None;
         }
 
-        public BaseSeries<TKey, TResult> Map<TResult>(Func<TValue, TResult> selector, Func<Buffer<TValue>, Buffer<TResult>> batchSelector)
-        {
-            return new MapValuesSeries<TKey, TValue, TResult, RangeSeries<TKey, TValue, TCursor>>(_series, selector);
-        }
+        //public BaseSeries<TKey, TResult> Map<TResult>(Func<TValue, TResult> selector, Func<Buffer<TValue>, Buffer<TResult>> batchSelector)
+        //{
+        //    return new MapValuesSeries<TKey, TValue, TResult, RangeSeries<TKey, TValue, TCursor>>(_series, selector);
+        //}
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

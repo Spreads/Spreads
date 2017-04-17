@@ -6,6 +6,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,20 +16,71 @@ namespace Spreads.Cursors
 {
     public enum ArithmeticOp
     {
+        /// <summary>
+        /// Addition
+        /// </summary>
         Add,
+
+        /// <summary>
+        /// Subtract a constant from series values
+        /// </summary>
         Subtract,
+
+        /// <summary>
+        /// Subtract series values from a constant
+        /// </summary>
+        SubtractFrom,
+
+        /// <summary>
+        /// Multiply
+        /// </summary>
         Multiply,
+
+        /// <summary>
+        /// Divide series values by a constant
+        /// </summary>
         Divide,
+
+        /// <summary>
+        /// Divide a constant by series values
+        /// </summary>
+        DivideFrom,
+
+        /// <summary>
+        /// Modulo from series values division by a constant
+        /// </summary>
         Modulo,
+
+        /// <summary>
+        /// Modulo from a constant division by series values
+        /// </summary>
+        ModuloFrom,
+
+        /// <summary>
+        /// Negate series values
+        /// </summary>
         Negate,
-        Power
-        // TODO
+
+        /// <summary>
+        /// Power of series values by a constant
+        /// </summary>
+        Power,
+
+        /// <summary>
+        /// Power of a constant by series values
+        /// </summary>
+        PowerFrom,
+
+        /// <summary>
+        /// Unary +, nop.
+        /// </summary>
+        Plus
     }
 
     /// <summary>
     /// A series that applies an arithmetic operation to each value of its input series. Specialized for input cursor.
     /// </summary>
-    public class ArithmeticSeries<TKey, TValue, TCursor> :
+    public sealed class ArithmeticSeries<TKey, TValue, TCursor> :
         CursorSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>,
         ICursor<TKey, TValue> //, ICanMapValues<TKey, TValue>
         where TCursor : ICursor<TKey, TValue>
@@ -85,67 +137,287 @@ namespace Spreads.Cursors
             get
             {
                 return Apply(_cursor.CurrentValue);
-                //if (typeof(TValue) == typeof(double))
-                //{
-                //    var v1 = (double)(object)(_cursor.CurrentValue);
-                //    var v2 = (double)(object)(_value);
-
-                //    if (_op == ArithmeticOp.Add) return (TValue)(object)(v1 + v2);
-
-                //    if (_op == ArithmeticOp.Subtract)
-                //        return (TValue)(object)(v1 - v2);
-
-                //    if (_op == ArithmeticOp.Multiply)
-                //        return (TValue)(object)(v1 * v2);
-
-                //    if (_op == ArithmeticOp.Divide)
-                //        return (TValue)(object)(v1 / v2);
-
-                //    if (_op == ArithmeticOp.Modulo)
-                //        return (TValue)(object)(v1 % v2);
-
-                //    if (_op == ArithmeticOp.Negate)
-                //        return (TValue)(object)(-v1);
-
-                //    if (_op == ArithmeticOp.Power)
-                //        return (TValue)(object)(Math.Pow(v1, v2));
-
-                //}
-                ////ThrowNotSupported();
-                //return (default(TValue));
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [SuppressMessage("ReSharper", "RedundantCast")]
+        [SuppressMessage("ReSharper", "RedundantOverflowCheckingContext")]
         private TValue Apply(TValue input)
         {
             if (typeof(TValue) == typeof(double))
             {
                 var v1 = (double)(object)(input);
                 var v2 = (double)(object)(_value);
-                if (_op == ArithmeticOp.Add) return (TValue)(object)(v1 + v2);
+
+                // NB Switch prevents inlining for some reason
+                if (_op == ArithmeticOp.Add)
+                    return (TValue)(object)(double)(v1 + v2);
 
                 if (_op == ArithmeticOp.Subtract)
-                    return (TValue)(object)(v1 - v2);
+                    return (TValue)(object)(double)(v1 - v2);
+
+                if (_op == ArithmeticOp.SubtractFrom)
+                    return (TValue)(object)(double)(v2 - v1);
 
                 if (_op == ArithmeticOp.Multiply)
-                    return (TValue)(object)(v1 * v2);
+                    return (TValue)(object)(double)(v1 * v2);
 
                 if (_op == ArithmeticOp.Divide)
-                    return (TValue)(object)(v1 / v2);
+                    return (TValue)(object)(double)(v1 / v2);
+
+                if (_op == ArithmeticOp.DivideFrom)
+                    return (TValue)(object)(double)(v2 / v1);
 
                 if (_op == ArithmeticOp.Modulo)
-                    return (TValue)(object)(v1 % v2);
+                    return (TValue)(object)(double)(v1 % v2);
+
+                if (_op == ArithmeticOp.ModuloFrom)
+                    return (TValue)(object)(double)(v2 % v1);
 
                 if (_op == ArithmeticOp.Negate)
-                    return (TValue)(object)(-v1);
+                    return (TValue)(object)(double)(-v1);
 
                 if (_op == ArithmeticOp.Power)
-                    return (TValue)(object)(Math.Pow(v1, v2));
+                    return (TValue)(object)(double)Math.Pow(v1, v2);
+
+                if (_op == ArithmeticOp.PowerFrom)
+                    return (TValue)(object)(double)Math.Pow(v2, v1);
+
+                if (_op == ArithmeticOp.Plus) return input;
+
+                ThrowNotSupported();
+                return default(TValue);
             }
 
-            //ThrowNotSupported();
-            return (default(TValue));
+            if (typeof(TValue) == typeof(float))
+            {
+                var v1 = (float)(object)(input);
+                var v2 = (float)(object)(_value);
+
+                // NB Switch prevents inlining for some reason
+                if (_op == ArithmeticOp.Add)
+                    return (TValue)(object)(float)(v1 + v2);
+
+                if (_op == ArithmeticOp.Subtract)
+                    return (TValue)(object)(float)(v1 - v2);
+
+                if (_op == ArithmeticOp.SubtractFrom)
+                    return (TValue)(object)(float)(v2 - v1);
+
+                if (_op == ArithmeticOp.Multiply)
+                    return (TValue)(object)(float)(v1 * v2);
+
+                if (_op == ArithmeticOp.Divide)
+                    return (TValue)(object)(float)(v1 / v2);
+
+                if (_op == ArithmeticOp.DivideFrom)
+                    return (TValue)(object)(float)(v2 / v1);
+
+                if (_op == ArithmeticOp.Modulo)
+                    return (TValue)(object)(float)(v1 % v2);
+
+                if (_op == ArithmeticOp.ModuloFrom)
+                    return (TValue)(object)(float)(v2 % v1);
+
+                if (_op == ArithmeticOp.Negate)
+                    return (TValue)(object)(float)(-v1);
+
+                if (_op == ArithmeticOp.Power)
+                    return (TValue)(object)(float)Math.Pow(v1, v2);
+
+                if (_op == ArithmeticOp.PowerFrom)
+                    return (TValue)(object)(float)Math.Pow(v2, v1);
+
+                if (_op == ArithmeticOp.Plus) return input;
+
+                ThrowNotSupported();
+                return default(TValue);
+            }
+
+            if (typeof(TValue) == typeof(int))
+            {
+                var v1 = (int)(object)(input);
+                var v2 = (int)(object)(_value);
+
+                // NB Switch prevents inlining for some reason
+                if (_op == ArithmeticOp.Add)
+                    return (TValue)(object)(int)(v1 + v2);
+
+                if (_op == ArithmeticOp.Subtract)
+                    return (TValue)(object)(int)(v1 - v2);
+
+                if (_op == ArithmeticOp.SubtractFrom)
+                    return (TValue)(object)(int)(v2 - v1);
+
+                if (_op == ArithmeticOp.Multiply)
+                    return (TValue)(object)(int)(v1 * v2);
+
+                if (_op == ArithmeticOp.Divide)
+                    return (TValue)(object)(int)(v1 / v2);
+
+                if (_op == ArithmeticOp.DivideFrom)
+                    return (TValue)(object)(int)(v2 / v1);
+
+                if (_op == ArithmeticOp.Modulo)
+                    return (TValue)(object)(int)(v1 % v2);
+
+                if (_op == ArithmeticOp.ModuloFrom)
+                    return (TValue)(object)(int)(v2 % v1);
+
+                if (_op == ArithmeticOp.Negate)
+                    return (TValue)(object)(int)(-v1);
+
+                if (_op == ArithmeticOp.Power)
+                    return (TValue)(object)checked((int)Math.Pow(v1, v2));
+
+                if (_op == ArithmeticOp.PowerFrom)
+                    return (TValue)(object)checked((int)Math.Pow(v2, v1));
+
+                if (_op == ArithmeticOp.Plus) return input;
+
+                ThrowNotSupported();
+                return default(TValue);
+            }
+
+            if (typeof(TValue) == typeof(long))
+            {
+                var v1 = (long)(object)(input);
+                var v2 = (long)(object)(_value);
+
+                // NB Switch prevents inlining for some reason
+                if (_op == ArithmeticOp.Add)
+                    return (TValue)(object)(long)(v1 + v2);
+
+                if (_op == ArithmeticOp.Subtract)
+                    return (TValue)(object)(long)(v1 - v2);
+
+                if (_op == ArithmeticOp.SubtractFrom)
+                    return (TValue)(object)(long)(v2 - v1);
+
+                if (_op == ArithmeticOp.Multiply)
+                    return (TValue)(object)(long)(v1 * v2);
+
+                if (_op == ArithmeticOp.Divide)
+                    return (TValue)(object)(long)(v1 / v2);
+
+                if (_op == ArithmeticOp.DivideFrom)
+                    return (TValue)(object)(long)(v2 / v1);
+
+                if (_op == ArithmeticOp.Modulo)
+                    return (TValue)(object)(long)(v1 % v2);
+
+                if (_op == ArithmeticOp.ModuloFrom)
+                    return (TValue)(object)(long)(v2 % v1);
+
+                if (_op == ArithmeticOp.Negate)
+                    return (TValue)(object)(long)(-v1);
+
+                if (_op == ArithmeticOp.Power)
+                    return (TValue)(object)checked((long)Math.Pow(v1, v2));
+
+                if (_op == ArithmeticOp.PowerFrom)
+                    return (TValue)(object)checked((long)Math.Pow(v2, v1));
+
+                if (_op == ArithmeticOp.Plus) return input;
+
+                ThrowNotSupported();
+                return default(TValue);
+            }
+
+            if (typeof(TValue) == typeof(decimal))
+            {
+                var v1 = (decimal)(object)(input);
+                var v2 = (decimal)(object)(_value);
+
+                // NB Switch prevents inlining for some reason
+                if (_op == ArithmeticOp.Add)
+                    return (TValue)(object)(decimal)(v1 + v2);
+
+                if (_op == ArithmeticOp.Subtract)
+                    return (TValue)(object)(decimal)(v1 - v2);
+
+                if (_op == ArithmeticOp.SubtractFrom)
+                    return (TValue)(object)(decimal)(v2 - v1);
+
+                if (_op == ArithmeticOp.Multiply)
+                    return (TValue)(object)(decimal)(v1 * v2);
+
+                if (_op == ArithmeticOp.Divide)
+                    return (TValue)(object)(decimal)(v1 / v2);
+
+                if (_op == ArithmeticOp.DivideFrom)
+                    return (TValue)(object)(decimal)(v2 / v1);
+
+                if (_op == ArithmeticOp.Modulo)
+                    return (TValue)(object)(decimal)(v1 % v2);
+
+                if (_op == ArithmeticOp.ModuloFrom)
+                    return (TValue)(object)(decimal)(v2 % v1);
+
+                if (_op == ArithmeticOp.Negate)
+                    return (TValue)(object)(decimal)(-v1);
+
+                if (_op == ArithmeticOp.Power)
+                    return (TValue)(object)checked((decimal)Math.Pow((double)v1, (double)v2));
+
+                if (_op == ArithmeticOp.PowerFrom)
+                    return (TValue)(object)checked((decimal)Math.Pow((double)v1, (double)v2));
+
+                if (_op == ArithmeticOp.Plus) return input;
+
+                ThrowNotSupported();
+                return default(TValue);
+            }
+
+            return ApplyDynamic(input);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private TValue ApplyDynamic(TValue input)
+        {
+            // NB this is 5-10 slower for doubles, but event for them it can process 10 Mops and "just works"
+
+            var v1 = (dynamic)input;
+            var v2 = (dynamic)_value;
+
+            if (_op == ArithmeticOp.Add)
+                return (TValue)(v1 + v2);
+
+            if (_op == ArithmeticOp.Subtract)
+                return (TValue)(v1 - v2);
+
+            if (_op == ArithmeticOp.SubtractFrom)
+                return (TValue)(v2 - v1);
+
+            if (_op == ArithmeticOp.Multiply)
+                return (TValue)(v1 * v2);
+
+            if (_op == ArithmeticOp.Divide)
+                return (TValue)(v1 / v2);
+
+            if (_op == ArithmeticOp.DivideFrom)
+                return (TValue)(v2 / v1);
+
+            if (_op == ArithmeticOp.Modulo)
+                return (TValue)(v1 % v2);
+
+            if (_op == ArithmeticOp.ModuloFrom)
+                return (TValue)(v2 % v1);
+
+            if (_op == ArithmeticOp.Negate)
+                return (TValue)(-v1);
+
+            if (_op == ArithmeticOp.Power)
+                return (TValue)(dynamic)Math.Pow((double)v1, (double)v2);
+
+            if (_op == ArithmeticOp.PowerFrom)
+                return (TValue)(dynamic)Math.Pow((double)v1, (double)v2);
+
+            if (_op == ArithmeticOp.Plus) return +v1;
+
+            ThrowNotSupported();
+            return default(TValue);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -209,6 +481,9 @@ namespace Spreads.Cursors
             return Apply(_cursor.Source.GetAt(idx));
         }
 
+        /// <summary>
+        /// Get specialized enumerator.
+        /// </summary>
         public new ArithmeticSeries<TKey, TValue, TCursor> GetEnumerator()
         {
             var clone = Create();
@@ -315,5 +590,120 @@ namespace Spreads.Cursors
         //    }
         //    return new MapValuesSeries<TKey, TValue, TValue1, TCursor>(_series, CoreUtils.CombineMaps<TValue, TValue, TValue1>(Apply, selector));
         //}
+
+
+        #region Unary Operators
+
+        // NB This allows to combine arithmetic operators using sealed ArithmeticSeries<> as TCursor 
+        // and to inline Apply() methods.
+
+
+        /// <summary>
+        /// Add operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>> operator +(ArithmeticSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>(series, ArithmeticOp.Add, constant);
+        }
+
+        /// <summary>
+        /// Add operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>> operator +(TValue constant, ArithmeticSeries<TKey, TValue, TCursor> series)
+        {
+            // Addition is commutative
+            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>(series, ArithmeticOp.Add, constant);
+        }
+
+        /// <summary>
+        /// Negate operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>> operator -(ArithmeticSeries<TKey, TValue, TCursor> series)
+        {
+            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>(series, ArithmeticOp.Negate, default(TValue));
+        }
+
+        /// <summary>
+        /// Unary plus operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>> operator +(ArithmeticSeries<TKey, TValue, TCursor> series)
+        {
+            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>(series, ArithmeticOp.Plus, default(TValue));
+        }
+
+        /// <summary>
+        /// Subtract operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>> operator -(ArithmeticSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>(series, ArithmeticOp.Subtract, constant);
+        }
+
+        /// <summary>
+        /// Subtract operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>> operator -(TValue constant, ArithmeticSeries<TKey, TValue, TCursor> series)
+        {
+            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>(series, ArithmeticOp.SubtractFrom, constant);
+        }
+
+        /// <summary>
+        /// Multiply operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>> operator *(ArithmeticSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>(series, ArithmeticOp.Multiply, constant);
+        }
+
+        /// <summary>
+        /// Multiply operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>> operator *(TValue constant, ArithmeticSeries<TKey, TValue, TCursor> series)
+        {
+            // Multiplication is commutative
+            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>(series, ArithmeticOp.Multiply, constant);
+        }
+
+        /// <summary>
+        /// Divide operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>> operator /(ArithmeticSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>(series, ArithmeticOp.Divide, constant);
+        }
+
+        /// <summary>
+        /// Divide operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>> operator /(TValue constant, ArithmeticSeries<TKey, TValue, TCursor> series)
+        {
+            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>(series, ArithmeticOp.DivideFrom, constant);
+        }
+
+        /// <summary>
+        /// Modulo operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>> operator %(ArithmeticSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>(series, ArithmeticOp.Modulo, constant);
+        }
+
+        /// <summary>
+        /// Modulo operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>> operator %(TValue constant, ArithmeticSeries<TKey, TValue, TCursor> series)
+        {
+            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>(series, ArithmeticOp.ModuloFrom, constant);
+        }
+
+        /// <summary>
+        /// Power operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>> operator ^(ArithmeticSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TCursor>>(series, ArithmeticOp.Modulo, constant);
+        }
+
+        #endregion
     }
 }

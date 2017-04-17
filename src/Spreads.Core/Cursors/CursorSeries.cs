@@ -15,7 +15,7 @@ namespace Spreads.Cursors
     /// <summary>
     /// Base abstract class for cursor series (objects that implement both IReadOnlySeries and ICursor).
     /// </summary>
-    public abstract class CursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue>
+    public abstract class CursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue, TCursor>
         where TCursor : CursorSeries<TKey, TValue, TCursor>, ICursor<TKey, TValue>
     {
         private TCursor _navigationCursor;

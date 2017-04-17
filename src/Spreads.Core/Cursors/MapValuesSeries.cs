@@ -14,17 +14,17 @@ using System.Threading.Tasks;
 // ReSharper disable once CheckNamespace
 namespace Spreads.Cursors
 {
-    internal interface ICanMapValues<TKey, TValue>
-    {
-        BaseSeries<TKey, TResult> Map<TResult>(Func<TValue, TResult> selector, Func<Buffer<TValue>, Buffer<TResult>> batchSelector);
-    }
+    //internal interface ICanMapValues<TKey, TValue>
+    //{
+    //    BaseSeries<TKey, TResult> Map<TResult>(Func<TValue, TResult> selector, Func<Buffer<TValue>, Buffer<TResult>> batchSelector);
+    //}
 
     /// <summary>
     /// A series that applies a selector to each value of its input series. Specialized for input cursor.
     /// </summary>
     public class MapValuesSeries<TKey, TValue, TResult, TCursor> :
         CursorSeries<TKey, TResult, MapValuesSeries<TKey, TValue, TResult, TCursor>>,
-        ICursor<TKey, TResult>, ICanMapValues<TKey, TResult>
+        ICursor<TKey, TResult> //, ICanMapValues<TKey, TResult>
         where TCursor : ICursor<TKey, TValue>
     {
         internal readonly Func<TValue, TResult> _selector;
@@ -230,9 +230,9 @@ namespace Spreads.Cursors
             return Clone();
         }
 
-        BaseSeries<TKey, TResult1> ICanMapValues<TKey, TResult>.Map<TResult1>(Func<TResult, TResult1> selector, Func<Buffer<TResult>, Buffer<TResult1>> batchSelector)
-        {
-            return new MapValuesSeries<TKey, TValue, TResult1, TCursor>(_series, CoreUtils.CombineMaps(_selector, selector));
-        }
+        //BaseSeries<TKey, TResult1> ICanMapValues<TKey, TResult>.Map<TResult1>(Func<TResult, TResult1> selector, Func<Buffer<TResult>, Buffer<TResult1>> batchSelector)
+        //{
+        //    return new MapValuesSeries<TKey, TValue, TResult1, TCursor>(_series, CoreUtils.CombineMaps(_selector, selector));
+        //}
     }
 }

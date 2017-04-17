@@ -39,7 +39,8 @@ namespace Spreads.Core.Tests.Cursors
         {
             var sm = new SortedMap<int, double>();
             var count = 10000000;
-            for (int i = 0; i < count; i++)
+            sm.AddLast(0, 0);
+            for (int i = 2; i < count; i++)
             {
                 sm.AddLast(i, i);
             }
@@ -49,8 +50,9 @@ namespace Spreads.Core.Tests.Cursors
                 var sw = new Stopwatch();
                 sw.Restart();
                 var map = new MapValuesSeries<int, double, double, SortedMapCursor<int, double>>(sm, i => i * 2);
+                var map2 = new MapValuesSeries<int, double, double, MapValuesSeries<int, double, double, SortedMapCursor<int, double>>>(map, i => i * 2);
                 var sum = 0.0;
-                foreach (var kvp in map)
+                foreach (var kvp in map2)
                 {
                     sum += kvp.Value;
                 }
@@ -60,21 +62,23 @@ namespace Spreads.Core.Tests.Cursors
                 Console.WriteLine($"Mops {sw.MOPS(count)}");
             }
 
-            for (int r = 0; r < 10; r++)
-            {
-                var sw = new Stopwatch();
-                sw.Restart();
-                var map = sm.Select(x => new KeyValuePair<int, double>(x.Key, x.Value * 2));
-                var sum = 0.0;
-                foreach (var kvp in map)
-                {
-                    sum += kvp.Value;
-                }
-                sw.Stop();
-                Assert.IsTrue(sum > 0);
+            //for (int r = 0; r < 10; r++)
+            //{
+            //    var sw = new Stopwatch();
+            //    sw.Restart();
+            //    var map = sm
+            //        //.Select(x => new KeyValuePair<int, double>(x.Key, x.Value * 2))
+            //        .Select(x => new KeyValuePair<int, double>(x.Key, x.Value * 2));
+            //    var sum = 0.0;
+            //    foreach (var kvp in map)
+            //    {
+            //        sum += kvp.Value;
+            //    }
+            //    sw.Stop();
+            //    Assert.IsTrue(sum > 0);
 
-                Console.WriteLine($"LINQ Mops {sw.MOPS(count)}");
-            }
+            //    Console.WriteLine($"LINQ Mops {sw.MOPS(count)}");
+            //}
         }
 
         [Test]

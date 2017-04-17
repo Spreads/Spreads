@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Cursors;
 
 namespace Spreads
 {
@@ -45,23 +46,25 @@ namespace Spreads
     /// <summary>
     /// Base generic class for all series implementations.
     /// </summary>
-    /// <typeparam name="TK">Type of series keys.</typeparam>
-    /// <typeparam name="TV">Type of series values.</typeparam>
-    public abstract class BaseSeries<TK, TV> : BaseSeries, IReadOnlySeries<TK, TV>
+    /// <typeparam name="TKey">Type of series keys.</typeparam>
+    /// <typeparam name="TValue">Type of series values.</typeparam>
+    /// <typeparam name="TCursor">Type of synchronious cursor.</typeparam>
+    public abstract class BaseSeries<TKey, TValue, TCursor> : BaseSeries, IReadOnlySeries<TKey, TValue>
+        where TCursor : ICursor<TKey, TValue>
     {
         private object _syncRoot;
 
         /// <inheritdoc />
-        public abstract ICursor<TK, TV> GetCursor();
+        public abstract ICursor<TKey, TValue> GetCursor();
 
         /// <inheritdoc />
-        public virtual IEnumerator<KeyValuePair<TK, TV>> GetEnumerator()
+        public virtual IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
             return GetCursor();
         }
 
         /// <inheritdoc />
-        public abstract KeyComparer<TK> Comparer { get; }
+        public abstract KeyComparer<TKey> Comparer { get; }
 
         /// <inheritdoc />
         public abstract bool IsIndexed { get; }
@@ -70,18 +73,18 @@ namespace Spreads
         public abstract bool IsReadOnly { get; }
 
         /// <inheritdoc />
-        public virtual IDisposable Subscribe(IObserver<KeyValuePair<TK, TV>> observer)
+        public virtual IDisposable Subscribe(IObserver<KeyValuePair<TKey, TValue>> observer)
         {
             // TODO not virtual and implement all logic here, including backpressure case
             throw new NotImplementedException();
         }
 
-        IAsyncEnumerator<KeyValuePair<TK, TV>> IAsyncEnumerable<KeyValuePair<TK, TV>>.GetEnumerator()
+        IAsyncEnumerator<KeyValuePair<TKey, TValue>> IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
         {
             return GetCursor();
         }
 
-        IEnumerator<KeyValuePair<TK, TV>> IEnumerable<KeyValuePair<TK, TV>>.GetEnumerator()
+        IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
         {
             return GetEnumerator();
         }
@@ -111,13 +114,13 @@ namespace Spreads
         public abstract bool IsEmpty { get; }
 
         /// <inheritdoc />
-        public abstract KeyValuePair<TK, TV> First { get; }
+        public abstract KeyValuePair<TKey, TValue> First { get; }
 
         /// <inheritdoc />
-        public abstract KeyValuePair<TK, TV> Last { get; }
+        public abstract KeyValuePair<TKey, TValue> Last { get; }
 
         /// <inheritdoc />
-        public virtual TV this[TK key]
+        public virtual TValue this[TKey key]
         {
             get
             {
@@ -130,26 +133,136 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public abstract TV GetAt(int idx);
+        public abstract TValue GetAt(int idx);
 
         /// <inheritdoc />
-        public abstract IEnumerable<TK> Keys { get; }
+        public abstract IEnumerable<TKey> Keys { get; }
 
         /// <inheritdoc />
-        public abstract IEnumerable<TV> Values { get; }
+        public abstract IEnumerable<TValue> Values { get; }
 
         /// <inheritdoc />
-        public abstract bool TryFind(TK key, Lookup direction, out KeyValuePair<TK, TV> value);
+        public abstract bool TryFind(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> value);
 
         /// <inheritdoc />
-        public abstract bool TryGetFirst(out KeyValuePair<TK, TV> value);
+        public abstract bool TryGetFirst(out KeyValuePair<TKey, TValue> value);
 
         /// <inheritdoc />
-        public abstract bool TryGetLast(out KeyValuePair<TK, TV> value);
+        public abstract bool TryGetLast(out KeyValuePair<TKey, TValue> value);
+
+        #region Unary Operators
+
+        /// <summary>
+        /// Add operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, TCursor> operator +(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Add, constant);
+        }
+
+        /// <summary>
+        /// Add operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, TCursor> operator +(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
+        {
+            // Addition is commutative
+            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Add, constant);
+        }
+
+        /// <summary>
+        /// Negate operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, TCursor> operator -(BaseSeries<TKey, TValue, TCursor> series)
+        {
+            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Negate, default(TValue));
+        }
+
+        /// <summary>
+        /// Unary plus operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, TCursor> operator +(BaseSeries<TKey, TValue, TCursor> series)
+        {
+            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Plus, default(TValue));
+        }
+
+        /// <summary>
+        /// Subtract operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, TCursor> operator -(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Subtract, constant);
+        }
+
+        /// <summary>
+        /// Subtract operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, TCursor> operator -(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
+        {
+            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.SubtractFrom, constant);
+        }
+
+        /// <summary>
+        /// Multiply operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, TCursor> operator *(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Multiply, constant);
+        }
+
+        /// <summary>
+        /// Multiply operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, TCursor> operator *(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
+        {
+            // Multiplication is commutative
+            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Multiply, constant);
+        }
+
+        /// <summary>
+        /// Divide operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, TCursor> operator /(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Divide, constant);
+        }
+
+        /// <summary>
+        /// Divide operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, TCursor> operator /(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
+        {
+            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.DivideFrom, constant);
+        }
+
+        /// <summary>
+        /// Modulo operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, TCursor> operator %(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Modulo, constant);
+        }
+
+        /// <summary>
+        /// Modulo operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, TCursor> operator %(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
+        {
+            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.ModuloFrom, constant);
+        }
+
+        /// <summary>
+        /// Power operator.
+        /// </summary>
+        public static ArithmeticSeries<TKey, TValue, TCursor> operator ^(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Modulo, constant);
+        }
+
+        #endregion
 
     }
 
-    public abstract class ContainerSeries<TK, TV> : BaseSeries<TK, TV>
+    public abstract class ContainerSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue, TCursor> where TCursor : ICursor<TKey, TValue>
     {
         internal long _version;
 
