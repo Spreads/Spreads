@@ -163,8 +163,9 @@ namespace Spreads
         /// </summary>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected long BeforWrite(bool takeLock = true)
+        protected long BeforeWrite(bool takeLock = true)
         {
+            var spinwait = new SpinWait();
             long version = -1L;
             // NB try{} finally{ .. code here .. } prevents method inlining, therefore should be used at the caller place, not here
             // ReSharper disable once LoopVariableIsNeverChangedInsideLoop
@@ -182,8 +183,20 @@ namespace Spreads
                     // do not return from a loop, see CoreClr #9692
                     break;
                 }
+                if (spinwait.Count == 10000) // 10 000 is c.700 msec
+                {
+                    TryUnlock();
+                }
+                // NB Spinwait significantly increases performance probably due to PAUSE instruction
+                spinwait.SpinOnce();
             }
             return version;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        protected virtual void TryUnlock()
+        {
+            throw new NotSupportedException();
         }
 
         /// <summary>

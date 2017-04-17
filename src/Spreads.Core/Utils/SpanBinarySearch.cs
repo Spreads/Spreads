@@ -11,7 +11,7 @@ namespace Spreads.Slices
     public static partial class SpanExtensions
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinarySearch<T>(this Span<T> span, int index, int length, T value, IComparer<T> comparer)
+        public static int BinarySearch<T>(this Span<T> span, int index, int length, T value, KeyComparer<T> comparer)
         {
             if ((uint)(index) + (uint)length > (uint)span.Length)
             {
@@ -20,7 +20,7 @@ namespace Spreads.Slices
 
             if (comparer == null)
             {
-                comparer = Comparer<T>.Default;
+                comparer = KeyComparer<T>.Default;
             }
 
             int lo = index;

@@ -9,7 +9,8 @@ namespace Spreads.Cursors
 {
     public static class MapValuesSeriesExtensions
     {
-        public static MapValuesSeries<TKey, TValue, TResult, T> Map<T, TKey, TValue, TResult>(this T series,
+        // Even if this works, avoid public extensions on generic types
+        internal static MapValuesSeries<TKey, TValue, TResult, T> Map<T, TKey, TValue, TResult>(this T series,
             Func<TValue, TResult> selector)
             where T : CursorSeries<TKey, TValue, T>, ICursor<TKey, TValue>
         {

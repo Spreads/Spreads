@@ -9,7 +9,8 @@ namespace Spreads.Cursors
 {
     public static class RangeSeriesExtensions
     {
-        public static RangeSeries<TKey, TValue, T> Range<T, TKey, TValue>(this T series,
+        // Even if this works, avoid public extensions on generic types
+        internal static RangeSeries<TKey, TValue, T> Range<T, TKey, TValue>(this T series,
             TKey startKey, TKey endKey, bool startInclusive, bool endInclusive)
             where T : CursorSeries<TKey, TValue, T>, ICursor<TKey, TValue>
         {
