@@ -46,7 +46,7 @@ namespace Spreads.Core.Tests
                     try { }
                     finally
                     {
-                        v2 = this.BeforWrite();
+                        v2 = this.BeforeWrite();
                     }
                     DoIncrement();
                 }

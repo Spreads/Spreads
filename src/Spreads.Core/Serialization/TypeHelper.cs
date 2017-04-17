@@ -41,7 +41,6 @@ namespace Spreads.Serialization
         public bool IsDateTime;
     }
 
-    [Obsolete("TypeHelper should only be used inside BinarySerializer or for known types. Use #pragma warning disable 0618/#pragma warning restore 0618 where its usage is justified.")]
     internal class TypeHelper
     {
         private static int ReadObject<T>(IntPtr ptr, out object value)
@@ -137,8 +136,7 @@ namespace Spreads.Serialization
         }
     }
 
-    [Obsolete("TypeHelper should only be used inside BinarySerializer or for known types. Use #pragma warning disable 0618/#pragma warning restore 0618 where its usage is justified.")]
-    internal unsafe sealed class TypeHelper<T> : TypeHelper
+    internal sealed unsafe class TypeHelper<T> : TypeHelper
     {
         // ReSharper disable StaticMemberInGenericType
         private static bool _hasBinaryConverter;
@@ -152,7 +150,7 @@ namespace Spreads.Serialization
         /// </summary>
         public static readonly int Size = InitChecked();
 
-        public static readonly bool IsBlittable = Size > 0;
+        public static readonly bool IsBlittable = Size > 0 && typeof(T) != typeof(DateTime);
 
         private static IBinaryConverter<T> _converterInstance;
         private static TypeParams _typeParams;
@@ -207,20 +205,20 @@ namespace Spreads.Serialization
             _typeParams = new TypeParams();
             if (typeof(T) == typeof(DateTime))
             {
-                _typeParams.IsBlittable = true;
+                _typeParams.IsBlittable = false;
                 _typeParams.IsFixedSize = true;
                 _typeParams.IsDateTime = true;
                 _typeParams.Size = 8;
                 return 8;
             }
-            if (typeof(T) == typeof(decimal))
-            {
-                _typeParams.IsBlittable = true;
-                _typeParams.IsFixedSize = true;
-                _typeParams.IsDateTime = true;
-                _typeParams.Size = 16;
-                return 16;
-            }
+            //if (typeof(T) == typeof(decimal))
+            //{
+            //    _typeParams.IsBlittable = true;
+            //    _typeParams.IsFixedSize = true;
+            //    _typeParams.IsDateTime = true;
+            //    _typeParams.Size = 16;
+            //    return 16;
+            //}
 
             _typeParams.IsValueType = typeof(T).GetTypeInfo().IsValueType;
             var pinnedSize = PinnedSize();
