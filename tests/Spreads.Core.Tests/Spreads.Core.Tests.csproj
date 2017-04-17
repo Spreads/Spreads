@@ -141,6 +141,7 @@
     <Compile Include="Collections\KeyComparerTests.cs" />
     <Compile Include="Collections\FastDictionaryTests.cs" />
     <Compile Include="ColumnsTests.cs" />
+    <Compile Include="Cursors\ArithmeticTests.cs" />
     <Compile Include="Cursors\MapValuesTest.cs" />
     <Compile Include="DataTypes\PriceTests.cs" />
     <Compile Include="DataTypes\TypeFlattenerTests.cs" />

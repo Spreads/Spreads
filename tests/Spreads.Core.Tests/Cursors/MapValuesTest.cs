@@ -18,15 +18,15 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldMapValues()
         {
-            var sm = new SortedMap<int, int>
+            var sm = new SortedMap<int, double>
             {
                 { 1, 1 }
             };
 
-            var map = new MapValuesSeries<int, int, int, SortedMapCursor<int, int>>(sm, i => i * 2);
-            var map1 = new MapValuesSeries<int, int, int, MapValuesSeries<int, int, int, SortedMapCursor<int, int>>>(map, i => i * 2);
-            var map2 = new MapValuesSeries<int, int, int, ICursor<int, int>>(map.Range(0, Int32.MaxValue, true, true), i => i * 2);
-            var map3 = new MapValuesSeries<int, int, int, ICursor<int, int>>(map.Range(2, Int32.MaxValue, true, true), i => i * 2);
+            var map = new MapValuesSeries<int, double, double, SortedMapCursor<int, double>>(sm, i => i * 2);
+            var map1 = new MapValuesSeries<int, double, double, MapValuesSeries<int, double, double, SortedMapCursor<int, double>>>(map, i => i * 2);
+            var map2 = new MapValuesSeries<int, double, double, ICursor<int, double>>(map.Range(0, Int32.MaxValue, true, true), i => i * 2);
+            var map3 = new MapValuesSeries<int, double, double, ICursor<int, double>>(map.Range(2, Int32.MaxValue, true, true), i => i * 2);
 
             Assert.AreEqual(2, map.First.Value);
             Assert.AreEqual(4, map1.First.Value);
@@ -37,7 +37,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test, Ignore]
         public void CouldMapValuesBenchmark()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new SortedMap<int, double>();
             var count = 10000000;
             for (int i = 0; i < count; i++)
             {
@@ -48,8 +48,8 @@ namespace Spreads.Core.Tests.Cursors
             {
                 var sw = new Stopwatch();
                 sw.Restart();
-                var map = new MapValuesSeries<int, int, int, SortedMapCursor<int, int>>(sm, i => i * 2);
-                long sum = 0;
+                var map = new MapValuesSeries<int, double, double, SortedMapCursor<int, double>>(sm, i => i * 2);
+                var sum = 0.0;
                 foreach (var kvp in map)
                 {
                     sum += kvp.Value;
@@ -64,8 +64,8 @@ namespace Spreads.Core.Tests.Cursors
             {
                 var sw = new Stopwatch();
                 sw.Restart();
-                var map = sm.Select(x => new KeyValuePair<int, int>(x.Key, x.Value * 2));
-                long sum = 0;
+                var map = sm.Select(x => new KeyValuePair<int, double>(x.Key, x.Value * 2));
+                var sum = 0.0;
                 foreach (var kvp in map)
                 {
                     sum += kvp.Value;

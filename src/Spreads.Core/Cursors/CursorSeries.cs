@@ -56,7 +56,13 @@ namespace Spreads.Cursors
         public IReadOnlySeries<TKey, TValue> Source => this;
 
         /// <inheritdoc />
-        public override IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        //public override IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        //{
+        //    var clone = Create();
+        //    return clone;
+        //}
+
+        public new TCursor GetEnumerator()
         {
             var clone = Create();
             return clone;
