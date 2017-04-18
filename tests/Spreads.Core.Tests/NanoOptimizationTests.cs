@@ -985,5 +985,12 @@ namespace Spreads.Core.Tests
                 Assert.True(sum2 < Int64.MaxValue);
             }
         }
+
+
+        [Test, Ignore]
+        public unsafe void MeasureNodaTimeInstantSize()
+        {
+            Console.WriteLine(Unsafe.SizeOf<NodaTime.Instant>());
+        }
     }
 }

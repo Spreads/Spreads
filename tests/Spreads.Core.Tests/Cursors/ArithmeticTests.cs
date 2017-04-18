@@ -95,10 +95,10 @@ namespace Spreads.Core.Tests.Cursors
                 {
                     sw.Restart();
                     var map =
-                        new ArithmeticSeries<int, double, SortedMapCursor<int, double>>(sm, ArithmeticOp.Multiply, 2.0);
+                        new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(sm, 2.0);
                     var map2 =
-                        new ArithmeticSeries<int, double, ArithmeticSeries<int, double, SortedMapCursor<int, double>>>(
-                            map, ArithmeticOp.Multiply, 2.0);
+                        new ArithmeticSeries<int, double, MultiplyOp<double>, ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>>(
+                            map, 2.0);
 
                     var sum = 0.0;
                     foreach (var kvp in map2)

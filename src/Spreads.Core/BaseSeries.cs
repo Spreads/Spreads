@@ -157,18 +157,18 @@ namespace Spreads
         /// <summary>
         /// Add operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, TCursor> operator +(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
+        public static ArithmeticSeries<TKey, TValue, AddOp<TValue>, TCursor> operator +(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Add, constant);
+            return new ArithmeticSeries<TKey, TValue, AddOp<TValue>, TCursor>(series, constant);
         }
 
         /// <summary>
         /// Add operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, TCursor> operator +(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
+        public static ArithmeticSeries<TKey, TValue, AddOp<TValue>, TCursor> operator +(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
         {
             // Addition is commutative
-            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Add, constant);
+            return new ArithmeticSeries<TKey, TValue, AddOp<TValue>, TCursor>(series, constant);
         }
 
         /// <summary>
@@ -206,18 +206,18 @@ namespace Spreads
         /// <summary>
         /// Multiply operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, TCursor> operator *(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
+        public static ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, TCursor> operator *(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Multiply, constant);
+            return new ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, TCursor>(series, constant);
         }
 
         /// <summary>
         /// Multiply operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, TCursor> operator *(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
+        public static ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, TCursor> operator *(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
         {
             // Multiplication is commutative
-            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Multiply, constant);
+            return new ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, TCursor>(series, constant);
         }
 
         /// <summary>

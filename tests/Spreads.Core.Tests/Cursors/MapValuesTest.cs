@@ -180,7 +180,7 @@ namespace Spreads.Core.Tests.Cursors
             {
                 var sw = new Stopwatch();
                 sw.Restart();
-                var range = sm.Range(new Opt<int>(0), Opt<int>.Missing, true, true);
+                var range = sm.After(0);
                 var map = sm.Map(i => i * 2);
                 //var range2 = map.Range(0, int.MaxValue, true, true);
                 //var map2 = range2.Map(i => i * 2);
