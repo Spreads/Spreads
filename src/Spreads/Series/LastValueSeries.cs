@@ -6,7 +6,7 @@ using Spreads.Collections;
 using System;
 using System.Collections.Generic;
 
-namespace Spreads.Series
+namespace Spreads
 {
     /// <summary>
     /// Series that keeps only last set element.

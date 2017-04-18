@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -42,7 +41,7 @@ namespace Spreads.Cursors
         /// </summary>
         internal RangeSeries(ISeries<TKey, TValue> series,
             Opt<TKey> startKey, Opt<TKey> endKey,
-            bool startInclusive, bool endInclusive)
+            bool startInclusive = true, bool endInclusive = true)
         {
             if (series.IsIndexed)
             {
@@ -62,6 +61,26 @@ namespace Spreads.Cursors
             _startLookup = startInclusive ? Lookup.GE : Lookup.GT;
             _endLookup = endInclusive ? Lookup.LE : Lookup.LT;
         }
+
+        /// <summary>
+        /// End key is inclusive or missing.
+        /// </summary>
+        public bool EndInclusive => _endInclusive;
+
+        /// <summary>
+        /// Start key is inclusive or missing.
+        /// </summary>
+        public bool StartInclusive => _startInclusive;
+
+        /// <summary>
+        /// End key
+        /// </summary>
+        public Opt<TKey> EndKey => _endKey;
+
+        /// <summary>
+        /// Start key
+        /// </summary>
+        public Opt<TKey> StartKey => _startKey;
 
         /// <inheritdoc />
         public KeyValuePair<TKey, TValue> Current
@@ -183,10 +202,10 @@ namespace Spreads.Cursors
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveFirst()
         {
-            if ((_startKey.HasValue
+            if ((_startKey.IsPresent
                 && _cursor.MoveAt(_startKey.Value, _startLookup)
                 && InRange(_cursor.CurrentKey))
-                || (!_startKey.HasValue && _cursor.MoveFirst()))
+                || (!_startKey.IsPresent && _cursor.MoveFirst()))
             {
                 Debug.Assert(State > 0);
                 if (State == CursorState.Initialized)
@@ -204,10 +223,10 @@ namespace Spreads.Cursors
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveLast()
         {
-            if ((_endKey.HasValue
+            if ((_endKey.IsPresent
                 && _cursor.MoveAt(_endKey.Value, _endLookup)
                 && InRange(_cursor.CurrentKey))
-                || (!_endKey.HasValue && _cursor.MoveLast()))
+                || (!_endKey.IsPresent && _cursor.MoveLast()))
             {
                 Debug.Assert(State > 0);
                 if (State == CursorState.Initialized)
@@ -227,7 +246,7 @@ namespace Spreads.Cursors
         {
             if ((int)State < (int)CursorState.Moving) return MoveFirst();
 
-            if (!_endKey.HasValue)
+            if (!_endKey.IsPresent)
             {
                 return _cursor.MoveNext();
             }
@@ -264,7 +283,7 @@ namespace Spreads.Cursors
         {
             if ((int)State < (int)CursorState.Moving) return MoveLast();
 
-            if (!_startKey.HasValue)
+            if (!_startKey.IsPresent)
             {
                 return _cursor.MovePrevious();
             }
@@ -314,7 +333,7 @@ namespace Spreads.Cursors
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool EndOk(TKey key)
         {
-            if (!_endKey.HasValue) return true;
+            if (!_endKey.IsPresent) return true;
             var c = _cursor.Comparer.Compare(key, _endKey.Value);
             return _endInclusive ? c <= 0 : c < 0;
         }
@@ -328,7 +347,7 @@ namespace Spreads.Cursors
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool StartOk(TKey key)
         {
-            if (!_startKey.HasValue) return true;
+            if (!_startKey.IsPresent) return true;
             var c = _cursor.Comparer.Compare(key, _startKey.Value);
             return _startInclusive ? c >= 0 : c > 0;
         }

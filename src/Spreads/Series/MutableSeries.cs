@@ -5,7 +5,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Spreads.Series
+namespace Spreads
 {
     [Obsolete("Use interface")]
     public class MutableSeries<TK, TV> : Series<TK, TV>, IMutableSeries<TK, TV>

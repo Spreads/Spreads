@@ -203,46 +203,7 @@ type SeriesExtensions () =
     [<Extension>]
     static member Scan(source: ISeries<'K,'V>, init:'R, folder:Func<'R,'K,'V,'R>) : Series<'K,'R> = 
       CursorSeries(fun _ -> new ScanCursor<'K,'V,'R>(Func<ICursor<'K,'V>>(source.GetCursor), init, folder) :> ICursor<'K,'R>) :> Series<'K,'R>
-      
-
-
-
-    
-    ///// Range between startKey and endKey
-    //[<Extension>]
-    //static member Range(source: ISeries<'K,'V>, startKey:'K, endKey:'K, startInclusive:bool, endInclusive:bool) : Series<'K,'V> = 
-    //  new RangeSeries<'K,'V, ICursor<'K,'V>>(source, Some(startKey), Some(endKey), startInclusive, endInclusive) :> Series<'K,'V>
-
-    ///// Range between startKey and endKey
-    //[<Extension>]
-    //static member Range(source: ISeries<'K,'V>, startKey:'K, endKey:'K, inclusive:bool) : Series<'K,'V> = 
-    //  new RangeSeries<'K,'V, ICursor<'K,'V>>(source, Some(startKey), Some(endKey), inclusive, inclusive) :> Series<'K,'V>
-      
-    ///// Inclusive range between startKey and endKey
-    //[<Extension>]
-    //static member Range(source: ISeries<'K,'V>, startKey:'K, endKey:'K) : Series<'K,'V> = source.Range(startKey, endKey, true)
-
-    ///// Range after startKey 
-    //[<Extension>]
-    //static member After(source: ISeries<'K,'V>, startKey:'K, inclusive:bool) = 
-    //  new RangeSeries<_,_, ICursor<'K,'V>>(source, Some(startKey), None, inclusive, inclusive) :> Series<'K,'V>
-
-    ///// Inclusive range after startKey 
-    //[<Extension>]
-    //static member After(source: ISeries<'K,'V>, startKey:'K) = source.After(startKey, true)
-
-    ///// Range before endKey 
-    //[<Extension>]
-    //static member Before(source: ISeries<'K,'V>, endKey:'K, inclusive:bool) : Series<'K,'V> = 
-    //  new RangeSeries<'K,'V, ICursor<'K,'V>>(source, None, Some(endKey), inclusive, inclusive) :> Series<'K,'V>
-    
-    ///// Inclusive range before endKey 
-    //[<Extension>]
-    //static member Before(source: ISeries<'K,'V>, endKey:'K) : Series<'K,'V> = source.Before(endKey)
-
-
-
-
+     
 
     [<Extension>]
     static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V2>, mapFunc:Func<'K,'V,'V2,'R>) : Series<'K,'R> =

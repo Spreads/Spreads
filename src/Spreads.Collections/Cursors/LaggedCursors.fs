@@ -15,6 +15,7 @@ open System.Threading.Tasks
 
 open Spreads
 open Spreads.Collections
+open Spreads.Internal
 
 
 // TODO (perf) optimize for Sorted/IndexedMap and SCM cursors via index

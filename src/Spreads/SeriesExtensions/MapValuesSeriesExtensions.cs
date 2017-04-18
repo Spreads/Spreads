@@ -3,11 +3,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Collections;
+using Spreads.Cursors;
 using System;
 
-namespace Spreads.Cursors
+namespace Spreads
 {
-    public static class MapValuesSeriesExtensions
+    public static partial class Series
     {
         // Even if this works, avoid public extensions on generic types
         internal static MapValuesSeries<TKey, TValue, TResult, T> Map<T, TKey, TValue, TResult>(this T series,

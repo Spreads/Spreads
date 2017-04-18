@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 
-namespace Spreads
+namespace Spreads.Internal
 
 open System
 open System.Linq
@@ -18,10 +18,12 @@ open Spreads
 open Spreads.Collections
 open System.Threading
 
+// TODO remove this file when nothing depends on it
+
 
 /// Range from start to end key. 
 //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-type RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, endKey:'K option, startLookup: Lookup option, endLookup:Lookup option) =
+type internal RangeCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>, startKey:'K option, endKey:'K option, startLookup: Lookup option, endLookup:Lookup option) =
     
   let cursor = cursorFactory.Invoke()
   let mutable started = false

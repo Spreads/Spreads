@@ -28,5 +28,7 @@ namespace Spreads.DataTypes
         {
             return *(Timestamp*)(void*)&dateTime;
         }
+
+        // TODO IConvertible and other standard interfaces of DateTime that fallback to DT implementation via conversion
     }
 }

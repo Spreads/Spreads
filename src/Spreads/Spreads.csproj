@@ -32,13 +32,15 @@
     <PackageReference Include="System.Buffers" Version="4.3.0" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.3.0" />
     <PackageReference Include="System.ValueTuple" Version="4.3.0" />
-    <PackageReference Include="Spreads.Collections" Version="0.8.0-*" />
+    <!--<PackageReference Include="Spreads.Collections" Version="0.8.0-*" />-->
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj" />
     <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
   </ItemGroup>
+
+ 
 
   <ItemGroup>
     <None Update="DataTypes\Symbol.tt">
