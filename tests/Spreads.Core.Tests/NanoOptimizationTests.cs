@@ -620,7 +620,7 @@ namespace Spreads.Core.Tests
             {
                 var handle = buffer.Buffer.Pin();
             });
-            Assert.False(TypeHelper<string>.IsBlittable);
+            Assert.False(TypeHelper<string>.IsPinnable);
             Assert.True(TypeHelper<string>.Size <= 0);
         }
 
@@ -633,8 +633,8 @@ namespace Spreads.Core.Tests
             pos = "asd";
         }
 
-        private static bool mutable = TypeHelper<string>.IsBlittable;
-        private static readonly bool ro = TypeHelper<string>.IsBlittable;
+        private static bool mutable = TypeHelper<string>.IsPinnable;
+        private static readonly bool ro = TypeHelper<string>.IsPinnable;
 
         [Test, Ignore]
         public unsafe void StaticROFieldIsOptimized()
@@ -679,7 +679,7 @@ namespace Spreads.Core.Tests
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        if (TypeHelper<string>.IsBlittable)
+                        if (TypeHelper<string>.IsPinnable)
                         {
                             sum += i;
                         }

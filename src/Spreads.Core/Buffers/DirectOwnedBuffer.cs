@@ -112,7 +112,7 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (TypeHelper<T>.IsBlittable)
+                if (TypeHelper<T>.IsPinnable)
                 {
                     return ref Unsafe.Add(ref Unsafe.AsRef<T>(_dataHandle.PinnedPointer), index);
                 }
@@ -325,7 +325,7 @@ namespace Spreads.Buffers
                 Interlocked.Increment(ref *_processCount);
             }
 
-            if (TypeHelper<T>.IsBlittable)
+            if (TypeHelper<T>.IsPinnable)
             {
                 _dataHandle = this.Buffer.Pin();
             }
@@ -346,7 +346,7 @@ namespace Spreads.Buffers
                 GC.SuppressFinalize(this);
             }
 
-            if (TypeHelper<T>.IsBlittable)
+            if (TypeHelper<T>.IsPinnable)
             {
                 _dataHandle.Free();
             }

@@ -5,15 +5,28 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Spreads.Serialization;
 
 namespace Spreads.DataTypes
 {
-    public struct Timestamp
+    /// <summary>
+    /// Blittable DateTime
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential, Size = 8)]
+    [Serialization(BlittableSize = 8)]
+    public unsafe struct Timestamp
     {
-        /// <summary>
-        /// Nanoseconds since UNIX epoch
-        /// </summary>
-        private long _nanoseconds; // long is enough for 584 years
+        private readonly long _value;
+
+        public static implicit operator DateTime(Timestamp timestamp)
+        {
+            return *(DateTime*)(void*)&timestamp;
+        }
+        public static implicit operator Timestamp(DateTime dateTime)
+        {
+            return *(Timestamp*)(void*)&dateTime;
+        }
     }
 }

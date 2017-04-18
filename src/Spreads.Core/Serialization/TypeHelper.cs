@@ -150,7 +150,10 @@ namespace Spreads.Serialization
         /// </summary>
         public static readonly int Size = InitChecked();
 
-        public static readonly bool IsBlittable = Size > 0 && typeof(T) != typeof(DateTime);
+        /// <summary>
+        /// True if an array T[] could be pinned in memory.
+        /// </summary>
+        public static readonly bool IsPinnable = Size > 0 && typeof(T) != typeof(DateTime);
 
         private static IBinaryConverter<T> _converterInstance;
         private static TypeParams _typeParams;
