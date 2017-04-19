@@ -171,6 +171,338 @@ namespace Spreads.Cursors
         }
     }
 
+
+    public struct SubtractOp<T> : IArithmeticOperation<T>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply(T v1, T v2)
+        {
+            if (typeof(T) == typeof(double))
+            {
+                return (T)(object)((double)(object)v1 - (double)(object)v2);
+            }
+
+            if (typeof(T) == typeof(float))
+            {
+                return (T)(object)((float)(object)v1 - (float)(object)v2);
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                return (T)(object)((int)(object)v1 - (int)(object)v2);
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                return (T)(object)((long)(object)v1 - (long)(object)v2);
+            }
+
+            if (typeof(T) == typeof(decimal))
+            {
+                return (T)(object)((decimal)(object)v1 - (decimal)(object)v2);
+            }
+
+            return ApplyDynamic(v1, v2);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private T ApplyDynamic(T v1, T v2)
+        {
+            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
+            return (T)((dynamic)v1 - (dynamic)v2);
+        }
+    }
+
+
+    public struct SubtractReverseOp<T> : IArithmeticOperation<T>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply(T v2, T v1) // reversed v1 and v2
+        {
+            if (typeof(T) == typeof(double))
+            {
+                return (T)(object)((double)(object)v1 - (double)(object)v2);
+            }
+
+            if (typeof(T) == typeof(float))
+            {
+                return (T)(object)((float)(object)v1 - (float)(object)v2);
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                return (T)(object)((int)(object)v1 - (int)(object)v2);
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                return (T)(object)((long)(object)v1 - (long)(object)v2);
+            }
+
+            if (typeof(T) == typeof(decimal))
+            {
+                return (T)(object)((decimal)(object)v1 - (decimal)(object)v2);
+            }
+
+            return ApplyDynamic(v1, v2);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private T ApplyDynamic(T v1, T v2)
+        {
+            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
+            return (T)((dynamic)v1 - (dynamic)v2);
+        }
+    }
+
+    public struct DivideOp<T> : IArithmeticOperation<T>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply(T v1, T v2)
+        {
+            if (typeof(T) == typeof(double))
+            {
+                return (T)(object)((double)(object)v1 / (double)(object)v2);
+            }
+
+            if (typeof(T) == typeof(float))
+            {
+                return (T)(object)((float)(object)v1 / (float)(object)v2);
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                return (T)(object)((int)(object)v1 / (int)(object)v2);
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                return (T)(object)((long)(object)v1 / (long)(object)v2);
+            }
+
+            if (typeof(T) == typeof(decimal))
+            {
+                return (T)(object)((decimal)(object)v1 / (decimal)(object)v2);
+            }
+
+            return ApplyDynamic(v1, v2);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private T ApplyDynamic(T v1, T v2)
+        {
+            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
+            return (T)((dynamic)v1 / (dynamic)v2);
+        }
+    }
+
+    public struct DivideReverseOp<T> : IArithmeticOperation<T>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply(T v2, T v1)
+        {
+            if (typeof(T) == typeof(double))
+            {
+                return (T)(object)((double)(object)v1 / (double)(object)v2);
+            }
+
+            if (typeof(T) == typeof(float))
+            {
+                return (T)(object)((float)(object)v1 / (float)(object)v2);
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                return (T)(object)((int)(object)v1 / (int)(object)v2);
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                return (T)(object)((long)(object)v1 / (long)(object)v2);
+            }
+
+            if (typeof(T) == typeof(decimal))
+            {
+                return (T)(object)((decimal)(object)v1 / (decimal)(object)v2);
+            }
+
+            return ApplyDynamic(v1, v2);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private T ApplyDynamic(T v1, T v2)
+        {
+            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
+            return (T)((dynamic)v1 / (dynamic)v2);
+        }
+    }
+
+    public struct ModuloOp<T> : IArithmeticOperation<T>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply(T v1, T v2)
+        {
+            if (typeof(T) == typeof(double))
+            {
+                return (T)(object)((double)(object)v1 % (double)(object)v2);
+            }
+
+            if (typeof(T) == typeof(float))
+            {
+                return (T)(object)((float)(object)v1 % (float)(object)v2);
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                return (T)(object)((int)(object)v1 % (int)(object)v2);
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                return (T)(object)((long)(object)v1 % (long)(object)v2);
+            }
+
+            if (typeof(T) == typeof(decimal))
+            {
+                return (T)(object)((decimal)(object)v1 % (decimal)(object)v2);
+            }
+
+            return ApplyDynamic(v1, v2);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private T ApplyDynamic(T v1, T v2)
+        {
+            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
+            return (T)((dynamic)v1 % (dynamic)v2);
+        }
+    }
+
+
+    public struct ModuloReverseOp<T> : IArithmeticOperation<T>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply(T v2, T v1)
+        {
+            if (typeof(T) == typeof(double))
+            {
+                return (T)(object)((double)(object)v1 % (double)(object)v2);
+            }
+
+            if (typeof(T) == typeof(float))
+            {
+                return (T)(object)((float)(object)v1 % (float)(object)v2);
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                return (T)(object)((int)(object)v1 % (int)(object)v2);
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                return (T)(object)((long)(object)v1 % (long)(object)v2);
+            }
+
+            if (typeof(T) == typeof(decimal))
+            {
+                return (T)(object)((decimal)(object)v1 % (decimal)(object)v2);
+            }
+
+            return ApplyDynamic(v1, v2);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private T ApplyDynamic(T v1, T v2)
+        {
+            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
+            return (T)((dynamic)v1 % (dynamic)v2);
+        }
+    }
+
+    public struct NegateOp<T> : IArithmeticOperation<T>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply(T v1, T v2)
+        {
+            if (typeof(T) == typeof(double))
+            {
+                return (T)(object)(-(double)(object)v1);
+            }
+
+            if (typeof(T) == typeof(float))
+            {
+                return (T)(object)(-(float)(object)v1);
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                return (T)(object)(-(int)(object)v1);
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                return (T)(object)(-(long)(object)v1);
+            }
+
+            if (typeof(T) == typeof(decimal))
+            {
+                return (T)(object)(-(decimal)(object)v1);
+            }
+
+            return ApplyDynamic(v1, v2);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private T ApplyDynamic(T v1, T v2)
+        {
+            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
+            return (T)(-(dynamic)v1);
+        }
+    }
+
+
+    public struct PlusOp<T> : IArithmeticOperation<T>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply(T v1, T v2)
+        {
+            if (typeof(T) == typeof(double))
+            {
+                return (T)(object)(+(double)(object)v1);
+            }
+
+            if (typeof(T) == typeof(float))
+            {
+                return (T)(object)(+(float)(object)v1);
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                return (T)(object)(+(int)(object)v1);
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                return (T)(object)(+(long)(object)v1);
+            }
+
+            if (typeof(T) == typeof(decimal))
+            {
+                return (T)(object)(+(decimal)(object)v1);
+            }
+
+            return ApplyDynamic(v1, v2);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private T ApplyDynamic(T v1, T v2)
+        {
+            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
+            return (T)(+(dynamic)v1);
+        }
+    }
+
     /// <summary>
     /// A series that applies an arithmetic operation to each value of its input series. Specialized for input cursor.
     /// </summary>
@@ -1040,83 +1372,83 @@ namespace Spreads.Cursors
         /// <summary>
         /// Add operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator +(ArithmeticSeries<TKey, TValue, TOp, TCursor> series, TValue constant)
+        public static ArithmeticSeries<TKey, TValue, AddOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator +(ArithmeticSeries<TKey, TValue, TOp, TCursor> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, ArithmeticOp.Add, constant);
+            return new ArithmeticSeries<TKey, TValue, AddOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
         }
 
         /// <summary>
         /// Add operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator +(TValue constant, ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
+        public static ArithmeticSeries<TKey, TValue, AddOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator +(TValue constant, ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
         {
             // Addition is commutative
-            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, ArithmeticOp.Add, constant);
+            return new ArithmeticSeries<TKey, TValue, AddOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
         }
 
         /// <summary>
         /// Negate operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator -(ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
+        public static ArithmeticSeries<TKey, TValue, NegateOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator -(ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
         {
-            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, ArithmeticOp.Negate, default(TValue));
+            return new ArithmeticSeries<TKey, TValue, NegateOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, default(TValue));
         }
 
         /// <summary>
         /// Unary plus operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator +(ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
+        public static ArithmeticSeries<TKey, TValue, PlusOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator +(ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
         {
-            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, ArithmeticOp.Plus, default(TValue));
+            return new ArithmeticSeries<TKey, TValue, PlusOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, default(TValue));
         }
 
         /// <summary>
         /// Subtract operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator -(ArithmeticSeries<TKey, TValue, TOp, TCursor> series, TValue constant)
+        public static ArithmeticSeries<TKey, TValue, SubtractOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator -(ArithmeticSeries<TKey, TValue, TOp, TCursor> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, ArithmeticOp.Subtract, constant);
+            return new ArithmeticSeries<TKey, TValue, SubtractOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
         }
 
         /// <summary>
         /// Subtract operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator -(TValue constant, ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
+        public static ArithmeticSeries<TKey, TValue, SubtractReverseOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator -(TValue constant, ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
         {
-            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, ArithmeticOp.SubtractFrom, constant);
+            return new ArithmeticSeries<TKey, TValue, SubtractReverseOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
         }
 
         /// <summary>
         /// Multiply operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator *(ArithmeticSeries<TKey, TValue, TOp, TCursor> series, TValue constant)
+        public static ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator *(ArithmeticSeries<TKey, TValue, TOp, TCursor> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, ArithmeticOp.Multiply, constant);
+            return new ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
         }
 
         /// <summary>
         /// Multiply operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator *(TValue constant, ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
+        public static ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator *(TValue constant, ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
         {
             // Multiplication is commutative
-            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, ArithmeticOp.Multiply, constant);
+            return new ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
         }
 
         /// <summary>
         /// Divide operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator /(ArithmeticSeries<TKey, TValue, TOp, TCursor> series, TValue constant)
+        public static ArithmeticSeries<TKey, TValue, DivideOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator /(ArithmeticSeries<TKey, TValue, TOp, TCursor> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, ArithmeticOp.Divide, constant);
+            return new ArithmeticSeries<TKey, TValue, DivideOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
         }
 
         /// <summary>
         /// Divide operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator /(TValue constant, ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
+        public static ArithmeticSeries<TKey, TValue, DivideReverseOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator /(TValue constant, ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
         {
-            return new ArithmeticSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, ArithmeticOp.DivideFrom, constant);
+            return new ArithmeticSeries<TKey, TValue, DivideReverseOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
         }
 
         /// <summary>

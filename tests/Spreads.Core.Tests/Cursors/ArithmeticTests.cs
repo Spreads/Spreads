@@ -35,7 +35,7 @@ namespace Spreads.Core.Tests.Cursors
         {
             var sm = new SortedMap<int, double>();
             var count = 10000000;
-            sm.AddLast(0, 0);
+            //sm.AddLast(0, 0);
             for (int i = 2; i < count; i++)
             {
                 sm.AddLast(i, i);
@@ -45,8 +45,11 @@ namespace Spreads.Core.Tests.Cursors
             {
                 var sw = new Stopwatch();
                 sw.Restart();
-                var map = new ArithmeticSeries<int, double, SortedMapCursor<int, double>>(sm, ArithmeticOp.Multiply, 2);
-                var map2 = new ArithmeticSeries<int, double, ArithmeticSeries<int, double, SortedMapCursor<int, double>>>(map, ArithmeticOp.Multiply, 2);
+                var map =
+                    new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(sm, 2.0);
+                var map2 =
+                    new ArithmeticSeries<int, double, MultiplyOp<double>, ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>>(
+                        map, 2.0);
                 var sum = 0.0;
                 foreach (var kvp in map2)
                 {
@@ -91,6 +94,19 @@ namespace Spreads.Core.Tests.Cursors
             for (int r = 0; r < 10; r++)
             {
                 var sw = new Stopwatch();
+
+                {
+                    sw.Restart();
+
+                    var sum = 0.0;
+                    foreach (var kvp in sm)
+                    {
+                        sum += kvp.Value;
+                    }
+                    sw.Stop();
+                    Assert.IsTrue(sum > 0);
+                    Console.WriteLine($"SortedMap {sw.MOPS(count)}");
+                }
 
                 {
                     sw.Restart();

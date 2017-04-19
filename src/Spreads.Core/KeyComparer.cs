@@ -158,6 +158,13 @@ namespace Spreads
                 return (T)(object)(checked((uint)((int)value1 + diff)));
             }
 
+            ThrowNotSupported();
+            return default(T);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void ThrowNotSupported()
+        {
             throw new NotSupportedException();
         }
 
@@ -271,7 +278,8 @@ namespace Spreads
                 return checked((long)(x1) - (long)y1);
             }
 
-            throw new NotSupportedException("KeyComparer should not be used for hash code calculatons.");
+            ThrowNotSupported();
+            return 0L;
         }
 
         /// <inheritdoc />
@@ -330,7 +338,7 @@ namespace Spreads
         /// </summary>
         public int GetHashCode(T obj)
         {
-            throw new NotSupportedException();
+            throw new NotSupportedException("KeyComparer should not be used for hash code calculatons.");
         }
     }
 

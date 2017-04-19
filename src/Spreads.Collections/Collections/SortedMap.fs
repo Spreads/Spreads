@@ -148,7 +148,7 @@ type SortedMap<'K,'V>
             if couldHaveRegularKeys then 
               this.keys <- regularKeys
               BufferPool<_>.Return(tempKeys, true) |> ignore
-              rkLast <- this.rkKeyAtIndex (this.size - 1)
+              rkLast <- this.rkKeyAtIndex2 (this.size - 1)
             else
               this.keys <- tempKeys
           else
@@ -203,7 +203,7 @@ type SortedMap<'K,'V>
   //#region Private & Internal members
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member private this.rkGetStep() =
+  member inline private this.rkGetStep() =
     #if DEBUG
     Trace.Assert(this.size > 1)
     #endif
@@ -213,14 +213,19 @@ type SortedMap<'K,'V>
       rkStep_
     else raise (InvalidOperationException("Cannot calculate regular keys step for a single element in a map or an empty map"))
   
-  
+  // temp solution, cannot call inlined method from do in ctor
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member private this.rkKeyAtIndex (idx:int) : 'K =
+  member private this.rkKeyAtIndex2 (idx:int) : 'K =
     let step = this.rkGetStep()
     diffCalc.Add(this.keys.[0], (int64 idx) * step)
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member private this.rkIndexOfKey (key:'K) : int =
+  member inline private this.rkKeyAtIndex (idx:int) : 'K =
+    let step = this.rkGetStep()
+    diffCalc.Add(this.keys.[0], (int64 idx) * step)
+
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  member inline private this.rkIndexOfKey (key:'K) : int =
     #if DEBUG
     Trace.Assert(this.size > 1)
     #endif
@@ -283,36 +288,36 @@ type SortedMap<'K,'V>
         false, 0, Unchecked.defaultof<'K[]>
 
   // need this for the SortedMapCursor
-  member private this.SetRkLast(rkl) = rkLast <- rkl
+  member inline private this.SetRkLast(rkl) = rkLast <- rkl
   member private this.Clone() = new SortedMap<'K,'V>(Some(this :> IDictionary<'K,'V>), None, Some(comparer))
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member internal this.CheckNull(key) =
+  member inline internal this.CheckNull(key) =
     if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
     
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member internal this.GetKeyByIndexUnchecked(index) =
+  member inline internal this.GetKeyByIndexUnchecked(index) =
     if couldHaveRegularKeys && this.size > 1 then this.rkKeyAtIndex index
     else this.keys.[index]
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member internal this.GetKeyByIndex(index) =
+  member inline internal this.GetKeyByIndex(index) =
     if uint32 index >= uint32 this.size then raise (ArgumentOutOfRangeException("index"))
     this.GetKeyByIndexUnchecked(index)
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member private this.GetPairByIndexUnchecked(index) =
+  member inline private this.GetPairByIndexUnchecked(index) =
     if couldHaveRegularKeys && this.size > 1 then
       Trace.Assert(uint32 index < uint32 this.size, "Index must be checked before calling GetPairByIndexUnchecked")
       KeyValuePair(this.rkKeyAtIndex index, this.values.[index])
     else KeyValuePair(this.keys.[index], this.values.[index]) 
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member private this.CompareToFirst (k:'K) =
+  member inline private this.CompareToFirst (k:'K) =
     comparer.Compare(k, this.keys.[0]) // keys.[0] is always the first key even for regular keys
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
-  member private this.CompareToLast (k:'K) =
+  member inline private this.CompareToLast (k:'K) =
     if couldHaveRegularKeys && this.size > 1 then
       #if DEBUG
       Trace.Assert(not <| Unchecked.equals rkLast Unchecked.defaultof<'K>)
@@ -329,7 +334,7 @@ type SortedMap<'K,'V>
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   //[<ReliabilityContractAttribute(Consistency.MayCorruptInstance, Cer.MayFail)>]
-  member private this.Insert(index:int, k, v) =
+  member inline private this.Insert(index:int, k, v) =
     if this.isReadOnly then invalidOp "SortedMap is not mutable"
     // key is always new, checks are before this method
     // already inside a lock statement in a caller method if synchronized
