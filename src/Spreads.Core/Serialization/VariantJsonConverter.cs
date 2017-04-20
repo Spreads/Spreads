@@ -51,7 +51,7 @@ namespace Spreads.Serialization
 
             if (typeCode != TypeEnum.None)
             {
-                var obj = Variant.ToObject(variant);
+                var obj = variant.ToObject();
                 var t = JToken.FromObject(obj, serializer);
                 t.WriteTo(writer);
             }

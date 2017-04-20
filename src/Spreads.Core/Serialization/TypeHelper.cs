@@ -300,7 +300,7 @@ namespace Spreads.Serialization
                 _hasBinaryConverter = true;
                 return _converterInstance.IsFixedSize ? _converterInstance.Size : 0;
             }
-            //byte[] should work as any other primitive array
+            //byte[] should work like any other primitive array
             if (typeof(T) == typeof(byte[]))
             {
                 _converterInstance = (IBinaryConverter<T>)(new ByteArrayBinaryConverter());

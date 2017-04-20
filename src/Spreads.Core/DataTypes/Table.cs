@@ -62,7 +62,7 @@ namespace Spreads.DataTypes
                 if (row == -1) return null;
                 var column = GetColumnIndex(Variant.FromObject(columnKey));
                 if (column == -1) return null;
-                return Variant.ToObject(Data[row, column]);
+                return Data[row, column].ToObject();
             }
         }
 
@@ -74,7 +74,7 @@ namespace Spreads.DataTypes
                 if (row == -1) return null;
                 var column = GetColumnIndex(columnKey);
                 if (column == -1) return null;
-                return Variant.ToObject(Data[row, column]);
+                return Data[row, column].ToObject();
             }
         }
 

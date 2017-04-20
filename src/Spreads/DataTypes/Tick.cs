@@ -10,6 +10,17 @@ using System.Runtime.Serialization;
 namespace Spreads.DataTypes
 {
     /// <summary>
+    /// ITick interface.
+    /// </summary>
+    public interface ITick : IQuote
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        DateTime DateTimeUtc { get; }
+    }
+
+    /// <summary>
     /// A blittable structure to store ticks.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 24)]
@@ -26,12 +37,17 @@ namespace Spreads.DataTypes
         [DataMember(Order = 1, Name = "DateTime")]
         public DateTime DateTimeUtc => new DateTime(_dateTimeUtcTicks, DateTimeKind.Unspecified);
 
+        /// <inheritdoc />
         [DataMember(Order = 2)]
         public Price Price => _quote.Price;
 
+        /// <inheritdoc />
         [DataMember(Order = 3)]
         public int Volume => _quote.Volume;
 
+        /// <summary>
+        /// Tick constructor.
+        /// </summary>
         public Tick(DateTime dateTimeUtc, Price price, int volume)
         {
             // TODO (docs) need to document this behavior
@@ -40,24 +56,29 @@ namespace Spreads.DataTypes
             _quote = new Quote(price, volume);
         }
 
+        /// <inheritdoc />
         public bool Equals(Tick other)
         {
             return _dateTimeUtcTicks == other._dateTimeUtcTicks && _quote.Price == other.Price && _quote.Volume == other.Volume;
         }
 
+        /// <inheritdoc />
         public override bool Equals(object obj)
         {
-            try
+            if (obj is Tick tick)
             {
-                var otherQuote = (Tick)obj;
-                return this.Equals(otherQuote);
+                return Equals(tick);
             }
-            catch (InvalidCastException)
-            {
-                return false;
-            }
+            return false;
         }
 
+        /// <inheritdoc />
+        public override int GetHashCode()
+        {
+            throw new NotSupportedException();
+        }
+
+        /// <inheritdoc />
         public Tick GetDelta(Tick next)
         {
             var newTick = new Tick();
@@ -67,6 +88,7 @@ namespace Spreads.DataTypes
             return newTick;
         }
 
+        /// <inheritdoc />
         public Tick AddDelta(Tick delta)
         {
             var newTick = new Tick();

@@ -18,23 +18,23 @@ namespace Spreads.DataTypes
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 4)]
     [Serialization(BlittableSize = 4)]
-    public struct IdentityId : IEquatable<IdentityId>, IConvertible
+    public struct Id : IEquatable<Id>, IConvertible
     {
         /// <summary>
         /// Invalid/zero/none identity id.
         /// </summary>
-        public static IdentityId None = new IdentityId() { _value = 0 };
+        public static Id None = new Id() { _value = 0 };
 
         private int _value;
 
-        private IdentityId(int value)
+        private Id(int value)
         {
             if (value <= 0) throw new ArgumentException("IdentityId must be positive");
             _value = value;
         }
 
         /// <inheritdoc />
-        public bool Equals(IdentityId other)
+        public bool Equals(Id other)
         {
             return _value.Equals(other._value);
         }
@@ -149,24 +149,24 @@ namespace Spreads.DataTypes
         /// Explicit cast from int to IdentityId.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static explicit operator IdentityId(int value)
+        public static explicit operator Id(int value)
         {
-            return new IdentityId(value);
+            return new Id(value);
         }
 
         /// <summary>
         /// Explicit cast from IdentityId to int.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static explicit operator int(IdentityId identityId)
+        public static explicit operator int(Id id)
         {
-            return identityId._value;
+            return id._value;
         }
 
         /// <inheritdoc />
         public override bool Equals(object obj)
         {
-            if (obj is IdentityId IdentityId)
+            if (obj is Id IdentityId)
             {
                 return this.Equals(IdentityId);
             }
@@ -185,7 +185,7 @@ namespace Spreads.DataTypes
         /// <summary>
         /// Equals operator.
         /// </summary>
-        public static bool operator ==(IdentityId id1, IdentityId id2)
+        public static bool operator ==(Id id1, Id id2)
         {
             return id1.Equals(id2);
         }
@@ -193,7 +193,7 @@ namespace Spreads.DataTypes
         /// <summary>
         /// Not equals operator.
         /// </summary>
-        public static bool operator !=(IdentityId id1, IdentityId id2)
+        public static bool operator !=(Id id1, Id id2)
         {
             return !id1.Equals(id2);
         }

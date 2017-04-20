@@ -12,7 +12,7 @@ namespace Spreads.DataTypes
     internal class VariantHelper<T>
     {
         // ReSharper disable once StaticMemberInGenericType
-        public static TypeEnum TypeEnum = GetTypeEnum();
+        public static readonly TypeEnum TypeEnum = GetTypeEnum();
 
         /* https://github.com/dotnet/corefx/blob/master/src/System.Numerics.Vectors/src/System/Numerics/Vector.cs
         * PATTERN:
@@ -48,6 +48,10 @@ namespace Spreads.DataTypes
             //if (typeof(T) == typeof(Money)) return TypeEnum.Money;
             if (typeof(T) == typeof(DateTime)) return TypeEnum.DateTime;
             if (typeof(T) == typeof(Timestamp)) return TypeEnum.Timestamp;
+
+            if (typeof(T) == typeof(Id)) return TypeEnum.Id;
+            if (typeof(T) == typeof(Symbol)) return TypeEnum.Symbol;
+            if (typeof(T) == typeof(UUID)) return TypeEnum.UUID;
 
             if (typeof(T) == typeof(Variant)) return TypeEnum.Variant;
             if (typeof(T) == typeof(string)) return TypeEnum.String;
@@ -127,6 +131,10 @@ namespace Spreads.DataTypes
             if (ty == typeof(DateTime)) return TypeEnum.DateTime;
             if (ty == typeof(Timestamp)) return TypeEnum.Timestamp;
 
+            if (ty == typeof(Id)) return TypeEnum.Id;
+            if (ty == typeof(Symbol)) return TypeEnum.Symbol;
+            if (ty == typeof(UUID)) return TypeEnum.UUID;
+
             if (ty == typeof(Variant)) return TypeEnum.Variant;
             if (ty == typeof(string)) return TypeEnum.String;
             if (ty == typeof(ErrorCode)) return TypeEnum.ErrorCode;
@@ -159,64 +167,76 @@ namespace Spreads.DataTypes
                 switch (typeEnum)
                 {
                     case TypeEnum.Bool:
-                    return typeof(bool);
+                        return typeof(bool);
 
                     case TypeEnum.Int8:
-                    return typeof(sbyte);
+                        return typeof(sbyte);
 
                     case TypeEnum.Int16:
-                    return typeof(short);
+                        return typeof(short);
 
                     case TypeEnum.Int32:
-                    return typeof(int);
+                        return typeof(int);
 
                     case TypeEnum.Int64:
-                    return typeof(long);
+                        return typeof(long);
 
                     case TypeEnum.UInt8:
-                    return typeof(byte);
+                        return typeof(byte);
 
                     case TypeEnum.UInt16:
-                    return typeof(ushort);
+                        return typeof(ushort);
 
                     case TypeEnum.UInt32:
-                    return typeof(uint);
+                        return typeof(uint);
 
                     case TypeEnum.UInt64:
-                    return typeof(ulong);
+                        return typeof(ulong);
 
                     case TypeEnum.Float32:
-                    return typeof(float);
+                        return typeof(float);
 
                     case TypeEnum.Float64:
-                    return typeof(double);
+                        return typeof(double);
 
                     case TypeEnum.Decimal:
-                    return typeof(decimal);
+                        return typeof(decimal);
 
                     case TypeEnum.Price:
-                    return typeof(Price);
+                        return typeof(Price);
 
                     case TypeEnum.Money:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     //return typeof(Money);
 
                     case TypeEnum.DateTime:
-                    return typeof(DateTime);
+                        return typeof(DateTime);
 
                     case TypeEnum.Timestamp:
-                    return typeof(Timestamp);
+                        return typeof(Timestamp);
+
+                    case TypeEnum.Id:
+                        return typeof(Id);
+
+                    case TypeEnum.Symbol:
+                        return typeof(Symbol);
+
+                    case TypeEnum.UUID:
+                        return typeof(UUID);
+
+                    case TypeEnum.ErrorCode:
+                        return typeof(ErrorCode);
 
                     case TypeEnum.Date:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     case TypeEnum.Time:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     case TypeEnum.Complex32:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     case TypeEnum.Complex64:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     default:
-                    throw new ArgumentOutOfRangeException();
+                        throw new ArgumentOutOfRangeException();
                 }
             }
 
@@ -242,10 +262,10 @@ namespace Spreads.DataTypes
                 return typeof(string);
             }
 
-            if (typeEnum == TypeEnum.ErrorCode)
-            {
-                return typeof(Exception);
-            }
+            //if (typeEnum == TypeEnum.ErrorCode)
+            //{
+            //    return typeof(Exception);
+            //}
 
             throw new NotImplementedException();
         }

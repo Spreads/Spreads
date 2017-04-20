@@ -202,70 +202,70 @@ namespace Spreads.DataTypes
                 switch (objTypeEnum)
                 {
                     case TypeEnum.None:
-                    throw new InvalidOperationException("TypeEnum.None is possible only for nulls");
+                        throw new InvalidOperationException("TypeEnum.None is possible only for nulls");
                     case TypeEnum.Int8:
-                    return Create((sbyte)value);
+                        return Create((sbyte)value);
 
                     case TypeEnum.Int16:
-                    return Create((short)value);
+                        return Create((short)value);
 
                     case TypeEnum.Int32:
-                    return Create((int)value);
+                        return Create((int)value);
 
                     case TypeEnum.Int64:
-                    return Create((long)value);
+                        return Create((long)value);
 
                     case TypeEnum.UInt8:
-                    return Create((byte)value);
+                        return Create((byte)value);
 
                     case TypeEnum.UInt16:
-                    return Create((ushort)value);
+                        return Create((ushort)value);
 
                     case TypeEnum.UInt32:
-                    return Create((uint)value);
+                        return Create((uint)value);
 
                     case TypeEnum.UInt64:
-                    return Create((ulong)value);
+                        return Create((ulong)value);
 
                     case TypeEnum.Float32:
-                    return Create((float)value);
+                        return Create((float)value);
 
                     case TypeEnum.Float64:
-                    return Create((double)value);
+                        return Create((double)value);
 
                     case TypeEnum.Decimal:
-                    return Create((decimal)value);
+                        return Create((decimal)value);
 
                     case TypeEnum.Price:
-                    return Create((Price)value);
+                        return Create((Price)value);
 
                     case TypeEnum.Money:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     //return Create((Money)value);
 
                     case TypeEnum.DateTime:
-                    return Create((DateTime)value);
+                        return Create((DateTime)value);
 
                     case TypeEnum.Timestamp:
-                    return Create((Timestamp)value);
+                        return Create((Timestamp)value);
 
                     case TypeEnum.Date:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     case TypeEnum.Time:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     case TypeEnum.Complex32:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     case TypeEnum.Complex64:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
 
                     case TypeEnum.Bool:
-                    return Create((bool)value);
+                        return Create((bool)value);
 
                     case TypeEnum.ErrorCode:
-                    return Create((ErrorCode)value);
+                        return Create((ErrorCode)value);
 
                     default:
-                    throw new ArgumentOutOfRangeException();
+                        throw new ArgumentOutOfRangeException();
                 }
             }
 
@@ -325,87 +325,87 @@ namespace Spreads.DataTypes
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static object ToObject(Variant value)
+        public object ToObject()
         {
-            if (value.TypeEnum == TypeEnum.None)
+            if (TypeEnum == TypeEnum.None)
             {
                 return null;
             }
             // unwrap potentially boxed known types
-            var typeEnum = value.TypeEnum;
+            var typeEnum = TypeEnum;
             if ((int)typeEnum < KnownSmallTypesLimit)
             {
                 switch (typeEnum)
                 {
                     case TypeEnum.None:
-                    throw new InvalidOperationException("TypeEnum.None is possible only for nulls");
+                        throw new InvalidOperationException("TypeEnum.None is possible only for nulls");
                     case TypeEnum.Int8:
-                    return value.Get<sbyte>();
+                        return Get<sbyte>();
 
                     case TypeEnum.Int16:
-                    return value.Get<short>();
+                        return Get<short>();
 
                     case TypeEnum.Int32:
-                    return value.Get<int>();
+                        return Get<int>();
 
                     case TypeEnum.Int64:
-                    return value.Get<long>();
+                        return Get<long>();
 
                     case TypeEnum.UInt8:
-                    return value.Get<byte>();
+                        return Get<byte>();
 
                     case TypeEnum.UInt16:
-                    return value.Get<ushort>();
+                        return Get<ushort>();
 
                     case TypeEnum.UInt32:
-                    return value.Get<uint>();
+                        return Get<uint>();
 
                     case TypeEnum.UInt64:
-                    return value.Get<ulong>();
+                        return Get<ulong>();
 
                     case TypeEnum.Float32:
-                    return value.Get<float>();
+                        return Get<float>();
 
                     case TypeEnum.Float64:
-                    return value.Get<double>();
+                        return Get<double>();
 
                     case TypeEnum.Decimal:
-                    return value.Get<decimal>();
+                        return Get<decimal>();
 
                     case TypeEnum.Price:
-                    return value.Get<Price>();
+                        return Get<Price>();
 
                     case TypeEnum.Money:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     //return value.Get<Money>();
 
                     case TypeEnum.DateTime:
-                    return value.Get<DateTime>();
+                        return Get<DateTime>();
 
                     case TypeEnum.Timestamp:
-                    return value.Get<Timestamp>();
+                        return Get<Timestamp>();
 
                     case TypeEnum.Date:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     case TypeEnum.Time:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     case TypeEnum.Complex32:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     case TypeEnum.Complex64:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     case TypeEnum.Bool:
-                    return value.Get<bool>();
+                        return Get<bool>();
 
                     case TypeEnum.ErrorCode:
-                    return value.Get<ErrorCode>();
+                        return Get<ErrorCode>();
 
                     default:
-                    throw new ArgumentOutOfRangeException();
+                        throw new ArgumentOutOfRangeException();
                 }
             }
 
             // all other types are stored directly as objects
-            if (value._object != null) return value._object;
+            if (_object != null) return _object;
 
             throw new NotImplementedException();
         }
@@ -575,7 +575,7 @@ namespace Spreads.DataTypes
             var teOfT = VariantHelper<T>.TypeEnum;
             if ((int)teOfT < KnownSmallTypesLimit)
             {
-                var te = this._boxedTypeEnum.TypeEnum;
+                var te = _boxedTypeEnum.TypeEnum;
                 if (te != teOfT)
                 {
                     throw new InvalidCastException("Variant type doesn't match typeof(T)");
@@ -594,7 +594,7 @@ namespace Spreads.DataTypes
             var teOfT = VariantHelper<T>.TypeEnum;
             if ((int)teOfT < KnownSmallTypesLimit)
             {
-                var te = this._boxedTypeEnum.TypeEnum;
+                var te = _boxedTypeEnum.TypeEnum;
                 if (te != teOfT)
                 {
                     throw new InvalidCastException("Variant type doesn't match typeof(T)");
@@ -664,7 +664,7 @@ namespace Spreads.DataTypes
                 // Inline;
                 if (index == 0)
                 {
-                    return this.UnsafeGetInilned<T>();
+                    return UnsafeGetInilned<T>();
                 }
                 throw new IndexOutOfRangeException();
             }
@@ -711,7 +711,7 @@ namespace Spreads.DataTypes
                 // Inline;
                 if (index == 0)
                 {
-                    this.UnsafeSetInlined<T>(value);
+                    UnsafeSetInlined(value);
                     return;
                 }
                 throw new IndexOutOfRangeException();
@@ -737,7 +737,7 @@ namespace Spreads.DataTypes
             {
                 // Inline;
                 var teOfT = VariantHelper<T>.TypeEnum;
-                var te = this._boxedTypeEnum.TypeEnum;
+                var te = _boxedTypeEnum.TypeEnum;
                 if (te != teOfT)
                 {
                     throw new InvalidCastException("Variant type doesn't match typeof(T)");
@@ -832,7 +832,7 @@ namespace Spreads.DataTypes
                         throw new InvalidCastException($"{_header.ElementTypeEnum} - {value._header.TypeEnum}");
                     }
                     Array array = (Array)_object;
-                    var val = ToObject(value);
+                    var val = value.ToObject();
                     array.SetValue(val, index);
                     return;
                 }
@@ -869,10 +869,10 @@ namespace Spreads.DataTypes
 
         public bool Equals(Variant other)
         {
-            if (this.TypeEnum != other.TypeEnum) return false;
+            if (TypeEnum != other.TypeEnum) return false;
             // None equals None without value checks
-            if (this.TypeEnum == TypeEnum.None) return true;
-            if ((int)this.TypeEnum < KnownSmallTypesLimit)
+            if (TypeEnum == TypeEnum.None) return true;
+            if ((int)TypeEnum < KnownSmallTypesLimit)
             {
                 fixed (byte* thisPtr = _data)
                 {
@@ -880,7 +880,7 @@ namespace Spreads.DataTypes
                     return (*(ulong*)thisPtr == *(ulong*)otherPtr) && (*(ulong*)(thisPtr + 8) == *(ulong*)(otherPtr + 8));
                 }
             }
-            var thisAsObject = this.ToObject();
+            var thisAsObject = ToObject();
             var otherAsObject = other.ToObject();
             return Equals(thisAsObject, otherAsObject);
         }
@@ -895,8 +895,8 @@ namespace Spreads.DataTypes
 
         public override int GetHashCode()
         {
-            if (this.TypeEnum == TypeEnum.None) return 0;
-            if ((int)this.TypeEnum < KnownSmallTypesLimit)
+            if (TypeEnum == TypeEnum.None) return 0;
+            if ((int)TypeEnum < KnownSmallTypesLimit)
             {
                 // ReSharper disable once NonReadonlyMemberInGetHashCode
                 fixed (byte* dataPtr = _data)
@@ -912,7 +912,7 @@ namespace Spreads.DataTypes
                     }
                 }
             }
-            return this.ToObject().GetHashCode();
+            return ToObject().GetHashCode();
         }
 
         public static bool operator ==(Variant first, Variant second)

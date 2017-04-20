@@ -68,6 +68,10 @@ namespace Spreads.DataTypes
 
         Bool = 20,
 
+        Id = 21,
+        Symbol = 22,
+        UUID = 23,
+
         ErrorCode = 63,
 
         // ----------------------------------------------------------------
@@ -130,9 +134,9 @@ namespace Spreads.DataTypes
 
             // Symbols
             1, // 20
-            0, //
-            0,
-            0,
+            4, // Id
+            16,
+            16,
             0,
             0, // 25
             0,

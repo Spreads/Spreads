@@ -52,13 +52,13 @@ namespace Spreads.Core.Tests
             span[0] = 43;
             Assert.AreEqual(43.0, v2.Get<double>());
 
-            var x = 44.0.AsVariant();
+            var x = Variant.Create(44.0);
             Assert.AreEqual(44.0, x.Get<double>());
             Assert.Throws<InvalidCastException>(() =>
             {
-                v2[0] = 44.AsVariant(); // no implicit conversion
+                v2[0] = Variant.Create(44); // no implicit conversion
             });
-            v2[0] = 44.0.AsVariant();
+            v2[0] = Variant.Create(44.0);
             var v3 = v2[0];
             Assert.AreEqual(44.0, v3.Get<double>());
         }
@@ -94,10 +94,10 @@ namespace Spreads.Core.Tests
             Assert.AreEqual(42, array[0]);
             Assert.AreEqual(43, array[1]);
 
-            var x = 44.0.AsVariant();
+            var x = Variant.Create(44.0);
             Assert.AreEqual(TypeEnum.Float64, x.TypeEnum);
             v2[0] = x;
-            v2[1] = 45.0.AsVariant();
+            v2[1] = Variant.Create(45.0);
             Assert.AreEqual(44, array[0]);
             Assert.AreEqual(45, array[1]);
         }
