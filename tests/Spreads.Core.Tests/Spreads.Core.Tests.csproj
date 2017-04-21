@@ -146,6 +146,7 @@
     <Compile Include="ColumnsTests.cs" />
     <Compile Include="Cursors\ArithmeticTests.cs" />
     <Compile Include="Cursors\MapValuesTest.cs" />
+    <Compile Include="Cursors\RangeTests.cs" />
     <Compile Include="DataTypes\PriceTests.cs" />
     <Compile Include="DataTypes\TypeFlattenerTests.cs" />
     <Compile Include="Enumerators\TimeSliceTests.cs" />

@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.DataTypes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -10,7 +11,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.DataTypes;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads.Cursors
@@ -78,12 +78,20 @@ namespace Spreads.Cursors
         Plus
     }
 
-    public interface IArithmeticOperation<T>
+    public interface IOp<T1, T2, TResult>
     {
-        T Apply(T first, T second);
+        TResult Apply(T1 first, T2 second);
     }
 
-    public struct AddOp<T> : IArithmeticOperation<T>
+    public interface IOp<T, TResult> : IOp<T, T, TResult>
+    {
+    }
+
+    public interface IOp<T> : IOp<T, T>
+    {
+    }
+
+    public struct AddOp<T> : IOp<T>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v1, T v2)
@@ -129,8 +137,7 @@ namespace Spreads.Cursors
         }
     }
 
-
-    public struct MultiplyOp<T> : IArithmeticOperation<T>
+    public struct MultiplyOp<T> : IOp<T>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v1, T v2)
@@ -171,8 +178,7 @@ namespace Spreads.Cursors
         }
     }
 
-
-    public struct SubtractOp<T> : IArithmeticOperation<T>
+    public struct SubtractOp<T> : IOp<T>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v1, T v2)
@@ -213,8 +219,7 @@ namespace Spreads.Cursors
         }
     }
 
-
-    public struct SubtractReverseOp<T> : IArithmeticOperation<T>
+    public struct SubtractReverseOp<T> : IOp<T>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v2, T v1) // reversed v1 and v2
@@ -255,7 +260,7 @@ namespace Spreads.Cursors
         }
     }
 
-    public struct DivideOp<T> : IArithmeticOperation<T>
+    public struct DivideOp<T> : IOp<T>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v1, T v2)
@@ -296,7 +301,7 @@ namespace Spreads.Cursors
         }
     }
 
-    public struct DivideReverseOp<T> : IArithmeticOperation<T>
+    public struct DivideReverseOp<T> : IOp<T>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v2, T v1)
@@ -337,7 +342,7 @@ namespace Spreads.Cursors
         }
     }
 
-    public struct ModuloOp<T> : IArithmeticOperation<T>
+    public struct ModuloOp<T> : IOp<T>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v1, T v2)
@@ -378,8 +383,7 @@ namespace Spreads.Cursors
         }
     }
 
-
-    public struct ModuloReverseOp<T> : IArithmeticOperation<T>
+    public struct ModuloReverseOp<T> : IOp<T>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v2, T v1)
@@ -420,7 +424,7 @@ namespace Spreads.Cursors
         }
     }
 
-    public struct NegateOp<T> : IArithmeticOperation<T>
+    public struct NegateOp<T> : IOp<T>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v1, T v2)
@@ -461,8 +465,7 @@ namespace Spreads.Cursors
         }
     }
 
-
-    public struct PlusOp<T> : IArithmeticOperation<T>
+    public struct PlusOp<T> : IOp<T>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v1, T v2)
@@ -872,7 +875,7 @@ namespace Spreads.Cursors
         /// <inheritdoc />
         public override ArithmeticSeries<TKey, TValue, TCursor> Clone()
         {
-            var clone = Create();
+            var clone = Initialize();
             Debug.Assert(clone.State == CursorState.Initialized);
             if (State == CursorState.Moving)
             {
@@ -882,13 +885,13 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public override ArithmeticSeries<TKey, TValue, TCursor> Create()
+        public override ArithmeticSeries<TKey, TValue, TCursor> Initialize()
         {
-            if (State == CursorState.None && ThreadId == Environment.CurrentManagedThreadId)
-            {
-                State = CursorState.Initialized;
-                return this;
-            }
+            //if (State == CursorState.None && ThreadId == Environment.CurrentManagedThreadId)
+            //{
+            //    State = CursorState.Initialized;
+            //    return this;
+            //}
             var clone = new ArithmeticSeries<TKey, TValue, TCursor>(_series, _op, _value);
             clone.State = CursorState.Initialized;
             return clone;
@@ -912,7 +915,7 @@ namespace Spreads.Cursors
         /// </summary>
         public new ArithmeticSeries<TKey, TValue, TCursor> GetEnumerator()
         {
-            var clone = Create();
+            var clone = Initialize();
             return clone;
         }
 
@@ -1131,6 +1134,229 @@ namespace Spreads.Cursors
         #endregion Unary Operators
     }
 
+
+    internal sealed class UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor> :
+        CursorSeries<TKey, TResult, UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor>>,
+        ICursor<TKey, TResult> //, ICanMapValues<TKey, TValue>
+        where TCursor : ICursor<TKey, TValue>
+        where TOp : struct, IOp<TValue, TValue2, TResult>
+    {
+        internal readonly TValue2 _value;
+        internal readonly ISeries<TKey, TValue> _series;
+
+        // NB must be mutable, could be a struct
+        // ReSharper disable once FieldCanBeMadeReadOnly.Local
+        internal TCursor _cursor;
+
+        /// <summary>
+        /// MapValuesSeries constructor.
+        /// </summary>
+        internal UnaryOpSeries(ISeries<TKey, TValue> series, TValue2 value)
+        {
+            _series = series;
+            _cursor = GetCursor<TKey, TValue, TCursor>(_series);
+            _value = value;
+        }
+
+        /// <inheritdoc />
+        public KeyValuePair<TKey, TResult> Current
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return new KeyValuePair<TKey, TResult>(CurrentKey, CurrentValue); }
+        }
+
+        /// <inheritdoc />
+        public IReadOnlySeries<TKey, TResult> CurrentBatch
+        {
+            get
+            {
+                var batch = _cursor.CurrentBatch;
+                // TODO when batching is proper implemented (nested batches) reuse an instance for this
+                var mapped = new UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor>(batch, _value);
+                return mapped;
+            }
+        }
+
+        /// <inheritdoc />
+        public TKey CurrentKey
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.CurrentKey; }
+        }
+
+        /// <inheritdoc />
+        public TResult CurrentValue
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return default(TOp).Apply(_cursor.CurrentValue, _value);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowNotSupported()
+        {
+            throw new NotSupportedException();
+        }
+
+        /// <inheritdoc />
+        public override KeyComparer<TKey> Comparer => _cursor.Comparer;
+
+        object IEnumerator.Current => Current;
+
+        /// <inheritdoc />
+        public bool IsContinuous => _cursor.IsContinuous;
+
+        /// <inheritdoc />
+        public override bool IsIndexed => _series.IsIndexed;
+
+        /// <inheritdoc />
+        public override bool IsReadOnly => _series.IsReadOnly;
+
+        /// <inheritdoc />
+        public override Task<bool> Updated => _cursor.Source.Updated;
+
+        /// <inheritdoc />
+        public override UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor> Clone()
+        {
+            var clone = Initialize();
+            Debug.Assert(clone.State == CursorState.Initialized);
+            if (State == CursorState.Moving)
+            {
+                clone.MoveAt(CurrentKey, Lookup.EQ);
+            }
+            return clone;
+        }
+
+        /// <inheritdoc />
+        public override UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor> Initialize()
+        {
+            if (State == CursorState.None && ThreadId == Environment.CurrentManagedThreadId)
+            {
+                State = CursorState.Initialized;
+                return this;
+            }
+            var clone = new UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor>(_series, _value);
+            clone.State = CursorState.Initialized;
+            return clone;
+        }
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            _cursor.Dispose();
+            State = CursorState.None;
+        }
+
+        /// <inheritdoc />
+        public override TResult GetAt(int idx)
+        {
+            return default(TOp).Apply(_cursor.Source.GetAt(idx), _value);
+        }
+
+        /// <summary>
+        /// Get specialized enumerator.
+        /// </summary>
+        public new UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor> GetEnumerator()
+        {
+            var clone = Initialize();
+            return clone;
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryGetValue(TKey key, out TResult value)
+        {
+            if (_cursor.TryGetValue(key, out var v))
+            {
+                value = default(TOp).Apply(v, _value);
+                return true;
+            }
+            value = default(TResult);
+            return false;
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MoveAt(TKey key, Lookup direction)
+        {
+            var moved = _cursor.MoveAt(key, direction);
+            // keep navigating state unchanged
+            if (moved && State == CursorState.Initialized)
+            {
+                State = CursorState.Moving;
+            }
+            return moved;
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MoveFirst()
+        {
+            var moved = _cursor.MoveFirst();
+            // keep navigating state unchanged
+            if (moved && State == CursorState.Initialized)
+            {
+                State = CursorState.Moving;
+            }
+            return moved;
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MoveLast()
+        {
+            var moved = _cursor.MoveLast();
+            // keep navigating state unchanged
+            if (moved && State == CursorState.Initialized)
+            {
+                State = CursorState.Moving;
+            }
+            return moved;
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MoveNext()
+        {
+            if ((int)State < (int)CursorState.Moving) return MoveFirst();
+            return _cursor.MoveNext();
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        {
+            var moved = await _cursor.MoveNextBatch(cancellationToken);
+            if (moved)
+            {
+                State = CursorState.BatchMoving;
+            }
+            return moved;
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MovePrevious()
+        {
+            if ((int)State < (int)CursorState.Moving) return MoveLast();
+            return _cursor.MovePrevious();
+        }
+
+        /// <inheritdoc />
+        public void Reset()
+        {
+            _cursor.Reset();
+            State = CursorState.Initialized;
+        }
+
+        ICursor<TKey, TResult> ICursor<TKey, TResult>.Clone()
+        {
+            return Clone();
+        }
+    }
+
     /// <summary>
     /// A series that applies an arithmetic operation to each value of its input series. Specialized for input cursor.
     /// </summary>
@@ -1138,7 +1364,7 @@ namespace Spreads.Cursors
         CursorSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>,
         ICursor<TKey, TValue> //, ICanMapValues<TKey, TValue>
         where TCursor : ICursor<TKey, TValue>
-        where TOp : IArithmeticOperation<TValue>
+        where TOp : struct, IOp<TValue>
     {
         internal readonly TValue _value;
         internal readonly ISeries<TKey, TValue> _series;
@@ -1219,7 +1445,7 @@ namespace Spreads.Cursors
         /// <inheritdoc />
         public override ArithmeticSeries<TKey, TValue, TOp, TCursor> Clone()
         {
-            var clone = Create();
+            var clone = Initialize();
             Debug.Assert(clone.State == CursorState.Initialized);
             if (State == CursorState.Moving)
             {
@@ -1229,13 +1455,13 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public override ArithmeticSeries<TKey, TValue, TOp, TCursor> Create()
+        public override ArithmeticSeries<TKey, TValue, TOp, TCursor> Initialize()
         {
-            if (State == CursorState.None && ThreadId == Environment.CurrentManagedThreadId)
-            {
-                State = CursorState.Initialized;
-                return this;
-            }
+            //if (State == CursorState.None && ThreadId == Environment.CurrentManagedThreadId)
+            //{
+            //    State = CursorState.Initialized;
+            //    return this;
+            //}
             var clone = new ArithmeticSeries<TKey, TValue, TOp, TCursor>(_series, _value);
             clone.State = CursorState.Initialized;
             return clone;
@@ -1259,7 +1485,7 @@ namespace Spreads.Cursors
         /// </summary>
         public new ArithmeticSeries<TKey, TValue, TOp, TCursor> GetEnumerator()
         {
-            var clone = Create();
+            var clone = Initialize();
             return clone;
         }
 

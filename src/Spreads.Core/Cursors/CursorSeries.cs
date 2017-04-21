@@ -30,7 +30,7 @@ namespace Spreads.Cursors
                 if (_navigationCursor == null)
                 {
                     var initialState = State;
-                    _navigationCursor = Create();
+                    _navigationCursor = Initialize();
 
                     // this.Clone() will return `this` as 'TCursor if requested from the same thread and the state was 0
                     // but it must set state to 1 after that
@@ -42,7 +42,7 @@ namespace Spreads.Cursors
                             "CursorSeries.Clone should return itself when state was zero and the method was called from the owner thread.");
 #if DEBUG
                         // Enforce this while in DEBUG, but it is actuallu `should` rather than `must`
-                        throw new ApplicationException("CursorSeries.Clone must return itself when state was zero and the method was called from the owner thread.");
+                        //throw new ApplicationException("CursorSeries.Clone must return itself when state was zero and the method was called from the owner thread.");
 #endif
                     }
 
@@ -64,14 +64,14 @@ namespace Spreads.Cursors
 
         public new TCursor GetEnumerator()
         {
-            var clone = Create();
+            var clone = Initialize();
             return clone;
         }
 
         /// <inheritdoc />
         public override ICursor<TKey, TValue> GetCursor()
         {
-            return new BaseCursorAsync<TKey, TValue, TCursor>(Create);
+            return new BaseCursorAsync<TKey, TValue, TCursor>(Initialize);
         }
 
         /// <inheritdoc />
@@ -212,9 +212,9 @@ namespace Spreads.Cursors
         }
 
         /// <summary>
-        /// Create an uninitialized copy of TCursor
+        /// Create an initialized copy of TCursor.
         /// </summary>
-        public abstract TCursor Create();
+        public abstract TCursor Initialize();
 
         /// <summary>
         /// Create a copy of TCursor initialized to its position.

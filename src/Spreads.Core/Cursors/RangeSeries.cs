@@ -138,7 +138,7 @@ namespace Spreads.Cursors
         /// <inheritdoc />
         public override RangeSeries<TKey, TValue, TCursor> Clone()
         {
-            var clone = Create();
+            var clone = Initialize();
             Debug.Assert(clone.State == CursorState.Initialized);
             if (State == CursorState.Moving)
             {
@@ -148,13 +148,13 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public override RangeSeries<TKey, TValue, TCursor> Create()
+        public override RangeSeries<TKey, TValue, TCursor> Initialize()
         {
-            if (State == CursorState.None && ThreadId == Environment.CurrentManagedThreadId)
-            {
-                State = CursorState.Initialized;
-                return this;
-            }
+            //if (State == CursorState.None && ThreadId == Environment.CurrentManagedThreadId)
+            //{
+            //    State = CursorState.Initialized;
+            //    return this;
+            //}
             var clone = new RangeSeries<TKey, TValue, TCursor>(_series, _startKey, _endKey, _startInclusive, _endInclusive);
             clone.State = CursorState.Initialized;
             return clone;
