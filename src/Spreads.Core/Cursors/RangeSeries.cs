@@ -51,8 +51,6 @@ namespace Spreads.Cursors
 
             _series = series;
 
-            _cursor = GetCursor<TKey, TValue, TCursor>(_series);
-
             _startKey = startKey;
             _endKey = endKey;
             _startInclusive = startInclusive;
@@ -150,14 +148,17 @@ namespace Spreads.Cursors
         /// <inheritdoc />
         public override RangeSeries<TKey, TValue, TCursor> Initialize()
         {
-            //if (State == CursorState.None && ThreadId == Environment.CurrentManagedThreadId)
-            //{
-            //    State = CursorState.Initialized;
-            //    return this;
-            //}
+            if (State == CursorState.None && ThreadId == Environment.CurrentManagedThreadId)
+            {
+                _cursor = GetCursor<TKey, TValue, TCursor>(_series);
+                State = CursorState.Initialized;
+                return this;
+            }
             var clone = new RangeSeries<TKey, TValue, TCursor>(_series, _startKey, _endKey, _startInclusive, _endInclusive);
-            clone.State = CursorState.Initialized;
-            return clone;
+            // NB recursive call but it should always hit the if case above
+            var initialized = clone.Initialize();
+            Debug.Assert(ReferenceEquals(clone, initialized));
+            return initialized;
         }
 
         /// <inheritdoc />

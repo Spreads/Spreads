@@ -12,25 +12,25 @@ namespace Spreads
         None = 0,
 
         /// <summary>
-        /// Initialized via GetCursor() call of ISeries and is ready to move.
+        /// A cursor is initialized via GetCursor() call of ISeries and is ready to move.
         /// The cursor is nowhere with this state.
         /// </summary>
         Initialized = 1,
 
         /// <summary>
-        /// Started moving and is at valid position.
-        /// A false move from this state must restore cursor to its position before the move.
+        /// A cursor has started moving and is at valid position.
+        /// A false move from this state must restore the cursor to its position before the move.
         /// </summary>
         Moving = 2,
 
         /// <summary>
-        /// Started batch moving and is at valid position.
-        /// A false move from this state must restore cursor to its position before the move.
+        /// A cursor has started batch moving and is at a valid position.
+        /// A false move from this state must restore the cursor to its position before the move.
         /// </summary>
         BatchMoving = 3,
 
         /// <summary>
-        /// Cursor is used for IReadOnlySeries implementation.
+        /// A cursor is used for IReadOnlySeries implementation.
         /// </summary>
         Navigating = 255
     }

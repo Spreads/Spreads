@@ -23,8 +23,8 @@ namespace Spreads.Core.Tests.Cursors
             {
                 { 1, 1 }
             };
-            var map = new ArithmeticSeries<int, double, SortedMapCursor<int, double>>(sm, ArithmeticOp.Multiply, 2);
-            var map1 = new ArithmeticSeries<int, double, ArithmeticSeries<int, double, SortedMapCursor<int, double>>>(map, ArithmeticOp.Multiply, 2);
+            var map = new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(sm, 2);
+            var map1 = new ArithmeticSeries<int, double, MultiplyOp<double>, ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>>(map, 2);
 
             Assert.AreEqual(2, map.First.Value);
             Assert.AreEqual(4, map1.First.Value);

@@ -56,6 +56,11 @@ namespace Spreads
             throw GetNotImplementedException();
         }
 
+        public static void ThrowNotSupportedException()
+        {
+            throw GetNotSupportedException();
+        }
+
         /////////////////////////////////////////////////////////////////////////////
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -110,6 +115,12 @@ namespace Spreads
         private static NotImplementedException GetNotImplementedException()
         {
             return new NotImplementedException();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static NotSupportedException GetNotSupportedException()
+        {
+            return new NotSupportedException();
         }
 
         private static string GetArgumentName(ExceptionArgument argument)

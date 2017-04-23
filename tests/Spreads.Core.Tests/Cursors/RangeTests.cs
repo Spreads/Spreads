@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Spreads.Collections;
 using System;
 using System.Linq;
+using System.Runtime;
 
 namespace Spreads.Core.Tests.Cursors
 {
@@ -61,6 +62,10 @@ namespace Spreads.Core.Tests.Cursors
             Assert.True(range1.Any());
 
             Console.WriteLine("Any is OK");
+
+            Assert.True(range1.First.Value > 0);
+
+            Console.WriteLine("Navigation is OK");
         }
     }
 }

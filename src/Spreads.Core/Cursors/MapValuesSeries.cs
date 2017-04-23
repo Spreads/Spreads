@@ -39,7 +39,6 @@ namespace Spreads.Cursors
         internal MapValuesSeries(ISeries<TKey, TValue> series, Func<TValue, TResult> selector)
         {
             _series = series;
-            _cursor = GetCursor<TKey, TValue, TCursor>(_series);
             _selector = selector;
         }
 
@@ -108,14 +107,17 @@ namespace Spreads.Cursors
         /// <inheritdoc />
         public override MapValuesSeries<TKey, TValue, TResult, TCursor> Initialize()
         {
-            //if (State == CursorState.None && ThreadId == Environment.CurrentManagedThreadId)
-            //{
-            //    State = CursorState.Initialized;
-            //    return this;
-            //}
+            if (State == CursorState.None && ThreadId == Environment.CurrentManagedThreadId)
+            {
+                _cursor = GetCursor<TKey, TValue, TCursor>(_series);
+                State = CursorState.Initialized;
+                return this;
+            }
             var clone = new MapValuesSeries<TKey, TValue, TResult, TCursor>(_series, _selector);
-            clone.State = CursorState.Initialized;
-            return clone;
+            // NB recursive call but it should always hit the if case above
+            var initialized = clone.Initialize();
+            Debug.Assert(ReferenceEquals(clone, initialized));
+            return initialized;
         }
 
         /// <inheritdoc />

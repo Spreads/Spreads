@@ -212,7 +212,9 @@ namespace Spreads.Cursors
         }
 
         /// <summary>
-        /// Create an initialized copy of TCursor.
+        /// Create an initialized copy of TCursor. It must be safe to call this method on
+        /// a previously disposed CursorSeries instances, e.g. in the case of re-using a series
+        /// as a cursor or in the pooling case.
         /// </summary>
         public abstract TCursor Initialize();
 
@@ -223,7 +225,6 @@ namespace Spreads.Cursors
 
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken) => throw new NotSupportedException("Async MoveNext should use BaseCursor via CursorSeries");
-
 
         internal static TCursor1 GetCursor<TKey1, TValue1, TCursor1>(ISeries<TKey1, TValue1> series) where TCursor1 : ICursor<TKey1, TValue1>
         {
@@ -250,7 +251,8 @@ namespace Spreads.Cursors
                 }
                 else
                 {
-                    throw new NotImplementedException();
+                    ThrowHelper.ThrowNotImplementedException();
+                    return default(TCursor1);
                 }
             }
             return cursor;

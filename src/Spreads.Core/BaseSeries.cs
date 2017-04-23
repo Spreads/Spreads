@@ -174,33 +174,33 @@ namespace Spreads
         /// <summary>
         /// Negate operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, TCursor> operator -(BaseSeries<TKey, TValue, TCursor> series)
+        public static ArithmeticSeries<TKey, TValue, NegateOp<TValue>, TCursor> operator -(BaseSeries<TKey, TValue, TCursor> series)
         {
-            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Negate, default(TValue));
+            return new ArithmeticSeries<TKey, TValue, NegateOp<TValue>, TCursor>(series, default(TValue));
         }
 
         /// <summary>
         /// Unary plus operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, TCursor> operator +(BaseSeries<TKey, TValue, TCursor> series)
+        public static ArithmeticSeries<TKey, TValue, PlusOp<TValue>, TCursor> operator +(BaseSeries<TKey, TValue, TCursor> series)
         {
-            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Plus, default(TValue));
+            return new ArithmeticSeries<TKey, TValue, PlusOp<TValue>, TCursor>(series, default(TValue));
         }
 
         /// <summary>
         /// Subtract operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, TCursor> operator -(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
+        public static ArithmeticSeries<TKey, TValue, SubtractOp<TValue>, TCursor> operator -(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Subtract, constant);
+            return new ArithmeticSeries<TKey, TValue, SubtractOp<TValue>, TCursor>(series, constant);
         }
 
         /// <summary>
         /// Subtract operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, TCursor> operator -(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
+        public static ArithmeticSeries<TKey, TValue, SubtractReverseOp<TValue>, TCursor> operator -(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
         {
-            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.SubtractFrom, constant);
+            return new ArithmeticSeries<TKey, TValue, SubtractReverseOp<TValue>, TCursor>(series, constant);
         }
 
         /// <summary>
@@ -223,33 +223,33 @@ namespace Spreads
         /// <summary>
         /// Divide operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, TCursor> operator /(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
+        public static ArithmeticSeries<TKey, TValue, DivideOp<TValue>, TCursor> operator /(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Divide, constant);
+            return new ArithmeticSeries<TKey, TValue, DivideOp<TValue>, TCursor>(series, constant);
         }
 
         /// <summary>
         /// Divide operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, TCursor> operator /(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
+        public static ArithmeticSeries<TKey, TValue, DivideReverseOp<TValue>, TCursor> operator /(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
         {
-            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.DivideFrom, constant);
+            return new ArithmeticSeries<TKey, TValue, DivideReverseOp<TValue>, TCursor>(series, constant);
         }
 
         /// <summary>
         /// Modulo operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, TCursor> operator %(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
+        public static ArithmeticSeries<TKey, TValue, ModuloOp<TValue>, TCursor> operator %(BaseSeries<TKey, TValue, TCursor> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.Modulo, constant);
+            return new ArithmeticSeries<TKey, TValue, ModuloOp<TValue>, TCursor>(series, constant);
         }
 
         /// <summary>
         /// Modulo operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, TCursor> operator %(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
+        public static ArithmeticSeries<TKey, TValue, ModuloReverseOp<TValue>, TCursor> operator %(TValue constant, BaseSeries<TKey, TValue, TCursor> series)
         {
-            return new ArithmeticSeries<TKey, TValue, TCursor>(series, ArithmeticOp.ModuloFrom, constant);
+            return new ArithmeticSeries<TKey, TValue, ModuloReverseOp<TValue>, TCursor>(series, constant);
         }
 
         // UNARY LOGIC
