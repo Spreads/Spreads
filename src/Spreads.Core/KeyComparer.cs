@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Spreads
@@ -16,6 +17,7 @@ namespace Spreads
     public sealed class KeyComparer<T> : IKeyComparer<T>, IEqualityComparer<T>
     {
         private static readonly KeyComparer<T> _default = new KeyComparer<T>();
+        private static readonly bool IsIComparable = typeof(IComparable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
         private readonly IComparer<T> _comparer;
         private readonly IKeyComparer<T> _keyComparer;
 
@@ -178,52 +180,12 @@ namespace Spreads
                 return _comparer.Compare(x, y);
             }
 
-            if (typeof(T) == typeof(DateTime))
+            // NB all primitive types are IComparable, all custom types could be easily made such
+            // This optimization using Spreads.Unsafe package works for any type that implements 
+            // the interface and is as fast as `typeof(T) == typeof(...)` approach.
+            if (IsIComparable)
             {
-                // TODO (low) unsafe impl with bitwise sign
-                var x1 = (DateTime)(object)(x);
-                var y1 = (DateTime)(object)(y);
-                return x1.CompareTo(y1);
-            }
-
-            if (typeof(T) == typeof(long))
-            {
-                // TODO (low) unsafe impl with bitwise sign
-                var x1 = (long)(object)(x);
-                var y1 = (long)(object)(y);
-
-                // Need to use compare because subtraction will wrap
-                // to positive for very large neg numbers, etc.
-                if (x1 < y1) return -1;
-                if (x1 > y1) return 1;
-                return 0;
-            }
-
-            if (typeof(T) == typeof(ulong))
-            {
-                var x1 = (ulong)(object)(x);
-                var y1 = (ulong)(object)(y);
-
-                if (x1 < y1) return -1;
-                if (x1 > y1) return 1;
-                return 0;
-            }
-
-            if (typeof(T) == typeof(int))
-            {
-                var x1 = (int)(object)(x);
-                var y1 = (int)(object)(y);
-                return x1 - y1;
-            }
-
-            if (typeof(T) == typeof(uint))
-            {
-                var x1 = (uint)(object)(x);
-                var y1 = (uint)(object)(y);
-
-                if (x1 < y1) return -1;
-                if (x1 > y1) return 1;
-                return 0;
+                return Unsafe.CompareToConstrained(x, y);
             }
 
             return Comparer<T>.Default.Compare(x, y);

@@ -61,14 +61,24 @@ namespace Spreads.Core.Tests.Collections
                 Console.WriteLine($"Key comparer: {sw.ElapsedMilliseconds}");
                 Assert.True(sum > 0);
 
+                //sum = 0L;
+                //sw.Restart();
+                //for (int i = 0; i < count; i++)
+                //{
+                //    sum += cc2.Compare(i, i - 1);
+                //}
+                //sw.Stop();
+                //Console.WriteLine($"Key comparer 2: {sw.ElapsedMilliseconds}");
+                //Assert.True(sum > 0);
+
                 sum = 0L;
                 sw.Restart();
                 for (int i = 0; i < count; i++)
                 {
-                    sum += cc2.Compare(i, i - 1);
+                    sum += Unsafe.CompareToConstrained(i, i - 1);
                 }
                 sw.Stop();
-                Console.WriteLine($"Key comparer 2: {sw.ElapsedMilliseconds}");
+                Console.WriteLine($"Unsafe comparer: {sw.ElapsedMilliseconds}");
                 Assert.True(sum > 0);
 
                 //sum = 0L;

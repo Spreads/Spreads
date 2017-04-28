@@ -37,7 +37,7 @@ let description = "Spreads" //"Series and Panels for Reactive and Exploratory An
 let authors = [ "Victor Baybekov" ]
 
 // Tags for your project (for NuGet package)
-let tags = "Spreads F# data streaming real-time analysis streams time series reactive"
+let tags = "Spreads data streaming real-time analysis streams time series reactive"
 
 // File system information 
 let solutionFile  = "Spreads.sln"
@@ -67,7 +67,7 @@ Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 // Build a NuGet package
 
 Target "NuGet" (fun _ ->
-
+    let version = "0.8.1"
     let packageName = project + "." + "Utils"
     NuGet (fun p ->
         { p with
@@ -75,7 +75,23 @@ Target "NuGet" (fun _ ->
             Project = packageName
             Summary = packageName // "TODO"
             Description = packageName // "TODO"
-            Version = "0.8.1"
+            Version = version
+            ReleaseNotes = ""
+            Tags = tags
+            OutputPath = "C:/tools/LocalNuget/"
+            AccessKey = getBuildParamOrDefault "nugetkey" ""
+            Publish = hasBuildParam "nugetkey"
+            Dependencies = [  ]
+               })
+        ("nuget/" + packageName + ".nuspec")
+    let packageName = project + "." + "Unsafe"
+    NuGet (fun p ->
+        { p with
+            Authors = authors
+            Project = packageName
+            Summary = packageName // "TODO"
+            Description = packageName // "TODO"
+            Version = version
             ReleaseNotes = ""
             Tags = tags
             OutputPath = "C:/tools/LocalNuget/"

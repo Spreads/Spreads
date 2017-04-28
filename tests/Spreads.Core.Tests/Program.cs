@@ -18,7 +18,7 @@ namespace Spreads.Core.Tests
         {
             for (int i = 0; i < 10; i++)
             {
-                (new ArithmeticTests()).CouldMapValuesBenchmarkArithmeticVsMapCursor();
+                (new KeyComparerTests()).ComparerInterfaceAndCachedConstrainedComparer();
             }
 
             Console.ReadLine();
