@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Runtime.CompilerServices;
 using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Enumerators;
 using Spreads.Core.Tests.Collections;
@@ -10,6 +11,7 @@ using Spreads.Core.Tests.Cursors;
 
 namespace Spreads.Core.Tests
 {
+    
     internal class Program
     {
         private static void Main(string[] args)
