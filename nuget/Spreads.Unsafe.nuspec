@@ -5,8 +5,8 @@
     <version>@build.number@</version>
     <authors>@authors@</authors>
     <owners>@authors@</owners>
-    <licenseUrl>http://github.com/Spreads/Spreads.Unsafe/blob/master/LICENSE.txt</licenseUrl>
-    <projectUrl>https://github.com/Spreads/Spread.Unsafes</projectUrl>
+    <licenseUrl>http://github.com/Spreads/Unsafe/blob/master/LICENSE.txt</licenseUrl>
+    <projectUrl>https://github.com/Spreads/Unsafe</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <summary>@summary@</summary>

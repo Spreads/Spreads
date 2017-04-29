@@ -200,4 +200,6 @@ docs/content/release-notes.md
 !lib/msvcrt/x64/*.zip
 !lib/*/*/x64/
 
+!lib/Spreads.Unsafe/*.dll
+
 project.lock.json

@@ -21,6 +21,7 @@ namespace Spreads.Core.Tests
                 (new FastDictionaryTests()).CompareSCGAndFastDictionaryWithInts();
             }
 
+            Console.WriteLine("Press enter to exit...");
             Console.ReadLine();
         }
     }
