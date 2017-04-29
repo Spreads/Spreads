@@ -18,12 +18,14 @@ namespace Spreads.Core.Tests.Collections
         public unsafe void CompareSCGAndFastDictionaryWithInts()
         {
             var d = new Dictionary<int, int>();
-            var fd = new FastDictionary<int, int>();
+            var constDic = new Spreads.Collections.Generic.Experimental.FastDictionary<int, int>();
+            var kcDic = new FastDictionary<int, int>();
 
             for (int i = 0; i < 1000; i++)
             {
                 d.Add(i, i);
-                fd.Add(i, i);
+                constDic.Add(i, i);
+                kcDic.Add(i, i);
             }
 
             const int count = 100000;
@@ -52,16 +54,29 @@ namespace Spreads.Core.Tests.Collections
                 {
                     for (int j = 0; j < 1000; j++)
                     {
-                        sum1 += fd[j];
+                        sum1 += constDic[j];
                     }
                 }
                 sw.Stop();
-                Console.WriteLine($"FastDictionary {sw.ElapsedMilliseconds}");
+                Console.WriteLine($"Constrained Dictionary {sw.ElapsedMilliseconds}");
                 Assert.True(sum > 0);
                 Assert.AreEqual(sum, sum1);
+
+                var sum2 = 0L;
+                sw.Restart();
+                for (int i = 0; i < count; i++)
+                {
+                    for (int j = 0; j < 1000; j++)
+                    {
+                        sum2 += kcDic[j];
+                    }
+                }
+                sw.Stop();
+                Console.WriteLine($"KeyComparer Dictionary {sw.ElapsedMilliseconds}");
+                Assert.True(sum > 0);
+                Assert.AreEqual(sum, sum2);
             }
         }
-
 
         [Test, Ignore]
         public unsafe void CompareSCGAndFastDictionaryWithSymbol()

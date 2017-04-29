@@ -247,6 +247,7 @@ namespace Spreads
         /// <inheritdoc />
         public bool Equals(T x, T y)
         {
+
             if (_comparer != null)
             {
                 return _comparer.Compare(x, y) == 0;

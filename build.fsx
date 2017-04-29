@@ -67,7 +67,6 @@ Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 // Build a NuGet package
 
 Target "NuGet" (fun _ ->
-    let version = "0.8.1"
     let packageName = project + "." + "Utils"
     NuGet (fun p ->
         { p with
@@ -75,7 +74,7 @@ Target "NuGet" (fun _ ->
             Project = packageName
             Summary = packageName // "TODO"
             Description = packageName // "TODO"
-            Version = version
+            Version = "0.8.1"
             ReleaseNotes = ""
             Tags = tags
             OutputPath = "C:/tools/LocalNuget/"
@@ -91,7 +90,7 @@ Target "NuGet" (fun _ ->
             Project = packageName
             Summary = packageName // "TODO"
             Description = packageName // "TODO"
-            Version = version
+            Version = "0.8.3"
             ReleaseNotes = ""
             Tags = tags
             OutputPath = "C:/tools/LocalNuget/"
