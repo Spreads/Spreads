@@ -3,8 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Buffers;
+using Spreads.Serialization;
 using System;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Spreads.DataTypes
@@ -19,31 +22,27 @@ namespace Spreads.DataTypes
     // Then we could store a 8-byte pointer instead of 16-byte symbol (or even an int and have another dictionary). Many tradeoffs...
     // Also see String.Intern method
 
-
-    // TODO there are WIP changes that was accidentally commited
-
-    [DebuggerDisplay("{AsString}")]
+    /// <summary>
+    /// A struct to store up to 16 chars.
+    /// </summary>
+    [DebuggerDisplay("{ToString()}")]
+    [StructLayout(LayoutKind.Sequential, Size = Symbol.Size)]
+    [Serialization(BlittableSize = Symbol.Size)]
     public unsafe struct Symbol : IEquatable<Symbol>
     {
         private const int Size = 16;
         private fixed byte Bytes[Size];
 
-        [ThreadStatic]
-        private static byte[] _buffer1;
-
-        private static byte[] Buffer1 => _buffer1 ?? (_buffer1 = new byte[16]);
-
-        [ThreadStatic]
-        private static byte[] _buffer2;
-
-        private static byte[] Buffer2 => _buffer1 ?? (_buffer2 = new byte[16]);
-
+        /// <summary>
+        /// Symbol constructor.
+        /// </summary>
+        /// <param name="symbol">A string with byte length less or equal to 16.</param>
         public Symbol(string symbol)
         {
             var byteCount = Encoding.UTF8.GetByteCount(symbol);
             if (byteCount > Size)
             {
-                throw new ArgumentOutOfRangeException(nameof(symbol), "Symbol length is too large");
+                ThrowArgumentOutOfRangeException(nameof(symbol));
             }
             fixed (char* charPtr = symbol)
             fixed (byte* ptr = Bytes)
@@ -52,37 +51,33 @@ namespace Spreads.DataTypes
             }
         }
 
-        public string AsString => ToString();
-
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol other)
         {
-            fixed (byte* thisPtr = Bytes)
-            {
-                for (int i = 0; i < Size; i++)
-                {
-                    if (*(byte*)(thisPtr + i) != *(byte*)(other.Bytes + i)) return false;
-                }
-            }
-            return true;
+            var ptr = Unsafe.AsPointer(ref this);
+            return *(long*)(ptr) == *(long*)(other.Bytes) && *(long*)((byte*)ptr + 8) == *(long*)(other.Bytes + 8);
         }
 
+        /// <inheritdoc />
         public override string ToString()
         {
             var buffer = BufferPool.StaticBuffer.Buffer;
             var len = 0;
-            fixed (byte* thisPtr = Bytes)
+
+            var ptr = (byte*)Unsafe.AsPointer(ref this);
+            for (int i = 0; i < Size; i++)
             {
-                for (int i = 0; i < Size; i++)
+                var b = *(ptr + i);
+                if (b == 0)
                 {
-                    var b = *(byte*)(thisPtr + i);
-                    if (b == 0)
-                    {
-                        break;
-                    }
-                    buffer.Span[i] = b;
-                    len = i + 1;
+                    break;
                 }
+                var span = buffer.Span;
+                span[i] = b;
+                len = i + 1;
             }
+
             // TODO use CoreFxLab new encoding features
             if (buffer.TryGetArray(out var segment))
             {
@@ -90,77 +85,62 @@ namespace Spreads.DataTypes
             }
             else
             {
-                throw new ApplicationException();
+                ThrowApplicationException();
+                return String.Empty;
             }
         }
 
+        /// <inheritdoc />
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj)) return false;
             return obj is Symbol && Equals((Symbol)obj);
         }
 
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override int GetHashCode()
         {
-            fixed (byte* ptr = Bytes)
-            {
-                unchecked
-                {
-                    const int p = 16777619;
-                    int hash = (int)2166136261;
-
-                    for (int i = 0; i < Size; i++)
-                    {
-                        var b = *(ptr + i);
-                        if (b == 0) break;
-                        hash = (hash ^ b) * p;
-                    }
-
-                    hash += hash << 13;
-                    hash ^= hash >> 7;
-                    hash += hash << 3;
-                    hash ^= hash >> 17;
-                    hash += hash << 5;
-                    return hash;
-                }
-            }
+            var ptr = Unsafe.AsPointer(ref this);
+            return *(int*)ptr;
         }
 
+        /// <summary>
+        /// Equals operator.
+        /// </summary>
         public static bool operator ==(Symbol x, Symbol y)
         {
             return x.Equals(y);
         }
 
+        /// <summary>
+        /// Not equals operator.
+        /// </summary>
         public static bool operator !=(Symbol x, Symbol y)
         {
             return !x.Equals(y);
         }
 
-        //void Main(string[] args)
-        //{
-        //    string source = "Hello World!";
-        //    using (MD5 md5Hash = MD5.Create())
-        //    {
-        //        int* block = stackalloc int[100];
+        /// <summary>
+        /// Get Symbol as bytes Span.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Span<byte> AsSpan()
+        {
+            var ptr = Unsafe.AsPointer(ref this);
+            return new Span<byte>(ptr, Size);
+        }
 
-        //        byte[] data = md5Hash.TransformBlock(,,,).ComputeHash(Bytes);
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void ThrowArgumentOutOfRangeException(string argumentName)
+        {
+            throw new ArgumentOutOfRangeException(argumentName, "Symbol length is too large");
+        }
 
-        //        string hash = GetMd5Hash(md5Hash, source);
-
-        //        Console.WriteLine("The MD5 hash of " + source + " is: " + hash + ".");
-
-        //        Console.WriteLine("Verifying the hash...");
-
-        //        if (VerifyMd5Hash(md5Hash, source, hash))
-        //        {
-        //            Console.WriteLine("The hashes are the same.");
-        //        }
-        //        else
-        //        {
-        //            Console.WriteLine("The hashes are not same.");
-        //        }
-        //    }
-
-        // }
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void ThrowApplicationException()
+        {
+            throw new ApplicationException();
+        }
     }
 }

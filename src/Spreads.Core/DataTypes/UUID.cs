@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spreads.Utils;
 
@@ -34,6 +35,7 @@ namespace Spreads
             }
         }
 
+        [Obsolete("Use AsSpan() method")]
         public byte[] ToBytes()
         {
             var bytes = new byte[16];
@@ -43,6 +45,13 @@ namespace Spreads
                 *(ulong*)(ptr + 8) = _second;
             }
             return bytes;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Span<byte> AsSpan()
+        {
+            var ptr = Unsafe.AsPointer(ref this);
+            return new Span<byte>(ptr, 16);
         }
 
         public UUID(Guid guid) : this(guid.ToByteArray())

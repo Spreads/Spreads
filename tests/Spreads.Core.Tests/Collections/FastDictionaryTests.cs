@@ -71,7 +71,7 @@ namespace Spreads.Core.Tests.Collections
                         }
                     }
                 }
-                Assert.True(sum > 0);
+                Assert.True(sum2 > 0);
                 Assert.AreEqual(sum, sum2);
 
             }
@@ -80,7 +80,7 @@ namespace Spreads.Core.Tests.Collections
         }
 
         [Test, Ignore]
-        public unsafe void CompareSCGAndFastDictionaryWithSymbol()
+        public void CompareSCGAndFastDictionaryWithSymbol()
         {
             var d = new Dictionary<Symbol, int>();
             var fd = new FastDictionary<Symbol, int>();
@@ -95,37 +95,38 @@ namespace Spreads.Core.Tests.Collections
 
             const int count = 10000;
 
-            var sw = new Stopwatch();
-
             for (int r = 0; r < 10; r++)
             {
                 var sum = 0L;
-                sw.Restart();
-                for (int i = 0; i < count; i++)
+                using (Benchmark.Run("Dictionary", count * 1000))
                 {
-                    for (int j = 0; j < 1000; j++)
+                    for (int i = 0; i < count; i++)
                     {
-                        sum += d[symbols[j]];
+                        for (int j = 0; j < 1000; j++)
+                        {
+                            sum += d[symbols[j]];
+                        }
                     }
                 }
-                sw.Stop();
-                Console.WriteLine($"Dictionary {sw.ElapsedMilliseconds}");
 
                 Assert.True(sum > 0);
 
-                sum = 0L;
-                sw.Restart();
-                for (int i = 0; i < count; i++)
+                var sum1 = 0L;
+                using (Benchmark.Run("FastDictionary", count * 1000))
                 {
-                    for (int j = 0; j < 1000; j++)
+                    for (int i = 0; i < count; i++)
                     {
-                        sum += fd[symbols[j]];
+                        for (int j = 0; j < 1000; j++)
+                        {
+                            sum1 += fd[symbols[j]];
+                        }
                     }
                 }
-                sw.Stop();
-                Console.WriteLine($"FastDictionary {sw.ElapsedMilliseconds}");
                 Assert.True(sum > 0);
+
+                Assert.AreEqual(sum, sum1);
             }
+            Benchmark.Dump();
         }
     }
 }

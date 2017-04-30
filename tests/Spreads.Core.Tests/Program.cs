@@ -12,11 +12,11 @@ namespace Spreads.Core.Tests
     {
         private static void Main(string[] args)
         {
-            Benchmark.ForceSilence = true;
+            //Benchmark.ForceSilence = true;
 
             for (int i = 0; i < 5; i++)
             {
-                (new FastDictionaryTests()).CompareSCGAndFastDictionaryWithInts();
+                (new FastDictionaryTests()).CompareSCGAndFastDictionaryWithSymbol();
             }
 
             Console.WriteLine("Press enter to exit...");
