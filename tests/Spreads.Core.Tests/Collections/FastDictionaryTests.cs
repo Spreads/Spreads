@@ -16,7 +16,7 @@ namespace Spreads.Core.Tests.Collections
     public class FastDictionaryTests
     {
         [Test, Ignore]
-        public unsafe void CompareSCGAndFastDictionaryWithInts()
+        public void CompareSCGAndFastDictionaryWithInts()
         {
             var d = new Dictionary<int, int>();
             var constDic = new Spreads.Collections.Generic.Experimental.FastDictionary<int, int>();

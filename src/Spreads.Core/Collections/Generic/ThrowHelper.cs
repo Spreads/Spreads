@@ -117,11 +117,13 @@ namespace Spreads.Collections.Generic
             return new ArgumentException("SR.Format(SR.Argument_AddingDuplicateWithKey, key)");
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowAddingDuplicateWithKeyArgumentException(object key)
         {
             throw GetAddingDuplicateWithKeyArgumentException(key);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowKeyNotFoundException()
         {
             throw new System.Collections.Generic.KeyNotFoundException();
@@ -142,6 +144,7 @@ namespace Spreads.Collections.Generic
             return new ArgumentNullException(GetArgumentName(argument));
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowArgumentNullException(ExceptionArgument argument)
         {
             throw GetArgumentNullException(argument);

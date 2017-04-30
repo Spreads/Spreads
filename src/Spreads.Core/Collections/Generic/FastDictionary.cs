@@ -66,14 +66,6 @@ namespace Spreads.Collections.Generic
         private ValueCollection values;
         private Object _syncRoot;
 
-        private static readonly bool IsIEquatable = typeof(IEquatable<TKey>).GetTypeInfo().IsAssignableFrom(typeof(TKey));
-
-        // constants for serialization
-        private const String VersionName = "Version";
-
-        private const String HashSizeName = "HashSize";  // Must save buckets.Length
-        private const String KeyValuePairsName = "KeyValuePairs";
-        private const String ComparerName = "Comparer";
 
         public FastDictionary() : this(0)
         {
@@ -135,6 +127,7 @@ namespace Spreads.Collections.Generic
 
         public int Count
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return count - freeCount; }
         }
 
@@ -196,6 +189,7 @@ namespace Spreads.Collections.Generic
 
         public TValue this[TKey key]
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 int i = FindEntry(key);
@@ -203,6 +197,7 @@ namespace Spreads.Collections.Generic
                 ThrowHelper.ThrowKeyNotFoundException();
                 return default(TValue);
             }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
                 bool modified = TryInsert(key, value, InsertionBehavior.OverwriteExisting);
@@ -210,6 +205,7 @@ namespace Spreads.Collections.Generic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Add(TKey key, TValue value)
         {
             bool modified = TryInsert(key, value, InsertionBehavior.ThrowOnExisting);
@@ -255,6 +251,7 @@ namespace Spreads.Collections.Generic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool ContainsKey(TKey key)
         {
             return FindEntry(key) >= 0;
@@ -318,6 +315,7 @@ namespace Spreads.Collections.Generic
             return new Enumerator(this, Enumerator.KeyValuePair);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int FindEntry(TKey key)
         {
             if (key == null)
@@ -345,6 +343,7 @@ namespace Spreads.Collections.Generic
             freeList = -1;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool TryInsert(TKey key, TValue value, InsertionBehavior behavior)
         {
             if (key == null)
@@ -447,6 +446,7 @@ namespace Spreads.Collections.Generic
         // The overload Remove(TKey key, out TValue value) is a copy of this method with one additional
         // statement to copy the value for entry being removed into the output parameter.
         // Code has been intentionally duplicated for performance reasons.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Remove(TKey key)
         {
             if (key == null)
@@ -501,6 +501,7 @@ namespace Spreads.Collections.Generic
         // This overload is a copy of the overload Remove(TKey key) with one additional
         // statement to copy the value for entry being removed into the output parameter.
         // Code has been intentionally duplicated for performance reasons.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Remove(TKey key, out TValue value)
         {
             if (key == null)
@@ -556,6 +557,7 @@ namespace Spreads.Collections.Generic
             return false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out TValue value)
         {
             int i = FindEntry(key);
@@ -569,10 +571,12 @@ namespace Spreads.Collections.Generic
         }
 
         // Method similar to TryGetValue that returns the value instead of putting it in an out param.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TValue GetValueOrDefault(TKey key) => GetValueOrDefault(key, default(TValue));
 
         // Method similar to TryGetValue that returns the value instead of putting it in an out param. If the entry
         // doesn't exist, returns the defaultValue instead.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TValue GetValueOrDefault(TKey key, TValue defaultValue)
         {
             int i = FindEntry(key);
@@ -583,6 +587,7 @@ namespace Spreads.Collections.Generic
             return defaultValue;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryAdd(TKey key, TValue value) => TryInsert(key, value, InsertionBehavior.None);
 
         bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly

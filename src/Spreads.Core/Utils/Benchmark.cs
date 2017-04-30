@@ -13,7 +13,6 @@ namespace Spreads.Utils
 {
     public static class Benchmark
     {
-
         public static bool ForceSilence { get; set; }
 
         private static Stopwatch _sw;
@@ -30,28 +29,34 @@ namespace Spreads.Utils
             return stat;
         }
 
-        private static void PrintHeader()
+        private static void PrintHeader(int? caseLength = null)
         {
-            var dashes = $"{new string('-', 21),-21}|{new string('-', 8),8}:|{new string('-', 9),9}:|{new string('-', 6),6}:|{new string('-', 6),6}:|{new string('-', 6),6}:|{new string('-', 8),8}:";
+            var len = caseLength ?? 20;
+            var caseDahes = new string('-', len + 1);
+            var dashes = $"{caseDahes,-21}|{new string('-', 8),8}:|{new string('-', 9),9}:|{new string('-', 6),6}:|{new string('-', 6),6}:|{new string('-', 6),6}:|{new string('-', 8),8}:";
             Console.WriteLine();
-            Console.WriteLine(GetHeader());
+            Console.WriteLine(GetHeader(caseLength));
             Console.WriteLine(dashes);
         }
 
-        internal static string GetHeader()
+        internal static string GetHeader(int? caseLength = null)
         {
-            return $"{"Case",-20} | {"MOPS",7} | {"Elapsed",8} | {"GC0",5} | {"GC1",5} | {"GC2",5} | {"Memory",7} ";
+            var len = caseLength ?? 20;
+            var caseHeader = "Case".PadRight(len);
+            return $" {caseHeader,-20}| {"MOPS",7} | {"Elapsed",8} | {"GC0",5} | {"GC1",5} | {"GC2",5} | {"Memory",7} ";
         }
 
         public static void Dump()
         {
-            PrintHeader();
+            var maxLength = _stats.Keys.Select(k => k.Length).Max();
+
+            PrintHeader(maxLength);
 
             var stats = _stats.Select(GetAverages).OrderByDescending(s => s.MOPS);
 
             foreach (var stat in stats)
             {
-                Console.WriteLine(stat.ToString());
+                Console.WriteLine(stat.ToString(maxLength));
             }
 
             _stats.Clear();
@@ -83,8 +88,6 @@ namespace Spreads.Utils
 
                 return result;
             }
-
-
         }
 
         public struct Stat : IDisposable
@@ -138,6 +141,12 @@ namespace Spreads.Utils
                 var trimmedCaseName = _caseName.Length > 20 ? _caseName.Substring(0, 17) + "..." : _caseName;
                 return $"{trimmedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot._elapsed,5} ms | {_statSnapshot._gc0,5:f1} | {_statSnapshot._gc1,5:f1} | {_statSnapshot._gc2,5:f1} | {_statSnapshot._memory / 1000000.0,5:f3} MB";
             }
+
+            public string ToString(int caseAlignmentLength)
+            {
+                var paddedCaseName = _caseName.PadRight(caseAlignmentLength);
+                return $"{paddedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot._elapsed,5} ms | {_statSnapshot._gc0,5:f1} | {_statSnapshot._gc1,5:f1} | {_statSnapshot._gc2,5:f1} | {_statSnapshot._memory / 1000000.0,5:f3} MB";
+            }
         }
 
         internal struct StatSnapshot
@@ -157,6 +166,11 @@ namespace Spreads.Utils
                     // end of measurement, first stop timer then collect/count
                     sw.Stop();
                     _elapsed = sw.ElapsedMilliseconds;
+
+                    // NB we exclude forced GC from counters,
+                    // by measuring memory before forced GC we could
+                    // calculate uncollected garbage
+                    _memory = GC.GetTotalMemory(false);
                 }
 
                 GC.Collect(2, GCCollectionMode.Forced, true);
@@ -164,13 +178,13 @@ namespace Spreads.Utils
                 GC.Collect(2, GCCollectionMode.Forced, true);
                 GC.WaitForPendingFinalizers();
 
-                _memory = GC.GetTotalMemory(false);
                 _gc0 = GC.CollectionCount(0);
                 _gc1 = GC.CollectionCount(1);
                 _gc2 = GC.CollectionCount(2);
 
                 if (start)
                 {
+                    _memory = GC.GetTotalMemory(false);
                     // start timer after collecting GC stat
                     sw.Restart();
                 }
