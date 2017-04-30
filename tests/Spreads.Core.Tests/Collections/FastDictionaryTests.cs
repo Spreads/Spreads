@@ -5,6 +5,7 @@
 using NUnit.Framework;
 using Spreads.Collections.Generic;
 using Spreads.DataTypes;
+using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -30,52 +31,52 @@ namespace Spreads.Core.Tests.Collections
 
             const int count = 100000;
 
-            var sw = new Stopwatch();
-
             for (int r = 0; r < 10; r++)
             {
                 var sum = 0L;
-                sw.Restart();
-                for (int i = 0; i < count; i++)
+                using (Benchmark.Run("Dictionary", count * 1000))
                 {
-                    for (int j = 0; j < 1000; j++)
+                    for (int i = 0; i < count; i++)
                     {
-                        sum += d[j];
+                        for (int j = 0; j < 1000; j++)
+                        {
+                            sum += d[j];
+                        }
                     }
                 }
-                sw.Stop();
-                Console.WriteLine($"Dictionary {sw.ElapsedMilliseconds}");
-
                 Assert.True(sum > 0);
 
                 var sum1 = 0L;
-                sw.Restart();
-                for (int i = 0; i < count; i++)
+                using (Benchmark.Run("Constrained Dictionary", count * 1000))
                 {
-                    for (int j = 0; j < 1000; j++)
+                    for (int i = 0; i < count; i++)
                     {
-                        sum1 += constDic[j];
+                        for (int j = 0; j < 1000; j++)
+                        {
+                            sum1 += constDic[j];
+                        }
                     }
                 }
-                sw.Stop();
-                Console.WriteLine($"Constrained Dictionary {sw.ElapsedMilliseconds}");
                 Assert.True(sum > 0);
                 Assert.AreEqual(sum, sum1);
 
                 var sum2 = 0L;
-                sw.Restart();
-                for (int i = 0; i < count; i++)
+                using (Benchmark.Run("KeyComparer Dictionary", count * 1000))
                 {
-                    for (int j = 0; j < 1000; j++)
+                    for (int i = 0; i < count; i++)
                     {
-                        sum2 += kcDic[j];
+                        for (int j = 0; j < 1000; j++)
+                        {
+                            sum2 += kcDic[j];
+                        }
                     }
                 }
-                sw.Stop();
-                Console.WriteLine($"KeyComparer Dictionary {sw.ElapsedMilliseconds}");
                 Assert.True(sum > 0);
                 Assert.AreEqual(sum, sum2);
+
             }
+
+            Benchmark.Dump();
         }
 
         [Test, Ignore]

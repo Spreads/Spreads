@@ -7,6 +7,7 @@ using Spreads.Algorithms.Online;
 using Spreads.Collections;
 using System;
 using System.Diagnostics;
+using Spreads.Utils;
 
 namespace Spreads.Core.Tests.Algorithms
 {

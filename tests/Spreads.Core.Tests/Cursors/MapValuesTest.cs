@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Spreads.Utils;
 
 namespace Spreads.Core.Tests.Cursors
 {

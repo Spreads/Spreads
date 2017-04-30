@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Spreads.Utils;
 
 namespace Spreads.Core.Tests
 {

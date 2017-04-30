@@ -4,7 +4,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -106,14 +105,6 @@ namespace Spreads
         {
             var mi = assembly.GetType(typeName).GetMethod(methodName, (System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic));
             mi.Invoke(null, new object[] { });
-        }
-    }
-
-    internal static class StopwatchExtensions
-    {
-        public static double MOPS(this Stopwatch stopwatch, int count, int decimals = 2)
-        {
-            return Math.Round((count * 0.001) / ((double)stopwatch.ElapsedMilliseconds), decimals);
         }
     }
 

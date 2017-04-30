@@ -323,7 +323,8 @@ namespace Spreads
         }
 
         /// <summary>
-        /// Create a KVP comparer that only compares keys.
+        /// Create a KVP comparer that only compares keys. Pass null as a second constructor argument
+        /// to use a default comparer for values. With this constructor values are ignored.
         /// </summary>
         public KVPComparer(KeyComparer<TKey> keyComparer)
         {
