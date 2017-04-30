@@ -18,7 +18,7 @@ namespace Spreads.Cursors
     /// </summary>
     public class RangeSeries<TKey, TValue, TCursor> :
         CursorSeries<TKey, TValue, RangeSeries<TKey, TValue, TCursor>>,
-        ICursor<TKey, TValue> //, ICanMapValues<TKey, TValue>
+        ISpecializedCursor<TKey, TValue, RangeSeries<TKey, TValue, TCursor>> //, ICanMapValues<TKey, TValue>
         where TCursor : ICursor<TKey, TValue>
     {
         internal readonly ISeries<TKey, TValue> _series;

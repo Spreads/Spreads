@@ -1907,6 +1907,11 @@ and
       member this.IsContinuous with get() = false
       member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)
 
+    interface ISpecializedCursor<'K,'V, SortedMapCursor<'K,'V>> with
+      member this.Initialize() = 
+        let c = this.Clone()
+        c.Reset()
+        c
 
 type internal ChunksContainer<'K,'V>
   (comparer : IComparer<'K>, synced: bool)  =

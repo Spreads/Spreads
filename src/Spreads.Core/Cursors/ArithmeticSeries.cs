@@ -11,7 +11,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-// ReSharper disable once CheckNamespace
 namespace Spreads.Cursors
 {
     public struct AddOp<T> : IOp<T>
@@ -96,7 +95,6 @@ namespace Spreads.Cursors
         [MethodImpl(MethodImplOptions.NoInlining)]
         private T ApplyDynamic(T v1, T v2)
         {
-            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
             return (T)((dynamic)v1 * (dynamic)v2);
         }
     }
@@ -137,7 +135,6 @@ namespace Spreads.Cursors
         [MethodImpl(MethodImplOptions.NoInlining)]
         private T ApplyDynamic(T v1, T v2)
         {
-            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
             return (T)((dynamic)v1 - (dynamic)v2);
         }
     }
@@ -178,7 +175,6 @@ namespace Spreads.Cursors
         [MethodImpl(MethodImplOptions.NoInlining)]
         private T ApplyDynamic(T v1, T v2)
         {
-            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
             return (T)((dynamic)v1 - (dynamic)v2);
         }
     }
@@ -219,7 +215,6 @@ namespace Spreads.Cursors
         [MethodImpl(MethodImplOptions.NoInlining)]
         private T ApplyDynamic(T v1, T v2)
         {
-            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
             return (T)((dynamic)v1 / (dynamic)v2);
         }
     }
@@ -260,7 +255,6 @@ namespace Spreads.Cursors
         [MethodImpl(MethodImplOptions.NoInlining)]
         private T ApplyDynamic(T v1, T v2)
         {
-            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
             return (T)((dynamic)v1 / (dynamic)v2);
         }
     }
@@ -301,7 +295,6 @@ namespace Spreads.Cursors
         [MethodImpl(MethodImplOptions.NoInlining)]
         private T ApplyDynamic(T v1, T v2)
         {
-            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
             return (T)((dynamic)v1 % (dynamic)v2);
         }
     }
@@ -342,7 +335,6 @@ namespace Spreads.Cursors
         [MethodImpl(MethodImplOptions.NoInlining)]
         private T ApplyDynamic(T v1, T v2)
         {
-            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
             return (T)((dynamic)v1 % (dynamic)v2);
         }
     }
@@ -383,7 +375,6 @@ namespace Spreads.Cursors
         [MethodImpl(MethodImplOptions.NoInlining)]
         private T ApplyDynamic(T v1)
         {
-            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
             return (T)(-(dynamic)v1);
         }
     }
@@ -418,20 +409,19 @@ namespace Spreads.Cursors
                 return (T)(object)(+(decimal)(object)v1);
             }
 
-            return ApplyDynamic(v1, v2);
+            return ApplyDynamic(v1);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private T ApplyDynamic(T v1, T v2)
+        private T ApplyDynamic(T v1)
         {
-            // NB this is 5-10 slower for doubles, but even for them it can process 10 Mops and "just works"
             return (T)(+(dynamic)v1);
         }
     }
 
     internal sealed class UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor> :
         CursorSeries<TKey, TResult, UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor>>,
-        ICursor<TKey, TResult> //, ICanMapValues<TKey, TValue>
+        ISpecializedCursor<TKey, TResult, UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor>> //, ICanMapValues<TKey, TValue>
         where TCursor : ICursor<TKey, TValue>
         where TOp : struct, IOp<TValue, TValue2, TResult>
     {
@@ -552,15 +542,6 @@ namespace Spreads.Cursors
             return default(TOp).Apply(_cursor.Source.GetAt(idx), _value);
         }
 
-        /// <summary>
-        /// Get specialized enumerator.
-        /// </summary>
-        public new UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor> GetEnumerator()
-        {
-            var clone = Initialize();
-            return clone;
-        }
-
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out TResult value)
@@ -652,12 +633,11 @@ namespace Spreads.Cursors
     /// </summary>
     public sealed class ArithmeticSeries<TKey, TValue, TOp, TCursor> :
         CursorSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>,
-        ICursor<TKey, TValue> //, ICanMapValues<TKey, TValue>
-        where TCursor : ICursor<TKey, TValue>
+        ISpecializedCursor<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> //, ICanMapValues<TKey, TValue>
+        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         where TOp : struct, IOp<TValue>
     {
         internal readonly TValue _value;
-        internal readonly ISeries<TKey, TValue> _series;
 
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
@@ -666,10 +646,18 @@ namespace Spreads.Cursors
         /// <summary>
         /// MapValuesSeries constructor.
         /// </summary>
-        internal ArithmeticSeries(ISeries<TKey, TValue> series, TValue value)
+        internal ArithmeticSeries(Func<TCursor> cursorFactory, TValue value)
         {
-            _series = series;
+            // NB factory could return a cursor in non-initialized state
             _value = value;
+            _cursor = cursorFactory();
+        }
+
+        internal ArithmeticSeries(TCursor cursor, TValue value)
+        {
+            // NB factory could return a cursor in non-initialized state
+            _value = value;
+            _cursor = cursor;
         }
 
         /// <inheritdoc />
@@ -686,7 +674,7 @@ namespace Spreads.Cursors
             {
                 var batch = _cursor.CurrentBatch;
                 // TODO when batching is proper implemented (nested batches) reuse an instance for this
-                var mapped = new ArithmeticSeries<TKey, TValue, TOp, TCursor>(batch, _value);
+                var mapped = new ArithmeticSeries<TKey, TValue, TOp, SpecializedWrapper<TKey, TValue>>(() => new SpecializedWrapper<TKey, TValue>(batch.GetCursor()), _value);
                 return mapped;
             }
         }
@@ -717,10 +705,10 @@ namespace Spreads.Cursors
         public bool IsContinuous => _cursor.IsContinuous;
 
         /// <inheritdoc />
-        public override bool IsIndexed => _series.IsIndexed;
+        public override bool IsIndexed => _cursor.Source.IsIndexed;
 
         /// <inheritdoc />
-        public override bool IsReadOnly => _series.IsReadOnly;
+        public override bool IsReadOnly => _cursor.Source.IsReadOnly;
 
         /// <inheritdoc />
         public override Task<bool> Updated => _cursor.Source.Updated;
@@ -742,11 +730,11 @@ namespace Spreads.Cursors
         {
             if (State == CursorState.None && ThreadId == Environment.CurrentManagedThreadId)
             {
-                _cursor = GetCursor<TKey, TValue, TCursor>(_series);
+                _cursor = _cursor.Initialize();
                 State = CursorState.Initialized;
                 return this;
             }
-            var clone = new ArithmeticSeries<TKey, TValue, TOp, TCursor>(_series, _value);
+            var clone = new ArithmeticSeries<TKey, TValue, TOp, TCursor>(_cursor.Initialize, _value);
             // NB recursive call but it should always hit the if case above
             var initialized = clone.Initialize();
             Debug.Assert(ReferenceEquals(clone, initialized));
@@ -766,14 +754,12 @@ namespace Spreads.Cursors
             return default(TOp).Apply(_cursor.Source.GetAt(idx), _value);
         }
 
-        /// <summary>
-        /// Get specialized enumerator.
-        /// </summary>
-        public new ArithmeticSeries<TKey, TValue, TOp, TCursor> GetEnumerator()
-        {
-            var clone = Initialize();
-            return clone;
-        }
+        // NB foreach optimization works with base CursorSeries.GetEnumerator as well (it does exactly the same and knows the returning type)
+        //public new ArithmeticSeries<TKey, TValue, TOp, TCursor> GetEnumerator()
+        //{
+        //    var clone = Initialize();
+        //    return clone;
+        //}
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -886,7 +872,7 @@ namespace Spreads.Cursors
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, AddOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator +(ArithmeticSeries<TKey, TValue, TOp, TCursor> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, AddOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
+            return new ArithmeticSeries<TKey, TValue, AddOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series.Initialize, constant);
         }
 
         /// <summary>
@@ -895,7 +881,7 @@ namespace Spreads.Cursors
         public static ArithmeticSeries<TKey, TValue, AddOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator +(TValue constant, ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
         {
             // Addition is commutative
-            return new ArithmeticSeries<TKey, TValue, AddOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
+            return new ArithmeticSeries<TKey, TValue, AddOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series.Initialize, constant);
         }
 
         /// <summary>
@@ -903,7 +889,7 @@ namespace Spreads.Cursors
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, NegateOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator -(ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
         {
-            return new ArithmeticSeries<TKey, TValue, NegateOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, default(TValue));
+            return new ArithmeticSeries<TKey, TValue, NegateOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series.Initialize, default(TValue));
         }
 
         /// <summary>
@@ -911,7 +897,7 @@ namespace Spreads.Cursors
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, PlusOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator +(ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
         {
-            return new ArithmeticSeries<TKey, TValue, PlusOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, default(TValue));
+            return new ArithmeticSeries<TKey, TValue, PlusOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series.Initialize, default(TValue));
         }
 
         /// <summary>
@@ -919,7 +905,7 @@ namespace Spreads.Cursors
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, SubtractOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator -(ArithmeticSeries<TKey, TValue, TOp, TCursor> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, SubtractOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
+            return new ArithmeticSeries<TKey, TValue, SubtractOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series.Initialize, constant);
         }
 
         /// <summary>
@@ -927,7 +913,7 @@ namespace Spreads.Cursors
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, SubtractReverseOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator -(TValue constant, ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
         {
-            return new ArithmeticSeries<TKey, TValue, SubtractReverseOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
+            return new ArithmeticSeries<TKey, TValue, SubtractReverseOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series.Initialize, constant);
         }
 
         /// <summary>
@@ -935,7 +921,7 @@ namespace Spreads.Cursors
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator *(ArithmeticSeries<TKey, TValue, TOp, TCursor> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
+            return new ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series.Initialize, constant);
         }
 
         /// <summary>
@@ -944,7 +930,7 @@ namespace Spreads.Cursors
         public static ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator *(TValue constant, ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
         {
             // Multiplication is commutative
-            return new ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
+            return new ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series.Initialize, constant);
         }
 
         /// <summary>
@@ -952,7 +938,7 @@ namespace Spreads.Cursors
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, DivideOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator /(ArithmeticSeries<TKey, TValue, TOp, TCursor> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, DivideOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
+            return new ArithmeticSeries<TKey, TValue, DivideOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series.Initialize, constant);
         }
 
         /// <summary>
@@ -960,7 +946,7 @@ namespace Spreads.Cursors
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, DivideReverseOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator /(TValue constant, ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
         {
-            return new ArithmeticSeries<TKey, TValue, DivideReverseOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
+            return new ArithmeticSeries<TKey, TValue, DivideReverseOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series.Initialize, constant);
         }
 
         /// <summary>
@@ -968,7 +954,7 @@ namespace Spreads.Cursors
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, ModuloOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator %(ArithmeticSeries<TKey, TValue, TOp, TCursor> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, ModuloOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
+            return new ArithmeticSeries<TKey, TValue, ModuloOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series.Initialize, constant);
         }
 
         /// <summary>
@@ -976,7 +962,7 @@ namespace Spreads.Cursors
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, ModuloReverseOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>> operator %(TValue constant, ArithmeticSeries<TKey, TValue, TOp, TCursor> series)
         {
-            return new ArithmeticSeries<TKey, TValue, ModuloReverseOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series, constant);
+            return new ArithmeticSeries<TKey, TValue, ModuloReverseOp<TValue>, ArithmeticSeries<TKey, TValue, TOp, TCursor>>(series.Initialize, constant);
         }
 
         #endregion Unary Operators

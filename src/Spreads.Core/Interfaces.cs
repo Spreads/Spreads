@@ -258,6 +258,12 @@ namespace Spreads
         bool TryGetValue(TKey key, out TValue value);
     }
 
+    public interface ISpecializedCursor<TKey, TValue, TCursor> : ICursor<TKey, TValue>
+        where TCursor : ICursor<TKey, TValue>
+    {
+        TCursor Initialize();
+    }
+
     /// <summary>
     /// NB! 'Read-only' doesn't mean that the object is immutable or not changing. It only means
     /// that there is no methods to change the map *from* this interface, without any assumptions about

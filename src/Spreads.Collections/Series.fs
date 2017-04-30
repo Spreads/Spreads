@@ -46,7 +46,7 @@ and
   [<AbstractClass>]
   //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
   Series<'K,'V> internal() =
-    inherit ContainerSeries<'K,'V, ICursor<'K,'V>>()
+    inherit ContainerSeries<'K,'V>()
 
     [<DefaultValueAttribute>]
     val mutable internal Locker : int

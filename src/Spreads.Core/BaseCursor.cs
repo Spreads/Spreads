@@ -11,12 +11,12 @@ using System.Threading.Tasks;
 
 namespace Spreads
 {
-    internal sealed class BaseCursorAsync<TK, TV, TCursor> : ICursor<TK, TV>
-        where TCursor : ICursor<TK, TV>
+    internal sealed class BaseCursorAsync<TKey, TValue, TCursor> : ICursor<TKey, TValue>
+        where TCursor : ICursor<TKey, TValue>
     {
         //private static readonly BoundedConcurrentBag<BaseCursorAsync<TK, TV, TCursor>> Pool = new BoundedConcurrentBag<BaseCursorAsync<TK, TV, TCursor>>(Environment.ProcessorCount * 16);
 
-        private ISeries<TK, TV> _source;
+        private ISeries<TKey, TValue> _source;
 
         // NB this is often a struct, should not be made readonly!
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
@@ -28,7 +28,7 @@ namespace Spreads
 
         // NB factory could be more specific than GetCursor method of the source, which returns an interface
         // At the same time, we need access to BaseSeries members and cannot use Source property of the cursor
-        public BaseCursorAsync(ISeries<TK, TV> source, Func<TCursor> cursorFactory)
+        public BaseCursorAsync(ISeries<TKey, TValue> source, Func<TCursor> cursorFactory)
         {
             _source = source;
             _innerCursor = cursorFactory();
@@ -40,9 +40,9 @@ namespace Spreads
             _source = _innerCursor.Source;
         }
 
-        public static BaseCursorAsync<TK, TV, TCursor> Create(ISeries<TK, TV> source, Func<TCursor> cursorFactory)
+        public static BaseCursorAsync<TKey, TValue, TCursor> Create(ISeries<TKey, TValue> source, Func<TCursor> cursorFactory)
         {
-            return new BaseCursorAsync<TK, TV, TCursor>(source, cursorFactory);
+            return new BaseCursorAsync<TKey, TValue, TCursor>(source, cursorFactory);
 
             // TODO #84
             // BaseCursorAsync<TK, TV, TCursor> inst;
@@ -145,7 +145,7 @@ namespace Spreads
             _innerCursor?.Reset();
         }
 
-        public KeyValuePair<TK, TV> Current
+        public KeyValuePair<TKey, TValue> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _innerCursor.Current; }
@@ -153,10 +153,10 @@ namespace Spreads
 
         object IEnumerator.Current => ((IEnumerator)_innerCursor).Current;
 
-        public KeyComparer<TK> Comparer => _innerCursor.Comparer;
+        public KeyComparer<TKey> Comparer => _innerCursor.Comparer;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool MoveAt(TK key, Lookup direction)
+        public bool MoveAt(TKey key, Lookup direction)
         {
             return _innerCursor.MoveAt(key, direction);
         }
@@ -179,13 +179,13 @@ namespace Spreads
             return _innerCursor.MovePrevious();
         }
 
-        public TK CurrentKey
+        public TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _innerCursor.CurrentKey; }
         }
 
-        public TV CurrentValue
+        public TValue CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _innerCursor.CurrentValue; }
@@ -197,23 +197,23 @@ namespace Spreads
             return _innerCursor.MoveNextBatch(cancellationToken);
         }
 
-        public IReadOnlySeries<TK, TV> CurrentBatch
+        public IReadOnlySeries<TKey, TValue> CurrentBatch
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _innerCursor.CurrentBatch; }
         }
 
-        public IReadOnlySeries<TK, TV> Source => _innerCursor.Source;
+        public IReadOnlySeries<TKey, TValue> Source => _innerCursor.Source;
 
         public bool IsContinuous => _innerCursor.IsContinuous;
 
-        public ICursor<TK, TV> Clone()
+        public ICursor<TKey, TValue> Clone()
         {
             return _innerCursor.Clone();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TK key, out TV value)
+        public bool TryGetValue(TKey key, out TValue value)
         {
             return _innerCursor.TryGetValue(key, out value);
         }

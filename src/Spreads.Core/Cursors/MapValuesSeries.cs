@@ -23,7 +23,7 @@ namespace Spreads.Cursors
     /// </summary>
     public class MapValuesSeries<TKey, TValue, TResult, TCursor> :
         CursorSeries<TKey, TResult, MapValuesSeries<TKey, TValue, TResult, TCursor>>,
-        ICursor<TKey, TResult> //, ICanMapValues<TKey, TResult>
+        ISpecializedCursor<TKey, TResult, MapValuesSeries<TKey, TValue, TResult, TCursor>> //, ICanMapValues<TKey, TResult>
         where TCursor : ICursor<TKey, TValue>
     {
         internal readonly Func<TValue, TResult> _selector;
@@ -131,12 +131,6 @@ namespace Spreads.Cursors
         public override TResult GetAt(int idx)
         {
             return _selector(_cursor.Source.GetAt(idx));
-        }
-
-        public new MapValuesSeries<TKey, TValue, TResult, TCursor> GetEnumerator()
-        {
-            var clone = Initialize();
-            return clone;
         }
 
         /// <inheritdoc />

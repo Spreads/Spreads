@@ -15,8 +15,8 @@ namespace Spreads.Cursors
     /// <summary>
     /// Base abstract class for cursor series (objects that implement both IReadOnlySeries and ICursor).
     /// </summary>
-    public abstract class CursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue, TCursor>
-        where TCursor : CursorSeries<TKey, TValue, TCursor>, ICursor<TKey, TValue>
+    public abstract class CursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue>
+        where TCursor : CursorSeries<TKey, TValue, TCursor>, ISpecializedCursor<TKey, TValue, TCursor>
     {
         private TCursor _navigationCursor;
         internal int ThreadId = Environment.CurrentManagedThreadId;
@@ -62,7 +62,7 @@ namespace Spreads.Cursors
         //    return clone;
         //}
 
-        public new TCursor GetEnumerator()
+        public TCursor GetEnumerator()
         {
             var clone = Initialize();
             return clone;
@@ -226,28 +226,32 @@ namespace Spreads.Cursors
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken) => throw new NotSupportedException("Async MoveNext should use BaseCursor via CursorSeries");
 
+        [Obsolete("This method allocates")]
         internal static TCursor1 GetCursor<TKey1, TValue1, TCursor1>(ISeries<TKey1, TValue1> series) where TCursor1 : ICursor<TKey1, TValue1>
         {
-            var c = series.GetCursor();
+
             TCursor1 cursor;
-            if (c is BaseCursorAsync<TKey1, TValue1, TCursor1> bca)
+
+            // NB without casting to IEnumerable the calls ignores SM method and goes to the BaseSeries method
+            var e = ((IEnumerable<KeyValuePair<TKey1, TValue1>>)series).GetEnumerator();
+            if (e is TCursor1 tCursor1)
             {
-                cursor = bca._innerCursor;
+                cursor = tCursor1;
             }
-            else if (c is TCursor1 tCursor)
+            else if (e is BaseCursorAsync<TKey1, TValue1, TCursor1> bca1)
             {
-                cursor = tCursor;
+                cursor = bca1._innerCursor;
             }
             else
             {
-                var e = series.GetEnumerator();
-                if (e is BaseCursorAsync<TKey1, TValue1, TCursor1> bca1)
+                var c = series.GetCursor();
+                if (c is BaseCursorAsync<TKey1, TValue1, TCursor1> bca)
                 {
-                    cursor = bca1._innerCursor;
+                    cursor = bca._innerCursor;
                 }
-                else if (e is TCursor1 tCursor1)
+                else if (c is TCursor1 tCursor)
                 {
-                    cursor = tCursor1;
+                    cursor = tCursor;
                 }
                 else
                 {

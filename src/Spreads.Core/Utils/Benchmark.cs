@@ -177,6 +177,7 @@ namespace Spreads.Utils
                 GC.WaitForPendingFinalizers();
                 GC.Collect(2, GCCollectionMode.Forced, true);
                 GC.WaitForPendingFinalizers();
+                
 
                 _gc0 = GC.CollectionCount(0);
                 _gc1 = GC.CollectionCount(1);
