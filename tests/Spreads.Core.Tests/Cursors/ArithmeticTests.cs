@@ -83,100 +83,6 @@ namespace Spreads.Core.Tests.Cursors
         }
 
         [Test, Ignore]
-        // TODO learn how to use dotMemory for total allocatoins count
-        //[DotMemoryUnit(FailIfRunWithoutSupport = false)]
-        public void MultipleEnumerationDoesntAllocate()
-        {
-            var sm = new SortedMap<int, double>();
-            var count = 100;
-            sm.AddLast(0, 0);
-            for (int i = 2; i < count; i++)
-            {
-                sm.AddLast(i, i);
-            }
-
-            for (int r = 0; r < 10; r++)
-            {
-                var map =
-                    new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
-                        sm.GetEnumerator(), 2.0);
-
-                var map2 = map + 2;
-                //new ArithmeticSeries<int, double, AddOp<double>, ArithmeticSeries<int, double,
-                //        MultiplyOp<double>, SortedMapCursor<int, double>>>(
-                //        map, 2.0);
-
-                var sum = 0.0;
-                var sum1 = 0.0;
-                var sum2 = 0.0;
-                var iterations = 100000; // 00
-
-                void Run(ref double s)
-                {
-                    try
-                    {
-                        // using it here completely eliminates allocations, an instance is created for
-                        // all iterations inside each thread
-                        //using (var mapX = map + 2)
-                        {
-                            for (int i = 0; i < iterations; i++)
-                            {
-                                // here static caching helps, but not completely eliminates allocations because
-                                // two threads compete for a single static slot very often
-                                using (var mapX = map + 2)
-                                using (var c = (mapX).GetEnumerator())
-                                {
-                                    //Assert.IsTrue(c.State == CursorState.Initialized);
-                                    //Assert.IsTrue(c._cursor.State == CursorState.Initialized);
-
-                                    var countCheck = 0;
-                                    while (c.MoveNext())
-                                    {
-                                        s += c.CurrentKey;
-                                        countCheck++;
-                                    }
-                                    if (sm.Count != countCheck)
-                                    {
-                                        Console.WriteLine($"Expected {sm.Count} vs actual {countCheck}");
-                                    }
-                                    if (sm.Count != countCheck) { Assert.Fail(); }
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex.Message + Environment.NewLine + ex.ToString());
-                    }
-                }
-
-                using (Benchmark.Run("ArithmeticSeries", count * iterations))
-                {
-                    var t = Task.Run(() => Run(ref sum));
-                    //var t1 = Task.Run(() => Run(ref sum1));
-                    Run(ref sum1);
-                    t.Wait();
-                    //t1.Wait();
-
-                    Assert.AreEqual(sum, sum1);
-                    //Assert.AreEqual(sum, sum2);
-
-                    //dotMemory.Check(memory =>
-                    //{
-                    //    Assert.That(
-                    //        memory.GetObjects(where =>
-                    //            where.Type.Is<ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>>()).ObjectsCount,
-                    //        Is.EqualTo(1)
-                    //    );
-                    //});
-                }
-
-                Assert.IsTrue(sum > 0 && sum1 > 0);
-            }
-            Benchmark.Dump();
-        }
-
-        [Test, Ignore]
         [DotMemoryUnit(CollectAllocations = true)]
         public void CouldMapValuesBenchmarkArithmeticVsMapCursor()
         {
@@ -206,7 +112,7 @@ namespace Spreads.Core.Tests.Cursors
                     var map =
                         new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(sm.GetEnumerator(),
                             2.0);
-                    var map2 = map * 2;
+                    var map2 = map + 2;
                     //new ArithmeticSeries<int, double, MultiplyOp<double>, ArithmeticSeries<int, double,
                     //    MultiplyOp<double>, SortedMapCursor<int, double>>>(
                     //    map.Initialize, 2.0);
@@ -222,13 +128,34 @@ namespace Spreads.Core.Tests.Cursors
                 }
 
                 {
+                    var c =
+                        new ArithmeticSeries2<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+                            sm.GetEnumerator(), 2.0);
+                    var c1 =
+                        new ArithmeticSeries2<int, double, AddOp<double>, ArithmeticSeries2<int, double,
+                            MultiplyOp<double>, SortedMapCursor<int, double>>>(
+                            c, 2.0);
+                    var series = new CursorSeries2<int, double, ArithmeticSeries2<int, double, AddOp<double>, ArithmeticSeries2<int, double,
+                        MultiplyOp<double>, SortedMapCursor<int, double>>>>(c1);
+                    var sum = 0.0;
+                    using (Benchmark.Run("ArithmeticSeries2", count))
+                    {
+                        foreach (var kvp in series)
+                        {
+                            sum += kvp.Value;
+                        }
+                    }
+                    Assert.IsTrue(sum > 0);
+                }
+
+                {
                     var map =
                         new MapValuesSeries<int, double, double, SortedMapCursor<int, double>>(sm.GetEnumerator(),
                             i => Apply(i, 2.0));
                     var map2 =
                         new
                             MapValuesSeries<int, double, double, MapValuesSeries<int, double, double,
-                                SortedMapCursor<int, double>>>(map, i => Apply(i, 2.0));
+                                SortedMapCursor<int, double>>>(map, i => Apply2(i, 2.0));
                     var sum = 0.0;
                     using (Benchmark.Run("MapValuesSeries", count))
                     {
@@ -241,7 +168,7 @@ namespace Spreads.Core.Tests.Cursors
                 }
 
                 {
-                    var map = ((sm as BaseSeries<int, double>) * 2) * 2;
+                    var map = ((sm as BaseSeries<int, double>) * 2) + 2;
                     var sum = 0.0;
                     using (Benchmark.Run("BaseSeries operator", count))
                     {
@@ -256,7 +183,7 @@ namespace Spreads.Core.Tests.Cursors
                 {
                     var map = sm
                         .Select(x => new KeyValuePair<int, double>(x.Key, x.Value * 2))
-                        .Select(x => new KeyValuePair<int, double>(x.Key, x.Value * 2));
+                        .Select(x => new KeyValuePair<int, double>(x.Key, x.Value + 2));
                     var sum = 0.0;
                     using (Benchmark.Run("LINQ", count))
                     {
@@ -316,14 +243,66 @@ namespace Spreads.Core.Tests.Cursors
             }
 
             return ApplyDynamic(input, value);
+
+            TValue ApplyDynamic<TValue>(TValue input1, TValue value1)
+            {
+                var v1 = (dynamic)input1;
+                var v2 = (dynamic)value1;
+                return (TValue)(v1 * v2);
+            }
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static TValue ApplyDynamic<TValue>(TValue input, TValue value)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static TValue Apply2<TValue>(TValue input, TValue value)
         {
-            var v1 = (dynamic)input;
-            var v2 = (dynamic)value;
-            return (TValue)(v1 * v2);
+            if (typeof(TValue) == typeof(double))
+            {
+                var v1 = (double)(object)(input);
+                var v2 = (double)(object)(value);
+
+                return (TValue)(object)(double)(v1 + v2);
+            }
+
+            if (typeof(TValue) == typeof(float))
+            {
+                var v1 = (float)(object)(input);
+                var v2 = (float)(object)(value);
+
+                return (TValue)(object)(float)(v1 + v2);
+            }
+
+            if (typeof(TValue) == typeof(int))
+            {
+                var v1 = (int)(object)(input);
+                var v2 = (int)(object)(value);
+
+                return (TValue)(object)(int)(v1 + v2);
+            }
+
+            if (typeof(TValue) == typeof(long))
+            {
+                var v1 = (long)(object)(input);
+                var v2 = (long)(object)(value);
+
+                return (TValue)(object)(long)(v1 + v2);
+            }
+
+            if (typeof(TValue) == typeof(decimal))
+            {
+                var v1 = (decimal)(object)(input);
+                var v2 = (decimal)(object)(value);
+
+                return (TValue)(object)(decimal)(v1 + v2);
+            }
+
+            return ApplyDynamic(input, value);
+
+            TValue ApplyDynamic<TValue>(TValue input1, TValue value1)
+            {
+                var v1 = (dynamic)input1;
+                var v2 = (dynamic)value1;
+                return (TValue)(v1 + v2);
+            }
         }
 
         [Test]
@@ -409,16 +388,16 @@ namespace Spreads.Core.Tests.Cursors
 
             for (int r = 0; r < 10; r++)
             {
+                var sum = 0.0;
                 {
                     var map =
                         new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
                             sm.GetEnumerator(), 2.0);
                     var map2 =
-                        new ArithmeticSeries<int, double, MultiplyOp<double>, ArithmeticSeries<int, double,
+                        new ArithmeticSeries<int, double, AddOp<double>, ArithmeticSeries<int, double,
                             MultiplyOp<double>, SortedMapCursor<int, double>>>(
                             map, 2.0);
 
-                    var sum = 0.0;
                     using (Benchmark.Run("ArithmeticSeries", count))
                     {
                         foreach (var kvp in map2)
@@ -428,29 +407,171 @@ namespace Spreads.Core.Tests.Cursors
                     }
                     Assert.IsTrue(sum > 0);
                 }
-
+                var sum1 = 0.0;
                 {
-                    var map =
+                    var c =
                         new ArithmeticSeries2<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
                             sm.GetEnumerator(), 2.0);
-                    var map2 =
-                        new ArithmeticSeries2<int, double, MultiplyOp<double>, ArithmeticSeries2<int, double,
+                    var c1 =
+                        new ArithmeticSeries2<int, double, AddOp<double>, ArithmeticSeries2<int, double,
                             MultiplyOp<double>, SortedMapCursor<int, double>>>(
-                            map, 2.0);
+                            c, 2.0);
+                    var series = new CursorSeries2<int, double, ArithmeticSeries2<int, double, AddOp<double>, ArithmeticSeries2<int, double,
+                        MultiplyOp<double>, SortedMapCursor<int, double>>>>(c1);
 
-                    var series = map2.AsSeries();
-                    var sum = 0.0;
                     using (Benchmark.Run("ArithmeticSeries2", count))
                     {
-                        foreach (var kvp in map2)
+                        foreach (var kvp in series)
                         {
-                            sum += kvp.Value;
+                            sum1 += kvp.Value;
                         }
                     }
-                    Assert.IsTrue(sum > 0);
+                    Assert.IsTrue(sum1 > 0);
                 }
+
+                Assert.AreEqual(sum, sum1);
             }
 
+            Benchmark.Dump();
+        }
+
+        [Test, Ignore]
+        // TODO learn how to use dotMemory for total allocatoins count
+        //[DotMemoryUnit(FailIfRunWithoutSupport = false)]
+        public void MultipleEnumerationDoesntAllocate()
+        {
+            var sm = new SortedMap<int, double>();
+            var count = 100;
+            sm.AddLast(0, 0);
+            for (int i = 2; i < count; i++)
+            {
+                sm.AddLast(i, i);
+            }
+
+            for (int r = 0; r < 10; r++)
+            {
+                var map =
+                    new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+                        sm.GetEnumerator(), 2.0);
+
+                var sum = 0.0;
+                var sum1 = 0.0;
+                var sum2 = 0.0;
+                var iterations = 100000;
+
+                void Run(ref double s)
+                {
+                    try
+                    {
+                        // using it here completely eliminates allocations, an instance is created for
+                        // all iterations inside each thread
+                        //using (var mapX = map + 2)
+                        {
+                            for (int i = 0; i < iterations; i++)
+                            {
+                                // here static caching helps, but not completely eliminates allocations because
+                                // two threads compete for a single static slot very often
+                                using (var mapX = map + 2)
+                                using (var c = (mapX).GetEnumerator())
+                                {
+                                    //Assert.IsTrue(c.State == CursorState.Initialized);
+                                    //Assert.IsTrue(c._cursor.State == CursorState.Initialized);
+
+                                    var countCheck = 0;
+                                    while (c.MoveNext())
+                                    {
+                                        s += c.CurrentKey;
+                                        countCheck++;
+                                    }
+                                    if (sm.Count != countCheck)
+                                    {
+                                        Console.WriteLine($"Expected {sm.Count} vs actual {countCheck}");
+                                    }
+                                    if (sm.Count != countCheck) { Assert.Fail(); }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message + Environment.NewLine + ex);
+                    }
+                }
+
+                var cc =
+                    new ArithmeticSeries2<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+                        sm.GetEnumerator(), 2.0);
+
+                void Run2(ref double s)
+                {
+                    try
+                    {
+                        for (int i = 0; i < iterations; i++)
+                        {
+                            var cc1 =
+                                new ArithmeticSeries2<int, double, AddOp<double>, ArithmeticSeries2<int, double,
+                                    MultiplyOp<double>, SortedMapCursor<int, double>>>(
+                                    cc, 2.0);
+                            var series = new CursorSeries2<int, double, ArithmeticSeries2<int, double, AddOp<double>, ArithmeticSeries2<int, double,
+                                MultiplyOp<double>, SortedMapCursor<int, double>>>>(cc1);
+
+                            using (var c = series.GetEnumerator())
+                            {
+                                var countCheck = 0;
+                                while (c.MoveNext())
+                                {
+                                    s += c.CurrentKey;
+                                    countCheck++;
+                                }
+                                if (sm.Count != countCheck)
+                                {
+                                    Console.WriteLine($"Expected {sm.Count} vs actual {countCheck}");
+                                }
+                                if (sm.Count != countCheck) { Assert.Fail(); }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message + Environment.NewLine + ex);
+                    }
+                }
+
+                using (Benchmark.Run("ArithmeticSeries", count * iterations))
+                {
+                    var t = Task.Run(() => Run(ref sum1));
+                    var t1 = Task.Run(() => Run(ref sum2));
+                    Run(ref sum);
+                    t.Wait();
+                    t1.Wait();
+
+                    //dotMemory.Check(memory =>
+                    //{
+                    //    Assert.That(
+                    //        memory.GetObjects(where =>
+                    //            where.Type.Is<ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>>()).ObjectsCount,
+                    //        Is.EqualTo(1)
+                    //    );
+                    //});
+                }
+
+                Assert.IsTrue(sum > 0);
+                Assert.AreEqual(sum, sum1);
+                Assert.AreEqual(sum, sum2);
+
+                using (Benchmark.Run("ArithmeticSeries2", count * iterations))
+                {
+                    var t = Task.Run(() => Run2(ref sum1));
+                    var t1 = Task.Run(() => Run2(ref sum2));
+                    Run2(ref sum);
+                    t.Wait();
+                    t1.Wait();
+                }
+
+                Assert.IsTrue(sum > 0);
+                Assert.AreEqual(sum, sum1);
+                Assert.AreEqual(sum, sum2);
+            }
             Benchmark.Dump();
         }
     }

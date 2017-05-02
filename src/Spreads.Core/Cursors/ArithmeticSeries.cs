@@ -28,9 +28,6 @@ namespace Spreads.Cursors
         // All inner cursors must be disposed in the Dispose method but references to them must be kept (they could be used as factories)
         // for re-initialization.
 
-        // TODO(?) we could probably create an abstract class with TState : IDisposable and use it as a template - it is quite easy to make 
-        // a sublte error with copy-paste. But the state will require Clone/Initialize parameters
-
         internal TValue _value;
 
         // NB must be mutable, could be a struct
@@ -112,7 +109,7 @@ namespace Spreads.Cursors
             }
             // TODO check state in MN/MF/etc, we could dispose an active cursor
             State = CursorState.None;
-            ReleaseCursor(this);
+            ReleaseInstance(this);
         }
 
         /// <inheritdoc />

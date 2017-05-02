@@ -11,8 +11,8 @@ using System.Threading.Tasks;
 
 namespace Spreads.Cursors.Experimental
 {
-    public struct ArithmeticSeries2_old<TKey, TValue, TOp, TCursor> :
-        ISpecializedCursor<TKey, TValue, ArithmeticSeries2_old<TKey, TValue, TOp, TCursor>> //, ISeries<TKey, TValue>
+    public struct ArithmeticSeries2<TKey, TValue, TOp, TCursor> :
+        ISpecializedCursor<TKey, TValue, ArithmeticSeries2<TKey, TValue, TOp, TCursor>> //, ISeries<TKey, TValue>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         where TOp : struct, IOp<TValue>
     {
@@ -24,9 +24,9 @@ namespace Spreads.Cursors.Experimental
 
         internal CursorState State { get; set; }
 
-        internal ArithmeticSeries2_old(TCursor cursor, TValue value)
+        internal ArithmeticSeries2(TCursor cursor, TValue value)
         {
-            this = new ArithmeticSeries2_old<TKey, TValue, TOp, TCursor>();
+            this = new ArithmeticSeries2<TKey, TValue, TOp, TCursor>();
             // NB factory could return a cursor in non-initialized state
             _value = value;
             _cursor = cursor;
@@ -86,9 +86,9 @@ namespace Spreads.Cursors.Experimental
         //public Task<bool> Updated => _cursor.Source.Updated;
 
         /// <inheritdoc />
-        public ArithmeticSeries2_old<TKey, TValue, TOp, TCursor> Clone()
+        public ArithmeticSeries2<TKey, TValue, TOp, TCursor> Clone()
         {
-            var clone = new ArithmeticSeries2_old<TKey, TValue, TOp, TCursor>(_cursor.Clone(), _value)
+            var clone = new ArithmeticSeries2<TKey, TValue, TOp, TCursor>(_cursor.Clone(), _value)
             {
                 State = State
             };
@@ -96,9 +96,9 @@ namespace Spreads.Cursors.Experimental
         }
 
         /// <inheritdoc />
-        public ArithmeticSeries2_old<TKey, TValue, TOp, TCursor> Initialize()
+        public ArithmeticSeries2<TKey, TValue, TOp, TCursor> Initialize()
         {
-            var toUse = new ArithmeticSeries2_old<TKey, TValue, TOp, TCursor>(_cursor, _value);
+            var toUse = new ArithmeticSeries2<TKey, TValue, TOp, TCursor>(_cursor, _value);
             toUse._cursor = _cursor.Initialize();
             toUse.State = CursorState.Initialized;
             return toUse;
@@ -212,9 +212,9 @@ namespace Spreads.Cursors.Experimental
             return Clone();
         }
 
-        public CursorSeries2<TKey, TValue, ArithmeticSeries2_old<TKey, TValue, TOp, TCursor>> AsSeries()
+        public CursorSeries2<TKey, TValue, ArithmeticSeries2<TKey, TValue, TOp, TCursor>> AsSeries()
         {
-            return new CursorSeries2<TKey, TValue, ArithmeticSeries2_old<TKey, TValue, TOp, TCursor>>(this);
+            return new CursorSeries2<TKey, TValue, ArithmeticSeries2<TKey, TValue, TOp, TCursor>>(this);
         }
 
 
@@ -246,12 +246,14 @@ namespace Spreads.Cursors.Experimental
         //    return Initialize();
         //}
 
-        //public ArithmeticSeries2_old<TKey, TValue, TOp, TCursor> GetEnumerator()
+        //public ArithmeticSeries2<TKey, TValue, TOp, TCursor> GetEnumerator()
         //{
         //    return Initialize();
         //}
 
-        public Task<bool> Updated => _cursor.Source.Updated;
+        //public object SyncRoot { get; }
+
+        //public Task<bool> Updated => throw new NotSupportedException();
 
         #endregion ISeries members
 

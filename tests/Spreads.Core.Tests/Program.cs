@@ -15,9 +15,9 @@ namespace Spreads.Core.Tests
         {
             //Benchmark.ForceSilence = true;
 
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 30; i++)
             {
-                (new ArithmeticTests()).CouldMapValuesBenchmarkArithmeticVsMapCursor();
+                (new ArithmeticTests()).MultipleEnumerationDoesntAllocate();
             }
 
             Console.WriteLine("Press enter to exit...");

@@ -173,7 +173,7 @@ namespace Spreads.Cursors
         {
             _cursor.Dispose();
             State = CursorState.None;
-            ReleaseCursor(this);
+            ReleaseInstance(this);
         }
 
         //public BaseSeries<TKey, TResult> Map<TResult>(Func<TValue, TResult> selector, Func<Buffer<TValue>, Buffer<TResult>> batchSelector)

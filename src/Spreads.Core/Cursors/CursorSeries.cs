@@ -254,7 +254,7 @@ namespace Spreads.Cursors
         /// <summary>
         /// Release a <see cref="CursorSeries{TKey, TValue, TCursor}"/> instance so that it could be reused later.
         /// </summary>
-        internal static void ReleaseCursor([NotNull]TCursor instance)
+        internal static void ReleaseInstance([NotNull]TCursor instance)
         {
             var inUse = Interlocked.CompareExchange(ref instance._inUse, 0, 1);
             switch (inUse)
@@ -267,7 +267,7 @@ namespace Spreads.Cursors
                     if (inUse == 0)
                     {
                         // replaced _inUse with -1, now ISeries is in diposed state
-                        Volatile.Write(ref _reusable, instance);
+                        Interlocked.Exchange(ref _reusable, instance);
                     }
                     break;
             }

@@ -27,8 +27,6 @@ namespace Spreads.Cursors
             return new CursorSeries2<TKey, TValue, TCursor>(cursor);
         }
 
-
-
         #region ISeries members
 
         public IDisposable Subscribe(IObserver<KeyValuePair<TKey, TValue>> observer)
@@ -38,17 +36,22 @@ namespace Spreads.Cursors
 
         IAsyncEnumerator<KeyValuePair<TKey, TValue>> IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
         {
-            return _cursor.Initialize();
+            return Initialize();
         }
 
         IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
         {
-            return _cursor.Initialize();
+            return Initialize();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return _cursor.Initialize();
+            return Initialize();
+        }
+
+        public TCursor GetEnumerator()
+        {
+            return Initialize();
         }
 
         public bool IsIndexed => throw new NotImplementedException();
@@ -57,7 +60,7 @@ namespace Spreads.Cursors
 
         public ICursor<TKey, TValue> GetCursor()
         {
-            return _cursor.Initialize();
+            return Initialize();
         }
 
         public object SyncRoot { get; }
@@ -89,7 +92,7 @@ namespace Spreads.Cursors
 
         public KeyValuePair<TKey, TValue> Current
         {
-            //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _cursor.Current; }
         }
 
@@ -130,13 +133,13 @@ namespace Spreads.Cursors
 
         public TKey CurrentKey
         {
-            //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _cursor.CurrentKey; }
         }
 
         public TValue CurrentValue
         {
-            //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _cursor.CurrentValue; }
         }
 
