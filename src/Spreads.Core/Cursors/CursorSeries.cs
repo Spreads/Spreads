@@ -13,24 +13,25 @@ using System.Threading.Tasks;
 namespace Spreads.Cursors
 {
     /// <summary>
-    /// Base abstract class for cursor series (objects that implement both IReadOnlySeries and ICursor).
+    /// Base abstract class for cursor series (objects that implement both <see cref="IReadOnlySeries{TKey, TValue}"/> and <see cref="ICursor{TKey, TValue}"/>).
     /// </summary>
-    public abstract class CursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue>
+    public abstract class CursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue> // TODO, ISpecializedSeries<TKey, TValue, TCursor>
         where TCursor : CursorSeries<TKey, TValue, TCursor>, ISpecializedCursor<TKey, TValue, TCursor>, new()
     {
-        // NB the idea is that the class is first used when the first instance is created
-        // if we do not expose non-private constructors other than the empty one then
-        // in the factory GetUninitializedInstanceStatic() methods we could try to reuse this cached instance
-
+        /// <summary>
+        /// NB the idea is that the class is first used when the first instance is created
+        /// if we do not expose non-private constructors other than the empty one then
+        /// in the factory <see cref="GetUninitializedStatic"/> methods we could try to reuse this cached instance.
+        /// </summary>
         internal static TCursor _reusable = new TCursor { _inUse = -1 };
 
+        /// <summary>
+        /// Set to 1 when this instance is initialized as a cursor via <see cref="Initialize"/>.
+        /// Set to 0 when this instance is created and is ready to be used as a cursor.
+        /// Set to -1 when this instance is stored for reuse (as if it is GCed, such instance could only be used via <see cref="GetUninitializedStatic"/> factory).
+        /// </summary>
         internal int _inUse;
 
-        // NB this will be padded anyways for State (at least to 4, probably to 8), could use later for some flags, etc.
-#pragma warning disable 169
-        internal short _reservedShort;
-        internal byte _reservedByte;
-#pragma warning restore 169
         internal CursorState State;
 
         /// <inheritdoc />
@@ -39,7 +40,7 @@ namespace Spreads.Cursors
         /// <summary>
         /// Get strongly-typed enumerator.
         /// </summary>
-        /// <returns>An initialized TCursor instance.</returns>
+        /// <returns>An initialized <typeparamref name="TCursor"/> instance.</returns>
         public TCursor GetEnumerator()
         {
             var clone = Initialize();
@@ -47,16 +48,11 @@ namespace Spreads.Cursors
         }
 
         /// <summary>
-        /// Create an initialized copy of TCursor. It must be safe to call this method on
+        /// Create an initialized copy of <typeparamref name="TCursor"/>. It must be safe to call this method on
         /// a previously disposed CursorSeries instances, e.g. in the case of re-using a series
         /// as a cursor or in the pooling case.
         /// </summary>
         public abstract TCursor Initialize();
-
-        /// <summary>
-        /// Create a copy of TCursor initialized to its position.
-        /// </summary>
-        //public abstract TCursor Clone();
 
         #region BaseSeries overrides
 
@@ -105,7 +101,7 @@ namespace Spreads.Cursors
         /// <inheritdoc />
         public override TValue GetAt(int idx)
         {
-            // NB call to this.NavCursor.Source.GetAt(idx) is recursive => SO
+            // NB call to this.NavCursor.Source.GetAt(idx) is recursive (=> SO) and is logically wrong
             if (idx < 0) throw new ArgumentOutOfRangeException(nameof(idx));
             using (var c = Initialize())
             {
@@ -202,7 +198,7 @@ namespace Spreads.Cursors
         #endregion BaseSeries overrides
 
         /// <summary>
-        /// Get pooled or new TCursor uninitialized instance.
+        /// Get pooled or new <typeparamref name="TCursor"/> uninitialized instance.
         /// </summary>
         [NotNull]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -214,12 +210,12 @@ namespace Spreads.Cursors
                 // we have taken the use ownership
                 case 0:
                     Debug.Assert(State == CursorState.None);
-                    Debug.Assert(this._inUse == 1);
+                    Debug.Assert(_inUse == 1);
                     return (TCursor)this;
 
                 // it was already used
                 case 1:
-                    var instance = GetUninitializedStatic(); //new TCursor { _inUse = 1 };
+                    var instance = GetUninitializedStatic();
                     instance._inUse = 1;
                     return instance;
 
@@ -243,9 +239,8 @@ namespace Spreads.Cursors
                     Interlocked.CompareExchange(ref _reusable, null, reusable)))
             {
                 // _inUse == -1 means that the object is as "if not created", it is dead, void...
-                // TODO replace with Debug.Assert
-                Trace.Assert(reusable._inUse == -1);
-                Trace.Assert(reusable.State == CursorState.None);
+                Debug.Assert(reusable._inUse == -1);
+                Debug.Assert(reusable.State == CursorState.None);
 
                 reusable._inUse = 0;
 
@@ -257,7 +252,7 @@ namespace Spreads.Cursors
         }
 
         /// <summary>
-        /// Release a CursorSeries instance so that it could be reused later.
+        /// Release a <see cref="CursorSeries{TKey, TValue, TCursor}"/> instance so that it could be reused later.
         /// </summary>
         internal static void ReleaseCursor([NotNull]TCursor instance)
         {
@@ -278,7 +273,7 @@ namespace Spreads.Cursors
             }
         }
 
-        // Derived classes will use this as the implementation for the ICursor method
+        // Derived classes will use this as the implementation for the ICursor method.
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken) => throw new NotSupportedException("Async MoveNext should use BaseCursor via CursorSeries");
     }

@@ -7,11 +7,15 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Cursors;
 
 namespace Spreads
 {
+
+    // TODO move to a folder Interfaces without namespace
+
     /// <summary>
-    /// Extends <c>IEnumerator[out T]</c> to support asynchronous MoveNext with cancellation.
+    /// Extends <see cref="IEnumerator{T}"/> to support asynchronous MoveNext with cancellation.
     /// </summary>
     /// <remarks>
     /// Contract: when MoveNext() returns false it means that there are no more elements
@@ -26,6 +30,9 @@ namespace Spreads
     /// </remarks>
     public interface IAsyncEnumerator<out T> : IEnumerator<T>
     {
+        // TODO (docs) last part of the remarks above should always be true and the contract must be documented
+        // False move from a valid state must keep a cursor/enumerator at the previous valid state
+
         /// <summary>
         /// Async move next.
         /// </summary>
@@ -38,14 +45,22 @@ namespace Spreads
         Task<bool> MoveNext(CancellationToken cancellationToken);
     }
 
-    // Convenience aliases, no need to pollute interfaces
+    /// <summary>
+    /// Convenience extensions to <see cref="IAsyncEnumerator{T}"/>.
+    /// </summary>
     public static class AsyncEnumeratorExtensions
     {
+        /// <summary>
+        /// An alias to <see cref="IAsyncEnumerator{T}.MoveNext(CancellationToken)"/> method with <see cref="CancellationToken.None"/>.
+        /// </summary>
         public static Task<bool> MoveNextAsync<T>(this IAsyncEnumerator<T> enumerator)
         {
             return enumerator.MoveNext(CancellationToken.None);
         }
 
+        /// <summary>
+        /// An alias to <see cref="IAsyncEnumerator{T}.MoveNext(CancellationToken)"/> method.
+        /// </summary>
         public static Task<bool> MoveNextAsync<T>(this IAsyncEnumerator<T> enumerator, CancellationToken cancellationToken)
         {
             return enumerator.MoveNext(cancellationToken);
@@ -53,9 +68,8 @@ namespace Spreads
     }
 
     /// <summary>
-    /// Exposes the async enumerator, which supports a sync and async iteration over a collection of a specified type.
+    /// Exposes the <see cref="IAsyncEnumerator{T}"/> async enumerator, which supports a sync and async iteration over a collection of a specified type.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
     public interface IAsyncEnumerable<out T> : IEnumerable<T>
     {
         /// <summary>
@@ -103,15 +117,28 @@ namespace Spreads
         //new ISubscription Subscribe(IObserver<T> subscriber);
     }
 
-    public interface IDataStream<out T> : IAsyncEnumerable<T>, IPublisher<T> { }
+    // TODO see issue https://github.com/Spreads/Spreads/issues/99
 
     /// <summary>
-    /// A Processor represents a processing stage—which is both a Subscriber
-    /// and a Publisher
+    /// An <see cref="IAsyncEnumerable{KeyValuePair}"/> and <see cref="IPublisher{KeyValuePair}"/> with additional guarantee
+    /// that items are ordered by <typeparamref name="TKey"/>.
+    /// </summary>
+    public interface IDataStream<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>,
+        IPublisher<KeyValuePair<TKey, TValue>>
+    {
+        /// <summary>
+        /// Key comparer.
+        /// </summary>
+        KeyComparer<TKey> Comparer { get; }
+    }
+
+    /// <summary>
+    /// A Processor represents a processing stage — which is both a <see cref="ISubscriber{T}"/>
+    /// and a <see cref="IPublisher{T}"/>
     /// and obeys the contracts of both.
     /// </summary>
-    /// <typeparam name="TIn">the type of element signaled to the Subscriber</typeparam>
-    /// <typeparam name="TOut">the type of element signaled by the Publisher</typeparam>
+    /// <typeparam name="TIn">The type of element signaled to the <see cref="ISubscriber{T}"/></typeparam>
+    /// <typeparam name="TOut">The type of element signaled by the <see cref="IPublisher{T}"/></typeparam>
     public interface IProcessor<in TIn, out TOut> : ISubscriber<TIn>, IPublisher<TOut>
     {
     }
@@ -154,9 +181,22 @@ namespace Spreads
         Task<bool> Updated { get; }
     }
 
+    // TODO
+    public interface ISpecializedSeries<TKey, TValue, TCursor> : ISeries<TKey, TValue>
+        where TCursor : ICursor<TKey, TValue>
+    {
+        new TCursor GetCursor();
+    }
+
+    /// <summary>
+    /// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
+    /// </summary>
     public interface ISeries : ISeries<Variant, Variant>
     {
     }
+
+
+    // TODO (docs) review the contract (together with IAsynEnumerable above) and format the xml doc
 
     /// <summary>
     /// ICursor is an advanced enumerator that supports moves to first, last, previous, next, next batch, exact
@@ -192,6 +232,8 @@ namespace Spreads
     public interface ICursor<TKey, TValue>
         : IAsyncEnumerator<KeyValuePair<TKey, TValue>>
     {
+        // TODO add CursorState. For non-CursorSeries the state is never None after creation - created ones are already initialized. What about disposed ones?
+
         KeyComparer<TKey> Comparer { get; }
 
         /// <summary>
@@ -234,7 +276,7 @@ namespace Spreads
         bool IsContinuous { get; }
 
         /// <summary>
-        /// Create a copy of cursor that is positioned at the same place as this cursor.
+        /// Copy this cursor and position the copy at the same place as this cursor.
         /// </summary>
         ICursor<TKey, TValue> Clone();
 
@@ -259,18 +301,17 @@ namespace Spreads
         where TCursor : ICursor<TKey, TValue>
     {
         /// <summary>
-        /// Returns an initialized (ready to move) instance of TCursor.
-        /// It could be the same instance for CursorSeries.
-        /// It is the equivalent to calling ICursor.Source.GetCursor() for the non-specialized ICursor.
+        /// Returns an initialized (ready to move) instance of <typeparamref name="TCursor"/>.
+        /// It could be the same instance for <see cref="CursorSeries{TKey,TValue,TCursor}"/>.
+        /// It is the equivalent to calling the method <see cref="ISeries{TKey,TValue}.GetCursor"/> on <see cref="ICursor{TKey,TValue}.Source"/> for the non-specialized ICursor.
         /// </summary>
+        /// <remarks>
+        /// This method must work on disposed instances of <see cref="ISpecializedCursor{TKey, TValue, TCursor}"/>.
+        /// </remarks>
         TCursor Initialize();
-        // TODO (docs, design) should work after Dispose()
-        // GetCursor/GetEnumerator return initialized cursors, but theycould be disposed
-        // Initialize should be able to reuse disposed cursors
-
 
         /// <summary>
-        /// Create a copy of cursor that is positioned at the same place as this cursor.
+        /// Copy this cursor and position the copy at the same place as this cursor.
         /// </summary>
         new TCursor Clone();
     }
@@ -307,7 +348,7 @@ namespace Spreads
 
         /// <summary>
         /// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
-        /// is Linq's [series].Skip(idx-1).Take(1).Value
+        /// is Linq's <code>[series].Skip(idx-1).Take(1).Value</code> .
         /// </summary>
         TValue GetAt(int idx);
 

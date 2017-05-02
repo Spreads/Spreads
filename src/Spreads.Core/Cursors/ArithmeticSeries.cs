@@ -12,15 +12,24 @@ using System.Threading.Tasks;
 namespace Spreads.Cursors
 {
     /// <summary>
-    /// A series that applies an arithmetic operation to each value of its input series. Specialized for input cursor.
+    /// A <see cref="CursorSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation to each value of its input series.
     /// </summary>
     public sealed class ArithmeticSeries<TKey, TValue, TOp, TCursor> :
         CursorSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>,
-        ISpecializedCursor<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> //, ICanMapValues<TKey, TValue>
+        ISpecializedCursor<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> // TODO , ICanMapValues<TKey, TValue>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         where TOp : struct, IOp<TValue>
     {
         #region Cursor state
+
+        // This region must contain all cursor state that is passed via constructor.
+        // No additional state must be created.
+        // All state elements should be assigned in Initialize and Clone methods
+        // All inner cursors must be disposed in the Dispose method but references to them must be kept (they could be used as factories)
+        // for re-initialization.
+
+        // TODO(?) we could probably create an abstract class with TState : IDisposable and use it as a template - it is quite easy to make 
+        // a sublte error with copy-paste. But the state will require Clone/Initialize parameters
 
         internal TValue _value;
 
