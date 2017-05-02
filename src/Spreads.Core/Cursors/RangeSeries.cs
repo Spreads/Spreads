@@ -19,45 +19,46 @@ namespace Spreads.Cursors
     public class RangeSeries<TKey, TValue, TCursor> :
         CursorSeries<TKey, TValue, RangeSeries<TKey, TValue, TCursor>>,
         ISpecializedCursor<TKey, TValue, RangeSeries<TKey, TValue, TCursor>> //, ICanMapValues<TKey, TValue>
-        where TCursor : ICursor<TKey, TValue>
+        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
-        internal readonly ISeries<TKey, TValue> _series;
+        //nternal readonly ISeries<TKey, TValue> _series;
 
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal TCursor _cursor;
 
-        private readonly bool _endInclusive;
-        private readonly Opt<TKey> _endKey;
-        private readonly bool _startInclusive;
-        private readonly Opt<TKey> _startKey;
+        private bool _endInclusive;
+        private Opt<TKey> _endKey;
+        private bool _startInclusive;
+        private Opt<TKey> _startKey;
         private bool _atEnd;
         private bool _atStart;
-        private Lookup _endLookup;
-        private Lookup _startLookup;
+
+        private Lookup _endLookup => _endInclusive ? Lookup.LE : Lookup.LT;
+        private Lookup _startLookup => _startInclusive ? Lookup.GE : Lookup.GT;
+
+        public RangeSeries()
+        {
+        }
 
         /// <summary>
         /// MapValuesSeries constructor.
         /// </summary>
-        internal RangeSeries(ISeries<TKey, TValue> series,
+        internal RangeSeries(TCursor cursor,
             Opt<TKey> startKey, Opt<TKey> endKey,
             bool startInclusive = true, bool endInclusive = true)
         {
-            if (series.IsIndexed)
+            if (cursor.Source.IsIndexed)
             {
-                throw new NotSupportedException(
-                    "RangeSeries is not supported for indexed series, only for sorted ones.");
+                throw new NotSupportedException("RangeSeries is not supported for indexed series, only for sorted ones.");
             }
 
-            _series = series;
+            _cursor = cursor;
 
             _startKey = startKey;
             _endKey = endKey;
             _startInclusive = startInclusive;
             _endInclusive = endInclusive;
-
-            _startLookup = startInclusive ? Lookup.GE : Lookup.GT;
-            _endLookup = endInclusive ? Lookup.LE : Lookup.LT;
         }
 
         /// <summary>
@@ -112,7 +113,7 @@ namespace Spreads.Cursors
             {
                 if (!_atEnd && (State != CursorState.Moving | EndOk(_cursor.CurrentKey)))
                 {
-                    return _series.Updated;
+                    return _cursor.Source.Updated;
                 }
                 return TaskEx.FalseTask;
             }
@@ -127,38 +128,44 @@ namespace Spreads.Cursors
         public bool IsContinuous => _cursor.IsContinuous;
 
         /// <inheritdoc />
-        public override bool IsIndexed => _series.IsIndexed;
+        public override bool IsIndexed => _cursor.Source.IsIndexed;
 
         /// <inheritdoc />
-        public override bool IsReadOnly => _series.IsReadOnly;
+        public override bool IsReadOnly => _cursor.Source.IsReadOnly;
 
         // TODO when MNB works after MN
         /// <inheritdoc />
-        public override RangeSeries<TKey, TValue, TCursor> Clone()
+        public RangeSeries<TKey, TValue, TCursor> Clone()
         {
-            var clone = Initialize();
-            Debug.Assert(clone.State == CursorState.Initialized);
-            if (State == CursorState.Moving)
+            var instance = GetUninitializedInstance();
+            if (ReferenceEquals(instance, this))
             {
-                clone.MoveAt(CurrentKey, Lookup.EQ);
+                return this;
             }
-            return clone;
+
+            instance._cursor = _cursor.Clone();
+            instance._startKey = _startKey;
+            instance._endKey = _endKey;
+            instance._startInclusive = _startInclusive;
+            instance._endInclusive = _endInclusive;
+            instance.State = State;
+            return instance;
         }
 
         /// <inheritdoc />
         public override RangeSeries<TKey, TValue, TCursor> Initialize()
         {
-            if (State == CursorState.None && ThreadId == Environment.CurrentManagedThreadId)
-            {
-                _cursor = GetCursor<TKey, TValue, TCursor>(_series);
-                State = CursorState.Initialized;
-                return this;
-            }
-            var clone = new RangeSeries<TKey, TValue, TCursor>(_series, _startKey, _endKey, _startInclusive, _endInclusive);
-            // NB recursive call but it should always hit the if case above
-            var initialized = clone.Initialize();
-            Debug.Assert(ReferenceEquals(clone, initialized));
-            return initialized;
+            var instance = GetUninitializedInstance();
+
+            instance._cursor = _cursor.Initialize();
+            instance._startKey = _startKey;
+            instance._endKey = _endKey;
+            instance._startInclusive = _startInclusive;
+            instance._endInclusive = _endInclusive;
+
+            instance.State = CursorState.Initialized;
+            return instance;
+
         }
 
         /// <inheritdoc />
@@ -166,6 +173,7 @@ namespace Spreads.Cursors
         {
             _cursor.Dispose();
             State = CursorState.None;
+            ReleaseCursor(this);
         }
 
         //public BaseSeries<TKey, TResult> Map<TResult>(Func<TValue, TResult> selector, Func<Buffer<TValue>, Buffer<TResult>> batchSelector)

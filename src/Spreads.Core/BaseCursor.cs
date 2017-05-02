@@ -11,12 +11,12 @@ using System.Threading.Tasks;
 
 namespace Spreads
 {
-    internal sealed class BaseCursorAsync<TKey, TValue, TCursor> : ICursor<TKey, TValue>
-        where TCursor : ICursor<TKey, TValue>
+    internal sealed class BaseCursorAsync<TKey, TValue, TCursor> : ISpecializedCursor<TKey, TValue, TCursor>
+        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         //private static readonly BoundedConcurrentBag<BaseCursorAsync<TK, TV, TCursor>> Pool = new BoundedConcurrentBag<BaseCursorAsync<TK, TV, TCursor>>(Environment.ProcessorCount * 16);
 
-        private ISeries<TKey, TValue> _source;
+        //private ISeries<TKey, TValue> _source;
 
         // NB this is often a struct, should not be made readonly!
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
@@ -28,40 +28,51 @@ namespace Spreads
 
         // NB factory could be more specific than GetCursor method of the source, which returns an interface
         // At the same time, we need access to BaseSeries members and cannot use Source property of the cursor
-        public BaseCursorAsync(ISeries<TKey, TValue> source, Func<TCursor> cursorFactory)
-        {
-            _source = source;
-            _innerCursor = cursorFactory();
-        }
+        //public BaseCursorAsync(ISeries<TKey, TValue> source, Func<TCursor> cursorFactory)
+        //{
+        //    //_source = source;
+        //    _innerCursor = cursorFactory();
+        //}
 
         public BaseCursorAsync(Func<TCursor> cursorFactory)
         {
             _innerCursor = cursorFactory();
-            _source = _innerCursor.Source;
+            if (_innerCursor.Source == null)
+            {
+                Console.WriteLine("Suorce is null");
+            }
+            //_source = _innerCursor.Source;
         }
 
-        public static BaseCursorAsync<TKey, TValue, TCursor> Create(ISeries<TKey, TValue> source, Func<TCursor> cursorFactory)
+        public BaseCursorAsync(TCursor cursor)
         {
-            return new BaseCursorAsync<TKey, TValue, TCursor>(source, cursorFactory);
-
-            // TODO #84
-            // BaseCursorAsync<TK, TV, TCursor> inst;
-            //if (!Pool.TryTake(out inst)) {
-            //    inst = new BaseCursorAsync<TK, TV, TCursor>(source, cursorFactory);
-            //}
-            //inst._source = source;
-            //inst._innerCursor = cursorFactory();
-            //inst._disposed = false;
-            //return inst;
+            _innerCursor = cursor;
         }
+
+        //public static BaseCursorAsync<TKey, TValue, TCursor> Create(ISeries<TKey, TValue> source, Func<TCursor> cursorFactory)
+        //{
+        //    return new BaseCursorAsync<TKey, TValue, TCursor>(source, cursorFactory);
+
+        //    // TODO #84
+        //    // BaseCursorAsync<TK, TV, TCursor> inst;
+        //    //if (!Pool.TryTake(out inst)) {
+        //    //    inst = new BaseCursorAsync<TK, TV, TCursor>(source, cursorFactory);
+        //    //}
+        //    //inst._source = source;
+        //    //inst._innerCursor = cursorFactory();
+        //    //inst._disposed = false;
+        //    //return inst;
+        //}
 
         private void Dispose(bool disposing)
         {
             if (!disposing) return;
-            _source = null;
 
             _innerCursor?.Dispose();
-            _innerCursor = default(TCursor);
+            // TODO (docs)  a disposed cursor could still be used as a cursor factory and is actually used
+            // via Source.GetCursor(). This mustbe clearly mentions in cursor specification
+            // andbe a part of contracts test suite
+            // NB don't do this: _innerCursor = default(TCursor);
 
             _cancelledTcs = null;
             _registration.Dispose();
@@ -88,13 +99,13 @@ namespace Spreads
         private Task<bool> MoveNextSlow(CancellationToken cancellationToken)
         {
             // we took a task, but it could have been created after the previous update, need to try moving next
-            var task = _source.Updated;
+            var task = _innerCursor.Source.Updated;
             if (_innerCursor.MoveNext())
             {
                 return TaskEx.TrueTask;
             }
 
-            if (_source.IsReadOnly)
+            if (_innerCursor.Source.IsReadOnly)
             { // false almost always
                 return _innerCursor.MoveNext() ? TaskEx.TrueTask : TaskEx.FalseTask;
             }
@@ -207,9 +218,19 @@ namespace Spreads
 
         public bool IsContinuous => _innerCursor.IsContinuous;
 
-        public ICursor<TKey, TValue> Clone()
+        public TCursor Initialize()
+        {
+            return _innerCursor.Initialize();
+        }
+
+        public TCursor Clone()
         {
             return _innerCursor.Clone();
+        }
+
+        ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
+        {
+            return new BaseCursorAsync<TKey, TValue, TCursor>(_innerCursor.Clone());
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -221,13 +242,6 @@ namespace Spreads
         public void Dispose()
         {
             Dispose(true);
-            //GC.SuppressFinalize(this);
         }
-
-        // NB IS we did not called dispose explicitly, let the object die and do not try
-        // to use finalizers
-        //~BaseCursorAsync() {
-        //    Dispose(false);
-        //}
     }
 }

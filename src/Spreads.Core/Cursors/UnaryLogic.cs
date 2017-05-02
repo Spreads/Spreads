@@ -22,9 +22,9 @@ namespace Spreads.Cursors
     }
 
     public sealed class UnaryLogicSeries<TKey, TValue, TCursor> : MapValuesSeries<TKey, TValue, bool, TCursor>
-        where TCursor : ICursor<TKey, TValue>
+        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
-        public UnaryLogicSeries(ISeries<TKey, TValue> series, TValue comparand, UnaryLogicOp op) : base(series, x => Apply(x, comparand, op))
+        public UnaryLogicSeries(TCursor cursor, TValue comparand, UnaryLogicOp op) : base(cursor, x => Apply(x, comparand, op))
         { }
 
         // TODO In ArithmeticSeries switch was worse than a sequence of ifs

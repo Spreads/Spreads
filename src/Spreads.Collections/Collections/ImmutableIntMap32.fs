@@ -1269,8 +1269,6 @@ namespace Spreads.Collections
 //            member this.Count with get() = int(this.Size)
           member this.Size with get() = int64(this.Size)
 
-          member this.SyncRoot with get() = this.SyncRoot
-
           member this.Add(key, value):IImmutableSeries<int32,'T> =
               this.Add(key, value) :> IImmutableSeries<int32,'T>
 

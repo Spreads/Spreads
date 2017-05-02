@@ -667,7 +667,7 @@ type IndexedMap<'K,'V> // when 'K:equality
     
 
   override this.GetCursor() = 
-    let cursor = BaseCursorAsync<'K,'V,_>.Create(this,Func<_>(fun _ -> new MapCursor<_,_>(this)))
+    let cursor = new BaseCursorAsync<'K,'V,MapCursor<_,_>>(Func<_>(fun _ -> new MapCursor<_,_>(this)))
     cursor :> ICursor<_,_>
     //this.GetCursor(-1, version, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>)
     

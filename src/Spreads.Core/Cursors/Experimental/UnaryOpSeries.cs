@@ -1,49 +1,39 @@
-﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-// ReSharper disable once CheckNamespace
-namespace Spreads.Cursors
+namespace Spreads.Cursors.Experimental
 {
-    //internal interface ICanMapValues<TKey, TValue>
-    //{
-    //    BaseSeries<TKey, TResult> Map<TResult>(Func<TValue, TResult> selector, Func<Buffer<TValue>, Buffer<TResult>> batchSelector);
-    //}
-
-    /// <summary>
-    /// A series that applies a selector to each value of its input series. Specialized for input cursor.
-    /// </summary>
-    public class MapValuesSeries<TKey, TValue, TResult, TCursor> :
-        CursorSeries<TKey, TResult, MapValuesSeries<TKey, TValue, TResult, TCursor>>,
-        ISpecializedCursor<TKey, TResult, MapValuesSeries<TKey, TValue, TResult, TCursor>> //, ICanMapValues<TKey, TResult>
+    internal sealed class UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor> :
+        CursorSeries<TKey, TResult, UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor>>,
+        ISpecializedCursor<TKey, TResult, UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor>> //, ICanMapValues<TKey, TValue>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+        where TOp : struct, IOp<TValue, TValue2, TResult>
     {
-        internal Func<TValue, TResult> _selector;
+        internal TValue2 _value;
 
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal TCursor _cursor;
 
-        public MapValuesSeries()
+        public UnaryOpSeries()
         {
-            
         }
 
         /// <summary>
         /// MapValuesSeries constructor.
         /// </summary>
-        internal MapValuesSeries(TCursor cursor, Func<TValue, TResult> selector)
+        internal UnaryOpSeries(TCursor cursor, TValue2 value)
         {
             _cursor = cursor;
-            _selector = selector;
+            _value = value;
         }
 
         /// <inheritdoc />
@@ -58,11 +48,7 @@ namespace Spreads.Cursors
         {
             get
             {
-                throw new NotImplementedException();
-                //var batch = _cursor.CurrentBatch;
-                //// TODO when batching is proper implemented (nested batches) reuse an instance for this
-                //var mapped = new MapValuesSeries<TKey, TValue, TResult, TCursor>(batch, _selector);
-                //return mapped;
+                throw new NotImplementedException("TODO see ArithmeticSeries implementation");
             }
         }
 
@@ -77,7 +63,10 @@ namespace Spreads.Cursors
         public TResult CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _selector(_cursor.CurrentValue); }
+            get
+            {
+                return default(TOp).Apply(_cursor.CurrentValue, _value);
+            }
         }
 
         /// <inheritdoc />
@@ -98,7 +87,7 @@ namespace Spreads.Cursors
         public override Task<bool> Updated => _cursor.Source.Updated;
 
         /// <inheritdoc />
-        public MapValuesSeries<TKey, TValue, TResult, TCursor> Clone()
+        public UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor> Clone()
         {
             var instance = GetUninitializedInstance();
             if (ReferenceEquals(instance, this))
@@ -107,18 +96,17 @@ namespace Spreads.Cursors
                 return this;
             }
             instance._cursor = _cursor.Clone();
-            instance._selector = _selector;
+            instance._value = _value;
             instance.State = State;
             return instance;
-           
         }
 
         /// <inheritdoc />
-        public override MapValuesSeries<TKey, TValue, TResult, TCursor> Initialize()
+        public override UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor> Initialize()
         {
             var instance = GetUninitializedInstance();
-            instance._cursor = _cursor.Initialize();
-            instance._selector = _selector;
+            instance._cursor = instance._cursor.Initialize();
+            instance._value = _value;
             instance.State = CursorState.Initialized;
             return instance;
         }
@@ -131,9 +119,16 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
+        public void Reset()
+        {
+            _cursor.Reset();
+            State = CursorState.Initialized;
+        }
+
+        /// <inheritdoc />
         public override TResult GetAt(int idx)
         {
-            return _selector(_cursor.Source.GetAt(idx));
+            return default(TOp).Apply(_cursor.Source.GetAt(idx), _value);
         }
 
         /// <inheritdoc />
@@ -142,7 +137,7 @@ namespace Spreads.Cursors
         {
             if (_cursor.TryGetValue(key, out var v))
             {
-                value = _selector(v);
+                value = default(TOp).Apply(v, _value);
                 return true;
             }
             value = default(TResult);
@@ -216,21 +211,9 @@ namespace Spreads.Cursors
             return _cursor.MovePrevious();
         }
 
-        /// <inheritdoc />
-        public void Reset()
-        {
-            _cursor.Reset();
-            State = CursorState.Initialized;
-        }
-
         ICursor<TKey, TResult> ICursor<TKey, TResult>.Clone()
         {
             return Clone();
         }
-
-        //BaseSeries<TKey, TResult1> ICanMapValues<TKey, TResult>.Map<TResult1>(Func<TResult, TResult1> selector, Func<Buffer<TResult>, Buffer<TResult1>> batchSelector)
-        //{
-        //    return new MapValuesSeries<TKey, TValue, TResult1, TCursor>(_series, CoreUtils.CombineMaps(_selector, selector));
-        //}
     }
 }

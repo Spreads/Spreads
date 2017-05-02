@@ -10,30 +10,57 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Collections;
 
 namespace Spreads.Cursors
 {
 
+    // NB for union and zip specialization won't work - we must know the type of each cursor
+    // changing to BaseCursor also won't work - devirtualization is probably not not that smart (but who knows)
+    // TCursor is here for the case if later we decide to have base cursor class and to compare virtual vs interfaces
+    // however, for struct cursors that will always require wrapping into base cursor class
+    // For now assume that TCursor is SpecializedWrapper over ICursor.
+    // This is the point where inlining breaks - but these cursors are specialized themselves
+    // The idea is that we could limit non-direct calls to union/zip only, all single-series transformations
+    // could be inlined - even if it requires many copy-paste specialized boilerplate
+    
+
     internal sealed class UnionKeys<TKey, TValue, TCursor> :
         CursorSeries<TKey, TValue, UnionKeys<TKey, TValue, TCursor>>,
-        ICursor<TKey, TValue>
-        where TCursor : ICursor<TKey, TValue>
+        ISpecializedCursor<TKey, TValue, UnionKeys<TKey, TValue, TCursor>>
+        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
-        private readonly ISeries<TKey, TValue>[] _series;
-        private KeyComparer<TKey> _comparer;
+        //private readonly ISeries<TKey, TValue>[] _series;
+        private readonly ICursor<TKey, TValue>[] _cursors;
+        private readonly KeyComparer<TKey> _comparer;
+        private readonly bool[] _movedKeysFlags;
+        private readonly SortedDeque<TKey, int> _movedKeys;
+        private int _liveCounter;
+        private SortedDeque<TKey> _outOfOrderKeys;
+
+        public UnionKeys()
+        {
+            
+        }
 
         public UnionKeys(params ISeries<TKey, TValue>[] series)
         {
-            _series = series;
-            for (int i = 1; i < series.Length; i++)
+            for (int i = 0; i < series.Length; i++)
             {
-                if (!ReferenceEquals(series[i - 1].Comparer, series[i].Comparer))
+                if (i > 0 && !ReferenceEquals(series[i - 1].Comparer, series[i].Comparer))
                 {
                     throw new ArgumentException("UnionKeys: Comparers are not equal");
                 }
+                _cursors[i] = series[i].GetCursor();
             }
 
+
             _comparer = series[0].Comparer;
+            _movedKeysFlags = new bool[series.Length];
+            _movedKeys = new SortedDeque<TKey, int>(series.Length, new KVPComparer<TKey, int>(_comparer, null));
+            _liveCounter = series.Length;
+            //_outOfOrderKeys = new SortedDeque<TKey>();
+
         }
 
         public override KeyComparer<TKey> Comparer => _comparer;
@@ -41,13 +68,13 @@ namespace Spreads.Cursors
         public override bool IsIndexed => false;
 
         // TODO this is heaviliy used in MNA, remove LINQ, use livecount, review
-        public override bool IsReadOnly => _series.All(s => s.IsReadOnly);
+        public override bool IsReadOnly => _cursors.All(s => s.Source.IsReadOnly);
 
         public override Task<bool> Updated => throw new NotImplementedException();
 
-        public TKey CurrentKey => throw new NotImplementedException();
+        public TKey CurrentKey { get; private set; }
 
-        public TValue CurrentValue => throw new NotImplementedException();
+        public TValue CurrentValue => throw new NotSupportedException("UnionKeys series does not support values.");
 
         public IReadOnlySeries<TKey, TValue> CurrentBatch => null;
 
@@ -57,7 +84,7 @@ namespace Spreads.Cursors
 
         object IEnumerator.Current => throw new NotImplementedException();
 
-        public override UnionKeys<TKey, TValue, TCursor> Clone()
+        public UnionKeys<TKey, TValue, TCursor> Clone()
         {
             throw new NotImplementedException();
         }
@@ -79,7 +106,32 @@ namespace Spreads.Cursors
 
         public bool MoveFirst()
         {
-            throw new NotImplementedException();
+            var moved = false;
+            Array.Clear(_movedKeysFlags, 0, _movedKeysFlags.Length);
+            _movedKeys.Clear();
+            for (int i = 0; i < _cursors.Length; i++)
+            {
+                var c = _cursors[i];
+                var movedX = c.MoveFirst();
+                if (movedX)
+                {
+                    _movedKeysFlags[i] = true;
+                    _movedKeys.Add(new KeyValuePair<TKey, int>(c.CurrentKey, i));
+                }
+                moved = moved || movedX;
+            }
+            if (moved)
+            {
+                CurrentKey = _movedKeys.First.Key;
+                // keep navigating state unchanged
+                if (moved && State == CursorState.Initialized)
+                {
+                    State = CursorState.Moving;
+                }
+                State = CursorState.Moving;
+                return true;
+            }
+            return false;
         }
 
         public bool MoveLast()
@@ -89,6 +141,60 @@ namespace Spreads.Cursors
 
         public bool MoveNext()
         {
+            //if not this.HasValidState then this.MoveFirst()
+            //else
+            //  // try to recover cursors that have not moved before
+            //  if movedKeys.Count < cursors.Length then
+            //    let mutable i = 0
+            //    while i < movedKeysFlags.Length do
+            //      if not movedKeysFlags.[i] then
+            //        let c = cursors.[i]
+            //        let moved' = c.MoveAt(this.CurrentKey, Lookup.GT)
+            //        if moved' then 
+            //          movedKeysFlags.[i] <- true
+            //          movedKeys.Add(KVP(c.CurrentKey, i)) |> ignore
+            //      i <- i + 1
+
+            //  // ignore cursors that cannot move ahead of frontier during this move, but do 
+            //  // not remove them from movedKeys so that we try to move them again on the next move
+            //  let mutable ignoreOffset = 0
+            //  let mutable leftmostIsAheadOfFrontier = false
+            //  // current key is frontier, we could call MN after MP, etc.
+            //  while ignoreOffset < movedKeys.Count && not leftmostIsAheadOfFrontier do
+            //    //leftmostIsAheadOfFrontier <- not cmp.Compare(movedKeys.First.Key, this.CurrentKey) <= 0
+            //    let initialPosition = movedKeys.[ignoreOffset]
+            //    let cursor = cursors.[initialPosition.Value]
+
+            //    let mutable shouldMove = cmp.Compare(cursor.CurrentKey, this.CurrentKey) <= 0
+            //    let mutable movedAtLeastOnce = false
+            //    let mutable passedFrontier = not shouldMove
+            //    // try move while could move and not passed the frontier
+            //    while shouldMove do
+            //      let moved = cursor.MoveNext()
+            //      movedAtLeastOnce <- movedAtLeastOnce || moved
+            //      passedFrontier <- cmp.Compare(cursor.CurrentKey, this.CurrentKey) > 0
+            //      shouldMove <- moved && not passedFrontier
+
+            //    if movedAtLeastOnce || passedFrontier then
+            //      if movedAtLeastOnce then
+            //        let newPosition = KVP(cursor.CurrentKey, initialPosition.Value)
+            //        // update positions if the current has changed, regardless of the frontier
+            //        movedKeys.RemoveAt(ignoreOffset) |> ignore
+            //        movedKeys.Add(newPosition)
+
+            //      // here passedFrontier if for cursor that after remove/add is not at ignoreOffset idx
+            //      if passedFrontier && cmp.Compare(movedKeys.[ignoreOffset].Key, this.CurrentKey) > 0 then
+            //        leftmostIsAheadOfFrontier <- true
+            //    else
+            //      Trace.Assert(not passedFrontier, "If cursor hasn't moved, I couldn't pass the prontier")
+            //      ignoreOffset <- ignoreOffset + 1
+            //      ()
+            //  // end of outer loop
+            //  if leftmostIsAheadOfFrontier then
+            //      this.CurrentKey <- movedKeys.[ignoreOffset].Key
+            //      true
+            //  else
+            //      false
             throw new NotImplementedException();
         }
 
@@ -120,7 +226,7 @@ namespace Spreads.Cursors
 
     public sealed class ZipN<TKey, TValue, TCursor> :
         CursorSeries<TKey, TValue[], ZipN<TKey, TValue, TCursor>>,
-        ICursor<TKey, TValue[]>
+        ISpecializedCursor<TKey, TValue[], ZipN<TKey, TValue, TCursor>>
         where TCursor : ICursor<TKey, TValue>
     {
         public override KeyComparer<TKey> Comparer => throw new NotImplementedException();
@@ -143,7 +249,7 @@ namespace Spreads.Cursors
 
         object IEnumerator.Current => throw new NotImplementedException();
 
-        public override ZipN<TKey, TValue, TCursor> Clone()
+        public ZipN<TKey, TValue, TCursor> Clone()
         {
             throw new NotImplementedException();
         }

@@ -2,17 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Spreads.Collections.Tests.Contracts {
-
+namespace Spreads.Collections.Tests.Contracts
+{
     // TODO! Add many more cases and all edge cases to this suite
 
     // TODO! We must test all base cursors for correctess, preferrably with random inputs
@@ -21,8 +18,8 @@ namespace Spreads.Collections.Tests.Contracts {
     // - empty series
     // - single element series
     // - two element series
-    // We could add more and more tests to this suite so that the new tests are invoked for 
-    // all existing cursors. New concrete cursor implementations, such as SMA/StDev, must 
+    // We could add more and more tests to this suite so that the new tests are invoked for
+    // all existing cursors. New concrete cursor implementations, such as SMA/StDev, must
     // pass this test suite before adding to the public API, however they could live as internal during WIP
 
     // NB this suite itself could have bugs, but hopefully its own bugs won't correct any buggy implementation
@@ -35,84 +32,94 @@ namespace Spreads.Collections.Tests.Contracts {
     /// TGV on ISeries must give the same result as a TGV call on the ephemeral SM.
     /// </summary>
 
-    public class ContractsTests<K, V> {
+    public class ContractsTests<K, V>
+    {
         private readonly IReadOnlySeries<K, V> _testSeries;
         private readonly SortedMap<K, V> _materializedSeries;
         private readonly SortedMap<K, V> _ephemeralSeries;
         private readonly Random _rng = new Random();
 
-
         public ContractsTests(IReadOnlySeries<K, V> testSeries,
             SortedMap<K, V> materializedSeries,
-            SortedMap<K, V> ephemeralSeries = null) {
+            SortedMap<K, V> ephemeralSeries = null)
+        {
             if (testSeries == null) throw new ArgumentNullException(nameof(testSeries));
             if (materializedSeries == null) throw new ArgumentNullException(nameof(materializedSeries));
             _testSeries = testSeries;
             _materializedSeries = materializedSeries;
             _ephemeralSeries = ephemeralSeries;
 
-            if (ephemeralSeries != null) {
+            if (ephemeralSeries != null)
+            {
                 var eqc = EqualityComparer<V>.Default;
                 // TODO (UX) Spreads signature conflicts with LINQ, easy to fix but not very convenient
-                var intersect = materializedSeries.Zip(ephemeralSeries, (l, r) => {
-                    if (!eqc.Equals(l, r)) {
+                var intersect = materializedSeries.Zip(ephemeralSeries, (l, r) =>
+                {
+                    if (!eqc.Equals(l, r))
+                    {
                         throw new ArgumentException("materializedSeries and ephemeralSeries contain different values for the same keys");
-                    } else {
+                    }
+                    else
+                    {
                         return l;
                     }
                 });
-                if (intersect.IsEmpty) {
-                    foreach (var kvp in materializedSeries.Take(10)) {
+                if (intersect.IsEmpty)
+                {
+                    foreach (var kvp in materializedSeries.Take(10))
+                    {
                         ephemeralSeries[kvp.Key] = kvp.Value;
                     }
                 }
             }
         }
 
-
         /// <summary>
         /// If these ones fail, one should consider to kill him/herself and never touch keyboard again!
         /// </summary>
-        public void BasicTests() {
+        public void BasicTests()
+        {
             Assert.AreEqual(_materializedSeries.Count, _testSeries.Count());
             Assert.AreEqual(_materializedSeries.IsEmpty, !_testSeries.Any());
             Assert.AreEqual(_materializedSeries.IsReadOnly, _testSeries.IsReadOnly);
-            if (_materializedSeries.Count == 0) {
+            if (_materializedSeries.Count == 0)
+            {
                 return;
             }
             Assert.AreEqual(_materializedSeries.First, _testSeries.First());
             Assert.AreEqual(_materializedSeries.Last, _testSeries.Last());
 
-            foreach (var kvp in _materializedSeries) {
+            foreach (var kvp in _materializedSeries)
+            {
                 KeyValuePair<K, V> tkvp;
-                if (_testSeries.TryFind(kvp.Key, Lookup.EQ, out tkvp)) {
+                if (_testSeries.TryFind(kvp.Key, Lookup.EQ, out tkvp))
+                {
                     Assert.AreEqual(kvp, tkvp);
                 }
             }
 
-
-            for (int i = 0; i < 1000; i++) {
+            for (int i = 0; i < 1000; i++)
+            {
                 var idx = _rng.Next(_materializedSeries.Count);
                 // TODO (UX) Public cannot get key by index
                 var v = _materializedSeries.GetAt(idx);
                 var k = _materializedSeries.keys[idx];
-                V tv;
-                if (_testSeries.TryGetValue(k, out tv)) {
-                    Assert.AreEqual(v, tv);
+                if (_testSeries.TryFind(k, Lookup.EQ, out var tv))
+                {
+                    Assert.AreEqual(v, tv.Value);
                 }
             }
         }
 
-
-
-
-        public void CursorContractsTests() {
+        public void CursorContractsTests()
+        {
             var notEmpty = false;
             /// Independent cursors moves
             var tc = _testSeries.GetCursor();
             var tc2 = _testSeries.GetCursor();
             var mc = _materializedSeries.GetCursor();
-            while (mc.MoveNext()) {
+            while (mc.MoveNext())
+            {
                 notEmpty = true;
                 Assert.IsTrue(tc.MoveNext(), "Independent cursors moves");
                 Assert.IsTrue(tc2.MoveNext(), "Independent cursors moves");
@@ -127,7 +134,8 @@ namespace Spreads.Collections.Tests.Contracts {
             if (notEmpty) Assert.AreEqual(tc.Current, tc2.Current, "MN after false MN should be false and keep current key/value");
 
             /// we must be able to MP after false MN
-            while (mc.MovePrevious()) {
+            while (mc.MovePrevious())
+            {
                 Assert.IsTrue(tc.MovePrevious(), "Independent cursors moves");
                 Assert.IsTrue(tc2.MovePrevious(), "Independent cursors moves");
                 Assert.AreEqual(mc.Current, tc.Current, "Independent cursors moves: kvps are not equal after similar moves");
@@ -138,8 +146,8 @@ namespace Spreads.Collections.Tests.Contracts {
             Assert.IsFalse(tc2.MovePrevious());
             if (notEmpty) Assert.AreEqual(tc.Current, tc2.Current);
 
-
-            if (notEmpty) {
+            if (notEmpty)
+            {
                 // could move first
                 Assert.IsTrue(mc.MoveFirst());
                 Assert.IsTrue(tc.MoveFirst());
@@ -166,7 +174,8 @@ namespace Spreads.Collections.Tests.Contracts {
                 Assert.AreEqual(tc.Current, tc2.Current);
 
                 // could at first key
-                if (_materializedSeries.Count > 1) {
+                if (_materializedSeries.Count > 1)
+                {
                     dir = Lookup.GT;
                     Assert.IsTrue(mc.MoveAt(key, dir));
                     Assert.IsTrue(tc.MoveAt(key, dir));
@@ -183,8 +192,6 @@ namespace Spreads.Collections.Tests.Contracts {
                     Assert.AreEqual(mc.Current, tc.Current);
                     Assert.AreEqual(tc.Current, tc2.Current);
                 }
-
-
 
                 // could move last
                 Assert.IsTrue(mc.MoveLast());
@@ -212,14 +219,14 @@ namespace Spreads.Collections.Tests.Contracts {
                 Assert.AreEqual(tc.Current, tc2.Current);
 
                 // could move before the last key
-                if (_materializedSeries.Count > 1) {
+                if (_materializedSeries.Count > 1)
+                {
                     dir = Lookup.LT;
                     Assert.IsTrue(mc.MoveAt(key, dir));
                     Assert.IsTrue(tc.MoveAt(key, dir));
                     Assert.IsTrue(tc2.MoveAt(key, dir));
                     Assert.AreEqual(mc.Current, tc.Current);
                     Assert.AreEqual(tc.Current, tc2.Current);
-
 
                     dir = Lookup.EQ;
                     // could move at the last key after moving away from it
@@ -230,27 +237,28 @@ namespace Spreads.Collections.Tests.Contracts {
                     Assert.AreEqual(mc.Current, tc.Current);
                     Assert.AreEqual(tc.Current, tc2.Current);
                 }
-
-
-
             }
         }
 
         /// <summary>
         /// If series is continuous, TGV must work as expected
         /// </summary>
-        public void EphemeralValuesTest() {
+        public void EphemeralValuesTest()
+        {
             var tc = _testSeries.GetCursor();
             if (tc.IsContinuous && _ephemeralSeries == null)
             {
                 Trace.TraceWarning("Privide ephemeral series for continuous test series");
             }
-            if (tc.IsContinuous && _ephemeralSeries != null) {
-                if (_ephemeralSeries != null) {
-                    foreach (var kvp in _ephemeralSeries) {
-                        V tv;
-                        if (_testSeries.TryGetValue(kvp.Key, out tv)) {
-                            Assert.AreEqual(kvp.Value, tv, "TryGetValue on continuous series gives wrong result");
+            if (tc.IsContinuous && _ephemeralSeries != null)
+            {
+                if (_ephemeralSeries != null)
+                {
+                    foreach (var kvp in _ephemeralSeries)
+                    {
+                        if (_testSeries.TryFind(kvp.Key, Lookup.EQ, out var tv))
+                        {
+                            Assert.AreEqual(kvp.Value, tv.Value, "TryGetValue on continuous series gives wrong result");
                         }
                     }
                 }
@@ -260,7 +268,8 @@ namespace Spreads.Collections.Tests.Contracts {
         /// <summary>
         /// Run all tests
         /// </summary>
-        public void Run() {
+        public void Run()
+        {
             BasicTests();
             CursorContractsTests();
             EphemeralValuesTest();

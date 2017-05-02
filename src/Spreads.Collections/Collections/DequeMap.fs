@@ -620,7 +620,6 @@ type SortedDequeMap<'K,'V>
     member this.GetAt(idx:int) = this.GetByIndex(idx).Value
     member this.Keys with get() = this.Keys
     member this.Values with get() = this.Values
-    member this.SyncRoot with get() = this.SyncRoot
     
 
   interface IMutableSeries<'K,'V> with

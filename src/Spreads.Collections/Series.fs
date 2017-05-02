@@ -51,6 +51,8 @@ and
     [<DefaultValueAttribute>]
     val mutable internal Locker : int
 
+    member val SyncRoot = new obj() with get, set
+
     //override this.Updated 
     //  with [<MethodImpl(MethodImplOptions.AggressiveInlining)>] get() : Task<bool> = raise (NotImplementedException())
 
@@ -649,168 +651,168 @@ and
               ) :> Series<_,_>
 
 
-and
-  // TODO (perf) base Series() implements IReadOnlySeries inefficiently, see comments in above type Series() implementation
-  [<AllowNullLiteral>]
-  [<AbstractClass>]
-//  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-  internal AbstractCursorSeries<'K,'V,'TCursor 
-    when 'TCursor :> AbstractCursorSeries<'K,'V,'TCursor> and 'TCursor :> ICursor<'K,'V>>() as this =
-    inherit Series<'K,'V>()
+//and
+//  // TODO (perf) base Series() implements IReadOnlySeries inefficiently, see comments in above type Series() implementation
+//  [<AllowNullLiteral>]
+//  [<AbstractClass>]
+////  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
+//  internal AbstractCursorSeries<'K,'V,'TCursor 
+//    when 'TCursor :> AbstractCursorSeries<'K,'V,'TCursor> and 'TCursor :> ISpecializedCursor<'K,'V,'TCursor>>() as this =
+//    inherit Series<'K,'V>()
     
-    /// a cursor that is used for IReadOnlySeries members implementation
-    let mutable navigationCursor : 'TCursor = Unchecked.defaultof<_>
+//    /// a cursor that is used for IReadOnlySeries members implementation
+//    let mutable navigationCursor : 'TCursor = Unchecked.defaultof<_>
 
-    do
-      this.threadId <- Environment.CurrentManagedThreadId
+//    do
+//      this.threadId <- Environment.CurrentManagedThreadId
 
-    [<DefaultValueAttribute>]
-    val mutable internal threadId : int
+//    [<DefaultValueAttribute>]
+//    val mutable internal threadId : int
 
-    [<DefaultValueAttribute>]
-    val mutable internal state : CursorState
+//    [<DefaultValueAttribute>]
+//    val mutable internal state : CursorState
 
-    //[<DefaultValueAttribute>]
-    //val mutable internal currentKey : 'K
-    //[<DefaultValueAttribute>]
-    //val mutable internal currentValue : 'V
+//    //[<DefaultValueAttribute>]
+//    //val mutable internal currentKey : 'K
+//    //[<DefaultValueAttribute>]
+//    //val mutable internal currentValue : 'V
 
-    member internal this.C
-      with get () : 'TCursor =
-        if Unchecked.equals navigationCursor Unchecked.defaultof<_> then
+//    member internal this.C
+//      with get () : 'TCursor =
+//        if Unchecked.equals navigationCursor Unchecked.defaultof<_> then
           
-          let initialState = this.state
-          navigationCursor <- this.Clone()
+//          let initialState = this.state
+//          navigationCursor <- this.Clone()
 
-          // this.Clone() will return `this` as 'TCursor if requested from the same thread and the state was 0
-          // but it must set state to 1 after that
-          if initialState = CursorState.None 
-              && this.threadId = Environment.CurrentManagedThreadId
-              && not (this.state = CursorState.Initialized) then
-            #if DEBUG
-              raise (ApplicationException("CursorSeries.Clone must return itself when state was zero and the method was called from the owner thread."))
-            #else
-              // NB it actually "should", not "must"
-              Trace.TraceWarning("CursorSeries.Clone should return itself when state was zero and the method was called from the owner thread.")
-            #endif
-          navigationCursor.state <- CursorState.Navigating
-        navigationCursor
+//          // this.Clone() will return `this` as 'TCursor if requested from the same thread and the state was 0
+//          // but it must set state to 1 after that
+//          if initialState = CursorState.None 
+//              && this.threadId = Environment.CurrentManagedThreadId
+//              && not (this.state = CursorState.Initialized) then
+//            #if DEBUG
+//              raise (ApplicationException("CursorSeries.Clone must return itself when state was zero and the method was called from the owner thread."))
+//            #else
+//              // NB it actually "should", not "must"
+//              Trace.TraceWarning("CursorSeries.Clone should return itself when state was zero and the method was called from the owner thread.")
+//            #endif
+//          navigationCursor.state <- CursorState.Navigating
+//        navigationCursor
 
     
-    //#region ICursor members
-    member this.Source: IReadOnlySeries<'K,'V> = this :> IReadOnlySeries<'K,'V>
+//    //#region ICursor members
+//    member this.Source: IReadOnlySeries<'K,'V> = this :> IReadOnlySeries<'K,'V>
 
-    abstract Current: KeyValuePair<'K,'V> with get
-    abstract CurrentKey: 'K with get
-    abstract CurrentValue: 'V with get
+//    abstract Current: KeyValuePair<'K,'V> with get
+//    abstract CurrentKey: 'K with get
+//    abstract CurrentValue: 'V with get
     
 
-    abstract Clone: unit -> 'TCursor
-    abstract CurrentBatch: IReadOnlySeries<'K,'V> with get
-    abstract member Dispose: unit -> unit
-    abstract IsContinuous: bool with get
-    abstract MoveAt: key: 'K * direction: Lookup ->  bool
-    abstract MoveFirst: unit -> bool
-    abstract MoveLast: unit -> bool
-    abstract MoveNext: unit -> bool
-    abstract MoveNextBatch: cancellationToken: CancellationToken ->  Task<bool>
-    abstract MovePrevious: unit -> bool
-    abstract Reset: unit -> unit
+//    abstract Clone: unit -> 'TCursor
+//    abstract CurrentBatch: IReadOnlySeries<'K,'V> with get
+//    abstract member Dispose: unit -> unit
+//    abstract IsContinuous: bool with get
+//    abstract MoveAt: key: 'K * direction: Lookup ->  bool
+//    abstract MoveFirst: unit -> bool
+//    abstract MoveLast: unit -> bool
+//    abstract MoveNext: unit -> bool
+//    abstract MoveNextBatch: cancellationToken: CancellationToken ->  Task<bool>
+//    abstract MovePrevious: unit -> bool
+//    abstract Reset: unit -> unit
     
-    //#endregion
+//    //#endregion
     
-    //#region IReadOnlySeries members
+//    //#region IReadOnlySeries members
 
-    member this.GetEnumerator() = this.Clone()
+//    member this.GetEnumerator() = this.Clone()
 
-    override this.GetCursor() = new BaseCursorAsync<'K,'V,'TCursor>(Func<_>(this.Clone)) :> ICursor<'K,'V>
+//    override this.GetCursor() = new BaseCursorAsync<'K,'V,'TCursor>(Func<_>(this.Clone)) :> ICursor<'K,'V>
 
-    override this.IsEmpty = lock(this.SyncRoot) (fun _ -> not (this.C.MoveFirst()))
+//    override this.IsEmpty = lock(this.SyncRoot) (fun _ -> not (this.C.MoveFirst()))
 
-    override this.First
-      with get() =
-        let sr = this.SyncRoot
-        Debug.Assert(sr <> null)
-        let entered = enterLockIf sr true
-        try
-          if this.C.MoveFirst() then this.C.Current else invalidOp "Series is empty"
-        finally
-          exitLockIf this.SyncRoot entered
+//    override this.First
+//      with get() =
+//        let sr = this.SyncRoot
+//        Debug.Assert(sr <> null)
+//        let entered = enterLockIf sr true
+//        try
+//          if this.C.MoveFirst() then this.C.Current else invalidOp "Series is empty"
+//        finally
+//          exitLockIf this.SyncRoot entered
 
-    override this.Last 
-      with get() =
-        let entered = enterLockIf this.SyncRoot true
-        try
-          if this.C.MoveLast() then this.C.Current else invalidOp "Series is empty"
-        finally
-          exitLockIf this.SyncRoot entered
+//    override this.Last 
+//      with get() =
+//        let entered = enterLockIf this.SyncRoot true
+//        try
+//          if this.C.MoveLast() then this.C.Current else invalidOp "Series is empty"
+//        finally
+//          exitLockIf this.SyncRoot entered
 
-    override this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
-      let entered = enterLockIf this.SyncRoot true
-      try
-        if this.C.MoveAt(k, direction) then
-          result <- this.C.Current 
-          true
-        else false
-      finally
-        exitLockIf this.SyncRoot entered
+//    override this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
+//      let entered = enterLockIf this.SyncRoot true
+//      try
+//        if this.C.MoveAt(k, direction) then
+//          result <- this.C.Current 
+//          true
+//        else false
+//      finally
+//        exitLockIf this.SyncRoot entered
 
-    override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
-      let entered = enterLockIf this.SyncRoot true
-      try
-        if this.C.MoveFirst() then
-          res <- this.C.Current
-          true
-        else false
-      finally
-        exitLockIf this.SyncRoot entered
+//    override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+//      let entered = enterLockIf this.SyncRoot true
+//      try
+//        if this.C.MoveFirst() then
+//          res <- this.C.Current
+//          true
+//        else false
+//      finally
+//        exitLockIf this.SyncRoot entered
 
-    override this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) =
-      let entered = enterLockIf this.SyncRoot true
-      try
-        if this.C.MoveLast() then
-          res <- this.C.Current
-          true
-        else false
-      finally
-        exitLockIf this.SyncRoot entered
+//    override this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) =
+//      let entered = enterLockIf this.SyncRoot true
+//      try
+//        if this.C.MoveLast() then
+//          res <- this.C.Current
+//          true
+//        else false
+//      finally
+//        exitLockIf this.SyncRoot entered
 
-    override this.Keys 
-      with get() =
-        // TODO manual impl, seq is slow
-        let c = this.GetCursor()
-        seq {
-          while c.MoveNext() do
-            yield c.CurrentKey
-          c.Dispose()
-        }
+//    override this.Keys 
+//      with get() =
+//        // TODO manual impl, seq is slow
+//        let c = this.GetCursor()
+//        seq {
+//          while c.MoveNext() do
+//            yield c.CurrentKey
+//          c.Dispose()
+//        }
 
-    override this.Values
-      with get() =
-        // TODO manual impl, seq is slow
-        let c = this.GetCursor()
-        seq {
-          while c.MoveNext() do
-            yield c.CurrentValue
-          c.Dispose()
-        }
+//    override this.Values
+//      with get() =
+//        // TODO manual impl, seq is slow
+//        let c = this.GetCursor()
+//        seq {
+//          while c.MoveNext() do
+//            yield c.CurrentValue
+//          c.Dispose()
+//        }
 
-    //#endregion
+//    //#endregion
 
 
-    interface ICanMapSeriesValues<'K,'V> with
-      member this.Map<'V2>(f2, fBatch): Series<'K,'V2> = 
-        let cursor = this.GetCursor()
-        match cursor with
-        | :? ICanMapSeriesValues<'K,'V> as mappable -> mappable.Map(f2, fBatch)
-        | _ ->
-          CursorSeries(fun _ ->
-                // NB #11 we had (fun _ -> cursor) as factory, but that was a closure over cursor instance
-                // with the current design, we cannot reuse the cursor allocated to check its interface implementation
-                // we must dispose it and provide factory here
-                cursor.Dispose()
-                new BatchMapValuesCursor<_,_,_>(Func<_>(this.GetCursor), f2, Missing) :> ICursor<_,_>
-              ) :> Series<_,_>
+//    interface ICanMapSeriesValues<'K,'V> with
+//      member this.Map<'V2>(f2, fBatch): Series<'K,'V2> = 
+//        let cursor = this.GetCursor()
+//        match cursor with
+//        | :? ICanMapSeriesValues<'K,'V> as mappable -> mappable.Map(f2, fBatch)
+//        | _ ->
+//          CursorSeries(fun _ ->
+//                // NB #11 we had (fun _ -> cursor) as factory, but that was a closure over cursor instance
+//                // with the current design, we cannot reuse the cursor allocated to check its interface implementation
+//                // we must dispose it and provide factory here
+//                cursor.Dispose()
+//                new BatchMapValuesCursor<_,_,_>(Func<_>(this.GetCursor), f2, Missing) :> ICursor<_,_>
+//              ) :> Series<_,_>
     
 and
   // NB! Remember that cursors are single-threaded

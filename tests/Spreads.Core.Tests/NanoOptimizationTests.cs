@@ -5,6 +5,7 @@
 using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Serialization;
+using Spreads.Utils;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -12,7 +13,6 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Spreads.Utils;
 
 namespace Spreads.Core.Tests
 {
@@ -711,7 +711,6 @@ namespace Spreads.Core.Tests
         {
             var handle = buffer.Buffer.Pin();
 
-
             var sum = 0L;
             var sw = new Stopwatch();
             sw.Restart();
@@ -834,8 +833,6 @@ namespace Spreads.Core.Tests
 
                 //UnsafeGenericWrite<double>(count, buffer3);
 
-
-
                 Assert.True(sum < Int64.MaxValue);
             }
 
@@ -898,7 +895,6 @@ namespace Spreads.Core.Tests
             }
         }
 
-
         [Test, Ignore]
         public unsafe void ArrayVsOwnedBufferBinarySearchDateTime()
         {
@@ -942,8 +938,6 @@ namespace Spreads.Core.Tests
             }
         }
 
-
-
         [Test, Ignore]
         public unsafe void ArrayVsOwnedBufferBinarySearchInt()
         {
@@ -986,7 +980,6 @@ namespace Spreads.Core.Tests
                 Assert.True(sum2 < Int64.MaxValue);
             }
         }
-
 
         [Test, Ignore]
         public unsafe void MeasureNodaTimeInstantSize()

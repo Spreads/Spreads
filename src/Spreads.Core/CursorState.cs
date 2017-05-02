@@ -2,12 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
+
 namespace Spreads
 {
     internal enum CursorState : byte
     {
         /// <summary>
-        /// Not initialized.
+        /// A cursor is not initialized or disposed. Some initialization work could be needed before moving.
         /// </summary>
         None = 0,
 
@@ -27,11 +29,7 @@ namespace Spreads
         /// A cursor has started batch moving and is at a valid position.
         /// A false move from this state must restore the cursor to its position before the move.
         /// </summary>
+        [Obsolete("TODO BatchMoving in not reimplemented afte 0.8 changes, rethink if another state is needed for batches")]
         BatchMoving = 3,
-
-        /// <summary>
-        /// A cursor is used for IReadOnlySeries implementation.
-        /// </summary>
-        Navigating = 255
     }
 }

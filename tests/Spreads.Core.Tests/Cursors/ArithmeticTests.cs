@@ -6,10 +6,13 @@ using JetBrains.dotMemoryUnit;
 using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Cursors;
+using Spreads.Cursors.Experimental;
 using Spreads.Utils;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests.Cursors
 {
@@ -23,9 +26,9 @@ namespace Spreads.Core.Tests.Cursors
             {
                 { 1, 1 }
             };
-            var map = new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>((sm.GetEnumerator), 2);
+            var map = new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>((sm.GetEnumerator()), 2);
             var map1 = new ArithmeticSeries<int, double, MultiplyOp<double>, ArithmeticSeries<int, double, MultiplyOp<double>,
-                SortedMapCursor<int, double>>>(map.Initialize, 2);
+                SortedMapCursor<int, double>>>(map, 2);
 
             Assert.AreEqual(2, map.First.Value);
             Assert.AreEqual(4, map1.First.Value);
@@ -46,11 +49,11 @@ namespace Spreads.Core.Tests.Cursors
             {
                 var map =
                     new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
-                        sm.GetEnumerator, 2.0);
+                        sm.GetEnumerator(), 2.0);
                 var map2 =
                     new ArithmeticSeries<int, double, MultiplyOp<double>, ArithmeticSeries<int, double,
                         MultiplyOp<double>, SortedMapCursor<int, double>>>(
-                        map.Initialize, 2.0);
+                        map, 2.0);
                 var sum = 0.0;
                 using (Benchmark.Run("ArithmeticSeries", count))
                 {
@@ -96,18 +99,68 @@ namespace Spreads.Core.Tests.Cursors
             {
                 var map =
                     new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
-                        sm.GetEnumerator, 2.0);
+                        sm.GetEnumerator(), 2.0);
+
+                var map2 = map + 2;
+                //new ArithmeticSeries<int, double, AddOp<double>, ArithmeticSeries<int, double,
+                //        MultiplyOp<double>, SortedMapCursor<int, double>>>(
+                //        map, 2.0);
+
                 var sum = 0.0;
-                var iterations = 100000;
-                using (Benchmark.Run("ArithmeticSeries", count * iterations))
+                var sum1 = 0.0;
+                var sum2 = 0.0;
+                var iterations = 100000; // 00
+
+                void Run(ref double s)
                 {
-                    for (int i = 0; i < iterations; i++)
+                    try
                     {
-                        foreach (var kvp in map)
+                        // using it here completely eliminates allocations, an instance is created for
+                        // all iterations inside each thread
+                        //using (var mapX = map + 2)
                         {
-                            sum += kvp.Value;
+                            for (int i = 0; i < iterations; i++)
+                            {
+                                // here static caching helps, but not completely eliminates allocations because
+                                // two threads compete for a single static slot very often
+                                using (var mapX = map + 2)
+                                using (var c = (mapX).GetEnumerator())
+                                {
+                                    //Assert.IsTrue(c.State == CursorState.Initialized);
+                                    //Assert.IsTrue(c._cursor.State == CursorState.Initialized);
+
+                                    var countCheck = 0;
+                                    while (c.MoveNext())
+                                    {
+                                        s += c.CurrentKey;
+                                        countCheck++;
+                                    }
+                                    if (sm.Count != countCheck)
+                                    {
+                                        Console.WriteLine($"Expected {sm.Count} vs actual {countCheck}");
+                                    }
+                                    if (sm.Count != countCheck) { Assert.Fail(); }
+                                }
+                            }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message + Environment.NewLine + ex.ToString());
+                    }
+                }
+
+                using (Benchmark.Run("ArithmeticSeries", count * iterations))
+                {
+                    var t = Task.Run(() => Run(ref sum));
+                    //var t1 = Task.Run(() => Run(ref sum1));
+                    Run(ref sum1);
+                    t.Wait();
+                    //t1.Wait();
+
+                    Assert.AreEqual(sum, sum1);
+                    //Assert.AreEqual(sum, sum2);
+
                     //dotMemory.Check(memory =>
                     //{
                     //    Assert.That(
@@ -118,7 +171,7 @@ namespace Spreads.Core.Tests.Cursors
                     //});
                 }
 
-                Assert.IsTrue(sum > 0);
+                Assert.IsTrue(sum > 0 && sum1 > 0);
             }
             Benchmark.Dump();
         }
@@ -151,7 +204,7 @@ namespace Spreads.Core.Tests.Cursors
 
                 {
                     var map =
-                        new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(sm.GetEnumerator,
+                        new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(sm.GetEnumerator(),
                             2.0);
                     var map2 = map * 2;
                     //new ArithmeticSeries<int, double, MultiplyOp<double>, ArithmeticSeries<int, double,
@@ -170,7 +223,7 @@ namespace Spreads.Core.Tests.Cursors
 
                 {
                     var map =
-                        new MapValuesSeries<int, double, double, SortedMapCursor<int, double>>(sm,
+                        new MapValuesSeries<int, double, double, SortedMapCursor<int, double>>(sm.GetEnumerator(),
                             i => Apply(i, 2.0));
                     var map2 =
                         new
@@ -281,10 +334,23 @@ namespace Spreads.Core.Tests.Cursors
                 { 1, 1 }
             } as BaseSeries<int, double>;
             var map = sm * 2;
-            var map1 = map * 2;
+            var map1 = map + 2;
 
             Assert.AreEqual(2, map.First.Value);
+            foreach (var pair in map1)
+            {
+                Assert.AreEqual(4, pair.Value);
+            }
+
+            using (var c = map1.Initialize())
+            {
+                Assert.True(c.MoveNext());
+                Assert.AreEqual(4, c.CurrentValue);
+            }
+
             Assert.AreEqual(4, map1.First.Value);
+
+            Console.WriteLine(sm.Count());
         }
 
         [Test, Ignore]
@@ -328,6 +394,64 @@ namespace Spreads.Core.Tests.Cursors
                 }
                 Assert.IsTrue(sum > 0);
             }
+        }
+
+        [Test, Ignore]
+        public void CouldUseStructSeries()
+        {
+            var sm = new SortedMap<int, double>();
+            var count = 10000000;
+            sm.AddLast(0, 0); // make irregular
+            for (int i = 2; i < count; i++)
+            {
+                sm.AddLast(i, i);
+            }
+
+            for (int r = 0; r < 10; r++)
+            {
+                {
+                    var map =
+                        new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+                            sm.GetEnumerator(), 2.0);
+                    var map2 =
+                        new ArithmeticSeries<int, double, MultiplyOp<double>, ArithmeticSeries<int, double,
+                            MultiplyOp<double>, SortedMapCursor<int, double>>>(
+                            map, 2.0);
+
+                    var sum = 0.0;
+                    using (Benchmark.Run("ArithmeticSeries", count))
+                    {
+                        foreach (var kvp in map2)
+                        {
+                            sum += kvp.Value;
+                        }
+                    }
+                    Assert.IsTrue(sum > 0);
+                }
+
+                {
+                    var map =
+                        new ArithmeticSeries2<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+                            sm.GetEnumerator(), 2.0);
+                    var map2 =
+                        new ArithmeticSeries2<int, double, MultiplyOp<double>, ArithmeticSeries2<int, double,
+                            MultiplyOp<double>, SortedMapCursor<int, double>>>(
+                            map, 2.0);
+
+                    var series = map2.AsSeries();
+                    var sum = 0.0;
+                    using (Benchmark.Run("ArithmeticSeries2", count))
+                    {
+                        foreach (var kvp in map2)
+                        {
+                            sum += kvp.Value;
+                        }
+                    }
+                    Assert.IsTrue(sum > 0);
+                }
+            }
+
+            Benchmark.Dump();
         }
     }
 }

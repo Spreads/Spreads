@@ -139,13 +139,13 @@ namespace Spreads.Utils
             public override string ToString()
             {
                 var trimmedCaseName = _caseName.Length > 20 ? _caseName.Substring(0, 17) + "..." : _caseName;
-                return $"{trimmedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot._elapsed,5} ms | {_statSnapshot._gc0,5:f1} | {_statSnapshot._gc1,5:f1} | {_statSnapshot._gc2,5:f1} | {_statSnapshot._memory / 1000000.0,5:f3} MB";
+                return $"{trimmedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot._elapsed,5} ms | {_statSnapshot._gc0,5:f1} | {_statSnapshot._gc1,5:f1} | {_statSnapshot._gc2,5:f1} | {_statSnapshot._memory / (1024 * 1024.0),5:f3} MB";
             }
 
             public string ToString(int caseAlignmentLength)
             {
                 var paddedCaseName = _caseName.PadRight(caseAlignmentLength);
-                return $"{paddedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot._elapsed,5} ms | {_statSnapshot._gc0,5:f1} | {_statSnapshot._gc1,5:f1} | {_statSnapshot._gc2,5:f1} | {_statSnapshot._memory / 1000000.0,5:f3} MB";
+                return $"{paddedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot._elapsed,5} ms | {_statSnapshot._gc0,5:f1} | {_statSnapshot._gc1,5:f1} | {_statSnapshot._gc2,5:f1} | {_statSnapshot._memory / (1024 * 1024.0),5:f3} MB";
             }
         }
 

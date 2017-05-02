@@ -2,27 +2,45 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Utils;
 
 namespace Spreads.Cursors
 {
+
+    /// <summary>
+    /// SpecializedWrapper Extensions
+    /// </summary>
+    public static class SpecializedWrapperExtensions
+    {
+        /// <summary>
+        /// Create SpecializedWrapper that wraps the result of ISeries.GetCursor() call.
+        /// </summary>
+        public static SpecializedWrapper<TKey, TValue> GetSpecializedWrapper<TKey, TValue>(this ISeries<TKey, TValue> series)
+        {
+            return new SpecializedWrapper<TKey, TValue>(series.GetCursor());
+        }
+
+    }
+
     /// <summary>
     /// Wraps ICursor as ISpecializedCursor.
     /// </summary>
     public struct SpecializedWrapper<TKey, TValue> : ISpecializedCursor<TKey, TValue, SpecializedWrapper<TKey, TValue>>
     {
-        private readonly ICursor<TKey, TValue> _cursor;
+        private ICursor<TKey, TValue> _cursor;
 
         /// <summary>
         /// SpecializedWrapper constructor.
         /// </summary>
         /// <param name="cursor"></param>
-        public SpecializedWrapper(ICursor<TKey, TValue> cursor)
+        public SpecializedWrapper([NotNull] ICursor<TKey, TValue> cursor)
         {
-            _cursor = cursor;
+            _cursor = cursor ?? throw new ArgumentNullException(nameof(cursor));
         }
 
         /// <inheritdoc />
@@ -110,9 +128,14 @@ namespace Spreads.Cursors
         public bool IsContinuous => _cursor.IsContinuous;
 
         /// <inheritdoc />
-        public ICursor<TKey, TValue> Clone()
+        public SpecializedWrapper<TKey, TValue> Clone()
         {
-            return _cursor.Clone();
+            return new SpecializedWrapper<TKey, TValue>(_cursor.Clone());
+        }
+
+        ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
+        {
+            return Clone();
         }
 
         /// <inheritdoc />

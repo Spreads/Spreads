@@ -53,7 +53,6 @@ type MutableSeries<'K,'V> internal() as this =
     member x.Keys = this.Keys
     member x.Last = this.Last
     member x.Subscribe(observer) = this.Subscribe(observer)
-    member x.SyncRoot = this.SyncRoot
     member this.TryFind(k:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryFind(k, direction, &result)
     member this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = this.TryGetFirst(&res)
     member this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = this.TryGetLast(&res)

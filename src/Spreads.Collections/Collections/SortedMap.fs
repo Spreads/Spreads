@@ -1271,7 +1271,7 @@ type SortedMap<'K,'V>
       // if source is already read-only, MNA will always return false
       if this.isReadOnly then new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
       else 
-        let c = BaseCursorAsync<'K,'V,_>.Create(this,Func<_>(this.GetEnumerator))
+        let c = new BaseCursorAsync<'K,'V,_>(Func<_>(this.GetEnumerator))
         //let c = new SortedMapCursor<'K,'V>(this)
         c :> ICursor<'K,'V>
     finally
@@ -1912,6 +1912,7 @@ and
         let c = this.Clone()
         c.Reset()
         c
+      member this.Clone() = this.Clone()
 
 type internal ChunksContainer<'K,'V>
   (comparer : IComparer<'K>, synced: bool)  =
@@ -1936,7 +1937,6 @@ type internal ChunksContainer<'K,'V>
     member x.Keys = t.Keys
     member x.Last = t.Last 
     member x.Subscribe(observer) = t.Subscribe(observer)
-    member x.SyncRoot = t.SyncRoot
     member x.TryFind(key, direction, value) = t.TryFind(key, direction, &value)
     member x.TryGetFirst(value) = t.TryGetFirst(&value)
     member x.TryGetLast(value) = t.TryGetLast(&value)

@@ -119,8 +119,6 @@ type ImmutableIntConvertableMap<'K, 'V when 'K : comparison>
 //        member this.Count with get() = int map.Size
         member this.Size with get() = map.Size
 
-        member this.SyncRoot with get() = map.SyncRoot
-
         member this.Add(key, value):IImmutableSeries<'K, 'V> =
             ImmutableIntConvertableMap(map.Add(conv.ToInt64(key), value), conv) :> IImmutableSeries<'K, 'V>
 

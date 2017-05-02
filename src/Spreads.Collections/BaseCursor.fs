@@ -85,6 +85,12 @@ type BaseCursor<'K,'V>(source:IReadOnlySeries<'K,'V>) =
     member this.IsContinuous with get() = this.IsContinuous
     member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.TryGetValue(key, &value)
 
+  interface ISpecializedCursor<'K,'V, BaseCursor<'K,'V>> with
+    member this.Initialize() = 
+      let c = this.Clone()
+      c.Reset()
+      c :?> BaseCursor<'K,'V>
+    member this.Clone() = this.Clone() :?> BaseCursor<'K,'V>
 
 /// Uses IReadOnlySeries's TryFind method, doesn't know anything about underlying sequence
 type MapCursor<'K,'V>(map:IReadOnlySeries<'K,'V>) =
@@ -152,3 +158,10 @@ type MapCursor<'K,'V>(map:IReadOnlySeries<'K,'V>) =
       value <- tmp.Value
       true
     else false
+
+  interface ISpecializedCursor<'K,'V, MapCursor<'K,'V>> with
+    member this.Initialize() = 
+      let c = this.Clone()
+      c.Reset()
+      c :?> MapCursor<'K,'V>
+    member this.Clone() = this.Clone() :?> MapCursor<'K,'V>

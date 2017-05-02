@@ -146,12 +146,6 @@ namespace Spreads
         ICursor<TKey, TValue> GetCursor();
 
         /// <summary>
-        /// Synchronization object.
-        /// </summary>
-        [Obsolete]
-        object SyncRoot { get; }
-
-        /// <summary>
         /// A Task that is completed with True whenever underlying data is changed.
         /// Internally used for signaling to async cursors.
         /// After getting the Task one should check if any changes happened (version change or cursor move) before awating the task.
@@ -258,10 +252,27 @@ namespace Spreads
         bool TryGetValue(TKey key, out TValue value);
     }
 
+    /// <summary>
+    /// A cursor with known implementation type.
+    /// </summary>
     public interface ISpecializedCursor<TKey, TValue, TCursor> : ICursor<TKey, TValue>
         where TCursor : ICursor<TKey, TValue>
     {
+        /// <summary>
+        /// Returns an initialized (ready to move) instance of TCursor.
+        /// It could be the same instance for CursorSeries.
+        /// It is the equivalent to calling ICursor.Source.GetCursor() for the non-specialized ICursor.
+        /// </summary>
         TCursor Initialize();
+        // TODO (docs, design) should work after Dispose()
+        // GetCursor/GetEnumerator return initialized cursors, but theycould be disposed
+        // Initialize should be able to reuse disposed cursors
+
+
+        /// <summary>
+        /// Create a copy of cursor that is positioned at the same place as this cursor.
+        /// </summary>
+        new TCursor Clone();
     }
 
     /// <summary>

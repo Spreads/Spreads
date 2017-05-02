@@ -5,6 +5,7 @@
 using Spreads.Core.Tests.Collections;
 using Spreads.Utils;
 using System;
+using Spreads.Core.Tests.Cursors;
 
 namespace Spreads.Core.Tests
 {
@@ -14,9 +15,9 @@ namespace Spreads.Core.Tests
         {
             //Benchmark.ForceSilence = true;
 
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 10; i++)
             {
-                (new FastDictionaryTests()).CompareSCGAndFastDictionaryWithSymbol();
+                (new ArithmeticTests()).CouldMapValuesBenchmarkArithmeticVsMapCursor();
             }
 
             Console.WriteLine("Press enter to exit...");

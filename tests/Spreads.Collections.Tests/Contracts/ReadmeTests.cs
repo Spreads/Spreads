@@ -49,9 +49,8 @@ namespace Spreads.Collections.Tests.Contracts {
             Assert.AreEqual(54, sum[5]);
 
             // To get a value from continuous series at non-existing key, we should use TryGetValue method
-            int v;
-            Assert.IsTrue(sum.TryGetValue(6, out v));
-            Assert.AreEqual(46, v);
+            Assert.IsTrue(sum.TryFind(6, Lookup.EQ, out var v));
+            Assert.AreEqual(46, v.Value);
 
             // Try find is series mirrow to cursor moves: we cannot move exactly to 6 here
             KeyValuePair<int, int> kvp;

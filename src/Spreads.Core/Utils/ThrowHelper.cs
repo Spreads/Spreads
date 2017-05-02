@@ -5,6 +5,7 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Spreads.Utils;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads
@@ -41,6 +42,8 @@ namespace Spreads
             throw GetInvalidOperationException();
         }
 
+        [ContractAnnotation("=> halt")]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidOperationException(string message)
         {
             throw GetInvalidOperationException(message);

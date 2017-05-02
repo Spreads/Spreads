@@ -9,12 +9,14 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Utils;
 
 namespace Spreads
 {
     /// <summary>
     /// Base class for all series implementations.
     /// </summary>
+    [CannotApplyEqualityOperator]
     public class BaseSeries
     {
         private static readonly ConditionalWeakTable<BaseSeries, Dictionary<string, object>> Attributes = new ConditionalWeakTable<BaseSeries, Dictionary<string, object>>();
@@ -48,12 +50,11 @@ namespace Spreads
     /// </summary>
     /// <typeparam name="TKey">Type of series keys.</typeparam>
     /// <typeparam name="TValue">Type of series values.</typeparam>
-#pragma warning disable 660,661
+#pragma warning disable 660, 661
+
     public abstract class BaseSeries<TKey, TValue> : BaseSeries, IReadOnlySeries<TKey, TValue>
 #pragma warning restore 660,661
     {
-        private object _syncRoot;
-
         /// <inheritdoc />
         public abstract ICursor<TKey, TValue> GetCursor();
 
@@ -86,20 +87,6 @@ namespace Spreads
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetCursor();
-        }
-
-        /// <inheritdoc />
-        public object SyncRoot
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (_syncRoot == null)
-                {
-                    Interlocked.CompareExchange(ref _syncRoot, new object(), null);
-                }
-                return _syncRoot;
-            }
         }
 
         public abstract Task<bool> Updated { get; }
@@ -144,12 +131,10 @@ namespace Spreads
         /// <inheritdoc />
         public abstract bool TryGetLast(out KeyValuePair<TKey, TValue> value);
 
-
         internal SpecializedWrapper<TKey, TValue> GetWrapper()
         {
             return new SpecializedWrapper<TKey, TValue>(GetCursor());
         }
-
 
         #region Unary Operators
 
@@ -160,7 +145,7 @@ namespace Spreads
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>> operator +(BaseSeries<TKey, TValue> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>>(series.GetWrapper, constant);
+            return ArithmeticSeries<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
         }
 
         /// <summary>
@@ -169,7 +154,7 @@ namespace Spreads
         public static ArithmeticSeries<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>> operator +(TValue constant, BaseSeries<TKey, TValue> series)
         {
             // Addition is commutative
-            return new ArithmeticSeries<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>>(series.GetWrapper, constant);
+            return ArithmeticSeries<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
         }
 
         /// <summary>
@@ -177,7 +162,7 @@ namespace Spreads
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, NegateOp<TValue>, SpecializedWrapper<TKey, TValue>> operator -(BaseSeries<TKey, TValue> series)
         {
-            return new ArithmeticSeries<TKey, TValue, NegateOp<TValue>, SpecializedWrapper<TKey, TValue>>(series.GetWrapper, default(TValue));
+            return ArithmeticSeries<TKey, TValue, NegateOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), default(TValue));
         }
 
         /// <summary>
@@ -185,7 +170,7 @@ namespace Spreads
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, PlusOp<TValue>, SpecializedWrapper<TKey, TValue>> operator +(BaseSeries<TKey, TValue> series)
         {
-            return new ArithmeticSeries<TKey, TValue, PlusOp<TValue>, SpecializedWrapper<TKey, TValue>>(series.GetWrapper, default(TValue));
+            return ArithmeticSeries<TKey, TValue, PlusOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), default(TValue));
         }
 
         /// <summary>
@@ -193,7 +178,7 @@ namespace Spreads
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, SubtractOp<TValue>, SpecializedWrapper<TKey, TValue>> operator -(BaseSeries<TKey, TValue> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, SubtractOp<TValue>, SpecializedWrapper<TKey, TValue>>(series.GetWrapper, constant);
+            return ArithmeticSeries<TKey, TValue, SubtractOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
         }
 
         /// <summary>
@@ -201,7 +186,7 @@ namespace Spreads
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, SubtractReverseOp<TValue>, SpecializedWrapper<TKey, TValue>> operator -(TValue constant, BaseSeries<TKey, TValue> series)
         {
-            return new ArithmeticSeries<TKey, TValue, SubtractReverseOp<TValue>, SpecializedWrapper<TKey, TValue>>(series.GetWrapper, constant);
+            return ArithmeticSeries<TKey, TValue, SubtractReverseOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
         }
 
         /// <summary>
@@ -209,7 +194,7 @@ namespace Spreads
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, SpecializedWrapper<TKey, TValue>> operator *(BaseSeries<TKey, TValue> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, SpecializedWrapper<TKey, TValue>>(series.GetWrapper, constant);
+            return ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
         }
 
         /// <summary>
@@ -218,7 +203,7 @@ namespace Spreads
         public static ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, SpecializedWrapper<TKey, TValue>> operator *(TValue constant, BaseSeries<TKey, TValue> series)
         {
             // Multiplication is commutative
-            return new ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, SpecializedWrapper<TKey, TValue>>(series.GetWrapper, constant);
+            return ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
         }
 
         /// <summary>
@@ -226,7 +211,7 @@ namespace Spreads
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, DivideOp<TValue>, SpecializedWrapper<TKey, TValue>> operator /(BaseSeries<TKey, TValue> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, DivideOp<TValue>, SpecializedWrapper<TKey, TValue>>(series.GetWrapper, constant);
+            return ArithmeticSeries<TKey, TValue, DivideOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
         }
 
         /// <summary>
@@ -234,7 +219,7 @@ namespace Spreads
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, DivideReverseOp<TValue>, SpecializedWrapper<TKey, TValue>> operator /(TValue constant, BaseSeries<TKey, TValue> series)
         {
-            return new ArithmeticSeries<TKey, TValue, DivideReverseOp<TValue>, SpecializedWrapper<TKey, TValue>>(series.GetWrapper, constant);
+            return ArithmeticSeries<TKey, TValue, DivideReverseOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
         }
 
         /// <summary>
@@ -242,7 +227,7 @@ namespace Spreads
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, ModuloOp<TValue>, SpecializedWrapper<TKey, TValue>> operator %(BaseSeries<TKey, TValue> series, TValue constant)
         {
-            return new ArithmeticSeries<TKey, TValue, ModuloOp<TValue>, SpecializedWrapper<TKey, TValue>>(series.GetWrapper, constant);
+            return ArithmeticSeries<TKey, TValue, ModuloOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
         }
 
         /// <summary>
@@ -250,7 +235,7 @@ namespace Spreads
         /// </summary>
         public static ArithmeticSeries<TKey, TValue, ModuloReverseOp<TValue>, SpecializedWrapper<TKey, TValue>> operator %(TValue constant, BaseSeries<TKey, TValue> series)
         {
-            return new ArithmeticSeries<TKey, TValue, ModuloReverseOp<TValue>, SpecializedWrapper<TKey, TValue>>(series.GetWrapper, constant);
+            return ArithmeticSeries<TKey, TValue, ModuloReverseOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
         }
 
         // UNARY LOGIC
@@ -258,73 +243,73 @@ namespace Spreads
         /// <summary>
         /// Values equal operator. Use ReferenceEquals or SequenceEquals for other cases.
         /// </summary>
-        public static UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>> operator ==(BaseSeries<TKey, TValue> series, TValue comparand)
+        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator ==(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            return new UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>>(series, comparand, UnaryLogicOp.EQ);
+            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.EQ);
         }
 
         /// <summary>
         /// Values equal operator. Use ReferenceEquals or SequenceEquals for other cases.
         /// </summary>
-        public static UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>> operator ==(TValue comparand, BaseSeries<TKey, TValue> series)
+        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator ==(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            return new UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>>(series, comparand, UnaryLogicOp.EQ);
+            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.EQ);
         }
 
         /// <summary>
         /// Values not equal operator. Use !ReferenceEquals or !SequenceEquals for other cases.
         /// </summary>
-        public static UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>> operator !=(BaseSeries<TKey, TValue> series, TValue comparand)
+        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator !=(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            return new UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>>(series, comparand, UnaryLogicOp.NEQ);
+            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.NEQ);
         }
 
         /// <summary>
         /// Values not equal operator. Use !ReferenceEquals or !SequenceEquals for other cases.
         /// </summary>
-        public static UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>> operator !=(TValue comparand, BaseSeries<TKey, TValue> series)
+        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator !=(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            return new UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>>(series, comparand, UnaryLogicOp.NEQ);
+            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.NEQ);
         }
 
-        public static UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>> operator <(BaseSeries<TKey, TValue> series, TValue comparand)
+        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator <(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            return new UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>>(series, comparand, UnaryLogicOp.LT);
+            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.LT);
         }
 
-        public static UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>> operator <(TValue comparand, BaseSeries<TKey, TValue> series)
+        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator <(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            return new UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>>(series, comparand, UnaryLogicOp.LTReverse);
+            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.LTReverse);
         }
 
-        public static UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>> operator >(BaseSeries<TKey, TValue> series, TValue comparand)
+        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator >(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            return new UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>>(series, comparand, UnaryLogicOp.GT);
+            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.GT);
         }
 
-        public static UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>> operator >(TValue comparand, BaseSeries<TKey, TValue> series)
+        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator >(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            return new UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>>(series, comparand, UnaryLogicOp.GTReverse);
+            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.GTReverse);
         }
 
-        public static UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>> operator <=(BaseSeries<TKey, TValue> series, TValue comparand)
+        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator <=(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            return new UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>>(series, comparand, UnaryLogicOp.LE);
+            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.LE);
         }
 
-        public static UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>> operator <=(TValue comparand, BaseSeries<TKey, TValue> series)
+        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator <=(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            return new UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>>(series, comparand, UnaryLogicOp.LEReverse);
+            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.LEReverse);
         }
 
-        public static UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>> operator >=(BaseSeries<TKey, TValue> series, TValue comparand)
+        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator >=(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            return new UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>>(series, comparand, UnaryLogicOp.GE);
+            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.GE);
         }
 
-        public static UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>> operator >=(TValue comparand, BaseSeries<TKey, TValue> series)
+        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator >=(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            return new UnaryLogicSeries<TKey, TValue, ICursor<TKey, TValue>>(series, comparand, UnaryLogicOp.GEReverse);
+            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.GEReverse);
         }
 
         #endregion Unary Operators
