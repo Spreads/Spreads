@@ -35,7 +35,7 @@ namespace Spreads.DataTypes
     {
         private readonly Price _price;
         private readonly int _volume;
-        internal readonly int _reserved; // padding
+        internal int _reserved;
 
         /// <inheritdoc />
         [DataMember(Order = 1)]
@@ -44,6 +44,11 @@ namespace Spreads.DataTypes
         /// <inheritdoc />
         [DataMember(Order = 2)]
         public int Volume => _volume;
+
+        /// <summary>
+        /// An Int32 value that serves as padding or could be used to store any custom data.
+        /// </summary>
+        public int Reserved => _reserved;
 
         /// <summary>
         /// Quote constructor.
@@ -55,7 +60,7 @@ namespace Spreads.DataTypes
             _reserved = 0;
         }
 
-        internal Quote(Price price, int volume, int reserved)
+        public Quote(Price price, int volume, int reserved)
         {
             _price = price;
             _volume = volume;
