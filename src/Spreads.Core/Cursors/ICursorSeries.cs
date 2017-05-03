@@ -2,9 +2,7 @@ using System.Threading.Tasks;
 
 namespace Spreads.Cursors
 {
-
     // TODO (docs) explain (to self first) why these members are needed, but first implement Range with this approach
-
 
     // TODO Add <see cref to struct CursorSeries when they are renamed
     /// <summary>
@@ -13,7 +11,6 @@ namespace Spreads.Cursors
     public interface ICursorSeries<TKey, TValue, TCursor> : ISpecializedCursor<TKey, TValue, TCursor>
         where TCursor : ICursor<TKey, TValue>
     {
-
         /// <summary>
         /// Same as <see cref="ISeries{TKey,TValue}.Updated"/>
         /// </summary>
@@ -28,5 +25,6 @@ namespace Spreads.Cursors
         /// Same as <see cref="ISeries{TKey,TValue}.IsReadOnly"/>
         /// </summary>
         bool IsReadOnly { get; }
+
     }
 }

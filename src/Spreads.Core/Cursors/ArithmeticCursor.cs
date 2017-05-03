@@ -229,7 +229,17 @@ namespace Spreads.Cursors
 
         #endregion ICursor members
 
-        #region ISpecializedCursorSeries members
+        #region Custom Properties
+
+        /// <summary>
+        /// A value used by TOp.
+        /// </summary>
+        public TValue Value => _value;
+
+        #endregion
+
+
+        #region ICursorSeries members
 
         /// <inheritdoc />
         public bool IsIndexed => _cursor.Source.IsIndexed;
@@ -250,11 +260,12 @@ namespace Spreads.Cursors
             get { return _cursor.Source.Updated; }
         }
 
-        /// <inheritdoc />
-        public TValue GetAt(int idx)
-        {
-            return default(TOp).Apply(_cursor.Source.GetAt(idx), _value);
-        }
+        // TODO delete this
+        ///// <inheritdoc />
+        //public TValue GetAt(int idx)
+        //{
+        //    return default(TOp).Apply(_cursor.Source.GetAt(idx), _value);
+        //}
 
         #endregion ISpecializedCursorSeries members
 

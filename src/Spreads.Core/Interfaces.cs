@@ -350,7 +350,9 @@ namespace Spreads
         /// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
         /// is Linq's <code>[series].Skip(idx-1).Take(1).Value</code> .
         /// </summary>
+        [Obsolete("Signature without TKey doesn't make sense. Only concrete series where optimization of this method works should have it, not the interface.")]
         TValue GetAt(int idx);
+        // TODO should be KeyValuePair<TKey, TValue> GetAt(int idx) or completely removed.
 
         /// <summary>
         /// Keys enumerable.
