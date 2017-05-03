@@ -126,7 +126,7 @@ namespace Spreads.Collections.Generic
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowKeyNotFoundException()
         {
-            throw new System.Collections.Generic.KeyNotFoundException();
+            throw new KeyNotFoundException();
         }
 
         internal static void ThrowArgumentException(ExceptionResource resource)

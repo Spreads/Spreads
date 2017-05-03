@@ -302,7 +302,7 @@ namespace Spreads
     {
         /// <summary>
         /// Returns an initialized (ready to move) instance of <typeparamref name="TCursor"/>.
-        /// It could be the same instance for <see cref="CursorSeries{TKey,TValue,TCursor}"/>.
+        /// It could be the same instance for <see cref="AbstractCursorSeries{TKey,TValue,TCursor}"/>.
         /// It is the equivalent to calling the method <see cref="ISeries{TKey,TValue}.GetCursor"/> on <see cref="ICursor{TKey,TValue}.Source"/> for the non-specialized ICursor.
         /// </summary>
         /// <remarks>

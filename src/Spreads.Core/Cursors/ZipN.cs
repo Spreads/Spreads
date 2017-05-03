@@ -26,7 +26,7 @@ namespace Spreads.Cursors
     
 
     internal sealed class UnionKeys<TKey, TValue, TCursor> :
-        CursorSeries<TKey, TValue, UnionKeys<TKey, TValue, TCursor>>,
+        AbstractCursorSeries<TKey, TValue, UnionKeys<TKey, TValue, TCursor>>,
         ISpecializedCursor<TKey, TValue, UnionKeys<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
@@ -225,7 +225,7 @@ namespace Spreads.Cursors
     }
 
     public sealed class ZipN<TKey, TValue, TCursor> :
-        CursorSeries<TKey, TValue[], ZipN<TKey, TValue, TCursor>>,
+        AbstractCursorSeries<TKey, TValue[], ZipN<TKey, TValue, TCursor>>,
         ISpecializedCursor<TKey, TValue[], ZipN<TKey, TValue, TCursor>>
         where TCursor : ICursor<TKey, TValue>
     {

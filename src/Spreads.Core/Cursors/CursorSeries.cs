@@ -2,72 +2,105 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Utils;
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Spreads.Cursors
 {
     /// <summary>
-    /// Base abstract class for cursor series (objects that implement both <see cref="IReadOnlySeries{TKey, TValue}"/> and <see cref="ICursor{TKey, TValue}"/>).
+    /// A lightweight wrapper around <see cref="ICursorSeries{TKey, TValue, TCursor}"/> implementation 
+    /// that implements <see cref="IReadOnlySeries{TKey, TValue}"/> interface using the cursor.
     /// </summary>
-    public abstract class CursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue> // TODO, ISpecializedSeries<TKey, TValue, TCursor>
-        where TCursor : CursorSeries<TKey, TValue, TCursor>, ISpecializedCursor<TKey, TValue, TCursor>, new()
+    public struct CursorSeries<TKey, TValue, TCursor> : IReadOnlySeries<TKey, TValue>
+        where TCursor : ICursorSeries<TKey, TValue, TCursor>
     {
-        /// <summary>
-        /// NB the idea is that the class is first used when the first instance is created
-        /// if we do not expose non-private constructors other than the empty one then
-        /// in the factory <see cref="GetUninitializedStatic"/> methods we could try to reuse this cached instance.
-        /// </summary>
-        internal static TCursor _reusable = new TCursor { _inUse = -1 };
+        private readonly TCursor _cursor;
 
-        /// <summary>
-        /// Set to 1 when this instance is initialized as a cursor via <see cref="Initialize"/>.
-        /// Set to 0 when this instance is created and is ready to be used as a cursor.
-        /// Set to -1 when this instance is stored for reuse (as if it is GCed, such instance could only be used via <see cref="GetUninitializedStatic"/> factory).
-        /// </summary>
-        internal int _inUse;
+        internal CursorSeries(TCursor cursor)
+        {
+            _cursor = cursor;
+        }
 
-        internal CursorState State;
-
-        /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> Source => this;
+        public static CursorSeries<TKey, TValue, TCursor> Create(TCursor cursor)
+        {
+            return new CursorSeries<TKey, TValue, TCursor>(cursor);
+        }
 
         /// <summary>
         /// Get strongly-typed enumerator.
         /// </summary>
-        /// <returns>An initialized <typeparamref name="TCursor"/> instance.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TCursor GetEnumerator()
         {
-            var clone = Initialize();
-            return clone;
+            return _cursor.Initialize();
         }
 
-        /// <summary>
-        /// Create an initialized copy of <typeparamref name="TCursor"/>. It must be safe to call this method on
-        /// a previously disposed CursorSeries instances, e.g. in the case of re-using a series
-        /// as a cursor or in the pooling case.
-        /// </summary>
-        public abstract TCursor Initialize();
+        #region ISeries members
 
-        #region BaseSeries overrides
-
-        /// <inheritdoc />
-        public sealed override ICursor<TKey, TValue> GetCursor()
+        IDisposable IObservable<KeyValuePair<TKey, TValue>>.Subscribe(IObserver<KeyValuePair<TKey, TValue>> observer)
         {
-            return new BaseCursorAsync<TKey, TValue, TCursor>(Initialize);
+            throw new NotImplementedException();
+        }
+
+        IAsyncEnumerator<KeyValuePair<TKey, TValue>> IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
+        {
+            return _cursor.Initialize();
+        }
+
+        IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
+        {
+            return _cursor.Initialize();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return _cursor.Initialize();
+        }
+
+        
+
+        /// <inheritdoc />
+        public KeyComparer<TKey> Comparer => _cursor.Comparer;
+
+        /// <inheritdoc />
+        public ICursor<TKey, TValue> GetCursor()
+        {
+            // Async support. ICursorSeries implementations do not implement MNA
+            return new BaseCursorAsync<TKey, TValue, TCursor>(_cursor.Initialize());
         }
 
         /// <inheritdoc />
-        public override bool IsEmpty
+        public bool IsIndexed => _cursor.IsIndexed;
+
+        /// <inheritdoc />
+        public bool IsReadOnly
+        {
+            // NB this property is repeatedly called from MNA
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.IsReadOnly; }
+        }
+
+        /// <inheritdoc />
+        public Task<bool> Updated
+        {
+            // NB this property is repeatedly called from MNA
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Updated; }
+        }
+
+        #endregion ISeries members
+
+        #region IReadOnlySeries members
+
+        /// <inheritdoc />
+        public bool IsEmpty
         {
             get
             {
-                using (var c = Initialize())
+                using (var c = _cursor.Initialize())
                 {
                     return !c.MoveFirst();
                 }
@@ -75,11 +108,11 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public sealed override KeyValuePair<TKey, TValue> First
+        public KeyValuePair<TKey, TValue> First
         {
             get
             {
-                using (var c = Initialize())
+                using (var c = _cursor.Initialize())
                 {
                     return c.MoveFirst() ? c.Current : throw new InvalidOperationException("Series is empty");
                 }
@@ -87,11 +120,11 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public sealed override KeyValuePair<TKey, TValue> Last
+        public KeyValuePair<TKey, TValue> Last
         {
             get
             {
-                using (var c = Initialize())
+                using (var c = _cursor.Initialize())
                 {
                     return c.MoveLast() ? c.Current : throw new InvalidOperationException("Series is empty");
                 }
@@ -99,11 +132,11 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public override TValue GetAt(int idx)
+        public TValue GetAt(int idx)
         {
             // NB call to this.NavCursor.Source.GetAt(idx) is recursive (=> SO) and is logically wrong
             if (idx < 0) throw new ArgumentOutOfRangeException(nameof(idx));
-            using (var c = Initialize())
+            using (var c = _cursor.Initialize())
             {
                 if (!c.MoveFirst())
                 {
@@ -121,9 +154,9 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public sealed override bool TryFind(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> value)
+        public bool TryFind(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> value)
         {
-            using (var c = Initialize())
+            using (var c = _cursor.Initialize())
             {
                 if (c.MoveAt(key, direction))
                 {
@@ -136,9 +169,9 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public sealed override bool TryGetFirst(out KeyValuePair<TKey, TValue> value)
+        public bool TryGetFirst(out KeyValuePair<TKey, TValue> value)
         {
-            using (var c = Initialize())
+            using (var c = _cursor.Initialize())
             {
                 if (c.MoveFirst())
                 {
@@ -151,9 +184,9 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public sealed override bool TryGetLast(out KeyValuePair<TKey, TValue> value)
+        public bool TryGetLast(out KeyValuePair<TKey, TValue> value)
         {
-            using (var c = Initialize())
+            using (var c = _cursor.Initialize())
             {
                 if (c.MoveLast())
                 {
@@ -166,11 +199,11 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public sealed override IEnumerable<TKey> Keys
+        public IEnumerable<TKey> Keys
         {
             get
             {
-                using (var c = Initialize())
+                using (var c = _cursor.Initialize())
                 {
                     while (c.MoveNext())
                     {
@@ -181,11 +214,11 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public sealed override IEnumerable<TValue> Values
+        public IEnumerable<TValue> Values
         {
             get
             {
-                using (var c = Initialize())
+                using (var c = _cursor.Initialize())
                 {
                     while (c.MoveNext())
                     {
@@ -195,86 +228,43 @@ namespace Spreads.Cursors
             }
         }
 
-        #endregion BaseSeries overrides
-
-        /// <summary>
-        /// Get pooled or new <typeparamref name="TCursor"/> uninitialized instance.
-        /// </summary>
-        [NotNull]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal TCursor GetUninitializedInstance()
-        {
-            var inUse = Interlocked.CompareExchange(ref _inUse, 1, 0);
-            switch (inUse)
-            {
-                // we have taken the use ownership
-                case 0:
-                    Debug.Assert(State == CursorState.None);
-                    Debug.Assert(_inUse == 1);
-                    return (TCursor)this;
-
-                // it was already used
-                case 1:
-                    var instance = GetUninitializedStatic();
-                    instance._inUse = 1;
-                    return instance;
-
-                // it was completely disposed
-                case -1:
-                    ThrowHelper.ThrowInvalidOperationException($"CursorSeries {typeof(TCursor).Name} is diposed.");
-                    break;
-
-                default:
-                    ThrowHelper.ThrowInvalidOperationException($"Wrong _inUse state in {typeof(TCursor).Name}.");
-                    break;
-            }
-            return default(TCursor);
-        }
-
-        [NotNull]
-        internal static TCursor GetUninitializedStatic()
-        {
-            var reusable = _reusable;
-            if (reusable != null && ReferenceEquals(reusable,
-                    Interlocked.CompareExchange(ref _reusable, null, reusable)))
-            {
-                // _inUse == -1 means that the object is as "if not created", it is dead, void...
-                Debug.Assert(reusable._inUse == -1);
-                Debug.Assert(reusable.State == CursorState.None);
-
-                reusable._inUse = 0;
-
-                // now reusable has _inUse == 0 and is in the same state as `new TCursor()`, just return it
-                return reusable;
-            }
-
-            return new TCursor();
-        }
-
-        /// <summary>
-        /// Release a <see cref="CursorSeries{TKey, TValue, TCursor}"/> instance so that it could be reused later.
-        /// </summary>
-        internal static void ReleaseInstance([NotNull]TCursor instance)
-        {
-            var inUse = Interlocked.CompareExchange(ref instance._inUse, 0, 1);
-            switch (inUse)
-            {
-                case 1:
-                    break;
-
-                case 0:
-                    inUse = Interlocked.CompareExchange(ref instance._inUse, -1, 0);
-                    if (inUse == 0)
-                    {
-                        // replaced _inUse with -1, now ISeries is in diposed state
-                        Interlocked.Exchange(ref _reusable, instance);
-                    }
-                    break;
-            }
-        }
-
-        // Derived classes will use this as the implementation for the ICursor method.
         /// <inheritdoc />
-        public Task<bool> MoveNext(CancellationToken cancellationToken) => throw new NotSupportedException("Async MoveNext should use BaseCursor via CursorSeries");
+        public TValue this[TKey key]
+        {
+            get
+            {
+                if (TryFind(key, Lookup.EQ, out var tmp))
+                {
+                    return tmp.Value;
+                }
+                Collections.Generic.ThrowHelper.ThrowKeyNotFoundException();
+                return default(TValue);
+            }
+        }
+
+        #endregion IReadOnlySeries members
+
+
+        #region Operators
+
+        // TODO this is a sample how to bridge BaseSeries and CursorSeries. This is only relevant for operators.
+        // Extensions work either on interfaces or directly on specialized types.
+
+        /// <summary>
+        /// Add operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>>>  operator +(CursorSeries<TKey, TValue, TCursor> series, BaseSeries<TKey, TValue> other)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>>> operator +(BaseSeries<TKey, TValue> other, CursorSeries<TKey, TValue, TCursor> series)
+        {
+            throw new NotImplementedException();
+        }
+
+        #endregion
     }
+
+    
 }

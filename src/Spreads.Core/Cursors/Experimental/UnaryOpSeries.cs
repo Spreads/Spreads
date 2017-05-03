@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace Spreads.Cursors.Experimental
 {
     internal sealed class UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor> :
-        CursorSeries<TKey, TResult, UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor>>,
+        AbstractCursorSeries<TKey, TResult, UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor>>,
         ISpecializedCursor<TKey, TResult, UnaryOpSeries<TKey, TValue, TValue2, TResult, TOp, TCursor>> //, ICanMapValues<TKey, TValue>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         where TOp : struct, IOp<TValue, TValue2, TResult>

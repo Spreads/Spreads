@@ -6,7 +6,6 @@ using JetBrains.dotMemoryUnit;
 using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Cursors;
-using Spreads.Cursors.Experimental;
 using Spreads.Utils;
 using System;
 using System.Collections.Generic;
@@ -129,16 +128,16 @@ namespace Spreads.Core.Tests.Cursors
 
                 {
                     var c =
-                        new ArithmeticSeries2<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+                        new ArithmeticCursor<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
                             sm.GetEnumerator(), 2.0);
                     var c1 =
-                        new ArithmeticSeries2<int, double, AddOp<double>, ArithmeticSeries2<int, double,
+                        new ArithmeticCursor<int, double, AddOp<double>, ArithmeticCursor<int, double,
                             MultiplyOp<double>, SortedMapCursor<int, double>>>(
                             c, 2.0);
-                    var series = new CursorSeries2<int, double, ArithmeticSeries2<int, double, AddOp<double>, ArithmeticSeries2<int, double,
+                    var series = new CursorSeries<int, double, ArithmeticCursor<int, double, AddOp<double>, ArithmeticCursor<int, double,
                         MultiplyOp<double>, SortedMapCursor<int, double>>>>(c1);
                     var sum = 0.0;
-                    using (Benchmark.Run("ArithmeticSeries2", count))
+                    using (Benchmark.Run("ArithmeticCursor", count))
                     {
                         foreach (var kvp in series)
                         {
@@ -390,6 +389,18 @@ namespace Spreads.Core.Tests.Cursors
             {
                 var sum = 0.0;
                 {
+                    using (Benchmark.Run("SortedMap", count))
+                    {
+                        foreach (var kvp in sm)
+                        {
+                            sum += kvp.Value;
+                        }
+                    }
+                    Assert.IsTrue(sum > 0);
+                }
+
+                sum = 0.0;
+                {
                     var map =
                         new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
                             sm.GetEnumerator(), 2.0);
@@ -410,16 +421,16 @@ namespace Spreads.Core.Tests.Cursors
                 var sum1 = 0.0;
                 {
                     var c =
-                        new ArithmeticSeries2<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+                        new ArithmeticCursor<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
                             sm.GetEnumerator(), 2.0);
                     var c1 =
-                        new ArithmeticSeries2<int, double, AddOp<double>, ArithmeticSeries2<int, double,
+                        new ArithmeticCursor<int, double, AddOp<double>, ArithmeticCursor<int, double,
                             MultiplyOp<double>, SortedMapCursor<int, double>>>(
                             c, 2.0);
-                    var series = new CursorSeries2<int, double, ArithmeticSeries2<int, double, AddOp<double>, ArithmeticSeries2<int, double,
+                    var series = new CursorSeries<int, double, ArithmeticCursor<int, double, AddOp<double>, ArithmeticCursor<int, double,
                         MultiplyOp<double>, SortedMapCursor<int, double>>>>(c1);
 
-                    using (Benchmark.Run("ArithmeticSeries2", count))
+                    using (Benchmark.Run("ArithmeticCursor", count))
                     {
                         foreach (var kvp in series)
                         {
@@ -432,7 +443,7 @@ namespace Spreads.Core.Tests.Cursors
                 Assert.AreEqual(sum, sum1);
             }
 
-            Benchmark.Dump();
+            Benchmark.Dump("Compare enumeration speed of SortedMap and two arithmetic implementations using class and struct (item workload is multiply by 2 then add 2).");
         }
 
         [Test, Ignore]
@@ -499,8 +510,15 @@ namespace Spreads.Core.Tests.Cursors
                 }
 
                 var cc =
-                    new ArithmeticSeries2<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+                    new ArithmeticCursor<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
                         sm.GetEnumerator(), 2.0);
+
+                var cc1 =
+                    new ArithmeticCursor<int, double, AddOp<double>, ArithmeticCursor<int, double,
+                        MultiplyOp<double>, SortedMapCursor<int, double>>>(
+                        cc, 2.0);
+                var series = new CursorSeries<int, double, ArithmeticCursor<int, double, AddOp<double>, ArithmeticCursor<int, double,
+                    MultiplyOp<double>, SortedMapCursor<int, double>>>>(cc1);
 
                 void Run2(ref double s)
                 {
@@ -508,13 +526,6 @@ namespace Spreads.Core.Tests.Cursors
                     {
                         for (int i = 0; i < iterations; i++)
                         {
-                            var cc1 =
-                                new ArithmeticSeries2<int, double, AddOp<double>, ArithmeticSeries2<int, double,
-                                    MultiplyOp<double>, SortedMapCursor<int, double>>>(
-                                    cc, 2.0);
-                            var series = new CursorSeries2<int, double, ArithmeticSeries2<int, double, AddOp<double>, ArithmeticSeries2<int, double,
-                                MultiplyOp<double>, SortedMapCursor<int, double>>>>(cc1);
-
                             using (var c = series.GetEnumerator())
                             {
                                 var countCheck = 0;
@@ -559,7 +570,7 @@ namespace Spreads.Core.Tests.Cursors
                 Assert.AreEqual(sum, sum1);
                 Assert.AreEqual(sum, sum2);
 
-                using (Benchmark.Run("ArithmeticSeries2", count * iterations))
+                using (Benchmark.Run("ArithmeticCursor", count * iterations))
                 {
                     var t = Task.Run(() => Run2(ref sum1));
                     var t1 = Task.Run(() => Run2(ref sum2));
@@ -572,7 +583,7 @@ namespace Spreads.Core.Tests.Cursors
                 Assert.AreEqual(sum, sum1);
                 Assert.AreEqual(sum, sum2);
             }
-            Benchmark.Dump();
+            Benchmark.Dump("Compare multiple allocations and subsequent enumerations of arithmetic series.");
         }
     }
 }

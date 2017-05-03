@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Utils;
+using System.Runtime.CompilerServices;
 
 namespace Spreads.Cursors
 {
@@ -30,7 +31,7 @@ namespace Spreads.Cursors
     /// <summary>
     /// Wraps ICursor as ISpecializedCursor.
     /// </summary>
-    public struct SpecializedWrapper<TKey, TValue> : ISpecializedCursor<TKey, TValue, SpecializedWrapper<TKey, TValue>>
+    public struct SpecializedWrapper<TKey, TValue> : ICursorSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>
     {
         private ICursor<TKey, TValue> _cursor;
 
@@ -127,6 +128,8 @@ namespace Spreads.Cursors
         /// <inheritdoc />
         public bool IsContinuous => _cursor.IsContinuous;
 
+
+
         /// <inheritdoc />
         public SpecializedWrapper<TKey, TValue> Clone()
         {
@@ -143,5 +146,29 @@ namespace Spreads.Cursors
         {
             return _cursor.TryGetValue(key, out value);
         }
+
+
+        #region ICursorSeries members
+
+        /// <inheritdoc />
+        public bool IsIndexed => _cursor.Source.IsIndexed;
+
+        /// <inheritdoc />
+        public bool IsReadOnly
+        {
+            // NB this property is repeatedly called from MNA
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsReadOnly; }
+        }
+
+        /// <inheritdoc />
+        public Task<bool> Updated
+        {
+            // NB this property is repeatedly called from MNA
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.Updated; }
+        }
+
+        #endregion
     }
 }

@@ -12,10 +12,10 @@ using System.Threading.Tasks;
 namespace Spreads.Cursors
 {
     /// <summary>
-    /// A <see cref="CursorSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation to each value of its input series.
+    /// A <see cref="AbstractCursorSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation to each value of its input series.
     /// </summary>
     public sealed class ArithmeticSeries<TKey, TValue, TOp, TCursor> :
-        CursorSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>,
+        AbstractCursorSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>,
         ISpecializedCursor<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> // TODO , ICanMapValues<TKey, TValue>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         where TOp : struct, IOp<TValue>

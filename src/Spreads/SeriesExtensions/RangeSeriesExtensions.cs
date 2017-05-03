@@ -15,7 +15,7 @@ namespace Spreads
         // Even if this works, avoid public extensions on generic T type
         internal static RangeSeries<TKey, TValue, T> Range<T, TKey, TValue>(this T series,
             TKey startKey, TKey endKey, bool startInclusive = true, bool endInclusive = true)
-            where T : CursorSeries<TKey, TValue, T>, ISpecializedCursor<TKey, TValue, T>, new()
+            where T : AbstractCursorSeries<TKey, TValue, T>, ISpecializedCursor<TKey, TValue, T>, new()
         {
             return new RangeSeries<TKey, TValue, T>(series,
                 new Opt<TKey>(startKey), new Opt<TKey>(endKey), startInclusive, endInclusive);

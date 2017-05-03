@@ -7,6 +7,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Spreads.Utils
@@ -29,12 +31,13 @@ namespace Spreads.Utils
             return stat;
         }
 
-        private static void PrintHeader(int? caseLength = null)
+        private static void PrintHeader(string description, int? caseLength = null)
         {
             var len = caseLength ?? 20;
             var caseDahes = new string('-', len + 1);
             var dashes = $"{caseDahes,-21}|{new string('-', 8),8}:|{new string('-', 9),9}:|{new string('-', 6),6}:|{new string('-', 6),6}:|{new string('-', 6),6}:|{new string('-', 8),8}:";
             Console.WriteLine();
+            if (description != null) { Console.WriteLine(description); }
             Console.WriteLine(GetHeader(caseLength));
             Console.WriteLine(dashes);
         }
@@ -46,11 +49,11 @@ namespace Spreads.Utils
             return $" {caseHeader,-20}| {"MOPS",7} | {"Elapsed",8} | {"GC0",5} | {"GC1",5} | {"GC2",5} | {"Memory",7} ";
         }
 
-        public static void Dump()
+        public static void Dump([CallerMemberName]string description = "")
         {
             var maxLength = _stats.Keys.Select(k => k.Length).Max();
 
-            PrintHeader(maxLength);
+            PrintHeader(description, maxLength);
 
             var stats = _stats.Select(GetAverages).OrderByDescending(s => s.MOPS);
 
@@ -126,7 +129,7 @@ namespace Spreads.Utils
                 {
                     if (!_headerIsPrinted)
                     {
-                        PrintHeader();
+                        PrintHeader(null);
                         _headerIsPrinted = true;
                     }
                     Console.WriteLine(ToString());
@@ -177,7 +180,7 @@ namespace Spreads.Utils
                 GC.WaitForPendingFinalizers();
                 GC.Collect(2, GCCollectionMode.Forced, true);
                 GC.WaitForPendingFinalizers();
-                
+
 
                 _gc0 = GC.CollectionCount(0);
                 _gc1 = GC.CollectionCount(1);

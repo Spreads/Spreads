@@ -313,6 +313,20 @@ namespace Spreads
         }
 
         #endregion Unary Operators
+
+
+        // TODO this is a sample how to bridge BaseSeries and CursorSeries. This is only relevant for operators.
+        // Extensions work either on interfaces or directly on specialized types.
+
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>>> operator +(CursorSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> series, BaseSeries<TKey, TValue> other)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>>> operator +(BaseSeries<TKey, TValue> other, CursorSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> series)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public abstract class ContainerSeries<TKey, TValue> : BaseSeries<TKey, TValue>

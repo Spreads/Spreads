@@ -14,7 +14,7 @@ namespace Spreads
         // Even if this works, avoid public extensions on generic types
         internal static MapValuesSeries<TKey, TValue, TResult, T> Map<T, TKey, TValue, TResult>(this T series,
             Func<TValue, TResult> selector)
-            where T : CursorSeries<TKey, TValue, T>, ISpecializedCursor<TKey, TValue, T>, new()
+            where T : AbstractCursorSeries<TKey, TValue, T>, ISpecializedCursor<TKey, TValue, T>, new()
         {
             return new MapValuesSeries<TKey, TValue, TResult, T>(series, selector);
         }
