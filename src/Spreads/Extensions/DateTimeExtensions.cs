@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NodaTime;
+using Spreads.Collections;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -118,39 +119,110 @@ namespace Spreads
             switch (unitPeriod)
             {
                 case UnitPeriod.Tick:
-                if (length != 1) throw new InvalidOperationException("Tick length != 1 is meaningless");
-                return moment;
+                    if (length != 1) throw new InvalidOperationException("Tick length != 1 is meaningless");
+                    return moment;
 
                 case UnitPeriod.Millisecond:
-                divisor = TimeSpan.TicksPerMillisecond * length;
-                return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+                    divisor = TimeSpan.TicksPerMillisecond * length;
+                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
 
                 case UnitPeriod.Second:
-                divisor = TimeSpan.TicksPerSecond * length;
-                return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+                    divisor = TimeSpan.TicksPerSecond * length;
+                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
 
                 case UnitPeriod.Minute:
-                divisor = TimeSpan.TicksPerMinute * length;
-                return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+                    divisor = TimeSpan.TicksPerMinute * length;
+                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
 
                 case UnitPeriod.Hour:
-                divisor = TimeSpan.TicksPerHour * length;
-                return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+                    divisor = TimeSpan.TicksPerHour * length;
+                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
 
                 case UnitPeriod.Day:
-                divisor = TimeSpan.TicksPerDay * length;
-                return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
+                    divisor = TimeSpan.TicksPerDay * length;
+                    return new DateTime((moment.Ticks / (divisor)) * (divisor), moment.Kind);
 
                 case UnitPeriod.Month:
-                if (length != 1) throw new NotSupportedException();
-                return new DateTime(moment.Year, moment.Month, 1, 0, 0, 0, moment.Kind);
+                    if (length != 1) throw new NotSupportedException();
+                    return new DateTime(moment.Year, moment.Month, 1, 0, 0, 0, moment.Kind);
 
                 case UnitPeriod.Eternity:
-                return DateTime.MinValue;
+                    return DateTime.MinValue;
 
                 default:
-                throw new ArgumentOutOfRangeException(nameof(unitPeriod), unitPeriod, null);
+                    throw new ArgumentOutOfRangeException(nameof(unitPeriod), unitPeriod, null);
             }
+        }
+
+        /// <summary>
+        /// Get history of offsets with keys as UTC time. Used to convert from UTC to zoned time.
+        /// </summary>
+        /// <returns></returns>
+        public static SortedMap<DateTime, long> GetOffsetsFromUtc(string tzFrom, bool standardOffsetOnly = false)
+        {
+            string tz;
+            if (!Normalizer.TryGetValue(tzFrom.ToLowerInvariant(), out tz))
+            {
+                tz = tzFrom;
+            }
+            var sortedMap = new SortedMap<DateTime, long>();
+            if (tz.ToLowerInvariant() == "utc")
+            {
+                sortedMap[new DateTime(0L, DateTimeKind.Utc)] = 0;
+            }
+            else
+            {
+                var givenTz = DateTimeZoneProviders.Tzdb[tz];
+
+                var intervals = givenTz.GetZoneIntervals(Instant.FromDateTimeUtc(
+                        // https://en.wikipedia.org/wiki/International_Meridian_Conference
+                        new DateTime(1884, 10, 22, 12, 0, 0, DateTimeKind.Utc)
+                    ), Instant.MaxValue);
+                foreach (var interval in intervals)
+                {
+                    var intervalStart = interval.Start.ToDateTimeUtc();
+                    var offset = standardOffsetOnly ? interval.StandardOffset : interval.WallOffset;
+                    var offsetTicks = offset.Ticks;
+                    sortedMap.AddLast(intervalStart, offsetTicks);
+                }
+            }
+            sortedMap.Complete();
+            return sortedMap;
+        }
+
+        /// <summary>
+        /// Get history of offsets with keys as zoned time. Used to convert from zoned to UTC time.
+        /// </summary>
+        /// <returns></returns>
+        public static SortedMap<DateTime, long> GetOffsetsFromZoned(string tzFrom, bool standardOffsetOnly = false)
+        {
+            string tz;
+            if (!Normalizer.TryGetValue(tzFrom.ToLowerInvariant(), out tz))
+            {
+                tz = tzFrom;
+            }
+            var sortedMap = new SortedMap<DateTime, long>();
+            if (tz.ToLowerInvariant() == "utc")
+            {
+                sortedMap[new DateTime(0L, DateTimeKind.Unspecified)] = 0;
+            }
+            else
+            {
+                var givenTz = DateTimeZoneProviders.Tzdb[tz];
+                var intervals = givenTz.GetZoneIntervals(Instant.FromDateTimeUtc(
+                    // https://en.wikipedia.org/wiki/International_Meridian_Conference
+                    new DateTime(1884, 10, 22, 12, 0, 0, DateTimeKind.Utc)
+                ), Instant.MaxValue);
+                foreach (var interval in intervals)
+                {
+                    var localStart = interval.IsoLocalStart.ToDateTimeUnspecified();
+                    var offset = standardOffsetOnly ? interval.StandardOffset : interval.WallOffset;
+                    var offsetTicks = offset.Ticks;
+                    sortedMap.AddLast(localStart, offsetTicks);
+                }
+            }
+            sortedMap.Complete();
+            return sortedMap;
         }
     }
 }

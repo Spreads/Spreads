@@ -131,9 +131,9 @@ namespace Spreads.Extensions.Tests {
 
             var sma = closeSeries.SMA(20, true);
             var deviation = sma / closeSeries - 1.0;
-            var leverage = (baseLeverage * (-(5.0 * (deviation.Map(x => Math.Abs(x)))) + 1.0));
+            var leverage = (baseLeverage * (-(5.0 * (deviation.Map((dt,x) => Math.Abs(x)))) + 1.0));
 
-            var smaSignal = deviation.Map(x => (double)(Math.Sign(x)));
+            var smaSignal = deviation.Map((dt,x) => (double)(Math.Sign(x)));
 
             var smaPositionMultiple = ((smaSignal * leverage).Map(x => 0.25 * (Math.Round(x / 0.25))));
             var smaPositionMultipleMap = smaPositionMultiple.ToSortedMap();
