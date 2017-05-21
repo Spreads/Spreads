@@ -4,9 +4,11 @@
 
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
 using NUnit.Framework;
+using Spreads.Collections;
 using Spreads.DataTypes;
 
 namespace Spreads.Core.Tests.DataTypes
@@ -431,6 +433,40 @@ namespace Spreads.Core.Tests.DataTypes
         //    Assert.Fail("TODO");
         //}
 
+
+        [Test]
+        public void RangeOnVariantSeriesWorks()
+        {
+
+            var sm = new SortedMap<DateTime, int>();
+
+            for (int i = 0; i < 100; i++)
+            {
+                sm.Add(DateTime.Today.AddSeconds(i), i);
+            }
+
+            var vs = new VariantSeries<DateTime, int>(sm);
+            
+            Assert.IsTrue(vs.Comparer != null);
+
+            var rs = vs.After(Variant.Create(DateTime.Today.AddSeconds(50)));
+
+            Assert.IsTrue(rs.Comparer != null);
+
+            var expected = 0;
+            for (int i = 50; i < 100; i++)
+            {
+                expected += i;
+            }
+
+            var sum = 0;
+            foreach (var variantKvp in rs)
+            {
+                sum += variantKvp.Value.Get<int>();
+            }
+            Assert.AreEqual(expected, sum);
+            
+        }
 
     }
 }

@@ -20,13 +20,14 @@ namespace Spreads
         where TImpl : ConvertSeries<TKey, TValue, TKey2, TValue2, TImpl>, new()
     {
         private static readonly BoundedConcurrentBag<TImpl> Pool = new BoundedConcurrentBag<TImpl>(Environment.ProcessorCount * 2);
+        private KeyComparer<TKey2> _comparer;
 
         protected IReadOnlySeries<TKey, TValue> Inner;
 
         protected ConvertSeries(IReadOnlySeries<TKey, TValue> inner)
         {
             Inner = inner;
-            Comparer = KeyComparer<TKey2>.Create(new ConvertComparer(this as TImpl));
+            _comparer = KeyComparer<TKey2>.Create(new ConvertComparer(this as TImpl));
         }
 
         protected ConvertSeries()
@@ -89,7 +90,7 @@ namespace Spreads
             return false;
         }
 
-        public override KeyComparer<TKey2> Comparer { get; }
+        public override KeyComparer<TKey2> Comparer => _comparer;
         public override bool IsIndexed => Inner.IsIndexed;
 
         public override ICursor<TKey2, TValue2> GetCursor()
@@ -99,13 +100,14 @@ namespace Spreads
 
         public static TImpl Create(IReadOnlySeries<TKey, TValue> innerSeries)
         {
-            TImpl inner;
-            if (!Pool.TryTake(out inner))
+            TImpl instance;
+            if (!Pool.TryTake(out instance))
             {
-                inner = new TImpl();
+                instance = new TImpl();
+                instance._comparer = KeyComparer<TKey2>.Create(new ConvertComparer(instance));
             }
-            inner.Inner = innerSeries;
-            return inner;
+            instance.Inner = innerSeries;
+            return instance;
         }
 
         public virtual void Dispose(bool disposing)
@@ -216,7 +218,7 @@ namespace Spreads
             // TODO object pooling
             public IReadOnlySeries<TKey2, TValue2> CurrentBatch => Create(_innerCursor.CurrentBatch);
 
-            public IReadOnlySeries<TKey2, TValue2> Source => Create(_innerCursor.Source);
+            public IReadOnlySeries<TKey2, TValue2> Source => _source; //Create(_innerCursor.Source);
             public bool IsContinuous => _innerCursor.IsContinuous;
         }
 
