@@ -6,7 +6,6 @@ using NUnit.Framework;
 using Spreads.Collections;
 using System;
 using System.Linq;
-using System.Runtime;
 
 namespace Spreads.Core.Tests.Cursors
 {
@@ -26,6 +25,7 @@ namespace Spreads.Core.Tests.Cursors
             var empty = new SortedMap<int, double>();
 
             var range = empty.Range(0, Int32.MaxValue, true, true);
+            Assert.True(range.IsEmpty);
             Assert.False(range.Any());
 
             var nonEmpty = new SortedMap<int, double>

@@ -2,24 +2,25 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using Spreads.DataTypes;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
-    public class VariantSeries<TKey, TValue> : ConvertSeries<TKey, TValue, Variant, Variant, VariantSeries<TKey, TValue>>, IReadOnlySeries
+    public class TimeSeries<TValue> : ConvertSeries<DateTime, TValue, DateTime, Variant, TimeSeries<TValue>>, IReadOnlyTimeSeries
     {
-        public VariantSeries()
+        public TimeSeries()
         {
         }
 
-        public VariantSeries(IReadOnlySeries<TKey, TValue> inner) : base(inner)
+        public TimeSeries(IReadOnlySeries<DateTime, TValue> inner) : base(inner)
         {
         }
 
-        public override Variant ToKey2(TKey key)
+        public override DateTime ToKey2(DateTime key)
         {
-            return Variant.Create(key);
+            return key;
         }
 
         public override Variant ToValue2(TValue value)
@@ -27,9 +28,9 @@ namespace Spreads
             return Variant.Create(value);
         }
 
-        public override TKey ToKey(Variant key)
+        public override DateTime ToKey(DateTime key)
         {
-            return key.Get<TKey>();
+            return key;
         }
 
         public override TValue ToValue(Variant value)
@@ -37,23 +38,23 @@ namespace Spreads
             return value.Get<TValue>();
         }
 
-        public TypeEnum KeyType { get; } = VariantHelper<TKey>.TypeEnum;
         public TypeEnum ValueType { get; } = VariantHelper<TValue>.TypeEnum;
+        public TimeSeriesInfo TimeSeriesInfo { get; set; }
     }
 
-    public class MutableVariantSeries<TKey, TValue> : ConvertMutableSeries<TKey, TValue, Variant, Variant, MutableVariantSeries<TKey, TValue>>, IReadOnlySeries
+    public class MutableTimeSeries<TValue> : ConvertMutableSeries<DateTime, TValue, DateTime, Variant, MutableTimeSeries<TValue>>, IReadOnlyTimeSeries
     {
-        public MutableVariantSeries()
+        public MutableTimeSeries()
         {
         }
 
-        public MutableVariantSeries(IMutableSeries<TKey, TValue> innerSeries) : base(innerSeries)
+        public MutableTimeSeries(IMutableSeries<DateTime, TValue> innerSeries) : base(innerSeries)
         {
         }
 
-        public override Variant ToKey2(TKey key)
+        public override DateTime ToKey2(DateTime key)
         {
-            return Variant.Create(key);
+            return key;
         }
 
         public override Variant ToValue2(TValue value)
@@ -61,9 +62,9 @@ namespace Spreads
             return Variant.Create(value);
         }
 
-        public override TKey ToKey(Variant key)
+        public override DateTime ToKey(DateTime key)
         {
-            return key.Get<TKey>();
+            return key;
         }
 
         public override TValue ToValue(Variant value)
@@ -71,9 +72,7 @@ namespace Spreads
             return value.Get<TValue>();
         }
 
-        /// <inheritdoc />
-        public TypeEnum KeyType { get; } = VariantHelper<TKey>.TypeEnum;
-        /// <inheritdoc />
         public TypeEnum ValueType { get; } = VariantHelper<TValue>.TypeEnum;
+        public TimeSeriesInfo TimeSeriesInfo { get; set; }
     }
 }

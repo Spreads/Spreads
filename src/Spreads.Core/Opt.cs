@@ -3,7 +3,31 @@
 namespace Spreads
 {
     /// <summary>
-    /// The minimal implementation of Option type/
+    /// Helper methods for <see cref="Opt{T}"/>.
+    /// </summary>
+    public static class Opt
+    {
+        /// <summary>
+        /// Crate new <see cref="Opt{T}"/> value.
+        /// </summary>
+        /// <example>
+        /// Avoid type specification of <see cref="Opt{T}"/> constructor and just use the <see cref="Opt.Present{T}"/>
+        /// method that infers the type and creates a new <see cref="Opt{T}"/> value with the given present value.
+        /// <code>
+        /// public static Opt&lt;int&gt; Example()
+        /// {
+        ///     return Opt.Present(1);
+        /// }
+        /// </code>
+        /// </example>
+        public static Opt<T> Present<T>(T value) // NB never create extensions on T
+        {
+            return new Opt<T>(value);
+        }
+    }
+
+    /// <summary>
+    /// The minimal implementation of Option type.
     /// </summary>
     public struct Opt<T> : IEquatable<Opt<T>>
     {
@@ -11,6 +35,14 @@ namespace Spreads
         /// Missing value.
         /// </summary>
         public static readonly Opt<T> Missing = new Opt<T>();
+
+        /// <summary>
+        /// Crate new <see cref="Opt{T}"/> value.
+        /// </summary>
+        public static Opt<T> Present(T value)
+        {
+            return new Opt<T>(value);
+        }
 
         /// <summary>
         /// Create new optional value with a given present value.

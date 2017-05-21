@@ -174,7 +174,7 @@
     <Compile Include="TableTests.cs" />
     <Compile Include="TypeHelperTests.cs" />
     <Compile Include="UnsafeTests.cs" />
-    <Compile Include="VariantTests.cs" />
+    <Compile Include="DataTypes\VariantTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

@@ -43,6 +43,8 @@ namespace Spreads.DataTypes
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set { _value = (byte)(_value & ((value ? 1 : 0) << CompressedBitOffset)); }
         }
+
+        // TODO IsDiff flag already used in Serializer
     }
 
     /// <summary>
@@ -895,6 +897,7 @@ namespace Spreads.DataTypes
 
         public override int GetHashCode()
         {
+            // TODO for known types hash codes must match to the original types, e.g. for int32, etc.
             if (TypeEnum == TypeEnum.None) return 0;
             if ((int)TypeEnum < KnownSmallTypesLimit)
             {
@@ -915,11 +918,17 @@ namespace Spreads.DataTypes
             return ToObject().GetHashCode();
         }
 
+        /// <summary>
+        /// Equals operator.
+        /// </summary>
         public static bool operator ==(Variant first, Variant second)
         {
             return first.Equals(second);
         }
 
+        /// <summary>
+        /// Not equals operator.
+        /// </summary>
         public static bool operator !=(Variant first, Variant second)
         {
             return !(first == second);

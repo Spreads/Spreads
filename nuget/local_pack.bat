@@ -14,6 +14,7 @@ echo build: "%build%"
 
 dotnet restore ..\src\Spreads.Core\Spreads.Core.csproj
 dotnet pack ..\src\Spreads.Core\Spreads.Core.csproj -c DEBUG -o C:\tools\LocalNuget --include-symbols --version-suffix "%build%" 
+rmdir /s /q ..\src\Spreads.Core\obj
 
 dotnet restore ..\src\Spreads.Collections\Spreads.Collections.2017.fsproj
 dotnet pack ..\src\Spreads.Collections\Spreads.Collections.2017.fsproj -c DEBUG -o C:\tools\LocalNuget --include-symbols --version-suffix "%build%"
@@ -21,5 +22,6 @@ rmdir /s /q ..\src\Spreads.Collections\obj
 
 dotnet restore ..\src\Spreads\Spreads.2017.csproj
 dotnet pack ..\src\Spreads\Spreads.2017.csproj -c DEBUG -o C:\tools\LocalNuget --include-symbols --version-suffix "%build%"
+rmdir /s /q ..\src\Spreads\obj
 
 pause

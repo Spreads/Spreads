@@ -982,9 +982,30 @@ namespace Spreads.Core.Tests
         }
 
         [Test, Ignore]
-        public unsafe void MeasureNodaTimeInstantSize()
+        public void MeasureNodaTimeInstantSize()
         {
             Console.WriteLine(Unsafe.SizeOf<NodaTime.Instant>());
         }
+
+
+
+        [Test, Ignore]
+        public void LargeLongsToDoubleKeepWeekOrder()
+        {
+
+            var start = 1L << 54;
+            var count = 10000000000L;
+
+            for (long i = start; i < start + count; i++)
+            {
+                if ((double)i > (double)(i + 1))
+                {
+                    Assert.Fail($"Double cast doesn't keep order for {i}");
+                }
+            }
+
+            Assert.Pass("Double keeps week order");
+        }
+
     }
 }

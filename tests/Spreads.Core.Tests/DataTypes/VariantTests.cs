@@ -2,14 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Newtonsoft.Json;
-using NUnit.Framework;
-using Spreads.DataTypes;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Newtonsoft.Json;
+using NUnit.Framework;
+using Spreads.DataTypes;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Core.Tests.DataTypes
 {
     [TestFixture]
     public class VariantTests
@@ -421,5 +421,16 @@ namespace Spreads.Core.Tests
             var obj = variant.ToObject();
             Assert.AreEqual(typeof(ErrorCode), obj.GetType());
         }
+
+
+        // TODO test known types larger than 16 bytes
+        //[Test]
+        //public void CouldCreateAndReadOHLC()
+        //{
+        //    var variant = Variant.Create(new OHLCV(123.4M, 123.4M, 123.4M, 123.4M, 123));
+        //    Assert.Fail("TODO");
+        //}
+
+
     }
 }

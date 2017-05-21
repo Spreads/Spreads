@@ -80,13 +80,13 @@ namespace Spreads
         /// </summary>
         public static bool StrictUtc { get; set; }
 
-        public PeriodInfo PeriodInfo;
+        public PeriodInfo PeriodInfo { get; set; }
 
         /// <summary>
         /// Time zone in <see href="https://en.wikipedia.org/wiki/Tz_database">tz database</see> format.
         /// </summary>
         /// <remarks>Null is undefined.</remarks>
-        public string TZ;
+        public string TZ { get; set; }
     }
 
     public enum AppendOption

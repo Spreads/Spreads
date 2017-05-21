@@ -2,41 +2,53 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using Spreads.Utils;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
     internal static class ThrowHelper
     {
+        [ContractAnnotation("=> halt")]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentNullException(ExceptionArgument argument)
         {
             throw GetArgumentNullException(argument);
         }
 
+        [ContractAnnotation("=> halt")]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentException()
         {
             throw GetArgumentException();
         }
 
+        [ContractAnnotation("=> halt")]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentException(ExceptionArgument argument)
         {
             throw GetArgumentException(argument);
         }
 
+        [ContractAnnotation("=> halt")]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentOutOfRangeException()
         {
             throw GetArgumentOutOfRangeException();
         }
 
+        [ContractAnnotation("=> halt")]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentOutOfRangeException(ExceptionArgument argument)
         {
             throw GetArgumentOutOfRangeException(argument);
         }
 
+        [ContractAnnotation("=> halt")]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidOperationException()
         {
             throw GetInvalidOperationException();
@@ -49,16 +61,22 @@ namespace Spreads
             throw GetInvalidOperationException(message);
         }
 
+        [ContractAnnotation("=> halt")]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidOperationException_ForVariantTypeMissmatch()
         {
             throw GetInvalidOperationException_ForVariantTypeMissmatch();
         }
 
+        [ContractAnnotation("=> halt")]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotImplementedException()
         {
             throw GetNotImplementedException();
         }
 
+        [ContractAnnotation("=> halt")]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotSupportedException()
         {
             throw GetNotSupportedException();

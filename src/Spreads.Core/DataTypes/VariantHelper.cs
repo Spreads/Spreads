@@ -29,7 +29,7 @@ namespace Spreads.DataTypes
         {
             // TODO check if return is the same as if else and the pattern above holds
 
-            if (typeof(T) == typeof(bool)) { return TypeEnum.Bool; }
+            if (typeof(T) == typeof(bool)) return TypeEnum.Bool;
             if (typeof(T) == typeof(byte)) return TypeEnum.UInt8;
             if (typeof(T) == typeof(char)) return TypeEnum.UInt16;
             if (typeof(T) == typeof(sbyte)) return TypeEnum.Int8;

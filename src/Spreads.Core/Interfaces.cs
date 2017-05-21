@@ -2,16 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Cursors;
 using Spreads.DataTypes;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Cursors;
 
 namespace Spreads
 {
-
     // TODO move to a folder Interfaces without namespace
 
     /// <summary>
@@ -188,14 +187,6 @@ namespace Spreads
         new TCursor GetCursor();
     }
 
-    /// <summary>
-    /// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
-    /// </summary>
-    public interface ISeries : ISeries<Variant, Variant>
-    {
-    }
-
-
     // TODO (docs) review the contract (together with IAsynEnumerable above) and format the xml doc
 
     /// <summary>
@@ -283,7 +274,7 @@ namespace Spreads
         /// <summary>
         /// Gets a calculated value for continuous series without moving the cursor position.
         /// E.g. a continuous cursor for Repeat() will check if current state allows to get previous value,
-        /// and if not then .Source.GetCursor().MoveAt(key, LE). 
+        /// and if not then .Source.GetCursor().MoveAt(key, LE).
         /// </summary>
         /// <remarks>
         /// The TryGetValue method should be optimized
@@ -352,6 +343,7 @@ namespace Spreads
         /// </summary>
         [Obsolete("Signature without TKey doesn't make sense. Only concrete series where optimization of this method works should have it, not the interface.")]
         TValue GetAt(int idx);
+
         // TODO should be KeyValuePair<TKey, TValue> GetAt(int idx) or completely removed.
 
         /// <summary>
@@ -381,8 +373,57 @@ namespace Spreads
         /// Try get last element.
         /// </summary>
         bool TryGetLast(out KeyValuePair<TKey, TValue> value);
+    }
+
+    /// <summary>
+    /// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
+    /// </summary>
+    public interface ISeries : ISeries<Variant, Variant>
+    {
+        /// <summary>
+        /// <see cref="TypeEnum"/> for the keys type.
+        /// </summary>
+        TypeEnum KeyType { get; }
+
+        /// <summary>
+        /// <see cref="TypeEnum"/> for the values type.
+        /// </summary>
+        TypeEnum ValueType { get; }
+    }
+
+    /// <summary>
+    /// An untyped <see cref="IReadOnlySeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
+    /// </summary>
+    public interface IReadOnlySeries : ISeries, IReadOnlySeries<Variant, Variant>
+    {
+    }
+
+
+    /// <summary>
+    /// An untyped <see cref="ISeries{DateTime, TValue}"/> interface with values as <see cref="Variant"/> types.
+    /// </summary>
+    public interface ITimeSeries : ISeries<DateTime, Variant>
+    {
+
+        /// <summary>
+        /// <see cref="TypeEnum"/> for the values type.
+        /// </summary>
+        TypeEnum ValueType { get; }
+
+        /// <summary>
+        /// TimeSeries parameters.
+        /// </summary>
+        TimeSeriesInfo TimeSeriesInfo { get; }
 
     }
+
+    /// <summary>
+    /// An untyped <see cref="IReadOnlySeries{DateTime, TValue}"/> interface with values as <see cref="Variant"/> types.
+    /// </summary>
+    public interface IReadOnlyTimeSeries : ITimeSeries, IReadOnlySeries<DateTime, Variant>
+    {
+    }
+
 
     /// <summary>
     /// Mutable series

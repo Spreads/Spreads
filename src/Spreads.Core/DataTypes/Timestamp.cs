@@ -13,7 +13,7 @@ namespace Spreads.DataTypes
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = 8)]
     [Serialization(BlittableSize = 8)]
-    public unsafe struct Timestamp
+    public unsafe struct Timestamp : IComparable<Timestamp>
     {
         private readonly long _value;
 
@@ -28,5 +28,9 @@ namespace Spreads.DataTypes
         }
 
         // TODO IConvertible and other standard interfaces of DateTime that fallback to DT implementation via conversion
+        public int CompareTo(Timestamp other)
+        {
+            return _value.CompareTo(other._value);
+        }
     }
 }
