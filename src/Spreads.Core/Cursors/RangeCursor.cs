@@ -13,8 +13,9 @@ using System.Threading.Tasks;
 namespace Spreads.Cursors
 {
 
+
     /// <summary>
-    /// A <see cref="AbstractCursorSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation to each value of its input series.
+    /// Range cursor.
     /// </summary>
     public struct RangeCursor<TKey, TValue, TCursor> :
         ICursorSeries<TKey, TValue, RangeCursor<TKey, TValue, TCursor>>
@@ -357,7 +358,7 @@ namespace Spreads.Cursors
         }
 
         /// <summary>
-        /// Get a <see cref="CursorSeries{TKey,TValue,TCursor}"/> based on this <see cref="RangeCursor{TKey,TValue,TCursor}"/>
+        /// Get a <see cref="CursorSeries{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
         public CursorSeries<TKey, TValue, RangeCursor<TKey, TValue, TCursor>> Source => new CursorSeries<TKey, TValue, RangeCursor<TKey, TValue, TCursor>>(this);
 

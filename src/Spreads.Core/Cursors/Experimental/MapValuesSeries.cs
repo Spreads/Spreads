@@ -5,22 +5,17 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
 // ReSharper disable once CheckNamespace
-namespace Spreads.Cursors
+namespace Spreads.Cursors.Experimental
 {
-    //internal interface ICanMapValues<TKey, TValue>
-    //{
-    //    BaseSeries<TKey, TResult> Map<TResult>(Func<TValue, TResult> selector, Func<Buffer<TValue>, Buffer<TResult>> batchSelector);
-    //}
-
     /// <summary>
     /// A series that applies a selector to each value of its input series. Specialized for input cursor.
     /// </summary>
+    [Obsolete("Use CursorSeries")]
     public class MapValuesSeries<TKey, TValue, TResult, TCursor> :
         AbstractCursorSeries<TKey, TResult, MapValuesSeries<TKey, TValue, TResult, TCursor>>,
         ISpecializedCursor<TKey, TResult, MapValuesSeries<TKey, TValue, TResult, TCursor>> //, ICanMapValues<TKey, TResult>
@@ -34,7 +29,6 @@ namespace Spreads.Cursors
 
         public MapValuesSeries()
         {
-            
         }
 
         /// <summary>
@@ -110,7 +104,6 @@ namespace Spreads.Cursors
             instance._selector = _selector;
             instance.State = State;
             return instance;
-           
         }
 
         /// <inheritdoc />

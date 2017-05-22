@@ -4,9 +4,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 
 // ReSharper disable once CheckNamespace
@@ -26,12 +24,27 @@ namespace Spreads
             return x => map2(map1(x));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Func<TKey, TSource, TResult> CombineMaps<TKey, TSource, TMiddle, TResult>(Func<TKey, TSource, TMiddle> map1, Func<TMiddle, TResult> map2)
+        {
+            return (k, x) => map2(map1(k, x));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Func<TKey, TSource, TResult> CombineMaps<TKey, TSource, TMiddle, TResult>(Func<TKey, TSource, TMiddle> map1, Func<TKey, TMiddle, TResult> map2)
+        {
+            return (k, x) => map2(k, map1(k, x));
+        }
+
+        public static T Identity<T>(T t)
+        {
+            return t;
+        }
+
+        [Obsolete("Use static Identity function")]
         public class IdentityFunction<TElement>
         {
-            public static Func<TElement, TElement> Instance
-            {
-                get { return x => x; }
-            }
+            public static Func<TElement, TElement> Instance => Identity;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -43,7 +56,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Func<TSource, KeyValuePair<bool, TSource>> FilterToFilterMap<TSource>(Func<TSource, bool> filter)
         {
-            return FilterAndMapToFilterMap(filter, IdentityFunction<TSource>.Instance);
+            return FilterAndMapToFilterMap(filter, Identity);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

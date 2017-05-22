@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace Spreads.Cursors
 {
     /// <summary>
-    /// A <see cref="AbstractCursorSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation to each value of its input series.
+    /// An <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation to each value of its input series.
     /// </summary>
     public struct ArithmeticCursor<TKey, TValue, TOp, TCursor> :
         ICursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, TOp, TCursor>>
@@ -219,7 +219,12 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> Source => new CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(this);
+        IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source => new CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(this);
+
+        /// <summary>
+        /// Get a <see cref="CursorSeries{TKey,TValue,TCursor}"/> based on this cursor.
+        /// </summary>
+        public CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, TOp, TCursor>> Source => new CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(this);
 
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken)
