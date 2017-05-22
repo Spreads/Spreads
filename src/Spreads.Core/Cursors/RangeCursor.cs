@@ -12,8 +12,6 @@ using System.Threading.Tasks;
 
 namespace Spreads.Cursors
 {
-
-
     /// <summary>
     /// Range cursor.
     /// </summary>
@@ -67,30 +65,32 @@ namespace Spreads.Cursors
         /// <inheritdoc />
         public RangeCursor<TKey, TValue, TCursor> Clone()
         {
-            var instance = new RangeCursor<TKey, TValue, TCursor>();
-            instance._cursor = _cursor.Clone();
+            var instance = new RangeCursor<TKey, TValue, TCursor>
+            {
+                _cursor = _cursor.Clone(),
+                _startKey = _startKey,
+                _endKey = _endKey,
+                _startInclusive = _startInclusive,
+                _endInclusive = _endInclusive,
+                State = State
+            };
 
-            instance._startKey = _startKey;
-            instance._endKey = _endKey;
-            instance._startInclusive = _startInclusive;
-            instance._endInclusive = _endInclusive;
-
-            instance.State = State;
             return instance;
         }
 
         /// <inheritdoc />
         public RangeCursor<TKey, TValue, TCursor> Initialize()
         {
-            var instance = new RangeCursor<TKey, TValue, TCursor>();
-            instance._cursor = _cursor.Initialize();
+            var instance = new RangeCursor<TKey, TValue, TCursor>
+            {
+                _cursor = _cursor.Initialize(),
+                _startKey = _startKey,
+                _endKey = _endKey,
+                _startInclusive = _startInclusive,
+                _endInclusive = _endInclusive,
+                State = CursorState.Initialized
+            };
 
-            instance._startKey = _startKey;
-            instance._endKey = _endKey;
-            instance._startInclusive = _startInclusive;
-            instance._endInclusive = _endInclusive;
-
-            instance.State = CursorState.Initialized;
             return instance;
         }
 
@@ -118,7 +118,6 @@ namespace Spreads.Cursors
 
         #endregion Lifetime management
 
-
         #region Custom members
 
         /// <summary>
@@ -140,7 +139,6 @@ namespace Spreads.Cursors
         /// Start key
         /// </summary>
         public Opt<TKey> StartKey => _startKey;
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool EndOk(TKey key)
@@ -164,7 +162,7 @@ namespace Spreads.Cursors
             return _startInclusive ? c >= 0 : c > 0;
         }
 
-        #endregion
+        #endregion Custom members
 
         #region ICursor members
 
@@ -401,8 +399,5 @@ namespace Spreads.Cursors
         }
 
         #endregion ISpecializedCursorSeries members
-
-
-
     }
 }

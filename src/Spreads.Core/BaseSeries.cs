@@ -3,18 +3,18 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Cursors;
+using Spreads.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Utils;
 
 namespace Spreads
 {
     /// <summary>
-    /// Base class for all series implementations.
+    /// Base class for series implementations.
     /// </summary>
     [CannotApplyEqualityOperator]
     public class BaseSeries
@@ -89,6 +89,7 @@ namespace Spreads
             return GetCursor();
         }
 
+        /// <inheritdoc />
         public abstract Task<bool> Updated { get; }
 
         /// <inheritdoc />
@@ -131,10 +132,24 @@ namespace Spreads
         /// <inheritdoc />
         public abstract bool TryGetLast(out KeyValuePair<TKey, TValue> value);
 
-        internal SpecializedWrapper<TKey, TValue> GetWrapper()
+        internal Cursor<TKey, TValue> GetWrapper()
         {
-            return new SpecializedWrapper<TKey, TValue>(GetCursor());
+            return new Cursor<TKey, TValue>(GetCursor());
         }
+
+        #region Implicit cast
+
+        /// <summary>
+        /// Implicitly convert <see cref="BaseSeries{TKey,TValue}"/> to <see cref="CursorSeries{TKey,TValue,TCursor}"/>
+        /// using <see cref="Cursor{TKey,TValue}"/> wrapper.
+        /// </summary>
+        public static implicit operator CursorSeries<TKey, TValue, Cursor<TKey, TValue>>(BaseSeries<TKey, TValue> series)
+        {
+            var c = series.GetWrapper();
+            return new CursorSeries<TKey, TValue, Cursor<TKey, TValue>>(c);
+        }
+
+        #endregion Implicit cast
 
         #region Unary Operators
 
@@ -143,99 +158,123 @@ namespace Spreads
         /// <summary>
         /// Add operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>> operator +(BaseSeries<TKey, TValue> series, TValue constant)
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, AddOp<TValue>, Cursor<TKey, TValue>>> operator
+            +(BaseSeries<TKey, TValue> series, TValue constant)
         {
-            return ArithmeticSeries<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
+            var cursor = new ArithmeticCursor<TKey, TValue, AddOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            return cursor.Source;
         }
 
         /// <summary>
         /// Add operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>> operator +(TValue constant, BaseSeries<TKey, TValue> series)
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, AddOp<TValue>, Cursor<TKey, TValue>>> operator
+            +(TValue constant, BaseSeries<TKey, TValue> series)
         {
             // Addition is commutative
-            return ArithmeticSeries<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
+            var cursor = new ArithmeticCursor<TKey, TValue, AddOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            return cursor.Source;
         }
 
         /// <summary>
         /// Negate operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, NegateOp<TValue>, SpecializedWrapper<TKey, TValue>> operator -(BaseSeries<TKey, TValue> series)
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, NegateOp<TValue>, Cursor<TKey, TValue>>> operator
+            -(BaseSeries<TKey, TValue> series)
         {
-            return ArithmeticSeries<TKey, TValue, NegateOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), default(TValue));
+            var cursor = new ArithmeticCursor<TKey, TValue, NegateOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), default(TValue));
+            return cursor.Source;
         }
 
         /// <summary>
         /// Unary plus operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, PlusOp<TValue>, SpecializedWrapper<TKey, TValue>> operator +(BaseSeries<TKey, TValue> series)
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, PlusOp<TValue>, Cursor<TKey, TValue>>> operator
+            +(BaseSeries<TKey, TValue> series)
         {
-            return ArithmeticSeries<TKey, TValue, PlusOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), default(TValue));
+            var cursor = new ArithmeticCursor<TKey, TValue, PlusOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), default(TValue));
+            return cursor.Source;
         }
 
         /// <summary>
         /// Subtract operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, SubtractOp<TValue>, SpecializedWrapper<TKey, TValue>> operator -(BaseSeries<TKey, TValue> series, TValue constant)
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, SubtractOp<TValue>, Cursor<TKey, TValue>>> operator
+            -(BaseSeries<TKey, TValue> series, TValue constant)
         {
-            return ArithmeticSeries<TKey, TValue, SubtractOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
+            var cursor = new ArithmeticCursor<TKey, TValue, SubtractOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            return cursor.Source;
         }
 
         /// <summary>
         /// Subtract operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, SubtractReverseOp<TValue>, SpecializedWrapper<TKey, TValue>> operator -(TValue constant, BaseSeries<TKey, TValue> series)
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, SubtractReverseOp<TValue>, Cursor<TKey, TValue>>> operator
+            -(TValue constant, BaseSeries<TKey, TValue> series)
         {
-            return ArithmeticSeries<TKey, TValue, SubtractReverseOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
+            var cursor = new ArithmeticCursor<TKey, TValue, SubtractReverseOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            return cursor.Source;
         }
 
         /// <summary>
         /// Multiply operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, SpecializedWrapper<TKey, TValue>> operator *(BaseSeries<TKey, TValue> series, TValue constant)
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, MultiplyOp<TValue>, Cursor<TKey, TValue>>> operator
+            *(BaseSeries<TKey, TValue> series, TValue constant)
         {
-            return ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
+            var cursor = new ArithmeticCursor<TKey, TValue, MultiplyOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            return cursor.Source;
         }
 
         /// <summary>
         /// Multiply operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, SpecializedWrapper<TKey, TValue>> operator *(TValue constant, BaseSeries<TKey, TValue> series)
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, MultiplyOp<TValue>, Cursor<TKey, TValue>>> operator
+            *(TValue constant, BaseSeries<TKey, TValue> series)
         {
             // Multiplication is commutative
-            return ArithmeticSeries<TKey, TValue, MultiplyOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
+            var cursor = new ArithmeticCursor<TKey, TValue, MultiplyOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            return cursor.Source;
         }
 
         /// <summary>
         /// Divide operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, DivideOp<TValue>, SpecializedWrapper<TKey, TValue>> operator /(BaseSeries<TKey, TValue> series, TValue constant)
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, DivideOp<TValue>, Cursor<TKey, TValue>>> operator
+            /(BaseSeries<TKey, TValue> series, TValue constant)
         {
-            return ArithmeticSeries<TKey, TValue, DivideOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
+            var cursor = new ArithmeticCursor<TKey, TValue, DivideOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            return cursor.Source;
         }
 
         /// <summary>
         /// Divide operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, DivideReverseOp<TValue>, SpecializedWrapper<TKey, TValue>> operator /(TValue constant, BaseSeries<TKey, TValue> series)
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, DivideReverseOp<TValue>, Cursor<TKey, TValue>>> operator
+            /(TValue constant, BaseSeries<TKey, TValue> series)
         {
-            return ArithmeticSeries<TKey, TValue, DivideReverseOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
+            var cursor = new ArithmeticCursor<TKey, TValue, DivideReverseOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            return cursor.Source;
         }
 
         /// <summary>
         /// Modulo operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, ModuloOp<TValue>, SpecializedWrapper<TKey, TValue>> operator %(BaseSeries<TKey, TValue> series, TValue constant)
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, ModuloOp<TValue>, Cursor<TKey, TValue>>> operator
+            %(BaseSeries<TKey, TValue> series, TValue constant)
         {
-            return ArithmeticSeries<TKey, TValue, ModuloOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
+            var cursor = new ArithmeticCursor<TKey, TValue, ModuloOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            return cursor.Source;
         }
 
         /// <summary>
         /// Modulo operator.
         /// </summary>
-        public static ArithmeticSeries<TKey, TValue, ModuloReverseOp<TValue>, SpecializedWrapper<TKey, TValue>> operator %(TValue constant, BaseSeries<TKey, TValue> series)
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, ModuloReverseOp<TValue>, Cursor<TKey, TValue>>> operator
+            %(TValue constant, BaseSeries<TKey, TValue> series)
         {
-            return ArithmeticSeries<TKey, TValue, ModuloReverseOp<TValue>, SpecializedWrapper<TKey, TValue>>.Create(series.GetWrapper(), constant);
+            var cursor = new ArithmeticCursor<TKey, TValue, ModuloReverseOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            return cursor.Source;
         }
 
         // UNARY LOGIC
@@ -243,92 +282,354 @@ namespace Spreads
         /// <summary>
         /// Values equal operator. Use ReferenceEquals or SequenceEquals for other cases.
         /// </summary>
-        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator ==(BaseSeries<TKey, TValue> series, TValue comparand)
+        public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
+            ==(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.EQ);
+            if (series == null) throw new ArgumentNullException(nameof(series));
+            var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, EQOp<TValue>.Instance);
+            return cursor.Source;
         }
 
         /// <summary>
         /// Values equal operator. Use ReferenceEquals or SequenceEquals for other cases.
         /// </summary>
-        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator ==(TValue comparand, BaseSeries<TKey, TValue> series)
+        public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
+            ==(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.EQ);
+            if (series == null) throw new ArgumentNullException(nameof(series));
+            var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, EQOp<TValue>.Instance);
+            return cursor.Source;
         }
 
         /// <summary>
         /// Values not equal operator. Use !ReferenceEquals or !SequenceEquals for other cases.
         /// </summary>
-        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator !=(BaseSeries<TKey, TValue> series, TValue comparand)
+        public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
+            !=(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.NEQ);
+            if (series == null) throw new ArgumentNullException(nameof(series));
+            var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, NEQOp<TValue>.Instance);
+            return cursor.Source;
         }
 
         /// <summary>
         /// Values not equal operator. Use !ReferenceEquals or !SequenceEquals for other cases.
         /// </summary>
-        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator !=(TValue comparand, BaseSeries<TKey, TValue> series)
+        public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
+            !=(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.NEQ);
+            if (series == null) throw new ArgumentNullException(nameof(series));
+            var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, NEQOp<TValue>.Instance);
+            return cursor.Source;
         }
 
-        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator <(BaseSeries<TKey, TValue> series, TValue comparand)
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
+            <(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.LT);
+            if (series == null) throw new ArgumentNullException(nameof(series));
+            var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, LTOp<TValue>.Instance);
+            return cursor.Source;
         }
 
-        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator <(TValue comparand, BaseSeries<TKey, TValue> series)
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
+            <(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.LTReverse);
+            if (series == null) throw new ArgumentNullException(nameof(series));
+            var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, LTReverseOp<TValue>.Instance);
+            return cursor.Source;
         }
 
-        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator >(BaseSeries<TKey, TValue> series, TValue comparand)
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
+            >(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.GT);
+            if (series == null) throw new ArgumentNullException(nameof(series));
+            var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, GTOp<TValue>.Instance);
+            return cursor.Source;
         }
 
-        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator >(TValue comparand, BaseSeries<TKey, TValue> series)
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
+            >(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.GTReverse);
+            if (series == null) throw new ArgumentNullException(nameof(series));
+            var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, GTReverseOp<TValue>.Instance);
+            return cursor.Source;
         }
 
-        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator <=(BaseSeries<TKey, TValue> series, TValue comparand)
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
+            <=(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.LE);
+            if (series == null) throw new ArgumentNullException(nameof(series));
+            var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, LEOp<TValue>.Instance);
+            return cursor.Source;
         }
 
-        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator <=(TValue comparand, BaseSeries<TKey, TValue> series)
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
+            <=(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.LEReverse);
+            if (series == null) throw new ArgumentNullException(nameof(series));
+            var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, LEReverseOp<TValue>.Instance);
+            return cursor.Source;
         }
 
-        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator >=(BaseSeries<TKey, TValue> series, TValue comparand)
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator >=(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.GE);
+            if (series == null) throw new ArgumentNullException(nameof(series));
+            var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, GEOp<TValue>.Instance);
+            return cursor.Source;
         }
 
-        public static UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> operator >=(TValue comparand, BaseSeries<TKey, TValue> series)
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
+            >=(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            return new UnaryLogicSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>(series.GetWrapper(), comparand, UnaryLogicOp.GEReverse);
+            if (series == null) throw new ArgumentNullException(nameof(series));
+            var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, GEReverseOp<TValue>.Instance);
+            return cursor.Source;
         }
 
-        #endregion Unary Operators
+        #endregion
 
+        #region Binary Operators
 
-        // TODO this is a sample how to bridge BaseSeries and CursorSeries. This is only relevant for operators.
-        // Extensions work either on interfaces or directly on specialized types.
-
-        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>>> operator +(CursorSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> series, BaseSeries<TKey, TValue> other)
+        /// <summary>
+        /// Add operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            +(BaseSeries<TKey, TValue> series, BaseSeries<TKey, TValue> other)
         {
-            throw new NotImplementedException();
+            var c1 = series.GetWrapper();
+            var c2 = other.GetWrapper();
+            Func<TKey, TValue, TValue, TValue> selector = AddOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
         }
 
-        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>>> operator +(BaseSeries<TKey, TValue> other, CursorSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>> series)
+        /// <summary>
+        /// Add operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            +(CursorSeries<TKey, TValue, Cursor<TKey, TValue>> series, BaseSeries<TKey, TValue> other)
         {
-            throw new NotImplementedException();
+            var c1 = series.GetEnumerator();
+            var c2 = other.GetWrapper();
+            Func<TKey, TValue, TValue, TValue> selector = AddOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
         }
+
+        /// <summary>
+        /// Add operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            +(BaseSeries<TKey, TValue> series, CursorSeries<TKey, TValue, Cursor<TKey, TValue>> other)
+        {
+            var c1 = series.GetWrapper();
+            var c2 = other.GetEnumerator();
+            Func<TKey, TValue, TValue, TValue> selector = AddOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Subtract operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            -(BaseSeries<TKey, TValue> series, BaseSeries<TKey, TValue> other)
+        {
+            var c1 = series.GetWrapper();
+            var c2 = other.GetWrapper();
+            Func<TKey, TValue, TValue, TValue> selector = SubtractOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Subtract operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            -(CursorSeries<TKey, TValue, Cursor<TKey, TValue>> series, BaseSeries<TKey, TValue> other)
+        {
+            var c1 = series.GetEnumerator();
+            var c2 = other.GetWrapper();
+            Func<TKey, TValue, TValue, TValue> selector = SubtractOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Subtract operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            -(BaseSeries<TKey, TValue> series, CursorSeries<TKey, TValue, Cursor<TKey, TValue>> other)
+        {
+            var c1 = series.GetWrapper();
+            var c2 = other.GetEnumerator();
+            Func<TKey, TValue, TValue, TValue> selector = SubtractOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Multiply operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            *(BaseSeries<TKey, TValue> series, BaseSeries<TKey, TValue> other)
+        {
+            var c1 = series.GetWrapper();
+            var c2 = other.GetWrapper();
+            Func<TKey, TValue, TValue, TValue> selector = MultiplyOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Multiply operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            *(CursorSeries<TKey, TValue, Cursor<TKey, TValue>> series, BaseSeries<TKey, TValue> other)
+        {
+            var c1 = series.GetEnumerator();
+            var c2 = other.GetWrapper();
+            Func<TKey, TValue, TValue, TValue> selector = MultiplyOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Multiply operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            *(BaseSeries<TKey, TValue> series, CursorSeries<TKey, TValue, Cursor<TKey, TValue>> other)
+        {
+            var c1 = series.GetWrapper();
+            var c2 = other.GetEnumerator();
+            Func<TKey, TValue, TValue, TValue> selector = MultiplyOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Divide operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            /(BaseSeries<TKey, TValue> series, BaseSeries<TKey, TValue> other)
+        {
+            var c1 = series.GetWrapper();
+            var c2 = other.GetWrapper();
+            Func<TKey, TValue, TValue, TValue> selector = DivideOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Divide operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            /(CursorSeries<TKey, TValue, Cursor<TKey, TValue>> series, BaseSeries<TKey, TValue> other)
+        {
+            var c1 = series.GetEnumerator();
+            var c2 = other.GetWrapper();
+            Func<TKey, TValue, TValue, TValue> selector = DivideOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Divide operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            /(BaseSeries<TKey, TValue> series, CursorSeries<TKey, TValue, Cursor<TKey, TValue>> other)
+        {
+            var c1 = series.GetWrapper();
+            var c2 = other.GetEnumerator();
+            Func<TKey, TValue, TValue, TValue> selector = DivideOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Modulo operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            %(BaseSeries<TKey, TValue> series, BaseSeries<TKey, TValue> other)
+        {
+            var c1 = series.GetWrapper();
+            var c2 = other.GetWrapper();
+            Func<TKey, TValue, TValue, TValue> selector = ModuloOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Modulo operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            %(CursorSeries<TKey, TValue, Cursor<TKey, TValue>> series, BaseSeries<TKey, TValue> other)
+        {
+            var c1 = series.GetEnumerator();
+            var c2 = other.GetWrapper();
+            Func<TKey, TValue, TValue, TValue> selector = ModuloOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Modulo operator.
+        /// </summary>
+        public static CursorSeries<TKey, TValue, ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            %(BaseSeries<TKey, TValue> series, CursorSeries<TKey, TValue, Cursor<TKey, TValue>> other)
+        {
+            var c1 = series.GetWrapper();
+            var c2 = other.GetEnumerator();
+            Func<TKey, TValue, TValue, TValue> selector = ModuloOp<TValue>.ZipSelector;
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
+        }
+
+        #endregion Binary Operators
     }
 
+    /// <summary>
+    /// Base class for collections (containers).
+    /// </summary>
     public abstract class ContainerSeries<TKey, TValue> : BaseSeries<TKey, TValue>
     {
         internal long _version;
@@ -374,7 +675,7 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        protected virtual void TryUnlock()
+        internal virtual void TryUnlock()
         {
             throw new NotSupportedException();
         }

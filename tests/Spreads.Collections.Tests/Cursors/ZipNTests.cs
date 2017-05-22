@@ -2,17 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using NUnit.Framework;
+using Spreads.Utils;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using NUnit.Framework;
-using System.Runtime.InteropServices;
-using Spreads.Collections;
-using System.Threading.Tasks;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Spreads.Collections.Tests.Cursors
 {
@@ -661,6 +658,42 @@ namespace Spreads.Collections.Tests.Cursors
             {
                 Assert.AreEqual(series.Length * i, sum[i]);
             }
+        }
+
+        [Test, Ignore]
+        public void CouldZipMillionIntsWithMoveNextNoncontBenchmark()
+        {
+            var sm1 = new SortedMap<int, int>();
+            var sm2 = new SortedMap<int, int>();
+            var count = 1000000;
+            sm1.Add(0, 0);
+            sm2.Add(0, 0);
+            for (int i = 2; i < count; i = i + 2)
+            {
+                sm1.Add(i, i);
+                sm2.Add(i, 2 * i);
+            }
+
+            var series = new[] { sm1, sm2 };
+
+            for (int r = 0; r < 20; r++)
+            {
+                var sum = series.Zip((k, varr) => varr[0] + varr[1]);
+
+                var c = sum.GetCursor();
+
+                using (Benchmark.Run("ZipN", count))
+                {
+                    
+                    var total = 0.0;
+                    while (c.MoveNext())
+                    {
+                        total += c.CurrentValue;
+                    }
+                }
+            }
+
+            Benchmark.Dump();
         }
 
         [Test]

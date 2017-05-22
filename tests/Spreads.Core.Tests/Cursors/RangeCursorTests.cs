@@ -11,7 +11,7 @@ using System.Linq;
 namespace Spreads.Core.Tests.Cursors
 {
     [TestFixture]
-    public class RangeTests
+    public class RangeCursorTests
     {
         [Test]
         public void CouldUseRangeValues()

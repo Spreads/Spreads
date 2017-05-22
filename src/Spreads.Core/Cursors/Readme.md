@@ -12,6 +12,3 @@ Some notes on implementation:
 keep any deedply nested type chains. This greatly improves performance and as a side effect allows
 to see the transformations chain right in the VS text editor as a pop-up during design time (doesn't even requires Debug).
 (TODO Picture with the popup)
-
-* All construtors of CursorSeries implementations are internal because we do unsafe cast of ICursor to TCursor
-and must ensure that these constructors is called only when we guarantee the cast is correct.

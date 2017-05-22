@@ -10,11 +10,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Spreads.Utils;
+using Spreads.Cursors.Experimental;
 
 namespace Spreads.Core.Tests.Cursors
 {
     [TestFixture]
-    public class MapValuesTests
+    public class MapCursorTests
     {
         [Test]
         public void CouldMapValues()
@@ -26,8 +27,8 @@ namespace Spreads.Core.Tests.Cursors
 
             var map = new MapValuesSeries<int, double, double, SortedMapCursor<int, double>>(sm.GetEnumerator(), i => i * 2);
             var map1 = new MapValuesSeries<int, double, double, MapValuesSeries<int, double, double, SortedMapCursor<int, double>>>(map, i => i * 2);
-            var map2 = new MapValuesSeries<int, double, double, SpecializedWrapper<int, double>>(new SpecializedWrapper<int, double>(map.Range(0, Int32.MaxValue, true, true)), i => i * 2);
-            var map3 = new MapValuesSeries<int, double, double, SpecializedWrapper<int, double>>(new SpecializedWrapper<int, double>(map.Range(2, Int32.MaxValue, true, true)), i => i * 2);
+            var map2 = new MapValuesSeries<int, double, double, Cursor<int, double>>(new Cursor<int, double>(map.Range(0, Int32.MaxValue, true, true).GetEnumerator()), i => i * 2);
+            var map3 = new MapValuesSeries<int, double, double, Cursor<int, double>>(new Cursor<int, double>(map.Range(2, Int32.MaxValue, true, true).GetEnumerator()), i => i * 2);
 
             Assert.AreEqual(2, map.First.Value);
             Assert.AreEqual(4, map1.First.Value);

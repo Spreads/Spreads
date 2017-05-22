@@ -9,11 +9,12 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads.Cursors
+namespace Spreads.Cursors.Experimental
 {
     /// <summary>
     /// A <see cref="AbstractCursorSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation to each value of its input series.
     /// </summary>
+    [Obsolete("Use CursorSeries")]
     public sealed class ArithmeticSeries<TKey, TValue, TOp, TCursor> :
         AbstractCursorSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>,
         ISpecializedCursor<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> // TODO , ICanMapValues<TKey, TValue>
@@ -159,7 +160,7 @@ namespace Spreads.Cursors
             {
                 var batch = _cursor.CurrentBatch;
                 // TODO when batching is proper implemented (nested batches) reuse an instance for this
-                var mapped = new ArithmeticSeries<TKey, TValue, TOp, SpecializedWrapper<TKey, TValue>>(new SpecializedWrapper<TKey, TValue>(batch.GetCursor()), _value);
+                var mapped = new ArithmeticSeries<TKey, TValue, TOp, Cursor<TKey, TValue>>(new Cursor<TKey, TValue>(batch.GetCursor()), _value);
                 return mapped;
             }
         }

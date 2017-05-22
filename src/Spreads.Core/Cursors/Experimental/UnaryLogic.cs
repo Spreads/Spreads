@@ -2,7 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-namespace Spreads.Cursors
+using System;
+
+namespace Spreads.Cursors.Experimental
 {
     // We could either implement entire cursor like in ArithmeticSeries or have a virtual call - to a lambda or to overriden method.
     // Tests show so far that lambda is quite fast.
@@ -21,6 +23,7 @@ namespace Spreads.Cursors
         GTReverse,
     }
 
+    [Obsolete("Use CursorSeries")]
     public sealed class UnaryLogicSeries<TKey, TValue, TCursor> : MapValuesSeries<TKey, TValue, bool, TCursor>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {

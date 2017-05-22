@@ -14,30 +14,39 @@ using Spreads.Collections;
 using System.Diagnostics;
 using System.Threading;
 
-namespace Spreads.Collections.Tests.Cursors {
+namespace Spreads.Collections.Tests.Cursors
+{
 
     // TODO (low) SMA & StDev are from Extensions project and should be moved to its test project
 
     [TestFixture]
-    public class MiscCursorsTests {
+    public class MiscCursorsTests
+    {
         [Test]
         [Ignore("This test fails when using RunAll")]
-        public void CouldLagSeriesManyTimes() {
-            Parallel.For(0, 100, (x) => {
+        public void CouldLagSeriesManyTimes()
+        {
+            Parallel.For(0, 100, (x) =>
+            {
                 CouldLagSeries();
             });
         }
 
         [Test]
-        public void CouldLagSeries() {
+        public void CouldLagSeries()
+        {
             var sm = new SortedMap<double, double>();
 
             var count = 1000000;
 
-            for (int i = 0; i < count; i++) {
-                try {
+            for (int i = 0; i < count; i++)
+            {
+                try
+                {
                     sm.Add(i, i);
-                } catch (Exception e) {
+                }
+                catch (Exception e)
+                {
                     Console.WriteLine($"i: {i}");
                     Console.WriteLine($"sm.count: {sm.Count}");
                     Console.WriteLine($"sm.IsRegular: {sm.IsRegular}");
@@ -52,8 +61,10 @@ namespace Spreads.Collections.Tests.Cursors {
             sw.Start();
             var lag = sm.Lag(1);//.ToSortedMap();
             var c = 1;
-            foreach (var zl in lag) {
-                if (c - 1 != zl.Value) {
+            foreach (var zl in lag)
+            {
+                if (c - 1 != zl.Value)
+                {
                     throw new ApplicationException();
                 }
                 c++;
@@ -64,21 +75,24 @@ namespace Spreads.Collections.Tests.Cursors {
 
             var repeated = lag.Repeat();
 
-            for (int i = 1; i < 1000; i++) {
+            for (int i = 1; i < 1000; i++)
+            {
                 double v;
-                Assert.IsTrue(repeated.TryGetValue(i + 1.5, out v));
-                Assert.AreEqual(i, v);
+                Assert.IsTrue(repeated.TryFind(i + 1.5, Lookup.EQ, out var kvp));
+                Assert.AreEqual(i, kvp.Value);
             }
 
         }
 
         [Test]
-        public void CouldZipLagSeries() {
+        public void CouldZipLagSeries()
+        {
             var sm = new SortedMap<DateTime, double>();
 
             var count = 10000000;
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
 
@@ -87,8 +101,10 @@ namespace Spreads.Collections.Tests.Cursors {
             sw.Start();
             var zipLag = sm.ZipLag(1, (cur, prev) => cur + prev); //.ToSortedMap();
             var c = 1;
-            foreach (var zl in zipLag) {
-                if (c + (c - 1) != zl.Value) {
+            foreach (var zl in zipLag)
+            {
+                if (c + (c - 1) != zl.Value)
+                {
                     throw new ApplicationException();
                 }
                 c++;
@@ -101,12 +117,14 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void CouldCloneZipLagSeries() {
+        public void CouldCloneZipLagSeries()
+        {
 
 
             var count = 1000;
             var sm = new SortedMap<int, double>();
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 sm.Add(i, i);
             }
 
@@ -127,7 +145,8 @@ namespace Spreads.Collections.Tests.Cursors {
             Assert.AreEqual(zc.CurrentKey, zc2.CurrentKey);
 
 
-            for (int i = 1; i < count; i++) {
+            for (int i = 1; i < count; i++)
+            {
                 var expected = i + i - 1;
                 double actual;
                 var ok = zc.TryGetValue(i, out actual);
@@ -137,16 +156,19 @@ namespace Spreads.Collections.Tests.Cursors {
             var sm2 = new SortedMap<int, double>();
             var zc3 = sm2.ZipLag(1, (cur, prev) => cur + prev).GetCursor();
 
-            var t = Task.Run(async () => {
+            var t = Task.Run(async () =>
+            {
                 var c = 1; // first key is missing because we cannot create state at it
-                while (await zc3.MoveNext(CancellationToken.None)) {
+                while (await zc3.MoveNext(CancellationToken.None))
+                {
                     var expected = c + c - 1;
                     Assert.AreEqual(expected, zc3.CurrentValue);
                     c++;
                 }
             });
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 sm2.Add(i, i);
             }
             sm2.Complete(); // without it MoveNextAsync will wait forever
@@ -155,12 +177,14 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void CouldCalculateAverageOnMovingWindow() {
+        public void CouldCalculateAverageOnMovingWindow()
+        {
             var sm = new SortedMap<DateTime, double>();
 
             var count = 100000;
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
 
@@ -169,9 +193,11 @@ namespace Spreads.Collections.Tests.Cursors {
             sw.Start();
             var ma = sm.Window(20, 1); //.ToSortedMap();
             var c = 1;
-            foreach (var m in ma) {
+            foreach (var m in ma)
+            {
                 var innersm = m.Value; //.ToSortedMap();
-                if (innersm.Values.Average() != c + 8.5) {
+                if (innersm.Values.Average() != c + 8.5)
+                {
                     Console.WriteLine(m.Value.Values.Average());
                     throw new ApplicationException("Invalid value");
                 }
@@ -188,12 +214,14 @@ namespace Spreads.Collections.Tests.Cursors {
         /// This also applies to ZipLagAllowIncompleteCursor since Window is built on it
         /// </summary>
         [Test]
-        public void CouldCalculateAverageOnMovingWindowWithStep() {
+        public void CouldCalculateAverageOnMovingWindowWithStep()
+        {
             var sm = new SortedMap<DateTime, double>();
 
             var count = 100000;
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
 
@@ -202,9 +230,11 @@ namespace Spreads.Collections.Tests.Cursors {
             sw.Start();
             var ma = sm.Window(20, 2);//.ToSortedMap();
             var c = 1;
-            foreach (var m in ma) {
+            foreach (var m in ma)
+            {
                 var innersm = m.Value;//.ToSortedMap();
-                if (innersm.Values.Average() != c + 8.5) {
+                if (innersm.Values.Average() != c + 8.5)
+                {
                     Console.WriteLine(m.Value.Values.Average());
                     throw new ApplicationException("Invalid value");
                 }
@@ -219,22 +249,26 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void CouldZipSeries() {
+        public void CouldZipSeries()
+        {
             var sm = new SortedMap<DateTime, double>();
             var sm2 = new SortedMap<DateTime, double>();
 
             var count = 100000;
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i * 2), i);
             }
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 sm2.Add(DateTime.UtcNow.Date.AddSeconds(i * 2), i);
             }
 
             var expected = 0.0;
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 expected += i * 2; ;
             }
 
@@ -249,12 +283,14 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void CouldCalculateMovingAverage() {
+        public void CouldCalculateMovingAverage()
+        {
             var sm = new SortedMap<DateTime, double>();
 
             var count = 1000000;
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
 
@@ -279,14 +315,17 @@ namespace Spreads.Collections.Tests.Cursors {
             var c = 1;
             //foreach (var m in ma) {
             cursor.Reset();
-            while (cursor.MoveNext()) {
-                if (cursor.CurrentValue != c + 8.5) {
+            while (cursor.MoveNext())
+            {
+                if (cursor.CurrentValue != c + 8.5)
+                {
                     Console.WriteLine(cursor.CurrentValue);// m.Value);
                     Console.WriteLine($"Error c: {c}");
                     throw new ApplicationException("Invalid value");
                 }
                 c++;
-                if (c == 999982) {
+                if (c == 999982)
+                {
                     Console.WriteLine("Catch me");
                 }
             }
@@ -302,12 +341,14 @@ namespace Spreads.Collections.Tests.Cursors {
         }
 
         [Test]
-        public void CouldCalculateMovingAverageIncomplete() {
+        public void CouldCalculateMovingAverageIncomplete()
+        {
             var sm = new SortedMap<DateTime, double>();
 
             var count = 100000;
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
 
@@ -316,10 +357,14 @@ namespace Spreads.Collections.Tests.Cursors {
             sw.Start();
             var ma = sm.SMA(20, true); //.ToSortedMap();
             var c = 1;
-            foreach (var m in ma) {
-                if (c <= 20) {
+            foreach (var m in ma)
+            {
+                if (c <= 20)
+                {
                     //Console.WriteLine(m.Value);
-                } else if (m.Value != c - 19 + 8.5) {
+                }
+                else if (m.Value != c - 19 + 8.5)
+                {
                     Console.WriteLine(m.Value);
                     throw new ApplicationException("Invalid value");
                 }
@@ -333,12 +378,14 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void CouldCalculateMovingStDev() {
+        public void CouldCalculateMovingStDev()
+        {
             var sm = new SortedMap<DateTime, double>();
 
             var count = 1000000;
 
-            for (int i = 2; i < count; i++) {
+            for (int i = 2; i < count; i++)
+            {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
 
@@ -347,14 +394,16 @@ namespace Spreads.Collections.Tests.Cursors {
             sw.Start();
             var ma = sm.StDev(20, false); //.ToSortedMap();
             var c = 1;
-            foreach (var m in ma) {
+            foreach (var m in ma)
+            {
                 //if (c < 30) {
                 //    Console.WriteLine(m.Value);
                 //} else
                 // TODO on c = 9490618 we have a different value: 5.91740018927231
                 //   Excel value       5.91607978309962
 
-                if (Math.Abs(m.Value - 5.9160797830996161) > 0.0000001) {
+                if (Math.Abs(m.Value - 5.9160797830996161) > 0.0000001)
+                {
                     Console.WriteLine(m.Value);
                     Console.WriteLine($"Error c: {c}");
                     throw new ApplicationException("Invalid value");
@@ -370,12 +419,14 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void CouldCalculateMovingStDevIncomlete() {
+        public void CouldCalculateMovingStDevIncomlete()
+        {
             var sm = new SortedMap<DateTime, double>();
 
             var count = 1000000;
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 sm.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
 
@@ -384,14 +435,18 @@ namespace Spreads.Collections.Tests.Cursors {
             sw.Start();
             var ma = sm.StDev(20, true); //.ToSortedMap();
             var c = 1;
-            foreach (var m in ma) {
-                if (c < 30) {
+            foreach (var m in ma)
+            {
+                if (c < 30)
+                {
                     Console.WriteLine(m.Value);
-                } else
+                }
+                else
                 // TODO on c = 9490618 we have a different value: 5.91740018927231
                 //   Excel value       5.91607978309962
 
-                if (Math.Abs(m.Value - 5.9160797830996161) > 0.0000001) {
+                if (Math.Abs(m.Value - 5.9160797830996161) > 0.0000001)
+                {
                     Console.WriteLine(m.Value);
                     Console.WriteLine($"Error c: {c}");
                     throw new ApplicationException("Invalid value");
@@ -407,14 +462,16 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void ZipLagIssue11Test() {
+        public void ZipLagIssue11Test()
+        {
             OptimizationSettings.CombineFilterMapDelegates = true;
 
             var data = new SortedMap<int, double>();
 
             var count = 5000;
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 data.Add(i, i);
             }
 
@@ -424,7 +481,8 @@ namespace Spreads.Collections.Tests.Cursors {
             var deviation = sma.StDev(10);
             var e = (deviation as IEnumerable<KeyValuePair<int, double>>).GetEnumerator();
             var cnt = 0;
-            while (e.MoveNext()) {
+            while (e.MoveNext())
+            {
                 cnt++;
             }
             Console.WriteLine(cnt);
@@ -444,22 +502,27 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void CouldScanSeries() {
+        public void CouldScanSeries()
+        {
             OptimizationSettings.CombineFilterMapDelegates = true;
 
             var data = new SortedMap<DateTime, double>();
 
             var count = 5000;
 
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++)
+            {
                 data.Add(DateTime.UtcNow.Date.AddSeconds(i), i);
             }
             var sign = 1;
-            var runnningSum = data.Zip(data, (d1, d2) => d1 + d2).Scan(0.0, (st, k, v) => {
-                if (st > 100) {
+            var runnningSum = data.Zip(data, (d1, d2) => d1 + d2).Scan(0.0, (st, k, v) =>
+            {
+                if (st > 100)
+                {
                     sign = -1;
                 }
-                if (st < -100) {
+                if (st < -100)
+                {
                     sign = 1;
                 }
                 return st += sign * v;
@@ -471,7 +534,8 @@ namespace Spreads.Collections.Tests.Cursors {
 
 
         [Test]
-        public void RangeMustBeEmptyWhenOutOfRange() {
+        public void RangeMustBeEmptyWhenOutOfRange()
+        {
             var sm = new SortedMap<DateTime, double>
             {
                 {new DateTime(2006, 1, 1), 1.0}

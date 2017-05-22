@@ -33,11 +33,11 @@ namespace Spreads
             return rangeCursor.Source;
         }
 
-        internal static CursorSeries<TKey, TValue, RangeCursor<TKey, TValue, SpecializedWrapper<TKey, TValue>>> Range<TKey, TValue>(
+        internal static CursorSeries<TKey, TValue, RangeCursor<TKey, TValue, Cursor<TKey, TValue>>> Range<TKey, TValue>(
             this ISeries<TKey, TValue> series,
             Opt<TKey> startKey, Opt<TKey> endKey, bool startInclusive = true, bool endInclusive = true)
         {
-            var rangeCursor = new RangeCursor<TKey, TValue, SpecializedWrapper<TKey, TValue>>(new SpecializedWrapper<TKey, TValue>(
+            var rangeCursor = new RangeCursor<TKey, TValue, Cursor<TKey, TValue>>(new Cursor<TKey, TValue>(
                 series.GetCursor()), startKey, endKey, startInclusive, endInclusive);
             return rangeCursor.Source;
         }
@@ -95,7 +95,7 @@ namespace Spreads
             return series.Range((Opt<TKey>)startKey, endKey, startInclusive, endInclusive);
         }
 
-        public static CursorSeries<TKey, TValue, RangeCursor<TKey, TValue, SpecializedWrapper<TKey, TValue>>> Range<TKey, TValue>(
+        public static CursorSeries<TKey, TValue, RangeCursor<TKey, TValue, Cursor<TKey, TValue>>> Range<TKey, TValue>(
             this ISeries<TKey, TValue> series,
             TKey startKey, TKey endKey, bool startInclusive = true, bool endInclusive = true)
         {
@@ -135,7 +135,7 @@ namespace Spreads
             return series.Range(startKey, Opt<TKey>.Missing, startInclusive, true);
         }
 
-        public static CursorSeries<TKey, TValue, RangeCursor<TKey, TValue, SpecializedWrapper<TKey, TValue>>> After<TKey, TValue>(
+        public static CursorSeries<TKey, TValue, RangeCursor<TKey, TValue, Cursor<TKey, TValue>>> After<TKey, TValue>(
             this ISeries<TKey, TValue> series,
             TKey startKey, bool startInclusive = true)
         {
@@ -175,7 +175,7 @@ namespace Spreads
             return series.Range(Opt<TKey>.Missing, endKey, true, endInclusive);
         }
 
-        public static CursorSeries<TKey, TValue, RangeCursor<TKey, TValue, SpecializedWrapper<TKey, TValue>>> Before<TKey, TValue>(
+        public static CursorSeries<TKey, TValue, RangeCursor<TKey, TValue, Cursor<TKey, TValue>>> Before<TKey, TValue>(
             this ISeries<TKey, TValue> series,
             TKey endKey, bool endInclusive = true)
         {

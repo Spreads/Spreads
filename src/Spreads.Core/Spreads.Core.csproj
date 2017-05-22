@@ -7,7 +7,6 @@
     <Description />
   </PropertyGroup>
 
-
   <ItemGroup>
     <Compile Remove="Utils\FastMember\ObjectReader.cs" />
   </ItemGroup>

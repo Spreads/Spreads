@@ -10,11 +10,12 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads.Cursors
+namespace Spreads.Cursors.Experimental
 {
     /// <summary>
     /// Base abstract class for cursor series (objects that implement both <see cref="IReadOnlySeries{TKey, TValue}"/> and <see cref="ICursor{TKey, TValue}"/>).
     /// </summary>
+    [Obsolete("Use CursorSeries")]
     public abstract class AbstractCursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue> // TODO, ISpecializedSeries<TKey, TValue, TCursor>
         where TCursor : AbstractCursorSeries<TKey, TValue, TCursor>, ISpecializedCursor<TKey, TValue, TCursor>, new()
     {

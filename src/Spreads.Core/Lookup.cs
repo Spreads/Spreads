@@ -7,31 +7,31 @@ namespace Spreads
     /// <summary>
     /// Direction to lookup data or move from a starting point
     /// </summary>
-    public enum Lookup
+    public enum Lookup : byte
     {
         /// <summary>
         /// Less than, excludes a strating point even if it is present
         /// </summary>
-        LT,
+        LT = 0,
 
         /// <summary>
         /// Less or equal
         /// </summary>
-        LE,
+        LE = 1,
 
         /// <summary>
         /// Equal
         /// </summary>
-        EQ,
+        EQ = 2,
 
         /// <summary>
         /// Greater or equal
         /// </summary>
-        GE,
+        GE = 3,
 
         /// <summary>
         /// Greater than, excludes a strating point even if it is present
         /// </summary>
-        GT
+        GT = 4
     }
 }

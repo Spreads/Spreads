@@ -7,20 +7,35 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Spreads.Utils
 {
+    // TODO median for Dump() MOPS
+
+    /// <summary>
+    /// A utility to benchmark code snippets inside a using block.
+    /// </summary>
     public static class Benchmark
     {
+        /// <summary>
+        /// Disable console output regardless of individual <see cref="Run"/> method parameters.
+        /// </summary>
         public static bool ForceSilence { get; set; }
 
         private static Stopwatch _sw;
         private static bool _headerIsPrinted;
-        private static ConcurrentDictionary<string, List<Stat>> _stats = new ConcurrentDictionary<string, List<Stat>>();
+        private static readonly ConcurrentDictionary<string, List<Stat>> _stats = new ConcurrentDictionary<string, List<Stat>>();
 
+        /// <summary>
+        /// Returns an <see cref="IDisposable"/> structure that starts benchmarking and stops it when its Dispose method is called.
+        /// Prints benchmark results on disposal unless the silent parameter is not set to true.
+        /// </summary>
+        /// <param name="caseName">Benchmark case.</param>
+        /// <param name="innerLoopCount">Number of iterations to calculate performance.</param>
+        /// <param name="silent">True to mute console output during disposal.</param>
+        /// <returns>A disposable structure that measures time and memory allocations until disposed.</returns>
         public static Stat Run(string caseName, int innerLoopCount = 1, bool silent = false)
         {
             var sw = Interlocked.Exchange(ref _sw, null);
@@ -49,6 +64,10 @@ namespace Spreads.Utils
             return $" {caseHeader,-20}| {"MOPS",7} | {"Elapsed",8} | {"GC0",5} | {"GC1",5} | {"GC2",5} | {"Memory",7} ";
         }
 
+        /// <summary>
+        /// Print a table with average benchmark results for all cases.
+        /// </summary>
+        /// <param name="description">A description of the benchmark that is printed above the table.</param>
         public static void Dump([CallerMemberName]string description = "")
         {
             var maxLength = _stats.Keys.Select(k => k.Length).Max();
@@ -93,6 +112,9 @@ namespace Spreads.Utils
             }
         }
 
+        /// <summary>
+        /// Benchmark run statistics.
+        /// </summary>
         public struct Stat : IDisposable
         {
             internal readonly string _caseName;
@@ -101,7 +123,7 @@ namespace Spreads.Utils
             internal StatSnapshot _statSnapshot;
             internal bool _silent;
 
-            public Stat(string caseName, Stopwatch sw, int innerLoopCount, bool silent = false)
+            internal Stat(string caseName, Stopwatch sw, int innerLoopCount, bool silent = false)
             {
                 _caseName = caseName;
                 _stopwatch = sw;
@@ -111,6 +133,7 @@ namespace Spreads.Utils
                 _statSnapshot = new StatSnapshot(_stopwatch, true);
             }
 
+            /// <inheritdoc />
             public void Dispose()
             {
                 var statEntry = new StatSnapshot(_stopwatch, false);
@@ -136,6 +159,9 @@ namespace Spreads.Utils
                 }
             }
 
+            /// <summary>
+            /// Million operations per second.
+            /// </summary>
             public double MOPS => Math.Round((_innerLoopCount * 0.001) / ((double)_statSnapshot._elapsed), 3);
 
             /// <inheritdoc />
@@ -145,7 +171,7 @@ namespace Spreads.Utils
                 return $"{trimmedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot._elapsed,5} ms | {_statSnapshot._gc0,5:f1} | {_statSnapshot._gc1,5:f1} | {_statSnapshot._gc2,5:f1} | {_statSnapshot._memory / (1024 * 1024.0),5:f3} MB";
             }
 
-            public string ToString(int caseAlignmentLength)
+            internal string ToString(int caseAlignmentLength)
             {
                 var paddedCaseName = _caseName.PadRight(caseAlignmentLength);
                 return $"{paddedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot._elapsed,5} ms | {_statSnapshot._gc0,5:f1} | {_statSnapshot._gc1,5:f1} | {_statSnapshot._gc2,5:f1} | {_statSnapshot._memory / (1024 * 1024.0),5:f3} MB";

@@ -2,28 +2,27 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
+using Spreads.Collections;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Collections;
 
-namespace Spreads.Cursors
+namespace Spreads.Cursors.Experimental
 {
-
     // NB for union and zip specialization won't work - we must know the type of each cursor
-    // changing to BaseCursor also won't work - devirtualization is probably not not that smart (but who knows)
-    // TCursor is here for the case if later we decide to have base cursor class and to compare virtual vs interfaces
-    // however, for struct cursors that will always require wrapping into base cursor class
+    // changing to BaseCursor also won't work - devirtualization is probably not that smart (but who knows)
+    // TCursor is here for the case if later we decide to have base cursor class and to compare virtual vs interfaces.
+    // However, for struct cursors that will always require wrapping into base cursor class
     // For now assume that TCursor is SpecializedWrapper over ICursor.
     // This is the point where inlining breaks - but these cursors are specialized themselves
     // The idea is that we could limit non-direct calls to union/zip only, all single-series transformations
-    // could be inlined - even if it requires many copy-paste specialized boilerplate
-    
+    // could be inlined - even if it requires many copy-paste specialized boilerplate.
+    // Specialization could work for Panels since each column will have the same cursor type...
+
+    // TODO! this should be a struct
 
     internal sealed class UnionKeys<TKey, TValue, TCursor> :
         AbstractCursorSeries<TKey, TValue, UnionKeys<TKey, TValue, TCursor>>,
@@ -32,6 +31,7 @@ namespace Spreads.Cursors
     {
         //private readonly ISeries<TKey, TValue>[] _series;
         private readonly ICursor<TKey, TValue>[] _cursors;
+
         private readonly KeyComparer<TKey> _comparer;
         private readonly bool[] _movedKeysFlags;
         private readonly SortedDeque<TKey, int> _movedKeys;
@@ -40,9 +40,9 @@ namespace Spreads.Cursors
 
         public UnionKeys()
         {
-            
         }
 
+        // TODO ctor should accept cursors and not series, otherwise cursor type is not known
         public UnionKeys(params ISeries<TKey, TValue>[] series)
         {
             for (int i = 0; i < series.Length; i++)
@@ -54,13 +54,11 @@ namespace Spreads.Cursors
                 _cursors[i] = series[i].GetCursor();
             }
 
-
             _comparer = series[0].Comparer;
             _movedKeysFlags = new bool[series.Length];
             _movedKeys = new SortedDeque<TKey, int>(series.Length, new KVPComparer<TKey, int>(_comparer, null));
             _liveCounter = series.Length;
             //_outOfOrderKeys = new SortedDeque<TKey>();
-
         }
 
         public override KeyComparer<TKey> Comparer => _comparer;
@@ -150,12 +148,12 @@ namespace Spreads.Cursors
             //      if not movedKeysFlags.[i] then
             //        let c = cursors.[i]
             //        let moved' = c.MoveAt(this.CurrentKey, Lookup.GT)
-            //        if moved' then 
+            //        if moved' then
             //          movedKeysFlags.[i] <- true
             //          movedKeys.Add(KVP(c.CurrentKey, i)) |> ignore
             //      i <- i + 1
 
-            //  // ignore cursors that cannot move ahead of frontier during this move, but do 
+            //  // ignore cursors that cannot move ahead of frontier during this move, but do
             //  // not remove them from movedKeys so that we try to move them again on the next move
             //  let mutable ignoreOffset = 0
             //  let mutable leftmostIsAheadOfFrontier = false

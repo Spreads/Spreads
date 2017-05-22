@@ -16,30 +16,30 @@ namespace Spreads.Cursors
     /// <summary>
     /// SpecializedWrapper Extensions
     /// </summary>
-    public static class SpecializedWrapperExtensions
+    public static class SpecializedCursorExtensions
     {
         /// <summary>
         /// Create SpecializedWrapper that wraps the result of ISeries.GetCursor() call.
         /// </summary>
-        public static SpecializedWrapper<TKey, TValue> GetSpecializedWrapper<TKey, TValue>(this ISeries<TKey, TValue> series)
+        public static Cursor<TKey, TValue> GetSpecializedCursor<TKey, TValue>(this ISeries<TKey, TValue> series)
         {
-            return new SpecializedWrapper<TKey, TValue>(series.GetCursor());
+            return new Cursor<TKey, TValue>(series.GetCursor());
         }
 
     }
 
     /// <summary>
-    /// Wraps ICursor as ISpecializedCursor.
+    /// Wraps <see cref="ICursor{TKey,TValue}"/> as <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/>.
     /// </summary>
-    public struct SpecializedWrapper<TKey, TValue> : ICursorSeries<TKey, TValue, SpecializedWrapper<TKey, TValue>>
+    public struct Cursor<TKey, TValue> : ICursorSeries<TKey, TValue, Cursor<TKey, TValue>>
     {
-        private ICursor<TKey, TValue> _cursor;
+        private readonly ICursor<TKey, TValue> _cursor;
 
         /// <summary>
         /// SpecializedWrapper constructor.
         /// </summary>
         /// <param name="cursor"></param>
-        public SpecializedWrapper([NotNull] ICursor<TKey, TValue> cursor)
+        public Cursor([NotNull] ICursor<TKey, TValue> cursor)
         {
             _cursor = cursor ?? throw new ArgumentNullException(nameof(cursor));
         }
@@ -51,9 +51,9 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public SpecializedWrapper<TKey, TValue> Initialize()
+        public Cursor<TKey, TValue> Initialize()
         {
-            return new SpecializedWrapper<TKey, TValue>(_cursor.Source.GetCursor());
+            return new Cursor<TKey, TValue>(_cursor.Source.GetCursor());
         }
 
         /// <inheritdoc />
@@ -131,9 +131,9 @@ namespace Spreads.Cursors
 
 
         /// <inheritdoc />
-        public SpecializedWrapper<TKey, TValue> Clone()
+        public Cursor<TKey, TValue> Clone()
         {
-            return new SpecializedWrapper<TKey, TValue>(_cursor.Clone());
+            return new Cursor<TKey, TValue>(_cursor.Clone());
         }
 
         ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()

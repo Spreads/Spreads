@@ -6,6 +6,8 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Spreads.Collections;
@@ -435,7 +437,7 @@ namespace Spreads.Core.Tests.DataTypes
 
 
         [Test]
-        public void RangeOnVariantSeriesWorks()
+        public async void RangeOnVariantSeriesWorks()
         {
 
             var sm = new SortedMap<DateTime, int>();
@@ -446,7 +448,7 @@ namespace Spreads.Core.Tests.DataTypes
             }
 
             var vs = new VariantSeries<DateTime, int>(sm);
-            
+
             Assert.IsTrue(vs.Comparer != null);
 
             var rs = vs.After(Variant.Create(DateTime.Today.AddSeconds(50)));
@@ -465,7 +467,30 @@ namespace Spreads.Core.Tests.DataTypes
                 sum += variantKvp.Value.Get<int>();
             }
             Assert.AreEqual(expected, sum);
-            
+
+
+            var t = Task.Run(async () =>
+            {
+                try
+                {
+                    for (int i = 100; i < 150; i++)
+                    {
+                        sm.Add(DateTime.Today.AddSeconds(i), i);
+                        await Task.Delay(1);
+                    }
+                    sm.Complete();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            });
+            var c = rs.GetCursor();
+            while (await c.MoveNext(CancellationToken.None))
+            {
+                sum += c.CurrentValue.Get<int>();
+            }
+
         }
 
     }

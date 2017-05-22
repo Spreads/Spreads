@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Spreads.Cursors.Experimental;
 
 namespace Spreads.Core.Tests.Cursors
 {
@@ -310,7 +311,7 @@ namespace Spreads.Core.Tests.Cursors
             var sm = new SortedMap<int, double>
             {
                 { 1, 1 }
-            } as BaseSeries<int, double>;
+            };
             var map = sm * 2;
             var map1 = map + 2;
 
@@ -320,7 +321,7 @@ namespace Spreads.Core.Tests.Cursors
                 Assert.AreEqual(4, pair.Value);
             }
 
-            using (var c = map1.Initialize())
+            using (var c = map1.GetEnumerator())
             {
                 Assert.True(c.MoveNext());
                 Assert.AreEqual(4, c.CurrentValue);
@@ -344,7 +345,7 @@ namespace Spreads.Core.Tests.Cursors
 
             for (int r = 0; r < 10; r++)
             {
-                var map = (sm as BaseSeries<int, double>) * 2;
+                var map = sm * 2;
                 var map2 = map * 2;
                 var sum = 0.0;
                 using (Benchmark.Run("BaseSeries", count))
@@ -359,7 +360,7 @@ namespace Spreads.Core.Tests.Cursors
 
             for (int r = 0; r < 10; r++)
             {
-                var map = (sm as BaseSeries<int, double>)
+                var map = sm
                     .Select(x => new KeyValuePair<int, double>(x.Key, x.Value * 2))
                     .Select(x => new KeyValuePair<int, double>(x.Key, x.Value * 2));
                 var sum = 0.0;

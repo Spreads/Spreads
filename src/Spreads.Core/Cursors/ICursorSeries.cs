@@ -2,9 +2,7 @@ using System.Threading.Tasks;
 
 namespace Spreads.Cursors
 {
-    // TODO (docs) explain (to self first) why these members are needed, but first implement Range with this approach
-
-    // TODO Add <see cref to struct CursorSeries when they are renamed
+    // TODO (docs) explain why these members are needed, but first implement Range with this approach
 
     /// <summary>
     /// A cursor used as an input to <see cref="CursorSeries{TKey, TValue, TCursor}"/>.

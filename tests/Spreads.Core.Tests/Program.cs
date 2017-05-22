@@ -17,7 +17,7 @@ namespace Spreads.Core.Tests
 
             for (int i = 0; i < 30; i++)
             {
-                (new NanoOptimizationTests()).IfVsArrayAccess();
+                new ZipCursorTests().CouldUseBaseSeriesAddOperator();
             }
 
             Console.WriteLine("Press enter to exit...");

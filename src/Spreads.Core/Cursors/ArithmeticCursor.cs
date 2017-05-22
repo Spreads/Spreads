@@ -52,20 +52,24 @@ namespace Spreads.Cursors
         /// <inheritdoc />
         public ArithmeticCursor<TKey, TValue, TOp, TCursor> Clone()
         {
-            var instance = new ArithmeticCursor<TKey, TValue, TOp, TCursor>();
-            instance._cursor = _cursor.Clone();
-            instance._value = _value;
-            instance.State = State;
+            var instance = new ArithmeticCursor<TKey, TValue, TOp, TCursor>
+            {
+                _cursor = _cursor.Clone(),
+                _value = _value,
+                State = State
+            };
             return instance;
         }
 
         /// <inheritdoc />
         public ArithmeticCursor<TKey, TValue, TOp, TCursor> Initialize()
         {
-            var instance = new ArithmeticCursor<TKey, TValue, TOp, TCursor>();
-            instance._cursor = _cursor.Initialize();
-            instance._value = _value;
-            instance.State = CursorState.Initialized;
+            var instance = new ArithmeticCursor<TKey, TValue, TOp, TCursor>
+            {
+                _cursor = _cursor.Initialize(),
+                _value = _value,
+                State = CursorState.Initialized
+            };
             return instance;
         }
 
@@ -120,7 +124,7 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> CurrentBatch => throw new NotImplementedException();
+        public IReadOnlySeries<TKey, TValue> CurrentBatch => throw new NotSupportedException();
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
@@ -207,7 +211,7 @@ namespace Spreads.Cursors
             {
                 ThrowHelper.ThrowInvalidOperationException($"CursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
-            throw new NotImplementedException();
+            return TaskEx.FalseTask;
         }
 
         /// <inheritdoc />
@@ -241,8 +245,7 @@ namespace Spreads.Cursors
         /// </summary>
         public TValue Value => _value;
 
-        #endregion
-
+        #endregion Custom Properties
 
         #region ICursorSeries members
 
@@ -265,127 +268,6 @@ namespace Spreads.Cursors
             get { return _cursor.Source.Updated; }
         }
 
-        // TODO delete this
-        ///// <inheritdoc />
-        //public TValue GetAt(int idx)
-        //{
-        //    return default(TOp).Apply(_cursor.Source.GetAt(idx), _value);
-        //}
-
-        #endregion ISpecializedCursorSeries members
-
-        //BaseSeries<TKey, TValue1> ICanMapValues<TKey, TValue>.Map<TValue1>(Func<TValue, TValue1> selector, Func<Buffer<TValue>, Buffer<TValue1>> batchSelector)
-        //{
-        //    if (batchSelector != null)
-        //    {
-        //        throw new NotImplementedException();
-        //    }
-        //    return new MapValuesSeries<TKey, TValue, TValue1, TCursor>(_series, CoreUtils.CombineMaps<TValue, TValue, TValue1>(Apply, selector));
-        //}
-
-        #region Unary Operators
-
-        // NB This allows to combine arithmetic operators using sealed ArithmeticCursor<> as TCursor
-        // and to inline Apply() methods.
-
-        /// <summary>
-        /// Add operator.
-        /// </summary>
-        public static ArithmeticCursor<TKey, TValue, AddOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>> operator +(ArithmeticCursor<TKey, TValue, TOp, TCursor> series, TValue constant)
-        {
-            return new ArithmeticCursor<TKey, TValue, AddOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(series, constant);
-        }
-
-        /// <summary>
-        /// Add operator.
-        /// </summary>
-        public static ArithmeticCursor<TKey, TValue, AddOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>> operator +(TValue constant, ArithmeticCursor<TKey, TValue, TOp, TCursor> series)
-        {
-            // Addition is commutative
-            return new ArithmeticCursor<TKey, TValue, AddOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(series, constant);
-        }
-
-        /// <summary>
-        /// Negate operator.
-        /// </summary>
-        public static ArithmeticCursor<TKey, TValue, NegateOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>> operator -(ArithmeticCursor<TKey, TValue, TOp, TCursor> series)
-        {
-            return new ArithmeticCursor<TKey, TValue, NegateOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(series, default(TValue));
-        }
-
-        /// <summary>
-        /// Unary plus operator.
-        /// </summary>
-        public static ArithmeticCursor<TKey, TValue, PlusOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>> operator +(ArithmeticCursor<TKey, TValue, TOp, TCursor> series)
-        {
-            return new ArithmeticCursor<TKey, TValue, PlusOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(series, default(TValue));
-        }
-
-        /// <summary>
-        /// Subtract operator.
-        /// </summary>
-        public static ArithmeticCursor<TKey, TValue, SubtractOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>> operator -(ArithmeticCursor<TKey, TValue, TOp, TCursor> series, TValue constant)
-        {
-            return new ArithmeticCursor<TKey, TValue, SubtractOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(series, constant);
-        }
-
-        /// <summary>
-        /// Subtract operator.
-        /// </summary>
-        public static ArithmeticCursor<TKey, TValue, SubtractReverseOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>> operator -(TValue constant, ArithmeticCursor<TKey, TValue, TOp, TCursor> series)
-        {
-            return new ArithmeticCursor<TKey, TValue, SubtractReverseOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(series, constant);
-        }
-
-        /// <summary>
-        /// Multiply operator.
-        /// </summary>
-        public static ArithmeticCursor<TKey, TValue, MultiplyOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>> operator *(ArithmeticCursor<TKey, TValue, TOp, TCursor> series, TValue constant)
-        {
-            return new ArithmeticCursor<TKey, TValue, MultiplyOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(series, constant);
-        }
-
-        /// <summary>
-        /// Multiply operator.
-        /// </summary>
-        public static ArithmeticCursor<TKey, TValue, MultiplyOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>> operator *(TValue constant, ArithmeticCursor<TKey, TValue, TOp, TCursor> series)
-        {
-            // Multiplication is commutative
-            return new ArithmeticCursor<TKey, TValue, MultiplyOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(series, constant);
-        }
-
-        /// <summary>
-        /// Divide operator.
-        /// </summary>
-        public static ArithmeticCursor<TKey, TValue, DivideOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>> operator /(ArithmeticCursor<TKey, TValue, TOp, TCursor> series, TValue constant)
-        {
-            return new ArithmeticCursor<TKey, TValue, DivideOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(series, constant);
-        }
-
-        /// <summary>
-        /// Divide operator.
-        /// </summary>
-        public static ArithmeticCursor<TKey, TValue, DivideReverseOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>> operator /(TValue constant, ArithmeticCursor<TKey, TValue, TOp, TCursor> series)
-        {
-            return new ArithmeticCursor<TKey, TValue, DivideReverseOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(series, constant);
-        }
-
-        /// <summary>
-        /// Modulo operator.
-        /// </summary>
-        public static ArithmeticCursor<TKey, TValue, ModuloOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>> operator %(ArithmeticCursor<TKey, TValue, TOp, TCursor> series, TValue constant)
-        {
-            return new ArithmeticCursor<TKey, TValue, ModuloOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(series, constant);
-        }
-
-        /// <summary>
-        /// Modulo operator.
-        /// </summary>
-        public static ArithmeticCursor<TKey, TValue, ModuloReverseOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>> operator %(TValue constant, ArithmeticCursor<TKey, TValue, TOp, TCursor> series)
-        {
-            return new ArithmeticCursor<TKey, TValue, ModuloReverseOp<TValue>, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(series, constant);
-        }
-
-        #endregion Unary Operators
+        #endregion ICursorSeries members
     }
 }

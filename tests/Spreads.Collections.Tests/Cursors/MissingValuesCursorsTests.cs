@@ -164,8 +164,8 @@ namespace Spreads.Collections.Tests.Cursors {
             double v;
             Assert.IsTrue(threeeCursor.TryGetValue(DateTime.Now, out v));
             Assert.AreEqual(3.0, v);
-            Assert.IsTrue(three.TryGetValue(DateTime.Now, out v));
-            Assert.AreEqual(3.0, v);
+            Assert.IsTrue(three.TryFind(DateTime.Now, Lookup.EQ, out var kvp));
+            Assert.AreEqual(3.0, kvp.Value);
         }
 
         [Test]
@@ -186,11 +186,11 @@ namespace Spreads.Collections.Tests.Cursors {
             double v;
             Assert.IsTrue(threeeCursor.TryGetValue(DateTime.Now, out v));
             Assert.AreEqual(3.0, v);
-            Assert.IsTrue(three.TryGetValue(DateTime.Now, out v));
-            Assert.AreEqual(3.0, v);
+            Assert.IsTrue(three.TryFind(DateTime.Now, Lookup.EQ, out var kvp));
+            Assert.AreEqual(3.0, kvp.Value);
 
-            Assert.IsTrue(three.TryGetValue(DateTime.Today, out v));
-            Assert.AreEqual(43.0, v);
+            Assert.IsTrue(three.TryFind(DateTime.Today, Lookup.EQ, out var kvp1));
+            Assert.AreEqual(43.0, kvp1.Value);
         }
     }
 }

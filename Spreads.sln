@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26403.7
+VisualStudioVersion = 15.0.26430.6
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}"
 EndProject
@@ -73,6 +73,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Core.Run", "tests\Spreads.Core.Run\Spreads.Core.Run.csproj", "{C221D713-EB19-4B00-A71B-E94BE05554E4}"
 EndProject
 Global
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|x64 = Debug|x64
@@ -234,5 +237,8 @@ Global
 		{0C1D15D2-D0E7-497B-8C3F-4CA7DE22F0D1} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{9AB0675E-1251-472E-9280-45D9F56F4768} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{C221D713-EB19-4B00-A71B-E94BE05554E4} = {9AB0675E-1251-472E-9280-45D9F56F4768}
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
 	EndGlobalSection
 EndGlobal
