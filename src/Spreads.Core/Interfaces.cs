@@ -286,11 +286,14 @@ namespace Spreads
     }
 
     /// <summary>
-    /// A cursor with known implementation type.
+    /// An <see cref="ICursor{TKey, TValue}"/> with a known implementation type.
     /// </summary>
     public interface ISpecializedCursor<TKey, TValue, TCursor> : ICursor<TKey, TValue>
         where TCursor : ICursor<TKey, TValue>
     {
+
+        // TODO(?) deprecate AbstractCursorSeries and remove mentions of it
+
         /// <summary>
         /// Returns an initialized (ready to move) instance of <typeparamref name="TCursor"/>.
         /// It could be the same instance for <see cref="AbstractCursorSeries{TKey,TValue,TCursor}"/>.

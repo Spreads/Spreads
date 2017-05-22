@@ -110,5 +110,22 @@ namespace Spreads
         {
             return IsPresent == other.IsPresent && (IsMissing || Value.Equals(other.Value));
         }
+
+        /// <summary>
+        /// Implicit cast from a value of type <typeparamref name="T"/> to <see cref="Opt{T}"/>.
+        /// </summary>
+        public static implicit operator Opt<T>(T value)
+        {
+            return new Opt<T>(value);
+        }
+
+        /// <summary>
+        /// Explicit cast from <see cref="Opt{T}"/> to a value of type <typeparamref name="T"/>.
+        /// Return the default value if <see cref="Opt{T}"/> is missing.
+        /// </summary>
+        public static explicit operator T(Opt<T> optValue)
+        {
+            return optValue.IsPresent ? optValue.Value : default(T);
+        }
     }
 }

@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 
 namespace Spreads.Cursors
 {
+
     /// <summary>
     /// A <see cref="AbstractCursorSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation to each value of its input series.
     /// </summary>
@@ -355,8 +356,13 @@ namespace Spreads.Cursors
             return false;
         }
 
+        /// <summary>
+        /// Get a <see cref="CursorSeries{TKey,TValue,TCursor}"/> based on this <see cref="RangeCursor{TKey,TValue,TCursor}"/>
+        /// </summary>
+        public CursorSeries<TKey, TValue, RangeCursor<TKey, TValue, TCursor>> Source => new CursorSeries<TKey, TValue, RangeCursor<TKey, TValue, TCursor>>(this);
+
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> Source => new CursorSeries<TKey, TValue, RangeCursor<TKey, TValue, TCursor>>(this);
+        IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source => Source;
 
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken)

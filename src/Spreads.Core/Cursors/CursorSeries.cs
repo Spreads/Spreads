@@ -10,23 +10,24 @@ using System.Threading.Tasks;
 
 namespace Spreads.Cursors
 {
+    // TODO (docs) The goal is to have only containers as classes. And even this is questionable e.g. for
+    // SMs inside SCM. We need classes for locking and finalization (currently), but should try to remove finalization
+    // Instead, SCM should properly dispose its inner chunks, which could be made stucts. Disposal is needed to
+    // return buffers. But buffers could be made finalizable or just GCed when not disposed (buffer pools will allocate new ones)
+    // Locking could be done via a third buffer which could be an unsafe memory.
+
     /// <summary>
-    /// A lightweight wrapper around <see cref="ICursorSeries{TKey, TValue, TCursor}"/> implementation 
-    /// that implements <see cref="IReadOnlySeries{TKey, TValue}"/> interface using the cursor.
+    /// A lightweight wrapper around a <see cref="ICursorSeries{TKey, TValue, TCursor}"/>
+    /// implementing <see cref="IReadOnlySeries{TKey, TValue}"/> interface using the cursor.
     /// </summary>
     public struct CursorSeries<TKey, TValue, TCursor> : IReadOnlySeries<TKey, TValue>
         where TCursor : ICursorSeries<TKey, TValue, TCursor>
     {
-        private readonly TCursor _cursor;
+        internal readonly TCursor _cursor;
 
         internal CursorSeries(TCursor cursor)
         {
             _cursor = cursor;
-        }
-
-        public static CursorSeries<TKey, TValue, TCursor> Create(TCursor cursor)
-        {
-            return new CursorSeries<TKey, TValue, TCursor>(cursor);
         }
 
         /// <summary>
@@ -59,8 +60,6 @@ namespace Spreads.Cursors
         {
             return _cursor.Initialize();
         }
-
-        
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
@@ -114,7 +113,7 @@ namespace Spreads.Cursors
             {
                 using (var c = _cursor.Initialize())
                 {
-                    return c.MoveFirst() ? c.Current : throw new InvalidOperationException("Series is empty");
+                    return c.MoveFirst() ? c.Current : throw new InvalidOperationException("A series is empty.");
                 }
             }
         }
@@ -126,7 +125,7 @@ namespace Spreads.Cursors
             {
                 using (var c = _cursor.Initialize())
                 {
-                    return c.MoveLast() ? c.Current : throw new InvalidOperationException("Series is empty");
+                    return c.MoveLast() ? c.Current : throw new InvalidOperationException("A series is empty.");
                 }
             }
         }
@@ -244,7 +243,6 @@ namespace Spreads.Cursors
 
         #endregion IReadOnlySeries members
 
-
         #region Operators
 
         // TODO this is a sample how to bridge BaseSeries and CursorSeries. This is only relevant for operators.
@@ -253,7 +251,7 @@ namespace Spreads.Cursors
         /// <summary>
         /// Add operator.
         /// </summary>
-        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>>>  operator +(CursorSeries<TKey, TValue, TCursor> series, BaseSeries<TKey, TValue> other)
+        public static CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, AddOp<TValue>, SpecializedWrapper<TKey, TValue>>> operator +(CursorSeries<TKey, TValue, TCursor> series, BaseSeries<TKey, TValue> other)
         {
             throw new NotImplementedException();
         }
@@ -263,8 +261,6 @@ namespace Spreads.Cursors
             throw new NotImplementedException();
         }
 
-        #endregion
+        #endregion Operators
     }
-
-    
 }

@@ -10,12 +10,12 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-// ReSharper disable once CheckNamespace
-namespace Spreads.Cursors
+namespace Spreads.Cursors.Experimental
 {
     /// <summary>
     /// A series that applies a selector to each value of its input series. Specialized for input cursor.
     /// </summary>
+    [Obsolete("Use CursorSeries")] // TODO delete this class
     public class RangeSeries<TKey, TValue, TCursor> :
         AbstractCursorSeries<TKey, TValue, RangeSeries<TKey, TValue, TCursor>>,
         ISpecializedCursor<TKey, TValue, RangeSeries<TKey, TValue, TCursor>> //, ICanMapValues<TKey, TValue>
