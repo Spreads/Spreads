@@ -987,12 +987,9 @@ namespace Spreads.Core.Tests
             Console.WriteLine(Unsafe.SizeOf<NodaTime.Instant>());
         }
 
-
-
         [Test, Ignore]
         public void LargeLongsToDoubleKeepWeekOrder()
         {
-
             var start = 1L << 54;
             var count = 10000000000L;
 
@@ -1007,5 +1004,70 @@ namespace Spreads.Core.Tests
             Assert.Pass("Double keeps week order");
         }
 
+        [Test, Ignore]
+        public void IfVsArrayAccess()
+        {
+            // For Union2/Zip2 we could have a very unpredictable relative position,
+            // which is returned by KeyComparer over keys
+            // To determine which will go next, we could have c >= 0 and
+            // convert this unsafely to a byte
+            // `If`s could cause too many branch mispredictions
+
+            var arr = new int[2];
+            arr[0] = -1;
+            arr[1] = 1;
+
+            var count = 50000000;
+            var rng = new Random();
+            var values = new int[count];
+            var comps = new int[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                values[i] = rng.Next(0, 100);
+            }
+
+            for (int i = 1; i < count - 1; i++)
+            {
+                var c = KeyComparer<int>.Default.Compare(values[i - 1], values[i]);
+                comps[i] = c;
+            }
+
+            for (int r = 0; r < 20; r++)
+            {
+                var sumIf = 0;
+                using (Benchmark.Run("If", count))
+                {
+                    for (int i = 1; i < count; i++)
+                    {
+                        var c = comps[i]; // values[i - 1].CompareTo(values[i]); // 
+                        if (c >= 0) // values[i - 1] >= values[i]) //
+                        {
+                            sumIf += arr[1];
+                        }
+                        else
+                        {
+                            sumIf += arr[0];
+                        }
+                    }
+                }
+
+                var sumUnsafe = 0;
+                using (Benchmark.Run("Unsafe", count))
+                {
+                    for (int i = 1; i < count; i++)
+                    {
+                        var c = comps[i]; // values[i - 1].CompareTo(values[i]); // 
+                        //bool b = c >= 0; // values[i - 1] >= values[i]; //  
+                        var idx = 1 ^ (((uint) c) >> 31); // *((byte*)(&b));
+                        sumUnsafe += arr[idx];
+                    }
+                }
+
+                Assert.AreEqual(sumIf, sumUnsafe);
+            }
+
+            Benchmark.Dump();
+        }
     }
 }
