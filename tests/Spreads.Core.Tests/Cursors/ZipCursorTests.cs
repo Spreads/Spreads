@@ -152,7 +152,7 @@ namespace Spreads.Core.Tests.Cursors
                 }
             }
 
-            var calculated = (sm1) + (sm2 as BaseSeries<int, double>);
+            var calculated = sm1 + sm2;
 
             for (int r = 0; r < 20; r++)
             {
