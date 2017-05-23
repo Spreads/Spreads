@@ -82,8 +82,8 @@ type FilterMapCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, filterFunc:Fu
     if base.HasValidState then clone.MoveAt(base.CurrentKey, Lookup.EQ) |> ignore
     clone
 
-  interface ICanMapSeriesValues<'K,'R> with
-    member this.Map<'R2>(f2, _): Series<'K,'R2> = 
-      let mapper2 : Func<'V,'R2> = Func<'V,'R2>(mapperFunc.Invoke >> f2)
-      CursorSeries(fun _ -> new FilterMapCursor<'K,'V,'R2>(cursorFactory, filterFunc, mapper2) :> ICursor<'K,'R2>) :> Series<'K,'R2>
+  //interface ICanMapSeriesValues<'K,'R> with
+  //  member this.Map<'R2>(f2, _): Series<'K,'R2> = 
+  //    let mapper2 : Func<'V,'R2> = Func<'V,'R2>(mapperFunc.Invoke >> f2)
+  //    CursorSeries(fun _ -> new FilterMapCursor<'K,'V,'R2>(cursorFactory, filterFunc, mapper2) :> ICursor<'K,'R2>) :> Series<'K,'R2>
 

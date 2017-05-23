@@ -77,12 +77,9 @@
     <Compile Include="Attributes.fs" />
     <Compile Include="Common\Types.fs" />
     <Compile Include="Common\FastEvents.fs" />
-    <Compile Include="Common\Operators.fs" />
     <Compile Include="Common\ObjectPool.fs" />
     <Compile Include="Common\Utils.fs" />
-    <Compile Include="Common\Exceptions.fs" />
     <Compile Include="Common\OptionalValue.fs" />
-    <Compile Include="Common\GenericOperators.fs" />
     <Compile Include="Common\SIMDArrayUtils.fs" />
     <Compile Include="Common\SIMDArray.fs" />
     <Compile Include="Common\Mappers.fs" />

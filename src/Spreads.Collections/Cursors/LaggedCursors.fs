@@ -210,11 +210,11 @@ type ZipLagCursor<'K,'V,'R>(cursorFactory:Func<ICursor<'K,'V>>, lag:uint32, mapC
     if lookupCursor <> Unchecked.defaultof<_> then lookupCursor.Dispose()
     base.Dispose()
 
-  // almost 10% gain on a trivial call: CompareHirizontalCursorWithCursorBind in Benchmarks
-  interface ICanMapSeriesValues<'K,'R> with
-    member this.Map<'R2>(f2, _): Series<'K,'R2> = 
-      let mapCurrentPrev2 : Func<'V,'V,'R2> = Func<'V,'V,'R2>(fun c p -> f2(mapCurrentPrev.Invoke(c, p)))
-      CursorSeries(fun _ -> new ZipLagCursor<'K,'V,'R2>(cursorFactory, lag, mapCurrentPrev2) :> ICursor<'K,'R2>) :> Series<'K,'R2>
+  //// almost 10% gain on a trivial call: CompareHirizontalCursorWithCursorBind in Benchmarks
+  //interface ICanMapSeriesValues<'K,'R> with
+  //  member this.Map<'R2>(f2, _): Series<'K,'R2> = 
+  //    let mapCurrentPrev2 : Func<'V,'V,'R2> = Func<'V,'V,'R2>(fun c p -> f2(mapCurrentPrev.Invoke(c, p)))
+  //    CursorSeries(fun _ -> new ZipLagCursor<'K,'V,'R2>(cursorFactory, lag, mapCurrentPrev2) :> ICursor<'K,'R2>) :> Series<'K,'R2>
       
 
 // TODO unit tests with all moves & TGV, easy to fuck up here
@@ -354,10 +354,10 @@ type ZipLagAllowIncompleteCursor<'K,'V,'R>
     if lookupCursor <> Unchecked.defaultof<_> then lookupCursor.Dispose()
     base.Dispose()
 
-  interface ICanMapSeriesValues<'K,'R> with
-    member this.Map<'R2>(f2, _): Series<'K,'R2> = 
-      let mapCurrentPrevN2 = Func<_,_,_,_>(fun c p l -> f2(mapCurrentPrevN.Invoke(c, p, l)))
-      CursorSeries(fun _ -> new ZipLagAllowIncompleteCursor<'K,'V,'R2>(cursorFactory, zeroBasedLag, step, mapCurrentPrevN2, allowIncomplete) :> ICursor<'K,'R2>) :> Series<'K,'R2>
+  //interface ICanMapSeriesValues<'K,'R> with
+  //  member this.Map<'R2>(f2, _): Series<'K,'R2> = 
+  //    let mapCurrentPrevN2 = Func<_,_,_,_>(fun c p l -> f2(mapCurrentPrevN.Invoke(c, p, l)))
+  //    CursorSeries(fun _ -> new ZipLagAllowIncompleteCursor<'K,'V,'R2>(cursorFactory, zeroBasedLag, step, mapCurrentPrevN2, allowIncomplete) :> ICursor<'K,'R2>) :> Series<'K,'R2>
 
 
 // TODO (perf) ICanMapValues

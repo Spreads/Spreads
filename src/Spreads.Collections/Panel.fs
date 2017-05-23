@@ -13,6 +13,7 @@ open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
 
 open Spreads
+open Spreads.Cursors
 open Spreads.Collections
 
 
@@ -95,7 +96,7 @@ and ColumnPanel<'TRowKey,'TColumnKey, 'TValue> (columns:Series<'TColumnKey, Seri
   override this.Rows with get() = this :> Series<'TRowKey, Series<'TColumnKey,'TValue>>
 
   override this.ColumnKeys = columnKeys :> seq<_>
-  override this.RowKeys = CursorSeries(Func<_>(this.GetCursor)).Keys
+  override this.RowKeys = Spreads.CursorSeries(Func<_>(this.GetCursor)).Keys
 
 //  override this.RowWise<'TResult>(mapper:Func<Series<'TColumnKey,'TValue>,Series<'TColumnKey,'TResult>>) : Panel<'TRowKey,'TColumnKey,'TResult> =
 //    let zipCursor() = 
@@ -171,17 +172,18 @@ and RowPanel<'TRowKey,'TColumnKey, 'TValue> (rows:Series<'TRowKey, 'TValue[]>, c
 
 
   override this.GetCursor() : ICursor<'TRowKey, Series<'TColumnKey, 'TValue>> = 
-    new BatchMapValuesCursor<'TRowKey,'TValue[],Series<'TColumnKey, 'TValue>>(Func<_>(rows.GetCursor), (fun vArr -> 
-      if isIndexed then
-          let res = IndexedMap.OfSortedKeysAndValues(columnKeys, vArr) :> Series<'TColumnKey, 'TValue>
-          // TODO IsMutable <- false
-          res
-        else
-          let res = SortedMap.OfSortedKeysAndValues(columnKeys, vArr) :> Series<'TColumnKey, 'TValue>
-          // TODO IsMutable <- false
-          res
-      ), Missing)
-    :> ICursor<'TRowKey, Series<'TColumnKey, 'TValue>>
+    new Spreads.Cursors.MapCursor<'TRowKey,'TValue[],Series<'TColumnKey, 'TValue>, _>(rows.GetSpecializedCursor(),
+      Func<'TRowKey,'TValue[],Series<'TColumnKey, 'TValue>>(fun _ vArr -> 
+        if isIndexed then
+            let res = IndexedMap.OfSortedKeysAndValues(columnKeys, vArr) :> Series<'TColumnKey, 'TValue>
+            // TODO IsMutable <- false
+            res
+          else
+            let res = SortedMap.OfSortedKeysAndValues(columnKeys, vArr) :> Series<'TColumnKey, 'TValue>
+            // TODO IsMutable <- false
+            res
+        )
+      ) :> ICursor<'TRowKey, Series<'TColumnKey, 'TValue>>
 
   // By being Series<>, Panel already implements IReadOnlySeries for Rows
 

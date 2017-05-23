@@ -6,10 +6,8 @@
 namespace Spreads
 
 open System
-open System.IO
 open System.Threading
-open System.Collections.Concurrent
-open System.Threading.Tasks
+open Spreads.Collections.Concurrent
 
 type ObjectPool<'T>(objectGenerator:Func<'T>, maxCapacity:int) =
   // in steady state the number of objects could be much higher than 

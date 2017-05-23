@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Spreads.Algorithms.Online;
+using Spreads.Cursors;
 
 namespace Spreads
 {
@@ -336,17 +337,16 @@ namespace Spreads
     {
         // TODO Rewrite via BindCursor
 
-        public static Series<K, double> SMA<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false)
+        public static ISeries<K, double> SMA<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false)
         {
-            Func<ICursor<K, SmaState>> factory = () => new ScanLagAllowIncompleteCursor<K, double, SmaState>(source.GetCursor, (uint)period, 1,
-               () => new SmaState(),
-               (st, add, sub, cnt) =>
-               {
-                   st.Count = cnt;
-                   st.Sum = st.Sum + add.Value - sub.Value;
-                   return st;
-               }, allowIncomplete);
-            return (new CursorSeries<K, SmaState>(factory).Map(st => st.Sum / st.Count, null));
+            ICursor<K, SmaState> Factory() => new ScanLagAllowIncompleteCursor<K, double, SmaState>(source.GetCursor, (uint) period, 1, () => new SmaState(), (st, add, sub, cnt) =>
+            {
+                st.Count = cnt;
+                st.Sum = st.Sum + add.Value - sub.Value;
+                return st;
+            }, allowIncomplete);
+
+            return (new CursorSeries<K, SmaState, Cursor<K, SmaState>>(new Cursor<K, SmaState>(Factory())).Map((st) => st.Sum / st.Count));
         }
 
         /// <summary>
@@ -357,17 +357,16 @@ namespace Spreads
         /// <param name="period"></param>
         /// <param name="allowIncomplete"></param>
         /// <returns></returns>
-        public static Series<K, double> MovingMedian<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false)
+        public static ISeries<K, double> MovingMedian<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false)
         {
             // TODO incomplete windows
-            Func<ICursor<K, MovingMedian>> factory = () => new ScanLagAllowIncompleteCursor<K, double, MovingMedian>(source.GetCursor, (uint)period, 1,
-               () => new MovingMedian(period),
-               (st, add, sub, cnt) =>
-               {
-                   st.Update(add.Value);
-                   return st;
-               }, allowIncomplete);
-            return (new CursorSeries<K, MovingMedian>(factory).Map(st => st.LastValue, null));
+            ICursor<K, MovingMedian> Factory() => new ScanLagAllowIncompleteCursor<K, double, MovingMedian>(source.GetCursor, (uint) period, 1, () => new MovingMedian(period), (st, add, sub, cnt) =>
+            {
+                st.Update(add.Value);
+                return st;
+            }, allowIncomplete);
+
+            return (new CursorSeries<K, MovingMedian, Cursor<K, MovingMedian>>(new Cursor<K, MovingMedian>(Factory())).Map(st => st.LastValue));
         }
 
         public static Series<K, double> StDev<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false)

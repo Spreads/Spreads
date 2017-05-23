@@ -5,13 +5,14 @@
 
 namespace Spreads
 
+// TODO remove, this stuff is no longer used
+
 open System
 open System.Collections.Generic
 open System.Linq.Expressions
 open System.Threading
 open System.Threading.Tasks
 
-// TODO (perf) we move event interface to Core and probably this trick is no longer needed, need to profile
 //thanks to http://v2matveev.blogspot.ru/2010/06/f-performance-of-events.html for the idea
 
 //and 'D : delegate<'A, unit>
@@ -58,7 +59,7 @@ type internal AsyncManualResetEvent () =
 
 
 
-type AsyncAutoResetEvent () =
+type internal AsyncAutoResetEvent () =
   //http://blogs.msdn.com/b/pfxteam/archive/2012/02/11/10266923.aspx
   static let mutable s_completed = Task.FromResult(true)
   let m_waits = new Queue<TaskCompletionSource<bool>>()

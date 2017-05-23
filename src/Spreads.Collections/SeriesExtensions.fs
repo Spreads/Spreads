@@ -47,15 +47,15 @@ type SeriesExtensions () =
     //      CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc.Invoke, Missing) :> ICursor<_,_> ) :> Series<'K,'V2>
     //  else CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc.Invoke, Missing) :> ICursor<_,_> ) :> Series<'K,'V2>
 
-    [<Extension>]
-    static member Map(source: ISeries<'K,'V>, mapFunc:Func<'V,'V2>, mapBatchFunc:Func<ArraySegment<'V>, ArraySegment<'V2>>) : Series<'K,'V2> =
-      if OptimizationSettings.CombineFilterMapDelegates then
-        match source with
-        // TODO! test if null or fake batch function is better here
-        | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc.Invoke, Present(mapBatchFunc.Invoke))
-        | _ ->
-          CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc.Invoke, Missing) :> ICursor<_,_> ) :> Series<'K,'V2>
-      else CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc.Invoke, Missing) :> ICursor<_,_> ) :> Series<'K,'V2>
+    //[<Extension>]
+    //static member Map(source: ISeries<'K,'V>, mapFunc:Func<'V,'V2>, mapBatchFunc:Func<ArraySegment<'V>, ArraySegment<'V2>>) : Series<'K,'V2> =
+    //  if OptimizationSettings.CombineFilterMapDelegates then
+    //    match source with
+    //    // TODO! test if null or fake batch function is better here
+    //    | :? ICanMapSeriesValues<'K,'V> as s -> s.Map(mapFunc.Invoke, Present(mapBatchFunc.Invoke))
+    //    | _ ->
+    //      CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc.Invoke, Missing) :> ICursor<_,_> ) :> Series<'K,'V2>
+    //  else CursorSeries(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc.Invoke, Missing) :> ICursor<_,_> ) :> Series<'K,'V2>
 
 
 //    [<Extension>]
@@ -205,23 +205,23 @@ type SeriesExtensions () =
       CursorSeries(fun _ -> new ScanCursor<'K,'V,'R>(Func<ICursor<'K,'V>>(source.GetCursor), init, folder) :> ICursor<'K,'R>) :> Series<'K,'R>
      
 
-    [<Extension>]
-    static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V2>, mapFunc:Func<'K,'V,'V2,'R>) : Series<'K,'R> =
-      // TODO! check this type stuff
-      if typeof<'V> = typeof<'V2> then
-        let mapFunc2 = (box mapFunc) :?> Func<'K,'V,'V,'R>
-        CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(Func<'K,'V[],'R>(fun k varr -> mapFunc2.Invoke(k, varr.[0], varr.[1])), [|source;(box other) :?> ISeries<'K,'V>|] |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
-      else
-        CursorSeries(fun _ -> new Zip2Cursor<'K,'V,'V2,'R>(Func<ICursor<'K,'V>>(source.GetCursor), Func<ICursor<'K,'V2>>(other.GetCursor), mapFunc) :> ICursor<'K,'R>) :> Series<'K,'R>
+    //[<Extension>]
+    //static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V2>, mapFunc:Func<'K,'V,'V2,'R>) : Series<'K,'R> =
+    //  // TODO! check this type stuff
+    //  if typeof<'V> = typeof<'V2> then
+    //    let mapFunc2 = (box mapFunc) :?> Func<'K,'V,'V,'R>
+    //    CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(Func<'K,'V[],'R>(fun k varr -> mapFunc2.Invoke(k, varr.[0], varr.[1])), [|source;(box other) :?> ISeries<'K,'V>|] |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
+    //  else
+    //    CursorSeries(fun _ -> new Zip2Cursor<'K,'V,'V2,'R>(Func<ICursor<'K,'V>>(source.GetCursor), Func<ICursor<'K,'V2>>(other.GetCursor), mapFunc) :> ICursor<'K,'R>) :> Series<'K,'R>
 
-    [<Extension>]
-    static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V2>, mapFunc:Func<'V,'V2,'R>) : Series<'K,'R> =
-      // TODO! check this type stuff
-      if typeof<'V> = typeof<'V2> then
-        let mapFunc2 = (box mapFunc) :?> Func<'V,'V,'R>
-        CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(Func<'K,'V[],'R>(fun k varr -> mapFunc2.Invoke(varr.[0], varr.[1])), [|source;(box other) :?> ISeries<'K,'V>|] |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
-      else
-        CursorSeries(fun _ -> new Zip2Cursor<'K,'V,'V2,'R>(Func<ICursor<'K,'V>>(source.GetCursor), Func<ICursor<'K,'V2>>(other.GetCursor), fun k v1 v2 -> mapFunc.Invoke(v1, v2)) :> ICursor<'K,'R>) :> Series<'K,'R>
+    //[<Extension>]
+    //static member inline Zip(source: ISeries<'K,'V>, other: ISeries<'K,'V2>, mapFunc:Func<'V,'V2,'R>) : Series<'K,'R> =
+    //  // TODO! check this type stuff
+    //  if typeof<'V> = typeof<'V2> then
+    //    let mapFunc2 = (box mapFunc) :?> Func<'V,'V,'R>
+    //    CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(Func<'K,'V[],'R>(fun k varr -> mapFunc2.Invoke(varr.[0], varr.[1])), [|source;(box other) :?> ISeries<'K,'V>|] |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
+    //  else
+    //    CursorSeries(fun _ -> new Zip2Cursor<'K,'V,'V2,'R>(Func<ICursor<'K,'V>>(source.GetCursor), Func<ICursor<'K,'V2>>(other.GetCursor), fun k v1 v2 -> mapFunc.Invoke(v1, v2)) :> ICursor<'K,'R>) :> Series<'K,'R>
 
 
     [<Extension>]

@@ -68,10 +68,10 @@ type internal RepeatCursor<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
           true
         else false
 
-  // Repeat().Map() is equivalent to Map().Repeat()
-  interface ICanMapSeriesValues<'K,'V> with
-    member this.Map<'V2>(f, _): Series<'K,'V2> =
-      CursorSeries(fun _ -> new RepeatCursor<'K,'V2>(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, Missing) :> ICursor<'K,'V2>) :> ICursor<_,_>) :> Series<'K,'V2>
+  //// Repeat().Map() is equivalent to Map().Repeat()
+  //interface ICanMapSeriesValues<'K,'V> with
+  //  member this.Map<'V2>(f, _): Series<'K,'V2> =
+  //    CursorSeries(fun _ -> new RepeatCursor<'K,'V2>(fun _ -> new BatchMapValuesCursor<'K,'V,'V2>(cursorFactory, f, Missing) :> ICursor<'K,'V2>) :> ICursor<_,_>) :> Series<'K,'V2>
 
 
 

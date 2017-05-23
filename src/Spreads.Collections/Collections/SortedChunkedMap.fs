@@ -423,15 +423,15 @@ type SortedChunkedMapGeneric<'K,'V>
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   member this.TryFindUnchecked(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
     let tupleResult = this.TryFindTuple(key, direction)
-    result <- tupleResult.Value2
-    tupleResult.Value1
+    result <- tupleResult.Item2
+    tupleResult.Item1
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   override this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
     let res() = this.TryFindTuple(key, direction)
     let tupleResult = readLockIf &this.nextVersion &this.version this.isSynchronized res
-    result <- tupleResult.Value2
-    tupleResult.Value1
+    result <- tupleResult.Item2
+    tupleResult.Item1
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
@@ -462,8 +462,8 @@ type SortedChunkedMapGeneric<'K,'V>
         ValueTuple<_,_>(true, kvp.Value)
       else ValueTuple<_,_>(false, Unchecked.defaultof<'V>)
     let tupleResult = readLockIf &this.nextVersion &this.version this.isSynchronized res
-    value <- tupleResult.Value2
-    tupleResult.Value1
+    value <- tupleResult.Item2
+    tupleResult.Item1
 
   //[<ObsoleteAttribute("Naive impl, optimize if used often")>]
   override this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>).Select(fun kvp -> kvp.Key)

@@ -1216,8 +1216,8 @@ type SortedMap<'K,'V>
       if idx >= 0 then ValueTuple<_,_>(true, kvp)
       else ValueTuple<_,_>(false, kvp)
     let tupleResult = readLockIf &this.nextVersion &this.version this.isSynchronized res
-    result <- tupleResult.Value2
-    tupleResult.Value1
+    result <- tupleResult.Item2
+    tupleResult.Item1
 
   /// Return true if found exact key
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
@@ -1238,8 +1238,8 @@ type SortedMap<'K,'V>
           else
             ValueTuple<_,_>(false, Unchecked.defaultof<'V>)
     let tupleResult = readLockIf &this.nextVersion &this.version this.isSynchronized res
-    value <- tupleResult.Value2
-    tupleResult.Value1
+    value <- tupleResult.Item2
+    tupleResult.Item1
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
   override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
