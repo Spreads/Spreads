@@ -15,7 +15,7 @@ namespace Spreads.Cursors.Experimental
     /// A <see cref="AbstractCursorSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation to each value of its input series.
     /// </summary>
     [Obsolete("Use CursorSeries")]
-    public sealed class ArithmeticSeries<TKey, TValue, TOp, TCursor> :
+    internal sealed class ArithmeticSeries<TKey, TValue, TOp, TCursor> :
         AbstractCursorSeries<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>>,
         ISpecializedCursor<TKey, TValue, ArithmeticSeries<TKey, TValue, TOp, TCursor>> // TODO , ICanMapValues<TKey, TValue>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>

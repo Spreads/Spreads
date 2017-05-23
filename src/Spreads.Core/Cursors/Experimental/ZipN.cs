@@ -222,7 +222,7 @@ namespace Spreads.Cursors.Experimental
         }
     }
 
-    public sealed class ZipN<TKey, TValue, TCursor> :
+    internal sealed class ZipN<TKey, TValue, TCursor> :
         AbstractCursorSeries<TKey, TValue[], ZipN<TKey, TValue, TCursor>>,
         ISpecializedCursor<TKey, TValue[], ZipN<TKey, TValue, TCursor>>
         where TCursor : ICursor<TKey, TValue>

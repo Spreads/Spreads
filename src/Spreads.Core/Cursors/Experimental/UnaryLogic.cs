@@ -9,7 +9,7 @@ namespace Spreads.Cursors.Experimental
     // We could either implement entire cursor like in ArithmeticSeries or have a virtual call - to a lambda or to overriden method.
     // Tests show so far that lambda is quite fast.
 
-    public enum UnaryLogicOp
+    internal enum UnaryLogicOp
     {
         LT,
         LE,
@@ -24,7 +24,7 @@ namespace Spreads.Cursors.Experimental
     }
 
     [Obsolete("Use CursorSeries")]
-    public sealed class UnaryLogicSeries<TKey, TValue, TCursor> : MapValuesSeries<TKey, TValue, bool, TCursor>
+    internal sealed class UnaryLogicSeries<TKey, TValue, TCursor> : MapValuesSeries<TKey, TValue, bool, TCursor>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         public UnaryLogicSeries(TCursor cursor, TValue comparand, UnaryLogicOp op) : base(cursor, x => Apply(x, comparand, op))

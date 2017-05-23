@@ -16,7 +16,7 @@ namespace Spreads.Cursors.Experimental
     /// Base abstract class for cursor series (objects that implement both <see cref="IReadOnlySeries{TKey, TValue}"/> and <see cref="ICursor{TKey, TValue}"/>).
     /// </summary>
     [Obsolete("Use CursorSeries")]
-    public abstract class AbstractCursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue> // TODO, ISpecializedSeries<TKey, TValue, TCursor>
+    internal abstract class AbstractCursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue> // TODO, ISpecializedSeries<TKey, TValue, TCursor>
         where TCursor : AbstractCursorSeries<TKey, TValue, TCursor>, ISpecializedCursor<TKey, TValue, TCursor>, new()
     {
         /// <summary>
@@ -236,7 +236,7 @@ namespace Spreads.Cursors.Experimental
         internal static TCursor GetUninitializedStatic()
         {
             var reusable = _reusable;
-            if (reusable != null && ReferenceEquals(reusable,
+            if (!ReferenceEquals(reusable, null) && ReferenceEquals(reusable,
                     Interlocked.CompareExchange(ref _reusable, null, reusable)))
             {
                 // _inUse == -1 means that the object is as "if not created", it is dead, void...

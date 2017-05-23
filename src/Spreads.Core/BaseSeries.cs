@@ -285,7 +285,7 @@ namespace Spreads
         public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
             ==(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            if (series == null) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
             var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, EQOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -296,7 +296,7 @@ namespace Spreads
         public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
             ==(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            if (series == null) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
             var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, EQOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -307,7 +307,7 @@ namespace Spreads
         public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
             !=(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            if (series == null) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
             var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, NEQOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -318,7 +318,7 @@ namespace Spreads
         public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
             !=(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            if (series == null) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
             var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, NEQOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -329,7 +329,7 @@ namespace Spreads
         public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
             <(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            if (series == null) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
             var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, LTOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -340,7 +340,7 @@ namespace Spreads
         public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
             <(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            if (series == null) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
             var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, LTReverseOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -351,7 +351,7 @@ namespace Spreads
         public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
             >(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            if (series == null) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
             var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, GTOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -362,7 +362,7 @@ namespace Spreads
         public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
             >(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            if (series == null) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
             var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, GTReverseOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -373,7 +373,7 @@ namespace Spreads
         public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
             <=(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            if (series == null) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
             var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, LEOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -384,7 +384,7 @@ namespace Spreads
         public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
             <=(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            if (series == null) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
             var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, LEReverseOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -394,7 +394,7 @@ namespace Spreads
         /// </summary>
         public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator >=(BaseSeries<TKey, TValue> series, TValue comparand)
         {
-            if (series == null) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
             var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, GEOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -405,14 +405,16 @@ namespace Spreads
         public static CursorSeries<TKey, bool, ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>> operator
             >=(TValue comparand, BaseSeries<TKey, TValue> series)
         {
-            if (series == null) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
             var cursor = new ComparisonCursor<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand, GEReverseOp<TValue>.Instance);
             return cursor.Source;
         }
 
-        #endregion
+        #endregion Unary Operators
 
         #region Binary Operators
+
+        // BINARY ARITHMETIC
 
         /// <summary>
         /// Add operator.
@@ -621,6 +623,266 @@ namespace Spreads
             Func<TKey, TValue, TValue, TValue> selector = ModuloOp<TValue>.ZipSelector;
 
             var zipCursor = new ZipCursor<TKey, TValue, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, selector);
+            return zipCursor.Source;
+        }
+
+        // BINARY LOGIC
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            ==(BaseSeries<TKey, TValue> series, BaseSeries<TKey, TValue> other)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            var c1 = series.GetWrapper();
+            var c2 = other.GetWrapper();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, EQOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            ==(CursorSeries<TKey, TValue, Cursor<TKey, TValue>> series, BaseSeries<TKey, TValue> other)
+        {
+            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            var c1 = series.GetEnumerator();
+            var c2 = other.GetWrapper();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, EQOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            ==(BaseSeries<TKey, TValue> series, CursorSeries<TKey, TValue, Cursor<TKey, TValue>> other)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var c1 = series.GetWrapper();
+            var c2 = other.GetEnumerator();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, EQOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            !=(BaseSeries<TKey, TValue> series, BaseSeries<TKey, TValue> other)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            var c1 = series.GetWrapper();
+            var c2 = other.GetWrapper();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, NEQOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            !=(CursorSeries<TKey, TValue, Cursor<TKey, TValue>> series, BaseSeries<TKey, TValue> other)
+        {
+            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            var c1 = series.GetEnumerator();
+            var c2 = other.GetWrapper();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, NEQOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            !=(BaseSeries<TKey, TValue> series, CursorSeries<TKey, TValue, Cursor<TKey, TValue>> other)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var c1 = series.GetWrapper();
+            var c2 = other.GetEnumerator();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, NEQOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            <=(BaseSeries<TKey, TValue> series, BaseSeries<TKey, TValue> other)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            var c1 = series.GetWrapper();
+            var c2 = other.GetWrapper();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, LEOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            <=(CursorSeries<TKey, TValue, Cursor<TKey, TValue>> series, BaseSeries<TKey, TValue> other)
+        {
+            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            var c1 = series.GetEnumerator();
+            var c2 = other.GetWrapper();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, LEOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            <=(BaseSeries<TKey, TValue> series, CursorSeries<TKey, TValue, Cursor<TKey, TValue>> other)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var c1 = series.GetWrapper();
+            var c2 = other.GetEnumerator();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, LEOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            >=(BaseSeries<TKey, TValue> series, BaseSeries<TKey, TValue> other)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            var c1 = series.GetWrapper();
+            var c2 = other.GetWrapper();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, GEOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            >=(CursorSeries<TKey, TValue, Cursor<TKey, TValue>> series, BaseSeries<TKey, TValue> other)
+        {
+            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            var c1 = series.GetEnumerator();
+            var c2 = other.GetWrapper();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, GEOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            >=(BaseSeries<TKey, TValue> series, CursorSeries<TKey, TValue, Cursor<TKey, TValue>> other)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var c1 = series.GetWrapper();
+            var c2 = other.GetEnumerator();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, GEOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            <(BaseSeries<TKey, TValue> series, BaseSeries<TKey, TValue> other)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            var c1 = series.GetWrapper();
+            var c2 = other.GetWrapper();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, LTOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            <(CursorSeries<TKey, TValue, Cursor<TKey, TValue>> series, BaseSeries<TKey, TValue> other)
+        {
+            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            var c1 = series.GetEnumerator();
+            var c2 = other.GetWrapper();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, LTOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            <(BaseSeries<TKey, TValue> series, CursorSeries<TKey, TValue, Cursor<TKey, TValue>> other)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var c1 = series.GetWrapper();
+            var c2 = other.GetEnumerator();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, LTOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            >(BaseSeries<TKey, TValue> series, BaseSeries<TKey, TValue> other)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            var c1 = series.GetWrapper();
+            var c2 = other.GetWrapper();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, GTOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            >(CursorSeries<TKey, TValue, Cursor<TKey, TValue>> series, BaseSeries<TKey, TValue> other)
+        {
+            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            var c1 = series.GetEnumerator();
+            var c2 = other.GetWrapper();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, GTOp<TValue>.ZipSelector);
+            return zipCursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static CursorSeries<TKey, bool, ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>> operator
+            >(BaseSeries<TKey, TValue> series, CursorSeries<TKey, TValue, Cursor<TKey, TValue>> other)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var c1 = series.GetWrapper();
+            var c2 = other.GetEnumerator();
+
+            var zipCursor = new ZipCursor<TKey, TValue, TValue, bool, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2, GTOp<TValue>.ZipSelector);
             return zipCursor.Source;
         }
 

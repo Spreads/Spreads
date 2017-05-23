@@ -16,7 +16,7 @@ namespace Spreads.Cursors.Experimental
     /// A series that applies a selector to each value of its input series. Specialized for input cursor.
     /// </summary>
     [Obsolete("Use CursorSeries")] // TODO delete this class
-    public class RangeSeries<TKey, TValue, TCursor> :
+    internal class RangeSeries<TKey, TValue, TCursor> :
         AbstractCursorSeries<TKey, TValue, RangeSeries<TKey, TValue, TCursor>>,
         ISpecializedCursor<TKey, TValue, RangeSeries<TKey, TValue, TCursor>> //, ICanMapValues<TKey, TValue>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
