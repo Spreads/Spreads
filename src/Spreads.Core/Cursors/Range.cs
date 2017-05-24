@@ -1,10 +1,11 @@
-// This Source Code Form is subject to the terms of the Mozilla Public
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,22 +13,23 @@ using System.Threading.Tasks;
 namespace Spreads.Cursors
 {
     /// <summary>
-    /// An <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation to each value of its input series.
+    /// Range cursor.
     /// </summary>
-    public struct ArithmeticCursor<TKey, TValue, TOp, TCursor> :
-        ICursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, TOp, TCursor>>
+    public struct Range<TKey, TValue, TCursor> :
+        ICursorSeries<TKey, TValue, Range<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
-        where TOp : struct, IOp<TValue>
     {
         #region Cursor state
 
-        // This region must contain all cursor state that is passed via constructor.
-        // No additional state must be created.
-        // All state elements should be assigned in Initialize and Clone methods
-        // All inner cursors must be disposed in the Dispose method but references to them must be kept (they could be used as factories)
-        // for re-initialization.
+        private bool _endInclusive;
+        private Opt<TKey> _endKey;
+        private bool _startInclusive;
+        private Opt<TKey> _startKey;
+        private bool _atEnd;
+        private bool _atStart;
 
-        internal TValue _value;
+        private Lookup _endLookup => _endInclusive ? Lookup.LE : Lookup.LT;
+        private Lookup _startLookup => _startInclusive ? Lookup.GE : Lookup.GT;
 
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
@@ -39,10 +41,21 @@ namespace Spreads.Cursors
 
         #region Constructors
 
-        internal ArithmeticCursor(TCursor cursor, TValue value) : this()
+        internal Range(TCursor cursor,
+            Opt<TKey> startKey, Opt<TKey> endKey,
+            bool startInclusive = true, bool endInclusive = true) : this()
         {
-            _value = value;
+            if (cursor.Source.IsIndexed)
+            {
+                throw new NotSupportedException("RangeSeries is not supported for indexed series, only for sorted ones.");
+            }
+
             _cursor = cursor;
+
+            _startKey = startKey;
+            _endKey = endKey;
+            _startInclusive = startInclusive;
+            _endInclusive = endInclusive;
         }
 
         #endregion Constructors
@@ -50,26 +63,34 @@ namespace Spreads.Cursors
         #region Lifetime management
 
         /// <inheritdoc />
-        public ArithmeticCursor<TKey, TValue, TOp, TCursor> Clone()
+        public Range<TKey, TValue, TCursor> Clone()
         {
-            var instance = new ArithmeticCursor<TKey, TValue, TOp, TCursor>
+            var instance = new Range<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Clone(),
-                _value = _value,
+                _startKey = _startKey,
+                _endKey = _endKey,
+                _startInclusive = _startInclusive,
+                _endInclusive = _endInclusive,
                 State = State
             };
+
             return instance;
         }
 
         /// <inheritdoc />
-        public ArithmeticCursor<TKey, TValue, TOp, TCursor> Initialize()
+        public Range<TKey, TValue, TCursor> Initialize()
         {
-            var instance = new ArithmeticCursor<TKey, TValue, TOp, TCursor>
+            var instance = new Range<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Initialize(),
-                _value = _value,
+                _startKey = _startKey,
+                _endKey = _endKey,
+                _startInclusive = _startInclusive,
+                _endInclusive = _endInclusive,
                 State = CursorState.Initialized
             };
+
             return instance;
         }
 
@@ -78,7 +99,7 @@ namespace Spreads.Cursors
         {
             // NB keep cursor state for reuse
             // dispose is called on the result of Initialize(), the cursor from
-            // constructor could be uninitialized but contain some state, e.g. _value for this ArithmeticCursor
+            // constructor could be uninitialized but contain some state, e.g. _value for this RangeCursor
             _cursor.Dispose();
             State = CursorState.None;
         }
@@ -96,6 +117,52 @@ namespace Spreads.Cursors
         }
 
         #endregion Lifetime management
+
+        #region Custom members
+
+        /// <summary>
+        /// End key is inclusive or missing.
+        /// </summary>
+        public bool EndInclusive => _endInclusive;
+
+        /// <summary>
+        /// Start key is inclusive or missing.
+        /// </summary>
+        public bool StartInclusive => _startInclusive;
+
+        /// <summary>
+        /// End key
+        /// </summary>
+        public Opt<TKey> EndKey => _endKey;
+
+        /// <summary>
+        /// Start key
+        /// </summary>
+        public Opt<TKey> StartKey => _startKey;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool EndOk(TKey key)
+        {
+            if (!_endKey.IsPresent) return true;
+            var c = _cursor.Comparer.Compare(key, _endKey.Value);
+            return _endInclusive ? c <= 0 : c < 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool InRange(TKey key)
+        {
+            return StartOk(key) && EndOk(key);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool StartOk(TKey key)
+        {
+            if (!_startKey.IsPresent) return true;
+            var c = _cursor.Comparer.Compare(key, _startKey.Value);
+            return _startInclusive ? c >= 0 : c > 0;
+        }
+
+        #endregion Custom members
 
         #region ICursor members
 
@@ -119,7 +186,7 @@ namespace Spreads.Cursors
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return default(TOp).Apply(_cursor.CurrentValue, _value);
+                return _cursor.CurrentValue;
             }
         }
 
@@ -138,10 +205,9 @@ namespace Spreads.Cursors
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out TValue value)
         {
-            if (_cursor.TryGetValue(key, out var v))
+            if (InRange(key))
             {
-                value = default(TOp).Apply(v, _value);
-                return true;
+                return _cursor.TryGetValue(key, out value);
             }
             value = default(TValue);
             return false;
@@ -155,12 +221,26 @@ namespace Spreads.Cursors
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
+            // must return to the position if false move
+            var beforeMove = _cursor.CurrentKey;
             var moved = _cursor.MoveAt(key, direction);
+            if (InRange(_cursor.CurrentKey))
+            {
+                Debug.Assert(State > 0);
+                // keep navigating state unchanged
+                if (moved && State == CursorState.Initialized)
+                {
+                    State = CursorState.Moving;
+                }
+                _atEnd = false;
+                _atStart = false;
+                return moved;
+            }
             if (moved)
             {
-                State = CursorState.Moving;
+                _cursor.MoveAt(beforeMove, Lookup.EQ);
             }
-            return moved;
+            return false;
         }
 
         /// <inheritdoc />
@@ -171,12 +251,18 @@ namespace Spreads.Cursors
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
-            var moved = _cursor.MoveFirst();
-            if (moved)
+            if ((_startKey.IsPresent
+                 && _cursor.MoveAt(_startKey.Value, _startLookup)
+                 && InRange(_cursor.CurrentKey))
+                || (!_startKey.IsPresent && _cursor.MoveFirst()))
             {
                 State = CursorState.Moving;
+
+                _atEnd = false;
+                _atStart = false;
+                return true;
             }
-            return moved;
+            return false;
         }
 
         /// <inheritdoc />
@@ -187,12 +273,17 @@ namespace Spreads.Cursors
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
-            var moved = _cursor.MoveLast();
-            if (moved)
+            if ((_endKey.IsPresent
+                && _cursor.MoveAt(_endKey.Value, _endLookup)
+                && InRange(_cursor.CurrentKey))
+                || (!_endKey.IsPresent && _cursor.MoveLast()))
             {
                 State = CursorState.Moving;
+                _atEnd = false;
+                _atStart = false;
+                return true;
             }
-            return moved;
+            return false;
         }
 
         /// <inheritdoc />
@@ -200,7 +291,27 @@ namespace Spreads.Cursors
         public bool MoveNext()
         {
             if (State < CursorState.Moving) return MoveFirst();
-            return _cursor.MoveNext();
+
+            if (!_endKey.IsPresent)
+            {
+                return _cursor.MoveNext();
+            }
+            if (_atEnd)
+            {
+                return false;
+            }
+
+            var beforeMove = _cursor.CurrentKey;
+            var moved = _cursor.MoveNext();
+            if (EndOk(_cursor.CurrentKey))
+            {
+                return moved;
+            }
+            if (!moved) return false;
+            _cursor.MoveAt(beforeMove, Lookup.EQ);
+            _atEnd = true;
+
+            return false;
         }
 
         /// <inheritdoc />
@@ -211,6 +322,7 @@ namespace Spreads.Cursors
             {
                 ThrowHelper.ThrowInvalidOperationException($"CursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
+            Trace.TraceWarning("MoveNextBatch is not implemented in RangeCursor");
             return TaskEx.FalseTask;
         }
 
@@ -219,16 +331,37 @@ namespace Spreads.Cursors
         public bool MovePrevious()
         {
             if (State < CursorState.Moving) return MoveLast();
-            return _cursor.MovePrevious();
+
+            if (!_startKey.IsPresent)
+            {
+                return _cursor.MovePrevious();
+            }
+            if (_atStart)
+            {
+                return false;
+            }
+
+            var beforeMove = _cursor.CurrentKey;
+            var moved = _cursor.MovePrevious();
+            if (StartOk(_cursor.CurrentKey))
+            {
+                return moved;
+            }
+
+            if (!moved) return false;
+            _cursor.MoveAt(beforeMove, Lookup.EQ);
+            _atStart = true;
+
+            return false;
         }
 
-        /// <inheritdoc />
-        IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source => new CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(this);
-
         /// <summary>
-        /// Get a <see cref="CursorSeries{TKey,TValue,TCursor}"/> based on this cursor.
+        /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
-        public CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, TOp, TCursor>> Source => new CursorSeries<TKey, TValue, ArithmeticCursor<TKey, TValue, TOp, TCursor>>(this);
+        public Series<TKey, TValue, Range<TKey, TValue, TCursor>> Source => new Series<TKey, TValue, Range<TKey, TValue, TCursor>>(this);
+
+        /// <inheritdoc />
+        IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source => Source;
 
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken)
@@ -238,16 +371,7 @@ namespace Spreads.Cursors
 
         #endregion ICursor members
 
-        #region Custom Properties
-
-        /// <summary>
-        /// A value used by TOp.
-        /// </summary>
-        public TValue Value => _value;
-
-        #endregion Custom Properties
-
-        #region ICursorSeries members
+        #region ISpecializedCursorSeries members
 
         /// <inheritdoc />
         public bool IsIndexed => _cursor.Source.IsIndexed;
@@ -263,11 +387,17 @@ namespace Spreads.Cursors
         /// <inheritdoc />
         public Task<bool> Updated
         {
-            // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.Updated; }
+            get
+            {
+                if (!_atEnd && (State != CursorState.Moving | EndOk(_cursor.CurrentKey)))
+                {
+                    return _cursor.Source.Updated;
+                }
+                return TaskEx.FalseTask;
+            }
         }
 
-        #endregion ICursorSeries members
+        #endregion ISpecializedCursorSeries members
     }
 }

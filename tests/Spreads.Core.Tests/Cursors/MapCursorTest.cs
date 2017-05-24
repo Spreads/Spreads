@@ -25,6 +25,20 @@ namespace Spreads.Core.Tests.Cursors
                 { 1, 1 }
             };
 
+            Series<int, double, Range<int, double, SortedMapCursor<int, double>>> s1;
+            s1 = sm.After(1);
+            // TODO see the moster signature!
+            // try to swap Map with Range (or any CursorSeries) so that this signature could
+            // be automatically reduced to just two step
+            var m2 = s1.Map((x) => x + 1).After(1)
+                .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
+                .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
+                .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
+                .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
+                .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
+                .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
+                .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1);
+
             var map = new MapValuesSeries<int, double, double, SortedMapCursor<int, double>>(sm.GetEnumerator(), i => i * 2);
             var map1 = new MapValuesSeries<int, double, double, MapValuesSeries<int, double, double, SortedMapCursor<int, double>>>(map, i => i * 2);
             var map2 = new MapValuesSeries<int, double, double, Cursor<int, double>>(new Cursor<int, double>(map.Range(0, Int32.MaxValue, true, true).GetEnumerator()), i => i * 2);

@@ -27,13 +27,13 @@ namespace Spreads.Core.Tests.Cursors
             using (Benchmark.Run("ZipDiscrete", count * 2))
             {
                 var zipCursor =
-                    new ZipCursor<int, double, double, double, SortedMapCursor<int, double>,
+                    new Zip<int, double, double, SortedMapCursor<int, double>,
                         SortedMapCursor<int, double>>(
-                        c1, c2, (_, v1, v2) => v1 + v2).Initialize();
+                        c1, c2).Initialize();
 
                 while (zipCursor.MoveNext())
                 {
-                    actual += zipCursor.CurrentValue;
+                    actual += zipCursor.Map((k, v) => v.Item1 + v.Item2).CurrentValue;
                 }
             }
 
@@ -114,13 +114,13 @@ namespace Spreads.Core.Tests.Cursors
                 using (Benchmark.Run("ZipDiscrete", sm1.Count + sm2.Count))
                 {
                     var zipCursor =
-                        new ZipCursor<int, double, double, double, SortedMapCursor<int, double>,
+                        new Zip<int, double, double, SortedMapCursor<int, double>,
                             SortedMapCursor<int, double>>(
-                            c1, c2, (_, v1, v2) => v1 + v2).Initialize();
+                            c1, c2).Initialize();
 
                     while (zipCursor.MoveNext())
                     {
-                        actual += zipCursor.CurrentValue;
+                        actual += zipCursor.Map((k, v) => v.Item1 + v.Item2).CurrentValue;
                     }
                 }
 

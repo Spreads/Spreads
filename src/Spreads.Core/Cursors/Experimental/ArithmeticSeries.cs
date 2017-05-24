@@ -269,7 +269,7 @@ namespace Spreads.Cursors.Experimental
 
         #endregion ICursor members
 
-        #region BaseSeries overrides
+        #region Series overrides
 
         /// <inheritdoc />
         public override bool IsIndexed => _cursor.Source.IsIndexed;
@@ -289,9 +289,9 @@ namespace Spreads.Cursors.Experimental
             return default(TOp).Apply(_cursor.Source.GetAt(idx), _value);
         }
 
-        #endregion BaseSeries overrides
+        #endregion Series overrides
 
-        //BaseSeries<TKey, TValue1> ICanMapValues<TKey, TValue>.Map<TValue1>(Func<TValue, TValue1> selector, Func<Buffer<TValue>, Buffer<TValue1>> batchSelector)
+        //Series<TKey, TValue1> ICanMapValues<TKey, TValue>.Map<TValue1>(Func<TValue, TValue1> selector, Func<Buffer<TValue>, Buffer<TValue1>> batchSelector)
         //{
         //    if (batchSelector != null)
         //    {

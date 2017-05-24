@@ -16,7 +16,7 @@ namespace Spreads.Cursors.Experimental
     /// Base abstract class for cursor series (objects that implement both <see cref="IReadOnlySeries{TKey, TValue}"/> and <see cref="ICursor{TKey, TValue}"/>).
     /// </summary>
     [Obsolete("Use CursorSeries")]
-    internal abstract class AbstractCursorSeries<TKey, TValue, TCursor> : BaseSeries<TKey, TValue> // TODO, ISpecializedSeries<TKey, TValue, TCursor>
+    internal abstract class AbstractCursorSeries<TKey, TValue, TCursor> : Series<TKey, TValue> // TODO, ISpecializedSeries<TKey, TValue, TCursor>
         where TCursor : AbstractCursorSeries<TKey, TValue, TCursor>, ISpecializedCursor<TKey, TValue, TCursor>, new()
     {
         /// <summary>
@@ -55,7 +55,7 @@ namespace Spreads.Cursors.Experimental
         /// </summary>
         public abstract TCursor Initialize();
 
-        #region BaseSeries overrides
+        #region Series overrides
 
         /// <inheritdoc />
         public sealed override ICursor<TKey, TValue> GetCursor()
@@ -196,7 +196,7 @@ namespace Spreads.Cursors.Experimental
             }
         }
 
-        #endregion BaseSeries overrides
+        #endregion Series overrides
 
         /// <summary>
         /// Get pooled or new <typeparamref name="TCursor"/> uninitialized instance.

@@ -172,7 +172,7 @@ and RowPanel<'TRowKey,'TColumnKey, 'TValue> (rows:Series<'TRowKey, 'TValue[]>, c
 
 
   override this.GetCursor() : ICursor<'TRowKey, Series<'TColumnKey, 'TValue>> = 
-    new Spreads.Cursors.MapCursor<'TRowKey,'TValue[],Series<'TColumnKey, 'TValue>, _>(rows.GetSpecializedCursor(),
+    new Spreads.Cursors.Map<'TRowKey,'TValue[],Series<'TColumnKey, 'TValue>, _>(rows.GetSpecializedCursor(),
       Func<'TRowKey,'TValue[],Series<'TColumnKey, 'TValue>>(fun _ vArr -> 
         if isIndexed then
             let res = IndexedMap.OfSortedKeysAndValues(columnKeys, vArr) :> Series<'TColumnKey, 'TValue>

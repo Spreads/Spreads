@@ -20,8 +20,7 @@
     <Compile Include="Interfaces.fs" />
     <Compile Include="ISeriesExtensions.fs" />
     <Compile Include="OptimizationSettings.fs" />
-    <Compile Include="Series.fs" />
-    <Compile Include="MutableSeries.fs" />
+    <Compile Include="ZipN.fs" />
     <Compile Include="BaseCursor.fs" />
     <Compile Include="Collections/Collections.fs" />
     <Compile Include="Collections/ImmutableIntMap64.fs" />
@@ -60,7 +59,7 @@
     <PackageReference Include="System.Buffers" Version="4.3.0" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.3.0" />
     <PackageReference Include="System.Numerics.Vectors" Version="4.3.0" />
-    <PackageReference Include="System.ValueTuple" Version="4.3.0" />
+    <PackageReference Include="System.ValueTuple" Version="4.3.1" />
     <PackageReference Include="FSharp.Core" Version="4.1.*" />
     <PackageReference Include="FSharp.NET.Sdk" Version="1.0.*" PrivateAssets="All" />
   </ItemGroup>

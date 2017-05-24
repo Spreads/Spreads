@@ -12,10 +12,10 @@ using System.Threading.Tasks;
 namespace Spreads.Cursors
 {
     /// <summary>
-    /// An <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation to each value of its input series.
+    /// An <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that applies an operation to each value of its input series.
     /// </summary>
-    public struct FillCursor<TKey, TValue,  TCursor> :
-        ICursorSeries<TKey, TValue, FillCursor<TKey, TValue, TCursor>>
+    public struct Comparison<TKey, TValue, TCursor> :
+        ICursorSeries<TKey, bool, Comparison<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         #region Cursor state
@@ -26,11 +26,15 @@ namespace Spreads.Cursors
         // All inner cursors must be disposed in the Dispose method but references to them must be kept (they could be used as factories)
         // for re-initialization.
 
+        private IOp<TValue, bool> _op;
+
         internal TValue _value;
 
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal TCursor _cursor;
+
+
 
         internal CursorState State { get; set; }
 
@@ -38,8 +42,9 @@ namespace Spreads.Cursors
 
         #region Constructors
 
-        internal FillCursor(TCursor cursor, TValue value) : this()
+        internal Comparison(TCursor cursor, TValue value, IOp<TValue, bool> op) : this()
         {
+            _op = op;
             _value = value;
             _cursor = cursor;
         }
@@ -49,11 +54,12 @@ namespace Spreads.Cursors
         #region Lifetime management
 
         /// <inheritdoc />
-        public FillCursor<TKey, TValue,  TCursor> Clone()
+        public Comparison<TKey, TValue, TCursor> Clone()
         {
-            var instance = new FillCursor<TKey, TValue,  TCursor>
+            var instance = new Comparison<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Clone(),
+                _op = _op,
                 _value = _value,
                 State = State
             };
@@ -61,11 +67,12 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public FillCursor<TKey, TValue,  TCursor> Initialize()
+        public Comparison<TKey, TValue, TCursor> Initialize()
         {
-            var instance = new FillCursor<TKey, TValue,  TCursor>
+            var instance = new Comparison<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Initialize(),
+                _op = _op,
                 _value = _value,
                 State = CursorState.Initialized
             };
@@ -77,7 +84,7 @@ namespace Spreads.Cursors
         {
             // NB keep cursor state for reuse
             // dispose is called on the result of Initialize(), the cursor from
-            // constructor could be uninitialized but contain some state, e.g. _value for this FillCursor
+            // constructor could be uninitialized but contain some state, e.g. _value for this ComparisonCursor
             _cursor.Dispose();
             State = CursorState.None;
         }
@@ -89,7 +96,7 @@ namespace Spreads.Cursors
             State = CursorState.Initialized;
         }
 
-        ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
+        ICursor<TKey, bool> ICursor<TKey, bool>.Clone()
         {
             return Clone();
         }
@@ -99,10 +106,10 @@ namespace Spreads.Cursors
         #region ICursor members
 
         /// <inheritdoc />
-        public KeyValuePair<TKey, TValue> Current
+        public KeyValuePair<TKey, bool> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue); }
+            get { return new KeyValuePair<TKey, bool>(CurrentKey, CurrentValue); }
         }
 
         /// <inheritdoc />
@@ -113,17 +120,17 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public TValue CurrentValue
+        public bool CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return _cursor.CurrentValue;
+                return _op.Apply(_cursor.CurrentValue, _value);
             }
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> CurrentBatch => throw new NotSupportedException();
+        public IReadOnlySeries<TKey, bool> CurrentBatch => throw new NotSupportedException();
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
@@ -131,19 +138,19 @@ namespace Spreads.Cursors
         object IEnumerator.Current => Current;
 
         /// <inheritdoc />
-        public bool IsContinuous => true;
+        public bool IsContinuous => _cursor.IsContinuous;
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
+        public bool TryGetValue(TKey key, out bool value)
         {
             if (_cursor.TryGetValue(key, out var v))
             {
-                value = v;
+                value = _op.Apply(v, _value);
                 return true;
             }
-            value = _value;
-            return true;
+            value = default(bool);
+            return false;
         }
 
         /// <inheritdoc />
@@ -222,12 +229,12 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source => new CursorSeries<TKey, TValue, FillCursor<TKey, TValue,  TCursor>>(this);
+        IReadOnlySeries<TKey, bool> ICursor<TKey, bool>.Source => new Series<TKey, bool, Comparison<TKey, TValue, TCursor>>(this);
 
         /// <summary>
-        /// Get a <see cref="CursorSeries{TKey,TValue,TCursor}"/> based on this cursor.
+        /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
-        public CursorSeries<TKey, TValue, FillCursor<TKey, TValue,  TCursor>> Source => new CursorSeries<TKey, TValue, FillCursor<TKey, TValue,  TCursor>>(this);
+        public Series<TKey, bool, Comparison<TKey, TValue, TCursor>> Source => new Series<TKey, bool, Comparison<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken)
@@ -244,7 +251,8 @@ namespace Spreads.Cursors
         /// </summary>
         public TValue Value => _value;
 
-        #endregion Custom Properties
+        #endregion
+
 
         #region ICursorSeries members
 
@@ -267,6 +275,7 @@ namespace Spreads.Cursors
             get { return _cursor.Source.Updated; }
         }
 
-        #endregion ICursorSeries members
+        #endregion
+
     }
 }

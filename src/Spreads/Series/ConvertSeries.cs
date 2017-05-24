@@ -98,6 +98,13 @@ namespace Spreads
             return new ConvertCursor(Inner.GetCursor(), this as TImpl);
         }
 
+        public override Task<bool> Updated => Inner.Updated;
+
+        public override TValue2 GetAt(int idx)
+        {
+            return ToValue2(Inner.GetAt(idx));
+        }
+
         public static TImpl Create(IReadOnlySeries<TKey, TValue> innerSeries)
         {
             TImpl instance;

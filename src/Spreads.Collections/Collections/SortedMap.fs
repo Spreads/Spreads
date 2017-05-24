@@ -42,7 +42,7 @@ open Spreads.Collections
 [<DebuggerDisplay("SortedMap: Count = {Count}")>]
 type SortedMap<'K,'V>
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:KeyComparer<'K> option) as this=
-  inherit Series<'K,'V>()
+  inherit ContainerSeries<'K,'V>()
   static do
     SortedMap<'K,'V>.Init()
 

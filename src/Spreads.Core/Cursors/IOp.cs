@@ -44,9 +44,9 @@ namespace Spreads.Cursors
 
     public struct AddOp<T> : IOp<T>
     {
-        internal static T ZipSelector<TKey>(TKey key, T left, T right)
+        internal static T ZipSelector<TKey>(TKey key, (T,T) value)
         {
-            return default(AddOp<T>).Apply(left, right);
+            return default(AddOp<T>).Apply(value.Item1, value.Item2);
         }
 
         [Pure]
@@ -107,9 +107,9 @@ namespace Spreads.Cursors
 
     public struct MultiplyOp<T> : IOp<T>
     {
-        internal static T ZipSelector<TKey>(TKey key, T left, T right)
+        internal static T ZipSelector<TKey>(TKey key, (T,T) value)
         {
-            return default(MultiplyOp<T>).Apply(left, right);
+            return default(MultiplyOp<T>).Apply(value.Item1, value.Item2);
         }
 
         [Pure]
@@ -164,9 +164,9 @@ namespace Spreads.Cursors
 
     public struct SubtractOp<T> : IOp<T>
     {
-        internal static T ZipSelector<TKey>(TKey key, T left, T right)
+        internal static T ZipSelector<TKey>(TKey key, (T,T) value)
         {
-            return default(SubtractOp<T>).Apply(left, right);
+            return default(SubtractOp<T>).Apply(value.Item1, value.Item2);
         }
 
         [Pure]
@@ -273,9 +273,9 @@ namespace Spreads.Cursors
 
     public struct DivideOp<T> : IOp<T>
     {
-        internal static T ZipSelector<TKey>(TKey key, T left, T right)
+        internal static T ZipSelector<TKey>(TKey key, (T,T) value)
         {
-            return default(DivideOp<T>).Apply(left, right);
+            return default(DivideOp<T>).Apply(value.Item1, value.Item2);
         }
 
         [Pure]
@@ -362,9 +362,9 @@ namespace Spreads.Cursors
 
     public struct ModuloOp<T> : IOp<T>
     {
-        internal static T ZipSelector<TKey>(TKey key, T left, T right)
+        internal static T ZipSelector<TKey>(TKey key, (T,T) value)
         {
-            return default(ModuloOp<T>).Apply(left, right);
+            return default(ModuloOp<T>).Apply(value.Item1, value.Item2);
         }
 
         [Pure]
@@ -540,9 +540,9 @@ namespace Spreads.Cursors
 
     public struct LTOp<T> : IOp<T, bool>
     {
-        internal static bool ZipSelector<TKey>(TKey key, T left, T right)
+        internal static bool ZipSelector<TKey>(TKey key, (T,T) value)
         {
-            return default(LTOp<T>).Apply(left, right);
+            return default(LTOp<T>).Apply(value.Item1, value.Item2);
         }
 
         internal static IOp<T, bool> Instance = default(LTOp<T>);
@@ -643,9 +643,9 @@ namespace Spreads.Cursors
 
     public struct LEOp<T> : IOp<T, bool>
     {
-        internal static bool ZipSelector<TKey>(TKey key, T left, T right)
+        internal static bool ZipSelector<TKey>(TKey key, (T,T) value)
         {
-            return default(LEOp<T>).Apply(left, right);
+            return default(LEOp<T>).Apply(value.Item1, value.Item2);
         }
 
         internal static IOp<T, bool> Instance = default(LEOp<T>);
@@ -746,9 +746,9 @@ namespace Spreads.Cursors
 
     public struct GTOp<T> : IOp<T, bool>
     {
-        internal static bool ZipSelector<TKey>(TKey key, T left, T right)
+        internal static bool ZipSelector<TKey>(TKey key, (T,T) value)
         {
-            return default(GTOp<T>).Apply(left, right);
+            return default(GTOp<T>).Apply(value.Item1, value.Item2);
         }
 
         internal static IOp<T, bool> Instance = default(GTOp<T>);
@@ -849,9 +849,9 @@ namespace Spreads.Cursors
 
     public struct GEOp<T> : IOp<T, bool>
     {
-        internal static bool ZipSelector<TKey>(TKey key, T left, T right)
+        internal static bool ZipSelector<TKey>(TKey key, (T,T) value)
         {
-            return default(GEOp<T>).Apply(left, right);
+            return default(GEOp<T>).Apply(value.Item1, value.Item2);
         }
 
         internal static IOp<T, bool> Instance = default(GEOp<T>);
@@ -952,9 +952,9 @@ namespace Spreads.Cursors
 
     public struct EQOp<T> : IOp<T, bool>
     {
-        internal static bool ZipSelector<TKey>(TKey key, T left, T right)
+        internal static bool ZipSelector<TKey>(TKey key, (T,T) value)
         {
-            return default(EQOp<T>).Apply(left, right);
+            return default(EQOp<T>).Apply(value.Item1, value.Item2);
         }
 
         internal static IOp<T, bool> Instance = default(EQOp<T>);
@@ -1006,9 +1006,9 @@ namespace Spreads.Cursors
 
     public struct NEQOp<T> : IOp<T, bool>
     {
-        internal static bool ZipSelector<TKey>(TKey key, T left, T right)
+        internal static bool ZipSelector<TKey>(TKey key, (T,T) value)
         {
-            return default(NEQOp<T>).Apply(left, right);
+            return default(NEQOp<T>).Apply(value.Item1, value.Item2);
         }
 
         internal static IOp<T, bool> Instance = default(NEQOp<T>);

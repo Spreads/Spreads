@@ -180,11 +180,17 @@ namespace Spreads
         Task<bool> Updated { get; }
     }
 
-    // TODO
-    public interface ISpecializedSeries<TKey, TValue, TCursor> : ISeries<TKey, TValue>
-        where TCursor : ICursor<TKey, TValue>
+    /// <summary>
+    /// A series with a known strongly typed cursor type.
+    /// </summary>
+    internal interface ISpecializedSeries<TKey, TValue, TCursor> : ISeries<TKey, TValue>
+        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
-        new TCursor GetCursor();
+        /// <summary>
+        /// Get a strongly typed cursor that implements the <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/> interface.
+        /// </summary>
+        /// <returns></returns>
+        TCursor GetCursor();
     }
 
     // TODO (docs) review the contract (together with IAsynEnumerable above) and format the xml doc
@@ -192,6 +198,8 @@ namespace Spreads
     /// <summary>
     /// ICursor is an advanced enumerator that supports moves to first, last, previous, next, next batch, exact
     /// positions and relative LT/LE/GT/GE moves.
+    /// </summary>
+    /// <remarks>
     /// Cursor is resilient to changes in an underlying sequence during movements, e.g. the
     /// sequence could grow during move next. (See documentation for out of order behavior.)
     ///
@@ -219,7 +227,7 @@ namespace Spreads
     ///    So if update is before the current position of a cursor, then throw. If after - then this doesn't affect the cursor in any way.
     ///    TODO cursor could implement IUpdateable when source does, or pass through to CursorSeries
     ///
-    /// </summary>
+    /// </remarks>
     public interface ICursor<TKey, TValue>
         : IAsyncEnumerator<KeyValuePair<TKey, TValue>>
     {

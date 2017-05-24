@@ -27,81 +27,29 @@ open Spreads.Collections
 //type internal ICanMapSeriesValues<'K,'V> =
 //  abstract member Map: mapFunc:('V->'V1) * fBatch:(ArraySegment<'V>->ArraySegment<'V1>) opt -> Series<'K,'V1>
 
-type
-  [<AllowNullLiteral>]
-  [<AbstractClass>]
-  //[<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-  Series<'K,'V> internal() =
-    inherit ContainerSeries<'K,'V>()
 
-    [<DefaultValueAttribute>]
-    val mutable internal Locker : int
-
-    member val SyncRoot = new obj() with get, set
-
-    //override this.Updated 
-    //  with [<MethodImpl(MethodImplOptions.AggressiveInlining)>] get() : Task<bool> = raise (NotImplementedException())
-
-    // TODO (!) IObservable needs much more love and adherence to Rx contracts, see #40
-    // TODO Move to BaseSeries
-    override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
-      let entered = enterWriteLockIf &this.Locker true
-      try
-        //raise (NotImplementedException("TODO Rx. Subscribe must be implemented via a cursor."))
-        match box observer with
-        | :? ISubscriber<KVP<'K,'V>> as subscriber ->
-          raise (NotSupportedException("TODO Add reactive streams support"))
-          let subscription : ISubscription = Unchecked.defaultof<_>
-          subscription :> IDisposable
-        | _ ->
-          let cts = new CancellationTokenSource()
-          let ct = cts.Token
-          Task.Run(fun _ ->
-            this.Do((fun k v -> observer.OnNext(KVP(k,v))), ct).ContinueWith(fun (t:Task<bool>) ->
-              match t.Status with
-              | TaskStatus.RanToCompletion ->
-                if t.Result then
-                  observer.OnCompleted()
-                else
-                  raise (NotSupportedException("This overload of Do() should only return true"))
-              | TaskStatus.Canceled -> observer.OnError(OperationCanceledException())
-              | TaskStatus.Faulted -> observer.OnError(t.Exception)
-              | _ -> raise (NotSupportedException("TODO process all task statuses"))
-              ()
-            )
-          ) |> ignore
-          {
-          // NB finalizers should be only in types that are actually keeping some resource
-          //  new Object() with
-          //    member x.Finalize() = (x :?> IDisposable).Dispose()
-            new IDisposable with
-              member x.Dispose() = cts.Cancel();cts.Dispose();
-          }
-      finally
-        exitWriteLockIf &this.Locker true
-
-    override this.GetAt(idx:int) = this.Skip(Math.Max(0, idx-1)).First().Value
-
-
-and
-  // TODO (perf) base Series() implements IReadOnlySeries inefficiently, see comments in above type Series() implementation
-  /// Wraps Series over ICursor
-  [<AllowNullLiteral>]
-//  [<SealedAttribute>]
-//  [<DebuggerTypeProxy(typeof<SeriesDebuggerProxy<_,_>>)>]
-  CursorSeries<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
+[<AllowNullLiteral>]
+[<Obsolete>]
+type CursorSeries<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
     inherit Series<'K,'V>()
-    
+
+    //[<DefaultValueAttribute>]
+    //val mutable internal Locker : int
+
     let mutable cursor : ICursor<'K,'V> = Unchecked.defaultof<_>
 
     new(iseries:ISeries<'K,'V>) = CursorSeries<_,_>(iseries.GetCursor)
     internal new() = CursorSeries<_,_>(Unchecked.defaultof<Func<ICursor<'K,'V>>>)
+
+    member val SyncRoot = new obj() with get, set
 
     member private this.C
       with get () : ICursor<'K,'V> = 
         if cursor = Unchecked.defaultof<_> then
           Interlocked.CompareExchange(&cursor, this.GetCursor(), Unchecked.defaultof<_>) |> ignore
         cursor
+
+    override this.GetAt(idx:int) = this.Skip(Math.Max(0, idx-1)).First().Value
 
     //override this.GetCursor() = new BaseCursorAsync<'K,'V,ICursor<'K,'V>>(cursorFactory) :> ICursor<'K,'V>
     override this.GetCursor() = cursorFactory.Invoke() :> ICursor<'K,'V>
@@ -197,8 +145,7 @@ and
         }
 
 
-and
-  private UnionKeysCursor<'K,'V>([<ParamArray>] cursors:ICursor<'K,'V>[]) =
+type private UnionKeysCursor<'K,'V>([<ParamArray>] cursors:ICursor<'K,'V>[]) =
     let cmp = 
       let c' = cursors.[0].Comparer
       for c in cursors do

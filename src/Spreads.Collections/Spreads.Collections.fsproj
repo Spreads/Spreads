@@ -83,12 +83,10 @@
     <Compile Include="Common\SIMDArrayUtils.fs" />
     <Compile Include="Common\SIMDArray.fs" />
     <Compile Include="Common\Mappers.fs" />
-    <Compile Include="Index.fs" />
     <Compile Include="Interfaces.fs" />
     <Compile Include="ISeriesExtensions.fs" />
     <Compile Include="OptimizationSettings.fs" />
-    <Compile Include="Series.fs" />
-    <Compile Include="MutableSeries.fs" />
+    <Compile Include="ZipN.fs" />
     <Compile Include="BaseCursor.fs" />
     <Compile Include="Collections\Collections.fs" />
     <Compile Include="Collections\ImmutableIntMap64.fs" />
@@ -152,7 +150,7 @@
       <HintPath>..\..\packages\Spreads.Utils.0.8.1\lib\netstandard1.1\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
     <Reference Include="System.ValueTuple">
-      <HintPath>..\..\packages\System.ValueTuple.4.3.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
+      <HintPath>..\..\packages\System.ValueTuple.4.3.1\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

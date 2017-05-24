@@ -2,22 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 namespace Spreads
 
-open System
-
-open System.Collections
 open System.Collections.Generic
-open System.Threading
-open System.Threading.Tasks
 open System.Runtime.InteropServices
-
 
 [<AllowNullLiteral>]
 type internal IKeyHasher<'K> =
   /// Generates an order-preserving hash.
-  /// The hashes are used as bucket keys and should be a 
+  /// The hashes are used as bucket keys and should be a
   /// http://en.wikipedia.org/wiki/Monotonic_function
   abstract Hash: k:'K -> 'K
 
@@ -41,7 +34,6 @@ type IImmutableSeries<'K,'V> =
   abstract RemoveMany: k:'K * direction:Lookup -> IImmutableSeries<'K,'V>
   // not much sense to have a separate append method for immutable maps
 
-
 // Types are good, do not drop them. Use marker interfaces only if they really help to achieve something
 //[<AllowNullLiteral>]
 //type IPanel = interface end
@@ -50,7 +42,7 @@ type IImmutableSeries<'K,'V> =
 //type IPanel<'KC> = interface end
 //
 //[<AllowNullLiteral; Obsolete("Rethink it")>]
-//type ISeries<'K> = 
+//type ISeries<'K> =
 //    interface
 //        inherit IPanel<'K>
 //    end
@@ -61,7 +53,6 @@ type IImmutableSeries<'K,'V> =
 //    inherit ISeries<'K,'V>
 //    abstract Identity : 'TId with get
 
-
 //type internal OnNextHandler<'K,'V> = EventHandler<KVP<'K,'V>>
 //[<AllowNullLiteral>]
 //type internal IUpdateable<'K,'V> =
@@ -70,18 +61,16 @@ type IImmutableSeries<'K,'V> =
 ////  [<CLIEvent>]
 ////  abstract member OnComplete : IDelegateEvent<EventHandler>
 
-
 // TODO?? maybe this is enough? All other methods could be done as extensions??
 type IPanel<'TRowKey,'TColumnKey, 'TValue> =
   //ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>> // this is how it could be implemented
   inherit ISeries<'TRowKey,IReadOnlySeries<'TColumnKey,'TValue>> // this is how it is used most of the time
 
-
 //and    //TODO?? Panel could be replaced by extension methods on ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>>
 //  [<AllowNullLiteral>]
 //  IPanel<'TRowKey,'TColumnKey, 'TValue> =
 //    //inherit ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>>
-//    /// 
+//    ///
 //    abstract Columns: ISeries<'TColumnKey, ISeries<'TRowKey,'TValue>> with get
 //    /// Series of balanced row, i.e. when each column has a value for the key.
 //    /// This is the same as inner join in SQL.
@@ -101,8 +90,6 @@ type IPanel<'TRowKey,'TColumnKey, 'TValue> =
 //
 //
     // when adding a column, all rows must be invalidated
-
-
 
 // TODO! use ArraySegment instead of byte[] everywhere where byte[] could be a reusable buffer
 type ISerializer =

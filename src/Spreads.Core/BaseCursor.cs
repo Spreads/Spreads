@@ -27,7 +27,7 @@ namespace Spreads
         private CancellationToken _token;
 
         // NB factory could be more specific than GetCursor method of the source, which returns an interface
-        // At the same time, we need access to BaseSeries members and cannot use Source property of the cursor
+        // At the same time, we need access to Series members and cannot use Source property of the cursor
         //public BaseCursorAsync(ISeries<TKey, TValue> source, Func<TCursor> cursorFactory)
         //{
         //    //_source = source;

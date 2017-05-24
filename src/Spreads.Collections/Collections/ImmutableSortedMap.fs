@@ -576,7 +576,7 @@ namespace Spreads.Collections
     [<CompiledName("ImmutableSortedMap`2")>]
     type ImmutableSortedMap<[<EqualityConditionalOn>]'K,[<EqualityConditionalOn;ComparisonConditionalOn>]'V when 'K : comparison >
       internal(comparer: KeyComparer<'K>, tree: MapTree<'K,'V>) =
-      inherit Series<'K,'V>()
+      inherit ContainerSeries<'K,'V>()
 
       let syncRoot = new Object()
 
@@ -598,13 +598,14 @@ namespace Spreads.Collections
         let comparer = KeyComparer<'K>.Default
         new ImmutableSortedMap<_,_>(comparer,MapTree.ofSeq comparer (elements |> Seq.map (fun x -> x.Key,x.Value) ))
     
-      override m.Comparer = comparer
+      override this.Comparer = comparer
       //[<DebuggerBrowsable(DebuggerBrowsableState.Never)>]
       member internal m.Tree = tree
 
       override this.IsEmpty with get() = MapTree.isEmpty tree
       override this.IsIndexed with get() = false
       override this.IsReadOnly with get() = true
+      override this.Updated = TaskEx.FalseTask
 
       override this.First
         with get() = 

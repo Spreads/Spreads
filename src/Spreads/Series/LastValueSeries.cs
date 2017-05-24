@@ -9,11 +9,11 @@ using System.Collections.Generic;
 namespace Spreads
 {
     /// <summary>
-    /// Series that keeps only last set element.
+    /// A series that keeps only a last element.
     /// </summary>
     /// <typeparam name="TKey"></typeparam>
     /// <typeparam name="TValue"></typeparam>
-    public class LastValueSeries<TKey, TValue> : Series<TKey, TValue>
+    public class LastValueSeries<TKey, TValue> : ContainerSeries<TKey, TValue>
     {
         private KeyValuePair<TKey, TValue> _lastValue;
         private bool _isSet = false;
@@ -56,6 +56,12 @@ namespace Spreads
         public override bool TryGetLast(out KeyValuePair<TKey, TValue> value)
         {
             throw new NotImplementedException();
+        }
+
+        public override TValue GetAt(int idx)
+        {
+            if (idx != 0) throw new IndexOutOfRangeException();
+            return _lastValue.Value;
         }
 
         public override KeyComparer<TKey> Comparer { get; } = KeyComparer<TKey>.Default;

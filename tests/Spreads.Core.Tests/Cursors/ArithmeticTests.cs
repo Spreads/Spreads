@@ -129,13 +129,13 @@ namespace Spreads.Core.Tests.Cursors
 
                 {
                     var c =
-                        new ArithmeticCursor<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+                        new Op<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
                             sm.GetEnumerator(), 2.0);
                     var c1 =
-                        new ArithmeticCursor<int, double, AddOp<double>, ArithmeticCursor<int, double,
+                        new Op<int, double, AddOp<double>, Op<int, double,
                             MultiplyOp<double>, SortedMapCursor<int, double>>>(
                             c, 2.0);
-                    var series = new CursorSeries<int, double, ArithmeticCursor<int, double, AddOp<double>, ArithmeticCursor<int, double,
+                    var series = new Series<int, double, Op<int, double, AddOp<double>, Op<int, double,
                         MultiplyOp<double>, SortedMapCursor<int, double>>>>(c1);
                     var sum = 0.0;
                     using (Benchmark.Run("ArithmeticCursor", count))
@@ -168,7 +168,7 @@ namespace Spreads.Core.Tests.Cursors
                 }
 
                 {
-                    var map = ((sm as BaseSeries<int, double>) * 2) + 2;
+                    var map = (sm * 2) + 2;
                     var sum = 0.0;
                     using (Benchmark.Run("BaseSeries operator", count))
                     {
@@ -422,13 +422,13 @@ namespace Spreads.Core.Tests.Cursors
                 var sum1 = 0.0;
                 {
                     var c =
-                        new ArithmeticCursor<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+                        new Op<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
                             sm.GetEnumerator(), 2.0);
                     var c1 =
-                        new ArithmeticCursor<int, double, AddOp<double>, ArithmeticCursor<int, double,
+                        new Op<int, double, AddOp<double>, Op<int, double,
                             MultiplyOp<double>, SortedMapCursor<int, double>>>(
                             c, 2.0);
-                    var series = new CursorSeries<int, double, ArithmeticCursor<int, double, AddOp<double>, ArithmeticCursor<int, double,
+                    var series = new Series<int, double, Op<int, double, AddOp<double>, Op<int, double,
                         MultiplyOp<double>, SortedMapCursor<int, double>>>>(c1);
 
                     using (Benchmark.Run("ArithmeticCursor", count))
@@ -511,14 +511,14 @@ namespace Spreads.Core.Tests.Cursors
                 }
 
                 var cc =
-                    new ArithmeticCursor<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+                    new Op<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
                         sm.GetEnumerator(), 2.0);
 
                 var cc1 =
-                    new ArithmeticCursor<int, double, AddOp<double>, ArithmeticCursor<int, double,
+                    new Op<int, double, AddOp<double>, Op<int, double,
                         MultiplyOp<double>, SortedMapCursor<int, double>>>(
                         cc, 2.0);
-                var series = new CursorSeries<int, double, ArithmeticCursor<int, double, AddOp<double>, ArithmeticCursor<int, double,
+                var series = new Series<int, double, Op<int, double, AddOp<double>, Op<int, double,
                     MultiplyOp<double>, SortedMapCursor<int, double>>>>(cc1);
 
                 void Run2(ref double s)

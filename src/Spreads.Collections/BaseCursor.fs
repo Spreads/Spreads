@@ -8,12 +8,9 @@ namespace Spreads
 open System
 open System.Collections.Generic
 open System.Runtime.InteropServices
-open System.Runtime.CompilerServices
 open System.Threading
 open System.Threading.Tasks
-open System.Diagnostics
 open Spreads
-open Microsoft.FSharp.Control
 
 // TODO (cleanup) remove this completely
 

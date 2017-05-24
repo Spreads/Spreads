@@ -11,13 +11,12 @@ using System.Threading.Tasks;
 
 namespace Spreads.Cursors
 {
-
     // TODO (!) lazy value evaluation. Very important for recursive N sparse series because many values will be unused
 
     // TODO we now do not have reimplemented continuous series, do operators first
 
-    public struct ZipCursor<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>
-        : ICursorSeries<TKey, TResult, ZipCursor<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>>
+    public struct Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>
+        : ICursorSeries<TKey, (TLeft, TRight), Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>
         where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
         where TCursorRight : ISpecializedCursor<TKey, TRight, TCursorRight>
     {
@@ -37,8 +36,6 @@ namespace Spreads.Cursors
         // All inner cursors must be disposed in the Dispose method but references to them must be kept (they could be used as factories)
         // for re-initialization.
 
-        internal Func<TKey, TLeft, TRight, TResult> _selector;
-
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal TCursorLeft _leftCursor;
@@ -50,7 +47,12 @@ namespace Spreads.Cursors
         private Cont _cont; // TODO Clont/Init must set it
 
         private TKey _currentKey;
-        private TResult _currentValue;
+
+
+        // cont should also move, TGV should be called only when other cursor is properly positioned
+        [Obsolete("Value must be lazy")] // for cont 
+        private (TLeft left, TRight right) _currentValue;
+
         private KeyComparer<TKey> _cmp;
 
         private int _c;
@@ -61,7 +63,7 @@ namespace Spreads.Cursors
 
         #region Constructors
 
-        internal ZipCursor(TCursorLeft leftCursor, TCursorRight rightCursor, Func<TKey, TLeft, TRight, TResult> selector) : this()
+        internal Zip(TCursorLeft leftCursor, TCursorRight rightCursor) : this()
         {
             if (!ReferenceEquals(leftCursor.Comparer, rightCursor.Comparer))
             {
@@ -75,7 +77,6 @@ namespace Spreads.Cursors
 
             _leftCursor = leftCursor;
             _rightCursor = rightCursor;
-            _selector = selector;
             _cmp = _leftCursor.Comparer;
             _cont = (Cont)((_leftCursor.IsContinuous ? 2 : 0) + (_rightCursor.IsContinuous ? 1 : 0));
         }
@@ -85,14 +86,13 @@ namespace Spreads.Cursors
         #region Lifetime management
 
         /// <inheritdoc />
-        public ZipCursor<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight> Clone()
+        public Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight> Clone()
         {
             var instance =
-                new ZipCursor<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>
+                new Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>
                 {
                     _leftCursor = _leftCursor.Clone(),
                     _rightCursor = _rightCursor.Clone(),
-                    _selector = _selector,
                     _cmp = _cmp,
                     _c = _c,
                     _cont = _cont,
@@ -103,14 +103,13 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public ZipCursor<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight> Initialize()
+        public Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight> Initialize()
         {
             var instance =
-                new ZipCursor<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>
+                new Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>
                 {
                     _leftCursor = _leftCursor.Initialize(),
                     _rightCursor = _rightCursor.Initialize(),
-                    _selector = _selector,
                     _cmp = _cmp,
                     _c = default(int),
                     _cont = _cont,
@@ -139,7 +138,7 @@ namespace Spreads.Cursors
             State = CursorState.Initialized;
         }
 
-        ICursor<TKey, TResult> ICursor<TKey, TResult>.Clone()
+        ICursor<TKey, (TLeft, TRight)> ICursor<TKey, (TLeft, TRight)>.Clone()
         {
             return Clone();
         }
@@ -150,10 +149,10 @@ namespace Spreads.Cursors
         #region ICursor members
 
         /// <inheritdoc />
-        public KeyValuePair<TKey, TResult> Current
+        public KeyValuePair<TKey, (TLeft, TRight)> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new KeyValuePair<TKey, TResult>(_currentKey, _currentValue); }
+            get { return new KeyValuePair<TKey, (TLeft, TRight)>(_currentKey, _currentValue); }
         }
 
         /// <inheritdoc />
@@ -164,7 +163,7 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public TResult CurrentValue
+        public (TLeft, TRight) CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -174,7 +173,7 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TResult> CurrentBatch => throw new NotImplementedException();
+        public IReadOnlySeries<TKey, (TLeft, TRight)> CurrentBatch => throw new NotImplementedException();
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _leftCursor.Comparer;
@@ -186,14 +185,14 @@ namespace Spreads.Cursors
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TResult value)
+        public bool TryGetValue(TKey key, out (TLeft, TRight) value)
         {
             if (_leftCursor.TryGetValue(key, out var vl) && _rightCursor.TryGetValue(key, out var vr))
             {
-                value = _selector(key, vl, vr);
+                value = (vl, vr);
                 return true;
             }
-            value = default(TResult);
+            value = default((TLeft, TRight));
             return false;
         }
 
@@ -266,7 +265,7 @@ namespace Spreads.Cursors
                         {
                             State = CursorState.Moving;
                             _currentKey = _leftCursor.CurrentKey;
-                            _currentValue = _selector(_currentKey, _leftCursor.CurrentValue, _rightCursor.CurrentValue);
+                            _currentValue = (_leftCursor.CurrentValue, _rightCursor.CurrentValue);
                         }
                         else if (State == CursorState.Moving)
                         {
@@ -328,7 +327,7 @@ namespace Spreads.Cursors
                         {
                             State = CursorState.Moving;
                             _currentKey = _leftCursor.CurrentKey;
-                            _currentValue = _selector(_currentKey, _leftCursor.CurrentValue, _rightCursor.CurrentValue);
+                            _currentValue = (_leftCursor.CurrentValue, _rightCursor.CurrentValue);
                         }
                         else if (State == CursorState.Moving)
                         {
@@ -397,7 +396,7 @@ namespace Spreads.Cursors
                         {
                             State = CursorState.Moving;
                             _currentKey = _leftCursor.CurrentKey;
-                            _currentValue = _selector(_currentKey, _leftCursor.CurrentValue, _rightCursor.CurrentValue);
+                            _currentValue = (_leftCursor.CurrentValue, _rightCursor.CurrentValue);
                         }
                         else if (State == CursorState.Moving)
                         {
@@ -450,7 +449,7 @@ namespace Spreads.Cursors
                         else
                         {
                             _currentKey = _leftCursor.CurrentKey;
-                            _currentValue = _selector(_currentKey, _leftCursor.CurrentValue, _rightCursor.CurrentValue);
+                            _currentValue = (_leftCursor.CurrentValue, _rightCursor.CurrentValue);
                         }
                         return moved;
                     }
@@ -510,7 +509,7 @@ namespace Spreads.Cursors
                         else
                         {
                             _currentKey = _leftCursor.CurrentKey;
-                            _currentValue = _selector(_currentKey, _leftCursor.CurrentValue, _rightCursor.CurrentValue);
+                            _currentValue = (_leftCursor.CurrentValue, _rightCursor.CurrentValue);
                         }
                         return moved;
                     }
@@ -530,14 +529,14 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, TResult> ICursor<TKey, TResult>.Source =>
-            new CursorSeries<TKey, TResult, ZipCursor<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>>(this);
+        IReadOnlySeries<TKey, (TLeft, TRight)> ICursor<TKey, (TLeft, TRight)>.Source =>
+            new Series<TKey, (TLeft, TRight), Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>(this);
 
         /// <summary>
-        /// Get a <see cref="CursorSeries{TKey,TValue,TCursor}"/> based on this cursor.
+        /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
-        public CursorSeries<TKey, TResult, ZipCursor<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>> Source =>
-            new CursorSeries<TKey, TResult, ZipCursor<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>>(this);
+        public Series<TKey, (TLeft, TRight), Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>> Source =>
+            new Series<TKey, (TLeft, TRight), Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>(this);
 
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken)
@@ -546,15 +545,6 @@ namespace Spreads.Cursors
         }
 
         #endregion ICursor members
-
-        #region Custom Properties
-
-        /// <summary>
-        /// A value used by TOp.
-        /// </summary>
-        public Func<TKey, TLeft, TRight, TResult> Selector => _selector;
-
-        #endregion Custom Properties
 
         #region ICursorSeries members
 
@@ -580,5 +570,14 @@ namespace Spreads.Cursors
         }
 
         #endregion ICursorSeries members
+
+
+
+        internal Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>> Map<TResult>(Func<TKey, (TLeft, TRight), TResult> selector)
+        {
+            return new Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>
+                (this, selector);
+        }
+
     }
 }

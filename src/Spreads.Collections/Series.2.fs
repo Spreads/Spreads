@@ -21,7 +21,7 @@ open Spreads
 // could extend but not operators
 [<AutoOpenAttribute>]
 module SpreadsModule =
-  type BaseSeries with
+  type Series<'K,'V> with
     // TODO example how to use a static method instead of extension methods, not really useful though
     static member private Zip<'K,'V,'R when 'K : comparison>(resultSelector:Func<'K,'V[],'R>,[<ParamArray>] series: Series<'K,'V> array) =
       CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(resultSelector, series |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>

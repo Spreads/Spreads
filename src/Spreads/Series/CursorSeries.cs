@@ -346,7 +346,7 @@ namespace Spreads
                 return st;
             }, allowIncomplete);
 
-            return (new CursorSeries<K, SmaState, Cursor<K, SmaState>>(new Cursor<K, SmaState>(Factory())).Map((st) => st.Sum / st.Count));
+            return (new Series<K, SmaState, Cursor<K, SmaState>>(new Cursor<K, SmaState>(Factory())).Map((st) => st.Sum / st.Count));
         }
 
         /// <summary>
@@ -366,7 +366,7 @@ namespace Spreads
                 return st;
             }, allowIncomplete);
 
-            return (new CursorSeries<K, MovingMedian, Cursor<K, MovingMedian>>(new Cursor<K, MovingMedian>(Factory())).Map(st => st.LastValue));
+            return (new Series<K, MovingMedian, Cursor<K, MovingMedian>>(new Cursor<K, MovingMedian>(Factory())).Map(st => st.LastValue));
         }
 
         public static Series<K, double> StDev<K>(this ISeries<K, double> source, int period, bool allowIncomplete = false)

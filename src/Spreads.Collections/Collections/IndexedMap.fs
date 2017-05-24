@@ -27,7 +27,7 @@ open Spreads.Collections
 [<AllowNullLiteral>]
 type IndexedMap<'K,'V> // when 'K:equality
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:KeyComparer<'K> option) as this=
-  inherit Series<'K,'V>()
+  inherit ContainerSeries<'K,'V>()
 
   //#region Main internal constructor
     

@@ -1,50 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Spreads.DataTypes;
+﻿
 
+// ReSharper disable once CheckNamespace
 namespace Spreads
 {
+
+    // NB there are problems with extensions on ISpecializedSeries
+    // * resolution - ambiguous extensions
+    // * boxing - CursorSeries will be boxed to the interface
+
+    //#region ISpecializedSeries
+    //public static CursorSeries<TKey, TResult, MapCursor<TKey, TValue, TResult, TCursor>> Map<TKey, TValue, TResult, TCursor>(
+    //    this ISpecializedSeries<TKey, TValue, TCursor> series, Func<TKey, TValue, TResult> selector)
+    //    where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+    //{
+    //    var mapCursor = new MapCursor<TKey, TValue, TResult, TCursor>(series.GetCursor(), selector);
+    //    return mapCursor.Source;
+    //}
+    //#endregion
+
     public static partial class Series
     {
 
-        // Read
-        // Write
-        // Save(append option)
-
-        public class SeriesReader
-        {
-            internal static SeriesReader Instance = new SeriesReader();
-            private SeriesReader()
-            {
-            }
-
-            public BaseSeries<Variant, Variant> this[string expression] => Read(expression);
-            public BaseSeries<Variant, Variant> this[string expression, AppendOption option]
-            {
-                set { throw new NotImplementedException(); }
-            }
-
-            public BaseSeries<Variant, Variant> Read(string expression)
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        public static SeriesReader R => SeriesReader.Instance;
-        public static SeriesReader Spreads => SeriesReader.Instance;
-
-        public static BaseSeries<Variant, Variant> Read(string expression)
-        {
-            return R.Read(expression);
-        }
-
-
-        public static IMutableSeries<Variant, Variant> Write(string seriesId)
-        {
-            throw new NotImplementedException();
-        }
+        
     }
 }

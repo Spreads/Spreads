@@ -30,7 +30,7 @@ type SortedChunkedMapGeneric<'K,'V>
     comparer:KeyComparer<'K>,
     hasher:IKeyHasher<'K> option, 
     chunkMaxSize:int option) as this=
-  inherit Series<'K,'V>()
+  inherit ContainerSeries<'K,'V>()
 
   let outerMap = outerFactory(comparer)
 
@@ -1350,7 +1350,6 @@ type SortedChunkedMap<'K,'V>
     chunkMaxSize:int option) =
   inherit SortedChunkedMapGeneric<'K,'V>(outerFactory, innerFactory, comparer, hasher, chunkMaxSize)
 
-
   override this.GetCursor() =
     //if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then this.IsSynchronized <- true // NB: via property with locks
     let mutable entered = false
@@ -1372,7 +1371,6 @@ type SortedChunkedMap<'K,'V>
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       new SortedChunkedMapCursor<_,_>(this)
     )
-
 
   // x0
   
