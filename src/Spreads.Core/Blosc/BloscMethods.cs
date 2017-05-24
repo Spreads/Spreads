@@ -2,42 +2,29 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Security;
 using Bootstrap;
 using Spreads.Serialization;
+using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Security;
 
 namespace Spreads.Blosc
 {
-    // TODO Move to global Settings
-
     /// <summary>
     /// Blosc settings.
     /// </summary>
-    public static class BloscSettings
+    internal static class BloscSettings
     {
         internal static string defaultCompressionMethod = "lz4";
 
         /// <summary>
-        /// Get or set default compression method (LZ4 or Zstd). Initially the value is LZ4.
+        /// Get or set default compression method: LZ4 (default) or Zstd).
         /// </summary>
         public static CompressionMethod CompressionMethod
         {
             get => defaultCompressionMethod == "lz4" ? CompressionMethod.LZ4 : CompressionMethod.Zstd;
-            set
-            {
-                if (value == CompressionMethod.Zstd)
-                {
-                    defaultCompressionMethod = "zstd";
-                }
-                else
-                {
-                    defaultCompressionMethod = "lz4";
-                }
-            }
+            set => defaultCompressionMethod = value == CompressionMethod.Zstd ? "zstd" : "lz4";
         }
     }
 

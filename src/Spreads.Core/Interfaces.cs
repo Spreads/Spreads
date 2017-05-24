@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Cursors;
 using Spreads.DataTypes;
 using System;
 using System.Collections.Generic;
@@ -299,7 +298,6 @@ namespace Spreads
     public interface ISpecializedCursor<TKey, TValue, TCursor> : ICursor<TKey, TValue>
         where TCursor : ICursor<TKey, TValue>
     {
-
         // TODO(?) deprecate AbstractCursorSeries and remove mentions of it
 
         /// <summary>
@@ -409,13 +407,11 @@ namespace Spreads
     {
     }
 
-
     /// <summary>
     /// An untyped <see cref="ISeries{DateTime, TValue}"/> interface with values as <see cref="Variant"/> types.
     /// </summary>
     public interface ITimeSeries : ISeries<DateTime, Variant>
     {
-
         /// <summary>
         /// <see cref="TypeEnum"/> for the values type.
         /// </summary>
@@ -425,7 +421,6 @@ namespace Spreads
         /// TimeSeries parameters.
         /// </summary>
         TimeSeriesInfo TimeSeriesInfo { get; }
-
     }
 
     /// <summary>
@@ -434,7 +429,6 @@ namespace Spreads
     public interface IReadOnlyTimeSeries : ITimeSeries, IReadOnlySeries<DateTime, Variant>
     {
     }
-
 
     /// <summary>
     /// Mutable series

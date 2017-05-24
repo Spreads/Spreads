@@ -82,6 +82,13 @@ namespace Spreads
             throw GetNotSupportedException();
         }
 
+        [ContractAnnotation("=> halt")]
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void ThrowOutOfOrderKeyException<TKey>(TKey key)
+        {
+            throw GetOutOfOrderKeyException(key);
+        }
+
         /////////////////////////////////////////////////////////////////////////////
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -142,6 +149,12 @@ namespace Spreads
         private static NotSupportedException GetNotSupportedException()
         {
             return new NotSupportedException();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static OutOfOrderKeyException<TKey> GetOutOfOrderKeyException<TKey>(TKey key)
+        {
+            return new OutOfOrderKeyException<TKey>(key);
         }
 
         private static string GetArgumentName(ExceptionArgument argument)

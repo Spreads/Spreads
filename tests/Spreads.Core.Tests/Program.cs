@@ -13,11 +13,11 @@ namespace Spreads.Core.Tests
     {
         private static void Main(string[] args)
         {
-            //Benchmark.ForceSilence = true;
+            Benchmark.ForceSilence = true;
 
             for (int i = 0; i < 30; i++)
             {
-                new ZipCursorTests().CouldUseBaseSeriesAddOperator();
+                new ZipCursorTests().CouldAddTwoSeriesWithSameKeysBenchmark();
             }
 
             Console.WriteLine("Press enter to exit...");

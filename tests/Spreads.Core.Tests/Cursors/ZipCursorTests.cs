@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Cursors;
 using Spreads.Utils;
+using System.Linq;
 
 namespace Spreads.Core.Tests.Cursors
 {
@@ -23,21 +24,31 @@ namespace Spreads.Core.Tests.Cursors
             Assert.NotNull(c2.Comparer);
 
             double actual = 0;
+            double actual1 = 0;
 
             using (Benchmark.Run("ZipDiscrete", count * 2))
             {
                 var zipCursor =
                     new Zip<int, double, double, SortedMapCursor<int, double>,
                         SortedMapCursor<int, double>>(
-                        c1, c2).Initialize();
+                        c1, c2).Map((k, v) => v.Item1 + v.Item2).Initialize();
 
                 while (zipCursor.MoveNext())
                 {
-                    actual += zipCursor.Map((k, v) => v.Item1 + v.Item2).CurrentValue;
+                    actual += zipCursor.CurrentValue;
                 }
             }
-
             Assert.AreEqual(expected, actual);
+
+            using (Benchmark.Run("LINQ", count * 2))
+            {
+                var linq = sm1.Zip(sm2, (l, r) => l.Value + r.Value);
+                foreach (var d in linq)
+                {
+                    actual1 += d;
+                }
+            }
+            Assert.AreEqual(expected, actual1);
         }
 
         [Test]
@@ -153,7 +164,7 @@ namespace Spreads.Core.Tests.Cursors
             }
 
             var calculated = sm1 + sm2;
-
+            var linq = sm1.Zip(sm2, (l, r) => l.Value + r.Value);
             for (int r = 0; r < 20; r++)
             {
                 double actual = 0;
@@ -162,6 +173,17 @@ namespace Spreads.Core.Tests.Cursors
                     foreach (var cursorSeries in calculated)
                     {
                         actual += cursorSeries.Value;
+                    }
+                }
+
+                Assert.AreEqual(expected, actual);
+
+                double actual1 = 0;
+                using (Benchmark.Run("LINQ", sm1.Count + sm2.Count))
+                {
+                    foreach (var l in linq)
+                    {
+                        actual1 += l;
                     }
                 }
 

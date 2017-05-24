@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 
 namespace Spreads.Cursors
 {
+    // TODO cache currentValue like in Zip
+
     /// <summary>
     /// Map cursor.
     /// </summary>
