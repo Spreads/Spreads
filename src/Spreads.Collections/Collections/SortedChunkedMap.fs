@@ -1262,10 +1262,8 @@ and
                     this.isBatch <- false
                     true
                   else
-                    this.Reset()
                     false
                 else
-                  this.Reset()
                   false
               | Lookup.GT | Lookup.GE ->
                 // look into next bucket
@@ -1277,10 +1275,8 @@ and
                     this.isBatch <- false
                     true
                   else
-                    this.Reset()
                     false 
                 else
-                  this.Reset()
                   false
               | _ -> false // LookupDirection.EQ
       /////////// End read-locked code /////////////
@@ -1763,10 +1759,8 @@ and
                       this.isBatch <- false
                       true
                     else
-                      this.Reset()
                       false
                   else
-                    this.Reset()
                     false
                 | Lookup.GT | Lookup.GE ->
                   // look into next bucket
@@ -1778,10 +1772,8 @@ and
                       this.isBatch <- false
                       true
                     else
-                      this.Reset()
                       false 
                   else
-                    this.Reset()
                     false
                 | _ -> false // LookupDirection.EQ
           finally

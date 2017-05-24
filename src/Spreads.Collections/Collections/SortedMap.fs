@@ -1729,7 +1729,6 @@ and
               newValue <- this.source.values.[newIndex]
               true
             else
-              this.Reset()
               false
           elif this.cursorVersion =  this.source.orderVersion then
             if this.index > 0 && this.index < this.source.size then
@@ -1775,7 +1774,6 @@ and
             newValue <- kvp.Value
             true
           else
-            this.Reset()
             false
       /////////// End read-locked code /////////////
         if doSpin then
@@ -1808,7 +1806,6 @@ and
             newValue <- this.source.values.[newIndex]
             true
           else
-            this.Reset()
             false
         /////////// End read-locked code /////////////
         if doSpin then
@@ -1841,7 +1838,6 @@ and
             newValue <- this.source.values.[newIndex]
             true
           else
-            this.Reset()
             false
         /////////// End read-locked code /////////////
         if doSpin then
