@@ -18,6 +18,11 @@ namespace Spreads.Cursors
         /// <summary>
         /// Apply a method to the first and the second argument.
         /// </summary>
+        TResult Apply((T1 first, T2 second) tuple);
+
+        /// <summary>
+        /// Apply a method to the first and the second argument.
+        /// </summary>
         TResult Apply(T1 first, T2 second);
     }
 
@@ -44,9 +49,16 @@ namespace Spreads.Cursors
 
     public struct AddOp<T> : IOp<T>
     {
-        internal static T ZipSelector<TKey>(TKey key, (T,T) value)
+        internal static T ZipSelector<TKey>(TKey key, (T, T) value)
         {
-            return default(AddOp<T>).Apply(value.Item1, value.Item2);
+            return default(AddOp<T>).Apply(value);
+        }
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
         }
 
         [Pure]
@@ -107,9 +119,16 @@ namespace Spreads.Cursors
 
     public struct MultiplyOp<T> : IOp<T>
     {
-        internal static T ZipSelector<TKey>(TKey key, (T,T) value)
+        internal static T ZipSelector<TKey>(TKey key, (T, T) value)
         {
             return default(MultiplyOp<T>).Apply(value.Item1, value.Item2);
+        }
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
         }
 
         [Pure]
@@ -164,9 +183,16 @@ namespace Spreads.Cursors
 
     public struct SubtractOp<T> : IOp<T>
     {
-        internal static T ZipSelector<TKey>(TKey key, (T,T) value)
+        internal static T ZipSelector<TKey>(TKey key, (T, T) value)
         {
             return default(SubtractOp<T>).Apply(value.Item1, value.Item2);
+        }
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
         }
 
         [Pure]
@@ -223,6 +249,13 @@ namespace Spreads.Cursors
     {
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v2, T v1) // reversed v1 and v2
         {
             if (typeof(T) == typeof(double))
@@ -273,7 +306,14 @@ namespace Spreads.Cursors
 
     public struct DivideOp<T> : IOp<T>
     {
-        internal static T ZipSelector<TKey>(TKey key, (T,T) value)
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
+
+        internal static T ZipSelector<TKey>(TKey key, (T, T) value)
         {
             return default(DivideOp<T>).Apply(value.Item1, value.Item2);
         }
@@ -322,6 +362,13 @@ namespace Spreads.Cursors
     {
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v2, T v1)
         {
             if (typeof(T) == typeof(double))
@@ -362,7 +409,14 @@ namespace Spreads.Cursors
 
     public struct ModuloOp<T> : IOp<T>
     {
-        internal static T ZipSelector<TKey>(TKey key, (T,T) value)
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
+
+        internal static T ZipSelector<TKey>(TKey key, (T, T) value)
         {
             return default(ModuloOp<T>).Apply(value.Item1, value.Item2);
         }
@@ -411,6 +465,13 @@ namespace Spreads.Cursors
     {
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v2, T v1)
         {
             if (typeof(T) == typeof(double))
@@ -453,6 +514,13 @@ namespace Spreads.Cursors
     {
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v1, T v2)
         {
             if (typeof(T) == typeof(double))
@@ -492,8 +560,14 @@ namespace Spreads.Cursors
     }
 
     public struct PlusOp<T> : IOp<T>
-
     {
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
+
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Apply(T v1, T v2)
@@ -540,12 +614,19 @@ namespace Spreads.Cursors
 
     public struct LTOp<T> : IOp<T, bool>
     {
-        internal static bool ZipSelector<TKey>(TKey key, (T,T) value)
+        internal static bool ZipSelector<TKey>(TKey key, (T, T) value)
         {
             return default(LTOp<T>).Apply(value.Item1, value.Item2);
         }
 
         internal static IOp<T, bool> Instance = default(LTOp<T>);
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
 
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -598,6 +679,13 @@ namespace Spreads.Cursors
 
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Apply(T v2, T v1)
         {
             if (typeof(T) == typeof(double))
@@ -643,12 +731,19 @@ namespace Spreads.Cursors
 
     public struct LEOp<T> : IOp<T, bool>
     {
-        internal static bool ZipSelector<TKey>(TKey key, (T,T) value)
+        internal static bool ZipSelector<TKey>(TKey key, (T, T) value)
         {
             return default(LEOp<T>).Apply(value.Item1, value.Item2);
         }
 
         internal static IOp<T, bool> Instance = default(LEOp<T>);
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
 
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -701,6 +796,13 @@ namespace Spreads.Cursors
 
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Apply(T v2, T v1)
         {
             if (typeof(T) == typeof(double))
@@ -746,7 +848,14 @@ namespace Spreads.Cursors
 
     public struct GTOp<T> : IOp<T, bool>
     {
-        internal static bool ZipSelector<TKey>(TKey key, (T,T) value)
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
+
+        internal static bool ZipSelector<TKey>(TKey key, (T, T) value)
         {
             return default(GTOp<T>).Apply(value.Item1, value.Item2);
         }
@@ -804,6 +913,13 @@ namespace Spreads.Cursors
 
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Apply(T v2, T v1)
         {
             if (typeof(T) == typeof(double))
@@ -849,12 +965,19 @@ namespace Spreads.Cursors
 
     public struct GEOp<T> : IOp<T, bool>
     {
-        internal static bool ZipSelector<TKey>(TKey key, (T,T) value)
+        internal static bool ZipSelector<TKey>(TKey key, (T, T) value)
         {
             return default(GEOp<T>).Apply(value.Item1, value.Item2);
         }
 
         internal static IOp<T, bool> Instance = default(GEOp<T>);
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
 
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -907,6 +1030,13 @@ namespace Spreads.Cursors
 
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Apply(T v2, T v1)
         {
             if (typeof(T) == typeof(double))
@@ -952,12 +1082,19 @@ namespace Spreads.Cursors
 
     public struct EQOp<T> : IOp<T, bool>
     {
-        internal static bool ZipSelector<TKey>(TKey key, (T,T) value)
+        internal static bool ZipSelector<TKey>(TKey key, (T, T) value)
         {
             return default(EQOp<T>).Apply(value.Item1, value.Item2);
         }
 
         internal static IOp<T, bool> Instance = default(EQOp<T>);
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
 
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1006,12 +1143,19 @@ namespace Spreads.Cursors
 
     public struct NEQOp<T> : IOp<T, bool>
     {
-        internal static bool ZipSelector<TKey>(TKey key, (T,T) value)
+        internal static bool ZipSelector<TKey>(TKey key, (T, T) value)
         {
             return default(NEQOp<T>).Apply(value.Item1, value.Item2);
         }
 
         internal static IOp<T, bool> Instance = default(NEQOp<T>);
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Apply((T first, T second) tuple)
+        {
+            return Apply(tuple.first, tuple.second);
+        }
 
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

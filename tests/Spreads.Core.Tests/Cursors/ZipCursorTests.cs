@@ -1,7 +1,6 @@
 ﻿// This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
 using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Cursors;
@@ -35,6 +34,17 @@ namespace Spreads.Core.Tests.Cursors
                 while (zipCursor.MoveNext())
                 {
                     actual += zipCursor.CurrentValue;
+                }
+            }
+            Assert.AreEqual(expected, actual);
+
+            var zipped = sm1.Zip(sm2, (k, l, r) => l + r); // sm1.Zip(sm2).Map((k, v) => v.Item1 + v.Item2); //
+            actual = 0;
+            using (Benchmark.Run("ZipDiscrete MN Extension", count * 2))
+            {
+                foreach (var keyValuePair in zipped)
+                {
+                    actual += keyValuePair.Value;
                 }
             }
             Assert.AreEqual(expected, actual);
@@ -163,14 +173,17 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldUseBaseSeriesAddOperator()
         {
-            var count = 10000000;
-            var sm1 = new SortedMap<int, double>();
-            var sm2 = new SortedMap<int, double>();
+            var count = 1000000;
+            var sm1 = new SortedChunkedMap<int, double>();
+            var sm2 = new SortedChunkedMap<int, double>();
 
             var result = new SortedMap<int, double>();
             double expected = 0;
 
-            for (int i = 0; i < count; i++)
+            sm1.Add(0, 0);
+            sm2.Add(0, 0);
+
+            for (int i = 2; i < count; i++)
             {
                 sm1.Add(i, i);
                 if (i % 1 == 0)
@@ -182,26 +195,31 @@ namespace Spreads.Core.Tests.Cursors
                 }
             }
 
-            var ss = sm1 + 1;
-
-            var calculated = sm1 + sm2;
-            var linq = sm1.Zip(sm2, (l, r) => l.Value + r.Value);
-            for (int r = 0; r < 20; r++)
+            for (int round = 0; round < 20; round++)
             {
                 double actual = 0;
-                using (Benchmark.Run("ZipDiscrete", sm1.Count + sm2.Count))
+                using (Benchmark.Run("ZipDiscrete", (int)sm1.Count + (int)sm2.Count))
                 {
-                    foreach (var cursorSeries in calculated)
+                    var calculated = sm1 + sm2;
+                    using (var c = calculated.GetEnumerator())
                     {
-                        actual += cursorSeries.Value;
+                        while (c.MoveNext())
+                        {
+                            actual += c.CurrentValue;
+                        }
                     }
+                    //foreach (var cursorSeries in calculated)
+                    //{
+                    //    actual += cursorSeries.Value;
+                    //}
                 }
 
                 Assert.AreEqual(expected, actual);
 
                 //double actual1 = 0;
-                //using (Benchmark.Run("LINQ", sm1.Count + sm2.Count))
+                //using (Benchmark.Run("LINQ", (int)sm1.Count + (int)sm2.Count))
                 //{
+                //    var linq = sm1.Zip(sm2, (l, r) => l.Value + r.Value);
                 //    foreach (var l in linq)
                 //    {
                 //        actual1 += l;

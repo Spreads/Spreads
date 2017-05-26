@@ -40,7 +40,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldReuseRangeValuesCursor()
         {
-            IReadOnlySeries<int, double> nonEmpty = new SortedMap<int, double>
+            var nonEmpty = new SortedMap<int, double>
             {
                 {1, 1},
                 {2, 2}
@@ -56,7 +56,7 @@ namespace Spreads.Core.Tests.Cursors
 
             Console.WriteLine("Foreach is OK");
 
-            Assert.True(range1.Count() > 0);
+            Assert.True(range1.Any());
 
             Console.WriteLine("Count is OK");
 

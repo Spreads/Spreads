@@ -22,7 +22,7 @@ open Spreads.Collections
 [<AllowNullLiteral>]
 type SortedDequeMap<'K,'V>
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:KeyComparer<'K> option) as this=
-  inherit ContainerSeries<'K,'V>()
+  inherit ContainerSeries<'K,'V, SortedDequeMapCursor<'K,'V>>()
   
   [<DefaultValueAttribute>]
   val mutable internal version : int
@@ -529,6 +529,8 @@ type SortedDequeMap<'K,'V>
 
   override this.GetCursor() = new SortedDequeMapCursor<_,_>(this) :> ICursor<_,_>
 
+  override this.GetContainerCursor() = this.GetEnumerator()
+
   // foreach optimization
   member this.GetEnumerator() = new SortedDequeMapCursor<'K,'V>(this)
   //#endregion
@@ -844,3 +846,10 @@ and
       member this.Clone() = this.Clone() :> ICursor<'K,'V>
       member this.IsContinuous with get() = false
       member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)
+
+    interface ISpecializedCursor<'K,'V, SortedDequeMapCursor<'K,'V>> with
+      member this.Initialize() = 
+        let c = this.Clone()
+        c.Reset()
+        c
+      member this.Clone() = this.Clone()

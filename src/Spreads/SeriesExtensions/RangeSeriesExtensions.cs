@@ -15,6 +15,16 @@ namespace Spreads
     {
         #region Internal methods with Opt<TKey>
 
+        internal static Series<TKey, TValue, Range<TKey, TValue, TCursor>> Range<TKey, TValue, TCursor>(
+            this ContainerSeries<TKey, TValue, TCursor> series,
+            Opt<TKey> startKey, Opt<TKey> endKey, bool startInclusive = true, bool endInclusive = true)
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+        {
+            var rangeCursor = new Range<TKey, TValue, TCursor>(
+                series.GetContainerCursor(), startKey, endKey, startInclusive, endInclusive);
+            return rangeCursor.Source;
+        }
+
         internal static Series<TKey, TValue, Range<TKey, TValue, SortedMapCursor<TKey, TValue>>> Range<TKey, TValue>(
             this SortedMap<TKey, TValue> series,
             Opt<TKey> startKey, Opt<TKey> endKey, bool startInclusive = true, bool endInclusive = true)
@@ -72,20 +82,29 @@ namespace Spreads
 
         #endregion Internal methods with Opt<TKey>
 
-        public static Series<TKey, TValue, Range<TKey, TValue, SortedMapCursor<TKey, TValue>>> Range<TKey, TValue>(
-            this SortedMap<TKey, TValue> series,
+        public static Series<TKey, TValue, Range<TKey, TValue, TCursor>> Range<TKey, TValue, TCursor>(
+            this ContainerSeries<TKey, TValue, TCursor> series,
             TKey startKey, TKey endKey, bool startInclusive = true, bool endInclusive = true)
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             // NB cast to Opt for overload resolution
             return series.Range((Opt<TKey>)startKey, endKey, startInclusive, endInclusive);
         }
 
-        public static Series<TKey, TValue, Range<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>> Range<TKey, TValue>(
-            this SortedChunkedMap<TKey, TValue> series,
-            TKey startKey, TKey endKey, bool startInclusive = true, bool endInclusive = true)
-        {
-            return series.Range((Opt<TKey>)startKey, endKey, startInclusive, endInclusive);
-        }
+        //public static Series<TKey, TValue, Range<TKey, TValue, SortedMapCursor<TKey, TValue>>> Range<TKey, TValue>(
+        //    this SortedMap<TKey, TValue> series,
+        //    TKey startKey, TKey endKey, bool startInclusive = true, bool endInclusive = true)
+        //{
+        //    // NB cast to Opt for overload resolution
+        //    return series.Range((Opt<TKey>)startKey, endKey, startInclusive, endInclusive);
+        //}
+
+        //public static Series<TKey, TValue, Range<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>> Range<TKey, TValue>(
+        //    this SortedChunkedMap<TKey, TValue> series,
+        //    TKey startKey, TKey endKey, bool startInclusive = true, bool endInclusive = true)
+        //{
+        //    return series.Range((Opt<TKey>)startKey, endKey, startInclusive, endInclusive);
+        //}
 
         internal static Series<TKey, TValue, Range<TKey, TValue, TCursor>> Range<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series,
@@ -112,19 +131,27 @@ namespace Spreads
 
         // AFTER
 
-        public static Series<TKey, TValue, Range<TKey, TValue, SortedMapCursor<TKey, TValue>>> After<TKey, TValue>(
-            this SortedMap<TKey, TValue> series,
+        public static Series<TKey, TValue, Range<TKey, TValue, TCursor>> After<TKey, TValue, TCursor>(
+            this ContainerSeries<TKey, TValue, TCursor> series,
             TKey startKey, bool startInclusive = true)
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             return series.Range(startKey, Opt<TKey>.Missing, startInclusive, true);
         }
 
-        public static Series<TKey, TValue, Range<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>> After<TKey, TValue>(
-            this SortedChunkedMap<TKey, TValue> series,
-            TKey startKey, bool startInclusive = true)
-        {
-            return series.Range(startKey, Opt<TKey>.Missing, startInclusive, true);
-        }
+        //public static Series<TKey, TValue, Range<TKey, TValue, SortedMapCursor<TKey, TValue>>> After<TKey, TValue>(
+        //    this SortedMap<TKey, TValue> series,
+        //    TKey startKey, bool startInclusive = true)
+        //{
+        //    return series.Range(startKey, Opt<TKey>.Missing, startInclusive, true);
+        //}
+
+        //public static Series<TKey, TValue, Range<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>> After<TKey, TValue>(
+        //    this SortedChunkedMap<TKey, TValue> series,
+        //    TKey startKey, bool startInclusive = true)
+        //{
+        //    return series.Range(startKey, Opt<TKey>.Missing, startInclusive, true);
+        //}
 
         public static Series<TKey, TValue, Range<TKey, TValue, TCursor>> After<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series,
@@ -151,19 +178,27 @@ namespace Spreads
 
         // BEFORE
 
-        public static Series<TKey, TValue, Range<TKey, TValue, SortedMapCursor<TKey, TValue>>> Before<TKey, TValue>(
-            this SortedMap<TKey, TValue> series,
+        public static Series<TKey, TValue, Range<TKey, TValue, TCursor>> Before<TKey, TValue, TCursor>(
+            this ContainerSeries<TKey, TValue, TCursor> series,
             TKey endKey, bool endInclusive = true)
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             return series.Range(Opt<TKey>.Missing, endKey, true, endInclusive);
         }
 
-        public static Series<TKey, TValue, Range<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>> Before<TKey, TValue>(
-            this SortedChunkedMap<TKey, TValue> series,
-            TKey endKey, bool endInclusive = true)
-        {
-            return series.Range(Opt<TKey>.Missing, endKey, true, endInclusive);
-        }
+        //public static Series<TKey, TValue, Range<TKey, TValue, SortedMapCursor<TKey, TValue>>> Before<TKey, TValue>(
+        //            this SortedMap<TKey, TValue> series,
+        //            TKey endKey, bool endInclusive = true)
+        //{
+        //    return series.Range(Opt<TKey>.Missing, endKey, true, endInclusive);
+        //}
+
+        //public static Series<TKey, TValue, Range<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>> Before<TKey, TValue>(
+        //    this SortedChunkedMap<TKey, TValue> series,
+        //    TKey endKey, bool endInclusive = true)
+        //{
+        //    return series.Range(Opt<TKey>.Missing, endKey, true, endInclusive);
+        //}
 
         public static Series<TKey, TValue, Range<TKey, TValue, TCursor>> Before<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series,

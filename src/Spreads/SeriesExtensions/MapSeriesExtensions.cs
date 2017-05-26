@@ -11,41 +11,61 @@ namespace Spreads
 {
     public static partial class Series
     {
-        #region SortedMap
+        #region ContainerSeries
 
-        public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
-            this SortedMap<TKey, TValue> series, Func<TKey, TValue, TResult> selector)
+        public static Series<TKey, TResult, Map<TKey, TValue, TResult, TCursor>> Map<TKey, TValue, TResult, TCursor>(
+            this ContainerSeries<TKey, TValue, TCursor> series, Func<TKey, TValue, TResult> selector)
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
-            var mapCursor = new Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
+            var mapCursor = new Map<TKey, TValue, TResult, TCursor>(series.GetContainerCursor(), selector);
             return mapCursor.Source;
         }
 
-        public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
-            this SortedMap<TKey, TValue> series, Func<TValue, TResult> selector)
+        public static Series<TKey, TResult, Map<TKey, TValue, TResult, TCursor>> Map<TKey, TValue, TResult, TCursor>(
+            this ContainerSeries<TKey, TValue, TCursor> series, Func<TValue, TResult> selector)
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
-            var mapCursor = new Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
+            var mapCursor = new Map<TKey, TValue, TResult, TCursor>(series.GetContainerCursor(), selector);
             return mapCursor.Source;
         }
 
-        #endregion SortedMap
+        #endregion ContainerSeries
 
-        #region SCM
+        //#region SortedMap
 
-        public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
-            this SortedChunkedMap<TKey, TValue> series, Func<TKey, TValue, TResult> selector)
-        {
-            var mapCursor = new Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
-            return mapCursor.Source;
-        }
+        //public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
+        //    this SortedMap<TKey, TValue> series, Func<TKey, TValue, TResult> selector)
+        //{
+        //    var mapCursor = new Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
+        //    return mapCursor.Source;
+        //}
 
-        public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
-            this SortedChunkedMap<TKey, TValue> series, Func<TValue, TResult> selector)
-        {
-            var mapCursor = new Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
-            return mapCursor.Source;
-        }
+        //public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
+        //    this SortedMap<TKey, TValue> series, Func<TValue, TResult> selector)
+        //{
+        //    var mapCursor = new Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
+        //    return mapCursor.Source;
+        //}
 
-        #endregion SCM
+        //#endregion SortedMap
+
+        //#region SCM
+
+        //public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
+        //    this SortedChunkedMap<TKey, TValue> series, Func<TKey, TValue, TResult> selector)
+        //{
+        //    var mapCursor = new Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
+        //    return mapCursor.Source;
+        //}
+
+        //public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
+        //    this SortedChunkedMap<TKey, TValue> series, Func<TValue, TResult> selector)
+        //{
+        //    var mapCursor = new Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
+        //    return mapCursor.Source;
+        //}
+
+        //#endregion SCM
 
         #region Combined map
 

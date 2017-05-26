@@ -428,12 +428,10 @@ namespace Spreads.Core.Tests.Cursors
                         new Op<int, double, AddOp<double>, Op<int, double,
                             MultiplyOp<double>, SortedMapCursor<int, double>>>(
                             c, 2.0);
-                    var series = new Series<int, double, Op<int, double, AddOp<double>, Op<int, double,
-                        MultiplyOp<double>, SortedMapCursor<int, double>>>>(c1);
 
                     using (Benchmark.Run("ArithmeticCursor", count))
                     {
-                        foreach (var kvp in series)
+                        foreach (var kvp in c1.Source)
                         {
                             sum1 += kvp.Value;
                         }

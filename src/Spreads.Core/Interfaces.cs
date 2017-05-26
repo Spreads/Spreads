@@ -182,14 +182,14 @@ namespace Spreads
     /// <summary>
     /// A series with a known strongly typed cursor type.
     /// </summary>
-    internal interface ISpecializedSeries<TKey, TValue, TCursor> : ISeries<TKey, TValue>
+    public interface ISpecializedSeries<TKey, TValue, TCursor> : ISeries<TKey, TValue>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         /// <summary>
         /// Get a strongly typed cursor that implements the <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/> interface.
         /// </summary>
         /// <returns></returns>
-        TCursor GetCursor();
+        new TCursor GetCursor();
     }
 
     // TODO (docs) review the contract (together with IAsynEnumerable above) and format the xml doc

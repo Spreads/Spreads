@@ -5,6 +5,7 @@
 using Spreads.Core.Tests.Collections;
 using Spreads.Utils;
 using System;
+using System.Diagnostics;
 using Spreads.Core.Tests.Cursors;
 
 namespace Spreads.Core.Tests
@@ -13,11 +14,17 @@ namespace Spreads.Core.Tests
     {
         private static void Main(string[] args)
         {
+            using (Process p = Process.GetCurrentProcess())
+            {
+                p.PriorityClass = ProcessPriorityClass.High;
+            }
+
             //Benchmark.ForceSilence = true;
 
             for (int i = 0; i < 30; i++)
             {
-                new ZipCursorTests().CouldUseBaseSeriesAddOperator();
+                //new ArithmeticTests().CouldUseStructSeries();
+                new ZipCursorTests().CouldAddTwoSeriesWithSameKeysBenchmark();
             }
 
             Console.WriteLine("Press enter to exit...");

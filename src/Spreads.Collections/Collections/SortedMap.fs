@@ -42,7 +42,7 @@ open Spreads.Collections
 [<DebuggerDisplay("SortedMap: Count = {Count}")>]
 type SortedMap<'K,'V>
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:KeyComparer<'K> option) as this=
-  inherit ContainerSeries<'K,'V>()
+  inherit ContainerSeries<'K,'V, SortedMapCursor<'K,'V>>()
   static do
     SortedMap<'K,'V>.Init()
 
@@ -1276,6 +1276,8 @@ type SortedMap<'K,'V>
         c :> ICursor<'K,'V>
     finally
       exitWriteLockIf &this.Locker entered
+
+  override this.GetContainerCursor() = this.GetEnumerator()
 
   // .NETs foreach optimization must return struct
   member this.GetEnumerator() : SortedMapCursor<_,_> =

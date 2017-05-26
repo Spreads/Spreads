@@ -17,6 +17,7 @@ open System.Reflection
 
 open Spreads
 open Spreads.Buffers
+open Spreads.Cursors
 open Spreads.Collections
 
 // This could be done as a base class OrderedMap and derived classes SortedMap and IndexedMap
@@ -27,7 +28,7 @@ open Spreads.Collections
 [<AllowNullLiteral>]
 type IndexedMap<'K,'V> // when 'K:equality
   internal(dictionary:IDictionary<'K,'V> option, capacity:int option, comparerOpt:KeyComparer<'K> option) as this=
-  inherit ContainerSeries<'K,'V>()
+  inherit ContainerSeries<'K,'V, Cursor<'K,'V>>()
 
   //#region Main internal constructor
     
@@ -665,6 +666,7 @@ type IndexedMap<'K,'V> // when 'K:equality
       if idx >= 0 && idx < this.size then this.values.[idx] 
       else raise (ArgumentOutOfRangeException("idx", "Idx is out of range in IndexedMap GetAt method."))
     
+  override this.GetContainerCursor() = this.GetWrapper()
 
   override this.GetCursor() = 
     let cursor = new BaseCursorAsync<'K,'V,MapCursor<_,_>>(Func<_>(fun _ -> new MapCursor<_,_>(this)))

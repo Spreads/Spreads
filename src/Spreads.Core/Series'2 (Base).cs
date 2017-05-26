@@ -52,7 +52,6 @@ namespace Spreads
     /// <typeparam name="TKey">Type of series keys.</typeparam>
     /// <typeparam name="TValue">Type of series values.</typeparam>
 #pragma warning disable 660, 661
-    [CannotApplyEqualityOperator]
     public abstract class Series<TKey, TValue> : BaseSeries, IReadOnlySeries<TKey, TValue>, ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>
 #pragma warning restore 660,661
     {
@@ -471,6 +470,9 @@ namespace Spreads
             Func<TKey, (TValue, TValue), TValue> selector = AddOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
+            // TODO change to Op2, measure result
+            //var op = zipCursor.Apply<AddOp<TValue>>();
+            //return op;
             return zipCursor.Map(selector).Source;
         }
 
@@ -936,7 +938,10 @@ namespace Spreads
     /// <summary>
     /// Base class for collections (containers).
     /// </summary>
-    public abstract class ContainerSeries<TKey, TValue> : Series<TKey, TValue>
+#pragma warning disable 660,661
+    public abstract class ContainerSeries<TKey, TValue, TCursor> : Series<TKey, TValue>, ISpecializedSeries<TKey, TValue, TCursor>
+#pragma warning restore 660,661
+        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         private object _syncRoot;
 
@@ -1043,6 +1048,13 @@ namespace Spreads
             tcs?.SetResult(result);
         }
 
+        internal abstract TCursor GetContainerCursor();
+
+        TCursor ISpecializedSeries<TKey, TValue, TCursor>.GetCursor()
+        {
+            return GetContainerCursor();
+        }
+
         /// <summary>
         /// A Task that is completed with True whenever underlying data is changed.
         /// Internally used for signaling to async cursors.
@@ -1070,5 +1082,293 @@ namespace Spreads
                 return tcs.Task;
             }
         }
+
+
+
+        #region Unary Operators
+
+        // UNARY ARITHMETIC
+
+        /// <summary>
+        /// Add operator.
+        /// </summary>
+        public static Series<TKey, TValue, Op<TKey, TValue, AddOp<TValue>, TCursor>> operator
+            +(ContainerSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            var cursor = new Op<TKey, TValue, AddOp<TValue>, TCursor>(series.GetContainerCursor(), constant);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Add operator.
+        /// </summary>
+        public static Series<TKey, TValue, Op<TKey, TValue, AddOp<TValue>, TCursor>> operator
+            +(TValue constant, ContainerSeries<TKey, TValue, TCursor> series)
+        {
+            // Addition is commutative
+            var cursor = new Op<TKey, TValue, AddOp<TValue>, TCursor>(series.GetContainerCursor(), constant);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Negate operator.
+        /// </summary>
+        public static Series<TKey, TValue, Op<TKey, TValue, NegateOp<TValue>, TCursor>> operator
+            -(ContainerSeries<TKey, TValue, TCursor> series)
+        {
+            var cursor = new Op<TKey, TValue, NegateOp<TValue>, TCursor>(series.GetContainerCursor(), default(TValue));
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Unary plus operator.
+        /// </summary>
+        public static Series<TKey, TValue, Op<TKey, TValue, PlusOp<TValue>, TCursor>> operator
+            +(ContainerSeries<TKey, TValue, TCursor> series)
+        {
+            var cursor = new Op<TKey, TValue, PlusOp<TValue>, TCursor>(series.GetContainerCursor(), default(TValue));
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Subtract operator.
+        /// </summary>
+        public static Series<TKey, TValue, Op<TKey, TValue, SubtractOp<TValue>, TCursor>> operator
+            -(ContainerSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            var cursor = new Op<TKey, TValue, SubtractOp<TValue>, TCursor>(series.GetContainerCursor(), constant);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Subtract operator.
+        /// </summary>
+        public static Series<TKey, TValue, Op<TKey, TValue, SubtractReverseOp<TValue>, TCursor>> operator
+            -(TValue constant, ContainerSeries<TKey, TValue, TCursor> series)
+        {
+            var cursor = new Op<TKey, TValue, SubtractReverseOp<TValue>, TCursor>(series.GetContainerCursor(), constant);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Multiply operator.
+        /// </summary>
+        public static Series<TKey, TValue, Op<TKey, TValue, MultiplyOp<TValue>, TCursor>> operator
+            *(ContainerSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            var cursor = new Op<TKey, TValue, MultiplyOp<TValue>, TCursor>(series.GetContainerCursor(), constant);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Multiply operator.
+        /// </summary>
+        public static Series<TKey, TValue, Op<TKey, TValue, MultiplyOp<TValue>, TCursor>> operator
+            *(TValue constant, ContainerSeries<TKey, TValue, TCursor> series)
+        {
+            // Multiplication is commutative
+            var cursor = new Op<TKey, TValue, MultiplyOp<TValue>, TCursor>(series.GetContainerCursor(), constant);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Divide operator.
+        /// </summary>
+        public static Series<TKey, TValue, Op<TKey, TValue, DivideOp<TValue>, TCursor>> operator
+            /(ContainerSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            var cursor = new Op<TKey, TValue, DivideOp<TValue>, TCursor>(series.GetContainerCursor(), constant);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Divide operator.
+        /// </summary>
+        public static Series<TKey, TValue, Op<TKey, TValue, DivideReverseOp<TValue>, TCursor>> operator
+            /(TValue constant, ContainerSeries<TKey, TValue, TCursor> series)
+        {
+            var cursor = new Op<TKey, TValue, DivideReverseOp<TValue>, TCursor>(series.GetContainerCursor(), constant);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Modulo operator.
+        /// </summary>
+        public static Series<TKey, TValue, Op<TKey, TValue, ModuloOp<TValue>, TCursor>> operator
+            %(ContainerSeries<TKey, TValue, TCursor> series, TValue constant)
+        {
+            var cursor = new Op<TKey, TValue, ModuloOp<TValue>, TCursor>(series.GetContainerCursor(), constant);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Modulo operator.
+        /// </summary>
+        public static Series<TKey, TValue, Op<TKey, TValue, ModuloReverseOp<TValue>, TCursor>> operator
+            %(TValue constant, ContainerSeries<TKey, TValue, TCursor> series)
+        {
+            var cursor = new Op<TKey, TValue, ModuloReverseOp<TValue>, TCursor>(series.GetContainerCursor(), constant);
+            return cursor.Source;
+        }
+
+        // UNARY LOGIC
+
+        /// <summary>
+        /// Values equal operator. Use ReferenceEquals or SequenceEquals for other cases.
+        /// </summary>
+        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
+            ==(ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, EQOp<TValue>.Instance);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Values equal operator. Use ReferenceEquals or SequenceEquals for other cases.
+        /// </summary>
+        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
+            ==(TValue comparand, ContainerSeries<TKey, TValue, TCursor> series)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, EQOp<TValue>.Instance);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Values not equal operator. Use !ReferenceEquals or !SequenceEquals for other cases.
+        /// </summary>
+        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
+            !=(ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, NEQOp<TValue>.Instance);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Values not equal operator. Use !ReferenceEquals or !SequenceEquals for other cases.
+        /// </summary>
+        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
+            !=(TValue comparand, ContainerSeries<TKey, TValue, TCursor> series)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, NEQOp<TValue>.Instance);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
+            <(ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, LTOp<TValue>.Instance);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
+            <(TValue comparand, ContainerSeries<TKey, TValue, TCursor> series)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, LTReverseOp<TValue>.Instance);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
+            >(ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, GTOp<TValue>.Instance);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
+            >(TValue comparand, ContainerSeries<TKey, TValue, TCursor> series)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, GTReverseOp<TValue>.Instance);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
+            <=(ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, LEOp<TValue>.Instance);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
+            <=(TValue comparand, ContainerSeries<TKey, TValue, TCursor> series)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, LEReverseOp<TValue>.Instance);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator >=(ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, GEOp<TValue>.Instance);
+            return cursor.Source;
+        }
+
+        /// <summary>
+        /// Comparison operator.
+        /// </summary>
+        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
+            >=(TValue comparand, ContainerSeries<TKey, TValue, TCursor> series)
+        {
+            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, GEReverseOp<TValue>.Instance);
+            return cursor.Source;
+        }
+
+        #endregion Unary Operators
+
+
+        #region Binary Operators
+
+        // BINARY ARITHMETIC
+
+        /// <summary>
+        /// Add operator.
+        /// </summary>
+        public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, TCursor, TCursor>>> operator
+            +(ContainerSeries<TKey, TValue, TCursor> series, ContainerSeries<TKey, TValue, TCursor> other)
+        {
+            var c1 = series.GetContainerCursor();
+            var c2 = other.GetContainerCursor();
+            //Func<TKey, (TValue, TValue), TValue> selector = AddOp<TValue>.ZipSelector;
+
+            var zipCursor = new Zip<TKey, TValue, TValue, TCursor, TCursor>(c1, c2);
+            return zipCursor.Map(AddOp<TValue>.ZipSelector).Source;
+
+            //var op2 = new Op2<TKey, TValue, AddOp<TValue>, Zip<TKey, TValue, TValue, TCursor, TCursor>>(zipCursor);
+
+            //return op2.Source;
+        }
+
+        #endregion
     }
 }

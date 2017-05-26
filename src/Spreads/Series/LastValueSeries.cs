@@ -5,6 +5,7 @@
 using Spreads.Collections;
 using System;
 using System.Collections.Generic;
+using Spreads.Cursors;
 
 namespace Spreads
 {
@@ -13,7 +14,7 @@ namespace Spreads
     /// </summary>
     /// <typeparam name="TKey"></typeparam>
     /// <typeparam name="TValue"></typeparam>
-    public class LastValueSeries<TKey, TValue> : ContainerSeries<TKey, TValue>
+    public class LastValueSeries<TKey, TValue> : ContainerSeries<TKey, TValue, Cursor<TKey, TValue>>
     {
         private KeyValuePair<TKey, TValue> _lastValue;
         private bool _isSet = false;
@@ -62,6 +63,11 @@ namespace Spreads
         {
             if (idx != 0) throw new IndexOutOfRangeException();
             return _lastValue.Value;
+        }
+
+        internal override Cursor<TKey, TValue> GetContainerCursor()
+        {
+            return GetWrapper();
         }
 
         public override KeyComparer<TKey> Comparer { get; } = KeyComparer<TKey>.Default;

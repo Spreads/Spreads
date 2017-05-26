@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Spreads.Cursors;
 
 namespace Spreads.Core.Tests
 {
@@ -22,7 +23,7 @@ namespace Spreads.Core.Tests
     public unsafe class LockFreeTests
     {
         //sealed
-        public class LockTestSeries : ContainerSeries<int, int>
+        public class LockTestSeries : ContainerSeries<int, int, Cursor<int, int>>
         {
             private object _syncRoot = new object();
             private long _counter;
@@ -114,6 +115,11 @@ namespace Spreads.Core.Tests
             public override bool TryGetLast(out KeyValuePair<int, int> value)
             {
                 throw new NotImplementedException();
+            }
+
+            internal override Cursor<int, int> GetContainerCursor()
+            {
+                return this.GetWrapper();
             }
         }
 

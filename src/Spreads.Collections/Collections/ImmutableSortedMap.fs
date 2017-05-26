@@ -570,13 +570,14 @@ namespace Spreads.Collections
     open System.Runtime.InteropServices
 
     open Spreads
+    open Spreads.Cursors
     open Spreads.Collections
 
     [<Sealed>]
     [<CompiledName("ImmutableSortedMap`2")>]
     type ImmutableSortedMap<[<EqualityConditionalOn>]'K,[<EqualityConditionalOn;ComparisonConditionalOn>]'V when 'K : comparison >
       internal(comparer: KeyComparer<'K>, tree: MapTree<'K,'V>) =
-      inherit ContainerSeries<'K,'V>()
+      inherit ContainerSeries<'K,'V, Cursor<'K,'V>>()
 
       let syncRoot = new Object()
 
@@ -684,6 +685,8 @@ namespace Spreads.Collections
           false
 
       override this.GetCursor() = new MapCursor<'K, 'V>(this) :> ICursor<'K, 'V>
+      
+      override this.GetContainerCursor() = this.GetWrapper()
 
       member this.Size with get() = int64(MapTree.size tree)
 
