@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
 using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Cursors;
@@ -26,15 +25,25 @@ namespace Spreads.Core.Tests.Cursors
 
             double actual = 0;
             double actual1 = 0;
+            var zipCursor =
+                new Zip<int, double, double, SortedMapCursor<int, double>,
+                    SortedMapCursor<int, double>>(
+                    c1, c2).Map((k, v) => v.Item1 + v.Item2).Initialize();
 
-            using (Benchmark.Run("ZipDiscrete", count * 2))
+            using (Benchmark.Run("ZipDiscrete MN", count * 2))
             {
-                var zipCursor =
-                    new Zip<int, double, double, SortedMapCursor<int, double>,
-                        SortedMapCursor<int, double>>(
-                        c1, c2).Map((k, v) => v.Item1 + v.Item2).Initialize();
-
                 while (zipCursor.MoveNext())
+                {
+                    actual += zipCursor.CurrentValue;
+                }
+            }
+            Assert.AreEqual(expected, actual);
+
+            zipCursor.Reset();
+            actual = 0;
+            using (Benchmark.Run("ZipDiscrete MP", count * 2))
+            {
+                while (zipCursor.MovePrevious())
                 {
                     actual += zipCursor.CurrentValue;
                 }
@@ -98,7 +107,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldAddTwoSeriesWithDifferentKeys()
         {
-            var count = 10000000;
+            var count = 1000000;
             var sm1 = new SortedMap<int, double>();
             var sm2 = new SortedMap<int, double>();
 
@@ -117,25 +126,34 @@ namespace Spreads.Core.Tests.Cursors
                 }
             }
 
-            for (int r = 0; r < 20; r++)
+            for (int r = 0; r < 1; r++)
             {
                 var c1 = sm1.GetEnumerator();
                 var c2 = sm2.GetEnumerator();
+                var zipCursor =
+                    new Zip<int, double, double, SortedMapCursor<int, double>,
+                        SortedMapCursor<int, double>>(
+                        c1, c2).Initialize();
 
                 double actual = 0;
-                using (Benchmark.Run("ZipDiscrete", sm1.Count + sm2.Count))
+                using (Benchmark.Run("ZipDiscrete MN", sm1.Count + sm2.Count))
                 {
-                    var zipCursor =
-                        new Zip<int, double, double, SortedMapCursor<int, double>,
-                            SortedMapCursor<int, double>>(
-                            c1, c2).Initialize();
-
                     while (zipCursor.MoveNext())
                     {
                         actual += zipCursor.Map((k, v) => v.Item1 + v.Item2).CurrentValue;
                     }
                 }
+                Assert.AreEqual(expected, actual);
 
+                zipCursor.Reset();
+                actual = 0;
+                using (Benchmark.Run("ZipDiscrete MP", sm1.Count + sm2.Count))
+                {
+                    while (zipCursor.MovePrevious())
+                    {
+                        actual += zipCursor.Map((k, v) => v.Item1 + v.Item2).CurrentValue;
+                    }
+                }
                 Assert.AreEqual(expected, actual);
             }
 
@@ -164,6 +182,8 @@ namespace Spreads.Core.Tests.Cursors
                 }
             }
 
+            var ss = sm1 + 1;
+
             var calculated = sm1 + sm2;
             var linq = sm1.Zip(sm2, (l, r) => l.Value + r.Value);
             for (int r = 0; r < 20; r++)
@@ -179,27 +199,25 @@ namespace Spreads.Core.Tests.Cursors
 
                 Assert.AreEqual(expected, actual);
 
-                double actual1 = 0;
-                using (Benchmark.Run("LINQ", sm1.Count + sm2.Count))
-                {
-                    foreach (var l in linq)
-                    {
-                        actual1 += l;
-                    }
-                }
+                //double actual1 = 0;
+                //using (Benchmark.Run("LINQ", sm1.Count + sm2.Count))
+                //{
+                //    foreach (var l in linq)
+                //    {
+                //        actual1 += l;
+                //    }
+                //}
 
-                Assert.AreEqual(expected, actual);
+                //Assert.AreEqual(expected, actual);
             }
 
             Benchmark.Dump();
         }
 
-
-
         [Test]
         public void CouldAddContinuousSeries()
         {
-            var count = 10000000; //000;
+            var count = 1000000; //0;
             var sm1 = new SortedMap<int, double>();
             var sm2 = new SortedMap<int, double>();
 
@@ -223,26 +241,105 @@ namespace Spreads.Core.Tests.Cursors
             {
                 var fc1 = new Fill<int, double, SortedMapCursor<int, double>>(sm1.GetEnumerator(), 123);
                 var fc2 = new Fill<int, double, SortedMapCursor<int, double>>(sm2.GetEnumerator(), 42);
+                var zipCursor =
+                    new Zip<int, double, double, Fill<int, double, SortedMapCursor<int, double>>,
+                        Fill<int, double, SortedMapCursor<int, double>>>(
+                        fc1, fc2).Map((k, v) => v.Item1 + v.Item2).Initialize();
 
                 double actual = 0;
-                using (Benchmark.Run("ZipContinuous", (sm1.Count + sm2.Count) * 2)) // NB multiply by 2, we evaluate on missing, should count virtual values as well
+                using (Benchmark.Run("ZipContinuous MN", (sm1.Count + sm2.Count) * 2)) // NB multiply by 2, we evaluate on missing, should count virtual values as well
                 {
-                    var zipCursor =
-                        new Zip<int, double, double, Fill<int, double, SortedMapCursor<int, double>>,
-                            Fill<int, double, SortedMapCursor<int, double>>>(
-                            fc1, fc2).Map((k, v) => v.Item1 + v.Item2).Initialize();
-
                     while (zipCursor.MoveNext())
                     {
                         actual += zipCursor.CurrentValue;
                     }
                 }
+                Assert.AreEqual(expected, actual);
 
+                zipCursor.Reset();
+                actual = 0;
+                using (Benchmark.Run("ZipContinuous MP", (sm1.Count + sm2.Count) * 2)) // NB multiply by 2, we evaluate on missing, should count virtual values as well
+                {
+                    while (zipCursor.MoveNext())
+                    {
+                        actual += zipCursor.CurrentValue;
+                    }
+                }
                 Assert.AreEqual(expected, actual);
             }
 
             Benchmark.Dump();
         }
 
+        [Test]
+        public void CouldMoveAt()
+        {
+            var count = 100;
+            var sm0 = new SortedMap<int, double>();
+            var sm1 = new SortedMap<int, double>();
+            var sm2 = new SortedMap<int, double>();
+
+            double expected = 0;
+
+            for (int i = 1; i < count; i++)
+            {
+                sm0.Add(i, i);
+
+                if (i % 3 == 0)
+                {
+                    sm2.Add(i, 2 * i);
+                    expected += 123 + 2 * i;
+                }
+                else
+                {
+                    sm1.Add(i, i);
+                    expected += i + 42;
+                }
+            }
+
+            var fc = new Fill<int, double, SortedMapCursor<int, double>>(sm0.GetEnumerator(), -1);
+            var fc1 = new Fill<int, double, SortedMapCursor<int, double>>(sm1.GetEnumerator(), 123);
+            var fc2 = new Fill<int, double, SortedMapCursor<int, double>>(sm2.GetEnumerator(), 42);
+
+            var zipCursor =
+                new Zip<int, double, double, Fill<int, double, SortedMapCursor<int, double>>,
+                    Fill<int, double, SortedMapCursor<int, double>>>(
+                    fc, fc2).Map((k, v) => v.Item1 + v.Item2).Initialize();
+
+            Assert.IsTrue(zipCursor.MoveAt(2, Lookup.EQ));
+            Assert.AreEqual(44, zipCursor.CurrentValue);
+
+            Assert.IsTrue(zipCursor.MoveAt(2, Lookup.LE));
+            Assert.AreEqual(44, zipCursor.CurrentValue);
+
+            Assert.IsTrue(zipCursor.MoveAt(2, Lookup.GE));
+            Assert.AreEqual(44, zipCursor.CurrentValue);
+
+            Assert.IsTrue(zipCursor.MoveAt(2, Lookup.LT));
+            Assert.AreEqual(43, zipCursor.CurrentValue);
+
+            Assert.IsTrue(zipCursor.MoveAt(2, Lookup.GT));
+            Assert.AreEqual(9, zipCursor.CurrentValue);
+
+            var zipCursor1 =
+                new Zip<int, double, double, Fill<int, double, SortedMapCursor<int, double>>,
+                    Fill<int, double, SortedMapCursor<int, double>>>(
+                    fc1, fc2).Map((k, v) => v.Item1 + v.Item2).Initialize();
+
+            Assert.IsTrue(zipCursor1.MoveAt(2, Lookup.EQ));
+            Assert.AreEqual(44, zipCursor1.CurrentValue);
+
+            Assert.IsTrue(zipCursor1.MoveAt(2, Lookup.LE));
+            Assert.AreEqual(44, zipCursor1.CurrentValue);
+
+            Assert.IsTrue(zipCursor1.MoveAt(2, Lookup.GE));
+            Assert.AreEqual(44, zipCursor1.CurrentValue);
+
+            Assert.IsTrue(zipCursor1.MoveAt(2, Lookup.LT));
+            Assert.AreEqual(43, zipCursor1.CurrentValue);
+
+            Assert.IsTrue(zipCursor1.MoveAt(2, Lookup.GT));
+            Assert.AreEqual(129, zipCursor1.CurrentValue);
+        }
     }
 }
