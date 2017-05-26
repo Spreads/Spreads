@@ -18,6 +18,8 @@ namespace Spreads.Cursors
 
     // TODO recover could fail if e.g. we cleared series, should throw OOO exception
 
+    // TODO recover without MA
+
     public struct Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>
         : ICursorSeries<TKey, (TLeft, TRight), Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>
         where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
@@ -48,7 +50,7 @@ namespace Spreads.Cursors
 
         // NB this is fixed for the lifetime of the cursor, branch prediction should work
         [Obsolete]
-        private Cont _cont; // TODO Clont/Init must set it
+        private Cont _cont; // TODO Clone/Init must set it
 
         private (bool left, bool right) _isContinuous;
         private TKey _currentKey;
@@ -69,7 +71,7 @@ namespace Spreads.Cursors
         /// until CurrentValue is called.
         /// false means that a cursor is positioned at existing value
         /// </summary>
-        private (bool left, bool right) _valueSet;
+        private (bool left, bool right) _isValueSet;
 
         internal CursorState State { get; set; }
 
@@ -115,7 +117,7 @@ namespace Spreads.Cursors
                     _cmp = _cmp,
                     _c = _c,
                     _everMoved = _everMoved,
-                    _valueSet = _valueSet,
+                    _isValueSet = _isValueSet,
 
                     State = State
                 };
@@ -190,8 +192,8 @@ namespace Spreads.Cursors
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                var left = _valueSet.left ? _currentValue.left : _leftCursor.CurrentValue;
-                var right = _valueSet.right ? _currentValue.right : _rightCursor.CurrentValue;
+                var left = _isValueSet.left ? _currentValue.left : _leftCursor.CurrentValue;
+                var right = _isValueSet.right ? _currentValue.right : _rightCursor.CurrentValue;
                 return (left, right);
             }
         }
@@ -291,7 +293,7 @@ namespace Spreads.Cursors
                         {
                             State = CursorState.Moving;
                             _currentKey = _leftCursor.CurrentKey;
-                            Debug.Assert(_valueSet.Equals((false, false)));
+                            Debug.Assert(_isValueSet.Equals((false, false)));
                             // NB no need to set value now: _currentValue = (_leftCursor.CurrentValue, _rightCursor.CurrentValue);
                         }
                         else if (State == CursorState.Moving)
@@ -325,189 +327,94 @@ namespace Spreads.Cursors
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
 
-            switch (_cont)
+            var moved = false;
+            var currentKey = default(TKey);
+
+            var lm = _leftCursor.MoveFirst();
+            var rm = _rightCursor.MoveFirst();
+            _everMoved = (lm, rm);
+
+            if (lm && rm)
             {
-                case Cont.None:
-
-                    #region Cont.None
-
+                _c = _cmp.Compare(_leftCursor.CurrentKey, _rightCursor.CurrentKey);
+                if (_c == 0)
+                {
+                    // first keys are equal, return true for all _cont cases
+                    moved = true;
+                    currentKey = _leftCursor.CurrentKey;
+                    _isValueSet = (false, false);
+                }
+                else if (_c < 0)
+                {
+                    if (_isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey, out var rv))
                     {
-                        // we must move until keys are equal
-                        var moved = _leftCursor.MoveFirst() && _rightCursor.MoveFirst();
-                        while (moved)
-                        {
-                            _c = _leftCursor.Comparer.Compare(_leftCursor.CurrentKey, _rightCursor.CurrentKey);
-                            if (_c < 0)
-                            {
-                                moved = _leftCursor.MoveNext();
-                            }
-                            else if (_c > 0)
-                            {
-                                moved = _rightCursor.MoveNext();
-                            }
-                            else
-                            {
-                                break;
-                            }
-                        }
+                        // we have evaluated the right cursor
+                        _currentValue.right = rv;
+                        _isValueSet = (false, true);
 
-                        moved = _c == 0 && moved;
-
-                        if (moved)
-                        {
-                            _everMoved = (true, true);
-                            State = CursorState.Moving;
-                            _currentKey = _leftCursor.CurrentKey;
-                            Debug.Assert(_valueSet.Equals((false, false)));
-                            // NB no need to set value now: _currentValue = (_leftCursor.CurrentValue, _rightCursor.CurrentValue);
-                        }
-                        else if (State == CursorState.Moving)
-                        {
-                            // recover position before the move, it must exist
-                            // input cursor will throw OOO if needed
-                            if (!MoveAt(_currentKey, Lookup.EQ)) ThrowHelper.ThrowInvalidOperationException("Cannot recover position.");
-                        }
-                        return moved;
+                        currentKey = _leftCursor.CurrentKey;
+                        moved = true;
                     }
-
-                #endregion Cont.None
-
-                case Cont.Right:
-                    break;
-
-                case Cont.Left:
-                    break;
-
-                case Cont.Both:
+                    else
                     {
-                        // at least one should move and the other must have a value at that place
-                        // if both have values, take he smaller one
-                        _everMoved = (_leftCursor.MoveFirst(), _rightCursor.MoveFirst());
-                        var (lm, rm) = _everMoved;
-
-                        var moved = false;
-                        var currentKey = default(TKey);
-
-                        // TODO (docs) Contract: continuous series consist of [segments], not (segments), i.e.
-                        // all segments start and end with some existing point, inclusive: [start_point, end_point]
-                        // otherwise will have to iterate too much in some cases to find `(start_point...` for zip
-                        // (infinity, infinity), (infinity, end], [start, infinity) should work
-
-                        if (lm && rm)
-                        {
-                            _c = _leftCursor.Comparer.Compare(_leftCursor.CurrentKey, _rightCursor.CurrentKey);
-                            if (_c == 0)
-                            {
-                                // cursors are at the same place, no need to evaluate before CurrentValue is called
-                                _valueSet = (false, false);
-                                currentKey = _leftCursor.CurrentKey;
-                                moved = true;
-                            }
-                            else if (_c < 0)
-                            {
-                                // left is behind, try to take the right's value matching left
-                                if (_rightCursor.TryGetValue(_leftCursor.CurrentKey, out var rv))
-                                {
-                                    // we have evaluated the right cursor
-                                    _currentValue.right = rv;
-                                    _valueSet = (false, true);
-
-                                    currentKey = _leftCursor.CurrentKey;
-                                    moved = true;
-                                }
-                                else
-                                {
-                                    // there could be no values before right's first one due to the `continuous inclusion assumtion` (TODO (doc) name this assumtion properly)
-
-                                    // move left at or ahead of the right
-                                    while (_c < 0 && _leftCursor.MoveNext())
-                                    {
-                                        _c = _leftCursor.Comparer.Compare(_leftCursor.CurrentKey, _rightCursor.CurrentKey);
-                                    }
-
-                                    if (_leftCursor.TryGetValue(_rightCursor.CurrentKey, out var lv))
-                                    {
-                                        // we have evaluated the left cursor
-                                        _currentValue.left = lv;
-                                        _valueSet = (true, false);
-
-                                        currentKey = _leftCursor.CurrentKey;
-                                        moved = true;
-                                    }
-                                    else
-                                    {
-                                        // TODO need a method to move next from a frontier,
-                                        // here frontier is right's key
-                                        throw new NotImplementedException();
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                // TODO mirrow the _c < 0 case
-                                throw new NotImplementedException();
-                            }
-                        }
-                        else if (lm)
-                        {
-                            // right is empty, it could only has values defined on (inf,inf) or no values at all
-                            if (_rightCursor.TryGetValue(_leftCursor.CurrentKey, out var v))
-                            {
-                                // we have evaluated the right cursor
-                                _currentValue.right = v;
-                                _valueSet = (false, true);
-
-                                currentKey = _leftCursor.CurrentKey;
-                                moved = true;
-                            }
-                            else
-                            {
-                                // ReSharper disable once EmptyStatement
-                                ; // no values, do nothing
-                            }
-                        }
-                        else if (rm)
-                        {
-                            // left is empty, it could only has values defined on (inf,inf) or no values at all
-                            if (_leftCursor.TryGetValue(_leftCursor.CurrentKey, out var v))
-                            {
-                                // we have evaluated the right cursor
-                                _currentValue.left = v;
-                                _valueSet = (true, false);
-
-                                currentKey = _rightCursor.CurrentKey;
-                                moved = true;
-                            }
-                            else
-                            {
-                                // ReSharper disable once EmptyStatement
-                                ; // no values, do nothing
-                            }
-                        }
-                        else
-                        {
-                            // ReSharper disable once EmptyStatement
-                            ; // none moved, do nothing
-                        }
-
-                        // TODO moved and currentKey should be shared for all cont cases
-                        if (moved)
-                        {
-                            State = CursorState.Moving;
-                            _currentKey = currentKey;
-                        }
-                        else if (State == CursorState.Moving)
-                        {
-                            // recover position before the move, it must exist
-                            // input cursor will throw OOO if needed
-                            if (!MoveAt(_currentKey, Lookup.EQ)) ThrowHelper.ThrowInvalidOperationException("Cannot recover position.");
-                        }
-                        return moved;
+                        // L.CurrentKey is invalid so use it as an exclusive frontier
+                        moved = MoveNextFromFrontier(_leftCursor.CurrentKey, ref currentKey);
                     }
+                }
+                else if (_c > 0)
+                {
+                    if (_isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey, out var lv))
+                    {
+                        _currentValue.left = lv;
+                        _isValueSet = (true, false);
+
+                        currentKey = _leftCursor.CurrentKey;
+                        moved = true;
+                    }
+                    else
+                    {
+                        moved = MoveNextFromFrontier(_rightCursor.CurrentKey, ref currentKey);
+                    }
+                }
+            }
+            else if (lm)
+            {
+                // R is empty, it is only possible to get value from it if it was it defined for (inf, inf)
+                if (_isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey, out var rv))
+                {
+                    // we have evaluated the right cursor
+                    _currentValue.right = rv;
+                    _isValueSet = (false, true);
+
+                    currentKey = _leftCursor.CurrentKey;
+                    moved = true;
+                }
+            }
+            else if (rm)
+            {
+                if (_isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey, out var lv))
+                {
+                    _currentValue.left = lv;
+                    _isValueSet = (true, false);
+
+                    currentKey = _leftCursor.CurrentKey;
+                    moved = true;
+                }
             }
 
-            ThrowHelper.ThrowNotImplementedException();
-            return false;
+            if (moved)
+            {
+                State = CursorState.Moving;
+                _currentKey = currentKey;
+            }
+            else if (State == CursorState.Moving)
+            {
+                // The cursor was already in the moving state but now cannot move first,
+                // which could only mean it has become empty and some of it's input
+                // was cleared, which is OutOfOrderKeyException. Do not try to recover but just throw.
+                ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
+            }
+            return moved;
         }
 
         /// <inheritdoc />
@@ -547,7 +454,7 @@ namespace Spreads.Cursors
                         {
                             State = CursorState.Moving;
                             _currentKey = _leftCursor.CurrentKey;
-                            Debug.Assert(_valueSet.Equals((false, false)));
+                            Debug.Assert(_isValueSet.Equals((false, false)));
                             // NB no need to set value now: _currentValue = (_leftCursor.CurrentValue, _rightCursor.CurrentValue);
                         }
                         else if (State == CursorState.Moving)
@@ -585,16 +492,20 @@ namespace Spreads.Cursors
             // initial values to true so that first moves ignore them
             var lm = true;
             var rm = true;
-
+            var lk = _leftCursor.CurrentKey;
+            var rk = _rightCursor.CurrentKey;
             while (true)
             {
                 // move lagging or both if they are at the same position
 
-                if (_c <= 0 || !rm)
+                // NB important to calculate the conditions before moves
+                var shouldMoveLeft = _c <= 0 || !rm;
+                var shouldMoveRight = _c >= 0 || !lm;
+                if (shouldMoveLeft)
                 {
                     lm = _leftCursor.MoveNext();
                 }
-                if (_c >= 0 || !lm)
+                if (shouldMoveRight)
                 {
                     rm = _rightCursor.MoveNext();
                 }
@@ -605,13 +516,14 @@ namespace Spreads.Cursors
                     break;
                 }
 
-                _c = _leftCursor.Comparer.Compare(_leftCursor.CurrentKey, _rightCursor.CurrentKey);
+                _c = _cmp.Compare(_leftCursor.CurrentKey, _rightCursor.CurrentKey);
 
                 if (_c == 0)
                 {
                     // This is a common case for all _isContinuous combinations - both cursors are at the same position.
                     moved = true;
-                    _valueSet = (false, false);
+                    currentKey = _leftCursor.CurrentKey;
+                    _isValueSet = (false, false);
                     break;
                 }
 
@@ -653,7 +565,7 @@ namespace Spreads.Cursors
                         if (_leftCursor.TryGetValue(_rightCursor.CurrentKey, out var vl))
                         {
                             _currentValue.left = vl;
-                            _valueSet = (true, false);
+                            _isValueSet = (true, false);
 
                             currentKey = _rightCursor.CurrentKey;
                             moved = true;
@@ -674,7 +586,7 @@ namespace Spreads.Cursors
                     if (_rightCursor.TryGetValue(_leftCursor.CurrentKey, out var vr))
                     {
                         _currentValue.right = vr;
-                        _valueSet = (false, true);
+                        _isValueSet = (false, true);
 
                         currentKey = _leftCursor.CurrentKey;
                         moved = true;
@@ -706,12 +618,11 @@ namespace Spreads.Cursors
                         if (_rightCursor.TryGetValue(_leftCursor.CurrentKey, out var vr))
                         {
                             _currentValue.right = vr;
-                            _valueSet = (false, true);
+                            _isValueSet = (false, true);
 
                             currentKey = _leftCursor.CurrentKey;
                             moved = true;
                         }
-                        // ... because R.CurrentKey is in [L.CurrentKey, inf) - if we don't get value we will never get it.
                         break;
                     }
 
@@ -726,7 +637,7 @@ namespace Spreads.Cursors
                     {
                         // we have evaluated L
                         _currentValue.left = v;
-                        _valueSet = (true, false);
+                        _isValueSet = (true, false);
 
                         currentKey = _rightCursor.CurrentKey;
                         moved = true;
@@ -737,6 +648,24 @@ namespace Spreads.Cursors
                 //ThrowHelper.ThrowInvalidOperationException("should have breaked!");
             }
 
+            if (!moved)
+            {
+                // recover those cursor whose values are not cached
+                if (!_isValueSet.left && _cmp.Compare(_leftCursor.CurrentKey, lk) != 0)
+                {
+                    if (!_leftCursor.MoveAt(lk, Lookup.EQ))
+                    {
+                        ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
+                    }
+                }
+                if (!_isValueSet.right && _cmp.Compare(_rightCursor.CurrentKey, rk) != 0)
+                {
+                    if (!_rightCursor.MoveAt(rk, Lookup.EQ))
+                    {
+                        ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
+                    }
+                }
+            }
             return moved;
         }
 
@@ -748,58 +677,94 @@ namespace Spreads.Cursors
 
             Debug.Assert(_everMoved.left || _everMoved.right, "At least one cursor should have moved in MF");
 
+            bool moved;
+            var currentKey = default(TKey);
+
             if (_everMoved.left && _everMoved.right)
             {
-                var currentKey = default(TKey);
-                var moved = MoveNextFromFrontier(_currentKey, ref currentKey);
-                if (!moved
-                    && (_cmp.Compare(_currentKey, _leftCursor.CurrentKey) != 0
-                        || _cmp.Compare(_currentKey, _rightCursor.CurrentKey) != 0))
-                {
-                    // recover position before the move, it must exist
-                    // input cursors will throw OOO if needed
-                    if (!MoveAt(_currentKey, Lookup.EQ))
-                    {
-                        ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
-                    }
-                }
-                else
-                {
-                    _currentKey = currentKey;
-                }
-                return moved;
+                moved = MoveNextFromFrontier(_currentKey, ref currentKey);
+            }
+            else
+            {
+                moved = MoveNextSlow(ref currentKey);
             }
 
-            return MoveNextSlow();
+            if (moved)
+            {
+                _currentKey = currentKey;
+            }
+            return moved;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private bool MoveNextSlow()
+        private bool MoveNextSlow(ref TKey currentKey)
         {
-            //if (_everMoved.left)
-            //{
-            //    if (_rightCursor.MoveNext())
-            //    {
-            //        // TODO check where moved
-            //        _everMoved.right = true;
-            //        TKey currentKey = default(TKey);
-            //        var moved = MoveNextContFromFrontier(_currentKey, ref currentKey);
-            //        if (!moved
-            //            && (_cmp.Compare(_currentKey, _leftCursor.CurrentKey) != 0
-            //                || _cmp.Compare(_currentKey, _rightCursor.CurrentKey) != 0))
-            //        {
-            //            // recover position before the move, it must exist
-            //            // input cursors will throw OOO if needed
-            //            if (!MoveAt(_currentKey, Lookup.EQ)) ThrowHelper.ThrowInvalidOperationException("Cannot recover position.");
-            //        }
-            //        else
-            //        {
-            //            _currentKey = currentKey;
-            //        }
-            //        return moved;
-            //    }
-            //}
-            throw new NotImplementedException("TODO Zip on empty series");
+            if (_everMoved.left)
+            {
+                Debug.Assert(_isContinuous.right);
+                Debug.Assert(_cmp.Compare(_currentKey, _leftCursor.CurrentKey) == 0);
+                if (_rightCursor.MoveNext())
+                {
+                    _everMoved.right = true;
+                    _c = _cmp.Compare(_leftCursor.CurrentKey, _rightCursor.CurrentKey);
+                    // R moved first time
+                    // if _c < 0 then R is ahead and L will be moved, normal case
+                    // if _c == 0 then they are both at the current key
+                    // if _c > 0 then R is behind _currentKey and it will be moved again
+                    // we could lose its first value, but:
+                    // if R's next value is ahead of F and L then we will call R.TGV and e.g. Repeat() will corretly return R's first value
+                    // if R's next value is behind F and L we will move it again and again
+                    return MoveNextFromFrontier(_currentKey, ref currentKey);
+                }
+
+                var lm = _leftCursor.MoveNext();
+                if (lm && _rightCursor.TryGetValue(_leftCursor.CurrentKey, out var rv))
+                {
+                    // we have evaluated the right cursor
+                    _currentValue.right = rv;
+                    _isValueSet = (false, true);
+
+                    currentKey = _leftCursor.CurrentKey;
+                    return true;
+                }
+
+                // recover - move previous if moved next
+                if (lm && !_leftCursor.MovePrevious())
+                {
+                    ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
+                }
+                return false;
+            }
+
+            if (_everMoved.right)
+            {
+                Debug.Assert(_isContinuous.left);
+                Debug.Assert(_cmp.Compare(_currentKey, _leftCursor.CurrentKey) == 0);
+                if (_leftCursor.MoveNext())
+                {
+                    _everMoved.left = true;
+                    _c = _cmp.Compare(_leftCursor.CurrentKey, _rightCursor.CurrentKey);
+                    return MoveNextFromFrontier(_currentKey, ref currentKey);
+                }
+
+                var rm = _rightCursor.MoveNext();
+                if (rm && _leftCursor.TryGetValue(_rightCursor.CurrentKey, out var lv))
+                {
+                    _currentValue.left = lv;
+                    _isValueSet = (true, false);
+
+                    currentKey = _leftCursor.CurrentKey;
+                    return true;
+                }
+
+                if (rm && !_rightCursor.MovePrevious())
+                {
+                    ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
+                }
+                return false;
+            }
+
+            ThrowHelper.ThrowInvalidOperationException("Cannot be in Moving state if none of the cursors ever moved.");
             return false;
         }
 
@@ -844,7 +809,7 @@ namespace Spreads.Cursors
                         else
                         {
                             _currentKey = _leftCursor.CurrentKey;
-                            Debug.Assert(_valueSet.Equals((false, false)));
+                            Debug.Assert(_isValueSet.Equals((false, false)));
                             // NB no need to set value now: _currentValue = (_leftCursor.CurrentValue, _rightCursor.CurrentValue);
                         }
                         return moved;

@@ -2,8 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
-#nowarn "0086" // operator overloads are intentional, Series are as primitive as scalars, all arithmetic operations are defined on them as maps
 namespace Spreads
 
 open System

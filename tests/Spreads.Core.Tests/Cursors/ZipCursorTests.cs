@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Cursors;
@@ -192,5 +193,56 @@ namespace Spreads.Core.Tests.Cursors
 
             Benchmark.Dump();
         }
+
+
+
+        [Test]
+        public void CouldAddContinuousSeries()
+        {
+            var count = 10000000; //000;
+            var sm1 = new SortedMap<int, double>();
+            var sm2 = new SortedMap<int, double>();
+
+            double expected = 0;
+
+            for (int i = 1; i < count; i++)
+            {
+                if (i % 2 == 0)
+                {
+                    sm2.Add(i, 2 * i);
+                    expected += 123 + 2 * i;
+                }
+                else
+                {
+                    sm1.Add(i, i);
+                    expected += i + 42;
+                }
+            }
+
+            for (int r = 0; r < 20; r++)
+            {
+                var fc1 = new Fill<int, double, SortedMapCursor<int, double>>(sm1.GetEnumerator(), 123);
+                var fc2 = new Fill<int, double, SortedMapCursor<int, double>>(sm2.GetEnumerator(), 42);
+
+                double actual = 0;
+                using (Benchmark.Run("ZipContinuous", (sm1.Count + sm2.Count) * 2)) // NB multiply by 2, we evaluate on missing, should count virtual values as well
+                {
+                    var zipCursor =
+                        new Zip<int, double, double, Fill<int, double, SortedMapCursor<int, double>>,
+                            Fill<int, double, SortedMapCursor<int, double>>>(
+                            fc1, fc2).Map((k, v) => v.Item1 + v.Item2).Initialize();
+
+                    while (zipCursor.MoveNext())
+                    {
+                        actual += zipCursor.CurrentValue;
+                    }
+                }
+
+                Assert.AreEqual(expected, actual);
+            }
+
+            Benchmark.Dump();
+        }
+
     }
 }

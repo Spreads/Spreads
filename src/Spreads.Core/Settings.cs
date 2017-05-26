@@ -13,6 +13,11 @@ namespace Spreads
         /// </summary>
         public static bool TraceFinalizationOfIDisposables { get; set; }
 
+        ///// <summary>
+        ///// Throw <see cref="OutOfOrderKeyException{TKey}"/> if Zip input values arrive out of order.
+        ///// </summary>
+        //public static bool ZipThrowOnOunOfOrderInputs { get; set; }
+
         /// <summary>
         /// Get or set default compression method: LZ4 (default) or Zstd).
         /// </summary>
