@@ -6,6 +6,7 @@ using Spreads.Collections;
 using Spreads.Cursors;
 using Spreads.Utils;
 using System.Linq;
+using Deedle;
 
 namespace Spreads.Core.Tests.Cursors
 {
@@ -19,17 +20,20 @@ namespace Spreads.Core.Tests.Cursors
             var c1 = sm1.GetEnumerator();
             var c2 = sm2.GetEnumerator();
 
+            var ds1 = new Deedle.Series<int, double>(sm1.Keys.ToArray(), sm1.Values.ToArray());
+            var ds2 = new Deedle.Series<int, double>(sm2.Keys.ToArray(), sm2.Values.ToArray());
+
             Assert.NotNull(c1.Comparer);
             Assert.NotNull(c2.Comparer);
 
             double actual = 0;
-            double actual1 = 0;
             var zipCursor =
                 new Zip<int, double, double, SortedMapCursor<int, double>,
                     SortedMapCursor<int, double>>(
                     c1, c2).Map((k, v) => v.Item1 + v.Item2).Initialize();
 
-            using (Benchmark.Run("ZipDiscrete MN", count * 2))
+            
+            using (Benchmark.Run("Zip", count * 2))
             {
                 while (zipCursor.MoveNext())
                 {
@@ -38,37 +42,60 @@ namespace Spreads.Core.Tests.Cursors
             }
             Assert.AreEqual(expected, actual);
 
-            var zipped = sm1.Zip(sm2, (k, l, r) => l + r); // sm1.Zip(sm2).Map((k, v) => v.Item1 + v.Item2); //
+            //var zipped = sm1.Zip(sm2, (k, l, r) => l + r); // sm1.Zip(sm2).Map((k, v) => v.Item1 + v.Item2); //
+            //actual = 0;
+            //using (Benchmark.Run("Zip MN Extension", count * 2))
+            //{
+            //    foreach (var keyValuePair in zipped)
+            //    {
+            //        actual += keyValuePair.Value;
+            //    }
+            //}
+            //Assert.AreEqual(expected, actual);
+
+            var zipN = new[] { sm1, sm2 }.Zip((k, varr) => varr[0] + varr[1]).GetCursor();
             actual = 0;
-            using (Benchmark.Run("ZipDiscrete MN Extension", count * 2))
+            using (Benchmark.Run("ZipN (old)", count * 2))
             {
-                foreach (var keyValuePair in zipped)
+                while (zipN.MoveNext())
                 {
-                    actual += keyValuePair.Value;
+                    actual += zipN.CurrentValue;
                 }
             }
             Assert.AreEqual(expected, actual);
 
-            zipCursor.Reset();
-            actual = 0;
-            using (Benchmark.Run("ZipDiscrete MP", count * 2))
-            {
-                while (zipCursor.MovePrevious())
-                {
-                    actual += zipCursor.CurrentValue;
-                }
-            }
-            Assert.AreEqual(expected, actual);
+            //zipCursor.Reset();
+            //actual = 0;
+            //using (Benchmark.Run("Zip MP", count * 2))
+            //{
+            //    while (zipCursor.MovePrevious())
+            //    {
+            //        actual += zipCursor.CurrentValue;
+            //    }
+            //}
+            //Assert.AreEqual(expected, actual);
 
+            actual = 0;
             using (Benchmark.Run("LINQ", count * 2))
             {
                 var linq = sm1.Zip(sm2, (l, r) => l.Value + r.Value);
                 foreach (var d in linq)
                 {
-                    actual1 += d;
+                    actual += d;
                 }
             }
-            Assert.AreEqual(expected, actual1);
+            Assert.AreEqual(expected, actual);
+
+            actual = 0;
+            using (Benchmark.Run("Deedle", count * 2))
+            {
+                foreach (var v in ds1.ZipInner(ds2).Values)
+                {
+                    actual += v.Item1 + v.Item2;
+                }
+            }
+            Assert.AreEqual(expected, actual);
+
         }
 
         [Test]
@@ -79,7 +106,10 @@ namespace Spreads.Core.Tests.Cursors
 
             double expected = 0;
 
-            for (int i = 0; i < 100000; i++)
+            sm1.Add(0, 0);
+            sm2.Add(0, 0);
+
+            for (int i = 2; i < 100000; i++)
             {
                 expected += i + 2 * i;
                 sm1.Add(i, i);
@@ -100,7 +130,7 @@ namespace Spreads.Core.Tests.Cursors
             sm1.Add(0, 0);
             sm2.Add(0, 0);
 
-            for (int i = 2; i < 10000000; i++)
+            for (int i = 2; i < 1000000; i++)
             {
                 expected += i + 2 * i;
                 sm1.Add(i, i);
