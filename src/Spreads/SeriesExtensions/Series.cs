@@ -1,9 +1,6 @@
-﻿
-
-// ReSharper disable once CheckNamespace
+﻿// ReSharper disable once CheckNamespace
 namespace Spreads
 {
-
     // NB there are problems with extensions on ISpecializedSeries
     // * resolution - ambiguous extensions
     // * boxing - CursorSeries will be boxed to the interface
@@ -20,7 +17,16 @@ namespace Spreads
 
     public static partial class Series
     {
+        public static Series<TKey, TValue, Empty<TKey, TValue>> Empty<TKey, TValue>()
+        {
+            var cursor = new Empty<TKey, TValue>();
+            return cursor.Source;
+        }
 
-        
+        public static Series<TKey, TValue, Fill<TKey, TValue, Empty<TKey, TValue>>> Constant<TKey, TValue>(TValue value)
+        {
+            var fillCursor = new Fill<TKey, TValue, Empty<TKey, TValue>>(new Empty<TKey, TValue>(), value);
+            return fillCursor.Source;
+        }
     }
 }
