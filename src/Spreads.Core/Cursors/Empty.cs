@@ -18,14 +18,6 @@ namespace Spreads
     public struct Empty<TKey, TValue> :
         ICursorSeries<TKey, TValue, Empty<TKey, TValue>>
     {
-        #region Cursor state
-
-        #endregion Cursor state
-
-        #region Constructors
-
-        #endregion Constructors
-
         #region Lifetime management
 
         /// <inheritdoc />

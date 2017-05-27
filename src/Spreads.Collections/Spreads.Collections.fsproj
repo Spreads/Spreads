@@ -102,11 +102,9 @@
     <Compile Include="Collections\SortedMap.fs" />
     <Compile Include="Collections\SortedChunkedMap.fs" />
     <Compile Include="Collections\DataStream.fs" />
-    <None Include="Cursors\Cursors.md" />
     <Compile Include="Cursors\BindCursor.fs" />
     <Compile Include="Cursors\FunctionalBindCursor.fs" />
     <Compile Include="Cursors\Append.fs" />
-    <Compile Include="Cursors\MissingValuesCursors.fs" />
     <Compile Include="Cursors\MiscCursors.fs" />
     <Compile Include="Cursors\FilterCursors.fs" />
     <Compile Include="Cursors\LaggedCursors.fs" />

@@ -25,8 +25,7 @@ namespace Spreads
 
         public static Series<TKey, TValue, Fill<TKey, TValue, Empty<TKey, TValue>>> Constant<TKey, TValue>(TValue value)
         {
-            var fillCursor = new Fill<TKey, TValue, Empty<TKey, TValue>>(new Empty<TKey, TValue>(), value);
-            return fillCursor.Source;
+            return Empty<TKey, TValue>().Fill(value);
         }
     }
 }
