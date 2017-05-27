@@ -17,6 +17,7 @@ using Newtonsoft.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Spreads;
+using Spreads.Cursors;
 
 namespace Spreads.Extensions.Tests {
     [TestFixture]
@@ -135,6 +136,11 @@ namespace Spreads.Extensions.Tests {
 
             var smaSignal = deviation.Map((dt,x) => (double)(Math.Sign(x)));
 
+            var test1 = new Series<DateTime, double, Cursor<DateTime, double>>();
+            var test2 = new Series<DateTime, double, Cursor<DateTime, double>>();
+            var test3 = test1 * test2;
+
+            // (Series<DateTime, double, Cursor<DateTime, double>>)
             var smaPositionMultiple = ((smaSignal * leverage).Map(x => 0.25 * (Math.Round(x / 0.25))));
             var smaPositionMultipleMap = smaPositionMultiple.ToSortedMap();
 

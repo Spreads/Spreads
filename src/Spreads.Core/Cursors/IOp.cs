@@ -8,7 +8,8 @@ using System.Runtime.CompilerServices;
 
 // ReSharper disable CompareOfFloatsByEqualityOperator
 
-namespace Spreads.Cursors
+// ReSharper disable once CheckNamespace
+namespace Spreads
 {
     /// <summary>
     /// A generic operation on two values of types T1 and T2 returning a value of a type TResult.

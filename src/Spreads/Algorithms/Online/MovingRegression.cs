@@ -5,12 +5,13 @@
 
 //using System;
 //using MathNet.Numerics.LinearAlgebra;
+//using Spreads.Cursors;
 
 //namespace Spreads.Algorithms.Online
 //{
 //    public static class MovingRegressionExtension
 //    {
-//        public static Series<DateTime, Matrix<double>> MovingRegression(this Series<DateTime, double> y, Series<DateTime, double[]> xs, uint window, uint step = 1)
+//        public static Series<DateTime, Matrix<double>, Cursor<DateTime, Matrix<double>>> MovingRegression(this Series<DateTime, double> y, Series<DateTime, double[]> xs, uint window, uint step = 1)
 //        {
 //            var xpx = xs.Zip(y, (dt, xrow, yrow) =>
 //            {
@@ -33,26 +34,26 @@
 //                    () => new ValueTuple<Matrix<double>, Matrix<double>>(Matrix<double>.Build.Dense(dim, dim), Matrix<double>.Build.Dense(dim, 1)),
 //                    (st, add, sub, cnt) =>
 //                    {
-//                        var cov = st.Value1.Add(add.Value.Value1);
-//                        if (sub.Value.Value1 != null)
+//                        var cov = st.Item1.Add(add.Value.Item1);
+//                        if (sub.Value.Item1 != null)
 //                        {
-//                            cov = cov.Subtract(sub.Value.Value1);
+//                            cov = cov.Subtract(sub.Value.Item1);
 //                        }
-//                        var variance = st.Value2.Add(add.Value.Value2);
-//                        if (sub.Value.Value2 != null)
+//                        var variance = st.Item2.Add(add.Value.Item2);
+//                        if (sub.Value.Item2 != null)
 //                        {
-//                            variance = variance.Subtract(sub.Value.Value2);
+//                            variance = variance.Subtract(sub.Value.Item2);
 //                        }
 //                        return new ValueTuple<Matrix<double>, Matrix<double>>(cov, variance);
 //                    }, false));
 
-//            Series<DateTime, Matrix<double>> betas;
-//            betas = new CursorSeries<DateTime, ValueTuple<Matrix<double>, Matrix<double>>>(cursorFactory).Map(
+//            //Series<DateTime, Matrix<double>> betas;
+//            var betas = new CursorSeries<DateTime, ValueTuple<Matrix<double>, Matrix<double>>>(cursorFactory).Map(
 //                tpl =>
 //                {
-//                    return tpl.Value1.Inverse().Multiply(tpl.Value2);
-//                }, null);
-//            return betas;
+//                    return tpl.Item1.Inverse().Multiply(tpl.Item2);
+//                });
+//            return betas.Unspecialized;
 //        }
 //    }
 //}

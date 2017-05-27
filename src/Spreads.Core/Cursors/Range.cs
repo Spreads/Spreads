@@ -10,7 +10,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads.Cursors
+// ReSharper disable once CheckNamespace
+namespace Spreads
 {
     /// <summary>
     /// Range cursor.

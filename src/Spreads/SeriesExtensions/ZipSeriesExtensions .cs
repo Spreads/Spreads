@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Cursors;
 using System;
 
 // ReSharper disable once CheckNamespace
@@ -10,6 +9,8 @@ namespace Spreads
 {
     public static partial class Series
     {
+        // TODO see the trick with implicit conversion in ContainerSeries.* operator. Here it is also needed.
+
         // NB having methods that accept a selector achieve nothing in performance terms
 
         #region ContainerSeries
@@ -42,7 +43,6 @@ namespace Spreads
             return zip.Map((k, t) => selector(k, t.Item1, t.Item2)).Source;
         }
 
-
         public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
             this (ContainerSeries<TKey, TLeft, TCursorLeft> left, ContainerSeries<TKey, TRight, TCursorRight> right) tuple, Func<TKey, TLeft, TRight, TResult> selector)
             where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
@@ -52,8 +52,7 @@ namespace Spreads
             return zip.Map((k, t) => selector(k, t.Item1, t.Item2)).Source;
         }
 
-        #endregion ISpecializedSeries
-
+        #endregion ContainerSeries
 
         #region ISeries
 
@@ -78,6 +77,6 @@ namespace Spreads
             return zip.Map((k, t) => selector(k, t.Item1, t.Item2)).Source;
         }
 
-        #endregion
+        #endregion ISeries
     }
 }

@@ -1,9 +1,8 @@
 using System.Threading.Tasks;
 
-namespace Spreads.Cursors
+// ReSharper disable once CheckNamespace
+namespace Spreads
 {
-    // TODO (docs) explain why these members are needed, but first implement Range with this approach
-
     /// <summary>
     /// A cursor used as an input to <see cref="Series{TKey,TValue,TCursor}"/>.
     /// The members are used by the corresponding members in CursorSeries.

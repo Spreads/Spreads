@@ -597,6 +597,31 @@ namespace Spreads
             return zipCursor.Map(selector).Source;
         }
 
+
+        // TODO review & test this trick to implicitly cast non-matching cursor types to Cursor<TKey, TValue>
+        // see CouldCalculateComplexGraph test
+        public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>>> operator
+            *(Series<TKey, TValue, TCursor> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
+        {
+            var c1 = series.GetEnumerator();
+            var c2 = other.GetEnumerator();
+            Func<TKey, (TValue, TValue), TValue> selector = MultiplyOp<TValue>.ZipSelector;
+
+            var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
+            return zipCursor.Map(selector).Source;
+        }
+
+        //public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>>> operator
+        //    *(Series<TKey, TValue, Cursor<TKey, TValue>> series, Series<TKey, TValue, TCursor> other)
+        //{
+        //    var c1 = series.GetEnumerator();
+        //    var c2 = other.GetEnumerator();
+        //    Func<TKey, (TValue, TValue), TValue> selector = MultiplyOp<TValue>.ZipSelector;
+
+        //    var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);
+        //    return zipCursor.Map(selector).Source;
+        //}
+
         /// <summary>
         /// Multiply operator.
         /// </summary>
@@ -971,6 +996,11 @@ namespace Spreads
             var c = new Cursor<TKey, TValue>(series._cursor);
             return new Series<TKey, TValue, Cursor<TKey, TValue>>(c);
         }
+
+        /// <summary>
+        /// Erase cursor type <typeparamref name="TCursor"/> to <see cref="Cursor{TKey,TValue}"/>.
+        /// </summary>
+        public Series<TKey, TValue, Cursor<TKey, TValue>> Unspecialized => this;
 
         #endregion Implicit cast
     }

@@ -9,11 +9,11 @@ namespace Spreads
     {
         #region ContainerSeries
 
-        public static Series<TKey, TValue, Fill<TKey, TValue, TCursor>> Fill<TKey, TValue, TCursor>(
+        public static Series<TKey, (TKey, TValue), Repeat<TKey, TValue, TCursor>> Repeat<TKey, TValue, TCursor>(
             this ContainerSeries<TKey, TValue, TCursor> series, TValue value)
             where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
-            var fillCursor = new Fill<TKey, TValue, TCursor>(series.GetContainerCursor(), value);
+            var fillCursor = new Repeat<TKey, TValue, TCursor>(series.GetContainerCursor());
             return fillCursor.Source;
         }
 
@@ -21,10 +21,10 @@ namespace Spreads
 
         #region ISeries
 
-        public static Series<TKey, TValue, Fill<TKey, TValue, Cursor<TKey, TValue>>> Fill<TKey, TValue>(
+        public static Series<TKey, (TKey, TValue), Repeat<TKey, TValue, Cursor<TKey, TValue>>> Repeat<TKey, TValue>(
             this ISeries<TKey, TValue> series, TValue value)
         {
-            var fillCursor = new Fill<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), value);
+            var fillCursor = new Repeat<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor());
             return fillCursor.Source;
         }
 
@@ -32,11 +32,11 @@ namespace Spreads
 
         #region Generic CursorSeries
 
-        public static Series<TKey, TValue, Fill<TKey, TValue, TCursor>> Fill<TKey, TValue, TCursor>(
+        public static Series<TKey, (TKey, TValue), Repeat<TKey, TValue, TCursor>> Repeat<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series, TValue value)
             where TCursor : ICursorSeries<TKey, TValue, TCursor>
         {
-            var fillCursor = new Fill<TKey, TValue, TCursor>(series.GetEnumerator(), value);
+            var fillCursor = new Repeat<TKey, TValue, TCursor>(series.GetEnumerator());
             return fillCursor.Source;
         }
 

@@ -114,87 +114,88 @@ namespace Spreads.Core.Tests.Algorithms
             }
         }
 
-        [Test, Ignore]
-        public void IncompleteMovingMedianIsCorrect()
-        {
-            var rng = new System.Random();
-            var count = 100000;
-            var m = rng.Next(10, 199);
-            Console.WriteLine($"Window size: {m}");
-            var keys = new int[count];
-            var data = new double[count];
-            //var sm = new SortedMap<int, double>(count);
-            for (int i = 0; i < count; i++)
-            {
-                keys[i] = i;
-                data[i] = rng.NextDouble();
-                //sm.Add(i, data[i]);
-            }
-            var sm = SortedMap<int, double>.OfSortedKeysAndValues(keys, data, count);
-            sm.Complete();
-            var medianSeries = sm.MovingMedian(m, true);
-            var mm = new MovingMedian(m);
-            var medians = new double[count];
-            var naiveMedians = new double[count];
-            var cursorMedians = new double[count];
+        // TODO restore
+        //[Test, Ignore]
+        //public void IncompleteMovingMedianIsCorrect()
+        //{
+        //    var rng = new System.Random();
+        //    var count = 100000;
+        //    var m = rng.Next(10, 199);
+        //    Console.WriteLine($"Window size: {m}");
+        //    var keys = new int[count];
+        //    var data = new double[count];
+        //    //var sm = new SortedMap<int, double>(count);
+        //    for (int i = 0; i < count; i++)
+        //    {
+        //        keys[i] = i;
+        //        data[i] = rng.NextDouble();
+        //        //sm.Add(i, data[i]);
+        //    }
+        //    var sm = SortedMap<int, double>.OfSortedKeysAndValues(keys, data, count);
+        //    sm.Complete();
+        //    var medianSeries = sm.MovingMedian(m, true);
+        //    var mm = new MovingMedian(m);
+        //    var medians = new double[count];
+        //    var naiveMedians = new double[count];
+        //    var cursorMedians = new double[count];
 
-            var sw = new Stopwatch();
-            sw.Restart();
-            for (int i = 0; i < count; i++)
-            {
-                medians[i] = mm.Update(data[i]);
-            }
-            //var result = mm.Rngmed(data, medians);
-            sw.Stop();
-            Console.WriteLine($"Elapsed LIGO {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
+        //    var sw = new Stopwatch();
+        //    sw.Restart();
+        //    for (int i = 0; i < count; i++)
+        //    {
+        //        medians[i] = mm.Update(data[i]);
+        //    }
+        //    //var result = mm.Rngmed(data, medians);
+        //    sw.Stop();
+        //    Console.WriteLine($"Elapsed LIGO {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
 
-            sw.Restart();
+        //    sw.Restart();
 
-            for (int i = 0; i < count; i++)
-            {
-                var arraySegment = new ArraySegment<double>(data, Math.Max(i - m + 1, 0), Math.Min(m, i + 1));
-                //if (i + 1 >= m && arraySegment.Count != m) {
-                //    Assert.Fail("Wrong array segment");
-                //} else {
-                //    Console.WriteLine($"{i} - {arraySegment.Offset} - {arraySegment.Count}");
-                //}
-                naiveMedians[i] = MovingMedian.NaiveMedian(arraySegment);
-            }
-            sw.Stop();
-            Console.WriteLine($"Elapsed NAIVE {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
+        //    for (int i = 0; i < count; i++)
+        //    {
+        //        var arraySegment = new ArraySegment<double>(data, Math.Max(i - m + 1, 0), Math.Min(m, i + 1));
+        //        //if (i + 1 >= m && arraySegment.Count != m) {
+        //        //    Assert.Fail("Wrong array segment");
+        //        //} else {
+        //        //    Console.WriteLine($"{i} - {arraySegment.Offset} - {arraySegment.Count}");
+        //        //}
+        //        naiveMedians[i] = MovingMedian.NaiveMedian(arraySegment);
+        //    }
+        //    sw.Stop();
+        //    Console.WriteLine($"Elapsed NAIVE {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
 
-            sw.Restart();
-            var cursor = medianSeries.GetCursor();
-            while (cursor.MoveNext())
-            {
-                cursorMedians[cursor.CurrentKey] = cursor.CurrentValue;
-            }
-            sw.Stop();
-            Console.WriteLine($"Elapsed CURSOR {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
+        //    sw.Restart();
+        //    var cursor = medianSeries.GetCursor();
+        //    while (cursor.MoveNext())
+        //    {
+        //        cursorMedians[cursor.CurrentKey] = cursor.CurrentValue;
+        //    }
+        //    sw.Stop();
+        //    Console.WriteLine($"Elapsed CURSOR {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
 
-            for (int i = 0; i < medians.Length; i++)
-            {
-                if (medians[i] != naiveMedians[i])
-                {
-                    Console.WriteLine($"{i} - LIGO {medians[i]} - Naive {naiveMedians[i]}");
-                }
-                Assert.AreEqual(medians[i], naiveMedians[i]);
+        //    for (int i = 0; i < medians.Length; i++)
+        //    {
+        //        if (medians[i] != naiveMedians[i])
+        //        {
+        //            Console.WriteLine($"{i} - LIGO {medians[i]} - Naive {naiveMedians[i]}");
+        //        }
+        //        Assert.AreEqual(medians[i], naiveMedians[i]);
 
-                if (naiveMedians[i] != cursorMedians[i])
-                {
-                    Console.WriteLine($"{i} - CURSOR {cursorMedians[i]} - Naive {naiveMedians[i]}");
-                }
-                Assert.AreEqual(cursorMedians[i], naiveMedians[i]);
-            }
-        }
+        //        if (naiveMedians[i] != cursorMedians[i])
+        //        {
+        //            Console.WriteLine($"{i} - CURSOR {cursorMedians[i]} - Naive {naiveMedians[i]}");
+        //        }
+        //        Assert.AreEqual(cursorMedians[i], naiveMedians[i]);
+        //    }
+        //}
 
-        [Test, Ignore]
-        public void IncompleteMovingMedianIsCorrectManyTimes()
-        {
-            for (int r = 0; r < 50; r++)
-            {
-                IncompleteMovingMedianIsCorrect();
-            }
-        }
+        //[Test, Ignore]
+        //public void IncompleteMovingMedianIsCorrectManyTimes()
+        //{
+        //    for (int r = 0; r < 50; r++)
+        //    {
+        //        IncompleteMovingMedianIsCorrect();
+        //    }
+        //}
     }
 }

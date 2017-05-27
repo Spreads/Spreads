@@ -53,16 +53,16 @@ namespace Spreads.Core.Tests.Cursors
             //}
             //Assert.AreEqual(expected, actual);
 
-            var zipN = new[] { sm1, sm2 }.Zip((k, varr) => varr[0] + varr[1]).GetCursor();
-            actual = 0;
-            using (Benchmark.Run("ZipN (old)", count * 2))
-            {
-                while (zipN.MoveNext())
-                {
-                    actual += zipN.CurrentValue;
-                }
-            }
-            Assert.AreEqual(expected, actual);
+            //var zipN = new[] { sm1, sm2 }.Zip((k, varr) => varr[0] + varr[1]).GetCursor();
+            //actual = 0;
+            //using (Benchmark.Run("ZipN (old)", count * 2))
+            //{
+            //    while (zipN.MoveNext())
+            //    {
+            //        actual += zipN.CurrentValue;
+            //    }
+            //}
+            //Assert.AreEqual(expected, actual);
 
             //zipCursor.Reset();
             //actual = 0;
@@ -75,26 +75,26 @@ namespace Spreads.Core.Tests.Cursors
             //}
             //Assert.AreEqual(expected, actual);
 
-            actual = 0;
-            using (Benchmark.Run("LINQ", count * 2))
-            {
-                var linq = sm1.Zip(sm2, (l, r) => l.Value + r.Value);
-                foreach (var d in linq)
-                {
-                    actual += d;
-                }
-            }
-            Assert.AreEqual(expected, actual);
+            //actual = 0;
+            //using (Benchmark.Run("LINQ", count * 2))
+            //{
+            //    var linq = sm1.Zip(sm2, (l, r) => l.Value + r.Value);
+            //    foreach (var d in linq)
+            //    {
+            //        actual += d;
+            //    }
+            //}
+            //Assert.AreEqual(expected, actual);
 
-            actual = 0;
-            using (Benchmark.Run("Deedle", count * 2))
-            {
-                foreach (var v in ds1.ZipInner(ds2).Values)
-                {
-                    actual += v.Item1 + v.Item2;
-                }
-            }
-            Assert.AreEqual(expected, actual);
+            //actual = 0;
+            //using (Benchmark.Run("Deedle", count * 2))
+            //{
+            //    foreach (var v in ds1.ZipInner(ds2).Values)
+            //    {
+            //        actual += v.Item1 + v.Item2;
+            //    }
+            //}
+            //Assert.AreEqual(expected, actual);
 
         }
 
@@ -130,7 +130,7 @@ namespace Spreads.Core.Tests.Cursors
             sm1.Add(0, 0);
             sm2.Add(0, 0);
 
-            for (int i = 2; i < 1000000; i++)
+            for (int i = 2; i < 10000000; i++)
             {
                 expected += i + 2 * i;
                 sm1.Add(i, i);

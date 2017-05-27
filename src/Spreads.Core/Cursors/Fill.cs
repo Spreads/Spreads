@@ -9,10 +9,12 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads.Cursors
+// ReSharper disable once CheckNamespace
+namespace Spreads
 {
     /// <summary>
-    /// An <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation to each value of its input series.
+    /// A continuous cursor <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that fills missing values with a given value.
+    /// It delegates moves directly to the underlying cursor.
     /// </summary>
     public struct Fill<TKey, TValue, TCursor> :
         ICursorSeries<TKey, TValue, Fill<TKey, TValue, TCursor>>
@@ -120,7 +122,7 @@ namespace Spreads.Cursors
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> CurrentBatch => throw new NotSupportedException();
+        public IReadOnlySeries<TKey, TValue> CurrentBatch => null;
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;

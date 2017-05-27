@@ -64,11 +64,6 @@ type SeriesExtensions () =
 
 
     [<Extension>]
-    static member Map(source: ISeries<'K,'V>, mapFunc:Func<'K,'V,'V2>) : Series<'K,'V2> =
-      CursorSeries(fun _ -> new MapValuesWithKeysCursor<'K,'V,'V2>(Func<ICursor<'K,'V>>(source.GetCursor), mapFunc) :> ICursor<_,_> ) :> Series<'K,'V2>
-
-
-    [<Extension>]
     static member Filter(source: ISeries<'K,'V>, filterFunc:Func<'V,bool>) : Series<'K,'V> = 
        CursorSeries(fun _ -> new FilterValuesCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), filterFunc) :> ICursor<'K,'V>) :> Series<'K,'V>
 
@@ -86,35 +81,35 @@ type SeriesExtensions () =
     static member Fill(source: ISeries<'K,'V>, fillValue:'V) : Series<'K,'V> = 
       CursorSeries(fun _ -> new FillCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), fillValue) :> ICursor<_,_> ) :> Series<'K,'V>
 
-    [<Extension>]
-    static member Lag(source: ISeries<'K,'V>, lag:uint32) : Series<'K,'V> = 
-      CursorSeries(fun _ -> new LagCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), lag) :> ICursor<'K,'V>) :> Series<'K,'V>
-
-    /// Apply zipCurrentPrev function to current and lagged values (in this order, current is the first) and return the result
-    [<Extension>]
-    static member ZipLagSlow(source: ISeries<'K,'V>, lag:uint32, zipCurrentPrev:Func<'V,'V,'R>) : Series<'K,'R> = 
-      new ZipLagCursorSlow<'K,'V,'R>(Func<ICursor<'K,'V>>(source.GetCursor), lag, zipCurrentPrev) :> Series<'K,'R>
-
-
-    /// Apply zipCurrentPrev function to current and lagged values (in this order, current is the first) and return the result
-    [<Extension>]
-    static member ZipLag(source: ISeries<'K,'V>, lag:uint32, zipCurrentPrev:Func<'V,'V,'R>) : Series<'K,'R> = 
-      CursorSeries(fun _ -> new ZipLagCursor<'K,'V,'R>(Func<ICursor<'K,'V>>(source.GetCursor), lag, zipCurrentPrev) :> ICursor<'K,'R>) :> Series<'K,'R>
-
-
 //    [<Extension>]
-//    static member inline Diff(source: ISeries<'K,'V>) : Series<'K,'V> = 
-//      CursorSeries(fun _ -> new LagMapCursor<'K,'V,'V>(Func<ICursor<'K,'V>>(source.GetCursor), 1u, fun c p -> c - p) :> ICursor<'K,'V>) :> Series<'K,'V>
+//    static member Lag(source: ISeries<'K,'V>, lag:uint32) : Series<'K,'V> = 
+//      CursorSeries(fun _ -> new LagCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), lag) :> ICursor<'K,'V>) :> Series<'K,'V>
 
-    [<Extension>] //inline
-    static member  Window(source: ISeries<'K,'V>, width:uint32, step:uint32) : Series<'K,Series<'K,'V>> =
-      if width = 0u then raise (ArgumentOutOfRangeException("Width must be positive"))
-      if step = 0u then raise (ArgumentOutOfRangeException("Step must be positive"))
-      CursorSeries(fun _ -> new WindowCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), width, step, false) :> ICursor<'K,Series<'K,'V>>) :> Series<'K,Series<'K,'V>>
+//    /// Apply zipCurrentPrev function to current and lagged values (in this order, current is the first) and return the result
+//    [<Extension>]
+//    static member ZipLagSlow(source: ISeries<'K,'V>, lag:uint32, zipCurrentPrev:Func<'V,'V,'R>) : Series<'K,'R> = 
+//      new ZipLagCursorSlow<'K,'V,'R>(Func<ICursor<'K,'V>>(source.GetCursor), lag, zipCurrentPrev) :> Series<'K,'R>
 
-    [<Extension>] // inline
-    static member  Window(source: ISeries<'K,'V>, width:uint32, step:uint32, returnIncomplete:bool) : Series<'K,Series<'K,'V>> = 
-      CursorSeries(fun _ -> new WindowCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), width, step, returnIncomplete) :> ICursor<'K,Series<'K,'V>>) :> Series<'K,Series<'K,'V>>
+
+//    /// Apply zipCurrentPrev function to current and lagged values (in this order, current is the first) and return the result
+//    [<Extension>]
+//    static member ZipLag(source: ISeries<'K,'V>, lag:uint32, zipCurrentPrev:Func<'V,'V,'R>) : Series<'K,'R> = 
+//      CursorSeries(fun _ -> new ZipLagCursor<'K,'V,'R>(Func<ICursor<'K,'V>>(source.GetCursor), lag, zipCurrentPrev) :> ICursor<'K,'R>) :> Series<'K,'R>
+
+
+////    [<Extension>]
+////    static member inline Diff(source: ISeries<'K,'V>) : Series<'K,'V> = 
+////      CursorSeries(fun _ -> new LagMapCursor<'K,'V,'V>(Func<ICursor<'K,'V>>(source.GetCursor), 1u, fun c p -> c - p) :> ICursor<'K,'V>) :> Series<'K,'V>
+
+//    [<Extension>] //inline
+//    static member  Window(source: ISeries<'K,'V>, width:uint32, step:uint32) : Series<'K,Series<'K,'V>> =
+//      if width = 0u then raise (ArgumentOutOfRangeException("Width must be positive"))
+//      if step = 0u then raise (ArgumentOutOfRangeException("Step must be positive"))
+//      CursorSeries(fun _ -> new WindowCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), width, step, false) :> ICursor<'K,Series<'K,'V>>) :> Series<'K,Series<'K,'V>>
+
+//    [<Extension>] // inline
+//    static member  Window(source: ISeries<'K,'V>, width:uint32, step:uint32, returnIncomplete:bool) : Series<'K,Series<'K,'V>> = 
+//      CursorSeries(fun _ -> new WindowCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), width, step, returnIncomplete) :> ICursor<'K,Series<'K,'V>>) :> Series<'K,Series<'K,'V>>
 
 
     /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.

@@ -12,11 +12,18 @@ using System.Threading.Tasks;
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
+
+    // TODO Optimization in TGV (i.e. current lack of it) shows up in SCM backed by storage to such
+    // extent that I have to do all work in memory using ToSortedMap(). But SMs are quite fast for TGV, 
+    // require a binary search. But still it is Log(n) vs best case Log(1)
+
     /// <summary>
-    /// An <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that applies an operation to each value of its input series.
+    /// A continuous cursor <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that returns a key and a value 
+    /// at or before (<see cref="Lookup.LE"/>) a requested key in <see cref="TryGetValue"/>.
+    /// It delegates moves directly to the underlying cursor.
     /// </summary>
-    public struct Comparison<TKey, TValue, TCursor> :
-        ICursorSeries<TKey, bool, Comparison<TKey, TValue, TCursor>>
+    public struct Repeat<TKey, TValue, TCursor> :
+        ICursorSeries<TKey, (TKey, TValue), Repeat<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         #region Cursor state
@@ -27,15 +34,11 @@ namespace Spreads
         // All inner cursors must be disposed in the Dispose method but references to them must be kept (they could be used as factories)
         // for re-initialization.
 
-        private IOp<TValue, bool> _op;
-
-        internal TValue _value;
-
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal TCursor _cursor;
-
-
+        // ReSharper disable once FieldCanBeMadeReadOnly.Local
+        internal TCursor _lookUpCursor;
 
         internal CursorState State { get; set; }
 
@@ -43,10 +46,8 @@ namespace Spreads
 
         #region Constructors
 
-        internal Comparison(TCursor cursor, TValue value, IOp<TValue, bool> op) : this()
+        internal Repeat(TCursor cursor) : this()
         {
-            _op = op;
-            _value = value;
             _cursor = cursor;
         }
 
@@ -55,26 +56,24 @@ namespace Spreads
         #region Lifetime management
 
         /// <inheritdoc />
-        public Comparison<TKey, TValue, TCursor> Clone()
+        public Repeat<TKey, TValue, TCursor> Clone()
         {
-            var instance = new Comparison<TKey, TValue, TCursor>
+            var instance = new Repeat<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Clone(),
-                _op = _op,
-                _value = _value,
+                _lookUpCursor = _lookUpCursor.Clone(),
                 State = State
             };
             return instance;
         }
 
         /// <inheritdoc />
-        public Comparison<TKey, TValue, TCursor> Initialize()
+        public Repeat<TKey, TValue, TCursor> Initialize()
         {
-            var instance = new Comparison<TKey, TValue, TCursor>
+            var instance = new Repeat<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Initialize(),
-                _op = _op,
-                _value = _value,
+                _lookUpCursor = _cursor.Clone(),
                 State = CursorState.Initialized
             };
             return instance;
@@ -85,7 +84,7 @@ namespace Spreads
         {
             // NB keep cursor state for reuse
             // dispose is called on the result of Initialize(), the cursor from
-            // constructor could be uninitialized but contain some state, e.g. _value for this ComparisonCursor
+            // constructor could be uninitialized but contain some state, e.g. _value for this FillCursor
             _cursor.Dispose();
             State = CursorState.None;
         }
@@ -97,7 +96,7 @@ namespace Spreads
             State = CursorState.Initialized;
         }
 
-        ICursor<TKey, bool> ICursor<TKey, bool>.Clone()
+        ICursor<TKey, (TKey, TValue)> ICursor<TKey, (TKey, TValue)>.Clone()
         {
             return Clone();
         }
@@ -107,10 +106,10 @@ namespace Spreads
         #region ICursor members
 
         /// <inheritdoc />
-        public KeyValuePair<TKey, bool> Current
+        public KeyValuePair<TKey, (TKey, TValue)> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new KeyValuePair<TKey, bool>(CurrentKey, CurrentValue); }
+            get { return new KeyValuePair<TKey, (TKey, TValue)>(CurrentKey, CurrentValue); }
         }
 
         /// <inheritdoc />
@@ -121,17 +120,14 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public bool CurrentValue
+        public (TKey, TValue) CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return _op.Apply(_cursor.CurrentValue, _value);
-            }
+            get { return (_cursor.CurrentKey,_cursor.CurrentValue); }
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, bool> CurrentBatch => throw new NotSupportedException();
+        public IReadOnlySeries<TKey, (TKey, TValue)> CurrentBatch => null;
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
@@ -139,18 +135,31 @@ namespace Spreads
         object IEnumerator.Current => Current;
 
         /// <inheritdoc />
-        public bool IsContinuous => _cursor.IsContinuous;
+        public bool IsContinuous => true;
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out bool value)
+        public bool TryGetValue(TKey key, out (TKey, TValue) value)
         {
+            // TODO two potential optimization
+            // 1. after all MN create a state with valid previous KVP, and check if TGV tries 
+            //    to get a value in between the previous and the current position. This
+            //    optimization targets how Zip works.
+            // 2. move lookup cursor one time and during the move keep previous position.
+            //    then the same logic as in 1.
+            // Could use both or conditionally depending on relative positoin to key.
+
             if (_cursor.TryGetValue(key, out var v))
             {
-                value = _op.Apply(v, _value);
+                value = (key, v);
                 return true;
             }
-            value = default(bool);
+            if(_lookUpCursor.MoveAt(key, Lookup.LE))
+            {
+                value = (_lookUpCursor.CurrentKey, _lookUpCursor.CurrentValue);
+                return true;
+            }
+            value = default((TKey, TValue));
             return false;
         }
 
@@ -230,12 +239,12 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, bool> ICursor<TKey, bool>.Source => new Series<TKey, bool, Comparison<TKey, TValue, TCursor>>(this);
+        IReadOnlySeries<TKey, (TKey, TValue)> ICursor<TKey, (TKey, TValue)>.Source => new Series<TKey, (TKey, TValue), Repeat<TKey, TValue, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
-        public Series<TKey, bool, Comparison<TKey, TValue, TCursor>> Source => new Series<TKey, bool, Comparison<TKey, TValue, TCursor>>(this);
+        public Series<TKey, (TKey, TValue), Repeat<TKey, TValue, TCursor>> Source => new Series<TKey, (TKey, TValue), Repeat<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken)
@@ -244,16 +253,6 @@ namespace Spreads
         }
 
         #endregion ICursor members
-
-        #region Custom Properties
-
-        /// <summary>
-        /// A value used by TOp.
-        /// </summary>
-        public TValue Value => _value;
-
-        #endregion
-
 
         #region ICursorSeries members
 
@@ -276,7 +275,6 @@ namespace Spreads
             get { return _cursor.Source.Updated; }
         }
 
-        #endregion
-
+        #endregion ICursorSeries members
     }
 }

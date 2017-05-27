@@ -180,9 +180,49 @@ namespace Spreads
                 return _comparer.Compare(x, y);
             }
 
+            if (typeof(T) == typeof(DateTime))
+            {
+                var x1 = (DateTime)(object)(x);
+                var y1 = (DateTime)(object)(y);
+
+                return x1.CompareTo(y1);
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                var x1 = (long)(object)(x);
+                var y1 = (long)(object)(y);
+
+                return x1.CompareTo(y1);
+            }
+
+            if (typeof(T) == typeof(ulong))
+            {
+                var x1 = (ulong)(object)(x);
+                var y1 = (ulong)(object)(y);
+                return x1.CompareTo(y1);
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                var x1 = (int)(object)(x);
+                var y1 = (int)(object)(y);
+                return x1.CompareTo(y1);
+            }
+
+            if (typeof(T) == typeof(uint))
+            {
+                var x1 = (uint)(object)(x);
+                var y1 = (uint)(object)(y);
+
+                return x1.CompareTo(y1);
+            }
+
             // NB all primitive types are IComparable, all custom types could be easily made such
             // This optimization using Spreads.Unsafe package works for any type that implements 
             // the interface and is as fast as `typeof(T) == typeof(...)` approach.
+            // The special cases above are left for scenarios when the "static readonly" optimization
+            // doesn't work, e.g. AOT. See discussion #100.
             if (IsIComparable)
             {
                 return Unsafe.CompareToConstrained(x, y);

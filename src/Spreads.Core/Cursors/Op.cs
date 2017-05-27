@@ -9,7 +9,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads.Cursors
+// ReSharper disable once CheckNamespace
+namespace Spreads
 {
     /// <summary>
     /// An <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation 

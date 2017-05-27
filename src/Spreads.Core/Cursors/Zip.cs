@@ -10,18 +10,27 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Spreads.Cursors
+// ReSharper disable once CheckNamespace
+namespace Spreads
 {
+    /// <summary>
+    /// A cursor that inner-joins two series. Each continuous series is evaluated at every key of another series.
+    /// To get full outer join make each series contiuous by applying a transformation such as <see cref="Fill{TKey,TValue,TCursor}"/>
+    /// or <see cref="Repeat{TKey,TValue,TCursor}"/>.
+    /// </summary>
     public struct Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>
         : ICursorSeries<TKey, (TLeft, TRight), Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>
         where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
         where TCursorRight : ISpecializedCursor<TKey, TRight, TCursorRight>
     {
+        // TODO remove this and leave only the _isContinuous tuple
         private enum Cont : byte
         {
             None = 0,     // 00
+            // ReSharper disable UnusedMember.Local
             Right = 1,    // 01
             Left = 2,     // 10
+            // ReSharper restore UnusedMember.Local
             Both = 3      // 11
         }
 

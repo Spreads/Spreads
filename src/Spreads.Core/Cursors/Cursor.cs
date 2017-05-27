@@ -10,7 +10,8 @@ using System.Threading.Tasks;
 using Spreads.Utils;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Cursors
+// ReSharper disable once CheckNamespace
+namespace Spreads
 {
 
     /// <summary>
