@@ -1,4 +1,8 @@
 ﻿// ReSharper disable once CheckNamespace
+
+using Spreads.Collections;
+using System.Collections.Generic;
+
 namespace Spreads
 {
     // NB there are problems with extensions on ISpecializedSeries
@@ -26,6 +30,43 @@ namespace Spreads
         public static Series<TKey, TValue, Fill<TKey, TValue, Empty<TKey, TValue>>> Constant<TKey, TValue>(TValue value)
         {
             return Empty<TKey, TValue>().Fill(value);
+        }
+
+        public static Series<TKey, TValue, Cursor<TKey, TValue>> ReadOnly<TKey, TValue>(
+            this ISeries<TKey, TValue> series)
+        {
+            return new Series<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor());
+        }
+
+        public static Series<TKey, TValue, TCursor> ReadOnly<TKey, TValue, TCursor>(
+            this ContainerSeries<TKey, TValue, TCursor> series)
+            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+        {
+            return new Series<TKey, TValue, TCursor>(series.GetContainerCursor());
+        }
+
+        public static SortedMap<TKey, TValue> ToSortedMap<TKey, TValue>(
+            this IEnumerable<KeyValuePair<TKey, TValue>> enumerable)
+        {
+            var sm = new SortedMap<TKey, TValue>();
+            foreach (var keyValuePair in enumerable)
+            {
+                sm.Add(keyValuePair.Key, keyValuePair.Value);
+            }
+
+            return sm;
+        }
+
+        public static SortedMap<TKey, TValue> ToSortedMap<TKey, TValue>(
+            this IDataStream<TKey, TValue> dataStream)
+        {
+            var sm = new SortedMap<TKey, TValue>(dataStream.Comparer);
+            foreach (var keyValuePair in dataStream)
+            {
+                sm.AddLast(keyValuePair.Key, keyValuePair.Value);
+            }
+
+            return sm;
         }
     }
 }

@@ -1,7 +1,8 @@
-﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Cursors.Internal;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,11 +13,9 @@ using System.Threading.Tasks;
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
-    /// <summary>
-    /// Filter cursor.
-    /// </summary>
-    public struct Filter<TKey, TValue, TCursor> :
-        ICursorSeries<TKey, TValue, Filter<TKey, TValue, TCursor>>
+
+    public struct Window<TKey, TValue, TCursor> :
+        ICursorSeries<TKey, Range<TKey, TValue, TCursor>, Window<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         #region Cursor state
@@ -27,60 +26,25 @@ namespace Spreads
         // All inner cursors must be disposed in the Dispose method but references to them must be kept (they could be used as factories)
         // for re-initialization.
 
-        // NB Why three predicates? Checking them for null will be no more costly
-        // then touching _cursor.CurrentKey/CurrentValue when it is not actually needed.
-        // We could turn key/value predicates into the full one, but that will always touch values,
-        // while our goal is to be as lazy as possible.
-        // Null checks are constant during the lifetime of this cursor, so branch prediction should do well.
-        internal Func<TKey, TValue, bool> _fullPredicate;
-
-        internal Func<TKey, bool> _keyPredicate;
-        internal Func<TValue, bool> _valuePredicate;
-
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
-        internal TCursor _cursor;
+        internal LagStepImpl<TKey, TValue, TCursor> _cursor;
+
+        // ReSharper disable once FieldCanBeMadeReadOnly.Local
+        internal LagStepImpl<TKey, TValue, TCursor> _lookUpCursor;
 
         internal CursorState State { get; set; }
 
         #endregion Cursor state
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool ApplyPredicates()
-        {
-            if (_fullPredicate != null)
-            {
-                return _fullPredicate(_cursor.CurrentKey, _cursor.CurrentValue);
-            }
-            if (_keyPredicate != null)
-            {
-                return _keyPredicate(_cursor.CurrentKey);
-            }
-            if (_valuePredicate != null)
-            {
-                return _valuePredicate(_cursor.CurrentValue);
-            }
-            return false;
-        }
-
         #region Constructors
 
-        internal Filter(TCursor cursor, Func<TKey, TValue, bool> fullPredicate) : this()
+        internal Window(TCursor cursor, int width = 1, int step = 1) : this()
         {
-            _fullPredicate = fullPredicate;
-            _cursor = cursor;
-        }
+            if (width <= 0) throw new ArgumentOutOfRangeException(nameof(width));
+            if (step <= 0) throw new ArgumentOutOfRangeException(nameof(width));
 
-        internal Filter(TCursor cursor, Func<TKey, bool> keyPredicate) : this()
-        {
-            _keyPredicate = keyPredicate;
-            _cursor = cursor;
-        }
-
-        internal Filter(TCursor cursor, Func<TValue, bool> valuePredicate) : this()
-        {
-            _valuePredicate = valuePredicate;
-            _cursor = cursor;
+            _cursor = new LagStepImpl<TKey, TValue, TCursor>(cursor, width, step);
         }
 
         #endregion Constructors
@@ -88,28 +52,22 @@ namespace Spreads
         #region Lifetime management
 
         /// <inheritdoc />
-        public Filter<TKey, TValue, TCursor> Clone()
+        public Window<TKey, TValue, TCursor> Clone()
         {
-            var instance = new Filter<TKey, TValue, TCursor>
+            var instance = new Window<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Clone(),
-                _fullPredicate = _fullPredicate,
-                _keyPredicate = _keyPredicate,
-                _valuePredicate = _valuePredicate,
                 State = State
             };
             return instance;
         }
 
         /// <inheritdoc />
-        public Filter<TKey, TValue, TCursor> Initialize()
+        public Window<TKey, TValue, TCursor> Initialize()
         {
-            var instance = new Filter<TKey, TValue, TCursor>
+            var instance = new Window<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Initialize(),
-                _fullPredicate = _fullPredicate,
-                _keyPredicate = _keyPredicate,
-                _valuePredicate = _valuePredicate,
                 State = CursorState.Initialized
             };
             return instance;
@@ -120,8 +78,9 @@ namespace Spreads
         {
             // NB keep cursor state for reuse
             // dispose is called on the result of Initialize(), the cursor from
-            // constructor could be uninitialized but contain some state, e.g. _value for this ArithmeticCursor
+            // constructor could be uninitialized but contain some state, e.g. _value for this FillCursor
             _cursor.Dispose();
+            _lookUpCursor.Dispose();
             State = CursorState.None;
         }
 
@@ -132,7 +91,7 @@ namespace Spreads
             State = CursorState.Initialized;
         }
 
-        ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
+        ICursor<TKey, Range<TKey, TValue, TCursor>> ICursor<TKey, Range<TKey, TValue, TCursor>>.Clone()
         {
             return Clone();
         }
@@ -142,10 +101,10 @@ namespace Spreads
         #region ICursor members
 
         /// <inheritdoc />
-        public KeyValuePair<TKey, TValue> Current
+        public KeyValuePair<TKey, Range<TKey, TValue, TCursor>> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue); }
+            get { return new KeyValuePair<TKey, Range<TKey, TValue, TCursor>>(CurrentKey, CurrentValue); }
         }
 
         /// <inheritdoc />
@@ -156,51 +115,41 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public TValue CurrentValue
+        public Range<TKey, TValue, TCursor> CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return _cursor.CurrentValue;
-            }
+            get { return new Range<TKey, TValue, TCursor>(_cursor.CurrentValue, _cursor.CurrentValue.CurrentKey, _cursor.CurrentKey, true, true, true); }
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> CurrentBatch => throw new NotSupportedException();
+        public IReadOnlySeries<TKey, Range<TKey, TValue, TCursor>> CurrentBatch => null;
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
 
         object IEnumerator.Current => Current;
 
-        /// <inheritdoc />
-        public bool IsContinuous => _cursor.IsContinuous;
+        /// <summary>
+        /// Window cursor is discrete even if its input cursor is continuous.
+        /// </summary>
+        public bool IsContinuous => false;
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
+        public bool TryGetValue(TKey key, out Range<TKey, TValue, TCursor> value)
         {
-            if (_keyPredicate != null && _keyPredicate(key))
+            if (_lookUpCursor.Equals(default(TCursor)))
             {
-                return _cursor.TryGetValue(key, out value);
+                _lookUpCursor = _cursor.Clone();
             }
 
-            if (_cursor.TryGetValue(key, out var v))
+            if (_lookUpCursor.MoveAt(key, Lookup.EQ))
             {
-                if (_fullPredicate != null && !_fullPredicate(key, v))
-                {
-                    value = default(TValue);
-                    return false;
-                }
-                if (_valuePredicate != null && !_valuePredicate(v))
-                {
-                    value = default(TValue);
-                    return false;
-                }
-                value = v;
+                value = new Range<TKey, TValue, TCursor>(_lookUpCursor.CurrentValue, _lookUpCursor.CurrentValue.CurrentKey, _lookUpCursor.CurrentKey, true, true, true);
                 return true;
             }
-            value = default(TValue);
+
+            value = default(Range<TKey, TValue, TCursor>);
             return false;
         }
 
@@ -212,41 +161,10 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
-
-            var wasMoving = State == CursorState.Moving;
-
-            var ck = wasMoving ? _cursor.CurrentKey : default(TKey);
-
             var moved = _cursor.MoveAt(key, direction);
-
-            if (moved && ApplyPredicates())
+            if (moved)
             {
-                // done with true
                 State = CursorState.Moving;
-            }
-            else if (direction == Lookup.EQ)
-            {
-                // either not moved or filter returns false, for EQ we cannot move to any direction
-                moved = false;
-            }
-            else
-            {
-                do
-                {
-                    if (direction == Lookup.GE || direction == Lookup.GT)
-                    {
-                        moved = _cursor.MoveNext();
-                    }
-                    else
-                    {
-                        moved = _cursor.MovePrevious();
-                    }
-                } while (moved && !ApplyPredicates());
-            }
-
-            if (!moved && wasMoving && !_cursor.MoveAt(ck, Lookup.EQ))
-            {
-                ThrowHelper.ThrowOutOfOrderKeyException(ck);
             }
             return moved;
         }
@@ -260,18 +178,9 @@ namespace Spreads
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
             var moved = _cursor.MoveFirst();
-            while (moved && !ApplyPredicates())
-            {
-                moved = _cursor.MoveNext();
-            }
             if (moved)
             {
                 State = CursorState.Moving;
-            }
-            else if (State == CursorState.Moving)
-            {
-                // if cursor was moving that it must have had at least one value
-                ThrowHelper.ThrowOutOfOrderKeyException(_cursor.CurrentKey);
             }
             return moved;
         }
@@ -285,18 +194,9 @@ namespace Spreads
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
             var moved = _cursor.MoveLast();
-            while (moved && !ApplyPredicates())
-            {
-                moved = _cursor.MovePrevious();
-            }
             if (moved)
             {
                 State = CursorState.Moving;
-            }
-            else if (State == CursorState.Moving)
-            {
-                // if cursor was moving that it must have had at least one value
-                ThrowHelper.ThrowOutOfOrderKeyException(_cursor.CurrentKey);
             }
             return moved;
         }
@@ -306,23 +206,7 @@ namespace Spreads
         public bool MoveNext()
         {
             if (State < CursorState.Moving) return MoveFirst();
-
-            var ck = _cursor.CurrentKey;
-
-            var moved = _cursor.MoveNext();
-
-            while (moved && !ApplyPredicates())
-            {
-                moved = _cursor.MoveNext();
-            }
-
-            if (!moved && !_cursor.MoveAt(ck, Lookup.EQ))
-            {
-                // cannot recover, should be a very rare edge case
-                ThrowHelper.ThrowOutOfOrderKeyException(ck);
-            }
-
-            return moved;
+            return _cursor.MoveNext();
         }
 
         /// <inheritdoc />
@@ -341,32 +225,16 @@ namespace Spreads
         public bool MovePrevious()
         {
             if (State < CursorState.Moving) return MoveLast();
-
-            var ck = _cursor.CurrentKey;
-
-            var moved = _cursor.MovePrevious();
-
-            while (moved && !ApplyPredicates())
-            {
-                moved = _cursor.MovePrevious();
-            }
-
-            if (!moved && !_cursor.MoveAt(ck, Lookup.EQ))
-            {
-                // cannot recover, should be a very rare edge case
-                ThrowHelper.ThrowOutOfOrderKeyException(ck);
-            }
-
-            return moved;
+            return _cursor.MovePrevious();
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source => new Series<TKey, TValue, Filter<TKey, TValue, TCursor>>(this);
+        IReadOnlySeries<TKey, Range<TKey, TValue, TCursor>> ICursor<TKey, Range<TKey, TValue, TCursor>>.Source => new Series<TKey, Range<TKey, TValue, TCursor>, Window<TKey, TValue, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
-        public Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Source => new Series<TKey, TValue, Filter<TKey, TValue, TCursor>>(this);
+        public Series<TKey, Range<TKey, TValue, TCursor>, Window<TKey, TValue, TCursor>> Source => new Series<TKey, Range<TKey, TValue, TCursor>, Window<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken)

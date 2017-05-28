@@ -86,6 +86,7 @@ namespace Spreads
             // dispose is called on the result of Initialize(), the cursor from
             // constructor could be uninitialized but contain some state, e.g. _value for this FillCursor
             _cursor.Dispose();
+            _lookUpCursor.Dispose();
             State = CursorState.None;
         }
 

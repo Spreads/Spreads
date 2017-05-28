@@ -36,6 +36,12 @@ namespace Spreads
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal TCursor _cursor;
 
+        /// <summary>
+        /// True if the cursor was given in a moving state and positioned at the range's start.
+        /// Helps to avoid _cursor.MoveAt in MoveFirst
+        /// </summary>
+        internal bool _cursorIsClonedAtStart;
+
         internal CursorState State { get; set; }
 
         #endregion Cursor state
@@ -44,15 +50,23 @@ namespace Spreads
 
         internal Range(TCursor cursor,
             Opt<TKey> startKey, Opt<TKey> endKey,
-            bool startInclusive = true, bool endInclusive = true) : this()
+            bool startInclusive = true, bool endInclusive = true,
+            bool cursorIsClonedAtStart = false) : this()
         {
             if (cursor.Source.IsIndexed)
             {
                 throw new NotSupportedException("RangeSeries is not supported for indexed series, only for sorted ones.");
             }
 
-            _cursor = cursor;
+            if (cursorIsClonedAtStart &&
+                (startKey.IsMissing || endKey.IsMissing || !startInclusive || !endInclusive
+                    || _cursor.Comparer.Compare(_cursor.CurrentKey, startKey.Value) != 0))
+            {
+                ThrowHelper.ThrowInvalidOperationException("Wrong constructor arguments for cursorIsClonedAtStart == true case");
+            }
 
+            _cursor = cursor;
+            _cursorIsClonedAtStart = cursorIsClonedAtStart;
             _startKey = startKey;
             _endKey = endKey;
             _startInclusive = startInclusive;
@@ -69,6 +83,7 @@ namespace Spreads
             var instance = new Range<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Clone(),
+                _cursorIsClonedAtStart = _cursorIsClonedAtStart,
                 _startKey = _startKey,
                 _endKey = _endKey,
                 _startInclusive = _startInclusive,
@@ -84,7 +99,8 @@ namespace Spreads
         {
             var instance = new Range<TKey, TValue, TCursor>
             {
-                _cursor = _cursor.Initialize(),
+                _cursor = _cursorIsClonedAtStart ? _cursor.Clone() : _cursor.Initialize(),
+                _cursorIsClonedAtStart = _cursorIsClonedAtStart,
                 _startKey = _startKey,
                 _endKey = _endKey,
                 _startInclusive = _startInclusive,
@@ -252,6 +268,14 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
+
+            if (State != CursorState.Moving && _cursorIsClonedAtStart)
+            {
+                Debug.Assert(Comparer.Compare(_cursor.CurrentKey, _startKey.Value) == 0);
+                State = CursorState.Moving;
+                return true;
+            }
+
             if ((_startKey.IsPresent
                  && _cursor.MoveAt(_startKey.Value, _startLookup)
                  && InRange(_cursor.CurrentKey))

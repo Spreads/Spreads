@@ -1,7 +1,3 @@
-﻿// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -9,14 +5,13 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-// ReSharper disable once CheckNamespace
-namespace Spreads
+namespace Spreads.Cursors.Internal
 {
-    /// <summary>
-    /// Filter cursor.
-    /// </summary>
-    public struct Filter<TKey, TValue, TCursor> :
-        ICursorSeries<TKey, TValue, Filter<TKey, TValue, TCursor>>
+
+    // Value is lagged cursor. 
+
+    internal struct LagStepImpl<TKey, TValue, TCursor> :
+        ICursorSeries<TKey, TCursor, LagStepImpl<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         #region Cursor state
@@ -27,60 +22,32 @@ namespace Spreads
         // All inner cursors must be disposed in the Dispose method but references to them must be kept (they could be used as factories)
         // for re-initialization.
 
-        // NB Why three predicates? Checking them for null will be no more costly
-        // then touching _cursor.CurrentKey/CurrentValue when it is not actually needed.
-        // We could turn key/value predicates into the full one, but that will always touch values,
-        // while our goal is to be as lazy as possible.
-        // Null checks are constant during the lifetime of this cursor, so branch prediction should do well.
-        internal Func<TKey, TValue, bool> _fullPredicate;
-
-        internal Func<TKey, bool> _keyPredicate;
-        internal Func<TValue, bool> _valuePredicate;
-
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal TCursor _cursor;
+
+        // ReSharper disable once FieldCanBeMadeReadOnly.Local
+        internal TCursor _laggedCursor;
+
+        internal int _width;
+        internal int _step;
+        internal int _currentWidth;
 
         internal CursorState State { get; set; }
 
         #endregion Cursor state
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool ApplyPredicates()
-        {
-            if (_fullPredicate != null)
-            {
-                return _fullPredicate(_cursor.CurrentKey, _cursor.CurrentValue);
-            }
-            if (_keyPredicate != null)
-            {
-                return _keyPredicate(_cursor.CurrentKey);
-            }
-            if (_valuePredicate != null)
-            {
-                return _valuePredicate(_cursor.CurrentValue);
-            }
-            return false;
-        }
-
         #region Constructors
 
-        internal Filter(TCursor cursor, Func<TKey, TValue, bool> fullPredicate) : this()
+        internal LagStepImpl(TCursor cursor, int width = 1, int step = 1) : this()
         {
-            _fullPredicate = fullPredicate;
-            _cursor = cursor;
-        }
+            if (width <= 0) throw new ArgumentOutOfRangeException(nameof(width));
+            if (step <= 0) throw new ArgumentOutOfRangeException(nameof(width));
 
-        internal Filter(TCursor cursor, Func<TKey, bool> keyPredicate) : this()
-        {
-            _keyPredicate = keyPredicate;
             _cursor = cursor;
-        }
 
-        internal Filter(TCursor cursor, Func<TValue, bool> valuePredicate) : this()
-        {
-            _valuePredicate = valuePredicate;
-            _cursor = cursor;
+            _width = width;
+            _step = step;
         }
 
         #endregion Constructors
@@ -88,28 +55,30 @@ namespace Spreads
         #region Lifetime management
 
         /// <inheritdoc />
-        public Filter<TKey, TValue, TCursor> Clone()
+        public LagStepImpl<TKey, TValue, TCursor> Clone()
         {
-            var instance = new Filter<TKey, TValue, TCursor>
+            var instance = new LagStepImpl<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Clone(),
-                _fullPredicate = _fullPredicate,
-                _keyPredicate = _keyPredicate,
-                _valuePredicate = _valuePredicate,
+                _laggedCursor = _laggedCursor.Clone(),
+                _width = _width,
+                _step = _step,
+                _currentWidth = _currentWidth,
                 State = State
             };
             return instance;
         }
 
         /// <inheritdoc />
-        public Filter<TKey, TValue, TCursor> Initialize()
+        public LagStepImpl<TKey, TValue, TCursor> Initialize()
         {
-            var instance = new Filter<TKey, TValue, TCursor>
+            var instance = new LagStepImpl<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Initialize(),
-                _fullPredicate = _fullPredicate,
-                _keyPredicate = _keyPredicate,
-                _valuePredicate = _valuePredicate,
+                _laggedCursor = _laggedCursor.Initialize(),
+                _width = _width,
+                _step = _step,
+                _currentWidth = 0,
                 State = CursorState.Initialized
             };
             return instance;
@@ -120,8 +89,9 @@ namespace Spreads
         {
             // NB keep cursor state for reuse
             // dispose is called on the result of Initialize(), the cursor from
-            // constructor could be uninitialized but contain some state, e.g. _value for this ArithmeticCursor
+            // constructor could be uninitialized but contain some state, e.g. _value for this FillCursor
             _cursor.Dispose();
+            _laggedCursor.Dispose();
             State = CursorState.None;
         }
 
@@ -132,7 +102,7 @@ namespace Spreads
             State = CursorState.Initialized;
         }
 
-        ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
+        ICursor<TKey, TCursor> ICursor<TKey, TCursor>.Clone()
         {
             return Clone();
         }
@@ -142,10 +112,10 @@ namespace Spreads
         #region ICursor members
 
         /// <inheritdoc />
-        public KeyValuePair<TKey, TValue> Current
+        public KeyValuePair<TKey, TCursor> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue); }
+            get { return new KeyValuePair<TKey, TCursor>(CurrentKey, CurrentValue); }
         }
 
         /// <inheritdoc />
@@ -156,52 +126,30 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public TValue CurrentValue
+        public TCursor CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return _cursor.CurrentValue;
-            }
+            get { return _laggedCursor; }
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> CurrentBatch => throw new NotSupportedException();
+        public IReadOnlySeries<TKey, TCursor> CurrentBatch => null;
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
 
         object IEnumerator.Current => Current;
 
-        /// <inheritdoc />
-        public bool IsContinuous => _cursor.IsContinuous;
+        /// <summary>
+        /// LagImpl cursor is discrete even if its input cursor is continuous.
+        /// </summary>
+        public bool IsContinuous => false;
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
+        public bool TryGetValue(TKey key, out TCursor value)
         {
-            if (_keyPredicate != null && _keyPredicate(key))
-            {
-                return _cursor.TryGetValue(key, out value);
-            }
-
-            if (_cursor.TryGetValue(key, out var v))
-            {
-                if (_fullPredicate != null && !_fullPredicate(key, v))
-                {
-                    value = default(TValue);
-                    return false;
-                }
-                if (_valuePredicate != null && !_valuePredicate(v))
-                {
-                    value = default(TValue);
-                    return false;
-                }
-                value = v;
-                return true;
-            }
-            value = default(TValue);
-            return false;
+            throw new NotSupportedException();
         }
 
         /// <inheritdoc />
@@ -216,35 +164,32 @@ namespace Spreads
             var wasMoving = State == CursorState.Moving;
 
             var ck = wasMoving ? _cursor.CurrentKey : default(TKey);
+            var lk = wasMoving ? _laggedCursor.CurrentKey : default(TKey);
 
             var moved = _cursor.MoveAt(key, direction);
 
-            if (moved && ApplyPredicates())
+            if (moved)
             {
-                // done with true
-                State = CursorState.Moving;
-            }
-            else if (direction == Lookup.EQ)
-            {
-                // either not moved or filter returns false, for EQ we cannot move to any direction
-                moved = false;
-            }
-            else
-            {
-                do
+                if (wasMoving)
                 {
-                    if (direction == Lookup.GE || direction == Lookup.GT)
-                    {
-                        moved = _cursor.MoveNext();
-                    }
-                    else
-                    {
-                        moved = _cursor.MovePrevious();
-                    }
-                } while (moved && !ApplyPredicates());
+                    _laggedCursor.Dispose();
+                }
+                _laggedCursor = _cursor.Clone();
+
+                // step is irrelevant here, need to move lagged by width
+                _currentWidth = 1;
+                while (_currentWidth < _width)
+                {
+                    moved = _laggedCursor.MovePrevious();
+                    _currentWidth++;
+                }
             }
 
-            if (!moved && wasMoving && !_cursor.MoveAt(ck, Lookup.EQ))
+            if (moved)
+            {
+                State = CursorState.Moving;
+            }
+            else if (wasMoving && !_cursor.MoveAt(ck, Lookup.EQ) && _laggedCursor.MoveAt(lk, Lookup.EQ))
             {
                 ThrowHelper.ThrowOutOfOrderKeyException(ck);
             }
@@ -259,11 +204,27 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
+
+            var wasMoving = State == CursorState.Moving;
+
             var moved = _cursor.MoveFirst();
-            while (moved && !ApplyPredicates())
+
+            if (moved)
             {
-                moved = _cursor.MoveNext();
+                if (wasMoving)
+                {
+                    _laggedCursor.Dispose();
+                }
+                _laggedCursor = _cursor.Clone();
+
+                _currentWidth = 1;
+                while (_currentWidth < _width)
+                {
+                    moved = _cursor.MoveNext();
+                    _currentWidth++;
+                }
             }
+
             if (moved)
             {
                 State = CursorState.Moving;
@@ -284,11 +245,26 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
-            var moved = _cursor.MoveLast();
-            while (moved && !ApplyPredicates())
+            var wasMoving = State == CursorState.Moving;
+
+            var moved = _cursor.MoveFirst();
+
+            if (moved)
             {
-                moved = _cursor.MovePrevious();
+                if (wasMoving)
+                {
+                    _laggedCursor.Dispose();
+                }
+                _laggedCursor = _cursor.Clone();
+
+                _currentWidth = 1;
+                while (_currentWidth < _width)
+                {
+                    moved = _laggedCursor.MovePrevious();
+                    _currentWidth++;
+                }
             }
+
             if (moved)
             {
                 State = CursorState.Moving;
@@ -309,17 +285,32 @@ namespace Spreads
 
             var ck = _cursor.CurrentKey;
 
-            var moved = _cursor.MoveNext();
-
-            while (moved && !ApplyPredicates())
+            var moved = false;
+            var moves = 0;
+            while (moves < _step)
             {
-                moved = _cursor.MoveNext();
+                moved = _cursor.MoveNext() && _laggedCursor.MoveNext(); // NB order, lagged moves only after current moves
+                moves++;
             }
 
-            if (!moved && !_cursor.MoveAt(ck, Lookup.EQ))
+            if (!moved)
             {
-                // cannot recover, should be a very rare edge case
-                ThrowHelper.ThrowOutOfOrderKeyException(ck);
+                // roll back
+                for (var i = 0; i < moves; i++)
+                {
+                    try
+                    {
+                        var movedBack = _cursor.MovePrevious() && _laggedCursor.MovePrevious();
+                        if (!movedBack)
+                        {
+                            ThrowHelper.ThrowInvalidOperationException("MovePrevious should succeed after MoveNext or throw OutOfOrderKeyException");
+                        }
+                    }
+                    catch (OutOfOrderKeyException<TKey>)
+                    {
+                        ThrowHelper.ThrowOutOfOrderKeyException(ck);
+                    }
+                }
             }
 
             return moved;
@@ -344,29 +335,44 @@ namespace Spreads
 
             var ck = _cursor.CurrentKey;
 
-            var moved = _cursor.MovePrevious();
-
-            while (moved && !ApplyPredicates())
+            var moved = false;
+            var moves = 0;
+            while (moves < _step)
             {
-                moved = _cursor.MovePrevious();
+                moved = _laggedCursor.MovePrevious() && _cursor.MovePrevious(); // NB order, current moves only after lagged moves
+                moves++;
             }
 
-            if (!moved && !_cursor.MoveAt(ck, Lookup.EQ))
+            if (!moved)
             {
-                // cannot recover, should be a very rare edge case
-                ThrowHelper.ThrowOutOfOrderKeyException(ck);
+                // roll back
+                for (var i = 0; i < moves; i++)
+                {
+                    try
+                    {
+                        var moveForward = _laggedCursor.MoveNext() && _cursor.MoveNext();
+                        if (!moveForward)
+                        {
+                            ThrowHelper.ThrowInvalidOperationException("MoveNext should succeed after MovePrevious or throw OutOfOrderKeyException");
+                        }
+                    }
+                    catch (OutOfOrderKeyException<TKey>)
+                    {
+                        ThrowHelper.ThrowOutOfOrderKeyException(ck);
+                    }
+                }
             }
 
             return moved;
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source => new Series<TKey, TValue, Filter<TKey, TValue, TCursor>>(this);
+        IReadOnlySeries<TKey, TCursor> ICursor<TKey, TCursor>.Source => new Series<TKey, TCursor, LagStepImpl<TKey, TValue, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
-        public Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Source => new Series<TKey, TValue, Filter<TKey, TValue, TCursor>>(this);
+        public Series<TKey, TCursor, LagStepImpl<TKey, TValue, TCursor>> Source => new Series<TKey, TCursor, LagStepImpl<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken)

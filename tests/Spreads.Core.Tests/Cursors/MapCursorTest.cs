@@ -27,7 +27,7 @@ namespace Spreads.Core.Tests.Cursors
 
             Series<int, double, Range<int, double, SortedMapCursor<int, double>>> s1;
             s1 = sm.After(1);
-            // TODO see the moster signature!
+            // TODO see the monster signature!
             // try to swap Map with Range (or any CursorSeries) so that this signature could
             // be automatically reduced to just two step
             var m2 = s1.Map((x) => x + 1).After(1)

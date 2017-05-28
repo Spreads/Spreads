@@ -144,8 +144,7 @@ namespace Spreads
     /// <summary>
     /// Main interface for data series.
     /// </summary>
-    public interface ISeries<TKey, TValue>
-        : IPublisher<KeyValuePair<TKey, TValue>>, IAsyncEnumerable<KeyValuePair<TKey, TValue>>
+    public interface ISeries<TKey, TValue> : IDataStream<TKey, TValue>
     {
         /// <summary>
         /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys.
@@ -158,11 +157,6 @@ namespace Spreads
         /// for adding (e.g. after OnCompleted in Rx) or IsReadOnly in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
         /// </summary>
         bool IsReadOnly { get; }
-
-        /// <summary>
-        /// Key comparer.
-        /// </summary>
-        KeyComparer<TKey> Comparer { get; }
 
         /// <summary>
         /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact
