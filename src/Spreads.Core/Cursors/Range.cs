@@ -60,7 +60,7 @@ namespace Spreads
 
             if (cursorIsClonedAtStart &&
                 (startKey.IsMissing || endKey.IsMissing || !startInclusive || !endInclusive
-                    || _cursor.Comparer.Compare(_cursor.CurrentKey, startKey.Value) != 0))
+                    || cursor.Comparer.Compare(cursor.CurrentKey, startKey.Value) != 0))
             {
                 ThrowHelper.ThrowInvalidOperationException("Wrong constructor arguments for cursorIsClonedAtStart == true case");
             }

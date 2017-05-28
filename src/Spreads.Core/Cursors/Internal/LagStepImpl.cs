@@ -75,7 +75,7 @@ namespace Spreads.Cursors.Internal
             var instance = new LagStepImpl<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Initialize(),
-                _laggedCursor = _laggedCursor.Initialize(),
+                _laggedCursor = _cursor.Initialize(),
                 _width = _width,
                 _step = _step,
                 _currentWidth = 0,

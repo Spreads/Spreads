@@ -15,7 +15,7 @@ namespace Spreads
 {
 
     public struct Window<TKey, TValue, TCursor> :
-        ICursorSeries<TKey, Range<TKey, TValue, TCursor>, Window<TKey, TValue, TCursor>>
+        ICursorSeries<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         #region Cursor state
@@ -80,7 +80,10 @@ namespace Spreads
             // dispose is called on the result of Initialize(), the cursor from
             // constructor could be uninitialized but contain some state, e.g. _value for this FillCursor
             _cursor.Dispose();
-            _lookUpCursor.Dispose();
+            if (!_lookUpCursor.Equals(default(LagStepImpl<TKey, TValue, TCursor>)))
+            {
+                _lookUpCursor.Dispose();
+            }
             State = CursorState.None;
         }
 
@@ -91,7 +94,7 @@ namespace Spreads
             State = CursorState.Initialized;
         }
 
-        ICursor<TKey, Range<TKey, TValue, TCursor>> ICursor<TKey, Range<TKey, TValue, TCursor>>.Clone()
+        ICursor<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>> ICursor<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>>.Clone()
         {
             return Clone();
         }
@@ -101,10 +104,10 @@ namespace Spreads
         #region ICursor members
 
         /// <inheritdoc />
-        public KeyValuePair<TKey, Range<TKey, TValue, TCursor>> Current
+        public KeyValuePair<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new KeyValuePair<TKey, Range<TKey, TValue, TCursor>>(CurrentKey, CurrentValue); }
+            get { return new KeyValuePair<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>>(CurrentKey, CurrentValue); }
         }
 
         /// <inheritdoc />
@@ -115,14 +118,14 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public Range<TKey, TValue, TCursor> CurrentValue
+        public Series<TKey, TValue, Range<TKey, TValue, TCursor>> CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new Range<TKey, TValue, TCursor>(_cursor.CurrentValue, _cursor.CurrentValue.CurrentKey, _cursor.CurrentKey, true, true, true); }
+            get { return (new Range<TKey, TValue, TCursor>(_cursor.CurrentValue.Clone(), _cursor.CurrentValue.CurrentKey, _cursor.CurrentKey, true, true, true)).Source; }
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, Range<TKey, TValue, TCursor>> CurrentBatch => null;
+        public IReadOnlySeries<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>> CurrentBatch => null;
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
@@ -136,7 +139,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out Range<TKey, TValue, TCursor> value)
+        public bool TryGetValue(TKey key, out Series<TKey, TValue, Range<TKey, TValue, TCursor>> value)
         {
             if (_lookUpCursor.Equals(default(TCursor)))
             {
@@ -145,11 +148,11 @@ namespace Spreads
 
             if (_lookUpCursor.MoveAt(key, Lookup.EQ))
             {
-                value = new Range<TKey, TValue, TCursor>(_lookUpCursor.CurrentValue, _lookUpCursor.CurrentValue.CurrentKey, _lookUpCursor.CurrentKey, true, true, true);
+                value = (new Range<TKey, TValue, TCursor>(_lookUpCursor.CurrentValue.Clone(), _lookUpCursor.CurrentValue.CurrentKey, _lookUpCursor.CurrentKey, true, true, true)).Source;
                 return true;
             }
 
-            value = default(Range<TKey, TValue, TCursor>);
+            value = default(Series<TKey, TValue, Range<TKey, TValue, TCursor>>);
             return false;
         }
 
@@ -229,12 +232,12 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, Range<TKey, TValue, TCursor>> ICursor<TKey, Range<TKey, TValue, TCursor>>.Source => new Series<TKey, Range<TKey, TValue, TCursor>, Window<TKey, TValue, TCursor>>(this);
+        IReadOnlySeries<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>> ICursor<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>>.Source => new Series<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
-        public Series<TKey, Range<TKey, TValue, TCursor>, Window<TKey, TValue, TCursor>> Source => new Series<TKey, Range<TKey, TValue, TCursor>, Window<TKey, TValue, TCursor>>(this);
+        public Series<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>> Source => new Series<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken)
