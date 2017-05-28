@@ -379,12 +379,13 @@ namespace Spreads.Core.Tests
         }
 
         [Test, Ignore]
-        public void ArrayVsListVsIListManyTimes()
+        public void ArrayVsListVsIListBenchmark()
         {
             for (int times = 0; times < 5; times++)
             {
                 ArrayVsListVsIList();
             }
+            Benchmark.Dump();
         }
 
         [Test, Ignore]
@@ -410,9 +411,6 @@ namespace Spreads.Core.Tests
 
             var ilist = list as IList<double>;
 
-            var vector = new Spreads.Experimental.Vector<double>(arr);
-            vector.IsSynchronized = true;
-
             var idxs = new int[len / 10];
             var rng = new System.Random();
 
@@ -421,196 +419,151 @@ namespace Spreads.Core.Tests
                 idxs[i] = rng.Next(0, len);
             }
 
-            var sw = new Stopwatch();
             var sum = 0.0;
-            sw.Start();
-            sw.Stop();
 
             var maxRounds = 100000;
 
-            sw.Restart();
-            sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++)
+            using (Benchmark.Run("Array", len * maxRounds / 10))
             {
-                foreach (var idx in idxs)
+                sum = 0.0;
+                for (int rounds = 0; rounds < maxRounds; rounds++)
                 {
-                    sum += arr[idx];
+                    foreach (var idx in idxs)
+                    {
+                        sum += arr[idx];
+                    }
                 }
             }
-            sw.Stop();
-            Console.WriteLine($"Array: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
 
-            sw.Restart();
-            sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++)
-            {
-                foreach (var idx in idxs)
-                {
-                    sum += list[idx];
-                }
-            }
-            sw.Stop();
-            Console.WriteLine($"List: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
 
-            sw.Restart();
-            sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++)
+            using (Benchmark.Run("List", len * maxRounds / 10))
             {
-                foreach (var idx in idxs)
+                sum = 0.0;
+                for (int rounds = 0; rounds < maxRounds; rounds++)
                 {
-                    sum += vector[idx];
-                }
-            }
-            sw.Stop();
-            Console.WriteLine($"Vector: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
-
-            sw.Restart();
-            sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++)
-            {
-                foreach (var idx in idxs)
-                {
-                    lock (list)
+                    foreach (var idx in idxs)
                     {
                         sum += list[idx];
                     }
                 }
             }
-            sw.Stop();
-            Console.WriteLine($"LockedList: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
 
-            sw.Restart();
-            sum = 0.0;
-            SpinLock sl = new SpinLock();
-            for (int rounds = 0; rounds < maxRounds; rounds++)
+
+
+            using (Benchmark.Run("LockedList", len * maxRounds / 10))
             {
-                foreach (var idx in idxs)
+                sum = 0.0;
+                for (int rounds = 0; rounds < maxRounds; rounds++)
                 {
-                    bool gotLock = false;
-                    gotLock = false;
-                    try
+                    foreach (var idx in idxs)
                     {
-                        sl.Enter(ref gotLock);
-                        sum += list[idx];
-                    }
-                    finally
-                    {
-                        // Only give up the lock if you actually acquired it
-                        if (gotLock) sl.Exit();
+                        lock (list)
+                        {
+                            sum += list[idx];
+                        }
                     }
                 }
             }
-            sw.Stop();
-            Console.WriteLine($"SpinLockedList: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
 
-            sw.Restart();
-            sum = 0.0;
-            var counter = 0L;
-            for (int rounds = 0; rounds < maxRounds; rounds++)
+            using (Benchmark.Run("SpinLockedList", len * maxRounds / 10))
             {
-                foreach (var idx in idxs)
+                sum = 0.0;
+                SpinLock sl = new SpinLock();
+                for (int rounds = 0; rounds < maxRounds; rounds++)
                 {
-                    var dummy = Interlocked.CompareExchange(ref counter, idx, 0L);
-                    sum += list[idx] + dummy;
+                    foreach (var idx in idxs)
+                    {
+                        bool gotLock = false;
+                        gotLock = false;
+                        try
+                        {
+                            sl.Enter(ref gotLock);
+                            sum += list[idx];
+                        }
+                        finally
+                        {
+                            // Only give up the lock if you actually acquired it
+                            if (gotLock) sl.Exit();
+                        }
+                    }
                 }
             }
-            sw.Stop();
-            Console.WriteLine($"InterLockedList: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
 
-            sw.Restart();
-            sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++)
+            using (Benchmark.Run("InterLockedList", len * maxRounds / 10))
             {
-                foreach (var idx in idxs)
+                sum = 0.0;
+                var counter = 0L;
+                for (int rounds = 0; rounds < maxRounds; rounds++)
                 {
-                    sum += ilist[idx];
+                    foreach (var idx in idxs)
+                    {
+                        var dummy = Interlocked.CompareExchange(ref counter, idx, 0L);
+                        sum += list[idx] + dummy;
+                    }
                 }
             }
-            sw.Stop();
-            Console.WriteLine($"IList: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
 
-            sw.Restart();
-            sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++)
+            using (Benchmark.Run("IList", len * maxRounds / 10))
             {
-                foreach (var idx in idxs)
+                sum = 0.0;
+                for (int rounds = 0; rounds < maxRounds; rounds++)
                 {
-                    sum += fixedBuffer.ReadDouble(idx * 8);
+                    foreach (var idx in idxs)
+                    {
+                        sum += ilist[idx];
+                    }
                 }
             }
-            sw.Stop();
-            Console.WriteLine($"FixedBuffer: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
 
-            sw.Restart();
-            sum = 0.0;
-            var ifb = fixedBuffer as IDirectBuffer;
-            for (int rounds = 0; rounds < maxRounds; rounds++)
+            using (Benchmark.Run("FixedBuffer", len * maxRounds / 10))
             {
-                foreach (var idx in idxs)
+                sum = 0.0;
+                for (int rounds = 0; rounds < maxRounds; rounds++)
                 {
-                    sum += ifb.ReadDouble(idx * 8);
+                    foreach (var idx in idxs)
+                    {
+                        sum += fixedBuffer.ReadDouble(idx * 8);
+                    }
                 }
             }
-            sw.Stop();
-            Console.WriteLine($"IFixedBuffer: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
 
-            sw.Restart();
-            sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++)
+            using (Benchmark.Run("IFixedBuffer", len * maxRounds / 10))
             {
-                foreach (var idx in idxs)
+                sum = 0.0;
+                var ifb = fixedBuffer as IDirectBuffer;
+                for (int rounds = 0; rounds < maxRounds; rounds++)
                 {
-                    sum += directBuffer.ReadDouble(idx * 8);
+                    foreach (var idx in idxs)
+                    {
+                        sum += ifb.ReadDouble(idx * 8);
+                    }
                 }
             }
-            sw.Stop();
-            Console.WriteLine($"DirectBuffer: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
 
-            sw.Restart();
-            sum = 0.0;
-            var idb = directBuffer as IDirectBuffer;
-            for (int rounds = 0; rounds < maxRounds; rounds++)
+            using (Benchmark.Run("DirectBuffer", len * maxRounds / 10))
             {
-                foreach (var idx in idxs)
+                sum = 0.0;
+                for (int rounds = 0; rounds < maxRounds; rounds++)
                 {
-                    sum += idb.ReadDouble(idx * 8);
+                    foreach (var idx in idxs)
+                    {
+                        sum += directBuffer.ReadDouble(idx * 8);
+                    }
                 }
             }
-            sw.Stop();
-            Console.WriteLine($"IDirectBuffer: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
+
+            using (Benchmark.Run("}", len * maxRounds / 10))
+            {
+                sum = 0.0;
+                var idb = directBuffer as IDirectBuffer;
+                for (int rounds = 0; rounds < maxRounds; rounds++)
+                {
+                    foreach (var idx in idxs)
+                    {
+                        sum += idb.ReadDouble(idx * 8);
+                    }
+                }
+            }
         }
 
         [Test, Ignore]
@@ -1059,7 +1012,7 @@ namespace Spreads.Core.Tests
                     {
                         var c = comps[i]; // values[i - 1].CompareTo(values[i]); // 
                         //bool b = c >= 0; // values[i - 1] >= values[i]; //  
-                        var idx = 1 ^ (((uint) c) >> 31); // *((byte*)(&b));
+                        var idx = 1 ^ (((uint)c) >> 31); // *((byte*)(&b));
                         sumUnsafe += arr[idx];
                     }
                 }

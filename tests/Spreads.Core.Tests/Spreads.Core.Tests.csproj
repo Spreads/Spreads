@@ -169,6 +169,7 @@
     <Compile Include="DoubleUtilTests.cs" />
     <Compile Include="Serialization\VariableLengthValues.cs" />
     <Compile Include="Cursors\AsyncCursorTests.cs" />
+    <Compile Include="SIMD.cs" />
     <Compile Include="SpanTests.cs" />
     <Compile Include="Algorithms\AlgoTests.cs" />
     <Compile Include="Serialization\SerializationTests.cs" />
@@ -176,7 +177,6 @@
     <Compile Include="BuffersTests.cs" />
     <Compile Include="Primes.cs" />
     <Compile Include="Program.cs" />
-    <Compile Include="SIMD.cs" />
     <Compile Include="SingleEnumerableTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TableTests.cs" />

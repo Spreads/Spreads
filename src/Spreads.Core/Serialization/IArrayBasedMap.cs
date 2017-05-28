@@ -11,7 +11,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Spreads
+namespace Spreads.Serialization
 {
     internal interface IArrayBasedMap<TKey, TValue>
     {

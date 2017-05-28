@@ -9,7 +9,7 @@ namespace Spreads.DataTypes
 {
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
     [Serialization(BlittableSize = 8)]
-    public struct ErrorCode
+    internal struct ErrorCode
     {
         public long Code;
     }

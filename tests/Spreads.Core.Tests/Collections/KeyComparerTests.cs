@@ -3,10 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
-using System;
+using Spreads.Utils;
 using System.Collections.Generic;
-using System.Diagnostics;
-using Spreads.Collections;
 
 namespace Spreads.Core.Tests.Collections
 {
@@ -19,78 +17,54 @@ namespace Spreads.Core.Tests.Collections
             var c = Comparer<long>.Default;
             IComparer<long> ic = Comparer<long>.Default;
             var cc = KeyComparer<long>.Default;
-            var cc2 = Spreads.Collections.Experimental.KeyComparer<long>.Default;
-            //var manualcc = new ConstrainedKeyComparerLong();
 
-            const long count = 100000000L;
-
-            var sw = new Stopwatch();
+            const int count = 100000000;
 
             for (int r = 0; r < 10; r++)
             {
                 var sum = 0L;
 
-                sw.Restart();
-                for (int i = 0; i < count; i++)
+                using (Benchmark.Run("Default", count))
                 {
-                    sum += c.Compare(i, i - 1);
+                    for (int i = 0; i < count; i++)
+                    {
+                        sum += c.Compare(i, i - 1);
+                    }
                 }
-                sw.Stop();
-                Console.WriteLine($"Default comparer: {sw.ElapsedMilliseconds}");
 
                 Assert.True(sum > 0);
 
                 sum = 0L;
-                sw.Restart();
-                for (int i = 0; i < count; i++)
+                using (Benchmark.Run("Interface", count))
                 {
-                    sum += ic.Compare(i, i - 1);
+                    for (int i = 0; i < count; i++)
+                    {
+                        sum += ic.Compare(i, i - 1);
+                    }
                 }
-                sw.Stop();
-                Console.WriteLine($"Interface comparer: {sw.ElapsedMilliseconds}");
-
                 Assert.True(sum > 0);
 
                 sum = 0L;
-                sw.Restart();
-                for (int i = 0; i < count; i++)
+                using (Benchmark.Run("KeyComparer", count))
                 {
-                    sum += cc.Compare(i, i - 1);
+                    for (int i = 0; i < count; i++)
+                    {
+                        sum += cc.Compare(i, i - 1);
+                    }
                 }
-                sw.Stop();
-                Console.WriteLine($"Key comparer: {sw.ElapsedMilliseconds}");
                 Assert.True(sum > 0);
-
-                //sum = 0L;
-                //sw.Restart();
-                //for (int i = 0; i < count; i++)
-                //{
-                //    sum += cc2.Compare(i, i - 1);
-                //}
-                //sw.Stop();
-                //Console.WriteLine($"Key comparer 2: {sw.ElapsedMilliseconds}");
-                //Assert.True(sum > 0);
 
                 sum = 0L;
-                sw.Restart();
-                for (int i = 0; i < count; i++)
+                using (Benchmark.Run("Unsafe", count))
                 {
-                    sum += Unsafe.CompareToConstrained(i, i - 1);
+                    for (int i = 0; i < count; i++)
+                    {
+                        sum += Unsafe.CompareToConstrained(i, i - 1);
+                    }
                 }
-                sw.Stop();
-                Console.WriteLine($"Unsafe comparer: {sw.ElapsedMilliseconds}");
-                Assert.True(sum > 0);
-
-                //sum = 0L;
-                //sw.Restart();
-                //for (long i = 0; i < count; i++)
-                //{
-                //    sum += manualcc.Compare(i, i - 1L);
-                //}
-                //sw.Stop();
-                //Console.WriteLine($"Manual constrained comparer: {sw.ElapsedMilliseconds}");
-                //Assert.True(sum > 0);
             }
+
+            Benchmark.Dump();
         }
     }
 }

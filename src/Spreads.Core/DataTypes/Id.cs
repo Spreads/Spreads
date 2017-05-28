@@ -174,7 +174,8 @@ namespace Spreads.DataTypes
         }
 
         /// <inheritdoc />
-        public override int GetHashCode() => _value.GetHashCode();
+        // ReSharper disable once NonReadonlyMemberInGetHashCode
+        public override int GetHashCode() => _value;
 
         /// <inheritdoc />
         public override string ToString()

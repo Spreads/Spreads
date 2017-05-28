@@ -3,22 +3,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 
 namespace Spreads.DataTypes
 {
-    // 4 bytes alternatives to DateTime and TimeSpan when we need only a part of them
-
-    // NB Remeber that we need these for untyped access, e.g. when other side of
-    // interop knows nothing and need to present at least something from data,
-    // e.g. at least print
-
     /// <summary>
-    /// Number of days since zero.
+    /// Date stored as a number of days since zero.
     /// </summary>
     [DebuggerDisplay("{ToString()}")]
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 4)]
@@ -30,6 +21,8 @@ namespace Spreads.DataTypes
         {
             _value = (int)(datetime.Ticks / TimeSpan.TicksPerDay);
         }
+
+        public DateTime DateTime => (DateTime)this;
 
         public static explicit operator DateTime(Date date)
         {
@@ -53,7 +46,7 @@ namespace Spreads.DataTypes
     }
 
     /// <summary>
-    /// Number of milliseconds in a day
+    /// Time stored as number of milliseconds.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 4)]
     public struct Time
@@ -69,6 +62,8 @@ namespace Spreads.DataTypes
         {
             _value = (int)(timespan.Ticks / TimeSpan.TicksPerMillisecond);
         }
+
+        public TimeSpan TimeSpan => (TimeSpan)this;
 
         public static explicit operator TimeSpan(Time time)
         {

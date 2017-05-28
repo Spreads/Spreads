@@ -128,7 +128,7 @@ namespace Spreads
     }
 
     // TODO Instead of enum this could be a big struct. Known keys mostly correspond to storage
-    public enum KnownMetadataKeys
+    internal enum KnownMetadataKeys
     {
         TimeZone,
         UnitPeriod,

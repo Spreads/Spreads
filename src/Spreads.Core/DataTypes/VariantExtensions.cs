@@ -1,10 +1,8 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 
 namespace Spreads.DataTypes
 {
-    
     /// <summary>
     /// Compare string Variants with StringComparison.InvariantCultureIgnoreCase
     /// </summary>

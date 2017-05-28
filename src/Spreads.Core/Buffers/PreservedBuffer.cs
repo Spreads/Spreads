@@ -10,8 +10,6 @@ using System.Collections.Generic;
 namespace Spreads.Buffers
 {
 
-    // TODO IReadOnlyList
-
     /// <summary>
     /// A struct that wraps a System.Memory.Buffer and its DisposableReservation that is returned after calling buffer.Reserver().
     /// Increases the ref count of underlying OwnedBuffer by one.

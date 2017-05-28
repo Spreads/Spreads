@@ -36,7 +36,7 @@ open Microsoft.FSharp.Core.Operators
 open Spreads.SIMDArrayUtils
 
 [<RequireQualifiedAccess>]
-module SIMD =
+module internal SIMD =
 
   /// <summary>
   /// First does skipWhile one vector at a time using vf. If vf returns false

@@ -18,7 +18,7 @@ namespace Spreads.Buffers
 
     internal class UnpinWhenGCed
     {
-        internal readonly GCHandle PinnedGCHandle;
+        internal GCHandle PinnedGCHandle;
 
         public UnpinWhenGCed(GCHandle pinnedGCHandle)
         {
@@ -750,8 +750,8 @@ namespace Spreads.Buffers
             {
                 var fixedBuffer1 = fixedBuffer;
                 fixedBuffer1.PinBuffer();
-                base.SetHandle(new IntPtr(fixedBuffer1._unpinner.PinnedGCHandle.AddrOfPinnedObject().ToInt64() + fixedBuffer1._offset));
-                base.Initialize((uint)fixedBuffer1._length);
+                SetHandle(new IntPtr(fixedBuffer1._unpinner.PinnedGCHandle.AddrOfPinnedObject().ToInt64() + fixedBuffer1._offset));
+                Initialize((uint)fixedBuffer1._length);
             }
 
             protected override bool ReleaseHandle()

@@ -17,7 +17,6 @@ namespace Spreads.Collections.Generic
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Diagnostics.Contracts;
-    using System.Reflection;
     using System.Runtime.CompilerServices;
     using System.Runtime.Serialization;
     using System.Threading;
@@ -66,7 +65,6 @@ namespace Spreads.Collections.Generic
         private ValueCollection values;
         private Object _syncRoot;
 
-
         public FastDictionary() : this(0)
         {
         }
@@ -109,7 +107,6 @@ namespace Spreads.Collections.Generic
                 Add(pair.Key, pair.Value);
             }
         }
-
 
         public FastDictionary(IEnumerable<KeyValuePair<TKey, TValue>> collection) :
             this((collection as ICollection<KeyValuePair<TKey, TValue>>)?.Count ?? 0)

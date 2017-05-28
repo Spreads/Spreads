@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
+// ReSharper disable once CheckNamespace
 namespace Spreads
 {
     public static class DateTimeExtensions

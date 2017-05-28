@@ -4,6 +4,9 @@
 
 namespace Spreads.DataTypes
 {
+    /// <summary>
+    /// Trade side enum: Buy, Sell or None (default)
+    /// </summary>
     public enum TradeSide : byte
     {
         /// <summary>
@@ -11,7 +14,14 @@ namespace Spreads.DataTypes
         /// </summary>
         None = 0,
 
+        /// <summary>
+        /// Buy.
+        /// </summary>
         Buy = 1,
+
+        /// <summary>
+        /// Sell.
+        /// </summary>
         Sell = 255, // -1 for signed byte
     }
 }

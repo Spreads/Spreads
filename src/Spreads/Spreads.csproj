@@ -13,6 +13,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <OutputPath>..\..\bin\</OutputPath>
+    <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
   </PropertyGroup>
 
   <ItemGroup>

@@ -7,16 +7,16 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+
 #if DEBUG
 using System.Diagnostics;
 #endif
+
 namespace Spreads.Collections
 {
-
     /// <summary>
     /// SortedDeque for KeyValuePairs.
     /// </summary>
-
     public class SortedDeque<T> : IEnumerable<T>
     {
         internal KeyComparer<T> _comparer;
@@ -361,7 +361,6 @@ namespace Spreads.Collections
             return true;
         }
 
-
         /// <summary>
         /// Add or replace an element.
         /// </summary>
@@ -549,7 +548,6 @@ namespace Spreads.Collections
         }
     }
 
-
     /// <summary>
     /// SortedDeque for KeyValuePairs.
     /// </summary>
@@ -578,7 +576,6 @@ namespace Spreads.Collections
         /// Create a new instance of SortedDeque with a default comparer.
         /// </summary>
         public SortedDeque(int capacity) : this(capacity, new KVPComparer<TKey, TValue>(null, null)) { }
-
 
         /// <summary>
         /// Create a new instance of SortedDeque with a default comparer.
@@ -939,7 +936,6 @@ namespace Spreads.Collections
                 InsertAtOffset(~offset, element);
             }
         }
-
 
         /// <summary>
         /// Try add a new element.

@@ -12,11 +12,8 @@ namespace Spreads.Enumerators
     //    which ends at 23:59:59.9999999...
     // third, we could easily get 'correct' aggregates with end-of-period (without missing values) by just applying `lag(1)`
 
-    /// <summary>
-    ///
-    /// </summary>
-    /// <typeparam name="TValue"></typeparam>
-    /// <typeparam name="TAggr"></typeparam>
+    // TODO use PeriodTick
+
     internal struct TimeSliceAsyncEnumerable<TValue, TAggr> : IAsyncEnumerable<KeyValuePair<DateTime, TAggr>>
     {
         private readonly IEnumerable<KeyValuePair<DateTime, TValue>> _series;

@@ -2,24 +2,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
-namespace Spreads.Algorithms
+namespace Spreads.Core.Tests
 {
     public static class SimdMath
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void SIMDAdd(this Algo.MathProvider provider, float[] array, float scalar, float[] result, int count)
+        public static void SIMDAdd(float[] array, float scalar, float[] result, int count)
         {
             var vectorSize = Vector<float>.Count;
             var scalarVector = new Vector<float>(scalar);
-            int i = 0;
+            int i;
 
             for (i = 0; i + vectorSize < count; i = i + vectorSize)
             {
@@ -38,7 +33,7 @@ namespace Spreads.Algorithms
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void LoopAdd(this Algo.MathProvider provider, float[] array, float scalar, float[] result, int count)
+        public static unsafe void LoopAdd(float[] array, float scalar, float[] result, int count)
         {
             fixed (float* src = &array[0])
             fixed (float* tgt = &result[0])
@@ -51,7 +46,7 @@ namespace Spreads.Algorithms
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void LoopSafeAdd(this Algo.MathProvider provider, float[] array, float scalar, float[] result, int count)
+        public static void LoopSafeAdd(float[] array, float scalar, float[] result, int count)
         {
             for (var i = 0; i < count; i++)
             {
@@ -60,7 +55,7 @@ namespace Spreads.Algorithms
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void LoopSafeExp(this Algo.MathProvider provider, double[] array, double[] result, int count)
+        public static void LoopSafeExp(double[] array, double[] result, int count)
         {
             for (var i = 0; i < count; i++)
             {

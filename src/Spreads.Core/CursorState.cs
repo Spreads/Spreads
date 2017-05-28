@@ -6,6 +6,8 @@ using System;
 
 namespace Spreads
 {
+    // TODO (?) Add to ICursor?
+
     internal enum CursorState : byte
     {
         /// <summary>

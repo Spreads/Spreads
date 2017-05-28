@@ -22,7 +22,7 @@
 
 
 namespace Spreads
-module SIMDArrayUtils =
+module internal SIMDArrayUtils =
 
   /// <summary>
   /// Utility function for use with SIMD higher order functions

@@ -15,7 +15,6 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Serialization
 {
-    // TODO remove special treatment of decimal, it is blittable/pinnable
 
     internal delegate int FromPtrDelegate(IntPtr ptr, out object value);
 
@@ -214,14 +213,15 @@ namespace Spreads.Serialization
                 _typeParams.Size = 8;
                 return 8;
             }
-            //if (typeof(T) == typeof(decimal))
-            //{
-            //    _typeParams.IsBlittable = true;
-            //    _typeParams.IsFixedSize = true;
-            //    _typeParams.IsDateTime = true;
-            //    _typeParams.Size = 16;
-            //    return 16;
-            //}
+            // NB decimal is pinnable but not primitive, the check below fails on it
+            if (typeof(T) == typeof(decimal))
+            {
+                _typeParams.IsBlittable = true;
+                _typeParams.IsFixedSize = true;
+                _typeParams.IsDateTime = true;
+                _typeParams.Size = 16;
+                return 16;
+            }
 
             _typeParams.IsValueType = typeof(T).GetTypeInfo().IsValueType;
             var pinnedSize = PinnedSize();

@@ -6,7 +6,7 @@ using System;
 
 namespace Spreads.DataTypes
 {
-    public unsafe partial struct Variant : IConvertible
+    public partial struct Variant : IConvertible
     {
         /// <inheritdoc/>
         public TypeCode GetTypeCode()

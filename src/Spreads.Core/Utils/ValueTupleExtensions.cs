@@ -3,12 +3,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 
 namespace Spreads.Utils
 {
-    internal static class ValueTupleExtensions
+    public static class ValueTupleExtensions
     {
         public static bool And(this (bool, bool) tuple)
         {
@@ -19,5 +20,11 @@ namespace Spreads.Utils
         {
             return tuple.Item1 || tuple.Item2;
         }
+
+        public static (TKey key, TValue value) AsTuple<TKey, TValue>(this KeyValuePair<TKey, TValue> kvp)
+        {
+            return (kvp.Key, kvp.Value);
+        }
+
     }
 }

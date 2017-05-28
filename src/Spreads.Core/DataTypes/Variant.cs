@@ -415,7 +415,7 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Variant Create<T>(T[] array)
         {
-            return Create<T>(array, 0, array.Length);
+            return Create(array, 0, array.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

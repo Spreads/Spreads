@@ -168,6 +168,58 @@ namespace Spreads
             return series.Range(startKey, Opt<TKey>.Missing, startInclusive, true);
         }
 
+        internal static Series<TKey, TResult, Map<TKey, TInput, TResult, Range<TKey, TInput, TCursor>>> After<TKey, TInput, TResult, TCursor>(
+            this Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>> series,
+            TKey startKey, bool startInclusive = true)
+            where TCursor : ISpecializedCursor<TKey, TInput, TCursor>
+        {
+            // NB trick - we move range before map, see how all maps are fused below
+            // TODO (low) combine ranges in the example below
+            var mapInner = series._cursor._cursor;
+            var selector = series._cursor._selector;
+            var range = new Range<TKey, TInput, TCursor>(mapInner, startKey, Opt<TKey>.Missing, startInclusive, true);
+            var map = new Map<TKey, TInput, TResult, Range<TKey, TInput, TCursor>>(range, selector);
+            var res = map.Source;
+            return res;
+        }
+
+        internal static Series<TKey, TResult, Map<TKey, TInput, TResult, Range<TKey, TInput, TCursor>>> After<TKey, TInput, TResult, TCursor>(
+            this Series<TKey, TResult, Map<TKey, TInput, TResult, Range<TKey, TInput, TCursor>>> series,
+            TKey startKey, bool startInclusive = true)
+            where TCursor : ISpecializedCursor<TKey, TInput, TCursor>
+        {
+            // NB trick - we move range before map and merge it with the inner range, see how all ranges are combined below
+            var range = series._cursor._cursor.Source.After(startKey, startInclusive)._cursor;
+            var selector = series._cursor._selector;
+            var map = new Map<TKey, TInput, TResult, Range<TKey, TInput, TCursor>>(range, selector);
+            var res = map.Source;
+            return res;
+        }
+
+
+        /// <summary>
+        /// Sample for the map combination. This tests mostly intellisense experience - see popup on m2
+        /// </summary>
+        private static void TestMovingRangeBeforeMap()
+        {
+            var sm = new SortedMap<int, double>
+            {
+                { 1, 1 }
+            };
+            Series<int, double, Range<int, double, SortedMapCursor<int, double>>> s1;
+            s1 = sm.After(1);
+            var m2 =
+                (s1.Map((x) => x + 1)).After(1).After(1)
+                .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
+                .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
+                .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
+                .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
+                .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
+                .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
+                .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
+                ;
+        }
+
         public static Series<TKey, TValue, Range<TKey, TValue, Cursor<TKey, TValue>>> After<TKey, TValue>(
             this ISeries<TKey, TValue> series,
             TKey startKey, bool startInclusive = true)

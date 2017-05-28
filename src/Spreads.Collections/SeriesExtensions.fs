@@ -10,58 +10,52 @@ open System.Collections.Generic
 open System.Runtime.CompilerServices
 
 open Spreads
+open System.Threading
+open System.Threading.Tasks
 
 [<Extension>]
-type SeriesExtensions () =
+[<Obsolete>]
+type SeriesExtensionsAux () =
+    [<Extension>]
+    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>, maxIterations:int64, token:CancellationToken) : Task<bool> =
+      let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
+      let returnTask = tcs.Task
+      let cursor = source.GetCursor()
+      let maxIterations = if maxIterations = 0L then Int64.MaxValue else maxIterations
+      let mutable iterations = 0L
+      let rec loop() =
+        while cursor.MoveNext() && iterations < maxIterations do
+          action.Invoke(cursor.CurrentKey, cursor.CurrentValue)
+          iterations <- iterations + 1L
+        if iterations < maxIterations then
+          let moveTask = cursor.MoveNext(token)
+          let awaiter = moveTask.GetAwaiter()
+          awaiter.UnsafeOnCompleted(fun _ ->
+            match moveTask.Status with
+            | TaskStatus.RanToCompletion ->
+              if moveTask.Result then
+                action.Invoke(cursor.CurrentKey, cursor.CurrentValue)
+                iterations <- iterations + 1L
+                loop()
+              else
+                tcs.SetResult(true) // finish on complete
+            | TaskStatus.Canceled -> tcs.SetException(OperationCanceledException())
+            | TaskStatus.Faulted -> tcs.SetException(moveTask.Exception)
+            | _ -> failwith "TODO process all task statuses"
+            ()
+          )
+        else
+          tcs.SetResult(false) // finish on iteration
+      loop()
+      returnTask
 
-//    [<Extension>] //inline
-//    static member  Window(source: ISeries<'K,'V>, width:uint32, step:uint32) : Series<'K,Series<'K,'V>> =
-//      if width = 0u then raise (ArgumentOutOfRangeException("Width must be positive"))
-//      if step = 0u then raise (ArgumentOutOfRangeException("Step must be positive"))
-//      CursorSeries(fun _ -> new WindowCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), width, step, false) :> ICursor<'K,Series<'K,'V>>) :> Series<'K,Series<'K,'V>>
+    [<Extension>]
+    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>, token:CancellationToken) : Task<bool> =
+      SeriesExtensionsAux.Do(source, action, 0L, token)
 
-//    [<Extension>] // inline
-//    static member  Window(source: ISeries<'K,'V>, width:uint32, step:uint32, returnIncomplete:bool) : Series<'K,Series<'K,'V>> = 
-//      CursorSeries(fun _ -> new WindowCursor<'K,'V>(Func<ICursor<'K,'V>>(source.GetCursor), width, step, returnIncomplete) :> ICursor<'K,Series<'K,'V>>) :> Series<'K,Series<'K,'V>>
-
-
-    // TODO review. WeakRefernce here is wrong, if we pass a struct series to this method
-    // it will be boxed and then GCed, WR will die
-    /// Enumerates the source into SortedMap<'K,'V> as Series<'K,'V>. Similar to LINQ ToArray/ToList methods.
-    //[<Extension>]
-    //static member inline Cache(source: ISeries<'K,'V>) : SortedMap<'K,'V> =
-    //  let sm = SortedMap()
-    //  // NB if caller of Cache no loger uses sm, the task will stop
-    //  let wekRef = new WeakReference(sm)
-    //  let task = task {
-    //      let sm' = (wekRef.Target :?> SortedMap<'K,'V>)
-    //      let cursor = source.GetCursor()
-    //      while cursor.MoveNext() do
-    //        sm'.AddLast(cursor.CurrentKey, cursor.CurrentValue)
-    //      // by contract, if MN returned false, cursor stays at the same key andwe could call MNA
-    //      let mutable cont = true
-    //      while cont do
-    //        if wekRef.IsAlive then
-    //          let delay = Task.Delay(1000)
-    //          let mn = cursor.MoveNext(CancellationToken.None)
-    //          let! moved = Task.WhenAny(mn, delay)
-    //          if mn.IsCompleted then
-    //            let moved = mn.Result
-    //            cont <- moved
-    //            if moved then (wekRef.Target :?> SortedMap<'K,'V>).AddLast(cursor.CurrentKey, cursor.CurrentValue)
-    //        else
-    //          cont <- false
-    //      #if PRERELEASE
-    //          //Trace.WriteLine("ToSortedMap task exited")
-    //      #endif
-    //      cursor.Dispose()
-    //      return 0
-    //  }
-    //  let runninTask = Task.Run<int>(Func<Task<int>>(fun _ -> task))
-    //  sm
-
-
-    
+    [<Extension>]
+    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>) : Task<bool> =
+      SeriesExtensionsAux.Do(source, action, 0L, CancellationToken.None)
 
     [<Extension>]
     static member inline Fold(source: ISeries<'K,'V>, init:'R, folder:Func<'R,'K,'V,'R>) : 'R = 

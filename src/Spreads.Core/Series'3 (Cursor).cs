@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Cursors;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -597,9 +596,9 @@ namespace Spreads
             return zipCursor.Map(selector).Source;
         }
 
-
         // TODO review & test this trick to implicitly cast non-matching cursor types to Cursor<TKey, TValue>
         // see CouldCalculateComplexGraph test
+        // See ECMA 334 14.2.4 & 14.4.2 http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-334.pdf
         public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>>> operator
             *(Series<TKey, TValue, TCursor> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {

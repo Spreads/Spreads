@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Cursors;
 using Spreads.Utils;
 using System;
 using System.Collections;
@@ -52,6 +51,7 @@ namespace Spreads
     /// <typeparam name="TKey">Type of series keys.</typeparam>
     /// <typeparam name="TValue">Type of series values.</typeparam>
 #pragma warning disable 660, 661
+
     public abstract class Series<TKey, TValue> : BaseSeries, IReadOnlySeries<TKey, TValue>, ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>
 #pragma warning restore 660,661
     {
@@ -938,7 +938,8 @@ namespace Spreads
     /// <summary>
     /// Base class for collections (containers).
     /// </summary>
-#pragma warning disable 660,661
+#pragma warning disable 660, 661
+
     public abstract class ContainerSeries<TKey, TValue, TCursor> : Series<TKey, TValue>, ISpecializedSeries<TKey, TValue, TCursor>
 #pragma warning restore 660,661
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
@@ -1082,8 +1083,6 @@ namespace Spreads
                 return tcs.Task;
             }
         }
-
-
 
         #region Unary Operators
 
@@ -1346,7 +1345,6 @@ namespace Spreads
 
         #endregion Unary Operators
 
-
         #region Binary Operators
 
         // BINARY ARITHMETIC
@@ -1369,6 +1367,6 @@ namespace Spreads
             //return op2.Source;
         }
 
-        #endregion
+        #endregion Binary Operators
     }
 }

@@ -12,6 +12,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using Spreads.Blosc;
 using System.Buffers;
+using System.Data.SqlTypes;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -86,6 +87,7 @@ namespace Spreads.Core.Tests.Serialization
         [Test]
         public void CouldSerializeDecimalArray()
         {
+            Assert.AreEqual(16, TypeHelper<decimal>.Size);
             var bytes = new byte[1000];
             var decimals = new decimal[2];
             decimals[0] = 123;
@@ -94,8 +96,9 @@ namespace Spreads.Core.Tests.Serialization
             Assert.AreEqual(8 + 16 * 2, len);
             decimal[] decimals2 = null;
             var len2 = BinarySerializer.Read(bytes, out decimals2);
-            Assert.AreEqual(len, len2);
             Assert.IsTrue(decimals.SequenceEqual(decimals2));
+            Assert.AreEqual(len, len2);
+            
         }
 
         [Test]
@@ -192,6 +195,7 @@ namespace Spreads.Core.Tests.Serialization
         [Test]
         public unsafe void CouldSerializeSortedMap()
         {
+            SortedMap<DateTime, decimal>.Init();
             var rng = new Random();
 
             var dest = (OwnedBuffer<byte>)new byte[1000000];

@@ -81,7 +81,6 @@
     <Compile Include="Common\SIMDArrayUtils.fs" />
     <Compile Include="Common\SIMDArray.fs" />
     <Compile Include="Interfaces.fs" />
-    <Compile Include="ISeriesExtensions.fs" />
     <Compile Include="OptimizationSettings.fs" />
     <Compile Include="ZipN.fs" />
     <Compile Include="BaseCursor.fs" />
@@ -96,8 +95,6 @@
     <Compile Include="Collections\IndexedMap.fs" />
     <Compile Include="Collections\SortedMap.fs" />
     <Compile Include="Collections\SortedChunkedMap.fs" />
-    <Compile Include="Cursors\BindCursor.fs" />
-    <Compile Include="Cursors\LaggedCursors.fs" />
     <Compile Include="SeriesExtensions.fs" />
     <Compile Include="Panel.fs" />
     <Content Include="app.config" />

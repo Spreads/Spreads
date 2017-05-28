@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 
+// ReSharper disable once CheckNamespace
 namespace Spreads
 {
     public static class AsyncEnumerableExtensions

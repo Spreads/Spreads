@@ -9,28 +9,54 @@ using System.Runtime.InteropServices;
 namespace Spreads.DataTypes
 {
     /// <summary>
-    /// A Timestamp stored as nanoseconds since Unix epoch as UInt64.
+    /// A Timestamp stored as nanoseconds since Unix epoch as Int64.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = 8)]
     [Serialization(BlittableSize = 8)]
-    public unsafe struct Timestamp : IComparable<Timestamp>
+    public struct Timestamp : IComparable<Timestamp>, IEquatable<Timestamp>
     {
+        private static readonly long UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc).Ticks;
         private readonly long _value;
+
+        private Timestamp(long value)
+        {
+            _value = value;
+        }
+
+        public DateTime DateTime => this;
 
         public static implicit operator DateTime(Timestamp timestamp)
         {
-            throw new NotImplementedException();
+            return new DateTime(UnixEpoch + timestamp._value, DateTimeKind.Utc);
         }
 
         public static implicit operator Timestamp(DateTime dateTime)
         {
-            throw new NotImplementedException();
+            var value = dateTime.ToUniversalTime().Ticks - UnixEpoch;
+            return new Timestamp(value);
         }
 
-        // TODO IConvertible and other standard interfaces of DateTime that fallback to DT implementation via conversion
+        /// <inheritdoc />
         public int CompareTo(Timestamp other)
         {
+            // ReSharper disable once ImpureMethodCallOnReadonlyValueField
             return _value.CompareTo(other._value);
+        }
+
+        public bool Equals(Timestamp other)
+        {
+            return _value == other._value;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            return obj is Timestamp && Equals((Timestamp)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return _value.GetHashCode();
         }
     }
 }

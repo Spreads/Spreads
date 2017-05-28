@@ -6,14 +6,9 @@
 namespace Spreads
 
 open System
-open System.Collections
-open System.Collections.Generic
-open System.Diagnostics
-open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
 
 open Spreads
-open Spreads.Cursors
 open Spreads.Collections
 
 
@@ -22,7 +17,7 @@ open Spreads.Collections
 
 [<AbstractClassAttribute>]
 [<AllowNullLiteral>]
-type Panel<'TRowKey,'TColumnKey, 'TValue>() =
+type internal Panel<'TRowKey,'TColumnKey, 'TValue>() =
   inherit CursorSeries<'TRowKey, Series<'TColumnKey, 'TValue>>()
 
   abstract Columns : Series<'TColumnKey, Series<'TRowKey,'TValue>> with get
@@ -57,7 +52,7 @@ type Panel<'TRowKey,'TColumnKey, 'TValue>() =
 // YieldCurve => Splines is on-demand 
 
 
-and ColumnPanel<'TRowKey,'TColumnKey, 'TValue> (columns:Series<'TColumnKey, Series<'TRowKey,'TValue>>) =
+and internal ColumnPanel<'TRowKey,'TColumnKey, 'TValue> (columns:Series<'TColumnKey, Series<'TRowKey,'TValue>>) =
   inherit Panel<'TRowKey,'TColumnKey, 'TValue>()
   let columnKeys = columns.Keys |> Seq.toArray 
 
@@ -157,7 +152,7 @@ and ColumnPanel<'TRowKey,'TColumnKey, 'TValue> (columns:Series<'TColumnKey, Seri
 
 
 
-and RowPanel<'TRowKey,'TColumnKey, 'TValue> (rows:Series<'TRowKey, 'TValue[]>, columnKeys:'TColumnKey[]) =
+and internal RowPanel<'TRowKey,'TColumnKey, 'TValue> (rows:Series<'TRowKey, 'TValue[]>, columnKeys:'TColumnKey[]) =
   inherit Panel<'TRowKey,'TColumnKey,'TValue>()
   let columnKeys = 
     // TODO check if they are sorted
@@ -196,7 +191,7 @@ and RowPanel<'TRowKey,'TColumnKey, 'TValue> (rows:Series<'TRowKey, 'TValue[]>, c
 
 
 [<Extension>]
-type PanelExtensions () =
+type internal PanelExtensions () =
     /// Create a panel with the source as a single column and the provided column key
     [<Extension>]
     static member inline AsPanel(source: Series<'TRowKey,'V>, columnKey:'TColumnKey) : Panel<'TRowKey,'TColumnKey,'V> =

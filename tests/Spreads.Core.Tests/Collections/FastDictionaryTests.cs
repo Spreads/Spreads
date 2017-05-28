@@ -6,9 +6,7 @@ using NUnit.Framework;
 using Spreads.Collections.Generic;
 using Spreads.DataTypes;
 using Spreads.Utils;
-using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace Spreads.Core.Tests.Collections
 {
@@ -19,7 +17,7 @@ namespace Spreads.Core.Tests.Collections
         public void CompareSCGAndFastDictionaryWithInts()
         {
             var d = new Dictionary<int, int>();
-            var constDic = new Spreads.Collections.Generic.Experimental.FastDictionary<int, int>();
+            var constDic = new FastDictionary<int, int>();
             var kcDic = new FastDictionary<int, int>();
 
             for (int i = 0; i < 1000; i++)
@@ -73,7 +71,6 @@ namespace Spreads.Core.Tests.Collections
                 }
                 Assert.True(sum2 > 0);
                 Assert.AreEqual(sum, sum2);
-
             }
 
             Benchmark.Dump();

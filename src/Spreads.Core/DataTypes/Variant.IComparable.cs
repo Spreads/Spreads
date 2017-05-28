@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.DataTypes
 {
-    public unsafe partial struct Variant : IComparable<Variant>
+    public partial struct Variant : IComparable<Variant>
     {
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -61,8 +61,7 @@ namespace Spreads.DataTypes
                         return (Get<Price>()).CompareTo(other.Get<Price>());
 
                     case TypeEnum.Money:
-                        ThrowHelper.ThrowNotImplementedException();
-                        return 0;
+                        ThrowHelper.ThrowNotImplementedException(); return 0;
                     //return value.Get<Money>();
 
                     case TypeEnum.DateTime:

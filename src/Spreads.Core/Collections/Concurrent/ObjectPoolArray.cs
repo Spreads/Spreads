@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+// from https://github.com/dotnet/roslyn/blob/master/src/Dependencies/PooledObjects/ObjectPool%601.cs
+
 // Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 // define TRACE_LEAKS to get additional diagnostics that can lead to the leak sources. note: it will

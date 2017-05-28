@@ -12,12 +12,6 @@ using System.Threading;
 
 namespace Spreads.Buffers
 {
-    // TODO for convenience, all methods should be public
-    // but we must draw the line where we do bound checks on unsafe code and where we don't
-    // we should not protect ourselves from shooting in the leg just by hiding the guns
-
-    // TODO Implicit conversion from Buffer<byte>
-
     /// <summary>
     /// Provides unsafe read/write opertaions on a memory pointer.
     /// </summary>
@@ -105,20 +99,12 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //[Conditional("DEBUG")]
         private void Assert(long index, long length)
         {
             if ((ulong)index + (ulong)length > (ulong)_length)
             {
                 throw new ArgumentException("Not enough space");
             }
-            // NB any negative value casted to ulong will be larger than _length, no need for separate checks
-            //if (length <= 0) {
-            //    throw new ArgumentOutOfRangeException(nameof(length));
-            //}
-            //if (index < 0) {
-            //    throw new ArgumentOutOfRangeException(nameof(index));
-            //}
         }
 
         /// <summary>
@@ -557,7 +543,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Read<T>(long index, out T value)
         {
-            return Serialization.BinarySerializer.Read<T>(new IntPtr(_data.ToInt64() + index), out value);
+            return Serialization.BinarySerializer.Read(new IntPtr(_data.ToInt64() + index), out value);
         }
 
         /// <summary>
@@ -643,8 +629,8 @@ namespace Spreads.Buffers
             public SafeDirectBuffer(ref DirectBuffer directBuffer) : base(false)
             {
                 var directBuffer1 = directBuffer;
-                base.SetHandle(directBuffer1._data);
-                base.Initialize((uint)directBuffer1._length);
+                SetHandle(directBuffer1._data);
+                Initialize((uint)directBuffer1._length);
             }
 
             protected override bool ReleaseHandle()

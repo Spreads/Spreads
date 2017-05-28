@@ -18,7 +18,7 @@ namespace Spreads.Algorithms.Online
 
         public MovingMedian(int nblocks)
         {
-            this._nblocks = nblocks;
+            _nblocks = nblocks;
             _valIndexComparer = new RngmedValIndexComparer(Comparer<double>.Default);
         }
 
@@ -105,17 +105,17 @@ namespace Spreads.Algorithms.Online
               using the qsort function
             ------------------------------------*/
             _indexBlock = new RngmedValIndex[_nblocks];
-            for (_k = 0; _k < (int)_nblocks; _k++)
+            for (_k = 0; _k < _nblocks; _k++)
             {
                 _indexBlock[_k].Data = data[_k];
                 _indexBlock[_k].Index = _k;
             }
 
-            Array.Sort<RngmedValIndex>(_indexBlock, 0, _nblocks, _valIndexComparer);
+            Array.Sort(_indexBlock, 0, _nblocks, _valIndexComparer);
 
             // TODO Pool
             _sortedIndices = new int[_nblocks];
-            for (_k = 0; _k < (int)_nblocks; _k++)
+            for (_k = 0; _k < _nblocks; _k++)
             {
                 _sortedIndices[_k] = _indexBlock[_k].Index;
             }
@@ -126,7 +126,7 @@ namespace Spreads.Algorithms.Online
             Indices of checkpoint nodes.
             Number of nodes per checkpoint=floor(sqrt(nblocks))
             ------------------------------------*/
-            _stepchkpts = (int)System.Math.Sqrt(_nblocks);
+            _stepchkpts = (int)Math.Sqrt(_nblocks);
             _ncheckpts = _nblocks / _stepchkpts;
             _checks = new int[_ncheckpts]; // (struct node **)LALCalloc(ncheckpts,sizeof(struct node*));
             _checks4Shift = new int[_ncheckpts];

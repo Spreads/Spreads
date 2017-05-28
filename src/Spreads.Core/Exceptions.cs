@@ -7,7 +7,7 @@ using System;
 namespace Spreads
 {
     /// <summary>
-    /// Exceptions related to data integrity and other Spreads-specific logic
+    /// Exceptions related to data integrity and other Spreads-specific logic.
     /// </summary>
     public class SpreadsException : Exception
     {

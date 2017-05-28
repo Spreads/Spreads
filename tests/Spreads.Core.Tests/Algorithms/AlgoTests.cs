@@ -3,12 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
-using Spreads.Algorithms;
 using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Spreads.Core.Tests.Algorithms
@@ -63,99 +61,99 @@ namespace Spreads.Core.Tests.Algorithms
             Console.WriteLine(readValue);
         }
 
-        [Test]
-        [Ignore]
-        public void SimdVsLoopAddition()
-        {
-            var sw = new Stopwatch();
-            for (int round = 0; round < 5; round++)
-            {
-                for (int size = 0; size <= 20; size++)
-                {
-                    var result = new float[(int)Math.Pow(2, size)];
-                    var source = new float[(int)Math.Pow(2, size)];
-                    for (int i = 0; i < source.Length; i++)
-                    {
-                        source[i] = i;
-                    }
-                    GC.Collect(3, GCCollectionMode.Forced, true);
-                    sw.Restart();
-                    for (int r = 0; r < 1000; r++)
-                    {
-                        SimdMath.LoopAdd(null, source, 123.4567f, result, source.Length);
-                    }
-                    sw.Stop();
-                    Console.WriteLine($"Size: {source.Length}, Loop elapsed: {sw.ElapsedTicks}, last value: {result[source.Length - 1]}");
+        //[Test]
+        //[Ignore]
+        //public void SimdVsLoopAddition()
+        //{
+        //    var sw = new Stopwatch();
+        //    for (int round = 0; round < 5; round++)
+        //    {
+        //        for (int size = 0; size <= 20; size++)
+        //        {
+        //            var result = new float[(int)Math.Pow(2, size)];
+        //            var source = new float[(int)Math.Pow(2, size)];
+        //            for (int i = 0; i < source.Length; i++)
+        //            {
+        //                source[i] = i;
+        //            }
+        //            GC.Collect(3, GCCollectionMode.Forced, true);
+        //            sw.Restart();
+        //            for (int r = 0; r < 1000; r++)
+        //            {
+        //                SimdMath.LoopAdd(null, source, 123.4567f, result, source.Length);
+        //            }
+        //            sw.Stop();
+        //            Console.WriteLine($"Size: {source.Length}, Loop elapsed: {sw.ElapsedTicks}, last value: {result[source.Length - 1]}");
 
-                    //source = new float[(int)Math.Pow(10, size)];
-                    for (int i = 0; i < source.Length; i++)
-                    {
-                        source[i] = i;
-                    }
-                    GC.Collect(3, GCCollectionMode.Forced, true);
-                    sw.Restart();
-                    for (int r = 0; r < 1000; r++)
-                    {
-                        SimdMath.LoopSafeAdd(null, source, 123.4567f, result, source.Length);
-                    }
-                    sw.Stop();
-                    Console.WriteLine($"Size: {source.Length}, LoopSafe elapsed: {sw.ElapsedTicks}, last value: {result[source.Length - 1]}");
+        //            //source = new float[(int)Math.Pow(10, size)];
+        //            for (int i = 0; i < source.Length; i++)
+        //            {
+        //                source[i] = i;
+        //            }
+        //            GC.Collect(3, GCCollectionMode.Forced, true);
+        //            sw.Restart();
+        //            for (int r = 0; r < 1000; r++)
+        //            {
+        //                SimdMath.LoopSafeAdd(null, source, 123.4567f, result, source.Length);
+        //            }
+        //            sw.Stop();
+        //            Console.WriteLine($"Size: {source.Length}, LoopSafe elapsed: {sw.ElapsedTicks}, last value: {result[source.Length - 1]}");
 
-                    //source = new float[(int)Math.Pow(10, size)];
-                    for (int i = 0; i < source.Length; i++)
-                    {
-                        source[i] = i;
-                    }
-                    GC.Collect(3, GCCollectionMode.Forced, true);
+        //            //source = new float[(int)Math.Pow(10, size)];
+        //            for (int i = 0; i < source.Length; i++)
+        //            {
+        //                source[i] = i;
+        //            }
+        //            GC.Collect(3, GCCollectionMode.Forced, true);
 
-                    sw.Restart();
-                    for (int r = 0; r < 1000; r++)
-                    {
-                        SimdMath.SIMDAdd(null, source, 123.4567f, result, source.Length);
-                    }
-                    sw.Stop();
-                    Console.WriteLine($"Size: {source.Length}, SIMD elapsed: {sw.ElapsedTicks}, last value: {result[source.Length - 1]}");
+        //            sw.Restart();
+        //            for (int r = 0; r < 1000; r++)
+        //            {
+        //                SimdMath.SIMDAdd(null, source, 123.4567f, result, source.Length);
+        //            }
+        //            sw.Stop();
+        //            Console.WriteLine($"Size: {source.Length}, SIMD elapsed: {sw.ElapsedTicks}, last value: {result[source.Length - 1]}");
 
-                    Console.WriteLine("----------");
-                }
-            }
-        }
+        //            Console.WriteLine("----------");
+        //        }
+        //    }
+        //}
 
-        [Test]
-        [Ignore]
-        public void SimdVsLoopExp()
-        {
-            var sw = new Stopwatch();
-            for (int round = 0; round < 5; round++)
-            {
-                for (int size = 0; size <= 15; size++)
-                {
-                    var result = new double[(int)Math.Pow(2, size)];
-                    var source = new double[(int)Math.Pow(2, size)];
-                    for (int i = 0; i < source.Length; i++)
-                    {
-                        source[i] = i;
-                    }
-                    GC.Collect(3, GCCollectionMode.Forced, true);
-                    sw.Restart();
-                    for (int r = 0; r < 1000; r++)
-                    {
-                        SimdMath.LoopSafeExp(null, source, result, source.Length);
-                    }
-                    sw.Stop();
-                    Console.WriteLine($"Size: {source.Length}, LoopSafe elapsed: {sw.ElapsedTicks}, last value: {result[source.Length - 1]}");
+        //[Test]
+        //[Ignore]
+        //public void SimdVsLoopExp()
+        //{
+        //    var sw = new Stopwatch();
+        //    for (int round = 0; round < 5; round++)
+        //    {
+        //        for (int size = 0; size <= 15; size++)
+        //        {
+        //            var result = new double[(int)Math.Pow(2, size)];
+        //            var source = new double[(int)Math.Pow(2, size)];
+        //            for (int i = 0; i < source.Length; i++)
+        //            {
+        //                source[i] = i;
+        //            }
+        //            GC.Collect(3, GCCollectionMode.Forced, true);
+        //            sw.Restart();
+        //            for (int r = 0; r < 1000; r++)
+        //            {
+        //                SimdMath.LoopSafeExp(null, source, result, source.Length);
+        //            }
+        //            sw.Stop();
+        //            Console.WriteLine($"Size: {source.Length}, LoopSafe elapsed: {sw.ElapsedTicks}, last value: {result[source.Length - 1]}");
 
-                    //source = new float[(int)Math.Pow(10, size)];
-                    for (int i = 0; i < source.Length; i++)
-                    {
-                        source[i] = i;
-                    }
-                    GC.Collect(3, GCCollectionMode.Forced, true);
+        //            //source = new float[(int)Math.Pow(10, size)];
+        //            for (int i = 0; i < source.Length; i++)
+        //            {
+        //                source[i] = i;
+        //            }
+        //            GC.Collect(3, GCCollectionMode.Forced, true);
 
-                    Console.WriteLine("----------");
-                }
-            }
-        }
+        //            Console.WriteLine("----------");
+        //        }
+        //    }
+        //}
 
         [Test]
         [Ignore]
