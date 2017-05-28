@@ -22,19 +22,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{BF60
 		src\Spreads.Collections\Spreads.Collections.2017.fsproj = src\Spreads.Collections\Spreads.Collections.2017.fsproj
 		nuget\Spreads.Unsafe.nuspec = nuget\Spreads.Unsafe.nuspec
 		nuget\Spreads.Utils.nuspec = nuget\Spreads.Utils.nuspec
-		TODO.md = TODO.md
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{83F16175-43B1-4C90-A1EE-8E351C33435D}"
-	ProjectSection(SolutionItems) = preProject
-		docs\tools\generate.fsx = docs\tools\generate.fsx
-		docs\tools\templates\template.cshtml = docs\tools\templates\template.cshtml
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "content", "content", "{8E6D5255-776D-4B61-85F9-73C37AA1FB9A}"
-	ProjectSection(SolutionItems) = preProject
-		docs\content\index.fsx = docs\content\index.fsx
-		docs\content\tutorial.fsx = docs\content\tutorial.fsx
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{ED8079DD-2B06-4030-9F0F-DC548F98E1C4}"
@@ -57,8 +44,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Collections.Tests", "tests\Spreads.Collections.Tests\Spreads.Collections.Tests.csproj", "{D4857397-4D03-4E25-9332-979BF22E9BB2}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TAQParse", "tests\Spreads.TAQParser\TAQParse.csproj", "{EF96ECF7-82EA-48B7-B33D-0BEA4DE58349}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{4C4D42AF-D25A-49F3-BE50-F025E8AD5D8C}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Spreads", "src\Spreads\Spreads.csproj", "{70445300-4409-447E-B1AC-10FA148B9DD0}"
 EndProject
@@ -222,8 +207,6 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{83F16175-43B1-4C90-A1EE-8E351C33435D} = {A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}
-		{8E6D5255-776D-4B61-85F9-73C37AA1FB9A} = {A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}
 		{E789C72A-5CFD-436B-8EF1-61AA2852A89F} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{D371BD54-788A-4B9F-83A3-306E1AE62732} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{D2A8AD2E-0450-4E23-8488-06F19DF7882D} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}

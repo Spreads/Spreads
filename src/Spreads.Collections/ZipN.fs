@@ -17,22 +17,10 @@ open Spreads
 open Spreads.Collections
 
 
-/// Could return a series mapped with the provided function
-/// This is one of the most important optimizations because all arithmetic operations are 
-/// mappings and they are often chained.
-//[<Interface>]
-//[<AllowNullLiteral>]
-//type internal ICanMapSeriesValues<'K,'V> =
-//  abstract member Map: mapFunc:('V->'V1) * fBatch:(ArraySegment<'V>->ArraySegment<'V1>) opt -> Series<'K,'V1>
-
-
 [<AllowNullLiteral>]
-[<Obsolete>]
+[<Obsolete("Use Series'3 struct")>]
 type CursorSeries<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
     inherit Series<'K,'V>()
-
-    //[<DefaultValueAttribute>]
-    //val mutable internal Locker : int
 
     let mutable cursor : ICursor<'K,'V> = Unchecked.defaultof<_>
 

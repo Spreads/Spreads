@@ -12,11 +12,9 @@ open System.Threading
 open System.Threading.Tasks
 open Spreads
 
-// TODO (cleanup) remove this completely
-
 // TODO rename back to MapCursor - this is an original cursor backed by some map, it does not represent series itself
 [<AbstractClassAttribute>]
-type BaseCursor<'K,'V>(source:IReadOnlySeries<'K,'V>) =
+type internal BaseCursor<'K,'V>(source:IReadOnlySeries<'K,'V>) =
       
   abstract Comparer: KeyComparer<'K> with get
   override this.Comparer with get() = source.Comparer
@@ -90,7 +88,7 @@ type BaseCursor<'K,'V>(source:IReadOnlySeries<'K,'V>) =
     member this.Clone() = this.Clone() :?> BaseCursor<'K,'V>
 
 /// Uses IReadOnlySeries's TryFind method, doesn't know anything about underlying sequence
-type MapCursor<'K,'V>(map:IReadOnlySeries<'K,'V>) =
+type internal MapCursor<'K,'V>(map:IReadOnlySeries<'K,'V>) =
   inherit BaseCursor<'K,'V>(map)
   [<DefaultValue>] 
   val mutable private currentPosition : bool * KeyValuePair<'K,'V>

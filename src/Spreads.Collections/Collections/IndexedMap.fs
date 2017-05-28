@@ -2,27 +2,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 namespace Spreads.Collections
 
 open System
-open System.Linq
 open System.Diagnostics
 open System.Collections
 open System.Collections.Generic
 open System.Runtime.InteropServices
-open System.Threading
-open System.Threading.Tasks
 open System.Reflection
 
 open Spreads
 open Spreads.Buffers
-open Spreads.Cursors
 open Spreads.Collections
-
-// This could be done as a base class OrderedMap and derived classes SortedMap and IndexedMap
-// with the only difference in an abstract method GetIndexOfElement, but IndexedMap is too
-// complicated with regular keys stuff and it will require most methods to be abstract
 
 /// Mutable indexed IMutableSeries<'K,'V> implementation based on IndexedMap<'K,'V>
 [<AllowNullLiteral>]
@@ -31,7 +22,7 @@ type IndexedMap<'K,'V> // when 'K:equality
   inherit ContainerSeries<'K,'V, Cursor<'K,'V>>()
 
   //#region Main internal constructor
-    
+
   // data fields
   let mutable version : int = 0 // enumeration doesn't lock but checks version
   [<DefaultValueAttribute>] // if size > 2 and keys.Length = 2 then the keys are regular
@@ -41,8 +32,7 @@ type IndexedMap<'K,'V> // when 'K:equality
   [<DefaultValueAttribute>]
   val mutable internal values : 'V array
 
-
-  let comparer : KeyComparer<'K> = 
+  let comparer : KeyComparer<'K> =
     if comparerOpt.IsNone || Comparer<'K>.Default.Equals(comparerOpt.Value) then
       KeyComparer<'K>.Default
     else comparerOpt.Value
@@ -69,20 +59,17 @@ type IndexedMap<'K,'V> // when 'K:equality
           map.keys.CopyTo(this.keys, 0)
           map.values.CopyTo(this.values, 0)
         finally
-          exitLockIf map.SyncRoot entered 
+          exitLockIf map.SyncRoot entered
       | _ ->
-        if capacity.IsSome && capacity.Value < dictionary.Value.Count then 
+        if capacity.IsSome && capacity.Value < dictionary.Value.Count then
           raise (ArgumentException("capacity is less then dictionary this.size"))
         else
           this.Capacity <- dictionary.Value.Count
         dictionary.Value.Keys.CopyTo(this.keys, 0)
         dictionary.Value.Values.CopyTo(this.values, 0)
         this.size <- dictionary.Value.Count
-        
-        
+
   //#endregion
-
-
 
   //#region Private & Internal members
 
@@ -90,18 +77,17 @@ type IndexedMap<'K,'V> // when 'K:equality
 
   member internal this.GetKeyByIndex(index) =
     this.keys.[index]
-    
+
   member private this.GetPairByIndexUnchecked(index) = //inline
-    KeyValuePair(this.keys.[index], this.values.[index]) 
-  
-  member private this.EnsureCapacity(min) = 
-    let mutable num = this.values.Length * 2 
+    KeyValuePair(this.keys.[index], this.values.[index])
+
+  member private this.EnsureCapacity(min) =
+    let mutable num = this.values.Length * 2
     if num > 2146435071 then num <- 2146435071
     if num < min then num <- min // either double or min if min > 2xprevious
     this.Capacity <- num
 
-
-  member private this.Insert(index:int, k, v) = 
+  member private this.Insert(index:int, k, v) =
     if this.size = this.values.Length then this.EnsureCapacity(this.size + 1)
     if index > this.size then
       Console.WriteLine("debug me") |> ignore
@@ -110,22 +96,22 @@ type IndexedMap<'K,'V> // when 'K:equality
       Array.Copy(this.keys, index, this.keys, index + 1, this.size - index);
       Array.Copy(this.values, index, this.values, index + 1, this.size - index);
     this.keys.[index] <- k
-    this.values.[index] <- v     
+    this.values.[index] <- v
     version <- version + 1
     this.size <- this.size + 1
     this.NotifyUpdate(true)
-    
-  member this.Complete() = 
-    if isMutable then 
+
+  member this.Complete() =
+    if isMutable then
         isMutable <- false
         this.NotifyUpdate(false)
   member internal this.IsMutable with get() = isMutable
   override this.IsReadOnly with get() = not isMutable
   override this.IsIndexed with get() = false
 
-  member this.IsSynchronized 
+  member this.IsSynchronized
     with get() =  isSynchronized
-    and set(synced:bool) = 
+    and set(synced:bool) =
       let entered = enterLockIf this.SyncRoot isSynchronized
       isSynchronized <- synced
       exitLockIf this.SyncRoot entered
@@ -146,7 +132,7 @@ type IndexedMap<'K,'V> // when 'K:equality
         match value with
         | c when c = this.values.Length -> ()
         | c when c < this.size -> raise (ArgumentOutOfRangeException("Small capacity"))
-        | c when c > 0 -> 
+        | c when c > 0 ->
           let kArr : 'K array = BufferPool<_>.Rent(c)
           Array.Copy(this.keys, 0, kArr, 0, this.size)
           let toReturn = this.keys
@@ -175,32 +161,32 @@ type IndexedMap<'K,'V> // when 'K:equality
 
   override this.IsEmpty with get() = this.size = 0
 
-  override this.Keys 
+  override this.Keys
     with get() =
       {new IList<'K> with
         member x.Count with get() = this.size
         member x.IsReadOnly with get() = true
-        member x.Item 
+        member x.Item
           with get index : 'K = this.GetKeyByIndex(index)
           and set index value = raise (NotSupportedException("Keys collection is read-only"))
         member x.Add(k) = raise (NotSupportedException("Keys collection is read-only"))
         member x.Clear() = raise (NotSupportedException("Keys collection is read-only"))
         member x.Contains(key) = this.ContainsKey(key)
-        member x.CopyTo(array, arrayIndex) = 
+        member x.CopyTo(array, arrayIndex) =
           Array.Copy(this.keys, 0, array, arrayIndex, this.size)
         member x.IndexOf(key:'K) = this.IndexOfKey(key)
         member x.Insert(index, value) = raise (NotSupportedException("Keys collection is read-only"))
         member x.Remove(key:'K) = raise (NotSupportedException("Keys collection is read-only"))
         member x.RemoveAt(index:int) = raise (NotSupportedException("Keys collection is read-only"))
         member x.GetEnumerator() = x.GetEnumerator() :> IEnumerator
-        member x.GetEnumerator() : IEnumerator<'K> = 
+        member x.GetEnumerator() : IEnumerator<'K> =
           let index = ref 0
           let eVersion = ref version
           let currentKey : 'K ref = ref Unchecked.defaultof<'K>
           { new IEnumerator<'K> with
             member e.Current with get() = currentKey.Value
             member e.Current with get() = box e.Current
-            member e.MoveNext() = 
+            member e.MoveNext() =
               if eVersion.Value <> version then
                 raise (InvalidOperationException("Collection changed during enumeration"))
               if index.Value < this.size then
@@ -211,43 +197,43 @@ type IndexedMap<'K,'V> // when 'K:equality
                 index := this.size + 1
                 currentKey := Unchecked.defaultof<'K>
                 false
-            member e.Reset() = 
+            member e.Reset() =
               if eVersion.Value <> version then
                 raise (InvalidOperationException("Collection changed during enumeration"))
               index := 0
               currentKey := Unchecked.defaultof<'K>
-            member e.Dispose() = 
+            member e.Dispose() =
               index := 0
               currentKey := Unchecked.defaultof<'K>
           }
       } :> IEnumerable<_>
 
-  override this.Values 
+  override this.Values
     with get() =
       { new IList<'V> with
         member x.Count with get() = this.size
         member x.IsReadOnly with get() = true
-        member x.Item 
+        member x.Item
           with get index : 'V = this.values.[index]
           and set index value = raise (NotSupportedException("Values colelction is read-only"))
         member x.Add(k) = raise (NotSupportedException("Values colelction is read-only"))
         member x.Clear() = raise (NotSupportedException("Values colelction is read-only"))
         member x.Contains(value) = this.ContainsValue(value)
-        member x.CopyTo(array, arrayIndex) = 
+        member x.CopyTo(array, arrayIndex) =
           Array.Copy(this.values, 0, array, arrayIndex, this.size)
         member x.IndexOf(value:'V) = this.IndexOfValue(value)
         member x.Insert(index, value) = raise (NotSupportedException("Values colelction is read-only"))
         member x.Remove(value:'V) = raise (NotSupportedException("Values colelction is read-only"))
         member x.RemoveAt(index:int) = raise (NotSupportedException("Values colelction is read-only"))
         member x.GetEnumerator() = x.GetEnumerator() :> IEnumerator
-        member x.GetEnumerator() : IEnumerator<'V> = 
+        member x.GetEnumerator() : IEnumerator<'V> =
           let index = ref 0
           let eVersion = ref version
           let currentValue : 'V ref = ref Unchecked.defaultof<'V>
           { new IEnumerator<'V> with
             member e.Current with get() = currentValue.Value
             member e.Current with get() = box e.Current
-            member e.MoveNext() = 
+            member e.MoveNext() =
               if eVersion.Value <> version then
                 raise (InvalidOperationException("Collection changed during enumeration"))
               if index.Value < this.size then
@@ -258,12 +244,12 @@ type IndexedMap<'K,'V> // when 'K:equality
                 index := this.size + 1
                 currentValue := Unchecked.defaultof<'V>
                 false
-            member e.Reset() = 
+            member e.Reset() =
               if eVersion.Value <> version then
                 raise (InvalidOperationException("Collection changed during enumeration"))
               index := 0
               currentValue := Unchecked.defaultof<'V>
-            member e.Dispose() = 
+            member e.Dispose() =
               index := 0
               currentValue := Unchecked.defaultof<'V>
           }
@@ -287,7 +273,7 @@ type IndexedMap<'K,'V> // when 'K:equality
       exitLockIf this.SyncRoot entered
 
   member this.IndexOfKey(key:'K) : int =
-    if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then 
+    if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then
       raise (ArgumentNullException("key"))
     this.IndexOfKeyUnchecked(key)
 
@@ -305,9 +291,8 @@ type IndexedMap<'K,'V> // when 'K:equality
     finally
       exitLockIf this.SyncRoot entered
 
-
   override this.First
-    with get() = 
+    with get() =
       if this.size = 0 then raise (InvalidOperationException("Could not get the first element of an empty map"))
       KeyValuePair(this.keys.[0], this.values.[0])
 
@@ -318,7 +303,7 @@ type IndexedMap<'K,'V> // when 'K:equality
 
   member this.Item
       with get key =
-        if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then 
+        if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then
           raise (ArgumentNullException("key"))
         let entered = enterLockIf this.SyncRoot  isSynchronized
         try
@@ -334,7 +319,7 @@ type IndexedMap<'K,'V> // when 'K:equality
         finally
           exitLockIf this.SyncRoot entered
       and set k v =
-        if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(k, Unchecked.defaultof<'K>) then 
+        if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(k, Unchecked.defaultof<'K>) then
           raise (ArgumentNullException("key"))
         this.SetWithIndex(k, v) |> ignore
 
@@ -353,13 +338,13 @@ type IndexedMap<'K,'V> // when 'K:equality
           version <- version + 1
           this.NotifyUpdate(true)
           lastIdx
-        else   
+        else
           let index = this.IndexOfKeyUnchecked(k)
-          if index >= 0 then // contains key 
+          if index >= 0 then // contains key
             this.values.[index] <- v
-            version <- version + 1 
+            version <- version + 1
             this.NotifyUpdate(true)
-            index     
+            index
           else
             this.Insert(~~~index, k, v)
             ~~~index
@@ -367,7 +352,7 @@ type IndexedMap<'K,'V> // when 'K:equality
       exitLockIf this.SyncRoot entered
 
   member this.Add(key, value) : unit =
-    if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then 
+    if isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then
         raise (ArgumentNullException("key"))
     let entered = enterLockIf this.SyncRoot  isSynchronized
     //try
@@ -375,7 +360,7 @@ type IndexedMap<'K,'V> // when 'K:equality
       this.Insert(0, key, value)
     else
       let index = this.IndexOfKeyUnchecked(key)
-      if index >= 0 then // contains key 
+      if index >= 0 then // contains key
           raise (ArgumentException("IndexedMap.Add: key already exists: " + key.ToString()))
       else
           this.Insert(~~~index, key, value)
@@ -391,13 +376,13 @@ type IndexedMap<'K,'V> // when 'K:equality
         this.Insert(0, key, value)
       else
         let index = this.IndexOfKeyUnchecked(key)
-        if index >= 0 then // contains key 
+        if index >= 0 then // contains key
             raise (ArgumentException("IndexedMap.Add: key already exists: " + key.ToString()))
         else
-            this.Insert(0, key, value) 
+            this.Insert(0, key, value)
     finally
       exitLockIf this.SyncRoot entered
-    
+
   member internal this.RemoveAt(index):unit =
     let entered = enterLockIf this.SyncRoot isSynchronized
     try
@@ -464,7 +449,7 @@ type IndexedMap<'K,'V> // when 'K:equality
           elif pivotIndex >=0 then // remove elements below pivot and pivot
             this.size <- this.size - (pivotIndex + 1)
             version <- version + 1
-            Array.Copy(this.keys, pivotIndex + 1, this.keys, 0, this.size) // move this.values to 
+            Array.Copy(this.keys, pivotIndex + 1, this.keys, 0, this.size) // move this.values to
             Array.fill this.keys this.size (this.values.Length - this.size) Unchecked.defaultof<'K>
 
             Array.Copy(this.values, pivotIndex + 1, this.values, 0, this.size)
@@ -487,7 +472,7 @@ type IndexedMap<'K,'V> // when 'K:equality
         | _ -> failwith "wrong direction"
     finally
       exitLockIf this.SyncRoot entered
-    
+
   /// Returns the index of found KeyValuePair or a negative value:
   /// -1 if the non-found key is smaller than the first key
   /// -2 if the non-found key is larger than the last key
@@ -533,7 +518,7 @@ type IndexedMap<'K,'V> // when 'K:equality
               result <- this.GetPairByIndexUnchecked(index - 1)
               index - 1
             elif index = 0 then
-               -1 // 
+               -1 //
             else
               let index2 = ~~~index
               if index2 >= this.Count then // there are no elements larger than key
@@ -610,8 +595,7 @@ type IndexedMap<'K,'V> // when 'K:equality
     finally
       exitLockIf this.SyncRoot entered
 
-
-  override this.TryFind(k:'K, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+  override this.TryFind(k:'K, direction:Lookup, [<Out>] res: byref<KeyValuePair<'K, 'V>>) =
     res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
     let idx, v = this.TryFindWithIndex(k, direction)
     if idx >= 0 then
@@ -632,7 +616,7 @@ type IndexedMap<'K,'V> // when 'K:equality
         if lc = 0 then // key = last key
           value <- this.values.[this.size-1]
           true
-        else   
+        else
           let index = this.IndexOfKey(key)
           if index >= 0 then
             value <- this.values.[index]
@@ -643,46 +627,43 @@ type IndexedMap<'K,'V> // when 'K:equality
     finally
       exitLockIf this.SyncRoot entered
 
-
-  override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+  override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) =
     try
       res <- this.First
       true
     with
-    | _ -> 
+    | _ ->
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
-            
-  override this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
+
+  override this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) =
     try
       res <- this.Last
       true
     with
-    | _ -> 
+    | _ ->
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
 
   override this.GetAt(idx:int) =
-      if idx >= 0 && idx < this.size then this.values.[idx] 
+      if idx >= 0 && idx < this.size then this.values.[idx]
       else raise (ArgumentOutOfRangeException("idx", "Idx is out of range in IndexedMap GetAt method."))
-    
+
   override this.GetContainerCursor() = this.GetWrapper()
 
-  override this.GetCursor() = 
+  override this.GetCursor() =
     let cursor = new BaseCursorAsync<'K,'V,MapCursor<_,_>>(Func<_>(fun _ -> new MapCursor<_,_>(this)))
     cursor :> ICursor<_,_>
     //this.GetCursor(-1, version, Unchecked.defaultof<'K>, Unchecked.defaultof<'V>)
-    
+
   // TODO(?) replace with a mutable struct, like in SCG.SortedList<T>, there are too many virtual calls and reference cells in the most critical paths like MoveNext
   // NB Object expression with ref cells are surprisingly fast insteads of custom class
   //member internal this.GetCursor(index:int,cursorVersion:int,currentKey:'K, currentValue:'V) =
-    
 
   /// Make the capacity equal to the size
   member this.TrimExcess() = this.Capacity <- this.size
 
   //#endregion
-
 
   //#region Interfaces
 
@@ -690,7 +671,7 @@ type IndexedMap<'K,'V> // when 'K:equality
     member this.GetEnumerator() = this.GetCursor() :> IEnumerator
 
   interface IEnumerable<KeyValuePair<'K,'V>> with
-    member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
+    member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> =
       this.GetCursor() :> IEnumerator<KeyValuePair<'K,'V>>
 
   interface ICollection  with
@@ -739,7 +720,6 @@ type IndexedMap<'K,'V> // when 'K:equality
   interface IReadOnlySeries<'K,'V> with
     // the rest is in BaseSeries
     member this.Item with get k = this.Item(k)
-    
 
   interface IMutableSeries<'K,'V> with
     member this.Complete() = this.Complete()
@@ -750,11 +730,11 @@ type IndexedMap<'K,'V> // when 'K:equality
     member this.AddLast(k, v) = this.AddLast(k, v)
     member this.AddFirst(k, v) = this.AddFirst(k, v)
     member this.Remove(k) = this.Remove(k)
-    member this.RemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
+    member this.RemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) =
       this.RemoveFirst(&result)
-    member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
+    member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) =
       this.RemoveLast(&result)
-    member this.RemoveMany(key:'K,direction:Lookup) = 
+    member this.RemoveMany(key:'K,direction:Lookup) =
       this.RemoveMany(key, direction)
 
     // TODO move to type memeber, cheack if IReadOnlySeries is SM and copy arrays in one go
@@ -765,15 +745,15 @@ type IndexedMap<'K,'V> // when 'K:equality
           let oldC = old.GetCursor()
           let appC = append.GetCursor();
           let mutable cont = true
-          let mutable overlapOk = 
-            oldC.MoveAt(append.First.Key, Lookup.EQ) 
-              && appC.MoveFirst() 
+          let mutable overlapOk =
+            oldC.MoveAt(append.First.Key, Lookup.EQ)
+              && appC.MoveFirst()
               && comparer.Compare(oldC.CurrentKey, appC.CurrentKey) = 0
               && Unchecked.equals oldC.CurrentValue appC.CurrentValue
           while overlapOk && cont do
             if oldC.MoveNext() then
               overlapOk <-
-                appC.MoveNext() 
+                appC.MoveNext()
                 && comparer.Compare(oldC.CurrentKey, appC.CurrentKey) = 0
                 && Unchecked.equals oldC.CurrentValue appC.CurrentValue
             else cont <- false
@@ -856,7 +836,6 @@ type IndexedMap<'K,'V> // when 'K:equality
 //      for i in appendMap do
 //        this.AddLast(i.Key, i.Value)
       //raise (NotImplementedException("TODO append impl"))
-    
 
   //#endregion
 
@@ -872,30 +851,29 @@ type IndexedMap<'K,'V> // when 'K:equality
   internal new(dictionary:IDictionary<'K,'V>,comparer:KeyComparer<'K>) = IndexedMap(Some(dictionary), Some(dictionary.Count), Some(comparer))
   internal new(capacity:int,comparer:KeyComparer<'K>) = IndexedMap(None, Some(capacity), Some(comparer))
 
-  //internal new(comparer:IEqualityComparer<'K>) = 
-  //  let comparer' = 
+  //internal new(comparer:IEqualityComparer<'K>) =
+  //  let comparer' =
   //    {new IComparer<'K> with
-  //        member this.Compare(x,y) = 
+  //        member this.Compare(x,y) =
   //          if comparer.Equals(x,y) then 0 else -1
   //    }
   //  IndexedMap(None, None, Some(comparer'))
 
-  //internal new(dictionary:IDictionary<'K,'V>,comparer:IEqualityComparer<'K>) = 
-  //  let comparer' = 
+  //internal new(dictionary:IDictionary<'K,'V>,comparer:IEqualityComparer<'K>) =
+  //  let comparer' =
   //    {new IComparer<'K> with
-  //        member this.Compare(x,y) = 
+  //        member this.Compare(x,y) =
   //          if comparer.Equals(x,y) then 0 else -1
   //    }
   //  IndexedMap(Some(dictionary), Some(dictionary.Count), Some(comparer'))
 
   //internal new(capacity:int,comparer:IEqualityComparer<'K>) =
-  //  let comparer' = 
+  //  let comparer' =
   //    {new IComparer<'K> with
-  //        member this.Compare(x,y) = 
+  //        member this.Compare(x,y) =
   //          if comparer.Equals(x,y) then 0 else -1
   //    }
   //  IndexedMap(None, Some(capacity), Some(comparer'))
-
 
   static member internal OfSortedKeysAndValues(keys:'K[], values:'V[], size:int) =
     if keys.Length < size then raise (new ArgumentException("Keys array is smaller than provided size"))
@@ -910,5 +888,3 @@ type IndexedMap<'K,'V> // when 'K:equality
     if keys.Length <> values.Length then raise (new ArgumentException("Keys and values arrays are of different sizes"))
     IndexedMap.OfSortedKeysAndValues(keys, values, values.Length)
   //#endregion
-
-

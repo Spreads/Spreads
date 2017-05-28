@@ -25,7 +25,7 @@ namespace Spreads
 module Statistics =
 
   //
-  // Statistical library
+  // Statistical library https://github.com/Microsoft/Angara.Statistics
   //
 
   type Distribution = 

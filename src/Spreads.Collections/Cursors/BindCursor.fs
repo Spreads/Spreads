@@ -12,11 +12,6 @@ open System.Runtime.InteropServices
 open System.Threading.Tasks
 
 
-
-// TODO! ensure that TGV on Non-continuous cursor returns false if requested key does not exists in input
-// Could add ContainsKey to IReadOnlySeries/ICursor interface, it is used very often for dict
-// Or define explicit contract that calling TGV is not defined for non-cont series when the key in TGV does not exist
-
 // I had an attempt to manually optimize callvirt and object allocation, both failed badly
 // They are not needed, however, in most of the cases, e.g. iterations.
 // see https://msdn.microsoft.com/en-us/library/ms973852.aspx
@@ -27,14 +22,11 @@ open System.Threading.Tasks
 // dispatch mechanism data, or a branch misprediction (be it a compulsory capacity miss or a polymorphic call site), can and will
 //  slow down virtual and interface calls by dozens of cycles.
 //
-// Our benchmark confirms that the slowdown of .Repeat(), .ReadOnly(), .Map(...) and .Filter(...) is small
 
 // (Continued later) Yet still, enumerating SortedList-like contructs is 4-5 times slower than arrays and 2-3 times slower than
 // a list of `KVP<DateTime,double>`s. ILs difference is mostly in callvirt and/or memory access pattern.
 // SM enumerator as a structure should be used 
 // (Continued even later) Removing one callvirt increased performance from 45 MOps to 66 MOps for SortedMap and from 100 Mops to 200 mops for SortedDeque
-
-
 
 
 /// Bind cursors

@@ -47,7 +47,7 @@ series, and one could argue that memory is cheap. However, L1/L2/L3 caches
 are still small, and saving 50% of memory allows to place two times
 more useful data in the caches and to avoid needless cache trashing.
 
-Spreads library is written in F# (core parts) and C# (tests, unsafe code, extensions). 
+Spreads library is written in C# and F# and targets .NET 4.5.1 and .NET Standard 1.6 versions. 
 .NET gives native performance when optimized for memory access patterns, which means
  no functional data structures and minimum allocations.
 Even though .NET is a managed platform with garbage collection, in a steady state Spreads
@@ -63,9 +63,7 @@ We haven't compared Spreads performance to performance of commercial systems yet
 However, the main benchmark while developing Spreads was modern CPUs capabilities,
 not any existing product. We tried to achieve mechanical sympathy, to avoid any wasteful
 operations and to get the most from modern processors. Therefore, unless the fastest commercial
-products use magic or quantum computers, Spreads must be in the same bracket. There are 
-many known optimizations that are waiting to be implemented, and we will move closer
-to bare metal performance ceiling in the next versions.
+products use magic or quantum computers, Spreads must be in the same bracket.
 
 
 ## Series manipulation and join
@@ -229,7 +227,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 
 ## Status and version
-Current status is pre-release until the version 1.0. We will use [semantic versioning](http://semver.org/).
+Current status is alpha and we are actively working on [1.0-beta release](https://github.com/Spreads/Spreads/milestone/1). We will use [semantic versioning](http://semver.org/) after 1.0 release.
 
 ## Links
 

@@ -90,10 +90,3 @@ type IPanel<'TRowKey,'TColumnKey, 'TValue> =
 //
 //
     // when adding a column, all rows must be invalidated
-
-// TODO! use ArraySegment instead of byte[] everywhere where byte[] could be a reusable buffer
-type ISerializer =
-  abstract Serialize: 'T -> byte[]
-  abstract Serialize: obj -> byte[]
-  abstract Deserialize: byte[] -> 'T
-  abstract Deserialize: byte[] * System.Type -> obj
