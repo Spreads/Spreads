@@ -421,7 +421,6 @@ namespace Spreads.Core.Tests.Cursors
                 sm1.Complete();
                 sm2.Complete();
 
-
                 DiscreteZipIsCorrectByRandomCheck(sm1, sm2, r);
             }
             Benchmark.Dump();
@@ -451,7 +450,6 @@ namespace Spreads.Core.Tests.Cursors
 
         public void DiscreteZipIsCorrectByRandomCheck(SortedMap<int, int> sm1, SortedMap<int, int> sm2, int seed)
         {
-
             var series = new[] { sm1, sm2, };
 
             int[] expectedKeys;
@@ -501,7 +499,6 @@ namespace Spreads.Core.Tests.Cursors
                 Assert.AreEqual(kvp.Value, sum[kvp.Key]);
             }
 
-
             using (Benchmark.Run("ZipN join", sm1.Count + sm2.Count))
             {
                 ser = series.Zip((k, varr) => varr.Sum());
@@ -544,7 +541,6 @@ namespace Spreads.Core.Tests.Cursors
                 Assert.AreEqual(kvp.Value, sum1[kvp.Key]);
             }
 
-
             var sum2 = new SortedMap<int, int>();
             using (Benchmark.Run("ZipN Async join", sm1.Count + sm2.Count))
             {
@@ -569,7 +565,6 @@ namespace Spreads.Core.Tests.Cursors
             }
         }
 
-
         [Test, Ignore]
         public void ContinuousZipIsCorrectByRandomCheckBenchmark()
         {
@@ -591,7 +586,6 @@ namespace Spreads.Core.Tests.Cursors
                 }
                 sm1.Complete();
                 sm2.Complete();
-
 
                 ContinuousZipIsCorrectByRandomCheck(sm1, sm2, r);
             }
@@ -622,7 +616,6 @@ namespace Spreads.Core.Tests.Cursors
 
         public void ContinuousZipIsCorrectByRandomCheck(SortedMap<int, int> sm1, SortedMap<int, int> sm2, int seed)
         {
-
             var series = new ISeries<int, int>[] { sm1.Repeat(), sm2.Repeat() };
 
             int[] expectedKeys;
@@ -671,7 +664,6 @@ namespace Spreads.Core.Tests.Cursors
             {
                 Assert.AreEqual(kvp.Value, sum[kvp.Key]);
             }
-
 
             using (Benchmark.Run("ZipN join", sm1.Count + sm2.Count))
             {
@@ -739,6 +731,5 @@ namespace Spreads.Core.Tests.Cursors
             //    Assert.AreEqual(kvp.Value, sum2[kvp.Key]);
             //}
         }
-
     }
 }

@@ -12,13 +12,12 @@ using System.Threading.Tasks;
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
-
     // TODO Optimization in TGV (i.e. current lack of it) shows up in SCM backed by storage to such
-    // extent that I have to do all work in memory using ToSortedMap(). But SMs are quite fast for TGV, 
+    // extent that I have to do all work in memory using ToSortedMap(). But SMs are quite fast for TGV,
     // require a binary search. But still it is Log(n) vs best case Log(1)
 
     /// <summary>
-    /// A continuous cursor <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that returns a key and a value 
+    /// A continuous cursor <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that returns a key and a value
     /// at or before (<see cref="Lookup.LE"/>) a requested key in <see cref="TryGetValue"/>.
     /// It delegates moves directly to the underlying cursor.
     /// </summary>
@@ -37,8 +36,14 @@ namespace Spreads
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal TCursor _cursor;
+
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal TCursor _lookUpCursor;
+
+        internal KeyComparer<TKey> _cmp;
+
+        internal (bool wasMovingNext, (TKey key, TValue value) previous) _previousState;
+        internal bool _lookUpIsMoving;
 
         internal CursorState State { get; set; }
 
@@ -49,6 +54,7 @@ namespace Spreads
         internal RepeatWithKey(TCursor cursor) : this()
         {
             _cursor = cursor;
+            _cmp = cursor.Comparer;
         }
 
         #endregion Constructors
@@ -61,6 +67,8 @@ namespace Spreads
             var instance = new RepeatWithKey<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Clone(),
+                _cmp = _cmp,
+                _previousState = _previousState,
                 _lookUpCursor = _lookUpCursor.Clone(),
                 State = State
             };
@@ -73,6 +81,8 @@ namespace Spreads
             var instance = new RepeatWithKey<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Initialize(),
+                _cmp = _cmp,
+                _previousState = default((bool wasMovingNext, (TKey, TValue) previous)),
                 _lookUpCursor = _cursor.Clone(),
                 State = CursorState.Initialized
             };
@@ -86,6 +96,7 @@ namespace Spreads
             // dispose is called on the result of Initialize(), the cursor from
             // constructor could be uninitialized but contain some state, e.g. _value for this FillCursor
             _cursor.Dispose();
+            _previousState = default((bool wasMovingNext, (TKey, TValue) previous));
             _lookUpCursor.Dispose();
             State = CursorState.None;
         }
@@ -93,6 +104,7 @@ namespace Spreads
         /// <inheritdoc />
         public void Reset()
         {
+            _previousState = default((bool wasMovingNext, (TKey, TValue) previous));
             _cursor.Reset();
             State = CursorState.Initialized;
         }
@@ -131,7 +143,7 @@ namespace Spreads
         public IReadOnlySeries<TKey, (TKey, TValue)> CurrentBatch => null;
 
         /// <inheritdoc />
-        public KeyComparer<TKey> Comparer => _cursor.Comparer;
+        public KeyComparer<TKey> Comparer => _cmp;
 
         object IEnumerator.Current => Current;
 
@@ -142,21 +154,60 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out (TKey, TValue) value)
         {
-            // TODO two potential optimization
-            // 1. after all MN create a state with valid previous KVP, and check if TGV tries 
+            // TODO two optimizations
+            // 1. (Done) after all MN create a state with valid previous KVP, and check if TGV tries
             //    to get a value in between the previous and the current position. This
             //    optimization targets how Zip works.
-            // 2. move lookup cursor one time and during the move keep previous position.
+            // 2. (Done, but commented out, not profitable) move lookup cursor one time and during the move keep previous position.
             //    then the same logic as in 1.
             // Could use both or conditionally depending on relative positoin to key.
 
-            if (_cursor.TryGetValue(key, out var v))
+            if (_previousState.wasMovingNext
+                && _cmp.Compare(key, _previousState.previous.key) >= 0
+                && _cmp.Compare(key, _cursor.CurrentKey) < 0)
             {
-                value = (key, v);
+                value = (_previousState.previous.key, _previousState.previous.value);
                 return true;
             }
+
+            if (State == CursorState.Moving && _cmp.Compare(key, _cursor.CurrentKey) == 0)
+            {
+                value = (_cursor.CurrentKey, _cursor.CurrentValue);
+                return true;
+            }
+
+            // TODO (low) review, now this is not profitable for ZipN, but doesn't hurt.
+            //if (_lookUpIsMoving)
+            //{
+            //    //if (_cmp.Compare(key, _lookUpCursor.CurrentKey) == 0)
+            //    //{
+            //    //    value = (_lookUpCursor.CurrentKey, _lookUpCursor.CurrentValue);
+            //    //    return true;
+            //    //}
+            //    (TKey key, TValue value) previous = (_lookUpCursor.CurrentKey, _lookUpCursor.CurrentValue);
+            //    if (_lookUpCursor.MoveNext()
+            //        && _cmp.Compare(key, previous.key) >= 0
+            //        && _cmp.Compare(key, _lookUpCursor.CurrentKey) < 0)
+            //    {
+            //        value = (previous.key, previous.value);
+            //        return true;
+            //    }
+            //    if (_cmp.Compare(key, _lookUpCursor.CurrentKey) == 0)
+            //    {
+            //        value = (_lookUpCursor.CurrentKey, _lookUpCursor.CurrentValue);
+            //        return true;
+            //    }
+            //}
+
+            //if (_cursor.TryGetValue(key, out var v))
+            //{
+            //    value = (key, v);
+            //    return true;
+            //}
+
             if (_lookUpCursor.MoveAt(key, Lookup.LE))
             {
+                _lookUpIsMoving = true;
                 value = (_lookUpCursor.CurrentKey, _lookUpCursor.CurrentValue);
                 return true;
             }
@@ -172,6 +223,7 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
+            _previousState.wasMovingNext = false;
             var moved = _cursor.MoveAt(key, direction);
             if (moved)
             {
@@ -188,6 +240,7 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
+            _previousState.wasMovingNext = false;
             var moved = _cursor.MoveFirst();
             if (moved)
             {
@@ -204,6 +257,7 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
+            _previousState.wasMovingNext = false;
             var moved = _cursor.MoveLast();
             if (moved)
             {
@@ -217,7 +271,13 @@ namespace Spreads
         public bool MoveNext()
         {
             if (State < CursorState.Moving) return MoveFirst();
-            return _cursor.MoveNext();
+
+            _previousState.previous.key = _cursor.CurrentKey;
+            // TODO this is eager now
+            _previousState.previous.value = _cursor.CurrentValue;
+            var moved = _cursor.MoveNext();
+            _previousState.wasMovingNext = moved;
+            return moved;
         }
 
         /// <inheritdoc />
@@ -236,6 +296,7 @@ namespace Spreads
         public bool MovePrevious()
         {
             if (State < CursorState.Moving) return MoveLast();
+            _previousState.wasMovingNext = false;
             return _cursor.MovePrevious();
         }
 
@@ -279,7 +340,6 @@ namespace Spreads
         #endregion ICursorSeries members
     }
 
-
     public struct Repeat<TKey, TValue, TCursor> :
         ICursorSeries<TKey, TValue, Repeat<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
@@ -295,7 +355,6 @@ namespace Spreads
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal RepeatWithKey<TKey, TValue, TCursor> _cursor;
-
 
         internal CursorState State { get; set; }
 
@@ -520,5 +579,4 @@ namespace Spreads
 
         #endregion ICursorSeries members
     }
-
 }
