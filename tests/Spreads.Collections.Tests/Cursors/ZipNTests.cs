@@ -1768,7 +1768,7 @@ namespace Spreads.Collections.Tests.Cursors
             //    Console.WriteLine(kvp.Key);
             //}
 
-            var series = new[] { sm1.Repeat(), sm2.Repeat(), };
+            var series = new ISeries<int, int>[] { sm1.Repeat(), sm2.Repeat(), };
 
             sw.Start();
             var allKeys = sm1.keys.Union(sm2.keys).OrderBy(x => x).ToArray();

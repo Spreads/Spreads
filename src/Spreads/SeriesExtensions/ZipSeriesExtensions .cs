@@ -13,6 +13,8 @@ namespace Spreads
 
         // TODO! Series'3 extensions
 
+        // TODO convenience methods on ValueTuple'3...'8 that accept a selector and flatten nested tuples
+
         // NB having methods that accept a selector achieves nothing in performance terms, only convenient signature
 
         #region ContainerSeries

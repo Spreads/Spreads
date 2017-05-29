@@ -99,6 +99,7 @@ namespace Spreads.Cursors.Internal
         public void Reset()
         {
             _cursor.Reset();
+            _laggedCursor.Reset();
             State = CursorState.Initialized;
         }
 

@@ -106,8 +106,15 @@ namespace Spreads
             }
 
             if (_innerCursor.Source.IsReadOnly)
-            { // false almost always
-                return _innerCursor.MoveNext() ? TaskEx.TrueTask : TaskEx.FalseTask;
+            {
+                // false almost always
+                if (_innerCursor.MoveNext())
+                {
+                    return TaskEx.TrueTask;
+                }
+
+                return TaskEx.FalseTask;
+
             }
 
             // now task will always be completed by NotifyUpdate

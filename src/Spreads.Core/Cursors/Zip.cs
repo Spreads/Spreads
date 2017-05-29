@@ -27,9 +27,12 @@ namespace Spreads
         private enum Cont : byte
         {
             None = 0,     // 00
+
             // ReSharper disable UnusedMember.Local
             Right = 1,    // 01
+
             Left = 2,     // 10
+
             // ReSharper restore UnusedMember.Local
             Both = 3      // 11
         }
@@ -220,8 +223,20 @@ namespace Spreads
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                var left = _isValueSet.left ? _currentValue.left : _leftCursor.CurrentValue;
-                var right = _isValueSet.right ? _currentValue.right : _rightCursor.CurrentValue;
+                if (!_isValueSet.left)
+                {
+                    _currentValue.left = _leftCursor.CurrentValue;
+                    _isValueSet.left = true;
+                }
+                var left = _currentValue.left;
+
+                if (!_isValueSet.right)
+                {
+                    _currentValue.right = _rightCursor.CurrentValue;
+                    _isValueSet.right = true;
+                }
+
+                var right = _currentValue.right;
                 return (left, right);
             }
         }
@@ -778,6 +793,7 @@ namespace Spreads
             var rm = true;
             var lk = _leftCursor.CurrentKey;
             var rk = _rightCursor.CurrentKey;
+            var previousC = _c;
             while (true)
             {
                 // move lagging or both if they are at the same position
@@ -951,6 +967,7 @@ namespace Spreads
                         ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
                     }
                 }
+                _c = previousC;
             }
             return moved;
         }
@@ -1074,6 +1091,7 @@ namespace Spreads
             var rm = true;
             var lk = _leftCursor.CurrentKey;
             var rk = _rightCursor.CurrentKey;
+            var previousC = _c;
             while (true)
             {
                 // move lagging or both if they are at the same position
@@ -1235,6 +1253,7 @@ namespace Spreads
                         ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
                     }
                 }
+                _c = previousC;
             }
             return moved;
         }
