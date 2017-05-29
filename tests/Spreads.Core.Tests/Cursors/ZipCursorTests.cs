@@ -402,7 +402,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test, Ignore]
         public void DiscreteZipIsCorrectByRandomCheckBenchmark()
         {
-            for (int r = 0; r < 10; r++)
+            for (int r = 0; r < 1000; r++)
             {
                 var sm1 = new SortedMap<int, int>();
                 var sm2 = new SortedMap<int, int>();
@@ -411,7 +411,7 @@ namespace Spreads.Core.Tests.Cursors
 
                 var prev1 = 0;
                 var prev2 = 0;
-                for (int i = 0; i < 1000000; i = i + 1)
+                for (int i = 0; i < 100000; i = i + 1)
                 {
                     prev1 = prev1 + rng.Next(1, 11);
                     sm1.Add(prev1, prev1);
@@ -568,7 +568,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test, Ignore]
         public void ContinuousZipIsCorrectByRandomCheckBenchmark()
         {
-            for (int r = 0; r < 10; r++)
+            for (int r = 0; r < 1000; r++)
             {
                 var sm1 = new SortedMap<int, int>();
                 var sm2 = new SortedMap<int, int>();
@@ -577,7 +577,7 @@ namespace Spreads.Core.Tests.Cursors
 
                 var prev1 = 0;
                 var prev2 = 0;
-                for (int i = 0; i < 1000000; i = i + 1)
+                for (int i = 0; i < 100000; i = i + 1)
                 {
                     prev1 = prev1 + rng.Next(1, 11);
                     sm1.Add(prev1, prev1);
