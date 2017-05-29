@@ -4,7 +4,6 @@
 
 using NUnit.Framework;
 using Spreads.Collections;
-using Spreads.Cursors;
 using System;
 using System.Linq;
 
@@ -25,7 +24,11 @@ namespace Spreads.Core.Tests.Cursors
                 sm.Add(i, i);
             }
 
-            var window = new Window<int, double, SortedMapCursor<int, double>>(sm.GetEnumerator(), 10, 1).Source;
+            var window = sm.Window(10);
+            // NB no type annotations needed to get the same result
+            // Even though `.Source` saves a great deal of typing, manual construction is still a dealbreaker
+            // Extension methods are smart and keep all types info without requiring any type annotations
+            var windowLong = new Window<int, double, SortedMapCursor<int, double>>(sm.GetEnumerator(), 10, 1).Source;
 
             foreach (var pair in window)
             {
@@ -34,8 +37,6 @@ namespace Spreads.Core.Tests.Cursors
                 Console.WriteLine(pair.Value.Values.Sum());
                 //Console.WriteLine(keyValuePair.Value.Aggregate("", (st,kvp) => st + "," + kvp.Value));
             }
-
         }
-
     }
 }

@@ -9,35 +9,58 @@ namespace Spreads
     {
         #region ContainerSeries
 
-        public static Series<TKey, (TKey, TValue), Repeat<TKey, TValue, TCursor>> Repeat<TKey, TValue, TCursor>(
-            this ContainerSeries<TKey, TValue, TCursor> series, TValue value)
+        public static Series<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, TCursor>> RepeatWithKey<TKey, TValue, TCursor>(
+            this ContainerSeries<TKey, TValue, TCursor> series)
             where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
-            var fillCursor = new Repeat<TKey, TValue, TCursor>(series.GetContainerCursor());
-            return fillCursor.Source;
+            var cursor = new RepeatWithKey<TKey, TValue, TCursor>(series.GetContainerCursor());
+            return cursor.Source;
+        }
+
+        public static Series<TKey, TValue, Repeat<TKey, TValue, TCursor>> Repeat<TKey, TValue, TCursor>(
+            this ContainerSeries<TKey, TValue, TCursor> series)
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+        {
+            var cursor = new Repeat<TKey, TValue, TCursor>(series.GetContainerCursor());
+            return cursor.Source;
         }
 
         #endregion ContainerSeries
 
         #region ISeries
 
-        public static Series<TKey, (TKey, TValue), Repeat<TKey, TValue, Cursor<TKey, TValue>>> Repeat<TKey, TValue>(
-            this ISeries<TKey, TValue> series, TValue value)
+        public static Series<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, Cursor<TKey, TValue>>> RepeatWithKey<TKey, TValue>(
+            this ISeries<TKey, TValue> series)
         {
-            var fillCursor = new Repeat<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor());
-            return fillCursor.Source;
+            var cursor = new RepeatWithKey<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor());
+            return cursor.Source;
+        }
+
+        public static Series<TKey, TValue, Repeat<TKey, TValue, Cursor<TKey, TValue>>> Repeat<TKey, TValue>(
+            this ISeries<TKey, TValue> series)
+        {
+            var cursor = new Repeat<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor());
+            return cursor.Source;
         }
 
         #endregion ISeries
 
         #region Generic CursorSeries
 
-        public static Series<TKey, (TKey, TValue), Repeat<TKey, TValue, TCursor>> Repeat<TKey, TValue, TCursor>(
-            this Series<TKey, TValue, TCursor> series, TValue value)
+        public static Series<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, TCursor>> RepeatWithKey<TKey, TValue, TCursor>(
+            this Series<TKey, TValue, TCursor> series)
             where TCursor : ICursorSeries<TKey, TValue, TCursor>
         {
-            var fillCursor = new Repeat<TKey, TValue, TCursor>(series.GetEnumerator());
-            return fillCursor.Source;
+            var cursor = new RepeatWithKey<TKey, TValue, TCursor>(series.GetEnumerator());
+            return cursor.Source;
+        }
+
+        public static Series<TKey, TValue, Repeat<TKey, TValue, TCursor>> Repeat<TKey, TValue, TCursor>(
+            this Series<TKey, TValue, TCursor> series)
+            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+        {
+            var cursor = new Repeat<TKey, TValue, TCursor>(series.GetEnumerator());
+            return cursor.Source;
         }
 
         #endregion Generic CursorSeries

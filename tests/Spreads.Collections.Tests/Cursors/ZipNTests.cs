@@ -362,7 +362,7 @@ namespace Spreads.Collections.Tests.Cursors
                     { 7, 21}
                 });
 
-            var series = new[] { sm1.Fill(100), sm2, sm3 };
+            var series = new ISeries<int, int>[] { sm1.Fill(100), sm2, sm3 };
             var sum = series.Zip((k, varr) => k * varr.Sum());
 
             var zipNCursor = sum.GetCursor();
@@ -415,7 +415,7 @@ namespace Spreads.Collections.Tests.Cursors
                     { 7, 21}
                 });
 
-            var series = new[] { sm1.Fill(100), sm2.Repeat(), sm3.Repeat() };
+            var series = new ISeries<int, int>[] { sm1.Fill(100), sm2.Repeat(), sm3.Repeat() };
             var sum = series.Zip((k, varr) => k * varr.Sum());
 
             var zipNCursor = sum.GetCursor();
@@ -520,11 +520,11 @@ namespace Spreads.Collections.Tests.Cursors
                 sm1.Add(i, i);
             }
 
-            var series = new[] { sm1, sm1, sm1, sm1, sm1, };// sm1, sm1, sm1, sm1, sm1,    sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
+            var series = new ISeries<int, int>[] { sm1, sm1, sm1, sm1, sm1, };// sm1, sm1, sm1, sm1, sm1,    sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, sm1, };
 
             sw.Start();
 
-            var sum = series.Zip((k, varr) => varr.Sum()).Lag(1u);
+            var sum = series.Zip((k, varr) => varr.Sum()).Lag(1);
             var sumCursor = sum.GetCursor();
             var pos = 1000000 - 2;
             while (sumCursor.MovePrevious() && sumCursor.CurrentKey >= 3)
@@ -556,7 +556,7 @@ namespace Spreads.Collections.Tests.Cursors
             }
             // assertion failure
             var repeated = sm2.Repeat().Fill(0);//.ToSortedMap();
-            var result = repeated.Zip(sm1, (k, p, d) => p).Lag(1u); // .Fill(0)
+            var result = repeated.Zip(sm1, (k, p, d) => p).Lag(); // .Fill(0)
 
             var cursor = result.GetCursor();
             Assert.IsTrue(cursor.MoveNext());
@@ -620,7 +620,7 @@ namespace Spreads.Collections.Tests.Cursors
                 sm2.Add(i + 1, i);
             }
 
-            var series = new[] { sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat(), sm1.Repeat() };
+            var series = new ISeries<int, int>[] { sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat(), sm1.Repeat() };
 
             sw.Start();
 
@@ -713,7 +713,7 @@ namespace Spreads.Collections.Tests.Cursors
                 sm2.Add(i + 1, i);
             }
 
-            var series = new[] { sm1.Repeat(), sm2.Repeat() };
+            var series = new ISeries<int, int>[] { sm1.Repeat(), sm2.Repeat() };
 
             sw.Start();
 
@@ -752,7 +752,7 @@ namespace Spreads.Collections.Tests.Cursors
                 sm2.Add(i + 1, i);
             }
 
-            var series = new[] { sm1.Repeat(), sm2.Repeat(), };
+            var series = new ISeries<int, int>[] { sm1.Repeat(), sm2.Repeat(), };
 
             sw.Start();
 
@@ -1199,7 +1199,7 @@ namespace Spreads.Collections.Tests.Cursors
 
             var sw = new Stopwatch();
 
-            var series = new[] { sm1.Repeat(), sm2.Repeat() };
+            var series = new ISeries<DateTime, double>[] { sm1.Repeat(), sm2.Repeat() };
 
             sw.Start();
             var totalSum = 0.0;
@@ -1247,7 +1247,7 @@ namespace Spreads.Collections.Tests.Cursors
 
             var sw = new Stopwatch();
 
-            var series = new[] { sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat() };
+            var series = new ISeries<DateTime, double>[] { sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat(), sm1.Repeat(), sm2.Repeat() };
 
             sw.Start();
             var totalSum = 0.0;
@@ -1320,7 +1320,7 @@ namespace Spreads.Collections.Tests.Cursors
             Thread.Sleep(1050);
             var sw = new Stopwatch();
 
-            var series = new[] { sm1.Repeat(), sm2.Repeat() };
+            var series = new ISeries<DateTime, double>[] { sm1.Repeat(), sm2.Repeat() };
 
             sw.Start();
             var totalSum = 0.0;
@@ -1390,7 +1390,7 @@ namespace Spreads.Collections.Tests.Cursors
 
             var sw = new Stopwatch();
 
-            var series = new[] { sm1.Repeat(), sm2.Repeat() };
+            var series = new ISeries<DateTime, double>[] { sm1.Repeat(), sm2.Repeat() };
 
             sw.Start();
             var totalSum = 0.0;
@@ -1483,7 +1483,7 @@ namespace Spreads.Collections.Tests.Cursors
 
             var sw = new Stopwatch();
 
-            var series = new[] { sm1.Repeat(), sm2.Repeat() };
+            var series = new ISeries<DateTime, double>[] { sm1.Repeat(), sm2.Repeat() };
 
             sw.Start();
             var totalSum = 0.0;
@@ -1537,7 +1537,7 @@ namespace Spreads.Collections.Tests.Cursors
             sm1.Complete();
             sm2.Complete();
 
-            var series = new[] { sm1.Repeat(), sm2.Repeat(), };
+            var series = new ISeries<int, int>[] { sm1.Repeat(), sm2.Repeat(), };
 
             sw.Start();
             var ser = series.Zip((k, varr) => varr.Sum());
@@ -1707,11 +1707,11 @@ namespace Spreads.Collections.Tests.Cursors
             var rp1 = sm1.Repeat();
             var rp2 = sm2.Repeat();
 
-            var zip = rp1.Zip(rp2, (l, r) => l + r);
+            var zip = rp1.Zip(rp2, (_, l, r) => l + r);
             Assert.AreEqual(0, zip.Count());
 
             sm1.Add(1, 1);
-            var zip2 = rp1.Zip(rp2, (l, r) => l + r);
+            var zip2 = rp1.Zip(rp2, (_, l, r) => l + r);
             Assert.AreEqual(0, zip2.Count());
 
             var cursor = zip.GetCursor();
@@ -1721,7 +1721,7 @@ namespace Spreads.Collections.Tests.Cursors
             Assert.IsFalse(cursor2.MoveNext());
 
             var fill = sm2.Fill(0);
-            var zip3 = rp1.Zip(fill, (l, r) => l + r);
+            var zip3 = rp1.Zip(fill, (_, l, r) => l + r);
             Assert.AreEqual(1, zip3.Count());
         }
 

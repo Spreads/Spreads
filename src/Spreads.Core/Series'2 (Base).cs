@@ -1352,21 +1352,36 @@ namespace Spreads
         /// <summary>
         /// Add operator.
         /// </summary>
-        public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, TCursor, TCursor>>> operator
-            +(ContainerSeries<TKey, TValue, TCursor> series, ContainerSeries<TKey, TValue, TCursor> other)
-        {
-            var c1 = series.GetContainerCursor();
-            var c2 = other.GetContainerCursor();
-            //Func<TKey, (TValue, TValue), TValue> selector = AddOp<TValue>.ZipSelector;
+        //public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, TCursor, TCursor>>> operator
+        //    +(ContainerSeries<TKey, TValue, TCursor> series, ContainerSeries<TKey, TValue, TCursor> other)
+        //{
+        //    var c1 = series.GetContainerCursor();
+        //    var c2 = other.GetContainerCursor();
+        //    //Func<TKey, (TValue, TValue), TValue> selector = AddOp<TValue>.ZipSelector;
 
-            var zipCursor = new Zip<TKey, TValue, TValue, TCursor, TCursor>(c1, c2);
-            return zipCursor.Map(AddOp<TValue>.ZipSelector).Source;
+        //    var zipCursor = new Zip<TKey, TValue, TValue, TCursor, TCursor>(c1, c2);
+        //    return zipCursor.Map(AddOp<TValue>.ZipSelector).Source;
 
-            //var op2 = new Op2<TKey, TValue, AddOp<TValue>, Zip<TKey, TValue, TValue, TCursor, TCursor>>(zipCursor);
+        //    //var op2 = new Op2<TKey, TValue, AddOp<TValue>, Zip<TKey, TValue, TValue, TCursor, TCursor>>(zipCursor);
 
-            //return op2.Source;
-        }
+        //    //return op2.Source;
+        //}
 
         #endregion Binary Operators
+
+        #region Implicit cast
+
+        /// <summary>
+        /// Implicitly convert <see cref="Series{TKey,TValue}"/> to <see cref="Series{TKey,TValue,TCursor}"/>
+        /// using <see cref="Cursor{TKey,TValue}"/> wrapper.
+        /// </summary>
+        public static implicit operator Series<TKey, TValue, Cursor<TKey, TValue>>(ContainerSeries<TKey, TValue, TCursor> series)
+        {
+            var c = series.GetWrapper();
+            return new Series<TKey, TValue, Cursor<TKey, TValue>>(c);
+        }
+
+        #endregion Implicit cast
+
     }
 }

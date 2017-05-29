@@ -512,6 +512,17 @@ namespace Spreads
             return zipCursor.Map(selector).Source;
         }
 
+        public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>>> operator
+            +(Series<TKey, TValue, TCursor> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
+        {
+            var c1 = series.GetEnumerator();
+            var c2 = other.GetEnumerator();
+            Func<TKey, (TValue, TValue), TValue> selector = AddOp<TValue>.ZipSelector;
+
+            var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
+            return zipCursor.Map(selector).Source;
+        }
+
         /// <summary>
         /// Add operator.
         /// </summary>

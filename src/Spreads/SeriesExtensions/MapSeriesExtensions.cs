@@ -15,16 +15,16 @@ namespace Spreads
             this ContainerSeries<TKey, TValue, TCursor> series, Func<TKey, TValue, TResult> selector)
             where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
-            var mapCursor = new Map<TKey, TValue, TResult, TCursor>(series.GetContainerCursor(), selector);
-            return mapCursor.Source;
+            var cursor = new Map<TKey, TValue, TResult, TCursor>(series.GetContainerCursor(), selector);
+            return cursor.Source;
         }
 
         public static Series<TKey, TResult, Map<TKey, TValue, TResult, TCursor>> Map<TKey, TValue, TResult, TCursor>(
             this ContainerSeries<TKey, TValue, TCursor> series, Func<TValue, TResult> selector)
             where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
-            var mapCursor = new Map<TKey, TValue, TResult, TCursor>(series.GetContainerCursor(), selector);
-            return mapCursor.Source;
+            var cursor = new Map<TKey, TValue, TResult, TCursor>(series.GetContainerCursor(), selector);
+            return cursor.Source;
         }
 
         #endregion ContainerSeries
@@ -72,8 +72,8 @@ namespace Spreads
             where TCursor : ISpecializedCursor<TKey, TSource, TCursor>
         {
             var combinedSelector = CoreUtils.CombineMaps(series._cursor._selector, selector);
-            var mapCursor = new Map<TKey, TSource, TResult, TCursor>(series._cursor._cursor, combinedSelector);
-            return mapCursor.Source;
+            var cursor = new Map<TKey, TSource, TResult, TCursor>(series._cursor._cursor, combinedSelector);
+            return cursor.Source;
         }
 
         public static Series<TKey, TResult, Map<TKey, TSource, TResult, TCursor>> Map<TKey, TSource, TValue, TResult, TCursor>(
@@ -81,8 +81,8 @@ namespace Spreads
             where TCursor : ISpecializedCursor<TKey, TSource, TCursor>
         {
             var combinedSelector = CoreUtils.CombineMaps(series._cursor._selector, selector);
-            var mapCursor = new Map<TKey, TSource, TResult, TCursor>(series._cursor._cursor, combinedSelector);
-            return mapCursor.Source;
+            var cursor = new Map<TKey, TSource, TResult, TCursor>(series._cursor._cursor, combinedSelector);
+            return cursor.Source;
         }
 
         #endregion Combined map
@@ -92,14 +92,14 @@ namespace Spreads
         public static Series<TKey, TResult, Map<TKey, TValue, TResult, Cursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
             this ISeries<TKey, TValue> series, Func<TKey, TValue, TResult> selector)
         {
-            var mapCursor = new Map<TKey, TValue, TResult, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), selector);
-            return mapCursor.Source;
+            var cursor = new Map<TKey, TValue, TResult, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), selector);
+            return cursor.Source;
         }
 
         public static Series<TKey, TResult, Map<TKey, TValue, TResult, Cursor<TKey, TValue>>> Map<TKey, TValue, TResult>(this ISeries<TKey, TValue> series, Func<TValue, TResult> selector)
         {
-            var mapCursor = new Map<TKey, TValue, TResult, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), selector);
-            return mapCursor.Source;
+            var cursor = new Map<TKey, TValue, TResult, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), selector);
+            return cursor.Source;
         }
 
         #endregion ISeries
@@ -111,8 +111,8 @@ namespace Spreads
             where TCursor : ICursorSeries<TKey, TValue, TCursor>
         {
             // TODO review how to combine maps (former ICanMapValues interface)
-            var mapCursor = new Map<TKey, TValue, TResult, TCursor>(series.GetEnumerator(), selector);
-            return mapCursor.Source;
+            var cursor = new Map<TKey, TValue, TResult, TCursor>(series.GetEnumerator(), selector);
+            return cursor.Source;
         }
 
         public static Series<TKey, TResult, Map<TKey, TValue, TResult, TCursor>> Map<TKey, TValue, TResult, TCursor>(
@@ -120,8 +120,8 @@ namespace Spreads
             where TCursor : ICursorSeries<TKey, TValue, TCursor>
         {
             // TODO review how to combine maps (former ICanMapValues interface)
-            var mapCursor = new Map<TKey, TValue, TResult, TCursor>(series.GetEnumerator(), selector);
-            return mapCursor.Source;
+            var cursor = new Map<TKey, TValue, TResult, TCursor>(series.GetEnumerator(), selector);
+            return cursor.Source;
         }
 
         #endregion Generic CursorSeries

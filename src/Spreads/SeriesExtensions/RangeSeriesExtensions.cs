@@ -19,36 +19,36 @@ namespace Spreads
             Opt<TKey> startKey, Opt<TKey> endKey, bool startInclusive = true, bool endInclusive = true)
             where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
-            var rangeCursor = new Range<TKey, TValue, TCursor>(
+            var cursor = new Range<TKey, TValue, TCursor>(
                 series.GetContainerCursor(), startKey, endKey, startInclusive, endInclusive);
-            return rangeCursor.Source;
+            return cursor.Source;
         }
 
         internal static Series<TKey, TValue, Range<TKey, TValue, SortedMapCursor<TKey, TValue>>> Range<TKey, TValue>(
             this SortedMap<TKey, TValue> series,
             Opt<TKey> startKey, Opt<TKey> endKey, bool startInclusive = true, bool endInclusive = true)
         {
-            var rangeCursor = new Range<TKey, TValue, SortedMapCursor<TKey, TValue>>(
+            var cursor = new Range<TKey, TValue, SortedMapCursor<TKey, TValue>>(
                 series.GetEnumerator(), startKey, endKey, startInclusive, endInclusive);
-            return rangeCursor.Source;
+            return cursor.Source;
         }
 
         internal static Series<TKey, TValue, Range<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>> Range<TKey, TValue>(
             this SortedChunkedMap<TKey, TValue> series,
             Opt<TKey> startKey, Opt<TKey> endKey, bool startInclusive = true, bool endInclusive = true)
         {
-            var rangeCursor = new Range<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>(
+            var cursor = new Range<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>(
                 series.GetEnumerator(), startKey, endKey, startInclusive, endInclusive);
-            return rangeCursor.Source;
+            return cursor.Source;
         }
 
         internal static Series<TKey, TValue, Range<TKey, TValue, Cursor<TKey, TValue>>> Range<TKey, TValue>(
             this ISeries<TKey, TValue> series,
             Opt<TKey> startKey, Opt<TKey> endKey, bool startInclusive = true, bool endInclusive = true)
         {
-            var rangeCursor = new Range<TKey, TValue, Cursor<TKey, TValue>>(new Cursor<TKey, TValue>(
+            var cursor = new Range<TKey, TValue, Cursor<TKey, TValue>>(new Cursor<TKey, TValue>(
                 series.GetCursor()), startKey, endKey, startInclusive, endInclusive);
-            return rangeCursor.Source;
+            return cursor.Source;
         }
 
         internal static Series<TKey, TValue, Range<TKey, TValue, TCursor>> Range<TKey, TValue, TCursor>(
@@ -56,9 +56,9 @@ namespace Spreads
             Opt<TKey> startKey, Opt<TKey> endKey, bool startInclusive = true, bool endInclusive = true)
             where TCursor : ICursorSeries<TKey, TValue, TCursor>
         {
-            var rangeCursor = new Range<TKey, TValue, TCursor>(
+            var cursor = new Range<TKey, TValue, TCursor>(
                 series.GetEnumerator(), startKey, endKey, startInclusive, endInclusive);
-            return rangeCursor.Source;
+            return cursor.Source;
         }
 
         internal static Series<TKey, TValue, Range<TKey, TValue, TCursor>> Range<TKey, TValue, TCursor>(
@@ -74,9 +74,9 @@ namespace Spreads
             var newEndKey = Opt<TKey>.SmallerOrMissing(series._cursor.EndKey, endKey, series.Comparer);
             var newEndInclusive = newEndKey.Equals(endKey) ? endInclusive : series._cursor.EndInclusive;
 
-            var rangeCursor = new Range<TKey, TValue, TCursor>(
+            var cursor = new Range<TKey, TValue, TCursor>(
                 series._cursor._cursor, newStartKey, newEndKey, newStartInclusive, newEndInclusive);
-            return rangeCursor.Source;
+            return cursor.Source;
         }
 
         #endregion Internal methods with Opt<TKey>
@@ -168,6 +168,8 @@ namespace Spreads
             return series.Range(startKey, Opt<TKey>.Missing, startInclusive, true);
         }
 
+        // TODO make public
+
         internal static Series<TKey, TResult, Map<TKey, TInput, TResult, Range<TKey, TInput, TCursor>>> After<TKey, TInput, TResult, TCursor>(
             this Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>> series,
             TKey startKey, bool startInclusive = true)
@@ -196,10 +198,12 @@ namespace Spreads
             return res;
         }
 
-
+#if DEBUG
         /// <summary>
         /// Sample for the map combination. This tests mostly intellisense experience - see popup on m2
+        /// with and without the two methods above
         /// </summary>
+        // ReSharper disable once UnusedMember.Local
         private static void TestMovingRangeBeforeMap()
         {
             var sm = new SortedMap<int, double>
@@ -208,6 +212,7 @@ namespace Spreads
             };
             Series<int, double, Range<int, double, SortedMapCursor<int, double>>> s1;
             s1 = sm.After(1);
+            // ReSharper disable once UnusedVariable
             var m2 =
                 (s1.Map((x) => x + 1)).After(1).After(1)
                 .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
@@ -219,6 +224,7 @@ namespace Spreads
                 .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
                 ;
         }
+#endif
 
         public static Series<TKey, TValue, Range<TKey, TValue, Cursor<TKey, TValue>>> After<TKey, TValue>(
             this ISeries<TKey, TValue> series,

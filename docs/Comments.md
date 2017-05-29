@@ -12,7 +12,9 @@ Comment prefix codes:
     - `ux` - user experience with API: signatures, comments, etc.
 * `TODO!` means same as `TODO (high)` + `NB!`
 
-Docs
+
+TODOs
+===========
 
 [ ] Write introduction without Rx, about series, declarative transofrmations, cursors, how to write new
 cursors with examples
@@ -29,3 +31,13 @@ Tests
 * [ ] For corectness and performance, we must generate random sets and use some well-know correct method, e.g. LINQ or Deedle. Each test that utilizes series functionality
  must be significantly faster than LINQ/Deedle, otherwise it makes no sense to use Spreads.
 * [ ] Benchmark suite that could keep history.
+
+
+Codyng style
+============
+
+Mostly C# 7.0 + ReSharper + CodeMaid defaults (Ctrl+E+D + Ctrl+M+Space).
+
+Internal fields are often named as private ones with `_lowerCamelCase`, which usually means that their usage 
+outside the defining class/struct is for testing or optimization purposes, relies on implementation details and
+is not safe to use in a general case even inside Spreads library itself.

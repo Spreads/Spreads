@@ -17,7 +17,7 @@ namespace Spreads
     /// <summary>
     /// SpecializedWrapper Extensions
     /// </summary>
-    public static class SpecializedCursorExtensions
+    internal static class SpecializedCursorExtensions
     {
         /// <summary>
         /// Create SpecializedWrapper that wraps the result of ISeries.GetCursor() call.
@@ -30,7 +30,7 @@ namespace Spreads
     }
 
     /// <summary>
-    /// Wraps <see cref="ICursor{TKey,TValue}"/> as <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/>.
+    /// Unspecialized cursor wrapper. Wraps <see cref="ICursor{TKey,TValue}"/> as <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/>.
     /// </summary>
     public struct Cursor<TKey, TValue> : ICursorSeries<TKey, TValue, Cursor<TKey, TValue>>
     {

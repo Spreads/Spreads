@@ -22,8 +22,8 @@ namespace Spreads
     /// at or before (<see cref="Lookup.LE"/>) a requested key in <see cref="TryGetValue"/>.
     /// It delegates moves directly to the underlying cursor.
     /// </summary>
-    public struct Repeat<TKey, TValue, TCursor> :
-        ICursorSeries<TKey, (TKey, TValue), Repeat<TKey, TValue, TCursor>>
+    public struct RepeatWithKey<TKey, TValue, TCursor> :
+        ICursorSeries<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         #region Cursor state
@@ -46,7 +46,7 @@ namespace Spreads
 
         #region Constructors
 
-        internal Repeat(TCursor cursor) : this()
+        internal RepeatWithKey(TCursor cursor) : this()
         {
             _cursor = cursor;
         }
@@ -56,9 +56,9 @@ namespace Spreads
         #region Lifetime management
 
         /// <inheritdoc />
-        public Repeat<TKey, TValue, TCursor> Clone()
+        public RepeatWithKey<TKey, TValue, TCursor> Clone()
         {
-            var instance = new Repeat<TKey, TValue, TCursor>
+            var instance = new RepeatWithKey<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Clone(),
                 _lookUpCursor = _lookUpCursor.Clone(),
@@ -68,9 +68,9 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public Repeat<TKey, TValue, TCursor> Initialize()
+        public RepeatWithKey<TKey, TValue, TCursor> Initialize()
         {
-            var instance = new Repeat<TKey, TValue, TCursor>
+            var instance = new RepeatWithKey<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Initialize(),
                 _lookUpCursor = _cursor.Clone(),
@@ -124,7 +124,7 @@ namespace Spreads
         public (TKey, TValue) CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (_cursor.CurrentKey,_cursor.CurrentValue); }
+            get { return (_cursor.CurrentKey, _cursor.CurrentValue); }
         }
 
         /// <inheritdoc />
@@ -155,7 +155,7 @@ namespace Spreads
                 value = (key, v);
                 return true;
             }
-            if(_lookUpCursor.MoveAt(key, Lookup.LE))
+            if (_lookUpCursor.MoveAt(key, Lookup.LE))
             {
                 value = (_lookUpCursor.CurrentKey, _lookUpCursor.CurrentValue);
                 return true;
@@ -240,12 +240,12 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, (TKey, TValue)> ICursor<TKey, (TKey, TValue)>.Source => new Series<TKey, (TKey, TValue), Repeat<TKey, TValue, TCursor>>(this);
+        IReadOnlySeries<TKey, (TKey, TValue)> ICursor<TKey, (TKey, TValue)>.Source => new Series<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
-        public Series<TKey, (TKey, TValue), Repeat<TKey, TValue, TCursor>> Source => new Series<TKey, (TKey, TValue), Repeat<TKey, TValue, TCursor>>(this);
+        public Series<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, TCursor>> Source => new Series<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken)
@@ -278,4 +278,247 @@ namespace Spreads
 
         #endregion ICursorSeries members
     }
+
+
+    public struct Repeat<TKey, TValue, TCursor> :
+        ICursorSeries<TKey, TValue, Repeat<TKey, TValue, TCursor>>
+        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+    {
+        #region Cursor state
+
+        // This region must contain all cursor state that is passed via constructor.
+        // No additional state must be created.
+        // All state elements should be assigned in Initialize and Clone methods
+        // All inner cursors must be disposed in the Dispose method but references to them must be kept (they could be used as factories)
+        // for re-initialization.
+
+        // NB must be mutable, could be a struct
+        // ReSharper disable once FieldCanBeMadeReadOnly.Local
+        internal RepeatWithKey<TKey, TValue, TCursor> _cursor;
+
+
+        internal CursorState State { get; set; }
+
+        #endregion Cursor state
+
+        #region Constructors
+
+        internal Repeat(TCursor cursor) : this()
+        {
+            _cursor = new RepeatWithKey<TKey, TValue, TCursor>(cursor);
+        }
+
+        #endregion Constructors
+
+        #region Lifetime management
+
+        /// <inheritdoc />
+        public Repeat<TKey, TValue, TCursor> Clone()
+        {
+            var instance = new Repeat<TKey, TValue, TCursor>
+            {
+                _cursor = _cursor.Clone(),
+                State = State
+            };
+            return instance;
+        }
+
+        /// <inheritdoc />
+        public Repeat<TKey, TValue, TCursor> Initialize()
+        {
+            var instance = new Repeat<TKey, TValue, TCursor>
+            {
+                _cursor = _cursor.Initialize(),
+                State = CursorState.Initialized
+            };
+            return instance;
+        }
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            // NB keep cursor state for reuse
+            // dispose is called on the result of Initialize(), the cursor from
+            // constructor could be uninitialized but contain some state, e.g. _value for this FillCursor
+            _cursor.Dispose();
+            State = CursorState.None;
+        }
+
+        /// <inheritdoc />
+        public void Reset()
+        {
+            _cursor.Reset();
+            State = CursorState.Initialized;
+        }
+
+        ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
+        {
+            return Clone();
+        }
+
+        #endregion Lifetime management
+
+        #region ICursor members
+
+        /// <inheritdoc />
+        public KeyValuePair<TKey, TValue> Current
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue); }
+        }
+
+        /// <inheritdoc />
+        public TKey CurrentKey
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.CurrentKey; }
+        }
+
+        /// <inheritdoc />
+        public TValue CurrentValue
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.CurrentValue.Item2; }
+        }
+
+        /// <inheritdoc />
+        public IReadOnlySeries<TKey, TValue> CurrentBatch => null;
+
+        /// <inheritdoc />
+        public KeyComparer<TKey> Comparer => _cursor.Comparer;
+
+        object IEnumerator.Current => Current;
+
+        /// <inheritdoc />
+        public bool IsContinuous => true;
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryGetValue(TKey key, out TValue value)
+        {
+            if (_cursor.TryGetValue(key, out var v))
+            {
+                value = v.Item2;
+                return true;
+            }
+
+            value = default(TValue);
+            return false;
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MoveAt(TKey key, Lookup direction)
+        {
+            if (State == CursorState.None)
+            {
+                ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
+            }
+            var moved = _cursor.MoveAt(key, direction);
+            if (moved)
+            {
+                State = CursorState.Moving;
+            }
+            return moved;
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MoveNext
+        public bool MoveFirst()
+        {
+            if (State == CursorState.None)
+            {
+                ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
+            }
+            var moved = _cursor.MoveFirst();
+            if (moved)
+            {
+                State = CursorState.Moving;
+            }
+            return moved;
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MovePrevious
+        public bool MoveLast()
+        {
+            if (State == CursorState.None)
+            {
+                ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
+            }
+            var moved = _cursor.MoveLast();
+            if (moved)
+            {
+                State = CursorState.Moving;
+            }
+            return moved;
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MoveNext()
+        {
+            if (State < CursorState.Moving) return MoveFirst();
+            return _cursor.MoveNext();
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        {
+            if (State == CursorState.None)
+            {
+                ThrowHelper.ThrowInvalidOperationException($"CursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
+            }
+            return TaskEx.FalseTask;
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MovePrevious()
+        {
+            if (State < CursorState.Moving) return MoveLast();
+            return _cursor.MovePrevious();
+        }
+
+        /// <inheritdoc />
+        IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source => new Series<TKey, TValue, Repeat<TKey, TValue, TCursor>>(this);
+
+        /// <summary>
+        /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
+        /// </summary>
+        public Series<TKey, TValue, Repeat<TKey, TValue, TCursor>> Source => new Series<TKey, TValue, Repeat<TKey, TValue, TCursor>>(this);
+
+        /// <inheritdoc />
+        public Task<bool> MoveNext(CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        #endregion ICursor members
+
+        #region ICursorSeries members
+
+        /// <inheritdoc />
+        public bool IsIndexed => _cursor.Source.IsIndexed;
+
+        /// <inheritdoc />
+        public bool IsReadOnly
+        {
+            // NB this property is repeatedly called from MNA
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsReadOnly; }
+        }
+
+        /// <inheritdoc />
+        public Task<bool> Updated
+        {
+            // NB this property is repeatedly called from MNA
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.Updated; }
+        }
+
+        #endregion ICursorSeries members
+    }
+
 }

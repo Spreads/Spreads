@@ -16,7 +16,7 @@ namespace Spreads
     /// <summary>
     /// A cursor that inner-joins two series. Each continuous series is evaluated at every key of another series.
     /// To get full outer join make each series contiuous by applying a transformation such as <see cref="Fill{TKey,TValue,TCursor}"/>
-    /// or <see cref="Repeat{TKey,TValue,TCursor}"/>.
+    /// or <see cref="RepeatWithKey{TKey,TValue,TCursor}"/>.
     /// </summary>
     public struct Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>
         : ICursorSeries<TKey, (TLeft, TRight), Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>

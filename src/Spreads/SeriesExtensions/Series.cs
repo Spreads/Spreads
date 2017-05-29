@@ -3,6 +3,7 @@
 using Spreads.Collections;
 using System.Collections.Generic;
 
+// ReSharper disable once CheckNamespace
 namespace Spreads
 {
     // NB there are problems with extensions on ISpecializedSeries

@@ -11,7 +11,9 @@ namespace Spreads
     {
         // TODO see the trick with implicit conversion in ContainerSeries.* operator. Here it is also needed.
 
-        // NB having methods that accept a selector achieve nothing in performance terms
+        // TODO! Series'3 extensions
+
+        // NB having methods that accept a selector achieves nothing in performance terms, only convenient signature
 
         #region ContainerSeries
 
@@ -23,16 +25,6 @@ namespace Spreads
             var zip = new Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>(series.GetContainerCursor(), other.GetContainerCursor());
             return zip.Source;
         }
-
-        // TODO this doesn't work
-        //public static Series<TKey, (TLeft, TRight), Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>> Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>(
-        //            this ISpecializedSeries<TKey, TLeft, TCursorLeft> series, ISpecializedSeries<TKey, TRight, TCursorRight> other)
-        //            where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
-        //            where TCursorRight : ISpecializedCursor<TKey, TRight, TCursorRight>
-        //{
-        //    var zip = new Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>(series.GetCursor(), other.GetCursor());
-        //    return zip.Source;
-        //}
 
         public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
             this ContainerSeries<TKey, TLeft, TCursorLeft> series, ContainerSeries<TKey, TRight, TCursorRight> other, Func<TKey, TLeft, TRight, TResult> selector)
@@ -52,6 +44,15 @@ namespace Spreads
             return zip.Map((k, t) => selector(k, t.Item1, t.Item2)).Source;
         }
 
+        public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
+            this (ContainerSeries<TKey, TLeft, TCursorLeft> left, ContainerSeries<TKey, TRight, TCursorRight> right) tuple, Func<TLeft, TRight, TResult> selector)
+            where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
+            where TCursorRight : ISpecializedCursor<TKey, TRight, TCursorRight>
+        {
+            var zip = new Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>(tuple.left.GetContainerCursor(), tuple.right.GetContainerCursor());
+            return zip.Map((k, t) => selector(t.Item1, t.Item2)).Source;
+        }
+
         #endregion ContainerSeries
 
         #region ISeries
@@ -68,6 +69,13 @@ namespace Spreads
         {
             var zip = new Zip<TKey, TLeft, TRight, Cursor<TKey, TLeft>, Cursor<TKey, TRight>>(series.GetSpecializedCursor(), other.GetSpecializedCursor());
             return zip.Map((k, t) => selector(k, t.Item1, t.Item2)).Source;
+        }
+
+        public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, Cursor<TKey, TLeft>, Cursor<TKey, TRight>>>> Zip<TKey, TLeft, TRight, TResult>(
+            this ISeries<TKey, TLeft> series, ISeries<TKey, TRight> other, Func<TLeft, TRight, TResult> selector)
+        {
+            var zip = new Zip<TKey, TLeft, TRight, Cursor<TKey, TLeft>, Cursor<TKey, TRight>>(series.GetSpecializedCursor(), other.GetSpecializedCursor());
+            return zip.Map((k, t) => selector(t.Item1, t.Item2)).Source;
         }
 
         public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, Cursor<TKey, TLeft>, Cursor<TKey, TRight>>>> Zip<TKey, TLeft, TRight, TResult>(

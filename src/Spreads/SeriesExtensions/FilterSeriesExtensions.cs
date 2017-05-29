@@ -9,126 +9,94 @@ namespace Spreads
 {
     public static partial class Series
     {
-
         // TODO FilterKeys on Map should move filter before map. Map is lazy and this not reduce evaluations, but then
         // map could be fused if another map goes after it
 
+        #region ContainerSeries
 
-        //#region ContainerSeries
+        public static Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Filter<TKey, TValue, TCursor>(
+            this ContainerSeries<TKey, TValue, TCursor> series, Func<TKey, TValue, bool> predicate)
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+        {
+            var cursor = new Filter<TKey, TValue, TCursor>(series.GetContainerCursor(), predicate);
+            return cursor.Source;
+        }
 
-        //public static Series<TKey, TResult, Map<TKey, TValue, TResult, TCursor>> Map<TKey, TValue, TResult, TCursor>(
-        //    this ContainerSeries<TKey, TValue, TCursor> series, Func<TKey, TValue, TResult> selector)
-        //    where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
-        //{
-        //    var mapCursor = new Map<TKey, TValue, TResult, TCursor>(series.GetContainerCursor(), selector);
-        //    return mapCursor.Source;
-        //}
+        public static Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Filter<TKey, TValue, TCursor>(
+            this ContainerSeries<TKey, TValue, TCursor> series, Func<TKey, bool> predicate)
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+        {
+            var cursor = new Filter<TKey, TValue, TCursor>(series.GetContainerCursor(), predicate);
+            return cursor.Source;
+        }
 
-        //public static Series<TKey, TResult, Map<TKey, TValue, TResult, TCursor>> Map<TKey, TValue, TResult, TCursor>(
-        //    this ContainerSeries<TKey, TValue, TCursor> series, Func<TValue, TResult> selector)
-        //    where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
-        //{
-        //    var mapCursor = new Map<TKey, TValue, TResult, TCursor>(series.GetContainerCursor(), selector);
-        //    return mapCursor.Source;
-        //}
+        public static Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Filter<TKey, TValue, TCursor>(
+            this ContainerSeries<TKey, TValue, TCursor> series, Func<TValue, bool> predicate)
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+        {
+            var cursor = new Filter<TKey, TValue, TCursor>(series.GetContainerCursor(), predicate);
+            return cursor.Source;
+        }
 
-        //#endregion ContainerSeries
+        #endregion ContainerSeries
 
-        ////#region SortedMap
+        //#region Combined filter
 
-        ////public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
-        ////    this SortedMap<TKey, TValue> series, Func<TKey, TValue, TResult> selector)
-        ////{
-        ////    var mapCursor = new Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
-        ////    return mapCursor.Source;
-        ////}
+        // TODO! Filter predicate combination: key-only filter could be moved before map
 
-        ////public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
-        ////    this SortedMap<TKey, TValue> series, Func<TValue, TResult> selector)
-        ////{
-        ////    var mapCursor = new Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
-        ////    return mapCursor.Source;
-        ////}
+        //#endregion Combined filter
 
-        ////#endregion SortedMap
+        #region ISeries
 
-        ////#region SCM
+        public static Series<TKey, TValue, Filter<TKey, TValue, Cursor<TKey, TValue>>> Filter<TKey, TValue>(
+            this ISeries<TKey, TValue> series, Func<TKey, TValue, bool> predicate)
+        {
+            var cursor = new Filter<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), predicate);
+            return cursor.Source;
+        }
 
-        ////public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
-        ////    this SortedChunkedMap<TKey, TValue> series, Func<TKey, TValue, TResult> selector)
-        ////{
-        ////    var mapCursor = new Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
-        ////    return mapCursor.Source;
-        ////}
+        public static Series<TKey, TValue, Filter<TKey, TValue, Cursor<TKey, TValue>>> Filter<TKey, TValue>(
+            this ISeries<TKey, TValue> series, Func<TKey, bool> predicate)
+        {
+            var cursor = new Filter<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), predicate);
+            return cursor.Source;
+        }
 
-        ////public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
-        ////    this SortedChunkedMap<TKey, TValue> series, Func<TValue, TResult> selector)
-        ////{
-        ////    var mapCursor = new Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
-        ////    return mapCursor.Source;
-        ////}
+        public static Series<TKey, TValue, Filter<TKey, TValue, Cursor<TKey, TValue>>> Filter<TKey, TValue>(
+            this ISeries<TKey, TValue> series, Func<TValue, bool> predicate)
+        {
+            var cursor = new Filter<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), predicate);
+            return cursor.Source;
+        }
 
-        ////#endregion SCM
+        #endregion ISeries
 
-        //#region Combined map
+        #region Generic CursorSeries
 
-        //public static Series<TKey, TResult, Map<TKey, TSource, TResult, TCursor>> Map<TKey, TSource, TValue, TResult, TCursor>(
-        //    this Series<TKey, TValue, Map<TKey, TSource, TValue, TCursor>> series, Func<TKey, TValue, TResult> selector)
-        //    where TCursor : ISpecializedCursor<TKey, TSource, TCursor>
-        //{
-        //    var combinedSelector = CoreUtils.CombineMaps(series._cursor._selector, selector);
-        //    var mapCursor = new Map<TKey, TSource, TResult, TCursor>(series._cursor._cursor, combinedSelector);
-        //    return mapCursor.Source;
-        //}
+        public static Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Filter<TKey, TValue, TCursor>(
+            this Series<TKey, TValue, TCursor> series, Func<TKey, TValue, bool> predicate)
+            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+        {
+            var cursor = new Filter<TKey, TValue, TCursor>(series.GetEnumerator(), predicate);
+            return cursor.Source;
+        }
 
-        //public static Series<TKey, TResult, Map<TKey, TSource, TResult, TCursor>> Map<TKey, TSource, TValue, TResult, TCursor>(
-        //    this Series<TKey, TValue, Map<TKey, TSource, TValue, TCursor>> series, Func<TValue, TResult> selector)
-        //    where TCursor : ISpecializedCursor<TKey, TSource, TCursor>
-        //{
-        //    var combinedSelector = CoreUtils.CombineMaps(series._cursor._selector, selector);
-        //    var mapCursor = new Map<TKey, TSource, TResult, TCursor>(series._cursor._cursor, combinedSelector);
-        //    return mapCursor.Source;
-        //}
+        public static Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Filter<TKey, TValue, TCursor>(
+            this Series<TKey, TValue, TCursor> series, Func<TKey, bool> predicate)
+            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+        {
+            var cursor = new Filter<TKey, TValue, TCursor>(series.GetEnumerator(), predicate);
+            return cursor.Source;
+        }
 
-        //#endregion Combined map
+        public static Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Filter<TKey, TValue, TCursor>(
+            this Series<TKey, TValue, TCursor> series, Func<TValue, bool> predicate)
+            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+        {
+            var cursor = new Filter<TKey, TValue, TCursor>(series.GetEnumerator(), predicate);
+            return cursor.Source;
+        }
 
-        //#region ISeries
-
-        //public static Series<TKey, TResult, Map<TKey, TValue, TResult, Cursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
-        //    this ISeries<TKey, TValue> series, Func<TKey, TValue, TResult> selector)
-        //{
-        //    var mapCursor = new Map<TKey, TValue, TResult, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), selector);
-        //    return mapCursor.Source;
-        //}
-
-        //public static Series<TKey, TResult, Map<TKey, TValue, TResult, Cursor<TKey, TValue>>> Map<TKey, TValue, TResult>(this ISeries<TKey, TValue> series, Func<TValue, TResult> selector)
-        //{
-        //    var mapCursor = new Map<TKey, TValue, TResult, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), selector);
-        //    return mapCursor.Source;
-        //}
-
-        //#endregion ISeries
-
-        //#region Generic CursorSeries
-
-        //public static Series<TKey, TResult, Map<TKey, TValue, TResult, TCursor>> Map<TKey, TValue, TResult, TCursor>(
-        //    this Series<TKey, TValue, TCursor> series, Func<TKey, TValue, TResult> selector)
-        //    where TCursor : ICursorSeries<TKey, TValue, TCursor>
-        //{
-        //    // TODO review how to combine maps (former ICanMapValues interface)
-        //    var mapCursor = new Map<TKey, TValue, TResult, TCursor>(series.GetEnumerator(), selector);
-        //    return mapCursor.Source;
-        //}
-
-        //public static Series<TKey, TResult, Map<TKey, TValue, TResult, TCursor>> Map<TKey, TValue, TResult, TCursor>(
-        //    this Series<TKey, TValue, TCursor> series, Func<TValue, TResult> selector)
-        //    where TCursor : ICursorSeries<TKey, TValue, TCursor>
-        //{
-        //    // TODO review how to combine maps (former ICanMapValues interface)
-        //    var mapCursor = new Map<TKey, TValue, TResult, TCursor>(series.GetEnumerator(), selector);
-        //    return mapCursor.Source;
-        //}
-
-        //#endregion Generic CursorSeries
+        #endregion Generic CursorSeries
     }
 }
