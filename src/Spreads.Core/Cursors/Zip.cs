@@ -793,7 +793,6 @@ namespace Spreads
             var rm = true;
             var lk = _leftCursor.CurrentKey;
             var rk = _rightCursor.CurrentKey;
-            var previousC = _c;
             while (true)
             {
                 // move lagging or both if they are at the same position
@@ -946,12 +945,11 @@ namespace Spreads
                         break;
                     }
                 }
-
-                //ThrowHelper.ThrowInvalidOperationException("should have breaked!");
             }
 
             if (!moved && State == CursorState.Moving)
             {
+                var recovered = false;
                 // recover those cursor whose values are not cached
                 if (!_isValueSet.left && _cmp.Compare(_leftCursor.CurrentKey, lk) != 0)
                 {
@@ -959,6 +957,7 @@ namespace Spreads
                     {
                         ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
                     }
+                    recovered = true;
                 }
                 if (!_isValueSet.right && _cmp.Compare(_rightCursor.CurrentKey, rk) != 0)
                 {
@@ -966,8 +965,12 @@ namespace Spreads
                     {
                         ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
                     }
+                    recovered = true;
                 }
-                _c = previousC;
+                if (recovered)
+                {
+                    _c = _cmp.Compare(_leftCursor.CurrentKey, _rightCursor.CurrentKey);
+                }
             }
             return moved;
         }
@@ -1091,7 +1094,6 @@ namespace Spreads
             var rm = true;
             var lk = _leftCursor.CurrentKey;
             var rk = _rightCursor.CurrentKey;
-            var previousC = _c;
             while (true)
             {
                 // move lagging or both if they are at the same position
@@ -1232,12 +1234,11 @@ namespace Spreads
                         break;
                     }
                 }
-
-                //ThrowHelper.ThrowInvalidOperationException("should have breaked!");
             }
 
             if (!moved && State == CursorState.Moving)
             {
+                var recovered = false;
                 // recover those cursor whose values are not cached
                 if (!_isValueSet.left && _cmp.Compare(_leftCursor.CurrentKey, lk) != 0)
                 {
@@ -1245,6 +1246,7 @@ namespace Spreads
                     {
                         ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
                     }
+                    recovered = true;
                 }
                 if (!_isValueSet.right && _cmp.Compare(_rightCursor.CurrentKey, rk) != 0)
                 {
@@ -1252,8 +1254,12 @@ namespace Spreads
                     {
                         ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
                     }
+                    recovered = true;
                 }
-                _c = previousC;
+                if (recovered)
+                {
+                    _c = _cmp.Compare(_leftCursor.CurrentKey, _rightCursor.CurrentKey);
+                }
             }
             return moved;
         }

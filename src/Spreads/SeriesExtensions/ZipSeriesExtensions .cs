@@ -38,6 +38,15 @@ namespace Spreads
         }
 
         public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
+            this ContainerSeries<TKey, TLeft, TCursorLeft> series, ContainerSeries<TKey, TRight, TCursorRight> other, Func<TLeft, TRight, TResult> selector)
+            where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
+            where TCursorRight : ISpecializedCursor<TKey, TRight, TCursorRight>
+        {
+            var zip = new Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>(series.GetContainerCursor(), other.GetContainerCursor());
+            return zip.Map((k, t) => selector(t.Item1, t.Item2)).Source;
+        }
+
+        public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
             this (ContainerSeries<TKey, TLeft, TCursorLeft> left, ContainerSeries<TKey, TRight, TCursorRight> right) tuple, Func<TKey, TLeft, TRight, TResult> selector)
             where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
             where TCursorRight : ISpecializedCursor<TKey, TRight, TCursorRight>
@@ -88,5 +97,54 @@ namespace Spreads
         }
 
         #endregion ISeries
+
+        #region Generic CursorSeries
+
+        public static Series<TKey, (TLeft, TRight), Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>> Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>(
+            this Series<TKey, TLeft, TCursorLeft> series, Series<TKey, TRight, TCursorRight> other)
+            where TCursorLeft : ICursorSeries<TKey, TLeft, TCursorLeft>
+            where TCursorRight : ICursorSeries<TKey, TRight, TCursorRight>
+        {
+            var zip = new Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>(series.GetEnumerator(), other.GetEnumerator());
+            return zip.Source;
+        }
+
+        public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
+            this Series<TKey, TLeft, TCursorLeft> series, Series<TKey, TRight, TCursorRight> other, Func<TKey, TLeft, TRight, TResult> selector)
+            where TCursorLeft : ICursorSeries<TKey, TLeft, TCursorLeft>
+            where TCursorRight : ICursorSeries<TKey, TRight, TCursorRight>
+        {
+            var zip = new Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>(series.GetEnumerator(), other.GetEnumerator());
+            return zip.Map((k, t) => selector(k, t.Item1, t.Item2)).Source;
+        }
+
+        public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
+            this Series<TKey, TLeft, TCursorLeft> series, Series<TKey, TRight, TCursorRight> other, Func<TLeft, TRight, TResult> selector)
+            where TCursorLeft : ICursorSeries<TKey, TLeft, TCursorLeft>
+            where TCursorRight : ICursorSeries<TKey, TRight, TCursorRight>
+        {
+            var zip = new Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>(series.GetEnumerator(), other.GetEnumerator());
+            return zip.Map((k, t) => selector(t.Item1, t.Item2)).Source;
+        }
+
+        public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
+            this (Series<TKey, TLeft, TCursorLeft> left, Series<TKey, TRight, TCursorRight> right) tuple, Func<TKey, TLeft, TRight, TResult> selector)
+            where TCursorLeft : ICursorSeries<TKey, TLeft, TCursorLeft>
+            where TCursorRight : ICursorSeries<TKey, TRight, TCursorRight>
+        {
+            var zip = new Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>(tuple.left.GetEnumerator(), tuple.right.GetEnumerator());
+            return zip.Map((k, t) => selector(k, t.Item1, t.Item2)).Source;
+        }
+
+        public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
+            this (Series<TKey, TLeft, TCursorLeft> left, Series<TKey, TRight, TCursorRight> right) tuple, Func<TLeft, TRight, TResult> selector)
+            where TCursorLeft : ICursorSeries<TKey, TLeft, TCursorLeft>
+            where TCursorRight : ICursorSeries<TKey, TRight, TCursorRight>
+        {
+            var zip = new Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>(tuple.left.GetEnumerator(), tuple.right.GetEnumerator());
+            return zip.Map((k, t) => selector(t.Item1, t.Item2)).Source;
+        }
+
+        #endregion Generic CursorSeries
     }
 }
