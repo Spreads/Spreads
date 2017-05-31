@@ -753,9 +753,29 @@ namespace Spreads.Core.Tests.Cursors
                 sm3.Add(i, 3 * i);
             }
 
-            var sumSeries = new[] { sm1, sm2, sm3 }.Zip((k, varr) => varr.Sum(), true);
+            var sumSeries = new[] { sm1, sm2, sm3 }.Zip((k, varr) =>
+            {
+                var s = 0.0;
+                for (int i = 0; i < varr.Length; i++)
+                {
+                    s += varr[i];
+                }
+                return s;
+                //return varr.Sum(); // this allocates
+            }, true);
 
             var count = sm1.Count;
+
+            var sumSeries2 = new[] { sm1, sm2, sm3 }.ZipOld((k, varr) =>
+            {
+                var s = 0.0;
+                for (int i = 0; i < varr.Length; i++)
+                {
+                    s += varr[i];
+                }
+                return s;
+                //return varr.Sum(); // this allocates
+            });
 
             for (int i = 0; i < 20; i++)
             {
@@ -771,7 +791,6 @@ namespace Spreads.Core.Tests.Cursors
 
                 Assert.AreEqual(expected, actual);
 
-                var sumSeries2 = new[] { sm1, sm2, sm3 }.ZipOld((k, arr) => arr.Sum());
 
                 actual = 0.0;
                 using (Benchmark.Run("ZipN old", count * 3))

@@ -172,6 +172,7 @@ namespace Spreads
                 series[0].Map((k, v) =>
                     {
                         var arr = reuseArray ? reusedArray : new TValue[series.Length];
+                        // ReSharper disable once PossibleNullReferenceException
                         arr[0] = v;
                         return arr;
                     });
@@ -183,6 +184,7 @@ namespace Spreads
                 .Map((k, t) =>
                 {
                     var arr = reuseArray ? reusedArray : new TValue[series.Length];
+                    // ReSharper disable once PossibleNullReferenceException
                     arr[0] = t.Item1;
                     arr[1] = t.Item2;
                     return arr;
