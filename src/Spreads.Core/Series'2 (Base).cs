@@ -952,10 +952,19 @@ namespace Spreads
         private TaskCompletionSource<bool> _tcs;
         private TaskCompletionSource<bool> _unusedTcs;
 
+        internal abstract TCursor GetContainerCursor();
+
+        TCursor ISpecializedSeries<TKey, TValue, TCursor>.GetCursor()
+        {
+            return GetContainerCursor();
+        }
+
         public override TValue GetAt(int idx)
         {
             return this.Skip(Math.Max(0, idx - 1)).First().Value;
         }
+
+        #region Synchronization
 
         public object SyncRoot
         {
@@ -1049,13 +1058,6 @@ namespace Spreads
             tcs?.SetResult(result);
         }
 
-        internal abstract TCursor GetContainerCursor();
-
-        TCursor ISpecializedSeries<TKey, TValue, TCursor>.GetCursor()
-        {
-            return GetContainerCursor();
-        }
-
         /// <summary>
         /// A Task that is completed with True whenever underlying data is changed.
         /// Internally used for signaling to async cursors.
@@ -1083,6 +1085,8 @@ namespace Spreads
                 return tcs.Task;
             }
         }
+
+        #endregion Synchronization
 
         #region Unary Operators
 
@@ -1382,6 +1386,5 @@ namespace Spreads
         }
 
         #endregion Implicit cast
-
     }
 }

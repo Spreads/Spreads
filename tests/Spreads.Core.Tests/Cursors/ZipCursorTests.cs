@@ -58,16 +58,16 @@ namespace Spreads.Core.Tests.Cursors
             //}
             //Assert.AreEqual(expected, actual);
 
-            //var zipN = new[] { sm1, sm2 }.Zip((k, varr) => varr[0] + varr[1]).GetCursor();
-            //actual = 0;
-            //using (Benchmark.Run("ZipN (old)", count * 2))
-            //{
-            //    while (zipN.MoveNext())
-            //    {
-            //        actual += zipN.CurrentValue;
-            //    }
-            //}
-            //Assert.AreEqual(expected, actual);
+            var zipN = new[] { sm1, sm2 }.Zip((k, varr) => varr[0] + varr[1]).GetCursor();
+            actual = 0;
+            using (Benchmark.Run("ZipN (old)", count * 2))
+            {
+                while (zipN.MoveNext())
+                {
+                    actual += zipN.CurrentValue;
+                }
+            }
+            Assert.AreEqual(expected, actual);
 
             //zipCursor.Reset();
             //actual = 0;
@@ -80,26 +80,26 @@ namespace Spreads.Core.Tests.Cursors
             //}
             //Assert.AreEqual(expected, actual);
 
-            //actual = 0;
-            //using (Benchmark.Run("LINQ", count * 2))
-            //{
-            //    var linq = sm1.Zip(sm2, (l, r) => l.Value + r.Value);
-            //    foreach (var d in linq)
-            //    {
-            //        actual += d;
-            //    }
-            //}
-            //Assert.AreEqual(expected, actual);
+            actual = 0;
+            using (Benchmark.Run("LINQ", count * 2))
+            {
+                var linq = sm1.Zip(sm2, (l, r) => l.Value + r.Value);
+                foreach (var d in linq)
+                {
+                    actual += d;
+                }
+            }
+            Assert.AreEqual(expected, actual);
 
-            //actual = 0;
-            //using (Benchmark.Run("Deedle", count * 2))
-            //{
-            //    foreach (var v in ds1.ZipInner(ds2).Values)
-            //    {
-            //        actual += v.Item1 + v.Item2;
-            //    }
-            //}
-            //Assert.AreEqual(expected, actual);
+            actual = 0;
+            using (Benchmark.Run("Deedle", count * 2))
+            {
+                foreach (var v in ds1.ZipInner(ds2).Values)
+                {
+                    actual += v.Item1 + v.Item2;
+                }
+            }
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -134,7 +134,7 @@ namespace Spreads.Core.Tests.Cursors
             sm1.Add(0, 0);
             sm2.Add(0, 0);
 
-            for (int i = 2; i < 10000000; i++)
+            for (int i = 2; i < 1000000; i++)
             {
                 expected += i + 2 * i;
                 sm1.Add(i, i);
@@ -501,7 +501,7 @@ namespace Spreads.Core.Tests.Cursors
 
             using (Benchmark.Run("ZipN join", sm1.Count + sm2.Count))
             {
-                ser = series.Zip((k, varr) => varr.Sum());
+                ser = series.ZipOld((k, varr) => varr.Sum());
                 sum = ser.ToSortedMap();
             }
             Assert.AreEqual(expectedMap.Count, sum.Count, "Expected size");
@@ -616,7 +616,7 @@ namespace Spreads.Core.Tests.Cursors
 
         public void ContinuousZipIsCorrectByRandomCheck(SortedMap<int, int> sm1, SortedMap<int, int> sm2, int seed)
         {
-            var series = new ISeries<int, int>[] { sm1.Repeat(), sm2.Repeat() };
+            var series = new ISeries<int, int>[] { sm1.Repeat(), sm2 };
 
             int[] expectedKeys;
             int[] expectedValues;
@@ -639,7 +639,7 @@ namespace Spreads.Core.Tests.Cursors
                     if (hasFirst)
                     {
                         val += temp.Value;
-                        var hasSecond = sm2.TryFind(allKeys[i], Lookup.LE, out temp);
+                        var hasSecond = sm2.TryFind(allKeys[i], Lookup.EQ, out temp);
                         if (hasSecond)
                         {
                             val += temp.Value;
@@ -657,7 +657,7 @@ namespace Spreads.Core.Tests.Cursors
 
             using (Benchmark.Run("Zip join", sm1.Count + sm2.Count))
             {
-                sum = sm1.Repeat().Zip(sm2.Repeat(), (v1, v2) => v1 + v2).ToSortedMap();
+                sum = sm1.Repeat().Zip(sm2, (v1, v2) => v1 + v2).ToSortedMap();
             }
             Assert.AreEqual(expectedMap.Count, sum.Count, "Expected size");
             foreach (var kvp in expectedMap)
@@ -667,7 +667,7 @@ namespace Spreads.Core.Tests.Cursors
 
             using (Benchmark.Run("ZipN join", sm1.Count + sm2.Count))
             {
-                ser = series.Zip((k, varr) => varr.Sum());
+                ser = series.ZipOld((k, varr) => varr.Sum());
                 sum = ser.ToSortedMap();
             }
             Assert.AreEqual(expectedMap.Count, sum.Count, "Expected size");
@@ -679,7 +679,7 @@ namespace Spreads.Core.Tests.Cursors
             var sum1 = new SortedMap<int, int>();
             using (Benchmark.Run("Zip Async join", sm1.Count + sm2.Count))
             {
-                var zip = sm1.Repeat().Zip(sm2.Repeat(), (v1, v2) => v1 + v2);
+                var zip = sm1.Repeat().Zip(sm2, (v1, v2) => v1 + v2);
                 var cur = zip.GetCursor();
                 var last = zip.Last.Key;
                 Task.Run(async () =>
@@ -730,6 +730,61 @@ namespace Spreads.Core.Tests.Cursors
             //{
             //    Assert.AreEqual(kvp.Value, sum2[kvp.Key]);
             //}
+        }
+
+        [Test, Ignore]
+        public void CouldAddSeriesArrayWithSameKeys()
+        {
+            var sm1 = new SortedMap<int, double>();
+            var sm2 = new SortedMap<int, double>();
+            var sm3 = new SortedMap<int, double>();
+
+            double expected = 0;
+
+            sm1.Add(0, 0);
+            sm2.Add(0, 0);
+            sm3.Add(0, 0);
+
+            for (int i = 2; i < 1000000; i++)
+            {
+                expected += i + 2 * i + 3 * i;
+                sm1.Add(i, i);
+                sm2.Add(i, 2 * i);
+                sm3.Add(i, 3 * i);
+            }
+
+            var sumSeries = new[] { sm1, sm2, sm3 }.Zip((k, varr) => varr.Sum(), true);
+
+            var count = sm1.Count;
+
+            for (int i = 0; i < 20; i++)
+            {
+                double actual = 0.0;
+
+                using (Benchmark.Run("ZipN new", count * 3))
+                {
+                    foreach (var kvp in sumSeries)
+                    {
+                        actual += kvp.Value;
+                    }
+                }
+
+                Assert.AreEqual(expected, actual);
+
+                var sumSeries2 = new[] { sm1, sm2, sm3 }.ZipOld((k, arr) => arr.Sum());
+
+                actual = 0.0;
+                using (Benchmark.Run("ZipN old", count * 3))
+                {
+                    foreach (var kvp in sumSeries2)
+                    {
+                        actual += kvp.Value;
+                    }
+                }
+                Assert.AreEqual(expected, actual);
+            }
+
+            Benchmark.Dump();
         }
     }
 }

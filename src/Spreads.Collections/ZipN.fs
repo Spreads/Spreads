@@ -19,7 +19,7 @@ open Spreads.Collections
 
 [<AllowNullLiteral>]
 [<Obsolete("Use Series'3 struct")>]
-type CursorSeries<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
+type internal CursorSeries<'K,'V>(cursorFactory:Func<ICursor<'K,'V>>) =
     inherit Series<'K,'V>()
 
     let mutable cursor : ICursor<'K,'V> = Unchecked.defaultof<_>
@@ -502,7 +502,7 @@ type private UnionKeysCursor<'K,'V>([<ParamArray>] cursors:ICursor<'K,'V>[]) =
 
 and
   // TODO use Span<'V> instead of 'V[]
-  ZipNCursor<'K,'V,'R>(resultSelector:Func<'K,'V[],'R>, [<ParamArray>] cursorFactories:(unit->ICursor<'K,'V>)[]) as this =
+  internal ZipNCursor<'K,'V,'R>(resultSelector:Func<'K,'V[],'R>, [<ParamArray>] cursorFactories:(unit->ICursor<'K,'V>)[]) as this =
     do
       if cursorFactories.Length < 2 then invalidArg "cursorFactories" "ZipN takes at least two cursor factories"
     let cursorsFactory() = cursorFactories |> Array.map (fun x -> x())

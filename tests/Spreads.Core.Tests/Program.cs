@@ -21,11 +21,10 @@ namespace Spreads.Core.Tests
 
             //Benchmark.ForceSilence = true;
 
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < 20; i++)
             {
                 //new ArithmeticTests().CouldUseStructSeries();
-                new ZipCursorTests().DiscreteZipIsCorrectByRandomCheckBenchmark();
-                new ZipCursorTests().ContinuousZipIsCorrectByRandomCheckBenchmark();
+                new ZipCursorTests().CouldAddSeriesArrayWithSameKeys();
             }
 
             Console.WriteLine("Press enter to exit...");
