@@ -3,16 +3,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
-using Spreads.Buffers;
+using Spreads.Blosc;
 using Spreads.Collections;
 using Spreads.Serialization;
 using System;
+using System.Buffers;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using Spreads.Blosc;
-using System.Buffers;
-using System.Data.SqlTypes;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -98,7 +96,6 @@ namespace Spreads.Core.Tests.Serialization
             var len2 = BinarySerializer.Read(bytes, out decimals2);
             Assert.IsTrue(decimals.SequenceEqual(decimals2));
             Assert.AreEqual(len, len2);
-            
         }
 
         [Test]
@@ -159,7 +156,6 @@ namespace Spreads.Core.Tests.Serialization
             var len2 = BinarySerializer.Read(bytes, out arr2);
             Assert.IsTrue(arr.SequenceEqual(arr2), "Items are not equal");
             Assert.AreEqual(len, len2);
-            
         }
 
         [Test]

@@ -5,7 +5,6 @@
 using System;
 using System.Buffers;
 using System.IO;
-using Spreads.Buffers;
 
 namespace Spreads.Serialization
 {
@@ -20,7 +19,6 @@ namespace Spreads.Serialization
         /// Wraps a rented buffer and returns it to the shared pool on Dispose
         /// </summary>
         /// <param name="rentedBuffer">A buffer that was previously rented from the shared BufferPool</param>
-        /// <param name="offset"></param>
         /// <param name="count"></param>
         public RentedBufferStream(OwnedBuffer<byte> rentedBuffer, int count) : base(GetSegment(rentedBuffer).Array, 0, count)
         {

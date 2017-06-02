@@ -3,12 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Buffers;
-using System.Buffers;
-using System.Diagnostics;
 
 #pragma warning disable 618
 
@@ -20,7 +18,7 @@ namespace Spreads.Serialization
         ///
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int WriteAsPtr<T>(this MemoryStream stream, T value)
+        public static int WriteAsPtr<T>(this MemoryStream stream, T value)
         {
             var size = TypeHelper<T>.Size;
             if (size <= 0) throw new InvalidOperationException("This method should only be used for writing fixed-size types to a stream");

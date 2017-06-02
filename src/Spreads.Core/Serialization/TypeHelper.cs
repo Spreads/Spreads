@@ -2,20 +2,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Buffers;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Utils;
 
 namespace Spreads.Serialization
 {
-
     internal delegate int FromPtrDelegate(IntPtr ptr, out object value);
 
     internal delegate int ToPtrDelegate(object value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone);
@@ -42,6 +40,7 @@ namespace Spreads.Serialization
 
     internal class TypeHelper
     {
+        [UsedImplicitly]
         private static int ReadObject<T>(IntPtr ptr, out object value)
         {
             var len = TypeHelper<T>.Read(ptr, out var temp);
@@ -49,18 +48,21 @@ namespace Spreads.Serialization
             return len;
         }
 
+        [UsedImplicitly]
         private static int WriteObject<T>(object value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             var temp = value == null ? default(T) : (T)value;
             return TypeHelper<T>.Write(temp, ref destination, offset, ms, compression);
         }
 
+        [UsedImplicitly]
         private static int SizeOfObject<T>(object value, out MemoryStream memoryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             var temp = value == null ? default(T) : (T)value;
             return TypeHelper<T>.SizeOf(temp, out memoryStream, compression);
         }
 
+        [UsedImplicitly]
         private static int Size<T>()
         {
             return TypeHelper<T>.Size;
@@ -140,14 +142,23 @@ namespace Spreads.Serialization
         // ReSharper disable StaticMemberInGenericType
         private static bool _hasBinaryConverter;
 
+        public static bool HasBinaryConverter
+        {
+            get
+            {
+                Debug.Assert(_hasBinaryConverter ? Size == 0 : Size != 0);
+                return _hasBinaryConverter;
+            }
+        }
+
         /// <summary>
-        /// Returns a positive size of a blittable type T, -1 if the type T is not blittable and has
+        /// Returns a positive size of a pinnable type T, -1 if the type T is not pinnable and has
         /// no registered converter, 0 if there is a registered converter for variable-length type.
-        /// We assume the type T is blittable if `GCHandle.Alloc(T[2], GCHandleType.Pinned) = true`.
+        /// We assume the type T is pinnable if `GCHandle.Alloc(T[2], GCHandleType.Pinned) = true`.
         /// This is more relaxed than Marshal.SizeOf, but still doesn't cover cases such as
         /// an array of KVP[DateTime,double], which has contiguous layout in memory.
         /// </summary>
-        public static readonly int Size = InitChecked();
+        public static int Size = InitChecked();
 
         /// <summary>
         /// True if an array T[] could be pinned in memory.
@@ -243,9 +254,23 @@ namespace Spreads.Serialization
                 {
                     if (pinnedSize != sa.BlittableSize)
                     {
-                        Environment.FailFast($"Size of type {typeof(T).Name} defined in SerializationAttribute {sa.BlittableSize} differs from calculated size {pinnedSize}.");
+                        Environment.FailFast(
+                            $"Size of type {typeof(T).Name} defined in SerializationAttribute {sa.BlittableSize} differs from calculated size {pinnedSize}.");
                     }
                     hasSizeAttribute = true;
+                }
+                else
+                {
+                    var sla = SerializationAttribute.GetStructLayoutAttribute(typeof(T));
+                    if (sla != null && sla.Size > 0)
+                    {
+                        if (pinnedSize != sla.Size || sla.Value == LayoutKind.Auto)
+                        {
+                            Environment.FailFast(
+                                $"Size of type {typeof(T).Name} defined in StructLayoutAttribute {sla.Size} differs from calculated size {pinnedSize} or layout is set to LayoutKind.Auto.");
+                        }
+                        hasSizeAttribute = true;
+                    }
                 }
                 if (hasSizeAttribute)
                 {
@@ -340,47 +365,51 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Read(IntPtr ptr, out T value)
         {
+            if (IsPinnable || typeof(T) == typeof(DateTime))
+            {
+                Debug.Assert(Size > 0);
+                value = Unsafe.ReadUnaligned<T>((void*)ptr);
+                return Size;
+            }
             if (_hasBinaryConverter)
             {
                 Debug.Assert(Size == 0);
                 return _converterInstance.Read(ptr, out value);
             }
-            if (Size < 0)
-            {
-                throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
-            }
-            Debug.Assert(Size > 0);
-            //Debug.Assert(ptr.ToInt64() % Size == 0, "Unaligned unsafe read");
-            value = Unsafe.Read<T>((void*)ptr);
-            return Size;
+            Debug.Assert(Size < 0);
+            ThrowHelper.ThrowInvalidOperationException("TypeHelper<T> doesn't support variable-size types");
+            value = default(T);
+            return -1;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write(T value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
+            if (IsPinnable || typeof(T) == typeof(DateTime))
+            {
+                Debug.Assert(Size > 0);
+                if (destination.Length < offset + Size)
+                {
+                    return (int)BinaryConverterErrorCode.NotEnoughCapacity;
+                }
+                var handle = destination.Pin();
+
+                var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
+
+                Unsafe.WriteUnaligned((void*)ptr, value);
+
+                handle.Free();
+
+                return Size;
+            }
             if (_hasBinaryConverter)
             {
                 Debug.Assert(Size == 0);
                 return _converterInstance.Write(value, ref destination, offset, ms, compression);
             }
-            if (Size < 0)
-            {
-                throw new InvalidOperationException("TypeHelper<T> doesn't support variable-size types");
-            }
-            Debug.Assert(Size > 0);
-            if (destination.Length < offset + Size)
-            {
-                return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-            }
-            var handle = destination.Pin();
-
-            var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
-
-            Unsafe.Write<T>((void*)ptr, value);
-
-            handle.Free();
-
-            return Size;
+            Debug.Assert(Size < 0);
+            ThrowHelper.ThrowInvalidOperationException("TypeHelper<T> doesn't support variable-size types");
+            return -1;
         }
 
         /// <summary>
@@ -388,22 +417,25 @@ namespace Spreads.Serialization
         /// </summary>
         /// <param name="value"></param>
         /// <param name="memoryStream"></param>
+        /// <param name="compression"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int SizeOf(T value, out MemoryStream memoryStream, CompressionMethod compression)
-        { //= CompressionMethod.DefaultOrNone
+        {
+            memoryStream = null;
+            if (IsPinnable || typeof(T) == typeof(DateTime))
+            {
+                return Size;
+            }
             if (_hasBinaryConverter)
             {
                 Debug.Assert(Size == 0);
                 return _converterInstance.SizeOf(value, out memoryStream, compression);
             }
-            memoryStream = null;
-            if (Size < 0)
-            {
-                return -1;
-            }
-            Debug.Assert(Size > 0);
-            return Size;
+
+            Debug.Assert(Size < 0);
+
+            return -1;
         }
 
         public static byte Version => _hasBinaryConverter ? _converterInstance.Version : (byte)0;
@@ -411,7 +443,7 @@ namespace Spreads.Serialization
         internal static void RegisterConverter(IBinaryConverter<T> converter, bool overrideExisting = false)
         {
             if (converter == null) throw new ArgumentNullException(nameof(converter));
-            if (Size > 0) throw new InvalidOperationException("Cannot register a custom converter for fixed-size types");
+            if (Size > 0) throw new InvalidOperationException("Cannot register a custom converter for pinnable types");
 
             // NB TypeHelper is internal, we could provide some hooks later e.g. for char or bool
             if (converter.Version == 0)
@@ -428,24 +460,8 @@ namespace Spreads.Serialization
                 Environment.FailFast($"Blittable types must not have IBinaryConverter<T>.");
             }
             _hasBinaryConverter = true;
+            Size = 0;
             _converterInstance = converter;
-        }
-
-        public static T ConvertFrom<TSource>(TSource s)
-        {
-            return ConverterCache<TSource>.Converter(s);
-        }
-
-        private static class ConverterCache<TSource>
-        {
-            internal static readonly Func<TSource, T> Converter = Get();
-
-            private static Func<TSource, T> Get()
-            {
-                var p = Expression.Parameter(typeof(TSource));
-                var c = Expression.ConvertChecked(p, typeof(T));
-                return Expression.Lambda<Func<TSource, T>>(c, p).Compile();
-            }
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
 using System.Runtime.InteropServices;
 
 namespace Spreads.Serialization
@@ -11,6 +11,7 @@ namespace Spreads.Serialization
     /// Floating-point values could loose precision.
     /// </summary>
     /// <typeparam name="T"></typeparam>
+    [Obsolete("TODO Use IDelta interface from Spreads.Unsafe")]
     public interface IDiffable<T>
     {
         /// <summary>

@@ -52,12 +52,12 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static int Write<T>(T value, ref Buffer<byte> destination, uint offset = 0u,
+        public static unsafe int Write<T>(T value, ref Buffer<byte> destination, uint offset = 0u,
             MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
-            var size = TypeHelper<T>.Size;
-            if (size > 0)
+            if (TypeHelper<T>.IsPinnable)
             {
+                var size = TypeHelper<T>.Size;
                 Debug.Assert(temporaryStream == null, "For primitive types MemoryStream should not be populated");
                 if (destination.Length < offset + size) throw new ArgumentException("Value size is too big for destination");
                 // TODO this simple thing could be probably done without pinning
@@ -65,7 +65,7 @@ namespace Spreads.Serialization
 
                 var ptr = (void*)((IntPtr)handle.PinnedPointer + (int)offset);
 
-                Unsafe.Write<T>(ptr, value);
+                Unsafe.Write(ptr, value);
 
                 handle.Free();
 
@@ -141,14 +141,14 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Write<T>(T value, byte[] destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public static int Write<T>(T value, byte[] destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             var buffer = (Buffer<byte>)destination;
             return Write(value, ref buffer, offset, temporaryStream);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static int Write<T>(T value, ref PreservedBuffer<byte> destination, uint offset = 0u,
+        public static int Write<T>(T value, ref PreservedBuffer<byte> destination, uint offset = 0u,
             MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             var buffer = destination.Buffer;
@@ -158,26 +158,35 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(IntPtr ptr, out T value)
         {
-            var size = TypeHelper<T>.Size;
-            if (size >= 0)
+            if (TypeHelper<T>.IsPinnable || typeof(T) == typeof(DateTime))
+            {
+                // NB this case is JIT-time constant
+                return TypeHelper<T>.Read(ptr, out value);
+            }
+            if (TypeHelper<T>.HasBinaryConverter)
             {
                 return TypeHelper<T>.Read(ptr, out value);
             }
-            size = *(int*)ptr;
+
+            var size = *(int*)ptr;
             var versionFlags = *(byte*)(ptr + 4);
             var version = versionFlags >> 4;
             var isCompressed = (versionFlags & 0b0000_0001) != 0;
-            if (version != 0) throw new NotImplementedException("Only version 0 is supported for unknown types that are serialized as JSON");
+            if (version != 0)
+            {
+                ThrowHelper.ThrowNotImplementedException("Only version 0 is supported for unknown types that are serialized as JSON");
+                value = default(T);
+                return -1;
+            }
             if (!isCompressed)
             {
                 var stream = new UnmanagedMemoryStream((byte*)(ptr + 8), size);
                 value = Json.Deserialize<T>(stream);
                 return size;
             }
-            else
-            {
-                throw new NotImplementedException("TODO Json compression");
-            }
+            ThrowHelper.ThrowNotImplementedException("TODO Json compression");
+            value = default(T);
+            return -1;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -216,7 +225,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Read<T>(byte[] buffer, out T value)
         {
-            return Read<T>(buffer, 0, out value);
+            return Read(buffer, 0, out value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -228,7 +237,7 @@ namespace Spreads.Serialization
                 var ptr = (IntPtr)handle.PinnedPointer + offset;
                 var len = *(int*)ptr;
                 if ((uint)offset + len > buffer.Length) throw new ArgumentException("Buffer is too small");
-                return Read<T>(ptr, out value);
+                return Read(ptr, out value);
             }
             finally
             {
@@ -239,7 +248,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Read<T>(Buffer<byte> buffer, out T value)
         {
-            return Read<T>(buffer, 0, out value);
+            return Read(buffer, 0, out value);
         }
 
         public static JsonSerializer Json => JsonSerializer.Instance;
@@ -292,7 +301,7 @@ namespace Spreads.Serialization
             internal MemoryStream SerializeWithHeader<T>(T value, CompressionMethod compression)
             {
                 RecyclableMemoryStream ms = (RecyclableMemoryStream)RecyclableMemoryStreamManager.Default.GetStream("JSON.SerializeWithHeader", 4096, true);
-                ms.WriteAsPtr<long>(0L);
+                ms.WriteAsPtr(0L);
                 using (var writer = new StreamWriter(ms, Encoding.UTF8, 4096, true))
                 using (var jsonwriter = new JsonTextWriter(writer))
                 {
@@ -303,7 +312,7 @@ namespace Spreads.Serialization
                 if (compression == CompressionMethod.DefaultOrNone)
                 {
                     ms.Position = 0;
-                    ms.WriteAsPtr<int>(checked((int)ms.Length));
+                    ms.WriteAsPtr(checked((int)ms.Length));
                     ms.Position = 0;
                     return ms;
                 }

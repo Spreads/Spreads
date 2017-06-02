@@ -2,21 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using NUnit.Framework;
+using Spreads.Serialization;
 using System;
-using System.Collections;
+using System.Buffers;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using NUnit.Framework;
 using System.Runtime.InteropServices;
-using System.Threading;
-using Spreads.Buffers;
-using Spreads.Serialization;
-using System.Runtime.CompilerServices;
-using Spreads.Utils;
-using System.Buffers;
 
 namespace Spreads.Core.Tests
 {
@@ -225,14 +218,14 @@ namespace Spreads.Core.Tests
 
             TypeHelper<int>.Write(12345, ref buffer);
 
-            object res = null;
+            object res;
             fromPtrInt(ptr, out res);
             Assert.AreEqual((int)res, 12345);
 
             var toPtrInt = TypeHelper.GetToPtrDelegate(typeof(int));
             toPtrInt(42, ref buffer);
 
-            int temp = 0;
+            int temp;
             TypeHelper<int>.Read(ptr, out temp);
             Assert.AreEqual(42, temp);
 
@@ -267,20 +260,6 @@ namespace Spreads.Core.Tests
 
             // this will cause Environment.FailFast
             //Assert.AreEqual(4, TypeHelper<BlittableStructWrong>.Size);
-        }
-
-        [Test]
-        public void ConversionTests()
-        {
-            // This are not unsafe but smart casting using cached Expressions
-            var dbl = Convert.ToDouble((object)"123.0");
-            Assert.AreEqual(123.0, dbl);
-            dbl = TypeHelper<double>.ConvertFrom(new int?(123));
-            Assert.AreEqual(123.0, dbl);
-            dbl = TypeHelper<double>.ConvertFrom((object)(123));
-            //Assert.AreEqual(123.0, dbl);
-            // Note that the line below fails
-            // dbl = (double) (object) (123);
         }
     }
 }

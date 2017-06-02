@@ -3,20 +3,20 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.IO;
-using Spreads.Buffers;
 using System.Buffers;
+using System.IO;
 
 namespace Spreads.Serialization
 {
-    public enum BinaryConverterErrorCode : int
+    public enum BinaryConverterErrorCode
     {
         NotEnoughCapacity = -1
     }
 
     /// <summary>
     /// Convert a generic object T to a pointer prefixed with version and length.
-    ///
+    /// </summary>
+    /// <remarks>
     /// 0                   1                   2                   3
     /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -26,9 +26,9 @@ namespace Spreads.Serialization
     /// +---------------------------------------------------------------+
     /// |                     Serialized Payload                      ...
     /// C - compressed
-    /// D - diffed (if a type implements IDiffable<T>)
+    /// D - diffed (if a type implements <see cref="IDiffable{T}"/>)
     /// R - reserved
-    /// </summary>
+    /// </remarks>
     public interface IBinaryConverter<T>
     {
         /// <summary>
@@ -67,7 +67,6 @@ namespace Spreads.Serialization
         /// <param name="offset">Buffer offset.</param>
         /// <param name="temporaryStream">A stream that was returned by SizeOf method. If it is not null then its content is written to the buffer.</param>
         /// <param name="compression">Compression method.</param>
-        /// <exception cref=""></exception>
         /// <returns>Returns the number of bytes written to the destination buffer or a negative error code that corresponds to <see cref="BinaryConverterErrorCode"/>.</returns>
         int Write(T value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone);
 

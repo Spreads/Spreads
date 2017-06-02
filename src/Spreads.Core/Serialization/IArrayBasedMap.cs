@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Buffers;
-using Spreads.Serialization;
 using System;
 using System.Buffers;
 using System.Diagnostics;

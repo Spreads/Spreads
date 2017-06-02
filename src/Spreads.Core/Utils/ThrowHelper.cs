@@ -66,6 +66,12 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void ThrowNotImplementedException(string message)
+        {
+            throw GetNotImplementedException(message);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotSupportedException()
         {
             throw GetNotSupportedException();
@@ -131,6 +137,12 @@ namespace Spreads
         private static NotImplementedException GetNotImplementedException()
         {
             return new NotImplementedException();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static NotImplementedException GetNotImplementedException(string message)
+        {
+            return new NotImplementedException(message);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

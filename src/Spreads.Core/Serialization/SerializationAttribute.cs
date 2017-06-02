@@ -20,7 +20,7 @@ namespace Spreads.Serialization
 
         internal static StructLayoutAttribute GetStructLayoutAttribute(Type type)
         {
-            return type.GetTypeInfo().GetCustomAttributes<StructLayoutAttribute>(true).FirstOrDefault();
+            return type.GetTypeInfo().StructLayoutAttribute;
         }
 
         /// <summary>
@@ -32,9 +32,11 @@ namespace Spreads.Serialization
 
         /// <summary>
         /// When this property is positive, the type must be blittable with the specified size,
-        /// otherwise Environment.FailFast method is called and application is terminated.
-        /// StructLayout.Size has the same behavior.
+        /// otherwise Environment.FailFast method is called and the application is terminated.
         /// </summary>
+        /// <remarks>
+        /// StructLayout.Size has the same behavior.
+        /// </remarks>
         public int BlittableSize { get; set; }
     }
 }

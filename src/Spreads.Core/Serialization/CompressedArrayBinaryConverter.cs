@@ -24,14 +24,14 @@ namespace Spreads.Serialization
         int Size { get; }
         byte Version { get; }
 
-        unsafe int SizeOf(TArray value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
+        int SizeOf(TArray value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
             CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
-        unsafe int Write(TArray value, int valueOffset, int valueCount, ref Buffer<byte> destination,
+        int Write(TArray value, int valueOffset, int valueCount, ref Buffer<byte> destination,
             uint destinationOffset = 0u, MemoryStream temporaryStream = null,
             CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
-        unsafe int Read(IntPtr ptr, out TArray array, out int count, bool exactSize = false);
+        int Read(IntPtr ptr, out TArray array, out int count, bool exactSize = false);
     }
 
     /// <summary>
@@ -56,7 +56,7 @@ namespace Spreads.Serialization
 #pragma warning restore 618
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int SizeOf(TElement[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
+        public int SizeOf(TElement[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
             CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (ItemSize > 0)
@@ -161,8 +161,8 @@ namespace Spreads.Serialization
                         else if (value[0] is IDiffable<TElement> diffableFirst)
                         {
                             isDiffable = true;
-                            // TODO (!) this is probably inefficient... some generic method caching or dynamic dispatch?
-                            // however there is only a single pattern match with IDiffable boxing
+                            // TODO (!) this is inefficient because of interface calls, should use Spreads.Unsafe
+                            // however, there is only a single pattern match with IDiffable boxing so allocations are not an issue here
                             var first = value[0];
                             var buffer = BufferPool<byte>.Rent(valueCount * ItemSize);
 
@@ -337,7 +337,6 @@ namespace Spreads.Serialization
                     else if (isDiffable && typeof(IDiffable<TElement>).GetTypeInfo().IsAssignableFrom(typeof(TElement).GetTypeInfo()))
                     {
                         var buffer = BufferPool<byte>.Rent(arraySize * ItemSize);
-                        // TODO Pool these as well. Pool implementation could decide to use just new
                         var targetArray = BufferPool<TElement>.Rent(arraySize);
 
                         fixed (byte* tgtPtr = &buffer[0])
@@ -365,13 +364,12 @@ namespace Spreads.Serialization
                     {
                         var pinnedArray = GCHandle.Alloc(value, GCHandleType.Pinned);
                         var destination = pinnedArray.AddrOfPinnedObject();
-                        int decompSize = 0;
 
-                        // TODO remove this try/catch and debugger stuff, it was used tp catch an eror that disappeared after adding
+                        // TODO remove this try/catch and debugger stuff, it was used to catch an eror that disappeared after adding
                         // try/catch. Probably some reordering, maybe add a memory barrier before the call
                         try
                         {
-                            decompSize = BloscMethods.blosc_decompress_ctx(
+                            var decompSize = BloscMethods.blosc_decompress_ctx(
                                 source, destination, new UIntPtr((uint)nbytes), BloscMethods.ProcessorCount);
                             if (decompSize <= 0) throw new ArgumentException("Invalid compressed input");
                             Debug.Assert(decompSize == nbytes);
@@ -385,7 +383,7 @@ namespace Spreads.Serialization
 
                             BloscMethods.blosc_cbuffer_sizes(source, ref nb, ref cb, ref bl);
                             //}
-                            Trace.WriteLine($"Blosc error: nbytes: {nbytes}, nbytes2: {nb}, cbytes: {cb} arr size: {value.Length}, \n\r exeption: {ex.Message + Environment.NewLine + ex.ToString()}");
+                            Trace.WriteLine($"Blosc error: nbytes: {nbytes}, nbytes2: {nb}, cbytes: {cb} arr size: {value.Length}, \n\r exeption: {ex.Message + Environment.NewLine + ex}");
                             throw;
                         }
                         finally

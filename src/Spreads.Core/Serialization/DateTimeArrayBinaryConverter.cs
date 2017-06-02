@@ -87,7 +87,7 @@ namespace Spreads.Serialization
             }
             else
             {
-                var len = CompressedArrayBinaryConverter<DateTime>.Instance.Read(ptr, out var tmp, out int count, true);
+                var len = CompressedArrayBinaryConverter<DateTime>.Instance.Read(ptr, out var tmp, out int _, true);
                 value = tmp;
                 return len;
             }

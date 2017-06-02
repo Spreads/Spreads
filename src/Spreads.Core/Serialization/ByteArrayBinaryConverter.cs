@@ -72,12 +72,10 @@ namespace Spreads.Serialization
                 value = bytes;
                 return totalSize;
             }
-            else
-            {
-                var len = CompressedArrayBinaryConverter<byte>.Instance.Read(ptr, out var tmp, out int count, true);
-                value = tmp;
-                return len;
-            }
+
+            var len = CompressedArrayBinaryConverter<byte>.Instance.Read(ptr, out var tmp, out int _, true);
+            value = tmp;
+            return len;
         }
 
         public byte Version => 0;

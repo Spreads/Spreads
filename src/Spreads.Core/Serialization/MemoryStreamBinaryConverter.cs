@@ -3,10 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Buffers;
 using System.IO;
 using System.Runtime.InteropServices;
-using Spreads.Buffers;
-using System.Buffers;
 
 namespace Spreads.Serialization
 {
