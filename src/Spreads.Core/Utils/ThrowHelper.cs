@@ -83,6 +83,17 @@ namespace Spreads
             throw GetOutOfOrderKeyException(key);
         }
 
+
+        public static void ThrowArgumentNullException(string argument)
+        {
+            throw new ArgumentNullException(argument);
+        }
+
+        public static void ThrowObjectDisposedException(string objectName)
+        {
+            throw GetObjectDisposedException(objectName);
+        }
+
         /////////////////////////////////////////////////////////////////////////////
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -155,6 +166,12 @@ namespace Spreads
         private static OutOfOrderKeyException<TKey> GetOutOfOrderKeyException<TKey>(TKey key)
         {
             return new OutOfOrderKeyException<TKey>(key);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static ObjectDisposedException GetObjectDisposedException(string objectName)
+        {
+            return new ObjectDisposedException(objectName);
         }
 
         private static string GetArgumentName(ExceptionArgument argument)

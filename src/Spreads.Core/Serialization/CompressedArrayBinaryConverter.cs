@@ -63,7 +63,7 @@ namespace Spreads.Serialization
             {
                 var maxSize = 8 + (16 + BloscMethods.ProcessorCount * 4) + ItemSize * valueCount;
                 var ownedBuffer = BufferPool<byte>.RentOwnedBuffer(maxSize);
-                ownedBuffer.AddReference();
+                ownedBuffer.Retain();
                 var buffer = ownedBuffer.Buffer;
 
                 var totalSize = Write(value, valueOffset, valueCount, ref buffer, 0, null, compression);
@@ -248,7 +248,7 @@ namespace Spreads.Serialization
             }
             finally
             {
-                handle.Free();
+                handle.Dispose();
             }
         }
 

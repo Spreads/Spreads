@@ -91,7 +91,7 @@ namespace Spreads.Serialization
                     }
                     finally
                     {
-                        handle.Free();
+                        handle.Dispose();
                     }
                 }
                 else

@@ -104,7 +104,7 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Find {caseName}: \t\t {500 * indices.Length * 0.001 / sw.ElapsedMilliseconds} Mops");
         }
 
-        [Test]
+        [Test, Ignore]
         public void OffsetTests()
         {
             var array = Enumerable.Range(0, 32 * 1024).ToArray();

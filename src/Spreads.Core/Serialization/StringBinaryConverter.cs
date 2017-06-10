@@ -55,7 +55,7 @@ namespace Spreads.Serialization
                         var len = Encoding.UTF8.GetBytes(charPtr, value.Length, (byte*)ptr + 8, totalLength);
                         Debug.Assert(totalLength == len + 8);
 
-                        handle.Free();
+                        handle.Dispose();
 
                         return len + 8;
                     }
@@ -99,8 +99,15 @@ namespace Spreads.Serialization
             }
             finally
             {
-                handle.Free();
-                ownedBuffer.Dispose();
+                handle.Dispose();
+                if (ownedBuffer != Buffers.BufferPool.StaticBuffer)
+                {
+                    Debug.Assert(ownedBuffer.IsDisposed);
+                }
+                else
+                {
+                    Debug.Assert(!ownedBuffer.IsDisposed);
+                }
             }
         }
 

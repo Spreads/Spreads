@@ -74,7 +74,7 @@ Target "NuGet" (fun _ ->
             Project = packageName
             Summary = packageName // "TODO"
             Description = packageName // "TODO"
-            Version = "0.8.1"
+            Version = "0.9.0"
             ReleaseNotes = ""
             Tags = tags
             OutputPath = "C:/tools/LocalNuget/"
@@ -83,22 +83,22 @@ Target "NuGet" (fun _ ->
             Dependencies = [  ]
                })
         ("nuget/" + packageName + ".nuspec")
-    let packageName = project + "." + "Unsafe"
-    NuGet (fun p ->
-        { p with
-            Authors = authors
-            Project = packageName
-            Summary = packageName // "TODO"
-            Description = packageName // "TODO"
-            Version = "0.8.5"
-            ReleaseNotes = ""
-            Tags = tags
-            OutputPath = "C:/tools/LocalNuget/"
-            AccessKey = getBuildParamOrDefault "nugetkey" ""
-            Publish = hasBuildParam "nugetkey"
-            Dependencies = [  ]
-               })
-        ("nuget/" + packageName + ".nuspec")
+    //let packageName = project + "." + "Unsafe"
+    //NuGet (fun p ->
+    //    { p with
+    //        Authors = authors
+    //        Project = packageName
+    //        Summary = packageName // "TODO"
+    //        Description = packageName // "TODO"
+    //        Version = "0.8.5"
+    //        ReleaseNotes = ""
+    //        Tags = tags
+    //        OutputPath = "C:/tools/LocalNuget/"
+    //        AccessKey = getBuildParamOrDefault "nugetkey" ""
+    //        Publish = hasBuildParam "nugetkey"
+    //        Dependencies = [  ]
+    //           })
+    //    ("nuget/" + packageName + ".nuspec")
 
 )
 

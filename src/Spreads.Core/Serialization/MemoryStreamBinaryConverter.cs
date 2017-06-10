@@ -45,7 +45,7 @@ namespace Spreads.Serialization
             ptr = ptr + 8;
             value.WriteToPtr(ptr);
 
-            handle.Free();
+            handle.Dispose();
 
             return totalLength;
         }

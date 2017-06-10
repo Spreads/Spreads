@@ -47,7 +47,7 @@ namespace Spreads.Serialization
                 Marshal.WriteByte(ptr + 4, Version);
                 // payload
                 Marshal.Copy(value, 0, ptr + 8, value.Length);
-                handle.Free();
+                handle.Dispose();
                 return totalSize;
             }
             else

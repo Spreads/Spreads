@@ -652,11 +652,8 @@ namespace Spreads.Core.Tests
             }
             else
             {
-                if (buffer.Buffer.TryGetPointer(out var p))
-                {
-                    return ref Unsafe.AsRef<T>(p);
-                }
-                throw new Exception();
+                var handle = buffer.Buffer.Pin();
+                return ref Unsafe.AsRef<T>(handle.PinnedPointer);
             }
         }
 
@@ -702,12 +699,12 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Unsafe read {sw.MOPS(count * 100)}");
         }
 
-        [Test, Ignore]
-        public unsafe void CallHiddenMethodFromBaseClass()
-        {
-            OwnedBuffer<int> b = new DirectOwnedBuffer<int>(new int[1]);
-            Assert.False(b.IsDisposed);
-        }
+        //[Test, Ignore]
+        //public unsafe void CallHiddenMethodFromBaseClass()
+        //{
+        //    OwnedBuffer<int> b = new DirectOwnedBuffer<int>(new int[1]);
+        //    Assert.False(b.IsDisposed);
+        //}
 
         [Test, Ignore]
         public unsafe void ArrayVsOwnedBuffer()
@@ -724,7 +721,7 @@ namespace Spreads.Core.Tests
             var handle3 = buffer3.Buffer.Pin();
             var pointer3 = handle3.PinnedPointer;
 
-            var buffer4 = new DirectOwnedBuffer<double>(new double[count]);
+            //var buffer4 = new DirectOwnedBuffer<double>(new double[count]);
 
             long sum = 0L;
             var sw = new Stopwatch();
@@ -743,19 +740,19 @@ namespace Spreads.Core.Tests
                 sw.Stop();
                 Console.WriteLine($"Array write {sw.MOPS(count * 50)}");
 
-                sum = 0;
-                sw.Restart();
-                for (int ii = 0; ii < 50; ii++)
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        buffer4[i] = i;
-                        sum++;
-                    }
-                }
-                sw.Stop();
-                Console.WriteLine($"DirectOwnedBuffer write {sw.MOPS(count * 50)}");
-                Assert.True(sum < Int64.MaxValue);
+                //sum = 0;
+                //sw.Restart();
+                //for (int ii = 0; ii < 50; ii++)
+                //{
+                //    for (int i = 0; i < count; i++)
+                //    {
+                //        buffer4[i] = i;
+                //        sum++;
+                //    }
+                //}
+                //sw.Stop();
+                //Console.WriteLine($"DirectOwnedBuffer write {sw.MOPS(count * 50)}");
+                //Assert.True(sum < Int64.MaxValue);
 
                 //sw.Restart();
                 //for (int ii = 0; ii < 50; ii++)
@@ -805,17 +802,17 @@ namespace Spreads.Core.Tests
                 sw.Stop();
                 Console.WriteLine($"Array read {sw.MOPS(count * 100)}");
 
-                sum2 = 0;
-                sw.Restart();
-                for (int ii = 0; ii < 50; ii++)
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        sum2 += buffer4[i];
-                    }
-                }
-                sw.Stop();
-                Console.WriteLine($"DirectOwnedBuffer read {sw.MOPS(count * 50)}");
+                //sum2 = 0;
+                //sw.Restart();
+                //for (int ii = 0; ii < 50; ii++)
+                //{
+                //    for (int i = 0; i < count; i++)
+                //    {
+                //        sum2 += buffer4[i];
+                //    }
+                //}
+                //sw.Stop();
+                //Console.WriteLine($"DirectOwnedBuffer read {sw.MOPS(count * 50)}");
 
                 //sum2 = 0;
                 //sw.Restart();
@@ -858,7 +855,7 @@ namespace Spreads.Core.Tests
                 array[i] = DateTime.Today.AddTicks(i);
             }
 
-            var buffer = new DirectOwnedBuffer<DateTime>(array);
+            //var buffer = new DirectOwnedBuffer<DateTime>(array);
             var sw = new Stopwatch();
 
             for (int r = 0; r < 10; r++)
@@ -875,19 +872,19 @@ namespace Spreads.Core.Tests
                 sw.Stop();
                 Console.WriteLine($"Array {sw.MOPS(count * 100)}");
 
-                sum2 = 0;
-                sw.Restart();
-                for (int ii = 0; ii < 100; ii++)
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        sum2 += buffer.BinarySearch(array[i]);
-                    }
-                }
-                sw.Stop();
-                Console.WriteLine($"DirectOwnedBuffer {sw.MOPS(count * 100)}");
+                //sum2 = 0;
+                //sw.Restart();
+                //for (int ii = 0; ii < 100; ii++)
+                //{
+                //    for (int i = 0; i < count; i++)
+                //    {
+                //        sum2 += buffer.BinarySearch(array[i]);
+                //    }
+                //}
+                //sw.Stop();
+                //Console.WriteLine($"DirectOwnedBuffer {sw.MOPS(count * 100)}");
 
-                Assert.True(sum2 < Int64.MaxValue);
+                //Assert.True(sum2 < Int64.MaxValue);
             }
         }
 
@@ -901,7 +898,7 @@ namespace Spreads.Core.Tests
                 array[i] = i;
             }
 
-            var buffer = new DirectOwnedBuffer<int>(array);
+            //var buffer = new DirectOwnedBuffer<int>(array);
             var sw = new Stopwatch();
 
             for (int r = 0; r < 10; r++)
@@ -918,19 +915,19 @@ namespace Spreads.Core.Tests
                 sw.Stop();
                 Console.WriteLine($"Array {sw.MOPS(count * 100)}");
 
-                sum2 = 0;
-                sw.Restart();
-                for (int ii = 0; ii < 100; ii++)
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        sum2 += buffer.BinarySearch(array[i]);
-                    }
-                }
-                sw.Stop();
-                Console.WriteLine($"DirectOwnedBuffer {sw.MOPS(count * 100)}");
+                //sum2 = 0;
+                //sw.Restart();
+                //for (int ii = 0; ii < 100; ii++)
+                //{
+                //    for (int i = 0; i < count; i++)
+                //    {
+                //        sum2 += buffer.BinarySearch(array[i]);
+                //    }
+                //}
+                //sw.Stop();
+                //Console.WriteLine($"DirectOwnedBuffer {sw.MOPS(count * 100)}");
 
-                Assert.True(sum2 < Int64.MaxValue);
+                //Assert.True(sum2 < Int64.MaxValue);
             }
         }
 

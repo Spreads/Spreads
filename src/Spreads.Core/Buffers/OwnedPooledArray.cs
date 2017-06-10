@@ -2,9 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
 using Spreads.Collections.Concurrent;
+using System;
 using System.Buffers;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Spreads.Buffers
 {
@@ -13,54 +16,104 @@ namespace Spreads.Buffers
         // ReSharper disable once StaticMemberInGenericType
         private static readonly BoundedConcurrentBag<OwnedPooledArray<T>> Pool = new BoundedConcurrentBag<OwnedPooledArray<T>>(Environment.ProcessorCount * 16);
 
-        public new T[] Array => base.Array;
+        private T[] _array;
+        private bool _disposed;
+        private int _referenceCount;
 
-        public static implicit operator T[] (OwnedPooledArray<T> owner)
+        private OwnedPooledArray()
+        { }
+
+        [Obsolete("Use TryGetArray")]
+        public T[] Array => _array;
+
+        public override int Length => _array.Length;
+
+        public override bool IsDisposed => _disposed;
+
+        public override bool IsRetained => _referenceCount > 0;
+
+        public override Span<T> AsSpan(int index, int length)
         {
-            return owner.Array;
+            if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
+            return new Span<T>(_array, index, length);
         }
 
-        private OwnedPooledArray(T[] array) : base(array, 0, array.Length) { }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static OwnedBuffer<T> Create(int size)
+        {
+            if (!Pool.TryTake(out OwnedPooledArray<T> ownedPooledArray))
+            {
+                ownedPooledArray = new OwnedPooledArray<T>();
+            }
+            ownedPooledArray._array = BufferPool<T>.Rent(size, false);
+            ownedPooledArray._disposed = false;
+            ownedPooledArray._referenceCount = 0;
+            return ownedPooledArray;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static OwnedBuffer<T> Create(T[] array)
+        {
+            if (!Pool.TryTake(out OwnedPooledArray<T> ownedPooledArray))
+            {
+                ownedPooledArray = new OwnedPooledArray<T>();
+            }
+            ownedPooledArray._array = array;
+            ownedPooledArray._disposed = false;
+            ownedPooledArray._referenceCount = 0;
+            return ownedPooledArray;
+        }
 
         protected override void Dispose(bool disposing)
         {
-            // NB this method is called after ensuring that refcount is zero but before
-            // cleaning the fields
-            BufferPool<T>.Return(Array);
-            base.Dispose(disposing);
+            var array = Interlocked.Exchange(ref _array, null);
+            if (array != null)
+            {
+                _disposed = true;
+                BufferPool<T>.Return(array);
+            }
             if (disposing)
             {
                 Pool.TryAdd(this);
-                GC.SuppressFinalize(this);
             }
         }
 
-        protected override void OnZeroReferences()
+        protected override bool TryGetArray(out ArraySegment<T> buffer)
         {
-            Dispose();
-            base.OnZeroReferences();
+            if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
+            buffer = new ArraySegment<T>(_array);
+            return true;
         }
 
-        public static OwnedBuffer<T> Create(T[] array)
+        public override BufferHandle Pin(int index = 0)
         {
-            if (Pool.TryTake(out OwnedPooledArray<T> pooled))
+            unsafe
             {
-                var asOwnedPooledArray = pooled;
-                // ReSharper disable once PossibleNullReferenceException
-                asOwnedPooledArray.Initialize(array, 0, array.Length);
-                return asOwnedPooledArray;
+                Retain(); // this checks IsDisposed
+                var handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
+                var pointer = Add((void*)handle.AddrOfPinnedObject(), index);
+                return new BufferHandle(this, pointer, handle);
             }
-            return new OwnedPooledArray<T>(array);
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        ~OwnedPooledArray()
+        public override void Retain()
         {
-            Dispose(false);
+            if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
+            Interlocked.Increment(ref _referenceCount);
+        }
+
+        public override void Release()
+        {
+            var newRefCount = Interlocked.Decrement(ref _referenceCount);
+            if (newRefCount == 0)
+            {
+                Dispose();
+                return;
+            }
+            if (newRefCount < 0)
+            {
+                throw new InvalidOperationException();
+            }
         }
     }
-
-
 }

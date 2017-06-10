@@ -112,21 +112,15 @@
       <HintPath>..\..\packages\System.Buffers.4.3.0\lib\netstandard1.1\System.Buffers.dll</HintPath>
     </Reference>
     <Reference Include="System.Buffers.Primitives">
-      <HintPath>..\..\packages\Spreads.Utils.0.8.1\lib\netstandard1.1\System.Buffers.Primitives.dll</HintPath>
+      <HintPath>..\..\packages\Spreads.Utils.0.9.0\lib\netstandard1.1\System.Buffers.Primitives.dll</HintPath>
     </Reference>
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
     <Reference Include="System.Data.Linq" />
-    <Reference Include="System.Memory">
-      <HintPath>..\..\packages\Spreads.Utils.0.8.1\lib\netstandard1.1\System.Memory.dll</HintPath>
-    </Reference>
     <Reference Include="System.Numerics" />
     <Reference Include="System.Numerics.Vectors">
       <HintPath>..\..\packages\System.Numerics.Vectors.4.3.0\lib\portable-net45+win8+wp8+wpa81\System.Numerics.Vectors.dll</HintPath>
       <Private>True</Private>
-    </Reference>
-    <Reference Include="System.Runtime.CompilerServices.Unsafe">
-      <HintPath>..\..\packages\Spreads.Utils.0.8.1\lib\netstandard1.1\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
     <Reference Include="System.ValueTuple">
       <HintPath>..\..\packages\System.ValueTuple.4.3.1\lib\netstandard1.0\System.ValueTuple.dll</HintPath>

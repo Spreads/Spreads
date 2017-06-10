@@ -67,7 +67,7 @@ namespace Spreads.Serialization
 
                 Unsafe.Write(ptr, value);
 
-                handle.Free();
+                handle.Dispose();
 
                 return size;
             }
@@ -136,7 +136,7 @@ namespace Spreads.Serialization
             }
             finally
             {
-                handle.Free();
+                handle.Dispose();
             }
         }
 
@@ -203,22 +203,14 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(PreservedBuffer<byte> source, uint offset, out T value)
         {
-            var handle = default(BufferHandle);
+            var handle = source.Buffer.Pin();
             try
             {
-                if (!source.Buffer.TryGetPointer(out void* pointer))
-                {
-                    handle = source.Buffer.Pin();
-                    if (source.Buffer.TryGetArray(out ArraySegment<byte> tmpArraySegment))
-                    {
-                        pointer = (void*)Marshal.UnsafeAddrOfPinnedArrayElement(tmpArraySegment.Array, tmpArraySegment.Offset + (int)offset);
-                    }
-                }
-                return Read((IntPtr)pointer, out value);
+                return Read((IntPtr)handle.PinnedPointer, out value);
             }
             finally
             {
-                handle.Free();
+                handle.Dispose();
             }
         }
 
@@ -241,7 +233,7 @@ namespace Spreads.Serialization
             }
             finally
             {
-                handle.Free();
+                handle.Dispose();
             }
         }
 

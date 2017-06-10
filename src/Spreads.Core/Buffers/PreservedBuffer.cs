@@ -22,7 +22,7 @@ namespace Spreads.Buffers
     /// </summary>
     public struct PreservedBuffer<T> : IReadOnlyList<T>, IDisposable
     {
-        private DisposableReservation<T> _reservation;
+        private BufferHandle _reservation;
 
         /// <summary>
         /// Create a new PreservedBuffer structure.
@@ -31,7 +31,7 @@ namespace Spreads.Buffers
         public PreservedBuffer(Buffer<T> buffer)
         {
             Buffer = buffer;
-            _reservation = buffer.Reserve();
+            _reservation = buffer.Retain();
         }
 
         /// <summary>

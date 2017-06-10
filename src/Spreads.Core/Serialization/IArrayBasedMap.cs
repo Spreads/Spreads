@@ -134,7 +134,7 @@ namespace Spreads.Serialization
             // version
             Marshal.WriteInt32(ptr + 4, Version);
 
-            handle.Free();
+            handle.Dispose();
 
             return position;
         }

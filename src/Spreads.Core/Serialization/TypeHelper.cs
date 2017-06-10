@@ -398,7 +398,7 @@ namespace Spreads.Serialization
 
                 Unsafe.WriteUnaligned((void*)ptr, value);
 
-                handle.Free();
+                handle.Dispose();;
 
                 return Size;
             }

@@ -10,7 +10,10 @@ using System.Threading;
 
 namespace Spreads.Buffers
 {
-    internal sealed partial class DefaultArrayPool<T> : ArrayPool<T>
+
+    // Ignore alien arrays (ones with the size that doesn't match any bucket). This is the only difference from System.Buffers
+
+    internal sealed class DefaultArrayPool<T> : ArrayPool<T>
     {
         /// <summary>The default maximum length of each array in the pool (2^20).</summary>
         private const int DefaultMaxArrayLength = 1024 * 1024;

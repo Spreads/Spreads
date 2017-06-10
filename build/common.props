@@ -3,7 +3,7 @@
     <VersionPrefix>0.8.0</VersionPrefix>
     <VersionSuffix>alpha</VersionSuffix>
     <VersionSuffix Condition="'$(VersionSuffix)' != '' And '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
-    <PackageTags>Spreads F# data streaming real-time analysis streams time series reactive</PackageTags>
+    <PackageTags>Spreads CEP data streaming real-time analysis streams time series reactive</PackageTags>
     <Product>Spreads</Product>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/Spreads/Spreads.git</RepositoryUrl>

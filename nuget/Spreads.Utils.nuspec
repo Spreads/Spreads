@@ -14,12 +14,8 @@
     <releaseNotes>@releaseNotes@</releaseNotes>
     <copyright>Copyright 2016</copyright>
     <tags>@tags@</tags>
-	@dependencies@
   </metadata>
   <files>
-	<file src="..\lib\utils\System.Memory.dll" target="lib/netstandard1.1" />
-	<file src="..\lib\utils\System.Runtime.CompilerServices.Unsafe.dll" target="lib/netstandard1.1" />
-	<file src="..\lib\utils\System.Buffers.Primitives.dll" target="lib/netstandard1.1" />
-		
+    <file src="..\lib\utils\System.Buffers.Primitives.dll" target="lib/netstandard1.1" />
   </files>
 </package>
