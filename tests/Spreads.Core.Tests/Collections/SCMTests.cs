@@ -5,6 +5,7 @@
 using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Utils;
+using System.Collections.Generic;
 
 namespace Spreads.Core.Tests.Collections
 {
@@ -17,35 +18,62 @@ namespace Spreads.Core.Tests.Collections
         {
             const int count = 1000000;
 
+            var sl = new SortedList<int, int>();
             var sm = new SortedMap<int, int>();
             var scm = new SortedChunkedMap<int, int>();
 
             for (int i = 0; i < count; i++)
             {
-                sm.Add(i, i);
-                scm.Add(i, i);
+                if (i % 1000 != 0)
+                {
+                    sl.Add(i, i);
+                    sm.Add(i, i);
+                    scm.Add(i, i);
+                }
             }
 
-            var sum = 0L;
+            //var ism = new ImmutableSortedMap<int, int>(sm);
+
+            long sum;
 
             for (int r = 0; r < 20; r++)
             {
                 sum = 0L;
-                using (Benchmark.Run("SM", count))
+                using (Benchmark.Run("SL", count))
                 {
-                    foreach (var keyValuePair in sm)
+                    foreach (var item in sl)
                     {
-                        sum += keyValuePair.Value;
+                        sum += item.Value;
                     }
                 }
                 Assert.True(sum > 0);
 
                 sum = 0L;
+                using (Benchmark.Run("SM", count))
+                {
+                    foreach (var item in sm)
+                    {
+                        sum += item.Value;
+                    }
+                }
+                Assert.True(sum > 0);
+
+                //sum = 0L;
+                //using (Benchmark.Run("ISM", count))
+                //{
+                //    foreach (var item in ism)
+                //    {
+                //        sum += item.Value;
+                //    }
+                //}
+                //Assert.True(sum > 0);
+
+                sum = 0L;
                 using (Benchmark.Run("SCM", count))
                 {
-                    foreach (var keyValuePair in scm)
+                    foreach (var item in scm)
                     {
-                        sum += keyValuePair.Value;
+                        sum += item.Value;
                     }
                 }
                 Assert.True(sum > 0);

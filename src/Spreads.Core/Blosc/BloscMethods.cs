@@ -2,12 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Bootstrap;
 using Spreads.Serialization;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security;
+using Spreads.Utils.Bootstrap;
 
 namespace Spreads.Blosc
 {
@@ -59,19 +59,19 @@ namespace Spreads.Blosc
             try
             {
                 // Ensure Bootstrapper is initialized and native libraries are loaded
-                Bootstrapper.Instance.Bootstrap<BloscMethods>(
+                Utils.Bootstrap.Bootstrapper.Instance.Bootstrap<BloscMethods>(
                     BloscLibraryName,
                     null,
                     () => { },
                     (library) =>
                     {
-                        var handle = library.handle;
+                        var handle = library._handle;
                         native_blosc_compress_ctx = Marshal.GetDelegateForFunctionPointer<BloscCompressCtxDelegate>
-                            (library.loader.FindFunction(handle, "blosc_compress_ctx"));
+                            (library._loader.FindFunction(handle, "blosc_compress_ctx"));
                         native_blosc_decompress_ctx = Marshal.GetDelegateForFunctionPointer<BloscDecompressCtxDelegate>
-                            (library.loader.FindFunction(handle, "blosc_decompress_ctx"));
+                            (library._loader.FindFunction(handle, "blosc_decompress_ctx"));
                         native_blosc_cbuffer_sizes = Marshal.GetDelegateForFunctionPointer<BloscCbufferSizes>
-                            (library.loader.FindFunction(handle, "blosc_cbuffer_sizes"));
+                            (library._loader.FindFunction(handle, "blosc_cbuffer_sizes"));
                     },
                     () => { });
             }

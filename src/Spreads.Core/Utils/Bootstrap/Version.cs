@@ -2,10 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-namespace Bootstrap
+namespace Spreads.Utils.Bootstrap
 {
     /// <summary>Contains information about @Yeppp library version.</summary>
-    /// <seealso cref="Library.GetVersion" />
     internal struct Version
     {
         internal Version(uint major, uint minor, uint patch, uint build, string releaseName)

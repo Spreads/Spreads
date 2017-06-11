@@ -85,7 +85,6 @@ namespace Spreads.Collections.Tests {
 
 
             //Thread.Sleep(5000000);
-
             var reader = scm.ReadOnly();
             Console.WriteLine("Writer IsReadOnly: {0}", scm.IsReadOnly);
             Console.WriteLine("Reader IsReadOnly: {0}", reader.IsReadOnly);

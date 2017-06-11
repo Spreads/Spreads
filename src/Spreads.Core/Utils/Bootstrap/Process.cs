@@ -6,7 +6,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace Bootstrap
+namespace Spreads.Utils.Bootstrap
 {
     internal class Process
     {

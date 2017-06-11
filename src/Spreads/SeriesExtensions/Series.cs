@@ -39,12 +39,13 @@ namespace Spreads
             return new Series<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor());
         }
 
-        public static Series<TKey, TValue, TCursor> ReadOnly<TKey, TValue, TCursor>(
-            this ContainerSeries<TKey, TValue, TCursor> series)
-            where TCursor : ICursorSeries<TKey, TValue, TCursor>
-        {
-            return new Series<TKey, TValue, TCursor>(series.GetContainerCursor());
-        }
+        // TODO
+        //public static Series<TKey, TValue, TCursor> ReadOnly<TKey, TValue, TCursor>(
+        //    this ContainerSeries<TKey, TValue, TCursor> series)
+        //    where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+        //{
+        //    return new Series<TKey, TValue, TCursor>(series.GetContainerCursor());
+        //}
 
         public static SortedMap<TKey, TValue> ToSortedMap<TKey, TValue>(
             this IEnumerable<KeyValuePair<TKey, TValue>> enumerable)

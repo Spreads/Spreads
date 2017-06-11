@@ -7,9 +7,12 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes
 {
+    /// <summary>
+    /// A known type to represent an error code as a wrapper over Int64.
+    /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
     [Serialization(BlittableSize = 8)]
-    internal struct ErrorCode
+    public struct ErrorCode
     {
         public long Code;
     }

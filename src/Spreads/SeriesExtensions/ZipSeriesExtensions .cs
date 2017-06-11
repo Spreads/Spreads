@@ -4,6 +4,7 @@
 
 using Spreads.Utils;
 using System;
+using System.Linq;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads
@@ -209,6 +210,14 @@ namespace Spreads
             this ISeries<TKey, TValue>[] series, Func<TKey, TValue[], TResult> selector, bool reuseArray = false)
         {
             return series.Zip(reuseArray).Map(selector);
+        }
+
+        public static Series<TKey, TResult, Map<TKey, TValue[], TResult, Cursor<TKey, TValue[]>>> Zip<TKey, TValue, TResult, TCursor>(
+            this Series<TKey, TValue, TCursor>[] series, Func<TKey, TValue[], TResult> selector, bool reuseArray = false) 
+            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+        {
+            // TODO rework...
+            return series.Cast<ISeries<TKey, TValue>>().ToArray().Zip(reuseArray).Map(selector);
         }
 
         #endregion Series array

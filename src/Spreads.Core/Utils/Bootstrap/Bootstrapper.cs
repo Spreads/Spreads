@@ -9,7 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-namespace Bootstrap
+namespace Spreads.Utils.Bootstrap
 {
     internal static class Program
     {
@@ -212,7 +212,7 @@ namespace Bootstrap
     }
 
     // TODO internal all members and type if possible
-    internal class Bootstrapper
+    public class Bootstrapper
     {
         internal static ABI ABI { get; set; }
 
