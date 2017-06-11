@@ -152,6 +152,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Algorithms\MovingMedianTests.cs" />
+    <Compile Include="Collections\SCMTests.cs" />
     <Compile Include="Collections\KeyComparerTests.cs" />
     <Compile Include="Collections\FastDictionaryTests.cs" />
     <Compile Include="ColumnsTests.cs" />

@@ -1005,7 +1005,7 @@ and
         }
     end
 
-    member private this.HasValidInner with get() = this.innerCursor <> Unchecked.defaultof<_>
+    member inline private this.HasValidInner with get() = not (obj.ReferenceEquals(this.innerCursor, null))
     
     member this.CurrentKey with get() = this.innerCursor.CurrentKey
     member this.CurrentValue with get() = this.innerCursor.CurrentValue
@@ -1470,7 +1470,7 @@ and
         }
     end
 
-    member private this.HasValidInner with get() = this.innerCursor.source <> Unchecked.defaultof<_>
+    member inline private this.HasValidInner with get() = not (obj.ReferenceEquals(this.innerCursor.source, null))
     
     member this.CurrentKey with get() = this.innerCursor.CurrentKey
     member this.CurrentValue with get() = this.innerCursor.CurrentValue
