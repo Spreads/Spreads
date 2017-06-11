@@ -4,12 +4,12 @@
 
 using NUnit.Framework;
 using Spreads.Collections;
-using Spreads.Slices;
 using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Utils;
 
 namespace Spreads.Core.Tests
 {

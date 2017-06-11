@@ -1637,7 +1637,8 @@ and
               false
           else // source order change
             // NB: we no longer recover on order change, some cursor require special logic to recover
-            raise (new OutOfOrderKeyException<'K>(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
+            ThrowHelper.ThrowOutOfOrderKeyException(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover.")
+            false
         /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source.nextVersion)
@@ -1732,7 +1733,7 @@ and
               true
             else
               false
-          elif this.cursorVersion =  this.source.orderVersion then
+          elif this.cursorVersion = this.source.orderVersion then
             if this.index > 0 && this.index < this.source.size then
               newIndex <- this.index - 1
               newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
@@ -1741,8 +1742,8 @@ and
             else
               false
           else
-            raise (new OutOfOrderKeyException<'K>(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.LT) to recover."))
-            
+            ThrowHelper.ThrowOutOfOrderKeyException(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.LT) to recover.")
+            false
         /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source.nextVersion)

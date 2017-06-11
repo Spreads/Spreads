@@ -2,13 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-// ReSharper disable once CheckNamespace
-namespace System
+using System;
+
+namespace Spreads.Utils
 {
-    [AttributeUsage(AttributeTargets.Method)]
-    internal class ILSub : Attribute
+    internal class DummyDisposable : IDisposable
     {
-        public ILSub(string il)
+        public void Dispose()
         {
         }
     }

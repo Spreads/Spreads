@@ -12,7 +12,7 @@ using System.Runtime.InteropServices;
 namespace Bootstrap
 {
     // TODO internal
-    public interface INativeLibraryLoader
+    internal interface INativeLibraryLoader
     {
         IntPtr LoadLibrary(string path);
 
@@ -149,8 +149,7 @@ namespace Bootstrap
         private const int RTLD_LOCAL = 0x00000004;
     }
 
-    // TODO internal
-    public class Loader
+    internal class Loader
     {
         public static NativeLibrary LoadNativeLibrary<T>(string libname)
         {

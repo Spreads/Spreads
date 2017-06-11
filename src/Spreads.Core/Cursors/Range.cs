@@ -348,7 +348,7 @@ namespace Spreads
                 ThrowHelper.ThrowInvalidOperationException($"CursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
             Trace.TraceWarning("MoveNextBatch is not implemented in RangeCursor");
-            return TaskEx.FalseTask;
+            return Utils.TaskUtil.FalseTask;
         }
 
         /// <inheritdoc />
@@ -419,7 +419,7 @@ namespace Spreads
                 {
                     return _cursor.Source.Updated;
                 }
-                return TaskEx.FalseTask;
+                return Utils.TaskUtil.FalseTask;
             }
         }
 

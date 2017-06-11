@@ -7,7 +7,7 @@ using System.Diagnostics;
 
 namespace Spreads.Utils
 {
-    public static class StopwatchExtensions
+    internal static class StopwatchExtensions
     {
         [Obsolete("Use Benchmark utility")]
         public static double MOPS(this Stopwatch stopwatch, int count, int decimals = 2)

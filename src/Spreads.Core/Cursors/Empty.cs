@@ -123,7 +123,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
-            return TaskEx.FalseTask;
+            return Utils.TaskUtil.FalseTask;
         }
 
         /// <inheritdoc />
@@ -158,7 +158,7 @@ namespace Spreads
         public bool IsReadOnly => true;
 
         /// <inheritdoc />
-        public Task<bool> Updated => TaskEx.FalseTask;
+        public Task<bool> Updated => Utils.TaskUtil.FalseTask;
 
         #endregion ICursorSeries members
     }

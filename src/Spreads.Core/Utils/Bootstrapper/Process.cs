@@ -4,7 +4,6 @@
 
 using System;
 using System.IO;
-using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace Bootstrap
@@ -145,19 +144,19 @@ namespace Bootstrap
                 {
                     case PROCESSOR_ARCHITECTURE_INTEL:
                     case PROCESSOR_ARCHITECTURE_IA32_ON_WIN64:
-                    return ABI.Windows_X86;
+                        return ABI.Windows_X86;
 
                     case PROCESSOR_ARCHITECTURE_ARM:
-                    return ABI.Windows_ARM;
+                        return ABI.Windows_ARM;
 
                     case PROCESSOR_ARCHITECTURE_IA64:
-                    return ABI.Windows_IA64;
+                        return ABI.Windows_IA64;
 
                     case PROCESSOR_ARCHITECTURE_AMD64:
-                    return ABI.Windows_X86_64;
+                        return ABI.Windows_X86_64;
 
                     default:
-                    return ABI.Unknown;
+                        return ABI.Unknown;
                 }
             }
             catch
@@ -186,19 +185,19 @@ namespace Bootstrap
                 switch (cpuType)
                 {
                     case CPU_TYPE_X86:
-                    return ABI.OSX_X86;
+                        return ABI.OSX_X86;
 
                     case CPU_TYPE_X86_64:
-                    return ABI.OSX_X86_64;
+                        return ABI.OSX_X86_64;
 
                     case CPU_TYPE_POWERPC:
-                    return ABI.OSX_PPC;
+                        return ABI.OSX_PPC;
 
                     case CPU_TYPE_POWERPC64:
-                    return ABI.OSX_PPC64;
+                        return ABI.OSX_PPC64;
 
                     default:
-                    return ABI.Unknown;
+                        return ABI.Unknown;
                 }
             }
             catch
@@ -266,17 +265,17 @@ namespace Bootstrap
                             switch (elfClass)
                             {
                                 case ELFCLASS32:
-                                /* ELF-32 file format */
-                                header = new byte[36];
-                                break;
+                                    /* ELF-32 file format */
+                                    header = new byte[36];
+                                    break;
 
                                 case ELFCLASS64:
-                                /* ELF-64 file format */
-                                header = new byte[48];
-                                break;
+                                    /* ELF-64 file format */
+                                    header = new byte[48];
+                                    break;
 
                                 default:
-                                return ABI.Unknown;
+                                    return ABI.Unknown;
                             }
 
                             bytesRead = fileStream.Read(header, 0, header.Length);
@@ -289,46 +288,46 @@ namespace Bootstrap
                             switch (machine)
                             {
                                 case EM_386:
-                                if ((elfEndianess == ELFDATA2LSB) && (elfClass == ELFCLASS64))
-                                    return ABI.Linux_X86;
-                                else
-                                    return ABI.Unknown;
+                                    if ((elfEndianess == ELFDATA2LSB) && (elfClass == ELFCLASS64))
+                                        return ABI.Linux_X86;
+                                    else
+                                        return ABI.Unknown;
 
                                 case EM_X86_64:
-                                if (elfEndianess == ELFDATA2LSB)
-                                    return (elfClass == ELFCLASS64) ? ABI.Linux_X86_64 : ABI.Linux_X32;
-                                else
-                                    return ABI.Unknown;
+                                    if (elfEndianess == ELFDATA2LSB)
+                                        return (elfClass == ELFCLASS64) ? ABI.Linux_X86_64 : ABI.Linux_X32;
+                                    else
+                                        return ABI.Unknown;
 
                                 case EM_IA64:
-                                if ((elfEndianess == ELFDATA2LSB) && (elfClass == ELFCLASS64))
-                                    return ABI.Linux_IA64;
-                                else
-                                    return ABI.Unknown;
+                                    if ((elfEndianess == ELFDATA2LSB) && (elfClass == ELFCLASS64))
+                                        return ABI.Linux_IA64;
+                                    else
+                                        return ABI.Unknown;
 
                                 case EM_ARM:
-                                if ((elfEndianess == ELFDATA2LSB) && (elfClass == ELFCLASS32))
-                                    return DetectLinuxArmABI(fileStream, header);
-                                else
-                                    return ABI.Unknown;
+                                    if ((elfEndianess == ELFDATA2LSB) && (elfClass == ELFCLASS32))
+                                        return DetectLinuxArmABI(fileStream, header);
+                                    else
+                                        return ABI.Unknown;
 
                                 case EM_ARM64:
-                                if ((elfEndianess == ELFDATA2LSB) && (elfClass == ELFCLASS64))
-                                    return ABI.Linux_ARM64;
-                                else
-                                    return ABI.Unknown;
+                                    if ((elfEndianess == ELFDATA2LSB) && (elfClass == ELFCLASS64))
+                                        return ABI.Linux_ARM64;
+                                    else
+                                        return ABI.Unknown;
 
                                 case EM_PPC:
-                                if ((elfEndianess == ELFDATA2MSB) && (elfClass == ELFCLASS32))
-                                    return ABI.Linux_PPC;
-                                else
-                                    return ABI.Unknown;
+                                    if ((elfEndianess == ELFDATA2MSB) && (elfClass == ELFCLASS32))
+                                        return ABI.Linux_PPC;
+                                    else
+                                        return ABI.Unknown;
 
                                 case EM_PPC64:
-                                if ((elfEndianess == ELFDATA2MSB) && (elfClass == ELFCLASS64))
-                                    return ABI.Linux_PPC64;
-                                else
-                                    return ABI.Unknown;
+                                    if ((elfEndianess == ELFDATA2MSB) && (elfClass == ELFCLASS64))
+                                        return ABI.Linux_PPC64;
+                                    else
+                                        return ABI.Unknown;
                             }
                         }
                     }
@@ -348,13 +347,13 @@ namespace Bootstrap
                 case Tag_CPU_raw_name:
                 case Tag_CPU_name:
                 case Tag_compatibility:
-                return true;
+                    return true;
 
                 default:
-                if (tag < 32)
-                    return false;
-                else
-                    return (tag % 2) == 1;
+                    if (tag < 32)
+                        return false;
+                    else
+                        return (tag % 2) == 1;
             }
         }
 
@@ -369,146 +368,146 @@ namespace Bootstrap
             switch (fpFlags)
             {
                 case EF_ARM_ABI_FLOAT_SOFT:
-                /* Soft-float ARM EABI (armel) */
-                return ABI.Linux_ARMEL;
+                    /* Soft-float ARM EABI (armel) */
+                    return ABI.Linux_ARMEL;
 
                 case EF_ARM_ABI_FLOAT_HARD:
-                /* Hard-float ARM EABI (armhf) */
-                return ABI.Linux_ARMHF;
+                    /* Hard-float ARM EABI (armhf) */
+                    return ABI.Linux_ARMHF;
 
                 default:
-                /* ARM EABI version (armel or armhf) is not specified here: need to parse sections */
-                int sectionHeadersOffset = header[16] | (header[17] << 8) | (header[18] << 16) | (header[19] << 24);
-                int sectionHeaderSize = header[30] | (header[31] << 8);
-                int sectionCount = header[32] | (header[33] << 8);
+                    /* ARM EABI version (armel or armhf) is not specified here: need to parse sections */
+                    int sectionHeadersOffset = header[16] | (header[17] << 8) | (header[18] << 16) | (header[19] << 24);
+                    int sectionHeaderSize = header[30] | (header[31] << 8);
+                    int sectionCount = header[32] | (header[33] << 8);
 
-                /* Check the header size */
-                if (sectionHeaderSize != 40)
-                    return ABI.Unknown;
+                    /* Check the header size */
+                    if (sectionHeaderSize != 40)
+                        return ABI.Unknown;
 
-                /* Skip the null section */
-                fileStream.Seek(sectionHeadersOffset + sectionHeaderSize, SeekOrigin.Begin);
-                for (int sectionIndex = 1; sectionIndex < sectionCount; sectionIndex++)
-                {
-                    /* Read section header */
-                    byte[] sectionHeader = new byte[sectionHeaderSize];
-                    int bytesRead = fileStream.Read(sectionHeader, 0, sectionHeader.Length);
-                    if (bytesRead == sectionHeader.Length)
+                    /* Skip the null section */
+                    fileStream.Seek(sectionHeadersOffset + sectionHeaderSize, SeekOrigin.Begin);
+                    for (int sectionIndex = 1; sectionIndex < sectionCount; sectionIndex++)
                     {
-                        int sectionType = sectionHeader[4] | (sectionHeader[5] << 8) | (sectionHeader[6] << 16) | (sectionHeader[7] << 24);
-                        if (sectionType == SHT_ARM_ATTRIBUTES)
+                        /* Read section header */
+                        byte[] sectionHeader = new byte[sectionHeaderSize];
+                        int bytesRead = fileStream.Read(sectionHeader, 0, sectionHeader.Length);
+                        if (bytesRead == sectionHeader.Length)
                         {
-                            /* Found .ARM.attributes section. Now read it into memory. */
-                            int sectionOffset = sectionHeader[16] | (sectionHeader[17] << 8) | (sectionHeader[18] << 16) | (sectionHeader[19] << 24);
-                            fileStream.Seek(sectionOffset, SeekOrigin.Begin);
-                            int sectionSize = sectionHeader[20] | (sectionHeader[21] << 8) | (sectionHeader[22] << 16) | (sectionHeader[23] << 24);
-                            byte[] section = new byte[sectionSize];
-                            bytesRead = fileStream.Read(section, 0, section.Length);
-                            if (bytesRead != section.Length)
-                                return ABI.Unknown;
-
-                            /* Verify that it has known format version */
-                            byte formatVersion = section[0];
-                            if (formatVersion != 'A')
-                                return ABI.Unknown;
-
-                            /* Iterate build attribute sections. We look for "aeabi" attributes section. */
-                            int attributesSectionOffset = 1;
-                            while (attributesSectionOffset < sectionSize)
+                            int sectionType = sectionHeader[4] | (sectionHeader[5] << 8) | (sectionHeader[6] << 16) | (sectionHeader[7] << 24);
+                            if (sectionType == SHT_ARM_ATTRIBUTES)
                             {
-                                int attributesSectionLength = section[attributesSectionOffset] |
-                                    (section[attributesSectionOffset + 1] << 8) |
-                                    (section[attributesSectionOffset + 2] << 16) |
-                                    (section[attributesSectionOffset + 3] << 24);
-                                if (attributesSectionLength > 10)
+                                /* Found .ARM.attributes section. Now read it into memory. */
+                                int sectionOffset = sectionHeader[16] | (sectionHeader[17] << 8) | (sectionHeader[18] << 16) | (sectionHeader[19] << 24);
+                                fileStream.Seek(sectionOffset, SeekOrigin.Begin);
+                                int sectionSize = sectionHeader[20] | (sectionHeader[21] << 8) | (sectionHeader[22] << 16) | (sectionHeader[23] << 24);
+                                byte[] section = new byte[sectionSize];
+                                bytesRead = fileStream.Read(section, 0, section.Length);
+                                if (bytesRead != section.Length)
+                                    return ABI.Unknown;
+
+                                /* Verify that it has known format version */
+                                byte formatVersion = section[0];
+                                if (formatVersion != 'A')
+                                    return ABI.Unknown;
+
+                                /* Iterate build attribute sections. We look for "aeabi" attributes section. */
+                                int attributesSectionOffset = 1;
+                                while (attributesSectionOffset < sectionSize)
                                 {
-                                    /* Check if attributes section name if "aeabi" */
-                                    if ((section[attributesSectionOffset + 4] == 'a') &&
-                                        (section[attributesSectionOffset + 5] == 'e') &&
-                                        (section[attributesSectionOffset + 6] == 'a') &&
-                                        (section[attributesSectionOffset + 7] == 'b') &&
-                                        (section[attributesSectionOffset + 8] == 'i') &&
-                                        (section[attributesSectionOffset + 9] == 0))
+                                    int attributesSectionLength = section[attributesSectionOffset] |
+                                        (section[attributesSectionOffset + 1] << 8) |
+                                        (section[attributesSectionOffset + 2] << 16) |
+                                        (section[attributesSectionOffset + 3] << 24);
+                                    if (attributesSectionLength > 10)
                                     {
-                                        /* Iterate build attribute subsections. */
-                                        int attributesSubsectionOffset = attributesSectionOffset + 10;
-                                        while (attributesSubsectionOffset < attributesSectionOffset + attributesSectionLength)
+                                        /* Check if attributes section name if "aeabi" */
+                                        if ((section[attributesSectionOffset + 4] == 'a') &&
+                                            (section[attributesSectionOffset + 5] == 'e') &&
+                                            (section[attributesSectionOffset + 6] == 'a') &&
+                                            (section[attributesSectionOffset + 7] == 'b') &&
+                                            (section[attributesSectionOffset + 8] == 'i') &&
+                                            (section[attributesSectionOffset + 9] == 0))
                                         {
-                                            int attributesSubsectionLength = section[attributesSubsectionOffset + 1] |
-                                                (section[attributesSubsectionOffset + 2] << 8) |
-                                                (section[attributesSubsectionOffset + 3] << 16) |
-                                                (section[attributesSubsectionOffset + 4] << 24);
-                                            /* We look for subsection of attributes for the whole file. */
-                                            int attributesSubsectionTag = section[attributesSubsectionOffset];
-                                            if (attributesSubsectionTag == Tag_File)
+                                            /* Iterate build attribute subsections. */
+                                            int attributesSubsectionOffset = attributesSectionOffset + 10;
+                                            while (attributesSubsectionOffset < attributesSectionOffset + attributesSectionLength)
                                             {
-                                                /* Now read tag: value pairs */
-                                                int tagOffset = attributesSubsectionOffset + 5;
-                                                while (tagOffset < attributesSubsectionOffset + attributesSubsectionLength)
+                                                int attributesSubsectionLength = section[attributesSubsectionOffset + 1] |
+                                                    (section[attributesSubsectionOffset + 2] << 8) |
+                                                    (section[attributesSubsectionOffset + 3] << 16) |
+                                                    (section[attributesSubsectionOffset + 4] << 24);
+                                                /* We look for subsection of attributes for the whole file. */
+                                                int attributesSubsectionTag = section[attributesSubsectionOffset];
+                                                if (attributesSubsectionTag == Tag_File)
                                                 {
-                                                    /* Read ULEB128-encoded integer */
-                                                    sbyte tagByte = unchecked((sbyte)section[tagOffset++]);
-                                                    uint tag = unchecked((uint)(tagByte & 0x7F));
-                                                    while (tagByte < 0)
+                                                    /* Now read tag: value pairs */
+                                                    int tagOffset = attributesSubsectionOffset + 5;
+                                                    while (tagOffset < attributesSubsectionOffset + attributesSubsectionLength)
                                                     {
-                                                        tagByte = unchecked((sbyte)section[tagOffset++]);
-                                                        tag = (tag << 7) | unchecked((uint)(tagByte & 0x7F));
-                                                    }
-                                                    if (IsTagNTBS(tag))
-                                                    {
-                                                        /* Null-terminated string. Skip. */
-                                                        while (section[tagOffset++] != 0) ;
-                                                    }
-                                                    else
-                                                    {
-                                                        /* ULEB128-encoded integer. Parse. */
-                                                        sbyte valueByte = unchecked((sbyte)section[tagOffset++]);
-                                                        uint value = unchecked((uint)(valueByte & 0x7F));
-                                                        while (valueByte < 0)
+                                                        /* Read ULEB128-encoded integer */
+                                                        sbyte tagByte = unchecked((sbyte)section[tagOffset++]);
+                                                        uint tag = unchecked((uint)(tagByte & 0x7F));
+                                                        while (tagByte < 0)
                                                         {
-                                                            valueByte = unchecked((sbyte)section[tagOffset++]);
-                                                            value = (value << 7) | unchecked((uint)(valueByte & 0x7F));
+                                                            tagByte = unchecked((sbyte)section[tagOffset++]);
+                                                            tag = (tag << 7) | unchecked((uint)(tagByte & 0x7F));
                                                         }
-                                                        if (tag == Tag_ABI_VFP_args)
+                                                        if (IsTagNTBS(tag))
                                                         {
-                                                            switch (value)
+                                                            /* Null-terminated string. Skip. */
+                                                            while (section[tagOffset++] != 0) ;
+                                                        }
+                                                        else
+                                                        {
+                                                            /* ULEB128-encoded integer. Parse. */
+                                                            sbyte valueByte = unchecked((sbyte)section[tagOffset++]);
+                                                            uint value = unchecked((uint)(valueByte & 0x7F));
+                                                            while (valueByte < 0)
                                                             {
-                                                                case 0:
-                                                                /* The user intended FP parameter/result passing to conform to AAPCS, base variant. */
-                                                                return ABI.Linux_ARMEL;
+                                                                valueByte = unchecked((sbyte)section[tagOffset++]);
+                                                                value = (value << 7) | unchecked((uint)(valueByte & 0x7F));
+                                                            }
+                                                            if (tag == Tag_ABI_VFP_args)
+                                                            {
+                                                                switch (value)
+                                                                {
+                                                                    case 0:
+                                                                        /* The user intended FP parameter/result passing to conform to AAPCS, base variant. */
+                                                                        return ABI.Linux_ARMEL;
 
-                                                                case 1:
-                                                                /* The user intended FP parameter/result passing to conform to AAPCS, VFP variant. */
-                                                                return ABI.Linux_ARMHF;
+                                                                    case 1:
+                                                                        /* The user intended FP parameter/result passing to conform to AAPCS, VFP variant. */
+                                                                        return ABI.Linux_ARMHF;
 
-                                                                case 2:
-                                                                /* The user intended FP parameter/result passing to conform to tool chain-specific conventions. */
-                                                                return ABI.Unknown;
+                                                                    case 2:
+                                                                        /* The user intended FP parameter/result passing to conform to tool chain-specific conventions. */
+                                                                        return ABI.Unknown;
 
-                                                                case 3:
-                                                                /* Code is compatible with both the base and VFP variants; the user did not permit non-variadic functions to pass FP parameters/result. */
-                                                                return ABI.Linux_ARMEL;
+                                                                    case 3:
+                                                                        /* Code is compatible with both the base and VFP variants; the user did not permit non-variadic functions to pass FP parameters/result. */
+                                                                        return ABI.Linux_ARMEL;
 
-                                                                default:
-                                                                return ABI.Unknown;
+                                                                    default:
+                                                                        return ABI.Unknown;
+                                                                }
                                                             }
                                                         }
                                                     }
                                                 }
+                                                attributesSubsectionOffset += attributesSubsectionLength;
                                             }
-                                            attributesSubsectionOffset += attributesSubsectionLength;
                                         }
                                     }
+                                    attributesSectionOffset += attributesSectionLength;
                                 }
-                                attributesSectionOffset += attributesSectionLength;
+                                /* If no Tag_ABI_VFP_args is present, assume default value (soft-float). */
+                                return ABI.Linux_ARMEL;
                             }
-                            /* If no Tag_ABI_VFP_args is present, assume default value (soft-float). */
-                            return ABI.Linux_ARMEL;
                         }
                     }
-                }
-                /* EABI attributed section not found: unknown EABI variant */
-                return ABI.Unknown;
+                    /* EABI attributed section not found: unknown EABI variant */
+                    return ABI.Unknown;
             }
         }
 
@@ -518,18 +517,18 @@ namespace Bootstrap
             switch (operatingSystem)
             {
                 case OperatingSystem.Windows:
-                return DetectWindowsABI();
+                    return DetectWindowsABI();
 
                 case OperatingSystem.OSX:
-                /* https://www.opensource.apple.com/source/top/top-73/libtop.c */
-                /* https://stackoverflow.com/questions/1350181/determine-a-processs-architecture */
-                return DetectOSXABI();
+                    /* https://www.opensource.apple.com/source/top/top-73/libtop.c */
+                    /* https://stackoverflow.com/questions/1350181/determine-a-processs-architecture */
+                    return DetectOSXABI();
 
                 case OperatingSystem.Linux:
-                return DetectLinuxABI();
+                    return DetectLinuxABI();
 
                 default:
-                return ABI.Unknown;
+                    return ABI.Unknown;
             }
         }
     }

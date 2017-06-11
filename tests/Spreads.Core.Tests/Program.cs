@@ -24,7 +24,7 @@ namespace Spreads.Core.Tests
             for (int i = 0; i < 20; i++)
             {
                 //new ArithmeticTests().CouldUseStructSeries();
-                new ZipCursorTests().CouldAddSeriesArrayWithSameKeys();
+                new ZipCursorTests().CouldAddTwoSeriesWithSameKeysBenchmark();
             }
 
             Console.WriteLine("Press enter to exit...");

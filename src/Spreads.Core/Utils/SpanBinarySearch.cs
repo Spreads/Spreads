@@ -3,12 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Slices
+namespace Spreads.Utils
 {
-    public static partial class SpanExtensions
+    public static class SpanExtensions
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BinarySearch<T>(this Span<T> span, int index, int length, T value, KeyComparer<T> comparer)

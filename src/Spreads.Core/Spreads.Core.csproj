@@ -6,6 +6,11 @@
     <RootNamespace>Spreads</RootNamespace>
     <Description />
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Utils\Runtime\**" />
+    <EmbeddedResource Remove="Utils\Runtime\**" />
+    <None Remove="Utils\Runtime\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <Compile Remove="Collections\Concurrent\ConcurrentBag.cs" />

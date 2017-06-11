@@ -123,8 +123,8 @@ module TaskModule =
 
   let inline bind (f: 'T -> Task<'U>) (m: Task<'T>) =
     if m.Status = TaskStatus.RanToCompletion then f m.Result
-    elif m.IsCanceled then TaskEx.FromCanceled<'U>(CancellationToken.None)
-    elif m.IsFaulted then TaskEx.FromException<'U>(m.Exception)
+    elif m.IsCanceled then Utils.TaskUtil.FromCanceled<'U>(CancellationToken.None)
+    elif m.IsFaulted then Utils.TaskUtil.FromException<'U>(m.Exception)
     else
       let tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<_>.Create()) // new TaskCompletionSource<_>() // NB do not allocate objects
       let t = tcs.Task
@@ -149,7 +149,7 @@ module TaskModule =
       awaiter.OnCompleted(fun _ -> 
         if m.IsCanceled then tcs.SetResult(m)
         elif m.IsCompleted then tcs.SetResult(f m.Result)
-        else tcs.SetResult(TaskEx.FromException<bool>(m.Exception))
+        else tcs.SetResult(Utils.TaskUtil.FromException<bool>(m.Exception))
       )
       t.Unwrap()
 

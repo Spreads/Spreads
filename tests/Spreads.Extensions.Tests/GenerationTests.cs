@@ -36,26 +36,26 @@ namespace Spreads.Extensions.Tests {
             //gen = null;
         }
 
-        [Test]
-        public void CouldGenerateRandomWalk() {
-            var sw = new Stopwatch();
-            sw.Restart();
-            var acc = new SortedMap<int, double>();
+        //[Test]
+        //public void CouldGenerateRandomWalk() {
+        //    var sw = new Stopwatch();
+        //    sw.Restart();
+        //    var acc = new SortedMap<int, double>();
 
-            SortedMap<DateTime, double> sm = null;
-            for (int i = 0; i < 10000; i++) {
-                sm = RandomWalk.Generate(DateTime.Today.AddYears(-1), DateTime.Today, TimeSpan.FromDays(1), 0.5, 3.65, 365.0);
-                acc.Add(i, sm.Last.Value);
-            }
-            sw.Stop();
-            Console.WriteLine($"Elapsed: {sw.ElapsedMilliseconds}");
+        //    SortedMap<DateTime, double> sm = null;
+        //    for (int i = 0; i < 10000; i++) {
+        //        sm = RandomWalk.Generate(DateTime.Today.AddYears(-1), DateTime.Today, TimeSpan.FromDays(1), 0.5, 3.65, 365.0);
+        //        acc.Add(i, sm.Last.Value);
+        //    }
+        //    sw.Stop();
+        //    Console.WriteLine($"Elapsed: {sw.ElapsedMilliseconds}");
             
-            // NB internalsvisibleto make it so easy to use values instead of Values
-            // hopefully not an issue outside tests
-            Console.WriteLine($"Average: {acc.Values.Average()}");
-            Console.WriteLine($"StDev: {acc.StDev(int.MaxValue, true).Last.Value}");
-            Console.WriteLine("Generated number of values: {0}", sm.Count);
-            //gen = null;
-        }
+        //    // NB internalsvisibleto make it so easy to use values instead of Values
+        //    // hopefully not an issue outside tests
+        //    Console.WriteLine($"Average: {acc.Values.Average()}");
+        //    Console.WriteLine($"StDev: {acc.StDev(int.MaxValue, true).Last.Value}");
+        //    Console.WriteLine("Generated number of values: {0}", sm.Count);
+        //    //gen = null;
+        //}
     }
 }

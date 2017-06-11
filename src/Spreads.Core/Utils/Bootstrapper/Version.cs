@@ -6,7 +6,7 @@ namespace Bootstrap
 {
     /// <summary>Contains information about @Yeppp library version.</summary>
     /// <seealso cref="Library.GetVersion" />
-    public struct Version
+    internal struct Version
     {
         internal Version(uint major, uint minor, uint patch, uint build, string releaseName)
         {

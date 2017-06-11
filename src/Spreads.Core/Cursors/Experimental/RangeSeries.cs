@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Utils;
 
 namespace Spreads.Cursors.Experimental
 {
@@ -115,7 +116,7 @@ namespace Spreads.Cursors.Experimental
                 {
                     return _cursor.Source.Updated;
                 }
-                return TaskEx.FalseTask;
+                return TaskUtil.FalseTask;
             }
         }
 
@@ -283,7 +284,7 @@ namespace Spreads.Cursors.Experimental
         public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
             Trace.TraceWarning("MoveNextBatch is not implemented in RangeCursor");
-            return TaskEx.FalseTask;
+            return TaskUtil.FalseTask;
         }
 
         /// <inheritdoc />

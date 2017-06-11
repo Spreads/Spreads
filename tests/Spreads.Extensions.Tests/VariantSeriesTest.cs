@@ -42,5 +42,65 @@ namespace Spreads.Tests {
             var cursorSeries = new CursorSeries<int, string>(sm);
             Assert.AreEqual(0, cursorSeries.First.Key);
         }
+
+
+        [Test]
+        public void CouldAddVariantSeries()
+        {
+
+            var sm = new SortedMap<int, double>();
+            for (int i = 0; i < 100; i++)
+            {
+                sm.Add(i, (i * 100));
+            }
+
+            var vs = new VariantSeries<int, double>(sm);
+
+            var doubled = vs + vs;
+
+            foreach (var item in doubled)
+            {
+                System.Console.WriteLine(item.Key.Get<int>() + ": " + item.Value.Get<double>());
+            }
+
+            Assert.AreEqual(Variant.Create(0), vs.First.Key);
+            Assert.AreEqual(Variant.Create("0"), vs.First.Value);
+            Assert.AreEqual(Variant.Create(99), vs.Last.Key);
+            Assert.AreEqual(Variant.Create("9900"), vs.Last.Value);
+
+
+            var cursorSeries = doubled.ReadOnly();
+            Assert.AreEqual(0, cursorSeries.First.Key);
+        }
+
+
+        //[Test]
+        //public void CouldAddConvertSeries()
+        //{
+
+        //    var sm = new SortedMap<int, double>();
+        //    for (int i = 0; i < 100; i++)
+        //    {
+        //        sm.Add(i, (i * 100));
+        //    }
+
+        //    var vs = new ConvertSeries<int, double>(sm);
+
+        //    var doubled = vs + vs;
+
+        //    foreach (var item in doubled)
+        //    {
+        //        System.Console.WriteLine(item.Key.Get<int>() + ": " + item.Value.Get<double>());
+        //    }
+
+        //    Assert.AreEqual(Variant.Create(0), vs.First.Key);
+        //    Assert.AreEqual(Variant.Create("0"), vs.First.Value);
+        //    Assert.AreEqual(Variant.Create(99), vs.Last.Key);
+        //    Assert.AreEqual(Variant.Create("9900"), vs.Last.Value);
+
+
+        //    var cursorSeries = doubled.ReadOnly();
+        //    Assert.AreEqual(0, cursorSeries.First.Key);
+        //}
     }
 }

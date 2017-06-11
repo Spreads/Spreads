@@ -606,7 +606,7 @@ namespace Spreads.Collections
       override this.IsEmpty with get() = MapTree.isEmpty tree
       override this.IsIndexed with get() = false
       override this.IsReadOnly with get() = true
-      override this.Updated = TaskEx.FalseTask
+      override this.Updated = Utils.TaskUtil.FalseTask
 
       override this.First
         with get() = 

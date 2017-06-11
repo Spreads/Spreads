@@ -984,7 +984,7 @@ namespace Spreads
                 ThrowHelper.ThrowInvalidOperationException($"CursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
             // TODO (low) review if we could implement this
-            return TaskEx.FalseTask;
+            return Utils.TaskUtil.FalseTask;
         }
 
         /// <inheritdoc />
@@ -1308,7 +1308,7 @@ namespace Spreads
 
                 if (lro && rro)
                 {
-                    return TaskEx.FalseTask;
+                    return Utils.TaskUtil.FalseTask;
                 }
 
                 if (lro)

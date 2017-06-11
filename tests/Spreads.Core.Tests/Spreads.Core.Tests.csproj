@@ -151,7 +151,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AwaiterTests.cs" />
     <Compile Include="Algorithms\MovingMedianTests.cs" />
     <Compile Include="Collections\KeyComparerTests.cs" />
     <Compile Include="Collections\FastDictionaryTests.cs" />

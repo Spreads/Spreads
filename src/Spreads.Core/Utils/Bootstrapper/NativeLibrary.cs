@@ -8,7 +8,7 @@ using System.Diagnostics;
 namespace Bootstrap
 {
     // TODO internal
-    public class NativeLibrary : IDisposable
+    internal class NativeLibrary : IDisposable
     {
         public string path;
         public IntPtr handle;

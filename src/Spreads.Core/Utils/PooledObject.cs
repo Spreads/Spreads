@@ -10,7 +10,7 @@ using System.Threading;
 
 namespace Spreads.Utils
 {
-    public abstract class PooledObject<TObject> : IDisposable where TObject : PooledObject<TObject>, new()
+    internal abstract class PooledObject<TObject> : IDisposable where TObject : PooledObject<TObject>, new()
     {
         internal const int DefaultCapacity = 16;
         internal const int MaxCapacity = 128;

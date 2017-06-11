@@ -3,15 +3,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Reflection;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 
 namespace Bootstrap
 {
-    public static class Program
+    internal static class Program
     {
         // when running as console app, init Bootstrapper
         static Program()
@@ -212,7 +212,7 @@ namespace Bootstrap
     }
 
     // TODO internal all members and type if possible
-    public class Bootstrapper
+    internal class Bootstrapper
     {
         internal static ABI ABI { get; set; }
 

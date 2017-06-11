@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Utils;
 
 namespace Spreads
 {
@@ -90,7 +91,7 @@ namespace Spreads
             // sync move, hot path
             if (_innerCursor.MoveNext())
             {
-                return TaskEx.TrueTask;
+                return TaskUtil.TrueTask;
             }
 
             return MoveNextSlow(cancellationToken);
@@ -102,7 +103,7 @@ namespace Spreads
             var task = _innerCursor.Source.Updated;
             if (_innerCursor.MoveNext())
             {
-                return TaskEx.TrueTask;
+                return TaskUtil.TrueTask;
             }
 
             if (_innerCursor.Source.IsReadOnly)
@@ -110,10 +111,10 @@ namespace Spreads
                 // false almost always
                 if (_innerCursor.MoveNext())
                 {
-                    return TaskEx.TrueTask;
+                    return TaskUtil.TrueTask;
                 }
 
-                return TaskEx.FalseTask;
+                return TaskUtil.FalseTask;
 
             }
 
@@ -134,7 +135,7 @@ namespace Spreads
                 _cancelledTcs = new TaskCompletionSource<Task<bool>>();
                 _registration = _token.Register(() =>
                 {
-                    _cancelledTcs.SetResult(TaskEx.FromCanceled<bool>(_token));
+                    _cancelledTcs.SetResult(TaskUtil.FromCanceled<bool>(_token));
                 });
             }
 
@@ -147,9 +148,9 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Task<bool> MoveNextContinuation(Task<bool> t)
         {
-            if (!t.Result) return TaskEx.FalseTask;
-            if (_token.IsCancellationRequested) return TaskEx.FromCanceled<bool>(_token);
-            return _innerCursor.MoveNext() ? TaskEx.TrueTask : MoveNext(_token);
+            if (!t.Result) return TaskUtil.FalseTask;
+            if (_token.IsCancellationRequested) return TaskUtil.FromCanceled<bool>(_token);
+            return _innerCursor.MoveNext() ? TaskUtil.TrueTask : MoveNext(_token);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

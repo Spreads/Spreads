@@ -489,17 +489,6 @@ type private UnionKeysCursor<'K,'V>([<ParamArray>] cursors:ICursor<'K,'V>[]) =
         raise (NotSupportedException("UnionKeysCursor should be used only as a pivot inside continuous ZipN"))
 
 
-/// Repack original types into value tuples. Due to the lazyness this only happens for a current value of cursor. ZipN keeps vArr instance and
-/// rewrites its values. For value types we will always be in L1/stack, for reference types we do not care that much about performance.
-//and 
-//  Zip2Cursor<'K,'V,'V2,'R>(cursorFactoryL:Func<ICursor<'K,'V>>,cursorFactoryR:Func<ICursor<'K,'V2>>, mapF:Func<'K,'V,'V2,'R>) =
-//    inherit ZipNCursor<'K,ValueTuple<'V,'V2>,'R>(
-//      Func<'K, ValueTuple<'V,'V2>[],'R>(fun (k:'K) (tArr:ValueTuple<'V,'V2>[]) -> mapF.Invoke(k, tArr.[0].Value1, tArr.[1].Value2)), 
-//      (fun () -> new MapCursor<_,_,_,_>(cursorFactoryL.Invoke(), (fun (x:'V) -> ValueTuple<'V,'V2>(x, Unchecked.defaultof<'V2>))) :> ICursor<'K,ValueTuple<'V,'V2>>), 
-//      (fun () -> new BatchMapValuesCursor<_,_,_>(cursorFactoryR, (fun (x:'V2) -> ValueTuple<'V,'V2>(Unchecked.defaultof<'V>, x)), Missing) :> ICursor<'K,ValueTuple<'V,'V2>>)
-//    )
-
-
 and
   // TODO use Span<'V> instead of 'V[]
   internal ZipNCursor<'K,'V,'R>(resultSelector:Func<'K,'V[],'R>, [<ParamArray>] cursorFactories:(unit->ICursor<'K,'V>)[]) as this =

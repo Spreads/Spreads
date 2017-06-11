@@ -209,7 +209,7 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException($"CursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
-            return TaskEx.FalseTask;
+            return Utils.TaskUtil.FalseTask;
         }
 
         /// <inheritdoc />
