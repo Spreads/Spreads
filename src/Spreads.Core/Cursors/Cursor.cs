@@ -40,24 +40,28 @@ namespace Spreads
         /// SpecializedWrapper constructor.
         /// </summary>
         /// <param name="cursor"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Cursor([NotNull] ICursor<TKey, TValue> cursor)
         {
             _cursor = cursor ?? throw new ArgumentNullException(nameof(cursor));
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNext(CancellationToken cancellationToken)
         {
             return _cursor.MoveNext(cancellationToken);
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Cursor<TKey, TValue> Initialize()
         {
             return new Cursor<TKey, TValue>(_cursor.Source.GetCursor());
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {
             return _cursor.MoveNext();
@@ -70,51 +74,73 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public KeyValuePair<TKey, TValue> Current => _cursor.Current;
+        public KeyValuePair<TKey, TValue> Current
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Current; }
+        }
 
         /// <inheritdoc />
         object IEnumerator.Current => ((IEnumerator)_cursor).Current;
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Dispose()
         {
             _cursor.Dispose();
         }
 
         /// <inheritdoc />
-        public KeyComparer<TKey> Comparer => _cursor.Comparer;
+        public KeyComparer<TKey> Comparer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Comparer; }
+        }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveAt(TKey key, Lookup direction)
         {
             return _cursor.MoveAt(key, direction);
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveFirst()
         {
             return _cursor.MoveFirst();
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveLast()
         {
             return _cursor.MoveLast();
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MovePrevious()
         {
             return _cursor.MovePrevious();
         }
 
         /// <inheritdoc />
-        public TKey CurrentKey => _cursor.CurrentKey;
+        public TKey CurrentKey
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.CurrentKey; }
+        }
 
         /// <inheritdoc />
-        public TValue CurrentValue => _cursor.CurrentValue;
+        public TValue CurrentValue
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.CurrentValue; }
+        }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
             return _cursor.MoveNextBatch(cancellationToken);
@@ -124,7 +150,11 @@ namespace Spreads
         public IReadOnlySeries<TKey, TValue> CurrentBatch => _cursor.CurrentBatch;
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> Source => _cursor.Source;
+        public IReadOnlySeries<TKey, TValue> Source
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source; }
+        }
 
         /// <inheritdoc />
         public bool IsContinuous => _cursor.IsContinuous;
@@ -132,6 +162,7 @@ namespace Spreads
 
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Cursor<TKey, TValue> Clone()
         {
             return new Cursor<TKey, TValue>(_cursor.Clone());
@@ -143,6 +174,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out TValue value)
         {
             return _cursor.TryGetValue(key, out value);

@@ -122,6 +122,7 @@ namespace Spreads
         #region Lifetime management
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight> Clone()
         {
             var instance =
@@ -145,6 +146,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight> Initialize()
         {
             var instance =
@@ -164,6 +166,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Dispose()
         {
             // NB keep cursor state for reuse
@@ -181,6 +184,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Reset()
         {
             _leftCursor.Reset();

@@ -62,6 +62,7 @@ namespace Spreads
         #region Lifetime management
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RepeatWithKey<TKey, TValue, TCursor> Clone()
         {
             var instance = new RepeatWithKey<TKey, TValue, TCursor>
@@ -76,6 +77,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RepeatWithKey<TKey, TValue, TCursor> Initialize()
         {
             var instance = new RepeatWithKey<TKey, TValue, TCursor>
@@ -90,6 +92,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Dispose()
         {
             // NB keep cursor state for reuse
@@ -102,6 +105,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Reset()
         {
             _previousState = default((bool wasMovingNext, (TKey, TValue) previous));

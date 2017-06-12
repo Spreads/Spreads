@@ -42,6 +42,12 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void ThrowArgumentOutOfRangeException(string argument)
+        {
+            throw GetArgumentOutOfRangeException(argument);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidOperationException()
         {
             throw GetInvalidOperationException();
@@ -129,6 +135,12 @@ namespace Spreads
         private static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument)
         {
             return new ArgumentOutOfRangeException(GetArgumentName(argument));
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static ArgumentOutOfRangeException GetArgumentOutOfRangeException(string argument)
+        {
+            return new ArgumentOutOfRangeException(argument);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

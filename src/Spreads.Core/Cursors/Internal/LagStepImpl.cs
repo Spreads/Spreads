@@ -32,6 +32,7 @@ namespace Spreads.Cursors.Internal
 
         internal int _width;
         internal int _step;
+        internal bool _allowIncomplete;
         internal int _currentWidth;
 
         internal CursorState State { get; set; }
@@ -40,15 +41,17 @@ namespace Spreads.Cursors.Internal
 
         #region Constructors
 
-        internal LagStepImpl(TCursor cursor, int width = 1, int step = 1) : this()
+        internal LagStepImpl(TCursor cursor, int width = 1, int step = 1, bool allowIncomplete = false) : this()
         {
-            if (width <= 0) throw new ArgumentOutOfRangeException(nameof(width));
-            if (step <= 0) throw new ArgumentOutOfRangeException(nameof(width));
+            if (width <= 0) { ThrowHelper.ThrowArgumentOutOfRangeException(nameof(width)); }
+            if (step <= 0) { ThrowHelper.ThrowArgumentOutOfRangeException(nameof(step)); }
+            if (allowIncomplete && _step > 1) { ThrowHelper.ThrowNotImplementedException("TODO incomplete with step is not implemented"); }
 
             _cursor = cursor;
 
             _width = width;
             _step = step;
+            _allowIncomplete = allowIncomplete;
         }
 
         #endregion Constructors
@@ -56,6 +59,7 @@ namespace Spreads.Cursors.Internal
         #region Lifetime management
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public LagStepImpl<TKey, TValue, TCursor> Clone()
         {
             var instance = new LagStepImpl<TKey, TValue, TCursor>
@@ -64,6 +68,7 @@ namespace Spreads.Cursors.Internal
                 _laggedCursor = _laggedCursor.Clone(),
                 _width = _width,
                 _step = _step,
+                _allowIncomplete = _allowIncomplete,
                 _currentWidth = _currentWidth,
                 State = State
             };
@@ -71,6 +76,7 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public LagStepImpl<TKey, TValue, TCursor> Initialize()
         {
             var instance = new LagStepImpl<TKey, TValue, TCursor>
@@ -79,6 +85,7 @@ namespace Spreads.Cursors.Internal
                 _laggedCursor = _cursor.Initialize(),
                 _width = _width,
                 _step = _step,
+                _allowIncomplete = _allowIncomplete,
                 _currentWidth = 0,
                 State = CursorState.Initialized
             };
@@ -86,6 +93,7 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Dispose()
         {
             // NB keep cursor state for reuse
@@ -97,6 +105,7 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Reset()
         {
             _cursor.Reset();
@@ -185,7 +194,11 @@ namespace Spreads.Cursors.Internal
                     moved = _laggedCursor.MovePrevious();
                     _currentWidth++;
                 }
+
+                // NB important to do inside if, first move must be true
+                moved = moved || _allowIncomplete;
             }
+
 
             if (moved)
             {
@@ -225,6 +238,9 @@ namespace Spreads.Cursors.Internal
                     moved = _cursor.MoveNext();
                     _currentWidth++;
                 }
+
+                // NB important to do inside if, first move must be true
+                moved = moved || _allowIncomplete;
             }
 
             if (moved)
@@ -265,6 +281,9 @@ namespace Spreads.Cursors.Internal
                     moved = _laggedCursor.MovePrevious();
                     _currentWidth++;
                 }
+
+                // NB important to do inside if, first move must be true
+                moved = moved || _allowIncomplete;
             }
 
             if (moved)
@@ -286,6 +305,8 @@ namespace Spreads.Cursors.Internal
             if (State < CursorState.Moving) return MoveFirst();
 
             var ck = _cursor.CurrentKey;
+
+            if (_allowIncomplete) ThrowHelper.ThrowNotImplementedException("TODO");
 
             var moved = false;
             var moves = 0;
@@ -336,6 +357,8 @@ namespace Spreads.Cursors.Internal
             if (State < CursorState.Moving) return MoveLast();
 
             var ck = _cursor.CurrentKey;
+
+            if (_allowIncomplete) ThrowHelper.ThrowNotImplementedException("TODO");
 
             var moved = false;
             var moves = 0;
