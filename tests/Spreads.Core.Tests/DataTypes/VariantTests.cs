@@ -12,6 +12,7 @@ using Newtonsoft.Json;
 using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.DataTypes;
+using Spreads.Utils;
 
 namespace Spreads.Core.Tests.DataTypes
 {
@@ -111,23 +112,25 @@ namespace Spreads.Core.Tests.DataTypes
         [Test, Ignore]
         public void CouldCreateAndReadInlinedVariantInALoop()
         {
-            var count = 100000000;
-            var sw = new Stopwatch();
+            var count = 50000000;
+            var sum = 0.0;
             for (int round = 0; round < 10; round++)
             {
-                sw.Restart();
-                var sum = 0.0;
-                for (int i = 0; i < count; i++)
+                using (Benchmark.Run("Variant", count))
                 {
-                    var v = Variant.Create<double>(i);
-                    var d = v.Get<double>();
-                    sum += d;
+                    sum = 0.0;
+                    for (int i = 0; i < count; i++)
+                    {
+                        var v = Variant.Create<double>(i);
+                        var d = v.Get<double>();
+                        sum += d;
+                    }
+                    if (sum == double.MaxValue) ThrowHelper.ThrowInvalidOperationException();
                 }
-                sw.Stop();
-                if (sum < double.MaxValue)
-                    Console.WriteLine($"Elapsed: {sw.ElapsedMilliseconds}, Mops: {count / (sw.ElapsedMilliseconds * 0.001)}");
             }
+            Benchmark.Dump();
         }
+
 
         private struct Container<T>
         {

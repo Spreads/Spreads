@@ -6,30 +6,29 @@ using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.DataTypes;
 
-namespace Spreads.Tests {
+namespace Spreads.Tests
+{
 
     [TestFixture]
-    public class VariantSeriesTest {
-
-        [Test]
-        public void TestTest() {
-            Assert.True(true);
-            System.Console.WriteLine("TestTest");
-        }
+    public class VariantSeriesTest
+    {
 
 
         [Test]
-        public void CouldReadVariantSeries() {
+        public void CouldReadVariantSeries()
+        {
 
             var sm = new SortedMap<int, string>();
-            for (int i = 0; i < 100; i++) {
+            for (int i = 0; i < 100; i++)
+            {
                 sm.Add(i, (i * 100).ToString());
             }
 
             var vs = new VariantSeries<int, string>(sm);
 
-            
-            foreach (var item in vs) {
+
+            foreach (var item in vs)
+            {
                 System.Console.WriteLine(item.Key.Get<int>() + ": " + item.Value.Get<string>());
             }
 
@@ -63,14 +62,14 @@ namespace Spreads.Tests {
                 System.Console.WriteLine(item.Key.Get<int>() + ": " + item.Value.Get<double>());
             }
 
-            Assert.AreEqual(Variant.Create(0), vs.First.Key);
-            Assert.AreEqual(Variant.Create("0"), vs.First.Value);
-            Assert.AreEqual(Variant.Create(99), vs.Last.Key);
-            Assert.AreEqual(Variant.Create("9900"), vs.Last.Value);
+            Assert.AreEqual(Variant.Create(0), doubled.First.Key);
+            Assert.AreEqual(Variant.Create(0.0), doubled.First.Value);
+            Assert.AreEqual(Variant.Create(99), doubled.Last.Key);
+            Assert.AreEqual(Variant.Create(9900.0 * 2), doubled.Last.Value);
 
 
             var cursorSeries = doubled.ReadOnly();
-            Assert.AreEqual(0, cursorSeries.First.Key);
+            Assert.AreEqual(Variant.Create(0), cursorSeries.First.Key);
         }
 
 

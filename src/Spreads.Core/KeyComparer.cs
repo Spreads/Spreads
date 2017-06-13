@@ -14,7 +14,7 @@ namespace Spreads
     /// Fast IComparer implementation.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public sealed class KeyComparer<T> : IKeyComparer<T>, IEqualityComparer<T>
+    public sealed class KeyComparer<T> : IKeyComparer<T>, IEqualityComparer<T>, IEquatable<KeyComparer<T>>
     {
         private static readonly KeyComparer<T> _default = new KeyComparer<T>();
         private static readonly bool IsIComparable = typeof(IComparable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
@@ -342,6 +342,29 @@ namespace Spreads
         public int GetHashCode(T obj)
         {
             throw new NotSupportedException("KeyComparer should not be used for hash code calculatons.");
+        }
+
+        public bool Equals(KeyComparer<T> other)
+        {
+            if (ReferenceEquals(null, other)) return false;
+            if (ReferenceEquals(this, other)) return true;
+            return Equals(_comparer, other._comparer) && Equals(_keyComparer, other._keyComparer);
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            var a = obj as KeyComparer<T>;
+            return a != null && Equals(a);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return ((_comparer != null ? _comparer.GetHashCode() : 0) * 397) ^ (_keyComparer != null ? _keyComparer.GetHashCode() : 0);
+            }
         }
     }
 

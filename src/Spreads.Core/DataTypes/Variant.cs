@@ -89,6 +89,13 @@ namespace Spreads.DataTypes
     [StructLayout(LayoutKind.Explicit, Pack = 4)]
     public unsafe partial struct Variant : IEquatable<Variant>
     {
+        [StructLayout(LayoutKind.Sequential, Pack = 16, Size = 16)]
+        private struct Buffer16
+        {
+            private long l1;
+            private long l2;
+        }
+
         // TODO Structural equality
 
         /// <summary>
@@ -118,7 +125,7 @@ namespace Spreads.DataTypes
 
         // Inline layout, object is a BoxedTypeEnum
         [FieldOffset(0)]
-        private fixed byte _data[16];
+        private Buffer16 _data;
 
         // Object and pointer layout
         [FieldOffset(0)]
@@ -156,16 +163,14 @@ namespace Spreads.DataTypes
         public static Variant Create<T>(T value = default(T))
         {
             //Console.WriteLine("Dispatched as scalar");
-            var boxedTypeEnum = BoxedTypeEnum<T>.CachedBoxedTypeEnum;
-            var typeEnum = boxedTypeEnum.TypeEnum;
-            if ((int)typeEnum < KnownSmallTypesLimit)
+            if (VariantHelper<T>.IsInline)
             {
                 // inline layout
-                var variant = new Variant { _boxedTypeEnum = boxedTypeEnum };
-                Unsafe.Write(variant._data, value);
+                var variant = new Variant { _boxedTypeEnum = BoxedTypeEnum<T>.CachedBoxedTypeEnum };
+                Unsafe.Write(Unsafe.AsPointer(ref variant._data), value);
                 return variant;
             }
-            return CreateSlow(value, typeEnum);
+            return CreateSlow(value, VariantHelper<T>.TypeEnum);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -175,7 +180,7 @@ namespace Spreads.DataTypes
             return Create(d);
         }
 
-        //[MethodImpl(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private static Variant CreateSlow<T>(T value, TypeEnum typeEnum)
         {
             if (typeEnum == TypeEnum.Variant) return (Variant)(object)(value);
@@ -574,18 +579,16 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Get<T>()
         {
-            var teOfT = VariantHelper<T>.TypeEnum;
-            if ((int)teOfT < KnownSmallTypesLimit)
+            if (VariantHelper<T>.IsInline)
             {
                 var te = _boxedTypeEnum.TypeEnum;
-                if (te != teOfT)
+                if (te != VariantHelper<T>.TypeEnum)
                 {
-                    throw new InvalidCastException("Variant type doesn't match typeof(T)");
+                    ThrowHelper.ThrowInvalidCastException(); //"Variant type doesn't match typeof(T)"
+                    return default(T);
                 }
-                fixed (void* ptr = _data)
-                {
-                    return Unsafe.Read<T>(ptr);
-                }
+
+                return Unsafe.Read<T>(Unsafe.AsPointer(ref _data));
             }
             return (T)_object;
         }
@@ -593,21 +596,18 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Set<T>(T value)
         {
-            var teOfT = VariantHelper<T>.TypeEnum;
-            if ((int)teOfT < KnownSmallTypesLimit)
+            if (VariantHelper<T>.IsInline)
             {
                 var te = _boxedTypeEnum.TypeEnum;
-                if (te != teOfT)
+                if (te != VariantHelper<T>.TypeEnum)
                 {
                     throw new InvalidCastException("Variant type doesn't match typeof(T)");
                 }
-                fixed (void* ptr = _data)
-                {
-                    Unsafe.Write(ptr, value);
-                    return;
-                }
+                Unsafe.Write(Unsafe.AsPointer(ref _data), value);
+                return;
             }
-            throw new NotImplementedException();
+            // TODO
+            ThrowHelper.ThrowNotImplementedException();
         }
 
         /// <summary>
@@ -618,10 +618,7 @@ namespace Spreads.DataTypes
         public T UnsafeGetInilned<T>()
         {
             Debug.Assert(Layout == VariantLayout.Inline);
-            fixed (void* ptr = _data)
-            {
-                return Unsafe.Read<T>(ptr);
-            }
+            return Unsafe.Read<T>(Unsafe.AsPointer(ref _data));
         }
 
         /// <summary>
@@ -632,10 +629,7 @@ namespace Spreads.DataTypes
         public void UnsafeSetInlined<T>(T value)
         {
             Debug.Assert(Layout == VariantLayout.Inline);
-            fixed (void* ptr = _data)
-            {
-                Unsafe.Write(ptr, value);
-            }
+            Unsafe.Write(Unsafe.AsPointer(ref _data), value);
         }
 
         /// <summary>
@@ -649,8 +643,7 @@ namespace Spreads.DataTypes
             //return span[index];
 
             // Object
-            var arrayOfT = _object as T[];
-            if (arrayOfT != null)
+            if (_object is T[] arrayOfT)
             {
                 return arrayOfT[index + (int)_offset];
             }
@@ -744,10 +737,8 @@ namespace Spreads.DataTypes
                 {
                     throw new InvalidCastException("Variant type doesn't match typeof(T)");
                 }
-                fixed (void* ptr = _data)
-                {
-                    return new Span<T>(ptr, 1);
-                }
+
+                return new Span<T>(Unsafe.AsPointer(ref _data), 1);
             }
             // Object
             var typeEnum = _header.TypeEnum;
@@ -816,13 +807,11 @@ namespace Spreads.DataTypes
                 {
                     if (boxed.TypeEnum != value.TypeEnum)
                     {
-                        throw new InvalidCastException();
+                        ThrowHelper.ThrowInvalidCastException();
+                        return;
                     }
                     // count was 1 and if we are here, index = 0
-                    fixed (void* ptr = _data)
-                    {
-                        *(decimal*)ptr = *(decimal*)value._data;
-                    }
+                    Unsafe.Write(Unsafe.AsPointer(ref _data), value._data);
                     return;
                 }
                 // Object
@@ -851,7 +840,7 @@ namespace Spreads.DataTypes
                 TypeEnum = typeEnum;
             }
 
-            public TypeEnum TypeEnum { get; }
+            public readonly TypeEnum TypeEnum;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             internal static BoxedTypeEnum Get(TypeEnum typeEnum)
@@ -876,11 +865,7 @@ namespace Spreads.DataTypes
             if (TypeEnum == TypeEnum.None) return true;
             if ((int)TypeEnum < KnownSmallTypesLimit)
             {
-                fixed (byte* thisPtr = _data)
-                {
-                    var otherPtr = other._data;
-                    return (*(ulong*)thisPtr == *(ulong*)otherPtr) && (*(ulong*)(thisPtr + 8) == *(ulong*)(otherPtr + 8));
-                }
+                return _data.Equals(other._data);
             }
             var thisAsObject = ToObject();
             var otherAsObject = other.ToObject();
@@ -902,20 +887,25 @@ namespace Spreads.DataTypes
             if ((int)TypeEnum < KnownSmallTypesLimit)
             {
                 // ReSharper disable once NonReadonlyMemberInGetHashCode
-                fixed (byte* dataPtr = _data)
+                var dataPtr = (byte*)Unsafe.AsPointer(ref _data);
+
+                unchecked
                 {
-                    unchecked
-                    {
-                        int hashCode = (int)TypeEnum;
-                        hashCode = (hashCode * 397) ^ *(int*)(dataPtr);
-                        hashCode = (hashCode * 397) ^ *(int*)(dataPtr + 4);
-                        hashCode = (hashCode * 397) ^ *(int*)(dataPtr + 8);
-                        hashCode = (hashCode * 397) ^ *(int*)(dataPtr + 12);
-                        return hashCode;
-                    }
+                    int hashCode = (int)TypeEnum;
+                    hashCode = (hashCode * 397) ^ *(int*)(dataPtr);
+                    hashCode = (hashCode * 397) ^ *(int*)(dataPtr + 4);
+                    hashCode = (hashCode * 397) ^ *(int*)(dataPtr + 8);
+                    hashCode = (hashCode * 397) ^ *(int*)(dataPtr + 12);
+                    return hashCode;
                 }
             }
             return ToObject().GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            var obj = ToObject();
+            return Convert.ToString(obj);
         }
 
         /// <summary>

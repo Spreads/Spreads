@@ -19,7 +19,8 @@ namespace Spreads
     public abstract class ConvertSeries<TKey, TValue, TKey2, TValue2, TImpl> : Series<TKey2, TValue2>, IDisposable
         where TImpl : ConvertSeries<TKey, TValue, TKey2, TValue2, TImpl>, new()
     {
-        private static readonly BoundedConcurrentBag<TImpl> Pool = new BoundedConcurrentBag<TImpl>(Environment.ProcessorCount * 2);
+        // TODO use ObjectPool
+        private static BoundedConcurrentBag<TImpl> Pool;
         private KeyComparer<TKey2> _comparer;
 
         protected IReadOnlySeries<TKey, TValue> Inner;
@@ -27,6 +28,7 @@ namespace Spreads
         protected ConvertSeries(IReadOnlySeries<TKey, TValue> inner)
         {
             Inner = inner;
+
             _comparer = KeyComparer<TKey2>.Create(new ConvertComparer(this as TImpl));
         }
 
@@ -107,8 +109,7 @@ namespace Spreads
 
         public static TImpl Create(IReadOnlySeries<TKey, TValue> innerSeries)
         {
-            TImpl instance;
-            if (!Pool.TryTake(out instance))
+            if (Pool == null || !Pool.TryTake(out TImpl instance))
             {
                 instance = new TImpl();
                 instance._comparer = KeyComparer<TKey2>.Create(new ConvertComparer(instance));
@@ -122,12 +123,20 @@ namespace Spreads
             var disposable = Inner as IDisposable;
             disposable?.Dispose();
             Inner = null;
-            var pooled = Pool.TryAdd(this as TImpl);
-            // TODO review
-            if (disposing && !pooled)
+            if (disposing)
             {
-                GC.SuppressFinalize(this);
+                // no pooling from finalizers, just don't do that
+                if (Pool == null)
+                {
+                    Pool = new BoundedConcurrentBag<TImpl>(Environment.ProcessorCount * 2);
+                }
+                if (!Pool.TryAdd(this as TImpl))
+                {
+                    // not added to the pool, let it die
+                    GC.SuppressFinalize(this);
+                }
             }
+            
         }
 
         public void Dispose()
@@ -137,6 +146,7 @@ namespace Spreads
 
         ~ConvertSeries()
         {
+            // NB need a finalizer because the inner could be a persistent one
             Dispose(false);
         }
 
@@ -229,7 +239,7 @@ namespace Spreads
             public bool IsContinuous => _innerCursor.IsContinuous;
         }
 
-        private class ConvertComparer : IComparer<TKey2>
+        private struct ConvertComparer : IComparer<TKey2>
         {
             private readonly TImpl _source;
 

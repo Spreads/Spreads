@@ -13,6 +13,8 @@ namespace Spreads.DataTypes
     {
         // ReSharper disable once StaticMemberInGenericType
         public static readonly TypeEnum TypeEnum = GetTypeEnum();
+        // ReSharper disable once StaticMemberInGenericType
+        public static readonly bool IsInline = (int)GetTypeEnum() < Variant.KnownSmallTypesLimit;
 
         /* https://github.com/dotnet/corefx/blob/master/src/System.Numerics.Vectors/src/System/Numerics/Vector.cs
         * PATTERN:

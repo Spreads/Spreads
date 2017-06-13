@@ -54,6 +54,12 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void ThrowInvalidCastException()
+        {
+            throw GetInvalidCastException();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidOperationException(string message)
         {
             throw GetInvalidOperationException(message);
@@ -147,6 +153,12 @@ namespace Spreads
         private static InvalidOperationException GetInvalidOperationException()
         {
             return new InvalidOperationException();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static InvalidCastException GetInvalidCastException()
+        {
+            return new InvalidCastException();
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

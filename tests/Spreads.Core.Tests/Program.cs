@@ -7,6 +7,7 @@ using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using Spreads.Core.Tests.Cursors;
+using Spreads.Core.Tests.DataTypes;
 
 namespace Spreads.Core.Tests
 {
@@ -25,7 +26,8 @@ namespace Spreads.Core.Tests
             {
                 //new ArithmeticTests().CouldUseStructSeries();
                 //new ZipCursorTests().CouldAddTwoSeriesWithSameKeysBenchmark();
-                new SCMTests().EnumerateScmSpeed();
+                //new SCMTests().EnumerateScmSpeed();
+                new VariantTests().CouldCreateAndReadInlinedVariantInALoop();
             }
 
             Console.WriteLine("Press enter to exit...");
