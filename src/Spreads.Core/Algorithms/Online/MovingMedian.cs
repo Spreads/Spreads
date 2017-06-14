@@ -12,14 +12,23 @@ namespace Spreads.Algorithms.Online
     // implementation of LIGO's Efficient Algorithm for computing a Running Median
     // https://dcc.ligo.org/public/0027/T030168/000/T030168-00.pdf
 
-    public class MovingMedian
+    public struct MovingMedian
     {
         private readonly Comparer<RngmedValIndex> _valIndexComparer;
 
-        public MovingMedian(int nblocks)
+        public MovingMedian(int nblocks) : this()
         {
             _nblocks = nblocks;
             _valIndexComparer = new RngmedValIndexComparer(Comparer<double>.Default);
+
+            _currentnodeIdx = -1;
+            _previousnodeIdx = -1;
+
+            _leftnodeIdx = -1;
+            _rightnodeIdx = -1;
+
+            _reuseNextSortedIdx = -1;
+            _reusePrevSortedIdx = -1;
         }
 
         private struct Node
@@ -67,9 +76,9 @@ namespace Spreads.Algorithms.Online
         private Node[] _nodes;
         private int[] _checks;
         private int _firstSequenceIdx, _lastSequenceIdx;
-        private int _currentnodeIdx = -1, _previousnodeIdx = -1;
-        private int _leftnodeIdx = -1, _rightnodeIdx = -1;
-        private int _reuseNextSortedIdx = -1, _reusePrevSortedIdx = -1;
+        private int _currentnodeIdx, _previousnodeIdx;
+        private int _leftnodeIdx, _rightnodeIdx;
+        private int _reuseNextSortedIdx, _reusePrevSortedIdx;
         private int _dummyNodeIdx, _dummyNode1Idx, _dummyNode2Idx;
         private int _ncheckpts, _stepchkpts;
         private int _nextchkptindx;
@@ -484,7 +493,7 @@ namespace Spreads.Algorithms.Online
             return LastValue;
         }
 
-        public int Rngmed(double[] data, double[] medians)
+        public int Rngmed(double[] data, ref double[] medians)
         {
             medians[0] = Init(data);
             for (_samplecount = _nblocks; _samplecount < (int)data.Length; _samplecount++)

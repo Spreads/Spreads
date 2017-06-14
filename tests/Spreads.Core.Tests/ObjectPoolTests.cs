@@ -2,9 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
 using Spreads.Collections.Concurrent;
@@ -17,9 +14,9 @@ using System.Threading.Tasks;
 namespace Spreads.Core.Tests
 {
     [TestFixture]
-    public class ObjectPoolsTests
+    public class ObjectPoolTests
     {
-        public class DummyPoolable : IPoolable<DummyPoolable>
+        public class DummyPoolable
         {
             public int I { get; set; }
 
@@ -35,24 +32,18 @@ namespace Spreads.Core.Tests
         // https://github.com/dotnet/corefx/pull/14126
         [Test]
         [Ignore]
-        public void ComparePoolsPerformance()
+        public void PoolPerformance()
         {
             int capacity = Environment.ProcessorCount * 2;
-            var arrayPool = new ObjectPoolArray<DummyPoolable>(capacity);
-            var bagPool = new ObjectPoolBag<DummyPoolable>(capacity);
-            var queuePool = new ObjectPoolQueue<DummyPoolable>(capacity);
-            //var mpmcQueuePool = new ObjectPoolMPMCQueue<DummyPoolable>(capacity);
+            var arrayPool = new ObjectPool<DummyPoolable>(() => new DummyPoolable(), capacity);
             for (int round = 0; round < 10; round++)
             {
                 TestPool(arrayPool);
-                TestPool(bagPool);
-                TestPool(queuePool);
-                //TestPool(mpmcQueuePool);
                 Console.WriteLine("----------");
             }
         }
 
-        public void TestPool(IObjectPool<DummyPoolable> pool)
+        internal void TestPool(ObjectPool<DummyPoolable> pool)
         {
             var sw = new Stopwatch();
             //while (true) {
@@ -71,7 +62,7 @@ namespace Spreads.Core.Tests
                 }
             })).ToArray());
             sw.Stop();
-            Console.WriteLine(pool.GetType().Name + ": " + sw.Elapsed + " " + (GC.CollectionCount(0) - gen0) + " count:" + pool.Count);
+            Console.WriteLine(pool.GetType().Name + ": " + sw.Elapsed + " GC: " + (GC.CollectionCount(0) - gen0));
             //}
         }
     }

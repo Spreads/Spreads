@@ -20,7 +20,7 @@ namespace Spreads
         private static ObjectPool<VariantSeries<TKey, TValue>> _pool;
         private readonly KeyComparer<Variant> _comparer;
 
-        protected IReadOnlySeries<TKey, TValue> Inner;
+        internal IReadOnlySeries<TKey, TValue> Inner;
 
         public VariantSeries(IReadOnlySeries<TKey, TValue> inner)
         {
@@ -32,8 +32,10 @@ namespace Spreads
         {
         }
 
+        /// <inheritdoc />
         public TypeEnum KeyType { get; } = VariantHelper<TKey>.TypeEnum;
 
+        /// <inheritdoc />
         public TypeEnum ValueType { get; } = VariantHelper<TValue>.TypeEnum;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -273,7 +275,7 @@ namespace Spreads
             public override bool Equals(object obj)
             {
                 if (ReferenceEquals(null, obj)) return false;
-                return obj is VariantComparer && Equals((VariantComparer) obj);
+                return obj is VariantComparer && Equals((VariantComparer)obj);
             }
 
             public override int GetHashCode()
@@ -379,6 +381,10 @@ namespace Spreads
 
         public int Append(IReadOnlySeries<Variant, Variant> appendMap, AppendOption option)
         {
+            if (appendMap is VariantSeries<TKey, TValue> vs)
+            {
+                return MutableInner.Append(vs.Inner, option);
+            }
             throw new NotImplementedException();
         }
 

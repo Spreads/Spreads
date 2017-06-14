@@ -6,73 +6,73 @@ using System;
 using Spreads.DataTypes;
 
 // ReSharper disable once CheckNamespace
-namespace Spreads
+namespace Spreads.Experimental
 {
-    public class TimeSeries<TValue> : ConvertSeries<DateTime, TValue, DateTime, Variant, TimeSeries<TValue>>, IReadOnlyTimeSeries
-    {
-        public TimeSeries()
-        {
-        }
+    //public class TimeSeries<TValue> : ConvertSeries<DateTime, TValue, DateTime, Variant, TimeSeries<TValue>>, IReadOnlyTimeSeries
+    //{
+    //    public TimeSeries()
+    //    {
+    //    }
 
-        public TimeSeries(IReadOnlySeries<DateTime, TValue> inner) : base(inner)
-        {
-        }
+    //    public TimeSeries(IReadOnlySeries<DateTime, TValue> inner) : base(inner)
+    //    {
+    //    }
 
-        public override DateTime ToKey2(DateTime key)
-        {
-            return key;
-        }
+    //    public override DateTime ToKey2(DateTime key)
+    //    {
+    //        return key;
+    //    }
 
-        public override Variant ToValue2(TValue value)
-        {
-            return Variant.Create(value);
-        }
+    //    public override Variant ToValue2(TValue value)
+    //    {
+    //        return Variant.Create(value);
+    //    }
 
-        public override DateTime ToKey(DateTime key)
-        {
-            return key;
-        }
+    //    public override DateTime ToKey(DateTime key)
+    //    {
+    //        return key;
+    //    }
 
-        public override TValue ToValue(Variant value)
-        {
-            return value.Get<TValue>();
-        }
+    //    public override TValue ToValue(Variant value)
+    //    {
+    //        return value.Get<TValue>();
+    //    }
 
-        public TypeEnum ValueType { get; } = VariantHelper<TValue>.TypeEnum;
-        public TimeSeriesInfo TimeSeriesInfo { get; set; }
-    }
+    //    public TypeEnum ValueType { get; } = VariantHelper<TValue>.TypeEnum;
+    //    public TimeSeriesInfo TimeSeriesInfo { get; set; }
+    //}
 
-    public class MutableTimeSeries<TValue> : ConvertMutableSeries<DateTime, TValue, DateTime, Variant, MutableTimeSeries<TValue>>, IReadOnlyTimeSeries
-    {
-        public MutableTimeSeries()
-        {
-        }
+    //public class MutableTimeSeries<TValue> : ConvertMutableSeries<DateTime, TValue, DateTime, Variant, MutableTimeSeries<TValue>>, IReadOnlyTimeSeries
+    //{
+    //    public MutableTimeSeries()
+    //    {
+    //    }
 
-        public MutableTimeSeries(IMutableSeries<DateTime, TValue> innerSeries) : base(innerSeries)
-        {
-        }
+    //    public MutableTimeSeries(IMutableSeries<DateTime, TValue> innerSeries) : base(innerSeries)
+    //    {
+    //    }
 
-        public override DateTime ToKey2(DateTime key)
-        {
-            return key;
-        }
+    //    public override DateTime ToKey2(DateTime key)
+    //    {
+    //        return key;
+    //    }
 
-        public override Variant ToValue2(TValue value)
-        {
-            return Variant.Create(value);
-        }
+    //    public override Variant ToValue2(TValue value)
+    //    {
+    //        return Variant.Create(value);
+    //    }
 
-        public override DateTime ToKey(DateTime key)
-        {
-            return key;
-        }
+    //    public override DateTime ToKey(DateTime key)
+    //    {
+    //        return key;
+    //    }
 
-        public override TValue ToValue(Variant value)
-        {
-            return value.Get<TValue>();
-        }
+    //    public override TValue ToValue(Variant value)
+    //    {
+    //        return value.Get<TValue>();
+    //    }
 
-        public TypeEnum ValueType { get; } = VariantHelper<TValue>.TypeEnum;
-        public TimeSeriesInfo TimeSeriesInfo { get; set; }
-    }
+    //    public TypeEnum ValueType { get; } = VariantHelper<TValue>.TypeEnum;
+    //    public TimeSeriesInfo TimeSeriesInfo { get; set; }
+    //}
 }

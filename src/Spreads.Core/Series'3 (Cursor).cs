@@ -96,6 +96,8 @@ namespace Spreads
 
         #region IReadOnlySeries members
 
+        // TODO (perf) Review if initilize/dispose is too much overhead vs a cached navigation cursor.
+
         /// <inheritdoc />
         public bool IsEmpty
         {

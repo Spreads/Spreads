@@ -1380,18 +1380,18 @@ and
     new() = 
       let comparer:KeyComparer<'K> = KeyComparer<'K>.Default
       let factory = (fun (c:KeyComparer<'K>) -> new ChunksContainer<'K,'V>(c, false) :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>)
-      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, None)
+      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer, IsSynchronized = false)), comparer, None, None)
   
     // x1
 
     /// In-memory sorted chunked map
     new(comparer:IComparer<'K>) = 
       let factory = (fun (c:KeyComparer<'K>) -> new ChunksContainer<'K,'V>(c, false) :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>)
-      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), KeyComparer<'K>.Create(comparer), None, None)
+      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer, IsSynchronized = false)), KeyComparer<'K>.Create(comparer), None, None)
   
     new(comparer:KeyComparer<'K>) = 
       let factory = (fun (c:KeyComparer<'K>) -> new ChunksContainer<'K,'V>(c, false) :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>)
-      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, None)
+      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer, IsSynchronized = false)), comparer, None, None)
   
 
     /// In-memory sorted chunked map
@@ -1401,16 +1401,16 @@ and
       let hasher = { new IKeyHasher<'K> with
             member x.Hash(k) = hasher.Invoke k
           }
-      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, Some(hasher), None)
+      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer, IsSynchronized = false)), comparer, Some(hasher), None)
   
     new(chunkMaxSize:int) = 
       let factory = (fun (c:IComparer<'K>) -> new ChunksContainer<'K,'V>(c, false) :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>)
       let comparer = KeyComparer<'K>.Default
-      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, Some(chunkMaxSize))
+      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer, IsSynchronized = false)), comparer, None, Some(chunkMaxSize))
 
     internal new(outerFactory:Func<IComparer<'K>,IMutableChunksSeries<'K,'V, SortedMap<'K,'V>>>) = 
       let comparer = KeyComparer<'K>.Default
-      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, None)
+      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer, IsSynchronized = false)), comparer, None, None)
   
     // x2
 
@@ -1420,28 +1420,28 @@ and
       let hasher = { new IKeyHasher<'K> with
             member x.Hash(k) = hasher.Invoke k
           }
-      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, Some(hasher), None)
+      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer, IsSynchronized = false)), comparer, Some(hasher), None)
 
     new(comparer:KeyComparer<'K>,chunkMaxSize:int) = 
       let factory = (fun (c:KeyComparer<'K>) -> new ChunksContainer<'K,'V>(c, false) :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>)
-      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, Some(chunkMaxSize))
+      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer, IsSynchronized = false)), comparer, None, Some(chunkMaxSize))
 
     internal new(outerFactory:Func<KeyComparer<'K>,IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>>,comparer:IComparer<'K>) = 
-      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), KeyComparer<'K>.Create(comparer), None, None)
+      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer, IsSynchronized = false)), KeyComparer<'K>.Create(comparer), None, None)
 
     internal new(outerFactory:Func<KeyComparer<'K>,IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>>,comparer:KeyComparer<'K>) = 
-      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, None)
+      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer, IsSynchronized = false)), comparer, None, None)
 
     internal new(outerFactory:Func<IComparer<'K>,IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>>,hasher:Func<'K,'K>) = 
       let comparer = KeyComparer<'K>.Default
       let hasher = { new IKeyHasher<'K> with
             member x.Hash(k) = hasher.Invoke k
           }
-      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, Some(hasher), None)
+      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer, IsSynchronized = false)), comparer, Some(hasher), None)
   
     internal new(outerFactory:Func<IComparer<'K>,IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>>,chunkMaxSize:int) = 
       let comparer = KeyComparer<'K>.Default
-      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, Some(chunkMaxSize))
+      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer, IsSynchronized = false)), comparer, None, Some(chunkMaxSize))
 
     // x3
 
@@ -1449,10 +1449,10 @@ and
       let hasher = { new IKeyHasher<'K> with
             member x.Hash(k) = hasher.Invoke k
           }
-      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, Some(hasher), None)
+      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer, IsSynchronized = false)), comparer, Some(hasher), None)
   
     new(outerFactory:Func<KeyComparer<'K>,IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>>,comparer:KeyComparer<'K>,chunkMaxSize:int) = 
-      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer)), comparer, None, Some(chunkMaxSize))
+      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> new SortedMap<'K,'V>(capacity, comparer, IsSynchronized = false)), comparer, None, Some(chunkMaxSize))
 
 
 and

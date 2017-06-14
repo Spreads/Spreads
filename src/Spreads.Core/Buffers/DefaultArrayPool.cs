@@ -11,8 +11,10 @@ using System.Threading;
 namespace Spreads.Buffers
 {
 
-    // Ignore alien arrays (ones with the size that doesn't match any bucket). This is the only difference from System.Buffers
-
+    /// <summary>
+    /// An <see cref="ArrayPool{T}"/> implementation that ignores
+    /// alien arrays (ones with the size that doesn't match any bucket). This is the only difference from <see cref="ArrayPool{T}"/>
+    /// </summary>
     internal sealed class DefaultArrayPool<T> : ArrayPool<T>
     {
         /// <summary>The default maximum length of each array in the pool (2^20).</summary>

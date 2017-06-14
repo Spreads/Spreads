@@ -16,18 +16,16 @@ namespace Spreads.Core.Tests.Collections
         [Test, Ignore]
         public void CompareSCGAndFastDictionaryWithInts()
         {
-            var d = new Dictionary<int, int>();
-            var constDic = new FastDictionary<int, int>();
-            var kcDic = new FastDictionary<int, int>();
+            var dictionary = new Dictionary<int, int>();
+            var fastDictionary = new FastDictionary<int, int>();
 
             for (int i = 0; i < 1000; i++)
             {
-                d.Add(i, i);
-                constDic.Add(i, i);
-                kcDic.Add(i, i);
+                dictionary.Add(i, i);
+                fastDictionary.Add(i, i);
             }
 
-            const int count = 100000;
+            const int count = 50000;
 
             for (int r = 0; r < 10; r++)
             {
@@ -38,39 +36,26 @@ namespace Spreads.Core.Tests.Collections
                     {
                         for (int j = 0; j < 1000; j++)
                         {
-                            sum += d[j];
+                            sum += dictionary[j];
                         }
                     }
                 }
                 Assert.True(sum > 0);
 
                 var sum1 = 0L;
-                using (Benchmark.Run("Constrained Dictionary", count * 1000))
+                using (Benchmark.Run("FastDictionary", count * 1000))
                 {
                     for (int i = 0; i < count; i++)
                     {
                         for (int j = 0; j < 1000; j++)
                         {
-                            sum1 += constDic[j];
+                            sum1 += fastDictionary[j];
                         }
                     }
                 }
                 Assert.True(sum > 0);
                 Assert.AreEqual(sum, sum1);
 
-                var sum2 = 0L;
-                using (Benchmark.Run("KeyComparer Dictionary", count * 1000))
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        for (int j = 0; j < 1000; j++)
-                        {
-                            sum2 += kcDic[j];
-                        }
-                    }
-                }
-                Assert.True(sum2 > 0);
-                Assert.AreEqual(sum, sum2);
             }
 
             Benchmark.Dump();
@@ -79,15 +64,15 @@ namespace Spreads.Core.Tests.Collections
         [Test, Ignore]
         public void CompareSCGAndFastDictionaryWithSymbol()
         {
-            var d = new Dictionary<Symbol, int>();
-            var fd = new FastDictionary<Symbol, int>();
+            var dictionary = new Dictionary<Symbol, int>();
+            var fastDictionary = new FastDictionary<Symbol, int>();
             var symbols = new Symbol[1000];
             for (int i = 0; i < 1000; i++)
             {
                 var s = new Symbol(i.ToString());
                 symbols[i] = s;
-                d.Add(s, i);
-                fd.Add(s, i);
+                dictionary.Add(s, i);
+                fastDictionary.Add(s, i);
             }
 
             const int count = 10000;
@@ -101,7 +86,7 @@ namespace Spreads.Core.Tests.Collections
                     {
                         for (int j = 0; j < 1000; j++)
                         {
-                            sum += d[symbols[j]];
+                            sum += dictionary[symbols[j]];
                         }
                     }
                 }
@@ -115,7 +100,7 @@ namespace Spreads.Core.Tests.Collections
                     {
                         for (int j = 0; j < 1000; j++)
                         {
-                            sum1 += fd[symbols[j]];
+                            sum1 += fastDictionary[symbols[j]];
                         }
                     }
                 }

@@ -9,10 +9,12 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes
 {
+    // See <see href="http://stackoverflow.com/questions/39179385/c-sharp-marker-structures-performance">details on marker structs in C#</see>.
+
     /// <summary>
-    /// Marker struct to have type safety for integer identity id.
+    /// A marker struct to have type safety for integer identity id.
     /// </summary>
-    /// <remarks>See <see href="http://stackoverflow.com/questions/39179385/c-sharp-marker-structures-performance">details on marker structs in C#</see>.
+    /// <remarks>
     /// It is similar to type aliases in F#.
     /// Useful for preventing wrong usage of some index as an Id or for method overloading.
     /// </remarks>
@@ -23,7 +25,7 @@ namespace Spreads.DataTypes
         /// <summary>
         /// Invalid/zero/none identity id.
         /// </summary>
-        public static Id None = new Id() { _value = 0 };
+        public static Id None = new Id { _value = 0 };
 
         private int _value;
 

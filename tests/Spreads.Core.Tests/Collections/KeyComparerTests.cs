@@ -59,7 +59,8 @@ namespace Spreads.Core.Tests.Collections
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        sum += Unsafe.CompareToConstrained(i, i - 1);
+                        var other = i - 1;
+                        sum += Unsafe.CompareToConstrained(ref i, ref other);
                     }
                 }
             }

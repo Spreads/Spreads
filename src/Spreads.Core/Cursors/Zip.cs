@@ -96,7 +96,7 @@ namespace Spreads
 
         internal Zip(TCursorLeft leftCursor, TCursorRight rightCursor) : this()
         {
-            if (!ReferenceEquals(leftCursor.Comparer, rightCursor.Comparer))
+            if (!leftCursor.Comparer.Equals(rightCursor.Comparer))
             {
                 throw new ArgumentException("Comparers are not the same");
             }

@@ -9,6 +9,7 @@ using System.Reflection;
 
 namespace Spreads.DataTypes
 {
+    [Obsolete("TODO needs rework or delete it")]
     public class KnownTypeAttribute : Attribute
     {
 #if NET451

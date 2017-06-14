@@ -58,7 +58,7 @@ namespace Spreads.Algorithms.Optimization
                 var total = _parameters.Count;
                 do // round trip
                 {
-                    ref var par = ref _parameters[idx];
+                    ref var par = ref _parameters.Ref(idx);
                     if (par.Code.Equals(code, StringComparison.OrdinalIgnoreCase))
                     {
                         _lastLookupIndex = idx;

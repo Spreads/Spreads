@@ -15,7 +15,7 @@ namespace Spreads
         // NB it is effectively 2 bits if ever need to pack densely
 
         /// <summary>
-        /// Point in time. E.g. close price is instant even though it could regular (every second).
+        /// Point in time. E.g. close price is instant even though it could be regular (every second).
         /// </summary>
         PointInTime = 0, // 00
 
@@ -32,6 +32,7 @@ namespace Spreads
         /// <summary>
         /// Entire period.
         /// </summary>
+        [Obsolete("Review, does it make any sense? Need an example.")]
         EntirePeriod = 3 // 11 - both bits are set
     }
 

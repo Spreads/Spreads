@@ -42,6 +42,11 @@ namespace Spreads.Collections.Generic
         ThrowOnExisting = 2
     }
 
+    /// <summary>
+    /// A modified <see cref="Dictionary{TKey,TValue}"/> that uses a fast <see cref="KeyEqualityComparer{T}"/> comparer.
+    /// </summary>
+    /// <typeparam name="TKey"></typeparam>
+    /// <typeparam name="TValue"></typeparam>
     [DebuggerTypeProxy(typeof(IDictionaryDebugView<,>))]
     [DebuggerDisplay("Count = {Count}")]
     [Serializable]

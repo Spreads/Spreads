@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using Spreads.Algorithms.Optimization;
 
 namespace Spreads.Algorithms.Optimization
 {
@@ -213,7 +212,7 @@ namespace Spreads.Algorithms.Optimization
             var ret = parameters.Clone();
             for (int i = 0; i < parameters.List.Count; i++)
             {
-                ret.List[i].CurrentPosition = optParams[i].GridPosition;
+                ret.List.Ref(i).CurrentPosition = optParams[i].GridPosition;
             }
 
             var result = new EvalParametersResult<double> { Value = optimum.Value, Parameters = ret };

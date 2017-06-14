@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections
 {
-    public class ReverseComparer<T> : IComparer<T>
+    public struct ReverseComparer<T> : IComparer<T>
     {
         private readonly IComparer<T> _comparer;
 

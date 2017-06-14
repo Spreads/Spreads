@@ -36,19 +36,6 @@ namespace Spreads.Buffers
     /// </summary>
     public unsafe struct FixedBuffer : IDirectBuffer
     {
-#if PRERELEASE
-
-        static FixedBuffer() {
-            if (!BitConverter.IsLittleEndian) {
-                // NB we just do not care to support BigEndian. This must be documented.
-                // But it is OK for debugging to leave such a time bomb here.
-                // See Aeron docs why BigEndian probably won't be supported even by them.
-                throw new NotSupportedException("BigEndian systems are not supported with the current implementation.");
-            }
-        }
-
-#endif
-
         private long _offset;
         private long _length;
         private byte[] _buffer;

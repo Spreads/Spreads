@@ -160,14 +160,8 @@ namespace Spreads
                 return (T)(object)(checked((uint)((int)value1 + diff)));
             }
 
-            ThrowNotSupported();
+            ThrowHelper.ThrowNotSupportedException();
             return default(T);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private void ThrowNotSupported()
-        {
-            throw new NotSupportedException();
         }
 
         /// <inheritdoc />
@@ -225,7 +219,7 @@ namespace Spreads
             // doesn't work, e.g. AOT. See discussion #100.
             if (IsIComparable)
             {
-                return Unsafe.CompareToConstrained(x, y);
+                return Unsafe.CompareToConstrained(ref x, ref y);
             }
 
             return Comparer<T>.Default.Compare(x, y);
@@ -280,7 +274,7 @@ namespace Spreads
                 return checked((long)(x1) - (long)y1);
             }
 
-            ThrowNotSupported();
+            ThrowHelper.ThrowNotSupportedException();
             return 0L;
         }
 
@@ -371,7 +365,7 @@ namespace Spreads
     /// <summary>
     /// Fast IComparer for KeyValuePair.
     /// </summary>
-    public sealed class KVPComparer<TKey, TValue> : IComparer<KeyValuePair<TKey, TValue>>, IEqualityComparer<KeyValuePair<TKey, TValue>>
+    public sealed class KVPComparer<TKey, TValue> : IComparer<KeyValuePair<TKey, TValue>>, IEqualityComparer<KeyValuePair<TKey, TValue>>, IEquatable<KVPComparer<TKey, TValue>>
     {
         private readonly KeyComparer<TKey> _keyComparer;
         private readonly KeyComparer<TValue> _valueComparer;
@@ -409,7 +403,7 @@ namespace Spreads
         /// <inheritdoc />
         public bool Equals(KeyValuePair<TKey, TValue> x, KeyValuePair<TKey, TValue> y)
         {
-            return _keyComparer.Equals(x.Key, y.Key) && _valueComparer == null ? true : _valueComparer.Equals(x.Value, y.Value);
+            return _keyComparer.Equals(x.Key, y.Key) && _valueComparer == null || _valueComparer.Equals(x.Value, y.Value);
         }
 
         /// <summary>
@@ -419,6 +413,28 @@ namespace Spreads
         {
             // TODO (?)
             throw new NotSupportedException("KVPComparer should not be used for hash code calculatons.");
+        }
+
+        public bool Equals(KVPComparer<TKey, TValue> other)
+        {
+            if (ReferenceEquals(null, other)) return false;
+            if (ReferenceEquals(this, other)) return true;
+            return Equals(_keyComparer, other._keyComparer) && Equals(_valueComparer, other._valueComparer);
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            return obj is KVPComparer<TKey, TValue> && Equals((KVPComparer<TKey, TValue>) obj);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return ((_keyComparer != null ? _keyComparer.GetHashCode() : 0) * 397) ^ (_valueComparer != null ? _valueComparer.GetHashCode() : 0);
+            }
         }
     }
 }

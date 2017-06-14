@@ -6,9 +6,16 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections
 {
+
+    // See <see href="http://stackoverflow.com/questions/39179385/c-sharp-marker-structures-performance">details on marker structs in C#</see>.
+
     /// <summary>
-    /// Alias for int64 with explicit conversions to it.
+    /// A market struct for int64 with explicit conversions to it.
     /// </summary>
+    /// <remarks>
+    /// It is similar to type aliases in F#.
+    /// Useful for preventing wrong usage of some index as an Offset or for method overloading.
+    /// </remarks>
     public struct Offset
     {
         private readonly long _value;

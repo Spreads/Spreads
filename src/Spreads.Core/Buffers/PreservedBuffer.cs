@@ -6,21 +6,29 @@ using System;
 using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace Spreads.Buffers
 {
+    // TODO (docs) refine the docs, merge summary and remarks with clearer wording. Remarks > summary.
 
     /// <summary>
-    /// A struct that wraps a System.Memory.Buffer and its DisposableReservation that is returned after calling buffer.Reserver().
+    /// A struct that wraps a <see cref="Buffer{T}"/> and its <see cref="BufferHandle"/> that is returned after calling <see cref="Buffer{T}.Retain"/>.
     /// Increases the ref count of underlying OwnedBuffer by one.
     /// Use this struct carefully: it must always be explicitly disposed, otherwise underlying OwnedPooledArray
     /// will never be returned to the pool and memory will leak.
-    /// Use Clone() method to create a copy of this buffer and ensure that the underlying OwnedPooledArray is not returned to the pool.
+    /// Use <see cref="Clone"/> method to create a copy of this buffer and ensure that the underlying <see cref="Buffers.OwnedPooledArray{T}"/> is not returned to the pool.
     /// When adding to a Spreads disposable collection (e.g. SortedMap) ownership is transfered to a collection and PreservedBuffer
-    /// will be disposed during disposal of that collection. To keep ownership outside the collection, use PreservedBuffer.Clone() method and 
+    /// will be disposed during disposal of that collection. To keep ownership outside the collection, use the <see cref="Clone"/> method and
     /// add a cloned PreservedBuffer value to the collection.
     /// </summary>
-    public struct PreservedBuffer<T> : IReadOnlyList<T>, IDisposable
+    /// <remarks>
+    /// <see cref="PreservedBuffer{T}"/> is the owner of <see cref="BufferHandle"/> reservation. 
+    /// When it is passed to any method or added  to any collection the reservation ownership is transfered as well. 
+    /// The consuming method or collection must dispose the <see cref="BufferHandle"/> reservation. If the caller
+    /// needs to retain the buffer and must call <see cref="Clone"/> and pass the cloned buffer.
+    /// </remarks>
+    public struct PreservedBuffer<T> : IReadOnlyList<T>, IDisposable, IPreservedBuffer
     {
         private BufferHandle _reservation;
 
@@ -42,17 +50,35 @@ namespace Spreads.Buffers
         /// <summary>
         /// A shortcut to Buffer.Span property.
         /// </summary>
-        public Span<T> Span => Buffer.Span;
+        public Span<T> Span
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return Buffer.Span; }
+        }
 
         /// <summary>
         /// Gets the number of elements in the PreservedBuffer.
         /// </summary>
+        [Obsolete("Use Length property instead")]
         public int Count => Buffer.Length;
+
+        /// <summary>
+        /// Gets the number of elements in the PreservedBuffer.
+        /// </summary>
+        public int Length
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return Buffer.Length; }
+        }
 
         /// <summary>
         /// Gets the element at the specified index in the PreservedBuffer.
         /// </summary>
-        public T this[int index] => Buffer.Span[index];
+        public T this[int index]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return Buffer.Span[index]; }
+        }
 
         /// <summary>
         /// Release a reference of the underlying OwnedBuffer.
@@ -87,5 +113,13 @@ namespace Spreads.Buffers
         {
             return GetEnumerator();
         }
+
+        public Type ElementType => typeof(T);
+    }
+
+
+    internal interface IPreservedBuffer : IDisposable
+    {
+        Type ElementType { get; }
     }
 }

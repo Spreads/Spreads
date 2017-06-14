@@ -18,6 +18,9 @@
 
 using System;
 using System.Diagnostics;
+#if DETECT_LEAKS
+using System.Runtime.CompilerServices;
+#endif
 using System.Threading;
 
 #if DETECT_LEAKS
@@ -44,7 +47,7 @@ namespace Spreads.Collections.Concurrent
     /// Rationale:
     ///    If there is no intent for reusing the object, do not use pool - just use "new".
     /// </summary>
-    public class ObjectPoolArray<T> : IObjectPool<T> where T : class, IPoolable<T>, new()
+    internal class ObjectPool<T> where T : class
     {
         [DebuggerDisplay("{Value,nq}")]
         private struct Element
@@ -52,16 +55,18 @@ namespace Spreads.Collections.Concurrent
             internal T Value;
         }
 
+        // factory is stored for the lifetime of the pool. We will call this only when pool needs to
+        // expand. compared to "new T()", Func gives more flexibility to implementers and faster
+        // than "new T()".
+        internal Func<T> Factory;
+
         // Storage for the pool objects. The first item is stored in a dedicated field because we
         // expect to be able to satisfy most requests from it.
         private T _firstItem;
 
         private readonly Element[] _items;
 
-        // factory is stored for the lifetime of the pool. We will call this only when pool needs to
-        // expand. compared to "new T()", Func gives more flexibility to implementers and faster
-        // than "new T()".
-        //private readonly Func<T> _factory;
+        
 
 #if DETECT_LEAKS
         private static readonly ConditionalWeakTable<T, LeakTracker> leakTrackers = new ConditionalWeakTable<T, LeakTracker>();
@@ -85,7 +90,7 @@ namespace Spreads.Collections.Concurrent
 #if TRACE_LEAKS
                 return Trace == null ? "" : Trace.ToString();
 #else
-                return "Leak tracing information is disabled. Define TRACE_LEAKS on ObjectPoolArray`1.cs to get more info \n";
+                return "Leak tracing information is disabled. Define TRACE_LEAKS on ObjectPool`1.cs to get more info \n";
 #endif
             }
 
@@ -104,18 +109,22 @@ namespace Spreads.Collections.Concurrent
         }
 #endif
 
-        internal ObjectPoolArray()
-            : this(Environment.ProcessorCount * 2) { }
+        internal ObjectPool(Func<T> factory)
+            : this(factory, Environment.ProcessorCount * 2)
+        { }
 
-        internal ObjectPoolArray(int size)
+        internal ObjectPool(Func<T> factory, int size)
         {
             Debug.Assert(size >= 1);
+            Factory = factory;
             _items = new Element[size - 1];
         }
 
-        public bool IsBounded => true;
-        public int Capacity => _items.Length + 1;
-        public int Count => _items.Length + 1;
+        private T CreateInstance()
+        {
+            var inst = Factory();
+            return inst;
+        }
 
         /// <summary>
         /// Produces an instance.
@@ -125,7 +134,7 @@ namespace Spreads.Collections.Concurrent
         /// Note that Free will try to store recycled objects close to the start thus statistically
         /// reducing how far we will typically search.
         /// </remarks>
-        public T Allocate()
+        internal T Allocate()
         {
             // PERF: Examine the first element. If that fails, AllocateSlow will look at the remaining elements.
             // Note that the initial read is optimistically not synchronized. That is intentional.
@@ -146,7 +155,6 @@ namespace Spreads.Collections.Concurrent
             tracker.Trace = frame;
 #endif
 #endif
-            inst.Init();
             return inst;
         }
 
@@ -169,7 +177,7 @@ namespace Spreads.Collections.Concurrent
                 }
             }
 
-            return new T();
+            return CreateInstance();
         }
 
         /// <summary>
@@ -180,12 +188,10 @@ namespace Spreads.Collections.Concurrent
         /// Note that Free will try to store recycled objects close to the start thus statistically
         /// reducing how far we will typically search in Allocate.
         /// </remarks>
-        public void Free(T obj)
+        internal void Free(T obj)
         {
             Validate(obj);
             ForgetTrackedObject(obj);
-
-            obj.Release();
 
             if (_firstItem == null)
             {

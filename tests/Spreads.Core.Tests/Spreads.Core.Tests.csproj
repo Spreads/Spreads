@@ -113,8 +113,8 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\bin\net451\Spreads.Collections.dll</HintPath>
     </Reference>
-    <Reference Include="Spreads.Unsafe, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Spreads.Unsafe.0.8.5\lib\netstandard1.0\Spreads.Unsafe.dll</HintPath>
+    <Reference Include="Spreads.Unsafe, Version=1.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Spreads.Unsafe.1.0.0\lib\netstandard1.0\Spreads.Unsafe.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers, Version=4.0.1.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
@@ -167,7 +167,7 @@
     <Compile Include="Enumerators\TimeSliceTests.cs" />
     <Compile Include="LockFreeTests.cs" />
     <Compile Include="NanoOptimizationTests.cs" />
-    <Compile Include="ObjectPoolsTests.cs" />
+    <Compile Include="ObjectPoolTests.cs" />
     <Compile Include="Algorithms\OptimizationTests.cs" />
     <Compile Include="ParameterTests.cs" />
     <Compile Include="DoubleUtilTests.cs" />

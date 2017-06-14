@@ -32,7 +32,7 @@ namespace Spreads.Core.Tests.Algorithms
 
             var sw = new Stopwatch();
             sw.Restart();
-            var result = mm.Rngmed(data, medians);
+            var result = mm.Rngmed(data, ref medians);
             sw.Stop();
             Assert.AreEqual(0, result);
             //Console.Write($"Elapsed LIGO {sw.ElapsedMilliseconds} msec, {sw.MOPS(count)} Mops");
@@ -80,7 +80,7 @@ namespace Spreads.Core.Tests.Algorithms
 
             var sw = new Stopwatch();
             sw.Restart();
-            var result = mm.Rngmed(data, medians);
+            var result = mm.Rngmed(data, ref medians);
             sw.Stop();
             Assert.AreEqual(0, result);
             Console.WriteLine($"Elapsed LIGO {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");

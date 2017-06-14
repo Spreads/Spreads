@@ -5,7 +5,7 @@ namespace Spreads
 {
     /// <summary>
     /// A cursor used as an input to <see cref="Series{TKey,TValue,TCursor}"/>.
-    /// The members are used by the corresponding members in CursorSeries.
+    /// The members are used by the corresponding members in <see cref="Series{TKey,TValue,TCursor}"/>.
     /// </summary>
     public interface ICursorSeries<TKey, TValue, TCursor> : ISpecializedCursor<TKey, TValue, TCursor>
         where TCursor : ICursor<TKey, TValue>

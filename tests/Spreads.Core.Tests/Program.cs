@@ -27,7 +27,8 @@ namespace Spreads.Core.Tests
                 //new ArithmeticTests().CouldUseStructSeries();
                 //new ZipCursorTests().CouldAddTwoSeriesWithSameKeysBenchmark();
                 //new SCMTests().EnumerateScmSpeed();
-                new VariantTests().CouldCreateAndReadInlinedVariantInALoop();
+                //new VariantTests().CouldCreateAndReadInlinedVariantInALoop();
+                new FastDictionaryTests().CompareSCGAndFastDictionaryWithInts();
             }
 
             Console.WriteLine("Press enter to exit...");

@@ -8,22 +8,25 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using Spreads.Serialization;
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
-using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
-using System.Collections.Generic;
-using Spreads.Serialization;
 
 namespace Spreads.Collections.Generic
 {
-    // Implements a variable-size List that uses an array of objects to store the
-    // elements. A List has a capacity, which is the allocated length
-    // of the internal array. As elements are added to a List, the capacity
-    // of the List is automatically increased as required by reallocating the
-    // internal array.
-    // 
+    // TODO (perf) use a pool for arrays and clear non-pinnable ones on release
+
+    // NB insetad of making the indexer return a ref, add additional method. Indexer with ref could have unexpected behavior,
+    // better to have an explicit usage of refs.
+
+    /// <summary>
+    /// A <see cref="List{T}"/> collection with additional method <see cref="Ref"/> that returns a reference by index.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     [DebuggerDisplay("Count = {Count}")]
     [Serializable]
     public class RefList<T> : IList<T>, System.Collections.IList, IReadOnlyList<T>
@@ -31,9 +34,12 @@ namespace Spreads.Collections.Generic
         private const int _defaultCapacity = 4;
 
         private T[] _items;
+
         [ContractPublicPropertyName("Count")]
         private int _size;
+
         private int _version;
+
         [NonSerialized]
         private Object _syncRoot;
 
@@ -51,7 +57,7 @@ namespace Spreads.Collections.Generic
         // Constructs a List with a given initial capacity. The list is
         // initially empty, but will have room for the given number of elements
         // before any reallocations are required.
-        // 
+        //
         public RefList(int capacity)
         {
             if (capacity < 0) ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -66,7 +72,7 @@ namespace Spreads.Collections.Generic
         // Constructs a List, copying the contents of the given collection. The
         // size and capacity of the new list will both be equal to the size of the
         // given collection.
-        // 
+        //
         public RefList(IEnumerable<T> collection)
         {
             if (collection == null)
@@ -97,9 +103,9 @@ namespace Spreads.Collections.Generic
         }
 
         // Gets and sets the capacity of this list.  The capacity is the size of
-        // the internal array used to hold items.  When set, the internal 
+        // the internal array used to hold items.  When set, the internal
         // array of the list is reallocated to the given capacity.
-        // 
+        //
         public int Capacity
         {
             get
@@ -137,6 +143,7 @@ namespace Spreads.Collections.Generic
         // Read-only property describing how many elements are in the List.
         public int Count
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 Contract.Ensures(Contract.Result<int>() >= 0);
@@ -144,28 +151,15 @@ namespace Spreads.Collections.Generic
             }
         }
 
-        bool System.Collections.IList.IsFixedSize
-        {
-            get { return false; }
-        }
-
+        bool System.Collections.IList.IsFixedSize => false;
 
         // Is this List read-only?
-        bool ICollection<T>.IsReadOnly
-        {
-            get { return false; }
-        }
+        bool ICollection<T>.IsReadOnly => false;
 
-        bool System.Collections.IList.IsReadOnly
-        {
-            get { return false; }
-        }
+        bool System.Collections.IList.IsReadOnly => false;
 
         // Is this List synchronized (thread-safe)?
-        bool System.Collections.ICollection.IsSynchronized
-        {
-            get { return false; }
-        }
+        bool System.Collections.ICollection.IsSynchronized => false;
 
         // Synchronization root for this object.
         Object System.Collections.ICollection.SyncRoot
@@ -179,10 +173,12 @@ namespace Spreads.Collections.Generic
                 return _syncRoot;
             }
         }
+
         // Sets or Gets the element at the given index.
-        // 
-        public ref T this[int index]
+        //
+        public T this[int index]
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 // Following trick can reduce the range check by one
@@ -191,19 +187,31 @@ namespace Spreads.Collections.Generic
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 }
                 Contract.EndContractBlock();
-                return ref _items[index];
+                return _items[index];
             }
 
-            //set
-            //{
-            //    if ((uint)index >= (uint)_size)
-            //    {
-            //        ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-            //    }
-            //    Contract.EndContractBlock();
-            //    _items[index] = value;
-            //    _version++;
-            //}
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                if ((uint)index >= (uint)_size)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
+                }
+                Contract.EndContractBlock();
+                _items[index] = value;
+                _version++;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref T Ref(int index)
+        {
+            if ((uint)index >= (uint)_size)
+            {
+                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
+            }
+            Contract.EndContractBlock();
+            return ref _items[index];
         }
 
         T IList<T>.this[int index]
@@ -248,16 +256,13 @@ namespace Spreads.Collections.Generic
         private static bool IsCompatibleObject(object value)
         {
             // Non-null values are fine.  Only accept nulls if T is a class or Nullable<U>.
-            // Note that default(T) is not equal to null for value types except when T is Nullable<U>. 
+            // Note that default(T) is not equal to null for value types except when T is Nullable<U>.
             return ((value is T) || (value == null && default(T) == null));
         }
 
         Object System.Collections.IList.this[int index]
         {
-            get
-            {
-                return this[index];
-            }
+            get => this[index];
             set
             {
                 ThrowHelper.IfNullAndNullsAreIllegalThenThrow<T>(value, ExceptionArgument.value);
@@ -319,7 +324,6 @@ namespace Spreads.Collections.Generic
             return Count - 1;
         }
 
-
         // Adds the elements of the given collection to the end of this list. If
         // required, the capacity of the list is increased to twice the previous
         // capacity or the new size, whichever is larger.
@@ -353,10 +357,10 @@ namespace Spreads.Collections.Generic
         // is larger than the given search value. This is also the index at which
         // the search value should be inserted into the list in order for the list
         // to remain sorted.
-        // 
+        //
         // The method uses the Array.BinarySearch method to perform the
         // search.
-        // 
+        //
         public int BinarySearch(int index, int count, T item, IComparer<T> comparer)
         {
             if (index < 0)
@@ -382,7 +386,6 @@ namespace Spreads.Collections.Generic
             Contract.Ensures(Contract.Result<int>() <= Count);
             return BinarySearch(0, Count, item, comparer);
         }
-
 
         // Clears the contents of List.
         public void Clear()
@@ -448,16 +451,16 @@ namespace Spreads.Collections.Generic
         //    return list;
         //}
 
-        // Copies this List into array, which must be of a 
-        // compatible array type.  
+        // Copies this List into array, which must be of a
+        // compatible array type.
         //
         public void CopyTo(T[] array)
         {
             CopyTo(array, 0);
         }
 
-        // Copies this List into array, which must be of a 
-        // compatible array type.  
+        // Copies this List into array, which must be of a
+        // compatible array type.
         //
         void System.Collections.ICollection.CopyTo(Array array, int arrayIndex)
         {
@@ -479,9 +482,9 @@ namespace Spreads.Collections.Generic
         }
 
         // Copies a section of this list to the given array at the given index.
-        // 
+        //
         // The method uses the Array.Copy method to copy the elements.
-        // 
+        //
         public void CopyTo(int index, T[] array, int arrayIndex, int count)
         {
             if (_size - index < count)
@@ -532,6 +535,7 @@ namespace Spreads.Collections.Generic
 
             for (int i = 0; i < _size; i++)
             {
+                // ReSharper disable once PossibleNullReferenceException
                 if (match(_items[i]))
                 {
                     return _items[i];
@@ -551,6 +555,7 @@ namespace Spreads.Collections.Generic
             RefList<T> refList = new RefList<T>();
             for (int i = 0; i < _size; i++)
             {
+                // ReSharper disable once PossibleNullReferenceException
                 if (match(_items[i]))
                 {
                     refList.Add(_items[i]);
@@ -596,6 +601,7 @@ namespace Spreads.Collections.Generic
             int endIndex = startIndex + count;
             for (int i = startIndex; i < endIndex; i++)
             {
+                // ReSharper disable once PossibleNullReferenceException
                 if (match(_items[i])) return i;
             }
             return -1;
@@ -611,6 +617,7 @@ namespace Spreads.Collections.Generic
 
             for (int i = _size - 1; i >= 0; i--)
             {
+                // ReSharper disable once PossibleNullReferenceException
                 if (match(_items[i]))
                 {
                     return _items[i];
@@ -653,7 +660,7 @@ namespace Spreads.Collections.Generic
             }
             else
             {
-                // Make sure we're not out of range            
+                // Make sure we're not out of range
                 if ((uint)startIndex >= (uint)_size)
                 {
                     ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
@@ -669,6 +676,7 @@ namespace Spreads.Collections.Generic
             int endIndex = startIndex - count;
             for (int i = startIndex; i > endIndex; i--)
             {
+                // ReSharper disable once PossibleNullReferenceException
                 if (match(_items[i]))
                 {
                     return i;
@@ -693,6 +701,7 @@ namespace Spreads.Collections.Generic
                 {
                     break;
                 }
+                // ReSharper disable once PossibleNullReferenceException
                 action(_items[i]);
             }
 
@@ -701,8 +710,8 @@ namespace Spreads.Collections.Generic
         }
 
         // Returns an enumerator for this list with the given
-        // permission for removal of elements. If modifications made to the list 
-        // while an enumeration is in progress, the MoveNext and 
+        // permission for removal of elements. If modifications made to the list
+        // while an enumeration is in progress, the MoveNext and
         // GetObject methods of the enumerator will throw an exception.
         //
         public Enumerator GetEnumerator()
@@ -745,15 +754,14 @@ namespace Spreads.Collections.Generic
             return refList;
         }
 
-
         // Returns the index of the first occurrence of a given value in a range of
         // this list. The list is searched forwards from beginning to end.
         // The elements of the list are compared to the given value using the
         // Object.Equals method.
-        // 
+        //
         // This method uses the Array.IndexOf method to perform the
         // search.
-        // 
+        //
         public int IndexOf(T item)
         {
             Contract.Ensures(Contract.Result<int>() >= -1);
@@ -775,10 +783,10 @@ namespace Spreads.Collections.Generic
         // index and ending at count number of elements. The
         // elements of the list are compared to the given value using the
         // Object.Equals method.
-        // 
+        //
         // This method uses the Array.IndexOf method to perform the
         // search.
-        // 
+        //
         public int IndexOf(T item, int index)
         {
             if (index > _size)
@@ -794,10 +802,10 @@ namespace Spreads.Collections.Generic
         // index and upto count number of elements. The
         // elements of the list are compared to the given value using the
         // Object.Equals method.
-        // 
+        //
         // This method uses the Array.IndexOf method to perform the
         // search.
-        // 
+        //
         public int IndexOf(T item, int index, int count)
         {
             if (index > _size)
@@ -814,7 +822,7 @@ namespace Spreads.Collections.Generic
         // Inserts an element into this list at a given index. The size of the list
         // is increased by one. If required, the capacity of the list is doubled
         // before inserting the new element.
-        // 
+        //
         public void Insert(int index, T item)
         {
             // Note that insertions at the end are legal.
@@ -878,6 +886,7 @@ namespace Spreads.Collections.Generic
                     }
 
                     // If we're inserting a List into itself, we want to be able to deal with that.
+                    // ReSharper disable once PossibleUnintendedReferenceComparison
                     if (this == c)
                     {
                         // Copy first part of _items to insert location
@@ -895,6 +904,7 @@ namespace Spreads.Collections.Generic
             else if (index < _size)
             {
                 // We're inserting a lazy enumerable. Call Insert on each of the constituent items.
+                // ReSharper disable once PossibleNullReferenceException
                 using (IEnumerator<T> en = collection.GetEnumerator())
                 {
                     while (en.MoveNext())
@@ -912,13 +922,13 @@ namespace Spreads.Collections.Generic
         }
 
         // Returns the index of the last occurrence of a given value in a range of
-        // this list. The list is searched backwards, starting at the end 
-        // and ending at the first element in the list. The elements of the list 
+        // this list. The list is searched backwards, starting at the end
+        // and ending at the first element in the list. The elements of the list
         // are compared to the given value using the Object.Equals method.
-        // 
+        //
         // This method uses the Array.LastIndexOf method to perform the
         // search.
-        // 
+        //
         public int LastIndexOf(T item)
         {
             Contract.Ensures(Contract.Result<int>() >= -1);
@@ -935,13 +945,13 @@ namespace Spreads.Collections.Generic
 
         // Returns the index of the last occurrence of a given value in a range of
         // this list. The list is searched backwards, starting at index
-        // index and ending at the first element in the list. The 
-        // elements of the list are compared to the given value using the 
+        // index and ending at the first element in the list. The
+        // elements of the list are compared to the given value using the
         // Object.Equals method.
-        // 
+        //
         // This method uses the Array.LastIndexOf method to perform the
         // search.
-        // 
+        //
         public int LastIndexOf(T item, int index)
         {
             if (index >= _size)
@@ -957,10 +967,10 @@ namespace Spreads.Collections.Generic
         // index and upto count elements. The elements of
         // the list are compared to the given value using the Object.Equals
         // method.
-        // 
+        //
         // This method uses the Array.LastIndexOf method to perform the
         // search.
-        // 
+        //
         public int LastIndexOf(T item, int index, int count)
         {
             if ((Count != 0) && (index < 0))
@@ -996,7 +1006,7 @@ namespace Spreads.Collections.Generic
 
         // Removes the element at the given index. The size of the list is
         // decreased by one.
-        // 
+        //
         public bool Remove(T item)
         {
             int index = IndexOf(item);
@@ -1018,7 +1028,7 @@ namespace Spreads.Collections.Generic
         }
 
         // This method removes all items which matches the predicate.
-        // The complexity is O(n).   
+        // The complexity is O(n).
         public int RemoveAll(Predicate<T> match)
         {
             if (match == null)
@@ -1032,6 +1042,7 @@ namespace Spreads.Collections.Generic
             int freeIndex = 0;   // the first free slot in items array
 
             // Find the first item which needs to be removed.
+            // ReSharper disable once PossibleNullReferenceException
             while (freeIndex < _size && !match(_items[freeIndex])) freeIndex++;
             if (freeIndex >= _size) return 0;
 
@@ -1039,6 +1050,7 @@ namespace Spreads.Collections.Generic
             while (current < _size)
             {
                 // Find the first item which needs to be kept.
+                // ReSharper disable once PossibleNullReferenceException
                 while (current < _size && match(_items[current])) current++;
 
                 if (current < _size)
@@ -1061,7 +1073,7 @@ namespace Spreads.Collections.Generic
 
         // Removes the element at the given index. The size of the list is
         // decreased by one.
-        // 
+        //
         public void RemoveAt(int index)
         {
             if ((uint)index >= (uint)_size)
@@ -1082,7 +1094,7 @@ namespace Spreads.Collections.Generic
         }
 
         // Removes a range of elements from this list.
-        // 
+        //
         public void RemoveRange(int index, int count)
         {
             if (index < 0)
@@ -1101,7 +1113,6 @@ namespace Spreads.Collections.Generic
 
             if (count > 0)
             {
-                int i = _size;
                 _size -= count;
                 if (index < _size)
                 {
@@ -1126,7 +1137,7 @@ namespace Spreads.Collections.Generic
         // method, an element in the range given by index and count
         // which was previously located at index i will now be located at
         // index index + (index + count - i - 1).
-        // 
+        //
         public void Reverse(int index, int count)
         {
             if (index < 0)
@@ -1150,7 +1161,7 @@ namespace Spreads.Collections.Generic
             _version++;
         }
 
-        // Sorts the elements in this list.  Uses the default comparer and 
+        // Sorts the elements in this list.  Uses the default comparer and
         // Array.Sort.
         public void Sort()
         {
@@ -1169,9 +1180,9 @@ namespace Spreads.Collections.Generic
         // comparer is null, the elements are compared to each other using
         // the IComparable interface, which in that case must be implemented by all
         // elements of the list.
-        // 
+        //
         // This method uses the Array.Sort method to sort the elements.
-        // 
+        //
         public void Sort(int index, int count, IComparer<T> comparer)
         {
             if (index < 0)
@@ -1195,7 +1206,6 @@ namespace Spreads.Collections.Generic
             _version++;
         }
 
-
         // ToArray returns an array containing the contents of the List.
         // This requires copying the List, which is an O(n) operation.
         public T[] ToArray()
@@ -1218,10 +1228,10 @@ namespace Spreads.Collections.Generic
         // new elements will be added to the list. To completely clear a list and
         // release all memory referenced by the list, execute the following
         // statements:
-        // 
+        //
         // list.Clear();
         // list.TrimExcess();
-        // 
+        //
         public void TrimExcess()
         {
             int threshold = (int)(((double)_items.Length) * 0.9);
@@ -1241,6 +1251,7 @@ namespace Spreads.Collections.Generic
 
             for (int i = 0; i < _size; i++)
             {
+                // ReSharper disable once PossibleNullReferenceException
                 if (!match(_items[i]))
                 {
                     return false;
@@ -1319,13 +1330,7 @@ namespace Spreads.Collections.Generic
                 return false;
             }
 
-            public T Current
-            {
-                get
-                {
-                    return current;
-                }
-            }
+            public T Current => current;
 
             Object System.Collections.IEnumerator.Current
             {

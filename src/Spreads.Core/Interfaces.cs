@@ -402,25 +402,38 @@ namespace Spreads
     /// <summary>
     /// An untyped <see cref="ISeries{DateTime, TValue}"/> interface with values as <see cref="Variant"/> types.
     /// </summary>
-    public interface ITimeSeries : ISeries<DateTime, Variant>
-    {
-        /// <summary>
-        /// <see cref="TypeEnum"/> for the values type.
-        /// </summary>
-        TypeEnum ValueType { get; }
+    //public interface ITimeSeries : ISeries<DateTime, Variant>
+    //{
+    //    /// <summary>
+    //    /// <see cref="TypeEnum"/> for the values type.
+    //    /// </summary>
+    //    TypeEnum ValueType { get; }
 
-        /// <summary>
-        /// TimeSeries parameters.
-        /// </summary>
-        TimeSeriesInfo TimeSeriesInfo { get; }
-    }
+    //    /// <summary>
+    //    /// TimeSeries parameters.
+    //    /// </summary>
+    //    TimeSeriesInfo TimeSeriesInfo { get; }
+    //}
+
+    ///// <summary>
+    ///// An untyped <see cref="IReadOnlySeries{DateTime, TValue}"/> interface with values as <see cref="Variant"/> types.
+    ///// </summary>
+    //public interface IReadOnlyTimeSeries : ITimeSeries, IReadOnlySeries<DateTime, Variant>
+    //{
+    //}
 
     /// <summary>
-    /// An untyped <see cref="IReadOnlySeries{DateTime, TValue}"/> interface with values as <see cref="Variant"/> types.
+    /// Time series
     /// </summary>
-    public interface IReadOnlyTimeSeries : ITimeSeries, IReadOnlySeries<DateTime, Variant>
-    {
-    }
+    //public interface ITimeSeries<TKey, TValue> : IReadOnlySeries<TKey, TValue>
+    //{
+    //    // NB we do not restrict TKey to DateTime, it could be long or whatever, depending on context
+    //    // For storage we just require that TKey must have KeyComparer, i.e. strictly monotonic conversion to long
+    //    UnitPeriod UnitPeriod { get; }
+
+    //    int PeriodCount { get; }
+    //    string TimeZone { get; }
+    //}
 
     /// <summary>
     /// Mutable series
@@ -497,37 +510,6 @@ namespace Spreads
     /// <typeparam name="TValue"></typeparam>
     public interface IPersistentSeries<TKey, TValue> : IMutableSeries<TKey, TValue>, IPersistentObject
     {
-    }
-
-    /// <summary>
-    /// Time series
-    /// </summary>
-    public interface ITimeSeries<TKey, TValue> : IReadOnlySeries<TKey, TValue>
-    {
-        // NB we do not restrict TKey to DateTime, it could be long or whatever, depending on context
-        // For storage we just require that TKey must have KeyComparer, i.e. strictly monotonic conversion to long
-        UnitPeriod UnitPeriod { get; }
-
-        int PeriodCount { get; }
-        string TimeZone { get; }
-    }
-
-    public interface ICloneable<out T> where T : ICloneable<T>
-    {
-        T DeepCopy();
-    }
-
-    /// <summary>
-    /// Signaling event handler.
-    /// </summary>
-    /// <param name="flag"></param>
-    [Obsolete("This should no longer be used")]
-    internal delegate void OnUpdateHandler(bool flag);
-
-    [Obsolete("This should no longer be used")]
-    internal interface IUpdateable
-    {
-        event OnUpdateHandler OnUpdate;
     }
 
     internal interface IMutableChunksSeries<TKey, TValue, TContainer> : IReadOnlySeries<TKey, TContainer>, IPersistentObject
