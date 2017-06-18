@@ -46,13 +46,15 @@ namespace Spreads.Utils
             return stat;
         }
 
-        private static void PrintHeader(string description, int? caseLength = null)
+        private static void PrintHeader(string summary, string caller, int? caseLength = null)
         {
             var len = caseLength ?? 20;
             var caseDahes = new string('-', len + 1);
             var dashes = $"{caseDahes,-21}|{new string('-', 8),8}:|{new string('-', 9),9}:|{new string('-', 6),6}:|{new string('-', 6),6}:|{new string('-', 6),6}:|{new string('-', 8),8}:";
             Console.WriteLine();
-            if (description != null) { Console.WriteLine(description); }
+            if (!string.IsNullOrWhiteSpace(caller)) { Console.WriteLine($"**{caller}**"); }
+            if (!string.IsNullOrWhiteSpace(summary)) { Console.WriteLine($"*{summary}*"); }
+            Console.WriteLine();
             Console.WriteLine(GetHeader(caseLength));
             Console.WriteLine(dashes);
         }
@@ -67,12 +69,13 @@ namespace Spreads.Utils
         /// <summary>
         /// Print a table with average benchmark results for all cases.
         /// </summary>
-        /// <param name="description">A description of the benchmark that is printed above the table.</param>
-        public static void Dump([CallerMemberName]string description = "")
+        /// <param name="summary"></param>
+        /// <param name="caller">A description of the benchmark that is printed above the table.</param>
+        public static void Dump(string summary = "", [CallerMemberName]string caller = "")
         {
             var maxLength = _stats.Keys.Select(k => k.Length).Max();
 
-            PrintHeader(description, maxLength);
+            PrintHeader(summary, caller, maxLength);
 
             var stats = _stats.Select(GetAverages).OrderByDescending(s => s.MOPS);
 
@@ -152,7 +155,7 @@ namespace Spreads.Utils
                 {
                     if (!_headerIsPrinted)
                     {
-                        PrintHeader(null);
+                        PrintHeader(null, null);
                         _headerIsPrinted = true;
                     }
                     Console.WriteLine(ToString());

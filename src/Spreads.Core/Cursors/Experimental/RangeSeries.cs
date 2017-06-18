@@ -213,7 +213,7 @@ namespace Spreads.Cursors.Experimental
         public bool MoveFirst()
         {
             if ((_startKey.IsPresent
-                && _cursor.MoveAt(_startKey.Value, _startLookup)
+                && _cursor.MoveAt(_startKey.Present, _startLookup)
                 && InRange(_cursor.CurrentKey))
                 || (!_startKey.IsPresent && _cursor.MoveFirst()))
             {
@@ -234,7 +234,7 @@ namespace Spreads.Cursors.Experimental
         public bool MoveLast()
         {
             if ((_endKey.IsPresent
-                && _cursor.MoveAt(_endKey.Value, _endLookup)
+                && _cursor.MoveAt(_endKey.Present, _endLookup)
                 && InRange(_cursor.CurrentKey))
                 || (!_endKey.IsPresent && _cursor.MoveLast()))
             {
@@ -344,7 +344,7 @@ namespace Spreads.Cursors.Experimental
         private bool EndOk(TKey key)
         {
             if (!_endKey.IsPresent) return true;
-            var c = _cursor.Comparer.Compare(key, _endKey.Value);
+            var c = _cursor.Comparer.Compare(key, _endKey.Present);
             return _endInclusive ? c <= 0 : c < 0;
         }
 
@@ -358,7 +358,7 @@ namespace Spreads.Cursors.Experimental
         private bool StartOk(TKey key)
         {
             if (!_startKey.IsPresent) return true;
-            var c = _cursor.Comparer.Compare(key, _startKey.Value);
+            var c = _cursor.Comparer.Compare(key, _startKey.Present);
             return _startInclusive ? c >= 0 : c > 0;
         }
     }

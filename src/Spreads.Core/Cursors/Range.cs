@@ -28,9 +28,7 @@ namespace Spreads
         private Opt<TKey> _startKey;
         private bool _atEnd;
         private bool _atStart;
-
-        private Lookup _endLookup => _endInclusive ? Lookup.LE : Lookup.LT;
-        private Lookup _startLookup => _startInclusive ? Lookup.GE : Lookup.GT;
+        private int _count;
 
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
@@ -51,7 +49,8 @@ namespace Spreads
         internal Range(TCursor cursor,
             Opt<TKey> startKey, Opt<TKey> endKey,
             bool startInclusive = true, bool endInclusive = true,
-            bool cursorIsClonedAtStart = false) : this()
+            bool cursorIsClonedAtStart = false,
+            int count = -1) : this()
         {
             if (cursor.Source.IsIndexed)
             {
@@ -60,7 +59,7 @@ namespace Spreads
 
             if (cursorIsClonedAtStart &&
                 (startKey.IsMissing || endKey.IsMissing || !startInclusive || !endInclusive
-                    || cursor.Comparer.Compare(cursor.CurrentKey, startKey.Value) != 0))
+                    || cursor.Comparer.Compare(cursor.CurrentKey, startKey.Present) != 0))
             {
                 ThrowHelper.ThrowInvalidOperationException("Wrong constructor arguments for cursorIsClonedAtStart == true case");
             }
@@ -71,6 +70,7 @@ namespace Spreads
             _endKey = endKey;
             _startInclusive = startInclusive;
             _endInclusive = endInclusive;
+            _count = count;
         }
 
         #endregion Constructors
@@ -89,6 +89,7 @@ namespace Spreads
                 _endKey = _endKey,
                 _startInclusive = _startInclusive,
                 _endInclusive = _endInclusive,
+                _count = _count,
                 State = State
             };
 
@@ -107,6 +108,7 @@ namespace Spreads
                 _endKey = _endKey,
                 _startInclusive = _startInclusive,
                 _endInclusive = _endInclusive,
+                _count = _count,
                 State = CursorState.Initialized
             };
 
@@ -161,11 +163,16 @@ namespace Spreads
         /// </summary>
         public Opt<TKey> StartKey => _startKey;
 
+        /// <summary>
+        /// If positive then this range has known count.
+        /// </summary>
+        public int Count => _count;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool EndOk(TKey key)
         {
             if (!_endKey.IsPresent) return true;
-            var c = _cursor.Comparer.Compare(key, _endKey.Value);
+            var c = _cursor.Comparer.Compare(key, _endKey.Present);
             return _endInclusive ? c <= 0 : c < 0;
         }
 
@@ -179,7 +186,7 @@ namespace Spreads
         private bool StartOk(TKey key)
         {
             if (!_startKey.IsPresent) return true;
-            var c = _cursor.Comparer.Compare(key, _startKey.Value);
+            var c = _cursor.Comparer.Compare(key, _startKey.Present);
             return _startInclusive ? c >= 0 : c > 0;
         }
 
@@ -275,13 +282,13 @@ namespace Spreads
 
             if (State != CursorState.Moving && _cursorIsClonedAtStart)
             {
-                Debug.Assert(Comparer.Compare(_cursor.CurrentKey, _startKey.Value) == 0);
+                Debug.Assert(Comparer.Compare(_cursor.CurrentKey, _startKey.Present) == 0);
                 State = CursorState.Moving;
                 return true;
             }
 
             if ((_startKey.IsPresent
-                 && _cursor.MoveAt(_startKey.Value, _startLookup)
+                 && _cursor.MoveAt(_startKey.Present, _startInclusive ? Lookup.GE : Lookup.GT)
                  && InRange(_cursor.CurrentKey))
                 || (!_startKey.IsPresent && _cursor.MoveFirst()))
             {
@@ -303,7 +310,7 @@ namespace Spreads
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
             if ((_endKey.IsPresent
-                && _cursor.MoveAt(_endKey.Value, _endLookup)
+                && _cursor.MoveAt(_endKey.Present, _endInclusive ? Lookup.LE : Lookup.LT)
                 && InRange(_cursor.CurrentKey))
                 || (!_endKey.IsPresent && _cursor.MoveLast()))
             {

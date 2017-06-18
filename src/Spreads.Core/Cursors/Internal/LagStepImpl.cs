@@ -1,16 +1,16 @@
+using Spreads.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Utils;
 
 namespace Spreads.Cursors.Internal
 {
+    // Value is lagged cursor.
 
-    // Value is lagged cursor. 
-
+    [Obsolete("Use SpanOpImpl instead")]
     internal struct LagStepImpl<TKey, TValue, TCursor> :
         ICursorSeries<TKey, TCursor, LagStepImpl<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
@@ -36,6 +36,18 @@ namespace Spreads.Cursors.Internal
         internal int _currentWidth;
 
         internal CursorState State { get; set; }
+
+        internal TCursor CurrentCursor
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor; }
+        }
+
+        internal TCursor LaggedCursor
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _laggedCursor; }
+        }
 
         #endregion Cursor state
 
@@ -198,7 +210,6 @@ namespace Spreads.Cursors.Internal
                 // NB important to do inside if, first move must be true
                 moved = moved || _allowIncomplete;
             }
-
 
             if (moved)
             {

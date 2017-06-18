@@ -158,6 +158,7 @@
     <Compile Include="ColumnsTests.cs" />
     <Compile Include="Cursors\ArithmeticTests.cs" />
     <Compile Include="Cursors\FillCursorTest.cs" />
+    <Compile Include="Cursors\Internal\SpanOpTests.cs" />
     <Compile Include="Cursors\WindowCursorTests.cs" />
     <Compile Include="Cursors\ZipCursorTests.cs" />
     <Compile Include="Cursors\MapCursorTest.cs" />

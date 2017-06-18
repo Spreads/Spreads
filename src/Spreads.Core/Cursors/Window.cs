@@ -81,7 +81,7 @@ namespace Spreads
         {
             // NB keep cursor state for reuse
             // dispose is called on the result of Initialize(), the cursor from
-            // constructor could be uninitialized but contain some state, e.g. _value for this FillCursor
+            // constructor could be uninitialized but contain some state, e.g. _value for FillCursor
             _cursor.Dispose();
             if (!_lookUpCursor.Equals(default(LagStepImpl<TKey, TValue, TCursor>)))
             {
@@ -125,7 +125,7 @@ namespace Spreads
         public Series<TKey, TValue, Range<TKey, TValue, TCursor>> CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (new Range<TKey, TValue, TCursor>(_cursor.CurrentValue.Clone(), _cursor.CurrentValue.CurrentKey, _cursor.CurrentKey, true, true, true)).Source; }
+            get { return (new Range<TKey, TValue, TCursor>(_cursor.LaggedCursor.Clone(), _cursor.LaggedCursor.CurrentKey, _cursor.CurrentKey, true, true, true)).Source; }
         }
 
         /// <inheritdoc />
@@ -152,7 +152,7 @@ namespace Spreads
 
             if (_lookUpCursor.MoveAt(key, Lookup.EQ))
             {
-                value = (new Range<TKey, TValue, TCursor>(_lookUpCursor.CurrentValue.Clone(), _lookUpCursor.CurrentValue.CurrentKey, _lookUpCursor.CurrentKey, true, true, true)).Source;
+                value = (new Range<TKey, TValue, TCursor>(_lookUpCursor.LaggedCursor.Clone(), _lookUpCursor.LaggedCursor.CurrentKey, _lookUpCursor.CurrentKey, true, true, true)).Source;
                 return true;
             }
 

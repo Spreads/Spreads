@@ -28,6 +28,11 @@ namespace Spreads
         }
 
         /// <summary>
+        /// Get an uninitialized cursor that defines this series behavior.
+        /// </summary>
+        public TCursor CursorDefinition => _cursor;
+
+        /// <summary>
         /// Get strongly-typed enumerator.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

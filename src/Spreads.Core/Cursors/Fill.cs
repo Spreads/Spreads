@@ -82,7 +82,7 @@ namespace Spreads
         {
             // NB keep cursor state for reuse
             // dispose is called on the result of Initialize(), the cursor from
-            // constructor could be uninitialized but contain some state, e.g. _value for this FillCursor
+            // constructor could be uninitialized but contain some state, e.g. _value for FillCursor
             _cursor.Dispose();
             State = CursorState.None;
         }

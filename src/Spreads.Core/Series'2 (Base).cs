@@ -1654,7 +1654,7 @@ namespace Spreads
         #endregion IReadOnlySeries members
 
 
-        public void Dispose()
+        public virtual void Dispose(bool disposing)
         {
             if (!EqualityComparer<TCursor>.Default.Equals(_c, default(TCursor)))
             {
@@ -1663,9 +1663,14 @@ namespace Spreads
             }
         }
 
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
         ~CursorContainerSeries()
         {
-            Dispose();
+            Dispose(false);
         }
     }
 }

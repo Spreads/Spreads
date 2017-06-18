@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
@@ -99,6 +100,12 @@ namespace Spreads
         public static void ThrowOutOfOrderKeyException<TKey>(TKey key, string message)
         {
             throw GetOutOfOrderKeyException(key, message);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void ThrowKeyNotFoundException(string message)
+        {
+            throw GetKeyNotFoundException(message);
         }
 
         public static void ThrowArgumentNullException(string argument)
@@ -201,6 +208,12 @@ namespace Spreads
         private static OutOfOrderKeyException<TKey> GetOutOfOrderKeyException<TKey>(TKey key, string message)
         {
             return new OutOfOrderKeyException<TKey>(key, message);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static KeyNotFoundException GetKeyNotFoundException(string message)
+        {
+            return new KeyNotFoundException(message);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

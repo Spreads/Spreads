@@ -14,6 +14,8 @@ using System.Threading.Tasks;
 namespace Spreads
 {
     // TODO Lag1/Previous could use just a single cursor and be much faster
+    // TODO Call it Shift with int - negative as lag, positive as lead. Shift(n, Window(n)) is a forward Window, no need for 
+    // a special implementation
 
     public struct Lag<TKey, TValue, TCursor> :
         ICursorSeries<TKey, (TValue, (TKey, TValue)), Lag<TKey, TValue, TCursor>>
@@ -82,7 +84,7 @@ namespace Spreads
         {
             // NB keep cursor state for reuse
             // dispose is called on the result of Initialize(), the cursor from
-            // constructor could be uninitialized but contain some state, e.g. _value for this FillCursor
+            // constructor could be uninitialized but contain some state, e.g. _value for FillCursor
             _cursor.Dispose();
             _lookUpCursor.Dispose();
             State = CursorState.None;
@@ -123,7 +125,7 @@ namespace Spreads
         public (TValue, (TKey, TValue)) CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (_cursor._cursor.CurrentValue, (_cursor.CurrentValue.CurrentKey, _cursor.CurrentValue.CurrentValue)); }
+            get { return (_cursor.CurrentCursor.CurrentValue, (_cursor.LaggedCursor.CurrentKey, _cursor.LaggedCursor.CurrentValue)); }
         }
 
         /// <inheritdoc />
@@ -150,7 +152,7 @@ namespace Spreads
 
             if (_lookUpCursor.MoveAt(key, Lookup.EQ))
             {
-                value = (_lookUpCursor._cursor.CurrentValue, (_lookUpCursor.CurrentValue.CurrentKey, _lookUpCursor.CurrentValue.CurrentValue));
+                value = (_lookUpCursor.CurrentCursor.CurrentValue, (_lookUpCursor.LaggedCursor.CurrentKey, _lookUpCursor.LaggedCursor.CurrentValue));
                 return true;
             }
 

@@ -1020,5 +1020,20 @@ namespace Spreads.Core.Tests
             Benchmark.Dump();
 
         }
+
+
+        [Test]
+        public void CouldSetStaticReadonlyFieldProgrammatically()
+        {
+            Settings.DoAdditionalCorrectnessChecks = false;
+
+            // NB uncommenting this line will set the value to its default=true
+            // before the above property is assigned due to how static fields are 
+            // initialized
+            //Assert.True(Settings.AdditionalCorrectnessChecks.DoChecks);
+
+
+            Assert.False(Settings.DoAdditionalCorrectnessChecks);
+        }
     }
 }
