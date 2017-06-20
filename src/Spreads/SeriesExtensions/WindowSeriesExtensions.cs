@@ -37,6 +37,13 @@ namespace Spreads
             return cursor.Source;
         }
 
+        public static ISeries<TKey, ISeries<TKey, TValue>> Window_<TKey, TValue>(this ISeries<TKey, TValue> series, int width = 1, bool allowIncomplete = false)
+        {
+            var cursor = new Window<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), width, allowIncomplete);
+            var untyped = (ISeries<TKey, ISeries<TKey, TValue>>)cursor.Source.Map(x => (ISeries<TKey, TValue>)x);
+            return untyped;
+        }
+
         public static Series<TKey, Series<TKey, TValue, Range<TKey, TValue, Cursor<TKey, TValue>>>, Window<TKey, TValue, Cursor<TKey, TValue>>>
             Window<TKey, TValue>(this ISeries<TKey, TValue> series, TKey width, Lookup lookup = Lookup.GE)
         {

@@ -5,11 +5,11 @@
 using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Cursors.Internal;
+using Spreads.Cursors.Online;
 using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Linq;
-using Spreads.Cursors.Online;
 
 namespace Spreads.Core.Tests.Cursors.Internal
 {
@@ -661,12 +661,63 @@ namespace Spreads.Core.Tests.Cursors.Internal
                     }
                 }
 
-
                 Assert.AreEqual(sum1, sum2);
                 Assert.AreEqual(sum1, sum3);
             }
 
             Benchmark.Dump($"The window width is {width}.");
+        }
+
+        [Test, Ignore]
+        public void TypeSystemSurvivesViolentAbuse()
+        {
+            var count = 1000;
+
+            #region Create data
+
+            var sm = new SortedMap<int, double>();
+            sm.Add(0, 0); // make irregular, it's faster but more memory
+            for (int i = 2; i <= count; i++)
+            {
+                sm.Add(i, i);
+            }
+
+            #endregion Create data
+
+            for (int round = 0; round < 20; round++)
+            {
+                var window = sm.Window(20).Window(20).Window(20).Window(20).Window(20); // this becomes too much: .Window(20).Window(20).Window(20);
+
+                var c = 0;
+                using (Benchmark.Run("Struct", count * 1000_000))
+                {
+                    foreach (var keyValuePair in window)
+                    {
+                        if (keyValuePair.Key >= 0)
+                        {
+                            c++;
+                        }
+                    }
+                }
+                if(c < 0 ) Console.WriteLine($"Count: {c}");
+
+                var window2 = sm.Window_(20).Window_(20).Window_(20).Window_(20).Window_(20);
+                var c2 = 0;
+                using (Benchmark.Run("Interface", count * 1000_000))
+                {
+                    foreach (var keyValuePair in window2)
+                    {
+                        if (keyValuePair.Key >= 0)
+                        {
+                            c2++;
+                        }
+                    }
+                }
+                if (c2 < 0) Console.WriteLine($"Count2: {c2}");
+
+            }
+
+            Benchmark.Dump("MOPS is scaled by x1M, so it is OPS");
         }
     }
 }

@@ -21,7 +21,7 @@ namespace Spreads.Core.Tests
                 p.PriorityClass = ProcessPriorityClass.High;
             }
 
-            Benchmark.ForceSilence = true;
+            //Benchmark.ForceSilence = true;
 
             for (int i = 0; i < 20; i++)
             {
@@ -29,7 +29,7 @@ namespace Spreads.Core.Tests
                 //new ZipCursorTests().CouldAddTwoSeriesWithSameKeysBenchmark();
                 //new SCMTests().EnumerateScmSpeed();
                 //new VariantTests().CouldCreateAndReadInlinedVariantInALoop();
-                new SpanOpTests().WindowDirectAndIndirectSpanOpBenchmark();
+                new SpanOpTests().TypeSystemSurvivesViolentAbuse();
             }
 
             Console.WriteLine("Press enter to exit...");

@@ -3,18 +3,17 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Cursors.Internal;
+using Spreads.Cursors.Online;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Cursors.Online;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
-
     public struct Window<TKey, TValue, TCursor> :
         ICursorSeries<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
@@ -65,7 +64,6 @@ namespace Spreads
 
         internal Window(TCursor cursor, TKey width, Lookup lookup) : this()
         {
-
             var op = new WindowOnlineOp<TKey, TValue, TCursor>();
             var spanOp =
                 new SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>,
@@ -84,8 +82,7 @@ namespace Spreads
         #region Lifetime management
 
         /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Window<TKey, TValue, TCursor> Clone()
+        public Window<TKey, TValue, TCursor> Clone() // [MethodImpl(MethodImplOptions.AggressiveInlining)]
         {
             var instance = new Window<TKey, TValue, TCursor>
             {
@@ -96,8 +93,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Window<TKey, TValue, TCursor> Initialize()
+        public Window<TKey, TValue, TCursor> Initialize() // This causes SO when deeply nested [MethodImpl(MethodImplOptions.AggressiveInlining)]
         {
             var instance = new Window<TKey, TValue, TCursor>
             {
@@ -108,8 +104,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Dispose()
+        public void Dispose() // [MethodImpl(MethodImplOptions.AggressiveInlining)]
         {
             // NB keep cursor state for reuse
             // dispose is called on the result of Initialize(), the cursor from
@@ -126,8 +121,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Reset()
+        public void Reset() // [MethodImpl(MethodImplOptions.AggressiveInlining)]
         {
             _cursor.Reset();
             State = CursorState.Initialized;
@@ -145,7 +139,8 @@ namespace Spreads
         /// <inheritdoc />
         public KeyValuePair<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>> Current
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            // NB this causes SO in the TypeSystemSurvivesViolentAbuse test when run as Ctrl+F5 [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            // ReSharper disable once ArrangeAccessorOwnerBody
             get { return new KeyValuePair<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>>(CurrentKey, CurrentValue); }
         }
 
@@ -187,7 +182,7 @@ namespace Spreads
 
             if (_lookUpCursor.MoveAt(key, Lookup.EQ))
             {
-                value = (new Range<TKey, TValue, TCursor>(_lookUpCursor.LaggedCursor.Clone(), _lookUpCursor.LaggedCursor.CurrentKey, _lookUpCursor.CurrentKey, true, true, true)).Source;
+                value = _lookUpCursor.CurrentValue.Source;
                 return true;
             }
 
