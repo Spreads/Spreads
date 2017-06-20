@@ -70,6 +70,27 @@ namespace Spreads.Core.Tests.Cursors
         }
 
         [Test]
+        public void SizeOfRange()
+        {
+            Console.WriteLine(Unsafe.SizeOf<DateTime>());
+            Console.WriteLine(Unsafe.SizeOf<Cursor<DateTime, double>>());
+            Console.WriteLine(Unsafe.SizeOf<Opt<DateTime>>());
+            Console.WriteLine(Unsafe.SizeOf<Range<DateTime, double, Cursor<DateTime, double>>>());
+            Console.WriteLine(Unsafe.SizeOf<Series<DateTime, double, Range<DateTime, double, Cursor<DateTime, double>>>>());
+            if (IntPtr.Size == 8)
+            {
+                Assert.AreEqual(32, Unsafe.SizeOf<Range<DateTime, double, Cursor<DateTime, double>>>(),
+                    "If Range internals changed that should be reflected in this test.");
+            }
+            else
+            {
+                Assert.AreEqual(28, Unsafe.SizeOf<Range<DateTime, double, Cursor<DateTime, double>>>(),
+                    "If Range internals changed that should be reflected in this test.");
+            }
+        }
+
+
+        [Test]
         public void CouldUseRangeCursorStruct()
         {
             SortedMap<int, double> sm = null;

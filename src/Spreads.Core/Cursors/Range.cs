@@ -7,6 +7,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,23 +17,34 @@ namespace Spreads
     /// <summary>
     /// Range cursor.
     /// </summary>
+    [StructLayout(LayoutKind.Auto)]
     public struct Range<TKey, TValue, TCursor> :
         ICursorSeries<TKey, TValue, Range<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
-        #region Cursor state
+        [Flags]
+        private enum Flags : byte
+        {
+            EndInclusive = 1,
+            EndKeyIsPresent = 2,
+            StartInclusive = 4,
+            StartKeyIsPresent = 8,
+            AtEnd = 16,
+            AtStart = 32,
+        }
 
-        private bool _endInclusive;
-        private Opt<TKey> _endKey;
-        private bool _startInclusive;
-        private Opt<TKey> _startKey;
-        private bool _atEnd;
-        private bool _atStart;
-        private int _count;
+        #region Cursor state
 
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal TCursor _cursor;
+
+        private TKey _endKey;
+        private TKey _startKey;
+
+        private int _count;
+
+        private Flags _flags;
 
         /// <summary>
         /// True if the cursor was given in a moving state and positioned at the range's start.
@@ -41,6 +53,8 @@ namespace Spreads
         internal bool _cursorIsClonedAtStart;
 
         internal CursorState State { get; set; }
+
+        // there is 1 more byte to 4-bytes boundary
 
         #endregion Cursor state
 
@@ -66,10 +80,29 @@ namespace Spreads
 
             _cursor = cursor;
             _cursorIsClonedAtStart = cursorIsClonedAtStart;
-            _startKey = startKey;
-            _endKey = endKey;
-            _startInclusive = startInclusive;
-            _endInclusive = endInclusive;
+
+            if (startKey.IsPresent)
+            {
+                _flags |= Flags.StartKeyIsPresent;
+                _startKey = startKey.Present;
+            }
+
+            if (endKey.IsPresent)
+            {
+                _flags |= Flags.EndKeyIsPresent;
+                _endKey = endKey.Present;
+            }
+
+            if (startInclusive)
+            {
+                _flags |= Flags.StartInclusive;
+            }
+
+            if (endInclusive)
+            {
+                _flags |= Flags.EndInclusive;
+            }
+
             _count = count;
         }
 
@@ -87,8 +120,7 @@ namespace Spreads
                 _cursorIsClonedAtStart = _cursorIsClonedAtStart,
                 _startKey = _startKey,
                 _endKey = _endKey,
-                _startInclusive = _startInclusive,
-                _endInclusive = _endInclusive,
+                _flags = _flags,
                 _count = _count,
                 State = State
             };
@@ -100,14 +132,14 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Range<TKey, TValue, TCursor> Initialize()
         {
+            var clearFlags = (_flags & ~Flags.AtStart) & ~Flags.AtEnd;
             var instance = new Range<TKey, TValue, TCursor>
             {
                 _cursor = _cursorIsClonedAtStart ? _cursor.Clone() : _cursor.Initialize(),
                 _cursorIsClonedAtStart = _cursorIsClonedAtStart,
                 _startKey = _startKey,
                 _endKey = _endKey,
-                _startInclusive = _startInclusive,
-                _endInclusive = _endInclusive,
+                _flags = clearFlags,
                 _count = _count,
                 State = CursorState.Initialized
             };
@@ -146,22 +178,22 @@ namespace Spreads
         /// <summary>
         /// End key is inclusive or missing.
         /// </summary>
-        public bool EndInclusive => _endInclusive;
+        public bool EndInclusive => (_flags & Flags.EndInclusive) == Flags.EndInclusive;
 
         /// <summary>
         /// Start key is inclusive or missing.
         /// </summary>
-        public bool StartInclusive => _startInclusive;
+        public bool StartInclusive => (_flags & Flags.StartInclusive) == Flags.StartInclusive;
 
         /// <summary>
         /// End key
         /// </summary>
-        public Opt<TKey> EndKey => _endKey;
+        public Opt<TKey> EndKey => (_flags & Flags.EndKeyIsPresent) == Flags.EndKeyIsPresent ? Opt.Present(_endKey) : Opt<TKey>.Missing;
 
         /// <summary>
         /// Start key
         /// </summary>
-        public Opt<TKey> StartKey => _startKey;
+        public Opt<TKey> StartKey => (_flags & Flags.StartKeyIsPresent) == Flags.StartKeyIsPresent ? Opt.Present(_startKey) : Opt<TKey>.Missing;
 
         /// <summary>
         /// If positive then this range has known count.
@@ -171,9 +203,9 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool EndOk(TKey key)
         {
-            if (!_endKey.IsPresent) return true;
-            var c = _cursor.Comparer.Compare(key, _endKey.Present);
-            return _endInclusive ? c <= 0 : c < 0;
+            if ((_flags & Flags.EndKeyIsPresent) != Flags.EndKeyIsPresent) return true;
+            var c = _cursor.Comparer.Compare(key, _endKey);
+            return (_flags & Flags.EndInclusive) == Flags.EndInclusive ? c <= 0 : c < 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -185,9 +217,9 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool StartOk(TKey key)
         {
-            if (!_startKey.IsPresent) return true;
-            var c = _cursor.Comparer.Compare(key, _startKey.Present);
-            return _startInclusive ? c >= 0 : c > 0;
+            if ((_flags & Flags.StartKeyIsPresent) != Flags.StartKeyIsPresent) return true;
+            var c = _cursor.Comparer.Compare(key, _startKey);
+            return (_flags & Flags.StartInclusive) == Flags.StartInclusive ? c >= 0 : c > 0;
         }
 
         #endregion Custom members
@@ -260,8 +292,8 @@ namespace Spreads
                 {
                     State = CursorState.Moving;
                 }
-                _atEnd = false;
-                _atStart = false;
+                _flags &= ~Flags.AtEnd;
+                _flags &= ~Flags.AtStart;
                 return moved;
             }
             if (moved)
@@ -282,20 +314,20 @@ namespace Spreads
 
             if (State != CursorState.Moving && _cursorIsClonedAtStart)
             {
-                Debug.Assert(Comparer.Compare(_cursor.CurrentKey, _startKey.Present) == 0);
+                Debug.Assert(Comparer.Compare(_cursor.CurrentKey, _startKey) == 0);
                 State = CursorState.Moving;
                 return true;
             }
 
-            if ((_startKey.IsPresent
-                 && _cursor.MoveAt(_startKey.Present, _startInclusive ? Lookup.GE : Lookup.GT)
+            if (((_flags & Flags.StartKeyIsPresent) == Flags.StartKeyIsPresent
+                 && _cursor.MoveAt(_startKey, (_flags & Flags.StartInclusive) == Flags.StartInclusive ? Lookup.GE : Lookup.GT)
                  && InRange(_cursor.CurrentKey))
-                || (!_startKey.IsPresent && _cursor.MoveFirst()))
+                || ((_flags & Flags.StartKeyIsPresent) != Flags.StartKeyIsPresent && _cursor.MoveFirst()))
             {
                 State = CursorState.Moving;
 
-                _atEnd = false;
-                _atStart = false;
+                _flags &= ~Flags.AtEnd;
+                _flags &= ~Flags.AtStart;
                 return true;
             }
             return false;
@@ -309,14 +341,14 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
-            if ((_endKey.IsPresent
-                && _cursor.MoveAt(_endKey.Present, _endInclusive ? Lookup.LE : Lookup.LT)
+            if (((_flags & Flags.EndKeyIsPresent) == Flags.EndKeyIsPresent
+                && _cursor.MoveAt(_endKey, (_flags & Flags.EndInclusive) == Flags.EndInclusive ? Lookup.LE : Lookup.LT)
                 && InRange(_cursor.CurrentKey))
-                || (!_endKey.IsPresent && _cursor.MoveLast()))
+                || ((_flags & Flags.EndKeyIsPresent) != Flags.EndKeyIsPresent && _cursor.MoveLast()))
             {
                 State = CursorState.Moving;
-                _atEnd = false;
-                _atStart = false;
+                _flags &= ~Flags.AtEnd;
+                _flags &= ~Flags.AtStart;
                 return true;
             }
             return false;
@@ -328,11 +360,11 @@ namespace Spreads
         {
             if (State < CursorState.Moving) return MoveFirst();
 
-            if (!_endKey.IsPresent)
+            if ((_flags & Flags.EndKeyIsPresent) != Flags.EndKeyIsPresent)
             {
                 return _cursor.MoveNext();
             }
-            if (_atEnd)
+            if ((_flags & Flags.AtEnd) == Flags.AtEnd)
             {
                 return false;
             }
@@ -345,7 +377,7 @@ namespace Spreads
             }
             if (!moved) return false;
             _cursor.MoveAt(beforeMove, Lookup.EQ);
-            _atEnd = true;
+            _flags |= Flags.AtEnd;
 
             return false;
         }
@@ -368,11 +400,11 @@ namespace Spreads
         {
             if (State < CursorState.Moving) return MoveLast();
 
-            if (!_startKey.IsPresent)
+            if ((_flags & Flags.StartKeyIsPresent) != Flags.StartKeyIsPresent)
             {
                 return _cursor.MovePrevious();
             }
-            if (_atStart)
+            if ((_flags & Flags.AtStart) == Flags.AtStart)
             {
                 return false;
             }
@@ -386,7 +418,7 @@ namespace Spreads
 
             if (!moved) return false;
             _cursor.MoveAt(beforeMove, Lookup.EQ);
-            _atStart = true;
+            _flags |= Flags.AtStart;
 
             return false;
         }
@@ -426,7 +458,7 @@ namespace Spreads
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (!_atEnd && (State != CursorState.Moving | EndOk(_cursor.CurrentKey)))
+                if ((_flags & Flags.AtEnd) != Flags.AtEnd && (State != CursorState.Moving | EndOk(_cursor.CurrentKey)))
                 {
                     return _cursor.Source.Updated;
                 }
