@@ -28,10 +28,16 @@ namespace Spreads
 
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
-        internal LagStepImpl<TKey, TValue, TCursor> _cursor;
+        internal SpanOpImpl<TKey, TValue,
+            Range<TKey, TValue, TCursor>,
+            SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, OnlineWindow<TKey, TValue, TCursor>>,
+            TCursor> _cursor;
 
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
-        internal LagStepImpl<TKey, TValue, TCursor> _lookUpCursor;
+        internal SpanOpImpl<TKey, TValue,
+            Range<TKey, TValue, TCursor>,
+            SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, OnlineWindow<TKey, TValue, TCursor>>,
+            TCursor> _lookUpCursor;
 
         internal CursorState State { get; set; }
 
@@ -39,12 +45,37 @@ namespace Spreads
 
         #region Constructors
 
-        internal Window(TCursor cursor, int width = 1, int step = 1) : this()
+        internal Window(TCursor cursor, int width = 1, bool allowIncomplete = false) : this()
         {
             if (width <= 0) throw new ArgumentOutOfRangeException(nameof(width));
-            if (step <= 0) throw new ArgumentOutOfRangeException(nameof(width));
 
-            _cursor = new LagStepImpl<TKey, TValue, TCursor>(cursor, width, step);
+            var op = new OnlineWindow<TKey, TValue, TCursor>();
+            var spanOp =
+                new SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>,
+                    TCursor, OnlineWindow<TKey, TValue, TCursor>>(width, allowIncomplete, op);
+            _cursor =
+                new SpanOpImpl<TKey, TValue,
+                    Range<TKey, TValue, TCursor>,
+                    SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, OnlineWindow<TKey, TValue, TCursor>
+                    >,
+                    TCursor
+                >(cursor, spanOp);
+        }
+
+        internal Window(TCursor cursor, TKey width, Lookup lookup) : this()
+        {
+
+            var op = new OnlineWindow<TKey, TValue, TCursor>();
+            var spanOp =
+                new SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>,
+                    TCursor, OnlineWindow<TKey, TValue, TCursor>>(width, lookup, op);
+            _cursor =
+                new SpanOpImpl<TKey, TValue,
+                    Range<TKey, TValue, TCursor>,
+                    SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, OnlineWindow<TKey, TValue, TCursor>
+                    >,
+                    TCursor
+                >(cursor, spanOp);
         }
 
         #endregion Constructors
@@ -83,7 +114,10 @@ namespace Spreads
             // dispose is called on the result of Initialize(), the cursor from
             // constructor could be uninitialized but contain some state, e.g. _value for FillCursor
             _cursor.Dispose();
-            if (!_lookUpCursor.Equals(default(LagStepImpl<TKey, TValue, TCursor>)))
+            if (!_lookUpCursor.Equals(default(SpanOpImpl<TKey, TValue,
+                Range<TKey, TValue, TCursor>,
+                SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, OnlineWindow<TKey, TValue, TCursor>>,
+                TCursor>)))
             {
                 _lookUpCursor.Dispose();
             }
@@ -125,7 +159,7 @@ namespace Spreads
         public Series<TKey, TValue, Range<TKey, TValue, TCursor>> CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (new Range<TKey, TValue, TCursor>(_cursor.LaggedCursor.Clone(), _cursor.LaggedCursor.CurrentKey, _cursor.CurrentKey, true, true, true)).Source; }
+            get { return _cursor.CurrentValue.Source; }
         }
 
         /// <inheritdoc />

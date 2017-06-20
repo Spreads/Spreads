@@ -8,10 +8,10 @@ using System.Threading.Tasks;
 
 namespace Spreads.Cursors.Internal
 {
-    internal struct SpanOpImpl<TKey, TValue, TResult, TOnlineOp, TCursor> :
-        ICursorSeries<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TOnlineOp, TCursor>>
+    internal struct SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor> :
+        ICursorSeries<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
-        where TOnlineOp : struct, ISpanOp<TKey, TValue, TResult, TCursor> //, ICursorOnlineOp2<TKey, TValue, TResult, TCursor>
+        where TSpanOp : struct, ISpanOp<TKey, TValue, TResult, TCursor> //, ICursorOnlineOp2<TKey, TValue, TResult, TCursor>
     {
         // dummy field to use as by ref argument
 
@@ -31,7 +31,7 @@ namespace Spreads.Cursors.Internal
         private TCursor _laggedCursor;
 
         // this field keeps the state of the online op and must be cloned
-        private TOnlineOp _op;
+        private TSpanOp _op;
 
         internal CursorState State { get; set; }
 
@@ -47,7 +47,7 @@ namespace Spreads.Cursors.Internal
             get { return _laggedCursor; }
         }
 
-        internal TOnlineOp OnlineOp
+        internal TSpanOp OnlineOp
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _op; }
@@ -57,7 +57,7 @@ namespace Spreads.Cursors.Internal
 
         #region Constructors
 
-        internal SpanOpImpl(TCursor cursor, TOnlineOp op) : this()
+        internal SpanOpImpl(TCursor cursor, TSpanOp op) : this()
         {
             _cursor = cursor;
             _op = op;
@@ -69,7 +69,7 @@ namespace Spreads.Cursors.Internal
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public SpanOpImpl<TKey, TValue, TResult, TOnlineOp, TCursor> Clone()
+        public SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor> Clone()
         {
             var instance = Initialize();
             instance.MoveAt(CurrentKey, Lookup.EQ);
@@ -87,11 +87,11 @@ namespace Spreads.Cursors.Internal
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public SpanOpImpl<TKey, TValue, TResult, TOnlineOp, TCursor> Initialize()
+        public SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor> Initialize()
         {
             var newOp = _op;
             newOp.Reset();
-            var instance = new SpanOpImpl<TKey, TValue, TResult, TOnlineOp, TCursor>
+            var instance = new SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>
             {
                 _cursor = _cursor.Initialize(),
                 _laggedCursor = _cursor.Initialize(),
@@ -668,12 +668,12 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, TResult> ICursor<TKey, TResult>.Source => new Series<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TOnlineOp, TCursor>>(this);
+        IReadOnlySeries<TKey, TResult> ICursor<TKey, TResult>.Source => new Series<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
-        public Series<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TOnlineOp, TCursor>> Source => new Series<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TOnlineOp, TCursor>>(this);
+        public Series<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>> Source => new Series<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>>(this);
 
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken)

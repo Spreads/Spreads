@@ -5,10 +5,10 @@
 using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Cursors.Internal;
+using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Linq;
-using Spreads.Utils;
 
 namespace Spreads.Core.Tests.Cursors.Internal
 {
@@ -239,7 +239,38 @@ namespace Spreads.Core.Tests.Cursors.Internal
                     Debug.WriteLine($"{keyValuePair.Key} - {keyValuePair.Value}");
                 }
             }
+        }
 
+        [Test]
+        public void CouldCalculateSMAWithWidthEQ()
+        {
+            Assert.Throws<NotImplementedException>(() =>
+            {
+                var count = 20;
+                var sm = new SortedMap<int, double>();
+                sm.Add(0, 0);
+                for (int i = 2; i <= count; i++)
+                {
+                    sm.Add(i, i);
+                }
+                sm.Remove(11);
+                sm.Remove(12);
+                var onlineOp = new OnlineSumAvg<int, double, SortedMapCursor<int, double>>();
+                var smaOp = new SpanOpWidth<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>
+                    (2, Lookup.EQ, onlineOp);
+                var smaSeries =
+                    new SpanOpImpl<int,
+                        double,
+                        double,
+                        SpanOpWidth<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>,
+                        SortedMapCursor<int, double>
+                    >(sm.GetEnumerator(), smaOp).Source;
+
+                foreach (var keyValuePair in smaSeries)
+                {
+                    Trace.WriteLine($"{keyValuePair.Key} - {keyValuePair.Value}");
+                }
+            });
         }
 
         [Test]
@@ -416,9 +447,7 @@ namespace Spreads.Core.Tests.Cursors.Internal
                     Debug.WriteLine($"{keyValuePair.Key} - {keyValuePair.Value}");
                 }
             }
-
         }
-
 
         [Test, Ignore]
         public void SMADirectAndIndirectSpanOpBenchmark()
@@ -451,6 +480,14 @@ namespace Spreads.Core.Tests.Cursors.Internal
                 >(sm.GetEnumerator(),
                     new SpanOpCount<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>(width, false, new OnlineSumAvg<int, double, SortedMapCursor<int, double>>())).Source;
 
+            var indirectSmaCombined =
+                new SpanOpImpl<int,
+                    double,
+                    double,
+                    SpanOp<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>,
+                    SortedMapCursor<int, double>
+                >(sm.GetEnumerator(),
+                    new SpanOp<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>(width, false, new OnlineSumAvg<int, double, SortedMapCursor<int, double>>())).Source;
 
             var windowSma = sm.Window(width).Map(x =>
             {
@@ -484,6 +521,15 @@ namespace Spreads.Core.Tests.Cursors.Internal
                     }
                 }
 
+                double sum2_2 = 0.0;
+                using (Benchmark.Run("SMA Indirect Combined", count * width))
+                {
+                    foreach (var keyValuePair in indirectSmaCombined)
+                    {
+                        sum2_2 += keyValuePair.Value;
+                    }
+                }
+
                 double sum3 = 0.0;
                 using (Benchmark.Run("SMA Window", count * width))
                 {
@@ -503,12 +549,123 @@ namespace Spreads.Core.Tests.Cursors.Internal
                 }
 
                 Assert.AreEqual(sum1, sum2);
+                Assert.AreEqual(sum1, sum2_2);
                 Assert.AreEqual(sum1, sum3);
             }
 
             Benchmark.Dump($"The window width is {width}. SMA MOPS are calculated as a number of calculated values multiplied by width, " +
                            $"which is equivalent to the total number of cursor moves for Window case. SortedMap line is for reference - it is the " +
                            $"speed of raw iteration over SM without Windows overheads.");
+        }
+
+        [Test, Ignore]
+        public void WindowDirectAndIndirectSpanOpBenchmark()
+        {
+            Settings.DoAdditionalCorrectnessChecks = false;
+
+            var count = 100000;
+            var width = 20;
+            var sm = new SortedMap<int, double>();
+            sm.Add(0, 0); // make irregular, it's faster but more memory
+            for (int i = 2; i <= count; i++)
+            {
+                sm.Add(i, i);
+            }
+
+            var op = new OnlineWindow<int, double, SortedMapCursor<int, double>>();
+            var spanOp =
+                new SpanOpCount<int, double, Range<int, double, SortedMapCursor<int, double>>,
+                    SortedMapCursor<int, double>, OnlineWindow<int, double, SortedMapCursor<int, double>>>(20, false,
+                    op);
+            var window =
+                new SpanOpImpl<int,
+                    double,
+                    Range<int, double, SortedMapCursor<int, double>>,
+                    SpanOpCount<int, double, Range<int, double, SortedMapCursor<int, double>>, SortedMapCursor<int, double>, OnlineWindow<int, double, SortedMapCursor<int, double>>>,
+                    SortedMapCursor<int, double>
+                >(sm.GetEnumerator(), spanOp).Source
+                    .Map(x =>
+                    {
+                        var sum = 0.0;
+                        var c = 0;
+                        foreach (var keyValuePair in x.Source)
+                        {
+                            sum += keyValuePair.Value;
+                            c++;
+                        }
+                        return sum / c; // x.CursorDefinition.Count TODO
+                    });
+
+            var spanOpCombined =
+                new SpanOp<int, double, Range<int, double, SortedMapCursor<int, double>>,
+                    SortedMapCursor<int, double>, OnlineWindow<int, double, SortedMapCursor<int, double>>>(20, false,
+                    op);
+            var windowCombined =
+                new SpanOpImpl<int,
+                    double,
+                    Range<int, double, SortedMapCursor<int, double>>,
+                    SpanOp<int, double, Range<int, double, SortedMapCursor<int, double>>, SortedMapCursor<int, double>, OnlineWindow<int, double, SortedMapCursor<int, double>>>,
+                    SortedMapCursor<int, double>
+                >(sm.GetEnumerator(), spanOpCombined).Source
+                .Map(x =>
+                {
+                    var sum = 0.0;
+                    var c = 0;
+                    foreach (var keyValuePair in x.Source)
+                    {
+                        sum += keyValuePair.Value;
+                        c++;
+                    }
+                    return sum / c; // x.CursorDefinition.Count TODO
+                });
+
+            var windowExtension = sm.Window(width).Map(x =>
+            {
+                var sum = 0.0;
+                var c = 0;
+                foreach (var keyValuePair in x)
+                {
+                    sum += keyValuePair.Value;
+                    c++;
+                }
+                return sum / c; // x.CursorDefinition.Count TODO
+            });
+
+            for (int round = 0; round < 20; round++)
+            {
+                double sum1 = 0.0;
+                using (Benchmark.Run("Window SpanOpCount", count * width))
+                {
+                    foreach (var keyValuePair in window)
+                    {
+                        sum1 += keyValuePair.Value;
+                    }
+                }
+
+                double sum2 = 0.0;
+                using (Benchmark.Run("Window SpanOp", count * width))
+                {
+                    foreach (var keyValuePair in windowCombined)
+                    {
+                        sum2 += keyValuePair.Value;
+                    }
+                }
+
+                double sum3 = 0.0;
+                using (Benchmark.Run("Window Extension", count * width))
+                {
+                    foreach (var keyValuePair in windowExtension)
+                    {
+                        sum3 += keyValuePair.Value;
+                    }
+                }
+
+
+                Assert.AreEqual(sum1, sum2);
+                Assert.AreEqual(sum1, sum3);
+            }
+
+            Benchmark.Dump($"The window width is {width}.");
         }
     }
 }

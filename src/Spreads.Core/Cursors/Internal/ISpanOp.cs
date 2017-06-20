@@ -221,6 +221,12 @@ namespace Spreads.Cursors.Internal
 
         public SpanOpWidth(TKey width, Lookup lookup, TOnlineOp opState)
         {
+            if (lookup == Lookup.EQ)
+            {
+                // TODO (low) this is not very useful but could be done in principle.
+                // See CouldCalculateSMAWithWidthEQ test with a failing condition. Now EQ could work only for some regular series.
+                ThrowHelper.ThrowNotImplementedException("Lookup.EQ is not implemented for span width width limit.");
+            }
             _width = width;
             _lookup = lookup;
             _expand = int.MaxValue;
@@ -257,7 +263,7 @@ namespace Spreads.Cursors.Internal
             _expand = int.MaxValue;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
         private (bool isInvalid, int expand) IsInvalid(ref TCursor lagged, ref TCursor current)
         {
             var diff = default(SubtractOp<TKey>).Apply(current.CurrentKey, lagged.CurrentKey);
@@ -291,7 +297,7 @@ namespace Spreads.Cursors.Internal
             return (false, 0);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Expand(ref TCursor left, ref TCursor right)
         {
             var (isInvalid, expand) = IsInvalid(ref left, ref right);
@@ -332,6 +338,248 @@ namespace Spreads.Cursors.Internal
             }
             _expand = newExpandState;
             return _expand;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AddNewRight(ref TCursor right)
+        {
+            _opState.AddNewRight(right.Current);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool RemoveAndMovePreviousRight(ref TCursor right)
+        {
+            var current = right.Current;
+            var moved = right.MovePrevious();
+            if (moved)
+            {
+                _opState.RemoveOldRight(current);
+            }
+            return moved;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AddNewLeft(ref TCursor left)
+        {
+            _opState.AddNewLeft(left.Current);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool RemoveAndMoveNextLeft(ref TCursor left)
+        {
+            var current = left.Current;
+            var moved = left.MoveNext();
+            if (moved)
+            {
+                _opState.RemoveOldLeft(current);
+            }
+            return moved;
+        }
+    }
+
+    internal struct SpanOp<TKey, TValue, TResult, TCursor, TOnlineOp> : ISpanOp<TKey, TValue, TResult, TCursor>
+        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+        where TOnlineOp : struct, IOnlineOp<TKey, TValue, TResult, TCursor>
+    {
+        private enum LimitType : byte
+        {
+            Count,
+            Width,
+
+            /// <summary>
+            /// Expand while a predicate returns true.
+            /// </summary>
+            WhilePredicate,
+
+            /// <summary>
+            /// Expand while tahe sum of mapped value is below limit.
+            /// </summary>
+            MapSum
+        }
+
+        private readonly LimitType _limitType;
+
+        //private Func<KeyValuePair<TKey, TValue>, KeyValuePair<TKey, TValue>, bool> _whilePredicate;
+        //private Func<KeyValuePair<TKey, TValue>, TResult> _sumMapper;
+        //private TResult _sumLimit;
+
+        private readonly bool _allowIncomplete;
+
+        private readonly int _widthN;
+        private readonly TKey _width;
+
+        private readonly Lookup _lookup;
+
+        private int _expand;
+
+        private TOnlineOp _opState;
+
+        public SpanOp(int width, bool allowIncomplete, TOnlineOp opState)
+        {
+            _limitType = LimitType.Count;
+
+            _widthN = width;
+            _allowIncomplete = allowIncomplete;
+
+            _width = default(TKey);
+            _lookup = Lookup.EQ;
+            _expand = int.MaxValue;
+
+            _opState = opState;
+        }
+
+        public SpanOp(TKey width, Lookup lookup, TOnlineOp opState)
+        {
+            _limitType = LimitType.Width;
+
+            _widthN = 0;
+            _allowIncomplete = false;
+
+            _width = width;
+            _lookup = lookup;
+            _expand = int.MaxValue;
+
+            _opState = opState;
+
+            //_whilePredicate = null;
+            //_sumMapper = null;
+            //_sumLimit = default(TResult);
+        }
+
+        public int Count
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _opState.Count; }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public TResult GetResult(ref TCursor left, ref TCursor right)
+        {
+            return _opState.GetResult(ref left, ref right);
+        }
+
+        public bool IsForwardOnly => _opState.IsForwardOnly;
+
+        public int MinWidth
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (_limitType == LimitType.Count)
+                {
+                    return _allowIncomplete ? _opState.MinWidth : Math.Max(_widthN, _opState.MinWidth);
+                }
+                if (_limitType == LimitType.Width)
+                {
+                    return _opState.MinWidth;
+                }
+
+                ThrowHelper.ThrowNotImplementedException();
+                return 0;
+            }
+        }
+
+        public void Dispose()
+        {
+            _opState.Dispose();
+            _expand = int.MaxValue;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Reset()
+        {
+            _opState.Reset();
+            _expand = int.MaxValue;
+        }
+
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private (bool isInvalid, int expand) IsInvalidWidth(ref TCursor lagged, ref TCursor current)
+        {
+            var diff = default(SubtractOp<TKey>).Apply(current.CurrentKey, lagged.CurrentKey);
+            var cmp = current.Comparer.Compare(diff, _width);
+            if (cmp > 0)
+            {
+                // Diff is too big, should shrink if invalid
+                return (_lookup != Lookup.GE && _lookup != Lookup.GT, -1);
+            }
+
+            if (cmp < 0)
+            {
+                // Diff is too small, should expand if invalid
+                return (_lookup != Lookup.LE && _lookup != Lookup.LT, 1);
+            }
+
+            // cmp == 0
+
+            if (_lookup == Lookup.LT)
+            {
+                // need to shrink, equal is not valid
+                return (true, -1);
+            }
+
+            if (_lookup == Lookup.GT)
+            {
+                // need to expand, equal is not valid
+                return (true, 1);
+            }
+
+            return (false, 0);
+        }
+
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int Expand(ref TCursor left, ref TCursor right)
+        {
+            if (_limitType == LimitType.Count)
+            {
+                return _allowIncomplete && Count > 0 && Count <= _widthN
+                    ? 0
+                    : _widthN - Count;
+            }
+
+            if (_limitType == LimitType.Width)
+            {
+                var (isInvalid, expand) = IsInvalidWidth(ref left, ref right);
+                int newExpandState;
+                if (isInvalid)
+                {
+                    // Invalid is never acceptable
+                    newExpandState = expand;
+                }
+                else
+                {
+                    //newExpandState = 0;
+                    // was invalid but now is valid,
+                    // use this value
+                    if (_expand != 0)
+                    {
+                        newExpandState = 0;
+                    }
+                    else
+                    {
+                        // was valid and is still valid, need to retry to ensure we are as close to the limit as possible
+                        if ((int)_lookup > 2)
+                        {
+                            // was GE/GT and still, try to shrink
+                            newExpandState = -1;
+                        }
+                        else if ((int)_lookup < 2)
+                        {
+                            // was LE/LT and still, try to expand
+                            newExpandState = 1;
+                        }
+                        else
+                        {
+                            // for equal it is OK
+                            newExpandState = 0;
+                        }
+                    }
+                }
+                _expand = newExpandState;
+                return _expand;
+            }
+
+            ThrowHelper.ThrowNotImplementedException();
+            return 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

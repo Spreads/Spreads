@@ -28,7 +28,7 @@ namespace Spreads.Core.Tests.Cursors
             // NB no type annotations needed to get the same result
             // Even though `.Source` saves a great deal of typing, manual construction is still a dealbreaker
             // Extension methods are smart and keep all types info without requiring any type annotations
-            var windowLong = new Window<int, double, SortedMapCursor<int, double>>(sm.GetEnumerator(), 10, 1).Source;
+            var windowLong = new Window<int, double, SortedMapCursor<int, double>>(sm.GetEnumerator(), 10).Source;
 
             foreach (var pair in window)
             {
