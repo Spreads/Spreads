@@ -1,10 +1,10 @@
-using Spreads.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Utils;
 
 namespace Spreads.Cursors.Internal
 {
@@ -175,7 +175,7 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <summary>
-        /// Helper method to reduce args typing
+        /// Helper method to reduce args typing.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int Expand()

@@ -24,7 +24,7 @@ namespace Spreads
     /// do not invalidate the enumerator.
     ///
     /// <c>Current</c> property follows the parent contracts as described here: https://msdn.microsoft.com/en-us/library/58e146b7(v=vs.110).aspx
-    /// Some implementations guarantee that <c>Current</c> keeps its last value from successfull MoveNext(),
+    /// Some implementations guarantee that <c>Current</c> keeps its last value from successful MoveNext(),
     /// but that must be explicitly stated in a data structure documentation (e.g. SortedMap).
     /// </remarks>
     public interface IAsyncEnumerator<out T> : IEnumerator<T>
@@ -168,7 +168,7 @@ namespace Spreads
         /// <summary>
         /// A Task that is completed with True whenever underlying data is changed.
         /// Internally used for signaling to async cursors.
-        /// After getting the Task one should check if any changes happened (version change or cursor move) before awating the task.
+        /// After getting the Task one should check if any changes happened (version change or cursor move) before awaiting the task.
         /// If the task is completed with false then the series is read-only, immutable or complete.
         /// </summary>
         Task<bool> Updated { get; }
@@ -199,7 +199,7 @@ namespace Spreads
     ///
     /// Supports batches with MoveNextBatchAsync() and CurrentBatch members. Accessing current key
     /// after MoveNextBatchAsync or CurrentBatch after any single key movement results in InvalidOperationException.
-    /// IsBatch property indicates wether the cursor is positioned on a single value or a batch.
+    /// IsBatch property indicates whether the cursor is positioned on a single value or a batch.
     ///
     /// Contracts:
     /// 1. At the beginning a cursor consumer could call any single move method or MoveNextBatch. MoveNextBatch could
@@ -209,7 +209,7 @@ namespace Spreads
     ///    in all other cases.
     /// 3. After a call to MoveNextBatch() returns false, the consumer MUST use only single calls. ICursor implementations MUST
     ///    ensure that the relative moves MoveNext/Previous start from the last position of the previous batch.
-    /// 4. Synchronous moves return true if data is instantly awailable, e.g. in a map data structure in memory or on fast disk DB.
+    /// 4. Synchronous moves return true if data is instantly available, e.g. in a map data structure in memory or on fast disk DB.
     ///    ICursor implementations should not block threads, e.g. if a map is IUpdateable, synchronous MoveNext should not wait for
     ///    an update but return false if there is no data right now.
     /// 5. When synchronous MoveNext or MoveLast return false, the consumer should call async overload of MoveNext. Inside the async
@@ -217,7 +217,7 @@ namespace Spreads
     /// 6. When any move returns false, cursor stays at the position before that move (TODO now this is ensured only for SM MN/MP and for Bind(ex.MA) )
     /// _. TODO If the source is updated during a lifetime of a cursor, cursor must recreate its state at its current position
     ///    Rewind logic only for async? Throw in all cases other than MoveNext, MoveAt? Or at least on MovePrevious.
-    ///    Or special behaviour of MoveNext only on appends or changing the last value? On other changes must throw invalidOp (locks are there!)
+    ///    Or special behavior of MoveNext only on appends or changing the last value? On other changes must throw invalidOp (locks are there!)
     ///    So if update is before the current position of a cursor, then throw. If after - then this doesn't affect the cursor in any way.
     ///    TODO cursor could implement IUpdateable when source does, or pass through to CursorSeries
     ///
@@ -341,7 +341,7 @@ namespace Spreads
 
         /// <summary>
         /// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
-        /// is Linq's <code>[series].Skip(idx-1).Take(1).Value</code> .
+        /// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code> .
         /// </summary>
         [Obsolete("Signature without TKey doesn't make sense. Only concrete series where optimization of this method works should have it, not the interface.")]
         TValue GetAt(int idx);
@@ -499,7 +499,7 @@ namespace Spreads
         void Flush();
 
         /// <summary>
-        /// String identificator of series.
+        /// String identifier of series.
         /// </summary>
         string Id { get; }
     }

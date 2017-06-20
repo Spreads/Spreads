@@ -31,7 +31,7 @@ namespace Spreads
         /// A cursor has started batch moving and is at a valid position.
         /// A false move from this state must restore the cursor to its position before the move.
         /// </summary>
-        [Obsolete("TODO BatchMoving in not reimplemented afte 0.8 changes, rethink if another state is needed for batches")]
+        [Obsolete("TODO BatchMoving in not reimplemented after 0.8 changes, rethink if another state is needed for batches")]
         BatchMoving = 3,
     }
 }

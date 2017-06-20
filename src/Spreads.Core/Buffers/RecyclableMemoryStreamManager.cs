@@ -94,7 +94,7 @@ namespace Spreads.Buffers
         private readonly ConcurrentStack<byte[]>[] largePools;
 
         private readonly int maximumBufferSize;
-        private readonly ConcurrentStack<byte[]> smallPool;
+        private readonly ConcurrentBag<byte[]> smallPool;
 
         private long smallPoolFreeSize;
         private long smallPoolInUseSize;
@@ -142,7 +142,7 @@ namespace Spreads.Buffers
                                             "maximumBufferSize");
             }
 
-            this.smallPool = new ConcurrentStack<byte[]>();
+            this.smallPool = new ConcurrentBag<byte[]>();
             var numLargePools = maximumBufferSize / largeBufferMultiple;
 
             // +1 to store size of bytes in use that are too large to be pooled
@@ -282,8 +282,7 @@ namespace Spreads.Buffers
         /// <returns>A byte[] array</returns>
         internal byte[] GetBlock()
         {
-            byte[] block;
-            if (!this.smallPool.TryPop(out block))
+            if (!this.smallPool.TryTake(out byte[] block))
             {
                 // We'll add this back to the pool when the stream is disposed
                 // (unless our free pool is too large)
@@ -448,7 +447,7 @@ namespace Spreads.Buffers
                 if (this.MaximumFreeSmallPoolBytes == 0 || this.SmallPoolFreeSize < this.MaximumFreeSmallPoolBytes)
                 {
                     Interlocked.Add(ref this.smallPoolFreeSize, this.BlockSize);
-                    this.smallPool.Push(block);
+                    this.smallPool.Add(block);
                 }
                 else
                 {

@@ -89,7 +89,7 @@ namespace Spreads.Serialization
                     Debug.Assert(temporaryStream.Position == 0);
 #if DEBUG
                     var checkSize = SizeOf(value, out MemoryStream tmp, compression);
-                    Debug.Assert(checkSize == temporaryStream.Length, "Memory stream length must ve equal to the SizeOf");
+                    Debug.Assert(checkSize == temporaryStream.Length, "Memory stream length must be equal to the SizeOf");
                     tmp?.Dispose();
 #endif
                     size = checked((int)temporaryStream.Length);
@@ -184,7 +184,7 @@ namespace Spreads.Serialization
                 value = Json.Deserialize<T>(stream);
                 return size;
             }
-            ThrowHelper.ThrowNotImplementedException("TODO Json compression");
+            ThrowHelper.ThrowNotImplementedException("TODO JSON compression");
             value = default(T);
             return -1;
         }

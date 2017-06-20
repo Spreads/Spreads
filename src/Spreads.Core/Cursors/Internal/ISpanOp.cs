@@ -3,15 +3,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using Spreads.Cursors.Online;
 
 namespace Spreads.Cursors.Internal
 {
     // Responsibility for eagerness could be on cursor or on op.
     // If on op, then it must return at least one additional code: "I am OK but you could try expand more"
     // If a cursor gets such a response, it should try to expand but then it will have to undo last move.
-    // This doen't differ from the case when a cursor treats zero "I am OK" response from the first
+    // This doesn't differ from the case when a cursor treats zero "I am OK" response from the first
     // added value as the same conditional OK. So for the SpanOpImpl cursor nothing changes from
     // adding additional responses from Expand(), and the cursor is responsible for moving as much as possible.
     //
@@ -39,7 +39,7 @@ namespace Spreads.Cursors.Internal
         int Count { get; }
 
         /// <summary>
-        /// Get a result from propertly positioned span cursors. <see cref="Expand"/> method must return
+        /// Get a result from properly positioned span cursors. <see cref="Expand"/> method must return
         /// zero when this method is called, otherwise the return value is not defined.
         /// </summary>
         TResult GetResult(ref TCursor left, ref TCursor right);
@@ -61,7 +61,7 @@ namespace Spreads.Cursors.Internal
         /// </summary>
         /// <remarks>
         /// Internally the <see cref="ISpanOp{TKey,TValue,TResult,TCursor}"/> is always implemented as
-        /// a struct and could be copied by value. However, it may contain reference-typed fields as its state
+        /// a structure and could be copied by value. However, it may contain reference-typed fields as its state
         /// and the initial state must be recreated with this method.
         /// </remarks>
         void Reset();
@@ -74,7 +74,7 @@ namespace Spreads.Cursors.Internal
         /// zero could be returned only after the previous value was positive (the span was too small)
         /// and after that the width of the span became more than the minimum; otherwise moving only the right
         /// cursor to the next position will alway satisfy the minimum width requirement and the span could
-        /// grow indefinetly.
+        /// grow indefinitely.
         /// </remarks>
         /// <param name="left">The left cursor of the span.</param>
         /// <param name="right">The right cursor of the span.</param>
@@ -209,7 +209,7 @@ namespace Spreads.Cursors.Internal
         // NB
         // MinWidth = GE/GT (e.g. at least 5 min) - what Deedle implements, could take a value from previous close
         // MaxWidth = LE/LT (e.g. at most 5 min) - useful e.g. for liquidity indicator. For rare events it is
-        //      preferrable to exclude the next value outside the width.
+        //      preferable to exclude the next value outside the width.
 
         private readonly TKey _width;
 
@@ -225,7 +225,7 @@ namespace Spreads.Cursors.Internal
             {
                 // TODO (low) this is not very useful but could be done in principle.
                 // See CouldCalculateSMAWithWidthEQ test with a failing condition. Now EQ could work only for some regular series.
-                ThrowHelper.ThrowNotImplementedException("Lookup.EQ is not implemented for span width width limit.");
+                ThrowHelper.ThrowNotImplementedException("Lookup.EQ is not implemented for span width limit.");
             }
             _width = width;
             _lookup = lookup;
@@ -392,7 +392,7 @@ namespace Spreads.Cursors.Internal
             WhilePredicate,
 
             /// <summary>
-            /// Expand while tahe sum of mapped value is below limit.
+            /// Expand while the sum of mapped value is below limit.
             /// </summary>
             MapSum
         }
@@ -980,292 +980,5 @@ namespace Spreads.Cursors.Internal
         }
     }
 
-    /// <summary>
-    /// A state machine that maintains a state of an online algorithm over a span and reacts to addition
-    /// of new values and removal of old value. A span is defined by a pair of left and right cursors (inclusive)
-    /// over a series. The cursors could move independently, but the right cursor must be ahead of or at
-    /// the same place as the left one.
-    /// </summary>
-    /// <example>
-    /// ...[L__span__R]...
-    /// </example>
-    public interface IOnlineOp<TKey, TValue, TResult, TCursor> : IDisposable
-        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
-    {
-        int Count { get; }
-
-        /// <summary>
-        /// Get a result from propertly positioned span cursors.
-        /// </summary>
-        TResult GetResult(ref TCursor left, ref TCursor right);
-
-        /// <summary>
-        /// True if only forward moves are supported. <see cref="MinWidth"/> must be positive if this property is true,
-        /// otherwise <see cref="ICursor{TKey,TValue}.MoveAt"/>, <see cref="ICursor{TKey,TValue}.MovePrevious"/> and
-        /// <see cref="ICursor{TKey,TValue}.MoveLast"/> methods cannot be implemented.
-        /// </summary>
-        bool IsForwardOnly { get; }
-
-        /// <summary>
-        /// Minimum number of elements that should be accumulated in a temporary storage for forward-only ops.
-        /// </summary>
-        int MinWidth { get; }
-
-        /// <summary>
-        /// Recreate state as if after construction.
-        /// </summary>
-        /// <remarks>
-        /// Internally the <see cref="IOnlineOp{TKey,TValue,TResult,TCursor}"/> is always implemented as
-        /// a struct and could be copied by value. However, it may contain reference-typed fields as its state
-        /// and the initial state must be recreated with this method.
-        /// </remarks>
-        void Reset();
-
-        /// <summary>
-        /// Add the current key/value of the right cursor to <see cref="IOnlineOp{TKey,TValue,TResult,TCursor}"/> state
-        /// after the cursor has moved next and its current position has entered the current span.
-        /// </summary>
-        /// <param name="newRight">The right cursor of the span.</param>
-        void AddNewRight(KeyValuePair<TKey, TValue> newRight);
-
-        void RemoveOldRight(KeyValuePair<TKey, TValue> oldRight);
-
-        /// <summary>
-        /// Add the current key/value of the left cursor to <see cref="ISpanOp{TKey,TValue,TResult,TCursor}"/> state
-        /// after the cursor has moved previous and its current position has entered the current span.
-        /// </summary>
-        /// <param name="newLeft">The left cursor of the span.</param>
-        void AddNewLeft(KeyValuePair<TKey, TValue> newLeft);
-
-        void RemoveOldLeft(KeyValuePair<TKey, TValue> oldLeft);
-    }
-
-    /// <summary>
-    /// A marker interface
-    /// </summary>
-    internal interface INoop
-    {
-    }
-
-    internal struct NoOnlineOp<TKey, TValue, TCursor> : IOnlineOp<TKey, TValue, TValue, TCursor>, INoop
-        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
-    {
-        public bool IsForwardOnly => false;
-
-        public int Count => -1;
-
-        public int MinWidth => -1;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Reset()
-        {
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddNewRight(KeyValuePair<TKey, TValue> newRight)
-        {
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveOldRight(KeyValuePair<TKey, TValue> oldRight)
-        {
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddNewLeft(KeyValuePair<TKey, TValue> newLeft)
-        {
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveOldLeft(KeyValuePair<TKey, TValue> oldLeft)
-        {
-        }
-
-        public void Dispose()
-        {
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TValue GetResult(ref TCursor left, ref TCursor right)
-        {
-            throw new NotSupportedException("NoOnlineOp is a stub to reuse LagStepImpl for lagged values without calculating any state");
-        }
-    }
-
-    /// <summary>
-    /// Moving sum and average.
-    /// </summary>
-    internal struct OnlineSumAvg<TKey, TValue, TCursor> : IOnlineOp<TKey, TValue, TValue, TCursor>
-        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
-    {
-        private TValue _sum;
-        private uint _count;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TValue GetResult(ref TCursor left, ref TCursor right)
-        {
-            return GetAverage();
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TValue GetSum()
-        {
-            return _sum;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TValue GetAverage()
-        {
-            if (typeof(TValue) == typeof(double))
-            {
-                return (TValue)(object)((double)(object)_sum / (int)_count);
-            }
-
-            if (typeof(TValue) == typeof(float))
-            {
-                return (TValue)(object)((float)(object)_sum / (int)_count);
-            }
-
-            if (typeof(TValue) == typeof(int))
-            {
-                return (TValue)(object)((int)(object)_sum / (int)_count);
-            }
-
-            if (typeof(TValue) == typeof(long))
-            {
-                return (TValue)(object)((long)(object)_sum / (int)_count);
-            }
-
-            if (typeof(TValue) == typeof(uint))
-            {
-                return (TValue)(object)((uint)(object)_sum / (int)_count);
-            }
-
-            if (typeof(TValue) == typeof(ulong))
-            {
-                return (TValue)(object)((ulong)(object)_sum / (ulong)_count);
-            }
-
-            if (typeof(TValue) == typeof(decimal))
-            {
-                return (TValue)(object)((decimal)(object)_sum / (int)_count);
-            }
-
-            return GetAverageDynamic();
-        }
-
-        private TValue GetAverageDynamic()
-        {
-            return (TValue)((dynamic)_sum / (int)_count);
-        }
-
-        public int Count
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (int)_count; }
-        }
-
-        public bool IsForwardOnly => false;
-        public int MinWidth => 1;
-
-        public void Dispose()
-        {
-            _sum = default(TValue);
-            _count = 0;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Reset()
-        {
-            _sum = default(TValue);
-            _count = 0;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddNewRight(KeyValuePair<TKey, TValue> newRight)
-        {
-            _count++;
-            _sum = default(AddOp<TValue>).Apply(_sum, newRight.Value);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveOldRight(KeyValuePair<TKey, TValue> oldRight)
-        {
-            _count--;
-            _sum = default(SubtractOp<TValue>).Apply(_sum, oldRight.Value);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddNewLeft(KeyValuePair<TKey, TValue> newLeft)
-        {
-            _count++;
-            _sum = default(AddOp<TValue>).Apply(_sum, newLeft.Value);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveOldLeft(KeyValuePair<TKey, TValue> oldLeft)
-        {
-            _count--;
-            _sum = default(SubtractOp<TValue>).Apply(_sum, oldLeft.Value);
-        }
-    }
-
-    /// <summary>
-    /// Create a window from the current span.
-    /// </summary>
-    internal struct OnlineWindow<TKey, TValue, TCursor> : IOnlineOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor>
-        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
-    {
-        private uint _count;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Range<TKey, TValue, TCursor> GetResult(ref TCursor left, ref TCursor right)
-        {
-            return new Range<TKey, TValue, TCursor>(left.Clone(), left.CurrentKey, right.CurrentKey, true, true, true, (int)_count);
-        }
-
-        public int Count
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (int)_count; }
-        }
-
-        public bool IsForwardOnly => false;
-        public int MinWidth => 1;
-
-        public void Dispose()
-        {
-            _count = 0;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Reset()
-        {
-            _count = 0;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddNewRight(KeyValuePair<TKey, TValue> newRight)
-        {
-            _count++;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveOldRight(KeyValuePair<TKey, TValue> oldRight)
-        {
-            _count--;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddNewLeft(KeyValuePair<TKey, TValue> newLeft)
-        {
-            _count++;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveOldLeft(KeyValuePair<TKey, TValue> oldLeft)
-        {
-            _count--;
-        }
-    }
+    
 }

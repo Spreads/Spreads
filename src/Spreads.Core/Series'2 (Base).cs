@@ -1128,7 +1128,7 @@ namespace Spreads
         /// <summary>
         /// A Task that is completed with True whenever underlying data is changed.
         /// Internally used for signaling to async cursors.
-        /// After getting the Task one should check if any changes happened (version change or cursor move) before awating the task.
+        /// After getting the Task one should check if any changes happened (version change or cursor move) before awaiting the task.
         /// If the task is completed with false then the series is read-only, immutable or complete.
         /// </summary>
         public override Task<bool> Updated

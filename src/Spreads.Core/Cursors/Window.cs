@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Cursors.Online;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads
@@ -30,13 +31,13 @@ namespace Spreads
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal SpanOpImpl<TKey, TValue,
             Range<TKey, TValue, TCursor>,
-            SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, OnlineWindow<TKey, TValue, TCursor>>,
+            SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, WindowOnlineOp<TKey, TValue, TCursor>>,
             TCursor> _cursor;
 
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal SpanOpImpl<TKey, TValue,
             Range<TKey, TValue, TCursor>,
-            SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, OnlineWindow<TKey, TValue, TCursor>>,
+            SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, WindowOnlineOp<TKey, TValue, TCursor>>,
             TCursor> _lookUpCursor;
 
         internal CursorState State { get; set; }
@@ -49,14 +50,14 @@ namespace Spreads
         {
             if (width <= 0) throw new ArgumentOutOfRangeException(nameof(width));
 
-            var op = new OnlineWindow<TKey, TValue, TCursor>();
+            var op = new WindowOnlineOp<TKey, TValue, TCursor>();
             var spanOp =
                 new SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>,
-                    TCursor, OnlineWindow<TKey, TValue, TCursor>>(width, allowIncomplete, op);
+                    TCursor, WindowOnlineOp<TKey, TValue, TCursor>>(width, allowIncomplete, op);
             _cursor =
                 new SpanOpImpl<TKey, TValue,
                     Range<TKey, TValue, TCursor>,
-                    SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, OnlineWindow<TKey, TValue, TCursor>
+                    SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, WindowOnlineOp<TKey, TValue, TCursor>
                     >,
                     TCursor
                 >(cursor, spanOp);
@@ -65,14 +66,14 @@ namespace Spreads
         internal Window(TCursor cursor, TKey width, Lookup lookup) : this()
         {
 
-            var op = new OnlineWindow<TKey, TValue, TCursor>();
+            var op = new WindowOnlineOp<TKey, TValue, TCursor>();
             var spanOp =
                 new SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>,
-                    TCursor, OnlineWindow<TKey, TValue, TCursor>>(width, lookup, op);
+                    TCursor, WindowOnlineOp<TKey, TValue, TCursor>>(width, lookup, op);
             _cursor =
                 new SpanOpImpl<TKey, TValue,
                     Range<TKey, TValue, TCursor>,
-                    SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, OnlineWindow<TKey, TValue, TCursor>
+                    SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, WindowOnlineOp<TKey, TValue, TCursor>
                     >,
                     TCursor
                 >(cursor, spanOp);
@@ -116,7 +117,7 @@ namespace Spreads
             _cursor.Dispose();
             if (!_lookUpCursor.Equals(default(SpanOpImpl<TKey, TValue,
                 Range<TKey, TValue, TCursor>,
-                SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, OnlineWindow<TKey, TValue, TCursor>>,
+                SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, WindowOnlineOp<TKey, TValue, TCursor>>,
                 TCursor>)))
             {
                 _lookUpCursor.Dispose();

@@ -220,7 +220,7 @@ namespace Spreads.DataTypes
         }
 
         /// <summary>
-        /// Create a full snapshort of this table
+        /// Create a full snapshot of this table
         /// </summary>
         /// <returns></returns>
         public TableDto ToSnapshot()

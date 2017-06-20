@@ -13,12 +13,12 @@
         DefaultOrNone = 0,
 
         /// <summary>
-        /// Use LZ4
+        /// Use LZ4.
         /// </summary>
         LZ4 = 1,
 
         /// <summary>
-        /// Use Zstandard
+        /// Use Zstandard.
         /// </summary>
         Zstd = 2
     }

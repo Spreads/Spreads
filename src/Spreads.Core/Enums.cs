@@ -104,7 +104,7 @@ namespace Spreads
 
         /// <summary>
         /// Require that at least one (first) new key matches at least one (last) key of a map
-        /// (foolproofing to avoid holes in the data). Existing values are not updated.
+        /// (fool-proofing to avoid holes in the data). Existing values are not updated.
         /// </summary>
         RequireEqualOverlap = 2,
 

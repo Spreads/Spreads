@@ -5,32 +5,32 @@
 namespace Spreads
 {
     /// <summary>
-    /// Direction to lookup data or move from a starting point
+    /// Direction to lookup data or move from a starting point.
     /// </summary>
     public enum Lookup : byte
     {
         /// <summary>
-        /// Less than, excludes a strating point even if it is present
+        /// Less than.
         /// </summary>
         LT = 0,
 
         /// <summary>
-        /// Less or equal
+        /// Less or equal.
         /// </summary>
         LE = 1,
 
         /// <summary>
-        /// Equal
+        /// Equal.
         /// </summary>
         EQ = 2,
 
         /// <summary>
-        /// Greater or equal
+        /// Greater or equal.
         /// </summary>
         GE = 3,
 
         /// <summary>
-        /// Greater than, excludes a strating point even if it is present
+        /// Greater than.
         /// </summary>
         GT = 4
     }

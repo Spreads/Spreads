@@ -12,7 +12,7 @@ namespace Spreads.DataTypes
     // See <see href="http://stackoverflow.com/questions/39179385/c-sharp-marker-structures-performance">details on marker structs in C#</see>.
 
     /// <summary>
-    /// A marker struct to have type safety for integer identity id.
+    /// A marker structure to have type safety for integer identity id.
     /// </summary>
     /// <remarks>
     /// It is similar to type aliases in F#.

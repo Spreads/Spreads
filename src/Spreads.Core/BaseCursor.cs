@@ -40,7 +40,7 @@ namespace Spreads
             _innerCursor = cursorFactory();
             if (_innerCursor.Source == null)
             {
-                Console.WriteLine("Suorce is null");
+                Console.WriteLine("Source is null");
             }
             //_source = _innerCursor.Source;
         }

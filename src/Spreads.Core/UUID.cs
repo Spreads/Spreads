@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spreads.Utils;
@@ -10,13 +11,13 @@ using Spreads.Utils;
 namespace Spreads
 {
     /// <summary>
-    /// A simpler, faster, comparable and blittable replacement for Guid.
+    /// A simpler, faster, comparable and blittable replacement for GUID.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct UUID : IEquatable<UUID>, IComparable<UUID>
     {
-        private ulong _first;
-        private ulong _second;
+        private readonly ulong _first;
+        private readonly ulong _second;
 
         public UUID(ulong first, ulong second)
         {
@@ -62,6 +63,7 @@ namespace Spreads
         {
         }
 
+        [SuppressMessage("ReSharper", "ImpureMethodCallOnReadonlyValueField")]
         public int CompareTo(UUID other)
         {
             var f = _first.CompareTo(other._first);

@@ -222,7 +222,7 @@ namespace Spreads.Cursors.Experimental
 
                 // it was completely disposed
                 case -1:
-                    ThrowHelper.ThrowInvalidOperationException($"CursorSeries {typeof(TCursor).Name} is diposed.");
+                    ThrowHelper.ThrowInvalidOperationException($"CursorSeries {typeof(TCursor).Name} is disposed.");
                     break;
 
                 default:

@@ -9,6 +9,7 @@ using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Linq;
+using Spreads.Cursors.Online;
 
 namespace Spreads.Core.Tests.Cursors.Internal
 {
@@ -204,18 +205,18 @@ namespace Spreads.Core.Tests.Cursors.Internal
             void DoTestViaSpanOpCount(bool allowIncomplete)
             {
                 // TODO separate tests/cases for true/false
-                var onlineOp = new OnlineSumAvg<int, double, SortedMapCursor<int, double>>();
-                var smaOp = new SpanOpCount<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>(10, allowIncomplete, onlineOp);
+                var onlineOp = new SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>();
+                var smaOp = new SpanOpCount<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>(10, allowIncomplete, onlineOp);
                 var smaCursor =
                     new SpanOpImpl<int,
                         double,
                         double,
-                        SpanOpCount<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>,
+                        SpanOpCount<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>,
                         SortedMapCursor<int, double>
                     >(sm.GetEnumerator(), smaOp);
 
                 // this monster type must be hidden in the same way Lag hides its implementation
-                Series<int, double, SpanOpImpl<int, double, double, SpanOpCount<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>, SortedMapCursor<int, double>>> smaSeries;
+                Series<int, double, SpanOpImpl<int, double, double, SpanOpCount<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>, SortedMapCursor<int, double>>> smaSeries;
                 smaSeries = smaCursor.Source;
 
                 var sm2 = smaSeries.ToSortedMap();
@@ -255,14 +256,14 @@ namespace Spreads.Core.Tests.Cursors.Internal
                 }
                 sm.Remove(11);
                 sm.Remove(12);
-                var onlineOp = new OnlineSumAvg<int, double, SortedMapCursor<int, double>>();
-                var smaOp = new SpanOpWidth<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>
+                var onlineOp = new SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>();
+                var smaOp = new SpanOpWidth<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>
                     (2, Lookup.EQ, onlineOp);
                 var smaSeries =
                     new SpanOpImpl<int,
                         double,
                         double,
-                        SpanOpWidth<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>,
+                        SpanOpWidth<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>,
                         SortedMapCursor<int, double>
                     >(sm.GetEnumerator(), smaOp).Source;
 
@@ -374,19 +375,19 @@ namespace Spreads.Core.Tests.Cursors.Internal
             {
                 // width 9 is the same as count = 10 for the regular int series
 
-                var onlineOp = new OnlineSumAvg<int, double, SortedMapCursor<int, double>>();
-                var smaOp = new SpanOpWidth<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>(9, lookup, onlineOp);
+                var onlineOp = new SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>();
+                var smaOp = new SpanOpWidth<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>(9, lookup, onlineOp);
                 var smaCursor =
                     new SpanOpImpl<int,
                         double,
                         double,
-                        SpanOpWidth<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>,
+                        SpanOpWidth<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>,
                         SortedMapCursor<int, double>
                     >(sm.GetEnumerator(), smaOp);
 
                 // this monster type must be hidden in the same way Lag hides its implementation
 
-                Series<int, double, SpanOpImpl<int, double, double, SpanOpWidth<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>, SortedMapCursor<int, double>>> smaSeries;
+                Series<int, double, SpanOpImpl<int, double, double, SpanOpWidth<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>, SortedMapCursor<int, double>>> smaSeries;
                 smaSeries = smaCursor.Source;
 
                 var sm2 = smaSeries.ToSortedMap();
@@ -475,19 +476,19 @@ namespace Spreads.Core.Tests.Cursors.Internal
                 new SpanOpImpl<int,
                     double,
                     double,
-                    SpanOpCount<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>,
+                    SpanOpCount<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>,
                     SortedMapCursor<int, double>
                 >(sm.GetEnumerator(),
-                    new SpanOpCount<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>(width, false, new OnlineSumAvg<int, double, SortedMapCursor<int, double>>())).Source;
+                    new SpanOpCount<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>(width, false, new SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>())).Source;
 
             var indirectSmaCombined =
                 new SpanOpImpl<int,
                     double,
                     double,
-                    SpanOp<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>,
+                    SpanOp<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>,
                     SortedMapCursor<int, double>
                 >(sm.GetEnumerator(),
-                    new SpanOp<int, double, double, SortedMapCursor<int, double>, OnlineSumAvg<int, double, SortedMapCursor<int, double>>>(width, false, new OnlineSumAvg<int, double, SortedMapCursor<int, double>>())).Source;
+                    new SpanOp<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>(width, false, new SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>())).Source;
 
             var windowSma = sm.Window(width).Map(x =>
             {
@@ -572,16 +573,16 @@ namespace Spreads.Core.Tests.Cursors.Internal
                 sm.Add(i, i);
             }
 
-            var op = new OnlineWindow<int, double, SortedMapCursor<int, double>>();
+            var op = new WindowOnlineOp<int, double, SortedMapCursor<int, double>>();
             var spanOp =
                 new SpanOpCount<int, double, Range<int, double, SortedMapCursor<int, double>>,
-                    SortedMapCursor<int, double>, OnlineWindow<int, double, SortedMapCursor<int, double>>>(20, false,
+                    SortedMapCursor<int, double>, WindowOnlineOp<int, double, SortedMapCursor<int, double>>>(20, false,
                     op);
             var window =
                 new SpanOpImpl<int,
                     double,
                     Range<int, double, SortedMapCursor<int, double>>,
-                    SpanOpCount<int, double, Range<int, double, SortedMapCursor<int, double>>, SortedMapCursor<int, double>, OnlineWindow<int, double, SortedMapCursor<int, double>>>,
+                    SpanOpCount<int, double, Range<int, double, SortedMapCursor<int, double>>, SortedMapCursor<int, double>, WindowOnlineOp<int, double, SortedMapCursor<int, double>>>,
                     SortedMapCursor<int, double>
                 >(sm.GetEnumerator(), spanOp).Source
                     .Map(x =>
@@ -598,13 +599,13 @@ namespace Spreads.Core.Tests.Cursors.Internal
 
             var spanOpCombined =
                 new SpanOp<int, double, Range<int, double, SortedMapCursor<int, double>>,
-                    SortedMapCursor<int, double>, OnlineWindow<int, double, SortedMapCursor<int, double>>>(20, false,
+                    SortedMapCursor<int, double>, WindowOnlineOp<int, double, SortedMapCursor<int, double>>>(20, false,
                     op);
             var windowCombined =
                 new SpanOpImpl<int,
                     double,
                     Range<int, double, SortedMapCursor<int, double>>,
-                    SpanOp<int, double, Range<int, double, SortedMapCursor<int, double>>, SortedMapCursor<int, double>, OnlineWindow<int, double, SortedMapCursor<int, double>>>,
+                    SpanOp<int, double, Range<int, double, SortedMapCursor<int, double>>, SortedMapCursor<int, double>, WindowOnlineOp<int, double, SortedMapCursor<int, double>>>,
                     SortedMapCursor<int, double>
                 >(sm.GetEnumerator(), spanOpCombined).Source
                 .Map(x =>

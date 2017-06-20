@@ -44,7 +44,7 @@ namespace Spreads
         public static KeyComparer<T> Default => _default;
 
         /// <summary>
-        /// True if type T support Diff/Add methods
+        /// True if type T support <see cref="Diff"/> and <see cref="Add"/> methods.
         /// </summary>
         public bool IsDiffable
         {
@@ -119,9 +119,8 @@ namespace Spreads
             return new KeyComparer<T>(comparer);
         }
 
-        /// <summary>
-        /// If Diff(A,B) = X, then Add(A,X) = B, this is a mirrow method for Diff
-        /// </summary>
+
+        /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Add(T value, long diff)
         {
@@ -335,7 +334,7 @@ namespace Spreads
         /// </summary>
         public int GetHashCode(T obj)
         {
-            throw new NotSupportedException("KeyComparer should not be used for hash code calculatons.");
+            throw new NotSupportedException("KeyComparer should not be used for hash code calculations.");
         }
 
         public bool Equals(KeyComparer<T> other)
@@ -412,7 +411,7 @@ namespace Spreads
         public int GetHashCode(KeyValuePair<TKey, TValue> obj)
         {
             // TODO (?)
-            throw new NotSupportedException("KVPComparer should not be used for hash code calculatons.");
+            throw new NotSupportedException("KVPComparer should not be used for hash code calculations.");
         }
 
         public bool Equals(KVPComparer<TKey, TValue> other)

@@ -7,26 +7,25 @@ using System.Collections.Generic;
 namespace Spreads
 {
     /// <summary>
-    /// IComparer'T with optional Add/Diff methods.
+    /// <see cref="IComparer{T}"/> with optional <see cref="IsDiffable"/>, <see cref="Diff"/> and <see cref="Add"/> members.
     /// </summary>
     public interface IKeyComparer<T> : IComparer<T>
     {
         /// <summary>
-        /// True is Add/Diff methods are supported.
+        /// True if type T support <see cref="Diff"/> and <see cref="Add"/> methods.
         /// </summary>
         bool IsDiffable { get; }
 
         /// <summary>
-        /// If Diff(A,B) = X, then Add(A,X) = B, this is a mirrow method for Diff
+        /// If Diff(A,B) = X, then Add(A,X) = B, this is an opposite method for Diff.
         /// </summary>
         T Add(T value, long diff);
 
         /// <summary>
-        /// Returns int64 distance between two values when they are stored in
-        /// a regular sorted map. Regular means continuous integers or days or seconds, etc.
+        /// Returns int64 distance between two values.
         /// </summary>
         /// <remarks>
-        /// This method could be used for IComparer'T.Compare implementation,
+        /// This method could be used for <see cref="IComparer{T}.Compare"/> implementation,
         /// but must be checked for int overflow (e.g. compare Diff result to 0L instead of int cast).
         /// </remarks>
         long Diff(T x, T y);

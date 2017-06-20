@@ -136,4 +136,8 @@
     </Compile>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Internal\Cursors\" />
+  </ItemGroup>
+
 </Project>

@@ -15,7 +15,7 @@ namespace Spreads
 {
     /// <summary>
     /// A cursor that inner-joins two series. Each continuous series is evaluated at every key of another series.
-    /// To get full outer join make each series contiuous by applying a transformation such as <see cref="Fill{TKey,TValue,TCursor}"/>
+    /// To get full outer join make each series continuous by applying a transformation such as <see cref="Fill{TKey,TValue,TCursor}"/>
     /// or <see cref="RepeatWithKey{TKey,TValue,TCursor}"/>.
     /// </summary>
     public struct Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>
@@ -60,7 +60,7 @@ namespace Spreads
         private TKey _currentKey;
 
         /// <summary>
-        /// Cached current value. If <see cref="_isValueSet"/> is true then the corresponsing current value is already set
+        /// Cached current value. If <see cref="_isValueSet"/> is true then the corresponding current value is already set
         /// and <see cref="CurrentValue"/> property should use it, otherwise it should use an inner cursor's CurrentValue.
         /// </summary>
         private (TLeft left, TRight right) _currentValue;
@@ -74,7 +74,7 @@ namespace Spreads
         private (bool left, bool right) _isValueSet;
 
         /// <summary>
-        /// Locally cached comparer to avoid calls to cursors' properties, which could be callvirt with a null check.
+        /// Locally cached comparer to avoid calls to cursors' properties, which could be a virtual call with a null check.
         /// </summary>
         private KeyComparer<TKey> _cmp;
 
