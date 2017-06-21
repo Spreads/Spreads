@@ -4,18 +4,17 @@
 
 using Spreads.Cursors.Internal;
 using Spreads.Cursors.Online;
+using Spreads.DataTypes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.DataTypes;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
-
     // TODO review naming, Stat2Cursor -> Stat2, Stat2 -> M2
 
     public struct Stat2Cursor<TKey, TValue, TCursor> :
@@ -99,7 +98,7 @@ namespace Spreads
 
         /// <inheritdoc />
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Stat2Cursor<TKey, TValue, TCursor> Initialize() // This causes SO when deeply nested 
+        public Stat2Cursor<TKey, TValue, TCursor> Initialize() // This causes SO when deeply nested
         {
             var instance = new Stat2Cursor<TKey, TValue, TCursor>
             {

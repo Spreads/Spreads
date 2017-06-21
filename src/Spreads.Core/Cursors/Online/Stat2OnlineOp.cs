@@ -24,20 +24,6 @@ namespace Spreads.Cursors.Online
             return copy;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void AddValue(TValue newValue)
-        {
-            var x = DoubleUtil.GetDouble(newValue);
-            _state.AddValue(x);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void RemoveValue(TValue oldValue)
-        {
-            var x = DoubleUtil.GetDouble(oldValue);
-            _state.RemoveValue(x);
-        }
-
         public int Count
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -62,25 +48,29 @@ namespace Spreads.Cursors.Online
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddNewRight(KeyValuePair<TKey, TValue> newRight)
         {
-            AddValue(newRight.Value);
+            var x = DoubleUtil.GetDouble(newRight.Value);
+            _state.AddValue(x);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveOldRight(KeyValuePair<TKey, TValue> oldRight)
         {
-            RemoveValue(oldRight.Value);
+            var x = DoubleUtil.GetDouble(oldRight.Value);
+            _state.RemoveValue(x);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddNewLeft(KeyValuePair<TKey, TValue> newLeft)
         {
-            AddValue(newLeft.Value);
+            var x = DoubleUtil.GetDouble(newLeft.Value);
+            _state.AddValue(x);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveOldLeft(KeyValuePair<TKey, TValue> oldLeft)
         {
-            RemoveValue(oldLeft.Value);
+            var x = DoubleUtil.GetDouble(oldLeft.Value);
+            _state.RemoveValue(x);
         }
     }
 }

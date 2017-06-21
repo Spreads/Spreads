@@ -79,12 +79,12 @@ namespace Spreads.Core.Tests.Cursors
             Console.WriteLine(Unsafe.SizeOf<Series<DateTime, double, Range<DateTime, double, Cursor<DateTime, double>>>>());
             if (IntPtr.Size == 8)
             {
-                Assert.AreEqual(32, Unsafe.SizeOf<Range<DateTime, double, Cursor<DateTime, double>>>(),
+                Assert.AreEqual(48, Unsafe.SizeOf<Range<DateTime, double, Cursor<DateTime, double>>>(),
                     "If Range internals changed that should be reflected in this test.");
             }
             else
             {
-                Assert.AreEqual(28, Unsafe.SizeOf<Range<DateTime, double, Cursor<DateTime, double>>>(),
+                Assert.AreEqual(40, Unsafe.SizeOf<Range<DateTime, double, Cursor<DateTime, double>>>(),
                     "If Range internals changed that should be reflected in this test.");
             }
         }

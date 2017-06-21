@@ -23,14 +23,14 @@ namespace Spreads
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         [Flags]
-        private enum Flags : byte
+        private enum Flags
         {
             EndInclusive = 1,
             EndKeyIsPresent = 2,
             StartInclusive = 4,
             StartKeyIsPresent = 8,
             AtEnd = 16,
-            AtStart = 32,
+            AtStart = 32
         }
 
         #region Cursor state
@@ -39,22 +39,37 @@ namespace Spreads
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal TCursor _cursor;
 
+        /// <remarks>
+        /// Avoid callvirt to getter, which could potentially be not inlined like in SM case with F#
+        /// </remarks>
+        internal KeyComparer<TKey> _cmp;
+
         private TKey _endKey;
         private TKey _startKey;
 
-        private int _count;
+        /// <remarks>
+        /// Number of elements consumed by subsequent MoveNext moves.
+        /// All other moves reset this value to zero.
+        /// If _count > 0 and _steps == _count we are at the end, could skip MoveNext from this position
+        /// and avoid recovery. If there was any other move than MN this check will just never work, no need
+        /// to add complex logic - this is for foreach-like/LINQ forward-only consumption.
+        /// </remarks>
+        private int _steps;
 
-        private Flags _flags;
+        /// <remarks>
+        /// Positive when range is set from SpanOp and is a Window
+        /// </remarks>
+        private int _count;
 
         /// <summary>
         /// True if the cursor was given in a moving state and positioned at the range's start.
         /// Helps to avoid _cursor.MoveAt in MoveFirst
         /// </summary>
-        internal bool _cursorIsClonedAtStart;
+        internal bool _isWindow;
+
+        private Flags _flags;
 
         internal CursorState State { get; set; }
-
-        // there is 1 more byte to 4-bytes boundary
 
         #endregion Cursor state
 
@@ -63,7 +78,7 @@ namespace Spreads
         internal Range(TCursor cursor,
             Opt<TKey> startKey, Opt<TKey> endKey,
             bool startInclusive = true, bool endInclusive = true,
-            bool cursorIsClonedAtStart = false,
+            bool isWindow = false,
             int count = -1) : this()
         {
             if (cursor.Source.IsIndexed)
@@ -71,7 +86,7 @@ namespace Spreads
                 throw new NotSupportedException("RangeSeries is not supported for indexed series, only for sorted ones.");
             }
 
-            if (cursorIsClonedAtStart &&
+            if (isWindow &&
                 (startKey.IsMissing || endKey.IsMissing || !startInclusive || !endInclusive
                     || cursor.Comparer.Compare(cursor.CurrentKey, startKey.Present) != 0))
             {
@@ -79,7 +94,9 @@ namespace Spreads
             }
 
             _cursor = cursor;
-            _cursorIsClonedAtStart = cursorIsClonedAtStart;
+            _cmp = cursor.Comparer;
+
+            _isWindow = isWindow;
 
             if (startKey.IsPresent)
             {
@@ -117,11 +134,13 @@ namespace Spreads
             var instance = new Range<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Clone(),
-                _cursorIsClonedAtStart = _cursorIsClonedAtStart,
+                _cmp = _cmp,
+                _isWindow = _isWindow,
                 _startKey = _startKey,
                 _endKey = _endKey,
                 _flags = _flags,
                 _count = _count,
+                _steps = _steps,
                 State = State
             };
 
@@ -135,12 +154,14 @@ namespace Spreads
             var clearFlags = (_flags & ~Flags.AtStart) & ~Flags.AtEnd;
             var instance = new Range<TKey, TValue, TCursor>
             {
-                _cursor = _cursorIsClonedAtStart ? _cursor.Clone() : _cursor.Initialize(),
-                _cursorIsClonedAtStart = _cursorIsClonedAtStart,
+                _cursor = _isWindow ? _cursor.Clone() : _cursor.Initialize(),
+                _cmp = _cmp,
+                _isWindow = _isWindow,
                 _startKey = _startKey,
                 _endKey = _endKey,
                 _flags = clearFlags,
                 _count = _count,
+                _steps = 0,
                 State = CursorState.Initialized
             };
 
@@ -154,7 +175,9 @@ namespace Spreads
             // NB keep cursor state for reuse
             // dispose is called on the result of Initialize(), the cursor from
             // constructor could be uninitialized but contain some state, e.g. _value for this RangeCursor
+            _flags = (_flags & ~Flags.AtStart) & ~Flags.AtEnd;
             _cursor.Dispose();
+            _steps = 0;
             State = CursorState.None;
         }
 
@@ -162,7 +185,9 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Reset()
         {
+            _flags = (_flags & ~Flags.AtStart) & ~Flags.AtEnd;
             _cursor.Reset();
+            _steps = 0;
             State = CursorState.Initialized;
         }
 
@@ -198,14 +223,15 @@ namespace Spreads
         /// <summary>
         /// If positive then this range has known count.
         /// </summary>
-        public int Count => _count;
+        public long Count => _count;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool EndOk(TKey key)
         {
-            if ((_flags & Flags.EndKeyIsPresent) != Flags.EndKeyIsPresent) return true;
-            var c = _cursor.Comparer.Compare(key, _endKey);
-            return (_flags & Flags.EndInclusive) == Flags.EndInclusive ? c <= 0 : c < 0;
+            if (!_isWindow && (_flags & Flags.EndKeyIsPresent) != Flags.EndKeyIsPresent) return true;
+            // If EndInclusive then c == 0 is OK. We could subtract the flag from c and alway use c < 0
+            var c = _cmp.Compare(key, _endKey) - (int)(_flags & Flags.EndInclusive);
+            return c < 0; //(_flags & Flags.EndInclusive) == Flags.EndInclusive ? c <= 0 : c < 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -218,7 +244,7 @@ namespace Spreads
         private bool StartOk(TKey key)
         {
             if ((_flags & Flags.StartKeyIsPresent) != Flags.StartKeyIsPresent) return true;
-            var c = _cursor.Comparer.Compare(key, _startKey);
+            var c = _cmp.Compare(key, _startKey);
             return (_flags & Flags.StartInclusive) == Flags.StartInclusive ? c >= 0 : c > 0;
         }
 
@@ -254,7 +280,7 @@ namespace Spreads
         public IReadOnlySeries<TKey, TValue> CurrentBatch => throw new NotSupportedException();
 
         /// <inheritdoc />
-        public KeyComparer<TKey> Comparer => _cursor.Comparer;
+        public KeyComparer<TKey> Comparer => _cmp;
 
         object IEnumerator.Current => Current;
 
@@ -281,6 +307,7 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
+            _steps = 0;
             // must return to the position if false move
             var beforeMove = _cursor.CurrentKey;
             var moved = _cursor.MoveAt(key, direction);
@@ -311,10 +338,10 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
-
-            if (State != CursorState.Moving && _cursorIsClonedAtStart)
+            _steps = 1;
+            if (State != CursorState.Moving && _isWindow)
             {
-                Debug.Assert(Comparer.Compare(_cursor.CurrentKey, _startKey) == 0);
+                Debug.Assert(_cmp.Compare(_cursor.CurrentKey, _startKey) == 0);
                 State = CursorState.Moving;
                 return true;
             }
@@ -341,6 +368,7 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
+            _steps = 0;
             if (((_flags & Flags.EndKeyIsPresent) == Flags.EndKeyIsPresent
                 && _cursor.MoveAt(_endKey, (_flags & Flags.EndInclusive) == Flags.EndInclusive ? Lookup.LE : Lookup.LT)
                 && InRange(_cursor.CurrentKey))
@@ -360,7 +388,7 @@ namespace Spreads
         {
             if (State < CursorState.Moving) return MoveFirst();
 
-            if ((_flags & Flags.EndKeyIsPresent) != Flags.EndKeyIsPresent)
+            if (!_isWindow && (_flags & Flags.EndKeyIsPresent) != Flags.EndKeyIsPresent)
             {
                 return _cursor.MoveNext();
             }
@@ -370,14 +398,40 @@ namespace Spreads
             }
 
             var beforeMove = _cursor.CurrentKey;
+
             var moved = _cursor.MoveNext();
-            if (EndOk(_cursor.CurrentKey))
-            {
-                return moved;
-            }
+
             if (!moved) return false;
-            _cursor.MoveAt(beforeMove, Lookup.EQ);
-            _flags |= Flags.AtEnd;
+
+            // NB First check of EndOk(_cursor.CurrentKey) is done above. This is the remaining part.
+            var endIsOk = _cmp.Compare(_cursor.CurrentKey, _endKey) - (_flags & Flags.EndInclusive) < 0;
+
+            if (endIsOk)
+            {
+                if (_isWindow && ++_steps == _count)
+                {
+                    // next MN will return false without trying to move beyond the end and subsequent recovery with MP
+                    _flags |= Flags.AtEnd;
+                    Debug.Assert(_cmp.Compare(_cursor.CurrentKey, _endKey) == 0);
+                    //if (Settings.AdditionalCorrectnessChecks.DoChecks)
+                    //{
+                    //    if (_cmp.Compare(_cursor.CurrentKey, _endKey) != 0)
+                    //    {
+                    //        ThrowHelper.ThrowInvalidOperationException("Window end key and count do not match");
+                    //    }
+                    //}
+                }
+                return true;
+            }
+
+            if (_cursor.MovePrevious())
+            {
+                _flags |= Flags.AtEnd;
+            }
+            else
+            {
+                ThrowHelper.ThrowOutOfOrderKeyException(beforeMove);
+            }
 
             return false;
         }
@@ -390,6 +444,7 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException($"CursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
+            _steps = 0;
             Trace.TraceWarning("MoveNextBatch is not implemented in RangeCursor");
             return Utils.TaskUtil.FalseTask;
         }
@@ -399,7 +454,7 @@ namespace Spreads
         public bool MovePrevious()
         {
             if (State < CursorState.Moving) return MoveLast();
-
+            _steps = 0;
             if ((_flags & Flags.StartKeyIsPresent) != Flags.StartKeyIsPresent)
             {
                 return _cursor.MovePrevious();
@@ -410,15 +465,24 @@ namespace Spreads
             }
 
             var beforeMove = _cursor.CurrentKey;
+
             var moved = _cursor.MovePrevious();
-            if (StartOk(_cursor.CurrentKey))
-            {
-                return moved;
-            }
 
             if (!moved) return false;
-            _cursor.MoveAt(beforeMove, Lookup.EQ);
-            _flags |= Flags.AtStart;
+
+            if (StartOk(_cursor.CurrentKey))
+            {
+                return true;
+            }
+
+            if (_cursor.MoveNext())
+            {
+                _flags |= Flags.AtStart;
+            }
+            else
+            {
+                ThrowHelper.ThrowOutOfOrderKeyException(beforeMove);
+            }
 
             return false;
         }

@@ -82,8 +82,49 @@ namespace Spreads.Utils
             return GetDoubleDynamic(value);
         }
 
+
         private static double GetDoubleDynamic<TValue>(TValue value)
         {
+            if (value is double)
+            {
+                return ((double)(object)value);
+            }
+
+            if (value is float)
+            {
+                return ((float)(object)value);
+            }
+
+            if (value is int)
+            {
+                return (double)((int)(object)value);
+            }
+
+            if (value is long)
+            {
+                return (double)((long)(object)value);
+            }
+
+            if (value is uint)
+            {
+                return (double)((uint)(object)value);
+            }
+
+            if (value is ulong)
+            {
+                return (double)((ulong)(object)value);
+            }
+
+            if (value is decimal)
+            {
+                return (double)((decimal)(object)value);
+            }
+
+            if (value is Price)
+            {
+                return ((Price)(object)value).AsDouble;
+            }
+
             return (double)((dynamic)value);
         }
     }

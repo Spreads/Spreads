@@ -49,7 +49,6 @@ namespace Spreads
 
         internal Map(TCursor cursor, Func<TInput, TResult> selector) : this()
         {
-            // TODO (perf) profile for perf issues with this simple implementation
             TResult GetValue(TKey key, TInput value)
             {
                 return selector(value);

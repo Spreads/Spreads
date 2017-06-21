@@ -82,7 +82,7 @@ namespace Spreads.Core.Tests.Cursors.Online
         [Test, Ignore]
         public void Stat2StDevBenchmark()
         {
-            var count = 1000000;
+            var count = 1_000_000;
             var width = 20;
             var sm = new SortedMap<int, double>();
             sm.Add(0, 0);
@@ -93,73 +93,80 @@ namespace Spreads.Core.Tests.Cursors.Online
 
             var ds1 = new Deedle.Series<int, double>(sm.Keys.ToArray(), sm.Values.ToArray());
 
-            for (int r = 0; r < 20; r++)
+            var sum = 0.0;
+
+            for (int r = 0; r < 10; r++)
             {
-                var sum = 0.0;
+                var sum1 = 0.0;
                 using (Benchmark.Run("Stat2 Online N", count * width))
                 {
-                    foreach (var keyValuePair in sm.Stat2(width))
+                    foreach (var stat2 in sm.Stat2(width).Values)
                     {
-                        sum += keyValuePair.Value.StDev;
+                        sum1 += stat2.StDev;
                     }
                 }
-                Assert.True(sum != 0);
+                Assert.True(sum1 != 0);
 
-                sum = 0.0;
+                var sum2 = 0.0;
                 using (Benchmark.Run("Stat2 Online Width GE", count * width))
                 {
-                    foreach (var keyValuePair in sm.Stat2(width, Lookup.GE))
+                    foreach (var stat2 in sm.Stat2(width - 1, Lookup.GE).Values)
                     {
-                        sum += keyValuePair.Value.StDev;
+                        sum2 += stat2.StDev;
                     }
                 }
-                Assert.True(sum != 0);
+                Assert.True(sum2 != 0);
 
-                sum = 0.0;
+                var sum3 = 0.0;
                 using (Benchmark.Run("Stat2 Window N", count * width))
                 {
-                    foreach (var keyValuePair in sm.Window(width).Map(x => x.Stat2()))
+                    foreach (var stat2 in sm.Window(width).Map(x => x.Stat2()).Values)
                     {
-                        sum += keyValuePair.Value.StDev;
+                        sum3 += stat2.StDev;
                     }
                 }
-                Assert.True(sum != 0);
+                Assert.True(sum3 != 0);
 
-                sum = 0.0;
+                var sum4 = 0.0;
                 using (Benchmark.Run("Stat2 Window Width GE", count * width))
                 {
-                    foreach (var keyValuePair in sm.Window(width, Lookup.GE).Map(x => x.Stat2()))
+                    foreach (var stat2 in sm.Window(width - 1, Lookup.GE).Map(x => x.Stat2()).Values)
                     {
-                        sum += keyValuePair.Value.StDev;
+                        sum4 += stat2.StDev;
                     }
                 }
-                Assert.True(sum != 0);
+                Assert.True(sum4 != 0);
 
                 sum = 0.0;
                 using (Benchmark.Run("SortedMap enumeration", count))
                 {
-                    foreach (var keyValuePair in sm)
+                    foreach (var keyValuePair in sm.Values)
                     {
-                        sum += keyValuePair.Value;
+                        sum += keyValuePair;
                     }
                 }
                 Assert.True(sum != 0);
 
-                sum = 0.0;
-                using (Benchmark.Run("Deedle.Stats.movingStdDev", count * width))
+                var sum5 = 0.0;
+                using (Benchmark.Run("Deedle (online)", count * width))
                 {
                     var deedleStDev = Deedle.Stats.movingStdDev(width, ds1);
-                    foreach (var keyValuePair in deedleStDev.Observations)
+                    foreach (var keyValuePair in deedleStDev.Values)
                     {
-                        sum += keyValuePair.Value;
+                        sum5 += keyValuePair;
                     }
                 }
-                Assert.True(sum != 0);
+                Assert.True(sum5 != 0);
+
+                Assert.True(Math.Abs(sum1 / sum2 - 1) < 0.000001);
+                Assert.True(Math.Abs(sum1 / sum3 - 1) < 0.000001);
+                Assert.True(Math.Abs(sum1 / sum4 - 1) < 0.000001);
+                Assert.True(Math.Abs(sum1 / sum5 - 1) < 0.000001);
             }
 
             Benchmark.Dump($"The window width is {width}. Stat2 MOPS are calculated as a number of calculated values multiplied by width, " +
                            $"which is equivalent to the total number of cursor moves for Window case. SortedMap line is for reference - it is the " +
-                           $"speed of raw iteration over SM without Stat2/Windows overheads.");
+                           $"speed of raw iteration over SM without Stat2/Windows overheads (and not multiplied by width).");
         }
     }
 }
