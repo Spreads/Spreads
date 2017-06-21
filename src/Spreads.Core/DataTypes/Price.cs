@@ -106,7 +106,11 @@ namespace Spreads.DataTypes
             1000000000000000,
         };
 
-        public int Exponent => (int)(((ulong)_value & ExponentMask) >> 56);
+        public int Exponent
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return (int)(((ulong)_value & ExponentMask) >> 56); }
+        }
 
         public long Mantissa
         {
@@ -122,18 +126,29 @@ namespace Spreads.DataTypes
         }
 
         public decimal AsDecimal => (this);
-        public double AsDouble => (double)(this);
+
+        public double AsDouble
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return Mantissa * DoubleFractions10[Exponent]; }
+        }
 
         public Price(int exponent, long mantissaValue)
         {
-            if ((ulong)exponent > 15) throw new ArgumentOutOfRangeException(nameof(exponent));
+            if ((ulong)exponent > 15)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(exponent));
+            }
 
             var signMask = mantissaValue >> 63;
             var sign = (signMask & 1);
             var absValue = (mantissaValue ^ signMask) + sign;
 
             // enough bits
-            if (((ulong)absValue & ~MantissaValueMask) != 0UL) throw new ArgumentOutOfRangeException(nameof(mantissaValue));
+            if (((ulong)absValue & ~MantissaValueMask) != 0UL)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(mantissaValue));
+            }
 
             var mantissaPart = absValue | (sign << 55);
 
@@ -145,7 +160,10 @@ namespace Spreads.DataTypes
 
         public Price(decimal value, int precision = 5)
         {
-            if ((ulong)precision > 15) throw new ArgumentOutOfRangeException(nameof(precision));
+            if ((ulong)precision > 15)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(precision));
+            }
             var mantissaValue = decimal.ToInt64(value * Powers10[precision]);
 
             var signMask = mantissaValue >> 63;
@@ -153,7 +171,10 @@ namespace Spreads.DataTypes
             var absValue = (mantissaValue ^ signMask) + sign;
 
             // enough bits
-            if (((ulong)absValue & ~MantissaValueMask) != 0UL) throw new ArgumentOutOfRangeException(nameof(mantissaValue));
+            if (((ulong)absValue & ~MantissaValueMask) != 0UL)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(mantissaValue));
+            }
 
             var mantissaPart = absValue | (sign << 55);
             var exponentPart = ((ulong)precision << 56) & ExponentMask;
@@ -163,7 +184,10 @@ namespace Spreads.DataTypes
 
         public Price(double value, int precision = 5)
         {
-            if ((ulong)precision > 15) throw new ArgumentOutOfRangeException(nameof(precision));
+            if ((ulong)precision > 15)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(precision));
+            }
             var mantissaValue = checked((long)(value * Powers10[precision]));
 
             var signMask = mantissaValue >> 63;
@@ -171,7 +195,10 @@ namespace Spreads.DataTypes
             var absValue = (mantissaValue ^ signMask) + sign;
 
             // enough bits
-            if (((ulong)absValue & ~MantissaValueMask) != 0UL) throw new ArgumentOutOfRangeException(nameof(mantissaValue));
+            if (((ulong)absValue & ~MantissaValueMask) != 0UL)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(mantissaValue));
+            }
 
             var mantissaPart = absValue | (sign << 55);
             var exponentPart = ((ulong)precision << 56) & ExponentMask;
@@ -182,6 +209,7 @@ namespace Spreads.DataTypes
         // NB only decimal is implicit because it doesn't lose precision
         // there are no conversions to other direction, only ctor
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator double(Price price)
         {
             return price.Mantissa * DoubleFractions10[price.Exponent];
@@ -189,6 +217,7 @@ namespace Spreads.DataTypes
 
         public static explicit operator float(Price price)
         {
+            //Unsafe.Add(ref DoubleFractions10[0], price.Exponent);
             return (float)(price.Mantissa * DoubleFractions10[price.Exponent]);
         }
 

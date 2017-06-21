@@ -2,15 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using Spreads.DataTypes;
+using Spreads.Utils;
+using System;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Core.Tests.DataTypes
 {
     [TestFixture]
     public class PriceTests
@@ -65,6 +62,79 @@ namespace Spreads.Core.Tests
             var first = new Price(12345.6);
             var second = -first;
             Assert.AreEqual(-(decimal)first, (decimal)second);
+        }
+
+        [Test, Ignore]
+        public void CouldConvertToDoubleDynamic()
+        {
+            var count = 10_000_000;
+            for (int r = 0; r < 20; r++)
+            {
+                var sum = 0.0;
+                using (Benchmark.Run("Dynamic cast", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var price = new Price((double)i);
+                        var dyn = (dynamic)price;
+                        var dbl = (double)dyn;
+                        sum += dbl;
+                    }
+                }
+
+                using (Benchmark.Run("Convert nobox", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var price = new Price((double)i);
+                        var dbl = Convert.ToDouble(price);
+                        sum += dbl;
+                    }
+                }
+
+                using (Benchmark.Run("Convert box", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var price = new Price((double)i);
+                        var dbl = Convert.ToDouble((object)price); // (double)dyn;
+                        sum += dbl;
+                    }
+                }
+
+                using (Benchmark.Run("DoubleUtil nobox", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var price = new Price((double)i);
+                        var dbl = DoubleUtil.GetDouble(price); // (double)dyn;
+                        sum += dbl;
+                    }
+                }
+
+                using (Benchmark.Run("DoubleUtil box", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var price = new Price((double)i);
+                        var dbl = DoubleUtil.GetDouble((object)price); // (double)dyn;
+                        sum += dbl;
+                    }
+                }
+
+                using (Benchmark.Run("Direct", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var price = new Price((double)i);
+                        var dbl = price.AsDouble;
+                        sum += dbl;
+                    }
+                }
+
+                Assert.IsTrue(sum > 0);
+            }
+            Benchmark.Dump();
         }
     }
 }
