@@ -2,9 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Cursors.Online;
 using System;
 using System.Runtime.CompilerServices;
-using Spreads.Cursors.Online;
 
 namespace Spreads.Cursors.Internal
 {
@@ -117,14 +117,14 @@ namespace Spreads.Cursors.Internal
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         where TOnlineOp : struct, IOnlineOp<TKey, TValue, TResult, TCursor>
     {
-        private readonly int _width;
+        private readonly int _count;
         private readonly bool _allowIncomplete;
 
         private TOnlineOp _opState;
 
-        public SpanOpCount(int width, bool allowIncomplete, TOnlineOp opState)
+        public SpanOpCount(int count, bool allowIncomplete, TOnlineOp opState)
         {
-            _width = width;
+            _count = count;
             _allowIncomplete = allowIncomplete;
             _opState = opState;
         }
@@ -144,7 +144,7 @@ namespace Spreads.Cursors.Internal
         // TODO test with true
         public bool IsForwardOnly => _opState.IsForwardOnly;
 
-        public int MinWidth => _allowIncomplete ? _opState.MinWidth : Math.Max(_width, _opState.MinWidth);
+        public int MinWidth => _allowIncomplete ? _opState.MinWidth : Math.Max(_count, _opState.MinWidth);
 
         public void Dispose()
         {
@@ -160,9 +160,9 @@ namespace Spreads.Cursors.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Expand(ref TCursor left, ref TCursor right)
         {
-            return _allowIncomplete && Count > 0 && Count <= _width
+            return _allowIncomplete && Count > 0 && Count <= _count
                 ? 0
-                : _width - Count;
+                : _count - Count;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -381,6 +381,7 @@ namespace Spreads.Cursors.Internal
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         where TOnlineOp : struct, IOnlineOp<TKey, TValue, TResult, TCursor>
     {
+        // TODO
         private enum LimitType : byte
         {
             Count,
@@ -405,7 +406,7 @@ namespace Spreads.Cursors.Internal
 
         private readonly bool _allowIncomplete;
 
-        private readonly int _widthN;
+        private readonly int _count;
         private readonly TKey _width;
 
         private readonly Lookup _lookup;
@@ -414,11 +415,11 @@ namespace Spreads.Cursors.Internal
 
         private TOnlineOp _opState;
 
-        public SpanOp(int width, bool allowIncomplete, TOnlineOp opState)
+        public SpanOp(int count, bool allowIncomplete, TOnlineOp opState)
         {
             _limitType = LimitType.Count;
 
-            _widthN = width;
+            _count = count;
             _allowIncomplete = allowIncomplete;
 
             _width = default(TKey);
@@ -432,7 +433,7 @@ namespace Spreads.Cursors.Internal
         {
             _limitType = LimitType.Width;
 
-            _widthN = 0;
+            _count = 0;
             _allowIncomplete = false;
 
             _width = width;
@@ -467,7 +468,7 @@ namespace Spreads.Cursors.Internal
             {
                 if (_limitType == LimitType.Count)
                 {
-                    return _allowIncomplete ? _opState.MinWidth : Math.Max(_widthN, _opState.MinWidth);
+                    return _allowIncomplete ? _opState.MinWidth : Math.Max(_count, _opState.MinWidth);
                 }
                 if (_limitType == LimitType.Width)
                 {
@@ -531,9 +532,9 @@ namespace Spreads.Cursors.Internal
         {
             if (_limitType == LimitType.Count)
             {
-                return _allowIncomplete && Count > 0 && Count <= _widthN
+                return _allowIncomplete && Count > 0 && Count <= _count
                     ? 0
-                    : _widthN - Count;
+                    : _count - Count;
             }
 
             if (_limitType == LimitType.Width)
@@ -979,6 +980,4 @@ namespace Spreads.Cursors.Internal
             return moved;
         }
     }
-
-    
 }

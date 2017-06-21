@@ -10,10 +10,10 @@ namespace Spreads
         #region ContainerSeries
 
         public static Series<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>> Window<TKey, TValue, TCursor>(
-            this ContainerSeries<TKey, TValue, TCursor> series, int width = 1, bool allowIncomplete = false)
+            this ContainerSeries<TKey, TValue, TCursor> series, int count, bool allowIncomplete = false)
             where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
-            var cursor = new Window<TKey, TValue, TCursor>(series.GetContainerCursor(), width, allowIncomplete);
+            var cursor = new Window<TKey, TValue, TCursor>(series.GetContainerCursor(), count, allowIncomplete);
             return cursor.Source;
         }
 
@@ -25,21 +25,20 @@ namespace Spreads
             return cursor.Source;
         }
 
-
         #endregion ContainerSeries
 
         #region ISeries
 
         public static Series<TKey, Series<TKey, TValue, Range<TKey, TValue, Cursor<TKey, TValue>>>, Window<TKey, TValue, Cursor<TKey, TValue>>>
-            Window<TKey, TValue>(this ISeries<TKey, TValue> series, int width = 1, bool allowIncomplete = false)
+            Window<TKey, TValue>(this ISeries<TKey, TValue> series, int count, bool allowIncomplete = false)
         {
-            var cursor = new Window<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), width, allowIncomplete);
+            var cursor = new Window<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), count, allowIncomplete);
             return cursor.Source;
         }
 
-        public static ISeries<TKey, ISeries<TKey, TValue>> Window_<TKey, TValue>(this ISeries<TKey, TValue> series, int width = 1, bool allowIncomplete = false)
+        public static ISeries<TKey, ISeries<TKey, TValue>> Window_<TKey, TValue>(this ISeries<TKey, TValue> series, int count, bool allowIncomplete = false)
         {
-            var cursor = new Window<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), width, allowIncomplete);
+            var cursor = new Window<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), count, allowIncomplete);
             var untyped = (ISeries<TKey, ISeries<TKey, TValue>>)cursor.Source.Map(x => (ISeries<TKey, TValue>)x);
             return untyped;
         }
@@ -56,10 +55,10 @@ namespace Spreads
         #region Generic CursorSeries
 
         public static Series<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>> Window<TKey, TValue, TCursor>(
-            this Series<TKey, TValue, TCursor> series, int width = 1, bool allowIncomplete = false)
+            this Series<TKey, TValue, TCursor> series, int count, bool allowIncomplete = false)
             where TCursor : ICursorSeries<TKey, TValue, TCursor>
         {
-            var cursor = new Window<TKey, TValue, TCursor>(series.GetEnumerator(), width, allowIncomplete);
+            var cursor = new Window<TKey, TValue, TCursor>(series.GetEnumerator(), count, allowIncomplete);
             return cursor.Source;
         }
 

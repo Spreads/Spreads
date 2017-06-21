@@ -1,10 +1,10 @@
+using Spreads.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Utils;
 
 namespace Spreads.Cursors.Internal
 {
@@ -13,8 +13,6 @@ namespace Spreads.Cursors.Internal
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         where TSpanOp : struct, ISpanOp<TKey, TValue, TResult, TCursor> //, ICursorOnlineOp2<TKey, TValue, TResult, TCursor>
     {
-        // dummy field to use as by ref argument
-
         #region Cursor state
 
         // This region must contain all cursor state that is passed via constructor.
@@ -185,7 +183,7 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <summary>
-        /// If expand is zero after just one move, the cursor is probably in the situation 
+        /// If expand is zero after just one move, the cursor is probably in the situation
         /// when incomplete spans are allowed. It must be eager and try to move left cursor back as much as possible.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -247,7 +245,6 @@ namespace Spreads.Cursors.Internal
             }
 
             if (expand != 0) ThrowHelper.ThrowInvalidOperationException();
-
         }
 
         /// <inheritdoc />

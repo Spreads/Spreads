@@ -10,12 +10,16 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.DataTypes;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
-    public struct Window<TKey, TValue, TCursor> :
-        ICursorSeries<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>>
+
+    // TODO review naming, Stat2Cursor -> Stat2, Stat2 -> M2
+
+    public struct Stat2Cursor<TKey, TValue, TCursor> :
+        ICursorSeries<TKey, Stat2<TKey>, Stat2Cursor<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         #region Cursor state
@@ -29,14 +33,14 @@ namespace Spreads
         // NB must be mutable, could be a struct
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal SpanOpImpl<TKey, TValue,
-            Range<TKey, TValue, TCursor>,
-            SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, WindowOnlineOp<TKey, TValue, TCursor>>,
+            Stat2<TKey>,
+            SpanOp<TKey, TValue, Stat2<TKey>, TCursor, Stat2OnlineOp<TKey, TValue, TCursor>>,
             TCursor> _cursor;
 
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal SpanOpImpl<TKey, TValue,
-            Range<TKey, TValue, TCursor>,
-            SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, WindowOnlineOp<TKey, TValue, TCursor>>,
+            Stat2<TKey>,
+            SpanOp<TKey, TValue, Stat2<TKey>, TCursor, Stat2OnlineOp<TKey, TValue, TCursor>>,
             TCursor> _lookUpCursor;
 
         internal CursorState State { get; set; }
@@ -45,33 +49,33 @@ namespace Spreads
 
         #region Constructors
 
-        internal Window(TCursor cursor, int count, bool allowIncomplete = false) : this()
+        internal Stat2Cursor(TCursor cursor, int width = 1, bool allowIncomplete = false) : this()
         {
-            if (count <= 0) throw new ArgumentOutOfRangeException(nameof(count));
+            if (width <= 0) throw new ArgumentOutOfRangeException(nameof(width));
 
-            var op = new WindowOnlineOp<TKey, TValue, TCursor>();
+            var op = new Stat2OnlineOp<TKey, TValue, TCursor>();
             var spanOp =
-                new SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>,
-                    TCursor, WindowOnlineOp<TKey, TValue, TCursor>>(count, allowIncomplete, op);
+                new SpanOp<TKey, TValue, Stat2<TKey>,
+                    TCursor, Stat2OnlineOp<TKey, TValue, TCursor>>(width, allowIncomplete, op);
             _cursor =
                 new SpanOpImpl<TKey, TValue,
-                    Range<TKey, TValue, TCursor>,
-                    SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, WindowOnlineOp<TKey, TValue, TCursor>
+                    Stat2<TKey>,
+                    SpanOp<TKey, TValue, Stat2<TKey>, TCursor, Stat2OnlineOp<TKey, TValue, TCursor>
                     >,
                     TCursor
                 >(cursor, spanOp);
         }
 
-        internal Window(TCursor cursor, TKey width, Lookup lookup) : this()
+        internal Stat2Cursor(TCursor cursor, TKey width, Lookup lookup) : this()
         {
-            var op = new WindowOnlineOp<TKey, TValue, TCursor>();
+            var op = new Stat2OnlineOp<TKey, TValue, TCursor>();
             var spanOp =
-                new SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>,
-                    TCursor, WindowOnlineOp<TKey, TValue, TCursor>>(width, lookup, op);
+                new SpanOp<TKey, TValue, Stat2<TKey>,
+                    TCursor, Stat2OnlineOp<TKey, TValue, TCursor>>(width, lookup, op);
             _cursor =
                 new SpanOpImpl<TKey, TValue,
-                    Range<TKey, TValue, TCursor>,
-                    SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, WindowOnlineOp<TKey, TValue, TCursor>
+                    Stat2<TKey>,
+                    SpanOp<TKey, TValue, Stat2<TKey>, TCursor, Stat2OnlineOp<TKey, TValue, TCursor>
                     >,
                     TCursor
                 >(cursor, spanOp);
@@ -82,9 +86,10 @@ namespace Spreads
         #region Lifetime management
 
         /// <inheritdoc />
-        public Window<TKey, TValue, TCursor> Clone() // [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Stat2Cursor<TKey, TValue, TCursor> Clone()
         {
-            var instance = new Window<TKey, TValue, TCursor>
+            var instance = new Stat2Cursor<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Clone(),
                 State = State
@@ -93,9 +98,10 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public Window<TKey, TValue, TCursor> Initialize() // This causes SO when deeply nested [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Stat2Cursor<TKey, TValue, TCursor> Initialize() // This causes SO when deeply nested 
         {
-            var instance = new Window<TKey, TValue, TCursor>
+            var instance = new Stat2Cursor<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Initialize(),
                 State = CursorState.Initialized
@@ -104,15 +110,16 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public void Dispose() // [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Dispose()
         {
             // NB keep cursor state for reuse
             // dispose is called on the result of Initialize(), the cursor from
             // constructor could be uninitialized but contain some state, e.g. _value for FillCursor
             _cursor.Dispose();
             if (!_lookUpCursor.Equals(default(SpanOpImpl<TKey, TValue,
-                Range<TKey, TValue, TCursor>,
-                SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>, TCursor, WindowOnlineOp<TKey, TValue, TCursor>>,
+                Stat2<TKey>,
+                SpanOp<TKey, TValue, Stat2<TKey>, TCursor, Stat2OnlineOp<TKey, TValue, TCursor>>,
                 TCursor>)))
             {
                 _lookUpCursor.Dispose();
@@ -121,13 +128,14 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public void Reset() // [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Reset()
         {
             _cursor.Reset();
             State = CursorState.Initialized;
         }
 
-        ICursor<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>> ICursor<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>>.Clone()
+        ICursor<TKey, Stat2<TKey>> ICursor<TKey, Stat2<TKey>>.Clone()
         {
             return Clone();
         }
@@ -137,11 +145,10 @@ namespace Spreads
         #region ICursor members
 
         /// <inheritdoc />
-        public KeyValuePair<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>> Current
+        public KeyValuePair<TKey, Stat2<TKey>> Current
         {
-            // NB this causes SO in the TypeSystemSurvivesViolentAbuse test when run as Ctrl+F5 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            // ReSharper disable once ArrangeAccessorOwnerBody
-            get { return new KeyValuePair<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>>(CurrentKey, CurrentValue); }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return new KeyValuePair<TKey, Stat2<TKey>>(CurrentKey, CurrentValue); }
         }
 
         /// <inheritdoc />
@@ -152,14 +159,14 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public Series<TKey, TValue, Range<TKey, TValue, TCursor>> CurrentValue
+        public Stat2<TKey> CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.CurrentValue.Source; }
+            get { return _cursor.CurrentValue; }
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>> CurrentBatch => null;
+        public IReadOnlySeries<TKey, Stat2<TKey>> CurrentBatch => null;
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
@@ -173,7 +180,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out Series<TKey, TValue, Range<TKey, TValue, TCursor>> value)
+        public bool TryGetValue(TKey key, out Stat2<TKey> value)
         {
             if (_lookUpCursor.Equals(default(TCursor)))
             {
@@ -182,11 +189,11 @@ namespace Spreads
 
             if (_lookUpCursor.MoveAt(key, Lookup.EQ))
             {
-                value = _lookUpCursor.CurrentValue.Source;
+                value = _lookUpCursor.CurrentValue;
                 return true;
             }
 
-            value = default(Series<TKey, TValue, Range<TKey, TValue, TCursor>>);
+            value = default(Stat2<TKey>);
             return false;
         }
 
@@ -266,12 +273,12 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>> ICursor<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>>.Source => new Series<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>>(this);
+        IReadOnlySeries<TKey, Stat2<TKey>> ICursor<TKey, Stat2<TKey>>.Source => new Series<TKey, Stat2<TKey>, Stat2Cursor<TKey, TValue, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
-        public Series<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>> Source => new Series<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>>(this);
+        public Series<TKey, Stat2<TKey>, Stat2Cursor<TKey, TValue, TCursor>> Source => new Series<TKey, Stat2<TKey>, Stat2Cursor<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
         public Task<bool> MoveNext(CancellationToken cancellationToken)

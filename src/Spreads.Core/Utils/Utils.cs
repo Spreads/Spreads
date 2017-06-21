@@ -116,7 +116,7 @@ namespace Spreads
 
         public static void InvokeMethod(this Assembly assembly, string typeName, string methodName)
         {
-            var mi = assembly.GetType(typeName).GetMethod(methodName, (System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic));
+            var mi = assembly.GetType(typeName).GetMethod(methodName, (BindingFlags.Static | BindingFlags.NonPublic));
             mi.Invoke(null, new object[] { });
         }
     }
@@ -125,7 +125,8 @@ namespace Spreads
     // TODO Replace usages with SpreadsException
     public class ApplicationException : Exception
     {
-        public ApplicationException() : base() { }
+        public ApplicationException()
+        { }
         public ApplicationException(string message) : base(message) { }
     }
 

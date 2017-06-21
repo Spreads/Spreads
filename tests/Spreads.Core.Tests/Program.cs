@@ -8,6 +8,7 @@ using System;
 using System.Diagnostics;
 using Spreads.Core.Tests.Cursors;
 using Spreads.Core.Tests.Cursors.Internal;
+using Spreads.Core.Tests.Cursors.Online;
 using Spreads.Core.Tests.DataTypes;
 
 namespace Spreads.Core.Tests
@@ -29,7 +30,7 @@ namespace Spreads.Core.Tests
                 //new ZipCursorTests().CouldAddTwoSeriesWithSameKeysBenchmark();
                 //new SCMTests().EnumerateScmSpeed();
                 //new VariantTests().CouldCreateAndReadInlinedVariantInALoop();
-                new SpanOpTests().SMADirectAndIndirectSpanOpBenchmark();
+                new StatTests().Stat2StDevBenchmark();
             }
 
             Console.WriteLine("Press enter to exit...");

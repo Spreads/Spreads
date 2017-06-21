@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.DataTypes;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -33,6 +34,57 @@ namespace Spreads.Utils
             //var firstIsNonZero = (mask & value1) != 0UL;
             //var secondIsNonZero = (mask & value2) != 0UL;
             return ((value1 >> 63) != (value2 >> 63)) && ((mask & value1) != 0UL) && ((mask & value2) != 0UL);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static double GetDouble<TValue>(TValue value)
+        {
+            if (typeof(TValue) == typeof(double))
+            {
+                return ((double)(object)value);
+            }
+
+            if (typeof(TValue) == typeof(float))
+            {
+                return ((float)(object)value);
+            }
+
+            if (typeof(TValue) == typeof(int))
+            {
+                return (double)((int)(object)value);
+            }
+
+            if (typeof(TValue) == typeof(long))
+            {
+                return (double)((long)(object)value);
+            }
+
+            if (typeof(TValue) == typeof(uint))
+            {
+                return (double)((uint)(object)value);
+            }
+
+            if (typeof(TValue) == typeof(ulong))
+            {
+                return (double)((ulong)(object)value);
+            }
+
+            if (typeof(TValue) == typeof(decimal))
+            {
+                return (double)((decimal)(object)value);
+            }
+
+            if (typeof(TValue) == typeof(Price))
+            {
+                return ((Price)(object)value).AsDouble;
+            }
+
+            return GetDoubleDynamic(value);
+        }
+
+        private static double GetDoubleDynamic<TValue>(TValue value)
+        {
+            return (double)((dynamic)value);
         }
     }
 }
