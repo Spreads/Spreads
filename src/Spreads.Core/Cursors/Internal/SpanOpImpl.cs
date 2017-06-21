@@ -71,6 +71,7 @@ namespace Spreads.Cursors.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor> Clone()
         {
+            // TODO (perf) this could be expensive, but smarter implementation would require TSpanOp to have Clone() method
             var instance = Initialize();
             instance.MoveAt(CurrentKey, Lookup.EQ);
             return instance;

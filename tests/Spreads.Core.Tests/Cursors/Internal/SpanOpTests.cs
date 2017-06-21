@@ -490,6 +490,8 @@ namespace Spreads.Core.Tests.Cursors.Internal
                 >(sm.GetEnumerator(),
                     new SpanOp<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>(width, false, new SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>())).Source;
 
+            var extensionSma = sm.SMA(width);
+
             var windowSma = sm.Window(width).Map(x =>
             {
                 var sum = 0.0;
@@ -531,6 +533,15 @@ namespace Spreads.Core.Tests.Cursors.Internal
                     }
                 }
 
+                double sum2_3 = 0.0;
+                using (Benchmark.Run("SMA Extension", count * width))
+                {
+                    foreach (var keyValuePair in extensionSma)
+                    {
+                        sum2_3 += keyValuePair.Value;
+                    }
+                }
+
                 double sum3 = 0.0;
                 using (Benchmark.Run("SMA Window", count * width))
                 {
@@ -551,6 +562,7 @@ namespace Spreads.Core.Tests.Cursors.Internal
 
                 Assert.AreEqual(sum1, sum2);
                 Assert.AreEqual(sum1, sum2_2);
+                Assert.AreEqual(sum1, sum2_3);
                 Assert.AreEqual(sum1, sum3);
             }
 
@@ -699,7 +711,20 @@ namespace Spreads.Core.Tests.Cursors.Internal
                         }
                     }
                 }
-                if(c < 0 ) Console.WriteLine($"Count: {c}");
+
+                using (Benchmark.Run("Struct Lazy", count * 1000_000))
+                {
+                    var cursor = window.GetEnumerator();
+                    while (cursor.MoveNext())
+                    {
+                        if (cursor.CurrentKey >= 0)
+                        {
+                            c++;
+                        }
+                    }
+                }
+
+                if (c < 0) Console.WriteLine($"Count: {c}");
 
                 var window2 = sm.Window_(20).Window_(20).Window_(20).Window_(20).Window_(20);
                 var c2 = 0;
@@ -714,7 +739,44 @@ namespace Spreads.Core.Tests.Cursors.Internal
                     }
                 }
                 if (c2 < 0) Console.WriteLine($"Count2: {c2}");
+            }
 
+            Benchmark.Dump("MOPS is scaled by x1M, so it is OPS");
+        }
+
+        [Test, Ignore]
+        public void NestedSMABenchmark()
+        {
+            var count = 100000;
+
+            #region Create data
+
+            var sm = new SortedMap<int, double>();
+            sm.Add(0, 0); // make irregular, it's faster but more memory
+            for (int i = 2; i <= count; i++)
+            {
+                sm.Add(i, i);
+            }
+
+            #endregion Create data
+
+            for (int round = 0; round < 20; round++)
+            {
+                var window = sm.SMA(20).SMA(20).SMA(20).SMA(20).SMA(20);
+
+                var c = 0;
+                using (Benchmark.Run("SMA", count))
+                {
+                    foreach (var keyValuePair in window)
+                    {
+                        if (keyValuePair.Key >= 0)
+                        {
+                            c++;
+                        }
+                    }
+                }
+
+                if (c < 0) Console.WriteLine($"Count: {c}");
             }
 
             Benchmark.Dump("MOPS is scaled by x1M, so it is OPS");

@@ -29,7 +29,7 @@ namespace Spreads.Core.Tests
                 //new ZipCursorTests().CouldAddTwoSeriesWithSameKeysBenchmark();
                 //new SCMTests().EnumerateScmSpeed();
                 //new VariantTests().CouldCreateAndReadInlinedVariantInALoop();
-                new SpanOpTests().TypeSystemSurvivesViolentAbuse();
+                new SpanOpTests().SMADirectAndIndirectSpanOpBenchmark();
             }
 
             Console.WriteLine("Press enter to exit...");
