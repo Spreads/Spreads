@@ -31,18 +31,24 @@ namespace Spreads.Core.Tests.Cursors
             Assert.NotNull(c1.Comparer);
             Assert.NotNull(c2.Comparer);
 
+
+            var zipSum = (sm1 + sm2);
             double actual = 0;
-            var zipCursor =
+            var zipCursor = //zipSum.GetEnumerator();
                 new Zip<int, double, double, SortedMapCursor<int, double>,
                         SortedMapCursor<int, double>>(
-                        c1, c2).Map((k, v) => v.Item1 + v.Item2)
-                    .Initialize();
+                        c1, c2); //.Map((k, v) => v.Item1 + v.Item2)
+
+            var op2 = new Op2<int, double, AddOp<double>, Zip<int, double, double, SortedMapCursor<int, double>,
+                SortedMapCursor<int, double>>>(zipCursor).Source;
+
+            var zipCursorOp2 = op2.GetEnumerator();
 
             using (Benchmark.Run("Zip", count * 2))
             {
-                while (zipCursor.MoveNext())
+                while (zipCursorOp2.MoveNext())
                 {
-                    actual += zipCursor.CurrentValue;
+                    actual += zipCursorOp2.CurrentValue;
                 }
             }
             Assert.AreEqual(expected, actual);
@@ -70,16 +76,16 @@ namespace Spreads.Core.Tests.Cursors
             //Assert.AreEqual(expected, actual);
 
 
-            //var zipNOld = new[] { sm1, sm2 }.ZipOld((k, varr) => varr[0] + varr[1]).GetCursor();
-            //actual = 0;
-            //using (Benchmark.Run("ZipN (old)", count * 2))
-            //{
-            //    while (zipNOld.MoveNext())
-            //    {
-            //        actual += zipNOld.CurrentValue;
-            //    }
-            //}
-            //Assert.AreEqual(expected, actual);
+            var zipNOld = new[] { sm1, sm2 }.ZipOld((k, varr) => varr[0] + varr[1]).GetCursor();
+            actual = 0;
+            using (Benchmark.Run("ZipN (old)", count * 2))
+            {
+                while (zipNOld.MoveNext())
+                {
+                    actual += zipNOld.CurrentValue;
+                }
+            }
+            Assert.AreEqual(expected, actual);
 
             //zipCursor.Reset();
             //actual = 0;
@@ -92,26 +98,27 @@ namespace Spreads.Core.Tests.Cursors
             //}
             //Assert.AreEqual(expected, actual);
 
-            //actual = 0;
-            //using (Benchmark.Run("LINQ", count * 2))
-            //{
-            //    var linq = sm1.Zip(sm2, (l, r) => l.Value + r.Value);
-            //    foreach (var d in linq)
-            //    {
-            //        actual += d;
-            //    }
-            //}
-            //Assert.AreEqual(expected, actual);
+            actual = 0;
+            using (Benchmark.Run("LINQ", count * 2))
+            {
+                var linq = sm1.Zip(sm2, (l, r) => l.Value + r.Value);
+                foreach (var d in linq)
+                {
+                    actual += d;
+                }
+            }
+            Assert.AreEqual(expected, actual);
 
-            //actual = 0;
-            //using (Benchmark.Run("Deedle", count * 2))
-            //{
-            //    foreach (var v in ds1.ZipInner(ds2).Values)
-            //    {
-            //        actual += v.Item1 + v.Item2;
-            //    }
-            //}
-            //Assert.AreEqual(expected, actual);
+            actual = 0;
+            using (Benchmark.Run("Deedle", count * 2))
+            {
+                var sum = ds1 + ds2;
+                foreach (var v in sum.Values) // ds1.ZipInner(ds2).Values)
+                {
+                    actual += v; //.Item1 + v.Item2;
+                }
+            }
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
