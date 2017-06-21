@@ -10,7 +10,6 @@ namespace Spreads.Cursors.Internal
 {
     // Value is lagged cursor.
 
-    [Obsolete("Use SpanOpImpl instead")]
     internal struct LagStepImpl<TKey, TValue, TCursor> :
         ICursorSeries<TKey, TCursor, LagStepImpl<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>

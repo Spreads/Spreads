@@ -320,6 +320,9 @@ namespace Spreads
                 moved = _cursor.MoveNext();
             }
 
+            // TODO must stay at the very end - a special state that will make spinning on MN very cheap
+            // at least count MN steps and move back with MP, not MA
+
             if (!moved && !_cursor.MoveAt(ck, Lookup.EQ))
             {
                 // cannot recover, should be a very rare edge case

@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 namespace Spreads
 {
     // TODO Lag1/Previous could use just a single cursor and be much faster
-    // TODO Call it Shift with int - negative as lag, positive as lead. Shift(n, Window(n)) is a forward Window, no need for 
+    // TODO Call it Shift with int - negative as lag, positive as lead. Shift(n, Window(n)) is a forward Window, no need for
     // a special implementation
 
     public struct Lag<TKey, TValue, TCursor> :
@@ -35,8 +35,6 @@ namespace Spreads
 
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal LagStepImpl<TKey, TValue, TCursor> _lookUpCursor;
-
-        internal CursorState State { get; set; }
 
         #endregion Cursor state
 
@@ -61,7 +59,6 @@ namespace Spreads
             var instance = new Lag<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Clone(),
-                State = State
             };
             return instance;
         }
@@ -73,7 +70,6 @@ namespace Spreads
             var instance = new Lag<TKey, TValue, TCursor>
             {
                 _cursor = _cursor.Initialize(),
-                State = CursorState.Initialized
             };
             return instance;
         }
@@ -86,8 +82,10 @@ namespace Spreads
             // dispose is called on the result of Initialize(), the cursor from
             // constructor could be uninitialized but contain some state, e.g. _value for FillCursor
             _cursor.Dispose();
-            _lookUpCursor.Dispose();
-            State = CursorState.None;
+            if (!_lookUpCursor.Equals(default(LagStepImpl<TKey, TValue, TCursor>)))
+            {
+                _lookUpCursor.Dispose();
+            }
         }
 
         /// <inheritdoc />
@@ -95,7 +93,6 @@ namespace Spreads
         public void Reset()
         {
             _cursor.Reset();
-            State = CursorState.Initialized;
         }
 
         ICursor<TKey, (TValue, (TKey, TValue))> ICursor<TKey, (TValue, (TKey, TValue))>.Clone()
@@ -164,15 +161,8 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveAt(TKey key, Lookup direction)
         {
-            if (State == CursorState.None)
-            {
-                ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
-            }
             var moved = _cursor.MoveAt(key, direction);
-            if (moved)
-            {
-                State = CursorState.Moving;
-            }
+
             return moved;
         }
 
@@ -180,15 +170,8 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MoveNext
         public bool MoveFirst()
         {
-            if (State == CursorState.None)
-            {
-                ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
-            }
             var moved = _cursor.MoveFirst();
-            if (moved)
-            {
-                State = CursorState.Moving;
-            }
+
             return moved;
         }
 
@@ -196,15 +179,8 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MovePrevious
         public bool MoveLast()
         {
-            if (State == CursorState.None)
-            {
-                ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
-            }
             var moved = _cursor.MoveLast();
-            if (moved)
-            {
-                State = CursorState.Moving;
-            }
+
             return moved;
         }
 
@@ -212,7 +188,6 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {
-            if (State < CursorState.Moving) return MoveFirst();
             return _cursor.MoveNext();
         }
 
@@ -220,10 +195,6 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
-            if (State == CursorState.None)
-            {
-                ThrowHelper.ThrowInvalidOperationException($"CursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
-            }
             return Utils.TaskUtil.FalseTask;
         }
 
@@ -231,7 +202,6 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MovePrevious()
         {
-            if (State < CursorState.Moving) return MoveLast();
             return _cursor.MovePrevious();
         }
 
