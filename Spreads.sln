@@ -60,6 +60,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dotnetcore", "dotnetcore", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Core.Run", "tests\Spreads.Core.Run\Spreads.Core.Run.csproj", "{C221D713-EB19-4B00-A71B-E94BE05554E4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{4FA14F38-8CC5-4649-855E-ECB3C0794560}"
+	ProjectSection(SolutionItems) = preProject
+		tools\re_write_il.cmd = tools\re_write_il.cmd
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ILSub", "tools\ILSub\ILSub.csproj", "{8789497B-B5A9-4371-A4F4-1AB50B070E1B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -203,6 +210,18 @@ Global
 		{C221D713-EB19-4B00-A71B-E94BE05554E4}.Release|x64.Build.0 = Release|Any CPU
 		{C221D713-EB19-4B00-A71B-E94BE05554E4}.Release|x86.ActiveCfg = Release|Any CPU
 		{C221D713-EB19-4B00-A71B-E94BE05554E4}.Release|x86.Build.0 = Release|Any CPU
+		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Debug|x64.Build.0 = Debug|Any CPU
+		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Debug|x86.Build.0 = Debug|Any CPU
+		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Release|x64.ActiveCfg = Release|Any CPU
+		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Release|x64.Build.0 = Release|Any CPU
+		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Release|x86.ActiveCfg = Release|Any CPU
+		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -218,6 +237,7 @@ Global
 		{0C1D15D2-D0E7-497B-8C3F-4CA7DE22F0D1} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{9AB0675E-1251-472E-9280-45D9F56F4768} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{C221D713-EB19-4B00-A71B-E94BE05554E4} = {9AB0675E-1251-472E-9280-45D9F56F4768}
+		{8789497B-B5A9-4371-A4F4-1AB50B070E1B} = {4FA14F38-8CC5-4649-855E-ECB3C0794560}
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

@@ -1,0 +1,1 @@
+re_write_il ../bin/net451/ ../bin/net451/Spreads.Collections.dll SpreadsKey.snk

@@ -202,7 +202,7 @@ type SortedMap<'K,'V>
     Serialization.TypeHelper<SortedMap<'K,'V>>.RegisterConverter(converter, true);
   //#region Private & Internal members
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline private this.rkGetStep() =
     #if DEBUG
     Trace.Assert(this.size > 1)
@@ -211,20 +211,22 @@ type SortedMap<'K,'V>
     elif this.size > 1 then
       rkStep_ <- diffCalc.Diff(this.keys.[1], this.keys.[0])
       rkStep_
-    else raise (InvalidOperationException("Cannot calculate regular keys step for a single element in a map or an empty map"))
+    else
+      ThrowHelper.ThrowInvalidOperationException("Cannot calculate regular keys step for a single element in a map or an empty map")
+      0L
   
   // temp solution, cannot call inlined method from do in ctor
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member private this.rkKeyAtIndex2 (idx:int) : 'K =
     let step = this.rkGetStep()
     diffCalc.Add(this.keys.[0], (int64 idx) * step)
   
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline private this.rkKeyAtIndex (idx:int) : 'K =
     let step = this.rkGetStep()
     diffCalc.Add(this.keys.[0], (int64 idx) * step)
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline private this.rkIndexOfKey (key:'K) : int =
     #if DEBUG
     Trace.Assert(this.size > 1)
@@ -259,12 +261,12 @@ type SortedMap<'K,'V>
       else
         ~~~((int idx)+1)
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member private this.rkMaterialize () =
     let step = this.rkGetStep()
     Array.init this.values.Length (fun i -> if i < this.size then diffCalc.Add(this.keys.[0], (int64 i)*step) else Unchecked.defaultof<'K>)
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member private this.rkCheckArray (sortedArray:'K[]) (size:int) (dc:IKeyComparer<'K>) : bool * int * 'K array = 
     if size > sortedArray.Length then raise (ArgumentException("size is greater than sortedArray length"))
     if size < 1 then
@@ -291,32 +293,34 @@ type SortedMap<'K,'V>
   member inline private this.SetRkLast(rkl) = rkLast <- rkl
   member private this.Clone() = new SortedMap<'K,'V>(Some(this :> IDictionary<'K,'V>), None, Some(comparer))
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline internal this.CheckNull(key) =
-    if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
+    if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(key, Unchecked.defaultof<'K>) then 
+      ThrowHelper.ThrowArgumentNullException("key")
+      ()
     
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline internal this.GetKeyByIndexUnchecked(index) =
     if couldHaveRegularKeys && this.size > 1 then this.rkKeyAtIndex index
     else this.keys.[index]
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline internal this.GetKeyByIndex(index) =
     if uint32 index >= uint32 this.size then raise (ArgumentOutOfRangeException("index"))
     this.GetKeyByIndexUnchecked(index)
   
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline private this.GetPairByIndexUnchecked(index) =
     if couldHaveRegularKeys && this.size > 1 then
       Trace.Assert(uint32 index < uint32 this.size, "Index must be checked before calling GetPairByIndexUnchecked")
       KeyValuePair(this.rkKeyAtIndex index, this.values.[index])
     else KeyValuePair(this.keys.[index], this.values.[index]) 
   
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline private this.CompareToFirst (k:'K) =
     comparer.Compare(k, this.keys.[0]) // keys.[0] is always the first key even for regular keys
   
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline private this.CompareToLast (k:'K) =
     if couldHaveRegularKeys && this.size > 1 then
       #if DEBUG
@@ -325,14 +329,14 @@ type SortedMap<'K,'V>
       comparer.Compare(k, rkLast)
     else comparer.Compare(k, this.keys.[this.size-1])
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member private this.EnsureCapacity(min) = 
     let mutable num = this.values.Length * 2 
     if num > 2146435071 then num <- 2146435071
     if num < min then num <- min // either double or min if min > 2xprevious
     this.SetCapacity(num)
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   //[<ReliabilityContractAttribute(Consistency.MayCorruptInstance, Cer.MayFail)>]
   member inline private this.Insert(index:int, k, v) =
     if this.isReadOnly then invalidOp "SortedMap is not mutable"
@@ -448,10 +452,11 @@ type SortedMap<'K,'V>
 
   //#region Public members
 
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member private this.SetCapacity(value) =
     match value with
     | c when c = this.values.Length -> ()
-    | c when c < this.size -> raise (ArgumentOutOfRangeException("Small capacity"))
+    | c when c < this.size -> ThrowHelper.ThrowArgumentOutOfRangeException("capacity")
     | c when c > 0 -> 
       if this.isReadOnly then invalidOp "SortedMap is read-only"
       
@@ -521,7 +526,8 @@ type SortedMap<'K,'V>
       Interlocked.Increment(&this.version) |> ignore
       exitWriteLockIf &this.Locker entered
 
-  member this.Count with get() = this.size
+  member this.Count 
+    with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = this.size
 
   override this.IsEmpty with get() = this.size = 0
 
@@ -646,23 +652,24 @@ type SortedMap<'K,'V>
           }
         }  :> IEnumerable<_>
 
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.ContainsKey(key) = this.IndexOfKey(key) >= 0
 
   member this.ContainsValue(value) = this.IndexOfValue(value) >= 0
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member internal this.IndexOfKeyUnchecked(key:'K) : int =
     if couldHaveRegularKeys && this.size > 1 then this.rkIndexOfKey key
     else Array.BinarySearch(this.keys, 0, this.size, key, comparer)
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.IndexOfKey(key:'K) : int =
     this.CheckNull(key)
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       this.IndexOfKeyUnchecked(key)
     )
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.IndexOfValue(value:'V) : int =
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       let mutable res = 0
@@ -692,80 +699,77 @@ type SortedMap<'K,'V>
         this.LastUnchecked
       )
 
-  member private this.LastUnchecked
-    with get() =
+  member internal this.LastUnchecked
+    with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() =
       if couldHaveRegularKeys && this.size > 1 then
         Trace.Assert(comparer.Compare(rkLast, diffCalc.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
         KeyValuePair(rkLast, this.values.[this.size - 1])
       else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
   
   member this.Item
-      with get key =
-        this.CheckNull(key)
-        readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-        // first/last optimization (only last here)
-        if this.size = 0 then
-          raise (KeyNotFoundException())
-        else
-          let lc = this.CompareToLast key
-          if lc < 0 then
-            let index = this.IndexOfKeyUnchecked(key)
-            if index >= 0 then this.values.[index]
-            else raise (KeyNotFoundException())
-          elif lc = 0 then // key = last key
-            this.values.[this.size-1]
-          else raise (KeyNotFoundException())              
-        )
-      and
-        //[<ReliabilityContractAttribute(Consistency.MayCorruptInstance, Cer.MayFail)>]
-        set k v =
-          if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(k, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
+    with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get key =
+      this.CheckNull(key)
+      readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
+      // first/last optimization (only last here)
+      if this.size = 0 then
+        raise (KeyNotFoundException())
+      else
+        let lc = this.CompareToLast key
+        if lc < 0 then
+          let index = this.IndexOfKeyUnchecked(key)
+          if index >= 0 then this.values.[index]
+          else raise (KeyNotFoundException())
+        elif lc = 0 then // key = last key
+          this.values.[this.size-1]
+        else raise (KeyNotFoundException())              
+      )
+    and
+      [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] set k v =
+        if this.isKeyReferenceType && EqualityComparer<'K>.Default.Equals(k, Unchecked.defaultof<'K>) then raise (ArgumentNullException("key"))
 
-          let mutable keepOrderVersion = false
-          let mutable entered = false
-          #if DEBUG
-          let mutable finished = false
-          #endif
-          try
-            try ()
-            finally
-              entered <- enterWriteLockIf &this.Locker this.isSynchronized
-              if entered then Interlocked.Increment(&this.nextVersion) |> ignore
-            // first/last optimization (only last here)
-            if this.size = 0 then
-              this.Insert(0, k, v)
+        let mutable keepOrderVersion = false
+        let mutable entered = false
+        #if DEBUG
+        let mutable finished = false
+        #endif
+        try
+          try ()
+          finally
+            entered <- enterWriteLockIf &this.Locker this.isSynchronized
+            if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+          // first/last optimization (only last here)
+          if this.size = 0 then
+            this.Insert(0, k, v)
+            keepOrderVersion <- true
+          else
+            let lc = this.CompareToLast k
+            if lc = 0 then // key = last key
+              this.values.[this.size-1] <- v
+              this.NotifyUpdate(true)
+            elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
+              this.Insert(this.size, k, v)
               keepOrderVersion <- true
             else
-              let lc = this.CompareToLast k
-              if lc = 0 then // key = last key
-                this.values.[this.size-1] <- v
+              let index = this.IndexOfKeyUnchecked(k)
+              if index >= 0 then // contains key 
+                this.values.[index] <- v
                 this.NotifyUpdate(true)
-              elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
-                this.Insert(this.size, k, v)
-                keepOrderVersion <- true
               else
-                let index = this.IndexOfKeyUnchecked(k)
-                if index >= 0 then // contains key 
-                  this.values.[index] <- v
-                  this.NotifyUpdate(true)
-                else
-                  this.Insert(~~~index, k, v)
-            #if DEBUG
-            finished <- true
-            #endif
-          finally
-            Interlocked.Increment(&this.version) |> ignore
-            if not keepOrderVersion then increment(&this.orderVersion)
-            exitWriteLockIf &this.Locker entered
-            #if DEBUG
-            if not finished then Environment.FailFast("SM.Item set must always succeed")
-            if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
-            #else
-            if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
-            #endif
+                this.Insert(~~~index, k, v)
+          #if DEBUG
+          finished <- true
+          #endif
+        finally
+          Interlocked.Increment(&this.version) |> ignore
+          if not keepOrderVersion then increment(&this.orderVersion)
+          exitWriteLockIf &this.Locker entered
+          #if DEBUG
+          if not finished then Environment.FailFast("SM.Item set must always succeed")
+          if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
+          #endif
 
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.Add(key, value) : unit =
     this.CheckNull(key)
     
@@ -785,7 +789,7 @@ type SortedMap<'K,'V>
         let lc = this.CompareToLast key
         if lc = 0 then // key = last key
           //exitWriteLockIf &this.locker entered
-          raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
+          ThrowHelper.ThrowArgumentException("SortedMap.Add: key already exists: " + key.ToString())
         elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
           this.Insert(this.size, key, value)
           keepOrderVersion <- true
@@ -793,7 +797,7 @@ type SortedMap<'K,'V>
           let index = this.IndexOfKeyUnchecked(key)
           if index >= 0 then // contains key
             //exitWriteLockIf &this.locker entered
-            raise (ArgumentException("SortedMap.Add: key already exists: " + key.ToString()))
+            ThrowHelper.ThrowArgumentException("SortedMap.Add: key already exists: " + key.ToString())
           else
             this.Insert(~~~index, key, value)
       added <- true
@@ -803,11 +807,9 @@ type SortedMap<'K,'V>
       exitWriteLockIf &this.Locker entered
       #if DEBUG
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
-      #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.AddLast(key, value):unit =
     let mutable entered = false
     let mutable added = false
@@ -823,20 +825,17 @@ type SortedMap<'K,'V>
         if c > 0 then 
           this.Insert(this.size, key, value)
         else
-          let exn = OutOfOrderKeyException(this.LastUnchecked.Key, key, "SortedMap.AddLast: New key is smaller or equal to the largest existing key")
-          raise (exn)
+          ThrowHelper.ThrowOutOfOrderKeyException(this.LastUnchecked.Key, "SortedMap.AddLast: New key is smaller or equal to the largest existing key")
       added <- true
     finally
       exitWriteLockIf &this.Locker entered
       if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       #if DEBUG
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
-      #else
-      if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
 
   // TODO lockless AddLast for temporary Append implementation
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member private this.AddLastUnchecked(key, value) : unit =
       if this.size = 0 then
         this.Insert(0, key, value)
@@ -845,9 +844,9 @@ type SortedMap<'K,'V>
         if c > 0 then 
           this.Insert(this.size, key, value)
         else
-          Environment.FailFast("SortedMap.AddLastUnchecked: New key is smaller or equal to the largest existing key")
+          ThrowHelper.ThrowOutOfOrderKeyException(this.LastUnchecked.Key, "SortedMap.AddLast: New key is smaller or equal to the largest existing key")
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.AddFirst(key, value):unit =
     let mutable keepOrderVersion = false
     let mutable entered = false
@@ -878,7 +877,7 @@ type SortedMap<'K,'V>
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
     
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member private this.RemoveAt(index):unit =
     if uint32 index >= uint32 this.size then raise (ArgumentOutOfRangeException("index"))
     let newSize = this.size - 1
@@ -916,7 +915,7 @@ type SortedMap<'K,'V>
 
     this.NotifyUpdate(true)
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.Remove(key): bool =
     this.CheckNull(key)
     let mutable removed = false
@@ -1086,7 +1085,7 @@ type SortedMap<'K,'V>
   /// -3 if the non-found key is within the key range (for EQ direction only)
   /// -4 empty
   /// Example: (-1) [...current...(-3)...map ...] (-2)
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member internal this.TryFindWithIndex(key:'K, direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>) : int =
     if this.size = 0 then -4
     else
@@ -1205,9 +1204,9 @@ type SortedMap<'K,'V>
             else //  it is the index of the first element that is larger than value
               result <- this.GetPairByIndexUnchecked(index2)
               index2
-      | _ -> raise (ApplicationException("Wrong lookup direction"))
+      | _ -> ThrowHelper.ThrowInvalidOperationException(); 0
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   override this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) =
     this.CheckNull(key)
     let res() = 
@@ -1220,7 +1219,7 @@ type SortedMap<'K,'V>
     tupleResult.Item1
 
   /// Return true if found exact key
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
     this.CheckNull(key)
     let res() = 
@@ -1241,7 +1240,7 @@ type SortedMap<'K,'V>
     value <- tupleResult.Item2
     tupleResult.Item1
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     try
       res <- this.First
@@ -1251,7 +1250,7 @@ type SortedMap<'K,'V>
       res <- Unchecked.defaultof<KeyValuePair<'K, 'V>>
       false
            
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>] 
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] 
   override this.TryGetLast([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
     try
       res <- this.Last
@@ -1280,29 +1279,25 @@ type SortedMap<'K,'V>
   override this.GetContainerCursor() = this.GetEnumerator()
 
   // .NETs foreach optimization must return struct
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.GetEnumerator() : SortedMapCursor<_,_> =
     if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then 
       // NB: via property with locks
       this.IsSynchronized <- true
-    readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-      new SortedMapCursor<'K,'V>(this)
-    )
+    new SortedMapCursor<'K,'V>(this)
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member internal this.GetSMCursor() =
     if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then
       // NB: via property with locks
       this.IsSynchronized <- true
-    readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
-      new SortedMapCursor<'K,'V>(this)
-    )
+    new SortedMapCursor<'K,'V>(this)
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   override this.GetAt(idx:int) =
     readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       if idx >= 0 && idx < this.size then this.values.[idx] else raise (ArgumentOutOfRangeException("idx", "Idx is out of range in SortedMap GetAt method."))
     )
-
 
   /// Make the capacity equal to the size
   member this.TrimExcess() = this.Capacity <- this.size
@@ -1605,15 +1600,27 @@ and
         }
     end
 
-    member this.CurrentKey with get() = this.currentKey
-    member this.CurrentValue with get() = this.currentValue
-    member this.Current with get() : KVP<'K,'V> = KeyValuePair(this.currentKey, this.currentValue)
-    member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
+    member this.CurrentKey 
+      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = this.currentKey
+
+    member this.CurrentValue 
+      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = this.currentValue
+
+    member this.Current 
+      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : KVP<'K,'V> = KeyValuePair(this.currentKey, this.currentValue)
+
+    member this.Source 
+      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get(): ISeries<'K,'V> = this.source :> ISeries<'K,'V>    
+    
     member this.IsContinuous with get() = false
-    member this.Comparer: KeyComparer<'K> = this.source.Comparer
+
+    member this.Comparer
+      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : KeyComparer<'K> = this.source.Comparer
+    
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
     
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MoveNext() =
       let mutable newIndex = this.index
       let mutable newKey = this.currentKey
@@ -1710,7 +1717,7 @@ and
         this.isBatch <- newIsBatch
       result
 
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MovePrevious() = 
       let mutable newIndex = this.index
       let mutable newKey = this.currentKey
@@ -1755,7 +1762,7 @@ and
         this.currentValue <- newValue
       result
 
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MoveAt(key:'K, lookup:Lookup) =
       let mutable newIndex = this.index
       let mutable newKey = this.currentKey
@@ -1789,7 +1796,7 @@ and
         this.currentValue <- newValue
       result
 
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MoveFirst() =
       let mutable newIndex = this.index
       let mutable newKey = this.currentKey
@@ -1821,7 +1828,7 @@ and
         this.currentValue <- newValue
       result
 
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MoveLast() =
       let mutable newIndex = this.index
       let mutable newKey = this.currentKey
@@ -1853,7 +1860,7 @@ and
         this.currentValue <- newValue
       result
 
-    //[<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
+    //[<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     //member this.MoveNext(cancellationToken:CancellationToken): Task<bool> =
     //  if this.MoveNext() then trueTask
     //  elif this.source.IsReadOnly then

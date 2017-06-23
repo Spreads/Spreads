@@ -3,7 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 // ReSharper disable once CheckNamespace
-namespace System
+
+using System;
+
+// ReSharper disable once CheckNamespace
+namespace Spreads
 {
     [AttributeUsage(AttributeTargets.Method)]
     internal class ILSub : Attribute
@@ -12,4 +16,14 @@ namespace System
         {
         }
     }
+
+    /// <summary>
+    /// A marker attribute to add manually aggressive inlining attribute to IL.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method)]
+    internal class RewriteAILAttribute : Attribute
+    {
+
+    }
+
 }

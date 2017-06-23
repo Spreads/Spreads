@@ -84,7 +84,7 @@ namespace Spreads.Core.Tests.Cursors.Online
         {
             var count = 1_000_000;
             var width = 20;
-            var sm = new SortedMap<int, double>();
+            var sm = new SortedMap<int, double>(count);
             sm.Add(0, 0);
             for (int i = 2; i <= count; i++)
             {
@@ -137,16 +137,6 @@ namespace Spreads.Core.Tests.Cursors.Online
                 }
                 Assert.True(sum4 != 0);
 
-                sum = 0.0;
-                using (Benchmark.Run("SortedMap enumeration", count))
-                {
-                    foreach (var keyValuePair in sm.Values)
-                    {
-                        sum += keyValuePair;
-                    }
-                }
-                Assert.True(sum != 0);
-
                 var sum5 = 0.0;
                 using (Benchmark.Run("Deedle (online)", count * width))
                 {
@@ -162,6 +152,21 @@ namespace Spreads.Core.Tests.Cursors.Online
                 Assert.True(Math.Abs(sum1 / sum3 - 1) < 0.000001);
                 Assert.True(Math.Abs(sum1 / sum4 - 1) < 0.000001);
                 Assert.True(Math.Abs(sum1 / sum5 - 1) < 0.000001);
+
+                sum = 0.0;
+                using (Benchmark.Run("SortedMap enumeration", count))
+                {
+                    var cursor = sm.GetEnumerator();
+                    while (cursor.MoveNext())
+                    {
+                        sum += cursor.currentValue;
+                    }
+                }
+                Assert.True(sum != 0);
+
+
+
+
             }
 
             Benchmark.Dump($"The window width is {width}. Stat2 MOPS are calculated as a number of calculated values multiplied by width, " +

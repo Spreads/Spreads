@@ -16,7 +16,7 @@ namespace Spreads.Core.Tests.Collections
         [Test, Ignore]
         public void EnumerateScmSpeed()
         {
-            const int count = 1000000;
+            const int count = 10_000_000;
 
             var sl = new SortedList<int, int>();
             var sm = new SortedMap<int, int>();
@@ -38,25 +38,25 @@ namespace Spreads.Core.Tests.Collections
 
             for (int r = 0; r < 20; r++)
             {
-                sum = 0L;
-                using (Benchmark.Run("SL", count))
-                {
-                    foreach (var item in sl)
-                    {
-                        sum += item.Value;
-                    }
-                }
-                Assert.True(sum > 0);
+                //sum = 0L;
+                //using (Benchmark.Run("SL", count))
+                //{
+                //    foreach (var item in sl)
+                //    {
+                //        sum += item.Value;
+                //    }
+                //}
+                //Assert.True(sum > 0);
 
-                sum = 0L;
-                using (Benchmark.Run("SM", count))
-                {
-                    foreach (var item in sm)
-                    {
-                        sum += item.Value;
-                    }
-                }
-                Assert.True(sum > 0);
+                //sum = 0L;
+                //using (Benchmark.Run("SM", count))
+                //{
+                //    foreach (var item in sm)
+                //    {
+                //        sum += item.Value;
+                //    }
+                //}
+                //Assert.True(sum > 0);
 
                 //sum = 0L;
                 //using (Benchmark.Run("ISM", count))
@@ -71,9 +71,12 @@ namespace Spreads.Core.Tests.Collections
                 sum = 0L;
                 using (Benchmark.Run("SCM", count))
                 {
-                    foreach (var item in scm)
+                    using (var c = scm.GetEnumerator())
                     {
-                        sum += item.Value;
+                        while (c.MoveNext())
+                        {
+                            sum += c.CurrentValue;
+                        }
                     }
                 }
                 Assert.True(sum > 0);

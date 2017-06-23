@@ -31,6 +31,7 @@ namespace Spreads.Core.Tests
                 //new SCMTests().EnumerateScmSpeed();
                 //new VariantTests().CouldCreateAndReadInlinedVariantInALoop();
                 //new StatTests().Stat2StDevBenchmark();
+                //new FastDictionaryTests().CompareSCGAndFastDictionaryWithInts();
             }
 
             Console.WriteLine("Press enter to exit...");
