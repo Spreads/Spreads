@@ -27,16 +27,16 @@ namespace Spreads.Algorithms
         /// Simple ascending zero-based rank
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ArraySegment<int> SortRank(ArraySegment<T> values, KeyComparer<T> comparer = null)
+        public static ArraySegment<int> SortRank(ArraySegment<T> values, KeyComparer<T> comparer = default(KeyComparer<T>))
         {
             KVPComparer<T, int> kvComparer;
-            if (_comparer == null)
+            if (_comparer.Equals(KeyComparer<T>.Default))
             {
-                _comparer = comparer ?? KeyComparer<T>.Default;
-                _kvComparer = new KVPComparer<T, int>(_comparer, null);
+                _comparer = comparer.Equals(KeyComparer<T>.Default) ?KeyComparer<T>.Default : comparer;
+                _kvComparer = new KVPComparer<T, int>(_comparer, KeyComparer<int>.Default);
                 kvComparer = _kvComparer;
             }
-            else if (comparer != null && comparer != _comparer)
+            else if (!comparer.Equals(KeyComparer<T>.Default) && !comparer.Equals(_comparer))
             {
                 kvComparer = new KVPComparer<T, int>(comparer);
             }

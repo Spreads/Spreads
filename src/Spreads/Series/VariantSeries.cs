@@ -280,7 +280,7 @@ namespace Spreads
 
             public override int GetHashCode()
             {
-                return (_sourceComparer != null ? _sourceComparer.GetHashCode() : 0);
+                return (!_sourceComparer.Equals(KeyComparer<TKey>.Default) ? _sourceComparer.GetHashCode() : 0);
             }
         }
     }

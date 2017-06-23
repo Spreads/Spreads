@@ -139,7 +139,7 @@ type private UnionKeysCursor<'K,'V>([<ParamArray>] cursors:ICursor<'K,'V>[]) =
       c'
     // TODO (perf) allocates for the lifetime of cursor
     let movedKeysFlags : bool[] = Array.zeroCreate cursors.Length
-    let movedKeys = SortedDeque<_,_>(cursors.Length, KVPComparer(cmp, null)) // , cursors.Length
+    let movedKeys = SortedDeque<_,_>(cursors.Length, KVPComparer(cmp, Unchecked.defaultof<_>)) // , cursors.Length
 
     let mutable semaphore : SemaphoreSlim = Unchecked.defaultof<_> //  new SemaphoreSlim(0) //, cursors.Length
     // Live counter shows how many cont cursor not yet returned false on MoveNextAsync
@@ -510,7 +510,7 @@ and
     // Same meaning as in BingCursor: we have at least one sucessful move and some state for further moves
     let mutable hasValidState = false
     // all keys where discrete cursors are positioned. their intersect define where resulting keys are present.
-    let discreteKeysSet = SortedDeque<_,_>(cursorFactories.Length, KVPComparer(cmp, null))
+    let discreteKeysSet = SortedDeque<_,_>(cursorFactories.Length, KVPComparer(cmp, Unchecked.defaultof<_>))
 
     let isContinuous = cursors |> Array.map (fun x -> x.IsContinuous) |> Array.forall id
     let unionKeys : ICursor<'K,'V> = if isContinuous then new UnionKeysCursor<'K,'V>(cursors) :> ICursor<'K,'V> else Unchecked.defaultof<_>

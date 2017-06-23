@@ -56,7 +56,7 @@ namespace Spreads.Cursors.Experimental
 
             _comparer = series[0].Comparer;
             _movedKeysFlags = new bool[series.Length];
-            _movedKeys = new SortedDeque<TKey, int>(series.Length, new KVPComparer<TKey, int>(_comparer, null));
+            _movedKeys = new SortedDeque<TKey, int>(series.Length, new KVPComparer<TKey, int>(_comparer, KeyComparer<int>.Default));
             _liveCounter = series.Length;
             //_outOfOrderKeys = new SortedDeque<TKey>();
         }

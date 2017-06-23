@@ -17,11 +17,6 @@ namespace Spreads.Utils
                 throw new ArgumentException("Index + Length fall outside the span boundary.");
             }
 
-            if (comparer == null)
-            {
-                comparer = KeyComparer<T>.Default;
-            }
-
             int lo = index;
             int hi = index + length - 1;
             while (lo <= hi)

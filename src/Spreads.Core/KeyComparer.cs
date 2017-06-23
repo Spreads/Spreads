@@ -14,9 +14,8 @@ namespace Spreads
     /// Fast IComparer implementation.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public sealed class KeyComparer<T> : IKeyComparer<T>, IEqualityComparer<T>, IEquatable<KeyComparer<T>>
+    public struct KeyComparer<T> : IKeyComparer<T>, IEqualityComparer<T>, IEquatable<KeyComparer<T>>
     {
-        private static readonly KeyComparer<T> _default = new KeyComparer<T>();
         private static readonly bool IsIComparable = typeof(IComparable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
         private readonly IComparer<T> _comparer;
         private readonly IKeyComparer<T> _keyComparer;
@@ -24,7 +23,7 @@ namespace Spreads
         /// <summary>
         /// Create a new KeyComparer instance.
         /// </summary>
-        private KeyComparer() : this(null) { }
+        //private KeyComparer() : this(null) { }
 
         private KeyComparer(IComparer<T> comparer)
         {
@@ -35,13 +34,22 @@ namespace Spreads
                 {
                     _keyComparer = kc;
                 }
+                else
+                {
+                    _keyComparer = null;
+                }
+            }
+            else
+            {
+                _comparer = null;
+                _keyComparer = null;
             }
         }
 
         /// <summary>
         /// Default instance of a KeyComparer for type T.
         /// </summary>
-        public static KeyComparer<T> Default => _default;
+        public static readonly KeyComparer<T> Default = new KeyComparer<T>();
 
         /// <summary>
         /// True if type T support <see cref="Diff"/> and <see cref="Add"/> methods.
@@ -348,8 +356,11 @@ namespace Spreads
         {
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
-            var a = obj as KeyComparer<T>;
-            return a != null && Equals(a);
+            if (obj is KeyComparer<T> kc)
+            {
+                return Equals(kc);
+            };
+            return false;
         }
 
         public override int GetHashCode()
@@ -374,8 +385,8 @@ namespace Spreads
         /// </summary>
         public KVPComparer(KeyComparer<TKey> keyComparer, KeyComparer<TValue> valueComparer)
         {
-            _keyComparer = keyComparer ?? KeyComparer<TKey>.Default;
-            _valueComparer = valueComparer ?? KeyComparer<TValue>.Default;
+            _keyComparer = keyComparer.Equals(default(KeyComparer<TKey>)) ? KeyComparer<TKey>.Default : keyComparer;
+            _valueComparer = valueComparer.Equals(default(KeyComparer<TValue>)) ? KeyComparer<TValue>.Default : valueComparer;
         }
 
         /// <summary>
@@ -384,7 +395,7 @@ namespace Spreads
         /// </summary>
         public KVPComparer(KeyComparer<TKey> keyComparer)
         {
-            _keyComparer = keyComparer ?? KeyComparer<TKey>.Default;
+            _keyComparer = keyComparer.Equals(default(KeyComparer<TKey>)) ? KeyComparer<TKey>.Default : keyComparer;
         }
 
         /// <inheritdoc />
@@ -392,7 +403,7 @@ namespace Spreads
         public int Compare(KeyValuePair<TKey, TValue> x, KeyValuePair<TKey, TValue> y)
         {
             var c1 = _keyComparer.Compare(x.Key, y.Key);
-            if (c1 == 0 && _valueComparer != null)
+            if (c1 == 0 && !_valueComparer.Equals(default(KeyComparer<TValue>)))
             {
                 return _valueComparer.Compare(x.Value, y.Value);
             }
@@ -402,7 +413,7 @@ namespace Spreads
         /// <inheritdoc />
         public bool Equals(KeyValuePair<TKey, TValue> x, KeyValuePair<TKey, TValue> y)
         {
-            return _keyComparer.Equals(x.Key, y.Key) && _valueComparer == null || _valueComparer.Equals(x.Value, y.Value);
+            return _keyComparer.Equals(x.Key, y.Key) && _valueComparer.Equals(default(KeyComparer<TValue>)) || _valueComparer.Equals(x.Value, y.Value);
         }
 
         /// <summary>
@@ -425,14 +436,14 @@ namespace Spreads
         {
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
-            return obj is KVPComparer<TKey, TValue> && Equals((KVPComparer<TKey, TValue>) obj);
+            return obj is KVPComparer<TKey, TValue> && Equals((KVPComparer<TKey, TValue>)obj);
         }
 
         public override int GetHashCode()
         {
             unchecked
             {
-                return ((_keyComparer != null ? _keyComparer.GetHashCode() : 0) * 397) ^ (_valueComparer != null ? _valueComparer.GetHashCode() : 0);
+                return ((!_keyComparer.Equals(default(KeyComparer<TKey>)) ? _keyComparer.GetHashCode() : 0) * 397) ^ (!_valueComparer.Equals(default(KeyComparer<TValue>)) ? _valueComparer.GetHashCode() : 0);
             }
         }
     }

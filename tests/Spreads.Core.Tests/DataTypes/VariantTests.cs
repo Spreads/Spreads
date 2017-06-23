@@ -452,11 +452,11 @@ namespace Spreads.Core.Tests.DataTypes
 
             var vs = new VariantSeries<DateTime, int>(sm);
 
-            Assert.IsTrue(vs.Comparer != null);
+            Assert.IsTrue(!vs.Comparer.Equals(KeyComparer<Variant>.Default));
 
             var rs = vs.After(Variant.Create(DateTime.Today.AddSeconds(50)));
 
-            Assert.IsTrue(rs.Comparer != null);
+            Assert.IsTrue(!rs.Comparer.Equals(KeyComparer<Variant>.Default));
 
             var expected = 0;
             for (int i = 50; i < 100; i++)

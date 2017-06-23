@@ -42,10 +42,12 @@ namespace Spreads
         /// <summary>
         /// Key/value of an out-of-order data point
         /// </summary>
+        [Obsolete]
         public K NewKey { get; }
 
         public bool HasKnownNewKey { get; }
 
+        [Obsolete]
         public OutOfOrderKeyException(K currentKey, K newKey, string message = "Out of order data") : base(message)
         {
             CurrentKey = currentKey;

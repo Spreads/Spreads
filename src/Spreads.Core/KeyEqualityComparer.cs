@@ -21,7 +21,7 @@ namespace Spreads
     /// Fast IEqualityComparer implementation that only supports IEquatable types or default equality comparison.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public sealed class KeyEqualityComparer<T> : IEqualityComparer<T>
+    public struct KeyEqualityComparer<T> : IEqualityComparer<T>
     {
         private static readonly KeyEqualityComparer<T> _default = new KeyEqualityComparer<T>();
         private static readonly bool IsIEquatable = typeof(IEquatable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
@@ -29,7 +29,7 @@ namespace Spreads
         /// <summary>
         /// Create a new KeyEqualityComparer instance.
         /// </summary>
-        private KeyEqualityComparer() { }
+        //private KeyEqualityComparer() { }
 
         /// <summary>
         /// Default instance of a KeyEqualityComparer for type T.

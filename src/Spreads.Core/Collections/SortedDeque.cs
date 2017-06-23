@@ -31,7 +31,7 @@ namespace Spreads.Collections
         public SortedDeque(int capacity, KeyComparer<T> comparer)
         {
             if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
-            this._comparer = comparer ?? throw new ArgumentNullException(nameof(comparer));
+            this._comparer = comparer.Equals(KeyComparer<T>.Default) ? throw new ArgumentNullException(nameof(comparer)) : comparer;
             var cap = BitUtil.FindNextPositivePowerOfTwo(capacity);
             _buffer = new T[cap];
             // capacity is always a power of two and we use bitshift instead of modulo
@@ -575,12 +575,12 @@ namespace Spreads.Collections
         /// <summary>
         /// Create a new instance of SortedDeque with a default comparer.
         /// </summary>
-        public SortedDeque(int capacity) : this(capacity, new KVPComparer<TKey, TValue>(null, null)) { }
+        public SortedDeque(int capacity) : this(capacity, new KVPComparer<TKey, TValue>(KeyComparer<TKey>.Default, KeyComparer<TValue>.Default)) { }
 
         /// <summary>
         /// Create a new instance of SortedDeque with a default comparer.
         /// </summary>
-        public SortedDeque() : this(2, new KVPComparer<TKey, TValue>(null, null)) { }
+        public SortedDeque() : this(2, new KVPComparer<TKey, TValue>(KeyComparer<TKey>.Default, KeyComparer<TValue>.Default)) { }
 
         /// <summary>
         /// Number of elements in this SortedDeque.

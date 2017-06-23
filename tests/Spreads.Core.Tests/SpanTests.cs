@@ -68,7 +68,7 @@ namespace Spreads.Core.Tests
                 for (int i = 0; i < indices.Length; i++)
                 {
                     var target = indices[i];
-                    var found = span.BinarySearch(0, span.Length, target, null);
+                    var found = span.BinarySearch(0, span.Length, target, KeyComparer<long>.Default);
                     if (found != target) Assert.Fail($"Wrong binary search: expected {target}, found {found}");
                 }
             }

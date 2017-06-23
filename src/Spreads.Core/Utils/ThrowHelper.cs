@@ -31,6 +31,12 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void ThrowArgumentException(string message)
+        {
+            throw GetArgumentException(message);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentOutOfRangeException()
         {
             throw GetArgumentOutOfRangeException();
@@ -136,6 +142,12 @@ namespace Spreads
         private static ArgumentException GetArgumentException(ExceptionArgument argument)
         {
             return new ArgumentException(GetArgumentName(argument));
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static ArgumentException GetArgumentException(string message)
+        {
+            return new ArgumentException(message);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

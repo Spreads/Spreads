@@ -76,16 +76,16 @@ namespace Spreads.Core.Tests.Cursors
             //Assert.AreEqual(expected, actual);
 
 
-            var zipNOld = new[] { sm1, sm2 }.ZipOld((k, varr) => varr[0] + varr[1]).GetCursor();
-            actual = 0;
-            using (Benchmark.Run("ZipN (old)", count * 2))
-            {
-                while (zipNOld.MoveNext())
-                {
-                    actual += zipNOld.CurrentValue;
-                }
-            }
-            Assert.AreEqual(expected, actual);
+            //var zipNOld = new[] { sm1, sm2 }.ZipOld((k, varr) => varr[0] + varr[1]).GetCursor();
+            //actual = 0;
+            //using (Benchmark.Run("ZipN (old)", count * 2))
+            //{
+            //    while (zipNOld.MoveNext())
+            //    {
+            //        actual += zipNOld.CurrentValue;
+            //    }
+            //}
+            //Assert.AreEqual(expected, actual);
 
             //zipCursor.Reset();
             //actual = 0;
@@ -518,16 +518,16 @@ namespace Spreads.Core.Tests.Cursors
                 Assert.AreEqual(kvp.Value, sum[kvp.Key]);
             }
 
-            using (Benchmark.Run("ZipN join", sm1.Count + sm2.Count))
-            {
-                ser = series.ZipOld((k, varr) => varr.Sum());
-                sum = ser.ToSortedMap();
-            }
-            Assert.AreEqual(expectedMap.Count, sum.Count, "Expected size");
-            foreach (var kvp in expectedMap)
-            {
-                Assert.AreEqual(kvp.Value, sum[kvp.Key]);
-            }
+            //using (Benchmark.Run("ZipN join", sm1.Count + sm2.Count))
+            //{
+            //    ser = series.ZipOld((k, varr) => varr.Sum());
+            //    sum = ser.ToSortedMap();
+            //}
+            //Assert.AreEqual(expectedMap.Count, sum.Count, "Expected size");
+            //foreach (var kvp in expectedMap)
+            //{
+            //    Assert.AreEqual(kvp.Value, sum[kvp.Key]);
+            //}
 
             var sum1 = new SortedMap<int, int>();
             using (Benchmark.Run("Zip Async join", sm1.Count + sm2.Count))
@@ -560,28 +560,28 @@ namespace Spreads.Core.Tests.Cursors
                 Assert.AreEqual(kvp.Value, sum1[kvp.Key]);
             }
 
-            var sum2 = new SortedMap<int, int>();
-            using (Benchmark.Run("ZipN Async join", sm1.Count + sm2.Count))
-            {
-                var cur = ser.GetCursor();
+            //var sum2 = new SortedMap<int, int>();
+            //using (Benchmark.Run("ZipN Async join", sm1.Count + sm2.Count))
+            //{
+            //    var cur = ser.GetCursor();
 
-                var cur2 = cur.Clone();
+            //    var cur2 = cur.Clone();
 
-                Task.Run(async () =>
-                    {
-                        while (await cur2.MoveNext(CancellationToken.None))
-                        {
-                            sum2.Add(cur2.CurrentKey, cur2.CurrentValue);
-                        }
-                    })
-                    .Wait();
-            }
+            //    Task.Run(async () =>
+            //        {
+            //            while (await cur2.MoveNext(CancellationToken.None))
+            //            {
+            //                sum2.Add(cur2.CurrentKey, cur2.CurrentValue);
+            //            }
+            //        })
+            //        .Wait();
+            //}
 
-            Assert.AreEqual(sum.Count, sum2.Count, "Results of sync and async moves must be equal");
-            foreach (var kvp in expectedMap)
-            {
-                Assert.AreEqual(kvp.Value, sum2[kvp.Key]);
-            }
+            //Assert.AreEqual(sum.Count, sum2.Count, "Results of sync and async moves must be equal");
+            //foreach (var kvp in expectedMap)
+            //{
+            //    Assert.AreEqual(kvp.Value, sum2[kvp.Key]);
+            //}
         }
 
         [Test, Ignore]
@@ -684,16 +684,16 @@ namespace Spreads.Core.Tests.Cursors
                 Assert.AreEqual(kvp.Value, sum[kvp.Key]);
             }
 
-            using (Benchmark.Run("ZipN join", sm1.Count + sm2.Count))
-            {
-                ser = series.ZipOld((k, varr) => varr.Sum());
-                sum = ser.ToSortedMap();
-            }
-            Assert.AreEqual(expectedMap.Count, sum.Count, "Expected size");
-            foreach (var kvp in expectedMap)
-            {
-                Assert.AreEqual(kvp.Value, sum[kvp.Key]);
-            }
+            //using (Benchmark.Run("ZipN join", sm1.Count + sm2.Count))
+            //{
+            //    ser = series.ZipOld((k, varr) => varr.Sum());
+            //    sum = ser.ToSortedMap();
+            //}
+            //Assert.AreEqual(expectedMap.Count, sum.Count, "Expected size");
+            //foreach (var kvp in expectedMap)
+            //{
+            //    Assert.AreEqual(kvp.Value, sum[kvp.Key]);
+            //}
 
             var sum1 = new SortedMap<int, int>();
             using (Benchmark.Run("Zip Async join", sm1.Count + sm2.Count))
@@ -785,22 +785,22 @@ namespace Spreads.Core.Tests.Cursors
 
             var count = sm1.Count;
 
-            var sumSeries2 = new[] { sm1, sm2, sm3 }.ZipOld((k, varr) =>
-            {
-                var s = 0.0;
-                for (int i = 0; i < varr.Length; i++)
-                {
-                    s += varr[i];
-                }
-                return s;
-                //return varr.Sum(); // this allocates
-            });
+            //var sumSeries2 = new[] { sm1, sm2, sm3 }.ZipOld((k, varr) =>
+            //{
+            //    var s = 0.0;
+            //    for (int i = 0; i < varr.Length; i++)
+            //    {
+            //        s += varr[i];
+            //    }
+            //    return s;
+            //    //return varr.Sum(); // this allocates
+            //});
 
             for (int i = 0; i < 20; i++)
             {
                 double actual = 0.0;
 
-                using (Benchmark.Run("ZipN new", count * 3))
+                using (Benchmark.Run("Zip", count * 3))
                 {
                     foreach (var kvp in sumSeries)
                     {
@@ -811,15 +811,15 @@ namespace Spreads.Core.Tests.Cursors
                 Assert.AreEqual(expected, actual);
 
 
-                actual = 0.0;
-                using (Benchmark.Run("ZipN old", count * 3))
-                {
-                    foreach (var kvp in sumSeries2)
-                    {
-                        actual += kvp.Value;
-                    }
-                }
-                Assert.AreEqual(expected, actual);
+                //actual = 0.0;
+                //using (Benchmark.Run("ZipN old", count * 3))
+                //{
+                //    foreach (var kvp in sumSeries2)
+                //    {
+                //        actual += kvp.Value;
+                //    }
+                //}
+                //Assert.AreEqual(expected, actual);
             }
 
             Benchmark.Dump();
