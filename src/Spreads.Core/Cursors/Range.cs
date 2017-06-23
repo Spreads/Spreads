@@ -75,27 +75,29 @@ namespace Spreads
 
         #region Constructors
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal Range(TCursor cursor,
             Opt<TKey> startKey, Opt<TKey> endKey,
             bool startInclusive = true, bool endInclusive = true,
             bool isWindow = false,
-            int count = -1) : this()
+            int count = -1, KeyComparer<TKey> comparer = default(KeyComparer<TKey>)) : this()
         {
             if (cursor.Source.IsIndexed)
             {
                 throw new NotSupportedException("RangeSeries is not supported for indexed series, only for sorted ones.");
             }
 
+            _cmp = comparer ?? cursor.Comparer;
+
             if (isWindow &&
                 (startKey.IsMissing || endKey.IsMissing || !startInclusive || !endInclusive
-                    || cursor.Comparer.Compare(cursor.CurrentKey, startKey.Present) != 0))
+                    || _cmp.Compare(cursor.CurrentKey, startKey.Present) != 0))
             {
                 ThrowHelper.ThrowInvalidOperationException("Wrong constructor arguments for cursorIsClonedAtStart == true case");
             }
 
             _cursor = cursor;
-            _cmp = cursor.Comparer;
-
+            
             _isWindow = isWindow;
 
             if (startKey.IsPresent)
@@ -338,7 +340,10 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException($"ICursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
-            _steps = 1;
+            if (_count > 0)
+            {
+                _steps = 1;
+            }
             if (State != CursorState.Moving && _isWindow)
             {
                 Debug.Assert(_cmp.Compare(_cursor.CurrentKey, _startKey) == 0);
@@ -403,12 +408,18 @@ namespace Spreads
 
             if (!moved) return false;
 
-            // NB First check of EndOk(_cursor.CurrentKey) is done above. This is the remaining part.
-            var endIsOk = _cmp.Compare(_cursor.CurrentKey, _endKey) - (_flags & Flags.EndInclusive) < 0;
+
+            var endIsOk =
+                // end is checked by count
+                _steps > 0
+                // NB First check of EndOk(_cursor.CurrentKey) is done above. This is the remaining part.
+                || _cmp.Compare(_cursor.CurrentKey, _endKey) - (_flags & Flags.EndInclusive) < 0;
 
             if (endIsOk)
             {
-                if (_isWindow && ++_steps == _count)
+                // MF sets _steps to 1
+                // increment steps only after MF
+                if (_steps > 0 && ++_steps == _count)
                 {
                     // next MN will return false without trying to move beyond the end and subsequent recovery with MP
                     _flags |= Flags.AtEnd;

@@ -398,6 +398,8 @@ namespace Spreads.Cursors.Internal
             MapSum
         }
 
+        private KeyComparer<TKey> _cmp;
+
         private readonly LimitType _limitType;
 
         //private Func<KeyValuePair<TKey, TValue>, KeyValuePair<TKey, TValue>, bool> _whilePredicate;
@@ -415,8 +417,9 @@ namespace Spreads.Cursors.Internal
 
         private TOnlineOp _opState;
 
-        public SpanOp(int count, bool allowIncomplete, TOnlineOp opState)
+        public SpanOp(int count, bool allowIncomplete, TOnlineOp opState, KeyComparer<TKey> comparer)
         {
+            _cmp = comparer;
             _limitType = LimitType.Count;
 
             _count = count;
@@ -429,8 +432,9 @@ namespace Spreads.Cursors.Internal
             _opState = opState;
         }
 
-        public SpanOp(TKey width, Lookup lookup, TOnlineOp opState)
+        public SpanOp(TKey width, Lookup lookup, TOnlineOp opState, KeyComparer<TKey> comparer)
         {
+            _cmp = comparer;
             _limitType = LimitType.Width;
 
             _count = 0;
@@ -493,11 +497,11 @@ namespace Spreads.Cursors.Internal
             _expand = int.MaxValue;
         }
 
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private (bool isInvalid, int expand) IsInvalidWidth(ref TCursor lagged, ref TCursor current)
         {
             var diff = default(SubtractOp<TKey>).Apply(current.CurrentKey, lagged.CurrentKey);
-            var cmp = current.Comparer.Compare(diff, _width);
+            var cmp = _cmp.Compare(diff, _width);
             if (cmp > 0)
             {
                 // Diff is too big, should shrink if invalid
@@ -527,7 +531,7 @@ namespace Spreads.Cursors.Internal
             return (false, 0);
         }
 
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Expand(ref TCursor left, ref TCursor right)
         {
             if (_limitType == LimitType.Count)

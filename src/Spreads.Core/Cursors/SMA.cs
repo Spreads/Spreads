@@ -52,7 +52,7 @@ namespace Spreads
             var op = new SumAvgOnlineOp<TKey, TValue, TCursor>();
             var spanOp =
                 new SpanOp<TKey, TValue, TValue,
-                    TCursor, SumAvgOnlineOp<TKey, TValue, TCursor>>(width, allowIncomplete, op);
+                    TCursor, SumAvgOnlineOp<TKey, TValue, TCursor>>(width, allowIncomplete, op, cursor.Comparer);
             _cursor =
                 new SpanOpImpl<TKey, TValue,
                     TValue,
@@ -67,7 +67,7 @@ namespace Spreads
             var op = new SumAvgOnlineOp<TKey, TValue, TCursor>();
             var spanOp =
                 new SpanOp<TKey, TValue, TValue,
-                    TCursor, SumAvgOnlineOp<TKey, TValue, TCursor>>(width, lookup, op);
+                    TCursor, SumAvgOnlineOp<TKey, TValue, TCursor>>(width, lookup, op, cursor.Comparer);
             _cursor =
                 new SpanOpImpl<TKey, TValue,
                     TValue,

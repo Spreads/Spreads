@@ -50,7 +50,7 @@ namespace Spreads
             var op = new WindowOnlineOp<TKey, TValue, TCursor>();
             var spanOp =
                 new SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>,
-                    TCursor, WindowOnlineOp<TKey, TValue, TCursor>>(count, allowIncomplete, op);
+                    TCursor, WindowOnlineOp<TKey, TValue, TCursor>>(count, allowIncomplete, op, cursor.Comparer);
             _cursor =
                 new SpanOpImpl<TKey, TValue,
                     Range<TKey, TValue, TCursor>,
@@ -65,7 +65,7 @@ namespace Spreads
             var op = new WindowOnlineOp<TKey, TValue, TCursor>();
             var spanOp =
                 new SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>,
-                    TCursor, WindowOnlineOp<TKey, TValue, TCursor>>(width, lookup, op);
+                    TCursor, WindowOnlineOp<TKey, TValue, TCursor>>(width, lookup, op, cursor.Comparer);
             _cursor =
                 new SpanOpImpl<TKey, TValue,
                     Range<TKey, TValue, TCursor>,

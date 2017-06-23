@@ -20,8 +20,8 @@ namespace Spreads.Algorithms
         [ThreadStatic]
         private static int[] _ranked;
 
-        private static KVPComparer<T, int> _kvComparer;
-        private static KeyComparer<T> _comparer;
+        private static KVPComparer<T, int> _kvComparer = new KVPComparer<T, int>(KeyComparer<T>.Default, KeyComparer<int>.Default);
+        private static KeyComparer<T> _comparer = KeyComparer<T>.Default;
 
         /// <summary>
         /// Simple ascending zero-based rank
@@ -30,20 +30,15 @@ namespace Spreads.Algorithms
         public static ArraySegment<int> SortRank(ArraySegment<T> values, KeyComparer<T> comparer = default(KeyComparer<T>))
         {
             KVPComparer<T, int> kvComparer;
-            if (_comparer.Equals(KeyComparer<T>.Default))
+            if (EqualityComparer<KeyComparer<T>>.Default.Equals(comparer, default(KeyComparer<T>)))
             {
-                _comparer = comparer.Equals(KeyComparer<T>.Default) ?KeyComparer<T>.Default : comparer;
-                _kvComparer = new KVPComparer<T, int>(_comparer, KeyComparer<int>.Default);
                 kvComparer = _kvComparer;
-            }
-            else if (!comparer.Equals(KeyComparer<T>.Default) && !comparer.Equals(_comparer))
-            {
-                kvComparer = new KVPComparer<T, int>(comparer);
             }
             else
             {
-                kvComparer = _kvComparer;
+                kvComparer = new KVPComparer<T, int>(comparer, KeyComparer<int>.Default);
             }
+
             if (_sorted == null || values.Count > _sorted.Length)
             {
                 _sorted = new KeyValuePair<T, int>[values.Count];

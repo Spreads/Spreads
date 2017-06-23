@@ -14,7 +14,7 @@ namespace Spreads
     /// Fast IComparer implementation.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public struct KeyComparer<T> : IKeyComparer<T>, IEqualityComparer<T>, IEquatable<KeyComparer<T>>
+    public sealed class KeyComparer<T> : IKeyComparer<T>, IEqualityComparer<T>, IEquatable<KeyComparer<T>>
     {
         private static readonly bool IsIComparable = typeof(IComparable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
         private readonly IComparer<T> _comparer;
@@ -23,7 +23,7 @@ namespace Spreads
         /// <summary>
         /// Create a new KeyComparer instance.
         /// </summary>
-        //private KeyComparer() : this(null) { }
+        private KeyComparer() : this(null) { }
 
         private KeyComparer(IComparer<T> comparer)
         {
@@ -181,43 +181,43 @@ namespace Spreads
                 return _comparer.Compare(x, y);
             }
 
-            if (typeof(T) == typeof(DateTime))
-            {
-                var x1 = (DateTime)(object)(x);
-                var y1 = (DateTime)(object)(y);
+            //if (typeof(T) == typeof(DateTime))
+            //{
+            //    var x1 = (DateTime)(object)(x);
+            //    var y1 = (DateTime)(object)(y);
 
-                return x1.CompareTo(y1);
-            }
+            //    return x1.CompareTo(y1);
+            //}
 
-            if (typeof(T) == typeof(long))
-            {
-                var x1 = (long)(object)(x);
-                var y1 = (long)(object)(y);
+            //if (typeof(T) == typeof(long))
+            //{
+            //    var x1 = (long)(object)(x);
+            //    var y1 = (long)(object)(y);
 
-                return x1.CompareTo(y1);
-            }
+            //    return x1.CompareTo(y1);
+            //}
 
-            if (typeof(T) == typeof(ulong))
-            {
-                var x1 = (ulong)(object)(x);
-                var y1 = (ulong)(object)(y);
-                return x1.CompareTo(y1);
-            }
+            //if (typeof(T) == typeof(ulong))
+            //{
+            //    var x1 = (ulong)(object)(x);
+            //    var y1 = (ulong)(object)(y);
+            //    return x1.CompareTo(y1);
+            //}
 
-            if (typeof(T) == typeof(int))
-            {
-                var x1 = (int)(object)(x);
-                var y1 = (int)(object)(y);
-                return x1.CompareTo(y1);
-            }
+            //if (typeof(T) == typeof(int))
+            //{
+            //    var x1 = (int)(object)(x);
+            //    var y1 = (int)(object)(y);
+            //    return x1.CompareTo(y1);
+            //}
 
-            if (typeof(T) == typeof(uint))
-            {
-                var x1 = (uint)(object)(x);
-                var y1 = (uint)(object)(y);
+            //if (typeof(T) == typeof(uint))
+            //{
+            //    var x1 = (uint)(object)(x);
+            //    var y1 = (uint)(object)(y);
 
-                return x1.CompareTo(y1);
-            }
+            //    return x1.CompareTo(y1);
+            //}
 
             // NB all primitive types are IComparable, all custom types could be easily made such
             // This optimization using Spreads.Unsafe package works for any type that implements 
@@ -229,6 +229,13 @@ namespace Spreads
                 return Unsafe.CompareToConstrained(ref x, ref y);
             }
 
+            return CompareSlow(x, y);
+        }
+
+        
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private int CompareSlow(T x, T y)
+        {
             return Comparer<T>.Default.Compare(x, y);
         }
 

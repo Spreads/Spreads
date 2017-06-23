@@ -98,27 +98,27 @@ namespace Spreads.Core.Tests.Cursors
             //}
             //Assert.AreEqual(expected, actual);
 
-            actual = 0;
-            using (Benchmark.Run("LINQ", count * 2))
-            {
-                var linq = sm1.Zip(sm2, (l, r) => l.Value + r.Value);
-                foreach (var d in linq)
-                {
-                    actual += d;
-                }
-            }
-            Assert.AreEqual(expected, actual);
+            //actual = 0;
+            //using (Benchmark.Run("LINQ", count * 2))
+            //{
+            //    var linq = sm1.Zip(sm2, (l, r) => l.Value + r.Value);
+            //    foreach (var d in linq)
+            //    {
+            //        actual += d;
+            //    }
+            //}
+            //Assert.AreEqual(expected, actual);
 
-            actual = 0;
-            using (Benchmark.Run("Deedle", count * 2))
-            {
-                var sum = ds1 + ds2;
-                foreach (var v in sum.Values) // ds1.ZipInner(ds2).Values)
-                {
-                    actual += v; //.Item1 + v.Item2;
-                }
-            }
-            Assert.AreEqual(expected, actual);
+            //actual = 0;
+            //using (Benchmark.Run("Deedle", count * 2))
+            //{
+            //    var sum = ds1 + ds2;
+            //    foreach (var v in sum.Values) // ds1.ZipInner(ds2).Values)
+            //    {
+            //        actual += v; //.Item1 + v.Item2;
+            //    }
+            //}
+            //Assert.AreEqual(expected, actual);
         }
 
         [Test]

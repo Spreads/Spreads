@@ -20,7 +20,9 @@ namespace Spreads.Core.Tests.Collections
 
             var sl = new SortedList<int, int>();
             var sm = new SortedMap<int, int>();
+            sm.IsSynchronized = false;
             var scm = new SortedChunkedMap<int, int>();
+            scm.IsSynchronized = false;
 
             for (int i = 0; i < count; i++)
             {
@@ -41,22 +43,28 @@ namespace Spreads.Core.Tests.Collections
                 //sum = 0L;
                 //using (Benchmark.Run("SL", count))
                 //{
-                //    foreach (var item in sl)
+                //    using (var c = sl.GetEnumerator())
                 //    {
-                //        sum += item.Value;
+                //        while (c.MoveNext())
+                //        {
+                //            sum += c.Current.Value;
+                //        }
                 //    }
                 //}
                 //Assert.True(sum > 0);
 
-                //sum = 0L;
-                //using (Benchmark.Run("SM", count))
-                //{
-                //    foreach (var item in sm)
-                //    {
-                //        sum += item.Value;
-                //    }
-                //}
-                //Assert.True(sum > 0);
+                sum = 0L;
+                using (Benchmark.Run("SM", count))
+                {
+                    using (var c = sm.GetEnumerator())
+                    {
+                        while (c.MoveNext())
+                        {
+                            sum += c.Current.Value;
+                        }
+                    }
+                }
+                Assert.True(sum > 0);
 
                 //sum = 0L;
                 //using (Benchmark.Run("ISM", count))
@@ -68,18 +76,18 @@ namespace Spreads.Core.Tests.Collections
                 //}
                 //Assert.True(sum > 0);
 
-                sum = 0L;
-                using (Benchmark.Run("SCM", count))
-                {
-                    using (var c = scm.GetEnumerator())
-                    {
-                        while (c.MoveNext())
-                        {
-                            sum += c.CurrentValue;
-                        }
-                    }
-                }
-                Assert.True(sum > 0);
+                //sum = 0L;
+                //using (Benchmark.Run("SCM", count))
+                //{
+                //    using (var c = scm.GetEnumerator())
+                //    {
+                //        while (c.MoveNext())
+                //        {
+                //            sum += c.Current.Value;
+                //        }
+                //    }
+                //}
+                //Assert.True(sum > 0);
             }
 
             Benchmark.Dump();

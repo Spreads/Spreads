@@ -488,7 +488,7 @@ namespace Spreads.Core.Tests.Cursors.Internal
                     SpanOp<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>,
                     SortedMapCursor<int, double>
                 >(sm.GetEnumerator(),
-                    new SpanOp<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>(width, false, new SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>())).Source;
+                    new SpanOp<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>(width, false, new SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>(), sm.comparer)).Source;
 
             var extensionSma = sm.SMA(width);
 
@@ -612,7 +612,7 @@ namespace Spreads.Core.Tests.Cursors.Internal
             var spanOpCombined =
                 new SpanOp<int, double, Range<int, double, SortedMapCursor<int, double>>,
                     SortedMapCursor<int, double>, WindowOnlineOp<int, double, SortedMapCursor<int, double>>>(20, false,
-                    op);
+                    op, sm.comparer);
             var windowCombined =
                 new SpanOpImpl<int,
                     double,

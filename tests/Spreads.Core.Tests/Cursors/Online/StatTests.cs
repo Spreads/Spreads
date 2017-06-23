@@ -82,9 +82,10 @@ namespace Spreads.Core.Tests.Cursors.Online
         [Test, Ignore]
         public void Stat2StDevBenchmark()
         {
+            var comparer = KeyComparer<int>.Default;
             var count = 1_000_000;
             var width = 20;
-            var sm = new SortedMap<int, double>(count);
+            var sm = new SortedMap<int, double>(count, comparer);
             sm.Add(0, 0);
             for (int i = 2; i <= count; i++)
             {
@@ -163,9 +164,6 @@ namespace Spreads.Core.Tests.Cursors.Online
                     }
                 }
                 Assert.True(sum != 0);
-
-
-
 
             }
 

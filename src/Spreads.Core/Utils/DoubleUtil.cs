@@ -82,7 +82,7 @@ namespace Spreads.Utils
             return GetDoubleDynamic(value);
         }
 
-
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private static double GetDoubleDynamic<TValue>(TValue value)
         {
             if (value is double)
