@@ -45,6 +45,10 @@ namespace Spreads
 
         internal Window(TCursor cursor, int count, bool allowIncomplete = false) : this()
         {
+            if (cursor.Source.IsIndexed)
+            {
+                throw new NotSupportedException("Window is not supported for indexed series, only for sorted ones.");
+            }
             if (count <= 0) throw new ArgumentOutOfRangeException(nameof(count));
 
             var op = new WindowOnlineOp<TKey, TValue, TCursor>();
@@ -62,6 +66,10 @@ namespace Spreads
 
         internal Window(TCursor cursor, TKey width, Lookup lookup) : this()
         {
+            if (cursor.Source.IsIndexed)
+            {
+                throw new NotSupportedException("Window is not supported for indexed series, only for sorted ones.");
+            }
             var op = new WindowOnlineOp<TKey, TValue, TCursor>();
             var spanOp =
                 new SpanOp<TKey, TValue, Range<TKey, TValue, TCursor>,

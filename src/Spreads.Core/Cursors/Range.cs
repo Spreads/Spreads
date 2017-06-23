@@ -80,14 +80,14 @@ namespace Spreads
             Opt<TKey> startKey, Opt<TKey> endKey,
             bool startInclusive = true, bool endInclusive = true,
             bool isWindow = false,
-            int count = -1, KeyComparer<TKey> comparer = default(KeyComparer<TKey>)) : this()
+            int count = -1) : this()
         {
-            if (cursor.Source.IsIndexed)
+            if (!isWindow && cursor.Source.IsIndexed)
             {
                 throw new NotSupportedException("RangeSeries is not supported for indexed series, only for sorted ones.");
             }
 
-            _cmp = comparer ?? cursor.Comparer;
+            _cmp = cursor.Comparer;
 
             if (isWindow &&
                 (startKey.IsMissing || endKey.IsMissing || !startInclusive || !endInclusive
@@ -344,6 +344,8 @@ namespace Spreads
             {
                 _steps = 1;
             }
+
+            // Window is already positioned at start and it's inner cursor is in moving state
             if (State != CursorState.Moving && _isWindow)
             {
                 Debug.Assert(_cmp.Compare(_cursor.CurrentKey, _startKey) == 0);
