@@ -26,7 +26,7 @@ namespace Spreads.DataTypes
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 24)]
     [Serialization(BlittableSize = 24)]
     [DataContract]
-    public struct Tick : IEquatable<Tick>, ITick, IDiffable<Tick>
+    public struct Tick : IEquatable<Tick>, ITick, IDelta<Tick>
     {
         private long _dateTimeUtcTicks;
         private Quote _quote;

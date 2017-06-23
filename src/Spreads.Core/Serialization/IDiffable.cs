@@ -11,19 +11,19 @@ namespace Spreads.Serialization
     /// Floating-point values could loose precision.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    [Obsolete("TODO Use IDelta interface from Spreads.Unsafe")]
-    public interface IDiffable<T>
-    {
-        /// <summary>
-        /// Get delta.
-        /// </summary>
-        T GetDelta(T next);
+    //[Obsolete("TODO Use IDelta interface from Spreads.Unsafe")]
+    //public interface IDiffable<T>
+    //{
+    //    /// <summary>
+    //    /// Get delta.
+    //    /// </summary>
+    //    T GetDelta(T next);
 
-        /// <summary>
-        /// Add delta.
-        /// </summary>
-        T AddDelta(T delta);
-    }
+    //    /// <summary>
+    //    /// Add delta.
+    //    /// </summary>
+    //    T AddDelta(T delta);
+    //}
 
     // NB to force diffing primitive types, one could use a struct like this
     // overheads are minimal
@@ -32,43 +32,43 @@ namespace Spreads.Serialization
     /// Diffable wrapper for decimal type
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = 16)]
-    internal struct DecimalDiffable : IDiffable<DecimalDiffable>
+    internal struct DecimalDelta : IDelta<DecimalDelta>
     {
         public decimal Value;
 
-        public DecimalDiffable(decimal value)
+        public DecimalDelta(decimal value)
         {
             Value = value;
         }
 
-        public DecimalDiffable AddDelta(DecimalDiffable delta)
+        public DecimalDelta AddDelta(DecimalDelta delta)
         {
-            return new DecimalDiffable(this.Value + delta.Value);
+            return new DecimalDelta(this.Value + delta.Value);
         }
 
-        public DecimalDiffable GetDelta(DecimalDiffable next)
+        public DecimalDelta GetDelta(DecimalDelta next)
         {
-            return new DecimalDiffable(next.Value - this.Value);
+            return new DecimalDelta(next.Value - this.Value);
         }
 
-        public static implicit operator DecimalDiffable(decimal value)
+        public static implicit operator DecimalDelta(decimal value)
         {
-            return new DecimalDiffable(value);
+            return new DecimalDelta(value);
         }
 
-        public static implicit operator decimal(DecimalDiffable value)
+        public static implicit operator decimal(DecimalDelta value)
         {
             return value.Value;
         }
 
-        public static DecimalDiffable[] ToDiffableArray(decimal[] decimalArray)
+        public static DecimalDelta[] ToDeltaArray(decimal[] decimalArray)
         {
-            return Unsafe.As<DecimalDiffable[]>(decimalArray);
+            return Unsafe.As<DecimalDelta[]>(decimalArray);
         }
 
-        public static decimal[] ToDecimalArray(DecimalDiffable[] diffableArray)
+        public static decimal[] ToDecimalArray(DecimalDelta[] deltaArray)
         {
-            return Unsafe.As<decimal[]>(diffableArray);
+            return Unsafe.As<decimal[]>(deltaArray);
         }
     }
 }

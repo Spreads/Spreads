@@ -17,7 +17,7 @@ namespace Spreads.DataTypes
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 24)]
     [Serialization(BlittableSize = 24)]
     [DataContract]
-    public struct OHLCV : IDiffable<OHLCV>
+    public struct OHLCV : IDelta<OHLCV>
     {
         // Uses 8 + 4*4 = 24 instead of 4*16 + 4 = 68 bytes for decimals + int
         // NB do not change field order

@@ -40,6 +40,8 @@ namespace Spreads.Serialization
     /// <typeparam name="TElement"></typeparam>
     internal class CompressedArrayBinaryConverter<TElement> : ICompressedArrayBinaryConverter<TElement[]>
     {
+        private static readonly bool IsIDelta = typeof(IDelta<TElement>).GetTypeInfo().IsAssignableFrom(typeof(TElement));
+
         internal static CompressedArrayBinaryConverter<TElement> Instance =
             new CompressedArrayBinaryConverter<TElement>();
 
@@ -122,10 +124,11 @@ namespace Spreads.Serialization
                     temporaryStream.Dispose();
                     return checked((int)len);
                 }
-                bool isDiffable = false;
                 var compressionMethod = compression == CompressionMethod.DefaultOrNone
                     ? BloscSettings.defaultCompressionMethod
                     : (compression == CompressionMethod.LZ4 ? "lz4" : "zstd");
+
+                var isDelta = IsIDelta;
 
                 var position = 8;
                 if (valueCount > 0)
@@ -135,13 +138,34 @@ namespace Spreads.Serialization
                     {
                         if (typeof(TElement) == typeof(DateTime))
                         {
+                            isDelta = true;
+                            Trace.Assert(ItemSize == 8);
                             var buffer = BufferPool<byte>.Rent(valueCount * 8);
                             var dtArray = (DateTime[])(object)value;
+                            var first = dtArray[valueOffset];
+
+                            // NB For DateTime we calculate delta not from the first but
+                            // from the previous value. This is a special case for the 
+                            // fact that DT[] is usually increasing by a similar (regular) step
+                            // and the deltas are always positive, small and close to each other.
+                            // In contrast, Price/Decimal could fluctuate in a small range
+                            // and delta from previous could often change its sign, which
+                            // leads to a very different bits and significantly reduces
+                            // the Blosc shuffling benefits. For stationary time series 
+                            // deltas from the first value are also stationary and their sign
+                            // changes less frequently that the sign of deltas from previous.
+
+                            var previousLong = (long*)&first;
                             fixed (byte* srcPtr = &buffer[0])
                             {
-                                for (var i = 0; i < valueCount; i++)
+                                Unsafe.WriteUnaligned(srcPtr, *previousLong);
+                                for (var i = 1; i < valueCount; i++)
                                 {
-                                    *(DateTime*)(srcPtr + i * 8) = dtArray[i + valueOffset];
+                                    var current = dtArray[i + valueOffset];
+                                    var currentLong = (long*)(&current);
+                                    var diff = currentLong - previousLong;
+                                    Unsafe.WriteUnaligned(srcPtr + i * ItemSize, diff);
+                                    previousLong = currentLong;
                                 }
                                 compressedSize = BloscMethods.blosc_compress_ctx(
                                     new IntPtr(9), // max compression 9
@@ -158,22 +182,18 @@ namespace Spreads.Serialization
                             }
                             BufferPool<byte>.Return(buffer);
                         }
-                        else if (value[0] is IDiffable<TElement> diffableFirst)
+                        else if (IsIDelta)
                         {
-                            isDiffable = true;
-                            // TODO (!) this is inefficient because of interface calls, should use Spreads.Unsafe
-                            // however, there is only a single pattern match with IDiffable boxing so allocations are not an issue here
-                            var first = value[0];
+                            var first = value[valueOffset];
                             var buffer = BufferPool<byte>.Rent(valueCount * ItemSize);
 
                             fixed (byte* srcPtr = &buffer[0])
                             {
-                                Unsafe.Write(srcPtr, first);
+                                Unsafe.WriteUnaligned(srcPtr, first);
                                 for (var i = 1; i < valueCount; i++)
                                 {
-                                    var current = value[i];
-                                    var diff = diffableFirst.GetDelta(current);
-                                    Unsafe.Write(srcPtr + i * ItemSize, diff);
+                                    var diff = Unsafe.GetDeltaConstrained(ref first, ref value[valueOffset + i]);
+                                    Unsafe.WriteUnaligned(srcPtr + i * ItemSize, diff);
                                 }
                                 compressedSize = BloscMethods.blosc_compress_ctx(
                                     new IntPtr(9), // max compression 9
@@ -243,7 +263,7 @@ namespace Spreads.Serialization
                 // length
                 Marshal.WriteInt32(ptr, position);
                 // version & flags
-                Marshal.WriteByte(ptr + 4, (byte)((Version << 4) | (isDiffable ? 0b0000_0011 : 0b0000_0001)));
+                Marshal.WriteByte(ptr + 4, (byte)((Version << 4) | (isDelta ? 0b0000_0011 : 0b0000_0001)));
                 return position;
             }
             finally
@@ -258,9 +278,9 @@ namespace Spreads.Serialization
             var totalSize = Marshal.ReadInt32(ptr);
             var versionFlag = Marshal.ReadByte(ptr + 4);
             var version = (byte)(versionFlag >> 4);
-            var isDiffable = (versionFlag & 0b0000_0010) != 0;
+            var isDelta = (versionFlag & 0b0000_0010) != 0;
             var isCompressed = (versionFlag & 0b0000_0001) != 0;
-            if (!isCompressed) throw new InvalidOperationException("Wrong compressed flag. CompressedArrayBinaryConverter.Read works only with compressed methods.");
+            if (!isCompressed) throw new InvalidOperationException("Wrong compressed flag. CompressedArrayBinaryConverter.Read works only with compressed data.");
 
             if (version != Version) throw new NotSupportedException($"CompressedBinaryConverter work only with version {Version}");
             if (ItemSize <= 0)
@@ -319,6 +339,7 @@ namespace Spreads.Serialization
                     {
                         var buffer = BufferPool<byte>.Rent(arraySize * 8);
                         var dtArray = new DateTime[arraySize];
+
                         fixed (byte* tgtPtr = &buffer[0])
                         {
                             var destination = (IntPtr)tgtPtr;
@@ -326,16 +347,40 @@ namespace Spreads.Serialization
                                 source, destination, new UIntPtr((uint)nbytes), BloscMethods.ProcessorCount);
                             if (decompSize <= 0) throw new ArgumentException("Invalid compressed input");
                             Debug.Assert(decompSize == nbytes);
-                            for (var i = 0; i < arraySize; i++)
+
+                            // NB a lot of data was stored without diff for DateTime, 
+                            // should just check the flag
+                            if (isDelta)
                             {
-                                dtArray[i] = *(DateTime*)(destination + i * 8);
+                                var previousLong = *(long*)destination;
+                                var first = *(DateTime*)&previousLong;
+                                dtArray[0] = first;
+                                for (var i = 1; i < arraySize; i++)
+                                {
+                                    var deltaLong = *(long*)(destination + i * 8);
+                                    var currentLong = previousLong + deltaLong;
+                                    dtArray[i] = *(DateTime*)&currentLong;
+                                    previousLong = currentLong;
+                                }
+                            }
+                            else
+                            {
+                                for (var i = 0; i < arraySize; i++)
+                                {
+                                    dtArray[i] = *(DateTime*)(destination + i * 8);
+                                }
                             }
                         }
                         value = (TElement[])(object)(dtArray);
                         BufferPool<byte>.Return(buffer);
                     }
-                    else if (isDiffable && typeof(IDiffable<TElement>).GetTypeInfo().IsAssignableFrom(typeof(TElement).GetTypeInfo()))
+                    else if (isDelta)
                     {
+                        if (!IsIDelta)
+                        {
+                            ThrowHelper.ThrowInvalidOperationException("Delta flag is set for a type that does not implement IDelta interface.");
+                        }
+
                         var buffer = BufferPool<byte>.Rent(arraySize * ItemSize);
                         var targetArray = BufferPool<TElement>.Rent(arraySize);
 
@@ -347,17 +392,16 @@ namespace Spreads.Serialization
                             if (decompSize <= 0) throw new ArgumentException("Invalid compressed input");
                             Debug.Assert(decompSize == nbytes);
 
-                            var first = Unsafe.Read<TElement>(destination);
-                            var diffableFirst = (IDiffable<TElement>)first;
+                            var first = Unsafe.ReadUnaligned<TElement>(destination);
                             targetArray[0] = first;
                             for (var i = 1; i < arraySize; i++)
                             {
                                 var currentDelta = Unsafe.Read<TElement>(destination + i * ItemSize);
-                                var current = diffableFirst.AddDelta(currentDelta);
+                                var current = Unsafe.AddDeltaConstrained(ref first, ref currentDelta);
                                 targetArray[i] = current;
                             }
                         }
-                        value = targetArray; // (<TElement>)(object)(new ArraySegment<TElement>(targetArray, 0, arraySize));
+                        value = targetArray;
                         BufferPool<byte>.Return(buffer);
                     }
                     else

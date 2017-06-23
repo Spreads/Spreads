@@ -31,7 +31,7 @@ namespace Spreads.DataTypes
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 16)]
     [Serialization(BlittableSize = 16)]
     [DataContract]
-    public struct Quote : IEquatable<Quote>, IQuote, IDiffable<Quote>
+    public struct Quote : IEquatable<Quote>, IQuote, IDelta<Quote>
     {
         private readonly Price _price;
         private readonly int _volume;

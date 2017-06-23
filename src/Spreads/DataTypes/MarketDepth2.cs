@@ -18,7 +18,7 @@ namespace Spreads.DataTypes
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 64)]
     [Serialization(BlittableSize = 64)]
     [DataContract(Name = "MarketDepth2")]
-    public struct MarketDepth2 : IDiffable<MarketDepth2>
+    public struct MarketDepth2 : IDelta<MarketDepth2>
     {
         internal Quote _largeAsk;
         internal Quote _smallAsk;

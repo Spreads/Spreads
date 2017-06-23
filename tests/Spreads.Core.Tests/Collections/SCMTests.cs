@@ -40,18 +40,18 @@ namespace Spreads.Core.Tests.Collections
 
             for (int r = 0; r < 20; r++)
             {
-                //sum = 0L;
-                //using (Benchmark.Run("SL", count))
-                //{
-                //    using (var c = sl.GetEnumerator())
-                //    {
-                //        while (c.MoveNext())
-                //        {
-                //            sum += c.Current.Value;
-                //        }
-                //    }
-                //}
-                //Assert.True(sum > 0);
+                sum = 0L;
+                using (Benchmark.Run("SL", count))
+                {
+                    using (var c = sl.GetEnumerator())
+                    {
+                        while (c.MoveNext())
+                        {
+                            sum += c.Current.Value;
+                        }
+                    }
+                }
+                Assert.True(sum > 0);
 
                 sum = 0L;
                 using (Benchmark.Run("SM", count))
@@ -76,18 +76,18 @@ namespace Spreads.Core.Tests.Collections
                 //}
                 //Assert.True(sum > 0);
 
-                //sum = 0L;
-                //using (Benchmark.Run("SCM", count))
-                //{
-                //    using (var c = scm.GetEnumerator())
-                //    {
-                //        while (c.MoveNext())
-                //        {
-                //            sum += c.Current.Value;
-                //        }
-                //    }
-                //}
-                //Assert.True(sum > 0);
+                sum = 0L;
+                using (Benchmark.Run("SCM", count))
+                {
+                    using (var c = scm.GetEnumerator())
+                    {
+                        while (c.MoveNext())
+                        {
+                            sum += c.Current.Value;
+                        }
+                    }
+                }
+                Assert.True(sum > 0);
             }
 
             Benchmark.Dump();
