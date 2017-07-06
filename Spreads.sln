@@ -15,7 +15,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{BF60
 		build.fsx = build.fsx
 		build.sh = build.sh
 		build\common.props = build\common.props
-		global.json = global.json
 		LICENSE.Dependencies.txt = LICENSE.Dependencies.txt
 		LICENSE.txt = LICENSE.txt
 		NuGet.config = NuGet.config
@@ -58,7 +57,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Core.Tests", "tests
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dotnetcore", "dotnetcore", "{9AB0675E-1251-472E-9280-45D9F56F4768}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Core.Run", "tests\Spreads.Core.Run\Spreads.Core.Run.csproj", "{C221D713-EB19-4B00-A71B-E94BE05554E4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Spreads.Core.Run", "tests\Spreads.Core.Run\Spreads.Core.Run.csproj", "{C221D713-EB19-4B00-A71B-E94BE05554E4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{4FA14F38-8CC5-4649-855E-ECB3C0794560}"
 	ProjectSection(SolutionItems) = preProject
