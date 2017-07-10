@@ -4,6 +4,7 @@
 
 using Spreads.Utils;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -22,14 +23,37 @@ namespace Spreads.Buffers
         internal readonly IntPtr _data;
 
         /// <summary>
+        /// Create a DirectBuffer without argument checks.
+        /// </summary>
+        /// <param name="length"></param>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static DirectBuffer CreateWithoutChecks(long length, IntPtr data)
+        {
+            return new DirectBuffer(length, data, true);
+        }
+        private DirectBuffer(long length, IntPtr data, bool nochecks = true)
+        {
+            this._data = data;
+            this._length = length;
+        }
+
+        /// <summary>
         /// Attach a view to an unmanaged buffer owned by external code
         /// </summary>
         /// <param name="data">Unmanaged byte buffer</param>
         /// <param name="length">Length of the buffer</param>
         public DirectBuffer(long length, IntPtr data)
         {
-            if (data == null) throw new ArgumentNullException("data");
-            if (length <= 0) throw new ArgumentException("Buffer size must be > 0", "length");
+            if (data == IntPtr.Zero)
+            {
+                ThrowHelper.ThrowArgumentNullException("data");
+            }
+            if (length <= 0)
+            {
+                ThrowHelper.ThrowArgumentException("Buffer size must be > 0");
+            }
             this._data = data;
             this._length = length;
         }
@@ -99,11 +123,12 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Conditional("DEBUG")]
         private void Assert(long index, long length)
         {
             if ((ulong)index + (ulong)length > (ulong)_length)
             {
-                throw new ArgumentException("Not enough space");
+                ThrowHelper.ThrowArgumentException("Not enough space");
             }
         }
 
@@ -527,7 +552,10 @@ namespace Spreads.Buffers
         public int WriteBytes(long index, byte[] src, int srcOffset, int len)
         {
             Assert(index, len);
-            if (src.Length < srcOffset + len) throw new ArgumentOutOfRangeException();
+            if (src.Length < srcOffset + len)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+            }
             //int count = Math.Min(len, (int)(this._length - index));
             Marshal.Copy(src, srcOffset, new IntPtr(_data.ToInt64() + index), len);
 
@@ -557,7 +585,10 @@ namespace Spreads.Buffers
         public void WriteBytes(long index, DirectBuffer src, long srcOffset, long length)
         {
             Assert(index, length);
-            if (src._length < srcOffset + length) throw new ArgumentOutOfRangeException();
+            if (src._length < srcOffset + length)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+            }
 
             var source = new IntPtr(src.Data.ToInt64() + srcOffset);
             var destination = _data.ToInt64() + index;
@@ -606,7 +637,7 @@ namespace Spreads.Buffers
         {
             if (0 != (_data.ToInt64() & (alignment - 1)))
             {
-                throw new InvalidOperationException(
+                ThrowHelper.ThrowInvalidOperationException(
                     $"DirectBuffer is not correctly aligned: addressOffset={_data.ToInt64():D} in not divisible by {alignment:D}");
             }
         }

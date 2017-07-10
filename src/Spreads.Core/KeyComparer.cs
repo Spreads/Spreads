@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Contracts;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -129,6 +130,7 @@ namespace Spreads
 
 
         /// <inheritdoc />
+        [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Add(T value, long diff)
         {
@@ -173,6 +175,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
+        [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Compare(T x, T y)
         {
@@ -234,7 +237,7 @@ namespace Spreads
 
         
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private int CompareSlow(T x, T y)
+        private static int CompareSlow(T x, T y)
         {
             return Comparer<T>.Default.Compare(x, y);
         }
@@ -242,6 +245,7 @@ namespace Spreads
         /// <summary>
         /// Returns Int64 distance between two values.
         /// </summary>
+        [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long Diff(T x, T y)
         {
@@ -293,6 +297,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [Pure]
         public bool Equals(T x, T y)
         {
 

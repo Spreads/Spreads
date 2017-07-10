@@ -1035,5 +1035,22 @@ namespace Spreads.Core.Tests
 
             Assert.False(Settings.DoAdditionalCorrectnessChecks);
         }
+
+        [Test, Ignore]
+        public void MeasureLoopTime()
+        {
+            var sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+
+            var sum = 0.0;
+            for (int i = 0; i < 100_000_000; i++)
+            {
+                sum += i * (sum + 1);
+            }
+
+            sw.Stop();
+            Console.WriteLine(sw.ElapsedMilliseconds);
+            
+        }
     }
 }
