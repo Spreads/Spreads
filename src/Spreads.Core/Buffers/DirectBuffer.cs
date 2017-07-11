@@ -592,7 +592,7 @@ namespace Spreads.Buffers
 
             var source = new IntPtr(src.Data.ToInt64() + srcOffset);
             var destination = _data.ToInt64() + index;
-            ByteUtil.MemoryCopy((byte*)destination, (byte*)source, checked((uint)length));
+            ByteUtil.VectorizedCopy((byte*)destination, (byte*)source, checked((uint)length));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

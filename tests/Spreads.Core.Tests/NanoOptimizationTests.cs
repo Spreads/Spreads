@@ -10,6 +10,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -1050,7 +1051,45 @@ namespace Spreads.Core.Tests
 
             sw.Stop();
             Console.WriteLine(sw.ElapsedMilliseconds);
-            
+
+        }
+
+
+        [Test, Ignore]
+        public void VectorizedCopy()
+        {
+            var size = 256;
+            var count = 10000000;
+
+            var src = (byte*)Marshal.AllocHGlobal(size);
+            var dst = (byte*)Marshal.AllocHGlobal(size);
+
+            Console.WriteLine(Vector<byte>.Count);
+
+            for (int r = 0; r < 20; r++)
+            {
+
+                using (Benchmark.Run("Vectorized", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        ByteUtil.VectorizedCopy(dst, src, (uint)size);
+                    }
+
+                }
+
+                using (Benchmark.Run("Simple", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        ByteUtil.MemoryCopy(dst, src, (uint)size);
+                    }
+
+                }
+            }
+
+            Benchmark.Dump($"Vectorized vs simple copy for Vector<byte>.Count={Vector<byte>.Count} and payload size of {size}");
+
         }
     }
 }

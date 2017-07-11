@@ -27,11 +27,12 @@ namespace Spreads.Core.Tests
             for (int i = 0; i < 20; i++)
             {
                 //new ArithmeticTests().CouldUseStructSeries();
-                new ZipCursorTests().CouldAddTwoSeriesWithSameKeysBenchmark();
+                //new ZipCursorTests().CouldAddTwoSeriesWithSameKeysBenchmark();
                 //new SCMTests().EnumerateScmSpeed();
                 //new VariantTests().CouldCreateAndReadInlinedVariantInALoop();
                 //new StatTests().Stat2StDevBenchmark();
                 //new FastDictionaryTests().CompareSCGAndFastDictionaryWithInts();
+                new NanoOptimizationTests().VectorizedCopy();
             }
 
             Console.WriteLine("Press enter to exit...");
