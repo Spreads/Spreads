@@ -83,7 +83,7 @@ namespace Spreads.Serialization
                         if (value.Length > 0)
                         {
                             var source = Marshal.UnsafeAddrOfPinnedArrayElement(value, 0);
-                            ByteUtil.MemoryCopy((byte*)(ptr + 8), (byte*)source, checked((uint)(ItemSize * value.Length)));
+                            ByteUtil.VectorizedCopy((byte*)(ptr + 8), (byte*)source, checked((uint)(ItemSize * value.Length)));
                         }
                         pinnedArray.Free();
 
@@ -121,7 +121,7 @@ namespace Spreads.Serialization
                         var pinnedArray = GCHandle.Alloc(array, GCHandleType.Pinned);
                         var destination = Marshal.UnsafeAddrOfPinnedArrayElement(array, 0);
                         var source = ptr + 8;
-                        ByteUtil.MemoryCopy((byte*)destination, (byte*)source, checked((uint)(totalSize - 8)));
+                        ByteUtil.VectorizedCopy((byte*)destination, (byte*)source, checked((uint)(totalSize - 8)));
                         value = array;
                         pinnedArray.Free();
                     }

@@ -83,7 +83,7 @@ namespace Spreads.Buffers
         /// </summary>
         public void Copy(IntPtr destination, long srcOffset, long length)
         {
-            ByteUtil.MemoryCopy((byte*)destination, (byte*)(_data.ToInt64() + srcOffset), (uint)length);
+            ByteUtil.VectorizedCopy((byte*)destination, (byte*)(_data.ToInt64() + srcOffset), (uint)length);
         }
 
         /// <summary>
@@ -99,7 +99,7 @@ namespace Spreads.Buffers
         /// </summary>
         public IDirectBuffer Move(IntPtr destination, long srcOffset, long length)
         {
-            ByteUtil.MemoryCopy((byte*)destination, (byte*)(_data.ToInt64() + srcOffset), (uint)length);
+            ByteUtil.VectorizedCopy((byte*)destination, (byte*)(_data.ToInt64() + srcOffset), (uint)length);
             return new DirectBuffer(length, destination);
         }
 

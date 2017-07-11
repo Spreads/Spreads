@@ -1062,7 +1062,9 @@ namespace Spreads.Core.Tests
                 var dst = (byte*)Marshal.AllocHGlobal(size);
                 var srcArr = new byte[size];
                 var dstArr = new byte[size];
-                var count = (int)(100_000_000 / Math.Log(size, 2));
+                var count = (int)(10_000_000 / Math.Log(size, 2));
+                var srcSpan = new Span<byte>(srcArr);
+                var dstSpan = new Span<byte>(srcArr);
 
                 for (int r = 0; r < 10; r++)
                 {
@@ -1111,6 +1113,14 @@ namespace Spreads.Core.Tests
                         for (int i = 0; i < count; i++)
                         {
                             Buffer.BlockCopy(srcArr, 0, dstArr, 0, size);
+                        }
+                    }
+
+                    using (Benchmark.Run("Span.CopyTo", count, true))
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            srcSpan.CopyTo(dstSpan);
                         }
                     }
 
