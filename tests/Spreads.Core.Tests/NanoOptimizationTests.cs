@@ -436,7 +436,6 @@ namespace Spreads.Core.Tests
                 }
             }
 
-
             using (Benchmark.Run("List", len * maxRounds / 10))
             {
                 sum = 0.0;
@@ -448,8 +447,6 @@ namespace Spreads.Core.Tests
                     }
                 }
             }
-
-
 
             using (Benchmark.Run("LockedList", len * maxRounds / 10))
             {
@@ -991,7 +988,7 @@ namespace Spreads.Core.Tests
                 {
                     for (int i = 1; i < count; i++)
                     {
-                        var c = comps[i]; // values[i - 1].CompareTo(values[i]); // 
+                        var c = comps[i]; // values[i - 1].CompareTo(values[i]); //
                         if (c >= 0) // values[i - 1] >= values[i]) //
                         {
                             sumIf += arr[1];
@@ -1008,8 +1005,8 @@ namespace Spreads.Core.Tests
                 {
                     for (int i = 1; i < count; i++)
                     {
-                        var c = comps[i]; // values[i - 1].CompareTo(values[i]); // 
-                        //bool b = c >= 0; // values[i - 1] >= values[i]; //  
+                        var c = comps[i]; // values[i - 1].CompareTo(values[i]); //
+                        //bool b = c >= 0; // values[i - 1] >= values[i]; //
                         var idx = 1 ^ (((uint)c) >> 31); // *((byte*)(&b));
                         sumUnsafe += arr[idx];
                     }
@@ -1019,9 +1016,7 @@ namespace Spreads.Core.Tests
             }
 
             Benchmark.Dump();
-
         }
-
 
         [Test]
         public void CouldSetStaticReadonlyFieldProgrammatically()
@@ -1029,10 +1024,9 @@ namespace Spreads.Core.Tests
             Settings.DoAdditionalCorrectnessChecks = false;
 
             // NB uncommenting this line will set the value to its default=true
-            // before the above property is assigned due to how static fields are 
+            // before the above property is assigned due to how static fields are
             // initialized
             //Assert.True(Settings.AdditionalCorrectnessChecks.DoChecks);
-
 
             Assert.False(Settings.DoAdditionalCorrectnessChecks);
         }
@@ -1051,45 +1045,80 @@ namespace Spreads.Core.Tests
 
             sw.Stop();
             Console.WriteLine(sw.ElapsedMilliseconds);
-
         }
-
 
         [Test, Ignore]
         public void VectorizedCopy()
         {
-            var size = 256;
-            var count = 10000000;
+            // https://github.com/dotnet/coreclr/issues/2430
 
-            var src = (byte*)Marshal.AllocHGlobal(size);
-            var dst = (byte*)Marshal.AllocHGlobal(size);
+            var sizes = new[] { 32, 64, 128, 256, 512, 1024, 2048, 4096 };
 
             Console.WriteLine(Vector<byte>.Count);
 
-            for (int r = 0; r < 20; r++)
+            foreach (var size in sizes)
             {
+                var src = (byte*)Marshal.AllocHGlobal(size);
+                var dst = (byte*)Marshal.AllocHGlobal(size);
+                var srcArr = new byte[size];
+                var dstArr = new byte[size];
+                var count = (int)(100_000_000 / Math.Log(size, 2));
 
-                using (Benchmark.Run("Vectorized", count))
+                for (int r = 0; r < 10; r++)
                 {
-                    for (int i = 0; i < count; i++)
+                    using (Benchmark.Run("Vectorized", count, true))
                     {
-                        ByteUtil.VectorizedCopy(dst, src, (uint)size);
+                        for (int i = 0; i < count; i++)
+                        {
+                            ByteUtil.VectorizedCopy(dst, src, (uint)size);
+                        }
+                    }
+
+                    using (Benchmark.Run("Simple", count, true))
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            ByteUtil.MemoryCopy(dst, src, (uint)size);
+                        }
+                    }
+
+                    using (Benchmark.Run("Unsafe", count, true))
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            Unsafe.CopyBlock(dst, src, (uint)size);
+                        }
+                    }
+
+                    using (Benchmark.Run("Marshal.Copy", count, true))
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            Marshal.Copy((IntPtr)src, dstArr, 0, size);
+                        }
+                    }
+
+                    using (Benchmark.Run("Array.Copy", count, true))
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            Array.Copy(srcArr, dstArr, size);
+                        }
+                    }
+
+                    using (Benchmark.Run("Buffer.BlockCopy", count, true))
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            Buffer.BlockCopy(srcArr, 0, dstArr, 0, size);
+                        }
                     }
 
                 }
 
-                using (Benchmark.Run("Simple", count))
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        ByteUtil.MemoryCopy(dst, src, (uint)size);
-                    }
-
-                }
+                Benchmark.Dump(
+                    $"Vectorized copy for Vector<byte>.Count={Vector<byte>.Count} and payload size of {size}");
             }
-
-            Benchmark.Dump($"Vectorized vs simple copy for Vector<byte>.Count={Vector<byte>.Count} and payload size of {size}");
-
         }
     }
 }
