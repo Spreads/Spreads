@@ -33,6 +33,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Spreads.Utils;
 
 namespace Spreads.Buffers
 {
@@ -107,7 +108,7 @@ namespace Spreads.Buffers
         /// <summary>
         /// Initializes the memory manager with the given block requiredSize.
         /// </summary>
-        /// <param name="blockSize">Size of each block that is pooled. Must be > 0.</param>
+        /// <param name="blockSize">Size of each block that is pooled. Must be > 0. Will use the next power of two if the given size in not a power of two.</param>
         /// <param name="largeBufferMultiple">Each large buffer will be a multiple of this value.</param>
         /// <param name="maximumBufferSize">Buffers larger than this are not pooled</param>
         /// <exception cref="ArgumentOutOfRangeException">blockSize is not a positive number, or largeBufferMultiple is not a positive number, or maximumBufferSize is less than blockSize.</exception>
@@ -131,7 +132,7 @@ namespace Spreads.Buffers
                                                       "maximumBufferSize must be at least blockSize");
             }
 
-            _blockSize = blockSize;
+            _blockSize = BitUtil.FindNextPositivePowerOfTwo(blockSize);
             _largeBufferMultiple = largeBufferMultiple;
             _maximumBufferSize = maximumBufferSize;
 
