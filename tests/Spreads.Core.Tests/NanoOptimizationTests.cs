@@ -1076,6 +1076,14 @@ namespace Spreads.Core.Tests
                         }
                     }
 
+                    using (Benchmark.Run("Vectorized Array", count, true))
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            ByteUtil.VectorizedCopy(srcArr, 0, dstArr, 0, size);
+                        }
+                    }
+
                     using (Benchmark.Run("Simple", count, true))
                     {
                         for (int i = 0; i < count; i++)

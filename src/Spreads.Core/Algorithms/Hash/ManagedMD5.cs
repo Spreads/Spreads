@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
+using Spreads.Utils;
 
 namespace Spreads.Algorithms.Hash
 {
@@ -298,7 +299,7 @@ namespace Spreads.Algorithms.Hash
             uint i = 0;
             if (inputLen >= partLen)
             {
-                Buffer.BlockCopy(input, (int)inputIndex, context.buffer, (int)index, (int)partLen);
+                ByteUtil.VectorizedCopy(input, (int)inputIndex, context.buffer, (int)index, (int)partLen);
                 MD5Transform(context.state, context.buffer, 0);
 
                 for (i = partLen; i + 63 < inputLen; i += 64)
@@ -310,7 +311,7 @@ namespace Spreads.Algorithms.Hash
             }
 
             /* Buffer remaining input */
-            Buffer.BlockCopy(input, (int)(inputIndex + i), context.buffer, (int)index, (int)(inputLen - i));
+            ByteUtil.VectorizedCopy(input, (int)(inputIndex + i), context.buffer, (int)index, (int)(inputLen - i));
         }
 
         /* MD5 finalization. Ends an MD5 message-digest operation, writing the

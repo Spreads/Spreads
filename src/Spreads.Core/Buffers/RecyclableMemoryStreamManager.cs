@@ -27,9 +27,11 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Spreads.Buffers
@@ -80,24 +82,21 @@ namespace Spreads.Buffers
         public const int DefaultLargeBufferMultiple = 1024 * 1024;
         public const int DefaultMaximumBufferSize = 128 * 1024 * 1024;
 
-        private readonly int blockSize;
-        private readonly long[] largeBufferFreeSize;
-        private readonly long[] largeBufferInUseSize;
+        private readonly int _blockSize;
+        private readonly long[] _largeBufferFreeSize;
+        private readonly long[] _largeBufferInUseSize;
 
-        private readonly int largeBufferMultiple;
+        private readonly int _largeBufferMultiple;
 
         /// <summary>
         /// pools[0] = 1x largeBufferMultiple buffers
         /// pools[1] = 2x largeBufferMultiple buffers
         /// etc., up to maximumBufferSize
         /// </summary>
-        private readonly ConcurrentStack<byte[]>[] largePools;
+        private readonly ConcurrentStack<byte[]>[] _largePools;
 
-        private readonly int maximumBufferSize;
-        private readonly ConcurrentBag<byte[]> smallPool;
+        private readonly int _maximumBufferSize;
 
-        private long smallPoolFreeSize;
-        private long smallPoolInUseSize;
 
         /// <summary>
         /// Initializes the memory manager with the default block/buffer specifications.
@@ -132,28 +131,28 @@ namespace Spreads.Buffers
                                                       "maximumBufferSize must be at least blockSize");
             }
 
-            this.blockSize = blockSize;
-            this.largeBufferMultiple = largeBufferMultiple;
-            this.maximumBufferSize = maximumBufferSize;
+            _blockSize = blockSize;
+            _largeBufferMultiple = largeBufferMultiple;
+            _maximumBufferSize = maximumBufferSize;
 
-            if (!this.IsLargeBufferMultiple(maximumBufferSize))
+            if (!IsLargeBufferMultiple(maximumBufferSize))
             {
                 throw new ArgumentException("maximumBufferSize is not a multiple of largeBufferMultiple",
                                             "maximumBufferSize");
             }
 
-            this.smallPool = new ConcurrentBag<byte[]>();
+            //_smallPool = new ConcurrentBag<byte[]>();
             var numLargePools = maximumBufferSize / largeBufferMultiple;
 
             // +1 to store size of bytes in use that are too large to be pooled
-            this.largeBufferInUseSize = new long[numLargePools + 1];
-            this.largeBufferFreeSize = new long[numLargePools];
+            _largeBufferInUseSize = new long[numLargePools + 1];
+            _largeBufferFreeSize = new long[numLargePools];
 
-            this.largePools = new ConcurrentStack<byte[]>[numLargePools];
+            _largePools = new ConcurrentStack<byte[]>[numLargePools];
 
-            for (var i = 0; i < this.largePools.Length; ++i)
+            for (var i = 0; i < _largePools.Length; ++i)
             {
-                this.largePools[i] = new ConcurrentStack<byte[]>();
+                _largePools[i] = new ConcurrentStack<byte[]>();
             }
 
             Events.Write.MemoryStreamManagerInitialized(blockSize, largeBufferMultiple, maximumBufferSize);
@@ -162,68 +161,29 @@ namespace Spreads.Buffers
         /// <summary>
         /// The size of each block. It must be set at creation and cannot be changed.
         /// </summary>
-        public int BlockSize
-        {
-            get { return this.blockSize; }
-        }
+        public int BlockSize => _blockSize;
 
         /// <summary>
         /// All buffers are multiples of this number. It must be set at creation and cannot be changed.
         /// </summary>
-        public int LargeBufferMultiple
-        {
-            get { return this.largeBufferMultiple; }
-        }
+        public int LargeBufferMultiple => _largeBufferMultiple;
 
         /// <summary>
         /// Gets or sets the maximum buffer size.
         /// </summary>
         /// <remarks>Any buffer that is returned to the pool that is larger than this will be
         /// discarded and garbage collected.</remarks>
-        public int MaximumBufferSize
-        {
-            get { return this.maximumBufferSize; }
-        }
-
-        /// <summary>
-        /// Number of bytes in small pool not currently in use
-        /// </summary>
-        public long SmallPoolFreeSize
-        {
-            get { return this.smallPoolFreeSize; }
-        }
-
-        /// <summary>
-        /// Number of bytes currently in use by stream from the small pool
-        /// </summary>
-        public long SmallPoolInUseSize
-        {
-            get { return this.smallPoolInUseSize; }
-        }
+        public int MaximumBufferSize => _maximumBufferSize;
 
         /// <summary>
         /// Number of bytes in large pool not currently in use
         /// </summary>
-        public long LargePoolFreeSize
-        {
-            get { return this.largeBufferFreeSize.Sum(); }
-        }
+        public long LargePoolFreeSize => _largeBufferFreeSize.Sum();
 
         /// <summary>
         /// Number of bytes currently in use by streams from the large pool
         /// </summary>
-        public long LargePoolInUseSize
-        {
-            get { return this.largeBufferInUseSize.Sum(); }
-        }
-
-        /// <summary>
-        /// How many blocks are in the small pool
-        /// </summary>
-        public long SmallBlocksFree
-        {
-            get { return this.smallPool.Count; }
-        }
+        public long LargePoolInUseSize => _largeBufferInUseSize.Sum();
 
         /// <summary>
         /// How many buffers are in the large pool
@@ -233,7 +193,7 @@ namespace Spreads.Buffers
             get
             {
                 long free = 0;
-                foreach (var pool in this.largePools)
+                foreach (var pool in _largePools)
                 {
                     free += pool.Count;
                 }
@@ -245,7 +205,7 @@ namespace Spreads.Buffers
         /// How many bytes of small free blocks to allow before we start dropping
         /// those returned to us.
         /// </summary>
-        public long MaximumFreeSmallPoolBytes { get; set; }
+        //public long MaximumFreeSmallPoolBytes { get; set; }
 
         /// <summary>
         /// How many bytes of large free buffers to allow before we start dropping
@@ -280,23 +240,10 @@ namespace Spreads.Buffers
         /// Removes and returns a single block from the pool.
         /// </summary>
         /// <returns>A byte[] array</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal byte[] GetBlock()
         {
-            if (!this.smallPool.TryTake(out byte[] block))
-            {
-                // We'll add this back to the pool when the stream is disposed
-                // (unless our free pool is too large)
-                block = new byte[this.BlockSize];
-                Events.Write.MemoryStreamNewBlockCreated(this.smallPoolInUseSize);
-                ReportBlockCreated();
-            }
-            else
-            {
-                Interlocked.Add(ref this.smallPoolFreeSize, -this.BlockSize);
-            }
-
-            Interlocked.Add(ref this.smallPoolInUseSize, this.BlockSize);
-            return block;
+            return BufferPool<byte>.Rent(_blockSize, true);
         }
 
         /// <summary>
@@ -306,25 +253,26 @@ namespace Spreads.Buffers
         /// <param name="requiredSize">The minimum length of the buffer</param>
         /// <param name="tag">The tag of the stream returning this buffer, for logging if necessary.</param>
         /// <returns>A buffer of at least the required size.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal byte[] GetLargeBuffer(int requiredSize, string tag)
         {
-            requiredSize = this.RoundToLargeBufferMultiple(requiredSize);
+            requiredSize = RoundToLargeBufferMultiple(requiredSize);
 
-            var poolIndex = requiredSize / this.largeBufferMultiple - 1;
+            var poolIndex = requiredSize / _largeBufferMultiple - 1;
 
             byte[] buffer;
-            if (poolIndex < this.largePools.Length)
+            if (poolIndex < _largePools.Length)
             {
-                if (!this.largePools[poolIndex].TryPop(out buffer))
+                if (!_largePools[poolIndex].TryPop(out buffer))
                 {
                     buffer = new byte[requiredSize];
 
-                    Events.Write.MemoryStreamNewLargeBufferCreated(requiredSize, this.LargePoolInUseSize);
+                    Events.Write.MemoryStreamNewLargeBufferCreated(requiredSize, LargePoolInUseSize);
                     ReportLargeBufferCreated();
                 }
                 else
                 {
-                    Interlocked.Add(ref this.largeBufferFreeSize[poolIndex], -buffer.Length);
+                    Interlocked.Add(ref _largeBufferFreeSize[poolIndex], -buffer.Length);
                 }
             }
             else
@@ -333,12 +281,12 @@ namespace Spreads.Buffers
 
                 // We still want to track the size, though, and we've reserved a slot
                 // in the end of the inuse array for nonpooled bytes in use.
-                poolIndex = this.largeBufferInUseSize.Length - 1;
+                poolIndex = _largeBufferInUseSize.Length - 1;
 
                 // We still want to round up to reduce heap fragmentation.
                 buffer = new byte[requiredSize];
                 string callStack = null;
-                if (this.GenerateCallStacks)
+                if (GenerateCallStacks)
                 {
                     // Grab the stack -- we want to know who requires such large buffers
                     callStack = Environment.StackTrace;
@@ -347,19 +295,21 @@ namespace Spreads.Buffers
                 ReportLargeBufferCreated();
             }
 
-            Interlocked.Add(ref this.largeBufferInUseSize[poolIndex], buffer.Length);
+            Interlocked.Add(ref _largeBufferInUseSize[poolIndex], buffer.Length);
 
             return buffer;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int RoundToLargeBufferMultiple(int requiredSize)
         {
-            return ((requiredSize + this.LargeBufferMultiple - 1) / this.LargeBufferMultiple) * this.LargeBufferMultiple;
+            return ((requiredSize + LargeBufferMultiple - 1) / LargeBufferMultiple) * LargeBufferMultiple;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsLargeBufferMultiple(int value)
         {
-            return (value != 0) && (value % this.LargeBufferMultiple) == 0;
+            return (value != 0) && (value % LargeBufferMultiple) == 0;
         }
 
         /// <summary>
@@ -369,29 +319,31 @@ namespace Spreads.Buffers
         /// <param name="tag">The tag of the stream returning this buffer, for logging if necessary.</param>
         /// <exception cref="ArgumentNullException">buffer is null</exception>
         /// <exception cref="ArgumentException">buffer.Length is not a multiple of LargeBufferMultiple (it did not originate from this pool)</exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void ReturnLargeBuffer(byte[] buffer, string tag)
         {
             if (buffer == null)
             {
-                throw new ArgumentNullException("buffer");
+                ThrowHelper.ThrowArgumentNullException("buffer");
+                return;
             }
 
-            if (!this.IsLargeBufferMultiple(buffer.Length))
+            if (!IsLargeBufferMultiple(buffer.Length))
             {
-                throw new ArgumentException(
+                ThrowHelper.ThrowArgumentException(
                     "buffer did not originate from this memory manager. The size is not a multiple of " +
-                    this.LargeBufferMultiple);
+                    LargeBufferMultiple);
             }
 
-            var poolIndex = buffer.Length / this.largeBufferMultiple - 1;
+            var poolIndex = buffer.Length / _largeBufferMultiple - 1;
 
-            if (poolIndex < this.largePools.Length)
+            if (poolIndex < _largePools.Length)
             {
-                if ((this.largePools[poolIndex].Count + 1) * buffer.Length <= this.MaximumFreeLargePoolBytes ||
-                    this.MaximumFreeLargePoolBytes == 0)
+                if ((_largePools[poolIndex].Count + 1) * buffer.Length <= MaximumFreeLargePoolBytes ||
+                    MaximumFreeLargePoolBytes == 0)
                 {
-                    this.largePools[poolIndex].Push(buffer);
-                    Interlocked.Add(ref this.largeBufferFreeSize[poolIndex], buffer.Length);
+                    _largePools[poolIndex].Push(buffer);
+                    Interlocked.Add(ref _largeBufferFreeSize[poolIndex], buffer.Length);
                 }
                 else
                 {
@@ -404,17 +356,17 @@ namespace Spreads.Buffers
             {
                 // This is a non-poolable buffer, but we still want to track its size for inuse
                 // analysis. We have space in the inuse array for this.
-                poolIndex = this.largeBufferInUseSize.Length - 1;
+                poolIndex = _largeBufferInUseSize.Length - 1;
 
                 Events.Write.MemoryStreamDiscardBuffer(Events.MemoryStreamBufferType.Large, tag,
                                                        Events.MemoryStreamDiscardReason.TooLarge);
                 ReportLargeBufferDiscarded(Events.MemoryStreamDiscardReason.TooLarge);
             }
 
-            Interlocked.Add(ref this.largeBufferInUseSize[poolIndex], -buffer.Length);
+            Interlocked.Add(ref _largeBufferInUseSize[poolIndex], -buffer.Length);
 
-            ReportUsageReport(this.smallPoolInUseSize, this.smallPoolFreeSize, this.LargePoolInUseSize,
-                              this.LargePoolFreeSize);
+            //ReportUsageReport(_smallPoolInUseSize, _smallPoolFreeSize, LargePoolInUseSize, LargePoolFreeSize);
+            ReportUsageReport(0, 0, LargePoolInUseSize, LargePoolFreeSize);
         }
 
         /// <summary>
@@ -424,142 +376,120 @@ namespace Spreads.Buffers
         /// <param name="tag">The tag of the stream returning these blocks, for logging if necessary.</param>
         /// <exception cref="ArgumentNullException">blocks is null</exception>
         /// <exception cref="ArgumentException">blocks contains buffers that are the wrong size (or null) for this memory manager</exception>
-        internal void ReturnBlocks(ICollection<byte[]> blocks, string tag)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void ReturnBlocks(List<byte[]> blocks, string tag)
         {
             if (blocks == null)
             {
-                throw new ArgumentNullException("blocks");
-            }
-
-            var bytesToReturn = blocks.Count * this.BlockSize;
-            Interlocked.Add(ref this.smallPoolInUseSize, -bytesToReturn);
-
-            foreach (var block in blocks)
-            {
-                if (block == null || block.Length != this.BlockSize)
-                {
-                    throw new ArgumentException("blocks contains buffers that are not BlockSize in length");
-                }
+                ThrowHelper.ThrowArgumentNullException("blocks");
+                return;
             }
 
             foreach (var block in blocks)
             {
-                if (this.MaximumFreeSmallPoolBytes == 0 || this.SmallPoolFreeSize < this.MaximumFreeSmallPoolBytes)
+                if (block == null || block.Length != BlockSize)
                 {
-                    Interlocked.Add(ref this.smallPoolFreeSize, this.BlockSize);
-                    this.smallPool.Add(block);
-                }
-                else
-                {
-                    Events.Write.MemoryStreamDiscardBuffer(Events.MemoryStreamBufferType.Small, tag,
-                                                           Events.MemoryStreamDiscardReason.EnoughFree);
-                    ReportBlockDiscarded();
-                    break;
+                    ThrowHelper.ThrowArgumentException("blocks contains buffers that are not BlockSize in length");
                 }
             }
 
-            ReportUsageReport(this.smallPoolInUseSize, this.smallPoolFreeSize, this.LargePoolInUseSize,
-                              this.LargePoolFreeSize);
+            foreach (var block in blocks)
+            {
+                BufferPool<byte>.Return(block);
+            }
+
+            ReportUsageReport(0, 0, LargePoolInUseSize, LargePoolFreeSize);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Conditional("TRACE_RMS")]
         internal void ReportBlockCreated()
         {
-            var blockCreated = Interlocked.CompareExchange(ref this.BlockCreated, null, null);
-            if (blockCreated != null)
-            {
-                blockCreated();
-            }
+            var blockCreated = Interlocked.CompareExchange(ref BlockCreated, null, null);
+            blockCreated?.Invoke();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Conditional("TRACE_RMS")]
         internal void ReportBlockDiscarded()
         {
-            var blockDiscarded = Interlocked.CompareExchange(ref this.BlockDiscarded, null, null);
-            if (blockDiscarded != null)
-            {
-                blockDiscarded();
-            }
+            var blockDiscarded = Interlocked.CompareExchange(ref BlockDiscarded, null, null);
+            blockDiscarded?.Invoke();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Conditional("TRACE_RMS")]
         internal void ReportLargeBufferCreated()
         {
-            var largeBufferCreated = Interlocked.CompareExchange(ref this.LargeBufferCreated, null, null);
-            if (largeBufferCreated != null)
-            {
-                largeBufferCreated();
-            }
+            var largeBufferCreated = Interlocked.CompareExchange(ref LargeBufferCreated, null, null);
+            largeBufferCreated?.Invoke();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Conditional("TRACE_RMS")]
         internal void ReportLargeBufferDiscarded(Events.MemoryStreamDiscardReason reason)
         {
-            var largeBufferDiscarded = Interlocked.CompareExchange(ref this.LargeBufferDiscarded, null, null);
-            if (largeBufferDiscarded != null)
-            {
-                largeBufferDiscarded(reason);
-            }
+            var largeBufferDiscarded = Interlocked.CompareExchange(ref LargeBufferDiscarded, null, null);
+            largeBufferDiscarded?.Invoke(reason);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Conditional("TRACE_RMS")]
         internal void ReportStreamCreated()
         {
-            var streamCreated = Interlocked.CompareExchange(ref this.StreamCreated, null, null);
-            if (streamCreated != null)
-            {
-                streamCreated();
-            }
+            var streamCreated = Interlocked.CompareExchange(ref StreamCreated, null, null);
+            streamCreated?.Invoke();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Conditional("TRACE_RMS")]
         internal void ReportStreamDisposed()
         {
-            var streamDisposed = Interlocked.CompareExchange(ref this.StreamDisposed, null, null);
-            if (streamDisposed != null)
-            {
-                streamDisposed();
-            }
+            var streamDisposed = Interlocked.CompareExchange(ref StreamDisposed, null, null);
+            streamDisposed?.Invoke();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Conditional("TRACE_RMS")]
         internal void ReportStreamFinalized()
         {
-            var streamFinalized = Interlocked.CompareExchange(ref this.StreamFinalized, null, null);
-            if (streamFinalized != null)
-            {
-                streamFinalized();
-            }
+            var streamFinalized = Interlocked.CompareExchange(ref StreamFinalized, null, null);
+            streamFinalized?.Invoke();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Conditional("TRACE_RMS")]
         internal void ReportStreamLength(long bytes)
         {
-            var streamLength = Interlocked.CompareExchange(ref this.StreamLength, null, null);
-            if (streamLength != null)
-            {
-                streamLength(bytes);
-            }
+            var streamLength = Interlocked.CompareExchange(ref StreamLength, null, null);
+            streamLength?.Invoke(bytes);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Conditional("TRACE_RMS")]
         internal void ReportStreamToArray()
         {
-            var streamConvertedToArray = Interlocked.CompareExchange(ref this.StreamConvertedToArray, null, null);
-            if (streamConvertedToArray != null)
-            {
-                streamConvertedToArray();
-            }
+            var streamConvertedToArray = Interlocked.CompareExchange(ref StreamConvertedToArray, null, null);
+            streamConvertedToArray?.Invoke();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Conditional("TRACE_RMS")]
         internal void ReportUsageReport(
             long smallPoolInUseBytes, long smallPoolFreeBytes, long largePoolInUseBytes, long largePoolFreeBytes)
         {
-            var usageReport = Interlocked.CompareExchange(ref this.UsageReport, null, null);
-            if (usageReport != null)
-            {
-                usageReport(smallPoolInUseBytes, smallPoolFreeBytes, largePoolInUseBytes, largePoolFreeBytes);
-            }
+            var usageReport = Interlocked.CompareExchange(ref UsageReport, null, null);
+            usageReport?.Invoke(smallPoolInUseBytes, smallPoolFreeBytes, largePoolInUseBytes, largePoolFreeBytes);
         }
 
         /// <summary>
         /// Retrieve a new MemoryStream object with no tag and a default initial capacity.
         /// </summary>
         /// <returns>A MemoryStream.</returns>
-        public MemoryStream GetStream()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RecyclableMemoryStream GetStream()
         {
-            return new RecyclableMemoryStream(this);
+            return RecyclableMemoryStream.Create(this);
         }
 
         /// <summary>
@@ -567,9 +497,10 @@ namespace Spreads.Buffers
         /// </summary>
         /// <param name="tag">A tag which can be used to track the source of the stream.</param>
         /// <returns>A MemoryStream.</returns>
-        public MemoryStream GetStream(string tag)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RecyclableMemoryStream GetStream(string tag)
         {
-            return new RecyclableMemoryStream(this, tag);
+            return RecyclableMemoryStream.Create(this, tag);
         }
 
         /// <summary>
@@ -578,9 +509,10 @@ namespace Spreads.Buffers
         /// <param name="tag">A tag which can be used to track the source of the stream.</param>
         /// <param name="requiredSize">The minimum desired capacity for the stream.</param>
         /// <returns>A MemoryStream.</returns>
-        public MemoryStream GetStream(string tag, int requiredSize)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RecyclableMemoryStream GetStream(string tag, int requiredSize)
         {
-            return new RecyclableMemoryStream(this, tag, requiredSize);
+            return RecyclableMemoryStream.Create(this, tag, requiredSize);
         }
 
         /// <summary>
@@ -595,14 +527,15 @@ namespace Spreads.Buffers
         /// <param name="requiredSize">The minimum desired capacity for the stream.</param>
         /// <param name="asContiguousBuffer">Whether to attempt to use a single contiguous buffer.</param>
         /// <returns>A MemoryStream.</returns>
-        public MemoryStream GetStream(string tag, int requiredSize, bool asContiguousBuffer)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RecyclableMemoryStream GetStream(string tag, int requiredSize, bool asContiguousBuffer)
         {
-            if (!asContiguousBuffer || requiredSize <= this.BlockSize)
+            if (!asContiguousBuffer || requiredSize <= BlockSize)
             {
-                return this.GetStream(tag, requiredSize);
+                return GetStream(tag, requiredSize);
             }
 
-            return new RecyclableMemoryStream(this, tag, requiredSize, this.GetLargeBuffer(requiredSize, tag));
+            return RecyclableMemoryStream.Create(this, tag, requiredSize, GetLargeBuffer(requiredSize, tag));
         }
 
         /// <summary>
@@ -616,9 +549,9 @@ namespace Spreads.Buffers
         /// <param name="count">The number of bytes to copy from the buffer.</param>
         /// <returns>A MemoryStream.</returns>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-        public MemoryStream GetStream(string tag, byte[] buffer, int offset, int count)
+        public RecyclableMemoryStream GetStream(string tag, byte[] buffer, int offset, int count)
         {
-            var stream = new RecyclableMemoryStream(this, tag, count);
+            var stream = RecyclableMemoryStream.Create(this, tag, count);
             stream.Write(buffer, offset, count);
             stream.Position = 0;
             return stream;

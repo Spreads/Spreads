@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
 
 // ReSharper disable once CheckNamespace
@@ -114,14 +115,22 @@ namespace Spreads
             throw GetKeyNotFoundException(message);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentNullException(string argument)
         {
             throw new ArgumentNullException(argument);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowObjectDisposedException(string objectName)
         {
             throw GetObjectDisposedException(objectName);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void ThrowIOException(string message)
+        {
+            throw GetIOException(message);
         }
 
         /////////////////////////////////////////////////////////////////////////////
@@ -232,6 +241,12 @@ namespace Spreads
         private static ObjectDisposedException GetObjectDisposedException(string objectName)
         {
             return new ObjectDisposedException(objectName);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static IOException GetIOException(string message)
+        {
+            return new IOException(message);
         }
 
         private static string GetArgumentName(ExceptionArgument argument)

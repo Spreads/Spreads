@@ -41,6 +41,21 @@ namespace Spreads.Utils
         private const int _longSpan3 = sizeof(long) + sizeof(long) + sizeof(long);
         private const int _intSpan = sizeof(int);
 
+
+        // TODO Vectorized Clear for pools
+
+        // TODO try generic vectorized copy with typeof(T)==... check
+        // for the hottest types explicit, for blittable type could pin manually
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void VectorizedCopy(byte[] src, int srcOffset, byte[] dst, int dstOffset, int length)
+        {
+            var srcPtr = Unsafe.AsPointer(ref Unsafe.Add(ref src[0], srcOffset));
+            var dstPtr = Unsafe.AsPointer(ref Unsafe.Add(ref dst[0], dstOffset));
+            VectorizedCopy((byte*)dstPtr, (byte*)srcPtr, (uint)length);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void VectorizedCopy(byte* dst, byte* src, uint length)
         {

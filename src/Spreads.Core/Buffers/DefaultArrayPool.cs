@@ -7,6 +7,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Spreads.Serialization;
 
 namespace Spreads.Buffers
 {
@@ -76,7 +77,7 @@ namespace Spreads.Buffers
             // to be usable in general instead of using `new`, even for computed lengths.
             if (minimumLength < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(minimumLength));
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(minimumLength));
             }
             else if (minimumLength == 0)
             {
@@ -119,11 +120,11 @@ namespace Spreads.Buffers
             return buffer;
         }
 
-        public override void Return(T[] array, bool clearArray = true)
+        public override void Return(T[] array, bool clearArray = false)
         {
             if (array == null)
             {
-                throw new ArgumentNullException(nameof(array));
+                ThrowHelper.ThrowArgumentNullException(nameof(array));
             }
             else if (array.Length == 0)
             {
@@ -138,8 +139,8 @@ namespace Spreads.Buffers
             // If we can tell that the buffer was allocated, drop it. Otherwise, check if we have space in the pool
             if (bucket < _buckets.Length)
             {
-                // Clear the array if the user requests
-                if (clearArray)
+                // Clear the array if the user requests or if T could have references
+                if (clearArray || TypeHelper<T>.Size <= 0)
                 {
                     Array.Clear(array, 0, array.Length);
                 }

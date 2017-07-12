@@ -6,6 +6,7 @@ using Spreads.Core.Tests.Collections;
 using Spreads.Utils;
 using System;
 using System.Diagnostics;
+using Spreads.Core.Tests.Buffers;
 using Spreads.Core.Tests.Cursors;
 using Spreads.Core.Tests.Cursors.Internal;
 using Spreads.Core.Tests.Cursors.Online;
@@ -32,7 +33,7 @@ namespace Spreads.Core.Tests
                 //new VariantTests().CouldCreateAndReadInlinedVariantInALoop();
                 //new StatTests().Stat2StDevBenchmark();
                 //new FastDictionaryTests().CompareSCGAndFastDictionaryWithInts();
-                new NanoOptimizationTests().VectorizedCopy();
+                new RecyclableMemoryStreamTests().CouldUseSafeWriteReadByte();
             }
 
             Console.WriteLine("Press enter to exit...");

@@ -9,7 +9,7 @@ using System.Threading;
 using NUnit.Framework;
 using Spreads.Buffers;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Core.Tests.Buffers
 {
     [TestFixture]
     public class BuffersTests

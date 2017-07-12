@@ -30,11 +30,15 @@ namespace Spreads.Buffers
             return buffer;
         }
 
-        // NB clearArray's default value is true and is different from PoolImpl's default
+        /// <summary>
+        /// Return an array to the pool.
+        /// </summary>
+        /// <param name="array">An array to return.</param>
+        /// <param name="clearBlittableArray">Force clear of arrays of blittable types. Arrays that could have references are always cleared.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Return(T[] array, bool clearArray = true)
+        public static void Return(T[] array, bool clearBlittableArray = false)
         {
-            PoolImpl.Return(array, clearArray);
+            PoolImpl.Return(array, clearBlittableArray);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

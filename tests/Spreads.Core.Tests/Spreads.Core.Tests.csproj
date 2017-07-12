@@ -129,6 +129,9 @@
       <HintPath>..\..\packages\HdrHistogram.1.18.0\lib\net45\HdrHistogram.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Microsoft.IO.RecyclableMemoryStream, Version=1.2.2.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Microsoft.IO.RecyclableMemoryStream.1.2.2\lib\net45\Microsoft.IO.RecyclableMemoryStream.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\..\packages\Newtonsoft.Json.10.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
@@ -186,6 +189,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Algorithms\MovingMedianTests.cs" />
+    <Compile Include="Buffers\RecyclableMemoryStreamTests.cs" />
     <Compile Include="Collections\SCMTests.cs" />
     <Compile Include="Collections\KeyComparerTests.cs" />
     <Compile Include="Collections\FastDictionaryTests.cs" />
@@ -214,7 +218,7 @@
     <Compile Include="Algorithms\AlgoTests.cs" />
     <Compile Include="Serialization\SerializationTests.cs" />
     <Compile Include="FunctionCombinationTests.cs" />
-    <Compile Include="BuffersTests.cs" />
+    <Compile Include="Buffers\BuffersTests.cs" />
     <Compile Include="Primes.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="SingleEnumerableTests.cs" />
