@@ -37,7 +37,7 @@ namespace Spreads.Core.Tests.Buffers
                         {
                             stream.SafeWriteByte(bytes[j]);
                         }
-                        var p = 0;
+                        var p = 0L;
                         int b = 0;
                         while ((b = stream.SafeReadByte(ref p)) >= 0)
                         {
@@ -102,7 +102,7 @@ namespace Spreads.Core.Tests.Buffers
                     {
                         var stream = RecyclableMemoryStreamManager.Default.GetStream();
                         stream.SafeWrite(bytes, 0, bytes.Length);
-                        var targetPos = 0;
+                        var targetPos = 0L;
                         stream.SafeRead(bytes2, 0, bytes2.Length, ref targetPos);
                         if (doChecks && targetPos != bytes.Length)
                         {

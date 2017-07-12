@@ -94,9 +94,10 @@ namespace Spreads.Buffers
         /// Return a contiguous segment of memory backed by a pooled array
         /// </summary>
         /// <param name="length"></param>
+        /// <param name="requireExact"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static PreservedBuffer<byte> PreserveMemory(int length)
+        public static PreservedBuffer<byte> PreserveMemory(int length, bool requireExact = true) // TODO before it worked as if with true
         {
             // https://github.com/dotnet/corefx/blob/master/src/System.Buffers/src/System/Buffers/DefaultArrayPool.cs#L35
             // DefaultArrayPool has a minimum size of 16
@@ -132,9 +133,9 @@ namespace Spreads.Buffers
             // NB here we exclusively own the buffer and disposal of PreservedBuffer will cause
             // disposal and returning to pool of the ownedBuffer instance, unless references were added via
             // PreservedBuffer.Close() or PreservedBuffer.Buffer.Reserve()/Pin() methods
-            var ownedBuffer = BufferPool<byte>.RentOwnedBuffer(length, false);
-            var buffer2 = ownedBuffer.Buffer.Slice(0, length);
-            return new PreservedBuffer<byte>(buffer2);
+            var ownedBuffer = BufferPool<byte>.RentOwnedBuffer(length, requireExact);
+            //var buffer2 = ownedBuffer.Buffer.Slice(0, length);
+            return new PreservedBuffer<byte>(ownedBuffer.Buffer);
         }
 
         internal static void DisposePreservedBuffers<T>(T[] array, int offset, int len)

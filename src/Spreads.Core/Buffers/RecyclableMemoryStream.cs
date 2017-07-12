@@ -377,7 +377,7 @@ namespace Spreads.Buffers
             }
         }
 
-        private int _length;
+        private long _length;
 
         /// <summary>
         /// Gets the number of bytes written to this stream.
@@ -392,7 +392,7 @@ namespace Spreads.Buffers
             }
         }
 
-        private int _position;
+        private long _position;
 
         /// <summary>
         /// Gets the current position in the stream
@@ -519,8 +519,10 @@ namespace Spreads.Buffers
         /// <returns></returns>
         public PreservedBuffer<byte> ToPreservedBuffer()
         {
+            // TODO For now I just need this API, but later will switch from copying 
+            // to PreservedBuffers as blocks, so for single or large block we could return without copy
             CheckDisposed();
-            var buffer = BufferPool.PreserveMemory(_length);
+            var buffer = BufferPool.PreserveMemory(checked((int)_length)); // PreservedBuffer does not support large arrays, will throw
             if (buffer.Buffer.TryGetArray(out var asegm))
             {
                 InternalRead(asegm.Array, asegm.Offset, _length, 0);
@@ -543,7 +545,7 @@ namespace Spreads.Buffers
         /// <exception cref="ObjectDisposedException">Object has been disposed</exception>
         public override int Read(byte[] buffer, int offset, int count)
         {
-            return SafeRead(buffer, offset, count, ref _position);
+            return checked((int)SafeRead(buffer, offset, count, ref _position));
         }
 
         /// <summary>
@@ -559,7 +561,7 @@ namespace Spreads.Buffers
         /// <exception cref="ArgumentException">offset subtracted from the buffer length is less than count</exception>
         /// <exception cref="ObjectDisposedException">Object has been disposed</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int SafeRead(byte[] buffer, int offset, int count, ref int streamPosition)
+        public long SafeRead(byte[] buffer, long offset, long count, ref long streamPosition)
         {
             CheckDisposed();
             if (buffer == null)
@@ -583,7 +585,7 @@ namespace Spreads.Buffers
                 ThrowHelper.ThrowArgumentException("buffer length must be at least offset + count");
             }
 
-            int amountRead = InternalRead(buffer, offset, count, streamPosition);
+            var amountRead = InternalRead(buffer, offset, count, streamPosition);
             streamPosition += amountRead;
             return amountRead;
         }
@@ -761,7 +763,7 @@ namespace Spreads.Buffers
         /// <returns>The byte at the current position, or -1 if the position is at the end of the stream.</returns>
         /// <exception cref="ObjectDisposedException">Object has been disposed</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int SafeReadByte(ref int streamPosition)
+        public int SafeReadByte(ref long streamPosition)
         {
             CheckDisposed();
             if (streamPosition == _length)
@@ -822,19 +824,19 @@ namespace Spreads.Buffers
                 throw new ArgumentOutOfRangeException("offset", "offset cannot be larger than " + MaxStreamLength);
             }
 
-            int newPosition;
+            long newPosition;
             switch (loc)
             {
                 case SeekOrigin.Begin:
-                    newPosition = (int)offset;
+                    newPosition = offset;
                     break;
 
                 case SeekOrigin.Current:
-                    newPosition = (int)offset + _position;
+                    newPosition = offset + _position;
                     break;
 
                 case SeekOrigin.End:
-                    newPosition = (int)offset + _length;
+                    newPosition = offset + _length;
                     break;
 
                 default:
@@ -864,12 +866,12 @@ namespace Spreads.Buffers
             if (_largeBuffer == null)
             {
                 int currentBlock = 0;
-                int bytesRemaining = _length;
+                long bytesRemaining = _length;
 
                 while (bytesRemaining > 0)
                 {
-                    int amountToCopy = Math.Min(_blocks[currentBlock].Length, bytesRemaining);
-                    stream.Write(_blocks[currentBlock], 0, amountToCopy);
+                    var amountToCopy = Math.Min((long)_blocks[currentBlock].Length, bytesRemaining);
+                    stream.Write(_blocks[currentBlock], 0, checked((int)amountToCopy));
 
                     bytesRemaining -= amountToCopy;
 
@@ -878,7 +880,11 @@ namespace Spreads.Buffers
             }
             else
             {
-                stream.Write(_largeBuffer, 0, _length);
+                if (_length > int.MaxValue)
+                {
+                    ThrowHelper.ThrowNotImplementedException("Large arrays are not implemented yet in RMS");
+                }
+                stream.Write(_largeBuffer, 0, checked((int)_length)); // TODO we could write in chunks
             }
         }
 
@@ -894,7 +900,7 @@ namespace Spreads.Buffers
                 CheckDisposed();
                 if (_largeBuffer != null)
                 {
-                    yield return new ArraySegment<byte>(_largeBuffer, 0, _length);
+                    yield return new ArraySegment<byte>(_largeBuffer, 0, checked((int)_length)); // AS doesn't support long, will throw
                 }
                 else
                 {
@@ -905,7 +911,7 @@ namespace Spreads.Buffers
                             ? _length - (_blocks.Count - 1) * _memoryManager.BlockSize
                             // full chunk
                             : _memoryManager.BlockSize;
-                        yield return new ArraySegment<byte>(_blocks[i], 0, len);
+                        yield return new ArraySegment<byte>(_blocks[i], 0, checked((int)len)); // Chuncks should never be > Int32.Max
                     }
                 }
             }
@@ -923,7 +929,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int InternalRead(byte[] buffer, int offset, int count, int fromPosition)
+        private long InternalRead(byte[] buffer, long offset, long count, long fromPosition)
         {
             if (_length - fromPosition <= 0)
             {
@@ -932,12 +938,12 @@ namespace Spreads.Buffers
             if (_largeBuffer == null)
             {
                 var blockAndOffset = GetBlockAndRelativeOffset(fromPosition);
-                int bytesWritten = 0;
-                int bytesRemaining = Math.Min(count, _length - fromPosition);
+                var bytesWritten = 0L;
+                var bytesRemaining = Math.Min(count, _length - fromPosition);
 
                 while (bytesRemaining > 0)
                 {
-                    int amountToCopy = Math.Min(_blocks[blockAndOffset.Block].Length - blockAndOffset.Offset, bytesRemaining);
+                    var amountToCopy = Math.Min(_blocks[blockAndOffset.Block].Length - blockAndOffset.Offset, bytesRemaining);
                     ByteUtil.VectorizedCopy(_blocks[blockAndOffset.Block], blockAndOffset.Offset, buffer, bytesWritten + offset, amountToCopy);
 
                     bytesWritten += amountToCopy;
@@ -950,7 +956,7 @@ namespace Spreads.Buffers
             }
             else
             {
-                int amountToCopy = Math.Min(count, _length - fromPosition);
+                var amountToCopy = Math.Min(count, _length - fromPosition);
                 ByteUtil.VectorizedCopy(_largeBuffer, fromPosition, buffer, offset, amountToCopy);
                 return amountToCopy;
             }
@@ -970,10 +976,11 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private BlockAndOffset GetBlockAndRelativeOffset(int offset)
+        private BlockAndOffset GetBlockAndRelativeOffset(long offset)
         {
             var blockSize = _memoryManager.BlockSize;
-            return new BlockAndOffset(offset / blockSize, offset % blockSize);
+            var block = offset / blockSize;
+            return new BlockAndOffset(checked((int)block), checked((int)(offset - block * blockSize)));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

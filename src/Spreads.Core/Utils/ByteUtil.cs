@@ -49,15 +49,33 @@ namespace Spreads.Utils
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void VectorizedCopy(byte[] src, int srcOffset, byte[] dst, int dstOffset, int length)
+        public static void VectorizedCopy(byte[] src, long srcOffset, byte[] dst, long dstOffset, long length)
         {
-            var srcPtr = Unsafe.AsPointer(ref Unsafe.Add(ref src[0], srcOffset));
-            var dstPtr = Unsafe.AsPointer(ref Unsafe.Add(ref dst[0], dstOffset));
+#if NET451
+            if ((ulong)srcOffset + (ulong)length > (ulong)(src).LongLength)
+#else
+            if ((ulong)srcOffset + (ulong)length > (ulong)src.Length)
+#endif
+            {
+                ThrowHelper.ThrowArgumentException("Not enough space in src");
+            }
+
+#if NET451
+            if ((ulong)dstOffset + (ulong)length > (ulong)(dst).LongLength)
+#else
+            if ((ulong)dstOffset + (ulong)length > (ulong)dst.Length)
+#endif
+            {
+                ThrowHelper.ThrowArgumentException("Not enough space in dst");
+            }
+
+            var srcPtr = Unsafe.AsPointer(ref Unsafe.AddByteOffset(ref src[0], (IntPtr)srcOffset));
+            var dstPtr = Unsafe.AsPointer(ref Unsafe.AddByteOffset(ref dst[0], (IntPtr)dstOffset));
             VectorizedCopy((byte*)dstPtr, (byte*)srcPtr, (uint)length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void VectorizedCopy(byte* dst, byte* src, uint length)
+        public static void VectorizedCopy(byte* dst, byte* src, ulong length)
         {
             var count = (int)length;
             var srcOffset = 0;
