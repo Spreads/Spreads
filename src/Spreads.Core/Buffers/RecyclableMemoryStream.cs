@@ -241,6 +241,7 @@ namespace Spreads.Buffers
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1816:CallGCSuppressFinalizeCorrectly", Justification = "We have different disposal semantics, so SuppressFinalize is in a different spot.")]
         protected override void Dispose(bool disposing)
         {
+
             if (_disposed)
             {
                 string doubleDisposeStack = null;
@@ -249,7 +250,8 @@ namespace Spreads.Buffers
                     doubleDisposeStack = Environment.StackTrace;
                 }
 
-                Events.Write.MemoryStreamDoubleDispose(_id, _tag, AllocationStack, DisposeStack, doubleDisposeStack);
+                Events.Write.MemoryStreamDoubleDispose(_id, _tag, AllocationStack, DisposeStack,
+                    doubleDisposeStack);
                 return;
             }
 
@@ -266,9 +268,8 @@ namespace Spreads.Buffers
                 _disposed = true;
 
                 _memoryManager.ReportStreamDisposed();
-                Pool.Free(this);
 
-                // regardless of Free result we do not need finalization, we have done cleaning
+                // regardless of Free result below we do not need finalization, we have done cleaning
                 GC.SuppressFinalize(this);
             }
             else
@@ -318,6 +319,10 @@ namespace Spreads.Buffers
             _memoryManager = null;
 
             base.Dispose(disposing);
+
+            // last operation, prevent race condition (had it with _memoryManager = null when buffer was reused before Dispose finished)
+            Pool.Free(this);
+
         }
 
 #if NET451

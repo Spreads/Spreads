@@ -16,9 +16,10 @@ namespace Spreads.Core.Tests.Buffers
         [Test, Ignore]
         public void CouldUseSafeWriteReadByte()
         {
-            var count = 1000;
+            var doChecks = true;
+            var count = doChecks ? 1 : 1000;
             var size = 1000;
-            var doChecks = false;
+            
             var rng = new Random();
             var bytes = new byte[size];
 
@@ -83,9 +84,11 @@ namespace Spreads.Core.Tests.Buffers
         [Test, Ignore]
         public void CouldUseSafeWriteReadArray()
         {
-            var count = 100_000;
-            var size = 1000;
             var doChecks = false;
+
+            var count = doChecks ? 100 : 100_000;
+            var size = 1000;
+            
 
             var rng = new Random();
             var bytes = new byte[size];

@@ -47,7 +47,7 @@ namespace Spreads.Collections.Concurrent
     /// Rationale:
     ///    If there is no intent for reusing the object, do not use pool - just use "new".
     /// </summary>
-    internal class ObjectPool<T> where T : class
+    public class ObjectPool<T> where T : class
     {
         [DebuggerDisplay("{Value,nq}")]
         private struct Element
@@ -109,11 +109,11 @@ namespace Spreads.Collections.Concurrent
         }
 #endif
 
-        internal ObjectPool(Func<T> factory)
+        public ObjectPool(Func<T> factory)
             : this(factory, Environment.ProcessorCount * 2)
         { }
 
-        internal ObjectPool(Func<T> factory, int size)
+        public ObjectPool(Func<T> factory, int size)
         {
             Debug.Assert(size >= 1);
             Factory = factory;
@@ -134,7 +134,7 @@ namespace Spreads.Collections.Concurrent
         /// Note that Free will try to store recycled objects close to the start thus statistically
         /// reducing how far we will typically search.
         /// </remarks>
-        internal T Allocate()
+        public T Allocate()
         {
             // PERF: Examine the first element. If that fails, AllocateSlow will look at the remaining elements.
             // Note that the initial read is optimistically not synchronized. That is intentional.
@@ -188,7 +188,7 @@ namespace Spreads.Collections.Concurrent
         /// Note that Free will try to store recycled objects close to the start thus statistically
         /// reducing how far we will typically search in Allocate.
         /// </remarks>
-        internal void Free(T obj)
+        public void Free(T obj)
         {
             Validate(obj);
             ForgetTrackedObject(obj);

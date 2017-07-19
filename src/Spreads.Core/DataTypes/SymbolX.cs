@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-// Generated code, edit Symbol.cs and copy its changes to Symbol.tt to make changes (TODO leave only Symbol.tt)
+// Generated code, edit Symbol16.cs and copy its changes to Symbol.tt to make changes (TODO leave only Symbol.tt)
 
 using System;
 using System.Diagnostics;

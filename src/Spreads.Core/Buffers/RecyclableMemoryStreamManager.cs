@@ -244,7 +244,6 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal byte[] GetBlock()
         {
-            BufferPool.PreserveMemory(_blockSize);
             return BufferPool<byte>.Rent(_blockSize, true);
         }
 
@@ -397,7 +396,7 @@ namespace Spreads.Buffers
 
             foreach (var block in blocks)
             {
-                BufferPool<byte>.Return(block);
+                BufferPool<byte>.Return(block, true);
             }
 
             ReportUsageReport(0, 0, LargePoolInUseSize, LargePoolFreeSize);

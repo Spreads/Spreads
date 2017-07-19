@@ -13,6 +13,7 @@ namespace Spreads.Buffers
 {
     internal sealed class OwnedPooledArray<T> : OwnedBuffer<T>
     {
+        // TODO Object pool!
         // ReSharper disable once StaticMemberInGenericType
         private static readonly BoundedConcurrentBag<OwnedPooledArray<T>> Pool = new BoundedConcurrentBag<OwnedPooledArray<T>>(Environment.ProcessorCount * 16);
 
