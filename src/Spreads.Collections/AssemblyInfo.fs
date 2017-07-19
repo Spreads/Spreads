@@ -9,10 +9,10 @@ open System.Reflection
 [<assembly: AssemblyTitleAttribute("Spreads.Collections")>]
 [<assembly: AssemblyProductAttribute("Spreads")>]
 [<assembly: AssemblyDescriptionAttribute("Spreads")>]
-[<assembly: AssemblyVersionAttribute("0.8.0")>]
-[<assembly: AssemblyFileVersionAttribute("0.8.0")>]
+[<assembly: AssemblyVersionAttribute("1.0.0")>]
+[<assembly: AssemblyFileVersionAttribute("1.0.0")>]
 [<assembly: AssemblyCopyrightAttribute("(c) Victor Baybekov 2017")>]
 do ()
 
 module internal AssemblyVersionInformation =
-    let [<Literal>] Version = "0.8.0"
+    let [<Literal>] Version = "1.0.0"

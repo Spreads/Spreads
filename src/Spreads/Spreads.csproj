@@ -6,6 +6,8 @@
     <RootNamespace>Spreads</RootNamespace>
 
     <Description />
+
+    <Version>1.0.0-alpha1</Version>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <OutputPath>..\..\bin\</OutputPath>
