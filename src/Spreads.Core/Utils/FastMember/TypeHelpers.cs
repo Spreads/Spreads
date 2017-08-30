@@ -60,11 +60,7 @@ namespace Spreads.Utils.FastMember
 
         public static Type _CreateType(TypeBuilder type)
         {
-#if COREFX
             return type.CreateTypeInfo().AsType();
-#else
-            return type.CreateType();
-#endif
         }
 
         public static int Min(int x, int y)

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <Import Project="..\..\build\common.props" />
   <PropertyGroup>
-    <TargetFramework>net451</TargetFramework>
+    <TargetFrameworks>net451;netstandard2.0</TargetFrameworks>
     <AssemblyName>Spreads</AssemblyName>
     <RootNamespace>Spreads</RootNamespace>
 
@@ -28,13 +28,23 @@
     <PackageReference Include="MathNet.Numerics.Signed" Version="3.19.0" />
   </ItemGroup>
 
+    <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
+        <PackageReference Include="Spreads.Collections" Version="1.0.0-*" />
+        <PackageReference Include="Spreads.Core" Version="1.0.0-*" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Generation\RandomWalk.cs" />
+      <Compile Remove="Generation\SeriesGenerator.cs" />
+    </ItemGroup>
+    
   <ItemGroup>
     <PackageReference Include="NodaTime" Version="2.0.3" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj" />
-    <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net451' ">
+      <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj" />
+      <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
   </ItemGroup>
 
  

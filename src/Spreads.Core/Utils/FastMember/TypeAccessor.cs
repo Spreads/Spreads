@@ -357,11 +357,7 @@ namespace Spreads.Utils.FastMember
             if (assembly == null)
             {
                 AssemblyName name = new AssemblyName("FastMember_dynamic");
-#if COREFX
                 assembly = AssemblyBuilder.DefineDynamicAssembly(name, AssemblyBuilderAccess.Run);
-#else
-                assembly = AppDomain.CurrentDomain.DefineDynamicAssembly(name, AssemblyBuilderAccess.Run);
-#endif
                 module = assembly.DefineDynamicModule(name.Name);
             }
 #if COREFX

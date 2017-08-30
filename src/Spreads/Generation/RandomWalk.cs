@@ -18,9 +18,12 @@ namespace Spreads.Generation
             double annualizedVolatility, double drift = 0.0, double daysPerYear = 365.25, int? seed = null)
         {
             if (startDate > endDate) throw new ArgumentException();
-            var capacity = (int)((endDate - startDate).Ticks / step.Ticks);
+            int capacity = (int)((endDate - startDate).Ticks / step.Ticks);
             var current = 0.0;
-            var sm = new SortedMap<DateTime, double>(capacity) { { startDate, current } };
+            var sm = new SortedMap<DateTime, double>(capacity)
+            {
+                { startDate, current }
+            };
             var tDelta = step.Ticks / (daysPerYear * TimeSpan.TicksPerDay);
             var driftPerStep = drift * tDelta;
             var dt = startDate + step;
@@ -29,6 +32,7 @@ namespace Spreads.Generation
             var gen = new MathNet.Numerics.Random.MersenneTwister(seed.Value, false);
             var nd = new Normal(0.0, annualizedVolatility * Math.Sqrt(tDelta));
 #else
+            //throw new PlatformNotSupportedException("TODO");
             var nd2 = new Statistics.Distribution.Normal(0.0, annualizedVolatility * Math.Sqrt(tDelta));
             var gen = new Statistics.MT19937(unchecked((uint)seed.Value));
 #endif

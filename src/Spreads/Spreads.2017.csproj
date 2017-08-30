@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <Import Project="..\..\build\common.props" />
   <PropertyGroup>
-    <TargetFrameworks>net451;netstandard1.6</TargetFrameworks>
+    <TargetFrameworks>net451;netstandard2.0</TargetFrameworks>
     <AssemblyName>Spreads</AssemblyName>
     <RootNamespace>Spreads</RootNamespace>
 
@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Spreads.Collections" Version="0.8.0-*" />
+    <PackageReference Include="Spreads.Collections" Version="1.0.0-*" />
     <PackageReference Include="NodaTime" Version="2.0.2" />
   </ItemGroup>
 
@@ -29,4 +29,9 @@
     </None>
   </ItemGroup>
 
+    <ItemGroup>
+        <Compile Remove="Generation\RandomWalk.cs" />
+        <Compile Remove="Generation\SeriesGenerator.cs" />
+    </ItemGroup>
+    
 </Project>
