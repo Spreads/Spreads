@@ -52,7 +52,7 @@ namespace Spreads.Serialization
             throw new NotImplementedException("TODO PreservedBufferArray typed methods");
         }
 
-        public int Write(PreservedBuffer<TElement>[] value, int valueOffset, int valueCount, ref Buffer<byte> destination, uint destinationOffset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public int Write(PreservedBuffer<TElement>[] value, int valueOffset, int valueCount, ref Memory<byte> destination, uint destinationOffset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             throw new NotImplementedException("TODO PreservedBufferArray typed methods");
         }
@@ -70,7 +70,7 @@ namespace Spreads.Serialization
             return SizeOf(typedValue, valueOffset, valueCount, out temporaryStream, compression);
         }
 
-        public int Write(object value, int valueOffset, int valueCount, ref Buffer<byte> destination, uint destinationOffset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public int Write(object value, int valueOffset, int valueCount, ref Memory<byte> destination, uint destinationOffset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             var typedValue = (PreservedBuffer<TElement>[])value;
             return Write(typedValue, valueOffset, valueCount, ref destination, destinationOffset, temporaryStream, compression);

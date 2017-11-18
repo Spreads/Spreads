@@ -291,7 +291,7 @@ namespace Spreads.Cursors.Experimental
 
         #endregion Series overrides
 
-        //Series<TKey, TValue1> ICanMapValues<TKey, TValue>.Map<TValue1>(Func<TValue, TValue1> selector, Func<Buffer<TValue>, Buffer<TValue1>> batchSelector)
+        //Series<TKey, TValue1> ICanMapValues<TKey, TValue>.Map<TValue1>(Func<TValue, TValue1> selector, Func<Buffer<TValue>, Memory<TValue1>> batchSelector)
         //{
         //    if (batchSelector != null)
         //    {

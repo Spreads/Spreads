@@ -1,143 +1,45 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\build\common.props" />
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>acb0db12-eb65-46e4-98ea-93e5e8ab20f0</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <RootNamespace>Spreads.Collections</RootNamespace>
+    <TargetFrameworks>net451;netstandard2.0</TargetFrameworks>
     <AssemblyName>Spreads.Collections</AssemblyName>
-    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
-    <TargetFSharpCoreVersion>4.4.1.0</TargetFSharpCoreVersion>
-    <Name>Spreads.Collections</Name>
-    <TargetFrameworkProfile />
-    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
-    <RestorePackages>true</RestorePackages>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <Tailcalls>false</Tailcalls>
-    <OutputPath>..\..\bin\net451\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;NET451</DefineConstants>
-    <WarningLevel>3</WarningLevel>
-    <DocumentationFile>
-    </DocumentationFile>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <Tailcalls>true</Tailcalls>
-    <OutputPath>..\..\bin\net451\</OutputPath>
-    <DefineConstants>NET451;</DefineConstants>
-    <WarningLevel>3</WarningLevel>
-    <DocumentationFile>
-    </DocumentationFile>
-    <OtherFlags>
-    </OtherFlags>
-  </PropertyGroup>
-  <PropertyGroup>
-    <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Prerelease|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <Tailcalls>true</Tailcalls>
-    <DefineConstants>TRACE;NET451;PRERELEASE</DefineConstants>
-    <WarningLevel>3</WarningLevel>
-    <DocumentationFile />
-    <OtherFlags>--warnon:52</OtherFlags>
-    <OutputPath>..\..\bin\net451\</OutputPath>
-  </PropertyGroup>
-  <Choose>
-    <When Condition="'$(VisualStudioVersion)' == '11.0'">
-      <PropertyGroup Condition="Exists('$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets')">
-        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets</FSharpTargetsPath>
-      </PropertyGroup>
-    </When>
-    <Otherwise>
-      <PropertyGroup Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets')">
-        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets</FSharpTargetsPath>
-      </PropertyGroup>
-    </Otherwise>
-  </Choose>
-  <Import Project="$(FSharpTargetsPath)" />
-  <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('$(SolutionDir)\.nuget\NuGet.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)\.nuget\NuGet.targets'))" />
-  </Target>
+
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Attributes.fs" />
-    <Compile Include="Common\Types.fs" />
-    <Compile Include="Common\FastEvents.fs" />
-    <Compile Include="Common\Utils.fs" />
-    <Compile Include="Common\SIMDArrayUtils.fs" />
-    <Compile Include="Common\SIMDArray.fs" />
+    <Compile Include="Common/Types.fs" />
+    <Compile Include="Common/FastEvents.fs" />
+    <Compile Include="Common/Utils.fs" />
+    <Compile Include="Common/SIMDArrayUtils.fs" />
+    <Compile Include="Common/SIMDArray.fs" />
     <Compile Include="Interfaces.fs" />
     <Compile Include="OptimizationSettings.fs" />
     <Compile Include="ZipN.fs" />
     <Compile Include="BaseCursor.fs" />
-    <Compile Include="Collections\Collections.fs" />
-    <Compile Include="Collections\ImmutableIntMap64.fs" />
-    <Compile Include="Collections\ImmutableIntMap64U.fs" />
-    <Compile Include="Collections\ImmutableIntMap32.fs" />
-    <Compile Include="Collections\ImmutableIntMap32U.fs" />
-    <Compile Include="Collections\ImmutableIntConvertibleMap.fs" />
-    <Compile Include="Collections\ImmutableSortedMap.fs" />
-    <Compile Include="Collections\DequeMap.fs" />
-    <Compile Include="Collections\IndexedMap.fs" />
-    <Compile Include="Collections\SortedMap.fs" />
-    <Compile Include="Collections\SortedChunkedMap.fs" />
+    <Compile Include="Collections/Collections.fs" />
+    <Compile Include="Collections/ImmutableIntMap64.fs" />
+    <Compile Include="Collections/ImmutableIntMap64U.fs" />
+    <Compile Include="Collections/ImmutableIntMap32.fs" />
+    <Compile Include="Collections/ImmutableIntMap32U.fs" />
+    <Compile Include="Collections/ImmutableIntConvertibleMap.fs" />
+    <Compile Include="Collections/ImmutableSortedMap.fs" />
+    <Compile Include="Collections/DequeMap.fs" />
+    <Compile Include="Collections/IndexedMap.fs" />
+    <Compile Include="Collections/SortedMap.fs" />
+    <Compile Include="Collections/SortedChunkedMap.fs" />
     <Compile Include="SeriesExtensions.fs" />
     <Compile Include="Panel.fs" />
-    <Content Include="app.config" />
-    <Content Include="packages.config" />
     <Compile Include="Statistics.fs" />
-    <None Include="Series.fsx" />
-    <None Include="Spreads.Collections.licenseheader" />
   </ItemGroup>
+
   <ItemGroup>
-    <Reference Include="FSharp.Core">
-      <HintPath>..\..\packages\FSharp.Core.4.2.1\lib\net45\FSharp.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Buffers">
-      <HintPath>..\..\packages\System.Buffers.4.3.0\lib\netstandard1.1\System.Buffers.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Buffers.Primitives">
-      <HintPath>..\..\packages\Spreads.Utils.0.9.0\lib\netstandard1.1\System.Buffers.Primitives.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Core" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Data.Linq" />
-    <Reference Include="System.Numerics" />
-    <Reference Include="System.Numerics.Vectors">
-      <HintPath>..\..\packages\System.Numerics.Vectors.4.3.0\lib\portable-net45+win8+wp8+wpa81\System.Numerics.Vectors.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="System.ValueTuple">
-      <HintPath>..\..\packages\System.ValueTuple.4.3.1\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
-    </Reference>
+     <PackageReference Include="FSharp.Core" Version="4.2.*" /> 
+    <!--<PackageReference Include="Spreads.Core" Version="1.0.0-*" />-->
   </ItemGroup>
+
   <ItemGroup>
-    <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj">
-      <Name>Spreads.Core</Name>
-      <Project>{68a4ee77-ddf3-4e83-89c4-4473322d8006}</Project>
-      <Private>True</Private>
-    </ProjectReference>
+    <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
   </ItemGroup>
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
 </Project>

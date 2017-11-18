@@ -21,7 +21,7 @@ namespace Spreads.Serialization
             return checked((int)value.Length + 8);
         }
 
-        public unsafe int Write(MemoryStream value, ref Buffer<byte> destination, uint offset, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public unsafe int Write(MemoryStream value, ref Memory<byte> destination, uint offset, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (temporaryStream != null) throw new NotSupportedException("MemoryStreamBinaryConverter does not work with temp streams.");
 
@@ -33,7 +33,7 @@ namespace Spreads.Serialization
                 return (int)BinaryConverterErrorCode.NotEnoughCapacity;
             }
 
-            var handle = destination.Pin();
+            var handle = destination.Retain(true);
 
             var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
             // size

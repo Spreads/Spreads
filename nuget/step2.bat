@@ -12,4 +12,4 @@ REM echo fullstamp: "%fullstamp%"
 set "build=build%fullstamp%"
 
 call ../tools/re_write_il ../bin/net451/ ../bin/net451/Spreads.Collections.dll ../tools/SpreadsKey.snk
-call ../tools/re_write_il ../bin/netstandard1.6/ ../bin/netstandard1.6/Spreads.Collections.dll ../tools/SpreadsKey.snk
+call ../tools/re_write_il ../bin/netstandard2.0/ ../bin/netstandard2.0/Spreads.Collections.dll ../tools/SpreadsKey.snk

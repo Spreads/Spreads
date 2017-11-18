@@ -398,7 +398,7 @@ type SortedChunkedMapGeneric<'K,'V>
           else false, Unchecked.defaultof<KeyValuePair<'K, 'V>>
 
       if res then // found in the bucket of key
-        ValueTuple<_,_>(true, pair)
+        struct (true, pair)
       else
         match direction with
         | Lookup.LT | Lookup.LE ->
@@ -408,9 +408,9 @@ type SortedChunkedMapGeneric<'K,'V>
           if ok then
             Trace.Assert(not innerMapKvp.Value.IsEmpty) // if previous was found it shoudn't be empty
             let pair = innerMapKvp.Value.Last
-            ValueTuple<_,_>(true, pair)
+            struct (true, pair)
           else
-            ValueTuple<_,_>(false, kvp)
+            struct (false, kvp)
         | Lookup.GT | Lookup.GE ->
           // look into next bucket and take first
           let mutable innerMapKvp = Unchecked.defaultof<_>
@@ -418,24 +418,26 @@ type SortedChunkedMapGeneric<'K,'V>
           if ok then
             Trace.Assert(not innerMapKvp.Value.IsEmpty) // if previous was found it shoudn't be empty
             let pair = innerMapKvp.Value.First
-            ValueTuple<_,_>(true, pair)
+            struct (true, pair)
           else
-            ValueTuple<_,_>(false, kvp)
-        | _ -> ValueTuple<_,_>(false, kvp) // LookupDirection.EQ
+            struct (false, kvp)
+        | _ -> struct (false, kvp) // LookupDirection.EQ
     tupleResult
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.TryFindUnchecked(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
     let tupleResult = this.TryFindTuple(key, direction)
-    result <- tupleResult.Item2
-    tupleResult.Item1
+    let struct (ret0,res0) = tupleResult
+    result <- res0
+    ret0
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   override this.TryFind(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
     let res() = this.TryFindTuple(key, direction)
     let tupleResult = readLockIf &this.nextVersion &this.version this.isSynchronized res
-    result <- tupleResult.Item2
-    tupleResult.Item1
+    let struct (ret0,res0) = tupleResult
+    result <- res0
+    ret0
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 
@@ -463,11 +465,12 @@ type SortedChunkedMapGeneric<'K,'V>
       let mutable kvp = Unchecked.defaultof<_>
       let ok = this.TryFind(k, Lookup.EQ, &kvp)
       if ok then
-        ValueTuple<_,_>(true, kvp.Value)
-      else ValueTuple<_,_>(false, Unchecked.defaultof<'V>)
+        struct (true, kvp.Value)
+      else struct (false, Unchecked.defaultof<'V>)
     let tupleResult = readLockIf &this.nextVersion &this.version this.isSynchronized res
-    value <- tupleResult.Item2
-    tupleResult.Item1
+    let struct (ret0,res0) = tupleResult
+    value <- res0
+    ret0
 
   //[<ObsoleteAttribute("Naive impl, optimize if used often")>]
   override this.Keys with get() = (this :> IEnumerable<KVP<'K,'V>>).Select(fun kvp -> kvp.Key)

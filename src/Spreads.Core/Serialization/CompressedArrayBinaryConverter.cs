@@ -27,7 +27,7 @@ namespace Spreads.Serialization
         int SizeOf(TArray value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
             CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
-        int Write(TArray value, int valueOffset, int valueCount, ref Buffer<byte> destination,
+        int Write(TArray value, int valueOffset, int valueCount, ref Memory<byte> destination,
             uint destinationOffset = 0u, MemoryStream temporaryStream = null,
             CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
@@ -66,7 +66,7 @@ namespace Spreads.Serialization
                 var maxSize = 8 + (16 + BloscMethods.ProcessorCount * 4) + ItemSize * valueCount;
                 var ownedBuffer = BufferPool<byte>.RentOwnedBuffer(maxSize);
                 ownedBuffer.Retain();
-                var buffer = ownedBuffer.Buffer;
+                var buffer = ownedBuffer.AsMemory;
 
                 var totalSize = Write(value, valueOffset, valueCount, ref buffer, 0, null, compression);
                 temporaryStream = new RentedBufferStream(ownedBuffer, totalSize);
@@ -93,7 +93,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Write(ArraySegment<TElement> segment, ref Buffer<byte> destination,
+        public int Write(ArraySegment<TElement> segment, ref Memory<byte> destination,
             uint destinationOffset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             return Write(segment.Array, segment.Offset, segment.Count, ref destination, destinationOffset,
@@ -101,14 +101,14 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int Write(TElement[] value, int valueOffset, int valueCount, ref Buffer<byte> destination,
+        public unsafe int Write(TElement[] value, int valueOffset, int valueCount, ref Memory<byte> destination,
             uint destinationOffset = 0u, MemoryStream temporaryStream = null,
             CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             // NB Blosc calls below are visually large - many LOCs with comments, but this is only a single method call
             if (value == null) throw new ArgumentNullException(nameof(value));
 
-            var handle = destination.Pin();
+            var handle = destination.Retain(true);
             try
             {
                 var ptr = (IntPtr)handle.PinnedPointer + (int)destinationOffset;

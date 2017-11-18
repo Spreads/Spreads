@@ -26,8 +26,8 @@ namespace Spreads.DataTypes
     /// A struct to store up to 16 chars.
     /// </summary>
     [DebuggerDisplay("{ToString()}")]
-    [StructLayout(LayoutKind.Sequential, Size = Symbol.Size)]
-    [Serialization(BlittableSize = Symbol.Size)]
+    [StructLayout(LayoutKind.Sequential, Size = Size)]
+    [Serialization(BlittableSize = Size)]
     public unsafe struct Symbol : IEquatable<Symbol>
     {
         private const int Size = 16;
@@ -62,7 +62,7 @@ namespace Spreads.DataTypes
         /// <inheritdoc />
         public override string ToString()
         {
-            var buffer = BufferPool.StaticBuffer.Buffer;
+            var buffer = BufferPool.StaticBuffer.AsMemory;
             var len = 0;
 
             var ptr = (byte*)Unsafe.AsPointer(ref this);

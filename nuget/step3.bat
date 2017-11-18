@@ -15,11 +15,11 @@ echo build: "%build%"
 dotnet pack ..\src\Spreads.Core\Spreads.Core.csproj -c RELEASE --no-build -o C:\tools\LocalNuget --version-suffix "%build%" 
 
 
-dotnet pack ..\src\Spreads.Collections\Spreads.Collections.2017.fsproj -c RELEASE --no-build -o C:\tools\LocalNuget --version-suffix "%build%"
+dotnet pack ..\src\Spreads.Collections\Spreads.Collections.fsproj -c RELEASE --no-build -o C:\tools\LocalNuget --version-suffix "%build%"
 
 
-dotnet restore ..\src\Spreads\Spreads.2017.csproj
-dotnet pack ..\src\Spreads\Spreads.2017.csproj -c RELEASE -o C:\tools\LocalNuget --version-suffix "%build%"
+dotnet restore ..\src\Spreads\Spreads.csproj
+dotnet pack ..\src\Spreads\Spreads.csproj -c RELEASE -o C:\tools\LocalNuget --version-suffix "%build%"
 
 
 pause

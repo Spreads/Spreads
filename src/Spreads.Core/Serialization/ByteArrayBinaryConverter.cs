@@ -27,7 +27,7 @@ namespace Spreads.Serialization
             }
         }
 
-        public unsafe int Write(byte[] value, ref Buffer<byte> destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public unsafe int Write(byte[] value, ref Memory<byte> destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (compression == CompressionMethod.DefaultOrNone)
             {
@@ -39,7 +39,7 @@ namespace Spreads.Serialization
                     return (int)BinaryConverterErrorCode.NotEnoughCapacity;
                 }
 
-                var handle = destination.Pin();
+                var handle = destination.Retain(true);
                 var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
                 // size
                 Marshal.WriteInt32(ptr, totalSize);

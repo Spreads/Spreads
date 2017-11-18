@@ -14,6 +14,5 @@ echo build: "%build%"
 
 dotnet restore ..\src\Spreads.Core\Spreads.Core.csproj
 dotnet pack ..\src\Spreads.Core\Spreads.Core.csproj -c RELEASE -o C:\tools\LocalNuget --version-suffix "%build%" 
-rmdir /s /q ..\src\Spreads.Core\obj
 
 pause

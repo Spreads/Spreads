@@ -503,7 +503,9 @@ namespace Spreads.Buffers
         /// </summary>
         /// <exception cref="ObjectDisposedException">Object has been disposed</exception>
         [Obsolete("This method has degraded performance vs. GetBuffer and should be avoided.")]
+#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
         public override byte[] ToArray()
+#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
         {
             CheckDisposed();
             var newBuffer = new byte[Length];

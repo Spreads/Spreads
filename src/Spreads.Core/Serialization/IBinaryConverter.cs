@@ -68,7 +68,7 @@ namespace Spreads.Serialization
         /// <param name="temporaryStream">A stream that was returned by SizeOf method. If it is not null then its content is written to the buffer.</param>
         /// <param name="compression">Compression method.</param>
         /// <returns>Returns the number of bytes written to the destination buffer or a negative error code that corresponds to <see cref="BinaryConverterErrorCode"/>.</returns>
-        int Write(T value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone);
+        int Write(T value, ref Memory<byte> destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
         /// <summary>
         /// Reads new value or fill existing value with data from the pointer,

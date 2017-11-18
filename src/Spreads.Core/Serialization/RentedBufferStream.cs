@@ -13,21 +13,21 @@ namespace Spreads.Serialization
     /// </summary>
     internal class RentedBufferStream : MemoryStream
     {
-        private readonly OwnedBuffer<byte> _rentedBuffer;
+        private readonly OwnedMemory<byte> _rentedBuffer;
 
         /// <summary>
         /// Wraps a rented buffer and returns it to the shared pool on Dispose
         /// </summary>
         /// <param name="rentedBuffer">A buffer that was previously rented from the shared BufferPool</param>
         /// <param name="count"></param>
-        public RentedBufferStream(OwnedBuffer<byte> rentedBuffer, int count) : base(GetSegment(rentedBuffer).Array, 0, count)
+        public RentedBufferStream(OwnedMemory<byte> rentedBuffer, int count) : base(GetSegment(rentedBuffer).Array, 0, count)
         {
             _rentedBuffer = rentedBuffer;
         }
 
-        private static ArraySegment<byte> GetSegment(OwnedBuffer<byte> rentedBuffer)
+        private static ArraySegment<byte> GetSegment(OwnedMemory<byte> rentedBuffer)
         {
-            if (rentedBuffer.Buffer.TryGetArray(out var segment))
+            if (rentedBuffer.AsMemory.TryGetArray(out var segment))
             {
                 return segment;
             }

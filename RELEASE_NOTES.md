@@ -1,3 +1,7 @@
+#### 1.0.0-preview1
+* All projects moved to .NET Standard
+
+
 #### 0.8.0-prerelease
 * .NET Core packages. Stabilized functionality.
 

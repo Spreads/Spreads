@@ -14,5 +14,5 @@ set "build=build%fullstamp%"
 dotnet restore ..\src\Spreads.Core\Spreads.Core.csproj
 dotnet build ..\src\Spreads.Core\Spreads.Core.csproj -c RELEASE
 
-dotnet restore ..\src\Spreads.Collections\Spreads.Collections.2017.fsproj
-dotnet build ..\src\Spreads.Collections\Spreads.Collections.2017.fsproj -c RELEASE
+dotnet restore ..\src\Spreads.Collections\Spreads.Collections.fsproj
+dotnet build ..\src\Spreads.Collections\Spreads.Collections.fsproj -c RELEASE

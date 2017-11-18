@@ -52,7 +52,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Write<T>(T value, ref Buffer<byte> destination, uint offset = 0u,
+        public static unsafe int Write<T>(T value, ref Memory<byte> destination, uint offset = 0u,
             MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (TypeHelper<T>.IsPinnable)
@@ -61,7 +61,7 @@ namespace Spreads.Serialization
                 Debug.Assert(temporaryStream == null, "For primitive types MemoryStream should not be populated");
                 if (destination.Length < offset + size) throw new ArgumentException("Value size is too big for destination");
                 // TODO this simple thing could be probably done without pinning
-                var handle = destination.Pin();
+                var handle = destination.Retain(true);
 
                 var ptr = (void*)((IntPtr)handle.PinnedPointer + (int)offset);
 
@@ -75,10 +75,10 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static unsafe int WriteSlow<T>(T value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        private static unsafe int WriteSlow<T>(T value, ref Memory<byte> destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (value == null) throw new ArgumentNullException(nameof(value));
-            var handle = destination.Pin();
+            var handle = destination.Retain(true);
             try
             {
                 var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
@@ -143,7 +143,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write<T>(T value, byte[] destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
-            var buffer = (Buffer<byte>)destination;
+            var buffer = (Memory<byte>)destination;
             return Write(value, ref buffer, offset, temporaryStream);
         }
 
@@ -203,7 +203,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(PreservedBuffer<byte> source, uint offset, out T value)
         {
-            var handle = source.Buffer.Pin();
+            var handle = source.Buffer.Retain(true);
             try
             {
                 return Read((IntPtr)handle.PinnedPointer, out value);
@@ -221,9 +221,9 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Read<T>(Buffer<byte> buffer, int offset, out T value)
+        public static unsafe int Read<T>(Memory<byte> buffer, int offset, out T value)
         {
-            var handle = buffer.Pin();
+            var handle = buffer.Retain(true);
             try
             {
                 var ptr = (IntPtr)handle.PinnedPointer + offset;
@@ -238,7 +238,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(Buffer<byte> buffer, out T value)
+        public static int Read<T>(Memory<byte> buffer, out T value)
         {
             return Read(buffer, 0, out value);
         }

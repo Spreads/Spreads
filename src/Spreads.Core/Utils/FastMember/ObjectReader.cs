@@ -41,7 +41,7 @@ namespace Spreads.Utils.FastMember
         {
             if (source == null) throw new ArgumentOutOfRangeException("source");
 
-            
+
 
             bool allMembers = members == null || members.Length == 0;
 

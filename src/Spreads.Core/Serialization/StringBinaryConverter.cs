@@ -33,7 +33,7 @@ namespace Spreads.Serialization
             }
         }
 
-        public unsafe int Write(string value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public unsafe int Write(string value, ref Memory<byte> destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (compression == CompressionMethod.DefaultOrNone)
             {
@@ -44,7 +44,7 @@ namespace Spreads.Serialization
                         var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
                         if (destination.Length < offset + totalLength) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
 
-                        var handle = destination.Pin();
+                        var handle = destination.Retain(true);
                         var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
 
                         // size
@@ -79,9 +79,9 @@ namespace Spreads.Serialization
             var version = Marshal.ReadInt32(ptr + 4);
             if (version != 0) throw new NotSupportedException();
             var length = Marshal.ReadInt32(ptr);
-            OwnedBuffer<byte> ownedBuffer = Buffers.BufferPool.UseTempBuffer(length);
-            var buffer = ownedBuffer.Buffer;
-            var handle = buffer.Pin();
+            OwnedMemory<byte> ownedBuffer = Buffers.BufferPool.UseTempBuffer(length);
+            var buffer = ownedBuffer.AsMemory;
+            var handle = buffer.Retain(true);
 
             try
             {

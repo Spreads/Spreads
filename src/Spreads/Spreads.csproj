@@ -1,58 +1,34 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\..\build\common.props" />
-  <PropertyGroup>
-    <TargetFrameworks>net451;netstandard2.0</TargetFrameworks>
-    <AssemblyName>Spreads</AssemblyName>
-    <RootNamespace>Spreads</RootNamespace>
+    <Import Project="..\..\build\common.props" />
+    <PropertyGroup>
+        <TargetFrameworks>net451;netstandard2.0</TargetFrameworks>
+        <AssemblyName>Spreads</AssemblyName>
+        <RootNamespace>Spreads</RootNamespace>
+        <Description />
+    </PropertyGroup>
 
-    <Description />
-
-    <Version>1.0.0-alpha1</Version>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <OutputPath>..\..\bin\</OutputPath>
-    <DocumentationFile>..\..\bin\net451\Spreads.xml</DocumentationFile>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <OutputPath>..\..\bin\</OutputPath>
-    <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Remove="native\**" />
-    <EmbeddedResource Remove="native\**" />
-    <None Remove="native\**" />
-  </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net451' ">
-    <PackageReference Include="MathNet.Numerics.Signed" Version="3.19.0" />
-  </ItemGroup>
-
-    <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
-        <PackageReference Include="Spreads.Collections" Version="1.0.0-*" />
-        <PackageReference Include="Spreads.Core" Version="1.0.0-*" />
+    <ItemGroup>
+        <Compile Remove="native\**" />
+        <EmbeddedResource Remove="native\**" />
+        <None Remove="native\**" />
     </ItemGroup>
 
     <ItemGroup>
-      <Compile Remove="Generation\RandomWalk.cs" />
-      <Compile Remove="Generation\SeriesGenerator.cs" />
+        <PackageReference Include="NodaTime" Version="2.2.3" />
     </ItemGroup>
-    
-  <ItemGroup>
-    <PackageReference Include="NodaTime" Version="2.0.3" />
-  </ItemGroup>
+    <ItemGroup Condition=" '$(TargetFramework)' == 'net451' ">
+        <PackageReference Include="MathNet.Numerics.Signed" Version="3.20.0" />
+    </ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net451' ">
-      <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj" />
-      <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+        <Compile Remove="Generation\RandomWalk.cs" />
+        <Compile Remove="Generation\SeriesGenerator.cs" />
+    </ItemGroup>
 
- 
+    <ItemGroup>
+        <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj" />
+        <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <None Update="DataTypes\Symbol.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-    </None>
-  </ItemGroup>
 
 </Project>

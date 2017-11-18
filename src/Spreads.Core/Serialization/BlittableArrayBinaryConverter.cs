@@ -53,7 +53,7 @@ namespace Spreads.Serialization
             throw new InvalidOperationException("BlittableArrayBinaryConverter must be called only on blittable types");
         }
 
-        public unsafe int Write(TElement[] value, ref Buffer<byte> destination, uint offset = 0u,
+        public unsafe int Write(TElement[] value, ref Memory<byte> destination, uint offset = 0u,
             MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (value == null) throw new ArgumentNullException(nameof(value));
@@ -69,7 +69,7 @@ namespace Spreads.Serialization
                         return (int)BinaryConverterErrorCode.NotEnoughCapacity;
                     }
 
-                    var handle = destination.Pin();
+                    var handle = destination.Retain(true);
                     try
                     {
                         var ptr = (IntPtr)handle.PinnedPointer + (int)offset;

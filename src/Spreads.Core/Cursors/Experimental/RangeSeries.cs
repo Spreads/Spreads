@@ -177,7 +177,7 @@ namespace Spreads.Cursors.Experimental
             ReleaseInstance(this);
         }
 
-        //public Series<TKey, TResult> Map<TResult>(Func<TValue, TResult> selector, Func<Buffer<TValue>, Buffer<TResult>> batchSelector)
+        //public Series<TKey, TResult> Map<TResult>(Func<TValue, TResult> selector, Func<Buffer<TValue>, Memory<TResult>> batchSelector)
         //{
         //    return new MapValuesSeries<TKey, TValue, TResult, RangeSeries<TKey, TValue, TCursor>>(_series, selector);
         //}

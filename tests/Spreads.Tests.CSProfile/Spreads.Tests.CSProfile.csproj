@@ -103,9 +103,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj">
+    <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.Old.fsproj">
       <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
-      <Name>Spreads.Collections</Name>
+      <Name>Spreads.Collections.Old</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj">
       <Project>{68a4ee77-ddf3-4e83-89c4-4473322d8006}</Project>

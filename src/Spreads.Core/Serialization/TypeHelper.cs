@@ -16,7 +16,7 @@ namespace Spreads.Serialization
 {
     internal delegate int FromPtrDelegate(IntPtr ptr, out object value);
 
-    internal delegate int ToPtrDelegate(object value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone);
+    internal delegate int ToPtrDelegate(object value, ref Memory<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
     internal delegate int SizeOfDelegate(object value, out MemoryStream memoryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone);
 
@@ -49,7 +49,7 @@ namespace Spreads.Serialization
         }
 
         [UsedImplicitly]
-        private static int WriteObject<T>(object value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        private static int WriteObject<T>(object value, ref Memory<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             var temp = value == null ? default(T) : (T)value;
             return TypeHelper<T>.Write(temp, ref destination, offset, ms, compression);
@@ -383,7 +383,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write(T value, ref Buffer<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public static int Write(T value, ref Memory<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (IsPinnable || typeof(T) == typeof(DateTime))
             {
@@ -392,13 +392,13 @@ namespace Spreads.Serialization
                 {
                     return (int)BinaryConverterErrorCode.NotEnoughCapacity;
                 }
-                var handle = destination.Pin();
+                var handle = destination.Retain(true);
 
                 var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
 
                 Unsafe.WriteUnaligned((void*)ptr, value);
 
-                handle.Dispose();;
+                handle.Dispose();
 
                 return Size;
             }

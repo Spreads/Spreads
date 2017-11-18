@@ -20,11 +20,11 @@
 //    /// <summary>
 //    /// DirectOwnedBuffer is an equivalent of an array T[] but supports native memory as its backing storage.
 //    /// </summary>
-//    public unsafe class DirectOwnedBuffer<T> : OwnedBuffer<T>
+//    public unsafe class DirectOwnedMemory<T> : OwnedMemory<T>
 //    {
-//        internal DirectOwnedBuffer<byte> _lockers;
-//        private BufferHandle _lockersHandle;
-//        private BufferHandle _dataHandle;
+//        internal DirectOwnedMemory<byte> _lockers;
+//        private MemoryHandle _lockersHandle;
+//        private MemoryHandle _dataHandle;
 //        internal static readonly long Pid = Process.GetCurrentProcess().Id;
 
 //        // NB this is recursive, the input lockersBuffer should have their own lockersBuffer set to null
@@ -34,7 +34,7 @@
 //        /// DirectOwnedBuffer constructor. Takes a lockers buffer to store interlocked values for locking and versions.
 //        /// The buffer could be null. DirectOwnedBuffer owns the lockers buffer.
 //        /// </summary>
-//        internal DirectOwnedBuffer(DirectOwnedBuffer<byte> lockersBuffer, T[] array) : base(array)
+//        internal DirectOwnedBuffer(DirectOwnedMemory<byte> lockersBuffer, T[] array) : base(array)
 //        {
 //            if (lockersBuffer != null && lockersBuffer.Length != 64)
 //            {
@@ -48,7 +48,7 @@
 //        /// DirectOwnedBuffer constructor. Takes a buffer to store interlocked values for locking and versions.
 //        /// The buffer could be null. DirectOwnedBuffer owns the lockers buffer.
 //        /// </summary>
-//        internal DirectOwnedBuffer(DirectOwnedBuffer<byte> lockersBuffer, T[] array, int arrayOffset, int length, IntPtr pointer = new IntPtr()) : base(array, arrayOffset, length, pointer)
+//        internal DirectOwnedBuffer(DirectOwnedMemory<byte> lockersBuffer, T[] array, int arrayOffset, int length, IntPtr pointer = new IntPtr()) : base(array, arrayOffset, length, pointer)
 //        {
 //            if (lockersBuffer != null && lockersBuffer.Length != 64)
 //            {
@@ -81,9 +81,9 @@
 //        private long* _processCount => (long*)_lockersHandle.PinnedPointer + 4;
 //        private long* _id => (long*)_lockersHandle.PinnedPointer + 5;
 
-//        public static DirectOwnedBuffer<T> Create(int length)
+//        public static DirectOwnedMemory<T> Create(int length)
 //        {
-//            return new DirectOwnedBuffer<T>(new T[length]);
+//            return new DirectOwnedMemory<T>(new T[length]);
 //        }
 
 //        /// <summary>
@@ -318,7 +318,7 @@
 //            Volatile.Write(ref *(long*)_lockersHandle.PinnedPointer, 0L);
 //        }
 
-//        private void Init(DirectOwnedBuffer<byte> lockers)
+//        private void Init(DirectOwnedMemory<byte> lockers)
 //        {
 //            if (lockers != null)
 //            {

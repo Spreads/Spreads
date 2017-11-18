@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.6
+VisualStudioVersion = 15.0.27110.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}"
 	ProjectSection(SolutionItems) = preProject
@@ -21,9 +21,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{BF60
 		README.md = README.md
 		RELEASE_NOTES.md = RELEASE_NOTES.md
 		src\Spreads\Spreads.2017.csproj = src\Spreads\Spreads.2017.csproj
-		src\Spreads.Collections\Spreads.Collections.2017.fsproj = src\Spreads.Collections\Spreads.Collections.2017.fsproj
 		nuget\Spreads.Unsafe.nuspec = nuget\Spreads.Unsafe.nuspec
-		nuget\Spreads.Utils.nuspec = nuget\Spreads.Utils.nuspec
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{ED8079DD-2B06-4030-9F0F-DC548F98E1C4}"
@@ -37,7 +35,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{FA999D
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Spreads.Tests.Profile", "tests\Spreads.Tests.Profile\Spreads.Tests.Profile.fsproj", "{D371BD54-788A-4B9F-83A3-306E1AE62732}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Spreads.Collections", "src\Spreads.Collections\Spreads.Collections.fsproj", "{ACB0DB12-EB65-46E4-98EA-93E5E8AB20F0}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Spreads.Collections.Old", "src\Spreads.Collections\Spreads.Collections.Old.fsproj", "{ACB0DB12-EB65-46E4-98EA-93E5E8AB20F0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Tests.CSProfile", "tests\Spreads.Tests.CSProfile\Spreads.Tests.CSProfile.csproj", "{D2A8AD2E-0450-4E23-8488-06F19DF7882D}"
 EndProject
@@ -65,6 +63,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{4FA14F38
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ILSub", "tools\ILSub\ILSub.csproj", "{8789497B-B5A9-4371-A4F4-1AB50B070E1B}"
+EndProject
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Spreads.Collections", "src\Spreads.Collections\Spreads.Collections.fsproj", "{14245B4D-477D-4B37-8AA2-0CC2E49A54CD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -221,6 +221,18 @@ Global
 		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Release|x64.Build.0 = Release|Any CPU
 		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Release|x86.ActiveCfg = Release|Any CPU
 		{8789497B-B5A9-4371-A4F4-1AB50B070E1B}.Release|x86.Build.0 = Release|Any CPU
+		{14245B4D-477D-4B37-8AA2-0CC2E49A54CD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{14245B4D-477D-4B37-8AA2-0CC2E49A54CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{14245B4D-477D-4B37-8AA2-0CC2E49A54CD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{14245B4D-477D-4B37-8AA2-0CC2E49A54CD}.Debug|x64.Build.0 = Debug|Any CPU
+		{14245B4D-477D-4B37-8AA2-0CC2E49A54CD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{14245B4D-477D-4B37-8AA2-0CC2E49A54CD}.Debug|x86.Build.0 = Debug|Any CPU
+		{14245B4D-477D-4B37-8AA2-0CC2E49A54CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{14245B4D-477D-4B37-8AA2-0CC2E49A54CD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{14245B4D-477D-4B37-8AA2-0CC2E49A54CD}.Release|x64.ActiveCfg = Release|Any CPU
+		{14245B4D-477D-4B37-8AA2-0CC2E49A54CD}.Release|x64.Build.0 = Release|Any CPU
+		{14245B4D-477D-4B37-8AA2-0CC2E49A54CD}.Release|x86.ActiveCfg = Release|Any CPU
+		{14245B4D-477D-4B37-8AA2-0CC2E49A54CD}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -237,6 +249,9 @@ Global
 		{9AB0675E-1251-472E-9280-45D9F56F4768} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{C221D713-EB19-4B00-A71B-E94BE05554E4} = {9AB0675E-1251-472E-9280-45D9F56F4768}
 		{8789497B-B5A9-4371-A4F4-1AB50B070E1B} = {4FA14F38-8CC5-4649-855E-ECB3C0794560}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {70B77C15-F13A-4AFD-891C-D7857FE8FD18}
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

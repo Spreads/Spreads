@@ -11,7 +11,7 @@ using System.Threading;
 
 namespace Spreads.Buffers
 {
-    internal sealed class OwnedPooledArray<T> : OwnedBuffer<T>
+    internal sealed class OwnedPooledArray<T> : OwnedMemory<T>
     {
         // TODO Object pool!
         // ReSharper disable once StaticMemberInGenericType
@@ -31,16 +31,16 @@ namespace Spreads.Buffers
 
         public override bool IsDisposed => _disposed;
 
-        public override bool IsRetained => _referenceCount > 0;
+        protected override bool IsRetained => _referenceCount > 0;
 
-        public override Span<T> AsSpan(int index, int length)
+        public override Span<T> AsSpan()
         {
             if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
-            return new Span<T>(_array, index, length);
+            return new Span<T>(_array);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static OwnedBuffer<T> Create(int size)
+        public static OwnedMemory<T> Create(int size)
         {
             if (!Pool.TryTake(out OwnedPooledArray<T> ownedPooledArray))
             {
@@ -53,7 +53,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static OwnedBuffer<T> Create(T[] array)
+        public static OwnedMemory<T> Create(T[] array)
         {
             if (!Pool.TryTake(out OwnedPooledArray<T> ownedPooledArray))
             {
@@ -86,14 +86,13 @@ namespace Spreads.Buffers
             return true;
         }
 
-        public override BufferHandle Pin(int index = 0)
+        public override MemoryHandle Pin()
         {
             unsafe
             {
                 Retain(); // this checks IsDisposed
                 var handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
-                var pointer = Add((void*)handle.AddrOfPinnedObject(), index);
-                return new BufferHandle(this, pointer, handle);
+                return new MemoryHandle(this, (void*)handle.AddrOfPinnedObject(), handle);
             }
         }
 
@@ -103,18 +102,19 @@ namespace Spreads.Buffers
             Interlocked.Increment(ref _referenceCount);
         }
 
-        public override void Release()
+        public override bool Release()
         {
             var newRefCount = Interlocked.Decrement(ref _referenceCount);
             if (newRefCount == 0)
             {
                 Dispose();
-                return;
+                return false;
             }
-            if (newRefCount < 0)
-            {
-                throw new InvalidOperationException();
-            }
+            //if (newRefCount < 0)
+            //{
+            //    ,,,throw new InvalidOperationException();
+            //}
+            return true;
         }
     }
 }

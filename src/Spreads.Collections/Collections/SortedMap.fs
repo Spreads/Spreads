@@ -1214,11 +1214,12 @@ type SortedMap<'K,'V>
     let res() = 
       let mutable kvp = Unchecked.defaultof<_>
       let idx = this.TryFindWithIndex(key, direction, &kvp)
-      if idx >= 0 then ValueTuple<_,_>(true, kvp)
-      else ValueTuple<_,_>(false, kvp)
+      if idx >= 0 then (struct(true, kvp))
+      else struct (false, kvp)
     let tupleResult = readLockIf &this.nextVersion &this.version this.isSynchronized res
-    result <- tupleResult.Item2
-    tupleResult.Item1
+    let struct (ret0,res0) = tupleResult
+    result <- res0
+    ret0
 
   /// Return true if found exact key
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
@@ -1227,20 +1228,21 @@ type SortedMap<'K,'V>
     let res() = 
       // first/last optimization
       if this.size = 0 then
-        ValueTuple<_,_>(false, Unchecked.defaultof<'V>)
+        struct (false, Unchecked.defaultof<'V>)
       else
         let lc = this.CompareToLast key
         if lc = 0 then // key = last key
-          ValueTuple<_,_>(true, this.values.[this.size-1])
+          struct (true, this.values.[this.size-1])
         else
           let index = this.IndexOfKeyUnchecked(key)
           if index >= 0 then
-            ValueTuple<_,_>(true, this.values.[index])
+            struct (true, this.values.[index])
           else
-            ValueTuple<_,_>(false, Unchecked.defaultof<'V>)
+            struct (false, Unchecked.defaultof<'V>)
     let tupleResult = readLockIf &this.nextVersion &this.version this.isSynchronized res
-    value <- tupleResult.Item2
-    tupleResult.Item1
+    let struct (ret0,res0) = tupleResult
+    value <- res0
+    ret0
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   override this.TryGetFirst([<Out>] res: byref<KeyValuePair<'K, 'V>>) = 

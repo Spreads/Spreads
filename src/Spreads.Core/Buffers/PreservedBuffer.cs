@@ -13,7 +13,7 @@ namespace Spreads.Buffers
     // TODO (docs) refine the docs, merge summary and remarks with clearer wording. Remarks > summary.
 
     /// <summary>
-    /// A struct that wraps a <see cref="Buffer{T}"/> and its <see cref="BufferHandle"/> that is returned after calling <see cref="Buffer{T}.Retain"/>.
+    /// A struct that wraps a <see cref="Buffer{T}"/> and its <see cref="MemoryHandle"/> that is returned after calling <see cref="Buffer{T}.Retain"/>.
     /// Increases the ref count of underlying OwnedBuffer by one.
     /// Use this struct carefully: it must always be explicitly disposed, otherwise underlying OwnedPooledArray
     /// will never be returned to the pool and memory will leak.
@@ -23,20 +23,20 @@ namespace Spreads.Buffers
     /// add a cloned PreservedBuffer value to the collection.
     /// </summary>
     /// <remarks>
-    /// <see cref="PreservedBuffer{T}"/> is the owner of <see cref="BufferHandle"/> reservation. 
+    /// <see cref="PreservedBuffer{T}"/> is the owner of <see cref="MemoryHandle"/> reservation. 
     /// When it is passed to any method or added  to any collection the reservation ownership is transfered as well. 
-    /// The consuming method or collection must dispose the <see cref="BufferHandle"/> reservation. If the caller
+    /// The consuming method or collection must dispose the <see cref="MemoryHandle"/> reservation. If the caller
     /// needs to retain the buffer and must call <see cref="Clone"/> and pass the cloned buffer.
     /// </remarks>
     public struct PreservedBuffer<T> : IReadOnlyList<T>, IDisposable, IPreservedBuffer
     {
-        private BufferHandle _reservation;
+        private MemoryHandle _reservation;
 
         /// <summary>
         /// Create a new PreservedBuffer structure.
         /// </summary>
         /// <param name="buffer"></param>
-        public PreservedBuffer(Buffer<T> buffer)
+        public PreservedBuffer(Memory<T> buffer)
         {
             Buffer = buffer;
             _reservation = buffer.Retain();
@@ -45,7 +45,7 @@ namespace Spreads.Buffers
         /// <summary>
         /// Buffer
         /// </summary>
-        public Buffer<T> Buffer { get; private set; }
+        public Memory<T> Buffer { get; private set; }
 
         /// <summary>
         /// A shortcut to Buffer.Span property.
@@ -86,7 +86,7 @@ namespace Spreads.Buffers
         public void Dispose()
         {
             _reservation.Dispose();
-            Buffer = default(Buffer<T>);
+            Buffer = default(Memory<T>);
         }
 
         /// <summary>

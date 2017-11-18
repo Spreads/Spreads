@@ -42,7 +42,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static OwnedBuffer<T> RentOwnedBuffer(int minLength, bool requireExact = true)
+        internal static OwnedMemory<T> RentOwnedBuffer(int minLength, bool requireExact = true)
         {
             var array = Rent(minLength, requireExact);
             return OwnedPooledArray<T>.Create(array);
@@ -60,18 +60,18 @@ namespace Spreads.Buffers
         /// Shared buffers are for slicing of small PreservedBuffers
         /// </summary>
         [ThreadStatic]
-        internal static OwnedBuffer<byte> _sharedBuffer;
+        internal static OwnedMemory<byte> _sharedBuffer;
 
         [ThreadStatic]
         internal static int _sharedBufferOffset;
 
         [ThreadStatic]
-        internal static OwnedBuffer<byte> _threadStaticBuffer;
+        internal static OwnedMemory<byte> _threadStaticBuffer;
 
         /// <summary>
         /// Thread-static <see cref="OwnedBuffer{T}"/> with size of <see cref="StaticBufferSize"/>.
         /// </summary>
-        internal static OwnedBuffer<byte> StaticBuffer
+        internal static OwnedMemory<byte> StaticBuffer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -125,7 +125,7 @@ namespace Spreads.Buffers
                     _sharedBufferOffset = 0;
                     newOffset = length;
                 }
-                var buffer = _sharedBuffer.Buffer.Slice(_sharedBufferOffset, length);
+                var buffer = _sharedBuffer.AsMemory.Slice(_sharedBufferOffset, length);
 
                 _sharedBufferOffset = BitUtil.Align(newOffset, IntPtr.Size);
                 return new PreservedBuffer<byte>(buffer);
@@ -135,7 +135,7 @@ namespace Spreads.Buffers
             // PreservedBuffer.Close() or PreservedBuffer.Buffer.Reserve()/Pin() methods
             var ownedBuffer = BufferPool<byte>.RentOwnedBuffer(length, requireExact);
             //var buffer2 = ownedBuffer.Buffer.Slice(0, length);
-            return new PreservedBuffer<byte>(ownedBuffer.Buffer);
+            return new PreservedBuffer<byte>(ownedBuffer.AsMemory);
         }
 
         internal static void DisposePreservedBuffers<T>(T[] array, int offset, int len)
@@ -166,7 +166,7 @@ namespace Spreads.Buffers
         /// from a single thread (no async/await, etc.).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static OwnedBuffer<byte> UseTempBuffer(int minimumSize)
+        internal static OwnedMemory<byte> UseTempBuffer(int minimumSize)
         {
             if (minimumSize <= StaticBufferSize)
             {
@@ -183,7 +183,7 @@ namespace Spreads.Buffers
     public class PreservedBufferPool<T>
     {
         [ThreadStatic]
-        internal static OwnedBuffer<T> _sharedBuffer;
+        internal static OwnedMemory<T> _sharedBuffer;
 
         [ThreadStatic]
         // ReSharper disable once StaticMemberInGenericType
@@ -255,7 +255,7 @@ namespace Spreads.Buffers
                     _sharedBufferOffset = 0;
                     newOffset = length;
                 }
-                var buffer = _sharedBuffer.Buffer.Slice(_sharedBufferOffset, length);
+                var buffer = _sharedBuffer.AsMemory.Slice(_sharedBufferOffset, length);
 
                 _sharedBufferOffset = newOffset;
                 return new PreservedBuffer<T>(buffer);
@@ -264,7 +264,7 @@ namespace Spreads.Buffers
             // disposal and returning to pool of the ownedBuffer instance, unless references were added via
             // PreservedBuffer.Close() or PreservedBuffer.Buffer.Reserve()/Pin() methods
             var ownedBuffer = BufferPool<T>.RentOwnedBuffer(length, false);
-            var buffer2 = ownedBuffer.Buffer.Slice(0, length);
+            var buffer2 = ownedBuffer.AsMemory.Slice(0, length);
             return new PreservedBuffer<T>(buffer2);
         }
     }

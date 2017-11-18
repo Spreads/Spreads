@@ -116,6 +116,11 @@
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.Old.fsproj">
+      <Name>Spreads.Collections.Old</Name>
+      <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj">
       <Name>Spreads.Core</Name>
       <Project>{68a4ee77-ddf3-4e83-89c4-4473322d8006}</Project>
@@ -175,11 +180,6 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
-    <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj">
-      <Name>Spreads.Collections</Name>
-      <Project>{acb0db12-eb65-46e4-98ea-93e5e8ab20f0}</Project>
-      <Private>True</Private>
-    </ProjectReference>
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
