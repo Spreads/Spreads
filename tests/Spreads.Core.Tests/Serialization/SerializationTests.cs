@@ -194,9 +194,9 @@ namespace Spreads.Core.Tests.Serialization
             SortedMap<DateTime, decimal>.Init();
             var rng = new Random();
 
-            var dest = (OwnedBuffer<byte>)new byte[1000000];
-            var buffer = dest.Buffer;
-            var handle = buffer.Pin();
+            var dest = (Memory<byte>)new byte[1000000];
+            var buffer = dest;
+            var handle = buffer.Retain();
             var ptr = (IntPtr)handle.PinnedPointer;
 
             var sm = new SortedMap<DateTime, decimal>();
@@ -225,9 +225,9 @@ namespace Spreads.Core.Tests.Serialization
             BloscSettings.CompressionMethod = CompressionMethod.Zstd;
             var rng = new Random();
 
-            var dest = (OwnedBuffer<byte>)new byte[1000000];
-            var buffer = dest.Buffer;
-            var handle = buffer.Pin();
+            var dest = (Memory<byte>)new byte[1000000];
+            var buffer = dest;
+            var handle = buffer.Retain(true);
             var ptr = (IntPtr)handle.PinnedPointer;
 
             var sm = new SortedMap<DateTime, decimal>();
@@ -258,9 +258,9 @@ namespace Spreads.Core.Tests.Serialization
         {
             var rng = new Random();
 
-            var dest = (OwnedBuffer<byte>)new byte[1000000];
-            var buffer = dest.Buffer;
-            var handle = buffer.Pin();
+            var dest = (Memory<byte>)new byte[1000000];
+            var buffer = dest;
+            var handle = buffer.Retain(true);
             var ptr = (IntPtr)handle.PinnedPointer;
 
             var sm = new SortedMap<int, int>();

@@ -58,7 +58,7 @@ namespace Spreads.Core.Tests
                 throw new NotImplementedException();
             }
 
-            public int Write(MyPocoWithConvertor value, ref Buffer<byte> destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+            public int Write(MyPocoWithConvertor value, ref Memory<byte> destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
             {
                 throw new NotImplementedException();
             }
@@ -126,15 +126,15 @@ namespace Spreads.Core.Tests
         [Test]
         public unsafe void CouldWriteBlittableStruct1()
         {
-            var dest = (OwnedBuffer<byte>)new byte[1024];
-            var buffer = dest.Buffer;
+            var dest = (Memory<byte>)new byte[1024];
+            var buffer = dest;
             var myBlittableStruct1 = new BlittableStruct1
             {
                 Value1 = 12345
             };
             TypeHelper<BlittableStruct1>.Write(myBlittableStruct1, ref buffer);
 
-            var handle = buffer.Pin();
+            var handle = buffer.Retain(true);
 
             TypeHelper<BlittableStruct1>.Read((IntPtr)handle.PinnedPointer, out var newBlittableStruct1);
             Assert.AreEqual(myBlittableStruct1.Value1, newBlittableStruct1.Value1);
@@ -159,15 +159,15 @@ namespace Spreads.Core.Tests
         [Test]
         public unsafe void CouldWriteArray()
         {
-            var dest = (OwnedBuffer<byte>)new byte[1024];
-            var buffer = dest.Buffer;
+            var dest = (Memory<byte>)new byte[1024];
+            var buffer = dest;
             var myArray = new int[2];
             myArray[0] = 123;
             myArray[1] = 456;
 
             TypeHelper<int[]>.Write(myArray, ref buffer);
 
-            var handle = buffer.Pin();
+            var handle = buffer.Retain(true);
 
             TypeHelper<int[]>.Read((IntPtr)handle.PinnedPointer, out var newArray);
             Assert.IsTrue(myArray.SequenceEqual(newArray));
@@ -209,9 +209,9 @@ namespace Spreads.Core.Tests
         [Test]
         public unsafe void CouldCreateNongenericDelegates()
         {
-            var dest = (OwnedBuffer<byte>)new byte[1024];
-            var buffer = dest.Buffer;
-            var handle = buffer.Pin();
+            var dest = (Memory<byte>)new byte[1024];
+            var buffer = dest;
+            var handle = buffer.Retain(true);
             var ptr = (IntPtr)handle.PinnedPointer;
 
             var fromPtrInt = TypeHelper.GetFromPtrDelegate(typeof(int));

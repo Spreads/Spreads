@@ -25,6 +25,7 @@
     <Compile Include="Collections/ImmutableIntMap32U.fs" />
     <Compile Include="Collections/ImmutableIntConvertibleMap.fs" />
     <Compile Include="Collections/ImmutableSortedMap.fs" />
+    <Compile Include="Collections\ImmutableSortedMap2.fs" />
     <Compile Include="Collections/DequeMap.fs" />
     <Compile Include="Collections/IndexedMap.fs" />
     <Compile Include="Collections/SortedMap.fs" />

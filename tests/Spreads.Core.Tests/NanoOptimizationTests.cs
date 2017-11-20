@@ -570,7 +570,7 @@ namespace Spreads.Core.Tests
             var buffer = BufferPool<string>.RentOwnedBuffer(100);
             Assert.Throws<ArgumentException>(() =>
             {
-                var handle = buffer.Buffer.Pin();
+                var handle = buffer.AsMemory.Retain(true);
             });
             Assert.False(TypeHelper<string>.IsPinnable);
             Assert.True(TypeHelper<string>.Size <= 0);
@@ -642,22 +642,22 @@ namespace Spreads.Core.Tests
             }
         }
 
-        private ref T GetRef<T>(OwnedBuffer<T> buffer)
+        private ref T GetRef<T>(OwnedMemory<T> buffer)
         {
-            if (buffer.Buffer.TryGetArray(out var segment))
+            if (buffer.AsMemory.TryGetArray(out var segment))
             {
                 return ref segment.Array[0];
             }
             else
             {
-                var handle = buffer.Buffer.Pin();
+                var handle = buffer.AsMemory.Retain(true);
                 return ref Unsafe.AsRef<T>(handle.PinnedPointer);
             }
         }
 
-        private void UnsafeGenericWrite<T>(int count, OwnedBuffer<T> buffer)
+        private void UnsafeGenericWrite<T>(int count, OwnedMemory<T> buffer)
         {
-            var handle = buffer.Buffer.Pin();
+            var handle = buffer.AsMemory.Retain(true);
 
             var sum = 0L;
             var sw = new Stopwatch();
@@ -677,9 +677,9 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Unsafe write {sw.MOPS(count * 50)}");
         }
 
-        private void UnsafeGenericRead<T>(int count, OwnedBuffer<T> buffer)
+        private void UnsafeGenericRead<T>(int count, OwnedMemory<T> buffer)
         {
-            var handle = buffer.Buffer.Pin();
+            var handle = buffer.AsMemory.Retain(true);
 
             var sum = 0.0;
             var sw = new Stopwatch();
@@ -712,11 +712,11 @@ namespace Spreads.Core.Tests
             var buffer = BufferPool<double>.RentOwnedBuffer(count, true);
             var buffer2 = BufferPool<double>.RentOwnedBuffer(count, true);
 
-            var handle2 = buffer2.Buffer.Pin();
+            var handle2 = buffer2.AsMemory.Retain(true);
             var pointer2 = handle2.PinnedPointer;
 
             var buffer3 = BufferPool<double>.RentOwnedBuffer(count, true);
-            var handle3 = buffer3.Buffer.Pin();
+            var handle3 = buffer3.AsMemory.Retain(true);
             var pointer3 = handle3.PinnedPointer;
 
             //var buffer4 = new DirectOwnedBuffer<double>(new double[count]);

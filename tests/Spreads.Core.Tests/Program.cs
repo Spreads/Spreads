@@ -33,7 +33,7 @@ namespace Spreads.Core.Tests
                 //new VariantTests().CouldCreateAndReadInlinedVariantInALoop();
                 //new StatTests().Stat2StDevBenchmark();
                 //new FastDictionaryTests().CompareSCGAndFastDictionaryWithInts();
-                new RecyclableMemoryStreamTests().CouldUseSafeWriteReadByte();
+                new RecyclableMemoryStreamTests().CouldUseSafeWriteReadArray();
             }
 
             Console.WriteLine("Press enter to exit...");

@@ -81,12 +81,13 @@ namespace Spreads.Collections.Experimental
 
     [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
     module internal MapTree = 
-        //let testx() = 
-        //   let node : Node  = Unchecked.defaultof<_>
-        //   let d = ref node.nodeReference
-        //   System.Threading.Interlocked.Increment(d) |> ignore
-        //   d := 123L
-        //   ()
+        let testx() = 
+           // let node : Node  = Unchecked.defaultof<_>
+           //let d = ref node.
+           // System.Threading.Interlocked.Increment(d) |> ignore
+           //d := 123L
+           ()
+
         let size x = 
             let rec sizeAux acc m = 
                 match m with  
@@ -607,7 +608,7 @@ namespace Spreads.Collections.Experimental
 
 
 
-namespace Spreads.Collections
+namespace Spreads.Collections.Experimental
     open System
     open System.Collections
     open System.Collections.Generic

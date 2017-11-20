@@ -20,9 +20,9 @@ namespace Spreads.Core.Run
         {
             var rng = new Random();
 
-            var dest = (OwnedBuffer<byte>)new byte[1000000];
-            var buffer = dest.Buffer;
-            var handle = buffer.Pin();
+            var dest = (Memory<byte>)new byte[1000000];
+            var buffer = dest;
+            var handle = buffer.Retain(true);
             var ptr = (IntPtr)handle.PinnedPointer;
 
             var source = new decimal[10000];
@@ -45,7 +45,7 @@ namespace Spreads.Core.Run
             {
                 Console.WriteLine("LZ4 OK");
             }
-            handle.Free();
+            handle.Dispose();
 
         }
 
@@ -53,9 +53,9 @@ namespace Spreads.Core.Run
         {
             var rng = new Random();
 
-            var dest = (OwnedBuffer<byte>)new byte[1000000];
-            var buffer = dest.Buffer;
-            var handle = buffer.Pin();
+            var dest = (Memory<byte>)new byte[1000000];
+            var buffer = dest;
+            var handle = buffer.Retain(true);
             var ptr = (IntPtr)handle.PinnedPointer;
 
             var source = new decimal[10000];
@@ -78,7 +78,7 @@ namespace Spreads.Core.Run
             {
                 Console.WriteLine("Zstd OK");
             }
-            handle.Free();
+            handle.Dispose();
         }
     }
 }

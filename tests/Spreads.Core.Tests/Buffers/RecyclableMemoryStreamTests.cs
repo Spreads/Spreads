@@ -17,7 +17,7 @@ namespace Spreads.Core.Tests.Buffers
         public void CouldUseSafeWriteReadByte()
         {
             var doChecks = true;
-            var count = doChecks ? 1 : 1000;
+            var count = doChecks ? 5000 : 1000;
             var size = 1000;
             
             var rng = new Random();
