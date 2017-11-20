@@ -126,7 +126,10 @@ namespace Spreads.Buffers
             }
         }
 
-        private bool _disposed;
+        // private bool _disposed;
+
+        // long to allow Interlocked.Read (for .NET Standard 1.4 compat)
+        private long _disposedState;
 
         /// <summary>
         /// Callstack of the constructor. It is only set if MemoryManager.GenerateCallStacks is true,
@@ -160,7 +163,7 @@ namespace Spreads.Buffers
             byte[] initialLargeBuffer)
         {
             var rms = Pool.Allocate();
-            rms._disposed = false;
+            rms._disposedState = 0;
             rms._memoryManager = memoryManager;
             rms._id = Interlocked.Increment(ref LastId);
             rms._tag = tag;
@@ -242,7 +245,7 @@ namespace Spreads.Buffers
         protected override void Dispose(bool disposing)
         {
 
-            if (_disposed)
+            if (Interlocked.CompareExchange(ref _disposedState, 1, 0) != 0)
             {
                 string doubleDisposeStack = null;
                 if (_memoryManager.GenerateCallStacks)
@@ -264,9 +267,6 @@ namespace Spreads.Buffers
 
             if (disposing)
             {
-                // Once this flag is set, we can't access any properties -- use fields directly
-                _disposed = true;
-
                 _memoryManager.ReportStreamDisposed();
 
                 // regardless of Free result below we do not need finalization, we have done cleaning
@@ -275,9 +275,7 @@ namespace Spreads.Buffers
             else
             {
                 // We're being finalized.
-
                 Events.Write.MemoryStreamFinalized(_id, _tag, AllocationStack);
-#if NET451
                 if (AppDomain.CurrentDomain.IsFinalizingForUnload()) {
                     // If we're being finalized because of a shutdown, don't go any further.
                     // We have no idea what's already been cleaned up. Triggering events may cause
@@ -285,7 +283,6 @@ namespace Spreads.Buffers
                     base.Dispose(false);
                     return;
                 }
-#endif
                 _memoryManager.ReportStreamFinalized();
             }
 
@@ -325,16 +322,12 @@ namespace Spreads.Buffers
 
         }
 
-#if NET451
-
         /// <summary>
         /// Equivalent to Dispose
         /// </summary>
         public override void Close() {
             this.Dispose(true);
         }
-
-#endif
 
         #endregion Dispose and Finalize
 
@@ -430,12 +423,12 @@ namespace Spreads.Buffers
         /// <summary>
         /// Whether the stream can currently read
         /// </summary>
-        public override bool CanRead => !_disposed;
+        public override bool CanRead => Interlocked.Read(ref _disposedState) == 0;
 
         /// <summary>
         /// Whether the stream can currently seek
         /// </summary>
-        public override bool CanSeek => !_disposed;
+        public override bool CanSeek => Interlocked.Read(ref _disposedState) == 0;
 
         /// <summary>
         /// Always false
@@ -445,7 +438,7 @@ namespace Spreads.Buffers
         /// <summary>
         /// Whether the stream can currently write
         /// </summary>
-        public override bool CanWrite => !_disposed;
+        public override bool CanWrite => Interlocked.Read(ref _disposedState) == 0;
 
         /// <summary>
         /// Returns a single buffer containing the contents of the stream.
@@ -455,14 +448,7 @@ namespace Spreads.Buffers
         /// <remarks>IMPORTANT: Doing a Write() after calling GetBuffer() invalidates the buffer. The old buffer is held onto
         /// until Dispose is called, but the next time GetBuffer() is called, a new buffer from the pool will be required.</remarks>
         /// <exception cref="ObjectDisposedException">Object has been disposed</exception>
-
-#if NET451
-
         public override byte[] GetBuffer()
-#else
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public byte[] GetBuffer()
-#endif
         {
             CheckDisposed();
 
@@ -721,16 +707,9 @@ namespace Spreads.Buffers
         {
             CheckDisposed();
             int blockSize = _memoryManager.BlockSize;
-            long end = (long)_position + 1;
+            long end = _position + 1;
             // Check for overflow
             if (end > MaxStreamLength)
-            {
-                ThrowHelper.ThrowIOException("Maximum capacity exceeded");
-            }
-
-            long requiredBuffers = (end + blockSize - 1) / blockSize;
-
-            if (requiredBuffers * blockSize > MaxStreamLength)
             {
                 ThrowHelper.ThrowIOException("Maximum capacity exceeded");
             }
@@ -929,7 +908,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckDisposed()
         {
-            if (_disposed)
+            if (Interlocked.Read(ref _disposedState) != 0)
             {
                 ThrowHelper.ThrowObjectDisposedException(string.Format("The stream with Id {0} and Tag {1} is disposed.", _id, _tag));
             }
