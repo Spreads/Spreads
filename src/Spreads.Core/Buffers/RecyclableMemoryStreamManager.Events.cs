@@ -34,7 +34,7 @@ namespace Spreads.Buffers
         [EventSource(Name = "Microsoft-IO-RecyclableMemoryStream", Guid = "{B80CD4E4-890E-468D-9CBA-90EB7C82DFC7}")]
         public sealed class Events : EventSource
         {
-            public static Events Write = new Events();
+            public static readonly Events Write = new Events();
 
             public enum MemoryStreamBufferType
             {

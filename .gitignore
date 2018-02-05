@@ -203,3 +203,5 @@ docs/content/release-notes.md
 !lib/Spreads.Unsafe/*.dll
 
 project.lock.json
+
+.idea

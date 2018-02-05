@@ -27,7 +27,7 @@ namespace Spreads.Serialization
 
         private static ArraySegment<byte> GetSegment(OwnedMemory<byte> rentedBuffer)
         {
-            if (rentedBuffer.AsMemory.TryGetArray(out var segment))
+            if (rentedBuffer.Memory.TryGetArray(out var segment))
             {
                 return segment;
             }

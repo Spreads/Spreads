@@ -66,7 +66,7 @@ namespace Spreads.Serialization
                 var maxSize = 8 + (16 + BloscMethods.ProcessorCount * 4) + ItemSize * valueCount;
                 var ownedBuffer = BufferPool<byte>.RentOwnedBuffer(maxSize);
                 ownedBuffer.Retain();
-                var buffer = ownedBuffer.AsMemory;
+                var buffer = ownedBuffer.Memory;
 
                 var totalSize = Write(value, valueOffset, valueCount, ref buffer, 0, null, compression);
                 temporaryStream = new RentedBufferStream(ownedBuffer, totalSize);
@@ -111,7 +111,7 @@ namespace Spreads.Serialization
             var handle = destination.Retain(true);
             try
             {
-                var ptr = (IntPtr)handle.PinnedPointer + (int)destinationOffset;
+                var ptr = (IntPtr)handle.Pointer + (int)destinationOffset;
 
                 if (temporaryStream != null)
                 {

@@ -5,11 +5,9 @@
 using Newtonsoft.Json;
 using Spreads.Buffers;
 using System;
-using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 
 #pragma warning disable 0618
@@ -63,7 +61,7 @@ namespace Spreads.Serialization
                 // TODO this simple thing could be probably done without pinning
                 var handle = destination.Retain(true);
 
-                var ptr = (void*)((IntPtr)handle.PinnedPointer + (int)offset);
+                var ptr = (void*)((IntPtr)handle.Pointer + (int)offset);
 
                 Unsafe.Write(ptr, value);
 
@@ -81,7 +79,7 @@ namespace Spreads.Serialization
             var handle = destination.Retain(true);
             try
             {
-                var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
+                var ptr = (IntPtr)handle.Pointer + (int)offset;
 
                 int size;
                 if (temporaryStream != null)
@@ -143,7 +141,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write<T>(T value, byte[] destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
-            var buffer = (Memory<byte>)destination;
+            var buffer = new Memory<byte>(destination);
             return Write(value, ref buffer, offset, temporaryStream);
         }
 
@@ -206,7 +204,7 @@ namespace Spreads.Serialization
             var handle = source.Buffer.Retain(true);
             try
             {
-                return Read((IntPtr)handle.PinnedPointer, out value);
+                return Read((IntPtr)handle.Pointer, out value);
             }
             finally
             {
@@ -226,7 +224,7 @@ namespace Spreads.Serialization
             var handle = buffer.Retain(true);
             try
             {
-                var ptr = (IntPtr)handle.PinnedPointer + offset;
+                var ptr = (IntPtr)handle.Pointer + offset;
                 var len = *(int*)ptr;
                 if ((uint)offset + len > buffer.Length) throw new ArgumentException("Buffer is too small");
                 return Read(ptr, out value);

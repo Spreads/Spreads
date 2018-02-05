@@ -1,12 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <Import Project="..\..\build\common.props" />
   <PropertyGroup>
-    <TargetFrameworks>net451;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;NET451</TargetFrameworks>
     <AssemblyName>Spreads.Core</AssemblyName>
     <RootNamespace>Spreads</RootNamespace>
     <Description />
     <FileVersion>1.0.0.0</FileVersion>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <LangVersion>7.2</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Utils\Runtime\**" />
@@ -16,8 +17,7 @@
   <ItemGroup>
     <Compile Remove="Utils\FastMember\ObjectReader.cs" />
   </ItemGroup>
-
-  <ItemGroup>   
+  <ItemGroup>
     <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
       <Link>native\w64\libblosc.dll</Link>
       <LogicalName>win.x64.libblosc.dll</LogicalName>
@@ -34,17 +34,15 @@
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
     <PackageReference Include="Spreads.Unsafe" Version="1.0.0" />
-    <PackageReference Include="System.Buffers" Version="4.4.0" />
-    <PackageReference Include="System.Memory" Version="4.5.0-preview2-25707-02" />
+    <PackageReference Include="System.Buffers" Version="4.5.0-preview2-26202-05" />
+    <PackageReference Include="System.Memory" Version="4.5.0-preview2-26202-05" />
+    <PackageReference Include="System.Numerics.Vectors" Version="4.5.0-preview2-26202-05" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.4.0" />
     <PackageReference Include="System.ValueTuple" Version="4.4.0" />
-    <PackageReference Include="System.Numerics.Vectors" Version="4.5.0-preview2-25707-02" />
   </ItemGroup>
-
   <ItemGroup Condition=" '$(TargetFramework)' == 'net451' ">
     <Reference Include="System" />
   </ItemGroup>
-
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="System.Collections.NonGeneric">
       <Version>4.3.0</Version>
@@ -104,18 +102,15 @@
       <Version>4.3.0</Version>
     </PackageReference>
   </ItemGroup>
-
   <ItemGroup>
     <None Update="DataTypes\SymbolX.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>SymbolX.cs</LastGenOutput>
     </None>
   </ItemGroup>
-
   <ItemGroup>
     <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
   </ItemGroup>
-
   <ItemGroup>
     <Compile Update="DataTypes\SymbolX.cs">
       <DesignTime>True</DesignTime>
@@ -123,13 +118,10 @@
       <DependentUpon>SymbolX.tt</DependentUpon>
     </Compile>
   </ItemGroup>
-
   <ItemGroup>
     <Folder Include="Internal\Cursors\" />
   </ItemGroup>
-
   <ItemGroup>
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
-
 </Project>

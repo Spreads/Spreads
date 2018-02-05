@@ -64,13 +64,13 @@ namespace Spreads.Utils
         /// of the specified {@code int} value.  Returns 32 if the
         /// specified value has no one-bits in its two's complement representation,
         /// in other words if it is equal to zero.
-        ///
+        /// 
         /// <para>Note that this method is closely related to the logarithm base 2.
         /// For all positive {@code int} values x:
-        /// <ul>
-        /// <li>floor(log<sub>2</sub>(x)) = {@code 31 - numberOfLeadingZeros(x)}
-        /// <li>ceil(log<sub>2</sub>(x)) = {@code 32 - numberOfLeadingZeros(x - 1)}
-        /// </ul>
+        /// &lt;ul&gt;
+        /// &lt;li&gt;floor(log&lt;sub&gt;2&lt;/sub&gt;(x)) = {@code 31 - numberOfLeadingZeros(x)}
+        /// &lt;li&gt;ceil(log&lt;sub&gt;2&lt;/sub&gt;(x)) = {@code 32 - numberOfLeadingZeros(x - 1)}
+        /// &lt;/ul&gt;
         ///
         /// </para>
         /// </summary>

@@ -13,7 +13,7 @@ namespace Spreads.Buffers
     // TODO (docs) refine the docs, merge summary and remarks with clearer wording. Remarks > summary.
 
     /// <summary>
-    /// A struct that wraps a <see cref="Buffer{T}"/> and its <see cref="MemoryHandle"/> that is returned after calling <see cref="Buffer{T}.Retain"/>.
+    /// A struct that wraps a <see cref="Memory{T}"/> and its <see cref="MemoryHandle"/> that is returned after calling <see cref="Memory{T}.Retain"/>.
     /// Increases the ref count of underlying OwnedBuffer by one.
     /// Use this struct carefully: it must always be explicitly disposed, otherwise underlying OwnedPooledArray
     /// will never be returned to the pool and memory will leak.
@@ -100,12 +100,12 @@ namespace Spreads.Buffers
         /// <summary>
         /// Returns an enumerator that iterates through the PreservedBuffer.
         /// </summary>
+        [Obsolete("TODO Review efficient Span enumeration, both Span and Memory do not implement IEnumeratble (yet)")]
         public IEnumerator<T> GetEnumerator()
-        {
-            var span = Buffer.Span;
+        {  
             for (int i = 0; i < Buffer.Length; i++)
             {
-                yield return span[i];
+                yield return Buffer.Span[i];
             }
         }
 

@@ -62,7 +62,7 @@ namespace Spreads.DataTypes
         /// <inheritdoc />
         public override string ToString()
         {
-            var buffer = BufferPool.StaticBuffer.AsMemory;
+            var buffer = BufferPool.StaticBuffer.Memory;
             var len = 0;
 
             var ptr = (byte*)Unsafe.AsPointer(ref this);

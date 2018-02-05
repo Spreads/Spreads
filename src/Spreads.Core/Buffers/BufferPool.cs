@@ -69,7 +69,7 @@ namespace Spreads.Buffers
         internal static OwnedMemory<byte> _threadStaticBuffer;
 
         /// <summary>
-        /// Thread-static <see cref="OwnedBuffer{T}"/> with size of <see cref="StaticBufferSize"/>.
+        /// Thread-static <see cref="OwnedMemory{T}"/> with size of <see cref="StaticBufferSize"/>.
         /// </summary>
         internal static OwnedMemory<byte> StaticBuffer
         {
@@ -125,7 +125,7 @@ namespace Spreads.Buffers
                     _sharedBufferOffset = 0;
                     newOffset = length;
                 }
-                var buffer = _sharedBuffer.AsMemory.Slice(_sharedBufferOffset, length);
+                var buffer = _sharedBuffer.Memory.Slice(_sharedBufferOffset, length);
 
                 _sharedBufferOffset = BitUtil.Align(newOffset, IntPtr.Size);
                 return new PreservedBuffer<byte>(buffer);
@@ -135,7 +135,7 @@ namespace Spreads.Buffers
             // PreservedBuffer.Close() or PreservedBuffer.Buffer.Reserve()/Pin() methods
             var ownedBuffer = BufferPool<byte>.RentOwnedBuffer(length, requireExact);
             //var buffer2 = ownedBuffer.Buffer.Slice(0, length);
-            return new PreservedBuffer<byte>(ownedBuffer.AsMemory);
+            return new PreservedBuffer<byte>(ownedBuffer.Memory);
         }
 
         internal static void DisposePreservedBuffers<T>(T[] array, int offset, int len)
@@ -255,7 +255,7 @@ namespace Spreads.Buffers
                     _sharedBufferOffset = 0;
                     newOffset = length;
                 }
-                var buffer = _sharedBuffer.AsMemory.Slice(_sharedBufferOffset, length);
+                var buffer = _sharedBuffer.Memory.Slice(_sharedBufferOffset, length);
 
                 _sharedBufferOffset = newOffset;
                 return new PreservedBuffer<T>(buffer);
@@ -264,7 +264,7 @@ namespace Spreads.Buffers
             // disposal and returning to pool of the ownedBuffer instance, unless references were added via
             // PreservedBuffer.Close() or PreservedBuffer.Buffer.Reserve()/Pin() methods
             var ownedBuffer = BufferPool<T>.RentOwnedBuffer(length, false);
-            var buffer2 = ownedBuffer.AsMemory.Slice(0, length);
+            var buffer2 = ownedBuffer.Memory.Slice(0, length);
             return new PreservedBuffer<T>(buffer2);
         }
     }

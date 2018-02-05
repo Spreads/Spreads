@@ -1407,8 +1407,8 @@ namespace Spreads
         /// <summary>
         /// Comparison operator.
         /// </summary>
-        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator >=(
-            ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
+        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator 
+            >=(ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
         {
             if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
             var cursor =

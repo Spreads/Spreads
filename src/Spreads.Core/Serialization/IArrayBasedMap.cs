@@ -75,7 +75,7 @@ namespace Spreads.Serialization
         public unsafe int Write(T value, ref Memory<byte> destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             var handle = destination.Retain(true);
-            var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
+            var ptr = (IntPtr)handle.Pointer + (int)offset;
 
             if (temporaryStream != null)
             {

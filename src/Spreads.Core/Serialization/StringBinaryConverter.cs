@@ -45,7 +45,7 @@ namespace Spreads.Serialization
                         if (destination.Length < offset + totalLength) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
 
                         var handle = destination.Retain(true);
-                        var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
+                        var ptr = (IntPtr)handle.Pointer + (int)offset;
 
                         // size
                         Marshal.WriteInt32(ptr, totalLength);
@@ -80,7 +80,7 @@ namespace Spreads.Serialization
             if (version != 0) throw new NotSupportedException();
             var length = Marshal.ReadInt32(ptr);
             OwnedMemory<byte> ownedBuffer = Buffers.BufferPool.UseTempBuffer(length);
-            var buffer = ownedBuffer.AsMemory;
+            var buffer = ownedBuffer.Memory;
             var handle = buffer.Retain(true);
 
             try

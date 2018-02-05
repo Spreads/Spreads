@@ -8,7 +8,7 @@
 #dotnet restore src/Spreads/Spreads.2017.csproj
 #dotnet build src/Spreads/Spreads.2017.csproj -c RELEASE
 
-cd tests/Spreads.Core.xUnit
+cd tests/dotnetcore/Spreads.Core.xUnit
 dotnet restore
-dotnet test -f netcoreapp1.1
+dotnet test -f netcoreapp2.0
 rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi

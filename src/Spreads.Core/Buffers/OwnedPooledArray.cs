@@ -33,10 +33,12 @@ namespace Spreads.Buffers
 
         protected override bool IsRetained => _referenceCount > 0;
 
-        public override Span<T> AsSpan()
+        public override Span<T> Span
         {
-            if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
-            return new Span<T>(_array);
+            get {
+                if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
+                return new Span<T>(_array);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -86,13 +88,14 @@ namespace Spreads.Buffers
             return true;
         }
 
-        public override MemoryHandle Pin()
+        // TODO review implementation, especially byteOffset added later
+        public override MemoryHandle Pin(int byteOffset = 0)
         {
             unsafe
             {
                 Retain(); // this checks IsDisposed
                 var handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
-                return new MemoryHandle(this, (void*)handle.AddrOfPinnedObject(), handle);
+                return new MemoryHandle(this, (void*)(handle.AddrOfPinnedObject() + byteOffset), handle);
             }
         }
 

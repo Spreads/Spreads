@@ -143,12 +143,6 @@ namespace Spreads.Buffers
         /// </summary>
         internal string DisposeStack { get; private set; }
 
-        /// <summary>
-        /// This buffer exists so that WriteByte can forward all of its calls to Write
-        /// without creating a new byte[] buffer on every call.
-        /// </summary>
-        //private readonly byte[] byteBuffer = new byte[1];
-
         #region Constructors
 
         /// <summary>

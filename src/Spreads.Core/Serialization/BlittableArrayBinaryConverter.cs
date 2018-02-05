@@ -72,7 +72,7 @@ namespace Spreads.Serialization
                     var handle = destination.Retain(true);
                     try
                     {
-                        var ptr = (IntPtr)handle.PinnedPointer + (int)offset;
+                        var ptr = (IntPtr)handle.Pointer + (int)offset;
 
                         var pinnedArray = GCHandle.Alloc(value, GCHandleType.Pinned);
                         // size
