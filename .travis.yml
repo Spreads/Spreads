@@ -1,6 +1,17 @@
 language: csharp
-dist: trusty
-sudo: required
-dotnet: 2.1.4
+
+matrix:
+  include:
+    - dotnet: 2.1.4
+      mono: none
+      env: CONFIGURATION=Debug FRAMEWORK=netcoreapp2.0
+    - dotnet: 2.1.4
+      mono: none
+      env: CONFIGURATION=Release FRAMEWORK=netcoreapp2.0
+
+before_script:
+  - dotnet --info
+  - dotnet restore
+
 script:
-- ". ./build.sh"
+  - dotnet test -c $CONFIGURATION -f $FRAMEWORK tests/Spreads.Core.xUnit/Spreads.Core.xUnit.csproj
