@@ -14,10 +14,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="NodaTime" Version="2.2.3" />
+        <PackageReference Include="NodaTime" Version="2.2.4" />
     </ItemGroup>
     <ItemGroup Condition=" '$(TargetFramework)' == 'net451' ">
-        <PackageReference Include="MathNet.Numerics.Signed" Version="3.20.0" />
+        <PackageReference Include="MathNet.Numerics.Signed" Version="3.20.2" />
     </ItemGroup>
 
     <ItemGroup>
