@@ -4,7 +4,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Numerics;
 using Newtonsoft.Json;
 using Spreads.Serialization;
 
@@ -27,6 +29,18 @@ namespace Spreads.DataTypes
         private readonly int _rows;
         private readonly int _columns;
 
+        public IReadOnlyList<Column> Columns { get; }
+
+        public IReadOnlyList<Row> Rows { get; }
+
+        public Table(IReadOnlyList<string> rowNames, IReadOnlyList<string> columnNames, bool caseSensitive = false) : this(new Variant[rowNames.Count, columnNames.Count], caseSensitive)
+        {
+            #region [Sets the name of rows and cloumns]
+            for (var i = 0; i < RowsCount; i++) Rows[i].Name = rowNames[i];
+            for (var i = 0; i < ColumnsCount; i++) Columns[i].Name = columnNames[i];
+            #endregion
+        }
+
         public Table(int rows, int columns, bool caseSensitive = false) : this(new Variant[rows, columns], caseSensitive)
         {
         }
@@ -36,6 +50,15 @@ namespace Spreads.DataTypes
             _caseSensitive = caseSensitive;
             _rows = this.RowsCount;
             _columns = this.ColumnsCount;
+
+            #region [Create columns and rows.]
+            var rows = new Row[RowsCount];
+            var columns = new Column[ColumnsCount];
+            Rows = new ReadOnlyCollection<Row>(rows);
+            Columns = new ReadOnlyCollection<Column>(columns);
+            for (var i = 0; i < RowsCount; i++) rows[i] = new Row(this, i);
+            for (var i = 0; i < ColumnsCount; i++) columns[i] = new Column(this, i);
+            #endregion
         }
 
         public string TableName { get; set; }
@@ -44,14 +67,8 @@ namespace Spreads.DataTypes
 
         public Variant this[int row, int column]
         {
-            get
-            {
-                return Data[row, column];
-            }
-            set
-            {
-                Data[row, column] = value;
-            }
+            get => Data[row, column];
+            set => Data[row, column] = value;
         }
 
         public object this[object rowKey, object columnKey]
@@ -77,6 +94,29 @@ namespace Spreads.DataTypes
                 return Data[row, column].ToObject();
             }
         }
+        
+        public Variant this[Row row, Column column] => this[row.Index, column.Index];
+
+        public Variant[] GetValues(TableFieldSet tableFieldSet) => tableFieldSet.Values;
+
+        public Variant[] GetRowValues(Row row) => row.Values;
+
+        public Variant[] GetColumnValues(Column column) => column.Values;
+
+        public Variant[] GetRowValues(int rowIndex)
+        {
+            var values = new Variant[ColumnsCount];
+            for (var i = 0; i < ColumnsCount; i++) values[0] = this[rowIndex, i];
+            return values;
+        }
+
+        public Variant[] GetColumnValues(int columnIndex)
+        {
+            var values = new Variant[RowsCount];
+            for (var i = 0; i < RowsCount; i++) values[0] = this[i, columnIndex];
+            return values;
+        }
+
 
         private int GetRowIndex(Variant rowKey)
         {
