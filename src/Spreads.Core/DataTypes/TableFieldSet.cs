@@ -1,17 +1,9 @@
-﻿#region summary
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-//   ------------------------------------------------------------------------------------------------
-//   <copyright file="TableFieldSet.cs" >
-//     Author：MOKEYISH
-//     Date：2018/02/28
-//     Time：13:55
-//   </copyright>
-//   ------------------------------------------------------------------------------------------------
-
-#endregion
 
 using System;
-using System.Numerics;
 
 namespace Spreads.DataTypes
 {

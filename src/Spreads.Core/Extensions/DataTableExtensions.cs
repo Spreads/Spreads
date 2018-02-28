@@ -1,12 +1,6 @@
-﻿#region summary
-//   ------------------------------------------------------------------------------------------------
-//   <copyright file="DataTableExtensions.cs" >
-//     Author：MOKEYISH
-//     Date：2018/02/28
-//     Time：15:26
-//   </copyright>
-//   ------------------------------------------------------------------------------------------------
-#endregion
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
 using System.Data;
@@ -36,7 +30,6 @@ namespace Spreads
                     table[i, j] = Variant.FromObject(value == DBNull.Value ? null : value);
                 }
             }
-
             return table;
         }
     }
