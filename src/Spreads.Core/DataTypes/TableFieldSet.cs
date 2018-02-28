@@ -23,7 +23,7 @@ namespace Spreads.DataTypes
 
         public Table Table { get; }
 
-        public abstract Vector<Variant> Values { get; }
+        public abstract Variant[] Values { get; }
 
         protected TableFieldSet(Table table, int index)
         {
@@ -40,7 +40,7 @@ namespace Spreads.DataTypes
         }
 
         /// <inheritdoc />
-        public override Vector<Variant> Values => Table.GetRowValues(Index);
+        public override Variant[] Values => Table.GetRowValues(Index);
     }
 
     public class Column : TableFieldSet
@@ -51,6 +51,6 @@ namespace Spreads.DataTypes
         }
 
         /// <inheritdoc />
-        public override Vector<Variant> Values => Table.GetColumnValues(Index);
+        public override Variant[] Values => Table.GetColumnValues(Index);
     }
 }

@@ -96,24 +96,24 @@ namespace Spreads.DataTypes
         
         public Variant this[Row row, Column column] => this[row.Index, column.Index];
 
-        public Vector<Variant> GetValues(TableFieldSet tableFieldSet) => tableFieldSet.Values;
+        public Variant[] GetValues(TableFieldSet tableFieldSet) => tableFieldSet.Values;
 
-        public Vector<Variant> GetRowValues(Row row) => row.Values;
+        public Variant[] GetRowValues(Row row) => row.Values;
 
-        public Vector<Variant> GetColumnValues(Column column) => column.Values;
+        public Variant[] GetColumnValues(Column column) => column.Values;
 
-        public Vector<Variant> GetRowValues(int rowIndex)
+        public Variant[] GetRowValues(int rowIndex)
         {
             var values = new Variant[ColumnsCount];
             for (var i = 0; i < ColumnsCount; i++) values[0] = this[rowIndex, i];
-            return new Vector<Variant>(values);
+            return values;
         }
 
-        public Vector<Variant> GetColumnValues(int columnIndex)
+        public Variant[] GetColumnValues(int columnIndex)
         {
             var values = new Variant[RowsCount];
             for (var i = 0; i < RowsCount; i++) values[0] = this[i, columnIndex];
-            return new Vector<Variant>(values);
+            return values;
         }
 
 
