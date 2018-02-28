@@ -4,14 +4,21 @@
 
 
 using System;
+using System.Diagnostics;
 
 namespace Spreads.DataTypes
 {
+    [DebuggerDisplay("{" + nameof(Name) + "}")]
     public abstract class TableFieldSet
     {
-        public int Index { get; } = 0;
+        private string _name;
+        public int Index { get; }
 
-        public string Name { get; set; }
+        public string Name
+        {
+            get => _name ?? Index.ToString();
+            set => _name = value;
+        }
 
         public Table Table { get; }
 

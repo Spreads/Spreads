@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Numerics;
 using Newtonsoft.Json;
@@ -51,10 +52,10 @@ namespace Spreads.DataTypes
             _columns = this.ColumnsCount;
 
             #region [Create columns and rows.]
-            var rows = new List<Row>(RowsCount);
-            var columns = new List<Column>(ColumnsCount);
-            Rows = rows.AsReadOnly();
-            Columns = columns.AsReadOnly();
+            var rows = new Row[RowsCount];
+            var columns = new Column[ColumnsCount];
+            Rows = new ReadOnlyCollection<Row>(rows);
+            Columns = new ReadOnlyCollection<Column>(columns);
             for (var i = 0; i < RowsCount; i++) rows[i] = new Row(this, i);
             for (var i = 0; i < ColumnsCount; i++) columns[i] = new Column(this, i);
             #endregion
