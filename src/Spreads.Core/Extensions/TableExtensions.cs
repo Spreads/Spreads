@@ -29,7 +29,7 @@ namespace Spreads
             
             for (var i = 0; i < table.RowsCount; i++)
             {
-                dataTable.Rows.Add(table.Rows[i].Values.Select(o => o.ToObject()));
+                dataTable.Rows.Add(table.Rows[i].Values.Select(o => o.ToObject()).ToArray());
             }
             return dataTable;
         }
