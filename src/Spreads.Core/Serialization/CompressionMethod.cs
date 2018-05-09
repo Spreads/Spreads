@@ -20,6 +20,8 @@
         /// <summary>
         /// Use Zstandard.
         /// </summary>
-        Zstd = 2
+        Zstd = 2,
+
+        // TODO Gziped JSON (and no MsgPack!)
     }
 }

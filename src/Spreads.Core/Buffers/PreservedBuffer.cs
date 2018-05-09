@@ -13,7 +13,7 @@ namespace Spreads.Buffers
     // TODO (docs) refine the docs, merge summary and remarks with clearer wording. Remarks > summary.
 
     /// <summary>
-    /// A struct that wraps a <see cref="Memory{T}"/> and its <see cref="MemoryHandle"/> that is returned after calling <see cref="Memory{T}.Retain"/>.
+    /// A struct that wraps a <see cref="Memory{T}"/> and its <see cref="MemoryHandle"/> that is returned after calling <see cref="Memory{T}.Pin"/>.
     /// Increases the ref count of underlying OwnedBuffer by one.
     /// Use this struct carefully: it must always be explicitly disposed, otherwise underlying OwnedPooledArray
     /// will never be returned to the pool and memory will leak.
@@ -28,7 +28,7 @@ namespace Spreads.Buffers
     /// The consuming method or collection must dispose the <see cref="MemoryHandle"/> reservation. If the caller
     /// needs to retain the buffer and must call <see cref="Clone"/> and pass the cloned buffer.
     /// </remarks>
-    public struct PreservedBuffer<T> : IReadOnlyList<T>, IDisposable, IPreservedBuffer
+    public struct PreservedBuffer<T> : IReadOnlyList<T>, IPreservedBuffer
     {
         private MemoryHandle _reservation;
 
@@ -39,7 +39,7 @@ namespace Spreads.Buffers
         public PreservedBuffer(Memory<T> buffer)
         {
             Buffer = buffer;
-            _reservation = buffer.Retain();
+            _reservation = buffer.Pin();
         }
 
         /// <summary>
@@ -102,7 +102,7 @@ namespace Spreads.Buffers
         /// </summary>
         [Obsolete("TODO Review efficient Span enumeration, both Span and Memory do not implement IEnumeratble (yet)")]
         public IEnumerator<T> GetEnumerator()
-        {  
+        {
             for (int i = 0; i < Buffer.Length; i++)
             {
                 yield return Buffer.Span[i];

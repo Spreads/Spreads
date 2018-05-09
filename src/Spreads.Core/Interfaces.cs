@@ -327,9 +327,8 @@ namespace Spreads
         /// <summary>
         /// Try get first element.
         /// </summary>
-        public static bool TryGetFirst<TKey, TValue, TSeries>(this TSeries series,
+        public static bool TryGetFirst<TKey, TValue>(this IReadOnlySeries<TKey, TValue> series,
             out KeyValuePair<TKey, TValue> value)
-            where TSeries : IReadOnlySeries<TKey, TValue>
         {
             if (series.IsEmpty)
             {
@@ -343,9 +342,8 @@ namespace Spreads
         /// <summary>
         /// Try get last element.
         /// </summary>
-        public static bool TryGetLast<TKey, TValue, TSeries>(this TSeries series,
+        public static bool TryGetLast<TKey, TValue>(this IReadOnlySeries<TKey, TValue> series,
             out KeyValuePair<TKey, TValue> value)
-            where TSeries : IReadOnlySeries<TKey, TValue>
         {
             if (series.IsEmpty)
             {

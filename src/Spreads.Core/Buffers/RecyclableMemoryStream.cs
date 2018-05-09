@@ -498,26 +498,6 @@ namespace Spreads.Buffers
             return newBuffer;
         }
 
-        /// <summary>
-        /// Return a PreservedBuffer backed by a pooled array.
-        /// The buffer owns the array which is different from GetBuffer.
-        /// The buffer could be used after this stream is disposed.
-        /// </summary>
-        /// <returns></returns>
-        public PreservedBuffer<byte> ToPreservedBuffer()
-        {
-            // TODO For now I just need this API, but later will switch from copying 
-            // to PreservedBuffers as blocks, so for single or large block we could return without copy
-            CheckDisposed();
-            var buffer = BufferPool.PreserveMemory(checked((int)_length)); // PreservedBuffer does not support large arrays, will throw
-            if (buffer.Buffer.TryGetArray(out var asegm))
-            {
-                InternalRead(asegm.Array, asegm.Offset, _length, 0);
-                return buffer;
-            }
-            ThrowHelper.ThrowInvalidOperationException("Expecting array");
-            return default(PreservedBuffer<byte>);
-        }
 
         /// <summary>
         /// Reads from the current position into the provided buffer

@@ -65,7 +65,7 @@ namespace Spreads.Serialization
             {
                 var maxSize = 8 + (16 + BloscMethods.ProcessorCount * 4) + ItemSize * valueCount;
                 var ownedBuffer = BufferPool<byte>.RentOwnedBuffer(maxSize);
-                ownedBuffer.Retain();
+                ownedBuffer.Pin();
                 var buffer = ownedBuffer.Memory;
 
                 var totalSize = Write(value, valueOffset, valueCount, ref buffer, 0, null, compression);
@@ -108,7 +108,7 @@ namespace Spreads.Serialization
             // NB Blosc calls below are visually large - many LOCs with comments, but this is only a single method call
             if (value == null) throw new ArgumentNullException(nameof(value));
 
-            var handle = destination.Retain(true);
+            var handle = destination.Pin();
             try
             {
                 var ptr = (IntPtr)handle.Pointer + (int)destinationOffset;
@@ -329,7 +329,7 @@ namespace Spreads.Serialization
 #endif
                 var arraySize = nbytes / ItemSize;
                 // when caller provides an empty AS, it could require exact size, e.g. DateTimeArrayBinaryConverter
-                var array = BufferPool<TElement>.Rent(arraySize, exactSize);
+                var array = BufferPool<TElement>.Rent(arraySize);
                 length = arraySize;
                 value = array;
 

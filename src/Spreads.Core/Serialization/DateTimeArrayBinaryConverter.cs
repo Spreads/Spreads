@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -42,7 +41,7 @@ namespace Spreads.Serialization
                     return (int)BinaryConverterErrorCode.NotEnoughCapacity;
                 }
 
-                var handle = destination.Retain(true);
+                var handle = destination.Pin();
                 try
                 {
                     var ptr = (IntPtr)handle.Pointer + (int)offset;

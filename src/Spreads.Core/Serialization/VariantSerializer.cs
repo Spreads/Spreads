@@ -2,14 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using Spreads.Buffers;
-using Spreads.DataTypes;
-
 namespace Spreads.Serialization.Experimental
 {
     // NB this layout should support any Variant tree (e.g. Variant containing Variants)

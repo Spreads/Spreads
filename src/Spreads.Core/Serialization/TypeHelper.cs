@@ -392,7 +392,7 @@ namespace Spreads.Serialization
                 {
                     return (int)BinaryConverterErrorCode.NotEnoughCapacity;
                 }
-                var handle = destination.Retain(true);
+                var handle = destination.Pin();
 
                 var ptr = (IntPtr)handle.Pointer + (int)offset;
 

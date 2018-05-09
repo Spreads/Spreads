@@ -244,7 +244,11 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal byte[] GetBlock()
         {
-            return BufferPool<byte>.Rent(_blockSize, true);
+            var buffer = BufferPool<byte>.Rent(_blockSize);
+            if (buffer.Length == _blockSize) return buffer;
+            BufferPool<byte>.Return(buffer, false);
+            buffer = new byte[_blockSize];
+            return buffer;
         }
 
         /// <summary>

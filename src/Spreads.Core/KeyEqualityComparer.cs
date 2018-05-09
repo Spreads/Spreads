@@ -22,18 +22,12 @@ namespace Spreads
     /// <typeparam name="T"></typeparam>
     public struct KeyEqualityComparer<T> : IEqualityComparer<T>
     {
-        private static readonly KeyEqualityComparer<T> _default = new KeyEqualityComparer<T>();
         private static readonly bool IsIEquatable = typeof(IEquatable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
-
-        /// <summary>
-        /// Create a new KeyEqualityComparer instance.
-        /// </summary>
-        //private KeyEqualityComparer() { }
 
         /// <summary>
         /// Default instance of a KeyEqualityComparer for type T.
         /// </summary>
-        public static KeyEqualityComparer<T> Default => _default;
+        public static KeyEqualityComparer<T> Default { get; } = new KeyEqualityComparer<T>();
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
