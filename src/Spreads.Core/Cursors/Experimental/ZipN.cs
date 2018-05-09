@@ -66,7 +66,7 @@ namespace Spreads.Cursors.Experimental
         public override bool IsIndexed => false;
 
         // TODO this is heaviliy used in MNA, remove LINQ, use livecount, review
-        public override bool IsReadOnly => _cursors.All(s => s.Source.IsReadOnly);
+        public override bool IsCompleted => _cursors.All(s => s.Source.IsCompleted);
 
         public override Task<bool> Updated => throw new NotImplementedException();
 
@@ -168,7 +168,7 @@ namespace Spreads.Cursors.Experimental
             //    let mutable passedFrontier = not shouldMove
             //    // try move while could move and not passed the frontier
             //    while shouldMove do
-            //      let moved = cursor.MoveNext()
+            //      let moved = cursor.MoveNextAsync()
             //      movedAtLeastOnce <- movedAtLeastOnce || moved
             //      passedFrontier <- cmp.Compare(cursor.CurrentKey, this.CurrentKey) > 0
             //      shouldMove <- moved && not passedFrontier
@@ -231,7 +231,7 @@ namespace Spreads.Cursors.Experimental
 
         public override bool IsIndexed => throw new NotImplementedException();
 
-        public override bool IsReadOnly => throw new NotImplementedException();
+        public override bool IsCompleted => throw new NotImplementedException();
 
         public override Task<bool> Updated => throw new NotImplementedException();
 

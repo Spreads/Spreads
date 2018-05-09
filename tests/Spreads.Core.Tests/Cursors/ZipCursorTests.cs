@@ -34,7 +34,7 @@ namespace Spreads.Core.Tests.Cursors
 
             var zipSum = (sm1 + sm2);
             double actual = 0;
-            var zipCursor = //zipSum.GetEnumerator();
+            var zipCursor = //zipSum.GetAsyncEnumerator();
                 new Zip<int, double, double, SortedMapCursor<int, double>,
                         SortedMapCursor<int, double>>(
                         c1, c2); //.Map((k, v) => v.Item1 + v.Item2)
@@ -68,7 +68,7 @@ namespace Spreads.Core.Tests.Cursors
             //actual = 0;
             //using (Benchmark.Run("ZipN", count * 2))
             //{
-            //    while (zipN.MoveNext())
+            //    while (zipN.MoveNextAsync())
             //    {
             //        actual += zipN.CurrentValue;
             //    }
@@ -80,7 +80,7 @@ namespace Spreads.Core.Tests.Cursors
             //actual = 0;
             //using (Benchmark.Run("ZipN (old)", count * 2))
             //{
-            //    while (zipNOld.MoveNext())
+            //    while (zipNOld.MoveNextAsync())
             //    {
             //        actual += zipNOld.CurrentValue;
             //    }
@@ -569,7 +569,7 @@ namespace Spreads.Core.Tests.Cursors
 
             //    Task.Run(async () =>
             //        {
-            //            while (await cur2.MoveNext(CancellationToken.None))
+            //            while (await cur2.MoveNextAsync(CancellationToken.None))
             //            {
             //                sum2.Add(cur2.CurrentKey, cur2.CurrentValue);
             //            }
@@ -736,7 +736,7 @@ namespace Spreads.Core.Tests.Cursors
 
             //    Task.Run(async () =>
             //        {
-            //            while (await cur2.MoveNext(CancellationToken.None))
+            //            while (await cur2.MoveNextAsync(CancellationToken.None))
             //            {
             //                sum2.Add(cur2.CurrentKey, cur2.CurrentValue);
             //            }

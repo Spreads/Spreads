@@ -132,7 +132,7 @@ namespace Spreads.Cursors.Experimental
         public override bool IsIndexed => _cursor.Source.IsIndexed;
 
         /// <inheritdoc />
-        public override bool IsReadOnly => _cursor.Source.IsReadOnly;
+        public override bool IsCompleted => _cursor.Source.IsCompleted;
 
         // TODO when MNB works after MN
         /// <inheritdoc />

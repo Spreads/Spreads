@@ -222,7 +222,7 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MoveNext
+        [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MoveNextAsync
         public bool MoveFirst()
         {
             if (State == CursorState.None)
@@ -336,7 +336,7 @@ namespace Spreads.Cursors.Internal
                         var movedBack = _cursor.MovePrevious() && _laggedCursor.MovePrevious();
                         if (!movedBack)
                         {
-                            ThrowHelper.ThrowInvalidOperationException("MovePrevious should succeed after MoveNext or throw OutOfOrderKeyException");
+                            ThrowHelper.ThrowInvalidOperationException("MovePrevious should succeed after MoveNextAsync or throw OutOfOrderKeyException");
                         }
                     }
                     catch (OutOfOrderKeyException<TKey>)
@@ -388,7 +388,7 @@ namespace Spreads.Cursors.Internal
                         var moveForward = _laggedCursor.MoveNext() && _cursor.MoveNext();
                         if (!moveForward)
                         {
-                            ThrowHelper.ThrowInvalidOperationException("MoveNext should succeed after MovePrevious or throw OutOfOrderKeyException");
+                            ThrowHelper.ThrowInvalidOperationException("MoveNextAsync should succeed after MovePrevious or throw OutOfOrderKeyException");
                         }
                     }
                     catch (OutOfOrderKeyException<TKey>)
@@ -410,7 +410,7 @@ namespace Spreads.Cursors.Internal
         public Series<TKey, TCursor, LagStepImpl<TKey, TValue, TCursor>> Source => new Series<TKey, TCursor, LagStepImpl<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNext(CancellationToken cancellationToken)
+        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
         }
@@ -427,7 +427,7 @@ namespace Spreads.Cursors.Internal
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsReadOnly; }
+            get { return _cursor.Source.IsCompleted; }
         }
 
         /// <inheritdoc />

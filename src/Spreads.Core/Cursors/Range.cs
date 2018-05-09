@@ -48,9 +48,9 @@ namespace Spreads
         private TKey _startKey;
 
         /// <remarks>
-        /// Number of elements consumed by subsequent MoveNext moves.
+        /// Number of elements consumed by subsequent MoveNextAsync moves.
         /// All other moves reset this value to zero.
-        /// If _count > 0 and _steps == _count we are at the end, could skip MoveNext from this position
+        /// If _count > 0 and _steps == _count we are at the end, could skip MoveNextAsync from this position
         /// and avoid recovery. If there was any other move than MN this check will just never work, no need
         /// to add complex logic - this is for foreach-like/LINQ forward-only consumption.
         /// </remarks>
@@ -333,7 +333,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MoveNext
+        [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MoveNextAsync
         public bool MoveFirst()
         {
             if (State == CursorState.None)
@@ -509,7 +509,7 @@ namespace Spreads
         IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source => Source;
 
         /// <inheritdoc />
-        public Task<bool> MoveNext(CancellationToken cancellationToken)
+        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
         }
@@ -526,7 +526,7 @@ namespace Spreads
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsReadOnly; }
+            get { return _cursor.Source.IsCompleted; }
         }
 
         /// <inheritdoc />

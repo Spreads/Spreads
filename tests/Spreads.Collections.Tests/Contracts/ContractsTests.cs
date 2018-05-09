@@ -81,7 +81,7 @@ namespace Spreads.Collections.Tests.Contracts
         {
             Assert.AreEqual(_materializedSeries.Count, _testSeries.Count());
             Assert.AreEqual(_materializedSeries.IsEmpty, !_testSeries.Any());
-            Assert.AreEqual(_materializedSeries.IsReadOnly, _testSeries.IsReadOnly);
+            Assert.AreEqual(_materializedSeries.IsReadOnly, _testSeries.IsCompleted);
             if (_materializedSeries.Count == 0)
             {
                 return;
@@ -126,7 +126,7 @@ namespace Spreads.Collections.Tests.Contracts
                 Assert.AreEqual(mc.Current, tc.Current, "Independent cursors moves: kvps are not equal after similar moves");
                 Assert.AreEqual(tc.Current, tc2.Current, "Independent cursors moves: kvps are not equal after similar moves");
             }
-            // one of the key contract is that MoveNext() does not destroy state after returning false,
+            // one of the key contract is that MoveNextAsync() does not destroy state after returning false,
             // because we could either spin or switch to MoveNextAsync()
             Assert.IsFalse(mc.MoveNext(), "MN after false MN should be false");
             Assert.IsFalse(tc.MoveNext(), "MN after false MN should be false");

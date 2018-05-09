@@ -166,7 +166,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MoveNext
+        [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MoveNextAsync
         public bool MoveFirst()
         {
             var moved = _cursor.MoveFirst();
@@ -211,7 +211,7 @@ namespace Spreads
         public Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>> Source => new Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNext(CancellationToken cancellationToken)
+        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
         }
@@ -237,7 +237,7 @@ namespace Spreads
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsReadOnly; }
+            get { return _cursor.Source.IsCompleted; }
         }
 
         /// <inheritdoc />

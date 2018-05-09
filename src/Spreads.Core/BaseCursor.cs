@@ -21,7 +21,7 @@ namespace Spreads
 
         // NB this is often a struct, should not be made readonly!
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
-        internal TCursor _innerCursor;
+        private TCursor _innerCursor;
 
         private TaskCompletionSource<Task<bool>> _cancelledTcs;
         private CancellationTokenRegistration _registration;
@@ -86,7 +86,7 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNext(CancellationToken cancellationToken)
+        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             // sync move, hot path
             if (_innerCursor.MoveNext())
@@ -106,7 +106,7 @@ namespace Spreads
                 return TaskUtil.TrueTask;
             }
 
-            if (_innerCursor.Source.IsReadOnly)
+            if (_innerCursor.Source.IsCompleted)
             {
                 // false almost always
                 if (_innerCursor.MoveNext())
@@ -115,7 +115,6 @@ namespace Spreads
                 }
 
                 return TaskUtil.FalseTask;
-
             }
 
             // now task will always be completed by NotifyUpdate
@@ -150,7 +149,7 @@ namespace Spreads
         {
             if (!t.Result) return TaskUtil.FalseTask;
             if (_token.IsCancellationRequested) return TaskUtil.FromCanceled<bool>(_token);
-            return _innerCursor.MoveNext() ? TaskUtil.TrueTask : MoveNext(_token);
+            return _innerCursor.MoveNext() ? TaskUtil.TrueTask : MoveNextAsync(_token);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -250,6 +249,12 @@ namespace Spreads
         public void Dispose()
         {
             Dispose(true);
+        }
+
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return Task.CompletedTask;
         }
     }
 }

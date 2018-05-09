@@ -19,7 +19,7 @@ namespace Spreads
         private KeyValuePair<TKey, TValue> _lastValue;
         private bool _isSet = false;
 
-        public override bool IsReadOnly => false;
+        public override bool IsCompleted => false;
         public override bool IsEmpty => !_isSet;
         public override KeyValuePair<TKey, TValue> First => _lastValue;
         public override KeyValuePair<TKey, TValue> Last => _lastValue;

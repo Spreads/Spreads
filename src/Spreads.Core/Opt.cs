@@ -27,8 +27,9 @@ namespace Spreads
         }
     }
 
+    // TODO xml docs
     /// <summary>
-    /// The minimal implementation of Option type.
+    /// The minimal implementation of Option type. T must implement IEquitable for custom equality.
     /// </summary>
     [StructLayout(LayoutKind.Auto)]
     public struct Opt<T> : IEquatable<Opt<T>>
@@ -102,7 +103,8 @@ namespace Spreads
         /// <inheritdoc />
         public bool Equals(Opt<T> other)
         {
-            return IsPresent == other.IsPresent && (IsMissing || Present.Equals(other.Present));
+            return IsPresent == other.IsPresent
+                   && (IsMissing || KeyEqualityComparer<T>.EqualsStatic(Present, other.Present));
         }
 
         /// <summary>

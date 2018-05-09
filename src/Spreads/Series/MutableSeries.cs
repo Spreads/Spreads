@@ -23,7 +23,7 @@ namespace Spreads
 
     //    public long Version => _innerSeries.Version;
 
-    //    public override bool IsReadOnly => _innerSeries.IsReadOnly;
+    //    public override bool IsCompleted => _innerSeries.IsCompleted;
 
     //    public override KeyComparer<TK> Comparer => _innerSeries.Comparer;
 

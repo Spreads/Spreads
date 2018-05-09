@@ -86,8 +86,8 @@ namespace Spreads.Collections.Tests {
 
             //Thread.Sleep(5000000);
             var reader = scm.ReadOnly();
-            Console.WriteLine("Writer IsReadOnly: {0}", scm.IsReadOnly);
-            Console.WriteLine("Reader IsReadOnly: {0}", reader.IsReadOnly);
+            Console.WriteLine("Writer IsCompleted: {0}", scm.IsReadOnly);
+            Console.WriteLine("Reader IsCompleted: {0}", reader.IsReadOnly);
             var cnt = 0;
             using (var c = reader.GetCursor()) {
                 var couldMove = await c.MoveNext(CancellationToken.None);
@@ -100,8 +100,8 @@ namespace Spreads.Collections.Tests {
             addTask.Wait();
             Thread.Sleep(200);
             Assert.AreEqual(cnt, total + 1);
-            Console.WriteLine("Writer IsReadOnly: {0}", scm.IsReadOnly);
-            Console.WriteLine("Reader IsReadOnly: {0}", reader.IsReadOnly);
+            Console.WriteLine("Writer IsCompleted: {0}", scm.IsReadOnly);
+            Console.WriteLine("Reader IsCompleted: {0}", reader.IsReadOnly);
             //(scm as IPersistentSeries<int, int>).Dispose();
         }
 

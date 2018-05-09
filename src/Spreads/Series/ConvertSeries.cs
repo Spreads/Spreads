@@ -44,7 +44,7 @@ namespace Spreads
 
         public abstract TValue ToValue(TValue2 value2);
 
-        public override bool IsReadOnly => Inner.IsReadOnly;
+        public override bool IsCompleted => Inner.IsCompleted;
         public override bool IsEmpty => Inner.IsEmpty;
 
         public override KeyValuePair<TKey2, TValue2> First
@@ -161,9 +161,9 @@ namespace Spreads
                 _source = source;
             }
 
-            public Task<bool> MoveNext(CancellationToken cancellationToken)
+            public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
             {
-                return _innerCursor.MoveNext(cancellationToken);
+                return _innerCursor.MoveNextAsync(cancellationToken);
             }
 
             public void Dispose()

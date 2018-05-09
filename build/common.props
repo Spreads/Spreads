@@ -1,49 +1,30 @@
 <Project>
-  <PropertyGroup>
-    <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>preview1</VersionSuffix>
-    <VersionSuffix Condition="'$(VersionSuffix)' != '' And '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
-    <PackageTags>Spreads CEP data streaming real-time analysis streams time series reactive</PackageTags>
-    <Product>Spreads</Product>
-    <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/Spreads/Spreads.git</RepositoryUrl>
-    <Authors>Victor Baybekov</Authors>
-    <Company />
-    <Product />
-    <Copyright>Victor Baybekov</Copyright>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn),1591</NoWarn>
-    <SignAssembly>true</SignAssembly>
-    <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
-    <AssemblyOriginatorKeyFile>..\..\tools\SpreadsKey.snk</AssemblyOriginatorKeyFile>
-    <DelaySign>false</DelaySign>
-  </PropertyGroup>
-  
-  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
-    <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
-  </PropertyGroup>
-  
-  <PropertyGroup>
-    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-  </PropertyGroup>
-  
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net451|AnyCPU'">
-    <DefineConstants>TRACE;SPREADS;NO_VARIANCE;NET451;</DefineConstants>
-    <OutputPath>..\..\bin\</OutputPath>
-  </PropertyGroup>
+    <PropertyGroup>
+        <VersionPrefix>1.0.0</VersionPrefix>
+        <VersionSuffix>preview1</VersionSuffix>
+        <VersionSuffix Condition="'$(VersionSuffix)' != '' And '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
+        <PackageTags>Spreads CEP data streaming real-time analysis streams time series reactive</PackageTags>
+        <Product>Spreads</Product>
+        <RepositoryType>git</RepositoryType>
+        <RepositoryUrl>https://github.com/Spreads/Spreads.git</RepositoryUrl>
+        <Authors>Victor Baybekov</Authors>
+        <Company />
+        <Product />
+        <Copyright>Victor Baybekov</Copyright>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn),1591</NoWarn>
+        <SignAssembly>true</SignAssembly>
+        <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
+        <AssemblyOriginatorKeyFile>..\..\tools\SpreadsKey.snk</AssemblyOriginatorKeyFile>
+        <DelaySign>false</DelaySign>
+    </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net451|AnyCPU'">
-    <DefineConstants>TRACE;DEBUG;SPREADS;NO_VARIANCE;NET451;</DefineConstants>
-    <OutputPath>..\..\bin\</OutputPath>
-  </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+        <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+    </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|netstandard2.0|AnyCPU'">
-    <DefineConstants>TRACE;SPREADS;NO_VARIANCE;COREFX;</DefineConstants>
-    <OutputPath>..\..\bin\</OutputPath>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard2.0|AnyCPU'">
-    <DefineConstants>TRACE;DEBUG;SPREADS;NO_VARIANCE;COREFX;</DefineConstants>
-    <OutputPath>..\..\bin\</OutputPath>
-  </PropertyGroup>
+    <PropertyGroup>
+        <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+        <OutputPath>..\..\bin\</OutputPath>
+    </PropertyGroup>
 </Project>

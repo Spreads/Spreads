@@ -26,7 +26,7 @@ namespace Spreads
     /// or the cursor depends on the past.
     /// It is easy to recover from this exception using the cursor MoveAt method and CurrentKey/NewKey properties
     /// of this exception. E.g. MoveAt(ex.CurrentKey, Lookup.GT) in a catch block is equivalent to ignoring
-    /// the exception and continuing to MoveNext.
+    /// the exception and continuing to MoveNextAsync.
     /// To replay values that could have been altered by an out-of-order data point, one could use MoveAt(ex.NewKey, Lookup.EQ).
     /// It is the responsibility of cursor consumer to recover from this exception, cursors should not implement any "smart"
     /// behavior unless it is a part of cursor definition and is explicitly documented.

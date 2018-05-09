@@ -75,10 +75,10 @@
 //            var c = sma.GetCursor();
 //            //Thread.Sleep(200);
 //            Assert.IsTrue(tcs.Task.Result);
-//            Assert.IsTrue(c.MoveNext(CancellationToken.None).Result);
-//            Assert.IsTrue(c.MoveNext());
+//            Assert.IsTrue(c.MoveNextAsync(CancellationToken.None).Result);
+//            Assert.IsTrue(c.MoveNextAsync());
 //            var ii = 2;
-//            while (c.MoveNext(CancellationToken.None).Result) { //   
+//            while (c.MoveNextAsync(CancellationToken.None).Result) { //   
 //                //Console.WriteLine("Key: {0}, value: {1}", c.CurrentKey, c.CurrentValue);
 //                ii++;
 //            }
@@ -93,7 +93,7 @@
 //            var scm = new SortedChunkedMap<int, double>();
 //            var scmSma = scm.SMA(20, true);
 //            var c = scmSma.GetCursor();
-//            var task = c.MoveNext(CancellationToken.None);
+//            var task = c.MoveNextAsync(CancellationToken.None);
 //            var moved = task.Wait(100);
 //            // timeout
 //            Assert.IsFalse(moved);
@@ -101,7 +101,7 @@
 //            Assert.IsTrue(task.Result);
 //            Console.WriteLine("moved " + task.Result);
 
-//            task = c.MoveNext(CancellationToken.None);
+//            task = c.MoveNextAsync(CancellationToken.None);
 //            moved = task.Wait(100);
 //            // timeout
 //            Assert.IsFalse(moved);
@@ -146,7 +146,7 @@
 
 //            var traderTask = Task.Run(async () => {
 //                var positionCursor = smaPositionMultiple.GetCursor();
-//                while (await positionCursor.MoveNext(CancellationToken.None)) //
+//                while (await positionCursor.MoveNextAsync(CancellationToken.None)) //
 //                {
 //                    await Task.Delay(15);
 //                    Console.WriteLine("Time: {0}, position: {1}", positionCursor.CurrentKey, positionCursor.CurrentValue);

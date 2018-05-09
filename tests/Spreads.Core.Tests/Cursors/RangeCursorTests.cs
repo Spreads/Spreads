@@ -47,7 +47,7 @@ namespace Spreads.Core.Tests.Cursors
             };
             var range1 = nonEmpty.Range(0, Int32.MaxValue, true, true);
 
-            //var e = range1.GetEnumerator();
+            //var e = range1.GetAsyncEnumerator();
 
             foreach (var keyValuePair in range1)
             {

@@ -77,7 +77,7 @@ namespace Spreads
         public bool IsIndexed => _cursor.IsIndexed;
 
         /// <inheritdoc />
-        public bool IsReadOnly
+        public bool IsCompleted
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -645,8 +645,8 @@ namespace Spreads
         //public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>>> operator
         //    *(Series<TKey, TValue, Cursor<TKey, TValue>> series, Series<TKey, TValue, TCursor> other)
         //{
-        //    var c1 = series.GetEnumerator();
-        //    var c2 = other.GetEnumerator();
+        //    var c1 = series.GetAsyncEnumerator();
+        //    var c2 = other.GetAsyncEnumerator();
         //    Func<TKey, (TValue, TValue), TValue> selector = MultiplyOp<TValue>.ZipSelector;
 
         //    var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);

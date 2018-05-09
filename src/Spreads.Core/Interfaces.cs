@@ -7,27 +7,47 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Utils;
 
 namespace Spreads
 {
-    // TODO move to a folder Interfaces without namespace
+    // NB Interfaces in a single file because
+    // current order is logical from the most primitive to complex interfaces
+
+    // See also
+    // https://github.com/dotnet/csharplang/blob/master/proposals/async-streams.md
+    // https://github.com/dotnet/csharplang/issues/43
+    //Pattern-based Compilation
+    //The compiler will bind to the pattern-based APIs if they exist, preferring those over using the interface
+    //(the pattern may be satisfied with instance methods or extension methods). The requirements for the pattern are:
+
+    //* The enumerable must expose a GetAsyncEnumerator method that may be called with no arguments and that returns an enumerator
+    //  that meets the relevant pattern.
+    //* The enumerator must expose a MoveNextAsync method that may be called with no arguments and that returns something which may
+    //  be awaited and whose GetResult() returns a bool.
+    //* The enumerator must also expose Current property whose getter returns a T representing the kind of data being enumerated.
+    //* The enumerator may optionally expose a DisposeAsync method that may be invoked with no arguments and that returns something
+    //  that can be awaited and whose GetResult() returns void.
+
+    public interface IAsyncDisposable
+    {
+        Task DisposeAsync();
+    }
 
     /// <summary>
-    /// Extends <see cref="IEnumerator{T}"/> to support asynchronous MoveNext with cancellation.
+    /// Extends <see cref="IEnumerator{T}"/> to support asynchronous MoveNextAsync with cancellation.
     /// </summary>
     /// <remarks>
-    /// Contract: when MoveNext() returns false it means that there are no more elements
+    /// Contract: when MoveNextAsync() returns false it means that there are no more elements
     /// right now, and a consumer should call MoveNextAsync() to await for a new element, or spin
-    /// and repeatedly call MoveNext() when a new element is expected very soon. Repeated calls to MoveNext()
+    /// and repeatedly call MoveNextAsync() when a new element is expected very soon. Repeated calls to MoveNextAsync()
     /// could eventually return true. Changes to the underlying sequence, which do not affect enumeration,
     /// do not invalidate the enumerator.
     ///
     /// <c>Current</c> property follows the parent contracts as described here: https://msdn.microsoft.com/en-us/library/58e146b7(v=vs.110).aspx
-    /// Some implementations guarantee that <c>Current</c> keeps its last value from successful MoveNext(),
+    /// Some implementations guarantee that <c>Current</c> keeps its last value from successful MoveNextAsync(),
     /// but that must be explicitly stated in a data structure documentation (e.g. SortedMap).
     /// </remarks>
-    public interface IAsyncEnumerator<out T> : IEnumerator<T>
+    public interface IAsyncEnumerator<out T> : IEnumerator<T>, IAsyncDisposable
     {
         // TODO (docs) last part of the remarks above should always be true and the contract must be documented
         // False move from a valid state must keep a cursor/enumerator at the previous valid state
@@ -41,29 +61,9 @@ namespace Spreads
         /// </remarks>
         /// <param name="cancellationToken">Use <c>CancellationToken.None</c> as default token</param>
         /// <returns>true when there is a next element in the sequence, false if the sequence is complete and there will be no more elements ever</returns>
-        Task<bool> MoveNext(CancellationToken cancellationToken);
-    }
+        Task<bool> MoveNextAsync(CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Convenience extensions to <see cref="IAsyncEnumerator{T}"/>.
-    /// </summary>
-    public static class AsyncEnumeratorExtensions
-    {
-        /// <summary>
-        /// An alias to <see cref="IAsyncEnumerator{T}.MoveNext(CancellationToken)"/> method with <see cref="CancellationToken.None"/>.
-        /// </summary>
-        public static Task<bool> MoveNextAsync<T>(this IAsyncEnumerator<T> enumerator)
-        {
-            return enumerator.MoveNext(CancellationToken.None);
-        }
-
-        /// <summary>
-        /// An alias to <see cref="IAsyncEnumerator{T}.MoveNext(CancellationToken)"/> method.
-        /// </summary>
-        public static Task<bool> MoveNextAsync<T>(this IAsyncEnumerator<T> enumerator, CancellationToken cancellationToken)
-        {
-            return enumerator.MoveNext(cancellationToken);
-        }
+        Task<bool> MoveNextAsync(); // F#... doesn't like optional params from C# :/
     }
 
     /// <summary>
@@ -74,90 +74,39 @@ namespace Spreads
         /// <summary>
         /// Returns an async enumerator.
         /// </summary>
-        new IAsyncEnumerator<T> GetEnumerator();
-    }
-
-    public interface ISubscription : IDisposable
-    {
-        /// <summary>
-        /// No events will be sent by a Publisher until demand is signaled via this method.
-        ///
-        /// It can be called however often and whenever needed — but the outstanding cumulative demand must never exceed long.MaxValue.
-        /// An outstanding cumulative demand of long.MaxValue may be treated by the Publisher as "effectively unbounded".
-        ///
-        /// Whatever has been requested can be sent by the Publisher so only signal demand for what can be safely handled.
-        ///
-        /// A Publisher can send less than is requested if the stream ends but then must emit either Subscriber.OnError(Throwable)}
-        /// or Subscriber.OnCompleted().
-        /// </summary>
-        /// <param name="n">the strictly positive number of elements to requests to the upstream Publisher</param>
-        void Request(long n);
-
-        // NB Java doesn't have IDisposable and have to reinvent the pattern every time. Here we use Dispose() for original reactive streams Cancel().
-        // <summary>
-        // Request the Publisher to stop sending data and clean up resources.
-        // Data may still be sent to meet previously signalled demand after calling cancel as this request is asynchronous.
-        // </summary>
-        //void Dispose();
-    }
-
-    public interface ISubscriber<in T> : IObserver<T>
-    {
-        void OnSubscribe(ISubscription s);
-
-        //void OnCompleted();
-        //void OnError(Exception error);
-        //void OnNext(T value);
-    }
-
-    public interface IPublisher<out T> : IObservable<T>
-    {
-        //[Obsolete("Use typecheck in implementations")]
-        //new ISubscription Subscribe(IObserver<T> subscriber);
+        IAsyncEnumerator<T> GetAsyncEnumerator();
     }
 
     // TODO see issue https://github.com/Spreads/Spreads/issues/99
+    // DataStream is Series<long, TValue>. Event consecutive keys are not required in general but could be required by some protocol.
 
-    /// <summary>
-    /// An <see cref="IAsyncEnumerable{KeyValuePair}"/> and <see cref="IPublisher{KeyValuePair}"/> with additional guarantee
-    /// that items are ordered by <typeparamref name="TKey"/>.
-    /// </summary>
-    public interface IDataStream<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>,
-        IPublisher<KeyValuePair<TKey, TValue>>
-    {
-        /// <summary>
-        /// Key comparer.
-        /// </summary>
-        KeyComparer<TKey> Comparer { get; }
-    }
-
-    /// <summary>
-    /// A Processor represents a processing stage — which is both a <see cref="ISubscriber{T}"/>
-    /// and a <see cref="IPublisher{T}"/>
-    /// and obeys the contracts of both.
-    /// </summary>
-    /// <typeparam name="TIn">The type of element signaled to the <see cref="ISubscriber{T}"/></typeparam>
-    /// <typeparam name="TOut">The type of element signaled by the <see cref="IPublisher{T}"/></typeparam>
-    public interface IProcessor<in TIn, out TOut> : ISubscriber<TIn>, IPublisher<TOut>
-    {
-    }
+    ///// <summary>
+    ///// An <see cref="IAsyncEnumerable{KeyValuePair}"/> and <see cref="IPublisher{KeyValuePair}"/> with additional guarantee
+    ///// that items are ordered by <typeparamref name="TKey"/>.
+    ///// </summary>
+    //public interface IDataStream<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>
+    //{
+    //    /// <summary>
+    //    /// Key comparer.
+    //    /// </summary>
+    //    KeyComparer<TKey> Comparer { get; }
+    //}
 
     /// <summary>
     /// Main interface for data series.
     /// </summary>
-    public interface ISeries<TKey, TValue> : IDataStream<TKey, TValue>
+    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>
     {
         /// <summary>
         /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys.
         /// </summary>
         bool IsIndexed { get; }
 
-        // TODO! Rename to IsComplete, see #102
         /// <summary>
         /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
-        /// for adding (e.g. after OnCompleted in Rx) or IsReadOnly in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
+        /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
         /// </summary>
-        bool IsReadOnly { get; }
+        bool IsCompleted { get; }
 
         /// <summary>
         /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact
@@ -177,7 +126,7 @@ namespace Spreads
     /// <summary>
     /// A series with a known strongly typed cursor type.
     /// </summary>
-    public interface ISpecializedSeries<TKey, TValue, TCursor> : ISeries<TKey, TValue>
+    public interface ISpecializedSeries<TKey, TValue, out TCursor> : ISeries<TKey, TValue>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         /// <summary>
@@ -208,16 +157,16 @@ namespace Spreads
     /// 2. CurrentBatch contains a batch only after a call to MoveNextBatch() returns true. CurrentBatch is undefined
     ///    in all other cases.
     /// 3. After a call to MoveNextBatch() returns false, the consumer MUST use only single calls. ICursor implementations MUST
-    ///    ensure that the relative moves MoveNext/Previous start from the last position of the previous batch.
+    ///    ensure that the relative moves MoveNextAsync/Previous start from the last position of the previous batch.
     /// 4. Synchronous moves return true if data is instantly available, e.g. in a map data structure in memory or on fast disk DB.
-    ///    ICursor implementations should not block threads, e.g. if a map is IUpdateable, synchronous MoveNext should not wait for
+    ///    ICursor implementations should not block threads, e.g. if a map is IUpdateable, synchronous MoveNextAsync should not wait for
     ///    an update but return false if there is no data right now.
-    /// 5. When synchronous MoveNext or MoveLast return false, the consumer should call async overload of MoveNext. Inside the async
-    ///    implementation of MoveNext, a cursor must check if the source is IUpdateable and return Task.FromResult(false) immediately if it is not.
+    /// 5. When synchronous MoveNextAsync or MoveLast return false, the consumer should call async overload of MoveNextAsync. Inside the async
+    ///    implementation of MoveNextAsync, a cursor must check if the source is IUpdateable and return Task.FromResult(false) immediately if it is not.
     /// 6. When any move returns false, cursor stays at the position before that move (TODO now this is ensured only for SM MN/MP and for Bind(ex.MA) )
     /// _. TODO If the source is updated during a lifetime of a cursor, cursor must recreate its state at its current position
-    ///    Rewind logic only for async? Throw in all cases other than MoveNext, MoveAt? Or at least on MovePrevious.
-    ///    Or special behavior of MoveNext only on appends or changing the last value? On other changes must throw invalidOp (locks are there!)
+    ///    Rewind logic only for async? Throw in all cases other than MoveNextAsync, MoveAt? Or at least on MovePrevious.
+    ///    Or special behavior of MoveNextAsync only on appends or changing the last value? On other changes must throw invalidOp (locks are there!)
     ///    So if update is before the current position of a cursor, then throw. If after - then this doesn't affect the cursor in any way.
     ///    TODO cursor could implement IUpdateable when source does, or pass through to CursorSeries
     ///
@@ -225,7 +174,7 @@ namespace Spreads
     public interface ICursor<TKey, TValue>
         : IAsyncEnumerator<KeyValuePair<TKey, TValue>>
     {
-        // TODO add CursorState. For non-CursorSeries the state is never None after creation - created ones are already initialized. What about disposed ones?
+        CursorState State { get; }
 
         KeyComparer<TKey> Comparer { get; }
 
@@ -240,22 +189,30 @@ namespace Spreads
 
         bool MovePrevious();
 
-        TKey CurrentKey { get; }
-        TValue CurrentValue { get; }
+        ref readonly TKey CurrentKey { get; }
+
+        ref readonly TValue CurrentValue { get; }
+
+        ref readonly KeyValueRef<TKey, TValue> CurrentRef { get; }
 
         /// <summary>
         /// Optional (used for batch/SIMD optimization where gains are visible), MUST NOT throw NotImplementedException()
         /// Returns true when a batch is available immediately (async for IO, not for waiting for new values),
         /// returns false when there is no more immediate values and a consumer should switch to MoveNextAsync().
         /// </summary>
-        Task<bool> MoveNextBatch(CancellationToken cancellationToken);
+        Task<bool> MoveNextBatch(CancellationToken cancellationToken = default);
+
+        // NB Using ReadOnlyKeyValueSpan because batching is only profitable if
+        // we could get spans from source or if reduce operation over span is so
+        // fast that accumulating a batch in a buffer is cheaper (e.g. SIMD sum, but
+        // couldn't find such case in benchmarks)
 
         /// <summary>
         /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
         /// The actual implementation of the batch could be mutable and could reference a part of the original series, therefore consumer
         /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap
         /// </summary>
-        IReadOnlySeries<TKey, TValue> CurrentBatch { get; }
+        ReadOnlyKeyValueSpan<TKey, TValue> CurrentBatch { get; }
 
         /// <summary>
         /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
@@ -284,7 +241,7 @@ namespace Spreads
         /// the requested key is between the previous and the current keys, and then return the previous one.
         /// NB This is not thread safe. ICursors must be used from a single thread.
         /// </remarks>
-        bool TryGetValue(TKey key, out TValue value);
+        bool TryGetValue(in TKey key, out TValue value);
     }
 
     /// <summary>
@@ -326,28 +283,26 @@ namespace Spreads
         /// <summary>
         /// First element, throws InvalidOperationException if empty
         /// </summary>
-        KeyValuePair<TKey, TValue> First { get; }
+        KeyValueRef<TKey, TValue> First { get; }
 
         /// <summary>
         /// Last element, throws InvalidOperationException if empty
         /// </summary>
-        KeyValuePair<TKey, TValue> Last { get; }
+        KeyValueRef<TKey, TValue> Last { get; }
 
         /// <summary>
         /// Value at key, throws KeyNotFoundException if key is not present in the series (even for continuous series).
         /// Use TryGetValue to get a value between existing keys for continuous series.
         /// </summary>
-        TValue this[TKey key] { get; }
+        ref readonly TValue this[in TKey key] { get; }
 
-        /// <summary>
-        /// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
-        /// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code> .
-        /// </summary>
-        [Obsolete("Signature without TKey doesn't make sense. Only concrete series where optimization of this method works should have it, not the interface.")]
-        TValue GetAt(int idx);
+        ///// <summary>
+        ///// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
+        ///// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code> .
+        ///// </summary>
+        KeyValueRef<TKey, TValue> GetAt(long idx);
 
-        // TODO should be KeyValuePair<TKey, TValue> GetAt(int idx) or completely removed.
-
+        // Not async ones. Sometimes it's useful for optimization
         /// <summary>
         /// Keys enumerable.
         /// </summary>
@@ -364,17 +319,42 @@ namespace Spreads
         /// LT/GT search is done by index rather than by key and possible only when a key exists.
         /// TryFind works only with existing keys and is an equivalent of ICursor.MoveAt.
         /// </summary>
-        bool TryFind(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> value);
+        bool TryFind(in TKey key, Lookup direction, out KeyValueRef<TKey, TValue> value);
+    }
 
+    public static class ReadOnlySeriesExtensions
+    {
         /// <summary>
         /// Try get first element.
         /// </summary>
-        bool TryGetFirst(out KeyValuePair<TKey, TValue> value);
+        public static bool TryGetFirst<TKey, TValue, TSeries>(this TSeries series,
+            out KeyValuePair<TKey, TValue> value)
+            where TSeries : IReadOnlySeries<TKey, TValue>
+        {
+            if (series.IsEmpty)
+            {
+                value = default;
+                return false;
+            }
+            value = series.First;
+            return true;
+        }
 
         /// <summary>
         /// Try get last element.
         /// </summary>
-        bool TryGetLast(out KeyValuePair<TKey, TValue> value);
+        public static bool TryGetLast<TKey, TValue, TSeries>(this TSeries series,
+            out KeyValuePair<TKey, TValue> value)
+            where TSeries : IReadOnlySeries<TKey, TValue>
+        {
+            if (series.IsEmpty)
+            {
+                value = default;
+                return false;
+            }
+            value = series.Last;
+            return true;
+        }
     }
 
     /// <summary>
@@ -401,46 +381,13 @@ namespace Spreads
     }
 
     /// <summary>
-    /// An untyped <see cref="ISeries{DateTime, TValue}"/> interface with values as <see cref="Variant"/> types.
-    /// </summary>
-    //public interface ITimeSeries : ISeries<DateTime, Variant>
-    //{
-    //    /// <summary>
-    //    /// <see cref="TypeEnum"/> for the values type.
-    //    /// </summary>
-    //    TypeEnum ValueType { get; }
-
-    //    /// <summary>
-    //    /// TimeSeries parameters.
-    //    /// </summary>
-    //    TimeSeriesInfo TimeSeriesInfo { get; }
-    //}
-
-    ///// <summary>
-    ///// An untyped <see cref="IReadOnlySeries{DateTime, TValue}"/> interface with values as <see cref="Variant"/> types.
-    ///// </summary>
-    //public interface IReadOnlyTimeSeries : ITimeSeries, IReadOnlySeries<DateTime, Variant>
-    //{
-    //}
-
-    /// <summary>
-    /// Time series
-    /// </summary>
-    //public interface ITimeSeries<TKey, TValue> : IReadOnlySeries<TKey, TValue>
-    //{
-    //    // NB we do not restrict TKey to DateTime, it could be long or whatever, depending on context
-    //    // For storage we just require that TKey must have KeyComparer, i.e. strictly monotonic conversion to long
-    //    UnitPeriod UnitPeriod { get; }
-
-    //    int PeriodCount { get; }
-    //    string TimeZone { get; }
-    //}
-
-    /// <summary>
     /// Mutable series
     /// </summary>
     public interface IMutableSeries<TKey, TValue> : IReadOnlySeries<TKey, TValue> //, IDictionary<TKey, TValue>
     {
+        // NB even if Async methods add some overhead in sync case, it is small due to caching if Task<bool> return values
+        // In persistence layer is used to be a PITA to deal with sync methods with async IO
+
         long Count { get; }
 
         /// <summary>
@@ -448,44 +395,46 @@ namespace Spreads
         /// </summary>
         long Version { get; }
 
-        new TValue this[TKey key] { get; set; }
+        bool IsAppendOnly { get; }
+
+        Task<bool> Set(TKey key, TValue value);
 
         /// <summary>
         /// Adds new key and value to map, throws if the key already exists
         /// </summary>
-        void Add(TKey key, TValue value);
+        Task Add(TKey key, TValue value);
 
         /// <summary>
         /// Checked addition, checks that new element's key is larger/later than the Last element's key
         /// and adds element to this map
         /// throws ArgumentOutOfRangeException if new key is smaller than the last
         /// </summary>
-        void AddLast(TKey key, TValue value);
+        Task AddLast(TKey key, TValue value);
 
         /// <summary>
         /// Checked addition, checks that new element's key is smaller/earlier than the First element's key
         /// and adds element to this map
         /// throws ArgumentOutOfRangeException if new key is larger than the first
         /// </summary>
-        void AddFirst(TKey key, TValue value);
+        Task AddFirst(TKey key, TValue value);
 
-        bool Remove(TKey key);
+        Task<bool> Remove(TKey key);
 
-        bool RemoveLast(out KeyValuePair<TKey, TValue> kvp);
+        Task<bool> RemoveLast(out KeyValuePair<TKey, TValue> kvp);
 
-        bool RemoveFirst(out KeyValuePair<TKey, TValue> kvp);
+        Task<bool> RemoveFirst(out KeyValuePair<TKey, TValue> kvp);
 
-        bool RemoveMany(TKey key, Lookup direction);
+        Task<bool> RemoveMany(TKey key, Lookup direction);
 
         /// <summary>
         /// And values from appendMap to the end of this map
         /// </summary>
-        int Append(IReadOnlySeries<TKey, TValue> appendMap, AppendOption option); // TODO int, bool option for ignoreEqualOverlap, or Enum with 1: thow, 2: ignoreEqual, 3: rewriteOld, 4: ignoreNew (nonsense option, should not do, the first 3 are good)
+        Task<long> Append(ReadOnlyKeyValueSpan<TKey, TValue> appendMap, AppendOption option = AppendOption.ThrowOnOverlap);
 
         /// <summary>
         /// Make the map read-only and disable all Add/Remove/Set methods (they will throw)
         /// </summary>
-        void Complete();
+        Task Complete();
     }
 
     /// <summary>
@@ -496,10 +445,10 @@ namespace Spreads
         /// <summary>
         /// Persist any cached data.
         /// </summary>
-        void Flush();
+        Task Flush();
 
         /// <summary>
-        /// String identifier of series.
+        /// Unique string identifier.
         /// </summary>
         string Id { get; }
     }
@@ -513,15 +462,19 @@ namespace Spreads
     {
     }
 
+    // TODO review signature. Why chunk is mutable? Why not just Specialized mutable series?
     internal interface IMutableChunksSeries<TKey, TValue, TContainer> : IReadOnlySeries<TKey, TContainer>, IPersistentObject
         where TContainer : IMutableSeries<TKey, TValue>
     {
         /// <summary>
         /// Keep the key chunk if it is not empty, remove all other chunks to the direction side, update version from the key chunk
         /// </summary>
-        bool RemoveMany(TKey key, TContainer keyChunk, Lookup direction);
+        Task<bool> RemoveMany(TKey key, TContainer keyChunk, Lookup direction);
 
-        new TContainer this[TKey key] { get; set; }
+        new ref readonly TContainer this[in TKey key] { get; }
+
+        Task<bool> Set(TKey key, TContainer value);
+
         long Version { get; }
     }
 }

@@ -203,7 +203,7 @@ namespace Spreads.Cursors.Experimental
         }
 
         /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MoveNext
+        [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MoveNextAsync
         public bool MoveFirst()
         {
             if (State == CursorState.None)
@@ -275,7 +275,7 @@ namespace Spreads.Cursors.Experimental
         public override bool IsIndexed => _cursor.Source.IsIndexed;
 
         /// <inheritdoc />
-        public override bool IsReadOnly => _cursor.Source.IsReadOnly;
+        public override bool IsCompleted => _cursor.Source.IsCompleted;
 
         /// <inheritdoc />
         public override bool IsEmpty => _cursor.Source.IsEmpty;

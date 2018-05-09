@@ -34,14 +34,14 @@ namespace Spreads
         //public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
         //    this SortedMap<TKey, TValue> series, Func<TKey, TValue, TResult> selector)
         //{
-        //    var mapCursor = new Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
+        //    var mapCursor = new Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>(series.GetAsyncEnumerator(), selector);
         //    return mapCursor.Source;
         //}
 
         //public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
         //    this SortedMap<TKey, TValue> series, Func<TValue, TResult> selector)
         //{
-        //    var mapCursor = new Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
+        //    var mapCursor = new Map<TKey, TValue, TResult, SortedMapCursor<TKey, TValue>>(series.GetAsyncEnumerator(), selector);
         //    return mapCursor.Source;
         //}
 
@@ -52,14 +52,14 @@ namespace Spreads
         //public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
         //    this SortedChunkedMap<TKey, TValue> series, Func<TKey, TValue, TResult> selector)
         //{
-        //    var mapCursor = new Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
+        //    var mapCursor = new Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>(series.GetAsyncEnumerator(), selector);
         //    return mapCursor.Source;
         //}
 
         //public static Series<TKey, TResult, Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>> Map<TKey, TValue, TResult>(
         //    this SortedChunkedMap<TKey, TValue> series, Func<TValue, TResult> selector)
         //{
-        //    var mapCursor = new Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>(series.GetEnumerator(), selector);
+        //    var mapCursor = new Map<TKey, TValue, TResult, SortedChunkedMapCursor<TKey, TValue>>(series.GetAsyncEnumerator(), selector);
         //    return mapCursor.Source;
         //}
 

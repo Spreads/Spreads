@@ -42,7 +42,7 @@ namespace Spreads.Enumerators
             return new TimeSliceAsyncEnumerator(this);
         }
 
-        IAsyncEnumerator<KeyValuePair<DateTime, TAggr>> IAsyncEnumerable<KeyValuePair<DateTime, TAggr>>.GetEnumerator()
+        IAsyncEnumerator<KeyValuePair<DateTime, TAggr>> IAsyncEnumerable<KeyValuePair<DateTime, TAggr>>.GetAsyncEnumerator()
         {
             return GetEnumerator();
         }
@@ -187,14 +187,14 @@ namespace Spreads.Enumerators
 
             public KeyValuePair<DateTime, TAggr> Current => _current;
 
-            public async Task<bool> MoveNext(CancellationToken cancellationToken)
+            public async Task<bool> MoveNextAsync(CancellationToken cancellationToken)
             {
                 var e = _enumerator as IAsyncEnumerator<KeyValuePair<DateTime, TValue>>;
                 if (e == null) return false;
                 switch (_position)
                 {
                     case TimeSlicePosition.NotStarted:
-                    if (await e.MoveNext(cancellationToken))
+                    if (await e.MoveNextAsync(cancellationToken))
                     {
                         var slice = StartOfSlice(_enumerator.Current.Key);
                         _current = new KeyValuePair<DateTime, TAggr>(slice, _source._initState(_enumerator.Current.Value));
@@ -206,7 +206,7 @@ namespace Spreads.Enumerators
                     case TimeSlicePosition.FinishedSync:
                     case TimeSlicePosition.Aggregating:
                     var prev = _current;
-                    while (await e.MoveNext(cancellationToken))
+                    while (await e.MoveNextAsync(cancellationToken))
                     {
                         var slice = StartOfSlice(_enumerator.Current.Key);
                         if (slice == prev.Key)

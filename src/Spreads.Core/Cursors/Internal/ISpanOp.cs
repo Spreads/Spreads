@@ -103,7 +103,7 @@ namespace Spreads.Cursors.Internal
         void AddNewLeft(ref TCursor left);
 
         /// <summary>
-        /// Try to MoveNext the left cursor and remove its old key/value on successful move.
+        /// Try to MoveNextAsync the left cursor and remove its old key/value on successful move.
         /// </summary>
         /// <param name="left">The left cursor of the span.</param>
         /// <returns>True if the left cursor moved next and its old value is removed.</returns>
