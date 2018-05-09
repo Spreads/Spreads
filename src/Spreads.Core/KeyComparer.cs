@@ -235,7 +235,7 @@ namespace Spreads
             return CompareSlow(x, y);
         }
 
-        
+
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static int CompareSlow(T x, T y)
         {
@@ -289,7 +289,8 @@ namespace Spreads
                 var x1 = (uint)(object)(x);
                 var y1 = (uint)(object)(y);
 
-                return checked((long)(x1) - (long)y1);
+                
+                return checked((long)(x1) - y1);
             }
 
             ThrowHelper.ThrowNotSupportedException();
@@ -306,6 +307,7 @@ namespace Spreads
                 return _comparer.Compare(x, y) == 0;
             }
 
+            // ReSharper disable PossibleNullReferenceException
             if (typeof(T) == typeof(DateTime))
             {
                 // TODO (low) unsafe impl with bitwise sign
@@ -325,7 +327,9 @@ namespace Spreads
 
             if (typeof(T) == typeof(ulong))
             {
+
                 var x1 = (ulong)(object)(x);
+
                 var y1 = (ulong)(object)(y);
 
                 return x1 == y1;
@@ -345,7 +349,7 @@ namespace Spreads
 
                 return x1 == y1;
             }
-
+            // ReSharper restore PossibleNullReferenceException
             return EqualityComparer<T>.Default.Equals(x, y);
         }
 
@@ -359,19 +363,15 @@ namespace Spreads
 
         public bool Equals(KeyComparer<T> other)
         {
-            if (ReferenceEquals(null, other)) return false;
-            if (ReferenceEquals(this, other)) return true;
             return Equals(_comparer, other._comparer) && Equals(_keyComparer, other._keyComparer);
         }
 
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
             if (obj is KeyComparer<T> kc)
             {
                 return Equals(kc);
-            };
+            }
             return false;
         }
 
@@ -387,6 +387,7 @@ namespace Spreads
     /// <summary>
     /// Fast IComparer for KeyValuePair.
     /// </summary>
+    // ReSharper disable once InconsistentNaming
     public sealed class KVPComparer<TKey, TValue> : IComparer<KeyValuePair<TKey, TValue>>, IEqualityComparer<KeyValuePair<TKey, TValue>>, IEquatable<KVPComparer<TKey, TValue>>
     {
         private readonly KeyComparer<TKey> _keyComparer;

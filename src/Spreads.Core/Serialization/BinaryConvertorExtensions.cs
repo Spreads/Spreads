@@ -27,11 +27,11 @@ namespace Spreads.Serialization
             // Take/return is more expensive than the work we do with the pool here.
             var ownedBuffer = Buffers.BufferPool.StaticBuffer;
             var buffer = ownedBuffer.Memory;
-
+            
             var size2 = TypeHelper<T>.Write(value, ref buffer);
             Debug.Assert(size == size2);
 
-            if (buffer.TryGetArray(out var segment))
+            if (ownedBuffer.TryGetArray(out var segment))
             {
                 stream.Write(segment.Array, 0, size);
             }
@@ -55,7 +55,7 @@ namespace Spreads.Serialization
             int length;
             var position = 0;
             var buffer = ownedBuffer.Memory;
-            if (buffer.TryGetArray(out var segment))
+            if (ownedBuffer.TryGetArray(out var segment))
             {
                 while ((length = stream.Read(segment.Array, segment.Offset, segment.Count)) > 0)
                 {

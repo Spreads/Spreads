@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Serialization
 {
+    // TODO Use KeyValueSpan
     internal interface IArrayBasedMap<TKey, TValue>
     {
         int Length { get; }
@@ -74,7 +75,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe int Write(T value, ref Memory<byte> destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
-            var handle = destination.Retain(true);
+            var handle = destination.Pin();
             var ptr = (IntPtr)handle.Pointer + (int)offset;
 
             if (temporaryStream != null)

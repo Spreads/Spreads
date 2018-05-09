@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Serialization;
 using Spreads.Utils;
 using System;
 using System.Buffers;
@@ -11,41 +10,31 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Buffers
 {
-    // TODO default bool args to false and review all usages, make them required
-
     public static class BufferPool<T>
     {
-        private static readonly ArrayPool<T> PoolImpl = new DefaultArrayPool<T>();
+        // private static readonly ArrayPool<T> PoolImpl = new DefaultArrayPool<T>();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T[] Rent(int minLength, bool requireExact = true)
+        public static T[] Rent(int minLength)
         {
-            // temp fix while SM doesn't support unequal keys/values
-            var buffer = PoolImpl.Rent(minLength);
-            if (requireExact && buffer.Length != minLength)
-            {
-                Return(buffer, false);
-                return new T[minLength];
-            }
-            return buffer;
+            return ArrayPool<T>.Shared.Rent(minLength);
         }
 
         /// <summary>
         /// Return an array to the pool.
         /// </summary>
         /// <param name="array">An array to return.</param>
-        /// <param name="clearBlittableArray">Force clear of arrays of blittable types. Arrays that could have references are always cleared.</param>
+        /// <param name="clearArray">Force clear of arrays of blittable types. Arrays that could have references are always cleared.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Return(T[] array, bool clearBlittableArray = false)
+        public static void Return(T[] array, bool clearArray = false)
         {
-            PoolImpl.Return(array, clearBlittableArray);
+            ArrayPool<T>.Shared.Return(array, clearArray);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static OwnedMemory<T> RentOwnedBuffer(int minLength, bool requireExact = true)
+        internal static ArrayMemoryPoolBuffer<T> RentOwnedBuffer(int minLength, bool requireExact = true)
         {
-            var array = Rent(minLength, requireExact);
-            return OwnedPooledArray<T>.Create(array);
+            return ArrayMemoryPool<T>.Shared.RentCore(minLength);
         }
     }
 
@@ -60,33 +49,30 @@ namespace Spreads.Buffers
         /// Shared buffers are for slicing of small PreservedBuffers
         /// </summary>
         [ThreadStatic]
-        internal static OwnedMemory<byte> _sharedBuffer;
+        internal static ArrayMemoryPoolBuffer<byte> SharedBuffer;
 
         [ThreadStatic]
-        internal static int _sharedBufferOffset;
-
-        [ThreadStatic]
-        internal static OwnedMemory<byte> _threadStaticBuffer;
+        internal static int SharedBufferOffset;
 
         /// <summary>
-        /// Thread-static <see cref="OwnedMemory{T}"/> with size of <see cref="StaticBufferSize"/>.
+        /// Temp storage e.g. for serialization
         /// </summary>
-        internal static OwnedMemory<byte> StaticBuffer
+        [ThreadStatic]
+        internal static ArrayMemoryPoolBuffer<byte> ThreadStaticBuffer;
+
+        /// <summary>
+        /// Thread-static <see cref="ArrayMemoryPoolBuffer{T}"/> with size of <see cref="StaticBufferSize"/>.
+        /// </summary>
+        internal static ArrayMemoryPoolBuffer<byte> StaticBuffer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_threadStaticBuffer == null)
-                {
-                    _threadStaticBuffer = OwnedPooledArray<byte>.Create(StaticBufferSize);
-                    _threadStaticBuffer.Retain();
-                }
-                else if (_threadStaticBuffer.IsDisposed)
-                {
-                    ThrowHelper.ThrowObjectDisposedException("BufferPool.StaticBuffer");
-                }
-
-                return _threadStaticBuffer;
+                if (!ThreadStaticBuffer.IsDisposed) { return ThreadStaticBuffer; }
+                ThreadStaticBuffer = BufferPool<byte>.RentOwnedBuffer(StaticBufferSize);
+                // Pin forever
+                ThreadStaticBuffer.Pin();
+                return ThreadStaticBuffer;
             }
         }
 
@@ -104,30 +90,29 @@ namespace Spreads.Buffers
             const int smallTreshhold = 16;
             if (length <= smallTreshhold)
             {
-                if (_sharedBuffer == null)
+                if (SharedBuffer.IsDisposed)
                 {
-                    _sharedBuffer = BufferPool<byte>.RentOwnedBuffer(SharedBufferSize, false);
+                    SharedBuffer = BufferPool<byte>.RentOwnedBuffer(SharedBufferSize, false);
                     // NB we must create a reference or the first PreservedBuffer could
                     // dispose _sharedBuffer on PreservedBuffer disposal.
-                    _sharedBuffer.Retain();
-                    _sharedBufferOffset = 0;
+                    SharedBuffer.Pin();
+                    SharedBufferOffset = 0;
                 }
-                var bufferSize = _sharedBuffer.Length;
-                var newOffset = _sharedBufferOffset + length;
+                var bufferSize = SharedBuffer.Memory.Length;
+                var newOffset = SharedBufferOffset + length;
                 if (newOffset > bufferSize)
                 {
                     // replace shared buffer, the old one will be disposed
                     // when all ReservedMemory views on it are disposed
-                    var previous = _sharedBuffer;
-                    _sharedBuffer = BufferPool<byte>.RentOwnedBuffer(SharedBufferSize, false);
-                    _sharedBuffer.Retain();
-                    previous.Release();
-                    _sharedBufferOffset = 0;
+                    var previous = SharedBuffer;
+                    SharedBuffer = BufferPool<byte>.RentOwnedBuffer(SharedBufferSize, false);
+                    SharedBuffer.Pin();
+                    previous.Unpin();
+                    SharedBufferOffset = 0;
                     newOffset = length;
                 }
-                var buffer = _sharedBuffer.Memory.Slice(_sharedBufferOffset, length);
-
-                _sharedBufferOffset = BitUtil.Align(newOffset, IntPtr.Size);
+                var buffer = SharedBuffer.Memory.Slice(SharedBufferOffset, length);
+                SharedBufferOffset = BitUtil.Align(newOffset, IntPtr.Size);
                 return new PreservedBuffer<byte>(buffer);
             }
             // NB here we exclusively own the buffer and disposal of PreservedBuffer will cause
@@ -166,7 +151,7 @@ namespace Spreads.Buffers
         /// from a single thread (no async/await, etc.).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static OwnedMemory<byte> UseTempBuffer(int minimumSize)
+        internal static ArrayMemoryPoolBuffer<byte> UseTempBuffer(int minimumSize)
         {
             if (minimumSize <= StaticBufferSize)
             {
@@ -176,96 +161,96 @@ namespace Spreads.Buffers
         }
     }
 
-    /// <summary>
-    /// A memory pool that allows to get preserved buffers backed by pooled arrays.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public class PreservedBufferPool<T>
-    {
-        [ThreadStatic]
-        internal static OwnedMemory<T> _sharedBuffer;
+    ///// <summary>
+    ///// A memory pool that allows to get preserved buffers backed by pooled arrays.
+    ///// </summary>
+    ///// <typeparam name="T"></typeparam>
+    //public class PreservedBufferPool<T>
+    //{
+    //    [ThreadStatic]
+    //    internal static OwnedMemory<T> _sharedBuffer;
 
-        [ThreadStatic]
-        // ReSharper disable once StaticMemberInGenericType
-        internal static int _sharedBufferOffset;
+    //    [ThreadStatic]
+    //    // ReSharper disable once StaticMemberInGenericType
+    //    internal static int _sharedBufferOffset;
 
-        internal static int _sizeOfT = BinarySerializer.Size<T>();
+    //    internal static int _sizeOfT = BinarySerializer.Size<T>();
 
-        // max pooled array size
-        internal int _sharedBufferSize;
+    //    // max pooled array size
+    //    internal int _sharedBufferSize;
 
-        // https://github.com/dotnet/corefx/blob/master/src/System.Buffers/src/System/Buffers/DefaultArrayPool.cs#L35
-        // DefaultArrayPool has a minimum size of 16
-        internal int _smallTreshhold;
+    //    // https://github.com/dotnet/corefx/blob/master/src/System.Buffers/src/System/Buffers/DefaultArrayPool.cs#L35
+    //    // DefaultArrayPool has a minimum size of 16
+    //    internal int _smallTreshhold;
 
-        /// <summary>
-        /// Constructs a new PreservedBufferPool instance.
-        /// Keep in mind that every thread using this pool will have a thread-static
-        /// buffer of the size `sharedBufferSize * SizeOf(T)` for fast allocation
-        /// of preserved buffers of size smaller or equal to smallTreshhold.
-        /// </summary>
-        /// <param name="sharedBufferSize">Size of thread-static buffers in number of T elements</param>
-        public PreservedBufferPool(int sharedBufferSize = 0)
-        {
-            if (_sizeOfT <= 0)
-            {
-                throw new NotSupportedException("PreservedBufferPool only supports blittable types");
-            }
-            if (sharedBufferSize <= 0)
-            {
-                sharedBufferSize = 4096 / BinarySerializer.Size<T>();
-            }
-            else
-            {
-                var bytesLength = BitUtil.FindNextPositivePowerOfTwo(sharedBufferSize * _sizeOfT);
-                sharedBufferSize = bytesLength / _sizeOfT;
-            }
-            _sharedBufferSize = sharedBufferSize;
-            _smallTreshhold = 16;
-        }
+    //    /// <summary>
+    //    /// Constructs a new PreservedBufferPool instance.
+    //    /// Keep in mind that every thread using this pool will have a thread-static
+    //    /// buffer of the size `sharedBufferSize * SizeOf(T)` for fast allocation
+    //    /// of preserved buffers of size smaller or equal to smallTreshhold.
+    //    /// </summary>
+    //    /// <param name="sharedBufferSize">Size of thread-static buffers in number of T elements</param>
+    //    public PreservedBufferPool(int sharedBufferSize = 0)
+    //    {
+    //        if (_sizeOfT <= 0)
+    //        {
+    //            throw new NotSupportedException("PreservedBufferPool only supports blittable types");
+    //        }
+    //        if (sharedBufferSize <= 0)
+    //        {
+    //            sharedBufferSize = 4096 / BinarySerializer.Size<T>();
+    //        }
+    //        else
+    //        {
+    //            var bytesLength = BitUtil.FindNextPositivePowerOfTwo(sharedBufferSize * _sizeOfT);
+    //            sharedBufferSize = bytesLength / _sizeOfT;
+    //        }
+    //        _sharedBufferSize = sharedBufferSize;
+    //        _smallTreshhold = 16;
+    //    }
 
-        /// <summary>
-        /// Return a contiguous segment of memory backed by a pooled array
-        /// </summary>
-        /// <param name="length"></param>
-        /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public PreservedBuffer<T> PreserveBuffer(int length)
-        {
-            if (length <= _smallTreshhold)
-            {
-                if (_sharedBuffer == null)
-                {
-                    _sharedBuffer = BufferPool<T>.RentOwnedBuffer(_sharedBufferSize, false);
-                    // NB we must create a reference or the first PreservedBuffer could
-                    // dispose _sharedBuffer on PreservedBuffer disposal.
-                    _sharedBuffer.Retain();
-                    _sharedBufferOffset = 0;
-                }
-                var bufferSize = _sharedBuffer.Length;
-                var newOffset = _sharedBufferOffset + length;
-                if (newOffset > bufferSize)
-                {
-                    // replace shared buffer, the old one will be disposed
-                    // when all ReservedMemory views on it are disposed
-                    var previous = _sharedBuffer;
-                    _sharedBuffer = BufferPool<T>.RentOwnedBuffer(_sharedBufferSize, false);
-                    _sharedBuffer.Retain();
-                    previous.Release();
-                    _sharedBufferOffset = 0;
-                    newOffset = length;
-                }
-                var buffer = _sharedBuffer.Memory.Slice(_sharedBufferOffset, length);
+    //    /// <summary>
+    //    /// Return a contiguous segment of memory backed by a pooled array
+    //    /// </summary>
+    //    /// <param name="length"></param>
+    //    /// <returns></returns>
+    //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //    public PreservedBuffer<T> PreserveBuffer(int length)
+    //    {
+    //        if (length <= _smallTreshhold)
+    //        {
+    //            if (_sharedBuffer == null)
+    //            {
+    //                _sharedBuffer = BufferPool<T>.RentOwnedBuffer(_sharedBufferSize, false);
+    //                // NB we must create a reference or the first PreservedBuffer could
+    //                // dispose _sharedBuffer on PreservedBuffer disposal.
+    //                _sharedBuffer.Retain();
+    //                _sharedBufferOffset = 0;
+    //            }
+    //            var bufferSize = _sharedBuffer.Length;
+    //            var newOffset = _sharedBufferOffset + length;
+    //            if (newOffset > bufferSize)
+    //            {
+    //                // replace shared buffer, the old one will be disposed
+    //                // when all ReservedMemory views on it are disposed
+    //                var previous = _sharedBuffer;
+    //                _sharedBuffer = BufferPool<T>.RentOwnedBuffer(_sharedBufferSize, false);
+    //                _sharedBuffer.Retain();
+    //                previous.Release();
+    //                _sharedBufferOffset = 0;
+    //                newOffset = length;
+    //            }
+    //            var buffer = _sharedBuffer.Memory.Slice(_sharedBufferOffset, length);
 
-                _sharedBufferOffset = newOffset;
-                return new PreservedBuffer<T>(buffer);
-            }
-            // NB here we exclusively own the buffer and disposal of PreservedBuffer will cause
-            // disposal and returning to pool of the ownedBuffer instance, unless references were added via
-            // PreservedBuffer.Close() or PreservedBuffer.Buffer.Reserve()/Pin() methods
-            var ownedBuffer = BufferPool<T>.RentOwnedBuffer(length, false);
-            var buffer2 = ownedBuffer.Memory.Slice(0, length);
-            return new PreservedBuffer<T>(buffer2);
-        }
-    }
+    //            _sharedBufferOffset = newOffset;
+    //            return new PreservedBuffer<T>(buffer);
+    //        }
+    //        // NB here we exclusively own the buffer and disposal of PreservedBuffer will cause
+    //        // disposal and returning to pool of the ownedBuffer instance, unless references were added via
+    //        // PreservedBuffer.Close() or PreservedBuffer.Buffer.Reserve()/Pin() methods
+    //        var ownedBuffer = BufferPool<T>.RentOwnedBuffer(length, false);
+    //        var buffer2 = ownedBuffer.Memory.Slice(0, length);
+    //        return new PreservedBuffer<T>(buffer2);
+    //    }
+    //}
 }

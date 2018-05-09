@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using Spreads.Buffers;
 
 namespace Spreads.Serialization
 {
@@ -44,7 +45,7 @@ namespace Spreads.Serialization
                         var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
                         if (destination.Length < offset + totalLength) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
 
-                        var handle = destination.Retain(true);
+                        var handle = destination.Pin();
                         var ptr = (IntPtr)handle.Pointer + (int)offset;
 
                         // size
@@ -79,13 +80,13 @@ namespace Spreads.Serialization
             var version = Marshal.ReadInt32(ptr + 4);
             if (version != 0) throw new NotSupportedException();
             var length = Marshal.ReadInt32(ptr);
-            OwnedMemory<byte> ownedBuffer = Buffers.BufferPool.UseTempBuffer(length);
+            ArrayMemoryPoolBuffer<byte> ownedBuffer = Buffers.BufferPool.UseTempBuffer(length);
             var buffer = ownedBuffer.Memory;
-            var handle = buffer.Retain(true);
+            var handle = buffer.Pin();
 
             try
             {
-                if (buffer.TryGetArray(out var segment))
+                if (ownedBuffer.TryGetArray(out var segment))
                 {
                     Marshal.Copy(ptr + 8, segment.Array, 0, length);
 
