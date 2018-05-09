@@ -9,12 +9,11 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads
 {
-
     // NB Any type could be wrapped into a struct that implements IEquatable<T> in any custom way
     // TODO1 remove IComparer support from KeyComparer, the null check is quite visible
     // TODO2 add static methods in Comparer like here, use them from containers
-    // TODO3 with NB above, remove support for IComparer completely, struct wrappers is the 
-    //       right approach if ever custom comparer is needed. Add wrapper implementations 
+    // TODO3 with NB above, remove support for IComparer completely, struct wrappers is the
+    //       right approach if ever custom comparer is needed. Add wrapper implementations
     //       for strings, e.g. OrdinalIgnoreCase, etc
 
     /// <summary>
@@ -43,7 +42,6 @@ namespace Spreads
             return EqualsStatic(x, y);
         }
 
-        /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static bool EqualsStatic(T x, T y)
         {

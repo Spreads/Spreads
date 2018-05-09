@@ -346,7 +346,7 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MoveNext
+        [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MoveNextAsync
         public bool MoveFirst()
         {
             if (State == CursorState.None)
@@ -494,7 +494,7 @@ namespace Spreads.Cursors.Internal
 
             if (!moved)
             {
-                // false MoveNext doesn't change the state of _cursor, could just return false
+                // false MoveNextAsync doesn't change the state of _cursor, could just return false
                 // _cursor is an anchor for keys
                 return false;
             }
@@ -674,7 +674,7 @@ namespace Spreads.Cursors.Internal
         public Series<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>> Source => new Series<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNext(CancellationToken cancellationToken)
+        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
         }
@@ -691,7 +691,7 @@ namespace Spreads.Cursors.Internal
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsReadOnly; }
+            get { return _cursor.Source.IsCompleted; }
         }
 
         /// <inheritdoc />

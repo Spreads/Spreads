@@ -109,12 +109,12 @@
 
 //            var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) => v + 1.0);
 //            var c = 0;
-//            while (c < 500 && bmvc.MoveNext()) {
+//            while (c < 500 && bmvc.MoveNextAsync()) {
 //                Assert.AreEqual(c + 1.0, bmvc.CurrentValue);
 //                c++;
 //            }
 
-//            while (bmvc.MoveNext(CancellationToken.None).Result) { // Setting IsMutable to false allows us to skip this check: c < 1000 &&
+//            while (bmvc.MoveNextAsync(CancellationToken.None).Result) { // Setting IsMutable to false allows us to skip this check: c < 1000 &&
 //                Assert.AreEqual(c + 1.0, bmvc.CurrentValue);
 //                c++;
 //            }
@@ -134,7 +134,7 @@
 
 //            var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) => v + 1.0);
 //            var c = 0;
-//            while (c < 500 && bmvc.MoveNext()) {
+//            while (c < 500 && bmvc.MoveNextAsync()) {
 //                Assert.AreEqual(c + 1.0, bmvc.CurrentValue);
 //                c++;
 //            }
@@ -162,12 +162,12 @@
 
 //            var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) => v + 1.0, this.IncrementMap);
 //            var c = 0;
-//            while (c < 500 && bmvc.MoveNext()) {
+//            while (c < 500 && bmvc.MoveNextAsync()) {
 //                Assert.AreEqual(c + 1.0, bmvc.CurrentValue);
 //                c++;
 //            }
 
-//            while (bmvc.MoveNext(CancellationToken.None).Result) {
+//            while (bmvc.MoveNextAsync(CancellationToken.None).Result) {
 //                Assert.AreEqual(c + 1.0, bmvc.CurrentValue);
 //                c++;
 //            }
@@ -197,12 +197,12 @@
 
 //            var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) => v * 10.0, this.MultiplyMap);
 //            var c = 0;
-//            while (c < 5 && bmvc.MoveNext()) {
+//            while (c < 5 && bmvc.MoveNextAsync()) {
 //                Assert.AreEqual(c * 10.0, bmvc.CurrentValue);
 //                c++;
 //            }
 
-//            while (bmvc.MoveNext(CancellationToken.None).Result) {
+//            while (bmvc.MoveNextAsync(CancellationToken.None).Result) {
 //                Assert.AreEqual(c * 10.0, bmvc.CurrentValue);
 //                Console.WriteLine("Value: " + bmvc.CurrentValue);
 //                c++;
@@ -224,7 +224,7 @@
 
 //            var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) => v + 1.0, this.IncrementMap);
 //            var c = 0;
-//            while (c < 500 && bmvc.MoveNext()) {
+//            while (c < 500 && bmvc.MoveNextAsync()) {
 //                Assert.AreEqual(c + 1.0, bmvc.CurrentValue);
 //                c++;
 //            }
@@ -251,7 +251,7 @@
 
 //            var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor, (v) => v + 1.0, this.IncrementMap);
 //            var c = 0;
-//            while (c < 500 && bmvc.MoveNext()) {
+//            while (c < 500 && bmvc.MoveNextAsync()) {
 //                Assert.AreEqual(c + 1.0, bmvc.CurrentValue);
 //                c++;
 //            }
@@ -297,7 +297,7 @@
 //        //    for (int rounds = 0; rounds < 10000; rounds++) {
 //        //        var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor,
 //        //            (v) => v + 3.1415926, YeppMathProviderSample); //
-//        //        while (bmvc.MoveNext()) {
+//        //        while (bmvc.MoveNextAsync()) {
 //        //            sum += bmvc.CurrentValue;
 //        //        }
 //        //    }
@@ -331,7 +331,7 @@
 //        //    for (int rounds = 0; rounds < 10000; rounds++) {
 //        //        var bmvc = new BatchMapValuesCursor<DateTime, double, double>(sm.GetCursor,
 //        //            (v) => v + 3.1415926, SimdMathProviderSample); //
-//        //        while (bmvc.MoveNext()) {
+//        //        while (bmvc.MoveNextAsync()) {
 //        //            sum += bmvc.CurrentValue;
 //        //        }
 //        //    }
@@ -380,7 +380,7 @@
 //                    return v + 3.1415926;
 //                }, MathProviderSample); //
 //                //var bmvc = new MapCursor<DateTime, double, double>(sm.GetCursor, (k,v) => Math.Log(v)) as ICursor<DateTime, double>; //
-//                while (bmvc.MoveNext()) {
+//                while (bmvc.MoveNextAsync()) {
 //                    sum += bmvc.CurrentValue;
 //                }
 //            }
@@ -415,7 +415,7 @@
 //            for (int rounds = 0; rounds < 1000; rounds++) {
 //                var sm2 = sm + 3.1415926;
 //                var bmvc = sm2.GetCursor();
-//                while (bmvc.MoveNext()) {
+//                while (bmvc.MoveNextAsync()) {
 //                    sum += bmvc.CurrentValue;
 //                }
 

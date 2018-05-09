@@ -97,7 +97,7 @@ namespace Spreads
     //        if (_count >= _period) {
     //            Trace.Assert(_count == _period, "_count should never be above _period");
     //            _sum += next.Value - _laggedCursor.CurrentValue;
-    //            var laggedMoved = _laggedCursor.MoveNext();
+    //            var laggedMoved = _laggedCursor.MoveNextAsync();
     //            if (laggedMoved) {
     //                value = _sum / (double)_count;
     //                return true;
@@ -204,7 +204,7 @@ namespace Spreads
     //        if (_count >= _period) {
     //            Trace.Assert(_count == _period, "_count should never be above _period");
     //            _sum += next.Value - _laggedCursor.CurrentValue;
-    //            var laggedMoved = _laggedCursor.MoveNext();
+    //            var laggedMoved = _laggedCursor.MoveNextAsync();
     //            if (laggedMoved) {
     //                value = _sum / (double)_count;
     //                return true;
@@ -301,7 +301,7 @@ namespace Spreads
     //        _sum += next.Value - cv;
     //        _sumSq += next.Value * next.Value - cv * cv;
 
-    //        var laggedMoved = _laggedCursor.MoveNext();
+    //        var laggedMoved = _laggedCursor.MoveNextAsync();
     //        if (laggedMoved) {
     //            var periodMinusOne = (double)(_period - 1);
     //            value = Math.Sqrt(_sumSq / periodMinusOne - _sum * _sum / ((double)_period * (periodMinusOne)));

@@ -321,7 +321,7 @@ namespace Spreads.Collections.Tests.Cursors
 
             var zipped = sm1.Repeat() + sm2.Repeat();
             var c1 = zipped.GetCursor();
-            //Assert.IsFalse(c1.MoveNext());
+            //Assert.IsFalse(c1.MoveNextAsync());
             //Assert.IsFalse(c1.MoveFirst());
             var task = c1.MoveNext(CancellationToken.None);
 
@@ -562,8 +562,8 @@ namespace Spreads.Collections.Tests.Cursors
             Assert.IsTrue(cursor.MoveNext());
 
             var clone = cursor.Clone();
-            //Assert.IsTrue(clone.MoveNext());
-            //Assert.IsTrue(clone.MoveNext());
+            //Assert.IsTrue(clone.MoveNextAsync());
+            //Assert.IsTrue(clone.MoveNextAsync());
 
             var sm = result.ToSortedMap();
             Console.WriteLine(result.Count());
@@ -594,11 +594,11 @@ namespace Spreads.Collections.Tests.Cursors
             var result = repeated.Zip(sm1, (k, p, d) => p); //.Lag(1u); // .Fill(0)
 
             var cursor = result.GetCursor();
-            //Assert.IsTrue(cursor.MoveNext());
+            //Assert.IsTrue(cursor.MoveNextAsync());
 
             var clone = cursor.Clone();
-            //Assert.IsTrue(clone.MoveNext());
-            //Assert.IsTrue(clone.MoveNext());
+            //Assert.IsTrue(clone.MoveNextAsync());
+            //Assert.IsTrue(clone.MoveNextAsync());
 
             var sm = result.ToSortedMap();
             //Console.WriteLine(result.Count());
@@ -1117,7 +1117,7 @@ namespace Spreads.Collections.Tests.Cursors
                 var totalSum = 0.0;
                 var sumCursor = series.Zip((k, varr) => varr.Sum()).GetCursor();
                 var c = 0;
-                //while (sumCursor.MoveNext()) {
+                //while (sumCursor.MoveNextAsync()) {
                 //    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
                 //    totalSum += sumCursor.CurrentValue;
                 //    c++;
@@ -1140,7 +1140,7 @@ namespace Spreads.Collections.Tests.Cursors
                 Console.WriteLine("Elapsed msec: {0}", sw.ElapsedMilliseconds);
                 Console.WriteLine("Total sum: {0}", totalSum);
 
-                //while (sumCursor.MoveNext(CancellationToken.None).Result) {
+                //while (sumCursor.MoveNextAsync(CancellationToken.None).Result) {
                 //    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
                 //    //Console.WriteLine("Value: " + sumCursor.CurrentValue);
                 //    totalSum += sumCursor.CurrentValue;
@@ -1205,7 +1205,7 @@ namespace Spreads.Collections.Tests.Cursors
             var totalSum = 0.0;
             var sumCursor = series.Zip((k, varr) => varr.Sum()).GetCursor();
             var c = 0;
-            //while (sumCursor.MoveNext()) {
+            //while (sumCursor.MoveNextAsync()) {
             //    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
             //    totalSum += sumCursor.CurrentValue;
             //    c++;
@@ -1213,7 +1213,7 @@ namespace Spreads.Collections.Tests.Cursors
 
             Task.Run(async () =>
             {
-                while (await sumCursor.MoveNext(CancellationToken.None))
+                while (await sumCursor.MoveNextAsync(CancellationToken.None))
                 {
                     //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
                     //Console.WriteLine("Value: " + sumCursor.CurrentValue);
@@ -1253,7 +1253,7 @@ namespace Spreads.Collections.Tests.Cursors
             var totalSum = 0.0;
             var sumCursor = series.Zip((k, varr) => varr.Sum()).GetCursor();
             var c = 0;
-            //while (sumCursor.MoveNext()) {
+            //while (sumCursor.MoveNextAsync()) {
             //    //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
             //    totalSum += sumCursor.CurrentValue;
             //    c++;
@@ -1261,7 +1261,7 @@ namespace Spreads.Collections.Tests.Cursors
 
             Task.Run(async () =>
             {
-                while (await sumCursor.MoveNext(CancellationToken.None))
+                while (await sumCursor.MoveNextAsync(CancellationToken.None))
                 {
                     //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
                     //Console.WriteLine("Value: " + sumCursor.CurrentValue);
@@ -1335,7 +1335,7 @@ namespace Spreads.Collections.Tests.Cursors
 
             Task.Run(async () =>
             {
-                while (await sumCursor.MoveNext(CancellationToken.None))
+                while (await sumCursor.MoveNextAsync(CancellationToken.None))
                 {
                     if (Math.Abs(c * 4.0 - sumCursor.CurrentValue) <= 3.0)
                     { // NB VolksWagening
@@ -1405,7 +1405,7 @@ namespace Spreads.Collections.Tests.Cursors
 
             Task.Run(async () =>
             {
-                while (await sumCursor.MoveNext(CancellationToken.None))
+                while (await sumCursor.MoveNextAsync(CancellationToken.None))
                 {
                     Assert.AreEqual(c + 2, sumCursor.CurrentValue);
                     Console.WriteLine("Value: " + sumCursor.CurrentValue);
@@ -1499,7 +1499,7 @@ namespace Spreads.Collections.Tests.Cursors
             var t3 = Task.Run(async () =>
             {
                 var previous = sumCursor.CurrentKey;
-                while (await sumCursor.MoveNext(CancellationToken.None))
+                while (await sumCursor.MoveNextAsync(CancellationToken.None))
                 {
                     //Assert.AreEqual(c * 4.0, sumCursor.CurrentValue);
                     //Console.WriteLine("Value: " + sumCursor.CurrentValue);
@@ -1555,20 +1555,20 @@ namespace Spreads.Collections.Tests.Cursors
 
             var cur2 = cur.Clone();
             var sum2 = new SortedMap<int, int>();
-            while (cur2.MoveNext(CancellationToken.None).Result)
+            while (cur2.MoveNextAsync(CancellationToken.None).Result)
             {
                 sum2.Add(cur2.CurrentKey, cur2.CurrentValue);
             }
 
             Assert.AreEqual(sum.Count, sum2.Count, "Results of sync and async moves must be equal");
 
-            Assert.IsTrue(cur.MoveNext(CancellationToken.None).Result);
+            Assert.IsTrue(cur.MoveNextAsync(CancellationToken.None).Result);
             Assert.AreEqual(0, cur.CurrentValue);
             var c = 2;
-            while (cur.MoveNext(CancellationToken.None).Result)
+            while (cur.MoveNextAsync(CancellationToken.None).Result)
             {
                 Assert.AreEqual(c * 2 - 2, cur.CurrentValue);
-                var x = cur.MoveNext(CancellationToken.None).Result;
+                var x = cur.MoveNextAsync(CancellationToken.None).Result;
                 c += 2;
             }
         }
@@ -1847,7 +1847,7 @@ namespace Spreads.Collections.Tests.Cursors
                 var sum2 = new SortedMap<int, int>();
                 Task.Run(async () =>
                 {
-                    while (await cur2.MoveNext(CancellationToken.None))
+                    while (await cur2.MoveNextAsync(CancellationToken.None))
                     {
                         sum2.Add(cur2.CurrentKey, cur2.CurrentValue);
                     }

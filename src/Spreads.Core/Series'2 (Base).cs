@@ -68,7 +68,7 @@ namespace Spreads
         public abstract bool IsIndexed { get; }
 
         /// <inheritdoc />
-        public abstract bool IsReadOnly { get; }
+        public abstract bool IsCompleted { get; }
 
         /// <inheritdoc />
         public virtual IDisposable Subscribe(IObserver<KeyValuePair<TKey, TValue>> observer)

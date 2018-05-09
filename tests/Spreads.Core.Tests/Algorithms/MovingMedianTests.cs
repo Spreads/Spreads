@@ -166,7 +166,7 @@ namespace Spreads.Core.Tests.Algorithms
 
         //    sw.Restart();
         //    var cursor = medianSeries.GetCursor();
-        //    while (cursor.MoveNext())
+        //    while (cursor.MoveNextAsync())
         //    {
         //        cursorMedians[cursor.CurrentKey] = cursor.CurrentValue;
         //    }

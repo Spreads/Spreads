@@ -48,9 +48,9 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNext(CancellationToken cancellationToken)
+        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
-            return _cursor.MoveNext(cancellationToken);
+            return _cursor.MoveNextAsync(cancellationToken);
         }
 
         /// <inheritdoc />
@@ -191,7 +191,7 @@ namespace Spreads
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsReadOnly; }
+            get { return _cursor.Source.IsCompleted; }
         }
 
         /// <inheritdoc />

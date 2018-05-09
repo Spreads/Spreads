@@ -62,7 +62,7 @@ namespace Spreads
             return value.Get<TValue>();
         }
 
-        public sealed override bool IsReadOnly => Inner.IsReadOnly;
+        public sealed override bool IsCompleted => Inner.IsCompleted;
         public sealed override bool IsEmpty => Inner.IsEmpty;
 
         public sealed override KeyValuePair<Variant, Variant> First
@@ -173,9 +173,9 @@ namespace Spreads
                 _source = source;
             }
 
-            public Task<bool> MoveNext(CancellationToken cancellationToken)
+            public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
             {
-                return _innerCursor.MoveNext(cancellationToken);
+                return _innerCursor.MoveNextAsync(cancellationToken);
             }
 
             public void Dispose()

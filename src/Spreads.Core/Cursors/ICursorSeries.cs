@@ -21,7 +21,7 @@ namespace Spreads
         bool IsIndexed { get; }
 
         /// <summary>
-        /// Same as <see cref="ISeries{TKey,TValue}.IsReadOnly"/>
+        /// Same as <see cref="ISeries{TKey,TValue}.IsCompleted"/>
         /// </summary>
         bool IsReadOnly { get; }
 

@@ -65,7 +65,7 @@ namespace Spreads.Core.Tests
                 i++;
             }
 
-            // foreach and GetEnumerator didn't affet the current position which is still 4 from above, before 'var e = ..' line
+            // foreach and GetAsyncEnumerator didn't affet the current position which is still 4 from above, before 'var e = ..' line
             Assert.AreEqual(4, par.CurrentPosition);
 
             par.Reset();

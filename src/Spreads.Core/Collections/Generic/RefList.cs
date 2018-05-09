@@ -711,7 +711,7 @@ namespace Spreads.Collections.Generic
 
         // Returns an enumerator for this list with the given
         // permission for removal of elements. If modifications made to the list
-        // while an enumeration is in progress, the MoveNext and
+        // while an enumeration is in progress, the MoveNextAsync and
         // GetObject methods of the enumerator will throw an exception.
         //
         public Enumerator GetEnumerator()

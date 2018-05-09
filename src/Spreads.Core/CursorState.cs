@@ -6,9 +6,7 @@ using System;
 
 namespace Spreads
 {
-    // TODO (?) Add to ICursor?
-
-    internal enum CursorState : byte
+    public enum CursorState : byte
     {
         /// <summary>
         /// A cursor is not initialized or disposed. Some initialization work could be needed before moving.
@@ -28,10 +26,15 @@ namespace Spreads
         Moving = 2,
 
         /// <summary>
+        /// A cursor was disposed.
+        /// </summary>
+        Disposed = 3,
+
+        /// <summary>
         /// A cursor has started batch moving and is at a valid position.
         /// A false move from this state must restore the cursor to its position before the move.
         /// </summary>
         [Obsolete("TODO BatchMoving in not reimplemented after 0.8 changes, rethink if another state is needed for batches")]
-        BatchMoving = 3,
+        BatchMoving = 4,
     }
 }

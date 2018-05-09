@@ -276,6 +276,6 @@ namespace Spreads.Cursors.Experimental
 
         // Derived classes will use this as the implementation for the ICursor method.
         /// <inheritdoc />
-        public Task<bool> MoveNext(CancellationToken cancellationToken) => throw new NotSupportedException("Async MoveNext should use BaseCursor via CursorSeries");
+        public Task<bool> MoveNext(CancellationToken cancellationToken) => throw new NotSupportedException("Async MoveNextAsync should use BaseCursor via CursorSeries");
     }
 }

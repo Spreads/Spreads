@@ -82,7 +82,7 @@ namespace Spreads.Core.Tests.Cursors
             GC.Collect(2, GCCollectionMode.Forced, true);
             GC.Collect(2, GCCollectionMode.Forced, true);
 
-            //var t = Task.Run(() => cursor.MoveNext(cts.Token));
+            //var t = Task.Run(() => cursor.MoveNextAsync(cts.Token));
 
             sm.Add(2, 2);
             sm.Add(3, 3);

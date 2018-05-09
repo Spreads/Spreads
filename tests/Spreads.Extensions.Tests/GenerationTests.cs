@@ -26,7 +26,7 @@ namespace Spreads.Extensions.Tests {
 
             //Task.Run(async () => {
             //    var cur = sm.GetCursor();
-            //    while (await cur.MoveNext(CancellationToken.None)) {
+            //    while (await cur.MoveNextAsync(CancellationToken.None)) {
             //        Console.WriteLine("New record: {0} - {1}", cur.CurrentKey, cur.CurrentValue);
             //    }
             //});

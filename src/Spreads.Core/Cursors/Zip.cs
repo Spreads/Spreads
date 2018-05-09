@@ -482,7 +482,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MoveNext
+        [MethodImpl(MethodImplOptions.NoInlining)] // NB NoInlining is important to speed-up MoveNextAsync
         public bool MoveFirst()
         {
             if (State == CursorState.None)
@@ -1279,7 +1279,7 @@ namespace Spreads
             new Series<TKey, (TLeft, TRight), Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNext(CancellationToken cancellationToken)
+        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             throw new NotSupportedException("Should use BaseCursorAsync");
         }
@@ -1297,7 +1297,7 @@ namespace Spreads
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             // TODO when all discretes are RO then this cursor is RO as well
-            get { return _leftCursor.Source.IsReadOnly && _rightCursor.Source.IsReadOnly; }
+            get { return _leftCursor.Source.IsCompleted && _rightCursor.Source.IsCompleted; }
         }
 
         /// <inheritdoc />
@@ -1307,8 +1307,8 @@ namespace Spreads
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                var lro = _leftCursor.Source.IsReadOnly;
-                var rro = _rightCursor.Source.IsReadOnly;
+                var lro = _leftCursor.Source.IsCompleted;
+                var rro = _rightCursor.Source.IsCompleted;
 
                 if (lro && rro)
                 {

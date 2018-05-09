@@ -302,14 +302,14 @@ namespace Spreads.Collections.Tests.Cursors
             var cursor = ma.GetCursor();
             cursor.MoveNext();
             //var cc = 0;
-            //while (cursor.MoveNext())
+            //while (cursor.MoveNextAsync())
             //{
             //    cc++;
             //}
             //Console.WriteLine(cc);
-            //if (cursor.MoveNext())
+            //if (cursor.MoveNextAsync())
             //{
-            //    throw new ApplicationException("Moved next after MoveNext() returned false");
+            //    throw new ApplicationException("Moved next after MoveNextAsync() returned false");
             //}
             //cursor.MoveFirst();
             var c = 1;

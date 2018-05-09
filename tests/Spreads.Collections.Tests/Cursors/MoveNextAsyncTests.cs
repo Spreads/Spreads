@@ -737,7 +737,7 @@ namespace Spreads.Collections.Tests.Cursors
                     var stop = DateTime.UtcNow.Date.AddSeconds(count - 1);
                     //await Task.Delay(50);
                     while (await c.MoveNext(CancellationToken.None))
-                    //while (c.MoveNext())
+                    //while (c.MoveNextAsync())
                     {
                         sum += c.CurrentValue;
                         Console.WriteLine($"Current: {c.CurrentKey} - {c.CurrentValue}");
