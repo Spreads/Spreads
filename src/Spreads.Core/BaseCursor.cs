@@ -86,6 +86,12 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task<bool> MoveNextAsync()
+        {
+            return MoveNextAsync(CancellationToken.None);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             // sync move, hot path
@@ -171,6 +177,12 @@ namespace Spreads
 
         object IEnumerator.Current => ((IEnumerator)_innerCursor).Current;
 
+        public CursorState State
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _innerCursor.State; }
+        }
+
         public KeyComparer<TKey> Comparer => _innerCursor.Comparer;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -197,16 +209,22 @@ namespace Spreads
             return _innerCursor.MovePrevious();
         }
 
-        public TKey CurrentKey
+        public ref readonly TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _innerCursor.CurrentKey; }
+            get { return ref _innerCursor.CurrentKey; }
         }
 
-        public TValue CurrentValue
+        public ref readonly TValue CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _innerCursor.CurrentValue; }
+            get { return ref _innerCursor.CurrentValue; }
+        }
+
+        public KeyValue<TKey, TValue> CurrentRef
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _innerCursor.CurrentRef; }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -215,7 +233,7 @@ namespace Spreads
             return _innerCursor.MoveNextBatch(cancellationToken);
         }
 
-        public IReadOnlySeries<TKey, TValue> CurrentBatch
+        public KeyValueReadOnlySpan<TKey, TValue> CurrentBatch
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _innerCursor.CurrentBatch; }
@@ -241,9 +259,9 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
+        public KeyValue<TKey, TValue> TryGetValue(in TKey key)
         {
-            return _innerCursor.TryGetValue(key, out value);
+            return _innerCursor.TryGetValue(in key);
         }
 
         public void Dispose()

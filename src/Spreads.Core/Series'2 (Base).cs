@@ -70,57 +70,12 @@ namespace Spreads
         /// <inheritdoc />
         public abstract bool IsCompleted { get; }
 
-        /// <inheritdoc />
-        public virtual IDisposable Subscribe(IObserver<KeyValuePair<TKey, TValue>> observer)
-        {
-            // TODO not virtual and implement all logic here, including backpressure case
-            throw new NotImplementedException();
-
-            //    // TODO (!) IObservable needs much more love and adherence to Rx contracts, see #40
-            //    // TODO Move to BaseSeries
-            //    override this.Subscribe(observer : IObserver<KVP<'K,'V>>) : IDisposable =
-            //      let entered = enterWriteLockIf &this.Locker true
-            //      try
-            //        //raise (NotImplementedException("TODO Rx. Subscribe must be implemented via a cursor."))
-            //        match box observer with
-            //        | :? ISubscriber<KVP<'K,'V>> as subscriber ->
-            //          raise (NotSupportedException("TODO Add reactive streams support"))
-            //          let subscription : ISubscription = Unchecked.defaultof<_>
-            //          subscription :> IDisposable
-            //        | _ ->
-            //          let cts = new CancellationTokenSource()
-            //          let ct = cts.Token
-            //          Task.Run(fun _ ->
-            //            this.Do((fun k v -> observer.OnNext(KVP(k,v))), ct).ContinueWith(fun (t:Task<bool>) ->
-            //              match t.Status with
-            //              | TaskStatus.RanToCompletion ->
-            //                if t.Result then
-            //                  observer.OnCompleted()
-            //                else
-            //                  raise (NotSupportedException("This overload of Do() should only return true"))
-            //              | TaskStatus.Canceled -> observer.OnError(OperationCanceledException())
-            //              | TaskStatus.Faulted -> observer.OnError(t.Exception)
-            //              | _ -> raise (NotSupportedException("TODO process all task statuses"))
-            //              ()
-            //            )
-            //          ) |> ignore
-            //          {
-            //          // NB finalizers should be only in types that are actually keeping some resource
-            //          //  new Object() with
-            //          //    member x.Finalize() = (x :?> IDisposable).Dispose()
-            //            new IDisposable with
-            //              member x.Dispose() = cts.Cancel();cts.Dispose();
-            //          }
-            //      finally
-            //        exitWriteLockIf &this.Locker true
-        }
-
-        IAsyncEnumerator<KeyValuePair<TKey, TValue>> IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
+        public IAsyncEnumerator<KeyValuePair<TKey, TValue>> GetAsyncEnumerator()
         {
             return GetCursor();
         }
 
-        IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
+        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
             return GetCursor();
         }
@@ -139,29 +94,28 @@ namespace Spreads
         public abstract Task<bool> Updated { get; }
 
         /// <inheritdoc />
-        public abstract bool IsEmpty { get; }
+        public abstract KeyValue<TKey, TValue> First { get; }
 
         /// <inheritdoc />
-        public abstract KeyValuePair<TKey, TValue> First { get; }
+        public abstract KeyValue<TKey, TValue> Last { get; }
 
         /// <inheritdoc />
-        public abstract KeyValuePair<TKey, TValue> Last { get; }
-
-        /// <inheritdoc />
-        public virtual TValue this[TKey key]
+        public virtual ref readonly TValue this[in TKey key]
         {
             get
             {
+                ref var value = ref TryFind(key, Lookup.EQ);
                 if (TryFind(key, Lookup.EQ, out var tmp))
                 {
                     return tmp.Value;
                 }
+                ThrowHelper.ThrowKeyNotFoundException("Series getter: key do not exists");
                 throw new KeyNotFoundException();
             }
         }
 
         /// <inheritdoc />
-        public abstract TValue GetAt(int idx);
+        public abstract KeyValue<TKey, TValue> GetAt(long idx);
 
         /// <inheritdoc />
         public abstract IEnumerable<TKey> Keys { get; }
@@ -169,14 +123,10 @@ namespace Spreads
         /// <inheritdoc />
         public abstract IEnumerable<TValue> Values { get; }
 
-        /// <inheritdoc />
-        public abstract bool TryFind(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> value);
+
 
         /// <inheritdoc />
-        public abstract bool TryGetFirst(out KeyValuePair<TKey, TValue> value);
-
-        /// <inheritdoc />
-        public abstract bool TryGetLast(out KeyValuePair<TKey, TValue> value);
+        public abstract KeyValue<TKey, TValue> TryFind(in TKey key, Lookup direction);
 
         internal Cursor<TKey, TValue> GetWrapper()
         {
@@ -1026,9 +976,17 @@ namespace Spreads
             return GetContainerCursor();
         }
 
-        public override TValue GetAt(int idx)
+        public override KeyValue<TKey, TValue> GetAt(long idx)
         {
-            return this.Skip(Math.Max(0, idx - 1)).First().Value;
+            // TODO (review) not so stupid and potentially throwing impl
+            try
+            {
+                return (KeyValue<TKey, TValue>)this.Skip(Math.Max(0, checked((int)(idx)) - 1)).First();
+            }
+            catch
+            {
+                return default;
+            }
         }
 
         #region Synchronization
@@ -1407,7 +1365,7 @@ namespace Spreads
         /// <summary>
         /// Comparison operator.
         /// </summary>
-        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator 
+        public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             >=(ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
         {
             if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
@@ -1505,43 +1463,31 @@ namespace Spreads
         #region IReadOnlySeries members
 
         /// <inheritdoc />
-        public override bool IsEmpty
+        public override KeyValue<TKey, TValue> First
         {
             get
             {
                 lock (SyncRoot)
                 {
-                    return !C.MoveFirst();
+                    return C.MoveFirst() ? C.CurrentRef : throw new InvalidOperationException("A series is empty.");
                 }
             }
         }
 
         /// <inheritdoc />
-        public override KeyValuePair<TKey, TValue> First
+        public override KeyValue<TKey, TValue> Last
         {
             get
             {
                 lock (SyncRoot)
                 {
-                    return C.MoveFirst() ? C.Current : throw new InvalidOperationException("A series is empty.");
+                    return C.MoveLast() ? C.CurrentRef : throw new InvalidOperationException("A series is empty.");
                 }
             }
         }
 
         /// <inheritdoc />
-        public override KeyValuePair<TKey, TValue> Last
-        {
-            get
-            {
-                lock (SyncRoot)
-                {
-                    return C.MoveLast() ? C.Current : throw new InvalidOperationException("A series is empty.");
-                }
-            }
-        }
-
-        /// <inheritdoc />
-        public override TValue GetAt(int idx)
+        public override KeyValue<TKey, TValue> GetAt(long idx)
         {
             // NB call to this.NavCursor.Source.GetAt(idx) is recursive (=> SO) and is logically wrong
             if (idx < 0) throw new ArgumentOutOfRangeException(nameof(idx));
@@ -1558,54 +1504,19 @@ namespace Spreads
                         throw new KeyNotFoundException();
                     }
                 }
-                return C.CurrentValue;
+                return C.CurrentRef;
             }
         }
 
         /// <inheritdoc />
-        public override bool TryFind(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> value)
+        public override KeyValue<TKey, TValue> TryFind(in TKey key, Lookup direction)
         {
             lock (SyncRoot)
             {
-                if (C.MoveAt(key, direction))
-                {
-                    value = C.Current;
-                    return true;
-                }
-                value = default(KeyValuePair<TKey, TValue>);
-                return false;
+                return C.MoveAt(key, direction) ? C.CurrentRef : default;
             }
         }
 
-        /// <inheritdoc />
-        public override bool TryGetFirst(out KeyValuePair<TKey, TValue> value)
-        {
-            lock (SyncRoot)
-            {
-                if (C.MoveFirst())
-                {
-                    value = C.Current;
-                    return true;
-                }
-                value = default(KeyValuePair<TKey, TValue>);
-                return false;
-            }
-        }
-
-        /// <inheritdoc />
-        public override bool TryGetLast(out KeyValuePair<TKey, TValue> value)
-        {
-            lock (SyncRoot)
-            {
-                if (C.MoveLast())
-                {
-                    value = C.Current;
-                    return true;
-                }
-                value = default(KeyValuePair<TKey, TValue>);
-                return false;
-            }
-        }
 
         /// <inheritdoc />
         public override IEnumerable<TKey> Keys
@@ -1638,7 +1549,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public override TValue this[TKey key]
+        public override ref readonly TValue this[in TKey key]
         {
             get
             {

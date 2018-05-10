@@ -171,8 +171,7 @@ namespace Spreads
     ///    TODO cursor could implement IUpdateable when source does, or pass through to CursorSeries
     ///
     /// </remarks>
-    public interface ICursor<TKey, TValue>
-        : IAsyncEnumerator<KeyValuePair<TKey, TValue>>
+    public interface ICursor<TKey, TValue> : IAsyncEnumerator<KeyValuePair<TKey, TValue>>
     {
         CursorState State { get; }
 
@@ -193,7 +192,7 @@ namespace Spreads
 
         ref readonly TValue CurrentValue { get; }
 
-        ref readonly KeyValueRef<TKey, TValue> CurrentRef { get; }
+        KeyValue<TKey, TValue> CurrentRef { get; } // TODO (review) do we need `ref readonly` of KVR is ref struct and is itslf readonly?
 
         /// <summary>
         /// Optional (used for batch/SIMD optimization where gains are visible), MUST NOT throw NotImplementedException()
@@ -202,7 +201,7 @@ namespace Spreads
         /// </summary>
         Task<bool> MoveNextBatch(CancellationToken cancellationToken = default);
 
-        // NB Using ReadOnlyKeyValueSpan because batching is only profitable if
+        // NB Using KeyValueReadOnlySpan because batching is only profitable if
         // we could get spans from source or if reduce operation over span is so
         // fast that accumulating a batch in a buffer is cheaper (e.g. SIMD sum, but
         // couldn't find such case in benchmarks)
@@ -212,7 +211,7 @@ namespace Spreads
         /// The actual implementation of the batch could be mutable and could reference a part of the original series, therefore consumer
         /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap
         /// </summary>
-        ReadOnlyKeyValueSpan<TKey, TValue> CurrentBatch { get; }
+        KeyValueReadOnlySpan<TKey, TValue> CurrentBatch { get; }
 
         /// <summary>
         /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
@@ -241,7 +240,7 @@ namespace Spreads
         /// the requested key is between the previous and the current keys, and then return the previous one.
         /// NB This is not thread safe. ICursors must be used from a single thread.
         /// </remarks>
-        bool TryGetValue(in TKey key, out TValue value);
+        KeyValue<TKey, TValue> TryGetValue(in TKey key);
     }
 
     /// <summary>
@@ -275,20 +274,18 @@ namespace Spreads
     /// </summary>
     public interface IReadOnlySeries<TKey, TValue> : ISeries<TKey, TValue>
     {
-        /// <summary>
-        /// True if a series is empty.
-        /// </summary>
-        bool IsEmpty { get; }
+        // TODO problem: for cursor series IsEmpty is implemeneted as Cursor.MoveFirst/Last, so it's useful to have First/Last
+        // as Opt<>s and IsEmpty as extension prop when C# implements it.
 
         /// <summary>
         /// First element, throws InvalidOperationException if empty
         /// </summary>
-        KeyValueRef<TKey, TValue> First { get; }
+        KeyValue<TKey, TValue> First { get; }
 
         /// <summary>
         /// Last element, throws InvalidOperationException if empty
         /// </summary>
-        KeyValueRef<TKey, TValue> Last { get; }
+        KeyValue<TKey, TValue> Last { get; }
 
         /// <summary>
         /// Value at key, throws KeyNotFoundException if key is not present in the series (even for continuous series).
@@ -300,9 +297,10 @@ namespace Spreads
         ///// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
         ///// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code> .
         ///// </summary>
-        KeyValueRef<TKey, TValue> GetAt(long idx);
+        KeyValue<TKey, TValue> GetAt(long idx);
 
-        // Not async ones. Sometimes it's useful for optimization
+        // NB: Not async ones. Sometimes it's useful for optimization when we check underlying type.
+
         /// <summary>
         /// Keys enumerable.
         /// </summary>
@@ -318,41 +316,10 @@ namespace Spreads
         /// For indexed series LE/GE directions are invalid (throws InvalidOperationException), while
         /// LT/GT search is done by index rather than by key and possible only when a key exists.
         /// TryFind works only with existing keys and is an equivalent of ICursor.MoveAt.
+        ///
+        /// Check IsMissing property of returned value - it's equivalent to false return of TryXXX pattern.
         /// </summary>
-        bool TryFind(in TKey key, Lookup direction, out KeyValueRef<TKey, TValue> value);
-    }
-
-    public static class ReadOnlySeriesExtensions
-    {
-        /// <summary>
-        /// Try get first element.
-        /// </summary>
-        public static bool TryGetFirst<TKey, TValue>(this IReadOnlySeries<TKey, TValue> series,
-            out KeyValuePair<TKey, TValue> value)
-        {
-            if (series.IsEmpty)
-            {
-                value = default;
-                return false;
-            }
-            value = series.First;
-            return true;
-        }
-
-        /// <summary>
-        /// Try get last element.
-        /// </summary>
-        public static bool TryGetLast<TKey, TValue>(this IReadOnlySeries<TKey, TValue> series,
-            out KeyValuePair<TKey, TValue> value)
-        {
-            if (series.IsEmpty)
-            {
-                value = default;
-                return false;
-            }
-            value = series.Last;
-            return true;
-        }
+        KeyValue<TKey, TValue> TryFind(in TKey key, Lookup direction);
     }
 
     /// <summary>
@@ -427,7 +394,7 @@ namespace Spreads
         /// <summary>
         /// And values from appendMap to the end of this map
         /// </summary>
-        Task<long> Append(ReadOnlyKeyValueSpan<TKey, TValue> appendMap, AppendOption option = AppendOption.ThrowOnOverlap);
+        Task<long> Append(KeyValueReadOnlySpan<TKey, TValue> appendMap, AppendOption option = AppendOption.ThrowOnOverlap);
 
         /// <summary>
         /// Make the map read-only and disable all Add/Remove/Set methods (they will throw)
