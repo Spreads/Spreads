@@ -70,12 +70,12 @@ namespace Spreads
         /// <inheritdoc />
         public abstract bool IsCompleted { get; }
 
-        public IAsyncEnumerator<KeyValuePair<TKey, TValue>> GetAsyncEnumerator()
+        public IAsyncEnumerator<KeyValue<TKey, TValue>> GetAsyncEnumerator()
         {
             return GetCursor();
         }
 
-        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        public IEnumerator<KeyValue<TKey, TValue>> GetEnumerator()
         {
             return GetCursor();
         }
@@ -100,17 +100,17 @@ namespace Spreads
         public abstract KeyValue<TKey, TValue> Last { get; }
 
         /// <inheritdoc />
-        public virtual ref readonly TValue this[in TKey key]
+        public virtual TValue this[in TKey key]
         {
             get
             {
-                ref var value = ref TryFind(key, Lookup.EQ);
-                if (TryFind(key, Lookup.EQ, out var tmp))
+                var kv = TryFind(in key, Lookup.EQ);
+                if (!kv.IsMissing)
                 {
-                    return tmp.Value;
+                    return kv.Value;
                 }
                 ThrowHelper.ThrowKeyNotFoundException("Series getter: key do not exists");
-                throw new KeyNotFoundException();
+                return default;
             }
         }
 
@@ -963,8 +963,10 @@ namespace Spreads
     {
         private object _syncRoot;
 
+        // ReSharper disable InconsistentNaming
         internal long _version;
         internal long _nextVersion;
+        // ReSharper restore InconsistentNaming
         internal int Locker;
         private TaskCompletionSource<bool> _tcs;
         private TaskCompletionSource<bool> _unusedTcs;
@@ -981,10 +983,11 @@ namespace Spreads
             // TODO (review) not so stupid and potentially throwing impl
             try
             {
-                return (KeyValue<TKey, TValue>)this.Skip(Math.Max(0, checked((int)(idx)) - 1)).First();
+                return this.Skip(Math.Max(0, checked((int)(idx)) - 1)).First();
             }
             catch
             {
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(idx));
                 return default;
             }
         }
@@ -1469,7 +1472,7 @@ namespace Spreads
             {
                 lock (SyncRoot)
                 {
-                    return C.MoveFirst() ? C.CurrentRef : throw new InvalidOperationException("A series is empty.");
+                    return C.MoveFirst() ? C.Current : throw new InvalidOperationException("A series is empty.");
                 }
             }
         }
@@ -1481,7 +1484,7 @@ namespace Spreads
             {
                 lock (SyncRoot)
                 {
-                    return C.MoveLast() ? C.CurrentRef : throw new InvalidOperationException("A series is empty.");
+                    return C.MoveLast() ? C.Current : throw new InvalidOperationException("A series is empty.");
                 }
             }
         }
@@ -1504,7 +1507,7 @@ namespace Spreads
                         throw new KeyNotFoundException();
                     }
                 }
-                return C.CurrentRef;
+                return C.Current;
             }
         }
 
@@ -1513,7 +1516,7 @@ namespace Spreads
         {
             lock (SyncRoot)
             {
-                return C.MoveAt(key, direction) ? C.CurrentRef : default;
+                return C.MoveAt(key, direction) ? C.Current : default;
             }
         }
 
@@ -1549,16 +1552,17 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public override ref readonly TValue this[in TKey key]
+        public override TValue this[in TKey key]
         {
             get
             {
-                if (TryFind(key, Lookup.EQ, out var tmp))
+                var kv = TryFind(in key, Lookup.EQ);
+                if (!kv.IsMissing)
                 {
-                    return tmp.Value;
+                    return kv.Value;
                 }
-                Collections.Generic.ThrowHelper.ThrowKeyNotFoundException();
-                return default(TValue);
+                ThrowHelper.ThrowKeyNotFoundException("Series getter: key do not exists");
+                return default;
             }
         }
 
