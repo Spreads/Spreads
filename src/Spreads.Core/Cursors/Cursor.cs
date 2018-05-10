@@ -55,6 +55,13 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task<bool> MoveNextAsync()
+        {
+            return _cursor.MoveNextAsync();
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Cursor<TKey, TValue> Initialize()
         {
             return new Cursor<TKey, TValue>(_cursor.Source.GetCursor());
@@ -74,7 +81,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public KeyValuePair<TKey, TValue> Current
+        public KeyValue<TKey, TValue> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _cursor.Current; }
@@ -88,6 +95,13 @@ namespace Spreads
         public void Dispose()
         {
             _cursor.Dispose();
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task DisposeAsync()
+        {
+            return _cursor.DisposeAsync();
         }
 
         /// <inheritdoc />
@@ -147,7 +161,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> CurrentBatch => _cursor.CurrentBatch;
+        public KeyValueReadOnlySpan<TKey, TValue> CurrentBatch => _cursor.CurrentBatch;
 
         /// <inheritdoc />
         public IReadOnlySeries<TKey, TValue> Source
@@ -175,11 +189,10 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
+        public KeyValue<TKey, TValue> TryGetValue(in TKey key)
         {
-            return _cursor.TryGetValue(key, out value);
+            return _cursor.TryGetValue(key);
         }
-
 
         #region ICursorSeries members
 
@@ -201,6 +214,8 @@ namespace Spreads
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _cursor.Source.Updated; }
         }
+
+        public CursorState State => throw new NotImplementedException();
 
         #endregion
     }

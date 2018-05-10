@@ -272,8 +272,7 @@ namespace Spreads
     /// </summary>
     public interface IReadOnlySeries<TKey, TValue> : ISeries<TKey, TValue>
     {
-        // TODO problem: for cursor series IsEmpty is implemeneted as Cursor.MoveFirst/Last, so it's useful to have First/Last
-        // as Opt<>s and IsEmpty as extension prop when C# implements it.
+        KeyComparer<TKey> Comparer { get; }
 
         /// <summary>
         /// First element, throws InvalidOperationException if empty
@@ -287,7 +286,9 @@ namespace Spreads
 
         /// <summary>
         /// Value at key, throws KeyNotFoundException if key is not present in the series (even for continuous series).
-        /// Use TryGetValue to get a value between existing keys for continuous series.
+        /// Use TryGetValue to get a calculated value between existing keys for continuous series.
+        /// This is equivalent to TryFind(key, Lookup.EQ) and ICursor.MoveAt(key, Lookup.EQ) but throws if
+        /// value is not present in a series.
         /// </summary>
         TValue this[in TKey key] { get; }
 

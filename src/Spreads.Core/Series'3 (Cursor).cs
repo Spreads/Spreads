@@ -20,6 +20,7 @@ namespace Spreads
 #pragma warning restore 660, 661
         where TCursor : ICursorSeries<TKey, TValue, TCursor>
     {
+        // ReSharper disable once InconsistentNaming
         internal readonly TCursor _cursor;
 
         internal Series(TCursor cursor)
@@ -41,19 +42,24 @@ namespace Spreads
             return _cursor.Initialize();
         }
 
-        #region ISeries members
-
-        IDisposable IObservable<KeyValuePair<TKey, TValue>>.Subscribe(IObserver<KeyValuePair<TKey, TValue>> observer)
-        {
-            throw new NotImplementedException();
-        }
-
-        IAsyncEnumerator<KeyValuePair<TKey, TValue>> IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
+        /// <summary>
+        /// Get strongly-typed async enumerator.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public TCursor GetAsyncEnumerator()
         {
             return _cursor.Initialize();
         }
 
-        IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
+        #region ISeries members
+
+
+        IAsyncEnumerator<KeyValue<TKey, TValue>> IAsyncEnumerable<KeyValue<TKey, TValue>>.GetAsyncEnumerator()
+        {
+            return _cursor.Initialize();
+        }
+
+        IEnumerator<KeyValue<TKey, TValue>> IEnumerable<KeyValue<TKey, TValue>>.GetEnumerator()
         {
             return _cursor.Initialize();
         }
@@ -104,19 +110,7 @@ namespace Spreads
         // TODO (perf) Review if initilize/dispose is too much overhead vs a cached navigation cursor.
 
         /// <inheritdoc />
-        public bool IsEmpty
-        {
-            get
-            {
-                using (var c = _cursor.Initialize())
-                {
-                    return !c.MoveFirst();
-                }
-            }
-        }
-
-        /// <inheritdoc />
-        public KeyValuePair<TKey, TValue> First
+        public KeyValue<TKey, TValue> First
         {
             get
             {
@@ -128,7 +122,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public KeyValuePair<TKey, TValue> Last
+        public KeyValue<TKey, TValue> Last
         {
             get
             {
@@ -140,69 +134,36 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public TValue GetAt(int idx)
+        public KeyValue<TKey, TValue> GetAt(long idx)
         {
             // NB call to this.NavCursor.Source.GetAt(idx) is recursive (=> SO) and is logically wrong
-            if (idx < 0) throw new ArgumentOutOfRangeException(nameof(idx));
+            if (idx < 0)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(idx));
+            }
             using (var c = _cursor.Initialize())
             {
                 if (!c.MoveFirst())
                 {
-                    throw new KeyNotFoundException();
+                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(idx));
                 }
                 for (int i = 0; i < idx - 1; i++)
                 {
                     if (!c.MoveNext())
                     {
-                        throw new KeyNotFoundException();
+                        ThrowHelper.ThrowArgumentOutOfRangeException(nameof(idx));
                     }
                 }
-                return c.CurrentValue;
+                return c.Current;
             }
         }
 
         /// <inheritdoc />
-        public bool TryFind(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> value)
+        public KeyValue<TKey, TValue> TryFind(in TKey key, Lookup direction)
         {
             using (var c = _cursor.Initialize())
             {
-                if (c.MoveAt(key, direction))
-                {
-                    value = c.Current;
-                    return true;
-                }
-                value = default(KeyValuePair<TKey, TValue>);
-                return false;
-            }
-        }
-
-        /// <inheritdoc />
-        public bool TryGetFirst(out KeyValuePair<TKey, TValue> value)
-        {
-            using (var c = _cursor.Initialize())
-            {
-                if (c.MoveFirst())
-                {
-                    value = c.Current;
-                    return true;
-                }
-                value = default(KeyValuePair<TKey, TValue>);
-                return false;
-            }
-        }
-
-        /// <inheritdoc />
-        public bool TryGetLast(out KeyValuePair<TKey, TValue> value)
-        {
-            using (var c = _cursor.Initialize())
-            {
-                if (c.MoveLast())
-                {
-                    value = c.Current;
-                    return true;
-                }
-                value = default(KeyValuePair<TKey, TValue>);
-                return false;
+                return c.MoveAt(key, direction) ? c.Current : default;
             }
         }
 
@@ -237,16 +198,17 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public TValue this[TKey key]
+        public TValue this[in TKey key]
         {
             get
             {
-                if (TryFind(key, Lookup.EQ, out var tmp))
+                var kv = TryFind(in key, Lookup.EQ);
+                if (!kv.IsMissing)
                 {
-                    return tmp.Value;
+                    return kv.Value;
                 }
-                Collections.Generic.ThrowHelper.ThrowKeyNotFoundException();
-                return default(TValue);
+                ThrowHelper.ThrowKeyNotFoundException("Series getter: key do not exists");
+                return default;
             }
         }
 
