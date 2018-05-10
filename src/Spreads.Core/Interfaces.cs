@@ -95,7 +95,7 @@ namespace Spreads
     /// <summary>
     /// Main interface for data series.
     /// </summary>
-    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>
+    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValue<TKey, TValue>>
     {
         /// <summary>
         /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys.
@@ -171,7 +171,7 @@ namespace Spreads
     ///    TODO cursor could implement IUpdateable when source does, or pass through to CursorSeries
     ///
     /// </remarks>
-    public interface ICursor<TKey, TValue> : IAsyncEnumerator<KeyValuePair<TKey, TValue>>
+    public interface ICursor<TKey, TValue> : IAsyncEnumerator<KeyValue<TKey, TValue>>
     {
         CursorState State { get; }
 
@@ -188,11 +188,9 @@ namespace Spreads
 
         bool MovePrevious();
 
-        ref readonly TKey CurrentKey { get; }
+        TKey CurrentKey { get; }
 
-        ref readonly TValue CurrentValue { get; }
-
-        KeyValue<TKey, TValue> CurrentRef { get; } // TODO (review) do we need `ref readonly` of KVR is ref struct and is itslf readonly?
+        TValue CurrentValue { get; }
 
         /// <summary>
         /// Optional (used for batch/SIMD optimization where gains are visible), MUST NOT throw NotImplementedException()
@@ -291,7 +289,7 @@ namespace Spreads
         /// Value at key, throws KeyNotFoundException if key is not present in the series (even for continuous series).
         /// Use TryGetValue to get a value between existing keys for continuous series.
         /// </summary>
-        ref readonly TValue this[in TKey key] { get; }
+        TValue this[in TKey key] { get; }
 
         ///// <summary>
         ///// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
@@ -383,18 +381,27 @@ namespace Spreads
         /// </summary>
         Task AddFirst(TKey key, TValue value);
 
-        Task<bool> Remove(TKey key);
+        /// <summary>
+        /// Returns KeyValue deleted at the given key (with version before deletion)
+        /// </summary>
+        Task<KeyValue<TKey, TValue>> Remove(TKey key);
 
-        Task<bool> RemoveLast(out KeyValuePair<TKey, TValue> kvp);
+        /// <summary>
+        /// Returns KeyValue deleted at the first key (with version before deletion)
+        /// </summary>
+        Task<bool> RemoveFirst(out KeyValue<TKey, TValue> kv);
 
-        Task<bool> RemoveFirst(out KeyValuePair<TKey, TValue> kvp);
+        /// <summary>
+        /// Returns KeyValue deleted at the last key (with version before deletion)
+        /// </summary>
+        Task<bool> RemoveLast(out KeyValue<TKey, TValue> kv);
 
-        Task<bool> RemoveMany(TKey key, Lookup direction);
+        Task<bool> RemoveMany(TKey key, Lookup direction, out long count);
 
         /// <summary>
         /// And values from appendMap to the end of this map
         /// </summary>
-        Task<long> Append(KeyValueReadOnlySpan<TKey, TValue> appendMap, AppendOption option = AppendOption.ThrowOnOverlap);
+        Task<bool> Append(KeyValueReadOnlySpan<TKey, TValue> appendMap, out long count, AppendOption option = AppendOption.ThrowOnOverlap);
 
         /// <summary>
         /// Make the map read-only and disable all Add/Remove/Set methods (they will throw)
