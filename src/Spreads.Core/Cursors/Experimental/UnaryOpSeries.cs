@@ -128,7 +128,7 @@ namespace Spreads.Cursors.Experimental
         /// <inheritdoc />
         public override TResult GetAt(int idx)
         {
-            return default(TOp).Apply(_cursor.Source.GetAt(idx), _value);
+            return default(TOp).Apply(_cursor.Source.TryGetAt(idx), _value);
         }
 
         /// <inheritdoc />
@@ -193,9 +193,9 @@ namespace Spreads.Cursors.Experimental
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public async Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public async Task<bool> MoveNextSpan(CancellationToken cancellationToken)
         {
-            var moved = await _cursor.MoveNextBatch(cancellationToken);
+            var moved = await _cursor.MoveNextSpan(cancellationToken);
             if (moved)
             {
                 State = CursorState.BatchMoving;

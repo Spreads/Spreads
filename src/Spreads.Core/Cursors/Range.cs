@@ -451,14 +451,14 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
         {
             if (State == CursorState.None)
             {
                 ThrowHelper.ThrowInvalidOperationException($"CursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
             _steps = 0;
-            Trace.TraceWarning("MoveNextBatch is not implemented in RangeCursor");
+            Trace.TraceWarning("MoveNextSpan is not implemented in RangeCursor");
             return Utils.TaskUtil.FalseTask;
         }
 

@@ -95,7 +95,7 @@ namespace Spreads
     /// <summary>
     /// Main interface for data series.
     /// </summary>
-    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValue<TKey, TValue>>
+    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>
     {
         /// <summary>
         /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys.
@@ -171,7 +171,7 @@ namespace Spreads
     ///    TODO cursor could implement IUpdateable when source does, or pass through to CursorSeries
     ///
     /// </remarks>
-    public interface ICursor<TKey, TValue> : IAsyncEnumerator<KeyValue<TKey, TValue>>
+    public interface ICursor<TKey, TValue> : IAsyncEnumerator<KeyValuePair<TKey, TValue>>
     {
         CursorState State { get; }
 
@@ -186,7 +186,13 @@ namespace Spreads
 
         bool MoveLast();
 
+        // MoveNext is a part of IEnumerable
+
+        long MoveNext(long stride, bool allowPartial);
+
         bool MovePrevious();
+
+        long MovePrevious(long stride, bool allowPartial);
 
         TKey CurrentKey { get; }
 
@@ -209,7 +215,7 @@ namespace Spreads
         /// The actual implementation of the batch could be mutable and could reference a part of the original series, therefore consumer
         /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap
         /// </summary>
-        KeyValueReadOnlySpan<TKey, TValue> CurrentBatch { get; }
+        KeyValueReadOnlyMemory<TKey, TValue> CurrentBatch { get; }
 
         /// <summary>
         /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
@@ -238,7 +244,8 @@ namespace Spreads
         /// the requested key is between the previous and the current keys, and then return the previous one.
         /// NB This is not thread safe. ICursors must be used from a single thread.
         /// </remarks>
-        KeyValue<TKey, TValue> TryGetValue(in TKey key);
+        Opt<TValue> TryGetValue(TKey key);
+
     }
 
     /// <summary>
@@ -277,26 +284,33 @@ namespace Spreads
         /// <summary>
         /// First element, throws InvalidOperationException if empty
         /// </summary>
-        KeyValue<TKey, TValue> First { get; }
+        Opt<KeyValuePair<TKey, TValue>> First { get; }
 
         /// <summary>
         /// Last element, throws InvalidOperationException if empty
         /// </summary>
-        KeyValue<TKey, TValue> Last { get; }
+        Opt<KeyValuePair<TKey, TValue>> Last { get; }
 
         /// <summary>
-        /// Value at key, throws KeyNotFoundException if key is not present in the series (even for continuous series).
-        /// Use TryGetValue to get a calculated value between existing keys for continuous series.
-        /// This is equivalent to TryFind(key, Lookup.EQ) and ICursor.MoveAt(key, Lookup.EQ) but throws if
-        /// value is not present in a series.
+        /// See ICursor.TryGetValue docs.
         /// </summary>
-        TValue this[in TKey key] { get; }
+        Opt<TValue> this[TKey key] { get; }
 
         ///// <summary>
         ///// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
         ///// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code> .
         ///// </summary>
-        KeyValue<TKey, TValue> GetAt(long idx);
+        Opt<KeyValuePair<TKey, TValue>> TryGetAt(long idx); // TODO support negative moves
+
+        /// <summary>
+        /// The method finds value according to direction, returns false if it could not find such a value
+        /// For indexed series LE/GE directions are invalid (throws InvalidOperationException), while
+        /// LT/GT search is done by index rather than by key and possible only when a key exists.
+        /// TryFindAt works only with existing keys and is an equivalent of ICursor.MoveAt.
+        ///
+        /// Check IsMissing property of returned value - it's equivalent to false return of TryXXX pattern.
+        /// </summary>
+        Opt<KeyValuePair<TKey, TValue>> TryFindAt(TKey key, Lookup direction);
 
         // NB: Not async ones. Sometimes it's useful for optimization when we check underlying type.
 
@@ -310,15 +324,6 @@ namespace Spreads
         /// </summary>
         IEnumerable<TValue> Values { get; }
 
-        /// <summary>
-        /// The method finds value according to direction, returns false if it could not find such a value
-        /// For indexed series LE/GE directions are invalid (throws InvalidOperationException), while
-        /// LT/GT search is done by index rather than by key and possible only when a key exists.
-        /// TryFind works only with existing keys and is an equivalent of ICursor.MoveAt.
-        ///
-        /// Check IsMissing property of returned value - it's equivalent to false return of TryXXX pattern.
-        /// </summary>
-        KeyValue<TKey, TValue> TryFind(in TKey key, Lookup direction);
     }
 
     /// <summary>
@@ -385,17 +390,17 @@ namespace Spreads
         /// <summary>
         /// Returns KeyValue deleted at the given key (with version before deletion)
         /// </summary>
-        Task<KeyValue<TKey, TValue>> Remove(TKey key);
+        Task<KeyValuePair<TKey, TValue>> Remove(TKey key);
 
         /// <summary>
         /// Returns KeyValue deleted at the first key (with version before deletion)
         /// </summary>
-        Task<bool> RemoveFirst(out KeyValue<TKey, TValue> kv);
+        Task<bool> RemoveFirst(out KeyValuePair<TKey, TValue> kv);
 
         /// <summary>
         /// Returns KeyValue deleted at the last key (with version before deletion)
         /// </summary>
-        Task<bool> RemoveLast(out KeyValue<TKey, TValue> kv);
+        Task<bool> RemoveLast(out KeyValuePair<TKey, TValue> kv);
 
         Task<bool> RemoveMany(TKey key, Lookup direction, out long count);
 
@@ -444,7 +449,7 @@ namespace Spreads
         /// </summary>
         Task<bool> RemoveMany(TKey key, TContainer keyChunk, Lookup direction);
 
-        new ref readonly TContainer this[in TKey key] { get; }
+        new ref readonly TContainer this[TKey key] { get; }
 
         Task<bool> Set(TKey key, TContainer value);
 

@@ -77,7 +77,7 @@ namespace Spreads
         public sealed override bool TryFind(Variant key, Lookup direction, out KeyValuePair<Variant, Variant> value)
         {
             KeyValuePair<TKey, TValue> tmp;
-            if (Inner.TryFind(ToKey(key), direction, out tmp))
+            if (Inner.TryFindAt(ToKey(key), direction, out tmp))
             {
                 value = new KeyValuePair<Variant, Variant>(ToKey2(tmp.Key), ToValue2(tmp.Value));
                 return true;
@@ -123,7 +123,7 @@ namespace Spreads
         public sealed override Variant GetAt(int idx)
         {
 #pragma warning disable 618
-            return ToValue2(Inner.GetAt(idx));
+            return ToValue2(Inner.TryGetAt(idx));
 #pragma warning restore 618
         }
 
@@ -220,7 +220,7 @@ namespace Spreads
 
             public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
             {
-                return _innerCursor.MoveNextBatch(cancellationToken);
+                return _innerCursor.MoveNextSpan(cancellationToken);
             }
 
             public ICursor<Variant, Variant> Clone()
@@ -244,7 +244,7 @@ namespace Spreads
             public Variant CurrentKey => _source.ToKey2(_innerCursor.CurrentKey);
             public Variant CurrentValue => _source.ToValue2(_innerCursor.CurrentValue);
 
-            public IReadOnlySeries<Variant, Variant> CurrentBatch => Create(_innerCursor.CurrentBatch);
+            public IReadOnlySeries<Variant, Variant> CurrentBatch => Create(_innerCursor.CurrentSpan);
 
             public IReadOnlySeries<Variant, Variant> Source => _source; //Create(_innerCursor.Source);
             public bool IsContinuous => _innerCursor.IsContinuous;

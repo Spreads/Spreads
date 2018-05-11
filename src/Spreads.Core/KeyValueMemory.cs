@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace Spreads
@@ -39,13 +40,13 @@ namespace Spreads
             Values = values;
         }
 
-        public KeyValue<TKey, TValue> this[int index]
+        public KeyValuePair<TKey, TValue> this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 // TODO KeyValue must be missing and do not throw if index is out of bounds
-                return new KeyValue<TKey, TValue>(in Keys.Span[index], in Values.Span[index]);
+                return new KeyValuePair<TKey, TValue>(Keys.Span[index], Values.Span[index]);
             }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
@@ -61,6 +62,59 @@ namespace Spreads
             get
             {
                 return new KeyValueSpan<TKey, TValue>(Keys, Values);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowDifferentCount()
+        {
+            throw new ArgumentException("Keys and values have different length");
+        }
+    }
+
+    public readonly struct KeyValueReadOnlyMemory<TKey, TValue>
+    {
+        public ReadOnlyMemory<TKey> Keys
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get;
+        }
+
+        public ReadOnlyMemory<TValue> Values
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal KeyValueReadOnlyMemory(TKey[] keys, TValue[] values)
+        {
+            if (keys.Length != values.Length)
+            {
+                ThrowDifferentCount();
+            }
+            Keys = keys;
+            Values = values;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal KeyValueReadOnlyMemory(Memory<TKey> keys, Memory<TValue> values)
+        {
+            if (keys.Length != values.Length)
+            {
+                ThrowDifferentCount();
+            }
+            Keys = keys;
+            Values = values;
+        }
+
+        public KeyValuePair<TKey, TValue> this[int index]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                // TODO KeyValue must be missing and do not throw if index is out of bounds
+                return new KeyValuePair<TKey, TValue>(Keys.Span[index], Values.Span[index]);
             }
         }
 

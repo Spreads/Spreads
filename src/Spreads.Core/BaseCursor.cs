@@ -204,27 +204,34 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            return _innerCursor.MoveNext(stride, allowPartial);
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MovePrevious()
         {
             return _innerCursor.MovePrevious();
         }
 
-        public ref readonly TKey CurrentKey
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MovePrevious(long stride, bool allowPartial)
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return ref _innerCursor.CurrentKey; }
+            return _innerCursor.MovePrevious(stride, allowPartial);
         }
 
-        public ref readonly TValue CurrentValue
+        public TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return ref _innerCursor.CurrentValue; }
+            get { return _innerCursor.CurrentKey; }
         }
 
-        public KeyValue<TKey, TValue> CurrentRef
+        public TValue CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _innerCursor.CurrentRef; }
+            get { return _innerCursor.CurrentValue; }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -233,7 +240,7 @@ namespace Spreads
             return _innerCursor.MoveNextBatch(cancellationToken);
         }
 
-        public KeyValueReadOnlySpan<TKey, TValue> CurrentBatch
+        public KeyValueReadOnlyMemory<TKey, TValue> CurrentBatch
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _innerCursor.CurrentBatch; }
@@ -259,9 +266,9 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public KeyValue<TKey, TValue> TryGetValue(in TKey key)
+        public Opt<TValue> TryGetValue(TKey key)
         {
-            return _innerCursor.TryGetValue(in key);
+            return _innerCursor.TryGetValue(key);
         }
 
         public void Dispose()

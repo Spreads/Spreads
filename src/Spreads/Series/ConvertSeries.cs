@@ -59,7 +59,7 @@ namespace Spreads
         public override bool TryFind(TKey2 key, Lookup direction, out KeyValuePair<TKey2, TValue2> value)
         {
             KeyValuePair<TKey, TValue> tmp;
-            if (Inner.TryFind(ToKey(key), direction, out tmp))
+            if (Inner.TryFindAt(ToKey(key), direction, out tmp))
             {
                 value = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
                 return true;
@@ -104,7 +104,7 @@ namespace Spreads
 
         public override TValue2 GetAt(int idx)
         {
-            return ToValue2(Inner.GetAt(idx));
+            return ToValue2(Inner.TryGetAt(idx));
         }
 
         public static TImpl Create(IReadOnlySeries<TKey, TValue> innerSeries)
@@ -208,7 +208,7 @@ namespace Spreads
 
             public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
             {
-                return _innerCursor.MoveNextBatch(cancellationToken);
+                return _innerCursor.MoveNextSpan(cancellationToken);
             }
 
             public ICursor<TKey2, TValue2> Clone()
@@ -233,7 +233,7 @@ namespace Spreads
             public TValue2 CurrentValue => _source.ToValue2(_innerCursor.CurrentValue);
 
             // TODO object pooling
-            public IReadOnlySeries<TKey2, TValue2> CurrentBatch => Create(_innerCursor.CurrentBatch);
+            public IReadOnlySeries<TKey2, TValue2> CurrentBatch => Create(_innerCursor.CurrentSpan);
 
             public IReadOnlySeries<TKey2, TValue2> Source => _source; //Create(_innerCursor.Source);
             public bool IsContinuous => _innerCursor.IsContinuous;

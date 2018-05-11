@@ -85,7 +85,7 @@ namespace Spreads.Core.Tests.Cursors.Internal
                 // EQ
                 {
                     Assert.True(materializedSeries.TryFind(kvp.Key, Lookup.EQ, out var materialized));
-                    lazySeries.TryFind(kvp.Key, Lookup.EQ, out var lazy);
+                    lazySeries.TryFindAt(kvp.Key, Lookup.EQ, out var lazy);
                     Assert.AreEqual(materialized, lazy);
 
                     Assert.True(c.MoveAt(kvp.Key, Lookup.EQ));
@@ -96,7 +96,7 @@ namespace Spreads.Core.Tests.Cursors.Internal
                 {
                     if (materializedSeries.TryFind(kvp.Key, Lookup.LT, out var materialized))
                     {
-                        Assert.True(lazySeries.TryFind(kvp.Key, Lookup.LT, out var lazy));
+                        Assert.True(lazySeries.TryFindAt(kvp.Key, Lookup.LT, out var lazy));
                         Assert.AreEqual(materialized, lazy);
 
                         Assert.True(c.MoveAt(kvp.Key, Lookup.LT));
@@ -108,7 +108,7 @@ namespace Spreads.Core.Tests.Cursors.Internal
                 {
                     if (materializedSeries.TryFind(kvp.Key, Lookup.LE, out var materialized))
                     {
-                        Assert.True(lazySeries.TryFind(kvp.Key, Lookup.LE, out var lazy));
+                        Assert.True(lazySeries.TryFindAt(kvp.Key, Lookup.LE, out var lazy));
                         Assert.AreEqual(materialized, lazy);
 
                         Assert.True(c.MoveAt(kvp.Key, Lookup.LE));
@@ -120,7 +120,7 @@ namespace Spreads.Core.Tests.Cursors.Internal
                 {
                     if (materializedSeries.TryFind(kvp.Key, Lookup.GT, out var materialized))
                     {
-                        Assert.True(lazySeries.TryFind(kvp.Key, Lookup.GT, out var lazy));
+                        Assert.True(lazySeries.TryFindAt(kvp.Key, Lookup.GT, out var lazy));
                         Assert.AreEqual(materialized, lazy);
 
                         Assert.True(c.MoveAt(kvp.Key, Lookup.GT));
@@ -132,7 +132,7 @@ namespace Spreads.Core.Tests.Cursors.Internal
                 {
                     if (materializedSeries.TryFind(kvp.Key, Lookup.GE, out var materialized))
                     {
-                        Assert.True(lazySeries.TryFind(kvp.Key, Lookup.GE, out var lazy));
+                        Assert.True(lazySeries.TryFindAt(kvp.Key, Lookup.GE, out var lazy));
                         Assert.AreEqual(materialized, lazy);
 
                         Assert.True(c.MoveAt(kvp.Key, Lookup.GE));

@@ -196,7 +196,7 @@ namespace Spreads.Cursors.Experimental
             throw new NotImplementedException();
         }
 
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
@@ -282,7 +282,7 @@ namespace Spreads.Cursors.Experimental
             throw new NotImplementedException();
         }
 
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

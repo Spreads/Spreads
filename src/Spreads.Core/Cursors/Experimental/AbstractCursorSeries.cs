@@ -102,7 +102,7 @@ namespace Spreads.Cursors.Experimental
         /// <inheritdoc />
         public override TValue GetAt(int idx)
         {
-            // NB call to this.NavCursor.Source.GetAt(idx) is recursive (=> SO) and is logically wrong
+            // NB call to this.NavCursor.Source.TryGetAt(idx) is recursive (=> SO) and is logically wrong
             if (idx < 0) throw new ArgumentOutOfRangeException(nameof(idx));
             using (var c = Initialize())
             {

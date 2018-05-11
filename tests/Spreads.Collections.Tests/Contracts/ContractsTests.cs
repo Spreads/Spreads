@@ -92,7 +92,7 @@ namespace Spreads.Collections.Tests.Contracts
             foreach (var kvp in _materializedSeries)
             {
                 KeyValuePair<K, V> tkvp;
-                if (_testSeries.TryFind(kvp.Key, Lookup.EQ, out tkvp))
+                if (_testSeries.TryFindAt(kvp.Key, Lookup.EQ, out tkvp))
                 {
                     Assert.AreEqual(kvp, tkvp);
                 }
@@ -104,7 +104,7 @@ namespace Spreads.Collections.Tests.Contracts
                 // TODO (UX) Public cannot get key by index
                 var v = _materializedSeries.GetAt(idx);
                 var k = _materializedSeries.keys[idx];
-                if (_testSeries.TryFind(k, Lookup.EQ, out var tv))
+                if (_testSeries.TryFindAt(k, Lookup.EQ, out var tv))
                 {
                     Assert.AreEqual(v, tv.Value);
                 }
@@ -256,7 +256,7 @@ namespace Spreads.Collections.Tests.Contracts
                 {
                     foreach (var kvp in _ephemeralSeries)
                     {
-                        if (_testSeries.TryFind(kvp.Key, Lookup.EQ, out var tv))
+                        if (_testSeries.TryFindAt(kvp.Key, Lookup.EQ, out var tv))
                         {
                             Assert.AreEqual(kvp.Value, tv.Value, "TryGetValue on continuous series gives wrong result");
                         }

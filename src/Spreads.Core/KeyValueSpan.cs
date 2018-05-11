@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace Spreads
@@ -61,13 +62,13 @@ namespace Spreads
             _values = values.Span;
         }
 
-        public KeyValue<TKey, TValue> this[int index]
+        public KeyValuePair<TKey, TValue> this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 // TODO KeyValue must be missing and do not throw if index is out of bounds
-                return new KeyValue<TKey, TValue>(in _keys[index], in _values[index]);
+                return new KeyValuePair<TKey, TValue>(_keys[index], _values[index]);
             }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set

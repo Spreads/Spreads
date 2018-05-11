@@ -981,7 +981,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
         {
             if (State == CursorState.None)
             {

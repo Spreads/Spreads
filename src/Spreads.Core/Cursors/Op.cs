@@ -183,10 +183,10 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
-            //return _cursor.MoveNextBatch(cancellationToken);
+            //return _cursor.MoveNextSpan(cancellationToken);
         }
 
         /// <inheritdoc />
