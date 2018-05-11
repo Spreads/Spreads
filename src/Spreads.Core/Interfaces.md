@@ -31,10 +31,9 @@ a cursor is a point on a line, TGV is a virtual move + return (for continuous se
 infinitly large number of infinitly small steps"). An indexer is intuitive for collections. 
 Just reading the code cursor[k] vs series[k] is confusing.
 
-## Added MoveNext(long stride) and added the stride arg to MovePrevious(long stride)
+## Added `long MoveNext/MovePrevious(long stride, bool allowPartial)`
 * Need to keep `MoveNext()` to implement `IEnumerator` interface and hit patterns in Roslyn
 * MovePrevious() was more often called multiple times than a single time.
-* An extension method without args keeps the old signature.
 
 ## Renamed MoveNext(CancellationToken ct) to MoveNextAsync()/MoveNextAsync(CancellationToken ct)
 * Need the one without args for pattern matching when [async streams](https://github.com/dotnet/csharplang/blob/master/proposals/async-streams.md) are implemented
