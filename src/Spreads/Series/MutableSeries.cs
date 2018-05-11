@@ -45,9 +45,9 @@ namespace Spreads
 
     //    public override IEnumerable<TV> Values => _innerSeries.Values;
 
-    //    public override bool TryFind(TK key, Lookup direction, out KeyValuePair<TK, TV> value)
+    //    public override bool TryFindAt(TK key, Lookup direction, out KeyValuePair<TK, TV> value)
     //    {
-    //        return _innerSeries.TryFind(key, direction, out value);
+    //        return _innerSeries.TryFindAt(key, direction, out value);
     //    }
 
     //    public override bool TryGetFirst(out KeyValuePair<TK, TV> value)

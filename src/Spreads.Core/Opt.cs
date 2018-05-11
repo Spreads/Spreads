@@ -1,4 +1,6 @@
 ﻿using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Spreads
@@ -32,12 +34,15 @@ namespace Spreads
     /// The minimal implementation of Option type. T must implement IEquitable for custom equality.
     /// </summary>
     [StructLayout(LayoutKind.Auto)]
-    public struct Opt<T> : IEquatable<Opt<T>>
+    public readonly struct Opt<T> : IEquatable<Opt<T>>
     {
         /// <summary>
         /// Missing value.
         /// </summary>
         public static readonly Opt<T> Missing;
+
+        private readonly int _presence; // NB with auto layout it will take at least 4 bytes anyway
+        private readonly T _present;
 
         /// <summary>
         /// Create new optional value with a given present value.
@@ -45,24 +50,48 @@ namespace Spreads
         /// <param name="value"></param>
         public Opt(T value)
         {
-            IsPresent = true;
-            Present = value;
+            _presence = 1;
+            _present = value;
+        }
+
+        internal Opt(T value, int presence)
+        {
+            _presence = presence | 1;
+            _present = value;
         }
 
         /// <summary>
         /// True if a value is present.
         /// </summary>
-        public bool IsPresent { get; }
+        public bool IsPresent
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _presence != 0; }
+        }
 
         /// <summary>
         /// True if a value is missing.
         /// </summary>
-        public bool IsMissing => !IsPresent;
+        public bool IsMissing
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _presence == 0; }
+        }
 
         /// <summary>
         /// Present value.
         /// </summary>
-        public T Present { get; }
+        public T Present
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _present; }
+        }
+
+        internal int Presence
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _presence; }
+        }
 
         /// <summary>
         /// Return a larger Opt value or Missing if both are missing. Missing value is treated as smaller than a present value.
@@ -121,7 +150,14 @@ namespace Spreads
         /// </summary>
         public static explicit operator T(Opt<T> optValue)
         {
-            return optValue.IsPresent ? optValue.Present : default(T);
+            return optValue.IsPresent ? optValue.Present : default;
+        }
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public void Deconstruct(out bool isPresent, out T value)
+        {
+            isPresent = IsPresent;
+            value = Present;
         }
     }
 }

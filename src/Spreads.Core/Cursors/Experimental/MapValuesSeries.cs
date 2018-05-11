@@ -53,7 +53,7 @@ namespace Spreads.Cursors.Experimental
             get
             {
                 throw new NotImplementedException();
-                //var batch = _cursor.CurrentBatch;
+                //var batch = _cursor.CurrentSpan;
                 //// TODO when batching is proper implemented (nested batches) reuse an instance for this
                 //var mapped = new MapValuesSeries<TKey, TValue, TResult, TCursor>(batch, _selector);
                 //return mapped;
@@ -126,7 +126,7 @@ namespace Spreads.Cursors.Experimental
         /// <inheritdoc />
         public override TResult GetAt(int idx)
         {
-            return _selector(_cursor.Source.GetAt(idx));
+            return _selector(_cursor.Source.TryGetAt(idx));
         }
 
         /// <inheritdoc />
@@ -191,9 +191,9 @@ namespace Spreads.Cursors.Experimental
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public async Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public async Task<bool> MoveNextSpan(CancellationToken cancellationToken)
         {
-            var moved = await _cursor.MoveNextBatch(cancellationToken);
+            var moved = await _cursor.MoveNextSpan(cancellationToken);
             if (moved)
             {
                 State = CursorState.BatchMoving;

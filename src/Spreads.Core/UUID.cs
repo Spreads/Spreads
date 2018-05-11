@@ -14,7 +14,7 @@ namespace Spreads
     /// A simpler, faster, comparable and blittable replacement for GUID.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct UUID : IEquatable<UUID>, IComparable<UUID>
+    public readonly unsafe struct UUID : IEquatable<UUID>, IComparable<UUID>
     {
         private readonly ulong _first;
         private readonly ulong _second;
@@ -51,7 +51,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<byte> AsSpan()
         {
-            var ptr = Unsafe.AsPointer(ref this);
+            var ptr = Unsafe.AsPointer(ref System.Runtime.CompilerServices.Unsafe.AsRef<UUID>(in this));
             return new Span<byte>(ptr, 16);
         }
 

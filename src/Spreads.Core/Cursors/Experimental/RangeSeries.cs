@@ -281,9 +281,9 @@ namespace Spreads.Cursors.Experimental
         /// <inheritdoc />
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
         {
-            Trace.TraceWarning("MoveNextBatch is not implemented in RangeCursor");
+            Trace.TraceWarning("MoveNextSpan is not implemented in RangeCursor");
             return TaskUtil.FalseTask;
         }
 

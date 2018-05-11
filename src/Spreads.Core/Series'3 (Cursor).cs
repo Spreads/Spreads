@@ -54,12 +54,12 @@ namespace Spreads
         #region ISeries members
 
 
-        IAsyncEnumerator<KeyValue<TKey, TValue>> IAsyncEnumerable<KeyValue<TKey, TValue>>.GetAsyncEnumerator()
+        IAsyncEnumerator<KeyValuePair<TKey, TValue>> IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetAsyncEnumerator()
         {
             return _cursor.Initialize();
         }
 
-        IEnumerator<KeyValue<TKey, TValue>> IEnumerable<KeyValue<TKey, TValue>>.GetEnumerator()
+        IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
         {
             return _cursor.Initialize();
         }
@@ -110,7 +110,7 @@ namespace Spreads
         // TODO (perf) Review if initilize/dispose is too much overhead vs a cached navigation cursor.
 
         /// <inheritdoc />
-        public KeyValue<TKey, TValue> First
+        public KeyValuePair<TKey, TValue> First
         {
             get
             {
@@ -122,7 +122,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public KeyValue<TKey, TValue> Last
+        public KeyValuePair<TKey, TValue> Last
         {
             get
             {
@@ -134,24 +134,24 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public KeyValue<TKey, TValue> GetAt(long idx)
+        public Opt<KeyValuePair<TKey, TValue>> TryGetAt(long idx)
         {
-            // NB call to this.NavCursor.Source.GetAt(idx) is recursive (=> SO) and is logically wrong
+            // NB call to this.NavCursor.Source.TryGetAt(idx) is recursive (=> SO) and is logically wrong
             if (idx < 0)
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(idx));
+                ThrowHelper.ThrowNotImplementedException("TODO Support negative indexes in TryGetAt");
             }
             using (var c = _cursor.Initialize())
             {
                 if (!c.MoveFirst())
                 {
-                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(idx));
+                    return default;
                 }
-                for (int i = 0; i < idx - 1; i++)
+                for (var i = 0; i < idx - 1; i++)
                 {
                     if (!c.MoveNext())
                     {
-                        ThrowHelper.ThrowArgumentOutOfRangeException(nameof(idx));
+                        return default;
                     }
                 }
                 return c.Current;
@@ -159,7 +159,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public KeyValue<TKey, TValue> TryFind(in TKey key, Lookup direction)
+        public Opt<KeyValuePair<TKey, TValue>> TryFindAt(TKey key, Lookup direction)
         {
             using (var c = _cursor.Initialize())
             {
@@ -202,13 +202,8 @@ namespace Spreads
         {
             get
             {
-                var kv = TryFind(in key, Lookup.EQ);
-                if (!kv.IsMissing)
-                {
-                    return kv.Value;
-                }
-                ThrowHelper.ThrowKeyNotFoundException("Series getter: key do not exists");
-                return default;
+                var kv = TryFindAt(key, Lookup.EQ);
+                return kv.IsPresent ? kv.Present.Value : default;
             }
         }
 

@@ -165,4 +165,9 @@
   <ItemGroup>
     <None Include="Cursors\Readme.md" />
   </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Reflection.Metadata">
+      <HintPath>..\..\..\..\..\..\..\Program Files\dotnet\sdk\NuGetFallbackFolder\microsoft.netcore.app\2.0.0\ref\netcoreapp2.0\System.Reflection.Metadata.dll</HintPath>
+    </Reference>
+  </ItemGroup>
 </Project>

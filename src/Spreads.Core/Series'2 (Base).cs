@@ -70,12 +70,12 @@ namespace Spreads
         /// <inheritdoc />
         public abstract bool IsCompleted { get; }
 
-        public IAsyncEnumerator<KeyValue<TKey, TValue>> GetAsyncEnumerator()
+        public IAsyncEnumerator<KeyValuePair<TKey, TValue>> GetAsyncEnumerator()
         {
             return GetCursor();
         }
 
-        public IEnumerator<KeyValue<TKey, TValue>> GetEnumerator()
+        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
             return GetCursor();
         }
@@ -94,28 +94,23 @@ namespace Spreads
         public abstract Task<bool> Updated { get; }
 
         /// <inheritdoc />
-        public abstract KeyValue<TKey, TValue> First { get; }
+        public abstract Opt<KeyValuePair<TKey, TValue>> First { get; }
 
         /// <inheritdoc />
-        public abstract KeyValue<TKey, TValue> Last { get; }
+        public abstract Opt<KeyValuePair<TKey, TValue>> Last { get; }
 
         /// <inheritdoc />
-        public virtual TValue this[in TKey key]
+        public virtual Opt<TValue> this[TKey key]
         {
             get
             {
-                var kv = TryFind(in key, Lookup.EQ);
-                if (!kv.IsMissing)
-                {
-                    return kv.Value;
-                }
-                ThrowHelper.ThrowKeyNotFoundException("Series getter: key do not exists");
-                return default;
+                var kv = TryFindAt(key, Lookup.EQ);
+                return !kv.IsMissing ? Opt.Present(kv.Present.Value) : Opt<TValue>.Missing;
             }
         }
 
         /// <inheritdoc />
-        public abstract KeyValue<TKey, TValue> GetAt(long idx);
+        public abstract Opt<KeyValuePair<TKey, TValue>> TryGetAt(long idx);
 
         /// <inheritdoc />
         public abstract IEnumerable<TKey> Keys { get; }
@@ -124,9 +119,8 @@ namespace Spreads
         public abstract IEnumerable<TValue> Values { get; }
 
 
-
         /// <inheritdoc />
-        public abstract KeyValue<TKey, TValue> TryFind(in TKey key, Lookup direction);
+        public abstract Opt<KeyValuePair<TKey, TValue>> TryFindAt(TKey key, Lookup direction);
 
         internal Cursor<TKey, TValue> GetWrapper()
         {
@@ -286,7 +280,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, Cursor<TKey, TValue>>> operator
             ==(Series<TKey, TValue> series, TValue comparand)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
                     EQOp<TValue>.Instance);
@@ -299,7 +293,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, Cursor<TKey, TValue>>> operator
             ==(TValue comparand, Series<TKey, TValue> series)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
                     EQOp<TValue>.Instance);
@@ -312,7 +306,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, Cursor<TKey, TValue>>> operator
             !=(Series<TKey, TValue> series, TValue comparand)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
                     NEQOp<TValue>.Instance);
@@ -325,7 +319,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, Cursor<TKey, TValue>>> operator
             !=(TValue comparand, Series<TKey, TValue> series)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
                     NEQOp<TValue>.Instance);
@@ -338,7 +332,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, Cursor<TKey, TValue>>> operator
             <(Series<TKey, TValue> series, TValue comparand)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
                     LTOp<TValue>.Instance);
@@ -351,7 +345,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, Cursor<TKey, TValue>>> operator
             <(TValue comparand, Series<TKey, TValue> series)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
                     LTReverseOp<TValue>.Instance);
@@ -364,7 +358,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, Cursor<TKey, TValue>>> operator
             >(Series<TKey, TValue> series, TValue comparand)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
                     GTOp<TValue>.Instance);
@@ -377,7 +371,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, Cursor<TKey, TValue>>> operator
             >(TValue comparand, Series<TKey, TValue> series)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
                     GTReverseOp<TValue>.Instance);
@@ -390,7 +384,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, Cursor<TKey, TValue>>> operator
             <=(Series<TKey, TValue> series, TValue comparand)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
                     LEOp<TValue>.Instance);
@@ -403,7 +397,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, Cursor<TKey, TValue>>> operator
             <=(TValue comparand, Series<TKey, TValue> series)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
                     LEReverseOp<TValue>.Instance);
@@ -416,7 +410,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, Cursor<TKey, TValue>>> operator >=(
             Series<TKey, TValue> series, TValue comparand)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
                     GEOp<TValue>.Instance);
@@ -429,7 +423,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, Cursor<TKey, TValue>>> operator
             >=(TValue comparand, Series<TKey, TValue> series)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
                     GEReverseOp<TValue>.Instance);
@@ -679,8 +673,8 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             ==(Series<TKey, TValue> series, Series<TKey, TValue> other)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
-            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            if (series is null) throw new ArgumentNullException(nameof(series));
+            if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetWrapper();
             var c2 = other.GetWrapper();
 
@@ -695,7 +689,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             ==(Series<TKey, TValue, Cursor<TKey, TValue>> series, Series<TKey, TValue> other)
         {
-            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
             var c2 = other.GetWrapper();
 
@@ -710,7 +704,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             ==(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var c1 = series.GetWrapper();
             var c2 = other.GetEnumerator();
 
@@ -725,8 +719,8 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             !=(Series<TKey, TValue> series, Series<TKey, TValue> other)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
-            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            if (series is null) throw new ArgumentNullException(nameof(series));
+            if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetWrapper();
             var c2 = other.GetWrapper();
 
@@ -741,7 +735,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             !=(Series<TKey, TValue, Cursor<TKey, TValue>> series, Series<TKey, TValue> other)
         {
-            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
             var c2 = other.GetWrapper();
 
@@ -756,7 +750,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             !=(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var c1 = series.GetWrapper();
             var c2 = other.GetEnumerator();
 
@@ -771,8 +765,8 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             <=(Series<TKey, TValue> series, Series<TKey, TValue> other)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
-            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            if (series is null) throw new ArgumentNullException(nameof(series));
+            if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetWrapper();
             var c2 = other.GetWrapper();
 
@@ -787,7 +781,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             <=(Series<TKey, TValue, Cursor<TKey, TValue>> series, Series<TKey, TValue> other)
         {
-            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
             var c2 = other.GetWrapper();
 
@@ -802,7 +796,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             <=(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var c1 = series.GetWrapper();
             var c2 = other.GetEnumerator();
 
@@ -817,8 +811,8 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             >=(Series<TKey, TValue> series, Series<TKey, TValue> other)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
-            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            if (series is null) throw new ArgumentNullException(nameof(series));
+            if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetWrapper();
             var c2 = other.GetWrapper();
 
@@ -833,7 +827,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             >=(Series<TKey, TValue, Cursor<TKey, TValue>> series, Series<TKey, TValue> other)
         {
-            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
             var c2 = other.GetWrapper();
 
@@ -848,7 +842,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             >=(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var c1 = series.GetWrapper();
             var c2 = other.GetEnumerator();
 
@@ -863,8 +857,8 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             <(Series<TKey, TValue> series, Series<TKey, TValue> other)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
-            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            if (series is null) throw new ArgumentNullException(nameof(series));
+            if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetWrapper();
             var c2 = other.GetWrapper();
 
@@ -879,7 +873,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             <(Series<TKey, TValue, Cursor<TKey, TValue>> series, Series<TKey, TValue> other)
         {
-            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
             var c2 = other.GetWrapper();
 
@@ -894,7 +888,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             <(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var c1 = series.GetWrapper();
             var c2 = other.GetEnumerator();
 
@@ -909,8 +903,8 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             >(Series<TKey, TValue> series, Series<TKey, TValue> other)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
-            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            if (series is null) throw new ArgumentNullException(nameof(series));
+            if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetWrapper();
             var c2 = other.GetWrapper();
 
@@ -925,7 +919,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             >(Series<TKey, TValue, Cursor<TKey, TValue>> series, Series<TKey, TValue> other)
         {
-            if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
+            if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
             var c2 = other.GetWrapper();
 
@@ -940,7 +934,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             >(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var c1 = series.GetWrapper();
             var c2 = other.GetEnumerator();
 
@@ -978,8 +972,12 @@ namespace Spreads
             return GetContainerCursor();
         }
 
-        public override KeyValue<TKey, TValue> GetAt(long idx)
+        public override Opt<KeyValuePair<TKey, TValue>> TryGetAt(long idx)
         {
+            if (idx < 0)
+            {
+                ThrowHelper.ThrowNotImplementedException("TODO Support negative indexes in TryGetAt");
+            }
             // TODO (review) not so stupid and potentially throwing impl
             try
             {
@@ -987,7 +985,6 @@ namespace Spreads
             }
             catch
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(idx));
                 return default;
             }
         }
@@ -1251,7 +1248,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             ==(ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, EQOp<TValue>.Instance);
             return cursor.Source;
@@ -1263,7 +1260,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             ==(TValue comparand, ContainerSeries<TKey, TValue, TCursor> series)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, EQOp<TValue>.Instance);
             return cursor.Source;
@@ -1275,7 +1272,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             !=(ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, NEQOp<TValue>.Instance);
             return cursor.Source;
@@ -1287,7 +1284,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             !=(TValue comparand, ContainerSeries<TKey, TValue, TCursor> series)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, NEQOp<TValue>.Instance);
             return cursor.Source;
@@ -1299,7 +1296,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             <(ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, LTOp<TValue>.Instance);
             return cursor.Source;
@@ -1311,7 +1308,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             <(TValue comparand, ContainerSeries<TKey, TValue, TCursor> series)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand,
                 LTReverseOp<TValue>.Instance);
             return cursor.Source;
@@ -1323,7 +1320,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             >(ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, GTOp<TValue>.Instance);
             return cursor.Source;
@@ -1335,7 +1332,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             >(TValue comparand, ContainerSeries<TKey, TValue, TCursor> series)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand,
                 GTReverseOp<TValue>.Instance);
             return cursor.Source;
@@ -1347,7 +1344,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             <=(ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, LEOp<TValue>.Instance);
             return cursor.Source;
@@ -1359,7 +1356,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             <=(TValue comparand, ContainerSeries<TKey, TValue, TCursor> series)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand,
                 LEReverseOp<TValue>.Instance);
             return cursor.Source;
@@ -1371,7 +1368,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             >=(ContainerSeries<TKey, TValue, TCursor> series, TValue comparand)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
                 new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand, GEOp<TValue>.Instance);
             return cursor.Source;
@@ -1383,7 +1380,7 @@ namespace Spreads
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             >=(TValue comparand, ContainerSeries<TKey, TValue, TCursor> series)
         {
-            if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
+            if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor = new Comparison<TKey, TValue, TCursor>(series.GetContainerCursor(), comparand,
                 GEReverseOp<TValue>.Instance);
             return cursor.Source;
@@ -1466,33 +1463,33 @@ namespace Spreads
         #region IReadOnlySeries members
 
         /// <inheritdoc />
-        public override KeyValue<TKey, TValue> First
+        public override Opt<KeyValuePair<TKey, TValue>> First
         {
             get
             {
                 lock (SyncRoot)
                 {
-                    return C.MoveFirst() ? C.Current : throw new InvalidOperationException("A series is empty.");
+                    return C.MoveFirst() ? C.Current : default;
                 }
             }
         }
 
         /// <inheritdoc />
-        public override KeyValue<TKey, TValue> Last
+        public override Opt<KeyValuePair<TKey, TValue>> Last
         {
             get
             {
                 lock (SyncRoot)
                 {
-                    return C.MoveLast() ? C.Current : throw new InvalidOperationException("A series is empty.");
+                    return C.MoveLast() ? C.Current : default;
                 }
             }
         }
 
         /// <inheritdoc />
-        public override KeyValue<TKey, TValue> GetAt(long idx)
+        public override Opt<KeyValuePair<TKey, TValue>> TryGetAt(long idx)
         {
-            // NB call to this.NavCursor.Source.GetAt(idx) is recursive (=> SO) and is logically wrong
+            // NB call to this.NavCursor.Source.TryGetAt(idx) is recursive (=> SO) and is logically wrong
             if (idx < 0) throw new ArgumentOutOfRangeException(nameof(idx));
             lock (SyncRoot)
             {
@@ -1512,7 +1509,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public override KeyValue<TKey, TValue> TryFind(in TKey key, Lookup direction)
+        public override Opt<KeyValuePair<TKey, TValue>> TryFindAt(TKey key, Lookup direction)
         {
             lock (SyncRoot)
             {
@@ -1552,17 +1549,12 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public override TValue this[in TKey key]
+        public override Opt<TValue> this[TKey key]
         {
             get
             {
-                var kv = TryFind(in key, Lookup.EQ);
-                if (!kv.IsMissing)
-                {
-                    return kv.Value;
-                }
-                ThrowHelper.ThrowKeyNotFoundException("Series getter: key do not exists");
-                return default;
+                var kv = TryFindAt(key, Lookup.EQ);
+                return kv.IsPresent ? kv.Present.Value : default;
             }
         }
 

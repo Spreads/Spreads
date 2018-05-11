@@ -158,7 +158,7 @@ namespace Spreads.Cursors.Experimental
         {
             get
             {
-                var batch = _cursor.CurrentBatch;
+                var batch = _cursor.CurrentSpan;
                 // TODO when batching is proper implemented (nested batches) reuse an instance for this
                 var mapped = new ArithmeticSeries<TKey, TValue, TOp, Cursor<TKey, TValue>>(new Cursor<TKey, TValue>(batch.GetCursor()), _value);
                 return mapped;
@@ -244,14 +244,14 @@ namespace Spreads.Cursors.Experimental
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
         {
             if (State == CursorState.None)
             {
                 ThrowHelper.ThrowInvalidOperationException($"CursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
             throw new NotImplementedException();
-            //var moved = await _cursor.MoveNextBatch(cancellationToken);
+            //var moved = await _cursor.MoveNextSpan(cancellationToken);
             //if (moved)
             //{
             //    State = CursorState.BatchMoving;
@@ -286,7 +286,7 @@ namespace Spreads.Cursors.Experimental
         /// <inheritdoc />
         public override TValue GetAt(int idx)
         {
-            return default(TOp).Apply(_cursor.Source.GetAt(idx), _value);
+            return default(TOp).Apply(_cursor.Source.TryGetAt(idx), _value);
         }
 
         #endregion Series overrides
