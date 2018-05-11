@@ -73,7 +73,11 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> CurrentBatch => null;
+        public KeyValueReadOnlyMemory<TKey, TValue> CurrentBatch
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return default; }
+        }
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => KeyComparer<TKey>.Default;

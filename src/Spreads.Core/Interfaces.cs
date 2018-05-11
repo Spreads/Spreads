@@ -215,6 +215,7 @@ namespace Spreads
         /// The actual implementation of the batch could be mutable and could reference a part of the original series, therefore consumer
         /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap
         /// </summary>
+        // TODO This should be SortedMap when it is re-implemented in this project
         KeyValueReadOnlyMemory<TKey, TValue> CurrentBatch { get; }
 
         /// <summary>

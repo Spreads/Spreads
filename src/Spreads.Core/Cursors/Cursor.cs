@@ -81,7 +81,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public KeyValue<TKey, TValue> Current
+        public KeyValuePair<TKey, TValue> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _cursor.Current; }
@@ -134,9 +134,23 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            return _cursor.MoveNext(stride, allowPartial);
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MovePrevious()
         {
             return _cursor.MovePrevious();
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            return _cursor.MovePrevious(stride, allowPartial);
         }
 
         /// <inheritdoc />
@@ -161,7 +175,11 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public KeyValueReadOnlySpan<TKey, TValue> CurrentBatch => _cursor.CurrentBatch;
+        public KeyValueReadOnlyMemory<TKey, TValue> CurrentBatch
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.CurrentBatch; }
+        }
 
         /// <inheritdoc />
         public IReadOnlySeries<TKey, TValue> Source
@@ -189,7 +207,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public KeyValue<TKey, TValue> TryGetValue(in TKey key)
+        public Opt<TValue> TryGetValue(TKey key)
         {
             return _cursor.TryGetValue(key);
         }
