@@ -153,6 +153,20 @@ namespace Spreads
             return optValue.IsPresent ? optValue.Present : default;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        internal bool TryGet(out T value)
+        {
+            if (_presence != 0)
+            {
+                value = Present;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
         [EditorBrowsable(EditorBrowsableState.Never)]
         public void Deconstruct(out bool isPresent, out T value)
         {

@@ -79,7 +79,7 @@ namespace Spreads.DataTypes
             }
 
             // TODO use CoreFxLab new encoding features
-            if (buffer.TryGetArray(out var segment))
+            if (MemoryMarshal.TryGetArray((ReadOnlyMemory<byte>)buffer, out var segment))
             {
                 return Encoding.UTF8.GetString(segment.Array, segment.Offset, len);
             }

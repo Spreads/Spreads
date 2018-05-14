@@ -13,7 +13,7 @@ namespace Spreads.DataTypes
     /// </summary>
     [DebuggerDisplay("{ToString()}")]
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 4)]
-    public struct Date
+    public readonly struct Date
     {
         private readonly int _value;
 

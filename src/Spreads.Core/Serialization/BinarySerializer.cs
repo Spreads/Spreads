@@ -59,7 +59,7 @@ namespace Spreads.Serialization
                 Debug.Assert(temporaryStream == null, "For primitive types MemoryStream should not be populated");
                 if (destination.Length < offset + size) throw new ArgumentException("Value size is too big for destination");
                 // TODO this simple thing could be probably done without pinning
-                var handle = destination.Retain(true);
+                var handle = destination.Pin();
 
                 var ptr = (void*)((IntPtr)handle.Pointer + (int)offset);
 
@@ -76,7 +76,7 @@ namespace Spreads.Serialization
         private static unsafe int WriteSlow<T>(T value, ref Memory<byte> destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             if (value == null) throw new ArgumentNullException(nameof(value));
-            var handle = destination.Retain(true);
+            var handle = destination.Pin();
             try
             {
                 var ptr = (IntPtr)handle.Pointer + (int)offset;
@@ -201,7 +201,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(PreservedBuffer<byte> source, uint offset, out T value)
         {
-            var handle = source.Buffer.Retain(true);
+            var handle = source.Buffer.Pin();
             try
             {
                 return Read((IntPtr)handle.Pointer, out value);
@@ -221,7 +221,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(Memory<byte> buffer, int offset, out T value)
         {
-            var handle = buffer.Retain(true);
+            var handle = buffer.Pin();
             try
             {
                 var ptr = (IntPtr)handle.Pointer + offset;

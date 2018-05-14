@@ -244,14 +244,14 @@ namespace Spreads.Cursors.Experimental
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
             if (State == CursorState.None)
             {
                 ThrowHelper.ThrowInvalidOperationException($"CursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
             }
             throw new NotImplementedException();
-            //var moved = await _cursor.MoveNextSpan(cancellationToken);
+            //var moved = await _cursor.MoveNextBatch(cancellationToken);
             //if (moved)
             //{
             //    State = CursorState.BatchMoving;

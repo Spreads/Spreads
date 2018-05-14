@@ -37,14 +37,14 @@ namespace Spreads
     /// Extends <see cref="IEnumerator{T}"/> to support asynchronous MoveNextAsync with cancellation.
     /// </summary>
     /// <remarks>
-    /// Contract: when MoveNextAsync() returns false it means that there are no more elements
+    /// Contract: when MoveNext() returns false it means that there are no more elements
     /// right now, and a consumer should call MoveNextAsync() to await for a new element, or spin
-    /// and repeatedly call MoveNextAsync() when a new element is expected very soon. Repeated calls to MoveNextAsync()
+    /// and repeatedly call MoveNext() when a new element is expected very soon. Repeated calls to MoveNext()
     /// could eventually return true. Changes to the underlying sequence, which do not affect enumeration,
     /// do not invalidate the enumerator.
     ///
     /// <c>Current</c> property follows the parent contracts as described here: https://msdn.microsoft.com/en-us/library/58e146b7(v=vs.110).aspx
-    /// Some implementations guarantee that <c>Current</c> keeps its last value from successful MoveNextAsync(),
+    /// Some implementations guarantee that <c>Current</c> keeps its last value from successful MoveNext(),
     /// but that must be explicitly stated in a data structure documentation (e.g. SortedMap).
     /// </remarks>
     public interface IAsyncEnumerator<out T> : IEnumerator<T>, IAsyncDisposable
@@ -63,7 +63,7 @@ namespace Spreads
         /// <returns>true when there is a next element in the sequence, false if the sequence is complete and there will be no more elements ever</returns>
         Task<bool> MoveNextAsync(CancellationToken cancellationToken);
 
-        Task<bool> MoveNextAsync(); // F#... doesn't like optional params from C# :/
+        Task<bool> MoveNextAsync();
     }
 
     /// <summary>
@@ -78,7 +78,7 @@ namespace Spreads
     }
 
     // TODO see issue https://github.com/Spreads/Spreads/issues/99
-    // DataStream is Series<long, TValue>. Event consecutive keys are not required in general but could be required by some protocol.
+    // DataStream is an append-only Series<long, TValue>. Even consecutive keys are not required in general but could be required by some protocol.
 
     ///// <summary>
     ///// An <see cref="IAsyncEnumerable{KeyValuePair}"/> and <see cref="IPublisher{KeyValuePair}"/> with additional guarantee
@@ -188,11 +188,18 @@ namespace Spreads
 
         // MoveNext is a part of IEnumerable
 
+        // NB returning zero is the same as false, no need for Opt<>
+        // if we moved by zero steps then we at the same position as before.
+        // Zero means we are by stride or less close to the end. If allowPartial = true or stride = 1
+        // then we are at the end of series on zero return value.
+
         long MoveNext(long stride, bool allowPartial);
 
         bool MovePrevious();
 
         long MovePrevious(long stride, bool allowPartial);
+
+        // NB even if we could 
 
         TKey CurrentKey { get; }
 
@@ -201,9 +208,9 @@ namespace Spreads
         /// <summary>
         /// Optional (used for batch/SIMD optimization where gains are visible), MUST NOT throw NotImplementedException()
         /// Returns true when a batch is available immediately (async for IO, not for waiting for new values),
-        /// returns false when there is no more immediate values and a consumer should switch to MoveNextAsync().
+        /// returns false when batching is not supported or there are no more immediate values and a consumer should switch to MoveNextAsync().
         /// </summary>
-        Task<bool> MoveNextBatch(CancellationToken cancellationToken = default);
+        Task<bool> MoveNextBatch(CancellationToken cancellationToken);
 
         // NB Using KeyValueReadOnlySpan because batching is only profitable if
         // we could get spans from source or if reduce operation over span is so
@@ -216,7 +223,7 @@ namespace Spreads
         /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap
         /// </summary>
         // TODO This should be SortedMap when it is re-implemented in this project
-        KeyValueReadOnlyMemory<TKey, TValue> CurrentBatch { get; }
+        IReadOnlySeries<TKey, TValue> CurrentBatch { get; }
 
         /// <summary>
         /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
@@ -252,6 +259,7 @@ namespace Spreads
     /// <summary>
     /// An <see cref="ICursor{TKey, TValue}"/> with a known implementation type.
     /// </summary>
+    // ReSharper disable once TypeParameterCanBeVariant
     public interface ISpecializedCursor<TKey, TValue, TCursor> : ICursor<TKey, TValue>
         where TCursor : ICursor<TKey, TValue>
     {

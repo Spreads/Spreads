@@ -111,6 +111,11 @@ namespace Spreads
             get { return new KeyValuePair<TKey, (TValue, (TKey, TValue))>(CurrentKey, CurrentValue); }
         }
 
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <inheritdoc />
         public TKey CurrentKey
         {
@@ -128,6 +133,8 @@ namespace Spreads
         /// <inheritdoc />
         public IReadOnlySeries<TKey, (TValue, (TKey, TValue))> CurrentBatch => null;
 
+        public CursorState State => _cursor.State;
+
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
 
@@ -140,21 +147,16 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out (TValue, (TKey, TValue)) value)
+        public Opt<(TValue, (TKey, TValue))> TryGetValue(TKey key)
         {
             if (_lookUpCursor.Equals(default(TCursor)))
             {
                 _lookUpCursor = _cursor.Clone();
             }
 
-            if (_lookUpCursor.MoveAt(key, Lookup.EQ))
-            {
-                value = (_lookUpCursor.CurrentCursor.CurrentValue, (_lookUpCursor.LaggedCursor.CurrentKey, _lookUpCursor.LaggedCursor.CurrentValue));
-                return true;
-            }
-
-            value = default((TValue, (TKey, TValue)));
-            return false;
+            return _lookUpCursor.MoveAt(key, Lookup.EQ) 
+                ? (_lookUpCursor.CurrentCursor.CurrentValue, (_lookUpCursor.LaggedCursor.CurrentKey, _lookUpCursor.LaggedCursor.CurrentValue)) 
+                : Opt<(TValue, (TKey, TValue))>.Missing;
         }
 
         /// <inheritdoc />
@@ -184,6 +186,11 @@ namespace Spreads
             return moved;
         }
 
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
@@ -193,7 +200,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
             return Utils.TaskUtil.FalseTask;
         }
@@ -214,9 +221,17 @@ namespace Spreads
         public Series<TKey, (TValue, (TKey, TValue)), Lag<TKey, TValue, TCursor>> Source => new Series<TKey, (TValue, (TKey, TValue)), Lag<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task<bool> MoveNextAsync()
+        {
+            return MoveNextAsync(default);
         }
 
         #endregion ICursor members
@@ -243,5 +258,11 @@ namespace Spreads
         }
 
         #endregion ICursorSeries members
+
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return Task.CompletedTask;
+        }
     }
 }

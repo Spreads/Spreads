@@ -34,7 +34,7 @@ namespace Spreads.Cursors.Internal
         internal bool _allowIncomplete;
         internal int _currentWidth;
 
-        internal CursorState State { get; set; }
+        public CursorState State { get; internal set; }
 
         internal TCursor CurrentCursor
         {
@@ -141,6 +141,13 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
         public TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -169,7 +176,7 @@ namespace Spreads.Cursors.Internal
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TCursor value)
+        public Opt<TCursor> TryGetValue(TKey key)
         {
             throw new NotSupportedException();
         }
@@ -310,6 +317,13 @@ namespace Spreads.Cursors.Internal
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {
             if (State < CursorState.Moving) return MoveFirst();
@@ -351,7 +365,7 @@ namespace Spreads.Cursors.Internal
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
             if (State == CursorState.None)
             {
@@ -415,6 +429,12 @@ namespace Spreads.Cursors.Internal
             throw new NotSupportedException();
         }
 
+        /// <inheritdoc />
+        public Task<bool> MoveNextAsync()
+        {
+            return MoveNextAsync(default);
+        }
+
         #endregion ICursor members
 
         #region ICursorSeries members
@@ -439,5 +459,11 @@ namespace Spreads.Cursors.Internal
         }
 
         #endregion ICursorSeries members
+
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return Task.CompletedTask;
+        }
     }
 }

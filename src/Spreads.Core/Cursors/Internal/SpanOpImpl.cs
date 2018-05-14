@@ -31,7 +31,7 @@ namespace Spreads.Cursors.Internal
         // this field keeps the state of the online op and must be cloned
         private TSpanOp _op;
 
-        internal CursorState State { get; set; }
+        public CursorState State { get; internal set; }
 
         internal TCursor CurrentCursor
         {
@@ -140,6 +140,13 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
         public TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -168,7 +175,7 @@ namespace Spreads.Cursors.Internal
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TResult value)
+        public Opt<TResult> TryGetValue(TKey key)
         {
             throw new NotSupportedException("OnlineOpImpl is always discrete, to get value at any point one should use a copy as a navigation cursor and call MoveAt");
         }
@@ -484,6 +491,13 @@ namespace Spreads.Cursors.Internal
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {
             if (State < CursorState.Moving) return MoveFirst();
@@ -558,7 +572,7 @@ namespace Spreads.Cursors.Internal
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
             if (State == CursorState.None)
             {
@@ -679,6 +693,12 @@ namespace Spreads.Cursors.Internal
             throw new NotSupportedException();
         }
 
+        /// <inheritdoc />
+        public Task<bool> MoveNextAsync()
+        {
+            return MoveNextAsync(default);
+        }
+
         #endregion ICursor members
 
         #region ICursorSeries members
@@ -703,5 +723,11 @@ namespace Spreads.Cursors.Internal
         }
 
         #endregion ICursorSeries members
+
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return Task.CompletedTask;
+        }
     }
 }

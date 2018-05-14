@@ -39,7 +39,7 @@ namespace Spreads
             SpanOp<TKey, TValue, TValue, TCursor, SumAvgOnlineOp<TKey, TValue, TCursor>>,
             TCursor> _lookUpCursor;
 
-        internal CursorState State { get; set; }
+        public CursorState State { get; internal set; }
 
         #endregion Cursor state
 
@@ -139,9 +139,17 @@ namespace Spreads
         /// <inheritdoc />
         public KeyValuePair<TKey, TValue> Current
         {
+            // TODO why inlining breaks?
             // NB this causes SO in the TypeSystemSurvivesViolentAbuse test when run as Ctrl+F5 [MethodImpl(MethodImplOptions.AggressiveInlining)]
             // ReSharper disable once ArrangeAccessorOwnerBody
             get { return new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue); }
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
         }
 
         /// <inheritdoc />
@@ -173,7 +181,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
+        public Opt<TValue> TryGetValue(TKey key)
         {
             if (_lookUpCursor.Equals(default(TCursor)))
             {
@@ -182,12 +190,10 @@ namespace Spreads
 
             if (_lookUpCursor.MoveAt(key, Lookup.EQ))
             {
-                value = _lookUpCursor.CurrentValue;
-                return true;
+                return _lookUpCursor.CurrentValue;
             }
 
-            value = default(TValue);
-            return false;
+            return Opt<TValue>.Missing;
         }
 
         /// <inheritdoc />
@@ -240,15 +246,23 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {
+            // TODO (review) why not just MoveNext? Inner must check it's state
             if (State < CursorState.Moving) return MoveFirst();
             return _cursor.MoveNext();
         }
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
             if (State == CursorState.None)
             {
@@ -274,9 +288,17 @@ namespace Spreads
         public Series<TKey, TValue, SMA<TKey, TValue, TCursor>> Source => new Series<TKey, TValue, SMA<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task<bool> MoveNextAsync()
+        {
+            return MoveNextAsync(default);
         }
 
         #endregion ICursor members
@@ -303,5 +325,11 @@ namespace Spreads
         }
 
         #endregion ICursorSeries members
+
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return Task.CompletedTask;
+        }
     }
 }
