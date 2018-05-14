@@ -240,7 +240,7 @@ namespace Spreads
             return _innerCursor.MoveNextBatch(cancellationToken);
         }
 
-        public KeyValueReadOnlyMemory<TKey, TValue> CurrentBatch
+        public IReadOnlySeries<TKey, TValue> CurrentBatch
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _innerCursor.CurrentBatch; }

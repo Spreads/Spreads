@@ -110,7 +110,7 @@ namespace Spreads
         // TODO (perf) Review if initilize/dispose is too much overhead vs a cached navigation cursor.
 
         /// <inheritdoc />
-        public KeyValuePair<TKey, TValue> First
+        public Opt<KeyValuePair<TKey, TValue>> First
         {
             get
             {
@@ -122,7 +122,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public KeyValuePair<TKey, TValue> Last
+        public Opt<KeyValuePair<TKey, TValue>> Last
         {
             get
             {
@@ -198,7 +198,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public TValue this[in TKey key]
+        public Opt<TValue> this[TKey key]
         {
             get
             {

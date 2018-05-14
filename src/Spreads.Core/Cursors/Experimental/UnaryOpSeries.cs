@@ -193,9 +193,9 @@ namespace Spreads.Cursors.Experimental
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public async Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public async Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
-            var moved = await _cursor.MoveNextSpan(cancellationToken);
+            var moved = await _cursor.MoveNextBatch(cancellationToken);
             if (moved)
             {
                 State = CursorState.BatchMoving;

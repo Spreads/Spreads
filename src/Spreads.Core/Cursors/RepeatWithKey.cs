@@ -45,7 +45,7 @@ namespace Spreads
         internal (bool wasMovingNext, (TKey key, TValue value) previous) _previousState;
         internal bool _lookUpIsMoving;
 
-        internal CursorState State { get; set; }
+        public CursorState State { get; internal set; }
 
         #endregion Cursor state
 
@@ -130,6 +130,13 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            return _cursor.MovePrevious(stride, allowPartial);
+        }
+
+        /// <inheritdoc />
         public TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -156,7 +163,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out (TKey, TValue) value)
+        public Opt<(TKey, TValue)> TryGetValue(TKey key)
         {
             // TODO two optimizations
             // 1. (Done) after all MN create a state with valid previous KVP, and check if TGV tries
@@ -170,14 +177,12 @@ namespace Spreads
                 && _cmp.Compare(key, _previousState.previous.key) >= 0
                 && _cmp.Compare(key, _cursor.CurrentKey) < 0)
             {
-                value = (_previousState.previous.key, _previousState.previous.value);
-                return true;
+                return (_previousState.previous.key, _previousState.previous.value);
             }
 
             if (State == CursorState.Moving && _cmp.Compare(key, _cursor.CurrentKey) == 0)
             {
-                value = (_cursor.CurrentKey, _cursor.CurrentValue);
-                return true;
+                return (_cursor.CurrentKey, _cursor.CurrentValue);
             }
 
             // TODO (low) review, now this is not profitable for ZipN, but doesn't hurt.
@@ -212,11 +217,9 @@ namespace Spreads
             if (_lookUpCursor.MoveAt(key, Lookup.LE))
             {
                 _lookUpIsMoving = true;
-                value = (_lookUpCursor.CurrentKey, _lookUpCursor.CurrentValue);
-                return true;
+                return (_lookUpCursor.CurrentKey, _lookUpCursor.CurrentValue);
             }
-            value = default((TKey, TValue));
-            return false;
+            return Opt<(TKey, TValue)>.Missing;
         }
 
         /// <inheritdoc />
@@ -270,6 +273,11 @@ namespace Spreads
             return moved;
         }
 
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            return _cursor.MoveNext(stride, allowPartial);
+        }
+
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
@@ -286,7 +294,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
             if (State == CursorState.None)
             {
@@ -313,9 +321,17 @@ namespace Spreads
         public Series<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, TCursor>> Source => new Series<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task<bool> MoveNextAsync()
+        {
+            return MoveNextAsync(default);
         }
 
         #endregion ICursor members
@@ -342,6 +358,12 @@ namespace Spreads
         }
 
         #endregion ICursorSeries members
+
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return Task.CompletedTask;
+        }
     }
 
     public struct Repeat<TKey, TValue, TCursor> :
@@ -426,6 +448,11 @@ namespace Spreads
             get { return new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue); }
         }
 
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            return _cursor.MovePrevious(stride, allowPartial);
+        }
+
         /// <inheritdoc />
         public TKey CurrentKey
         {
@@ -443,6 +470,8 @@ namespace Spreads
         /// <inheritdoc />
         public IReadOnlySeries<TKey, TValue> CurrentBatch => null;
 
+        public CursorState State => _cursor.State;
+
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
 
@@ -453,16 +482,10 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
+        public Opt<TValue> TryGetValue(TKey key)
         {
-            if (_cursor.TryGetValue(key, out var v))
-            {
-                value = v.Item2;
-                return true;
-            }
-
-            value = default(TValue);
-            return false;
+            var o = _cursor.TryGetValue(key);
+            return o.IsPresent ? o.Present.Item2 : Opt<TValue>.Missing;
         }
 
         /// <inheritdoc />
@@ -494,6 +517,13 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            return _cursor.MoveNext(stride, allowPartial);
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {
             return _cursor.MoveNext();
@@ -501,7 +531,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
             return Utils.TaskUtil.FalseTask;
         }
@@ -525,6 +555,12 @@ namespace Spreads
         public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+
+        /// <inheritdoc />
+        public Task<bool> MoveNextAsync()
+        {
+            return MoveNextAsync(default);
         }
 
         #endregion ICursor members
@@ -551,5 +587,11 @@ namespace Spreads
         }
 
         #endregion ICursorSeries members
+
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return Task.CompletedTask;
+        }
     }
 }

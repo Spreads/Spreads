@@ -111,6 +111,12 @@ namespace Spreads
             get { return new KeyValuePair<TKey, bool>(CurrentKey, CurrentValue); }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            return _cursor.MovePrevious(stride, allowPartial);
+        }
+
         /// <inheritdoc />
         public TKey CurrentKey
         {
@@ -131,6 +137,8 @@ namespace Spreads
         /// <inheritdoc />
         public IReadOnlySeries<TKey, bool> CurrentBatch => throw new NotSupportedException();
 
+        public CursorState State => _cursor.State;
+
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
 
@@ -141,15 +149,10 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out bool value)
+        public Opt<bool> TryGetValue(TKey key)
         {
-            if (_cursor.TryGetValue(key, out var v))
-            {
-                value = _op.Apply(v, _value);
-                return true;
-            }
-            value = default(bool);
-            return false;
+            var o = _cursor.TryGetValue(key);
+            return o.IsPresent ? _op.Apply(o.Present, _value) : default;
         }
 
         /// <inheritdoc />
@@ -157,7 +160,6 @@ namespace Spreads
         public bool MoveAt(TKey key, Lookup direction)
         {
             var moved = _cursor.MoveAt(key, direction);
-
             return moved;
         }
 
@@ -179,6 +181,12 @@ namespace Spreads
             return moved;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            return _cursor.MoveNext(stride, allowPartial);
+        }
+
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
@@ -188,8 +196,9 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
+            // TODO (?)
             return Utils.TaskUtil.FalseTask;
         }
 
@@ -212,6 +221,11 @@ namespace Spreads
         public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+
+        public Task<bool> MoveNextAsync()
+        {
+            return MoveNextAsync(default);
         }
 
         #endregion ICursor members
@@ -247,5 +261,11 @@ namespace Spreads
         }
 
         #endregion ICursorSeries members
+
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return Task.CompletedTask;
+        }
     }
 }

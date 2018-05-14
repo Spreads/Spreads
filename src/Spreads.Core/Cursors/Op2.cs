@@ -106,6 +106,13 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            throw new NotFiniteNumberException();
+        }
+
+        /// <inheritdoc />
         public TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -125,6 +132,8 @@ namespace Spreads
         /// <inheritdoc />
         public IReadOnlySeries<TKey, TValue> CurrentBatch => throw new NotImplementedException();
 
+        public CursorState State => _cursor.State;
+
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
 
@@ -135,15 +144,10 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
+        public Opt<TValue> TryGetValue(TKey key)
         {
-            if (_cursor.TryGetValue(key, out var v))
-            {
-                value = default(TOp).Apply(v);
-                return true;
-            }
-            value = default(TValue);
-            return false;
+            var o = _cursor.TryGetValue(key);
+            return o.IsPresent ? default(TOp).Apply(o.Present) : Opt<TValue>.Missing;
         }
 
         /// <inheritdoc />
@@ -174,6 +178,13 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            throw new NotFiniteNumberException();
+        }
+
+        /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {
@@ -182,7 +193,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
             return Utils.TaskUtil.FalseTask;
         }
@@ -206,6 +217,11 @@ namespace Spreads
         public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
+        }
+
+        public Task<bool> MoveNextAsync()
+        {
+            return MoveNextAsync(default);
         }
 
         #endregion ICursor members
@@ -232,5 +248,11 @@ namespace Spreads
         }
 
         #endregion ICursorSeries members
+
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return Task.CompletedTask;
+        }
     }
 }

@@ -20,14 +20,14 @@ namespace Spreads.DataTypes
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 4)]
     [Serialization(BlittableSize = 4)]
-    public struct Id : IEquatable<Id>, IConvertible
+    public readonly struct Id : IEquatable<Id>, IConvertible
     {
         /// <summary>
         /// Invalid/zero/none identity id.
         /// </summary>
-        public static Id None = new Id { _value = 0 };
+        public static Id None;
 
-        private int _value;
+        private readonly int _value;
 
         private Id(int value)
         {

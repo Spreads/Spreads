@@ -105,6 +105,11 @@ namespace Spreads
             get { return new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue); }
         }
 
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            return _cursor.MovePrevious(stride, allowPartial);
+        }
+
         /// <inheritdoc />
         public TKey CurrentKey
         {
@@ -122,6 +127,12 @@ namespace Spreads
         /// <inheritdoc />
         public IReadOnlySeries<TKey, TValue> CurrentBatch => throw new NotImplementedException();
 
+        public CursorState State
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.State; }
+        }
+
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
 
@@ -132,15 +143,10 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
+        public Opt<TValue> TryGetValue(TKey key)
         {
-            if (_cursor.TryGetValue(key, out var v))
-            {
-                value = v;
-                return true;
-            }
-            value = _value;
-            return true;
+            var o = _cursor.TryGetValue(key);
+            return o.IsPresent ? o : Opt.Present(_value);
         }
 
         /// <inheritdoc />
@@ -170,6 +176,12 @@ namespace Spreads
             return moved;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            return _cursor.MoveNext(stride, allowPartial);
+        }
+
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
@@ -181,8 +193,8 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
-            //return Utils.TaskUtil.FalseTask;
+            // TODO (?)
+            return Utils.TaskUtil.FalseTask;
         }
 
         /// <inheritdoc />
@@ -204,6 +216,11 @@ namespace Spreads
         public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+
+        public Task<bool> MoveNextAsync()
+        {
+            return MoveNextAsync(default);
         }
 
         #endregion ICursor members
@@ -239,5 +256,11 @@ namespace Spreads
         }
 
         #endregion ICursorSeries members
+
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return Task.CompletedTask;
+        }
     }
 }

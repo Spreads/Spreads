@@ -116,6 +116,11 @@ namespace Spreads
             get { return new KeyValuePair<TKey, TResult>(CurrentKey, CurrentValue); }
         }
 
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <inheritdoc />
         public TKey CurrentKey
         {
@@ -136,6 +141,8 @@ namespace Spreads
         /// <inheritdoc />
         public IReadOnlySeries<TKey, TResult> CurrentBatch => throw new NotSupportedException();
 
+        public CursorState State => _cursor.State;
+
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
 
@@ -146,15 +153,10 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TResult value)
+        public Opt<TResult> TryGetValue(TKey key)
         {
-            if (_cursor.TryGetValue(key, out var v))
-            {
-                value = _selector(key, v);
-                return true;
-            }
-            value = default(TResult);
-            return false;
+            var o = _cursor.TryGetValue(key);
+            return o.IsPresent ? _selector(key, o.Present) : Opt<TResult>.Missing;
         }
 
         /// <inheritdoc />
@@ -181,6 +183,11 @@ namespace Spreads
             return moved;
         }
 
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
@@ -190,7 +197,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
             return Utils.TaskUtil.FalseTask;
         }
@@ -211,9 +218,17 @@ namespace Spreads
         public Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>> Source => new Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>>(this);
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task<bool> MoveNextAsync()
+        {
+            return MoveNextAsync(default);
         }
 
         #endregion ICursor members
@@ -249,5 +264,11 @@ namespace Spreads
         }
 
         #endregion ICursorSeries members
+
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return Task.CompletedTask;
+        }
     }
 }

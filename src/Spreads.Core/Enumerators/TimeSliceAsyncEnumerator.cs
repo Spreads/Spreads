@@ -239,6 +239,17 @@ namespace Spreads.Enumerators
                     throw new ArgumentOutOfRangeException();
                 }
             }
+
+            public Task<bool> MoveNextAsync()
+            {
+                return MoveNextAsync(default);
+            }
+
+            public Task DisposeAsync()
+            {
+                Dispose();
+                return Task.CompletedTask;
+            }
         }
     }
 }

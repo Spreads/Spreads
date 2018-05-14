@@ -108,6 +108,11 @@ namespace Spreads
             get { return new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue); }
         }
 
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <inheritdoc />
         public TKey CurrentKey
         {
@@ -119,14 +124,13 @@ namespace Spreads
         public TValue CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return default(TOp).Apply(_cursor.CurrentValue, _value);
-            }
+            get { return default(TOp).Apply(_cursor.CurrentValue, _value); }
         }
 
         /// <inheritdoc />
         public IReadOnlySeries<TKey, TValue> CurrentBatch => throw new NotImplementedException();
+
+        public CursorState State => _cursor.State;
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
@@ -138,15 +142,10 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
+        public Opt<TValue> TryGetValue(TKey key)
         {
-            if (_cursor.TryGetValue(key, out var v))
-            {
-                value = default(TOp).Apply(v, _value);
-                return true;
-            }
-            value = default(TValue);
-            return false;
+            var o = _cursor.TryGetValue(key);
+            return o.IsPresent ? default(TOp).Apply(o.Present, _value) : Opt<TValue>.Missing;
         }
 
         /// <inheritdoc />
@@ -174,6 +173,11 @@ namespace Spreads
             return moved;
         }
 
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
@@ -183,10 +187,10 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
-            //return _cursor.MoveNextSpan(cancellationToken);
+            //return _cursor.MoveNextBatch(cancellationToken);
         }
 
         /// <inheritdoc />
@@ -197,17 +201,24 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source => new Series<TKey, TValue, Op<TKey, TValue, TOp, TCursor>>(this);
+        IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source =>
+            new Series<TKey, TValue, Op<TKey, TValue, TOp, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
-        public Series<TKey, TValue, Op<TKey, TValue, TOp, TCursor>> Source => new Series<TKey, TValue, Op<TKey, TValue, TOp, TCursor>>(this);
+        public Series<TKey, TValue, Op<TKey, TValue, TOp, TCursor>> Source =>
+            new Series<TKey, TValue, Op<TKey, TValue, TOp, TCursor>>(this);
 
         /// <inheritdoc />
         public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+
+        public Task<bool> MoveNextAsync()
+        {
+            return MoveNextAsync(default);
         }
 
         #endregion ICursor members
@@ -243,5 +254,11 @@ namespace Spreads
         }
 
         #endregion ICursorSeries members
+
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return Task.CompletedTask;
+        }
     }
 }

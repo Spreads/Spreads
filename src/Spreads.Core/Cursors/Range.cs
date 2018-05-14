@@ -69,7 +69,7 @@ namespace Spreads
 
         private Flags _flags;
 
-        internal CursorState State { get; set; }
+        public CursorState State { get; internal set; }
 
         #endregion Cursor state
 
@@ -262,6 +262,13 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            throw new NotFiniteNumberException();
+        }
+
+        /// <inheritdoc />
         public TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -291,14 +298,9 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
+        public Opt<TValue> TryGetValue(TKey key)
         {
-            if (InRange(key))
-            {
-                return _cursor.TryGetValue(key, out value);
-            }
-            value = default(TValue);
-            return false;
+            return InRange(key) ? _cursor.TryGetValue(key) : Opt<TValue>.Missing;
         }
 
         /// <inheritdoc />
@@ -391,6 +393,13 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            throw new NotFiniteNumberException();
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {
             if (State < CursorState.Moving) return MoveFirst();
@@ -451,7 +460,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
             if (State == CursorState.None)
             {
@@ -514,6 +523,12 @@ namespace Spreads
             throw new NotSupportedException();
         }
 
+        /// <inheritdoc />
+        public Task<bool> MoveNextAsync()
+        {
+            return MoveNextAsync(default);
+        }
+
         #endregion ICursor members
 
         #region ISpecializedCursorSeries members
@@ -544,5 +559,11 @@ namespace Spreads
         }
 
         #endregion ISpecializedCursorSeries members
+
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return Task.CompletedTask;
+        }
     }
 }

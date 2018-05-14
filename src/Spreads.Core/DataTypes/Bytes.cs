@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using Spreads.Serialization;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using Spreads.Serialization;
 
 namespace Spreads.DataTypes
 {
-
     [StructLayout(LayoutKind.Sequential, Size = Size)]
     [Serialization(BlittableSize = Size)]
     public unsafe struct Bytes16
@@ -32,5 +26,4 @@ namespace Spreads.DataTypes
         private const int Size = 32;
         private fixed byte Bytes[Size];
     }
-
 }

@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
+using Spreads.Utils;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -55,29 +55,31 @@ namespace Spreads
         public KeyValuePair<TKey, TValue> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue); }
+            get { return default; }
         }
 
         /// <inheritdoc />
         public TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return default(TKey); }
+            get { return default; }
         }
 
         /// <inheritdoc />
         public TValue CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return default(TValue); }
+            get { return default; }
         }
 
         /// <inheritdoc />
-        public KeyValueReadOnlyMemory<TKey, TValue> CurrentBatch
+        public IReadOnlySeries<TKey, TValue> CurrentBatch
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return default; }
         }
+
+        public CursorState State => CursorState.Initialized;
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => KeyComparer<TKey>.Default;
@@ -89,10 +91,9 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
+        public Opt<TValue> TryGetValue(TKey key)
         {
-            value = default(TValue);
-            return true;
+            return Opt<TValue>.Missing;
         }
 
         /// <inheritdoc />
@@ -116,6 +117,11 @@ namespace Spreads
             return false;
         }
 
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            return 0;
+        }
+
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
@@ -125,16 +131,22 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public bool MovePrevious()
         {
-            return Utils.TaskUtil.FalseTask;
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            return 0;
         }
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool MovePrevious()
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
-            return false;
+            return TaskUtil.FalseTask;
         }
 
         /// <inheritdoc />
@@ -148,7 +160,12 @@ namespace Spreads
         /// <inheritdoc />
         public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
-            throw new NotSupportedException();
+            return TaskUtil.FalseTask;
+        }
+
+        public Task<bool> MoveNextAsync()
+        {
+            return TaskUtil.FalseTask;
         }
 
         #endregion ICursor members
@@ -162,8 +179,13 @@ namespace Spreads
         public bool IsReadOnly => true;
 
         /// <inheritdoc />
-        public Task<bool> Updated => Utils.TaskUtil.FalseTask;
+        public Task<bool> Updated => TaskUtil.FalseTask;
 
         #endregion ICursorSeries members
+
+        public Task DisposeAsync()
+        {
+            return Task.CompletedTask;
+        }
     }
 }

@@ -27,13 +27,6 @@
     <Compile Include="Cursors\Comparison.cs" />
     <Compile Include="Cursors\Cursor.cs" />
     <Compile Include="Cursors\Empty.cs" />
-    <Compile Include="Cursors\Experimental\AbstractCursorSeries.cs" />
-    <Compile Include="Cursors\Experimental\ArithmeticSeries.cs" />
-    <Compile Include="Cursors\Experimental\MapValuesSeries.cs" />
-    <Compile Include="Cursors\Experimental\RangeSeries.cs" />
-    <Compile Include="Cursors\Experimental\UnaryLogic.cs" />
-    <Compile Include="Cursors\Experimental\UnaryOpSeries.cs" />
-    <Compile Include="Cursors\Experimental\ZipN.cs" />
     <Compile Include="Cursors\Fill.cs" />
     <Compile Include="Cursors\Filter.cs" />
     <Compile Include="Cursors\ICursorSeries.cs" />
@@ -160,6 +153,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="Cursors\Experimental\" />
     <Folder Include="Internal\Cursors\" />
   </ItemGroup>
   <ItemGroup>

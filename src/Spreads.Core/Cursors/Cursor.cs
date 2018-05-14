@@ -175,7 +175,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public KeyValueReadOnlyMemory<TKey, TValue> CurrentBatch
+        public IReadOnlySeries<TKey, TValue> CurrentBatch
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _cursor.CurrentBatch; }

@@ -41,7 +41,7 @@ namespace Spreads
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         internal TCursor _cursor;
 
-        internal CursorState State { get; set; }
+        public CursorState State { get; internal set; }
 
         #endregion Cursor state
 
@@ -152,6 +152,11 @@ namespace Spreads
             get { return new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue); }
         }
 
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <inheritdoc />
         public TKey CurrentKey
         {
@@ -182,30 +187,30 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
+        public Opt<TValue> TryGetValue(TKey key)
         {
+            // get value only when key is ok            
             if (_keyPredicate != null && _keyPredicate(key))
             {
-                return _cursor.TryGetValue(key, out value);
+                return _cursor.TryGetValue(key);
             }
 
-            if (_cursor.TryGetValue(key, out var v))
+            var o = _cursor.TryGetValue(key);
+
+            if (o.IsPresent)
             {
-                if (_fullPredicate != null && !_fullPredicate(key, v))
+                // TODO (perf) review. This is a hot path, ifs could be reordered more efficiently
+                if (_fullPredicate != null && !_fullPredicate(key, o.Present))
                 {
-                    value = default(TValue);
-                    return false;
+                    return Opt<TValue>.Missing;
                 }
-                if (_valuePredicate != null && !_valuePredicate(v))
+                if (_valuePredicate != null && !_valuePredicate(o.Present))
                 {
-                    value = default(TValue);
-                    return false;
+                    return Opt<TValue>.Missing;
                 }
-                value = v;
-                return true;
+                return o;
             }
-            value = default(TValue);
-            return false;
+            return Opt<TValue>.Missing;
         }
 
         /// <inheritdoc />
@@ -305,6 +310,11 @@ namespace Spreads
             return moved;
         }
 
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
@@ -334,7 +344,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextSpan(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
         {
             if (State == CursorState.None)
             {
@@ -378,7 +388,13 @@ namespace Spreads
         /// <inheritdoc />
         public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
         {
-            throw new NotSupportedException();
+            // TODO (review) why not just fakse? If someone uses this directly then it's ok to return fasle - but that would be a lie about underlying series state (MNA=false means compeleted)
+            throw new NotSupportedException("Struct cursors are only sync, must use an async wrapper");
+        }
+
+        public Task<bool> MoveNextAsync()
+        {
+            return MoveNextAsync(default);
         }
 
         #endregion ICursor members
@@ -405,5 +421,11 @@ namespace Spreads
         }
 
         #endregion ICursorSeries members
+
+        public Task DisposeAsync()
+        {
+            Dispose();
+            return Task.CompletedTask;
+        }
     }
 }
