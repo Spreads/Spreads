@@ -25,7 +25,7 @@ namespace Spreads.DataTypes
     /// <summary>
     /// A struct to store up to 16 chars.
     /// </summary>
-    [DebuggerDisplay("{ToString()}")]
+    [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Sequential, Size = Size)]
     [Serialization(BlittableSize = Size)]
     public unsafe struct Symbol : IEquatable<Symbol>

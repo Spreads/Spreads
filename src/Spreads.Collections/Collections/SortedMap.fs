@@ -693,7 +693,9 @@ type SortedMap<'K,'V>
 
   member private this.FirstUnchecked
     with get() =
-      KeyValuePair(this.keys.[0], this.values.[0])
+      if this.size > 0 then 
+        Opt.Present(KeyValuePair(this.keys.[0], this.values.[0]))
+      else Unchecked.defaultof<_> 
       
   override this.Last
     with get() =
@@ -705,8 +707,9 @@ type SortedMap<'K,'V>
     with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() =
       if couldHaveRegularKeys && this.size > 1 then
         Trace.Assert(this.comparer.Compare(rkLast, this.comparer.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
-        KeyValuePair(rkLast, this.values.[this.size - 1])
-      else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
+        Opt.Present(KeyValuePair(rkLast, this.values.[this.size - 1]))
+      elif this.size > 0 then Opt.Present(KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1]))
+      else Opt.Missing
   
   member this.Item
     with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get key =
