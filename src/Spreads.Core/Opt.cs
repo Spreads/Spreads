@@ -84,7 +84,16 @@ namespace Spreads
         public T Present
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _present; }
+            get
+            {
+                #if DEBUG
+                if (IsMissing)
+                {
+                    throw new InvalidOperationException("Cannot access Opt<>.Present when value is missing");
+                }
+                #endif
+                return _present;
+            }
         }
 
         internal int Presence

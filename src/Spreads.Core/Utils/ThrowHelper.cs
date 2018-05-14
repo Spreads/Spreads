@@ -96,6 +96,12 @@ namespace Spreads
         {
             throw GetNotSupportedException();
         }
+        
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void ThrowNotSupportedException(string message)
+        {
+            throw GetNotSupportedException(message);
+        }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowOutOfOrderKeyException<TKey>(TKey key)
@@ -217,6 +223,12 @@ namespace Spreads
         private static NotSupportedException GetNotSupportedException()
         {
             return new NotSupportedException();
+        }
+        
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static NotSupportedException GetNotSupportedException(string message)
+        {
+            return new NotSupportedException(message);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

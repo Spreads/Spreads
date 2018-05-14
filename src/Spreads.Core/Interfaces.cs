@@ -375,48 +375,54 @@ namespace Spreads
 
         bool IsAppendOnly { get; }
 
+        /// <summary>
+        /// Set value at key. Returns true if key did not exist before.
+        /// </summary>
         Task<bool> Set(TKey key, TValue value);
 
         /// <summary>
-        /// Adds new key and value to map, throws if the key already exists
+        /// Attempts to add new key and value to map.
         /// </summary>
-        Task Add(TKey key, TValue value);
+        Task<bool> TryAdd(TKey key, TValue value);
 
         /// <summary>
         /// Checked addition, checks that new element's key is larger/later than the Last element's key
         /// and adds element to this map
         /// throws ArgumentOutOfRangeException if new key is smaller than the last
         /// </summary>
-        Task AddLast(TKey key, TValue value);
+        Task<bool> TryAddLast(TKey key, TValue value);
 
         /// <summary>
         /// Checked addition, checks that new element's key is smaller/earlier than the First element's key
         /// and adds element to this map
         /// throws ArgumentOutOfRangeException if new key is larger than the first
         /// </summary>
-        Task AddFirst(TKey key, TValue value);
+        Task<bool> TryAddFirst(TKey key, TValue value);
 
         /// <summary>
-        /// Returns KeyValue deleted at the given key (with version before deletion)
+        /// Returns Value deleted at the given key or a missing Opt.
         /// </summary>
-        Task<KeyValuePair<TKey, TValue>> Remove(TKey key);
+        Task<bool> TryRemove(TKey key, out Opt<TValue> value);
 
         /// <summary>
-        /// Returns KeyValue deleted at the first key (with version before deletion)
+        /// Returns KeyValue deleted at the first key.
         /// </summary>
-        Task<bool> RemoveFirst(out KeyValuePair<TKey, TValue> kv);
+        Task<bool> TryRemoveFirst(out KeyValuePair<TKey, TValue> keyValue);
 
         /// <summary>
         /// Returns KeyValue deleted at the last key (with version before deletion)
         /// </summary>
-        Task<bool> RemoveLast(out KeyValuePair<TKey, TValue> kv);
-
-        Task<bool> RemoveMany(TKey key, Lookup direction, out long count);
+        Task<bool> TryRemoveLast(out KeyValuePair<TKey, TValue> keyValue);
 
         /// <summary>
-        /// And values from appendMap to the end of this map
+        /// Removes all keys from the given key towards the given direction and return the nearest removed key.
         /// </summary>
-        Task<bool> Append(KeyValueReadOnlySpan<TKey, TValue> appendMap, out long count, AppendOption option = AppendOption.ThrowOnOverlap);
+        Task<bool> TryRemoveMany(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> keyValue);
+
+        /// <summary>
+        /// And values from appendMap to the end of this map.
+        /// </summary>
+        Task<bool> TryAppend(KeyValueReadOnlySpan<TKey, TValue> appendMap, out long count, AppendOption option = AppendOption.RejectOnOverlap);
 
         /// <summary>
         /// Make the map read-only and disable all Add/Remove/Set methods (they will throw)

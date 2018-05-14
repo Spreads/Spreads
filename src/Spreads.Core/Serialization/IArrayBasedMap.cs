@@ -18,7 +18,7 @@ namespace Spreads.Serialization
         int Length { get; }
         long Version { get; }
         bool IsRegular { get; }
-        bool IsReadOnly { get; }
+        bool IsCompleted { get; }
         TKey[] Keys { get; }
         TValue[] Values { get; }
     }
@@ -62,7 +62,7 @@ namespace Spreads.Serialization
             // map version
             temporaryStream.WriteAsPtr<long>(value.Version);
             temporaryStream.WriteAsPtr<byte>((byte)(value.IsRegular ? 1 : 0));
-            temporaryStream.WriteAsPtr<byte>((byte)(value.IsReadOnly ? 1 : 0));
+            temporaryStream.WriteAsPtr<byte>((byte)(value.IsCompleted ? 1 : 0));
             keys.CopyTo(temporaryStream);
             values.CopyTo(temporaryStream);
             keys.Dispose();
@@ -97,7 +97,7 @@ namespace Spreads.Serialization
             Marshal.WriteInt32(ptr + position, value.Length);
             Marshal.WriteInt64(ptr + position + 4, value.Version);
             Marshal.WriteByte(ptr + position + 4 + 8, (byte)(value.IsRegular ? 1 : 0));
-            Marshal.WriteByte(ptr + position + 4 + 8 + 1, (byte)(value.IsReadOnly ? 1 : 0));
+            Marshal.WriteByte(ptr + position + 4 + 8 + 1, (byte)(value.IsCompleted ? 1 : 0));
 
             position = position + 14;
 

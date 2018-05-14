@@ -151,6 +151,8 @@ namespace Spreads.Serialization
             }
         }
 
+        
+        // TODO (review) this definition depends on converters and doesn't match blittable definition that soon will be in C# 
         /// <summary>
         /// Returns a positive size of a pinnable type T, -1 if the type T is not pinnable and has
         /// no registered converter, 0 if there is a registered converter for variable-length type.
@@ -159,6 +161,11 @@ namespace Spreads.Serialization
         /// an array of KVP[DateTime,double], which has contiguous layout in memory.
         /// </summary>
         public static int Size = InitChecked();
+
+        /// <summary>
+        /// Cache call to typeof(T).GetTypeInfo().IsValueType so it is JIT-time constant.
+        /// </summary>
+        public static bool IsValueType = typeof(T).GetTypeInfo().IsValueType;
 
         /// <summary>
         /// True if an array T[] could be pinned in memory.

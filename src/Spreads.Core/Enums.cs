@@ -95,7 +95,7 @@ namespace Spreads
         /// <summary>
         /// Throw if new keys overlap with existing keys.
         /// </summary>
-        ThrowOnOverlap = 0,
+        RejectOnOverlap = 0,
 
         /// <summary>
         /// Ignore overlap if all new overlapped key are equal to existing, throw on unequal keys.
