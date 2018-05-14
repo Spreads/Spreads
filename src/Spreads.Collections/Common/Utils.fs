@@ -62,22 +62,20 @@ module internal Utils =
   let inline exitLockIf locker (condition:bool) = 
     if condition then System.Threading.Monitor.Exit(locker)
 
-  // NB corefx will deprecate all CER stuff: https://github.com/dotnet/corefx/issues/1345#issuecomment-147569967
-  // these commented-out lines are from Joe Duffy examples
-  //[<ReliabilityContractAttribute(Consistency.WillNotCorruptState, Cer.MayFail)>]
   let inline enterWriteLockIf (locker:int byref) (condition:bool) =
     if condition then
-      //Thread.BeginCriticalRegion()
       let sw = new SpinWait()
       let mutable cont = true
       while cont do
-        //RuntimeHelpers.PrepareConstrainedRegions()
-        //try ()
-        //finally
-        if Interlocked.CompareExchange(&locker, 1, 0) = 0 then
-          cont <- false
-        if cont then sw.SpinOnce()
-      not cont
+        if Interlocked.CompareExchange(&locker, 1, 0) = 0 then cont <- false
+        else
+          sw.SpinOnce()
+          #if TRACE_LOCK_FREE
+          if sw.Count > 100 then ThrowHelper.ThrowInvalidOperationException("Deadlock in enterWriteLock, debug me!")
+          #else
+          if sw.NextSpinWillYield then sw.Reset()
+          #endif
+      true
     else false
 
   let inline exitWriteLockIf (locker:int byref) (condition:bool) = 
@@ -87,9 +85,27 @@ module internal Utils =
       #else
       Interlocked.Exchange(&locker, 0) |> ignore
       #endif
-      //Thread.EndCriticalRegion()
 
-  // This read lock only reads values and is exception-safe. If f() throws, we do not corrupt any state.
+  let inline enterWriteLock (locker:int byref) =
+    let sw = new SpinWait()
+    let mutable cont = true
+    while cont do
+      if Interlocked.CompareExchange(&locker, 1, 0) = 0 then cont <- false
+      else
+        sw.SpinOnce()
+        #if TRACE_LOCK_FREE
+        if sw.Count > 100 then ThrowHelper.ThrowInvalidOperationException("Deadlock in enterWriteLock, debug me!")
+        #else
+        if sw.NextSpinWillYield then sw.Reset()
+        #endif
+
+  let inline exitWriteLock (locker:int byref) = 
+    #if TRACE_LOCK_FREE
+    Trace.Assert((1 = Interlocked.Exchange(&locker, 0)))
+    #else
+    Interlocked.Exchange(&locker, 0) |> ignore
+    #endif
+      
   let inline readLockIf (nextVersion:int64 byref) (currentVersion:int64 byref) (condition:bool) (f:unit -> 'T) : 'T =
     let mutable value = Unchecked.defaultof<'T>
     let mutable doSpin = true
@@ -102,6 +118,18 @@ module internal Utils =
         if version = nextVersion then doSpin <- false
         else sw.SpinOnce()
       else doSpin <- false
+    value
+    
+  let inline readLock (nextVersion:int64 byref) (currentVersion:int64 byref) (f:unit -> 'T) : 'T =
+    let mutable value = Unchecked.defaultof<'T>
+    let mutable doSpin = true
+    let sw = new SpinWait()
+    while doSpin do
+      let version = Volatile.Read(&currentVersion)
+      value <- f()
+      let nextVersion = Volatile.Read(&nextVersion)
+      if version = nextVersion then doSpin <- false
+      else sw.SpinOnce()
     value
 
   let inline increment (value:byref<_>) = value <- value + LanguagePrimitives.GenericOne

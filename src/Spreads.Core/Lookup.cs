@@ -10,29 +10,37 @@ namespace Spreads
     /// </summary>
     public enum Lookup : byte
     {
+        // TODO Review if binary representation could be useful. In general we should not depend on enum concrete values. 
+        // equlity & direction: three bits
+        // middle bit = equality is OK
+        // left bit = less
+        // right bit - greater
+        
         /// <summary>
         /// Less than.
         /// </summary>
-        LT = 0,
+        LT = 0b_0000_0100, // 4
 
         /// <summary>
         /// Less or equal.
         /// </summary>
-        LE = 1,
+        LE = 0b_0000_0110, // 6
 
         /// <summary>
         /// Equal.
         /// </summary>
-        EQ = 2,
+        EQ = 0b_0000_0010, // 2
 
         /// <summary>
         /// Greater or equal.
         /// </summary>
-        GE = 3,
+        GE = 0b_0000_0011, // 3
 
         /// <summary>
         /// Greater than.
         /// </summary>
-        GT = 4
+        GT = 0b_0000_0001 // 1
+        
+        // we could continue: 111 - whatever, 000 - no value, 101 - not equal
     }
 }
