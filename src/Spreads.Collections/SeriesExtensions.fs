@@ -28,7 +28,7 @@ type SeriesExtensionsAux () =
           action.Invoke(cursor.CurrentKey, cursor.CurrentValue)
           iterations <- iterations + 1L
         if iterations < maxIterations then
-          let moveTask = cursor.MoveNext(token)
+          let moveTask = cursor.MoveNextAsync(token)
           let awaiter = moveTask.GetAwaiter()
           awaiter.UnsafeOnCompleted(fun _ ->
             match moveTask.Status with
@@ -78,20 +78,12 @@ type SeriesExtensionsAux () =
         state <- folder.Invoke(state, kvp.Key)
       state
 
-
-    [<Extension>]
-    static member inline internal ZipOld<'K,'V,'R when 'K : comparison>(series: Series<'K,'V> array, resultSelector:Func<'K,'V[],'R>) =
-      CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(resultSelector, series |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
-
-    [<Extension>]
-    static member inline internal ZipOld<'K,'V,'R when 'K : comparison>(series: ISeries<'K,'V> array, resultSelector:Func<'K,'V[],'R>) =
-      CursorSeries(fun _ -> new ZipNCursor<'K,'V,'R>(resultSelector, series |> Array.map (fun s -> s.GetCursor))  :> ICursor<'K,'R>) :> Series<'K,'R>
-
-
     /// A shortcut for `if not orderedMap.IsEmpty then IMutableSeries.RemoveMany(orderedMap.First.Key, Lookup.GE) else false`
     [<Extension>]
     static member inline RemoveAll<'K,'V when 'K : comparison>(orderedMap: IMutableSeries<'K,'V>) =
-      if not orderedMap.IsEmpty then orderedMap.RemoveMany(orderedMap.First.Key, Lookup.GE)
+      let f = orderedMap.First
+      let mutable x = Unchecked.defaultof<_>
+      if f.IsPresent then orderedMap.TryRemoveMany(f.Present.Key, Lookup.GE, &x).Result
       else false
 
 
