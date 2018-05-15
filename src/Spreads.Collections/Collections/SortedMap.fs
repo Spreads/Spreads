@@ -5,8 +5,10 @@
 
 namespace Spreads.Collections
 
-// TODO Simplify monster method TryFindWithIndex
-// TODO Pooling and cursor counter to avoid disposing of a SM with outstanding cursors
+// TODO [x] Simplify monster method TryFindWithIndex (done)
+// TODO Test TryFindWithIndex
+// TODO Reimplement (review + fix) Append
+// TODO (low) Pooling and cursor counter to avoid disposing of a SM with outstanding cursors
 
 open System
 open System.Linq
@@ -26,15 +28,14 @@ open Spreads.Serialization
 open Spreads.Collections
 open Spreads.Utils
 
-// NB: IsSyncronized = false means completely thread unsafe. When it is false, the only cost should be checking it and incrementing next order version.
-// IsSyncronized is set to true whenever we create a cursor from a thread different from the constructor thread. 
-// IsSyncronized is true by default - better to be safe than sorry.
 
 // NB: Why regular keys? Because we do not care about daily or hourly data, but there are 1440 (480) minutes in a day (trading hours)
 // with the same diff between each consequitive minute. The number is much bigger with seconds and msecs so that
 // memory saving is meaningful, while vectorized calculations on values benefit from fast comparison of regular keys.
 // Ticks (and seconds for illiquid instruments) are not regular, but they are never equal among different instruments.
 
+// NB (update 2018) Regular keys are useful for DataStreams (WIP), but real data is almost never regular. 
+// Keep it at least for the blood wasted on making it right. 
 
 /// Mutable sorted thread-safe IMutableSeries<'K,'V> implementation similar to SCG.SortedList<'K,'V>
 [<AllowNullLiteral>]
@@ -89,10 +90,6 @@ type SortedMap<'K,'V>
   val mutable internal isReadyToDispose : int
 
   do
-    // NB: There is no single imaginable reason not to have it true by default!
-    // Uncontended performance is close to non-synced.
-    (not this.isReadOnly) <- true
-
     let tempCap = if capacity.IsSome && capacity.Value > 0 then capacity.Value else 2
     this.keys <- 
       if couldHaveRegularKeys then 
@@ -283,6 +280,7 @@ type SortedMap<'K,'V>
 
   // need this for the SortedMapCursor
   member inline private this.SetRkLast(rkl) = rkLast <- rkl
+  
   member private this.Clone() = new SortedMap<'K,'V>(Some(this :> IDictionary<'K,'V>), None, Some(this.comparer))
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
@@ -388,13 +386,13 @@ type SortedMap<'K,'V>
     this.size <- this.size + 1
     this.NotifyUpdate(true)
 
-
-  member this.Complete() =
+  member this.Complete() : Task =
     let entered = enterWriteLockIf &this.Locker this.isReadOnly
     try
       if not this.isReadOnly then 
           this.isReadOnly <- true
           this.NotifyUpdate(false)
+      Task.CompletedTask
     finally
       exitWriteLockIf &this.Locker entered
 
@@ -704,17 +702,16 @@ type SortedMap<'K,'V>
     this.CheckNull(k)
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     
+    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+    
     let mutable keepOrderVersion = false
     let mutable added = false
-    let mutable entered = false
+        
     #if DEBUG
     let mutable finished = false
     #endif
     try
-      try ()
-      finally
-        entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
-        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       // first/last optimization (only last here)
       if this.size = 0 then
         this.Insert(0, k, v)
@@ -755,15 +752,14 @@ type SortedMap<'K,'V>
   member this.TryAdd(key, value) : Task<bool> =
     this.CheckNull(key)
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
+   
+    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     
     let mutable keepOrderVersion = false
     let mutable added = false
-    let mutable entered = false
+        
     try
-      try ()
-      finally
-        entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
-        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size = 0 then
         this.Insert(0, key, value)
         keepOrderVersion <- true
@@ -795,13 +791,11 @@ type SortedMap<'K,'V>
     this.CheckNull(key)
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
         
-    let mutable entered = false
+    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+    
     let mutable added = false
     try
-      try ()
-      finally
-        entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
-        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size = 0 then
         this.Insert(0, key, value)
         added <- true
@@ -818,9 +812,9 @@ type SortedMap<'K,'V>
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #endif
 
-  // TODO lockless AddLast for temporary Append implementation
+//  // TODO lockless AddLast for temporary Append implementation
 //  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-//  member private this.AddLastUncheckedx(key, value) : unit =
+//  member private this.AddLastUnchecked(key, value) : unit =
 //      if this.size = 0 then
 //        this.Insert(0, key, value)
 //      else
@@ -829,21 +823,116 @@ type SortedMap<'K,'V>
 //          this.Insert(this.size, key, value)
 //        else
 //          ThrowHelper.ThrowOutOfOrderKeyException(this.LastUnchecked.Present.Key, "SortedMap.AddLast: New key is smaller or equal to the largest existing key")
+//
+//
+//  member this.TryAppend(appendMap:IReadOnlySeries<'K,'V>, [<Out>] result: byref<int64>, option:AppendOption) =
+//      let hasEqOverlap (old:IReadOnlySeries<'K,'V>) (append:IReadOnlySeries<'K,'V>) : bool =
+//        if this.comparer.Compare(append.First.Present.Key, old.Last.Present.Key) > 0 then false
+//        else
+//          let oldC = old.GetCursor()
+//          let appC = append.GetCursor();
+//          let mutable cont = true
+//          let mutable overlapOk = 
+//            oldC.MoveAt(append.First.Present.Key, Lookup.EQ) 
+//              && appC.MoveFirst() 
+//              && this.comparer.Compare(oldC.CurrentKey, appC.CurrentKey) = 0
+//              && Unchecked.equals oldC.CurrentValue appC.CurrentValue
+//          while overlapOk && cont do
+//            if oldC.MoveNext() then
+//              overlapOk <-
+//                appC.MoveNext() 
+//                && this.comparer.Compare(oldC.CurrentKey, appC.CurrentKey) = 0
+//                && Unchecked.equals oldC.CurrentValue appC.CurrentValue
+//            else cont <- false
+//          overlapOk
+//      if appendMap.First.IsMissing then
+//        0
+//      else
+//        let mutable entered = false
+//        try
+//          entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
+//          match option with
+//          | AppendOption.RejectOnOverlap ->
+//            if this.size = 0 || this.comparer.Compare(appendMap.First.Present.Key, this.LastUnchecked.Present.Key) > 0 then
+//              let mutable c = 0
+//              for i in appendMap do
+//                c <- c + 1
+//                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+//              c
+//            else invalidOp "values overlap with existing"
+//          | AppendOption.DropOldOverlap ->
+//            if this.size = 0 || this.comparer.Compare(appendMap.First.Present.Key, this.LastUnchecked.Present.Key) > 0 then
+//              let mutable c = 0
+//              for i in appendMap do
+//                c <- c + 1
+//                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+//              c
+//            else
+//              let removed = this.RemoveMany(appendMap.First.Key, Lookup.GE)
+//              Trace.Assert(removed)
+//              let mutable c = 0
+//              for i in appendMap do
+//                c <- c + 1
+//                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+//              c
+//          | AppendOption.IgnoreEqualOverlap ->
+//            if this.IsEmpty || this.comparer.Compare(appendMap.First.Key, this.LastUnchecked.Key) > 0 then
+//              let mutable c = 0
+//              for i in appendMap do
+//                c <- c + 1
+//                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+//              c
+//            else
+//              let isEqOverlap = hasEqOverlap this appendMap
+//              if isEqOverlap then
+//                let appC = appendMap.GetCursor();
+//                if appC.MoveAt(this.LastUnchecked.Key, Lookup.GT) then
+//                  this.AddLastUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+//                  let mutable c = 1
+//                  while appC.MoveNext() do
+//                    this.AddLastUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+//                    c <- c + 1
+//                  c
+//                else 0
+//              else invalidOp "overlapping values are not equal" // TODO unit test
+//          | AppendOption.RequireEqualOverlap ->
+//            if this.IsEmpty then
+//              let mutable c = 0
+//              for i in appendMap do
+//                c <- c + 1
+//                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+//              c
+//            elif this.comparer.Compare(appendMap.First.Key, this.LastUnchecked.Key) > 0 then
+//              invalidOp "values do not overlap with existing"
+//            else
+//              let isEqOverlap = hasEqOverlap this appendMap
+//              if isEqOverlap then
+//                let appC = appendMap.GetCursor();
+//                if appC.MoveAt(this.LastUnchecked.Key, Lookup.GT) then
+//                  this.AddLastUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+//                  let mutable c = 1
+//                  while appC.MoveNext() do
+//                    this.AddLastUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+//                    c <- c + 1
+//                  c
+//                else 0
+//              else invalidOp "overlapping values are not equal" // TODO unit test
+//          | _ -> failwith "Unknown AppendOption"
+//        finally
+//          exitWriteLockIf &this.Locker entered
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.TryAddFirst(key, value) : Task<bool> =
     this.CheckNull(key)
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
       
-    let mutable keepOrderVersion = false
-    let mutable entered = false
+    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+    
     let mutable added = false
+    let mutable keepOrderVersion = false
     
     try
-      try ()
-      finally
-        entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
-        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size = 0 then
         this.Insert(0, key, value)
         keepOrderVersion <- true
@@ -909,13 +998,10 @@ type SortedMap<'K,'V>
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     
     let mutable removed = false
-    let mutable entered = false
+    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     
     try
-      try ()
-      finally
-        entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
-        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       let index = this.IndexOfKeyUnchecked(key)
       if index >= 0 then 
         result <- this.RemoveAt(index).Value
@@ -935,12 +1021,9 @@ type SortedMap<'K,'V>
   member this.TryRemoveFirst([<Out>]result: byref<KVP<'K,'V>>) : Task<bool> =
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     let mutable removed = false
-    let mutable entered = false
+    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     try
-      try ()
-      finally
-        entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
-        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size > 0 then
         result <- this.RemoveAt(0)
         increment &this.orderVersion
@@ -960,12 +1043,9 @@ type SortedMap<'K,'V>
   member this.TryRemoveLast([<Out>]result: byref<KeyValuePair<'K, 'V>>) : Task<bool> =
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     let mutable removed = false
-    let mutable entered = false
+    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     try
-      try ()
-      finally
-        entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
-        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size > 0 then
         result <-
           if couldHaveRegularKeys && this.size > 1 then
@@ -992,12 +1072,9 @@ type SortedMap<'K,'V>
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
 
     let mutable removed = false
-    let mutable entered = false
+    let  entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
     try
-      try ()
-      finally
-        entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
-        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+      if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size = 0 then 
         TaskUtil.FalseTask
       else
@@ -1231,7 +1308,6 @@ type SortedMap<'K,'V>
       if idx >= this.size then idx <- -2
       idx
 
-        
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   override this.TryFindAt(key:'K, direction:Lookup) : Opt<KeyValuePair<'K, 'V>> =
     this.CheckNull(key)      
@@ -1243,31 +1319,9 @@ type SortedMap<'K,'V>
     let result = readLockIf &this.nextVersion &this.version (not this.isReadOnly) res
     result
 
-//  /// Return true if found exact key
-//  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-//  override this.TryGetValue(key) : Opt<'V> =
-//    this.CheckNull(key)
-//    let res() = 
-//      // first/last optimization
-//      if this.size = 0 then Opt.Missing
-//      else
-//        let lc = this.CompareToLast key
-//        if lc = 0 then // key = last key
-//          Opt.Present(this.values.[this.size-1])
-//        else
-//          let index = this.IndexOfKeyUnchecked(key)
-//          if index >= 0 then
-//            Opt.Present(this.values.[index])
-//          else
-//            Opt.Missing
-//    let result = readLockIf &this.nextVersion &this.version (not this.isReadOnly) res
-//    result
-    
-
   override this.GetCursor() =
-    let mutable entered = false
+    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
     try
-      entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
       // if source is already read-only, MNA will always return false
       if this.isReadOnly then new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
       else 
@@ -1335,11 +1389,8 @@ type SortedMap<'K,'V>
   interface ICollection  with
     member this.SyncRoot = this.SyncRoot
     member this.CopyTo(array, arrayIndex) =
-      let mutable entered = false
+      let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
       try
-        try ()
-        finally
-          entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
         if array = null then raise (ArgumentNullException("array"))
         if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
         if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
@@ -1351,37 +1402,41 @@ type SortedMap<'K,'V>
     member this.Count = this.Count
     member this.IsSynchronized with get() =  (not this.isReadOnly)
 
-//  interface IDictionary<'K,'V> with
-//    member this.Count = this.Count
-//    member this.IsReadOnly with get() = this.IsCompleted
-//    member this.Item
-//      with get key = this.Item(key)
-//      and set key value = this.[key] <- value
-//    member this.Keys with get() = this.Keys :?> ICollection<'K>
-//    member this.Values with get() = this.Values :?> ICollection<'V>
-//    member this.Clear() = this.Clear()
-//    member this.ContainsKey(key) = this.ContainsKey(key)
-//    member this.Contains(kvp:KeyValuePair<'K,'V>) = this.ContainsKey(kvp.Key)
-//    member this.CopyTo(array, arrayIndex) =
-//      let mutable entered = false
-//      try
-//        try ()
-//        finally
-//          entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
-//        if array = null then raise (ArgumentNullException("array"))
-//        if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
-//        if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
-//        for index in 0..this.Count do
-//          let kvp = KeyValuePair(this.keys.[index], this.values.[index])
-//          array.[arrayIndex + index] <- kvp
-//      finally
-//        exitWriteLockIf &this.Locker entered
-//    member this.Add(key, value) = this.Add(key, value)
-//    member this.Add(kvp:KeyValuePair<'K,'V>) = this.Add(kvp.Key, kvp.Value)
-//    member this.Remove(key) = this.Remove(key)
-//    member this.Remove(kvp:KeyValuePair<'K,'V>) = this.Remove(kvp.Key)
-//    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.TryGetValue(key, &value)
-
+  interface IDictionary<'K,'V> with
+    member this.Count = this.Count
+    member this.IsReadOnly with get() = this.IsCompleted
+    member this.Item
+      with get key = 
+        let o = this.Item(key)
+        if o.IsPresent then o.Present else ThrowHelper.ThrowKeyNotFoundException("");Unchecked.defaultof<_>
+      and set key value = this.Set(key, value) |> ignore
+    member this.Keys with get() = this.Keys :?> ICollection<'K>
+    member this.Values with get() = this.Values :?> ICollection<'V>
+    member this.Clear() = this.Clear()
+    member this.ContainsKey(key) = this.ContainsKey(key)
+    member this.Contains(kvp:KeyValuePair<'K,'V>) = this.ContainsKey(kvp.Key)
+    member this.CopyTo(array, arrayIndex) =
+      let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+      try
+        if array = null then raise (ArgumentNullException("array"))
+        if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
+        if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
+        for index in 0..this.Count do
+          let kvp = KeyValuePair(this.keys.[index], this.values.[index])
+          array.[arrayIndex + index] <- kvp
+      finally
+        exitWriteLockIf &this.Locker entered
+    member this.Add(key, value) = 
+      if not (this.TryAdd(key, value).Result) then ThrowHelper.ThrowInvalidOperationException("Key already exists") 
+    member this.Add(kvp:KeyValuePair<'K,'V>) = 
+      if not (this.TryAdd(kvp.Key, kvp.Value).Result) then ThrowHelper.ThrowInvalidOperationException("Key already exists") 
+    member this.Remove(key) = 
+      let (a, _) = this.TryRemove(key)
+      a.Result
+    member this.Remove(kvp:KeyValuePair<'K,'V>) = 
+      let (a, _) = this.TryRemove(kvp.Key)
+      a.Result
+    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.[key].TryGet(&value)
 
   interface IReadOnlySeries<'K,'V> with
     // the rest is in BaseSeries
@@ -1391,112 +1446,20 @@ type SortedMap<'K,'V>
     member this.Complete() = this.Complete()
     member this.Version with get() = this.Version
     member this.Count with get() = int64(this.size)
-    member this.Item with get k = this.Item(k) and set (k:'K) (v:'V) = this.[k] <- v
-    member this.Add(k, v) = this.Add(k,v)
-    member this.AddLast(k, v) = this.AddLast(k, v)
-    member this.AddFirst(k, v) = this.AddFirst(k, v)
-    member this.Remove(k) = this.Remove(k)
-    member this.RemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.RemoveFirst(&result)
-    member this.RemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.RemoveLast(&result)
-    member this.RemoveMany(key:'K,direction:Lookup) = this.RemoveMany(key, direction)
+    member this.IsAppendOnly with get() = false
+    member this.Set(k, v) = this.Set(k,v)
+    member this.TryAdd(k, v) = this.TryAdd(k,v)
+    member this.TryAddLast(k, v) = this.TryAddLast(k, v)
+    member this.TryAddFirst(k, v) = this.TryAddFirst(k, v)
+    member this.TryRemove(k, [<Out>] value: byref<'V>) = this.TryRemove(k, &value)
+    member this.TryRemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryRemoveFirst(&result)
+    member this.TryRemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryRemoveLast(&result)
+    member this.TryRemoveMany(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryRemoveMany(key, direction, &result)
 
-    // TODO move to type memeber, cheack if IReadOnlySeries is SM and copy arrays in one go
+    // TODO move to type memeber, check if IReadOnlySeries is SM and copy arrays in one go
     // TODO atomic append with single version increase, now it is a sequence of remove/add mutations
-    member this.Append(appendMap:IReadOnlySeries<'K,'V>, option:AppendOption) =
-      let hasEqOverlap (old:IReadOnlySeries<'K,'V>) (append:IReadOnlySeries<'K,'V>) : bool =
-        if this.comparer.Compare(append.First.Key, old.Last.Key) > 0 then false
-        else
-          let oldC = old.GetCursor()
-          let appC = append.GetCursor();
-          let mutable cont = true
-          let mutable overlapOk = 
-            oldC.MoveAt(append.First.Key, Lookup.EQ) 
-              && appC.MoveFirst() 
-              && this.comparer.Compare(oldC.CurrentKey, appC.CurrentKey) = 0
-              && Unchecked.equals oldC.CurrentValue appC.CurrentValue
-          while overlapOk && cont do
-            if oldC.MoveNext() then
-              overlapOk <-
-                appC.MoveNext() 
-                && this.comparer.Compare(oldC.CurrentKey, appC.CurrentKey) = 0
-                && Unchecked.equals oldC.CurrentValue appC.CurrentValue
-            else cont <- false
-          overlapOk
-      if appendMap.IsEmpty then
-        0
-      else
-        let mutable entered = false
-        try
-          entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
-          match option with
-          | AppendOption.RejectOnOverlap ->
-            if this.IsEmpty || this.comparer.Compare(appendMap.First.Key, this.LastUnchecked.Key) > 0 then
-              let mutable c = 0
-              for i in appendMap do
-                c <- c + 1
-                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
-              c
-            else invalidOp "values overlap with existing"
-          | AppendOption.DropOldOverlap ->
-            if this.IsEmpty || this.comparer.Compare(appendMap.First.Key, this.LastUnchecked.Key) > 0 then
-              let mutable c = 0
-              for i in appendMap do
-                c <- c + 1
-                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
-              c
-            else
-              let removed = this.RemoveMany(appendMap.First.Key, Lookup.GE)
-              Trace.Assert(removed)
-              let mutable c = 0
-              for i in appendMap do
-                c <- c + 1
-                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
-              c
-          | AppendOption.IgnoreEqualOverlap ->
-            if this.IsEmpty || this.comparer.Compare(appendMap.First.Key, this.LastUnchecked.Key) > 0 then
-              let mutable c = 0
-              for i in appendMap do
-                c <- c + 1
-                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
-              c
-            else
-              let isEqOverlap = hasEqOverlap this appendMap
-              if isEqOverlap then
-                let appC = appendMap.GetCursor();
-                if appC.MoveAt(this.LastUnchecked.Key, Lookup.GT) then
-                  this.AddLastUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
-                  let mutable c = 1
-                  while appC.MoveNext() do
-                    this.AddLastUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
-                    c <- c + 1
-                  c
-                else 0
-              else invalidOp "overlapping values are not equal" // TODO unit test
-          | AppendOption.RequireEqualOverlap ->
-            if this.IsEmpty then
-              let mutable c = 0
-              for i in appendMap do
-                c <- c + 1
-                this.AddLastUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
-              c
-            elif this.comparer.Compare(appendMap.First.Key, this.LastUnchecked.Key) > 0 then
-              invalidOp "values do not overlap with existing"
-            else
-              let isEqOverlap = hasEqOverlap this appendMap
-              if isEqOverlap then
-                let appC = appendMap.GetCursor();
-                if appC.MoveAt(this.LastUnchecked.Key, Lookup.GT) then
-                  this.AddLastUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
-                  let mutable c = 1
-                  while appC.MoveNext() do
-                    this.AddLastUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
-                    c <- c + 1
-                  c
-                else 0
-              else invalidOp "overlapping values are not equal" // TODO unit test
-          | _ -> failwith "Unknown AppendOption"
-        finally
-          exitWriteLockIf &this.Locker entered
+    member this.TryAppend(appendMap:IReadOnlySeries<'K,'V>, [<Out>] result: byref<int64>, option:AppendOption) =
+      raise (NotImplementedException())
 
   //#endregion
 
@@ -1881,11 +1844,12 @@ and
       member this.MoveNext():bool = this.MoveNext()
       member this.Current with get(): KVP<'K, 'V> = this.Current
       member this.Current with get(): obj = this.Current :> obj
-
+    
     interface IAsyncEnumerator<KVP<'K,'V>> with
       member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = this.MoveNextAsync(cancellationToken)
       member this.MoveNextAsync(): Task<bool> = this.MoveNextAsync(CancellationToken.None)
-
+      member this.DisposeAsync() = this.Dispose();Task.CompletedTask
+      
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.Comparer
       member this.CurrentBatch = this.CurrentBatch
@@ -1899,8 +1863,12 @@ and
       member this.Source with get() = this.source :> IReadOnlySeries<'K,'V>
       member this.Clone() = this.Clone() :> ICursor<'K,'V>
       member this.IsContinuous with get() = false
-      member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)
-
+      // TODO
+      member this.State with get() = raise (NotImplementedException())
+      member this.MoveNext(stride, allowPartial) = raise (NotImplementedException())
+      member this.MovePrevious(stride, allowPartial) = raise (NotImplementedException())
+      member this.TryGetValue(key) = raise (NotImplementedException())
+      
     interface ISpecializedCursor<'K,'V, SortedMapCursor<'K,'V>> with
       member this.Initialize() = 
         let c = this.Clone()

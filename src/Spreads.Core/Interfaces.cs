@@ -400,9 +400,9 @@ namespace Spreads
         Task<bool> TryAddFirst(TKey key, TValue value);
 
         /// <summary>
-        /// Returns Value deleted at the given key or a missing Opt.
+        /// Returns Value deleted at the given key on success.
         /// </summary>
-        Task<bool> TryRemove(TKey key, out Opt<TValue> value);
+        Task<bool> TryRemove(TKey key, out TValue value);
 
         /// <summary>
         /// Returns KeyValue deleted at the first key.
@@ -422,7 +422,7 @@ namespace Spreads
         /// <summary>
         /// And values from appendMap to the end of this map.
         /// </summary>
-        Task<bool> TryAppend(KeyValueReadOnlySpan<TKey, TValue> appendMap, out long count, AppendOption option = AppendOption.RejectOnOverlap);
+        Task<bool> TryAppend(IReadOnlySeries<TKey, TValue> appendMap, out long count, AppendOption option = AppendOption.RejectOnOverlap);
 
         /// <summary>
         /// Make the map read-only and disable all Add/Remove/Set methods (they will throw)

@@ -8,7 +8,6 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Attributes.fs" />
-    <Compile Include="Collections\Experimental\ImmutableIntMap64.fs" />
     <Compile Include="Common/Types.fs" />
     <Compile Include="Common/FastEvents.fs" />
     <Compile Include="Common/Utils.fs" />
@@ -30,16 +29,6 @@
     <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Collections\Experimental\ImmutableIntMap64U.fs" />
-    <Compile Include="Collections\Experimental\ImmutableIntMap32.fs" />
-    <Compile Include="Collections\Experimental\ImmutableIntMap32U.fs" />
-    <Compile Include="Collections\Experimental\ImmutableIntConvertibleMap.fs" />
-    <Compile Include="Collections\Experimental\ImmutableSortedMap2.fs" />
-    <Compile Include="Collections\Experimental\DequeMap.fs" />
-    <Compile Include="Collections\Experimental\BaseCursor.fs" />
-    <Compile Include="Collections\Experimental\ZipN.fs" />
-    <Compile Include="Collections\Experimental\OptimizationSettings.fs" />
-    <Compile Include="Collections\Experimental\ImmutableSortedMap.fs" />
-    <Compile Include="Collections\Experimental\IndexedMap.fs" />
+    <Folder Include="Collections\Experimental" />
   </ItemGroup>
 </Project>
