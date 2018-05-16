@@ -16,6 +16,8 @@ namespace Spreads
     /// </summary>
 #pragma warning disable 660, 661
 
+    // TODO review if we could keep cursor and not initialize every time
+    
     public struct Series<TKey, TValue, TCursor> : IReadOnlySeries<TKey, TValue>, ISpecializedSeries<TKey, TValue, TCursor>
 #pragma warning restore 660, 661
         where TCursor : ICursorSeries<TKey, TValue, TCursor>
@@ -133,8 +135,17 @@ namespace Spreads
             }
         }
 
+        public bool TryGetValue(TKey key, out TValue value)
+        {
+            // TODO (!) review, reuse cursor
+            using (var c = _cursor.Initialize())
+            {
+                return c.TryGetValue(key, out value);
+            }
+        }
+
         /// <inheritdoc />
-        public Opt<KeyValuePair<TKey, TValue>> TryGetAt(long idx)
+        public bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp)
         {
             // NB call to this.NavCursor.Source.TryGetAt(idx) is recursive (=> SO) and is logically wrong
             if (idx < 0)
@@ -151,19 +162,28 @@ namespace Spreads
                 {
                     if (!c.MoveNext())
                     {
-                        return default;
+                        kvp = default;
+                        return false;
                     }
                 }
-                return c.Current;
+                kvp = c.Current;
+                return true;
             }
         }
 
         /// <inheritdoc />
-        public Opt<KeyValuePair<TKey, TValue>> TryFindAt(TKey key, Lookup direction)
+        public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp)
         {
             using (var c = _cursor.Initialize())
             {
-                return c.MoveAt(key, direction) ? c.Current : default;
+                if (c.MoveAt(key, direction))
+                {
+                    kvp = c.Current;
+                    return true;
+                }
+
+                kvp = default;
+                return false;
             }
         }
 
@@ -198,12 +218,19 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public Opt<TValue> this[TKey key]
+        public TValue this[TKey key]
         {
             get
             {
-                var kv = TryFindAt(key, Lookup.EQ);
-                return kv.IsPresent ? kv.Present.Value : default;
+                using (var c = _cursor.Initialize())
+                {
+                    if (c.TryGetValue(key, out var value))
+                    {
+                        return value;
+                    }
+                }
+                ThrowHelper.ThrowKeyNotFoundException("Key not found");
+                return default;
             }
         }
 

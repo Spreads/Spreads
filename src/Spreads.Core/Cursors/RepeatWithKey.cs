@@ -163,7 +163,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<(TKey, TValue)> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out (TKey, TValue) value)
         {
             // TODO two optimizations
             // 1. (Done) after all MN create a state with valid previous KVP, and check if TGV tries
@@ -177,12 +177,14 @@ namespace Spreads
                 && _cmp.Compare(key, _previousState.previous.key) >= 0
                 && _cmp.Compare(key, _cursor.CurrentKey) < 0)
             {
-                return (_previousState.previous.key, _previousState.previous.value);
+                value = (_previousState.previous.key, _previousState.previous.value);
+                return true;
             }
 
             if (State == CursorState.Moving && _cmp.Compare(key, _cursor.CurrentKey) == 0)
             {
-                return (_cursor.CurrentKey, _cursor.CurrentValue);
+                value = (_cursor.CurrentKey, _cursor.CurrentValue);
+                return true;
             }
 
             // TODO (low) review, now this is not profitable for ZipN, but doesn't hurt.
@@ -194,7 +196,7 @@ namespace Spreads
             //    //    return true;
             //    //}
             //    (TKey key, TValue value) previous = (_lookUpCursor.CurrentKey, _lookUpCursor.CurrentValue);
-            //    if (_lookUpCursor.MoveNextAsync()
+            //    if (_lookUpCursor.MoveNext()
             //        && _cmp.Compare(key, previous.key) >= 0
             //        && _cmp.Compare(key, _lookUpCursor.CurrentKey) < 0)
             //    {
@@ -217,9 +219,11 @@ namespace Spreads
             if (_lookUpCursor.MoveAt(key, Lookup.LE))
             {
                 _lookUpIsMoving = true;
-                return (_lookUpCursor.CurrentKey, _lookUpCursor.CurrentValue);
+                value = (_lookUpCursor.CurrentKey, _lookUpCursor.CurrentValue);
+                return true;
             }
-            return Opt<(TKey, TValue)>.Missing;
+            value = default((TKey, TValue));
+            return false;
         }
 
         /// <inheritdoc />
@@ -482,10 +486,15 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<TValue> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out TValue value)
         {
-            var o = _cursor.TryGetValue(key);
-            return o.IsPresent ? o.Present.Item2 : Opt<TValue>.Missing;
+            if (_cursor.TryGetValue(key, out var v))
+            {
+                value = v.Item2;
+                return true;
+            }
+            value = default;
+            return false;
         }
 
         /// <inheritdoc />

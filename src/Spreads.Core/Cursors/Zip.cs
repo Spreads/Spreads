@@ -265,13 +265,15 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<(TLeft, TRight)> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out (TLeft, TRight) value)
         {
-            if (_leftCursor.TryGetValue(key).TryGet(out var vl) && _rightCursor.TryGetValue(key).TryGet(out var vr))
+            if (_leftCursor.TryGetValue(key, out var vl) && _rightCursor.TryGetValue(key, out var vr))
             {
-                return (vl, vr);
+                value = (vl, vr);
+                return true;
             }
-            return Opt<(TLeft, TRight)>.Missing;
+            value = default;
+            return false;
         }
 
         /// <inheritdoc />
@@ -320,7 +322,7 @@ namespace Spreads
                             ||
                             lc > 0 // in this case both GE and GT could be evaluated at L's key
                             )
-                            && _isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey).TryGet(out var rv))
+                            && _isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey, out var rv))
                         {
                             // we have evaluated the right cursor
                             _currentValue.right = rv;
@@ -344,7 +346,7 @@ namespace Spreads
                         if ((direction == Lookup.LE
                              ||
                              rc < 0
-                            ) && _isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey).TryGet(out var lv))
+                            ) && _isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey, out var lv))
                         {
                             _currentValue.left = lv;
                             _isValueSet = (true, false);
@@ -374,7 +376,7 @@ namespace Spreads
                              ||
                              rc > 0 // in this case both GE and GT could be evaluated at L's key
                             )
-                            && _isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey).TryGet(out var lv))
+                            && _isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey, out var lv))
                         {
                             // we have evaluated the right cursor
                             _currentValue.left = lv;
@@ -398,7 +400,7 @@ namespace Spreads
                         if ((direction == Lookup.LE
                              ||
                              lc < 0
-                            ) && _isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey).TryGet(out var rv))
+                            ) && _isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey, out var rv))
                         {
                             _currentValue.right = rv;
                             _isValueSet = (false, true);
@@ -436,7 +438,7 @@ namespace Spreads
             else if (lm)
             {
                 // L is at position that satisfies the direction. R's segment here has inf at one of its end
-                if (_isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey).TryGet(out var rv))
+                if (_isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey, out var rv))
                 {
                     // we have evaluated the right cursor
                     _currentValue.right = rv;
@@ -458,7 +460,7 @@ namespace Spreads
             }
             else if (rm)
             {
-                if (_isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey).TryGet(out var lv))
+                if (_isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey, out var lv))
                 {
                     _currentValue.left = lv;
                     _isValueSet = (true, false);
@@ -515,7 +517,7 @@ namespace Spreads
                 }
                 else if (_c < 0)
                 {
-                    if (_isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey).TryGet(out var rv))
+                    if (_isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey, out var rv))
                     {
                         // we have evaluated the right cursor
                         _currentValue.right = rv;
@@ -532,7 +534,7 @@ namespace Spreads
                 }
                 else if (_c > 0)
                 {
-                    if (_isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey).TryGet(out var lv))
+                    if (_isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey, out var lv))
                     {
                         _currentValue.left = lv;
                         _isValueSet = (true, false);
@@ -549,7 +551,7 @@ namespace Spreads
             else if (lm)
             {
                 // R is empty, it is only possible to get value from it if it has it defined for (inf, inf)
-                if (_isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey).TryGet(out var rv))
+                if (_isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey, out var rv))
                 {
                     // we have evaluated the right cursor
                     _currentValue.right = rv;
@@ -561,7 +563,7 @@ namespace Spreads
             }
             else if (rm)
             {
-                if (_isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey).TryGet(out var lv))
+                if (_isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey, out var lv))
                 {
                     _currentValue.left = lv;
                     _isValueSet = (true, false);
@@ -617,7 +619,7 @@ namespace Spreads
                 }
                 else if (_c < 0)
                 {
-                    if (_isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey).TryGet(out var lv))
+                    if (_isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey, out var lv))
                     {
                         _currentValue.left = lv;
                         _isValueSet = (true, false);
@@ -632,7 +634,7 @@ namespace Spreads
                 }
                 else if (_c > 0)
                 {
-                    if (_isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey).TryGet(out var rv))
+                    if (_isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey, out var rv))
                     {
                         // we have evaluated the right cursor
                         _currentValue.right = rv;
@@ -651,7 +653,7 @@ namespace Spreads
             else if (lm)
             {
                 // R is empty, it is only possible to get value from it if it has it defined for (inf, inf)
-                if (_isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey).TryGet(out var rv))
+                if (_isContinuous.right && _rightCursor.TryGetValue(_leftCursor.CurrentKey, out var rv))
                 {
                     // we have evaluated the right cursor
                     _currentValue.right = rv;
@@ -663,7 +665,7 @@ namespace Spreads
             }
             else if (rm)
             {
-                if (_isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey).TryGet(out var lv))
+                if (_isContinuous.left && _leftCursor.TryGetValue(_rightCursor.CurrentKey, out var lv))
                 {
                     _currentValue.left = lv;
                     _isValueSet = (true, false);
@@ -744,7 +746,7 @@ namespace Spreads
                 }
 
                 var lm = _leftCursor.MoveNext();
-                if (lm && _rightCursor.TryGetValue(_leftCursor.CurrentKey).TryGet(out var rv))
+                if (lm && _rightCursor.TryGetValue(_leftCursor.CurrentKey, out var rv))
                 {
                     // we have evaluated the right cursor
                     _currentValue.right = rv;
@@ -774,7 +776,7 @@ namespace Spreads
                 }
 
                 var rm = _rightCursor.MoveNext();
-                if (rm && _leftCursor.TryGetValue(_rightCursor.CurrentKey).TryGet(out var lv))
+                if (rm && _leftCursor.TryGetValue(_rightCursor.CurrentKey, out var lv))
                 {
                     _currentValue.left = lv;
                     _isValueSet = (true, false);
@@ -878,7 +880,7 @@ namespace Spreads
                         }
 
                         // Here L has stopped, R > F and we should try L.TGV(R.CurrentKey) and then break regardless of the result...
-                        if (_leftCursor.TryGetValue(_rightCursor.CurrentKey).TryGet(out var vl))
+                        if (_leftCursor.TryGetValue(_rightCursor.CurrentKey, out var vl))
                         {
                             _currentValue.left = vl;
                             _isValueSet = (true, false);
@@ -899,7 +901,7 @@ namespace Spreads
                         continue;
                     }
 
-                    if (_rightCursor.TryGetValue(_leftCursor.CurrentKey).TryGet(out var vr))
+                    if (_rightCursor.TryGetValue(_leftCursor.CurrentKey, out var vr))
                     {
                         _currentValue.right = vr;
                         _isValueSet = (false, true);
@@ -932,7 +934,7 @@ namespace Spreads
                             continue;
                         }
 
-                        if (_rightCursor.TryGetValue(_leftCursor.CurrentKey).TryGet(out var vr))
+                        if (_rightCursor.TryGetValue(_leftCursor.CurrentKey, out var vr))
                         {
                             _currentValue.right = vr;
                             _isValueSet = (false, true);
@@ -950,7 +952,7 @@ namespace Spreads
                         continue;
                     }
 
-                    if (_leftCursor.TryGetValue(_rightCursor.CurrentKey).TryGet(out var v))
+                    if (_leftCursor.TryGetValue(_rightCursor.CurrentKey, out var v))
                     {
                         // we have evaluated L
                         _currentValue.left = v;
@@ -1045,7 +1047,7 @@ namespace Spreads
                 }
 
                 var lm = _leftCursor.MovePrevious();
-                if (lm && _rightCursor.TryGetValue(_leftCursor.CurrentKey).TryGet(out var rv))
+                if (lm && _rightCursor.TryGetValue(_leftCursor.CurrentKey, out var rv))
                 {
                     // we have evaluated the right cursor
                     _currentValue.right = rv;
@@ -1075,7 +1077,7 @@ namespace Spreads
                 }
 
                 var rm = _rightCursor.MovePrevious();
-                if (rm && _leftCursor.TryGetValue(_rightCursor.CurrentKey).TryGet(out var lv))
+                if (rm && _leftCursor.TryGetValue(_rightCursor.CurrentKey, out var lv))
                 {
                     _currentValue.left = lv;
                     _isValueSet = (true, false);
@@ -1170,7 +1172,7 @@ namespace Spreads
                             continue;
                         }
 
-                        if (_leftCursor.TryGetValue(_rightCursor.CurrentKey).TryGet(out var vl))
+                        if (_leftCursor.TryGetValue(_rightCursor.CurrentKey, out var vl))
                         {
                             _currentValue.left = vl;
                             _isValueSet = (true, false);
@@ -1188,7 +1190,7 @@ namespace Spreads
                         continue;
                     }
 
-                    if (_rightCursor.TryGetValue(_leftCursor.CurrentKey).TryGet(out var vr))
+                    if (_rightCursor.TryGetValue(_leftCursor.CurrentKey, out var vr))
                     {
                         _currentValue.right = vr;
                         _isValueSet = (false, true);
@@ -1221,7 +1223,7 @@ namespace Spreads
                             continue;
                         }
 
-                        if (_rightCursor.TryGetValue(_leftCursor.CurrentKey).TryGet(out var vr))
+                        if (_rightCursor.TryGetValue(_leftCursor.CurrentKey, out var vr))
                         {
                             _currentValue.right = vr;
                             _isValueSet = (false, true);
@@ -1239,7 +1241,7 @@ namespace Spreads
                         continue;
                     }
 
-                    if (_leftCursor.TryGetValue(_rightCursor.CurrentKey).TryGet(out var v))
+                    if (_leftCursor.TryGetValue(_rightCursor.CurrentKey, out var v))
                     {
                         // we have evaluated L
                         _currentValue.left = v;

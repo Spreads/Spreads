@@ -176,7 +176,7 @@ namespace Spreads.Cursors.Internal
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<TCursor> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out TCursor value)
         {
             throw new NotSupportedException();
         }

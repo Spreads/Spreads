@@ -207,9 +207,9 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<TValue> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out TValue value)
         {
-            return _cursor.TryGetValue(key);
+            return _cursor.TryGetValue(key, out value);
         }
 
         #region ICursorSeries members

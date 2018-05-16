@@ -188,7 +188,7 @@ namespace Spreads
 
         // MoveNext is a part of IEnumerable
 
-        // NB returning zero is the same as false, no need for Opt<>
+        // NB returning zero is the same as false, no need for TryXXX/Opt<>
         // if we moved by zero steps then we at the same position as before.
         // Zero means we are by stride or less close to the end. If allowPartial = true or stride = 1
         // then we are at the end of series on zero return value.
@@ -252,7 +252,7 @@ namespace Spreads
         /// the requested key is between the previous and the current keys, and then return the previous one.
         /// NB This is not thread safe. ICursors must be used from a single thread.
         /// </remarks>
-        Opt<TValue> TryGetValue(TKey key);
+        bool TryGetValue(TKey key, out TValue value);
 
     }
 
@@ -303,13 +303,15 @@ namespace Spreads
         /// <summary>
         /// See ICursor.TryGetValue docs.
         /// </summary>
-        Opt<TValue> this[TKey key] { get; }
+        TValue this[TKey key] { get; }
+
+        bool TryGetValue(TKey key, out TValue value);
 
         ///// <summary>
         ///// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
         ///// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code> .
         ///// </summary>
-        Opt<KeyValuePair<TKey, TValue>> TryGetAt(long idx); // TODO support negative moves
+        bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp); // TODO support negative moves
 
         /// <summary>
         /// The method finds value according to direction, returns false if it could not find such a value
@@ -319,7 +321,7 @@ namespace Spreads
         ///
         /// Check IsMissing property of returned value - it's equivalent to false return of TryXXX pattern.
         /// </summary>
-        Opt<KeyValuePair<TKey, TValue>> TryFindAt(TKey key, Lookup direction);
+        bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
 
         // NB: Not async ones. Sometimes it's useful for optimization when we check underlying type.
 

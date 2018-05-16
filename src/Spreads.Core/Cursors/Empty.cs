@@ -91,9 +91,10 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<TValue> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out TValue value)
         {
-            return Opt<TValue>.Missing;
+            value = default;
+            return false;
         }
 
         /// <inheritdoc />

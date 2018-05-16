@@ -7,6 +7,7 @@ namespace Spreads.Collections
 
 // TODO [x] Simplify monster method TryFindWithIndex (done)
 // TODO Test TryFindWithIndex
+// TODO Finalize new interfaces, strides are needed in containers most of all
 // TODO Reimplement (review + fix) Append
 // TODO (low) Pooling and cursor counter to avoid disposing of a SM with outstanding cursors
 
@@ -58,7 +59,7 @@ type SortedMap<'K,'V>
   [<DefaultValueAttribute>]
   val mutable internal values : 'V array
 
-  static let empty = lazy (let sm = new SortedMap<'K,'V>() in sm.Complete();sm)
+  static let empty = lazy (let sm = new SortedMap<'K,'V>() in sm.Complete().Wait();sm)
 
   [<DefaultValueAttribute>] 
   val mutable internal orderVersion : int64
@@ -73,7 +74,6 @@ type SortedMap<'K,'V>
         KeyComparer<'K>.Default
       else comparerOpt.Value // do not try to replace with KeyComparer if a this.comparer was given
 
-  // TODO (?) throw this away? better to manage small memory slices efficiently
   let mutable couldHaveRegularKeys : bool = this.comparer.IsDiffable
   
   let mutable rkStep_ : int64 = 0L
@@ -84,6 +84,7 @@ type SortedMap<'K,'V>
   
   let mutable mapKey = String.Empty
 
+  // TODO buffer management similar to OwnedArray
   [<DefaultValueAttribute>] 
   val mutable internal subscriberCount : int
   [<DefaultValueAttribute>] 
@@ -677,25 +678,27 @@ type SortedMap<'K,'V>
         Opt.Present(KeyValuePair(rkLast, this.values.[this.size - 1]))
       elif this.size > 0 then Opt.Present(KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1]))
       else Opt.Missing
-  
-  member this.Item
-    with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get(key) : Opt<'V> =
-      this.CheckNull(key)
-      let inline res() = 
-        // first/last optimization
-        if this.size = 0 then Opt.Missing
+        
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+  override this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
+    this.CheckNull(key)
+    let inline res() = 
+      // first/last optimization
+      if this.size = 0 then struct (false, Unchecked.defaultof<'V>)
+      else
+        let lc = this.CompareToLast key
+        if lc = 0 then // key = last key
+          struct (true, this.values.[this.size-1])
         else
-          let lc = this.CompareToLast key
-          if lc = 0 then // key = last key
-            Opt.Present(this.values.[this.size-1])
+          let index = this.IndexOfKeyUnchecked(key)
+          if index >= 0 then
+            struct (true, this.values.[index])
           else
-            let index = this.IndexOfKeyUnchecked(key)
-            if index >= 0 then
-              Opt.Present(this.values.[index])
-            else
-              Opt.Missing
-      let result = readLockIf &this.nextVersion &this.version (not this.isReadOnly) res
-      result
+            struct (false, Unchecked.defaultof<'V>)
+    let tupleResult = readLockIf &this.nextVersion &this.version (not this.isReadOnly) res
+    let struct (ret0,res0) = tupleResult
+    value <- res0
+    ret0
       
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.Set(k, v) : Task<bool> =
@@ -1309,15 +1312,17 @@ type SortedMap<'K,'V>
       idx
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  override this.TryFindAt(key:'K, direction:Lookup) : Opt<KeyValuePair<'K, 'V>> =
+  override this.TryFindAt(key:'K, direction:Lookup, [<Out>]value: byref<KeyValuePair<'K, 'V>>) : bool =
     this.CheckNull(key)      
     let inline res() = 
       let idx = this.FindIndexAt(key, direction)
-      if idx >= 0 && idx < this.size then 
-        Opt.Present(this.GetPairByIndexUnchecked(idx))
-      else Opt.Missing
-    let result = readLockIf &this.nextVersion &this.version (not this.isReadOnly) res
-    result
+      if idx >= 0 && idx < this.size then
+        (struct(true, this.GetPairByIndexUnchecked(idx)))
+      else struct (false, Unchecked.defaultof<_>)
+    let tupleResult = readLockIf &this.nextVersion &this.version (not this.isReadOnly) res
+    let struct (ret0,res0) = tupleResult
+    value <- res0
+    ret0
 
   override this.GetCursor() =
     let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
@@ -1345,10 +1350,16 @@ type SortedMap<'K,'V>
   member internal this.GetSMCursor() = new SortedMapCursor<'K,'V>(this)
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  override this.TryGetAt(idx:int64) =
-    readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ ->
-      if idx >= 0L && idx < int64(this.size) then Opt.Present(KVP( this.GetKeyByIndexUnchecked(int32(idx)), this.values.[int32(idx)])) else Opt.Missing
+  override this.TryGetAt(idx:int64, [<Out>]value: byref<KeyValuePair<'K, 'V>>) : bool =
+    let mutable kvp: KeyValuePair<'K, 'V> = Unchecked.defaultof<_>
+    let result = readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ ->
+      if idx >= 0L && idx < int64(this.size) then 
+       kvp <- KVP( this.GetKeyByIndexUnchecked(int32(idx)), this.values.[int32(idx)])
+       true 
+      else false
     )
+    value <- kvp
+    result
 
   /// Make the capacity equal to the size
   member this.TrimExcess() = this.Capacity <- this.size
@@ -1405,10 +1416,8 @@ type SortedMap<'K,'V>
   interface IDictionary<'K,'V> with
     member this.Count = this.Count
     member this.IsReadOnly with get() = this.IsCompleted
-    member this.Item
-      with get key = 
-        let o = this.Item(key)
-        if o.IsPresent then o.Present else ThrowHelper.ThrowKeyNotFoundException("");Unchecked.defaultof<_>
+    member this.Item 
+      with get key = this.Item(key)
       and set key value = this.Set(key, value) |> ignore
     member this.Keys with get() = this.Keys :?> ICollection<'K>
     member this.Values with get() = this.Values :?> ICollection<'V>
@@ -1436,7 +1445,7 @@ type SortedMap<'K,'V>
     member this.Remove(kvp:KeyValuePair<'K,'V>) = 
       let (a, _) = this.TryRemove(kvp.Key)
       a.Result
-    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.[key].TryGet(&value)
+    member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.TryGetValue(key, &value)
 
   interface IReadOnlySeries<'K,'V> with
     // the rest is in BaseSeries
@@ -1577,6 +1586,9 @@ and
     member this.Comparer
       with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : KeyComparer<'K> = this.source.comparer
     
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+    member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
+        
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MoveNext() =
       let mutable newIndex = this.index
@@ -1867,7 +1879,7 @@ and
       member this.State with get() = raise (NotImplementedException())
       member this.MoveNext(stride, allowPartial) = raise (NotImplementedException())
       member this.MovePrevious(stride, allowPartial) = raise (NotImplementedException())
-      member this.TryGetValue(key) = raise (NotImplementedException())
+      member this.TryGetValue(key, [<Out>] value: byref<'V>) = this.TryGetValue(key, &value)
       
     interface ISpecializedCursor<'K,'V, SortedMapCursor<'K,'V>> with
       member this.Initialize() = 

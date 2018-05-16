@@ -266,9 +266,9 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<TValue> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out TValue value)
         {
-            return _innerCursor.TryGetValue(key);
+            return _innerCursor.TryGetValue(key, out value);
         }
 
         public void Dispose()

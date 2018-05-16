@@ -298,9 +298,14 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<TValue> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out TValue value)
         {
-            return InRange(key) ? _cursor.TryGetValue(key) : Opt<TValue>.Missing;
+            if (InRange(key))
+            {
+                return _cursor.TryGetValue(key, out value);
+            }
+            value = default;
+            return false;
         }
 
         /// <inheritdoc />
