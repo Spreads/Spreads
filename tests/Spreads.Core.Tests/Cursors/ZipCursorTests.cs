@@ -227,8 +227,8 @@ namespace Spreads.Core.Tests.Cursors
         public void CouldUseBaseSeriesAddOperator()
         {
             var count = 1000000;
-            var sm1 = new SortedChunkedMap<int, double>();
-            var sm2 = new SortedChunkedMap<int, double>();
+            var sm1 = new SortedMap<int, double>();
+            var sm2 = new SortedMap<int, double>();
 
             var result = new SortedMap<int, double>();
             double expected = 0;
@@ -488,11 +488,11 @@ namespace Spreads.Core.Tests.Cursors
                 {
                     var val = 0;
                     KeyValuePair<int, int> temp;
-                    var hasFirst = sm1.TryFind(allKeys[i], Lookup.EQ, out temp);
+                    var hasFirst = sm1.TryFindAt(allKeys[i], Lookup.EQ, out temp);
                     if (hasFirst)
                     {
                         val += temp.Value;
-                        var hasSecond = sm2.TryFind(allKeys[i], Lookup.EQ, out temp);
+                        var hasSecond = sm2.TryFindAt(allKeys[i], Lookup.EQ, out temp);
                         if (hasSecond)
                         {
                             val += temp.Value;
@@ -534,11 +534,11 @@ namespace Spreads.Core.Tests.Cursors
             {
                 var zip = sm1.Zip(sm2, (v1, v2) => v1 + v2);
                 var cur = zip.GetCursor();
-                var last = zip.Last.Key;
+                var last = zip.Last.Present.Key;
                 Task.Run(async () =>
                     {
                         var prev = default(int);
-                        while (await cur.MoveNext(CancellationToken.None))
+                        while (await cur.MoveNextAsync(CancellationToken.None))
                         {
                             if (cur.CurrentKey == prev)
                             {
@@ -654,11 +654,11 @@ namespace Spreads.Core.Tests.Cursors
                 {
                     var val = 0;
                     KeyValuePair<int, int> temp;
-                    var hasFirst = sm1.TryFind(allKeys[i], Lookup.LE, out temp);
+                    var hasFirst = sm1.TryFindAt(allKeys[i], Lookup.LE, out temp);
                     if (hasFirst)
                     {
                         val += temp.Value;
-                        var hasSecond = sm2.TryFind(allKeys[i], Lookup.EQ, out temp);
+                        var hasSecond = sm2.TryFindAt(allKeys[i], Lookup.EQ, out temp);
                         if (hasSecond)
                         {
                             val += temp.Value;
@@ -700,11 +700,11 @@ namespace Spreads.Core.Tests.Cursors
             {
                 var zip = sm1.Repeat().Zip(sm2, (v1, v2) => v1 + v2);
                 var cur = zip.GetCursor();
-                var last = zip.Last.Key;
+                var last = zip.Last.Present.Key;
                 Task.Run(async () =>
                     {
                         var prev = default(int);
-                        while (await cur.MoveNext(CancellationToken.None))
+                        while (await cur.MoveNextAsync(CancellationToken.None))
                         {
                             if (cur.CurrentKey == prev)
                             {

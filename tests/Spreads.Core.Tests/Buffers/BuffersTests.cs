@@ -74,8 +74,8 @@ namespace Spreads.Core.Tests.Buffers
                 {
                     using (var wrapper = BufferPool.UseTempBuffer(BufferPool.StaticBufferSize))
                     {
-                        wrapper.AsMemory.Span[0] = 123;
-                        sum += wrapper.AsMemory.Span[0] + wrapper.AsMemory.Span[1];
+                        wrapper.Memory.Span[0] = 123;
+                        sum += wrapper.Memory.Span[0] + wrapper.Memory.Span[1];
                     }
                 }
                 Assert.IsTrue(sum > 0);
@@ -88,8 +88,8 @@ namespace Spreads.Core.Tests.Buffers
                 {
                     using (var wrapper = BufferPool.UseTempBuffer(BufferPool.StaticBufferSize + 1))
                     {
-                        wrapper.AsMemory.Span[0] = 123;
-                        sum += wrapper.AsMemory.Span[0] + wrapper.AsMemory.Span[1];
+                        wrapper.Memory.Span[0] = 123;
+                        sum += wrapper.Memory.Span[0] + wrapper.Memory.Span[1];
                     }
                 }
                 Assert.IsTrue(sum > 0);

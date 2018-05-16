@@ -570,7 +570,7 @@ namespace Spreads.Core.Tests
             var buffer = BufferPool<string>.RentOwnedBuffer(100);
             Assert.Throws<ArgumentException>(() =>
             {
-                var handle = buffer.AsMemory.Retain(true);
+                var handle = buffer.Memory.Pin();
             });
             Assert.False(TypeHelper<string>.IsPinnable);
             Assert.True(TypeHelper<string>.Size <= 0);
@@ -642,22 +642,22 @@ namespace Spreads.Core.Tests
             }
         }
 
-        private ref T GetRef<T>(OwnedMemory<T> buffer)
+        private ref T GetRef<T>(ArrayMemoryPoolBuffer<T> buffer)
         {
-            if (buffer.AsMemory.TryGetArray(out var segment))
+            if (MemoryMarshal.TryGetArray((ReadOnlyMemory<T>)buffer.Memory, out var segment))
             {
                 return ref segment.Array[0];
             }
             else
             {
-                var handle = buffer.AsMemory.Retain(true);
-                return ref Unsafe.AsRef<T>(handle.PinnedPointer);
+                var handle = buffer.Memory.Pin();
+                return ref Unsafe.AsRef<T>(handle.Pointer);
             }
         }
 
-        private void UnsafeGenericWrite<T>(int count, OwnedMemory<T> buffer)
+        private void UnsafeGenericWrite<T>(int count, ArrayMemoryPoolBuffer<T> buffer)
         {
-            var handle = buffer.AsMemory.Retain(true);
+            var handle = buffer.Memory.Pin();
 
             var sum = 0L;
             var sw = new Stopwatch();
@@ -667,7 +667,7 @@ namespace Spreads.Core.Tests
                 for (int i = 0; i < count; i++)
                 {
                     //ref var addr = ref GetRef(buffer);
-                    ref var addr = ref Unsafe.AsRef<T>(handle.PinnedPointer);
+                    ref var addr = ref Unsafe.AsRef<T>(handle.Pointer);
                     ref var pos = ref Unsafe.Add(ref addr, i);
                     pos = (T)(object)(double)i;
                     sum++;
@@ -677,9 +677,9 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Unsafe write {sw.MOPS(count * 50)}");
         }
 
-        private void UnsafeGenericRead<T>(int count, OwnedMemory<T> buffer)
+        private void UnsafeGenericRead<T>(int count, ArrayMemoryPoolBuffer<T> buffer)
         {
-            var handle = buffer.AsMemory.Retain(true);
+            var handle = buffer.Memory.Pin();
 
             var sum = 0.0;
             var sw = new Stopwatch();
@@ -688,7 +688,7 @@ namespace Spreads.Core.Tests
             {
                 for (int i = 0; i < count; i++)
                 {
-                    ref var addr = ref Unsafe.AsRef<T>(handle.PinnedPointer);
+                    ref var addr = ref Unsafe.AsRef<T>(handle.Pointer);
                     ref var pos = ref Unsafe.Add(ref addr, i);
                     sum += (double)(object)pos;
                 }
@@ -712,12 +712,12 @@ namespace Spreads.Core.Tests
             var buffer = BufferPool<double>.RentOwnedBuffer(count, true);
             var buffer2 = BufferPool<double>.RentOwnedBuffer(count, true);
 
-            var handle2 = buffer2.AsMemory.Retain(true);
-            var pointer2 = handle2.PinnedPointer;
+            var handle2 = buffer2.Memory.Pin();
+            var pointer2 = handle2.Pointer;
 
             var buffer3 = BufferPool<double>.RentOwnedBuffer(count, true);
-            var handle3 = buffer3.AsMemory.Retain(true);
-            var pointer3 = handle3.PinnedPointer;
+            var handle3 = buffer3.Memory.Pin();
+            var pointer3 = handle3.Pointer;
 
             //var buffer4 = new DirectOwnedBuffer<double>(new double[count]);
 

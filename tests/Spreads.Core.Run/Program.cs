@@ -22,8 +22,8 @@ namespace Spreads.Core.Run
 
             var dest = (Memory<byte>)new byte[1000000];
             var buffer = dest;
-            var handle = buffer.Retain(true);
-            var ptr = (IntPtr)handle.PinnedPointer;
+            var handle = buffer.Pin();
+            var ptr = (IntPtr)handle.Pointer;
 
             var source = new decimal[10000];
             for (var i = 0; i < 10000; i++)
@@ -55,8 +55,8 @@ namespace Spreads.Core.Run
 
             var dest = (Memory<byte>)new byte[1000000];
             var buffer = dest;
-            var handle = buffer.Retain(true);
-            var ptr = (IntPtr)handle.PinnedPointer;
+            var handle = buffer.Pin();
+            var ptr = (IntPtr)handle.Pointer;
 
             var source = new decimal[10000];
             for (var i = 0; i < 10000; i++)

@@ -26,7 +26,7 @@ namespace Spreads.Core.Tests.Cursors
             var empty = new SortedMap<int, double>();
 
             var range = empty.Range(0, Int32.MaxValue, true, true);
-            Assert.True(range.IsEmpty);
+            Assert.True(range.First.IsMissing);
             Assert.False(range.Any());
 
             var nonEmpty = new SortedMap<int, double>
@@ -64,7 +64,7 @@ namespace Spreads.Core.Tests.Cursors
 
             Console.WriteLine("Any is OK");
 
-            Assert.True(range1.First.Value > 0);
+            Assert.True(range1.First.Present.Value > 0);
 
             Console.WriteLine("Navigation is OK");
         }
@@ -107,7 +107,7 @@ namespace Spreads.Core.Tests.Cursors
             // same as new CursorSeries<int, double, RangeCursor<int, double, SortedMapCursor<int, double>>>(rangeCursor);
             var range = rangeCursor.Source;
 
-            Assert.True(range.IsEmpty);
+            Assert.True(range.First.IsPresent);
             Assert.False(range.Any());
 
             var nonEmpty = new SortedMap<int, double>

@@ -74,15 +74,24 @@ namespace Spreads.Core.Tests
 
             public override KeyComparer<int> Comparer => throw new NotImplementedException();
 
+            public override Opt<KeyValuePair<int, int>> First => throw new NotImplementedException();
+
+            public override Opt<KeyValuePair<int, int>> Last => throw new NotImplementedException();
+
             public override bool IsIndexed => throw new NotImplementedException();
 
-            public override bool IsReadOnly => throw new NotImplementedException();
+            public override bool IsCompleted => throw new NotImplementedException();
 
-            public override bool IsEmpty => throw new NotImplementedException();
 
-            public override KeyValuePair<int, int> First => throw new NotImplementedException();
+            public override bool TryGetValue(int key, out int value)
+            {
+                throw new NotImplementedException();
+            }
 
-            public override KeyValuePair<int, int> Last => throw new NotImplementedException();
+            public override bool TryFindAt(int key, Lookup direction, out KeyValuePair<int, int> kvp)
+            {
+                throw new NotImplementedException();
+            }
 
             public override IEnumerable<int> Keys => throw new NotImplementedException();
 
@@ -92,30 +101,12 @@ namespace Spreads.Core.Tests
 
             public long Counter => _counter;
 
-            public override int GetAt(int idx)
-            {
-                throw new NotImplementedException();
-            }
 
             public override ICursor<int, int> GetCursor()
             {
                 throw new NotImplementedException();
             }
 
-            public override bool TryFind(int key, Lookup direction, out KeyValuePair<int, int> value)
-            {
-                throw new NotImplementedException();
-            }
-
-            public override bool TryGetFirst(out KeyValuePair<int, int> value)
-            {
-                throw new NotImplementedException();
-            }
-
-            public override bool TryGetLast(out KeyValuePair<int, int> value)
-            {
-                throw new NotImplementedException();
-            }
 
             internal override Cursor<int, int> GetContainerCursor()
             {

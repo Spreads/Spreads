@@ -134,9 +134,9 @@ namespace Spreads.Core.Tests
             };
             TypeHelper<BlittableStruct1>.Write(myBlittableStruct1, ref buffer);
 
-            var handle = buffer.Retain(true);
+            var handle = buffer.Pin();
 
-            TypeHelper<BlittableStruct1>.Read((IntPtr)handle.PinnedPointer, out var newBlittableStruct1);
+            TypeHelper<BlittableStruct1>.Read((IntPtr)handle.Pointer, out var newBlittableStruct1);
             Assert.AreEqual(myBlittableStruct1.Value1, newBlittableStruct1.Value1);
         }
 
@@ -167,9 +167,9 @@ namespace Spreads.Core.Tests
 
             TypeHelper<int[]>.Write(myArray, ref buffer);
 
-            var handle = buffer.Retain(true);
+            var handle = buffer.Pin();
 
-            TypeHelper<int[]>.Read((IntPtr)handle.PinnedPointer, out var newArray);
+            TypeHelper<int[]>.Read((IntPtr)handle.Pointer, out var newArray);
             Assert.IsTrue(myArray.SequenceEqual(newArray));
         }
 
@@ -211,8 +211,8 @@ namespace Spreads.Core.Tests
         {
             var dest = (Memory<byte>)new byte[1024];
             var buffer = dest;
-            var handle = buffer.Retain(true);
-            var ptr = (IntPtr)handle.PinnedPointer;
+            var handle = buffer.Pin();
+            var ptr = (IntPtr)handle.Pointer;
 
             var fromPtrInt = TypeHelper.GetFromPtrDelegate(typeof(int));
 

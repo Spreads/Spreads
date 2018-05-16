@@ -96,7 +96,7 @@ namespace Spreads
             }
         }
 
-        internal int Presence
+        internal int _Presence
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _presence; }

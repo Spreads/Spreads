@@ -196,8 +196,8 @@ namespace Spreads.Core.Tests.Serialization
 
             var dest = (Memory<byte>)new byte[1000000];
             var buffer = dest;
-            var handle = buffer.Retain();
-            var ptr = (IntPtr)handle.PinnedPointer;
+            var handle = buffer.Pin();
+            var ptr = (IntPtr)handle.Pointer;
 
             var sm = new SortedMap<DateTime, decimal>();
             for (var i = 0; i < 10000; i++)
@@ -227,8 +227,8 @@ namespace Spreads.Core.Tests.Serialization
 
             var dest = (Memory<byte>)new byte[1000000];
             var buffer = dest;
-            var handle = buffer.Retain(true);
-            var ptr = (IntPtr)handle.PinnedPointer;
+            var handle = buffer.Pin();
+            var ptr = (IntPtr)handle.Pointer;
 
             var sm = new SortedMap<DateTime, decimal>();
             for (var i = 0; i < 1; i++)
@@ -260,8 +260,8 @@ namespace Spreads.Core.Tests.Serialization
 
             var dest = (Memory<byte>)new byte[1000000];
             var buffer = dest;
-            var handle = buffer.Retain(true);
-            var ptr = (IntPtr)handle.PinnedPointer;
+            var handle = buffer.Pin();
+            var ptr = (IntPtr)handle.Pointer;
 
             var sm = new SortedMap<int, int>();
             for (var i = 0; i < 10000; i++)
