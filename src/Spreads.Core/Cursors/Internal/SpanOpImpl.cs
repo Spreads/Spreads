@@ -175,7 +175,7 @@ namespace Spreads.Cursors.Internal
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<TResult> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out TResult value)
         {
             throw new NotSupportedException("OnlineOpImpl is always discrete, to get value at any point one should use a copy as a navigation cursor and call MoveAt");
         }

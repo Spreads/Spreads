@@ -5,6 +5,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -143,10 +144,14 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<TValue> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out TValue value)
         {
-            var o = _cursor.TryGetValue(key);
-            return o.IsPresent ? o : Opt.Present(_value);
+            if(_cursor.TryGetValue(key, out value))
+            {
+                return true;
+            }
+            value = _value;
+            return false;
         }
 
         /// <inheritdoc />

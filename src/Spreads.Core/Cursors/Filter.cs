@@ -187,30 +187,31 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<TValue> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out TValue value)
         {
-            // get value only when key is ok            
             if (_keyPredicate != null && _keyPredicate(key))
             {
-                return _cursor.TryGetValue(key);
+                return _cursor.TryGetValue(key, out value);
             }
 
-            var o = _cursor.TryGetValue(key);
-
-            if (o.IsPresent)
+            if (_cursor.TryGetValue(key, out var v))
             {
-                // TODO (perf) review. This is a hot path, ifs could be reordered more efficiently
-                if (_fullPredicate != null && !_fullPredicate(key, o.Present))
+                if (_fullPredicate != null && !_fullPredicate(key, v))
                 {
-                    return Opt<TValue>.Missing;
+                    value = default;
+                    return false;
                 }
-                if (_valuePredicate != null && !_valuePredicate(o.Present))
+                if (_valuePredicate != null && !_valuePredicate(v))
                 {
-                    return Opt<TValue>.Missing;
+                    value = default;
+                    return false;
                 }
-                return o;
+                value = v;
+                return true;
             }
-            return Opt<TValue>.Missing;
+
+            value = default;
+            return false;
         }
 
         /// <inheritdoc />

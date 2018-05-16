@@ -147,16 +147,21 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<(TValue, (TKey, TValue))> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out (TValue, (TKey, TValue)) value)
         {
             if (_lookUpCursor.Equals(default(TCursor)))
             {
                 _lookUpCursor = _cursor.Clone();
             }
 
-            return _lookUpCursor.MoveAt(key, Lookup.EQ) 
-                ? (_lookUpCursor.CurrentCursor.CurrentValue, (_lookUpCursor.LaggedCursor.CurrentKey, _lookUpCursor.LaggedCursor.CurrentValue)) 
-                : Opt<(TValue, (TKey, TValue))>.Missing;
+            if (_lookUpCursor.MoveAt(key, Lookup.EQ))
+            {
+                value = (_lookUpCursor.CurrentCursor.CurrentValue, (_lookUpCursor.LaggedCursor.CurrentKey, _lookUpCursor.LaggedCursor.CurrentValue));
+                return true;
+            }
+
+            value = default((TValue, (TKey, TValue)));
+            return false;
         }
 
         /// <inheritdoc />

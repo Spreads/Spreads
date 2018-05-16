@@ -182,7 +182,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<Stat2<TKey>> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out Stat2<TKey> value)
         {
             if (_lookUpCursor.Equals(default(TCursor)))
             {
@@ -191,10 +191,12 @@ namespace Spreads
 
             if (_lookUpCursor.MoveAt(key, Lookup.EQ))
             {
-                return _lookUpCursor.CurrentValue;
+                value = _lookUpCursor.CurrentValue;
+                return true;
             }
 
-            return Opt<Stat2<TKey>>.Missing;
+            value = default;
+            return false;
         }
 
         /// <inheritdoc />

@@ -181,7 +181,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<TValue> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out TValue value)
         {
             if (_lookUpCursor.Equals(default(TCursor)))
             {
@@ -190,10 +190,12 @@ namespace Spreads
 
             if (_lookUpCursor.MoveAt(key, Lookup.EQ))
             {
-                return _lookUpCursor.CurrentValue;
+                value = _lookUpCursor.CurrentValue;
+                return true;
             }
 
-            return Opt<TValue>.Missing;
+            value = default(TValue);
+            return false;
         }
 
         /// <inheritdoc />

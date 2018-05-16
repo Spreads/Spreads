@@ -184,14 +184,21 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<Series<TKey, TValue, Range<TKey, TValue, TCursor>>> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out Series<TKey, TValue, Range<TKey, TValue, TCursor>> value)
         {
             if (_lookUpCursor.Equals(default(TCursor)))
             {
                 _lookUpCursor = _cursor.Clone();
             }
 
-            return _lookUpCursor.MoveAt(key, Lookup.EQ) ? _lookUpCursor.CurrentValue.Source : default;
+            if (_lookUpCursor.MoveAt(key, Lookup.EQ))
+            {
+                value = _lookUpCursor.CurrentValue.Source;
+                return true;
+            }
+
+            value = default;
+            return false;
         }
 
         /// <inheritdoc />

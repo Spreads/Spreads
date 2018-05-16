@@ -34,12 +34,12 @@ namespace Spreads
     /// The minimal implementation of Option type. T must implement IEquitable for custom equality.
     /// </summary>
     [StructLayout(LayoutKind.Auto)]
-    public readonly struct Opt<T> : IEquatable<Opt<T>>
+    public readonly struct Opt<T> // : IEquatable<Opt<T>>
     {
         /// <summary>
         /// Missing value.
         /// </summary>
-        public static readonly Opt<T> Missing;
+        public static Opt<T> Missing => default;
 
         private readonly int _presence; // NB with auto layout it will take at least 4 bytes anyway
         private readonly T _present;
@@ -48,7 +48,7 @@ namespace Spreads
         /// Create new optional value with a given present value.
         /// </summary>
         /// <param name="value"></param>
-        public Opt(T value)
+        public Opt(in T value)
         {
             _presence = 1;
             _present = value;
@@ -109,7 +109,7 @@ namespace Spreads
         {
             if (first.IsMissing && second.IsMissing)
             {
-                return Missing;
+                return default;
             }
 
             if (first.IsMissing) return second;
@@ -127,7 +127,7 @@ namespace Spreads
         {
             if (first.IsMissing && second.IsMissing)
             {
-                return Missing;
+                return default;
             }
 
             if (first.IsMissing) return second;
@@ -138,12 +138,12 @@ namespace Spreads
             return c <= 0 ? first : second;
         }
 
-        /// <inheritdoc />
-        public bool Equals(Opt<T> other)
-        {
-            return IsPresent == other.IsPresent
-                   && (IsMissing || KeyEqualityComparer<T>.EqualsStatic(Present, other.Present));
-        }
+//        /// <inheritdoc />
+//        public bool Equals(Opt<T> other)
+//        {
+//            return IsPresent == other.IsPresent
+//                   && (IsMissing || KeyEqualityComparer<T>.EqualsStatic(Present, other.Present));
+//        }
 
         /// <summary>
         /// Implicit cast from a value of type <typeparamref name="T"/> to <see cref="Opt{T}"/>.

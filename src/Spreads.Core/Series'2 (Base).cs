@@ -100,17 +100,24 @@ namespace Spreads
         public abstract Opt<KeyValuePair<TKey, TValue>> Last { get; }
 
         /// <inheritdoc />
-        public virtual Opt<TValue> this[TKey key]
+        public TValue this[TKey key]
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                var kv = TryFindAt(key, Lookup.EQ);
-                return !kv.IsMissing ? Opt.Present(kv.Present.Value) : Opt<TValue>.Missing;
+                if (TryGetValue(key, out var value))
+                {
+                    return value;
+                }
+                ThrowHelper.ThrowKeyNotFoundException("Key not found in series");
+                return default;
             }
         }
 
+        public abstract bool TryGetValue(TKey key, out TValue value);
+
         /// <inheritdoc />
-        public abstract Opt<KeyValuePair<TKey, TValue>> TryGetAt(long idx);
+        public abstract bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp);
 
         /// <inheritdoc />
         public abstract IEnumerable<TKey> Keys { get; }
@@ -120,7 +127,7 @@ namespace Spreads
 
 
         /// <inheritdoc />
-        public abstract Opt<KeyValuePair<TKey, TValue>> TryFindAt(TKey key, Lookup direction);
+        public abstract bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
 
         internal Cursor<TKey, TValue> GetWrapper()
         {
@@ -972,7 +979,7 @@ namespace Spreads
             return GetContainerCursor();
         }
 
-        public override Opt<KeyValuePair<TKey, TValue>> TryGetAt(long idx)
+        public override bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp)
         {
             if (idx < 0)
             {
@@ -981,11 +988,13 @@ namespace Spreads
             // TODO (review) not so stupid and potentially throwing impl
             try
             {
-                return this.Skip(Math.Max(0, checked((int)(idx)) - 1)).First();
+                kvp = this.Skip(Math.Max(0, checked((int)(idx)) - 1)).First();
+                return true;
             }
             catch
             {
-                return default;
+                kvp = default;
+                return false;
             }
         }
 
@@ -1487,7 +1496,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public override Opt<KeyValuePair<TKey, TValue>> TryGetAt(long idx)
+        public override bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp)
         {
             // NB call to this.NavCursor.Source.TryGetAt(idx) is recursive (=> SO) and is logically wrong
             if (idx < 0) throw new ArgumentOutOfRangeException(nameof(idx));
@@ -1497,23 +1506,32 @@ namespace Spreads
                 {
                     throw new KeyNotFoundException();
                 }
-                for (int i = 0; i < idx - 1; i++)
+                for (var i = 0; i < idx - 1; i++)
                 {
                     if (!C.MoveNext())
                     {
-                        throw new KeyNotFoundException();
+                        kvp = default;
+                        return false;
                     }
                 }
-                return C.Current;
+                kvp = C.Current;
+                return true;
             }
         }
 
         /// <inheritdoc />
-        public override Opt<KeyValuePair<TKey, TValue>> TryFindAt(TKey key, Lookup direction)
+        public override bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp)
         {
             lock (SyncRoot)
             {
-                return C.MoveAt(key, direction) ? C.Current : default;
+                if (C.MoveAt(key, direction))
+                {
+                    kvp = C.Current;
+                    return true;
+                }
+
+                kvp = default;
+                return false;
             }
         }
 
@@ -1548,18 +1566,7 @@ namespace Spreads
             }
         }
 
-        /// <inheritdoc />
-        public override Opt<TValue> this[TKey key]
-        {
-            get
-            {
-                var kv = TryFindAt(key, Lookup.EQ);
-                return kv.IsPresent ? kv.Present.Value : default;
-            }
-        }
-
         #endregion IReadOnlySeries members
-
 
         public virtual void Dispose(bool disposing)
         {

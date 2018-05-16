@@ -153,10 +153,15 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Opt<TResult> TryGetValue(TKey key)
+        public bool TryGetValue(TKey key, out TResult value)
         {
-            var o = _cursor.TryGetValue(key);
-            return o.IsPresent ? _selector(key, o.Present) : Opt<TResult>.Missing;
+            if (_cursor.TryGetValue(key, out var v))
+            {
+                value = _selector(key, v);
+                return true;
+            }
+            value = default;
+            return false;
         }
 
         /// <inheritdoc />
