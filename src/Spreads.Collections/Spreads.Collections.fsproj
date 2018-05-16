@@ -23,7 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Core" Version="4.3.4" />
-    <!--<PackageReference Include="Spreads.Core" Version="1.0.0-*" />-->
+    <PackageReference Update="System.ValueTuple" Version="4.5.0-rc1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />

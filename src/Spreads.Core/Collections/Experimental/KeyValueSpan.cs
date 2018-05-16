@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-namespace Spreads
+namespace Spreads.Collections.Experimental
 {
     public readonly ref struct KeyValueSpan<TKey, TValue>
     {

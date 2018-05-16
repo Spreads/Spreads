@@ -33,14 +33,15 @@ namespace Spreads
             return cursor.Source;
         }
 
-        internal static Series<TKey, TValue, Range<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>> Range<TKey, TValue>(
-            this SortedChunkedMap<TKey, TValue> series,
-            Opt<TKey> startKey, Opt<TKey> endKey, bool startInclusive = true, bool endInclusive = true)
-        {
-            var cursor = new Range<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>(
-                series.GetEnumerator(), startKey, endKey, startInclusive, endInclusive);
-            return cursor.Source;
-        }
+        // TODO
+//        internal static Series<TKey, TValue, Range<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>> Range<TKey, TValue>(
+//            this SortedChunkedMap<TKey, TValue> series,
+//            Opt<TKey> startKey, Opt<TKey> endKey, bool startInclusive = true, bool endInclusive = true)
+//        {
+//            var cursor = new Range<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>(
+//                series.GetEnumerator(), startKey, endKey, startInclusive, endInclusive);
+//            return cursor.Source;
+//        }
 
         internal static Series<TKey, TValue, Range<TKey, TValue, Cursor<TKey, TValue>>> Range<TKey, TValue>(
             this ISeries<TKey, TValue> series,

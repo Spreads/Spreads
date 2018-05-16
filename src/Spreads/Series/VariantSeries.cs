@@ -63,50 +63,41 @@ namespace Spreads
         }
 
         public sealed override bool IsCompleted => Inner.IsCompleted;
-        public sealed override bool IsEmpty => Inner.IsEmpty;
 
-        public sealed override KeyValuePair<Variant, Variant> First
-            => new KeyValuePair<Variant, Variant>(ToKey2(Inner.First.Key), ToValue2(Inner.First.Value));
+        public sealed override Opt<KeyValuePair<Variant, Variant>> First
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var opt = Inner.First;
+                return opt.IsPresent
+                    ? new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value))
+                    : Opt<KeyValuePair<Variant, Variant>>.Missing;
+            }
+        }
 
-        public sealed override KeyValuePair<Variant, Variant> Last
-            => new KeyValuePair<Variant, Variant>(ToKey2(Inner.Last.Key), ToValue2(Inner.Last.Value));
+        public sealed override Opt<KeyValuePair<Variant, Variant>> Last
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var opt = Inner.Last;
+                return opt.IsPresent
+                    ? new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value))
+                    : Opt<KeyValuePair<Variant, Variant>>.Missing;            }
+        }
 
         public sealed override IEnumerable<Variant> Keys => Inner.Keys.Select(ToKey2);
         public sealed override IEnumerable<Variant> Values => Inner.Values.Select(ToValue2);
 
-        public sealed override bool TryFind(Variant key, Lookup direction, out KeyValuePair<Variant, Variant> value)
+        public sealed override bool TryFindAt(Variant key, Lookup direction, out KeyValuePair<Variant, Variant> value)
         {
-            KeyValuePair<TKey, TValue> tmp;
-            if (Inner.TryFindAt(ToKey(key), direction, out tmp))
+            if (Inner.TryFindAt(ToKey(key), direction, out var tmp))
             {
                 value = new KeyValuePair<Variant, Variant>(ToKey2(tmp.Key), ToValue2(tmp.Value));
                 return true;
             }
-            value = default(KeyValuePair<Variant, Variant>);
-            return false;
-        }
-
-        public sealed override bool TryGetFirst(out KeyValuePair<Variant, Variant> value)
-        {
-            KeyValuePair<TKey, TValue> tmp;
-            if (Inner.TryGetFirst(out tmp))
-            {
-                value = new KeyValuePair<Variant, Variant>(ToKey2(tmp.Key), ToValue2(tmp.Value));
-                return true;
-            }
-            value = default(KeyValuePair<Variant, Variant>);
-            return false;
-        }
-
-        public sealed override bool TryGetLast(out KeyValuePair<Variant, Variant> value)
-        {
-            KeyValuePair<TKey, TValue> tmp;
-            if (Inner.TryGetLast(out tmp))
-            {
-                value = new KeyValuePair<Variant, Variant>(ToKey2(tmp.Key), ToValue2(tmp.Value));
-                return true;
-            }
-            value = default(KeyValuePair<Variant, Variant>);
+            value = default;
             return false;
         }
 
@@ -120,11 +111,28 @@ namespace Spreads
 
         public sealed override Task<bool> Updated => Inner.Updated;
 
-        public sealed override Variant GetAt(int idx)
+        public override bool TryGetValue(Variant key, out Variant value)
         {
-#pragma warning disable 618
-            return ToValue2(Inner.TryGetAt(idx));
-#pragma warning restore 618
+            if (Inner.TryGetValue(ToKey(key), out var tmp))
+            {
+                value = ToValue2(tmp);
+                return true;
+            }
+            value = default;
+            return false;
+        }
+
+        public sealed override bool TryGetAt(long idx, out KeyValuePair<Variant, Variant> value)
+        {
+            if (Inner.TryGetAt(idx, out var kvp))
+            {
+                value = new KeyValuePair<Variant, Variant>(ToKey2(kvp.Key), ToValue2(kvp.Value));
+                return true;
+            }
+
+            value = default;
+            return false;
+
         }
 
         public static VariantSeries<TKey, TValue> Create(IReadOnlySeries<TKey, TValue> innerSeries)
@@ -173,9 +181,16 @@ namespace Spreads
                 _source = source;
             }
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
             {
                 return _innerCursor.MoveNextAsync(cancellationToken);
+            }
+            
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public Task<bool> MoveNextAsync()
+            {
+                return MoveNextAsync(default);
             }
 
             public void Dispose()
@@ -198,36 +213,52 @@ namespace Spreads
 
             object IEnumerator.Current => Current;
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public bool MoveAt(Variant key, Lookup direction)
             {
                 return _innerCursor.MoveAt(_source.ToKey(key), direction);
             }
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public bool MoveFirst()
             {
                 return _innerCursor.MoveFirst();
             }
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public bool MoveLast()
             {
                 return _innerCursor.MoveLast();
             }
 
+            public long MoveNext(long stride, bool allowPartial)
+            {
+                throw new NotImplementedException();
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public bool MovePrevious()
             {
                 return _innerCursor.MovePrevious();
             }
 
-            public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+            public long MovePrevious(long stride, bool allowPartial)
             {
-                return _innerCursor.MoveNextSpan(cancellationToken);
+                throw new NotImplementedException();
             }
 
+            public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+            {
+                return _innerCursor.MoveNextBatch(cancellationToken);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public ICursor<Variant, Variant> Clone()
             {
                 return new VariantCursor(_innerCursor.Clone(), _source);
             }
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public bool TryGetValue(Variant key, out Variant value)
             {
                 TValue tmp;
@@ -240,14 +271,29 @@ namespace Spreads
                 return false;
             }
 
+            public CursorState State => _innerCursor.State;
             public KeyComparer<Variant> Comparer => _source.Comparer;
-            public Variant CurrentKey => _source.ToKey2(_innerCursor.CurrentKey);
-            public Variant CurrentValue => _source.ToValue2(_innerCursor.CurrentValue);
+            public Variant CurrentKey
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get { return _source.ToKey2(_innerCursor.CurrentKey); }
+            }
 
-            public IReadOnlySeries<Variant, Variant> CurrentBatch => Create(_innerCursor.CurrentSpan);
+            public Variant CurrentValue
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get { return _source.ToValue2(_innerCursor.CurrentValue); }
+            }
+
+            public IReadOnlySeries<Variant, Variant> CurrentBatch => Create(_innerCursor.CurrentBatch);
 
             public IReadOnlySeries<Variant, Variant> Source => _source; //Create(_innerCursor.Source);
             public bool IsContinuous => _innerCursor.IsContinuous;
+            
+            public Task DisposeAsync()
+            {
+                return _innerCursor.DisposeAsync();
+            }
         }
 
         private struct VariantComparer : IComparer<Variant>, IEquatable<VariantComparer>
@@ -330,85 +376,84 @@ namespace Spreads
             }
         }
 
-        public void Add(Variant key, Variant value)
+        public ValueTask<long> TryAppend(IReadOnlySeries<Variant, Variant> appendMap, AppendOption option = AppendOption.RejectOnOverlap)
         {
-            MutableInner.Add(ToKey(key), ToValue(value));
-        }
-
-        public void AddLast(Variant key, Variant value)
-        {
-            MutableInner.AddLast(ToKey(key), ToValue(value));
-        }
-
-        public void AddFirst(Variant key, Variant value)
-        {
-            MutableInner.AddFirst(ToKey(key), ToValue(value));
-        }
-
-        public bool Remove(Variant key)
-        {
-            return MutableInner.Remove(ToKey(key));
-        }
-
-        public bool RemoveLast(out KeyValuePair<Variant, Variant> kvp)
-        {
-            KeyValuePair<TKey, TValue> tmp;
-            if (MutableInner.RemoveLast(out tmp))
-            {
-                kvp = new KeyValuePair<Variant, Variant>(ToKey2(tmp.Key), ToValue2(tmp.Value));
-                return true;
-            }
-            kvp = default(KeyValuePair<Variant, Variant>);
-            return false;
-        }
-
-        public bool RemoveFirst(out KeyValuePair<Variant, Variant> kvp)
-        {
-            KeyValuePair<TKey, TValue> tmp;
-            if (MutableInner.RemoveFirst(out tmp))
-            {
-                kvp = new KeyValuePair<Variant, Variant>(ToKey2(tmp.Key), ToValue2(tmp.Value));
-                return true;
-            }
-            kvp = default(KeyValuePair<Variant, Variant>);
-            return false;
-        }
-
-        public bool RemoveMany(Variant key, Lookup direction)
-        {
-            return MutableInner.RemoveMany(ToKey(key), direction);
-        }
-
-        public int Append(IReadOnlySeries<Variant, Variant> appendMap, AppendOption option)
-        {
-            if (appendMap is VariantSeries<TKey, TValue> vs)
-            {
-                return MutableInner.Append(vs.Inner, option);
-            }
             throw new NotImplementedException();
         }
 
-        public void Complete()
+        public Task Complete()
         {
-            MutableInner.Complete();
+            return MutableInner.Complete();
         }
 
         public long Count => MutableInner.Count;
 
         public long Version => MutableInner.Version;
-
-        public override Variant this[Variant key] => ToValue2(MutableInner[ToKey(key)]);
-
-        Variant IMutableSeries<Variant, Variant>.this[Variant key]
+        
+        public bool IsAppendOnly => MutableInner.IsAppendOnly;
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task<bool> Set(Variant key, Variant value)
         {
-            get => ToValue2(MutableInner[ToKey(key)]);
-            set => MutableInner[ToKey(key)] = ToValue(value);
+            return MutableInner.TryAdd(ToKey(key), ToValue(value));
         }
 
-        public void Flush()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task<bool> TryAdd(Variant key, Variant value)
         {
-            var p = MutableInner as IPersistentObject;
-            p?.Flush();
+            return MutableInner.TryAdd(ToKey(key), ToValue(value));
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task<bool> TryAddLast(Variant key, Variant value)
+        {
+            return MutableInner.TryAddLast(ToKey(key), ToValue(value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task<bool> TryAddFirst(Variant key, Variant value)
+        {
+            return MutableInner.TryAddFirst(ToKey(key), ToValue(value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async ValueTask<Opt<Variant>> TryRemove(Variant key)
+        {
+            var opt = await MutableInner.TryRemove(ToKey(key));
+            return opt.IsPresent
+                ? ToValue2(opt.Present)
+                : Opt<Variant>.Missing;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async ValueTask<Opt<KeyValuePair<Variant, Variant>>> TryRemoveFirst()
+        {
+            var opt = await MutableInner.TryRemoveFirst();
+            return opt.IsPresent
+                ? new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value))
+                : Opt<KeyValuePair<Variant, Variant>>.Missing;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async ValueTask<Opt<KeyValuePair<Variant, Variant>>> TryRemoveLast()
+        {
+            var opt = await MutableInner.TryRemoveLast();
+            return opt.IsPresent
+                ? new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value))
+                : Opt<KeyValuePair<Variant, Variant>>.Missing;
+        }
+
+        public async ValueTask<Opt<KeyValuePair<Variant, Variant>>> TryRemoveMany(Variant key, Lookup direction)
+        {
+            var opt = await MutableInner.TryRemoveMany(ToKey(key), direction);
+            return opt.IsPresent
+                ? new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value))
+                : Opt<KeyValuePair<Variant, Variant>>.Missing;
+        }
+
+        public Task Flush()
+        {
+            return MutableInner is IPersistentObject p ? p.Flush() : Task.CompletedTask;
         }
 
         public string Id

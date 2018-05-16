@@ -24,6 +24,7 @@ open System.Runtime.CompilerServices
 open System.Reflection
 
 open Spreads
+open Spreads
 open Spreads.Buffers
 open Spreads.Serialization
 open Spreads.Collections
@@ -300,7 +301,7 @@ type SortedMap<'K,'V>
     this.GetKeyByIndexUnchecked(index)
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member inline private this.GetPairByIndexUnchecked(index) =
+  member inline internal this.GetPairByIndexUnchecked(index) =
     if couldHaveRegularKeys && this.size > 1 then
       #if DEBUG
       Trace.Assert(uint32 index < uint32 this.size, "Index must be checked before calling GetPairByIndexUnchecked")
@@ -750,7 +751,45 @@ type SortedMap<'K,'V>
       if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
       #endif
 
-
+  // NB this is for ctor pattern with enumerable
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+  member this.Add(key, value) : unit =
+    this.CheckNull(key)
+    if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
+   
+    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+    
+    let mutable keepOrderVersion = false
+    let mutable added = false
+        
+    try
+      if this.size = 0 then
+        this.Insert(0, key, value)
+        keepOrderVersion <- true
+        added <- true
+      else
+        // last optimization gives near 2x performance boost
+        let lc = this.CompareToLast key
+        // NOP if lc = 0 then // key = last key
+        if lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
+          this.Insert(this.size, key, value)
+          keepOrderVersion <- true
+          added <- true
+        elif lc < 0 then
+          let index = this.IndexOfKeyUnchecked(key)
+          if index < 0 then // doesn't contain key
+            this.Insert(~~~index, key, value)
+            added <- true
+      if not added then ThrowHelper.ThrowArgumentException("Key already exists");
+    finally
+      if not keepOrderVersion then increment(&this.orderVersion)
+      if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
+      exitWriteLockIf &this.Locker entered
+      #if DEBUG
+      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
+      #endif
+      
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.TryAdd(key, value) : Task<bool> =
     this.CheckNull(key)
@@ -996,7 +1035,7 @@ type SortedMap<'K,'V>
     result
     
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.TryRemove(key, [<Out>]result: byref<'V>) : Task<bool>  =
+  member this.TryRemove(key) : ValueTask<Opt<'V>>  =
     this.CheckNull(key)
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     
@@ -1007,10 +1046,11 @@ type SortedMap<'K,'V>
     try
       let index = this.IndexOfKeyUnchecked(key)
       if index >= 0 then 
-        result <- this.RemoveAt(index).Value
+        let result = this.RemoveAt(index).Value
         increment &this.orderVersion
         removed <- true
-      if removed then TaskUtil.TrueTask else TaskUtil.FalseTask   
+        ValueTask<_>(Opt.Present(result))
+      else ValueTask<_>(Opt<_>.Missing)
     finally
       if removed then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
@@ -1021,18 +1061,18 @@ type SortedMap<'K,'V>
       #endif
 
 
-  member this.TryRemoveFirst([<Out>]result: byref<KVP<'K,'V>>) : Task<bool> =
+  member this.TryRemoveFirst() : ValueTask<Opt<KVP<'K,'V>>>  =
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     let mutable removed = false
     let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     try
       if this.size > 0 then
-        result <- this.RemoveAt(0)
+        let result = this.RemoveAt(0)
         increment &this.orderVersion
         removed <- true
-        TaskUtil.TrueTask
-      else TaskUtil.FalseTask 
+        ValueTask<_>(Opt.Present(result))
+      else ValueTask<_>(Opt<_>.Missing)
     finally
       if removed then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
@@ -1043,23 +1083,18 @@ type SortedMap<'K,'V>
       #endif
 
 
-  member this.TryRemoveLast([<Out>]result: byref<KeyValuePair<'K, 'V>>) : Task<bool> =
+  member this.TryRemoveLast() : ValueTask<Opt<KVP<'K,'V>>> =
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     let mutable removed = false
     let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     try
       if this.size > 0 then
-        result <-
-          if couldHaveRegularKeys && this.size > 1 then
-            Trace.Assert(this.comparer.Compare(rkLast, this.comparer.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
-            KeyValuePair(rkLast, this.values.[this.size - 1])
-          else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
-        result <- this.RemoveAt(this.size - 1)
+        let result = this.RemoveAt(this.size - 1)
         increment &this.orderVersion
         removed <- true
-        TaskUtil.TrueTask
-      else TaskUtil.FalseTask
+        ValueTask<_>(Opt.Present(result))
+      else ValueTask<_>(Opt<_>.Missing)
     finally
       if removed then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
@@ -1070,18 +1105,22 @@ type SortedMap<'K,'V>
       #endif
 
   /// Removes all elements that are to `direction` from `key`
-  member this.TryRemoveMany(key:'K, direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>) : Task<bool> =
+  member this.TryRemoveMany(key:'K, direction:Lookup) : ValueTask<Opt<KVP<'K,'V>>> =
     this.CheckNull(key)
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
 
     let mutable removed = false
-    let  entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
     try
       if entered then Interlocked.Increment(&this.nextVersion) |> ignore
-      if this.size = 0 then 
-        TaskUtil.FalseTask
+      if this.size = 0 then ValueTask<_>(Opt<_>.Missing)
       else
-        let pivotIndex = this.TryFindWithIndex(key, direction, &result)
+        let mutable result = Unchecked.defaultof<_>
+        let pivotIndex = this.FindIndexAt(key, direction)
+        let mutable result =
+          if pivotIndex >= 0 && pivotIndex < this.size then
+            this.GetPairByIndexUnchecked(pivotIndex)
+          else Unchecked.defaultof<_>
         // pivot should be removed, after calling TFWI pivot is always inclusive
         match direction with
         | Lookup.EQ -> 
@@ -1090,11 +1129,11 @@ type SortedMap<'K,'V>
             result <- this.RemoveAt(index)
             increment &this.orderVersion
             removed <- true
-            TaskUtil.TrueTask
-          else TaskUtil.FalseTask
+            ValueTask<_>(Opt.Present(result))
+          else ValueTask<_>(Opt<_>.Missing)
         | Lookup.LT | Lookup.LE ->
           if pivotIndex = -1 then // pivot is not here but to the left, keep all elements
-            TaskUtil.FalseTask
+            ValueTask<_>(Opt<_>.Missing)
           elif pivotIndex >=0 then // remove elements below pivot and pivot
             this.size <- this.size - (pivotIndex + 1)
             
@@ -1114,12 +1153,12 @@ type SortedMap<'K,'V>
             
             increment &this.orderVersion
             removed <- true
-            TaskUtil.TrueTask
+            ValueTask<_>(Opt.Present(result))
           else
             ThrowHelper.ThrowInvalidOperationException("wrong result of TryFindWithIndex with LT/LE direction");Unchecked.defaultof<_>
         | Lookup.GT | Lookup.GE ->
           if pivotIndex = -2 then // pivot is not here but to the right, keep all elements
-            TaskUtil.FalseTask
+            ValueTask<_>(Opt<_>.Missing)
           elif pivotIndex >= 0 then // remove elements above and including pivot
             this.size <- pivotIndex
             if couldHaveRegularKeys then
@@ -1134,10 +1173,9 @@ type SortedMap<'K,'V>
               Array.fill this.keys pivotIndex (this.values.Length - pivotIndex) Unchecked.defaultof<'K>
             Array.fill this.values pivotIndex (this.values.Length - pivotIndex) Unchecked.defaultof<'V>
             this.SetCapacity(this.size)
-
             increment &this.orderVersion
             removed <- true
-            TaskUtil.TrueTask
+            ValueTask<_>(Opt.Present(result))
           else
             ThrowHelper.ThrowInvalidOperationException("Wrong result of TryFindWithIndex with GT/GE direction"); Unchecked.defaultof<_>
         | _ -> ThrowHelper.ThrowInvalidOperationException("Invalid direction"); Unchecked.defaultof<_> //
@@ -1158,7 +1196,7 @@ type SortedMap<'K,'V>
   /// -4 empty
   /// Example: (-1) [...current...(-3)...map ...] (-2)
   [<Obsolete("Use FindIndexAt")>]
-  member internal this.TryFindWithIndex(key:'K, direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>) : int =
+  member internal this.TryFindWithIndexXXX(key:'K, direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>) : int =
     if this.size = 0 then -4
     else
       match direction with
@@ -1439,12 +1477,8 @@ type SortedMap<'K,'V>
       if not (this.TryAdd(key, value).Result) then ThrowHelper.ThrowInvalidOperationException("Key already exists") 
     member this.Add(kvp:KeyValuePair<'K,'V>) = 
       if not (this.TryAdd(kvp.Key, kvp.Value).Result) then ThrowHelper.ThrowInvalidOperationException("Key already exists") 
-    member this.Remove(key) = 
-      let (a, _) = this.TryRemove(key)
-      a.Result
-    member this.Remove(kvp:KeyValuePair<'K,'V>) = 
-      let (a, _) = this.TryRemove(kvp.Key)
-      a.Result
+    member this.Remove(key) = let opt = this.TryRemove(key).Result in opt.IsPresent
+    member this.Remove(kvp:KeyValuePair<'K,'V>) = let opt = this.TryRemove(kvp.Key).Result in opt.IsPresent
     member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.TryGetValue(key, &value)
 
   interface IReadOnlySeries<'K,'V> with
@@ -1460,14 +1494,14 @@ type SortedMap<'K,'V>
     member this.TryAdd(k, v) = this.TryAdd(k,v)
     member this.TryAddLast(k, v) = this.TryAddLast(k, v)
     member this.TryAddFirst(k, v) = this.TryAddFirst(k, v)
-    member this.TryRemove(k, [<Out>] value: byref<'V>) = this.TryRemove(k, &value)
-    member this.TryRemoveFirst([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryRemoveFirst(&result)
-    member this.TryRemoveLast([<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryRemoveLast(&result)
-    member this.TryRemoveMany(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = this.TryRemoveMany(key, direction, &result)
+    member this.TryRemove(k) = this.TryRemove(k)
+    member this.TryRemoveFirst() = this.TryRemoveFirst()
+    member this.TryRemoveLast() = this.TryRemoveLast()
+    member this.TryRemoveMany(key:'K, direction:Lookup) = this.TryRemoveMany(key, direction)
 
     // TODO move to type memeber, check if IReadOnlySeries is SM and copy arrays in one go
     // TODO atomic append with single version increase, now it is a sequence of remove/add mutations
-    member this.TryAppend(appendMap:IReadOnlySeries<'K,'V>, [<Out>] result: byref<int64>, option:AppendOption) =
+    member this.TryAppend(appendMap:IReadOnlySeries<'K,'V>, option:AppendOption) =
       raise (NotImplementedException())
 
   //#endregion
@@ -1744,11 +1778,10 @@ and
         let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
-          let mutable kvp = Unchecked.defaultof<_>
-          // TODO do not use monster method TryFindWithIndex,
           // leave it for mutations, optimize TryFindAt
-          let position = this.source.TryFindWithIndex(key, lookup, &kvp)
+          let position = this.source.FindIndexAt(key, lookup)
           if position >= 0 then
+            let kvp = this.source.GetPairByIndexUnchecked(position)
             this.cursorVersion <- this.source.orderVersion
             newIndex <- position
             newKey <- kvp.Key

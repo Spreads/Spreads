@@ -59,16 +59,16 @@ namespace Spreads
             return sm;
         }
 
-        public static SortedMap<TKey, TValue> ToSortedMap<TKey, TValue>(
-            this IDataStream<TKey, TValue> dataStream)
-        {
-            var sm = new SortedMap<TKey, TValue>(dataStream.Comparer);
-            foreach (var keyValuePair in dataStream)
-            {
-                sm.AddLast(keyValuePair.Key, keyValuePair.Value);
-            }
-
-            return sm;
-        }
+//        public static SortedMap<TKey, TValue> ToSortedMap<TKey, TValue>(
+//            this IDataStream<TKey, TValue> dataStream)
+//        {
+//            var sm = new SortedMap<TKey, TValue>(dataStream.Comparer);
+//            foreach (var keyValuePair in dataStream)
+//            {
+//                sm.AddLast(keyValuePair.Key, keyValuePair.Value);
+//            }
+//
+//            return sm;
+//        }
     }
 }

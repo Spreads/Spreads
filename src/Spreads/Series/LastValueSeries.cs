@@ -9,6 +9,8 @@ using Spreads.Cursors;
 
 namespace Spreads
 {
+    // TODO 
+    
     /// <summary>
     /// A series that keeps only a last element.
     /// </summary>
@@ -20,9 +22,8 @@ namespace Spreads
         private bool _isSet = false;
 
         public override bool IsCompleted => false;
-        public override bool IsEmpty => !_isSet;
-        public override KeyValuePair<TKey, TValue> First => _lastValue;
-        public override KeyValuePair<TKey, TValue> Last => _lastValue;
+        public override Opt<KeyValuePair<TKey, TValue>> First => _isSet ? _lastValue : Opt<KeyValuePair<TKey, TValue>>.Missing;
+        public override Opt<KeyValuePair<TKey, TValue>> Last => _isSet  ? _lastValue : Opt<KeyValuePair<TKey, TValue>>.Missing;
         public override IEnumerable<TKey> Keys => new SingleSequence<TKey>(_lastValue.Key);
         public override IEnumerable<TValue> Values => new SingleSequence<TValue>(_lastValue.Value);
 
@@ -34,35 +35,43 @@ namespace Spreads
                 {
                     return _lastValue.Value;
                 }
-                throw new KeyNotFoundException();
+                ThrowHelper.ThrowKeyNotFoundException("Key not found");
+                return default;
             }
             set
             {
                 _lastValue = new KeyValuePair<TKey, TValue>(key, value);
                 _isSet = true;
-                this.NotifyUpdate(true);
+                NotifyUpdate(true);
             }
         }
 
-        public override bool TryFind(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> value)
+        public override bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> value)
         {
             throw new NotImplementedException();
         }
 
-        public override bool TryGetFirst(out KeyValuePair<TKey, TValue> value)
+        public override bool TryGetValue(TKey key, out TValue value)
         {
-            throw new NotImplementedException();
+            if (Comparer.Compare(key, _lastValue.Key) == 0)
+            {
+                value = _lastValue.Value;
+                return true;
+            }
+
+            value = default;
+            return false;
         }
 
-        public override bool TryGetLast(out KeyValuePair<TKey, TValue> value)
+        public override bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> value)
         {
-            throw new NotImplementedException();
-        }
-
-        public override TValue GetAt(int idx)
-        {
-            if (idx != 0) throw new IndexOutOfRangeException();
-            return _lastValue.Value;
+            if (idx != 0)
+            {
+                value = default;
+                return false;
+            }
+            value = _lastValue;
+            return true;
         }
 
         internal override Cursor<TKey, TValue> GetContainerCursor()

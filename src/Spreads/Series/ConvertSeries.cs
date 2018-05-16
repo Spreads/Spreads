@@ -20,7 +20,7 @@ namespace Spreads
         where TImpl : ConvertSeries<TKey, TValue, TKey2, TValue2, TImpl>, new()
     {
         // TODO use ObjectPool
-        private static BoundedConcurrentBag<TImpl> Pool;
+        private static BoundedConcurrentBag<TImpl> _pool;
         private KeyComparer<TKey2> _comparer;
 
         protected IReadOnlySeries<TKey, TValue> Inner;
@@ -45,45 +45,48 @@ namespace Spreads
         public abstract TValue ToValue(TValue2 value2);
 
         public override bool IsCompleted => Inner.IsCompleted;
-        public override bool IsEmpty => Inner.IsEmpty;
 
-        public override KeyValuePair<TKey2, TValue2> First
-            => new KeyValuePair<TKey2, TValue2>(ToKey2(Inner.First.Key), ToValue2(Inner.First.Value));
-
-        public override KeyValuePair<TKey2, TValue2> Last
-            => new KeyValuePair<TKey2, TValue2>(ToKey2(Inner.Last.Key), ToValue2(Inner.Last.Value));
+        public override Opt<KeyValuePair<TKey2, TValue2>> First
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var f = Inner.First;
+                return f.IsMissing ? Opt<KeyValuePair<TKey2, TValue2>>.Missing 
+                    : new KeyValuePair<TKey2, TValue2>(ToKey2(f.Present.Key), ToValue2(f.Present.Value));
+            }
+        }
+        
+        public override Opt<KeyValuePair<TKey2, TValue2>> Last
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var last = Inner.Last;
+                return last.IsMissing ? Opt<KeyValuePair<TKey2, TValue2>>.Missing 
+                    : new KeyValuePair<TKey2, TValue2>(ToKey2(last.Present.Key), ToValue2(last.Present.Value));
+            }
+        }
 
         public override IEnumerable<TKey2> Keys => Inner.Keys.Select(ToKey2);
         public override IEnumerable<TValue2> Values => Inner.Values.Select(ToValue2);
 
-        public override bool TryFind(TKey2 key, Lookup direction, out KeyValuePair<TKey2, TValue2> value)
+        public override bool TryGetValue(TKey2 key, out TValue2 value)
+        {
+            if (Inner.TryGetValue(ToKey(key), out var tmp))
+            {
+                value = ToValue2(tmp);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+        
+        public override bool TryFindAt(TKey2 key, Lookup direction, out KeyValuePair<TKey2, TValue2> value)
         {
             KeyValuePair<TKey, TValue> tmp;
             if (Inner.TryFindAt(ToKey(key), direction, out tmp))
-            {
-                value = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
-                return true;
-            }
-            value = default(KeyValuePair<TKey2, TValue2>);
-            return false;
-        }
-
-        public override bool TryGetFirst(out KeyValuePair<TKey2, TValue2> value)
-        {
-            KeyValuePair<TKey, TValue> tmp;
-            if (Inner.TryGetFirst(out tmp))
-            {
-                value = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
-                return true;
-            }
-            value = default(KeyValuePair<TKey2, TValue2>);
-            return false;
-        }
-
-        public override bool TryGetLast(out KeyValuePair<TKey2, TValue2> value)
-        {
-            KeyValuePair<TKey, TValue> tmp;
-            if (Inner.TryGetLast(out tmp))
             {
                 value = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
                 return true;
@@ -102,14 +105,22 @@ namespace Spreads
 
         public override Task<bool> Updated => Inner.Updated;
 
-        public override TValue2 GetAt(int idx)
-        {
-            return ToValue2(Inner.TryGetAt(idx));
+        public override bool TryGetAt(long idx, out KeyValuePair<TKey2, TValue2> value)
+        {            
+            KeyValuePair<TKey, TValue> tmp;
+            if (Inner.TryGetAt(idx, out tmp))
+            {
+                value = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
+                return true;
+            }
+            value = default(KeyValuePair<TKey2, TValue2>);
+            return false;
+            
         }
 
         public static TImpl Create(IReadOnlySeries<TKey, TValue> innerSeries)
         {
-            if (Pool == null || !Pool.TryTake(out TImpl instance))
+            if (_pool == null || !_pool.TryTake(out TImpl instance))
             {
                 instance = new TImpl();
                 instance._comparer = KeyComparer<TKey2>.Create(new ConvertComparer(instance));
@@ -126,11 +137,11 @@ namespace Spreads
             if (disposing)
             {
                 // no pooling from finalizers, just don't do that
-                if (Pool == null)
+                if (_pool == null)
                 {
-                    Pool = new BoundedConcurrentBag<TImpl>(Environment.ProcessorCount * 2);
+                    _pool = new BoundedConcurrentBag<TImpl>(Environment.ProcessorCount * 2);
                 }
-                if (!Pool.TryAdd(this as TImpl))
+                if (!_pool.TryAdd(this as TImpl))
                 {
                     // not added to the pool, let it die
                     GC.SuppressFinalize(this);
@@ -164,6 +175,11 @@ namespace Spreads
             public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
             {
                 return _innerCursor.MoveNextAsync(cancellationToken);
+            }
+
+            public Task<bool> MoveNextAsync()
+            {
+                return MoveNextAsync(default);
             }
 
             public void Dispose()
@@ -201,14 +217,24 @@ namespace Spreads
                 return _innerCursor.MoveLast();
             }
 
+            public long MoveNext(long stride, bool allowPartial)
+            {
+                throw new NotImplementedException();
+            }
+
             public bool MovePrevious()
             {
                 return _innerCursor.MovePrevious();
             }
 
+            public long MovePrevious(long stride, bool allowPartial)
+            {
+                throw new NotImplementedException();
+            }
+
             public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
             {
-                return _innerCursor.MoveNextSpan(cancellationToken);
+                return _innerCursor.MoveNextBatch(cancellationToken);
             }
 
             public ICursor<TKey2, TValue2> Clone()
@@ -218,8 +244,7 @@ namespace Spreads
 
             public bool TryGetValue(TKey2 key, out TValue2 value)
             {
-                TValue tmp;
-                if (_innerCursor.TryGetValue(_source.ToKey(key), out tmp))
+                if (_innerCursor.TryGetValue(_source.ToKey(key), out var tmp))
                 {
                     value = _source.ToValue2(tmp);
                     return true;
@@ -228,15 +253,23 @@ namespace Spreads
                 return false;
             }
 
+            public CursorState State => _innerCursor.State;
+            
             public KeyComparer<TKey2> Comparer => _source.Comparer;
+            
             public TKey2 CurrentKey => _source.ToKey2(_innerCursor.CurrentKey);
+            
             public TValue2 CurrentValue => _source.ToValue2(_innerCursor.CurrentValue);
 
             // TODO object pooling
-            public IReadOnlySeries<TKey2, TValue2> CurrentBatch => Create(_innerCursor.CurrentSpan);
+            public IReadOnlySeries<TKey2, TValue2> CurrentBatch => Create(_innerCursor.CurrentBatch);
 
             public IReadOnlySeries<TKey2, TValue2> Source => _source; //Create(_innerCursor.Source);
             public bool IsContinuous => _innerCursor.IsContinuous;
+            public Task DisposeAsync()
+            {
+                return _innerCursor.DisposeAsync();
+            }
         }
 
         private struct ConvertComparer : IComparer<TKey2>
@@ -307,82 +340,89 @@ namespace Spreads
             Dispose(false);
         }
 
-        public void Add(TKey2 key, TValue2 value)
-        {
-            MutableInner.Add(ToKey(key), ToValue(value));
-        }
-
-        public void AddLast(TKey2 key, TValue2 value)
-        {
-            MutableInner.AddLast(ToKey(key), ToValue(value));
-        }
-
-        public void AddFirst(TKey2 key, TValue2 value)
-        {
-            MutableInner.AddFirst(ToKey(key), ToValue(value));
-        }
-
-        public bool Remove(TKey2 key)
-        {
-            return MutableInner.Remove(ToKey(key));
-        }
-
-        public bool RemoveLast(out KeyValuePair<TKey2, TValue2> kvp)
-        {
-            KeyValuePair<TKey, TValue> tmp;
-            if (MutableInner.RemoveLast(out tmp))
-            {
-                kvp = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
-                return true;
-            }
-            kvp = default(KeyValuePair<TKey2, TValue2>);
-            return false;
-        }
-
-        public bool RemoveFirst(out KeyValuePair<TKey2, TValue2> kvp)
-        {
-            KeyValuePair<TKey, TValue> tmp;
-            if (MutableInner.RemoveFirst(out tmp))
-            {
-                kvp = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
-                return true;
-            }
-            kvp = default(KeyValuePair<TKey2, TValue2>);
-            return false;
-        }
-
-        public bool RemoveMany(TKey2 key, Lookup direction)
-        {
-            return MutableInner.RemoveMany(ToKey(key), direction);
-        }
-
         public int Append(IReadOnlySeries<TKey2, TValue2> appendMap, AppendOption option)
         {
             // TODO using ConvertSeries
             throw new NotImplementedException();
         }
 
-        public void Complete()
+        public ValueTask<long> TryAppend(IReadOnlySeries<TKey2, TValue2> appendMap, AppendOption option = AppendOption.RejectOnOverlap)
         {
-            MutableInner.Complete();
+            throw new NotImplementedException();
+        }
+
+        public Task Complete()
+        {
+            return MutableInner.Complete();
         }
 
         public long Count => MutableInner.Count;
 
         public long Version => MutableInner.Version;
 
-        public override TValue2 this[TKey2 key] => ToValue2(MutableInner[ToKey(key)]);
-
-        TValue2 IMutableSeries<TKey2, TValue2>.this[TKey2 key]
+        public bool IsAppendOnly => MutableInner.IsAppendOnly;
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task<bool> Set(TKey2 key, TValue2 value)
         {
-            get { return ToValue2(MutableInner[ToKey(key)]); }
-            set { MutableInner[ToKey(key)] = ToValue(value); }
+            return MutableInner.Set(ToKey(key), ToValue(value));
         }
 
-        public void Flush()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task<bool> TryAdd(TKey2 key, TValue2 value)
         {
-            var p = MutableInner as IPersistentObject;
-            p?.Flush();
+            return MutableInner.TryAdd(ToKey(key), ToValue(value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task<bool> TryAddLast(TKey2 key, TValue2 value)
+        {
+            return MutableInner.TryAddLast(ToKey(key), ToValue(value));
+        }
+
+        public Task<bool> TryAddFirst(TKey2 key, TValue2 value)
+        {
+            return MutableInner.TryAddFirst(ToKey(key), ToValue(value));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async ValueTask<Opt<TValue2>> TryRemove(TKey2 key)
+        {
+            var opt = await MutableInner.TryRemove(ToKey(key));
+            return opt.IsPresent ? ToValue2(opt.Present) : Opt<TValue2>.Missing;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async ValueTask<Opt<KeyValuePair<TKey2, TValue2>>> TryRemoveFirst()
+        {
+            var opt = await MutableInner.TryRemoveFirst();
+            return opt.IsPresent
+                ? new KeyValuePair<TKey2, TValue2>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value))
+                : Opt<KeyValuePair<TKey2, TValue2>>.Missing;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async ValueTask<Opt<KeyValuePair<TKey2, TValue2>>> TryRemoveLast()
+        {
+            var opt = await MutableInner.TryRemoveLast();
+            return opt.IsPresent
+                ? new KeyValuePair<TKey2, TValue2>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value))
+                : Opt<KeyValuePair<TKey2, TValue2>>.Missing;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async ValueTask<Opt<KeyValuePair<TKey2, TValue2>>> TryRemoveMany(TKey2 key, Lookup direction)
+        {
+            var opt = await MutableInner.TryRemoveMany(ToKey(key), direction);
+            return opt.IsPresent
+                ? new KeyValuePair<TKey2, TValue2>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value))
+                : Opt<KeyValuePair<TKey2, TValue2>>.Missing;
+        }
+
+
+        public Task Flush()
+        {
+            return MutableInner is IPersistentObject p ? p.Flush() : Task.CompletedTask;
         }
 
         public string Id
