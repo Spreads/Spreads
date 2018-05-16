@@ -169,7 +169,7 @@ namespace Spreads
             var sortedMap = new SortedMap<DateTime, long>();
             if (tz.ToLowerInvariant() == "utc")
             {
-                sortedMap[new DateTime(0L, DateTimeKind.Utc)] = 0;
+                sortedMap.Set(new DateTime(0L, DateTimeKind.Utc), 0);
             }
             else
             {
@@ -184,7 +184,7 @@ namespace Spreads
                     var intervalStart = interval.Start.ToDateTimeUtc();
                     var offset = standardOffsetOnly ? interval.StandardOffset : interval.WallOffset;
                     var offsetTicks = offset.Ticks;
-                    sortedMap.AddLast(intervalStart, offsetTicks);
+                    sortedMap.TryAddLast(intervalStart, offsetTicks);
                 }
             }
             sortedMap.Complete();
@@ -205,7 +205,7 @@ namespace Spreads
             var sortedMap = new SortedMap<DateTime, long>();
             if (tz.ToLowerInvariant() == "utc")
             {
-                sortedMap[new DateTime(0L, DateTimeKind.Unspecified)] = 0;
+                sortedMap.Set(new DateTime(0L, DateTimeKind.Unspecified), 0);
             }
             else
             {
@@ -219,7 +219,7 @@ namespace Spreads
                     var localStart = interval.IsoLocalStart.ToDateTimeUnspecified();
                     var offset = standardOffsetOnly ? interval.StandardOffset : interval.WallOffset;
                     var offsetTicks = offset.Ticks;
-                    sortedMap.AddLast(localStart, offsetTicks);
+                    sortedMap.TryAddLast(localStart, offsetTicks);
                 }
             }
             sortedMap.Complete();

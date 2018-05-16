@@ -32,6 +32,7 @@ namespace Spreads.Generation
         /// <summary>
         /// Returns a sorted map that is being filled by new values
         /// </summary>
+        /// <param name="durationMsecs"></param>
         /// <param name="existing"></param>
         /// <returns></returns>
         public SortedMap<DateTime, V> Generate(int durationMsecs = 0, SortedMap<DateTime, V> existing = null, CancellationTokenSource cts = null)
@@ -40,7 +41,7 @@ namespace Spreads.Generation
             var sm = existing ?? new SortedMap<DateTime, V>();
             Cts = cts ?? new CancellationTokenSource();
             var c = 0;
-            var previous = sm.IsEmpty ? default(V) : sm.Last.Value;
+            var previous = sm.Last.Present.Value; // if missing then default OK
             if (durationMsecs > 0)
             {
                 Cts.CancelAfter(durationMsecs);
@@ -60,7 +61,7 @@ namespace Spreads.Generation
                     }
                     // do work
                     var next = _valueGenerator(c, previous);
-                    sm.Add(startDt.AddTicks(c * _periodTicks + sw.ElapsedTicks), next);
+                    sm.TryAdd(startDt.AddTicks(c * _periodTicks + sw.ElapsedTicks), next);
                     previous = next;
                     c++;
                     sw.Restart();

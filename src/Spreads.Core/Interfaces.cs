@@ -311,7 +311,7 @@ namespace Spreads
         ///// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
         ///// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code> .
         ///// </summary>
-        bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp); // TODO support negative moves
+        bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp); // TODO support negative moves in all implementations, -1 is last
 
         /// <summary>
         /// The method finds value according to direction, returns false if it could not find such a value
@@ -404,27 +404,27 @@ namespace Spreads
         /// <summary>
         /// Returns Value deleted at the given key on success.
         /// </summary>
-        Task<bool> TryRemove(TKey key, out TValue value);
+        ValueTask<Opt<TValue>> TryRemove(TKey key);
 
         /// <summary>
         /// Returns KeyValue deleted at the first key.
         /// </summary>
-        Task<bool> TryRemoveFirst(out KeyValuePair<TKey, TValue> keyValue);
+        ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveFirst();
 
         /// <summary>
         /// Returns KeyValue deleted at the last key (with version before deletion)
         /// </summary>
-        Task<bool> TryRemoveLast(out KeyValuePair<TKey, TValue> keyValue);
+        ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveLast();
 
         /// <summary>
         /// Removes all keys from the given key towards the given direction and return the nearest removed key.
         /// </summary>
-        Task<bool> TryRemoveMany(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> keyValue);
+        ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveMany(TKey key, Lookup direction);
 
         /// <summary>
         /// And values from appendMap to the end of this map.
         /// </summary>
-        Task<bool> TryAppend(IReadOnlySeries<TKey, TValue> appendMap, out long count, AppendOption option = AppendOption.RejectOnOverlap);
+        ValueTask<long> TryAppend(IReadOnlySeries<TKey, TValue> appendMap, AppendOption option = AppendOption.RejectOnOverlap);
 
         /// <summary>
         /// Make the map read-only and disable all Add/Remove/Set methods (they will throw)

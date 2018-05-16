@@ -1085,9 +1085,9 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void NotifyUpdate(bool result = true)
+        internal void NotifyUpdate(bool result)
         {
-            // NB in some cases (inside write lock) interlocked is not needed, but we then use this same lgic manually without Interlocked
+            // NB in some cases (inside write lock) interlocked is not needed, but we then use this same logic manually without Interlocked
             var tcs = Interlocked.Exchange(ref _tcs, null);
             tcs?.SetResult(result);
         }

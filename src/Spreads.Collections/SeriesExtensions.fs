@@ -83,7 +83,7 @@ type SeriesExtensionsAux () =
     static member inline RemoveAll<'K,'V when 'K : comparison>(orderedMap: IMutableSeries<'K,'V>) =
       let f = orderedMap.First
       let mutable x = Unchecked.defaultof<_>
-      if f.IsPresent then orderedMap.TryRemoveMany(f.Present.Key, Lookup.GE, &x).Result
+      if f.IsPresent then orderedMap.TryRemoveMany(f.Present.Key, Lookup.GE).Result.IsPresent
       else false
 
 

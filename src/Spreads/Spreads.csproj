@@ -6,6 +6,9 @@
         <RootNamespace>Spreads</RootNamespace>
         <Description />
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard2.0|AnyCPU'">
+      <LangVersion>7.2</LangVersion>
+    </PropertyGroup>
 
     <ItemGroup>
         <Compile Remove="native\**" />

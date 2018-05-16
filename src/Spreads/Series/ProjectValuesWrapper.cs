@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Threading.Tasks;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads
@@ -10,13 +11,13 @@ namespace Spreads
     /// <summary>
     /// Projects values from source to destination and back
     /// </summary>
-    public class ProjectValuesWrapper<K, Vsrc, Vdest> : ConvertMutableSeries<K, Vsrc, K, Vdest, ProjectValuesWrapper<K, Vsrc, Vdest>>, IPersistentSeries<K, Vdest>
+    public class ProjectValuesWrapper<TKey, TVsrc, TVdest> : ConvertMutableSeries<TKey, TVsrc, TKey, TVdest, ProjectValuesWrapper<TKey, TVsrc, TVdest>>, IPersistentSeries<TKey, TVdest>
     {
-        private IMutableSeries<K, Vsrc> _innerMap;
-        private Func<Vsrc, Vdest> _srcToDest;
-        private Func<Vdest, Vsrc> _destToSrc;
+        private IMutableSeries<TKey, TVsrc> _innerMap;
+        private Func<TVsrc, TVdest> _srcToDest;
+        private Func<TVdest, TVsrc> _destToSrc;
 
-        public ProjectValuesWrapper(IMutableSeries<K, Vsrc> innerMap, Func<Vsrc, Vdest> srcToDest, Func<Vdest, Vsrc> destToSrc) : base(innerMap)
+        public ProjectValuesWrapper(IMutableSeries<TKey, TVsrc> innerMap, Func<TVsrc, TVdest> srcToDest, Func<TVdest, TVsrc> destToSrc) : base(innerMap)
         {
             _innerMap = innerMap;
             _srcToDest = srcToDest;
@@ -27,27 +28,27 @@ namespace Spreads
         {
         }
 
-        public sealed override K ToKey2(K key)
+        public sealed override TKey ToKey2(TKey key)
         {
             return key;
         }
 
-        public sealed override Vdest ToValue2(Vsrc value)
+        public sealed override TVdest ToValue2(TVsrc value)
         {
             return _srcToDest(value);
         }
 
-        public sealed override K ToKey(K key2)
+        public sealed override TKey ToKey(TKey key2)
         {
             return key2;
         }
 
-        public sealed override Vsrc ToValue(Vdest value2)
+        public sealed override TVsrc ToValue(TVdest value2)
         {
             return _destToSrc(value2);
         }
 
-        internal static ProjectValuesWrapper<K, Vsrc, Vdest> Create(IMutableSeries<K, Vsrc> innerMap, Func<Vsrc, Vdest> srcToDest, Func<Vdest, Vsrc> destToSrc)
+        internal static ProjectValuesWrapper<TKey, TVsrc, TVdest> Create(IMutableSeries<TKey, TVsrc> innerMap, Func<TVsrc, TVdest> srcToDest, Func<TVdest, TVsrc> destToSrc)
         {
             var inst = Create(innerMap);
             inst._srcToDest = srcToDest;
@@ -64,11 +65,11 @@ namespace Spreads
             base.Dispose(disposing);
         }
 
-        public string Id => (_innerMap as IPersistentObject)?.Id ?? "";
+        public new string Id => (_innerMap as IPersistentObject)?.Id ?? "";
 
-        public void Flush()
+        public new Task Flush()
         {
-            (_innerMap as IPersistentObject)?.Flush();
+            return (_innerMap as IPersistentObject)?.Flush();
         }
     }
 }
