@@ -39,7 +39,7 @@ namespace Spreads.Serialization
 
 
     internal class PreservedBufferArrayBinaryConverterImpl<TElement> :
-        ICompressedArrayBinaryConverter<PreservedBuffer<TElement>[]>, ICompressedArrayBinaryConverter<object>
+        ICompressedArrayBinaryConverter<RetainedMemory<TElement>[]>, ICompressedArrayBinaryConverter<object>
     {
         public bool IsFixedSize => false;
         public int Size => 0;
@@ -47,17 +47,17 @@ namespace Spreads.Serialization
         public byte Version => 0;
         private static readonly int ItemSize = TypeHelper<TElement>.Size;
 
-        public int SizeOf(PreservedBuffer<TElement>[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public int SizeOf(RetainedMemory<TElement>[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             throw new NotImplementedException("TODO PreservedBufferArray typed methods");
         }
 
-        public int Write(PreservedBuffer<TElement>[] value, int valueOffset, int valueCount, ref Memory<byte> destination, uint destinationOffset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public int Write(RetainedMemory<TElement>[] value, int valueOffset, int valueCount, ref Memory<byte> destination, uint destinationOffset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             throw new NotImplementedException("TODO PreservedBufferArray typed methods");
         }
 
-        public int Read(IntPtr ptr, out PreservedBuffer<TElement>[] array, out int count, bool exactSize = false)
+        public int Read(IntPtr ptr, out RetainedMemory<TElement>[] array, out int count, bool exactSize = false)
         {
             throw new NotImplementedException("TODO PreservedBufferArray typed methods");
         }
@@ -66,19 +66,19 @@ namespace Spreads.Serialization
 
         public int SizeOf(object value, int valueOffset, int valueCount, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
-            var typedValue = (PreservedBuffer<TElement>[])value;
+            var typedValue = (RetainedMemory<TElement>[])value;
             return SizeOf(typedValue, valueOffset, valueCount, out temporaryStream, compression);
         }
 
         public int Write(object value, int valueOffset, int valueCount, ref Memory<byte> destination, uint destinationOffset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
-            var typedValue = (PreservedBuffer<TElement>[])value;
+            var typedValue = (RetainedMemory<TElement>[])value;
             return Write(typedValue, valueOffset, valueCount, ref destination, destinationOffset, temporaryStream, compression);
         }
 
         public int Read(IntPtr ptr, out object array, out int count, bool exactSize = false)
         {
-            var result = Read(ptr, out PreservedBuffer<TElement>[] typedArray, out count, exactSize);
+            var result = Read(ptr, out RetainedMemory<TElement>[] typedArray, out count, exactSize);
             array = typedArray;
             return result;
         }

@@ -566,7 +566,7 @@ namespace Spreads.Tests
         [Test, Ignore("long running")]
         public unsafe void PinningNonBlittableThrows()
         {
-            var buffer = BufferPool<string>.RentOwnedBuffer(100);
+            var buffer = BufferPool<string>.RentOwnedPooledArray(100);
             Assert.Throws<ArgumentException>(() =>
             {
                 var handle = buffer.Memory.Pin();
@@ -578,7 +578,7 @@ namespace Spreads.Tests
         [Test, Ignore("long running")]
         public unsafe void UnsafeWorksWithRefTypes()
         {
-            var buffer = BufferPool<string>.RentOwnedBuffer(100);
+            var buffer = BufferPool<string>.RentOwnedPooledArray(100);
             ref var addr = ref GetRef(buffer);
             ref var pos = ref Unsafe.Add(ref addr, 1);
             pos = "asd";
@@ -708,13 +708,13 @@ namespace Spreads.Tests
         {
             var count = 1000000;
             var array = new double[count];
-            var buffer = BufferPool<double>.RentOwnedBuffer(count, true);
-            var buffer2 = BufferPool<double>.RentOwnedBuffer(count, true);
+            var buffer = BufferPool<double>.RentOwnedPooledArray(count, true);
+            var buffer2 = BufferPool<double>.RentOwnedPooledArray(count, true);
 
             var handle2 = buffer2.Memory.Pin();
             var pointer2 = handle2.Pointer;
 
-            var buffer3 = BufferPool<double>.RentOwnedBuffer(count, true);
+            var buffer3 = BufferPool<double>.RentOwnedPooledArray(count, true);
             var handle3 = buffer3.Memory.Pin();
             var pointer3 = handle3.Pointer;
 

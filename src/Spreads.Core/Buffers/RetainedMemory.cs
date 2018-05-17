@@ -16,28 +16,60 @@ namespace Spreads.Buffers
     /// Use this struct carefully: it must always be explicitly disposed, otherwise underlying OwnedPooledArray
     /// will never be returned to the pool and memory will leak.
     /// Use <see cref="Clone"/> method to create a copy of this memory and to ensure that the underlying <see cref="Buffers.OwnedPooledArray{T}"/> is not returned to the pool.
-    /// When adding to a Spreads disposable collection (e.g. SortedMap) ownership is transfered to a collection and PreservedBuffer
+    /// When adding to a Spreads disposable collection (e.g. SortedMap) ownership is transfered to a collection and RetainedMemory
     /// will be disposed during disposal of that collection. To keep ownership outside the collection, use the <see cref="Clone"/> method and
-    /// add a cloned PreservedBuffer value to the collection.
+    /// add a cloned RetainedMemory value to the collection.
     /// </summary>
     /// <remarks>
-    /// <see cref="PreservedBuffer{T}"/> is the owner of <see cref="MemoryHandle"/> reservation.
+    /// <see cref="RetainedMemory{T}"/> is the owner of <see cref="MemoryHandle"/> reservation.
     /// When it is passed to any method or added  to any collection the reservation ownership is transfered as well.
     /// The consuming method or collection must dispose the <see cref="MemoryHandle"/> reservation. If the caller
     /// needs to retain the memory and must call <see cref="Clone"/> and pass the cloned memory.
     /// </remarks>
-    public struct PreservedBuffer<T> : IPreservedBuffer // IReadOnlyList<T>,
+    public struct RetainedMemory<T> : IPreservedBuffer // IReadOnlyList<T>,
     {
         private MemoryHandle _memoryHandle;
 
         /// <summary>
-        /// Create a new PreservedBuffer structure.
+        /// Create a new RetainedMemory from Memory and pins it.
         /// </summary>
         /// <param name="memory"></param>
-        public PreservedBuffer(Memory<T> memory)
+        public RetainedMemory(Memory<T> memory)
         {
             Memory = memory;
             _memoryHandle = memory.Pin();
+        }
+
+        internal RetainedMemory(Memory<T> memory, MemoryHandle handle)
+        {
+            Memory = memory;
+            _memoryHandle = handle;
+        }
+
+        public bool IsPinned
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                unsafe
+                {
+                    return _memoryHandle.Pointer != (void*)IntPtr.Zero;
+                }
+            }
+        }
+
+        public unsafe void* Pointer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (IsPinned) return _memoryHandle.Pointer;
+                // replace handles
+                var newHandle = Memory.Pin();
+                _memoryHandle.Dispose();
+                _memoryHandle = newHandle;
+                return _memoryHandle.Pointer;
+            }
         }
 
         /// <summary>
@@ -55,13 +87,13 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// Gets the number of elements in the PreservedBuffer.
+        /// Gets the number of elements in the RetainedMemory.
         /// </summary>
         [Obsolete("Use Length property instead")]
         public int Count => Memory.Length;
 
         /// <summary>
-        /// Gets the number of elements in the PreservedBuffer.
+        /// Gets the number of elements in the RetainedMemory.
         /// </summary>
         public int Length
         {
@@ -70,7 +102,7 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// Gets the element at the specified index in the PreservedBuffer.
+        /// Gets the element at the specified index in the RetainedMemory.
         /// </summary>
         public T this[int index]
         {
@@ -91,9 +123,9 @@ namespace Spreads.Buffers
         /// <summary>
         /// Increment the underlying OwnedBuffer reference count and return a copy of this preserved memory.
         /// </summary>
-        public PreservedBuffer<T> Clone()
+        public RetainedMemory<T> Clone()
         {
-            return new PreservedBuffer<T>(Memory);
+            return new RetainedMemory<T>(Memory);
         }
 
         public Type ElementType => typeof(T);

@@ -1,4 +1,5 @@
-﻿using Spreads.Blosc;
+﻿using System.Linq.Expressions;
+using Spreads.Blosc;
 using Spreads.Serialization;
 
 namespace Spreads
@@ -8,6 +9,12 @@ namespace Spreads
     /// </summary>
     public static class Settings
     {
+        // TODO find
+        /// <summary>
+        /// 
+        /// </summary>
+        public const int SliceMemoryAlignment = 8;
+
         internal class AdditionalCorrectnessChecks
         {
             // Unless _doAdditionalCorrectnessChecks is changed from default before this internal

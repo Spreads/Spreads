@@ -15,10 +15,10 @@ namespace Spreads.Tests.Serialization
         [Test, Ignore("long running")]
         public void CouldCreateBinaryConverter()
         {
-            var converter = GetConverter<PreservedBuffer<byte>[]>();
+            var converter = GetConverter<RetainedMemory<byte>[]>();
 
             Assert.AreEqual(0, converter.Size);
-            var buffers = new[] { BufferPool.PreserveMemory(10) };
+            var buffers = new[] { BufferPool.Retain(10) };
             //Assert.Throws<NotImplementedException>(() =>
             //{
             converter.SizeOf(buffers, 0, 10, out var temp);

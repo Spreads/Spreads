@@ -102,7 +102,8 @@ namespace Spreads.Buffers
         {
             unsafe
             {
-                Retain();
+                if (IsDisposed) { ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>)); }
+                Interlocked.Increment(ref _referenceCount);
                 if ((uint)elementIndex > (uint)_array.Length) { ThrowHelper.ThrowArgumentOutOfRangeException(nameof(elementIndex)); }
                 var handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
                 var pointer = SRCS.Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), elementIndex);
@@ -110,11 +111,52 @@ namespace Spreads.Buffers
             }
         }
 
+        /// <summary>
+        /// Retain buffer memory without pinning it.
+        /// </summary>
         [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
-        public void Retain()
+        public RetainedMemory<T> Retain()
+        {
+            return RetainImpl();
+        }
+
+        /// <summary>
+        /// Retain buffer memory without pinning it.
+        /// </summary>
+        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        public RetainedMemory<T> Retain(int length)
+        {
+            return RetainImpl(length: length);
+        }
+
+        /// <summary>
+        /// Retain buffer memory without pinning it.
+        /// </summary>
+        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        public RetainedMemory<T> Retain(int start, int length)
+        {
+            return RetainImpl(start, length);
+        }
+
+        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        private RetainedMemory<T> RetainImpl(int start = -1, int length = -1)
         {
             if (IsDisposed) { ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>)); }
             Interlocked.Increment(ref _referenceCount);
+            unsafe
+            {
+                // MemoryHandle is not exposed in RetainedMemory. It is just IDisposable that
+                // keeps MH with it and could decrement refcount of this object when disposed.
+                // We sometimes need to keep a reference to underlying array and avoid returning
+                // it to BufferPool.
+                var handle = new MemoryHandle((void*)IntPtr.Zero, default, this);
+                if (length < 0) return new RetainedMemory<T>(Memory, handle);
+                if (start >= 0)
+                {
+                    return new RetainedMemory<T>(CreateMemory(start, length), handle);
+                }
+                return new RetainedMemory<T>(CreateMemory(length), handle);
+            }
         }
 
         [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]

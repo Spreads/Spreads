@@ -64,7 +64,7 @@ namespace Spreads.Serialization
             if (ItemSize > 0)
             {
                 var maxSize = 8 + (16 + BloscMethods.ProcessorCount * 4) + ItemSize * valueCount;
-                var ownedBuffer = BufferPool<byte>.RentOwnedBuffer(maxSize);
+                var ownedBuffer = BufferPool<byte>.RentOwnedPooledArray(maxSize);
                 ownedBuffer.Pin();
                 var buffer = ownedBuffer.Memory;
 
@@ -72,7 +72,7 @@ namespace Spreads.Serialization
                 temporaryStream = new RentedBufferStream(ownedBuffer, totalSize);
                 return totalSize;
             }
-            else if (Buffers.BufferPool.IsPreservedBuffer<TElement>())
+            else if (BufferPoolRetainedMemoryHelper<TElement>.IsRetainedMemory)
             {
                 throw new NotImplementedException();
             }
@@ -231,7 +231,7 @@ namespace Spreads.Serialization
                             pinnedArray.Free();
                         }
                     }
-                    else if (Buffers.BufferPool.IsPreservedBuffer<TElement>())
+                    else if (BufferPoolRetainedMemoryHelper<TElement>.IsRetainedMemory)
                     {
                         throw new NotImplementedException();
                     }
@@ -300,7 +300,7 @@ namespace Spreads.Serialization
                 BufferPool<byte>.Return(decompressedBytes);
                 return size;
             }
-            else if (Buffers.BufferPool.IsPreservedBuffer<TElement>())
+            else if (BufferPoolRetainedMemoryHelper<TElement>.IsRetainedMemory)
             {
                 throw new NotImplementedException();
             }

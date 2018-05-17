@@ -146,7 +146,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write<T>(T value, ref PreservedBuffer<byte> destination, uint offset = 0u,
+        public static int Write<T>(T value, ref RetainedMemory<byte> destination, uint offset = 0u,
             MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
             var buffer = destination.Memory;
@@ -199,7 +199,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Read<T>(PreservedBuffer<byte> source, uint offset, out T value)
+        public static unsafe int Read<T>(RetainedMemory<byte> source, uint offset, out T value)
         {
             var handle = source.Memory.Pin();
             try
