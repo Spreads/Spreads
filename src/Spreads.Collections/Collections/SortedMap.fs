@@ -1904,11 +1904,11 @@ and
       member this.Source with get() = this.source :> ISeries<'K,'V>
       member this.Clone() = this.Clone() :> ICursor<'K,'V>
       member this.IsContinuous with get() = false
+      member this.TryGetValue(key, [<Out>] value: byref<'V>) = this.TryGetValue(key, &value)
       // TODO
       member this.State with get() = raise (NotImplementedException())
       member this.MoveNext(stride, allowPartial) = raise (NotImplementedException())
       member this.MovePrevious(stride, allowPartial) = raise (NotImplementedException())
-      member this.TryGetValue(key, [<Out>] value: byref<'V>) = this.TryGetValue(key, &value)
       
     interface ISpecializedCursor<'K,'V, SortedMapCursor<'K,'V>> with
       member this.Initialize() = 

@@ -114,7 +114,11 @@ namespace Spreads
             }
         }
 
+        /// <inheritdoc />
         public abstract bool TryGetValue(TKey key, out TValue value);
+
+        /// <inheritdoc />
+        public abstract bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
 
         /// <inheritdoc />
         public abstract bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp);
@@ -124,10 +128,6 @@ namespace Spreads
 
         /// <inheritdoc />
         public abstract IEnumerable<TValue> Values { get; }
-
-
-        /// <inheritdoc />
-        public abstract bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
 
         internal Cursor<TKey, TValue> GetWrapper()
         {
@@ -966,9 +966,12 @@ namespace Spreads
 
         // ReSharper disable InconsistentNaming
         internal long _version;
+
         internal long _nextVersion;
+
         // ReSharper restore InconsistentNaming
         internal int Locker;
+
         private TaskCompletionSource<bool> _tcs;
         private TaskCompletionSource<bool> _unusedTcs;
 
@@ -1090,6 +1093,11 @@ namespace Spreads
             // NB in some cases (inside write lock) interlocked is not needed, but we then use this same logic manually without Interlocked
             var tcs = Interlocked.Exchange(ref _tcs, null);
             tcs?.SetResult(result);
+        }
+
+        public override ICursor<TKey, TValue> GetCursor()
+        {
+            return GetContainerCursor();
         }
 
         /// <summary>
@@ -1445,25 +1453,18 @@ namespace Spreads
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
 #pragma warning restore 660,661
     {
-
+        private bool _cursorIsSet;
         private TCursor _c;
-
-        protected CursorContainerSeries()
-        {
-            // TODO review this usage. We need finalizer only when C is accessed,
-            // but this pattern is weird and I have never seen it
-            GC.SuppressFinalize(this);
-        }
 
         private TCursor C
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (EqualityComparer<TCursor>.Default.Equals(_c, default(TCursor)))
+                if (!_cursorIsSet)
                 {
                     _c = GetContainerCursor();
-                    GC.ReRegisterForFinalize(this);
+                    _cursorIsSet = true;
                 }
                 return _c;
             }
@@ -1492,6 +1493,14 @@ namespace Spreads
                 {
                     return C.MoveLast() ? C.Current : default;
                 }
+            }
+        }
+
+        public override bool TryGetValue(TKey key, out TValue value)
+        {
+            lock (SyncRoot)
+            {
+                return C.TryGetValue(key, out value);
             }
         }
 
@@ -1535,7 +1544,6 @@ namespace Spreads
             }
         }
 
-
         /// <inheritdoc />
         public override IEnumerable<TKey> Keys
         {
@@ -1570,11 +1578,9 @@ namespace Spreads
 
         public virtual void Dispose(bool disposing)
         {
-            if (!EqualityComparer<TCursor>.Default.Equals(_c, default(TCursor)))
-            {
-                _c.Dispose();
-                GC.SuppressFinalize(this);
-            }
+            if (!_cursorIsSet) return;
+            _c.Dispose();
+            GC.SuppressFinalize(this);
         }
 
         public void Dispose()

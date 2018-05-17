@@ -443,7 +443,7 @@ namespace Spreads.Cursors.Internal
         public bool IsIndexed => _cursor.Source.IsIndexed;
 
         /// <inheritdoc />
-        public bool IsReadOnly
+        public bool IsCompleted
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

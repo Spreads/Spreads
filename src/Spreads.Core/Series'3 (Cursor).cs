@@ -17,8 +17,7 @@ namespace Spreads
 #pragma warning disable 660, 661
 
     // TODO review if we could keep cursor and not initialize every time
-    
-    public struct Series<TKey, TValue, TCursor> : ISeries<TKey, TValue>, ISpecializedSeries<TKey, TValue, TCursor>
+    public struct Series<TKey, TValue, TCursor> : ISpecializedSeries<TKey, TValue, TCursor>
 #pragma warning restore 660, 661
         where TCursor : ICursorSeries<TKey, TValue, TCursor>
     {
@@ -55,7 +54,6 @@ namespace Spreads
 
         #region ISeries members
 
-
         IAsyncEnumerator<KeyValuePair<TKey, TValue>> IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetAsyncEnumerator()
         {
             return _cursor.Initialize();
@@ -89,7 +87,7 @@ namespace Spreads
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.IsReadOnly; }
+            get { return _cursor.IsCompleted; }
         }
 
         TCursor ISpecializedSeries<TKey, TValue, TCursor>.GetCursor()
@@ -105,9 +103,6 @@ namespace Spreads
             get { return _cursor.Updated; }
         }
 
-        #endregion ISeries members
-
-        #region ISeries members
 
         // TODO (perf) Review if initilize/dispose is too much overhead vs a cached navigation cursor.
 

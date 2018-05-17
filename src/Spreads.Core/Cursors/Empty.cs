@@ -177,7 +177,7 @@ namespace Spreads
         public bool IsIndexed => false;
 
         /// <inheritdoc />
-        public bool IsReadOnly => true;
+        public bool IsCompleted => true;
 
         /// <inheritdoc />
         public Task<bool> Updated => TaskUtil.FalseTask;

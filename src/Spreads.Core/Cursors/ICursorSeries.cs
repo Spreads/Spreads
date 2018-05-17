@@ -23,7 +23,7 @@ namespace Spreads
         /// <summary>
         /// Same as <see cref="ISeries{TKey,TValue}.IsCompleted"/>
         /// </summary>
-        bool IsReadOnly { get; }
+        bool IsCompleted { get; }
 
     }
 }

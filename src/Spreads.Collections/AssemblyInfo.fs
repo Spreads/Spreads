@@ -11,7 +11,7 @@ open System.Reflection
 [<assembly: AssemblyDescriptionAttribute("Spreads")>]
 [<assembly: AssemblyVersionAttribute("1.0.0")>]
 [<assembly: AssemblyFileVersionAttribute("1.0.0")>]
-[<assembly: AssemblyCopyrightAttribute("(c) Victor Baybekov 2017")>]
+[<assembly: AssemblyCopyrightAttribute("(c) Victor Baybekov 2018")>]
 do ()
 
 module internal AssemblyVersionInformation =

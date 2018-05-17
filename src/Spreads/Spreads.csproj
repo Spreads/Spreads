@@ -4,23 +4,13 @@
         <TargetFrameworks>netstandard2.0</TargetFrameworks>
         <AssemblyName>Spreads</AssemblyName>
         <RootNamespace>Spreads</RootNamespace>
+        <LangVersion>7.2</LangVersion>
         <Description />
     </PropertyGroup>
-    <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard2.0|AnyCPU'">
-      <LangVersion>7.2</LangVersion>
-    </PropertyGroup>
 
     <ItemGroup>
-        <Compile Remove="native\**" />
-        <EmbeddedResource Remove="native\**" />
-        <None Remove="native\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <PackageReference Include="NodaTime" Version="2.2.4" />
-    </ItemGroup>
-    <ItemGroup Condition=" '$(TargetFramework)' == 'net451' ">
-        <PackageReference Include="MathNet.Numerics.Signed" Version="3.20.2" />
+        <PackageReference Include="NodaTime" Version="2.2.6" />
+        <PackageReference Include="MathNet.Numerics.Signed" Version="4.4.1" />
     </ItemGroup>
 
     <ItemGroup>

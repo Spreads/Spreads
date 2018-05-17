@@ -1,7 +1,8 @@
 ﻿// This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-#if NET451
+
+// TODO ScanLagAllowIncompleteCursor is no longer there, find old one
 
 //using System;
 //using MathNet.Numerics.LinearAlgebra;
@@ -27,7 +28,7 @@
 
 //            // then we need to sum xpxi and xpy over a window, make inverse of the first and multiply
 //            // - the result is betas
-//            var dim = xs.First.Value.Length;
+//            var dim = xs.First.Present.Value.Length;
 //            var cursorFactory = new Func<ScanLagAllowIncompleteCursor<DateTime, ValueTuple<Matrix<double>, Matrix<double>>, ValueTuple<Matrix<double>, Matrix<double>>>>(() =>
 //                new ScanLagAllowIncompleteCursor<DateTime, ValueTuple<Matrix<double>, Matrix<double>>, ValueTuple<Matrix<double>, Matrix<double>>>(
 //                    xpx.GetCursor, window, step,
@@ -57,5 +58,3 @@
 //        }
 //    }
 //}
-
-#endif

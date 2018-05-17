@@ -63,7 +63,7 @@ namespace Spreads.Utils
 #if NET451
             return TaskExCache<T>.GetCancelled(cancellationToken);
 #else
-            return Task.FromCanceled<T>(cancellationToken);
+            return Task.FromCanceled<T>(cancellationToken.IsCancellationRequested ? cancellationToken : new CancellationToken(true));
 #endif
         }
 
