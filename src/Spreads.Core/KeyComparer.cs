@@ -128,7 +128,6 @@ namespace Spreads
             return new KeyComparer<T>(comparer);
         }
 
-
         /// <inheritdoc />
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -223,7 +222,7 @@ namespace Spreads
             }
 
             // NB all primitive types are IComparable, all custom types could be easily made such
-            // This optimization using Spreads.Unsafe package works for any type that implements 
+            // This optimization using Spreads.Unsafe package works for any type that implements
             // the interface and is as fast as `typeof(T) == typeof(...)` approach.
             // The special cases above are left for scenarios when the "static readonly" optimization
             // doesn't work, e.g. AOT. See discussion #100.
@@ -234,7 +233,6 @@ namespace Spreads
 
             return CompareSlow(x, y);
         }
-
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static int CompareSlow(T x, T y)
@@ -259,7 +257,7 @@ namespace Spreads
                 var x1 = (DateTime)(object)(x);
                 var y1 = (DateTime)(object)(y);
 
-                return x1.Ticks - y1.Ticks;
+                return checked(x1.Ticks - y1.Ticks);
             }
 
             if (typeof(T) == typeof(long))
@@ -267,7 +265,7 @@ namespace Spreads
                 var x1 = (long)(object)(x);
                 var y1 = (long)(object)(y);
 
-                return x1 - y1;
+                return checked(x1 - y1);
             }
 
             if (typeof(T) == typeof(ulong))
@@ -281,15 +279,13 @@ namespace Spreads
             {
                 var x1 = (int)(object)(x);
                 var y1 = (int)(object)(y);
-                return x1 - y1;
+                return checked((long)(x1) - (long)y1);
             }
 
             if (typeof(T) == typeof(uint))
             {
                 var x1 = (uint)(object)(x);
                 var y1 = (uint)(object)(y);
-
-                
                 return checked((long)(x1) - y1);
             }
 
@@ -301,7 +297,6 @@ namespace Spreads
         [Pure]
         public bool Equals(T x, T y)
         {
-
             if (_comparer != null)
             {
                 return _comparer.Compare(x, y) == 0;
@@ -327,7 +322,6 @@ namespace Spreads
 
             if (typeof(T) == typeof(ulong))
             {
-
                 var x1 = (ulong)(object)(x);
 
                 var y1 = (ulong)(object)(y);
