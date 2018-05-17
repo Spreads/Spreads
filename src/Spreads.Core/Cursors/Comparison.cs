@@ -135,7 +135,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, bool> CurrentBatch => throw new NotSupportedException();
+        public ISeries<TKey, bool> CurrentBatch => throw new NotSupportedException();
 
         public CursorState State => _cursor.State;
 
@@ -215,7 +215,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, bool> ICursor<TKey, bool>.Source => new Series<TKey, bool, Comparison<TKey, TValue, TCursor>>(this);
+        ISeries<TKey, bool> ICursor<TKey, bool>.Source => new Series<TKey, bool, Comparison<TKey, TValue, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.

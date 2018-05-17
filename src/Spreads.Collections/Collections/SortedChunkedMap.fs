@@ -830,8 +830,8 @@ namespace Spreads.Collections
 //  // TODO after checks, should form changed new chunks and use outer append method with rewrite
 //  // TODO atomic append with single version increase, now it is a sequence of remove/add mutations
 //  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-//  member this.Append(appendMap:IReadOnlySeries<'K,'V>, option:AppendOption) : int =
-//    let hasEqOverlap (old:SortedChunkedMapGeneric<_,_>) (append:IReadOnlySeries<'K,'V>) : bool =
+//  member this.Append(appendMap:ISeries<'K,'V>, option:AppendOption) : int =
+//    let hasEqOverlap (old:SortedChunkedMapGeneric<_,_>) (append:ISeries<'K,'V>) : bool =
 //      if comparer.Compare(append.First.Key, old.LastUnsafe.Key) > 0 then false
 //      else
 //        let oldC = new SortedChunkedMapGenericCursor<_,_>(old, false) :> ICursor<'K,'V>
@@ -953,7 +953,7 @@ namespace Spreads.Collections
 //
 //  //#region Interfaces
 //    
-//  interface IReadOnlySeries<'K,'V> with
+//  interface ISeries<'K,'V> with
 //    // the rest is in BaseSeries
 //    member this.Item with get k = this.Item(k)
 //
@@ -974,7 +974,7 @@ namespace Spreads.Collections
 //
 //    member this.RemoveMany(key:'K,direction:Lookup) = 
 //      this.RemoveMany(key, direction) 
-//    member this.Append(appendMap:IReadOnlySeries<'K,'V>, option:AppendOption) = this.Append(appendMap, option)
+//    member this.Append(appendMap:ISeries<'K,'V>, option:AppendOption) = this.Append(appendMap, option)
 //
 //  interface IPersistentSeries<'K,'V> with
 //    member this.Flush() = this.Flush()
@@ -1056,7 +1056,7 @@ namespace Spreads.Collections
 //
 //    member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
 //    member this.IsContinuous with get() = false
-//    member this.CurrentBatch: IReadOnlySeries<'K,'V> = 
+//    member this.CurrentBatch: ISeries<'K,'V> = 
 //      let mutable result = Unchecked.defaultof<_>
 //      let mutable doSpin = true
 //      let sw = new SpinWait()
@@ -1066,7 +1066,7 @@ namespace Spreads.Collections
 //        result <-
 //        /////////// Start read-locked code /////////////
 //
-//          if this.isBatch then this.outerCursor.CurrentValue :> IReadOnlySeries<'K,'V>
+//          if this.isBatch then this.outerCursor.CurrentValue :> ISeries<'K,'V>
 //          else raise (InvalidOperationException("SortedChunkedMapGenericCursor cursor is not at a batch position"))
 //
 //        /////////// End read-locked code /////////////
@@ -1334,7 +1334,7 @@ namespace Spreads.Collections
 //      member this.MovePrevious():bool = this.MovePrevious()
 //      member this.CurrentKey with get():'K = this.CurrentKey
 //      member this.CurrentValue with get():'V = this.CurrentValue
-//      member this.Source with get() = this.source :> IReadOnlySeries<'K,'V>
+//      member this.Source with get() = this.source :> ISeries<'K,'V>
 //      member this.Clone() = this.Clone() :> ICursor<'K,'V>
 //      member this.IsContinuous with get() = false
 //      member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)
@@ -1548,7 +1548,7 @@ namespace Spreads.Collections
 //
 //    member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
 //    member this.IsContinuous with get() = false
-//    member this.CurrentBatch: IReadOnlySeries<'K,'V> = 
+//    member this.CurrentBatch: ISeries<'K,'V> = 
 //      let mutable result = Unchecked.defaultof<_>
 //      let mutable doSpin = true
 //      let sw = new SpinWait()
@@ -1558,7 +1558,7 @@ namespace Spreads.Collections
 //        result <-
 //        /////////// Start read-locked code /////////////
 //
-//          if this.isBatch then this.outerCursor.CurrentValue :> IReadOnlySeries<'K,'V>
+//          if this.isBatch then this.outerCursor.CurrentValue :> ISeries<'K,'V>
 //          else raise (InvalidOperationException("SortedChunkedMapGenericCursor cursor is not at a batch position"))
 //
 //        /////////// End read-locked code /////////////
@@ -1845,7 +1845,7 @@ namespace Spreads.Collections
 //      member this.MovePrevious():bool = this.MovePrevious()
 //      member this.CurrentKey with get() = this.innerCursor.CurrentKey
 //      member this.CurrentValue with get() = this.innerCursor.CurrentValue
-//      member this.Source with get() = this.source :> IReadOnlySeries<'K,'V>
+//      member this.Source with get() = this.source :> ISeries<'K,'V>
 //      member this.Clone() = this.Clone() :> ICursor<'K,'V>
 //      member this.IsContinuous with get() = false
 //      member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)

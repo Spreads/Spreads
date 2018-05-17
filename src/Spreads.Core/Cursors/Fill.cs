@@ -126,7 +126,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> CurrentBatch => throw new NotImplementedException();
+        public ISeries<TKey, TValue> CurrentBatch => throw new NotImplementedException();
 
         public CursorState State
         {
@@ -210,7 +210,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source => new Series<TKey, TValue, Fill<TKey, TValue, TCursor>>(this);
+        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => new Series<TKey, TValue, Fill<TKey, TValue, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.

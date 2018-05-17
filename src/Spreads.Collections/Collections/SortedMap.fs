@@ -867,8 +867,8 @@ type SortedMap<'K,'V>
 //          ThrowHelper.ThrowOutOfOrderKeyException(this.LastUnchecked.Present.Key, "SortedMap.AddLast: New key is smaller or equal to the largest existing key")
 //
 //
-//  member this.TryAppend(appendMap:IReadOnlySeries<'K,'V>, [<Out>] result: byref<int64>, option:AppendOption) =
-//      let hasEqOverlap (old:IReadOnlySeries<'K,'V>) (append:IReadOnlySeries<'K,'V>) : bool =
+//  member this.TryAppend(appendMap:ISeries<'K,'V>, [<Out>] result: byref<int64>, option:AppendOption) =
+//      let hasEqOverlap (old:ISeries<'K,'V>) (append:ISeries<'K,'V>) : bool =
 //        if this.comparer.Compare(append.First.Present.Key, old.Last.Present.Key) > 0 then false
 //        else
 //          let oldC = old.GetCursor()
@@ -1480,10 +1480,6 @@ type SortedMap<'K,'V>
     member this.Remove(key) = let opt = this.TryRemove(key).Result in opt.IsPresent
     member this.Remove(kvp:KeyValuePair<'K,'V>) = let opt = this.TryRemove(kvp.Key).Result in opt.IsPresent
     member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.TryGetValue(key, &value)
-
-  interface IReadOnlySeries<'K,'V> with
-    // the rest is in BaseSeries
-    member this.Item with get k = this.Item(k)
     
   interface IMutableSeries<'K,'V> with
     member this.Complete() = this.Complete()
@@ -1499,9 +1495,9 @@ type SortedMap<'K,'V>
     member this.TryRemoveLast() = this.TryRemoveLast()
     member this.TryRemoveMany(key:'K, direction:Lookup) = this.TryRemoveMany(key, direction)
 
-    // TODO move to type memeber, check if IReadOnlySeries is SM and copy arrays in one go
+    // TODO move to type memeber, check if ISeries is SM and copy arrays in one go
     // TODO atomic append with single version increase, now it is a sequence of remove/add mutations
-    member this.TryAppend(appendMap:IReadOnlySeries<'K,'V>, option:AppendOption) =
+    member this.TryAppend(appendMap:ISeries<'K,'V>, option:AppendOption) =
       raise (NotImplementedException())
 
   //#endregion
@@ -1661,7 +1657,7 @@ and
       result
 
 
-    member this.CurrentBatch: IReadOnlySeries<'K,'V> = 
+    member this.CurrentBatch: ISeries<'K,'V> = 
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -1674,7 +1670,7 @@ and
           if this.isBatch then
             Trace.Assert(this.index = this.source.size - 1)
             Trace.Assert(this.source.isReadOnly)
-            this.source :> IReadOnlySeries<'K,'V>
+            this.source :> ISeries<'K,'V>
           else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
 
         /////////// End read-locked code /////////////
@@ -1905,7 +1901,7 @@ and
       member this.MovePrevious():bool = this.MovePrevious()
       member this.CurrentKey with get():'K = this.CurrentKey
       member this.CurrentValue with get():'V = this.CurrentValue
-      member this.Source with get() = this.source :> IReadOnlySeries<'K,'V>
+      member this.Source with get() = this.source :> ISeries<'K,'V>
       member this.Clone() = this.Clone() :> ICursor<'K,'V>
       member this.IsContinuous with get() = false
       // TODO
@@ -1924,7 +1920,7 @@ and
 //type internal ChunksContainer<'K,'V>
 //  (comparer : IComparer<'K>, synced: bool)  =
 //  let t = new SortedMap<_,_>(comparer, IsSynchronized = synced)
-//  interface IReadOnlySeries<'K,SortedMap<'K,'V>> with
+//  interface ISeries<'K,SortedMap<'K,'V>> with
 //    member x.Updated = t.Updated
 //    member x.Comparer = t.Comparer
 //    member x.First = t.First

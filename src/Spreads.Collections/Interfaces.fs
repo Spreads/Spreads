@@ -17,7 +17,7 @@ type internal IKeyHasher<'K> =
 [<Interface>]
 [<AllowNullLiteral>]
 type IImmutableSeries<'K,'V> =
-  inherit IReadOnlySeries<'K,'V>
+  inherit ISeries<'K,'V>
   abstract Size: int64 with get
   /// Unchecked addition, returns a new version of map with new element added
   abstract Add : k:'K*v:'V -> IImmutableSeries<'K,'V>
@@ -64,7 +64,7 @@ type IImmutableSeries<'K,'V> =
 // TODO?? maybe this is enough? All other methods could be done as extensions??
 type IPanel<'TRowKey,'TColumnKey, 'TValue> =
   //ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>> // this is how it could be implemented
-  inherit ISeries<'TRowKey,IReadOnlySeries<'TColumnKey,'TValue>> // this is how it is used most of the time
+  inherit ISeries<'TRowKey,ISeries<'TColumnKey,'TValue>> // this is how it is used most of the time
 
 //and    //TODO?? Panel could be replaced by extension methods on ISeries<'TColumnKey,ISeries<'TRowKey,'TValue>>
 //  [<AllowNullLiteral>]

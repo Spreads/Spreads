@@ -151,7 +151,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, (TKey, TValue)> CurrentBatch => null;
+        public ISeries<TKey, (TKey, TValue)> CurrentBatch => null;
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cmp;
@@ -317,7 +317,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, (TKey, TValue)> ICursor<TKey, (TKey, TValue)>.Source => new Series<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, TCursor>>(this);
+        ISeries<TKey, (TKey, TValue)> ICursor<TKey, (TKey, TValue)>.Source => new Series<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
@@ -472,7 +472,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> CurrentBatch => null;
+        public ISeries<TKey, TValue> CurrentBatch => null;
 
         public CursorState State => _cursor.State;
 
@@ -553,7 +553,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source => new Series<TKey, TValue, Repeat<TKey, TValue, TCursor>>(this);
+        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => new Series<TKey, TValue, Repeat<TKey, TValue, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.

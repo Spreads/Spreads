@@ -23,9 +23,9 @@ namespace Spreads
         private static BoundedConcurrentBag<TImpl> _pool;
         private KeyComparer<TKey2> _comparer;
 
-        protected IReadOnlySeries<TKey, TValue> Inner;
+        protected ISeries<TKey, TValue> Inner;
 
-        protected ConvertSeries(IReadOnlySeries<TKey, TValue> inner)
+        protected ConvertSeries(ISeries<TKey, TValue> inner)
         {
             Inner = inner;
 
@@ -118,7 +118,7 @@ namespace Spreads
             
         }
 
-        public static TImpl Create(IReadOnlySeries<TKey, TValue> innerSeries)
+        public static TImpl Create(ISeries<TKey, TValue> innerSeries)
         {
             if (_pool == null || !_pool.TryTake(out TImpl instance))
             {
@@ -262,9 +262,9 @@ namespace Spreads
             public TValue2 CurrentValue => _source.ToValue2(_innerCursor.CurrentValue);
 
             // TODO object pooling
-            public IReadOnlySeries<TKey2, TValue2> CurrentBatch => Create(_innerCursor.CurrentBatch);
+            public ISeries<TKey2, TValue2> CurrentBatch => Create(_innerCursor.CurrentBatch);
 
-            public IReadOnlySeries<TKey2, TValue2> Source => _source; //Create(_innerCursor.Source);
+            public ISeries<TKey2, TValue2> Source => _source; //Create(_innerCursor.Source);
             public bool IsContinuous => _innerCursor.IsContinuous;
             public Task DisposeAsync()
             {
@@ -340,13 +340,13 @@ namespace Spreads
             Dispose(false);
         }
 
-        public int Append(IReadOnlySeries<TKey2, TValue2> appendMap, AppendOption option)
+        public int Append(ISeries<TKey2, TValue2> appendMap, AppendOption option)
         {
             // TODO using ConvertSeries
             throw new NotImplementedException();
         }
 
-        public ValueTask<long> TryAppend(IReadOnlySeries<TKey2, TValue2> appendMap, AppendOption option = AppendOption.RejectOnOverlap)
+        public ValueTask<long> TryAppend(ISeries<TKey2, TValue2> appendMap, AppendOption option = AppendOption.RejectOnOverlap)
         {
             throw new NotImplementedException();
         }

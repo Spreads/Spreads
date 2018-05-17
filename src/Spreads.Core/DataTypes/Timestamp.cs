@@ -13,7 +13,7 @@ namespace Spreads.DataTypes
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = 8)]
     [Serialization(BlittableSize = 8)]
-    public struct Timestamp : IComparable<Timestamp>, IEquatable<Timestamp>
+    public readonly struct Timestamp : IComparable<Timestamp>, IEquatable<Timestamp>
     {
         private static readonly long UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc).Ticks;
         private readonly long _value;

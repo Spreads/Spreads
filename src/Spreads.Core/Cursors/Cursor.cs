@@ -175,14 +175,14 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> CurrentBatch
+        public ISeries<TKey, TValue> CurrentBatch
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _cursor.CurrentBatch; }
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> Source
+        public ISeries<TKey, TValue> Source
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _cursor.Source; }

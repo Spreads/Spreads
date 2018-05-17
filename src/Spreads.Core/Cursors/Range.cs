@@ -286,7 +286,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> CurrentBatch => throw new NotSupportedException();
+        public ISeries<TKey, TValue> CurrentBatch => throw new NotSupportedException();
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cmp;
@@ -520,7 +520,7 @@ namespace Spreads
         public Series<TKey, TValue, Range<TKey, TValue, TCursor>> Source => new Series<TKey, TValue, Range<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source => Source;
+        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => Source;
 
         /// <inheritdoc />
         public Task<bool> MoveNextAsync(CancellationToken cancellationToken)

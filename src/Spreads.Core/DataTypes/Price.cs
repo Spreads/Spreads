@@ -26,7 +26,7 @@ namespace Spreads.DataTypes
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
     [Serialization(BlittableSize = 8)]
-    public struct Price : IComparable<Price>, IEquatable<Price>, IConvertible
+    public readonly struct Price : IComparable<Price>, IEquatable<Price>, IConvertible
     {
         static Price()
         {

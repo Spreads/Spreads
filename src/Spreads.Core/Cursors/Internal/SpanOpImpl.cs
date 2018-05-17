@@ -161,7 +161,7 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TResult> CurrentBatch => null;
+        public ISeries<TKey, TResult> CurrentBatch => null;
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
@@ -680,7 +680,7 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, TResult> ICursor<TKey, TResult>.Source => new Series<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>>(this);
+        ISeries<TKey, TResult> ICursor<TKey, TResult>.Source => new Series<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.

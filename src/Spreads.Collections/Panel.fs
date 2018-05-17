@@ -43,7 +43,7 @@ namespace Spreads
 //
 //
 //// ColumnsPanel uses ZipN cursor over source columns
-//// It is an IMutableSeries of IReadOnlySeries as columns, therefore we could add/remove columns
+//// It is an IMutableSeries of ISeries as columns, therefore we could add/remove columns
 //
 //// RowsPanel has metarialized rows
 //// It is an IMutableSeries of arrays as rows + column key arrays
@@ -81,7 +81,7 @@ namespace Spreads
 //      columns.Values |> Seq.map (fun s -> s.GetCursor) |> Seq.toArray)
 //    :> ICursor<'TRowKey, Series<'TColumnKey, 'TValue>>
 //
-//  // By being Series<>, Panel already implements IReadOnlySeries for Rows
+//  // By being Series<>, Panel already implements ISeries for Rows
 //
 //  override this.Columns 
 //    with get() : Series<'TColumnKey, Series<'TRowKey,'TValue>> = 
@@ -180,7 +180,7 @@ namespace Spreads
 //        )
 //      ) :> ICursor<'TRowKey, Series<'TColumnKey, 'TValue>>
 //
-//  // By being Series<>, Panel already implements IReadOnlySeries for Rows
+//  // By being Series<>, Panel already implements ISeries for Rows
 //
 //  override this.Columns with get() : Series<'TColumnKey, Series<'TRowKey,'TValue>> = raise (NotImplementedException("TODO"))
 //    //ColumnPanel(this :> IMutableSeries<'TColumnKey, Series<'TRowKey,'TValue>>)

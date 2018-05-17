@@ -240,13 +240,13 @@ namespace Spreads
             return _innerCursor.MoveNextBatch(cancellationToken);
         }
 
-        public IReadOnlySeries<TKey, TValue> CurrentBatch
+        public ISeries<TKey, TValue> CurrentBatch
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _innerCursor.CurrentBatch; }
         }
 
-        public IReadOnlySeries<TKey, TValue> Source => _innerCursor.Source;
+        public ISeries<TKey, TValue> Source => _innerCursor.Source;
 
         public bool IsContinuous => _innerCursor.IsContinuous;
 

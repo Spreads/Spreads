@@ -7,14 +7,14 @@
 //// ReSharper disable once CheckNamespace
 //namespace Spreads.Obsolete
 //{
-//    public class VariantSeries<TKey, TValue> : ConvertSeries<TKey, TValue, Variant, Variant, VariantSeries<TKey, TValue>>, IReadOnlySeries
+//    public class VariantSeries<TKey, TValue> : ConvertSeries<TKey, TValue, Variant, Variant, VariantSeries<TKey, TValue>>, ISeries
 //    {
 //        public VariantSeries()
 //        {
 //
 //        }
 //
-//        public VariantSeries(IReadOnlySeries<TKey, TValue> inner) : base(inner)
+//        public VariantSeries(ISeries<TKey, TValue> inner) : base(inner)
 //        {
 //        }
 //
@@ -42,7 +42,7 @@
 //        public TypeEnum ValueType { get; } = VariantHelper<TValue>.TypeEnum;
 //    }
 //
-//    public class MutableVariantSeries<TKey, TValue> : ConvertMutableSeries<TKey, TValue, Variant, Variant, MutableVariantSeries<TKey, TValue>>, IReadOnlySeries
+//    public class MutableVariantSeries<TKey, TValue> : ConvertMutableSeries<TKey, TValue, Variant, Variant, MutableVariantSeries<TKey, TValue>>, ISeries
 //    {
 //        public MutableVariantSeries()
 //        {

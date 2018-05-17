@@ -14,7 +14,7 @@ namespace Spreads.Experimental
     //    {
     //    }
 
-    //    public TimeSeries(IReadOnlySeries<DateTime, TValue> inner) : base(inner)
+    //    public TimeSeries(ISeries<DateTime, TValue> inner) : base(inner)
     //    {
     //    }
 

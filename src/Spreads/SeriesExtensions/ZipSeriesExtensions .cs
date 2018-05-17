@@ -151,7 +151,7 @@ namespace Spreads
 
         #region Series array
 
-        public static IReadOnlySeries<TKey, TValue[]> Zip<TKey, TValue>(
+        public static ISeries<TKey, TValue[]> Zip<TKey, TValue>(
             [NotNull] this ISeries<TKey, TValue>[] series, bool reuseArray = false)
         {
             if (series == null) throw new ArgumentNullException(nameof(series));
@@ -213,7 +213,7 @@ namespace Spreads
         }
 
         public static Series<TKey, TResult, Map<TKey, TValue[], TResult, Cursor<TKey, TValue[]>>> Zip<TKey, TValue, TResult, TCursor>(
-            this Series<TKey, TValue, TCursor>[] series, Func<TKey, TValue[], TResult> selector, bool reuseArray = false) 
+            this Series<TKey, TValue, TCursor>[] series, Func<TKey, TValue[], TResult> selector, bool reuseArray = false)
             where TCursor : ICursorSeries<TKey, TValue, TCursor>
         {
             // TODO rework...

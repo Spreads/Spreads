@@ -253,7 +253,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, (TLeft, TRight)> CurrentBatch => default(IReadOnlySeries<TKey, (TLeft, TRight)>);
+        public ISeries<TKey, (TLeft, TRight)> CurrentBatch => default(ISeries<TKey, (TLeft, TRight)>);
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cmp;
@@ -1283,7 +1283,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, (TLeft, TRight)> ICursor<TKey, (TLeft, TRight)>.Source =>
+        ISeries<TKey, (TLeft, TRight)> ICursor<TKey, (TLeft, TRight)>.Source =>
             new Series<TKey, (TLeft, TRight), Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>(this);
 
         /// <summary>

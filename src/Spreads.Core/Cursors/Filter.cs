@@ -175,7 +175,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, TValue> CurrentBatch => throw new NotSupportedException();
+        public ISeries<TKey, TValue> CurrentBatch => throw new NotSupportedException();
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
@@ -379,7 +379,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, TValue> ICursor<TKey, TValue>.Source => new Series<TKey, TValue, Filter<TKey, TValue, TCursor>>(this);
+        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => new Series<TKey, TValue, Filter<TKey, TValue, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.

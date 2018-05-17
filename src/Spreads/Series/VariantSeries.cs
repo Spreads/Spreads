@@ -15,14 +15,14 @@ using System.Threading.Tasks;
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
-    public class VariantSeries<TKey, TValue> : Series<Variant, Variant>, IReadOnlySeries, IDisposable
+    public class VariantSeries<TKey, TValue> : Series<Variant, Variant>, ISeries, IDisposable
     {
         private static ObjectPool<VariantSeries<TKey, TValue>> _pool;
         private readonly KeyComparer<Variant> _comparer;
 
-        internal IReadOnlySeries<TKey, TValue> Inner;
+        internal ISeries<TKey, TValue> Inner;
 
-        public VariantSeries(IReadOnlySeries<TKey, TValue> inner)
+        public VariantSeries(ISeries<TKey, TValue> inner)
         {
             Inner = inner;
             _comparer = KeyComparer<Variant>.Create(new VariantComparer(Inner));
@@ -135,7 +135,7 @@ namespace Spreads
 
         }
 
-        public static VariantSeries<TKey, TValue> Create(IReadOnlySeries<TKey, TValue> innerSeries)
+        public static VariantSeries<TKey, TValue> Create(ISeries<TKey, TValue> innerSeries)
         {
             VariantSeries<TKey, TValue> instance;
             if (_pool == null || ReferenceEquals(instance = _pool.Allocate(), null))
@@ -285,9 +285,9 @@ namespace Spreads
                 get { return _source.ToValue2(_innerCursor.CurrentValue); }
             }
 
-            public IReadOnlySeries<Variant, Variant> CurrentBatch => Create(_innerCursor.CurrentBatch);
+            public ISeries<Variant, Variant> CurrentBatch => Create(_innerCursor.CurrentBatch);
 
-            public IReadOnlySeries<Variant, Variant> Source => _source; //Create(_innerCursor.Source);
+            public ISeries<Variant, Variant> Source => _source; //Create(_innerCursor.Source);
             public bool IsContinuous => _innerCursor.IsContinuous;
             
             public Task DisposeAsync()
@@ -300,7 +300,7 @@ namespace Spreads
         {
             private readonly KeyComparer<TKey> _sourceComparer;
 
-            public VariantComparer(IReadOnlySeries<TKey, TValue> inner)
+            public VariantComparer(ISeries<TKey, TValue> inner)
             {
                 _sourceComparer = inner.Comparer;
             }
@@ -376,7 +376,7 @@ namespace Spreads
             }
         }
 
-        public ValueTask<long> TryAppend(IReadOnlySeries<Variant, Variant> appendMap, AppendOption option = AppendOption.RejectOnOverlap)
+        public ValueTask<long> TryAppend(ISeries<Variant, Variant> appendMap, AppendOption option = AppendOption.RejectOnOverlap)
         {
             throw new NotImplementedException();
         }

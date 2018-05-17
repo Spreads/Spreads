@@ -2,15 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Utils;
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Utils;
 
 namespace Spreads.Serialization
 {
@@ -151,8 +150,7 @@ namespace Spreads.Serialization
             }
         }
 
-        
-        // TODO (review) this definition depends on converters and doesn't match blittable definition that soon will be in C# 
+        // TODO (review) this definition depends on converters and doesn't match blittable definition that soon will be in C#
         /// <summary>
         /// Returns a positive size of a pinnable type T, -1 if the type T is not pinnable and has
         /// no registered converter, 0 if there is a registered converter for variable-length type.
@@ -236,7 +234,7 @@ namespace Spreads.Serialization
             {
                 _typeParams.IsBlittable = true;
                 _typeParams.IsFixedSize = true;
-                _typeParams.IsDateTime = true;
+                _typeParams.IsDateTime = false;
                 _typeParams.Size = 16;
                 return 16;
             }
@@ -314,7 +312,7 @@ namespace Spreads.Serialization
             //if (tmp is IBinaryConverter<T>) {
             if (typeof(IBinaryConverter<T>).IsAssignableFrom(typeof(T)))
             {
-                IBinaryConverter<T> converter;
+                IBinaryConverter<T> converter = null;
                 try
                 {
                     converter = (IBinaryConverter<T>)Activator.CreateInstance<T>();
@@ -322,7 +320,7 @@ namespace Spreads.Serialization
                 catch
                 {
                     //Trace.TraceWarning($"Type {typeof(T).FullName} is marked as IBinaryConverter and so it must have a parameterless constructor");
-                    throw new ApplicationException($"Type T ({typeof(T).FullName}) is marked as IBinaryConverter<T> and so it must have a parameterless constructor.");
+                    Environment.FailFast($"Type T ({typeof(T).FullName}) is marked as IBinaryConverter<T> and so it must have a parameterless constructor.");
                 }
                 if (converter.Version <= 0)
                 {

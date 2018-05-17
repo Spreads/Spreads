@@ -95,7 +95,7 @@ namespace Spreads
     //        return _innerSeries.RemoveMany(key, direction);
     //    }
 
-    //    public int Append(IReadOnlySeries<TK, TV> appendMap, AppendOption option)
+    //    public int Append(ISeries<TK, TV> appendMap, AppendOption option)
     //    {
     //        return _innerSeries.Append(appendMap, option);
     //    }

@@ -12,13 +12,13 @@ namespace Spreads
 {
     /// <summary>
     /// A lightweight wrapper around a <see cref="ICursorSeries{TKey,TValue,TCursor}"/>
-    /// implementing <see cref="IReadOnlySeries{TKey, TValue}"/> interface using the cursor.
+    /// implementing <see cref="ISeries{TKey, TValue}"/> interface using the cursor.
     /// </summary>
 #pragma warning disable 660, 661
 
     // TODO review if we could keep cursor and not initialize every time
     
-    public struct Series<TKey, TValue, TCursor> : IReadOnlySeries<TKey, TValue>, ISpecializedSeries<TKey, TValue, TCursor>
+    public struct Series<TKey, TValue, TCursor> : ISeries<TKey, TValue>, ISpecializedSeries<TKey, TValue, TCursor>
 #pragma warning restore 660, 661
         where TCursor : ICursorSeries<TKey, TValue, TCursor>
     {
@@ -107,7 +107,7 @@ namespace Spreads
 
         #endregion ISeries members
 
-        #region IReadOnlySeries members
+        #region ISeries members
 
         // TODO (perf) Review if initilize/dispose is too much overhead vs a cached navigation cursor.
 
@@ -234,7 +234,7 @@ namespace Spreads
             }
         }
 
-        #endregion IReadOnlySeries members
+        #endregion ISeries members
 
         #region Unary Operators
 

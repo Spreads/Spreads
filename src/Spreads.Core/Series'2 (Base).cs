@@ -54,7 +54,7 @@ namespace Spreads
     /// <typeparam name="TValue">Type of series values.</typeparam>
 #pragma warning disable 660, 661
 
-    public abstract class Series<TKey, TValue> : BaseSeries, IReadOnlySeries<TKey, TValue>,
+    public abstract class Series<TKey, TValue> : BaseSeries,
         ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>
 #pragma warning restore 660,661
     {
@@ -1438,7 +1438,7 @@ namespace Spreads
     }
 
     /// <summary>
-    /// Base class for collections (containers) with <see cref="IReadOnlySeries{TKey,TValue}"/> members implemented via a cursor.
+    /// Base class for collections (containers) with <see cref="ISeries{TKey,TValue}"/> members implemented via a cursor.
     /// </summary>
     public abstract class CursorContainerSeries<TKey, TValue, TCursor> : ContainerSeries<TKey, TValue, TCursor>, IDisposable
 #pragma warning restore 660,661
@@ -1469,7 +1469,7 @@ namespace Spreads
             }
         }
 
-        #region IReadOnlySeries members
+        #region ISeries members
 
         /// <inheritdoc />
         public override Opt<KeyValuePair<TKey, TValue>> First
@@ -1566,7 +1566,7 @@ namespace Spreads
             }
         }
 
-        #endregion IReadOnlySeries members
+        #endregion ISeries members
 
         public virtual void Dispose(bool disposing)
         {

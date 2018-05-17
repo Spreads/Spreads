@@ -4,6 +4,7 @@
 
 using Spreads.DataTypes;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,9 +17,9 @@ namespace Spreads
     // See also
     // https://github.com/dotnet/csharplang/blob/master/proposals/async-streams.md
     // https://github.com/dotnet/csharplang/issues/43
-    //Pattern-based Compilation
-    //The compiler will bind to the pattern-based APIs if they exist, preferring those over using the interface
-    //(the pattern may be satisfied with instance methods or extension methods). The requirements for the pattern are:
+    // Pattern-based Compilation
+    // The compiler will bind to the pattern-based APIs if they exist, preferring those over using the interface
+    // (the pattern may be satisfied with instance methods or extension methods). The requirements for the pattern are:
 
     //* The enumerable must expose a GetAsyncEnumerator method that may be called with no arguments and that returns an enumerator
     //  that meets the relevant pattern.
@@ -38,20 +39,15 @@ namespace Spreads
     /// </summary>
     /// <remarks>
     /// Contract: when MoveNext() returns false it means that there are no more elements
-    /// right now, and a consumer should call MoveNextAsync() to await for a new element, or spin
-    /// and repeatedly call MoveNext() when a new element is expected very soon. Repeated calls to MoveNext()
+    /// *right now*, and a consumer should call <see cref="MoveNextAsync()"/> to await for a new element, or spin
+    /// and repeatedly call <see cref="IEnumerator.MoveNext"/> when a new element is expected very soon. Repeated calls to MoveNext()
     /// could eventually return true. Changes to the underlying sequence, which do not affect enumeration,
     /// do not invalidate the enumerator.
     ///
-    /// <c>Current</c> property follows the parent contracts as described here: https://msdn.microsoft.com/en-us/library/58e146b7(v=vs.110).aspx
-    /// Some implementations guarantee that <c>Current</c> keeps its last value from successful MoveNext(),
-    /// but that must be explicitly stated in a data structure documentation (e.g. SortedMap).
+    /// False move from a valid state keeps a cursor/enumerator at the previous valid state.
     /// </remarks>
     public interface IAsyncEnumerator<out T> : IEnumerator<T>, IAsyncDisposable
     {
-        // TODO (docs) last part of the remarks above should always be true and the contract must be documented
-        // False move from a valid state must keep a cursor/enumerator at the previous valid state
-
         /// <summary>
         /// Async move next.
         /// </summary>
@@ -77,21 +73,6 @@ namespace Spreads
         IAsyncEnumerator<T> GetAsyncEnumerator();
     }
 
-    // TODO see issue https://github.com/Spreads/Spreads/issues/99
-    // DataStream is an append-only Series<long, TValue>. Even consecutive keys are not required in general but could be required by some protocol.
-
-    ///// <summary>
-    ///// An <see cref="IAsyncEnumerable{KeyValuePair}"/> and <see cref="IPublisher{KeyValuePair}"/> with additional guarantee
-    ///// that items are ordered by <typeparamref name="TKey"/>.
-    ///// </summary>
-    //public interface IDataStream<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>
-    //{
-    //    /// <summary>
-    //    /// Key comparer.
-    //    /// </summary>
-    //    KeyComparer<TKey> Comparer { get; }
-    //}
-
     /// <summary>
     /// Main interface for data series.
     /// </summary>
@@ -114,6 +95,8 @@ namespace Spreads
         /// </summary>
         ICursor<TKey, TValue> GetCursor();
 
+        //////////////////////// former IReadOnlySeries members below ///////////////////////
+        
         /// <summary>
         /// A Task that is completed with True whenever underlying data is changed.
         /// Internally used for signaling to async cursors.
@@ -121,6 +104,53 @@ namespace Spreads
         /// If the task is completed with false then the series is read-only, immutable or complete.
         /// </summary>
         Task<bool> Updated { get; }
+
+        KeyComparer<TKey> Comparer { get; }
+
+        /// <summary>
+        /// First element, throws InvalidOperationException if empty
+        /// </summary>
+        Opt<KeyValuePair<TKey, TValue>> First { get; }
+
+        /// <summary>
+        /// Last element, throws InvalidOperationException if empty
+        /// </summary>
+        Opt<KeyValuePair<TKey, TValue>> Last { get; }
+
+        /// <summary>
+        /// See ICursor.TryGetValue docs.
+        /// </summary>
+        TValue this[TKey key] { get; }
+
+        bool TryGetValue(TKey key, out TValue value);
+
+        ///// <summary>
+        ///// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
+        ///// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code> .
+        ///// </summary>
+        bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp); // TODO support negative moves in all implementations, -1 is last
+
+        /// <summary>
+        /// The method finds value according to direction, returns false if it could not find such a value
+        /// For indexed series LE/GE directions are invalid (throws InvalidOperationException), while
+        /// LT/GT search is done by index rather than by key and possible only when a key exists.
+        /// TryFindAt works only with existing keys and is an equivalent of ICursor.MoveAt.
+        ///
+        /// Check IsMissing property of returned value - it's equivalent to false return of TryXXX pattern.
+        /// </summary>
+        bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
+
+        // NB: Not async ones. Sometimes it's useful for optimization when we check underlying type.
+
+        /// <summary>
+        /// Keys enumerable.
+        /// </summary>
+        IEnumerable<TKey> Keys { get; }
+
+        /// <summary>
+        /// Values enumerable.
+        /// </summary>
+        IEnumerable<TValue> Values { get; }
     }
 
     /// <summary>
@@ -199,7 +229,7 @@ namespace Spreads
 
         long MovePrevious(long stride, bool allowPartial);
 
-        // NB even if we could 
+        // NB even if we could
 
         TKey CurrentKey { get; }
 
@@ -222,13 +252,12 @@ namespace Spreads
         /// The actual implementation of the batch could be mutable and could reference a part of the original series, therefore consumer
         /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap
         /// </summary>
-        // TODO This should be SortedMap when it is re-implemented in this project
-        IReadOnlySeries<TKey, TValue> CurrentBatch { get; }
+        ISeries<TKey, TValue> CurrentBatch { get; }
 
         /// <summary>
         /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
         /// </summary>
-        IReadOnlySeries<TKey, TValue> Source { get; }
+        ISeries<TKey, TValue> Source { get; }
 
         /// <summary>
         /// If true then TryGetValue could return values for any keys, not only for existing keys.
@@ -253,7 +282,6 @@ namespace Spreads
         /// NB This is not thread safe. ICursors must be used from a single thread.
         /// </remarks>
         bool TryGetValue(TKey key, out TValue value);
-
     }
 
     /// <summary>
@@ -286,56 +314,10 @@ namespace Spreads
     /// changes use lock (Monitor.Enter) on the SyncRoot property. Doing so will block any changes for
     /// mutable implementations and won't affect immutable implementations.
     /// </summary>
-    public interface IReadOnlySeries<TKey, TValue> : ISeries<TKey, TValue>
-    {
-        KeyComparer<TKey> Comparer { get; }
+    //public interface ISeries<TKey, TValue> : ISeries<TKey, TValue>
+    //{
 
-        /// <summary>
-        /// First element, throws InvalidOperationException if empty
-        /// </summary>
-        Opt<KeyValuePair<TKey, TValue>> First { get; }
-
-        /// <summary>
-        /// Last element, throws InvalidOperationException if empty
-        /// </summary>
-        Opt<KeyValuePair<TKey, TValue>> Last { get; }
-
-        /// <summary>
-        /// See ICursor.TryGetValue docs.
-        /// </summary>
-        TValue this[TKey key] { get; }
-
-        bool TryGetValue(TKey key, out TValue value);
-
-        ///// <summary>
-        ///// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
-        ///// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code> .
-        ///// </summary>
-        bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp); // TODO support negative moves in all implementations, -1 is last
-
-        /// <summary>
-        /// The method finds value according to direction, returns false if it could not find such a value
-        /// For indexed series LE/GE directions are invalid (throws InvalidOperationException), while
-        /// LT/GT search is done by index rather than by key and possible only when a key exists.
-        /// TryFindAt works only with existing keys and is an equivalent of ICursor.MoveAt.
-        ///
-        /// Check IsMissing property of returned value - it's equivalent to false return of TryXXX pattern.
-        /// </summary>
-        bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
-
-        // NB: Not async ones. Sometimes it's useful for optimization when we check underlying type.
-
-        /// <summary>
-        /// Keys enumerable.
-        /// </summary>
-        IEnumerable<TKey> Keys { get; }
-
-        /// <summary>
-        /// Values enumerable.
-        /// </summary>
-        IEnumerable<TValue> Values { get; }
-
-    }
+    //}
 
     /// <summary>
     /// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
@@ -354,16 +336,16 @@ namespace Spreads
     }
 
     /// <summary>
-    /// An untyped <see cref="IReadOnlySeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
+    /// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
     /// </summary>
-    public interface IReadOnlySeries : ISeries, IReadOnlySeries<Variant, Variant>
-    {
-    }
+    //public interface ISeries : ISeries, ISeries<Variant, Variant>
+    //{
+    //}
 
     /// <summary>
     /// Mutable series
     /// </summary>
-    public interface IMutableSeries<TKey, TValue> : IReadOnlySeries<TKey, TValue> //, IDictionary<TKey, TValue>
+    public interface IMutableSeries<TKey, TValue> : ISeries<TKey, TValue> //, IDictionary<TKey, TValue>
     {
         // NB even if Async methods add some overhead in sync case, it is small due to caching if Task<bool> return values
         // In persistence layer is used to be a PITA to deal with sync methods with async IO
@@ -424,7 +406,7 @@ namespace Spreads
         /// <summary>
         /// And values from appendMap to the end of this map.
         /// </summary>
-        ValueTask<long> TryAppend(IReadOnlySeries<TKey, TValue> appendMap, AppendOption option = AppendOption.RejectOnOverlap);
+        ValueTask<long> TryAppend(ISeries<TKey, TValue> appendMap, AppendOption option = AppendOption.RejectOnOverlap);
 
         /// <summary>
         /// Make the map read-only and disable all Add/Remove/Set methods (they will throw)
@@ -458,7 +440,7 @@ namespace Spreads
     }
 
     // TODO review signature. Why chunk is mutable? Why not just Specialized mutable series?
-    internal interface IMutableChunksSeries<TKey, TValue, TContainer> : IReadOnlySeries<TKey, TContainer>, IPersistentObject
+    internal interface IMutableChunksSeries<TKey, TValue, TContainer> : ISeries<TKey, TContainer>, IPersistentObject
         where TContainer : IMutableSeries<TKey, TValue>
     {
         /// <summary>

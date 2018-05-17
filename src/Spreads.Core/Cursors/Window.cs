@@ -168,7 +168,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public IReadOnlySeries<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>> CurrentBatch => null;
+        public ISeries<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>> CurrentBatch => null;
 
         public CursorState State => _cursor.State;
 
@@ -254,7 +254,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        IReadOnlySeries<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>> ICursor<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>>.Source => new Series<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>>(this);
+        ISeries<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>> ICursor<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>>.Source => new Series<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>>(this);
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
