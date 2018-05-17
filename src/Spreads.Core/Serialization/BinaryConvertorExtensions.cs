@@ -37,7 +37,7 @@ namespace Spreads.Serialization
             }
             else
             {
-                throw new ApplicationException("Buffer must be array based here by design");
+                throw new ApplicationException("Memory must be array based here by design");
             }
 
             // NB this is not needed as long as converter.Write guarantees overwriting all Size bytes.
@@ -65,7 +65,7 @@ namespace Spreads.Serialization
             }
             else
             {
-                throw new ApplicationException("Buffer must be array based here by design");
+                throw new ApplicationException("Memory must be array based here by design");
             }
         }
     }

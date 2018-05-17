@@ -154,7 +154,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Cursors\Experimental\" />
-    <Folder Include="Internal\Cursors\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Cursors\Readme.md" />

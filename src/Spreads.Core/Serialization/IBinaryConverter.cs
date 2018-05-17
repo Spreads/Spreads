@@ -64,7 +64,7 @@ namespace Spreads.Serialization
         /// </summary>
         /// <param name="value">A value to serialize.</param>
         /// <param name="destination">A buffer to serialize the value into.</param>
-        /// <param name="offset">Buffer offset.</param>
+        /// <param name="offset">Memory offset.</param>
         /// <param name="temporaryStream">A stream that was returned by SizeOf method. If it is not null then its content is written to the buffer.</param>
         /// <param name="compression">Compression method.</param>
         /// <returns>Returns the number of bytes written to the destination buffer or a negative error code that corresponds to <see cref="BinaryConverterErrorCode"/>.</returns>

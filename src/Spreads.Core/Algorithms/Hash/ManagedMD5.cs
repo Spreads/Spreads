@@ -310,7 +310,7 @@ namespace Spreads.Algorithms.Hash
                 index = 0;
             }
 
-            /* Buffer remaining input */
+            /* Memory remaining input */
             ByteUtil.VectorizedCopy(input, (int)(inputIndex + i), context.buffer, (int)index, (int)(inputLen - i));
         }
 

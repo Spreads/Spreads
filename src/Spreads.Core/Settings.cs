@@ -31,11 +31,7 @@ namespace Spreads
         /// <summary>
         /// Get or set default compression method: LZ4 (default) or Zstd).
         /// </summary>
-        public static CompressionMethod CompressionMethod
-        {
-            get => BloscSettings.CompressionMethod;
-            set => BloscSettings.CompressionMethod = value;
-        }
+        public static CompressionMethod DefaultCompressionMethod { get; set; } = CompressionMethod.DeflateJson;
 
         // TODO when/if used often benchmark its effect and if significant then set default to false
         private static bool _doAdditionalCorrectnessChecks = true;

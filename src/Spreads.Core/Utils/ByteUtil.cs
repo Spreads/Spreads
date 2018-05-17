@@ -10,6 +10,7 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+// ReSharper disable InconsistentNaming
 
 namespace Spreads.Utils
 {
@@ -218,7 +219,7 @@ namespace Spreads.Utils
             //}
             while (pos < length)
             {
-                *(byte*)(destination + pos) = *(byte*)(source + pos);
+                *(destination + pos) = *(source + pos);
                 pos++;
             }
         }
@@ -252,7 +253,7 @@ namespace Spreads.Utils
                 }
                 while (pos < length)
                 {
-                    *(byte*)(destination + pos) = *(byte*)(source + pos);
+                    *(destination + pos) = *(source + pos);
                     pos++;
                 }
             }
@@ -282,7 +283,7 @@ namespace Spreads.Utils
                 }
                 while (pos > 0)
                 {
-                    *(byte*)(destination + pos) = *(byte*)(source + pos);
+                    *(destination + pos) = *(source + pos);
                     pos--;
                 }
             }

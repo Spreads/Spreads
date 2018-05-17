@@ -117,9 +117,9 @@ namespace Spreads.Buffers
             }
             // NB here we exclusively own the buffer and disposal of PreservedBuffer will cause
             // disposal and returning to pool of the ownedBuffer instance, unless references were added via
-            // PreservedBuffer.Close() or PreservedBuffer.Buffer.Reserve()/Pin() methods
+            // PreservedBuffer.Close() or PreservedBuffer.Memory.Reserve()/Pin() methods
             var ownedBuffer = BufferPool<byte>.RentOwnedBuffer(length, requireExact);
-            //var buffer2 = ownedBuffer.Buffer.Slice(0, length);
+            //var buffer2 = ownedBuffer.Memory.Slice(0, length);
             return new PreservedBuffer<byte>(ownedBuffer.Memory);
         }
 
@@ -247,7 +247,7 @@ namespace Spreads.Buffers
     //        }
     //        // NB here we exclusively own the buffer and disposal of PreservedBuffer will cause
     //        // disposal and returning to pool of the ownedBuffer instance, unless references were added via
-    //        // PreservedBuffer.Close() or PreservedBuffer.Buffer.Reserve()/Pin() methods
+    //        // PreservedBuffer.Close() or PreservedBuffer.Memory.Reserve()/Pin() methods
     //        var ownedBuffer = BufferPool<T>.RentOwnedBuffer(length, false);
     //        var buffer2 = ownedBuffer.Memory.Slice(0, length);
     //        return new PreservedBuffer<T>(buffer2);

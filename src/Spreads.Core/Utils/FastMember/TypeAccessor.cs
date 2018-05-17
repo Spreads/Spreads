@@ -1,16 +1,11 @@
-﻿// Copyright (c) 2017, Marc Gravell https://github.com/mgravell/fast-member
-using System;
+﻿using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Dynamic;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
-using System.Collections.Generic;
-
-using static Spreads.Utils.FastMember.TypeHelpers;
-
 #if !NO_DYNAMIC
-
-using System.Dynamic;
 
 #endif
 
@@ -34,7 +29,6 @@ namespace Spreads.Utils.FastMember
         /// Does this type support new instances via a parameterless constructor?
         /// </summary>
         public virtual bool CreateNewSupported { get { return false; } }
-
         /// <summary>
         /// Create a new instance of this type
         /// </summary>
@@ -44,7 +38,6 @@ namespace Spreads.Utils.FastMember
         /// Can this type be queried for member availability?
         /// </summary>
         public virtual bool GetMembersSupported { get { return false; } }
-
         /// <summary>
         /// Query the members available for this type
         /// </summary>
@@ -82,48 +75,29 @@ namespace Spreads.Utils.FastMember
                 return obj;
             }
         }
-
 #if !NO_DYNAMIC
-
-        private sealed class DynamicAccessor : TypeAccessor
+        sealed class DynamicAccessor : TypeAccessor
         {
             public static readonly DynamicAccessor Singleton = new DynamicAccessor();
-
-            private DynamicAccessor()
-            {
-            }
-
+            private DynamicAccessor() { }
             public override object this[object target, string name]
             {
                 get { return CallSiteCache.GetValue(name, target); }
                 set { CallSiteCache.SetValue(name, target, value); }
             }
         }
-
 #endif
 
         private static AssemblyBuilder assembly;
         private static ModuleBuilder module;
         private static int counter;
 
-#if COREFX
-        private static readonly object counterLock = new object();
-#endif
-
         private static int GetNextCounterValue()
         {
-#if COREFX
-            lock (counterLock)
-            {
-                return counter++;
-            }
-#else
             return Interlocked.Increment(ref counter);
-#endif
         }
 
-        private static readonly MethodInfo tryGetValue = typeof(Dictionary<string, int>).GetMethod("TryGetValue");
-
+        static readonly MethodInfo tryGetValue = typeof(Dictionary<string, int>).GetMethod("TryGetValue");
         private static void WriteMapImpl(ILGenerator il, Type type, List<MemberInfo> members, FieldBuilder mapField, bool allowNonPublicAccessors, bool isGet)
         {
             OpCode obj, index, value;
@@ -174,7 +148,7 @@ namespace Spreads.Utils.FastMember
                     if (isGet)
                     {
                         il.Emit(OpCodes.Ldfld, field);
-                        if (_IsValueType(field.FieldType)) il.Emit(OpCodes.Box, field.FieldType);
+                        if (TypeHelpers._IsValueType(field.FieldType)) il.Emit(OpCodes.Box, field.FieldType);
                     }
                     else
                     {
@@ -194,14 +168,14 @@ namespace Spreads.Utils.FastMember
                         Cast(il, type, true);
                         if (isGet)
                         {
-                            il.EmitCall(_IsValueType(type) ? OpCodes.Call : OpCodes.Callvirt, accessor, null);
-                            if (_IsValueType(prop.PropertyType)) il.Emit(OpCodes.Box, prop.PropertyType);
+                            il.EmitCall(TypeHelpers._IsValueType(type) ? OpCodes.Call : OpCodes.Callvirt, accessor, null);
+                            if (TypeHelpers._IsValueType(prop.PropertyType)) il.Emit(OpCodes.Box, prop.PropertyType);
                         }
                         else
                         {
                             il.Emit(value);
                             Cast(il, prop.PropertyType, false);
-                            il.EmitCall(_IsValueType(type) ? OpCodes.Call : OpCodes.Callvirt, accessor, null);
+                            il.EmitCall(TypeHelpers._IsValueType(type) ? OpCodes.Call : OpCodes.Callvirt, accessor, null);
                         }
                         il.Emit(OpCodes.Ret);
                         isFail = false;
@@ -227,9 +201,7 @@ namespace Spreads.Utils.FastMember
             /// Can this type be queried for member availability?
             /// </summary>
             public override bool GetMembersSupported { get { return true; } }
-
             private MemberSet members;
-
             /// <summary>
             /// Query the members available for this type
             /// </summary>
@@ -238,20 +210,17 @@ namespace Spreads.Utils.FastMember
                 return members ?? (members = new MemberSet(Type));
             }
         }
-
-        private sealed class DelegateAccessor : RuntimeTypeAccessor
+        sealed class DelegateAccessor : RuntimeTypeAccessor
         {
             private readonly Dictionary<string, int> map;
             private readonly Func<int, object, object> getter;
             private readonly Action<int, object, object> setter;
             private readonly Func<object> ctor;
             private readonly Type type;
-
             protected override Type Type
             {
                 get { return type; }
             }
-
             public DelegateAccessor(Dictionary<string, int> map, Func<int, object, object> getter, Action<int, object, object> setter, Func<object> ctor, Type type)
             {
                 this.map = map;
@@ -260,14 +229,11 @@ namespace Spreads.Utils.FastMember
                 this.ctor = ctor;
                 this.type = type;
             }
-
             public override bool CreateNewSupported { get { return ctor != null; } }
-
             public override object CreateNew()
             {
                 return ctor != null ? ctor() : base.CreateNew();
             }
-
             public override object this[object target, string name]
             {
                 get
@@ -284,11 +250,10 @@ namespace Spreads.Utils.FastMember
                 }
             }
         }
-
         private static bool IsFullyPublic(Type type, PropertyInfo[] props, bool allowNonPublicAccessors)
         {
-            while (_IsNestedPublic(type)) type = type.DeclaringType;
-            if (!_IsPublic(type)) return false;
+            while (TypeHelpers._IsNestedPublic(type)) type = type.DeclaringType;
+            if (!TypeHelpers._IsPublic(type)) return false;
 
             if (allowNonPublicAccessors)
             {
@@ -301,8 +266,7 @@ namespace Spreads.Utils.FastMember
 
             return true;
         }
-
-        private static TypeAccessor CreateNew(Type type, bool allowNonPublicAccessors)
+        static TypeAccessor CreateNew(Type type, bool allowNonPublicAccessors)
         {
 #if !NO_DYNAMIC
             if (typeof(IDynamicMetaObjectProvider).IsAssignableFrom(type))
@@ -327,7 +291,7 @@ namespace Spreads.Utils.FastMember
             foreach (var field in fields) if (!map.ContainsKey(field.Name)) { map.Add(field.Name, i++); members.Add(field); }
 
             ConstructorInfo ctor = null;
-            if (_IsClass(type) && !_IsAbstract(type))
+            if (TypeHelpers._IsClass(type) && !TypeHelpers._IsAbstract(type))
             {
                 ctor = type.GetConstructor(TypeHelpers.EmptyTypes);
             }
@@ -357,10 +321,14 @@ namespace Spreads.Utils.FastMember
             if (assembly == null)
             {
                 AssemblyName name = new AssemblyName("FastMember_dynamic");
+#if NETSTANDARD
                 assembly = AssemblyBuilder.DefineDynamicAssembly(name, AssemblyBuilderAccess.Run);
+#else
+                assembly = AppDomain.CurrentDomain.DefineDynamicAssembly(name, AssemblyBuilderAccess.Run);
+#endif
                 module = assembly.DefineDynamicModule(name.Name);
             }
-#if COREFX
+#if NETSTANDARD
             TypeAttributes attribs = typeof(TypeAccessor).GetTypeInfo().Attributes;
 #else
             TypeAttributes attribs = typeof(TypeAccessor).Attributes;
@@ -376,6 +344,7 @@ namespace Spreads.Utils.FastMember
             FieldBuilder mapField = tb.DefineField("_map", typeof(Dictionary<string, int>), FieldAttributes.InitOnly | FieldAttributes.Private);
             il.Emit(OpCodes.Stfld, mapField);
             il.Emit(OpCodes.Ret);
+
 
             PropertyInfo indexer = typeof(TypeAccessor).GetProperty("Item");
             MethodInfo baseGetter = indexer.GetGetMethod(), baseSetter = indexer.GetSetMethod();
@@ -415,14 +384,14 @@ namespace Spreads.Utils.FastMember
             il.Emit(OpCodes.Ret);
             tb.DefineMethodOverride(body, baseMethod);
 
-            var accessor = (TypeAccessor)Activator.CreateInstance(_CreateType(tb), map);
+            var accessor = (TypeAccessor)Activator.CreateInstance(TypeHelpers._CreateType(tb), map);
             return accessor;
         }
 
         private static void Cast(ILGenerator il, Type type, bool valueAsPointer)
         {
             if (type == typeof(object)) { }
-            else if (_IsValueType(type))
+            else if (TypeHelpers._IsValueType(type))
             {
                 if (valueAsPointer)
                 {

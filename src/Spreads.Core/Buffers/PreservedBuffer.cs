@@ -4,8 +4,6 @@
 
 using System;
 using System.Buffers;
-using System.Collections;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Buffers
@@ -17,50 +15,50 @@ namespace Spreads.Buffers
     /// Increases the ref count of underlying OwnedBuffer by one.
     /// Use this struct carefully: it must always be explicitly disposed, otherwise underlying OwnedPooledArray
     /// will never be returned to the pool and memory will leak.
-    /// Use <see cref="Clone"/> method to create a copy of this buffer and ensure that the underlying <see cref="Buffers.OwnedPooledArray{T}"/> is not returned to the pool.
+    /// Use <see cref="Clone"/> method to create a copy of this memory and to ensure that the underlying <see cref="Buffers.OwnedPooledArray{T}"/> is not returned to the pool.
     /// When adding to a Spreads disposable collection (e.g. SortedMap) ownership is transfered to a collection and PreservedBuffer
     /// will be disposed during disposal of that collection. To keep ownership outside the collection, use the <see cref="Clone"/> method and
     /// add a cloned PreservedBuffer value to the collection.
     /// </summary>
     /// <remarks>
-    /// <see cref="PreservedBuffer{T}"/> is the owner of <see cref="MemoryHandle"/> reservation. 
-    /// When it is passed to any method or added  to any collection the reservation ownership is transfered as well. 
+    /// <see cref="PreservedBuffer{T}"/> is the owner of <see cref="MemoryHandle"/> reservation.
+    /// When it is passed to any method or added  to any collection the reservation ownership is transfered as well.
     /// The consuming method or collection must dispose the <see cref="MemoryHandle"/> reservation. If the caller
-    /// needs to retain the buffer and must call <see cref="Clone"/> and pass the cloned buffer.
+    /// needs to retain the memory and must call <see cref="Clone"/> and pass the cloned memory.
     /// </remarks>
-    public struct PreservedBuffer<T> : IReadOnlyList<T>, IPreservedBuffer
+    public struct PreservedBuffer<T> : IPreservedBuffer // IReadOnlyList<T>,
     {
-        private MemoryHandle _reservation;
+        private MemoryHandle _memoryHandle;
 
         /// <summary>
         /// Create a new PreservedBuffer structure.
         /// </summary>
-        /// <param name="buffer"></param>
-        public PreservedBuffer(Memory<T> buffer)
+        /// <param name="memory"></param>
+        public PreservedBuffer(Memory<T> memory)
         {
-            Buffer = buffer;
-            _reservation = buffer.Pin();
+            Memory = memory;
+            _memoryHandle = memory.Pin();
         }
 
         /// <summary>
-        /// Buffer
+        /// Memory
         /// </summary>
-        public Memory<T> Buffer { get; private set; }
+        public Memory<T> Memory { get; private set; }
 
         /// <summary>
-        /// A shortcut to Buffer.Span property.
+        /// A shortcut to Memory.Span property.
         /// </summary>
         public Span<T> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return Buffer.Span; }
+            get { return Memory.Span; }
         }
 
         /// <summary>
         /// Gets the number of elements in the PreservedBuffer.
         /// </summary>
         [Obsolete("Use Length property instead")]
-        public int Count => Buffer.Length;
+        public int Count => Memory.Length;
 
         /// <summary>
         /// Gets the number of elements in the PreservedBuffer.
@@ -68,7 +66,7 @@ namespace Spreads.Buffers
         public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return Buffer.Length; }
+            get { return Memory.Length; }
         }
 
         /// <summary>
@@ -77,46 +75,29 @@ namespace Spreads.Buffers
         public T this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return Buffer.Span[index]; }
+            get { return Memory.Span[index]; }
         }
 
         /// <summary>
         /// Release a reference of the underlying OwnedBuffer.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Dispose()
         {
-            _reservation.Dispose();
-            Buffer = default(Memory<T>);
+            _memoryHandle.Dispose();
+            Memory = default;
         }
 
         /// <summary>
-        /// Increment the underlying OwnedBuffer reference count and return a copy of this preserved buffer.
+        /// Increment the underlying OwnedBuffer reference count and return a copy of this preserved memory.
         /// </summary>
         public PreservedBuffer<T> Clone()
         {
-            return new PreservedBuffer<T>(Buffer);
-        }
-
-        /// <summary>
-        /// Returns an enumerator that iterates through the PreservedBuffer.
-        /// </summary>
-        [Obsolete("TODO Review efficient Span enumeration, both Span and Memory do not implement IEnumeratble (yet)")]
-        public IEnumerator<T> GetEnumerator()
-        {
-            for (int i = 0; i < Buffer.Length; i++)
-            {
-                yield return Buffer.Span[i];
-            }
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
+            return new PreservedBuffer<T>(Memory);
         }
 
         public Type ElementType => typeof(T);
     }
-
 
     internal interface IPreservedBuffer : IDisposable
     {

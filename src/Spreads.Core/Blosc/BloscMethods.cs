@@ -6,8 +6,7 @@ using Spreads.Serialization;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Security;
-using Spreads.Utils.Bootstrap;
+// ReSharper disable InconsistentNaming
 
 namespace Spreads.Blosc
 {
@@ -16,15 +15,22 @@ namespace Spreads.Blosc
     /// </summary>
     internal static class BloscSettings
     {
-        internal static string defaultCompressionMethod = "lz4";
+        internal static string DefaultCompressionMethod = "lz4";
 
         /// <summary>
         /// Get or set default compression method: LZ4 (default) or Zstd).
         /// </summary>
         public static CompressionMethod CompressionMethod
         {
-            get => defaultCompressionMethod == "lz4" ? CompressionMethod.LZ4 : CompressionMethod.Zstd;
-            set => defaultCompressionMethod = value == CompressionMethod.Zstd ? "zstd" : "lz4";
+            get => DefaultCompressionMethod == "lz4" ? CompressionMethod.LZ4 : CompressionMethod.Zstd;
+            set
+            {
+                if (value != CompressionMethod.Zstd || value != CompressionMethod.Zstd)
+                {
+                    ThrowHelper.ThrowNotSupportedException("Spreads.Blosc supports only lz4 or zstd");
+                }
+                DefaultCompressionMethod = value == CompressionMethod.Zstd ? "zstd" : "lz4";
+            }
         }
     }
 
@@ -32,6 +38,7 @@ namespace Spreads.Blosc
 
     [SuppressUnmanagedCodeSecurity]
 #endif
+
     internal class BloscMethods
     {
         public const string BloscLibraryName = "libblosc";
@@ -77,7 +84,7 @@ namespace Spreads.Blosc
             }
             catch (Exception ex)
             {
-                Trace.TraceError($"Error in BloscMethods Init: {ex.ToString()}");
+                Trace.TraceError($"Error in BloscMethods Init: {ex}");
                 throw;
             }
         }
@@ -98,7 +105,7 @@ namespace Spreads.Blosc
             }
             catch (Exception ex)
             {
-                Trace.TraceError($"Error calling native delegate blosc_compress_ctx: {ex.ToString()}");
+                Trace.TraceError($"Error calling native delegate blosc_compress_ctx: {ex}");
                 throw;
             }
         }
@@ -111,7 +118,7 @@ namespace Spreads.Blosc
             }
             catch (Exception ex)
             {
-                Trace.TraceError($"Error calling native delegate blosc_decompress_ctx: {ex.ToString()}");
+                Trace.TraceError($"Error calling native delegate blosc_decompress_ctx: {ex}");
                 throw;
             }
         }
@@ -125,7 +132,7 @@ namespace Spreads.Blosc
             }
             catch (Exception ex)
             {
-                Trace.TraceError($"Error calling native delegate blosc_cbuffer_sizes: {ex.ToString()}");
+                Trace.TraceError($"Error calling native delegate blosc_cbuffer_sizes: {ex}");
                 throw;
             }
         }

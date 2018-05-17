@@ -94,7 +94,7 @@ namespace Spreads.Buffers
         /// </summary>
         private List<byte[]> _dirtyBuffers;
 
-        private static long LastId;
+        private static long _lastId;
         private long _id;
 
         /// <summary>
@@ -159,7 +159,7 @@ namespace Spreads.Buffers
             var rms = Pool.Allocate();
             rms._disposedState = 0;
             rms._memoryManager = memoryManager;
-            rms._id = Interlocked.Increment(ref LastId);
+            rms._id = Interlocked.Increment(ref _lastId);
             rms._tag = tag;
 
             if (requestedSize < memoryManager.BlockSize)
@@ -320,7 +320,7 @@ namespace Spreads.Buffers
         /// Equivalent to Dispose
         /// </summary>
         public override void Close() {
-            this.Dispose(true);
+            Dispose(true);
         }
 
         #endregion Dispose and Finalize
@@ -456,7 +456,7 @@ namespace Spreads.Buffers
                 return _blocks[0];
             }
 
-            // Buffer needs to reflect the capacity, not the length, because
+            // Memory needs to reflect the capacity, not the length, because
             // it's possible that people will manipulate the buffer directly
             // and set the length afterward. Capacity sets the expectation
             // for the size of the buffer.
@@ -491,7 +491,7 @@ namespace Spreads.Buffers
             var newBuffer = new byte[Length];
 
             InternalRead(newBuffer, 0, _length, 0);
-            string stack = _memoryManager.GenerateCallStacks ? Environment.StackTrace : null;
+            var stack = _memoryManager.GenerateCallStacks ? Environment.StackTrace : null;
             Events.Write.MemoryStreamToArray(_id, _tag, stack, 0);
             _memoryManager.ReportStreamToArray();
 
@@ -607,15 +607,15 @@ namespace Spreads.Buffers
                 ThrowHelper.ThrowArgumentException("count must be greater than buffer.Length - offset");
             }
 
-            int blockSize = _memoryManager.BlockSize;
-            long end = (long)_position + count;
+            var blockSize = _memoryManager.BlockSize;
+            var end = _position + count;
             // Check for overflow
             if (end > MaxStreamLength)
             {
                 ThrowHelper.ThrowIOException("Maximum capacity exceeded");
             }
 
-            long requiredBuffers = (end + blockSize - 1) / blockSize;
+            var requiredBuffers = (end + blockSize - 1) / blockSize;
 
             if (requiredBuffers * blockSize > MaxStreamLength)
             {
@@ -626,15 +626,15 @@ namespace Spreads.Buffers
 
             if (_largeBuffer == null)
             {
-                int bytesRemaining = count;
-                int bytesWritten = 0;
+                var bytesRemaining = count;
+                var bytesWritten = 0;
                 var blockAndOffset = GetBlockAndRelativeOffset(_position);
 
                 while (bytesRemaining > 0)
                 {
-                    byte[] currentBlock = _blocks[blockAndOffset.Block];
-                    int remainingInBlock = blockSize - blockAndOffset.Offset;
-                    int amountToWriteInBlock = Math.Min(remainingInBlock, bytesRemaining);
+                    var currentBlock = _blocks[blockAndOffset.Block];
+                    var remainingInBlock = blockSize - blockAndOffset.Offset;
+                    var amountToWriteInBlock = Math.Min(remainingInBlock, bytesRemaining);
 
                     ByteUtil.VectorizedCopy(buffer, offset + bytesWritten, currentBlock, blockAndOffset.Offset, amountToWriteInBlock);
 
@@ -680,8 +680,7 @@ namespace Spreads.Buffers
         public void SafeWriteByte(byte value)
         {
             CheckDisposed();
-            int blockSize = _memoryManager.BlockSize;
-            long end = _position + 1;
+            var end = _position + 1;
             // Check for overflow
             if (end > MaxStreamLength)
             {
@@ -694,7 +693,7 @@ namespace Spreads.Buffers
             {
                 var blockAndOffset = GetBlockAndRelativeOffset(_position);
 
-                byte[] currentBlock = _blocks[blockAndOffset.Block];
+                var currentBlock = _blocks[blockAndOffset.Block];
 
                 currentBlock[blockAndOffset.Offset] = value;
             }
@@ -825,12 +824,12 @@ namespace Spreads.Buffers
 
             if (_largeBuffer == null)
             {
-                int currentBlock = 0;
-                long bytesRemaining = _length;
+                var currentBlock = 0;
+                var bytesRemaining = _length;
 
                 while (bytesRemaining > 0)
                 {
-                    var amountToCopy = Math.Min((long)_blocks[currentBlock].Length, bytesRemaining);
+                    var amountToCopy = Math.Min(_blocks[currentBlock].Length, bytesRemaining);
                     stream.Write(_blocks[currentBlock], 0, checked((int)amountToCopy));
 
                     bytesRemaining -= amountToCopy;
@@ -864,7 +863,7 @@ namespace Spreads.Buffers
                 }
                 else
                 {
-                    for (int i = 0; i < _blocks.Count; i++)
+                    for (var i = 0; i < _blocks.Count; i++)
                     {
                         var len = (i == _blocks.Count - 1)
                             // last chunk

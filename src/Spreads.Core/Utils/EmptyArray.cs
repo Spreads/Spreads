@@ -3,10 +3,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 // ReSharper disable once CheckNamespace
+
+using System;
+
 namespace Spreads
 {
     public class EmptyArray<TElement>
     {
-        public static readonly TElement[] Instance = new TElement[0];
+        public static readonly TElement[] Instance = Array.Empty<TElement>();
     }
 }

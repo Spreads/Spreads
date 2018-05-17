@@ -125,7 +125,7 @@ namespace Spreads.Serialization
                     return checked((int)len);
                 }
                 var compressionMethod = compression == CompressionMethod.DefaultOrNone
-                    ? BloscSettings.defaultCompressionMethod
+                    ? BloscSettings.DefaultCompressionMethod
                     : (compression == CompressionMethod.LZ4 ? "lz4" : "zstd");
 
                 var isDelta = IsIDelta;

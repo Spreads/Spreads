@@ -6,7 +6,7 @@ using System;
 
 namespace Spreads.Utils
 {
-    internal class DummyDisposable : IDisposable
+    public class DummyDisposable : IDisposable
     {
         public void Dispose()
         {

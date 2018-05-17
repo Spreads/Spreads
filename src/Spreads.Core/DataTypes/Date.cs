@@ -11,7 +11,7 @@ namespace Spreads.DataTypes
     /// <summary>
     /// Date stored as a number of days since zero.
     /// </summary>
-    [DebuggerDisplay("{ToString()}")]
+    [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 4)]
     public readonly struct Date
     {

@@ -18,16 +18,16 @@ namespace Spreads.Buffers
 
     internal class UnpinWhenGCed
     {
-        internal GCHandle PinnedGCHandle;
+        internal GCHandle PinnedGcHandle;
 
-        public UnpinWhenGCed(GCHandle pinnedGCHandle)
+        public UnpinWhenGCed(GCHandle pinnedGcHandle)
         {
-            PinnedGCHandle = pinnedGCHandle;
+            PinnedGcHandle = pinnedGcHandle;
         }
 
         ~UnpinWhenGCed()
         {
-            PinnedGCHandle.Free();
+            PinnedGcHandle.Free();
         }
     }
 
@@ -122,7 +122,7 @@ namespace Spreads.Buffers
             get
             {
                 PinBuffer();
-                return new DirectBuffer(_length, new IntPtr(_unpinner.PinnedGCHandle.AddrOfPinnedObject().ToInt64() + _offset));
+                return new DirectBuffer(_length, new IntPtr(_unpinner.PinnedGcHandle.AddrOfPinnedObject().ToInt64() + _offset));
             }
         }
 
@@ -151,13 +151,9 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Assert(long index, int length)
         {
-            if (index + length > _length)
+            if ((ulong)index + (ulong)length > (ulong)_length)
             {
-                throw new ArgumentOutOfRangeException(nameof(index));
-            }
-            if (index < 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(index));
+                ThrowHelper.ThrowArgumentException("Not enough space");
             }
         }
 
@@ -185,7 +181,7 @@ namespace Spreads.Buffers
             Assert(index, 1);
             fixed (byte* ptr = &_buffer[_offset])
             {
-                *((byte*)ptr + index) = (byte)value;
+                *(ptr + index) = (byte)value;
             }
         }
 
@@ -227,7 +223,7 @@ namespace Spreads.Buffers
             Assert(index, 1);
             fixed (byte* ptr = &_buffer[_offset])
             {
-                return *((byte*)ptr + index);
+                return *(ptr + index);
             }
         }
 
@@ -241,7 +237,7 @@ namespace Spreads.Buffers
             Assert(index, 1);
             fixed (byte* ptr = &_buffer[_offset])
             {
-                *((byte*)ptr + index) = value;
+                *(ptr + index) = value;
             }
         }
 
@@ -252,7 +248,7 @@ namespace Spreads.Buffers
                 Assert(index, 1);
                 fixed (byte* ptr = &_buffer[_offset])
                 {
-                    return *((byte*)ptr + index);
+                    return *(ptr + index);
                 }
             }
             set
@@ -260,7 +256,7 @@ namespace Spreads.Buffers
                 Assert(index, 1);
                 fixed (byte* ptr = &_buffer[_offset])
                 {
-                    *((byte*)ptr + index) = value;
+                    *(ptr + index) = value;
                 }
             }
         }
@@ -628,7 +624,7 @@ namespace Spreads.Buffers
         {
             fixed (byte* ptr = &_buffer[_offset])
             {
-                if (len > this._length - index) throw new ArgumentException("length > _capacity - index");
+                if (len > _length - index) throw new ArgumentException("length > _capacity - index");
                 Marshal.Copy((IntPtr)(ptr + index), destination, offsetDestination, len);
                 return len;
             }
@@ -644,7 +640,7 @@ namespace Spreads.Buffers
                     // but Marshal.Copy doesn't accept long as a parameter
                     // Use memcpy and fixed() over an empty large array
                     throw new NotImplementedException(
-                        "Buffer length is larger than the maximum size of a byte array.");
+                        "Memory length is larger than the maximum size of a byte array.");
                 }
                 else
                 {
@@ -668,7 +664,7 @@ namespace Spreads.Buffers
             Assert(index, len);
             fixed (byte* ptr = &_buffer[_offset])
             {
-                int count = Math.Min(len, (int)(this._length - index));
+                int count = Math.Min(len, (int)(_length - index));
                 Marshal.Copy(src, offset, (IntPtr)(ptr + index), count);
                 return count;
             }
@@ -704,7 +700,7 @@ namespace Spreads.Buffers
             Assert(index, 1);
             fixed (byte* ptr = &_buffer[_offset])
             {
-                return (*((byte*)ptr + index)) - '0';
+                return (*(ptr + index)) - '0';
             }
         }
 
@@ -713,7 +709,7 @@ namespace Spreads.Buffers
             Assert(index, 1);
             fixed (byte* ptr = &_buffer[_offset])
             {
-                *(byte*)(ptr + index) = (byte)(value + '0');
+                *(ptr + index) = (byte)(value + '0');
             }
         }
 
@@ -737,7 +733,7 @@ namespace Spreads.Buffers
             {
                 var fixedBuffer1 = fixedBuffer;
                 fixedBuffer1.PinBuffer();
-                SetHandle(new IntPtr(fixedBuffer1._unpinner.PinnedGCHandle.AddrOfPinnedObject().ToInt64() + fixedBuffer1._offset));
+                SetHandle(new IntPtr(fixedBuffer1._unpinner.PinnedGcHandle.AddrOfPinnedObject().ToInt64() + fixedBuffer1._offset));
                 Initialize((uint)fixedBuffer1._length);
             }
 

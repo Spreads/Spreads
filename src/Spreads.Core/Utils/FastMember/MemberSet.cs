@@ -1,14 +1,9 @@
-﻿// Copyright (c) 2017, Marc Gravell https://github.com/mgravell/fast-member
-using System;
+﻿using System;
 using System.Collections.Generic;
-
-#if !NET20
-
 using System.Linq;
-
-#endif
-
 using System.Reflection;
+#if !NET20
+#endif
 
 namespace Spreads.Utils.FastMember
 {
@@ -17,8 +12,7 @@ namespace Spreads.Utils.FastMember
     /// </summary>
     public sealed class MemberSet : IEnumerable<Member>, IList<Member>
     {
-        private Member[] members;
-
+        Member[] members;
         internal MemberSet(Type type)
         {
             const BindingFlags PublicInstance = BindingFlags.Public | BindingFlags.Instance;
@@ -32,7 +26,6 @@ namespace Spreads.Utils.FastMember
                 .Select(member => new Member(member)).ToArray();
 #endif
         }
-
         /// <summary>
         /// Return a sequence of all defined members
         /// </summary>
@@ -40,7 +33,6 @@ namespace Spreads.Utils.FastMember
         {
             foreach (var member in members) yield return member;
         }
-
         /// <summary>
         /// Get a member by index
         /// </summary>
@@ -48,47 +40,22 @@ namespace Spreads.Utils.FastMember
         {
             get { return members[index]; }
         }
-
         /// <summary>
         /// The number of members defined for this type
         /// </summary>
         public int Count { get { return members.Length; } }
-
         Member IList<Member>.this[int index]
         {
             get { return members[index]; }
             set { throw new NotSupportedException(); }
         }
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-
-        bool ICollection<Member>.Remove(Member item)
-        {
-            throw new NotSupportedException();
-        }
-
-        void ICollection<Member>.Add(Member item)
-        {
-            throw new NotSupportedException();
-        }
-
-        void ICollection<Member>.Clear()
-        {
-            throw new NotSupportedException();
-        }
-
-        void IList<Member>.RemoveAt(int index)
-        {
-            throw new NotSupportedException();
-        }
-
-        void IList<Member>.Insert(int index, Member item)
-        {
-            throw new NotSupportedException();
-        }
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { return GetEnumerator(); }
+        bool ICollection<Member>.Remove(Member item) { throw new NotSupportedException(); }
+        void ICollection<Member>.Add(Member item) { throw new NotSupportedException(); }
+        void ICollection<Member>.Clear() { throw new NotSupportedException(); }
+        void IList<Member>.RemoveAt(int index) { throw new NotSupportedException(); }
+        void IList<Member>.Insert(int index, Member item) { throw new NotSupportedException(); }
 
         bool ICollection<Member>.Contains(Member item)
         {
@@ -105,37 +72,25 @@ namespace Spreads.Utils.FastMember
             return members.Contains(item);
 #endif
         }
-
-        void ICollection<Member>.CopyTo(Member[] array, int arrayIndex)
-        {
-            members.CopyTo(array, arrayIndex);
-        }
-
+        void ICollection<Member>.CopyTo(Member[] array, int arrayIndex) { members.CopyTo(array, arrayIndex); }
         bool ICollection<Member>.IsReadOnly { get { return true; } }
+        int IList<Member>.IndexOf(Member member) { return Array.IndexOf<Member>(members, member); }
 
-        int IList<Member>.IndexOf(Member member)
-        {
-            return Array.IndexOf<Member>(members, member);
-        }
     }
-
     /// <summary>
     /// Represents an abstracted view of an individual member defined for a type
     /// </summary>
     public sealed class Member
     {
         private readonly MemberInfo member;
-
         internal Member(MemberInfo member)
         {
             this.member = member;
         }
-
         /// <summary>
         /// The name of this member
         /// </summary>
         public string Name { get { return member.Name; } }
-
         /// <summary>
         /// The type of value stored in this member
         /// </summary>
@@ -155,8 +110,8 @@ namespace Spreads.Utils.FastMember
         public bool IsDefined(Type attributeType)
         {
             if (attributeType == null) throw new ArgumentNullException(nameof(attributeType));
-#if COREFX
-            foreach (var attrib in member.CustomAttributes)
+#if NETSTANDARD
+            foreach(var attrib in member.CustomAttributes)
             {
                 if (attrib.AttributeType == attributeType) return true;
             }
@@ -171,10 +126,10 @@ namespace Spreads.Utils.FastMember
         /// </summary>
         public Attribute GetAttribute(Type attributeType, bool inherit)
         {
-#if COREFX
-            return member.GetCustomAttribute(attributeType, inherit);
+#if NETSTANDARD
+	        return attributeType.GetTypeInfo().GetCustomAttribute(attributeType, inherit);
 #else
-			return Attribute.GetCustomAttribute(member, attributeType, inherit);
+            return Attribute.GetCustomAttribute(member, attributeType, inherit);
 #endif
         }
 

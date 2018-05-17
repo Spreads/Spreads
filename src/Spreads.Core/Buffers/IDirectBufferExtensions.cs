@@ -4,11 +4,12 @@
 
 using System;
 using System.IO;
-using Spreads.Serialization;
+using JetBrains.Annotations;
 
 namespace Spreads.Buffers
 {
-    public static class IDirectBufferExtensions
+    [UsedImplicitly]
+    public static class DirectBufferExtensions
     {
         /// <summary>
         ///

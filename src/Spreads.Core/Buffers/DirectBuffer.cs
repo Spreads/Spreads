@@ -33,10 +33,12 @@ namespace Spreads.Buffers
         {
             return new DirectBuffer(length, data, true);
         }
+
+        // ReSharper disable once UnusedParameter.Local
         private DirectBuffer(long length, IntPtr data, bool nochecks = true)
         {
-            this._data = data;
-            this._length = length;
+            _data = data;
+            _length = length;
         }
 
         /// <summary>
@@ -52,10 +54,10 @@ namespace Spreads.Buffers
             }
             if (length <= 0)
             {
-                ThrowHelper.ThrowArgumentException("Buffer size must be > 0");
+                ThrowHelper.ThrowArgumentException("Memory size must be > 0");
             }
-            this._data = data;
-            this._length = length;
+            _data = data;
+            _length = length;
         }
 
         public DirectBuffer(long length, byte* data) : this(length, (IntPtr)(data))
@@ -112,7 +114,11 @@ namespace Spreads.Buffers
         /// <summary>
         /// Capacity of the underlying buffer
         /// </summary>
-        public long Length => _length;
+        public long Length
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _length; }
+        }
 
         public IntPtr Data => _data;
 
@@ -518,7 +524,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int ReadBytes(long index, byte[] destination, int offsetDestination, int len)
         {
-            if (len > this._length - index) throw new ArgumentException("length > _capacity - index");
+            if (len > _length - index) throw new ArgumentException("length > _capacity - index");
             Marshal.Copy(new IntPtr(_data.ToInt64() + index), destination, offsetDestination, len);
             return len;
         }
@@ -531,11 +537,11 @@ namespace Spreads.Buffers
                 // TODO (low) .NET already supports arrays larger than 2 Gb,
                 // but Marshal.Copy doesn't accept long as a parameter
                 // Use memcpy and fixed() over an empty large array
-                throw new NotImplementedException("Buffer length is larger than the maximum size of a byte array.");
+                throw new NotImplementedException("Memory length is larger than the maximum size of a byte array.");
             }
             else
             {
-                Marshal.Copy((this._data), destination, 0, (int)_length);
+                Marshal.Copy((_data), destination, 0, (int)_length);
                 return (int)_length;
             }
         }

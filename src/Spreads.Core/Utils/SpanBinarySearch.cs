@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Utils
 {
-    public static class SpanExtensions
+    internal static class SpanExtensions
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BinarySearch<T>(this Span<T> span, int index, int length, T value, KeyComparer<T> comparer)

@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -117,6 +118,7 @@ namespace Spreads
         public static void InvokeMethod(this Assembly assembly, string typeName, string methodName)
         {
             var mi = assembly.GetType(typeName).GetMethod(methodName, (BindingFlags.Static | BindingFlags.NonPublic));
+            Debug.Assert(mi != null, nameof(mi) + " != null");
             mi.Invoke(null, new object[] { });
         }
     }

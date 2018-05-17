@@ -755,7 +755,7 @@ namespace Spreads.Core.Tests
                 //sw.Restart();
                 //for (int ii = 0; ii < 50; ii++)
                 //{
-                //    var span = buffer.Buffer.Span;
+                //    var span = buffer.Memory.Span;
                 //    for (int i = 0; i < count; i++)
                 //    {
                 //        span[i] = i;
@@ -763,7 +763,7 @@ namespace Spreads.Core.Tests
                 //    }
                 //}
                 //sw.Stop();
-                //Console.WriteLine($"Buffer write {sw.MOPS(count * 50)}");
+                //Console.WriteLine($"Memory write {sw.MOPS(count * 50)}");
                 //Assert.True(sum < Int64.MaxValue);
 
                 //sw.Restart();
@@ -814,7 +814,7 @@ namespace Spreads.Core.Tests
 
                 //sum2 = 0;
                 //sw.Restart();
-                //var span = buffer.Buffer.Span;
+                //var span = buffer.Memory.Span;
                 //for (int ii = 0; ii < 50; ii++)
                 //{
                 //    for (int i = 0; i < count; i++)
@@ -823,7 +823,7 @@ namespace Spreads.Core.Tests
                 //    }
                 //}
                 //sw.Stop();
-                //Console.WriteLine($"Buffer read {sw.MOPS(count * 50)}");
+                //Console.WriteLine($"Memory read {sw.MOPS(count * 50)}");
 
                 //sum2 = 0;
                 //sw.Restart();
@@ -1116,7 +1116,7 @@ namespace Spreads.Core.Tests
                         }
                     }
 
-                    using (Benchmark.Run("Buffer.BlockCopy", count, true))
+                    using (Benchmark.Run("Memory.BlockCopy", count, true))
                     {
                         for (int i = 0; i < count; i++)
                         {

@@ -24,16 +24,15 @@
 // THE SOFTWARE.
 // ---------------------------------------------------------------------
 
+using Spreads.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using Spreads.Utils;
 
 namespace Spreads.Buffers
 {
@@ -97,7 +96,6 @@ namespace Spreads.Buffers
         private readonly ConcurrentStack<byte[]>[] _largePools;
 
         private readonly int _maximumBufferSize;
-
 
         /// <summary>
         /// Initializes the memory manager with the default block/buffer specifications.
@@ -282,7 +280,7 @@ namespace Spreads.Buffers
             }
             else
             {
-                // Buffer is too large to pool. They get a new buffer.
+                // Memory is too large to pool. They get a new buffer.
 
                 // We still want to track the size, though, and we've reserved a slot
                 // in the end of the inuse array for nonpooled bytes in use.

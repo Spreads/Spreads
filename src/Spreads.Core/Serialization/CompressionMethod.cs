@@ -22,6 +22,9 @@
         /// </summary>
         Zstd = 2,
 
-        // TODO Gziped JSON (and no MsgPack!)
+        /// <summary>
+        /// JSON compressed with raw defalte method.
+        /// </summary>
+        DeflateJson = 3
     }
 }

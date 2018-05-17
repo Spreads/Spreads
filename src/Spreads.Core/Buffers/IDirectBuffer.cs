@@ -194,8 +194,10 @@ namespace Spreads.Buffers
 // TODO test if that has an impact
         int WriteBytes(long index, byte[] src, int offset, int len);
 
+        // ReSharper disable once InconsistentNaming
         UUID ReadUUID(long index);
 
+        // ReSharper disable once InconsistentNaming
         void WriteUUID(long index, UUID value);
 
         int ReadAsciiDigit(long index);

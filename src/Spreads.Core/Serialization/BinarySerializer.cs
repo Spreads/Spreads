@@ -149,7 +149,7 @@ namespace Spreads.Serialization
         public static int Write<T>(T value, ref PreservedBuffer<byte> destination, uint offset = 0u,
             MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
         {
-            var buffer = destination.Buffer;
+            var buffer = destination.Memory;
             return Write(value, ref buffer, offset, temporaryStream);
         }
 
@@ -193,7 +193,7 @@ namespace Spreads.Serialization
             fixed (byte* ptr = &buffer[offset])
             {
                 var size = *(int*)ptr;
-                if ((uint)offset + size > buffer.Length) throw new ArgumentException("Buffer is too small");
+                if ((uint)offset + size > buffer.Length) throw new ArgumentException("Memory is too small");
                 return Read((IntPtr)ptr, out value);
             }
         }
@@ -201,7 +201,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(PreservedBuffer<byte> source, uint offset, out T value)
         {
-            var handle = source.Buffer.Pin();
+            var handle = source.Memory.Pin();
             try
             {
                 return Read((IntPtr)handle.Pointer, out value);
@@ -226,7 +226,7 @@ namespace Spreads.Serialization
             {
                 var ptr = (IntPtr)handle.Pointer + offset;
                 var len = *(int*)ptr;
-                if ((uint)offset + len > buffer.Length) throw new ArgumentException("Buffer is too small");
+                if ((uint)offset + len > buffer.Length) throw new ArgumentException("Memory is too small");
                 return Read(ptr, out value);
             }
             finally
