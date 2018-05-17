@@ -4,7 +4,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,7 +13,7 @@ using Spreads.Collections;
 using Spreads.DataTypes;
 using Spreads.Utils;
 
-namespace Spreads.Core.Tests.DataTypes
+namespace Spreads.Tests.DataTypes
 {
     [TestFixture]
     public class VariantTests
@@ -109,7 +108,7 @@ namespace Spreads.Core.Tests.DataTypes
 
         #region Benchmarks
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldCreateAndReadInlinedVariantInALoop()
         {
             var count = 50000000;
@@ -185,7 +184,7 @@ namespace Spreads.Core.Tests.DataTypes
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldCreateWriteReadInlinedVariantInALoop()
         {
             var count = 100000000;

@@ -2,17 +2,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Deedle;
-using NUnit.Framework;
-using Spreads.Collections;
-using Spreads.Utils;
+// using Deedle;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using NUnit.Framework;
+using Spreads.Collections;
+using Spreads.Utils;
 
-namespace Spreads.Core.Tests.Cursors
+namespace Spreads.Tests.Cursors
 {
     [TestFixture]
     public class ZipCursorTests
@@ -25,8 +26,8 @@ namespace Spreads.Core.Tests.Cursors
             var c1 = sm1.GetEnumerator();
             var c2 = sm2.GetEnumerator();
 
-            var ds1 = new Deedle.Series<int, double>(sm1.Keys.ToArray(), sm1.Values.ToArray());
-            var ds2 = new Deedle.Series<int, double>(sm2.Keys.ToArray(), sm2.Values.ToArray());
+            //var ds1 = new Deedle.Series<int, double>(sm1.Keys.ToArray(), sm1.Values.ToArray());
+            //var ds2 = new Deedle.Series<int, double>(sm2.Keys.ToArray(), sm2.Values.ToArray());
 
             Assert.NotNull(c1.Comparer);
             Assert.NotNull(c2.Comparer);
@@ -142,7 +143,7 @@ namespace Spreads.Core.Tests.Cursors
             CouldAddTwoSeriesWithSameKeys(expected, sm1, sm2);
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldAddTwoSeriesWithSameKeysBenchmark()
         {
             var sm1 = new SortedMap<int, double>();
@@ -418,7 +419,7 @@ namespace Spreads.Core.Tests.Cursors
             Assert.AreEqual(129, zipCursor1.CurrentValue);
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void DiscreteZipIsCorrectByRandomCheckBenchmark()
         {
             for (int r = 0; r < 1000; r++)
@@ -584,7 +585,7 @@ namespace Spreads.Core.Tests.Cursors
             //}
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void ContinuousZipIsCorrectByRandomCheckBenchmark()
         {
             for (int r = 0; r < 1000; r++)
@@ -751,7 +752,7 @@ namespace Spreads.Core.Tests.Cursors
             //}
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldAddSeriesArrayWithSameKeys()
         {
             var sm1 = new SortedMap<int, double>();

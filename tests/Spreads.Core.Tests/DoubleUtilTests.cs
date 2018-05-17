@@ -3,20 +3,16 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using Spreads.Utils;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Tests
 {
     [TestFixture]
     public class DoubleUtilTests
     {
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CompareOppositeSignSpeed()
         {
             var doubles = new double[10000000];

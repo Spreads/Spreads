@@ -2,16 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System.Collections.Generic;
 using NUnit.Framework;
 using Spreads.Utils;
-using System.Collections.Generic;
 
-namespace Spreads.Core.Tests.Collections
+namespace Spreads.Tests.Collections
 {
     [TestFixture]
     public class KeyComparerTests
     {
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void ComparerInterfaceAndCachedConstrainedComparer()
         {
             var c = Comparer<long>.Default;

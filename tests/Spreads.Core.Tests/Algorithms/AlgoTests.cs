@@ -2,19 +2,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using NUnit.Framework;
 using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using NUnit.Framework;
 
-namespace Spreads.Core.Tests.Algorithms
+namespace Spreads.Tests.Algorithms
 {
     [TestFixture]
     public class AlgoTests
     {
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public unsafe void PrintVectorSizes()
         {
             //Console.WriteLine(Vector<float>.Count);
@@ -62,7 +62,7 @@ namespace Spreads.Core.Tests.Algorithms
         }
 
         //[Test]
-        //[Ignore]
+        //[Ignore("long running")]
         //public void SimdVsLoopAddition()
         //{
         //    var sw = new Stopwatch();
@@ -120,7 +120,7 @@ namespace Spreads.Core.Tests.Algorithms
         //}
 
         //[Test]
-        //[Ignore]
+        //[Ignore("long running")]
         //public void SimdVsLoopExp()
         //{
         //    var sw = new Stopwatch();
@@ -155,8 +155,7 @@ namespace Spreads.Core.Tests.Algorithms
         //    }
         //}
 
-        [Test]
-        [Ignore]
+        [Test, Ignore("long running")]
         public unsafe void SimdAddOfEnumerable()
         {
             var sw = new Stopwatch();
@@ -221,7 +220,7 @@ namespace Spreads.Core.Tests.Algorithms
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public unsafe void SimdUnsafeVector()
         {
             float[] values = new float[1024 * 1024];

@@ -2,18 +2,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System.Collections.Generic;
 using NUnit.Framework;
 using Spreads.Collections.Generic;
 using Spreads.DataTypes;
 using Spreads.Utils;
-using System.Collections.Generic;
 
-namespace Spreads.Core.Tests.Collections
+namespace Spreads.Tests.Collections
 {
     [TestFixture]
     public class FastDictionaryTests
     {
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CompareSCGAndFastDictionaryWithInts()
         {
             var dictionary = new Dictionary<int, int>();
@@ -61,7 +61,7 @@ namespace Spreads.Core.Tests.Collections
             Benchmark.Dump();
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CompareSCGAndFastDictionaryWithSymbol()
         {
             var dictionary = new Dictionary<Symbol, int>();

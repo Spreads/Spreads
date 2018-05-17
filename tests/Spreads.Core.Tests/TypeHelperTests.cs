@@ -2,16 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using NUnit.Framework;
-using Spreads.Serialization;
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using NUnit.Framework;
+using Spreads.Serialization;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Tests
 {
     [TestFixture]
     public class TypeHelperTests

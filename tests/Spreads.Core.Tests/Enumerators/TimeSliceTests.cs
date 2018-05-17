@@ -2,19 +2,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using NUnit.Framework;
-using Spreads.DataTypes;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using NUnit.Framework;
+using Spreads.DataTypes;
 
-namespace Spreads.Core.Tests.Enumerators
+namespace Spreads.Tests.Enumerators
 {
     [TestFixture]
     public class TimeSliceTests
     {
-        [Test, Ignore]
+        [Test]
         public void CouldAggregate()
         {
             var count = 10000;
@@ -100,7 +100,7 @@ namespace Spreads.Core.Tests.Enumerators
             Console.WriteLine($"GC: {GC.CollectionCount(0)} - {GC.CollectionCount(1)} - {GC.CollectionCount(2)}");
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldAggregateWithHoles()
         {
             var count = 1000000;

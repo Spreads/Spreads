@@ -34,7 +34,7 @@
 //            Assert.AreEqual(4, map1.First.Value);
 //        }
 
-//        [Test, Ignore]
+//        [Test, Ignore("long running")]
 //        public void CouldMapValuesBenchmark()
 //        {
 //            var sm = new SortedMap<int, double>();
@@ -82,7 +82,7 @@
 //            }
 //        }
 
-//        [Test, Ignore]
+//        [Test, Ignore("long running")]
 //        [DotMemoryUnit(CollectAllocations = true)]
 //        public void CouldMapValuesBenchmarkArithmeticVsMapCursor()
 //        {
@@ -332,7 +332,7 @@
 //            Console.WriteLine(sm.Count());
 //        }
 
-//        [Test, Ignore]
+//        [Test, Ignore("long running")]
 //        public void CouldMapValuesWithOperatorBenchmark()
 //        {
 //            var sm = new SortedMap<int, double>();
@@ -375,7 +375,7 @@
 //            }
 //        }
 
-//        [Test, Ignore]
+//        [Test, Ignore("long running")]
 //        public void CouldUseStructSeries()
 //        {
 //            var sm = new SortedMap<int, double>();
@@ -445,7 +445,7 @@
 //            Benchmark.Dump("Compare enumeration speed of SortedMap and two arithmetic implementations using class and struct (item workload is multiply by 2 then add 2).");
 //        }
 
-//        [Test, Ignore]
+//        [Test, Ignore("long running")]
 //        // TODO learn how to use dotMemory for total allocatoins count
 //        //[DotMemoryUnit(FailIfRunWithoutSupport = false)]
 //        public void MultipleEnumerationDoesntAllocate()

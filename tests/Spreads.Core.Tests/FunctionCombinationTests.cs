@@ -3,16 +3,11 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
-using System.Runtime.InteropServices;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Tests
 {
     public class IdClass<T>
     {
@@ -27,7 +22,7 @@ namespace Spreads.Core.Tests
     public class FunctionCombinationTests
     {
         [Test]
-        [Ignore]
+        [Ignore("long running")]
         public void IdentityFunctionTests()
         {
             var sw = new Stopwatch();

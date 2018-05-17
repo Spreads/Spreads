@@ -1,7 +1,7 @@
-﻿using NUnit.Framework;
-using Spreads.DataTypes;
-using System;
+﻿using System;
 using System.Runtime.Serialization;
+using NUnit.Framework;
+using Spreads.DataTypes;
 
 namespace Spreads.Tests.DataTypes
 {

@@ -2,15 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using NUnit.Framework;
-using Spreads.Collections;
-using Spreads.Cursors;
 using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using NUnit.Framework;
+using Spreads.Collections;
 
-namespace Spreads.Core.Tests.Cursors
+namespace Spreads.Tests.Cursors
 {
     [TestFixture]
     public class AsyncCursorTests

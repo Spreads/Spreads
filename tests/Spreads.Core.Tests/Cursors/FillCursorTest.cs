@@ -4,9 +4,8 @@
 
 using NUnit.Framework;
 using Spreads.Collections;
-using Spreads.Cursors;
 
-namespace Spreads.Core.Tests.Cursors
+namespace Spreads.Tests.Cursors
 {
     [TestFixture]
     public class FillCursorTests

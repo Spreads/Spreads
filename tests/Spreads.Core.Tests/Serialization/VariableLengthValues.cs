@@ -7,12 +7,12 @@ using Spreads.Buffers;
 using Spreads.Serialization;
 using BufferPool = Spreads.Buffers.BufferPool;
 
-namespace Spreads.Core.Tests.Serialization
+namespace Spreads.Tests.Serialization
 {
     [TestFixture]
     public class VariableLengthValuesTests
     {
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldCreateBinaryConverter()
         {
             var converter = GetConverter<PreservedBuffer<byte>[]>();

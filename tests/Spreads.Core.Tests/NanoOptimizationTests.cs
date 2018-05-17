@@ -2,20 +2,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using NUnit.Framework;
-using Spreads.Buffers;
-using Spreads.Serialization;
-using Spreads.Utils;
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
+using NUnit.Framework;
+using Spreads.Buffers;
+using Spreads.Serialization;
+using Spreads.Utils;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Tests
 {
     [TestFixture]
     public unsafe class NanoOptimizationTests
@@ -235,7 +234,7 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Constrained struct {sw.ElapsedMilliseconds}");
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CallVsCallVirt(int r)
         {
             var count = 100000000;
@@ -355,7 +354,7 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Composed class {sw.ElapsedMilliseconds}");
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CallVsCallVirt()
         {
             for (int r = 0; r < 10; r++)
@@ -365,7 +364,7 @@ namespace Spreads.Core.Tests
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void SOVolatileQuestion()
         {
             long counter = 0;
@@ -379,7 +378,7 @@ namespace Spreads.Core.Tests
             Interlocked.Increment(ref counter);
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void ArrayVsListVsIListBenchmark()
         {
             for (int times = 0; times < 5; times++)
@@ -389,7 +388,7 @@ namespace Spreads.Core.Tests
             Benchmark.Dump();
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void ArrayVsListVsIList()
         {
             var len = 1000;
@@ -564,7 +563,7 @@ namespace Spreads.Core.Tests
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public unsafe void PinningNonBlittableThrows()
         {
             var buffer = BufferPool<string>.RentOwnedBuffer(100);
@@ -576,7 +575,7 @@ namespace Spreads.Core.Tests
             Assert.True(TypeHelper<string>.Size <= 0);
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public unsafe void UnsafeWorksWithRefTypes()
         {
             var buffer = BufferPool<string>.RentOwnedBuffer(100);
@@ -588,7 +587,7 @@ namespace Spreads.Core.Tests
         private static bool mutable = TypeHelper<string>.IsPinnable;
         private static readonly bool ro = TypeHelper<string>.IsPinnable;
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public unsafe void StaticROFieldIsOptimized()
         {
             var count = 1000000;
@@ -697,14 +696,14 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Unsafe read {sw.MOPS(count * 100)}");
         }
 
-        //[Test, Ignore]
+        //[Test, Ignore("long running")]
         //public unsafe void CallHiddenMethodFromBaseClass()
         //{
         //    OwnedBuffer<int> b = new DirectOwnedBuffer<int>(new int[1]);
         //    Assert.False(b.IsDisposed);
         //}
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public unsafe void ArrayVsOwnedBuffer()
         {
             var count = 1000000;
@@ -843,7 +842,7 @@ namespace Spreads.Core.Tests
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public unsafe void ArrayVsOwnedBufferBinarySearchDateTime()
         {
             var count = 4096;
@@ -886,7 +885,7 @@ namespace Spreads.Core.Tests
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public unsafe void ArrayVsOwnedBufferBinarySearchInt()
         {
             var count = 40960;
@@ -929,13 +928,13 @@ namespace Spreads.Core.Tests
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void MeasureNodaTimeInstantSize()
         {
             Console.WriteLine(Unsafe.SizeOf<NodaTime.Instant>());
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void LargeLongsToDoubleKeepWeekOrder()
         {
             var start = 1L << 54;
@@ -952,7 +951,7 @@ namespace Spreads.Core.Tests
             Assert.Pass("Double keeps week order");
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void IfVsArrayAccess()
         {
             // For Union2/Zip2 we could have a very unpredictable relative position,
@@ -1031,7 +1030,7 @@ namespace Spreads.Core.Tests
             Assert.False(Settings.DoAdditionalCorrectnessChecks);
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void MeasureLoopTime()
         {
             var sw = new System.Diagnostics.Stopwatch();
@@ -1047,7 +1046,7 @@ namespace Spreads.Core.Tests
             Console.WriteLine(sw.ElapsedMilliseconds);
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void VectorizedCopy()
         {
             // https://github.com/dotnet/coreclr/issues/2430

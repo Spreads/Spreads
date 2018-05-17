@@ -5,7 +5,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Tests
 {
     public static class SimdMath
     {

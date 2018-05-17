@@ -3,15 +3,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 
-using NUnit.Framework;
-using Spreads.Collections.Concurrent;
 using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using NUnit.Framework;
+using Spreads.Collections.Concurrent;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Tests
 {
     [TestFixture]
     public class ObjectPoolTests
@@ -31,7 +31,7 @@ namespace Spreads.Core.Tests
 
         // https://github.com/dotnet/corefx/pull/14126
         [Test]
-        [Ignore]
+        [Ignore("long running")]
         public void PoolPerformance()
         {
             int capacity = Environment.ProcessorCount * 2;

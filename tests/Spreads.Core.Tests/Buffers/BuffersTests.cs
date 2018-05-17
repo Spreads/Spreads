@@ -9,7 +9,7 @@ using System.Threading;
 using NUnit.Framework;
 using Spreads.Buffers;
 
-namespace Spreads.Core.Tests.Buffers
+namespace Spreads.Tests.Buffers
 {
     [TestFixture]
     public class BuffersTests
@@ -24,7 +24,7 @@ namespace Spreads.Core.Tests.Buffers
             public static T[] ThreadLocal => _threadLocal.Value;
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void ThreadStaticVsThreadLocal()
         {
             for (int r = 0; r < 10; r++)
@@ -60,7 +60,7 @@ namespace Spreads.Core.Tests.Buffers
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void ThreadStaticBufferVsSharedPool()
         {
             for (int r = 0; r < 10; r++)
@@ -162,8 +162,7 @@ namespace Spreads.Core.Tests.Buffers
             Assert.AreEqual(255, firstByte);
         }
 
-        [Test]
-        [Ignore]
+        [Test, Ignore("long running")]
         public unsafe void InterlockedIncrVsAdd()
         {
             var ptr = (void*)Marshal.AllocHGlobal(8);

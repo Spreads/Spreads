@@ -2,12 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using NUnit.Framework;
 using Spreads.DataTypes;
 using Spreads.Utils;
-using System;
 
-namespace Spreads.Core.Tests.DataTypes
+namespace Spreads.Tests.DataTypes
 {
     [TestFixture]
     public class PriceTests
@@ -64,7 +64,7 @@ namespace Spreads.Core.Tests.DataTypes
             Assert.AreEqual(-(decimal)first, (decimal)second);
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldConvertToDoubleDynamic()
         {
             var count = 10_000_000;

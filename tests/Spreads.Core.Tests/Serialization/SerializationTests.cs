@@ -2,17 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
 using NUnit.Framework;
 using Spreads.Blosc;
 using Spreads.Collections;
 using Spreads.Serialization;
-using System;
-using System.Buffers;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 
-namespace Spreads.Core.Tests.Serialization
+namespace Spreads.Tests.Serialization
 {
     [TestFixture]
     public class SerializationTests
@@ -36,13 +35,12 @@ namespace Spreads.Core.Tests.Serialization
             }
         }
 
-        [Test]
-        [ExpectedException(typeof(System.ArgumentException))]
-        public void CouldNotPinDateTimeArray()
-        {
-            var dta = new DateTime[2];
-            GCHandle.Alloc(dta, GCHandleType.Pinned);
-        }
+        //[Test, Throws(typeof(System.ArgumentException))]
+        //public void CouldNotPinDateTimeArray()
+        //{
+        //    var dta = new DateTime[2];
+        //    GCHandle.Alloc(dta, GCHandleType.Pinned);
+        //}
 
         [Test]
         public void CouldPinDecimalArray()

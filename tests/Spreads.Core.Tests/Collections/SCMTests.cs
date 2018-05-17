@@ -13,7 +13,7 @@
 //    [TestFixture]
 //    public class SCMTests
 //    {
-//        [Test, Ignore]
+//        [Test, Ignore("long running")]
 //        public void EnumerateScmSpeed()
 //        {
 //            const int count = 10_000_000;

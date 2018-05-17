@@ -2,15 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using FastMember;
 
-using System.Linq;
-using NUnit.Framework;
 using System;
 using System.Diagnostics;
+using System.Linq;
+using NUnit.Framework;
 using Spreads.DataTypes;
+using Spreads.Utils.FastMember;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Tests
 {
     public class TestRow
     {
@@ -25,7 +25,7 @@ namespace Spreads.Core.Tests
     [TestFixture]
     public class ColumnsTests
     {
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void ColumnTest()
         {
             var count = 100000;

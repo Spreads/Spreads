@@ -7,16 +7,15 @@ using System.Diagnostics;
 using System.IO;
 using Newtonsoft.Json;
 using NUnit.Framework;
-using Spreads.Buffers;
 using Spreads.DataTypes;
 using Spreads.Serialization;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Tests
 {
     [TestFixture]
     public class TableTests
     {
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldSerializeTable()
         {
             var sw = new Stopwatch();
@@ -64,7 +63,7 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Delta length: {str2.Length} count: {delta.Cells.Count}");
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldSerializeTableManyTimes()
         {
             for (int round = 0; round < 10; round++)

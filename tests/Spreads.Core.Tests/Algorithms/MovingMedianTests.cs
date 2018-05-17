@@ -2,19 +2,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using NUnit.Framework;
-using Spreads.Algorithms.Online;
-using Spreads.Collections;
 using System;
 using System.Diagnostics;
+using NUnit.Framework;
+using Spreads.Algorithms.Online;
 using Spreads.Utils;
 
-namespace Spreads.Core.Tests.Algorithms
+namespace Spreads.Tests.Algorithms
 {
     [TestFixture]
     public class MovingMedianTests
     {
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldCalculateMovingMedian()
         {
             var rng = new System.Random();
@@ -53,7 +52,7 @@ namespace Spreads.Core.Tests.Algorithms
             Console.WriteLine($"{ligoMops / naiveMops:f2}");
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldCalculateMovingMedianManyTimes()
         {
             for (int r = 0; r < 100; r++)
@@ -62,7 +61,7 @@ namespace Spreads.Core.Tests.Algorithms
             }
         }
 
-        [Test, Ignore]
+        [Test, Explicit("long running")]
         public void MovingMedianIsCorrect()
         {
             var rng = new System.Random();
@@ -105,7 +104,7 @@ namespace Spreads.Core.Tests.Algorithms
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void MovingMedianIsCorrectManyTimes()
         {
             for (int r = 0; r < 50; r++)
@@ -115,7 +114,7 @@ namespace Spreads.Core.Tests.Algorithms
         }
 
         // TODO restore
-        //[Test, Ignore]
+        //[Test, Ignore("long running")]
         //public void IncompleteMovingMedianIsCorrect()
         //{
         //    var rng = new System.Random();
@@ -189,7 +188,7 @@ namespace Spreads.Core.Tests.Algorithms
         //    }
         //}
 
-        //[Test, Ignore]
+        //[Test, Ignore("long running")]
         //public void IncompleteMovingMedianIsCorrectManyTimes()
         //{
         //    for (int r = 0; r < 50; r++)

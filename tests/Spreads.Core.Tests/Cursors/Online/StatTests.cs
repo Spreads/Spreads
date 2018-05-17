@@ -2,16 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.DataTypes;
 using Spreads.Utils;
-using System;
-using System.Linq;
 
 // ReSharper disable CompareOfFloatsByEqualityOperator
 
-namespace Spreads.Core.Tests.Cursors.Online
+namespace Spreads.Tests.Cursors.Online
 {
     [TestFixture]
     public class StatTests
@@ -79,7 +78,7 @@ namespace Spreads.Core.Tests.Cursors.Online
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void Stat2StDevBenchmark()
         {
             var comparer = KeyComparer<int>.Default;
@@ -92,7 +91,7 @@ namespace Spreads.Core.Tests.Cursors.Online
                 sm.Add(i, i);
             }
 
-            var ds1 = new Deedle.Series<int, double>(sm.Keys.ToArray(), sm.Values.ToArray());
+            // var ds1 = new Deedle.Series<int, double>(sm.Keys.ToArray(), sm.Values.ToArray());
 
             var sum = 0.0;
 
@@ -138,21 +137,21 @@ namespace Spreads.Core.Tests.Cursors.Online
                 }
                 Assert.True(sum4 != 0);
 
-                var sum5 = 0.0;
-                using (Benchmark.Run("Deedle (online)", count * width))
-                {
-                    var deedleStDev = Deedle.Stats.movingStdDev(width, ds1);
-                    foreach (var keyValuePair in deedleStDev.Values)
-                    {
-                        sum5 += keyValuePair;
-                    }
-                }
-                Assert.True(sum5 != 0);
+                //var sum5 = 0.0;
+                //using (Benchmark.Run("Deedle (online)", count * width))
+                //{
+                //    var deedleStDev = Deedle.Stats.movingStdDev(width, ds1);
+                //    foreach (var keyValuePair in deedleStDev.Values)
+                //    {
+                //        sum5 += keyValuePair;
+                //    }
+                //}
+                //Assert.True(sum5 != 0);
 
                 Assert.True(Math.Abs(sum1 / sum2 - 1) < 0.000001);
                 Assert.True(Math.Abs(sum1 / sum3 - 1) < 0.000001);
                 Assert.True(Math.Abs(sum1 / sum4 - 1) < 0.000001);
-                Assert.True(Math.Abs(sum1 / sum5 - 1) < 0.000001);
+                // Assert.True(Math.Abs(sum1 / sum5 - 1) < 0.000001);
 
                 sum = 0.0;
                 using (Benchmark.Run("SortedMap enumeration", count))

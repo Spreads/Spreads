@@ -2,14 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using NUnit.Framework;
-using Spreads.Collections;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using NUnit.Framework;
+using Spreads.Collections;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Tests
 {
     public static class SingleEumerable<T>
     {
@@ -42,7 +42,7 @@ namespace Spreads.Core.Tests
     [TestFixture]
     public class SingleEnumerableTests
     {
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void DirectSum()
         {
             var sw = new Stopwatch();
@@ -57,7 +57,7 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void DirectStructSum()
         {
             var sw = new Stopwatch();
@@ -73,7 +73,7 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void DirectClassSum()
         {
             var sw = new Stopwatch();
@@ -89,7 +89,7 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void SingleEnumerableWithYieldForEachManyTimes()
         {
             for (int i = 0; i < 5; i++)
@@ -98,7 +98,7 @@ namespace Spreads.Core.Tests
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void SingleEnumerableWithYieldForEach()
         {
             var sw = new Stopwatch();
@@ -116,7 +116,7 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void SingleEnumerableWithYieldLinq()
         {
             var sw = new Stopwatch();
@@ -131,7 +131,7 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void SingleSequenceStructForEachManyTimes()
         {
             for (int i = 0; i < 20; i++)
@@ -142,7 +142,7 @@ namespace Spreads.Core.Tests
 
         // Fastest among seqs, but still 30x times slower than direct sum
         // 49 mops vs 37 mops, or c.30% faster
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void SingleSequenceStructForEach()
         {
             var sw = new Stopwatch();
@@ -160,7 +160,7 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void SingleSequenceStructReusedForEach()
         {
             var sw = new Stopwatch();
@@ -179,7 +179,7 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void SingleSequenceStructLinq()
         {
             var sw = new Stopwatch();
@@ -195,7 +195,7 @@ namespace Spreads.Core.Tests
         }
 
         //Enumerable.Repeat("abc",1);
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void SingleLinqRepeatForEach()
         {
             var sw = new Stopwatch();
@@ -213,7 +213,7 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Mops {100000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void SingleLinqRepeatLinq()
         {
             var sw = new Stopwatch();

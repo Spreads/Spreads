@@ -2,13 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using NUnit.Framework;
-using Spreads.Algorithms.Optimization;
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using NUnit.Framework;
+using Spreads.Algorithms.Optimization;
 
-namespace Spreads.Core.Tests.Algorithms
+namespace Spreads.Tests.Algorithms
 {
     [TestFixture]
     public class OptimizationTests
@@ -22,7 +22,7 @@ namespace Spreads.Core.Tests.Algorithms
         }
 
         [Test]
-        public async void CouldFindMaximum()
+        public async Task CouldFindMaximum()
         {
             var sw = new Stopwatch();
             var startMemory = GC.GetTotalMemory(true);
@@ -85,8 +85,8 @@ namespace Spreads.Core.Tests.Algorithms
         /// <summary>
         /// This test should load CPU significantly above one core
         /// </summary>
-        [Test, Ignore]
-        public async void CouldFindMaximumWithSpinWait()
+        [Test, Ignore("long running")]
+        public async Task CouldFindMaximumWithSpinWait()
         {
             var par0 = new Parameter("par0", 0, 10, 1);
             var par1 = new Parameter("par1", 0, 10, 1);
@@ -138,7 +138,7 @@ namespace Spreads.Core.Tests.Algorithms
         }
 
         [Test]
-        public async void CouldFindMaximumUsingMaximizeMethod()
+        public async Task CouldFindMaximumUsingMaximizeMethod()
         {
             var sw = new Stopwatch();
             var startMemory = GC.GetTotalMemory(true);
@@ -171,7 +171,7 @@ namespace Spreads.Core.Tests.Algorithms
         }
 
         [Test]
-        public async void CouldFindMaximumUsingMaximizeMethodWithBigStep()
+        public async Task CouldFindMaximumUsingMaximizeMethodWithBigStep()
         {
             var sw = new Stopwatch();
             var startMemory = GC.GetTotalMemory(true);

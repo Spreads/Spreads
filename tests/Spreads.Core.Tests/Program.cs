@@ -2,21 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Core.Tests.Collections;
-using Spreads.Utils;
 using System;
 using System.Diagnostics;
-using Spreads.Core.Tests.Buffers;
-using Spreads.Core.Tests.Cursors;
-using Spreads.Core.Tests.Cursors.Internal;
-using Spreads.Core.Tests.Cursors.Online;
-using Spreads.Core.Tests.DataTypes;
+using Spreads.Tests.Buffers;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Tests
 {
     internal class Program
     {
-        private static void Main(string[] args)
+        private static void Main1(string[] args)
         {
             using (Process p = Process.GetCurrentProcess())
             {

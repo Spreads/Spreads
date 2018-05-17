@@ -2,18 +2,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
+using System.Linq;
 using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Utils;
-using System;
-using System.Linq;
 
-namespace Spreads.Core.Tests.Buffers
+namespace Spreads.Tests.Buffers
 {
     [TestFixture]
     public class RecyclableMemoryStreamTests
     {
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldUseSafeWriteReadByte()
         {
             var doChecks = true;
@@ -81,7 +81,7 @@ namespace Spreads.Core.Tests.Buffers
         }
 
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldUseSafeWriteReadArray()
         {
             var doChecks = false;
