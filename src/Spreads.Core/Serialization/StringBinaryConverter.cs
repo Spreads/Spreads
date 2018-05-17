@@ -80,13 +80,13 @@ namespace Spreads.Serialization
             var version = Marshal.ReadInt32(ptr + 4);
             if (version != 0) throw new NotSupportedException();
             var length = Marshal.ReadInt32(ptr);
-            ArrayMemoryPoolBuffer<byte> ownedBuffer = Buffers.BufferPool.UseTempBuffer(length);
-            var buffer = ownedBuffer.Memory;
+            OwnedPooledArray<byte> ownedPooledBuffer = Buffers.BufferPool.UseTempBuffer(length);
+            var buffer = ownedPooledBuffer.Memory;
             var handle = buffer.Pin();
 
             try
             {
-                if (ownedBuffer.TryGetArray(out var segment))
+                if (ownedPooledBuffer.TryGetArray(out var segment))
                 {
                     Marshal.Copy(ptr + 8, segment.Array, 0, length);
 
@@ -101,13 +101,13 @@ namespace Spreads.Serialization
             finally
             {
                 handle.Dispose();
-                if (ownedBuffer != Buffers.BufferPool.StaticBuffer)
+                if (ownedPooledBuffer != Buffers.BufferPool.StaticBuffer)
                 {
-                    Debug.Assert(ownedBuffer.IsDisposed);
+                    Debug.Assert(ownedPooledBuffer.IsDisposed);
                 }
                 else
                 {
-                    Debug.Assert(!ownedBuffer.IsDisposed);
+                    Debug.Assert(!ownedPooledBuffer.IsDisposed);
                 }
             }
         }

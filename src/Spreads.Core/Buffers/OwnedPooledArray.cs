@@ -1,128 +1,131 @@
-﻿//// This Source Code Form is subject to the terms of the Mozilla Public
-//// License, v. 2.0. If a copy of the MPL was not distributed with this
-//// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-//using Spreads.Collections.Concurrent;
-//using System;
-//using System.Buffers;
-//using System.Runtime.CompilerServices;
-//using System.Runtime.InteropServices;
-//using System.Threading;
+using Spreads.Collections.Concurrent;
+using System;
+using System.Buffers;
+using System.Runtime.InteropServices;
+using System.Threading;
+using SRCS = System.Runtime.CompilerServices;
 
-//namespace Spreads.Buffers
-//{
-//    internal sealed class OwnedPooledArray<T> : MemoryManager<T>
-//    {
-//        // TODO Object pool!
-//        // ReSharper disable once StaticMemberInGenericType
-//        private static readonly BoundedConcurrentBag<OwnedPooledArray<T>> Pool = new BoundedConcurrentBag<OwnedPooledArray<T>>(Environment.ProcessorCount * 16);
+namespace Spreads.Buffers
+{
+    // NB (over)Using [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)] just in case it could help sealed devirt
 
-//        private T[] _array;
-//        private bool _disposed;
-//        private int _referenceCount;
+    public sealed class OwnedPooledArray<T> : MemoryManager<T>
+    {
+        private static readonly ObjectPool<OwnedPooledArray<T>> Pool = new ObjectPool<OwnedPooledArray<T>>(() => new OwnedPooledArray<T>(), Environment.ProcessorCount * 16);
 
-//        private OwnedPooledArray()
-//        { }
+        private T[] _array;
+        private int _referenceCount;
 
-//        [Obsolete("Use TryGetArray")]
-//        public T[] Array => _array;
+        private OwnedPooledArray()
+        { }
 
-//        //public override int Length => _array.Length;
+        [Obsolete("Use TryGetArray")]
+        public T[] Array
+        {
+            [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+            get { return _array; }
+        }
 
-//        //public override bool IsDisposed => _disposed;
+        public int Length
+        {
+            [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+            get { return _array.Length; }
+        }
 
-//        //protected override bool IsRetained => _referenceCount > 0;
+        public bool IsDisposed
+        {
+            [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+            get { return _array == null; }
+        }
 
-//        public override Span<T> GetSpan()
-//        {
-//            var p = new DefaultArrayPool<>();
-//            if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
-//            return new Span<T>(_array);
-//        }
+        public bool IsRetained
+        {
+            [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+            get { return _referenceCount > 0; }
+        }
 
-//        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//        public static OwnedMemory<T> Create(int size)
-//        {
-//            if (!Pool.TryTake(out OwnedPooledArray<T> ownedPooledArray))
-//            {
-//                ownedPooledArray = new OwnedPooledArray<T>();
-//            }
-//            ownedPooledArray._array = BufferPool<T>.Rent(size, false);
-//            ownedPooledArray._disposed = false;
-//            ownedPooledArray._referenceCount = 0;
-//            return ownedPooledArray;
-//        }
+        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        public override Span<T> GetSpan()
+        {
+            if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
+            return new Span<T>(_array);
+        }
 
-//        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//        public static OwnedMemory<T> Create(T[] array)
-//        {
-//            if (!Pool.TryTake(out OwnedPooledArray<T> ownedPooledArray))
-//            {
-//                ownedPooledArray = new OwnedPooledArray<T>();
-//            }
-//            ownedPooledArray._array = array;
-//            ownedPooledArray._disposed = false;
-//            ownedPooledArray._referenceCount = 0;
-//            return ownedPooledArray;
-//        }
+        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        public static OwnedPooledArray<T> Create(int minLength)
+        {
+            var ownedPooledArray = Pool.Allocate();
+            ownedPooledArray._array = BufferPool<T>.Rent(minLength);
+            ownedPooledArray._referenceCount = 0;
+            return ownedPooledArray;
+        }
 
-//        protected override void Dispose(bool disposing)
-//        {
-//            var array = Interlocked.Exchange(ref _array, null);
-//            if (array != null)
-//            {
-//                _disposed = true;
-//                BufferPool<T>.Return(array);
-//            }
-//            if (disposing)
-//            {
-//                Pool.TryAdd(this);
-//            }
-//        }
+        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        public static OwnedPooledArray<T> Create(T[] array)
+        {
+            var ownedPooledArray = Pool.Allocate();
+            ownedPooledArray._array = array;
+            ownedPooledArray._referenceCount = 0;
+            return ownedPooledArray;
+        }
 
+        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        protected override void Dispose(bool disposing)
+        {
+            if (_referenceCount > 0) { ThrowHelper.ThrowInvalidOperationException("Disposing an OwnedPooledArray with ratained references"); }
+            var array = Interlocked.Exchange(ref _array, null);
+            if (IsDisposed)
+            {
+                ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
+            }
+            BufferPool<T>.Return(array);
+            if (disposing)
+            {
+                Pool.Free(this);
+            }
+        }
 
-//        protected override bool TryGetArray(out ArraySegment<T> buffer)
-//        {
-//            if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
-//            buffer = new ArraySegment<T>(_array);
-//            return true;
-//        }
+        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        public new bool TryGetArray(out ArraySegment<T> buffer)
+        {
+            if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
+            buffer = new ArraySegment<T>(_array);
+            return true;
+        }
 
-//        public override void Unpin()
-//        {
-//            throw new NotImplementedException();
-//        }
+        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        public override MemoryHandle Pin(int elementIndex = 0)
+        {
+            unsafe
+            {
+                Retain();
+                if ((uint)elementIndex > (uint)_array.Length) { ThrowHelper.ThrowArgumentOutOfRangeException(nameof(elementIndex)); }
+                var handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
+                var pointer = SRCS.Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), elementIndex);
+                return new MemoryHandle(pointer, handle, this);
+            }
+        }
 
-//        // TODO review implementation, especially byteOffset added later
-//        public override MemoryHandle Pin(int byteOffset = 0)
-//        {
-//            unsafe
-//            {
-//                Retain(); // this checks IsDisposed
-//                var handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
-//                return new MemoryHandle(this, (void*)(handle.AddrOfPinnedObject() + byteOffset), handle);
-//            }
-//        }
+        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        public void Retain()
+        {
+            if (IsDisposed) { ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>)); }
+            Interlocked.Increment(ref _referenceCount);
+        }
 
-//        public override void Retain()
-//        {
-//            if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
-//            Interlocked.Increment(ref _referenceCount);
-//        }
-
-//        public override bool Release()
-//        {
-//            var newRefCount = Interlocked.Decrement(ref _referenceCount);
-//            if (newRefCount == 0)
-//            {
-//                Dispose();
-//                return false;
-//            }
-//            //if (newRefCount < 0)
-//            //{
-//            //    ,,,throw new InvalidOperationException();
-//            //}
-//            return true;
-//        }
-//    }
-//}
+        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        public override void Unpin()
+        {
+            var newRefCount = Interlocked.Decrement(ref _referenceCount);
+            if (newRefCount < 0) { ThrowHelper.ThrowInvalidOperationException(); }
+            if (newRefCount == 0)
+            {
+                Dispose(true);
+            }
+        }
+    }
+}

@@ -32,7 +32,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static ArrayMemoryPoolBuffer<T> RentOwnedBuffer(int minLength, bool requireExact = true)
+        internal static OwnedPooledArray<T> RentOwnedBuffer(int minLength, bool requireExact = true)
         {
             return ArrayMemoryPool<T>.Shared.RentCore(minLength);
         }
@@ -49,7 +49,7 @@ namespace Spreads.Buffers
         /// Shared buffers are for slicing of small PreservedBuffers
         /// </summary>
         [ThreadStatic]
-        internal static ArrayMemoryPoolBuffer<byte> SharedBuffer;
+        internal static OwnedPooledArray<byte> SharedBuffer;
 
         [ThreadStatic]
         internal static int SharedBufferOffset;
@@ -58,12 +58,12 @@ namespace Spreads.Buffers
         /// Temp storage e.g. for serialization
         /// </summary>
         [ThreadStatic]
-        internal static ArrayMemoryPoolBuffer<byte> ThreadStaticBuffer;
+        internal static OwnedPooledArray<byte> ThreadStaticBuffer;
 
         /// <summary>
-        /// Thread-static <see cref="ArrayMemoryPoolBuffer{T}"/> with size of <see cref="StaticBufferSize"/>.
+        /// Thread-static <see cref="OwnedPooledArray{T}"/> with size of <see cref="StaticBufferSize"/>.
         /// </summary>
-        internal static ArrayMemoryPoolBuffer<byte> StaticBuffer
+        internal static OwnedPooledArray<byte> StaticBuffer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -151,7 +151,7 @@ namespace Spreads.Buffers
         /// from a single thread (no async/await, etc.).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static ArrayMemoryPoolBuffer<byte> UseTempBuffer(int minimumSize)
+        internal static OwnedPooledArray<byte> UseTempBuffer(int minimumSize)
         {
             if (minimumSize <= StaticBufferSize)
             {
