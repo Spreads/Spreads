@@ -59,7 +59,7 @@ namespace Spreads.Collections.Tests.Cursors
             // slow implementation
             var sw = new Stopwatch();
             sw.Start();
-            var lag = sm.Lag(1);//.ToSortedMap();
+            var lag = sm.Lag(1).Map(x => x.Item1);//.ToSortedMap();
             var c = 1;
             foreach (var zl in lag)
             {
@@ -78,7 +78,7 @@ namespace Spreads.Collections.Tests.Cursors
             for (int i = 1; i < 1000; i++)
             {
                 double v;
-                Assert.IsTrue(repeated.TryFind(i + 1.5, Lookup.EQ, out var kvp));
+                Assert.IsTrue(repeated.TryFindAt(i + 1.5, Lookup.EQ, out var kvp));
                 Assert.AreEqual(i, kvp.Value);
             }
 
@@ -99,7 +99,9 @@ namespace Spreads.Collections.Tests.Cursors
             // slow implementation
             var sw = new Stopwatch();
             sw.Start();
-            var zipLag = sm.ZipLag(1, (cur, prev) => cur + prev); //.ToSortedMap();
+            var x = sm.ZipLag(tuple => tuple.current.value);
+
+            var zipLag = sm.ZipLag(((curK, curV), (prevK, prevV)) => cur + prev, 1, 1); //.ToSortedMap();
             var c = 1;
             foreach (var zl in zipLag)
             {

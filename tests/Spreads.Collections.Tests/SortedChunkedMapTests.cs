@@ -109,8 +109,8 @@ namespace Spreads.Collections.Tests {
         private const int _big = 100000;
         private Random _rng = new System.Random();
 
-        public Dictionary<string, IReadOnlySeries<DateTime, double>> GetImplementation() {
-            var implemetations = new Dictionary<string, IReadOnlySeries<DateTime, double>>();
+        public Dictionary<string, ISeries<DateTime, double>> GetImplementation() {
+            var implemetations = new Dictionary<string, ISeries<DateTime, double>>();
 
             var scm_irregular_small = new SortedChunkedMap<DateTime, double>();
             var scm_irregular_big = new SortedChunkedMap<DateTime, double>();

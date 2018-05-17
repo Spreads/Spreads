@@ -34,22 +34,20 @@ namespace Spreads.Collections.Tests.Contracts
 
     public class ContractsTests<K, V>
     {
-        private readonly IReadOnlySeries<K, V> _testSeries;
+        private readonly ISeries<K, V> _testSeries;
         private readonly SortedMap<K, V> _materializedSeries;
         private readonly SortedMap<K, V> _ephemeralSeries;
         private readonly Random _rng = new Random();
 
-        public ContractsTests(IReadOnlySeries<K, V> testSeries,
+        public ContractsTests(ISeries<K, V> testSeries,
             SortedMap<K, V> materializedSeries,
             SortedMap<K, V> ephemeralSeries = null)
         {
-            if (testSeries == null) throw new ArgumentNullException(nameof(testSeries));
-            if (materializedSeries == null) throw new ArgumentNullException(nameof(materializedSeries));
-            _testSeries = testSeries;
-            _materializedSeries = materializedSeries;
+            _testSeries = testSeries ?? throw new ArgumentNullException(nameof(testSeries));
+            _materializedSeries = materializedSeries ?? throw new ArgumentNullException(nameof(materializedSeries));
             _ephemeralSeries = ephemeralSeries;
 
-            if (ephemeralSeries != null)
+            if (!ReferenceEquals(null, ephemeralSeries))
             {
                 var eqc = EqualityComparer<V>.Default;
                 // TODO (UX) Spreads signature conflicts with LINQ, easy to fix but not very convenient
@@ -64,11 +62,11 @@ namespace Spreads.Collections.Tests.Contracts
                         return l;
                     }
                 });
-                if (intersect.IsEmpty)
+                if (intersect.First.IsMissing)
                 {
                     foreach (var kvp in materializedSeries.Take(10))
                     {
-                        ephemeralSeries[kvp.Key] = kvp.Value;
+                        ephemeralSeries.Set(kvp.Key, kvp.Value);
                     }
                 }
             }
@@ -80,8 +78,8 @@ namespace Spreads.Collections.Tests.Contracts
         public void BasicTests()
         {
             Assert.AreEqual(_materializedSeries.Count, _testSeries.Count());
-            Assert.AreEqual(_materializedSeries.IsEmpty, !_testSeries.Any());
-            Assert.AreEqual(_materializedSeries.IsReadOnly, _testSeries.IsCompleted);
+            Assert.AreEqual(_materializedSeries.First.IsMissing, !_testSeries.Any());
+            Assert.AreEqual(_materializedSeries.IsCompleted, _testSeries.IsCompleted);
             if (_materializedSeries.Count == 0)
             {
                 return;
@@ -102,7 +100,7 @@ namespace Spreads.Collections.Tests.Contracts
             {
                 var idx = _rng.Next(_materializedSeries.Count);
                 // TODO (UX) Public cannot get key by index
-                var v = _materializedSeries.GetAt(idx);
+                _materializedSeries.TryGetAt(idx, out var v);
                 var k = _materializedSeries.keys[idx];
                 if (_testSeries.TryFindAt(k, Lookup.EQ, out var tv))
                 {
@@ -246,20 +244,17 @@ namespace Spreads.Collections.Tests.Contracts
         public void EphemeralValuesTest()
         {
             var tc = _testSeries.GetCursor();
-            if (tc.IsContinuous && _ephemeralSeries == null)
+            if (tc.IsContinuous && _ephemeralSeries is null)
             {
                 Trace.TraceWarning("Privide ephemeral series for continuous test series");
             }
-            if (tc.IsContinuous && _ephemeralSeries != null)
+            if (tc.IsContinuous && !(_ephemeralSeries is null))
             {
-                if (_ephemeralSeries != null)
+                foreach (var kvp in _ephemeralSeries)
                 {
-                    foreach (var kvp in _ephemeralSeries)
+                    if (_testSeries.TryFindAt(kvp.Key, Lookup.EQ, out var tv))
                     {
-                        if (_testSeries.TryFindAt(kvp.Key, Lookup.EQ, out var tv))
-                        {
-                            Assert.AreEqual(kvp.Value, tv.Value, "TryGetValue on continuous series gives wrong result");
-                        }
+                        Assert.AreEqual(kvp.Value, tv.Value, "TryGetValue on continuous series gives wrong result");
                     }
                 }
             }

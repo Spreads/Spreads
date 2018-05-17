@@ -74,7 +74,7 @@ namespace Spreads.Collections.Tests.Cursors
         }
 
         [Test]
-        [Ignore]
+        [Ignore("long running")]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursorManyTimes()
         {
             ////use the second Core/Processor for the test
@@ -291,7 +291,7 @@ namespace Spreads.Collections.Tests.Cursors
 
 
         [Test]
-        [Ignore]
+        [Ignore("long running")]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_NoSemaphore_ManyTimes()
         {
             for (int r = 0; r < 20; r++)
@@ -302,7 +302,7 @@ namespace Spreads.Collections.Tests.Cursors
         }
 
         [Test]
-        [Ignore]
+        [Ignore("long running")]
         public void CouldReadSortedMapNewValuesWhileTheyAreAddedUsingCursor_NoSemaphore()
         {
 
@@ -503,7 +503,7 @@ namespace Spreads.Collections.Tests.Cursors
 
 
         [Test]
-        [Ignore]
+        [Ignore("long running")]
         public void CouldMoveNextAsyncWhenChangingOrder_NoSemaphore()
         {
             var cts = new CancellationTokenSource();

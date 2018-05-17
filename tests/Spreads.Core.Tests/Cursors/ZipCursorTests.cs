@@ -143,7 +143,7 @@ namespace Spreads.Tests.Cursors
             CouldAddTwoSeriesWithSameKeys(expected, sm1, sm2);
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldAddTwoSeriesWithSameKeysBenchmark()
         {
             var sm1 = new SortedMap<int, double>();

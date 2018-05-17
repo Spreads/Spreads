@@ -660,7 +660,7 @@ namespace Spreads.Collections.Tests.Cursors
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldZipMillionIntsWithMoveNextNoncontBenchmark()
         {
             var sm1 = new SortedMap<int, int>();
@@ -853,7 +853,7 @@ namespace Spreads.Collections.Tests.Cursors
             Console.WriteLine("Total sum: {0}", totalSum);
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void CouldZipManyIntsx500ManyTimes()
         {
             for (int i = 0; i < 30; i++)
@@ -1419,7 +1419,7 @@ namespace Spreads.Collections.Tests.Cursors
         }
 
         [Test]
-        [Ignore]
+        [Ignore("long running")]
         public void CouldZipManyContinuousInRealTimeManyRounds()
         {
             for (int i = 0; i < 10; i++)
@@ -1574,7 +1574,7 @@ namespace Spreads.Collections.Tests.Cursors
         }
 
         [Test]
-        [Ignore]
+        [Ignore("long running")]
         public void NonContinuousZipIsCorrectByRandomCheckMultipleRun()
         {
             for (int i = 0; i < 5; i++)

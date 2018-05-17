@@ -2,3 +2,7 @@
 	path = lib/Ix.NET
 	url = https://github.com/Spreads/Ix.NET
 	branch = spreads
+[submodule "lib/FSharp.Data"]
+	path = lib/FSharp.Data
+	url = git@github.com:fsharp/FSharp.Data.git
+	branch = master

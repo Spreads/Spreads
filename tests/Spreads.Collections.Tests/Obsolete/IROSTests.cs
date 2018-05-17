@@ -19,15 +19,15 @@ namespace Spreads.Collections.Tests.Obsolete {
     // collection/CursorSeries
 
 	[TestFixture]
-	public class IReadOnlySeriesTests
+	public class ISeriesTests
 	{
 
 		private const int _small = 500;
 		private const int _big = 100000;
 		private Random _rng = new System.Random();
 		// most of all, we are interested in SortedMap and SCM, but test other implementations later
-		private Dictionary<string,IReadOnlySeries<DateTime, double>> implemetations =
-			new Dictionary<string,IReadOnlySeries<DateTime, double>>();
+		private Dictionary<string,ISeries<DateTime, double>> implemetations =
+			new Dictionary<string,ISeries<DateTime, double>>();
 
 
 		[SetUp]
@@ -35,9 +35,9 @@ namespace Spreads.Collections.Tests.Obsolete {
 		{
 		}
 
-		public Dictionary<string, IReadOnlySeries<DateTime, double>> GetImplementation() {
+		public Dictionary<string, ISeries<DateTime, double>> GetImplementation() {
 
-			var implemetations = new Dictionary<string, IReadOnlySeries<DateTime, double>>();
+			var implemetations = new Dictionary<string, ISeries<DateTime, double>>();
 			var sm_irregular_small = new SortedMap<DateTime, double>();
 			var sm_irregular_big = new SortedMap<DateTime, double>();
 			var sm_regular_small = new SortedMap<DateTime, double>();

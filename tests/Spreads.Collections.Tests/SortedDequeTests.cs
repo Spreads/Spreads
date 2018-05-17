@@ -106,7 +106,7 @@ namespace Spreads.Collections.Tests {
 
 
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void AddRemoveTest() {
             var rng = new System.Random();
             for (int r = 0; r < 1000; r++) {
@@ -184,7 +184,7 @@ namespace Spreads.Collections.Tests {
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void RemoveTest() {
             for (int r = 0; r < 10000; r++) {
 
@@ -313,7 +313,7 @@ namespace Spreads.Collections.Tests {
             }
         }
 
-        [Test, Ignore]
+        [Test, Ignore("long running")]
         public void AddTest() {
             for (int r = 0; r < 10000; r++) {
 
@@ -382,7 +382,7 @@ namespace Spreads.Collections.Tests {
             Assert.AreEqual(6, sd.Count);
         }
 
-        [Test,Ignore]
+        [Test,Ignore("long running")]
         public void CouldCompareDatesManyTimes() {
             var sw = new System.Diagnostics.Stopwatch();
             sw.Start();

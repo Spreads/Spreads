@@ -22,11 +22,11 @@
 //namespace Spreads.Collections.Tests.Cursors {
 //    public class SimdMathProvider {
 
-//        public bool AddBatch<K>(IReadOnlySeries<K, double> left, IReadOnlySeries<K, double> right, out IReadOnlySeries<K, double> value) {
+//        public bool AddBatch<K>(ISeries<K, double> left, ISeries<K, double> right, out ISeries<K, double> value) {
 //            throw new NotImplementedException();
 //        }
 
-//        public bool AddBatch<K>(double scalar, IReadOnlySeries<K, double> batch, out IReadOnlySeries<K, double> value) {
+//        public bool AddBatch<K>(double scalar, ISeries<K, double> batch, out ISeries<K, double> value) {
 //            var sm = batch as SortedMap<K, double>;
 //            if (!ReferenceEquals(sm, null)) {
 //                double[] newValues = BufferPool<double>.Shared.Rent(sm.size);
@@ -53,7 +53,7 @@
 //            throw new NotImplementedException();
 //        }
 
-//        public bool SumBatch<K>(double scalar, IReadOnlySeries<K, double> batch, out double value) {
+//        public bool SumBatch<K>(double scalar, ISeries<K, double> batch, out double value) {
 //            var sm = batch as SortedMap<K, double>;
 //            if (!ReferenceEquals(sm, null)) {
 //                double[] newValues = new double[sm.size];
@@ -68,7 +68,7 @@
 //            throw new NotImplementedException();
 //        }
 
-//        public bool MapBatch<K, V, V2>(FSharpFunc<V, V2> mapF, IReadOnlySeries<K, V> batch, out IReadOnlySeries<K, V2> value) {
+//        public bool MapBatch<K, V, V2>(FSharpFunc<V, V2> mapF, ISeries<K, V> batch, out ISeries<K, V2> value) {
 //            throw new NotImplementedException();
 //        }
 //    }
@@ -80,7 +80,7 @@
 //        /// <summary>
 //        /// Very straighforward batch operation for testing
 //        /// </summary>
-//        public IReadOnlySeries<DateTime, double> IncrementMap(IReadOnlySeries<DateTime, double> batch) {
+//        public ISeries<DateTime, double> IncrementMap(ISeries<DateTime, double> batch) {
 //            var sm = new SortedMap<DateTime, double>();
 //            foreach (var kvp in batch) {
 //                sm.Add(kvp.Key, kvp.Value + 1.0);
@@ -88,7 +88,7 @@
 //            return sm;
 //        }
 
-//        public IReadOnlySeries<DateTime, double> MultiplyMap(IReadOnlySeries<DateTime, double> batch) {
+//        public ISeries<DateTime, double> MultiplyMap(ISeries<DateTime, double> batch) {
 //            var sm = new SortedMap<DateTime, double>();
 //            foreach (var kvp in batch) {
 //                sm.Add(kvp.Key, kvp.Value * 10.0);
@@ -265,17 +265,17 @@
 
 
 
-//        //public IReadOnlySeries<DateTime, double> YeppMathProviderSample(IReadOnlySeries<DateTime, double> batch) {
+//        //public ISeries<DateTime, double> YeppMathProviderSample(ISeries<DateTime, double> batch) {
 //        //    var mathProviderImpl = new Spreads.NativeMath.YepppMathProvider();
-//        //    IReadOnlySeries<DateTime, double> sm2;
+//        //    ISeries<DateTime, double> sm2;
 //        //    var ok = mathProviderImpl.AddBatch(3.1415926, batch, out sm2);
 //        //    return sm2;
 //        //}
 
 
-//        public IReadOnlySeries<DateTime, double> SimdMathProviderSample(IReadOnlySeries<DateTime, double> batch) {
+//        public ISeries<DateTime, double> SimdMathProviderSample(ISeries<DateTime, double> batch) {
 //            var mathProviderImpl = new SimdMathProvider();
-//            IReadOnlySeries<DateTime, double> sm2;
+//            ISeries<DateTime, double> sm2;
 //            var ok = mathProviderImpl.AddBatch(3.1415926, batch, out sm2);
 //            return sm2;
 //        }
@@ -350,9 +350,9 @@
 //        //}
 
 
-//        public IReadOnlySeries<DateTime, double> MathProviderSample(IReadOnlySeries<DateTime, double> batch) {
+//        public ISeries<DateTime, double> MathProviderSample(ISeries<DateTime, double> batch) {
 //            var mathProviderImpl = new MathProviderImpl() as IVectorMathProvider;
-//            IReadOnlySeries<DateTime, double> sm2;
+//            ISeries<DateTime, double> sm2;
 //            var ok = mathProviderImpl.AddBatch(3.1415926, batch, out sm2);
 //            return sm2;
 //        }
