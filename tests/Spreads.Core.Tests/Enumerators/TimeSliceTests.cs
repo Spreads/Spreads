@@ -100,7 +100,7 @@ namespace Spreads.Tests.Enumerators
             Console.WriteLine($"GC: {GC.CollectionCount(0)} - {GC.CollectionCount(1)} - {GC.CollectionCount(2)}");
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldAggregateWithHoles()
         {
             var count = 1000000;

@@ -233,7 +233,7 @@ namespace Spreads
             get { return _cursor.Source.Updated; }
         }
 
-        public CursorState State => throw new NotImplementedException();
+        public CursorState State => _cursor.State;
 
         #endregion
     }

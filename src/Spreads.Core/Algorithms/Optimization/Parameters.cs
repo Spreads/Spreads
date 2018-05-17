@@ -32,7 +32,7 @@ namespace Spreads.Algorithms.Optimization
             _parameters.AddRange(parameters);
         }
 
-        internal RefList<Parameter> List => _parameters;
+        internal RefList<Parameter> RefList => _parameters;
 
         public int Count => _parameters.Count;
 
@@ -58,7 +58,7 @@ namespace Spreads.Algorithms.Optimization
                 var total = _parameters.Count;
                 do // round trip
                 {
-                    ref var par = ref _parameters.Ref(idx);
+                    ref var par = ref _parameters[idx];
                     if (par.Code.Equals(code, StringComparison.OrdinalIgnoreCase))
                     {
                         _lastLookupIndex = idx;

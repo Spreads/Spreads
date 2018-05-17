@@ -113,7 +113,7 @@ namespace Spreads
             {
                 using (var c = _cursor.Initialize())
                 {
-                    return c.MoveFirst() ? c.Current : throw new InvalidOperationException("A series is empty.");
+                    return c.MoveFirst() ? c.Current : Opt<KeyValuePair<TKey, TValue>>.Missing;
                 }
             }
         }
@@ -125,7 +125,7 @@ namespace Spreads
             {
                 using (var c = _cursor.Initialize())
                 {
-                    return c.MoveLast() ? c.Current : throw new InvalidOperationException("A series is empty.");
+                    return c.MoveLast() ? c.Current : Opt<KeyValuePair<TKey, TValue>>.Missing;
                 }
             }
         }

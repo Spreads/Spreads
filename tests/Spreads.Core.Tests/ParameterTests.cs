@@ -149,17 +149,17 @@ namespace Spreads.Tests
             pars.Add(par2);
             //var pars = new Parameters();
 
-            pars.Ref(0).CurrentPosition = 1;
-            pars.Ref(1).CurrentPosition = 0;
+            pars[0].CurrentPosition = 1;
+            pars[1].CurrentPosition = 0;
 
             Assert.AreEqual(5, pars.LinearAddress());
 
-            pars.Ref(1).CurrentPosition = 1;
+            pars[1].CurrentPosition = 1;
 
             Assert.AreEqual(6, pars.LinearAddress());
 
-            pars.Ref(0).CurrentPosition = 4;
-            pars.Ref(1).CurrentPosition = 3;
+            pars[0].CurrentPosition = 4;
+            pars[1].CurrentPosition = 3;
             Assert.AreEqual(23, pars.LinearAddress());
 
             var pars2 = pars.SetPositionsFromLinearAddress(23);

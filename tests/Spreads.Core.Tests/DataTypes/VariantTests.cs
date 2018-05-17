@@ -439,7 +439,7 @@ namespace Spreads.Tests.DataTypes
 
 
         [Test]
-        public async void RangeOnVariantSeriesWorks()
+        public async Task RangeOnVariantSeriesWorks()
         {
 
             var sm = new SortedMap<DateTime, int>();

@@ -102,7 +102,8 @@ namespace Spreads.Tests.DataTypes
         public void CouldFlattenCustomTypeWithPartialOrder()
         {
             var value = new TestTypeWithPartialOrder { Number = 42, Text = "foo", Price = new Price(123.45) };
-            var flattener = new TypeFlattenner(value.GetType());
+            var type = value.GetType();
+            var flattener = new TypeFlattenner(type);
             object[] values = null;
 
             flattener.Flatten(value, ref values);

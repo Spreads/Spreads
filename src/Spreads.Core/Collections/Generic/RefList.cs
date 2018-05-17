@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-// Original code is based on CoreCLR List<T>, MIT licensed:
+// Original code is based on CoreCLR RefList<T>, MIT licensed:
 
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
@@ -24,7 +24,7 @@ namespace Spreads.Collections.Generic
     // better to have an explicit usage of refs.
 
     /// <summary>
-    /// A <see cref="List{T}"/> collection with additional method <see cref="Ref"/> that returns a reference by index.
+    /// A <see cref="RefList{T}"/> collection with additional method <see cref="Ref"/> that returns a reference by index.
     /// </summary>
     /// <typeparam name="T"></typeparam>
     [DebuggerDisplay("Count = {Count}")]
@@ -45,7 +45,7 @@ namespace Spreads.Collections.Generic
 
         private static readonly T[] _emptyArray = new T[0];
 
-        // Constructs a List. The list is initially empty and has a capacity
+        // Constructs a RefList. The list is initially empty and has a capacity
         // of zero. Upon adding the first element to the list the capacity is
         // increased to _defaultCapacity, and then increased in multiples of two
         // as required.
@@ -54,7 +54,7 @@ namespace Spreads.Collections.Generic
             _items = _emptyArray;
         }
 
-        // Constructs a List with a given initial capacity. The list is
+        // Constructs a RefList with a given initial capacity. The list is
         // initially empty, but will have room for the given number of elements
         // before any reallocations are required.
         //
@@ -69,7 +69,7 @@ namespace Spreads.Collections.Generic
                 _items = new T[capacity];
         }
 
-        // Constructs a List, copying the contents of the given collection. The
+        // Constructs a RefList, copying the contents of the given collection. The
         // size and capacity of the new list will both be equal to the size of the
         // given collection.
         //
@@ -140,7 +140,7 @@ namespace Spreads.Collections.Generic
             }
         }
 
-        // Read-only property describing how many elements are in the List.
+        // Read-only property describing how many elements are in the RefList.
         public int Count
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -153,12 +153,12 @@ namespace Spreads.Collections.Generic
 
         bool System.Collections.IList.IsFixedSize => false;
 
-        // Is this List read-only?
+        // Is this RefList read-only?
         bool ICollection<T>.IsReadOnly => false;
 
         bool System.Collections.IList.IsReadOnly => false;
 
-        // Is this List synchronized (thread-safe)?
+        // Is this RefList synchronized (thread-safe)?
         bool System.Collections.ICollection.IsSynchronized => false;
 
         // Synchronization root for this object.
@@ -176,7 +176,7 @@ namespace Spreads.Collections.Generic
 
         // Sets or Gets the element at the given index.
         //
-        public T this[int index]
+        public ref T this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -187,32 +187,21 @@ namespace Spreads.Collections.Generic
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 }
                 Contract.EndContractBlock();
-                return _items[index];
+                return ref _items[index];
             }
 
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set
-            {
-                if ((uint)index >= (uint)_size)
-                {
-                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-                }
-                Contract.EndContractBlock();
-                _items[index] = value;
-                _version++;
-            }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref T Ref(int index)
-        {
-            if ((uint)index >= (uint)_size)
-            {
-                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-            }
-            Contract.EndContractBlock();
-            return ref _items[index];
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public ref T Ref(int index)
+        //{
+        //    if ((uint)index >= (uint)_size)
+        //    {
+        //        ThrowHelper.ThrowArgumentOutOfRange_IndexException();
+        //    }
+        //    Contract.EndContractBlock();
+        //    return ref _items[index];
+        //}
 
         T IList<T>.this[int index]
         {
@@ -298,7 +287,7 @@ namespace Spreads.Collections.Generic
             }
         }
 
-        // Non-inline from List.Add to improve its code quality as uncommon path
+        // Non-inline from RefList.Add to improve its code quality as uncommon path
         [MethodImpl(MethodImplOptions.NoInlining)]
         private void AddWithResize(T item)
         {
@@ -387,7 +376,7 @@ namespace Spreads.Collections.Generic
             return BinarySearch(0, Count, item, comparer);
         }
 
-        // Clears the contents of List.
+        // Clears the contents of RefList.
         public void Clear()
         {
             if (TypeHelper<T>.Size <= 0)
@@ -407,7 +396,7 @@ namespace Spreads.Collections.Generic
             }
         }
 
-        // Contains returns true if the specified element is in the List.
+        // Contains returns true if the specified element is in the RefList.
         // It does a linear, O(n) search.  Equality is determined by calling
         // EqualityComparer<T>.Default.Equals().
 
@@ -433,7 +422,7 @@ namespace Spreads.Collections.Generic
             return false;
         }
 
-        //public List<TOutput> ConvertAll<TOutput>(Converter<T, TOutput> converter)
+        //public RefList<TOutput> ConvertAll<TOutput>(Converter<T, TOutput> converter)
         //{
         //    if (converter == null)
         //    {
@@ -442,7 +431,7 @@ namespace Spreads.Collections.Generic
 
         //    Contract.EndContractBlock();
 
-        //    List<TOutput> list = new List<TOutput>(_size);
+        //    RefList<TOutput> list = new RefList<TOutput>(_size);
         //    for (int i = 0; i < _size; i++)
         //    {
         //        list._items[i] = converter(_items[i]);
@@ -451,7 +440,7 @@ namespace Spreads.Collections.Generic
         //    return list;
         //}
 
-        // Copies this List into array, which must be of a
+        // Copies this RefList into array, which must be of a
         // compatible array type.
         //
         public void CopyTo(T[] array)
@@ -459,7 +448,7 @@ namespace Spreads.Collections.Generic
             CopyTo(array, 0);
         }
 
-        // Copies this List into array, which must be of a
+        // Copies this RefList into array, which must be of a
         // compatible array type.
         //
         void System.Collections.ICollection.CopyTo(Array array, int arrayIndex)
@@ -652,7 +641,7 @@ namespace Spreads.Collections.Generic
 
             if (_size == 0)
             {
-                // Special case for 0 length List
+                // Special case for 0 length RefList
                 if (startIndex != -1)
                 {
                     ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
@@ -858,7 +847,7 @@ namespace Spreads.Collections.Generic
         // Inserts the elements of the given collection at a given index. If
         // required, the capacity of the list is increased to twice the previous
         // capacity or the new size, whichever is larger.  Ranges may be added
-        // to the end of the list by setting index to the List's size.
+        // to the end of the list by setting index to the RefList's size.
         //
         public void InsertRange(int index, IEnumerable<T> collection)
         {
@@ -885,7 +874,7 @@ namespace Spreads.Collections.Generic
                         Array.Copy(_items, index, _items, index + count, _size - index);
                     }
 
-                    // If we're inserting a List into itself, we want to be able to deal with that.
+                    // If we're inserting a RefList into itself, we want to be able to deal with that.
                     // ReSharper disable once PossibleUnintendedReferenceComparison
                     if (this == c)
                     {
@@ -1206,8 +1195,8 @@ namespace Spreads.Collections.Generic
             _version++;
         }
 
-        // ToArray returns an array containing the contents of the List.
-        // This requires copying the List, which is an O(n) operation.
+        // ToArray returns an array containing the contents of the RefList.
+        // This requires copying the RefList, which is an O(n) operation.
         public T[] ToArray()
         {
             Contract.Ensures(Contract.Result<T[]>() != null);

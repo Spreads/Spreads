@@ -142,7 +142,8 @@ namespace Spreads.Serialization
                             Trace.Assert(ItemSize == 8);
                             var buffer = BufferPool<byte>.Rent(valueCount * 8);
                             var dtArray = (DateTime[])(object)value;
-                            var first = dtArray[valueOffset];
+                            var longArray = Unsafe.As<long[]>(dtArray);
+                            // var first = dtArray[valueOffset];
 
                             // NB For DateTime we calculate delta not from the first but
                             // from the previous value. This is a special case for the 
@@ -155,14 +156,15 @@ namespace Spreads.Serialization
                             // deltas from the first value are also stationary and their sign
                             // changes less frequently that the sign of deltas from previous.
 
-                            var previousLong = (long*)&first;
+                            // TODO Review, use Unsafe.Add
+                            var previousLong = longArray[valueOffset];
                             fixed (byte* srcPtr = &buffer[0])
                             {
-                                Unsafe.WriteUnaligned(srcPtr, *previousLong);
+                                Unsafe.WriteUnaligned(srcPtr, previousLong);
                                 for (var i = 1; i < valueCount; i++)
                                 {
-                                    var current = dtArray[i + valueOffset];
-                                    var currentLong = (long*)(&current);
+                                    var current = longArray[i + valueOffset];
+                                    var currentLong = longArray[i + valueOffset];
                                     var diff = currentLong - previousLong;
                                     Unsafe.WriteUnaligned(srcPtr + i * ItemSize, diff);
                                     previousLong = currentLong;

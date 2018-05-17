@@ -117,11 +117,14 @@ namespace Spreads.DataTypes
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                var sign = (_value >> 55) & 1;
-                var signMask = -(long)sign;
-                var absValue = _value & MantissaValueMask;
-                var mantissaValue = (absValue - sign) ^ (ulong)signMask;
-                return (long)mantissaValue;
+                unchecked
+                {
+                    var sign = (_value >> 55) & 1;
+                    var signMask = -(long)sign;
+                    var absValue = _value & MantissaValueMask;
+                    var mantissaValue = (absValue - sign) ^ (ulong)signMask;
+                    return (long)mantissaValue;
+                }
             }
         }
 
@@ -140,22 +143,25 @@ namespace Spreads.DataTypes
                 ThrowHelper.ThrowArgumentOutOfRangeException(nameof(exponent));
             }
 
-            var signMask = mantissaValue >> 63;
-            var sign = (signMask & 1);
-            var absValue = (mantissaValue ^ signMask) + sign;
-
-            // enough bits
-            if (((ulong)absValue & ~MantissaValueMask) != 0UL)
+            unchecked
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(mantissaValue));
+                var signMask = mantissaValue >> 63;
+                var sign = (signMask & 1);
+                var absValue = (mantissaValue ^ signMask) + sign;
+
+                // enough bits
+                if (((ulong)absValue & ~MantissaValueMask) != 0UL)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(mantissaValue));
+                }
+
+                var mantissaPart = absValue | (sign << 55);
+
+                // now mantissa is checked to have 0-7th bits from left as zero, just write exponent to it
+                var exponentPart = ((ulong)exponent << 56) & ExponentMask;
+
+                _value = (ulong)mantissaPart | exponentPart;
             }
-
-            var mantissaPart = absValue | (sign << 55);
-
-            // now mantissa is checked to have 0-7th bits from left as zero, just write exponent to it
-            var exponentPart = ((ulong)exponent << 56) & ExponentMask;
-
-            _value = (ulong)mantissaPart | exponentPart;
         }
 
         public Price(decimal value, int precision = 5)
@@ -164,22 +170,26 @@ namespace Spreads.DataTypes
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(nameof(precision));
             }
-            var mantissaValue = decimal.ToInt64(value * Powers10[precision]);
 
-            var signMask = mantissaValue >> 63;
-            var sign = (signMask & 1);
-            var absValue = (mantissaValue ^ signMask) + sign;
-
-            // enough bits
-            if (((ulong)absValue & ~MantissaValueMask) != 0UL)
+            unchecked
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(mantissaValue));
+                var mantissaValue = decimal.ToInt64(value * Powers10[precision]);
+
+                var signMask = mantissaValue >> 63;
+                var sign = (signMask & 1);
+                var absValue = (mantissaValue ^ signMask) + sign;
+
+                // enough bits
+                if (((ulong)absValue & ~MantissaValueMask) != 0UL)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(mantissaValue));
+                }
+
+                var mantissaPart = absValue | (sign << 55);
+                var exponentPart = ((ulong)precision << 56) & ExponentMask;
+
+                _value = (ulong)mantissaPart | exponentPart;
             }
-
-            var mantissaPart = absValue | (sign << 55);
-            var exponentPart = ((ulong)precision << 56) & ExponentMask;
-
-            _value = (ulong)mantissaPart | exponentPart;
         }
 
         public Price(double value, int precision = 5)
@@ -188,22 +198,26 @@ namespace Spreads.DataTypes
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(nameof(precision));
             }
+
             var mantissaValue = checked((long)(value * Powers10[precision]));
 
-            var signMask = mantissaValue >> 63;
-            var sign = (signMask & 1);
-            var absValue = (mantissaValue ^ signMask) + sign;
-
-            // enough bits
-            if (((ulong)absValue & ~MantissaValueMask) != 0UL)
+            unchecked
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(mantissaValue));
+                var signMask = mantissaValue >> 63;
+                var sign = (signMask & 1);
+                var absValue = (mantissaValue ^ signMask) + sign;
+
+                // enough bits
+                if (((ulong)absValue & ~MantissaValueMask) != 0UL)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(mantissaValue));
+                }
+
+                var mantissaPart = absValue | (sign << 55);
+                var exponentPart = ((ulong)precision << 56) & ExponentMask;
+
+                _value = (ulong)mantissaPart | exponentPart;
             }
-
-            var mantissaPart = absValue | (sign << 55);
-            var exponentPart = ((ulong)precision << 56) & ExponentMask;
-
-            _value = (ulong)mantissaPart | exponentPart;
         }
 
         // NB only decimal is implicit because it doesn't lose precision

@@ -151,7 +151,7 @@ namespace Spreads
                 return true;
             }
             value = _value;
-            return false;
+            return true;
         }
 
         /// <inheritdoc />

@@ -78,7 +78,7 @@ namespace Spreads.Buffers
         {
             if (_referenceCount > 0) { ThrowHelper.ThrowInvalidOperationException("Disposing an OwnedPooledArray with ratained references"); }
             var array = Interlocked.Exchange(ref _array, null);
-            if (IsDisposed)
+            if (array == null)
             {
                 ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
             }

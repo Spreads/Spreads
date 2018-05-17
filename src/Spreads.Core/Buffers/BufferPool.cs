@@ -68,7 +68,7 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (!ThreadStaticBuffer.IsDisposed) { return ThreadStaticBuffer; }
+                if (ThreadStaticBuffer != null) { return ThreadStaticBuffer; }
                 ThreadStaticBuffer = BufferPool<byte>.RentOwnedBuffer(StaticBufferSize);
                 // Pin forever
                 ThreadStaticBuffer.Pin();
@@ -90,7 +90,7 @@ namespace Spreads.Buffers
             const int smallTreshhold = 16;
             if (length <= smallTreshhold)
             {
-                if (SharedBuffer.IsDisposed)
+                if (SharedBuffer == null)
                 {
                     SharedBuffer = BufferPool<byte>.RentOwnedBuffer(SharedBufferSize, false);
                     // NB we must create a reference or the first PreservedBuffer could

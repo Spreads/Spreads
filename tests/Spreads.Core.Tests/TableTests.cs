@@ -15,7 +15,7 @@ namespace Spreads.Tests
     [TestFixture]
     public class TableTests
     {
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldSerializeTable()
         {
             var sw = new Stopwatch();

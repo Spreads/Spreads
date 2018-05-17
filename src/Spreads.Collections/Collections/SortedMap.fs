@@ -170,7 +170,9 @@ type SortedMap<'K,'V>
               let keys = 
                 if isRegular then
                   let arr = Array.sub keysArray 0 2
-                  BufferPool<_>.Return keysArray |> ignore
+                  try
+                    BufferPool<_>.Return keysArray |> ignore
+                  with | _ -> () // TODO this is temp solution for arrays that are not from pool
                   arr
                 else keysArray
               let ptr = new IntPtr(ptr.ToInt64() + (int64 keysLen))

@@ -106,7 +106,7 @@ namespace Spreads.Tests.Cursors
             // same as new CursorSeries<int, double, RangeCursor<int, double, SortedMapCursor<int, double>>>(rangeCursor);
             var range = rangeCursor.Source;
 
-            Assert.True(range.First.IsPresent);
+            Assert.True(range.First.IsMissing);
             Assert.False(range.Any());
 
             var nonEmpty = new SortedMap<int, double>

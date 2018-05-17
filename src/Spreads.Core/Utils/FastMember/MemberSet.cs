@@ -17,8 +17,8 @@ namespace Spreads.Utils.FastMember
         {
             const BindingFlags PublicInstance = BindingFlags.Public | BindingFlags.Instance;
 #if NET20
-            List<MemberInfo> properties = new List<MemberInfo>(type.GetProperties(PublicInstance));
-            properties.AddRange(new List<MemberInfo>(type.GetFields(PublicInstance)));
+            RefList<MemberInfo> properties = new RefList<MemberInfo>(type.GetProperties(PublicInstance));
+            properties.AddRange(new RefList<MemberInfo>(type.GetFields(PublicInstance)));
             properties.Sort((p1, p2) => p1.Name.CompareTo(p2.Name));
             members = properties.ConvertAll<Member>(mi => new Member(mi)).ToArray();
 #else
@@ -110,15 +110,7 @@ namespace Spreads.Utils.FastMember
         public bool IsDefined(Type attributeType)
         {
             if (attributeType == null) throw new ArgumentNullException(nameof(attributeType));
-#if NETSTANDARD
-            foreach(var attrib in member.CustomAttributes)
-            {
-                if (attrib.AttributeType == attributeType) return true;
-            }
-            return false;
-#else
             return Attribute.IsDefined(member, attributeType);
-#endif
         }
 
         /// <summary>
@@ -126,11 +118,7 @@ namespace Spreads.Utils.FastMember
         /// </summary>
         public Attribute GetAttribute(Type attributeType, bool inherit)
         {
-#if NETSTANDARD
-	        return attributeType.GetTypeInfo().GetCustomAttribute(attributeType, inherit);
-#else
             return Attribute.GetCustomAttribute(member, attributeType, inherit);
-#endif
         }
 
         /// <summary>

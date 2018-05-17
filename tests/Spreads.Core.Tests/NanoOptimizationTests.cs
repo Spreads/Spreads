@@ -435,7 +435,7 @@ namespace Spreads.Tests
                 }
             }
 
-            using (Benchmark.Run("List", len * maxRounds / 10))
+            using (Benchmark.Run("RefList", len * maxRounds / 10))
             {
                 sum = 0.0;
                 for (int rounds = 0; rounds < maxRounds; rounds++)

@@ -13,37 +13,37 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Algorithms.Optimization
 {
-    [StructLayout(LayoutKind.Explicit, Pack = 4, Size = 64)]
-    public struct Parameter : IEnumerable<double>, IEnumerator<double>
+    // [StructLayout(LayoutKind.Explicit, Pack = 4, Size = 64)]
+    public class Parameter : IEnumerable<double>, IEnumerator<double>
     {
-        [FieldOffset(0)]
+        //[FieldOffset(0)]
         private readonly string _code;
 
-        [FieldOffset(8)]
+        // [FieldOffset(8)]
         private readonly string _description;
 
-        [FieldOffset(16)]
+        //[FieldOffset(16)]
         private readonly double _defaultValue;
 
-        [FieldOffset(24)]
+        //[FieldOffset(24)]
         private readonly double _startValue;
 
-        [FieldOffset(32)]
+        //[FieldOffset(32)]
         private readonly double _endValue;
 
-        [FieldOffset(40)]
+        //[FieldOffset(40)]
         private readonly double _stepSize;
 
-        [FieldOffset(48)]
+        //[FieldOffset(48)]
         private readonly int _steps;
 
-        [FieldOffset(52)]
+        //[FieldOffset(52)]
         private readonly int _bigStepMultiple;
 
-        [FieldOffset(56)]
+        //[FieldOffset(56)]
         private int _currentPosition;
 
-        [FieldOffset(60)]
+        //[FieldOffset(60)]
         private int _offset;
 
         public Parameter(string code, string description, double defaultValue, double startValue, double endValue, double stepSize = 0, int bigStepMultiple = 1)
@@ -223,7 +223,7 @@ namespace Spreads.Algorithms.Optimization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long LinearAddress(this Parameters parameters)
         {
-            return parameters.List.LinearAddress();
+            return parameters.RefList.LinearAddress();
         }
 
         // useful to as a key to memoize target function result at a point, instead of int[]
@@ -248,7 +248,7 @@ namespace Spreads.Algorithms.Optimization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Parameters SetPositionsFromLinearAddress(this Parameters parameters, long linearAddress)
         {
-            var newParameters = SetPositionsFromLinearAddress(parameters.List, linearAddress);
+            var newParameters = SetPositionsFromLinearAddress(parameters.RefList, linearAddress);
             return new Parameters(newParameters);
         }
 

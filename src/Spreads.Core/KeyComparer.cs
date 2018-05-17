@@ -11,6 +11,36 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads
 {
+
+    internal class DummyKeyComparer<T> : IKeyComparer<T>
+    {
+        private IComparer<T> _comparer;
+
+        public DummyKeyComparer(IComparer<T> comparer)
+        {
+            _comparer = comparer;
+        }
+
+        public int Compare(T x, T y)
+        {
+            return _comparer.Compare(x, y);
+        }
+
+        public bool IsDiffable => false;
+
+        public T Add(T value, long diff)
+        {
+            ThrowHelper.ThrowNotSupportedException();
+            return default;
+        }
+
+        public long Diff(T x, T y)
+        {
+            ThrowHelper.ThrowNotSupportedException();
+            return default;
+        }
+    }
+
     /// <summary>
     /// Fast IComparer implementation.
     /// </summary>
@@ -18,31 +48,28 @@ namespace Spreads
     public struct KeyComparer<T> : IKeyComparer<T>, IEqualityComparer<T>, IEquatable<KeyComparer<T>>
     {
         private static readonly bool IsIComparable = typeof(IComparable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
-        private readonly IComparer<T> _comparer;
         private readonly IKeyComparer<T> _keyComparer;
 
         /// <summary>
         /// Create a new KeyComparer instance.
         /// </summary>
-        //private KeyComparer() : this(null) { }
+        // private KeyComparer() : this(null) { }
 
         private KeyComparer(IComparer<T> comparer)
         {
             if (comparer != null && !ReferenceEquals(comparer, Comparer<T>.Default))
             {
-                _comparer = comparer;
                 if (comparer is IKeyComparer<T> kc)
                 {
                     _keyComparer = kc;
                 }
                 else
                 {
-                    _keyComparer = null;
+                    _keyComparer = new DummyKeyComparer<T>(comparer);
                 }
             }
             else
             {
-                _comparer = null;
                 _keyComparer = null;
             }
         }
@@ -135,6 +162,10 @@ namespace Spreads
         {
             if (_keyComparer != null)
             {
+                if (!_keyComparer.IsDiffable)
+                {
+                    ThrowHelper.ThrowInvalidOperationException("Cannot Add: KeyComparer.IsDiffable is false");
+                }
                 return _keyComparer.Add(value, diff);
             }
 
@@ -178,9 +209,9 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Compare(T x, T y)
         {
-            if (_comparer != null)
+            if (_keyComparer != null)
             {
-                return _comparer.Compare(x, y);
+                return _keyComparer.Compare(x, y);
             }
 
             if (typeof(T) == typeof(DateTime))
@@ -249,6 +280,10 @@ namespace Spreads
         {
             if (_keyComparer != null)
             {
+                if (!_keyComparer.IsDiffable)
+                {
+                    ThrowHelper.ThrowInvalidOperationException("Cannot Diff: KeyComparer.IsDiffable is false");
+                }
                 return _keyComparer.Diff(x, y);
             }
 
@@ -297,9 +332,9 @@ namespace Spreads
         [Pure]
         public bool Equals(T x, T y)
         {
-            if (_comparer != null)
+            if (_keyComparer != null)
             {
-                return _comparer.Compare(x, y) == 0;
+                return _keyComparer.Compare(x, y) == 0;
             }
 
             // ReSharper disable PossibleNullReferenceException
@@ -357,7 +392,7 @@ namespace Spreads
 
         public bool Equals(KeyComparer<T> other)
         {
-            return Equals(_comparer, other._comparer) && Equals(_keyComparer, other._keyComparer);
+            return Equals(_keyComparer, other._keyComparer);
         }
 
         public override bool Equals(object obj)
@@ -373,7 +408,7 @@ namespace Spreads
         {
             unchecked
             {
-                return ((_comparer != null ? _comparer.GetHashCode() : 0) * 397) ^ (_keyComparer != null ? _keyComparer.GetHashCode() : 0);
+                return ((_keyComparer != null ? _keyComparer.GetHashCode() : 0) * 397) ^ (_keyComparer != null ? _keyComparer.GetHashCode() : 0);
             }
         }
     }

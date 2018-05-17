@@ -12,7 +12,7 @@ namespace Spreads
     public interface IKeyComparer<T> : IComparer<T>
     {
         /// <summary>
-        /// True if type T support <see cref="Diff"/> and <see cref="Add"/> methods.
+        /// True if a type T supports <see cref="Diff"/> and <see cref="Add"/> methods.
         /// </summary>
         bool IsDiffable { get; }
 
