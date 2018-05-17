@@ -3,17 +3,17 @@
 // red in an array (or similar structure) with linearly ordered addresses without holes.
 // --------------------------------------------------------------------------------------
 
-namespace Deedle.Indices.Linear
+namespace Spreads.Deedle.Indices.Linear
 
 open System
 open System.Linq
 open System.Collections.Generic
-open Deedle
-open Deedle.Keys
-open Deedle.Addressing
-open Deedle.Internal
-open Deedle.Indices
-open Deedle.VectorHelpers
+open Spreads.Deedle
+open Spreads.Deedle.Keys
+open Spreads.Deedle.Addressing
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Indices
+open Spreads.Deedle.VectorHelpers
 open System.Diagnostics
 open System.Collections.ObjectModel
 
@@ -639,10 +639,10 @@ type LinearIndexBuilder(vectorBuilder:Vectors.IVectorBuilder) =
 // Functions for creatin linear indices
 // --------------------------------------------------------------------------------------
 
-namespace Deedle 
+namespace Spreads.Deedle 
 
-open Deedle.Internal
-open Deedle.Indices.Linear
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Indices.Linear
 open System.Collections.Generic
 open System.Collections.ObjectModel
 

@@ -1,15 +1,15 @@
 ﻿#nowarn "77" // Static constraint in Series.sample requires special + operator
 #nowarn "10002" // Custom CompilerMessage used to hide internals that are inlined
 
-namespace Deedle
+namespace Spreads.Deedle
 open System
 open System.Collections.Generic
 open System.Linq
-open Deedle.Keys
-open Deedle.Addressing
-open Deedle.Internal
-open Deedle.Vectors
-open Deedle.VectorHelpers
+open Spreads.Deedle.Keys
+open Spreads.Deedle.Addressing
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Vectors
+open Spreads.Deedle.VectorHelpers
 
 /// The `Series` module provides an F#-friendly API for working with data and time series. 
 /// The API follows the usual design for collection-processing in F#, so the functions work

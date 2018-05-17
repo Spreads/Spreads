@@ -1,15 +1,15 @@
-﻿namespace Deedle.Vectors.ArrayVector
+﻿namespace Spreads.Deedle.Vectors.ArrayVector
 
 /// --------------------------------------------------------------------------------------
 /// ArrayVector - stores data of the vector in a continuous memory block. If the vector
 /// contains missing values, then uses `OptionalValue<'T>[]`, otherwise uses just `'T[]`.
 /// --------------------------------------------------------------------------------------
 
-open Deedle
-open Deedle.Addressing
-open Deedle.Internal
-open Deedle.Vectors
-open Deedle.VectorHelpers
+open Spreads.Deedle
+open Spreads.Deedle.Addressing
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Vectors
+open Spreads.Deedle.VectorHelpers
 
 /// LinearIndex + ArrayVector use linear addressing (address is just an offset)
 module Address = LinearAddress

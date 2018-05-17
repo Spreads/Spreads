@@ -1,8 +1,8 @@
-﻿namespace Deedle 
+﻿namespace Spreads.Deedle 
 
-open Deedle.Internal
-open Deedle.Vectors
-open Deedle.Vectors.ArrayVector
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Vectors
+open Spreads.Deedle.Vectors.ArrayVector
 
 // ------------------------------------------------------------------------------------------------
 // F# friendly operations for creating vectors
@@ -58,11 +58,11 @@ module ``F# Vector extensions`` =
 
 // ------------------------------------------------------------------------------------------------
 
-namespace Deedle.Vectors
+namespace Spreads.Deedle.Vectors
 
-open Deedle
-open Deedle.VectorHelpers
-open Deedle.Vectors.ArrayVector
+open Spreads.Deedle
+open Spreads.Deedle.VectorHelpers
+open Spreads.Deedle.Vectors.ArrayVector
 
 // ------------------------------------------------------------------------------------------------
 // Additional vector helpers that have to be defined after ArrayVector
@@ -70,7 +70,7 @@ open Deedle.Vectors.ArrayVector
 
 [<AutoOpen>]
 module internal VectorHelperExtensions =
-  open Deedle.Internal
+  open Spreads.Deedle.Internal
 
   /// Returns `OptionalValue<obj>` which is a boxed version of `OptionalValue<IVector<obj>>`
   /// (where the vector contains values from the specified list of values)

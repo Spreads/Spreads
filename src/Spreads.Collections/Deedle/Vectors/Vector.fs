@@ -1,6 +1,6 @@
-﻿namespace Deedle.Vectors
+﻿namespace Spreads.Deedle.Vectors
 
-open Deedle
+open Spreads.Deedle
 open System.Collections.ObjectModel
 
 /// Provides a way to get the data of an arbitrary vector. This is a concrete type used 
@@ -16,14 +16,14 @@ type VectorData<'T> =
 // --------------------------------------------------------------------------------------
 // Interfaces (generic & non-generic) for representing vectors
 // --------------------------------------------------------------------------------------
-namespace Deedle
+namespace Spreads.Deedle
 
 open System
 open System.Collections.Generic
 open System.Collections.ObjectModel
-open Deedle.Internal
-open Deedle.Vectors
-open Deedle.Addressing
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Vectors
+open Spreads.Deedle.Addressing
 
 /// Represents an (untyped) vector that stores some values and provides access
 /// to the values via a generic address. This type should be only used directly when
@@ -137,11 +137,11 @@ module ``F# Vector extensions (core)`` =
 // --------------------------------------------------------------------------------------
 // Types related to vectors that should not be exposed too directly
 // --------------------------------------------------------------------------------------
-namespace Deedle.Vectors
+namespace Spreads.Deedle.Vectors
 
-open Deedle
-open Deedle.Internal
-open Deedle.Addressing
+open Spreads.Deedle
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Addressing
 
 /// An `IVectorLocation` created from a known address and offset
 /// (typically used in LinearIndex/ArrayVector where both are the same)

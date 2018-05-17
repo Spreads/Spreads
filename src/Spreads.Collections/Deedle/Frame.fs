@@ -1,17 +1,17 @@
 ﻿#nowarn "10001"
-namespace Deedle
+namespace Spreads.Deedle
 
 // --------------------------------------------------------------------------------------
 // Data frame
 // --------------------------------------------------------------------------------------
 
-open Deedle
-open Deedle.Keys
-open Deedle.Addressing
-open Deedle.Internal
-open Deedle.Indices
-open Deedle.Vectors
-open Deedle.JoinHelpers
+open Spreads.Deedle
+open Spreads.Deedle.Keys
+open Spreads.Deedle.Addressing
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Indices
+open Spreads.Deedle.Vectors
+open Spreads.Deedle.JoinHelpers
 
 open System
 open System.ComponentModel

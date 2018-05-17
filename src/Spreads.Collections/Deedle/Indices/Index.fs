@@ -1,4 +1,4 @@
-﻿namespace Deedle
+﻿namespace Spreads.Deedle
 
 // --------------------------------------------------------------------------------------
 // Indexing - index provides access to data in vector via keys. Optionally, the keys
@@ -88,13 +88,13 @@ type Aggregation =
 
 // --------------------------------------------------------------------------------------
 
-namespace Deedle.Indices
+namespace Spreads.Deedle.Indices
 
-open Deedle
-open Deedle.Keys
-open Deedle.Internal
-open Deedle.Addressing
-open Deedle.Vectors
+open Spreads.Deedle
+open Spreads.Deedle.Keys
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Addressing
+open Spreads.Deedle.Vectors
 open System.Collections.Generic
 open System.Collections.ObjectModel
 

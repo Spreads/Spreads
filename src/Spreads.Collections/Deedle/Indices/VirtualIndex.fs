@@ -9,17 +9,17 @@
 //
 // ------------------------------------------------------------------------------------------------
 
-namespace Deedle.Indices.Virtual
+namespace Spreads.Deedle.Indices.Virtual
 
 open System
-open Deedle
-open Deedle.Ranges
-open Deedle.Addressing
-open Deedle.Indices
-open Deedle.Internal
-open Deedle.Vectors
-open Deedle.VectorHelpers
-open Deedle.Vectors.Virtual
+open Spreads.Deedle
+open Spreads.Deedle.Ranges
+open Spreads.Deedle.Addressing
+open Spreads.Deedle.Indices
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Vectors
+open Spreads.Deedle.VectorHelpers
+open Spreads.Deedle.Vectors.Virtual
 open System.Collections.Generic
 open System.Collections.ObjectModel
 

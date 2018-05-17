@@ -1,10 +1,10 @@
-﻿namespace Deedle
+﻿namespace Spreads.Deedle
 
 open System
 open System.Collections.Generic
 
-open Deedle.Vectors
-open Deedle.Internal
+open Spreads.Deedle.Vectors
+open Spreads.Deedle.Internal
 
 // ------------------------------------------------------------------------------------
 // StatsHelpers module contains various helper functions that are used in the Stats 

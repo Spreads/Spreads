@@ -1,4 +1,4 @@
-﻿namespace Deedle
+﻿namespace Spreads.Deedle
 
 // ------------------------------------------------------------------------------------------------
 // Support for multi-key indexing
@@ -18,9 +18,9 @@ type ICustomLookup<'K> =
 // Multi-key indexing internals
 // ------------------------------------------------------------------------------------------------
 
-namespace Deedle.Keys
+namespace Spreads.Deedle.Keys
 
-open Deedle
+open Spreads.Deedle
 open Microsoft.FSharp.Reflection
 
 /// Represents a special hierarchical key. This is mainly used in pretty printing (where we want to 
@@ -108,8 +108,8 @@ type SimpleLookup<'T>(patterns) =
 // F#-friendly functions for creating multi-level keys and lookups
 // ------------------------------------------------------------------------------------------------
 
-namespace Deedle
-open Deedle.Keys
+namespace Spreads.Deedle
+open Spreads.Deedle.Keys
 
 /// F#-friendly functions for creating multi-level keys and lookups
 ///

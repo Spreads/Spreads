@@ -1,16 +1,16 @@
-﻿namespace Deedle
+﻿namespace Spreads.Deedle
 
 open System
 open System.ComponentModel
 open System.Collections.Generic
 
-open Deedle.Addressing
-open Deedle.Internal
-open Deedle.JoinHelpers
-open Deedle.Indices
-open Deedle.Keys
-open Deedle.Vectors
-open Deedle.VectorHelpers
+open Spreads.Deedle.Addressing
+open Spreads.Deedle.Internal
+open Spreads.Deedle.JoinHelpers
+open Spreads.Deedle.Indices
+open Spreads.Deedle.Keys
+open Spreads.Deedle.Vectors
+open Spreads.Deedle.VectorHelpers
 
 /// This enumeration specifies the behavior of `Union` operation on series when there are
 /// overlapping keys in two series that are being unioned. The options include preferring values
@@ -36,7 +36,7 @@ type UnionBehavior =
 /// [category:Core frame and series types]
 type ISeries<'K when 'K : equality> =
   /// Returns the vector containing data of the series (as an untyped vector)
-  abstract Vector : Deedle.IVector
+  abstract Vector : Spreads.Deedle.IVector
   /// Returns the index containing keys of the series 
   abstract Index : IIndex<'K>
   /// Attempts to get the value at a specified key and return it as `obj`

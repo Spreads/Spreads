@@ -6,7 +6,7 @@
 ///   insert = O(1) amortized; O(log n) worst case
 ///   merge = O(log n)
 ///   findMin, removeMin, deleteMin = O(log n)
-namespace Deedle.Internal
+namespace Spreads.Deedle.Internal
 
 open System.Collections.Generic
 

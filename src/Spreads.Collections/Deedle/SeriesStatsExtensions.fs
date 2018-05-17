@@ -1,4 +1,4 @@
-﻿namespace Deedle 
+﻿namespace Spreads.Deedle 
 
 open System
 open System.Linq
@@ -8,9 +8,9 @@ open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
 open Microsoft.FSharp.Quotations
 
-open Deedle.Keys
-open Deedle.Indices
-open Deedle.Internal
+open Spreads.Deedle.Keys
+open Spreads.Deedle.Indices
+open Spreads.Deedle.Internal
 
 /// The type implements C# and F# extension methods that add numerical operations 
 /// to Deedle series. With a few exceptions, the methods are only available for 

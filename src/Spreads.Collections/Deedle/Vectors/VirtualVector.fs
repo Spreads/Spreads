@@ -1,4 +1,4 @@
-﻿namespace Deedle.Vectors.Virtual
+﻿namespace Spreads.Deedle.Vectors.Virtual
 
 // ------------------------------------------------------------------------------------------------
 // Virtual vector - implements a virtualized data storage for Deedle (together with 
@@ -7,12 +7,12 @@
 // ------------------------------------------------------------------------------------------------
 
 open System
-open Deedle
-open Deedle.Ranges
-open Deedle.Addressing
-open Deedle.Vectors
-open Deedle.VectorHelpers
-open Deedle.Internal
+open Spreads.Deedle
+open Spreads.Deedle.Ranges
+open Spreads.Deedle.Addressing
+open Spreads.Deedle.Vectors
+open Spreads.Deedle.VectorHelpers
+open Spreads.Deedle.Internal
 open System.Runtime.CompilerServices
 
 
@@ -45,7 +45,7 @@ and IVirtualVectorSource =
   abstract Invoke<'R> : IVirtualVectorSourceOperation<'R> -> 'R
 
 
-/// Represents a data source for Big Deedle. The interface is used both as a representation
+/// Represents a data source for Big Spreads.Deedle The interface is used both as a representation
 /// of data source for `VirtualVector` (this file) and `VirtualIndex` (another file). The 
 /// index uses `Length` and `ValueAt` to perform binary search when looking for a key; the
 /// vector simply provides an access to values using `ValueAt`. 

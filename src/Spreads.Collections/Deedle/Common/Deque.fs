@@ -1,4 +1,4 @@
-﻿namespace Deedle.Internal
+﻿namespace Spreads.Deedle.Internal
 
 // --------------------------------------------------------------------------------------
 // Deque - implements fast double ended queue, for use in the Stats module 

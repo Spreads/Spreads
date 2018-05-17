@@ -1,11 +1,11 @@
-﻿namespace Deedle.Virtual
+﻿namespace Spreads.Deedle.Virtual
 
 // ------------------------------------------------------------------------------------------------
 // Helpers that can be used when implementing Lookup in your own Deedle sources
 // ------------------------------------------------------------------------------------------------
 
 module IndexUtilsModule = 
-  open Deedle
+  open Spreads.Deedle
   open System
 
   /// Binary search in range [ 0L .. count ]. The function is generic in ^T and 
@@ -65,11 +65,11 @@ type IndexUtils =
 // Public API for creating virtual frames and series
 // ------------------------------------------------------------------------------------------------
 
-open Deedle
-open Deedle.Ranges
-open Deedle.Internal
-open Deedle.Vectors.Virtual
-open Deedle.Indices.Virtual
+open Spreads.Deedle
+open Spreads.Deedle.Ranges
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Vectors.Virtual
+open Spreads.Deedle.Indices.Virtual
 
 /// [omit]
 ///

@@ -1,4 +1,4 @@
-﻿namespace Deedle
+﻿namespace Spreads.Deedle
 
 // ------------------------------------------------------------------------------------------------
 // Utilities that use reflection (flattening records etc.)
@@ -404,7 +404,7 @@ module internal FrameUtils =
 
   /// Creates `IResizeVector` implementation that uses `ResizeArray<'T>` internally
   let makeResizeVector (parser:string -> option<'T>) =
-    let isNa = Deedle.Internal.MissingValues.isNA<'T> ()
+    let isNa = Spreads.Deedle.Internal.MissingValues.isNA<'T> ()
     let data = ResizeArray<OptionalValue<'T>>(500)
     { new IResizeVector with
         member x.Add(value:string) =

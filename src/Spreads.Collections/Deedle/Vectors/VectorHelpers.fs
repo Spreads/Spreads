@@ -3,17 +3,17 @@
 // --------------------------------------------------------------------------------------
 
 /// A module with various utilities for working with vectors. 
-module internal Deedle.VectorHelpers
+module internal Spreads.Deedle.VectorHelpers
 
 open System
 open System.Reflection
 open System.Linq 
 open System.Linq.Expressions
 open System.Collections.Generic
-open Deedle
-open Deedle.Internal
-open Deedle.Vectors
-open Deedle.Addressing
+open Spreads.Deedle
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Vectors
+open Spreads.Deedle.Addressing
 
 // --------------------------------------------------------------------------------------
 // Various
@@ -276,7 +276,7 @@ let convertType<'R> conversionKind (vector:IVector) =
 
 // Store MethodInfo of generic 'convertType' function
 let private convertTypeMethod = Lazy<_>.Create(fun () ->
-  let typ = typeof<Deedle.OptionalValue<int>>.Assembly.GetType("Deedle.VectorHelpers")
+  let typ = typeof<Spreads.Deedle.OptionalValue<int>>.Assembly.GetType("Deedle.VectorHelpers")
   typ.GetMethod("convertType", BindingFlags.NonPublic ||| BindingFlags.Static) )
 
 // Calls `convertType` dynamically for a specified runtime type

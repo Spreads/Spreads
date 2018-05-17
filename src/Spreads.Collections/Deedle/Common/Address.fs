@@ -1,4 +1,4 @@
-﻿namespace Deedle
+﻿namespace Spreads.Deedle
 
 open System
 open System.Reflection
@@ -150,10 +150,10 @@ type RangeRestriction<'TAddress> with
 // --------------------------------------------------------------------------------------
 // Internal address range helpers
 // --------------------------------------------------------------------------------------
-namespace Deedle.Internal
+namespace Spreads.Deedle.Internal
 
-open Deedle
-open Deedle.Addressing
+open Spreads.Deedle
+open Spreads.Deedle.Addressing
 open System.Runtime.CompilerServices
 
 /// [omit]

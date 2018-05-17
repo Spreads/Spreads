@@ -1,8 +1,8 @@
-﻿namespace Deedle 
+﻿namespace Spreads.Deedle 
 
-open Deedle.Internal
-open Deedle.Indices
-open Deedle.Indices.Linear
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Indices
+open Spreads.Deedle.Indices.Linear
 
 // ------------------------------------------------------------------------------------------------
 // F# friendly operations for creating vectors
@@ -15,4 +15,4 @@ open Deedle.Indices.Linear
 module ``F# IndexBuilder implementation`` =
   type IndexBuilder = 
     /// Returns concrete implementation for IVectorBuilder
-    static member Instance = Deedle.Indices.Linear.LinearIndexBuilder.Instance
+    static member Instance = Spreads.Deedle.Indices.Linear.LinearIndexBuilder.Instance

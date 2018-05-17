@@ -1,12 +1,12 @@
-﻿namespace Deedle
+﻿namespace Spreads.Deedle
 
 // --------------------------------------------------------------------------------------
 // Operations and types related to joining - used by both Series and Frame
 // --------------------------------------------------------------------------------------
 
 open System
-open Deedle.Indices
-open Deedle.Vectors
+open Spreads.Deedle.Indices
+open Spreads.Deedle.Vectors
 
 /// This enumeration specifies joining behavior for `Join` method provided
 /// by `Series` and `Frame`. Outer join unions the keys (and may introduce
@@ -38,7 +38,7 @@ type JoinKind =
 /// [omit]
 /// Implements various helpers that are used by Join operations
 module internal JoinHelpers = 
-  open Deedle.Internal
+  open Spreads.Deedle.Internal
 
   /// When doing exact join on ordered indices, restrict the new index
   /// so that we do not have to load all data for lazy indices

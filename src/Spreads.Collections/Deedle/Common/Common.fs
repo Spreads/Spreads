@@ -1,5 +1,5 @@
 ﻿#nowarn "86" // Let me redefine <, >, <=, >= locally using comparator
-namespace Deedle
+namespace Spreads.Deedle
 
 open System
 open System.Runtime.CompilerServices
@@ -238,7 +238,7 @@ type DataSegmentKind = Complete | Incomplete
 ///
 /// For example (using internal `windowed` function):
 ///
-///     open Deedle.Internal
+///     open Spreads.Deedle.Internal
 ///
 ///     Seq.windowedWithBounds 3 Boundary.AtBeginning [ 1; 2; 3; 4 ]
 ///     [fsi:  [| DataSegment(Incomplete, [| 1 |])         ]
@@ -404,10 +404,10 @@ module OptionalValue =
 // Internals - working with missing values   
 // --------------------------------------------------------------------------------------
 
-namespace Deedle.Internal
+namespace Spreads.Deedle.Internal
 
 open System
-open Deedle
+open Spreads.Deedle
 open System.Collections.Generic
 open System.Collections.ObjectModel
 

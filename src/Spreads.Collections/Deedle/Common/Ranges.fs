@@ -6,12 +6,12 @@
 // module hides most of the complexity behind manipulation with ranges.
 // ------------------------------------------------------------------------------------------------
 
-namespace Deedle.Ranges
+namespace Spreads.Deedle.Ranges
 
 open System
-open Deedle
-open Deedle.Internal
-open Deedle.Addressing
+open Spreads.Deedle
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Addressing
 
 /// A set of operations on keys that you need to implement in order to use the
 /// `Ranges<'TKey>` type. The `'TKey` type is typically the key of a BigDeedle

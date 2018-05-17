@@ -1,4 +1,4 @@
-﻿namespace Deedle
+﻿namespace Spreads.Deedle
 
 /// The `Frame` module provides an F#-friendly API for working with data frames. 
 /// The module follows the usual desing for collection-processing in F#, so the 
@@ -213,10 +213,10 @@
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]    
 module Frame = 
   open System
-  open Deedle.Internal
-  open Deedle.VectorHelpers
-  open Deedle.Vectors
-  open Deedle.Addressing
+  open Spreads.Deedle.Internal
+  open Spreads.Deedle.VectorHelpers
+  open Spreads.Deedle.Vectors
+  open Spreads.Deedle.Addressing
 
   // ----------------------------------------------------------------------------------------------
   // Accessing frame data and lookup

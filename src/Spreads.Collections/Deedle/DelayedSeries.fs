@@ -1,11 +1,11 @@
 ﻿#nowarn "86" // Allow me to locally redefine the <=, <, >, >= operators to use IComparer
-namespace Deedle.Delayed
+namespace Spreads.Deedle.Delayed
 
 open System
-open Deedle
-open Deedle.Addressing
-open Deedle.Vectors
-open Deedle.Indices
+open Spreads.Deedle
+open Spreads.Deedle.Addressing
+open Spreads.Deedle.Vectors
+open Spreads.Deedle.Indices
 
 // --------------------------------------------------------------------------------------
 // Ranges
@@ -109,7 +109,7 @@ module internal Ranges =
 // --------------------------------------------------------------------------------------
 
 open Ranges
-open Deedle.VectorHelpers
+open Spreads.Deedle.VectorHelpers
 open System.Threading.Tasks
 open System.Collections.Generic
 open System.Collections.ObjectModel
@@ -331,15 +331,15 @@ and internal DelayedIndexBuilder() =
 // Public API for creating delayed series
 // --------------------------------------------------------------------------------------
 
-namespace Deedle
+namespace Spreads.Deedle
 
 open System
 open System.Collections.Generic
 open System.Threading.Tasks
-open Deedle.Delayed
-open Deedle.Indices
-open Deedle.Internal
-open Deedle.Vectors.ArrayVector
+open Spreads.Deedle.Delayed
+open Spreads.Deedle.Indices
+open Spreads.Deedle.Internal
+open Spreads.Deedle.Vectors.ArrayVector
 
 /// This type exposes a single static method `DelayedSeries.Create` that can be used for
 /// constructing data series (of type `Series<K, V>`) with lazily loaded data. You can

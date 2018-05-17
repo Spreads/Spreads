@@ -1,5 +1,5 @@
 ﻿#nowarn "10001"
-namespace Deedle
+namespace Spreads.Deedle
 
 // ------------------------------------------------------------------------------------------------
 // Construction
@@ -13,8 +13,8 @@ open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
 open System.Collections.Generic
 open FSharp.Data.Runtime
-open Deedle.Keys
-open Deedle.Vectors 
+open Spreads.Deedle.Keys
+open Spreads.Deedle.Vectors 
 open FSharp.Data
 
 /// Provides static methods for creating frames, reading frame data
