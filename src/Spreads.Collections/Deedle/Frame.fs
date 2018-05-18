@@ -520,20 +520,20 @@ and Frame<'TRowKey, 'TColumnKey when 'TRowKey : equality and 'TColumnKey : equal
           let inclusive v = v |> Option.map (fun v -> v, BoundaryBehavior.Inclusive)
           frame.GetSubrange(inclusive lo, inclusive hi) }
 
-  ///// [category:Accessors and slicing]
-  //member frame.GetRowsAs<'TRow>() : Series<'TRowKey, 'TRow> =    
-  //  if typeof<'TColumnKey> <> typeof<string> then 
-  //    failwith "The GetRows operation can only be used when column key is a string."
+  /// [category:Accessors and slicing]
+  member frame.GetRowsAs<'TRow>() : Series<'TRowKey, 'TRow> = 
+    if typeof<'TColumnKey> <> typeof<string> then 
+      failwith "The GetRows operation can only be used when column key is a string."
 
-  //  let keys = columnIndex.Keys |> Seq.map unbox<string> |> List.ofSeq 
-  //  let rowBuilder = VectorHelpers.createTypedRowReader<'TRow> keys (fun column ->
-  //    let address = columnIndex.Locate(unbox<'TColumnKey> column)
-  //    if address = Address.invalid then
-  //      failwithf "The interface member '%s' does not exist in the column index." column
-  //    address )
+    let keys = columnIndex.Keys |> Seq.map unbox<string> |> List.ofSeq 
+    let rowBuilder = VectorHelpers.createTypedRowReader<'TRow> keys (fun column ->
+      let address = columnIndex.Locate(unbox<'TColumnKey> column)
+      if address = Address.invalid then
+        failwithf "The interface member '%s' does not exist in the column index." column
+      address )
 
-  //  let vector = rowBuilder rowIndex.KeyCount rowIndex.AddressAt data
-  //  Series<'TRowKey, 'TRow>(rowIndex, vector, vectorBuilder, indexBuilder)
+    let vector = rowBuilder rowIndex.KeyCount rowIndex.AddressAt data
+    Series<'TRowKey, 'TRow>(rowIndex, vector, vectorBuilder, indexBuilder)
 
   /// [category:Accessors and slicing]
   member frame.Item 

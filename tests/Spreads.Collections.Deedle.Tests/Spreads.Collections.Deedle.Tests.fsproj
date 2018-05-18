@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <Import Project="..\..\build\common.props" />
+    <PropertyGroup>
+        <TargetFrameworks>netcoreapp2.1</TargetFrameworks>
+        <AssemblyName>Spreads.Collections.Deedle.Tests</AssemblyName>
+        <RootNamespace>Spreads.Collections.Deedle.Tests</RootNamespace>
+        <OutputType>Library</OutputType>
+    </PropertyGroup>
+    
+    <ItemGroup>
+        <Compile Include="FsUnit.fs" />
+        <Compile Include="Common.fs" />
+        <Compile Include="Vector.fs" />
+        <Compile Include="MultiKey.fs" />
+        <Compile Include="Deque.fs" />
+        <Compile Include="Stats.fs" />
+        <Compile Include="Series.fs" />
+        <Compile Include="Frame.fs" />
+        <Compile Include="LazySeries.fs" />
+        <Compile Include="Ranges.fs" />
+        <Compile Include="VirtualFrame.fs" />
+        <Compile Include="VirtualPartitioned.fs" />
+    </ItemGroup>
+    
+    <ItemGroup>
+      <None Include="data\MSFT.csv" />
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="FsCheck.Nunit" Version="3.0.0-alpha3" />
+        <PackageReference Include="FSharp.Core" Version="4.3.4" />
+        <PackageReference Include="MathNet.Numerics.Signed" Version="4.4.1" />
+        <PackageReference Update="System.ValueTuple" Version="4.5.0-rc1" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.8.0-preview-20180510-03" />
+        <PackageReference Include="NUnit" Version="3.10.1" />
+        <PackageReference Include="NUnit3TestAdapter" Version="3.10.0" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj" />
+    </ItemGroup>
+</Project>

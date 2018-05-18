@@ -708,13 +708,13 @@ namespace Spreads.Tests
         {
             var count = 1000000;
             var array = new double[count];
-            var buffer = BufferPool<double>.RentOwnedPooledArray(count, true);
-            var buffer2 = BufferPool<double>.RentOwnedPooledArray(count, true);
+            var buffer = BufferPool<double>.RentOwnedPooledArray(count);
+            var buffer2 = BufferPool<double>.RentOwnedPooledArray(count);
 
             var handle2 = buffer2.Memory.Pin();
             var pointer2 = handle2.Pointer;
 
-            var buffer3 = BufferPool<double>.RentOwnedPooledArray(count, true);
+            var buffer3 = BufferPool<double>.RentOwnedPooledArray(count);
             var handle3 = buffer3.Memory.Pin();
             var pointer3 = handle3.Pointer;
 

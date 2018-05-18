@@ -10,6 +10,7 @@ namespace Spreads.Collections
 // TODO Finalize new interfaces, strides are needed in containers most of all
 // TODO Reimplement (review + fix) Append
 // TODO (low) Pooling and cursor counter to avoid disposing of a SM with outstanding cursors
+// TODO Remove try..finally in simple methods such as Add/Set and use some circuit braker in enterLock with Env.FailFast. Methods should bever throw.
 
 open System
 open System.Linq
@@ -1700,8 +1701,8 @@ and
             newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
             newValue <- this.source.values.[newIndex]
             newIsBatch <- true
-            trueTask
-          else falseTask
+            TaskUtil.TrueTask
+          else TaskUtil.FalseTask
 
         /////////// End read-locked code /////////////
         if doSpin then
@@ -1861,8 +1862,8 @@ and
 
     member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> =
       if this.source.isReadOnly then
-        if this.MoveNext() then trueTask else falseTask
-      else ThrowHelper.ThrowNotSupportedException("Use an async cursor wrapper instead");falseTask
+        if this.MoveNext() then TaskUtil.TrueTask else TaskUtil.FalseTask
+      else ThrowHelper.ThrowNotSupportedException("Use an async cursor wrapper instead");TaskUtil.FalseTask
 
     member this.Clone() = 
       let mutable copy = this
