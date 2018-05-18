@@ -21,6 +21,7 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.CSharp" Version="4.5.0-rc1" />
         <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="1.2.2" />
+        <PackageReference Include="Spreads" Version="1.0.0-build1805190028R" />
         <PackageReference Include="System.Numerics.Vectors" Version="4.5.0-rc1" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.8.0-preview-20180510-03" />
         <PackageReference Include="NUnit" Version="3.10.1" />
@@ -29,9 +30,7 @@
 
 
     <ItemGroup>
-      <ProjectReference Include="..\..\src\Spreads.Collections\Spreads.Collections.fsproj" />
       <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
-      <ProjectReference Include="..\..\src\Spreads\Spreads.csproj" />
     </ItemGroup>
 
 

@@ -18,7 +18,7 @@ namespace Spreads.Buffers
         private static readonly ObjectPool<OwnedPooledArray<T>> Pool = new ObjectPool<OwnedPooledArray<T>>(() => new OwnedPooledArray<T>(), Environment.ProcessorCount * 16);
 
         private T[] _array;
-        private int _referenceCount;
+        internal int _referenceCount;
 
         private OwnedPooledArray()
         { }
@@ -76,7 +76,16 @@ namespace Spreads.Buffers
         [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
         protected override void Dispose(bool disposing)
         {
-            if (_referenceCount > 0) { ThrowHelper.ThrowInvalidOperationException("Disposing an OwnedPooledArray with ratained references"); }
+            // special value that is not possible normally to keep thread-static buffer undisposable
+            if (_referenceCount == int.MinValue) { return; }
+
+            if (_referenceCount > 0)
+            {
+                // ThrowHelper.ThrowInvalidOperationException("Disposing an OwnedPooledArray with ratained references");
+                Unpin();
+                return;
+            }
+
             var array = Interlocked.Exchange(ref _array, null);
             if (array == null)
             {
@@ -103,7 +112,12 @@ namespace Spreads.Buffers
             unsafe
             {
                 if (IsDisposed) { ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>)); }
-                Interlocked.Increment(ref _referenceCount);
+
+                if (_referenceCount != int.MinValue)
+                {
+                    Interlocked.Increment(ref _referenceCount);
+                }
+
                 if ((uint)elementIndex > (uint)_array.Length) { ThrowHelper.ThrowArgumentOutOfRangeException(nameof(elementIndex)); }
                 var handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
                 var pointer = SRCS.Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), elementIndex);
@@ -142,7 +156,12 @@ namespace Spreads.Buffers
         private RetainedMemory<T> RetainImpl(int start = -1, int length = -1)
         {
             if (IsDisposed) { ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>)); }
-            Interlocked.Increment(ref _referenceCount);
+
+            if (_referenceCount != int.MinValue)
+            {
+                Interlocked.Increment(ref _referenceCount);
+            }
+
             unsafe
             {
                 // MemoryHandle is not exposed in RetainedMemory. It is just IDisposable that
@@ -162,6 +181,8 @@ namespace Spreads.Buffers
         [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
         public override void Unpin()
         {
+            // special value that is not possible normally to keep thread-static buffer undisposable
+            if (_referenceCount == int.MinValue) { return; }
             var newRefCount = Interlocked.Decrement(ref _referenceCount);
             if (newRefCount < 0) { ThrowHelper.ThrowInvalidOperationException(); }
             if (newRefCount == 0)

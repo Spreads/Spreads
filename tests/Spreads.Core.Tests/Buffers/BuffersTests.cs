@@ -2,12 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using NUnit.Framework;
+using Spreads.Buffers;
+using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
-using NUnit.Framework;
-using Spreads.Buffers;
 
 namespace Spreads.Tests.Buffers
 {
@@ -63,91 +64,104 @@ namespace Spreads.Tests.Buffers
         [Test, Ignore("long running")]
         public void ThreadStaticBufferVsSharedPool()
         {
+
+            //Case | MOPS | Elapsed | GC0 | GC1 | GC2 | Memory
+            //    ------------------------------------------ -| --------:| ---------:| ------:| ------:| ------:| --------:
+            //Direct ArrayPool with StaticBufferSize +1 | 37.04 | 27 ms | 0.0 | 0.0 | 0.0 | 0.008 MB
+            //Threadlocal | 34.48 | 29 ms | 0.0 | 0.0 | 0.0 | 0.008 MB
+            //    Direct ArrayPool with StaticBufferSize | 34.48 | 29 ms | 0.0 | 0.0 | 0.0 | 0.008 MB
+            //    GetBuffer via pool                         | 12.20 | 82 ms | 0.0 | 0.0 | 0.0 | 0.008 MB
+            //    GC StaticBufferSize + 1 | 1.49 | 673 ms | 2610.0 | 0.0 | 0.0 | 5.798 MB
+            //    GC StaticBufferSize | 1.48 | 675 ms | 2610.0 | 0.0 | 0.0 | 5.795 MB
             for (int r = 0; r < 10; r++)
             {
                 const int count = 1000000;
-                var sw = new Stopwatch();
 
-                sw.Restart();
                 var sum = 0L;
-                for (var i = 0; i < count; i++)
+
+                using (Benchmark.Run("Threadlocal", count))
                 {
-                    using (var wrapper = BufferPool.UseTempBuffer(BufferPool.StaticBufferSize))
+                    for (var i = 0; i < count; i++)
                     {
-                        wrapper.Memory.Span[0] = 123;
-                        sum += wrapper.Memory.Span[0] + wrapper.Memory.Span[1];
+                        // var wrapper = BufferPool.StaticBuffer;
+                        using (var wrapper = BufferPool.UseTempBuffer(BufferPool.StaticBufferSize))
+                        {
+                            wrapper.Memory.Span[0] = 123;
+                            sum += wrapper.Memory.Span[0] + wrapper.Memory.Span[1];
+                        }
                     }
+                    Assert.IsTrue(sum > 0);
                 }
-                Assert.IsTrue(sum > 0);
-                sw.Stop();
-                Console.WriteLine($"Threadlocal {sw.ElapsedMilliseconds}");
 
-                sw.Restart();
-                sum = 0L;
-                for (var i = 0; i < count; i++)
+                using (Benchmark.Run("GetBuffer via pool", count))
                 {
-                    using (var wrapper = BufferPool.UseTempBuffer(BufferPool.StaticBufferSize + 1))
+                    sum = 0L;
+                    for (var i = 0; i < count; i++)
                     {
-                        wrapper.Memory.Span[0] = 123;
-                        sum += wrapper.Memory.Span[0] + wrapper.Memory.Span[1];
+                        using (var wrapper = BufferPool<byte>.RentOwnedPooledArray(BufferPool.StaticBufferSize + 1)) // BufferPool.UseTempBuffer(BufferPool.StaticBufferSize + 1
+                        {
+                            wrapper.Memory.Span[0] = 123;
+                            sum += wrapper.Memory.Span[0] + wrapper.Memory.Span[1];
+                        }
                     }
+                    Assert.IsTrue(sum > 0);
                 }
-                Assert.IsTrue(sum > 0);
-                sw.Stop();
-                Console.WriteLine($"GetBuffer via pool {sw.ElapsedMilliseconds}");
 
-                sw.Restart();
-                sum = 0L;
-                for (var i = 0; i < count; i++)
+                using (Benchmark.Run("Direct ArrayPool with StaticBufferSize", count))
                 {
-                    var buffer = BufferPool<byte>.Rent(BufferPool.StaticBufferSize);
-                    buffer[0] = 123;
-                    sum += buffer[0] + buffer[1];
-                    BufferPool<byte>.Return(buffer, true);
-                }
-                Assert.IsTrue(sum > 0);
-                sw.Stop();
-                Console.WriteLine($"Direct ArrayPool with StaticBufferSize {sw.ElapsedMilliseconds}");
+                    sum = 0L;
+                    for (var i = 0; i < count; i++)
+                    {
+                        var buffer = BufferPool<byte>.Rent(BufferPool.StaticBufferSize);
+                        buffer[0] = 123;
+                        sum += buffer[0] + buffer[1];
+                        BufferPool<byte>.Return(buffer, false);
+                    }
 
-                sw.Restart();
-                sum = 0L;
-                for (var i = 0; i < count; i++)
+                    Assert.IsTrue(sum > 0);
+                }
+
+                using (Benchmark.Run("Direct ArrayPool with StaticBufferSize + 1", count))
                 {
-                    var buffer = BufferPool<byte>.Rent(BufferPool.StaticBufferSize + 1);
-                    buffer[0] = 123;
-                    sum += buffer[0] + buffer[1];
-                    BufferPool<byte>.Return(buffer, true);
-                }
-                Assert.IsTrue(sum > 0);
-                sw.Stop();
-                Console.WriteLine($"Direct ArrayPool with StaticBufferSize + 1 {sw.ElapsedMilliseconds}");
+                    sum = 0L;
+                    for (var i = 0; i < count; i++)
+                    {
+                        var buffer = BufferPool<byte>.Rent(BufferPool.StaticBufferSize + 1);
+                        buffer[0] = 123;
+                        sum += buffer[0] + buffer[1];
+                        BufferPool<byte>.Return(buffer, false);
+                    }
 
-                sw.Restart();
-                sum = 0L;
-                for (var i = 0; i < count; i++)
+                    Assert.IsTrue(sum > 0);
+                }
+
+                using (Benchmark.Run("GC StaticBufferSize", count))
                 {
-                    var buffer = new byte[BufferPool.StaticBufferSize];
-                    buffer[0] = 123;
-                    sum += buffer[0] + buffer[1];
-                }
-                Assert.IsTrue(sum > 0);
-                sw.Stop();
-                Console.WriteLine($"GC StaticBufferSize {sw.ElapsedMilliseconds}");
+                    sum = 0L;
+                    for (var i = 0; i < count; i++)
+                    {
+                        var buffer = new byte[BufferPool.StaticBufferSize];
+                        buffer[0] = 123;
+                        sum += buffer[0] + buffer[1];
+                    }
 
-                sw.Restart();
-                sum = 0L;
-                for (var i = 0; i < count; i++)
+                    Assert.IsTrue(sum > 0);
+                }
+
+                using (Benchmark.Run("GC StaticBufferSize + 1", count))
                 {
-                    var buffer = new byte[BufferPool.StaticBufferSize + 1];
-                    buffer[0] = 123;
-                    sum += buffer[0] + buffer[1];
+                    sum = 0L;
+                    for (var i = 0; i < count; i++)
+                    {
+                        var buffer = new byte[BufferPool.StaticBufferSize + 1];
+                        buffer[0] = 123;
+                        sum += buffer[0] + buffer[1];
+                    }
+                    Assert.IsTrue(sum > 0);
                 }
-                Assert.IsTrue(sum > 0);
-                sw.Stop();
-                Console.WriteLine($"GC StaticBufferSize + 1 {sw.ElapsedMilliseconds}");
-
-                Console.WriteLine("---------------------");
             }
+
+            Benchmark.Dump($"BufferPool benchmark");
         }
 
         [Test]

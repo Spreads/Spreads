@@ -62,6 +62,7 @@ namespace Spreads.Buffers
 
         /// <summary>
         /// Thread-static <see cref="OwnedPooledArray{T}"/> with size of <see cref="StaticBufferSize"/>.
+        /// Never dispose it!
         /// </summary>
         internal static OwnedPooledArray<byte> StaticBuffer
         {
@@ -69,8 +70,10 @@ namespace Spreads.Buffers
             get
             {
                 if (ThreadStaticBuffer != null) { return ThreadStaticBuffer; }
-                ThreadStaticBuffer = BufferPool<byte>.RentOwnedPooledArray(StaticBufferSize);
-                // Pin forever
+
+                ThreadStaticBuffer = OwnedPooledArray<byte>.Create(new byte[Settings.ThreadStaticPinnedBufferSize]); // BufferPool<byte>.RentOwnedPooledArray(StaticBufferSize);
+                ThreadStaticBuffer._referenceCount = int.MinValue;
+                // NB Pin in LOH if ThreadStaticPinnedBufferSize > 85k, limit impact on compaction (see Slab in Kestrel)
                 ThreadStaticBuffer.Pin();
                 return ThreadStaticBuffer;
             }
@@ -136,6 +139,7 @@ namespace Spreads.Buffers
         /// from a single thread (no async/await, etc.).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Obsolete]
         internal static OwnedPooledArray<byte> UseTempBuffer(int minimumSize)
         {
             if (minimumSize <= StaticBufferSize)

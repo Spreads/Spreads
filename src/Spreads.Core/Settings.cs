@@ -9,11 +9,14 @@ namespace Spreads
     /// </summary>
     public static class Settings
     {
-        // TODO find
+        // TODO find best values
         /// <summary>
         /// 
         /// </summary>
         public const int SliceMemoryAlignment = 8;
+
+        // NB at least 85k for LOH
+        internal const int ThreadStaticPinnedBufferSize = 128 * 1024;
 
         internal class AdditionalCorrectnessChecks
         {
