@@ -8,6 +8,7 @@
     <ItemGroup>
         <Compile Include="AssemblyInfo.fs" />
         <Compile Include="Attributes.fs" />
+        <Compile Include="Common\TaskBuilder.fs" />
         <Compile Include="Common/Types.fs" />
         <Compile Include="Common/FastEvents.fs" />
         <Compile Include="Common/Utils.fs" />
