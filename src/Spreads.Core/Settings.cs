@@ -52,5 +52,7 @@ namespace Spreads
             get => AdditionalCorrectnessChecks.DoChecks;
             set => _doAdditionalCorrectnessChecks = value;
         }
+
+        internal static int SCMDefaultChunkLength = 4096;
     }
 }

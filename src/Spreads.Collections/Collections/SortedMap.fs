@@ -483,12 +483,9 @@ type SortedMap<'K,'V>
   override this.Comparer with get() = this.comparer
 
   member this.Clear() =
-    let mutable entered = false
+    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     try
-      try ()
-      finally
-        entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
-        if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if couldHaveRegularKeys then
         Trace.Assert(this.keys.Length = 2)
         Array.Clear(this.keys, 0, 2)
@@ -1920,13 +1917,13 @@ and
       member this.Clone() = this.Clone()
 
 //type internal ChunksContainer<'K,'V>
-//  (comparer : IComparer<'K>, synced: bool)  =
-//  let t = new SortedMap<_,_>(comparer, IsSynchronized = synced)
+//  (comparer : IComparer<'K>)  =
+//  let t = new SortedMap<_,_>(comparer)
 //  interface ISeries<'K,SortedMap<'K,'V>> with
 //    member x.Updated = t.Updated
 //    member x.Comparer = t.Comparer
 //    member x.First = t.First
-//    member x.TryGetAt(idx) = t.TryGetAt(idx)
+//    member x.TryGetAt(idx, value) = t.TryGetAt(idx, &value)
 //    member x.GetCursor() = t.GetCursor()
 //    member x.GetAsyncEnumerator(): IAsyncEnumerator<KeyValuePair<'K,SortedMap<'K, 'V>>> = 
 //      t.GetEnumerator() :> IAsyncEnumerator<KeyValuePair<'K,SortedMap<'K, 'V>>>
@@ -1942,33 +1939,32 @@ and
 //    member x.Last = t.Last 
 //    member x.TryFindAt(key, direction, value) = t.TryFindAt(key, direction, &value)
 //    member x.Values = t.Values 
-//    
-//    
+    
+    
 //  interface IMutableChunksSeries<'K,'V,SortedMap<'K,'V>> with
 //    member x.Dispose() = ()
 //    member x.Flush() = Task.CompletedTask
 //    member x.Id = ""
-//    
-//    member x.Item
-//      with get (key) = t.Item(key) 
-//      and set (key) v =
+    
+//    member x.Set(key, v) =
 //        if v.size > 0 then 
 //          let ov = t.orderVersion
-//          t.[key] <- v
+//          t.Set(key, v) |> ignore
 //          t.orderVersion <- ov
-//        else t.Remove(key) |> ignore
+//        else t.TryRemove(key) |> ignore
 //        t.version <- v.version
+//        TaskUtil.FalseTask
+
 //    member x.RemoveMany(key, keyChunk, direction) =
 //      match direction with
-//      | Lookup.EQ -> (x :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>).[key] = keyChunk
+//      | Lookup.EQ -> (x :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>).Set(key, keyChunk)
 //      | Lookup.LT | Lookup.LE -> 
-//        let res = t.RemoveMany(key, Lookup.LT)
-//        (x :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>).[key] <- keyChunk
-//        res
+//        t.TryRemoveMany(key, Lookup.LT).Result |> ignore
+//        (x :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>).Set(key, keyChunk)
 //      | Lookup.GT | Lookup.GE -> 
-//        let res = t.RemoveMany(key, Lookup.GT)
-//        (x :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>).[key] <- keyChunk
-//        res
+//        t.TryRemoveMany(key, Lookup.GT).Result |> ignore
+//        (x :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>).Set(key, keyChunk)
 //      | _ -> failwith "mute F# warning"
+
 //    member x.Version = t.version // small v, field
    

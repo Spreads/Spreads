@@ -439,19 +439,17 @@ namespace Spreads
     {
     }
 
-    // TODO review signature. Why chunk is mutable? Why not just Specialized mutable series?
-    internal interface IMutableChunksSeries<TKey, TValue, TContainer> : ISeries<TKey, TContainer>, IPersistentObject
-        where TContainer : IMutableSeries<TKey, TValue>
-    {
-        /// <summary>
-        /// Keep the key chunk if it is not empty, remove all other chunks to the direction side, update version from the key chunk
-        /// </summary>
-        Task<bool> RemoveMany(TKey key, TContainer keyChunk, Lookup direction);
+    //// TODO review signature. Why chunk is mutable? Why not just Specialized mutable series?
+    //internal interface IMutableChunksSeries<TKey, TValue, TContainer> : ISeries<TKey, TContainer>, IPersistentObject
+    //    where TContainer : IMutableSeries<TKey, TValue>
+    //{
+    //    /// <summary>
+    //    /// Keep the key chunk if it is not empty, remove all other chunks to the direction side, update version from the key chunk
+    //    /// </summary>
+    //    Task<bool> RemoveMany(TKey key, TContainer keyChunk, Lookup direction);
 
-        new ref readonly TContainer this[TKey key] { get; }
+    //    Task<bool> Set(TKey key, TContainer value);
 
-        Task<bool> Set(TKey key, TContainer value);
-
-        long Version { get; }
-    }
+    //    long Version { get; }
+    //}
 }
