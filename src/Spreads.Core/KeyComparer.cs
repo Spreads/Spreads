@@ -411,6 +411,59 @@ namespace Spreads
                 return ((_keyComparer != null ? _keyComparer.GetHashCode() : 0) * 397) ^ (_keyComparer != null ? _keyComparer.GetHashCode() : 0);
             }
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal int BinarySearch(T[] array, int index, int length, T value)
+        {
+            // TODO review while rewriting SCM if this shortcut could be useful
+            //var c0 = Compare(value, array[length - 1]);
+
+            //if (c0 > 0)
+            //{
+            //    return ~length;
+            //}
+
+            //if (c0 == 0)
+            //{
+            //    return length - 1;
+            //}
+
+            // https://github.com/dotnet/coreclr/blob/master/src/System.Private.CoreLib/shared/System/SpanHelpers.BinarySearch.cs
+            ref var start = ref array[0];
+            int lo = 0;
+            int hi = length - 1;
+
+            // If length == 0, hi == -1, and loop will not be entered
+            while (lo <= hi)
+            {
+                // PERF: `lo` or `hi` will never be negative inside the loop,
+                //       so computing median using uints is safe since we know 
+                //       `length <= int.MaxValue`, and indices are >= 0
+                //       and thus cannot overflow an uint. 
+                //       Saves one subtraction per loop compared to 
+                //       `int i = lo + ((hi - lo) >> 1);`
+                int i = (int)(((uint)hi + (uint)lo) >> 1);
+
+                int c = Compare(value, System.Runtime.CompilerServices.Unsafe.Add(ref start, i));
+                if (c == 0)
+                {
+                    return i;
+                }
+                else if (c > 0)
+                {
+                    lo = i + 1;
+                }
+                else
+                {
+                    hi = i - 1;
+                }
+            }
+            // If none found, then a negative number that is the bitwise complement
+            // of the index of the next element that is larger than or, if there is
+            // no larger element, the bitwise complement of `length`, which
+            // is `lo` at this point.
+            return ~lo;
+        }
     }
 
     /// <summary>

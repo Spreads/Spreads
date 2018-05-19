@@ -69,12 +69,13 @@ type SortedMap<'K,'V>
   val mutable internal nextVersion : int64
     
   [<DefaultValueAttribute>] 
-  val mutable internal comparer : KeyComparer<'K> 
+  val mutable internal comparer : KeyComparer<'K>
+
   do
-    this.comparer <- 
-      if comparerOpt.IsNone || Comparer<'K>.Default.Equals(comparerOpt.Value) then
-        KeyComparer<'K>.Default
-      else comparerOpt.Value // do not try to replace with KeyComparer if a this.comparer was given
+    if comparerOpt.IsNone || KeyComparer<'K>.Default.Equals(comparerOpt.Value) then
+      this.comparer <- KeyComparer<'K>.Default
+    else 
+      this.comparer <- comparerOpt.Value // do not try to replace with KeyComparer if a this.comparer was given
 
   let mutable couldHaveRegularKeys : bool = this.comparer.IsDiffable
   
@@ -317,7 +318,7 @@ type SortedMap<'K,'V>
     this.comparer.Compare(k, this.keys.[0]) // keys.[0] is always the first key even for regular keys
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member inline private this.CompareToLast (k:'K) =
+  member inline internal this.CompareToLast (k:'K) =
     if couldHaveRegularKeys && this.size > 1 then
       #if DEBUG
       Trace.Assert(not <| Unchecked.equals rkLast Unchecked.defaultof<'K>)
@@ -629,9 +630,9 @@ type SortedMap<'K,'V>
   member this.ContainsValue(value) = this.IndexOfValue(value) >= 0
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member internal this.IndexOfKeyUnchecked(key:'K) : int =
+  member inline internal this.IndexOfKeyUnchecked(key:'K) : int =
     if couldHaveRegularKeys && this.size > 1 then this.rkIndexOfKey key
-    else Array.BinarySearch(this.keys, 0, this.size, key, this.comparer)
+    else this.comparer.BinarySearch(this.keys, 0, this.size, key)
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.IndexOfKey(key:'K) : int =
@@ -679,27 +680,23 @@ type SortedMap<'K,'V>
         Opt.Present(KeyValuePair(rkLast, this.values.[this.size - 1]))
       elif this.size > 0 then Opt.Present(KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1]))
       else Opt.Missing
-        
+
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+  member internal this.TryGetValueUnchecked(key, [<Out>]value: byref<'V>) : bool =
+    let index = this.IndexOfKeyUnchecked(key)
+    if index >= 0 then
+      value <- this.values.[index]
+      true
+    else false
+    
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   override this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
     this.CheckNull(key)
-    let inline res() = 
-      // first/last optimization
-      if this.size = 0 then struct (false, Unchecked.defaultof<'V>)
-      else
-        let lc = this.CompareToLast key
-        if lc = 0 then // key = last key
-          struct (true, this.values.[this.size-1])
-        else
-          let index = this.IndexOfKeyUnchecked(key)
-          if index >= 0 then
-            struct (true, this.values.[index])
-          else
-            struct (false, Unchecked.defaultof<'V>)
-    let tupleResult = readLockIf &this.nextVersion &this.version (not this.isReadOnly) res
-    let struct (ret0,res0) = tupleResult
-    value <- res0
-    ret0
+    let mutable value' = Unchecked.defaultof<_>
+    let inline res() = this.TryGetValueUnchecked(key, &value')
+    if readLockIf &this.nextVersion &this.version (not this.isReadOnly) res then
+      value <- value'; true
+    else false
       
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.Set(k, v) : Task<bool> =

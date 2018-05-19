@@ -14,7 +14,7 @@ namespace Spreads.Utils
         {
             if ((uint)(index) + (uint)length > (uint)span.Length)
             {
-                throw new ArgumentException("Index + Length fall outside the span boundary.");
+                ThrowHelper.ThrowArgumentException("Index + Length fall outside the span boundary.");
             }
 
             int lo = index;
