@@ -121,7 +121,7 @@ namespace Spreads.Core.Tests.Collections
                 Assert.IsTrue(sm.IsCompleted);
                 Assert.IsFalse(sm.IsSynchronized);
 
-                for (int r = 0; r < 20; r++)
+                for (int r = 0; r < 30; r++)
                 {
                     var sum1 = 0L;
                     using (Benchmark.Run("SL", count * mult, true))
@@ -151,6 +151,60 @@ namespace Spreads.Core.Tests.Collections
                                 {
                                     sum2 += v;
                                 }
+                            }
+                        }
+                    }
+                    Assert.True(sum2 > 0);
+
+                    Assert.AreEqual(sum1, sum2);
+                }
+
+                Benchmark.Dump($"Size = {Math.Pow(2, size)}k elements");
+            }
+        }
+
+
+        [Test, Explicit("long running")]
+        public void BinarySearchSpeed()
+        {
+            for (int size = 0; size < 3; size++)
+            {
+                var count = (int)(1024 * Math.Pow(2, size));
+                const int mult = 10000;
+                var arr = new DateTime[count];
+
+                var start = DateTime.Today.ToUniversalTime();
+                for (int i = 0; i < count; i++)
+                {
+                    arr[i] = start.AddTicks(i);
+                }
+
+                for (int r = 0; r < 20; r++)
+                {
+                    var cmp1 = Comparer<DateTime>.Default;
+                    var sum1 = 0L;
+                    using (Benchmark.Run("Array.BS", count * mult, false))
+                    {
+                        for (int j = 0; j < mult; j++)
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                sum1 +=  Array.BinarySearch(arr, 0, arr.Length, start.AddTicks(i), cmp1);
+                            }
+                        }
+
+                    }
+                    Assert.True(sum1 > 0);
+
+                    var sum2 = 0L;
+                    var cmp2 = KeyComparer<DateTime>.Default;
+                    using (Benchmark.Run("KeyComparer.BS", count * mult, false))
+                    {
+                        for (int j = 0; j < mult; j++)
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                sum2 += cmp2.BinarySearch(arr, 0, arr.Length, start.AddTicks(i));
                             }
                         }
                     }

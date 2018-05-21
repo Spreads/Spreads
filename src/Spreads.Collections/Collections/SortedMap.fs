@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 
-namespace Spreads.Collections
+namespace rec Spreads.Collections
 
 // TODO [x] Simplify monster method TryFindWithIndex (done)
 // TODO Test TryFindWithIndex
@@ -72,6 +72,7 @@ type SortedMap<'K,'V>
   val mutable internal comparer : KeyComparer<'K>
 
   do
+    this.isSynchronized = true
     if comparerOpt.IsNone || KeyComparer<'K>.Default.Equals(comparerOpt.Value) then
       this.comparer <- KeyComparer<'K>.Default
     else 
@@ -84,7 +85,9 @@ type SortedMap<'K,'V>
 
   [<DefaultValueAttribute>] 
   val mutable isReadOnly : bool
-  
+  [<DefaultValueAttribute>] 
+  val mutable isSynchronized : bool
+
   let mutable mapKey = String.Empty
 
   // TODO buffer management similar to OwnedArray
@@ -201,6 +204,10 @@ type SortedMap<'K,'V>
   //#region Private & Internal members
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+  member inline private this.EnterWriteLock() : bool =
+    enterWriteLockIf &this.Locker this.isSynchronized
+
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline private this.rkGetStep() =
     #if DEBUG
     Trace.Assert(this.size > 1)
@@ -307,24 +314,23 @@ type SortedMap<'K,'V>
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline internal this.GetPairByIndexUnchecked(index) =
     if couldHaveRegularKeys && this.size > 1 then
-      #if DEBUG
-      Trace.Assert(uint32 index < uint32 this.size, "Index must be checked before calling GetPairByIndexUnchecked")
-      #endif
+      Debug.Assert(uint32 index < uint32 this.size, "Index must be checked before calling GetPairByIndexUnchecked")
       KeyValuePair(this.rkKeyAtIndex index, this.values.[index])
     else KeyValuePair(this.keys.[index], this.values.[index]) 
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline private this.CompareToFirst (k:'K) =
+    Debug.Assert(this.size > 0)
     this.comparer.Compare(k, this.keys.[0]) // keys.[0] is always the first key even for regular keys
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline internal this.CompareToLast (k:'K) =
     if couldHaveRegularKeys && this.size > 1 then
-      #if DEBUG
-      Trace.Assert(not <| Unchecked.equals rkLast Unchecked.defaultof<'K>)
-      #endif
+      Debug.Assert(not <| Unchecked.equals rkLast Unchecked.defaultof<'K>)
       this.comparer.Compare(k, rkLast)
-    else this.comparer.Compare(k, this.keys.[this.size-1])
+    else
+      Debug.Assert(this.size > 0)
+      this.comparer.Compare(k, this.keys.[this.size-1])
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member private this.EnsureCapacity(min) = 
@@ -335,16 +341,14 @@ type SortedMap<'K,'V>
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   //[<ReliabilityContractAttribute(Consistency.MayCorruptInstance, Cer.MayFail)>]
-  member inline private this.Insert(index:int, k, v) =
+  member private this.Insert(index:int, k, v) =
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     // key is always new, checks are before this method
     // already inside a lock statement in a caller method if synchronized
    
     if this.size = this.values.Length then this.EnsureCapacity(this.size + 1)
-    #if DEBUG
-    Trace.Assert(index <= this.size, "index must be <= this.size")
-    Trace.Assert(couldHaveRegularKeys || (this.values.Length = this.keys.Length), "keys and values must have equal length for non-regular case")
-    #endif
+    Debug.Assert(index <= this.size, "index must be <= this.size")
+    Debug.Assert(couldHaveRegularKeys || (this.values.Length = this.keys.Length), "keys and values must have equal length for non-regular case")
     // for values it is alway the same operation
     if index < this.size then Array.Copy(this.values, index, this.values, index + 1, this.size - index);
     this.values.[index] <- v
@@ -393,10 +397,11 @@ type SortedMap<'K,'V>
     this.NotifyUpdate(true)
 
   member this.Complete() : Task =
-    let entered = enterWriteLockIf &this.Locker this.isReadOnly
+    let entered = this.EnterWriteLock()
     try
       if not this.isReadOnly then 
           this.isReadOnly <- true
+          this.isSynchronized <- false
           this.NotifyUpdate(false)
       Task.CompletedTask
     finally
@@ -407,7 +412,7 @@ type SortedMap<'K,'V>
   
   override this.IsIndexed with get() = false
 
-  member this.IsSynchronized with get() = not this.isReadOnly
+  member this.IsSynchronized with get() = this.isSynchronized
     
 
   member internal this.MapKey with get() = mapKey and set(key:string) = mapKey <- key
@@ -425,7 +430,7 @@ type SortedMap<'K,'V>
     and internal set v = 
       let mutable entered = false
       try
-        entered <- enterWriteLockIf &this.Locker true
+        entered <- this.EnterWriteLock()
         this.version <- v // NB setter only for deserializer
         this.nextVersion <- v
       finally
@@ -477,7 +482,7 @@ type SortedMap<'K,'V>
     and set(value) =
       let mutable entered = false
       try
-        entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
+        entered <- this.EnterWriteLock()
         this.SetCapacity(value)
       finally
         exitWriteLockIf &this.Locker entered
@@ -485,7 +490,7 @@ type SortedMap<'K,'V>
   override this.Comparer with get() = this.comparer
 
   member this.Clear() =
-    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    let entered = this.EnterWriteLock()
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     try
       if couldHaveRegularKeys then
@@ -517,7 +522,7 @@ type SortedMap<'K,'V>
         member x.CopyTo(array, arrayIndex) =
           let mutable entered = false
           try
-            entered <- enterWriteLockIf &this.Locker this.IsSynchronized
+            entered <- this.EnterWriteLock()
             if couldHaveRegularKeys && this.size > 2 then
               Array.Copy(this.rkMaterialize(), 0, array, arrayIndex, this.size)
             else
@@ -580,7 +585,7 @@ type SortedMap<'K,'V>
         member x.CopyTo(array, arrayIndex) =
           let mutable entered = false
           try
-            entered <- enterWriteLockIf &this.Locker this.IsSynchronized
+            entered <- this.EnterWriteLock()
             Array.Copy(this.values, 0, array, arrayIndex, this.size)
           finally
             exitWriteLockIf &this.Locker entered
@@ -630,7 +635,7 @@ type SortedMap<'K,'V>
   member this.ContainsValue(value) = this.IndexOfValue(value) >= 0
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member inline internal this.IndexOfKeyUnchecked(key:'K) : int =
+  member internal this.IndexOfKeyUnchecked(key:'K) : int =
     if couldHaveRegularKeys && this.size > 1 then this.rkIndexOfKey key
     else this.comparer.BinarySearch(this.keys, 0, this.size, key)
 
@@ -699,157 +704,91 @@ type SortedMap<'K,'V>
     else false
       
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.Set(k, v) : Task<bool> =
-    this.CheckNull(k)
-    if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
-    
-    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
-    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
-    
-    let mutable keepOrderVersion = false
-    let mutable added = false
-        
+  member internal this.SetOrAddUnchecked(k, v, overwrite:bool) : ValueTuple<bool, bool> =
     #if DEBUG
-    let mutable finished = false
-    #endif
     try
-      // first/last optimization (only last here)
+    #endif
+      let mutable keepOrderVersion = false
+      let mutable added = false
+    
       if this.size = 0 then
         this.Insert(0, k, v)
         keepOrderVersion <- true
         added <- true
       else
-        let lc = this.CompareToLast k
-        if lc = 0 then // key = last key
-          this.values.[this.size-1] <- v
-          this.NotifyUpdate(true)
-        elif lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
+        if this.CompareToLast(k) > 0 then // adding last value, Insert won't copy arrays if enough capacity
           this.Insert(this.size, k, v)
           keepOrderVersion <- true
           added <- true
         else
           let index = this.IndexOfKeyUnchecked(k)
-          if index >= 0 then // contains key 
+          if index >= 0 && overwrite then // contains key
             this.values.[index] <- v
-            this.NotifyUpdate(true)
+            this.NotifyUpdate(true) // Insert has it in other branches
           else
             this.Insert(~~~index, k, v)
             added <- true
-      #if DEBUG
-      finished <- true
-      #endif
-      if added then TaskUtil.TrueTask else TaskUtil.FalseTask
-    finally
-      Interlocked.Increment(&this.version) |> ignore
-      if not keepOrderVersion then increment(&this.orderVersion)
-      exitWriteLockIf &this.Locker entered
-      #if DEBUG
-      if not finished then Environment.FailFast("SM.Item set must always succeed")
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
-      #endif
+      struct(added, keepOrderVersion)
+    #if DEBUG
+    with | _ -> ThrowHelper.FailFast("SM.SetOrAddUnchecked should never throw"); Unchecked.defaultof<_>
+    #endif
 
-  // NB this is for ctor pattern with enumerable
+
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+  member internal this.SetOrAdd(key, value, overwrite: bool) : Task<bool> =
+    this.CheckNull(key)
+    if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
+    
+    let entered = this.EnterWriteLock()
+    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+    
+    let struct(added, keepOrderVersion) = this.SetOrAddUnchecked(key, value, overwrite)
+    
+    Interlocked.Increment(&this.version) |> ignore
+    if not keepOrderVersion then increment(&this.orderVersion)
+    exitWriteLockIf &this.Locker entered
+    #if DEBUG
+    if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
+    #endif
+    if added then TaskUtil.TrueTask else TaskUtil.FalseTask
+
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+  member this.Set(key, value) : Task<bool> = this.SetOrAdd(key, value, true)
+
+  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+  member this.TryAdd(key, value) : Task<bool> = this.SetOrAdd(key, value, false)
+
+  // NB this is for ctor pattern with IEnumerable
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.Add(key, value) : unit =
-    this.CheckNull(key)
-    if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
-   
-    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
-    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
-    
-    let mutable keepOrderVersion = false
-    let mutable added = false
-        
-    try
-      if this.size = 0 then
-        this.Insert(0, key, value)
-        keepOrderVersion <- true
-        added <- true
-      else
-        // last optimization gives near 2x performance boost
-        let lc = this.CompareToLast key
-        // NOP if lc = 0 then // key = last key
-        if lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
-          this.Insert(this.size, key, value)
-          keepOrderVersion <- true
-          added <- true
-        elif lc < 0 then
-          let index = this.IndexOfKeyUnchecked(key)
-          if index < 0 then // doesn't contain key
-            this.Insert(~~~index, key, value)
-            added <- true
-      if not added then ThrowHelper.ThrowArgumentException("Key already exists");
-    finally
-      if not keepOrderVersion then increment(&this.orderVersion)
-      if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &this.Locker entered
-      #if DEBUG
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
-      #endif
+    let added = this.TryAdd(key, value).Result
+    if not added then ThrowHelper.ThrowArgumentException("Key already exists");
       
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.TryAdd(key, value) : Task<bool> =
-    this.CheckNull(key)
-    if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
-   
-    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
-    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
-    
-    let mutable keepOrderVersion = false
-    let mutable added = false
-        
-    try
-      if this.size = 0 then
-        this.Insert(0, key, value)
-        keepOrderVersion <- true
-        added <- true
-      else
-        // last optimization gives near 2x performance boost
-        let lc = this.CompareToLast key
-        // NOP if lc = 0 then // key = last key
-        if lc > 0 then // adding last value, Insert won't copy arrays if enough capacity
-          this.Insert(this.size, key, value)
-          keepOrderVersion <- true
-          added <- true
-        elif lc < 0 then
-          let index = this.IndexOfKeyUnchecked(key)
-          if index < 0 then // doesn't contain key
-            this.Insert(~~~index, key, value)
-            added <- true
-      if added then TaskUtil.TrueTask else TaskUtil.FalseTask
-    finally
-      if not keepOrderVersion then increment(&this.orderVersion)
-      if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &this.Locker entered
-      #if DEBUG
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
-      #endif
-
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.TryAddLast(key, value) : Task<bool> =
     this.CheckNull(key)
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
         
-    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    let entered = this.EnterWriteLock()
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     
     let mutable added = false
-    try
-      if this.size = 0 then
-        this.Insert(0, key, value)
+    
+    if this.size = 0 then
+      this.Insert(0, key, value)
+      added <- true
+    else
+      let c = this.CompareToLast key
+      if c > 0 then 
+        this.Insert(this.size, key, value)
         added <- true
-      else
-        let c = this.CompareToLast key
-        if c > 0 then 
-          this.Insert(this.size, key, value)
-          added <- true
-      if added then TaskUtil.TrueTask else TaskUtil.FalseTask
-    finally
-      exitWriteLockIf &this.Locker entered
-      if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
-      #if DEBUG
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
-      #endif
+      
+    exitWriteLockIf &this.Locker entered
+    if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
+    #if DEBUG
+    if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
+    #endif
+    if added then TaskUtil.TrueTask else TaskUtil.FalseTask
 
 //  // TODO lockless AddLast for temporary Append implementation
 //  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
@@ -965,7 +904,7 @@ type SortedMap<'K,'V>
     this.CheckNull(key)
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
       
-    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    let entered = this.EnterWriteLock()
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     
     let mutable added = false
@@ -1037,7 +976,7 @@ type SortedMap<'K,'V>
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     
     let mutable removed = false
-    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    let entered = this.EnterWriteLock()
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     
     try
@@ -1061,7 +1000,7 @@ type SortedMap<'K,'V>
   member this.TryRemoveFirst() : ValueTask<Opt<KVP<'K,'V>>>  =
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     let mutable removed = false
-    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    let entered = this.EnterWriteLock()
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     try
       if this.size > 0 then
@@ -1083,7 +1022,7 @@ type SortedMap<'K,'V>
   member this.TryRemoveLast() : ValueTask<Opt<KVP<'K,'V>>> =
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     let mutable removed = false
-    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    let entered = this.EnterWriteLock()
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     try
       if this.size > 0 then
@@ -1107,7 +1046,7 @@ type SortedMap<'K,'V>
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
 
     let mutable removed = false
-    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    let entered = this.EnterWriteLock()
     try
       if entered then Interlocked.Increment(&this.nextVersion) |> ignore
       if this.size = 0 then ValueTask<_>(Opt<_>.Missing)
@@ -1360,7 +1299,7 @@ type SortedMap<'K,'V>
     ret0
 
   override this.GetCursor() =
-    let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+    let entered = this.EnterWriteLock()
     try
       // if source is already read-only, MNA will always return false
       if this.isReadOnly then new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
@@ -1435,7 +1374,7 @@ type SortedMap<'K,'V>
   interface ICollection  with
     member this.SyncRoot = this.SyncRoot
     member this.CopyTo(array, arrayIndex) =
-      let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+      let entered = this.EnterWriteLock()
       try
         if array = null then raise (ArgumentNullException("array"))
         if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
@@ -1460,7 +1399,7 @@ type SortedMap<'K,'V>
     member this.ContainsKey(key) = this.ContainsKey(key)
     member this.Contains(kvp:KeyValuePair<'K,'V>) = this.ContainsKey(kvp.Key)
     member this.CopyTo(array, arrayIndex) =
-      let entered = enterWriteLockIf &this.Locker (not this.isReadOnly)
+      let entered = this.EnterWriteLock()
       try
         if array = null then raise (ArgumentNullException("array"))
         if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
@@ -1491,6 +1430,20 @@ type SortedMap<'K,'V>
     member this.TryRemoveFirst() = this.TryRemoveFirst()
     member this.TryRemoveLast() = this.TryRemoveLast()
     member this.TryRemoveMany(key:'K, direction:Lookup) = this.TryRemoveMany(key, direction)
+    member this.TryRemoveMany(key, keyChunk, direction) =
+      match direction with
+      | Lookup.EQ -> 
+        this.Set(key, keyChunk) |> ignore
+        ValueTask<Opt<KeyValuePair<'K, 'V>>>(Opt.Present(KVP(key, keyChunk)))
+      | Lookup.LT | Lookup.LE -> 
+        this.TryRemoveMany(key, Lookup.LT).Result |> ignore
+        this.Set(key, keyChunk) |> ignore
+        ValueTask<Opt<KeyValuePair<'K, 'V>>>(Opt.Present(KVP(key, keyChunk)))
+      | Lookup.GT | Lookup.GE -> 
+        this.TryRemoveMany(key, Lookup.GT).Result |> ignore
+        this.Set(key, keyChunk) |> ignore
+        ValueTask<Opt<KeyValuePair<'K, 'V>>>(Opt.Present(KVP(key, keyChunk)))
+      | _ -> Unchecked.defaultof<_>
 
     // TODO move to type memeber, check if ISeries is SM and copy arrays in one go
     // TODO atomic append with single version increase, now it is a sequence of remove/add mutations
@@ -1577,8 +1530,7 @@ type SortedMap<'K,'V>
   static member Empty = empty.Value
 
 
-and
-  public SortedMapCursor<'K,'V> =
+type public SortedMapCursor<'K,'V> =
     struct
       val mutable internal source : SortedMap<'K,'V>
       val mutable internal index : int

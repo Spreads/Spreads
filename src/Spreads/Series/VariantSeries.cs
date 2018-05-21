@@ -376,6 +376,11 @@ namespace Spreads
             }
         }
 
+        public ValueTask<Opt<KeyValuePair<Variant, Variant>>> TryRemoveMany(Variant key, Variant value, Lookup direction)
+        {
+            throw new NotSupportedException();
+        }
+
         public ValueTask<long> TryAppend(ISeries<Variant, Variant> appendMap, AppendOption option = AppendOption.RejectOnOverlap)
         {
             throw new NotImplementedException();

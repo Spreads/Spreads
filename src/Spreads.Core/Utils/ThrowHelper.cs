@@ -139,6 +139,12 @@ namespace Spreads
             throw GetIOException(message);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void FailFast(string message)
+        {
+            Environment.FailFast(message);
+        }
+
         /////////////////////////////////////////////////////////////////////////////
 
         [MethodImpl(MethodImplOptions.NoInlining)]

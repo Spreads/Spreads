@@ -403,6 +403,8 @@ namespace Spreads
         /// </summary>
         ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveMany(TKey key, Lookup direction);
 
+        ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveMany(TKey key, TValue value, Lookup direction);
+
         /// <summary>
         /// And values from appendMap to the end of this map.
         /// </summary>

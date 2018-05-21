@@ -61,7 +61,7 @@ namespace Spreads.Tests.Buffers
             }
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void ThreadStaticBufferVsSharedPool()
         {
 

@@ -1003,6 +1003,9 @@ namespace Spreads
 
         #region Synchronization
 
+        /// <summary>
+        /// An object for external synchronization.
+        /// </summary>
         public object SyncRoot
         {
             get

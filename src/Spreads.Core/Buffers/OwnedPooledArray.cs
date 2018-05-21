@@ -76,7 +76,7 @@ namespace Spreads.Buffers
         [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
         protected override void Dispose(bool disposing)
         {
-            // special value that is not possible normally to keep thread-static buffer undisposable
+            // special value that is not normally possible to keep thread-static buffer undisposable
             if (_referenceCount == int.MinValue) { return; }
 
             if (_referenceCount > 0)

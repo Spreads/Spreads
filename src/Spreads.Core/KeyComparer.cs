@@ -45,7 +45,7 @@ namespace Spreads
     /// Fast IComparer implementation.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public struct KeyComparer<T> : IKeyComparer<T>, IEqualityComparer<T>, IEquatable<KeyComparer<T>>
+    public readonly struct KeyComparer<T> : IKeyComparer<T>, IEqualityComparer<T>, IEquatable<KeyComparer<T>>
     {
         private static readonly bool IsIComparable = typeof(IComparable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
         private readonly IKeyComparer<T> _keyComparer;

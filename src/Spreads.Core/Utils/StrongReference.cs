@@ -17,7 +17,7 @@ namespace Spreads.Utils
         public bool TryGetTarget(out T target)
         {
             // Call the worker method that has more performant but less user friendly signature.
-            T o = this.Target;
+            T o = Target;
             target = o;
             return o != null;
         }
@@ -25,7 +25,7 @@ namespace Spreads.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetTarget(T target)
         {
-            this.Target = target;
+            Target = target;
         }
 
         // This is property for better debugging experience (VS debugger shows values of properties when you hover over the variables)
